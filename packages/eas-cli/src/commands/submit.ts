@@ -3,8 +3,8 @@ import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand, {
+  EASCommandDynamicProjectConfigContext,
   EASCommandLoggedInContext,
-  EASCommandProjectIdContext,
 } from '../commandUtils/EasCommand';
 import { StatuspageServiceName, SubmissionFragment } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
@@ -95,12 +95,14 @@ export default class Submit extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
-    ...EASCommandProjectIdContext,
+    ...EASCommandDynamicProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Submit);
-    const { actor, projectId } = await this.getContextAsync(Submit, { nonInteractive: false });
+    const { actor, getDynamicProjectConfigAsync } = await this.getContextAsync(Submit, {
+      nonInteractive: false,
+    });
 
     const flags = this.sanitizeFlags(rawFlags);
 
@@ -123,11 +125,11 @@ export default class Submit extends EasCommand {
       const ctx = await createSubmissionContextAsync({
         platform: submissionProfile.platform,
         projectDir,
-        projectId,
         profile: submissionProfile.profile,
         archiveFlags: flagsWithPlatform.archiveFlags,
         nonInteractive: flagsWithPlatform.nonInteractive,
         actor,
+        getDynamicProjectConfigAsync,
       });
 
       if (submissionProfiles.length > 1) {

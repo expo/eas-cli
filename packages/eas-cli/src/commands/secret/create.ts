@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSecretMutation';
 import {
@@ -16,12 +16,9 @@ import {
   SecretTypeToEnvironmentSecretType,
 } from '../../graphql/types/EnvironmentSecret';
 import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
 import {
-  findProjectRootAsync,
   getDisplayNameForProjectIdAsync,
   getOwnerAccountForProjectIdAsync,
-  getProjectIdAsync,
 } from '../../project/projectUtils';
 import { promptAsync, selectAsync } from '../../prompts';
 
@@ -52,6 +49,10 @@ export default class EnvironmentSecretCreate extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectConfigContext,
+  };
+
   async runAsync(): Promise<void> {
     let {
       flags: {
@@ -63,10 +64,12 @@ export default class EnvironmentSecretCreate extends EasCommand {
         'non-interactive': nonInteractive,
       },
     } = await this.parse(EnvironmentSecretCreate);
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(EnvironmentSecretCreate, {
+      nonInteractive,
+    });
 
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
     const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
     const ownerAccount = await getOwnerAccountForProjectIdAsync(projectId);
 

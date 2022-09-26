@@ -5,14 +5,12 @@ import assert from 'assert';
 import chalk from 'chalk';
 
 import { getEASUpdateURL } from '../../api';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { AppPlatform } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform, appPlatformDisplayNames } from '../../platform';
-import { getExpoConfig } from '../../project/expoConfig';
 import {
   findProjectRootAsync,
-  getProjectIdAsync,
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledOrAvailable,
 } from '../../project/projectUtils';
@@ -35,14 +33,22 @@ export default class UpdateConfigure extends EasCommand {
     }),
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectConfigContext,
+  };
+
   async runAsync(): Promise<void> {
     Log.log(
       '💡 The following process will configure your project to run EAS Update. These changes only apply to your local project files and you can safely revert them at any time.'
     );
     const { flags } = await this.parse(UpdateConfigure);
+    const {
+      projectConfig: { projectId, exp },
+    } = await this.getContextAsync(UpdateConfigure, {
+      nonInteractive: true,
+    });
     const platform = flags.platform as RequestedPlatform;
     const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
 
     if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
       await installExpoUpdatesAsync(projectDir);
@@ -61,6 +67,7 @@ export default class UpdateConfigure extends EasCommand {
         android: androidWorkflow,
         ios: iosWorkflow,
       },
+      projectId,
     });
     Log.withTick(`Configured ${chalk.bold('app.json')} for EAS Update`);
 
@@ -90,6 +97,7 @@ async function configureAppJSONForEASUpdateAsync({
   exp,
   platform,
   workflows,
+  projectId,
 }: {
   projectDir: string;
   exp: ExpoConfig;
@@ -97,9 +105,9 @@ async function configureAppJSONForEASUpdateAsync({
   workflows: {
     [key in RequestedPlatform.Android | RequestedPlatform.Ios]: Workflow;
   };
+  projectId: string;
 }): Promise<ExpoConfig> {
   // this command is non-interactive in the way it was designed
-  const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
   const easUpdateURL = getEASUpdateURL(projectId);
   const updates = { ...exp.updates, url: easUpdateURL };
 

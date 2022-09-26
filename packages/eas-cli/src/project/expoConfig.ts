@@ -1,12 +1,13 @@
 import { ExpoConfig, getConfig } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
 
-interface Options {
+export interface ExpoConfigOptions {
   env?: Env;
   isPublicConfig?: boolean;
+  skipSDKVersionRequirement?: boolean;
 }
 
-export function getExpoConfig(projectDir: string, opts: Options = {}): ExpoConfig {
+export function getExpoConfig(projectDir: string, opts: ExpoConfigOptions = {}): ExpoConfig {
   const originalProcessEnv: NodeJS.ProcessEnv = process.env;
   try {
     process.env = {

@@ -5,8 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { TrackingContext } from '../analytics/common';
 import { Analytics, SubmissionEvent } from '../analytics/events';
+import { DynamicConfigContextFn } from '../commandUtils/EasCommand';
 import { CredentialsContext } from '../credentials/context';
-import { getExpoConfig } from '../project/expoConfig';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { Actor } from '../user/User';
 
@@ -41,15 +41,15 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   platform: T;
   profile: SubmitProfile<T>;
   projectDir: string;
-  projectId: string;
   applicationIdentifier?: string;
   actor: Actor;
+  getDynamicProjectConfigAsync: DynamicConfigContextFn;
 }): Promise<SubmissionContext<T>> {
   const { applicationIdentifier, projectDir, nonInteractive, actor } = params;
-  const exp = getExpoConfig(projectDir, { env: params.env });
+  const { exp, projectId } = await params.getDynamicProjectConfigAsync({ env: params.env });
   const { env, ...rest } = params;
   const projectName = exp.slug;
-  const account = await getOwnerAccountForProjectIdAsync(params.projectId);
+  const account = await getOwnerAccountForProjectIdAsync(projectId);
   const accountId = account.id;
   let credentialsCtx: CredentialsContext | undefined = params.credentialsCtx;
   if (!credentialsCtx) {
@@ -60,7 +60,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     tracking_id: uuidv4(),
     platform: params.platform,
     ...(accountId && { account_id: accountId }),
-    project_id: params.projectId,
+    project_id: projectId,
   };
 
   Analytics.logEvent(SubmissionEvent.SUBMIT_COMMAND, trackingCtx);
@@ -73,6 +73,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     projectName,
     user: actor,
     trackingCtx,
+    projectId,
     applicationIdentifierOverride: applicationIdentifier,
   };
 }

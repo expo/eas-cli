@@ -1,17 +1,12 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { WebhookType } from '../../graphql/generated';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
-import { getExpoConfig } from '../../project/expoConfig';
-import {
-  findProjectRootAsync,
-  getDisplayNameForProjectIdAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { formatWebhook } from '../../webhooks/formatWebhook';
 
 export default class WebhookList extends EasCommand {
@@ -24,16 +19,20 @@ export default class WebhookList extends EasCommand {
     }),
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectConfigContext,
+  };
+
   async runAsync(): Promise<void> {
     const {
       flags: { event },
     } = await this.parse(WebhookList);
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(WebhookList, {
+      nonInteractive: true,
+    });
 
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-
-    // this command is non-interactive by design
-    const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
     const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
 
     const spinner = ora(`Fetching the list of webhook on project ${projectDisplayName}`).start();

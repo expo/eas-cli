@@ -1,5 +1,5 @@
 import { listAndRenderBranchesOnAppAsync } from '../../branch/queries';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { EasPaginatedQueryFlags, getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { enableJsonOutput } from '../../utils/json';
@@ -13,12 +13,14 @@ export default class BranchList extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BranchList);
-    const { projectId } = await this.getContextAsync(BranchList, {
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(BranchList, {
       nonInteractive: flags['non-interactive'],
     });
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);

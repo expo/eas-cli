@@ -1,15 +1,13 @@
 import { Flags } from '@oclif/core';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
   getLimitFlagWithCustomValues,
   getPaginatedQueryOptions,
 } from '../../commandUtils/pagination';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import {
   listAndRenderUpdateGroupsOnAppAsync,
   listAndRenderUpdateGroupsOnBranchAsync,
@@ -34,18 +32,23 @@ export default class UpdateList extends EasCommand {
     ...EasNonInteractiveAndJsonFlags,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectConfigContext,
+  };
+
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(UpdateList);
     const { branch: branchFlag, all, json: jsonFlag, 'non-interactive': nonInteractive } = flags;
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(UpdateList, {
+      nonInteractive,
+    });
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
 
     if (jsonFlag) {
       enableJsonOutput();
     }
-
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     if (all) {
       listAndRenderUpdateGroupsOnAppAsync({ projectId, paginatedQueryOptions });

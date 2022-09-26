@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
-import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -77,7 +77,7 @@ export default class BranchDelete extends EasCommand {
   static override description = 'delete a branch';
 
   static override contextDefinition = {
-    ...EASCommandProjectIdContext,
+    ...EASCommandProjectConfigContext,
   };
 
   static override args = [
@@ -104,7 +104,9 @@ export default class BranchDelete extends EasCommand {
       enableJsonOutput();
     }
 
-    const { projectId } = await this.getContextAsync(BranchDelete, { nonInteractive });
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(BranchDelete, { nonInteractive });
     const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
 
     if (!branchName) {

@@ -1,7 +1,7 @@
 import gql from 'graphql-tag';
 
 import { selectChannelOnAppAsync } from '../../channel/queries';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
@@ -11,8 +11,6 @@ import {
 } from '../../graphql/generated';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { toggleConfirmAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -31,18 +29,23 @@ export default class ChannelDelete extends EasCommand {
     ...EasNonInteractiveAndJsonFlags,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectConfigContext,
+  };
+
   async runAsync(): Promise<void> {
     const {
       args: { name: nameArg },
       flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(ChannelDelete);
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(ChannelDelete, {
+      nonInteractive,
+    });
     if (jsonFlag) {
       enableJsonOutput();
     }
-
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     let channelId, channelName;
     if (nameArg) {

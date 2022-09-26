@@ -4,7 +4,7 @@ import gql from 'graphql-tag';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import { selectChannelOnAppAsync } from '../../channel/queries';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
@@ -14,8 +14,6 @@ import {
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export async function updateChannelBranchMappingAsync({
@@ -67,18 +65,23 @@ export default class ChannelEdit extends EasCommand {
     ...EasNonInteractiveAndJsonFlags,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectConfigContext,
+  };
+
   async runAsync(): Promise<void> {
     const {
       args,
       flags: { branch: branchFlag, json, 'non-interactive': nonInteractive },
     } = await this.parse(ChannelEdit);
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(ChannelEdit, {
+      nonInteractive,
+    });
     if (json) {
       enableJsonOutput();
     }
-
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
 
     const existingChannel = args.name
       ? await ChannelQuery.viewUpdateChannelAsync({ appId: projectId, channelName: args.name })

@@ -2,18 +2,13 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import { BranchMapping, getBranchMapping } from '../../channel/utils';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { UpdateBranch } from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { ChannelQuery, UpdateChannelByNameObject } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import {
-  findProjectRootAsync,
-  getDisplayNameForProjectIdAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync, selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { updateChannelBranchMappingAsync } from './edit';
@@ -316,6 +311,10 @@ export default class ChannelRollout extends EasCommand {
     ...EasNonInteractiveAndJsonFlags,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectConfigContext,
+  };
+
   async runAsync(): Promise<void> {
     const {
       args: { channel: channelName },
@@ -327,13 +326,15 @@ export default class ChannelRollout extends EasCommand {
         'non-interactive': nonInteractive,
       },
     } = await this.parse(ChannelRollout);
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(ChannelRollout, {
+      nonInteractive,
+    });
     if (jsonFlag) {
       enableJsonOutput();
     }
 
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
     const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
 
     const channel = await ChannelQuery.viewUpdateChannelAsync({

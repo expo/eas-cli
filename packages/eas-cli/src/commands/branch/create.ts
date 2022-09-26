@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { getDefaultBranchNameAsync } from '../../branch/utils';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import {
@@ -11,12 +11,7 @@ import {
   UpdateBranch,
 } from '../../graphql/generated';
 import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import {
-  findProjectRootAsync,
-  getDisplayNameForProjectIdAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -66,18 +61,25 @@ export default class BranchCreate extends EasCommand {
     ...EasNonInteractiveAndJsonFlags,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectConfigContext,
+  };
+
   async runAsync(): Promise<void> {
     let {
       args: { name },
       flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(BranchCreate);
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(BranchCreate, {
+      nonInteractive,
+    });
+
     if (jsonFlag) {
       enableJsonOutput();
     }
 
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
     const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
 
     if (!name) {

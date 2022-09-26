@@ -33,10 +33,6 @@ const testProject = createTestProject(testProjectId, mockJester.accounts[0].name
     package: 'com.expo.test.project',
   },
 });
-const mockManifest = { exp: testProject.appJSON.expo };
-jest.mock('@expo/config', () => ({
-  getConfig: jest.fn(() => mockManifest),
-}));
 
 const projectId = uuidv4();
 const mockDetectableServiceAccountJson = JSON.stringify({
@@ -143,7 +139,6 @@ describe(getServiceAccountKeyResultAsync, () => {
     const ctx = await createSubmissionContextAsync({
       platform: Platform.ANDROID,
       projectDir: testProject.projectRoot,
-      projectId,
       archiveFlags: {
         url: 'http://expo.dev/fake.apk',
       },
@@ -154,6 +149,7 @@ describe(getServiceAccountKeyResultAsync, () => {
       },
       nonInteractive: true,
       actor: mockJester,
+      getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
     });
     const source: ServiceAccountSource = {
       sourceType: ServiceAccountSourceType.path,
@@ -179,7 +175,6 @@ describe(getServiceAccountKeyResultAsync, () => {
     const ctx = await createSubmissionContextAsync({
       platform: Platform.ANDROID,
       projectDir: testProject.projectRoot,
-      projectId,
       archiveFlags: {
         url: 'http://expo.dev/fake.apk',
       },
@@ -190,6 +185,7 @@ describe(getServiceAccountKeyResultAsync, () => {
       },
       nonInteractive: true,
       actor: mockJester,
+      getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
     });
     const source: ServiceAccountSource = {
       sourceType: ServiceAccountSourceType.prompt,
@@ -211,7 +207,6 @@ describe(getServiceAccountKeyResultAsync, () => {
     const ctx = await createSubmissionContextAsync({
       platform: Platform.ANDROID,
       projectDir: testProject.projectRoot,
-      projectId,
       archiveFlags: {
         url: 'http://expo.dev/fake.apk',
       },
@@ -222,6 +217,7 @@ describe(getServiceAccountKeyResultAsync, () => {
       },
       nonInteractive: true,
       actor: mockJester,
+      getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
     });
     const serviceAccountResult = await getServiceAccountKeyResultAsync(ctx, {
       sourceType: ServiceAccountSourceType.credentialsService,

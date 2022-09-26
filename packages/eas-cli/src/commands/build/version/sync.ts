@@ -7,8 +7,8 @@ import chalk from 'chalk';
 import { updateNativeVersionsAsync as updateAndroidNativeVersionsAsync } from '../../../build/android/version';
 import { updateNativeVersionsAsync as updateIosNativeVersionsAsync } from '../../../build/ios/version';
 import EasCommand, {
+  EASCommandDynamicProjectConfigContext,
   EASCommandLoggedInContext,
-  EASCommandProjectIdContext,
 } from '../../../commandUtils/EasCommand';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
@@ -21,7 +21,6 @@ import {
 import { getAppBuildGradleAsync } from '../../../project/android/gradleUtils';
 import { VERSION_CODE_REQUIREMENTS, isValidVersionCode } from '../../../project/android/versions';
 import { getApplicationIdentifierAsync } from '../../../project/applicationIdentifier';
-import { getExpoConfig } from '../../../project/expoConfig';
 import { resolveXcodeBuildContextAsync } from '../../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../../project/ios/target';
 import { BUILD_NUMBER_REQUIREMENTS, isValidBuildNumber } from '../../../project/ios/versions';
@@ -61,14 +60,17 @@ export default class BuildVersionSyncView extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
-    ...EASCommandProjectIdContext,
+    ...EASCommandDynamicProjectConfigContext,
   };
 
   public async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildVersionSyncView);
-    const { actor, projectId } = await this.getContextAsync(BuildVersionSyncView, {
-      nonInteractive: true,
-    });
+    const { actor, getDynamicProjectConfigAsync } = await this.getContextAsync(
+      BuildVersionSyncView,
+      {
+        nonInteractive: true,
+      }
+    );
     const projectDir = await findProjectRootAsync();
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
@@ -83,7 +85,9 @@ export default class BuildVersionSyncView extends EasCommand {
       profileName: flags.profile ?? undefined,
     });
     for (const profileInfo of buildProfiles) {
-      const exp = getExpoConfig(projectDir, { env: profileInfo.profile.env });
+      const { exp, projectId } = await getDynamicProjectConfigAsync({
+        env: profileInfo.profile.env,
+      });
 
       validateAppConfigForRemoteVersionSource(exp, profileInfo.platform);
       const platformDisplayName = appPlatformDisplayNames[toAppPlatform(profileInfo.platform)];

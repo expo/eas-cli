@@ -2,15 +2,13 @@ import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { WebhookFragment } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
-import { getExpoConfig } from '../../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 import { formatWebhook } from '../../webhooks/formatWebhook';
 
@@ -29,15 +27,20 @@ export default class WebhookDelete extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectConfigContext,
+  };
+
   async runAsync(): Promise<void> {
     let {
       args: { ID: webhookId },
       flags: { 'non-interactive': nonInteractive },
     } = await this.parse(WebhookDelete);
-
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(WebhookDelete, {
+      nonInteractive,
+    });
 
     let webhook: WebhookFragment | undefined =
       webhookId && (await WebhookQuery.byIdAsync(webhookId));

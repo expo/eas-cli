@@ -4,11 +4,13 @@ import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand, { CommandConfiguration } from '../commandUtils/EasCommand';
+import EasCommand, {
+  CommandConfiguration,
+  EASCommandDynamicProjectConfigContext,
+} from '../commandUtils/EasCommand';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { appPlatformEmojis } from '../platform';
-import { getExpoConfig } from '../project/expoConfig';
 import { findProjectRootAsync } from '../project/projectUtils';
 import { selectAsync } from '../prompts';
 
@@ -16,7 +18,7 @@ export default class Config extends EasCommand {
   static override description = 'display project configuration (app.json + eas.json)';
 
   static override flags = {
-    platform: Flags.enum({ char: 'p', options: ['android', 'ios'] }),
+    platform: Flags.enum<Platform>({ char: 'p', options: [Platform.ANDROID, Platform.IOS] }),
     profile: Flags.string({
       char: 'e',
       description:
@@ -25,16 +27,20 @@ export default class Config extends EasCommand {
     }),
   };
 
+  static override contextDefinition = {
+    ...EASCommandDynamicProjectConfigContext,
+  };
+
   protected override commandConfiguration: CommandConfiguration = {
     allowUnauthenticated: true,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(Config);
-    const { platform: maybePlatform, profile: maybeProfile } = flags as {
-      platform?: Platform;
-      profile?: string;
-    };
+    const { platform: maybePlatform, profile: maybeProfile } = flags;
+    const { getDynamicProjectConfigAsync } = await this.getContextAsync(Config, {
+      nonInteractive: false,
+    });
 
     const projectDir = await findProjectRootAsync();
 
@@ -64,7 +70,10 @@ export default class Config extends EasCommand {
       ]));
 
     const profile = await EasJsonUtils.getBuildProfileAsync(accessor, platform, profileName);
-    const config = getExpoConfig(projectDir, { env: profile.env, isPublicConfig: true });
+    const { exp: config } = await getDynamicProjectConfigAsync({
+      env: profile.env,
+      isPublicConfig: true,
+    });
 
     Log.addNewLineIfNone();
     Log.log(chalk.bold(getProjectConfigDescription(projectDir)));

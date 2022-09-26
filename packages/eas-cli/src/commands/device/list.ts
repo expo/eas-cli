@@ -2,18 +2,13 @@ import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { AppleDeviceQuery } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
 import { AppleTeamQuery } from '../../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import formatDevice from '../../devices/utils/formatDevice';
 import Log from '../../log';
 import { Ora, ora } from '../../ora';
-import { getExpoConfig } from '../../project/expoConfig';
-import {
-  findProjectRootAsync,
-  getOwnerAccountForProjectIdAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 
 export default class BuildList extends EasCommand {
@@ -23,14 +18,18 @@ export default class BuildList extends EasCommand {
     'apple-team-id': Flags.string(),
   };
 
+  static override contextDefinition = {
+    ...EASCommandProjectConfigContext,
+  };
+
   async runAsync(): Promise<void> {
     let appleTeamIdentifier = (await this.parse(BuildList)).flags['apple-team-id'];
+    const {
+      projectConfig: { projectId },
+    } = await this.getContextAsync(BuildList, {
+      nonInteractive: false,
+    });
 
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-
-    // this command is interactive by design
-    const projectId = await getProjectIdAsync(exp, { nonInteractive: false });
     const account = await getOwnerAccountForProjectIdAsync(projectId);
 
     let spinner: Ora;
