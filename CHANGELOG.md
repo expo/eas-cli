@@ -28,6 +28,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Remove 'owner' app config field dependency. ([#1368](https://github.com/expo/eas-cli/pull/1368), [#1369](https://github.com/expo/eas-cli/pull/1369), [#1371](https://github.com/expo/eas-cli/pull/1371), [#1372](https://github.com/expo/eas-cli/pull/1372), [#1373](https://github.com/expo/eas-cli/pull/1373), by [@wschurman](https://github.com/wschurman))
 - Add Xcode 14 image. ([#1365](https://github.com/expo/eas-cli/pull/1365) by [@szdziedzic](https://github.com/szdziedzic))
 - Update max `versionCode` for Android. ([#1400](https://github.com/expo/eas-cli/pull/1400) by [@wkozyra95](https://github.com/wkozyra95))
+- Add and use command context to declare command dependencies.  ([#1383](https://github.com/expo/eas-cli/pull/1383), [#1384](https://github.com/expo/eas-cli/pull/1384), [#1387](https://github.com/expo/eas-cli/pull/1387), by [@wschurman](https://github.com/wschurman))
 
 ## [2.1.0](https://github.com/expo/eas-cli/releases/tag/v2.1.0) - 2022-09-05
 
