@@ -50,6 +50,7 @@ async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platfor
       language: 'en-US',
     },
     nonInteractive: true,
+    actor: mockJester,
   });
 }
 

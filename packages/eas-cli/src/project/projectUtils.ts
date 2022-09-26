@@ -146,18 +146,17 @@ export async function getProjectIdAsync(
     }
   };
 
+  const actor = await ensureLoggedInAsync({ nonInteractive: options.nonInteractive });
   const projectId = await fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync(
     {
-      accountName: getAccountNameForEASProjectSync(
-        exp,
-        await ensureLoggedInAsync({ nonInteractive: options.nonInteractive })
-      ),
+      accountName: getAccountNameForEASProjectSync(exp, actor),
       projectName: exp.slug,
       privacy: toAppPrivacy(exp.privacy),
     },
     {
       nonInteractive: options.nonInteractive,
-    }
+    },
+    actor
   );
 
   const spinner = ora(`Linking local project to EAS project ${projectId}`).start();

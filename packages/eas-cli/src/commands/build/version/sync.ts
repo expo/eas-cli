@@ -6,7 +6,10 @@ import chalk from 'chalk';
 
 import { updateNativeVersionsAsync as updateAndroidNativeVersionsAsync } from '../../../build/android/version';
 import { updateNativeVersionsAsync as updateIosNativeVersionsAsync } from '../../../build/ios/version';
-import EasCommand from '../../../commandUtils/EasCommand';
+import EasCommand, {
+  EASCommandLoggedInContext,
+  EASCommandProjectIdContext,
+} from '../../../commandUtils/EasCommand';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
 import Log from '../../../log';
@@ -22,7 +25,7 @@ import { getExpoConfig } from '../../../project/expoConfig';
 import { resolveXcodeBuildContextAsync } from '../../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../../project/ios/target';
 import { BUILD_NUMBER_REQUIREMENTS, isValidBuildNumber } from '../../../project/ios/versions';
-import { findProjectRootAsync, getProjectIdAsync } from '../../../project/projectUtils';
+import { findProjectRootAsync } from '../../../project/projectUtils';
 import {
   ensureVersionSourceIsRemoteAsync,
   getBuildVersionName,
@@ -56,8 +59,16 @@ export default class BuildVersionSyncView extends EasCommand {
     }),
   };
 
+  static override contextDefinition = {
+    ...EASCommandLoggedInContext,
+    ...EASCommandProjectIdContext,
+  };
+
   public async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildVersionSyncView);
+    const { actor, projectId } = await this.getContextAsync(BuildVersionSyncView, {
+      nonInteractive: true,
+    });
     const projectDir = await findProjectRootAsync();
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
@@ -74,9 +85,6 @@ export default class BuildVersionSyncView extends EasCommand {
     for (const profileInfo of buildProfiles) {
       const exp = getExpoConfig(projectDir, { env: profileInfo.profile.env });
 
-      // this command is always non-interactive
-      const projectId = await getProjectIdAsync(exp, { nonInteractive: true });
-
       validateAppConfigForRemoteVersionSource(exp, profileInfo.platform);
       const platformDisplayName = appPlatformDisplayNames[toAppPlatform(profileInfo.platform)];
 
@@ -84,7 +92,8 @@ export default class BuildVersionSyncView extends EasCommand {
         projectDir,
         exp,
         profileInfo.profile,
-        profileInfo.platform
+        profileInfo.platform,
+        actor
       );
       const remoteVersions = await AppVersionQuery.latestVersionAsync(
         projectId,

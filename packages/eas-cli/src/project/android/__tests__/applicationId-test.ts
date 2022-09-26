@@ -110,7 +110,7 @@ describe(ensureApplicationIdIsDefinedForManagedProjectAsync, () => {
         '/app'
       );
       await expect(
-        ensureApplicationIdIsDefinedForManagedProjectAsync('/app', {} as any)
+        ensureApplicationIdIsDefinedForManagedProjectAsync('/app', {} as any, mockJester)
       ).rejects.toThrowError(/we can't update this file programmatically/);
     });
     it('prompts for the Android package if using app.json', async () => {
@@ -126,7 +126,7 @@ describe(ensureApplicationIdIsDefinedForManagedProjectAsync, () => {
       }));
 
       await expect(
-        ensureApplicationIdIsDefinedForManagedProjectAsync('/app', {} as any)
+        ensureApplicationIdIsDefinedForManagedProjectAsync('/app', {} as any, mockJester)
       ).resolves.toBe('com.expo.notdominik');
       expect(promptAsync).toHaveBeenCalled();
     });
@@ -143,7 +143,7 @@ describe(ensureApplicationIdIsDefinedForManagedProjectAsync, () => {
       }));
 
       await expect(
-        ensureApplicationIdIsDefinedForManagedProjectAsync('/app', {} as any)
+        ensureApplicationIdIsDefinedForManagedProjectAsync('/app', {} as any, mockJester)
       ).resolves.toBe('com.expo.notdominik');
       const appJson = JSON.parse(await fs.readFile('/app/app.json', 'utf-8'));
       expect(appJson).toMatchObject({

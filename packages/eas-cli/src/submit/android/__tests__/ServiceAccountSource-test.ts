@@ -153,6 +153,7 @@ describe(getServiceAccountKeyResultAsync, () => {
         changesNotSentForReview: false,
       },
       nonInteractive: true,
+      actor: mockJester,
     });
     const source: ServiceAccountSource = {
       sourceType: ServiceAccountSourceType.path,
@@ -188,6 +189,7 @@ describe(getServiceAccountKeyResultAsync, () => {
         changesNotSentForReview: false,
       },
       nonInteractive: true,
+      actor: mockJester,
     });
     const source: ServiceAccountSource = {
       sourceType: ServiceAccountSourceType.prompt,
@@ -219,6 +221,7 @@ describe(getServiceAccountKeyResultAsync, () => {
         changesNotSentForReview: false,
       },
       nonInteractive: true,
+      actor: mockJester,
     });
     const serviceAccountResult = await getServiceAccountKeyResultAsync(ctx, {
       sourceType: ServiceAccountSourceType.credentialsService,

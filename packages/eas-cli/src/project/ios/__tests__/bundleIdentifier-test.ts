@@ -93,7 +93,7 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
         '/app'
       );
       await expect(
-        ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any)
+        ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any, mockJester)
       ).rejects.toThrowError(/we can't update this file programmatically/);
     });
     it('prompts for the bundle identifier if using app.json', async () => {
@@ -109,7 +109,7 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
       }));
 
       await expect(
-        ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any)
+        ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any, mockJester)
       ).resolves.toBe('com.expo.notdominik');
       expect(promptAsync).toHaveBeenCalled();
     });
@@ -126,7 +126,7 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
       }));
 
       await expect(
-        ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any)
+        ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any, mockJester)
       ).resolves.toBe('com.expo.notdominik');
       const appJson = JSON.parse(await fs.readFile('/app/app.json', 'utf-8'));
       expect(appJson).toMatchObject({

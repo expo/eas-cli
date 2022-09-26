@@ -73,6 +73,7 @@ describe(IosSubmitCommand, () => {
           language: 'en-US',
         },
         nonInteractive: true,
+        actor: mockJester,
       });
       const command = new IosSubmitCommand(ctx);
       await expect(command.runAsync()).rejects.toThrowError();
@@ -98,6 +99,7 @@ describe(IosSubmitCommand, () => {
           ascAppId: '12345678',
         },
         nonInteractive: false,
+        actor: mockJester,
       });
       const command = new IosSubmitCommand(ctx);
       await command.runAsync();

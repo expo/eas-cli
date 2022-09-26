@@ -2,7 +2,10 @@ import { EasJsonAccessor } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand from '../commandUtils/EasCommand';
+import EasCommand, {
+  EASCommandLoggedInContext,
+  EASCommandProjectIdContext,
+} from '../commandUtils/EasCommand';
 import { StatuspageServiceName, SubmissionFragment } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
@@ -13,8 +16,7 @@ import {
   selectRequestedPlatformAsync,
   toPlatforms,
 } from '../platform';
-import { getExpoConfig } from '../project/expoConfig';
-import { findProjectRootAsync, getProjectIdAsync } from '../project/projectUtils';
+import { findProjectRootAsync } from '../project/projectUtils';
 import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
 import {
   exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
@@ -91,14 +93,18 @@ export default class Submit extends EasCommand {
     }),
   };
 
+  static override contextDefinition = {
+    ...EASCommandLoggedInContext,
+    ...EASCommandProjectIdContext,
+  };
+
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Submit);
+    const { actor, projectId } = await this.getContextAsync(Submit, { nonInteractive: false });
 
     const flags = this.sanitizeFlags(rawFlags);
 
     const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive: flags.nonInteractive });
 
     await maybeWarnAboutEasOutagesAsync([StatuspageServiceName.EasSubmit]);
 
@@ -121,6 +127,7 @@ export default class Submit extends EasCommand {
         profile: submissionProfile.profile,
         archiveFlags: flagsWithPlatform.archiveFlags,
         nonInteractive: flagsWithPlatform.nonInteractive,
+        actor,
       });
 
       if (submissionProfiles.length > 1) {

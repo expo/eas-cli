@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import EasCommand from '../commandUtils/EasCommand';
+import EasCommand, { EASCommandLoggedInContext } from '../commandUtils/EasCommand';
 import { SelectPlatform } from '../credentials/manager/SelectPlatform';
 
 export default class Credentials extends EasCommand {
@@ -10,8 +10,14 @@ export default class Credentials extends EasCommand {
     platform: Flags.enum({ char: 'p', options: ['android', 'ios'] }),
   };
 
+  static override contextDefinition = {
+    ...EASCommandLoggedInContext,
+  };
+
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(Credentials);
-    await new SelectPlatform(flags.platform).runAsync();
+    const { actor } = await this.getContextAsync(Credentials, { nonInteractive: false });
+
+    await new SelectPlatform(actor, flags.platform).runAsync();
   }
 }

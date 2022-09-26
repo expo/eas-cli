@@ -57,7 +57,7 @@ This means that it will most likely produce an AAB and you will not be able to i
   const gradleContext = await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
 
   if (ctx.workflow === Workflow.MANAGED) {
-    await ensureApplicationIdIsDefinedForManagedProjectAsync(ctx.projectDir, ctx.exp);
+    await ensureApplicationIdIsDefinedForManagedProjectAsync(ctx.projectDir, ctx.exp, ctx.user);
   }
 
   const applicationId = await getApplicationIdAsync(ctx.projectDir, ctx.exp, gradleContext);
