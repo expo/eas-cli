@@ -41,6 +41,7 @@ import {
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
+import { validateBuildProfileConfigMatchesProjectConfigAsync } from '../update/utils';
 import { printJsonOnlyOutput } from '../utils/json';
 import { ProfileData, getProfilesAsync } from '../utils/profiles';
 import { getVcsClient } from '../vcs';
@@ -258,6 +259,14 @@ async function prepareAndStartBuildAsync({
       )}`
     );
   }
+
+  await validateBuildProfileConfigMatchesProjectConfigAsync(
+    buildCtx.exp,
+    buildProfile,
+    buildCtx.projectId,
+    flags.nonInteractive
+  );
+
   await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);

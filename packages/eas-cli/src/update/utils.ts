@@ -3,11 +3,14 @@ import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
 
+import { getEASUpdateURL } from '../api';
 import { Maybe, Robot, Update, UpdateFragment, User } from '../graphql/generated';
-import { learnMore } from '../log';
+import Log, { learnMore } from '../log';
 import { RequestedPlatform } from '../platform';
+import { confirmAsync } from '../prompts';
 import { getActorDisplayName } from '../user/User';
 import groupBy from '../utils/expodash/groupBy';
+import { ProfileData } from '../utils/profiles';
 
 export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
   actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
@@ -157,4 +160,42 @@ export function getUpdateGroupDescriptionsWithBranch(
     group: updateGroup[0].group,
     platforms: formatPlatformForUpdateGroup(updateGroup),
   }));
+}
+
+export async function checkEASUpdateURLIsSetAsync(
+  exp: ExpoConfig,
+  projectId: string
+): Promise<boolean> {
+  const configuredURL = exp.updates?.url;
+  const expectedURL = getEASUpdateURL(projectId);
+
+  return configuredURL === expectedURL;
+}
+
+export async function validateBuildProfileConfigMatchesProjectConfigAsync(
+  exp: ExpoConfig,
+  buildProfile: ProfileData<'build'>,
+  projectId: string,
+  nonInteractive: boolean
+): Promise<void> {
+  if ((await checkEASUpdateURLIsSetAsync(exp, projectId)) && buildProfile.profile.releaseChannel) {
+    const warning = `» Your project is configured for EAS Update, but build profile "${
+      buildProfile.profileName
+    }" in ${chalk.bold('eas.json')} specifies the \`releaseChannel\` property.
+  For EAS Update, you need to specify the \`channel\` property, or your build will not be able to receive any updates
+
+  ${learnMore('https://docs.expo.dev/eas-update/getting-started/#configure-your-project')}`;
+
+    Log.warn(warning);
+    if (!nonInteractive) {
+      const answer = await confirmAsync({
+        message: `Would you like to proceed?`,
+      });
+
+      if (!answer) {
+        Log.log('Aborting...');
+        process.exit(1);
+      }
+    }
+  }
 }
