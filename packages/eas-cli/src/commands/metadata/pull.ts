@@ -6,7 +6,6 @@ import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand, {
   EASCommandLoggedInContext,
   EASCommandProjectConfigContext,
-  EASCommandProjectDirContext,
 } from '../../commandUtils/EasCommand';
 import { CredentialsContext } from '../../credentials/context';
 import Log, { learnMore } from '../../log';
@@ -28,7 +27,6 @@ export default class MetadataPull extends EasCommand {
   static override contextDefinition = {
     ...EASCommandProjectConfigContext,
     ...EASCommandLoggedInContext,
-    ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
@@ -37,8 +35,7 @@ export default class MetadataPull extends EasCommand {
     const { flags } = await this.parse(MetadataPull);
     const {
       actor,
-      projectConfig: { exp, projectId },
-      projectDir,
+      projectConfig: { exp, projectId, projectDir },
     } = await this.getContextAsync(MetadataPull, {
       nonInteractive: false,
     });

@@ -5,10 +5,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 
 import { getEASUpdateURL } from '../../api';
-import EasCommand, {
-  EASCommandProjectConfigContext,
-  EASCommandProjectDirContext,
-} from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { AppPlatform } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform, appPlatformDisplayNames } from '../../platform';
@@ -37,7 +34,6 @@ export default class UpdateConfigure extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandProjectConfigContext,
-    ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
@@ -46,8 +42,7 @@ export default class UpdateConfigure extends EasCommand {
     );
     const { flags } = await this.parse(UpdateConfigure);
     const {
-      projectConfig: { projectId, exp },
-      projectDir,
+      projectConfig: { projectId, exp, projectDir },
     } = await this.getContextAsync(UpdateConfigure, {
       nonInteractive: true,
     });
