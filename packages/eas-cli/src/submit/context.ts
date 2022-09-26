@@ -5,7 +5,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { TrackingContext } from '../analytics/common';
 import { Analytics, SubmissionEvent } from '../analytics/events';
-import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { CredentialsContext } from '../credentials/context';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { Actor } from '../user/User';
@@ -43,10 +42,10 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   projectDir: string;
   applicationIdentifier?: string;
   actor: Actor;
-  getDynamicProjectConfigAsync: DynamicConfigContextFn;
+  exp: ExpoConfig;
+  projectId: string;
 }): Promise<SubmissionContext<T>> {
-  const { applicationIdentifier, projectDir, nonInteractive, actor } = params;
-  const { exp, projectId } = await params.getDynamicProjectConfigAsync({ env: params.env });
+  const { applicationIdentifier, projectDir, nonInteractive, actor, exp, projectId } = params;
   const { env, ...rest } = params;
   const projectName = exp.slug;
   const account = await getOwnerAccountForProjectIdAsync(projectId);
@@ -74,11 +73,9 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     ...rest,
     accountName: account.name,
     credentialsCtx,
-    exp,
     projectName,
     user: actor,
     trackingCtx,
-    projectId,
     applicationIdentifierOverride: applicationIdentifier,
   };
 }
