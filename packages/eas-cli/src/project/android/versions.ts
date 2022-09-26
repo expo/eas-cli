@@ -1,6 +1,6 @@
 import assert from 'assert';
 
-const MAX_VERSION_CODE = 2000000000;
+const MAX_VERSION_CODE = 2100000000;
 export const VERSION_CODE_REQUIREMENTS = `versionCode needs to be a positive integer smaller or equal to ${MAX_VERSION_CODE}`;
 
 export function isValidVersionCode(versionCode: string | number): boolean {
