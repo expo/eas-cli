@@ -2,7 +2,7 @@ import { flushAsync, initAsync, logEvent } from '../../analytics/rudderstackClie
 import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
 import { getUserAsync } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';
-import EasCommand from '../EasCommand';
+import EasCommand, { CommandConfiguration } from '../EasCommand';
 
 jest.mock('../../user/User');
 jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn() }));
@@ -43,7 +43,9 @@ beforeEach(() => {
 
 const createTestEasCommand = (authValue: boolean): typeof EasCommand => {
   class TestEasCommand extends EasCommand {
-    override requiresAuthentication = authValue;
+    protected override commandConfiguration: CommandConfiguration = {
+      allowUnauthenticated: !authValue,
+    };
 
     async runAsync(): Promise<void> {}
   }

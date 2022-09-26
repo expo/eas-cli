@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
-import EasCommand from '../../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectIdContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
@@ -14,12 +14,7 @@ import {
   GetBranchInfoQueryVariables,
 } from '../../graphql/generated';
 import Log from '../../log';
-import { getExpoConfig } from '../../project/expoConfig';
-import {
-  findProjectRootAsync,
-  getDisplayNameForProjectIdAsync,
-  getProjectIdAsync,
-} from '../../project/projectUtils';
+import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { toggleConfirmAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -81,6 +76,10 @@ async function deleteBranchOnAppAsync({
 export default class BranchDelete extends EasCommand {
   static override description = 'delete a branch';
 
+  static override contextDefinition = {
+    ...EASCommandProjectIdContext,
+  };
+
   static override args = [
     {
       name: 'name',
@@ -98,15 +97,14 @@ export default class BranchDelete extends EasCommand {
       args: { name: branchName },
       flags,
     } = await this.parse(BranchDelete);
-    const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
+    const paginatedQueryOptions = getPaginatedQueryOptions(flags);
+
     if (jsonFlag) {
       enableJsonOutput();
     }
 
-    const projectDir = await findProjectRootAsync();
-    const exp = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(exp, { nonInteractive });
+    const { projectId } = await this.getContextAsync(BranchDelete, { nonInteractive });
     const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
 
     if (!branchName) {
