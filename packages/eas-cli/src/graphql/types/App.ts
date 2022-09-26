@@ -9,6 +9,7 @@ export const AppFragmentNode = gql`
     slug
     ownerAccount {
       id
+      name
       ...AccountFragment
     }
   }

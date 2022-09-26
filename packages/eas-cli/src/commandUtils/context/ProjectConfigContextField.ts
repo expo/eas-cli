@@ -3,6 +3,7 @@ import { ExpoConfig } from '@expo/config-types';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
@@ -93,6 +94,20 @@ export default class ProjectConfigContextField extends ContextField<{
   ): Promise<string> {
     const localProjectId = exp.extra?.eas?.projectId;
     if (localProjectId) {
+      // check that the local project ID matches account and slug
+      const appForProjectId = await AppQuery.byIdAsync(localProjectId);
+      if (exp.owner && exp.owner !== appForProjectId.ownerAccount.name) {
+        throw new Error(
+          `Project config: Project identified by 'extra.eas.projectId' is not owned by owner specified in the 'owner' field. (project = '${appForProjectId.ownerAccount.name}', config = '${exp.owner}')`
+        );
+      }
+
+      if (exp.slug && exp.slug !== appForProjectId.slug) {
+        throw new Error(
+          `Project config: Slug for project identified by 'extra.eas.projectId' does not match the 'slug' field. (project = '${appForProjectId.slug}', config = '${exp.slug}')`
+        );
+      }
+
       return localProjectId;
     }
 
