@@ -149,6 +149,20 @@ function handleBuildRequestError(error: any, platform: Platform): never {
     );
     throw new Error('Build request failed.');
   } else if (
+    error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED_IOS'
+  ) {
+    Log.error(
+      'EAS Build free tier is temporarily disabled for iOS. Try again later. Check https://status.expo.dev/ for updates.'
+    );
+    throw new Error('Build request failed.');
+  } else if (
+    error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED_ANDROID'
+  ) {
+    Log.error(
+      'EAS Build free tier is temporarily disabled for Android. Try again later. Check https://status.expo.dev/ for updates.'
+    );
+    throw new Error('Build request failed.');
+  } else if (
     error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_TOO_MANY_PENDING_BUILDS'
   ) {
     Log.error(
