@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { TrackingContext } from '../analytics/common';
 import { Analytics, BuildEvent } from '../analytics/events';
-import { DynamicConfigContextFn } from '../commandUtils/EasCommand';
+import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { CredentialsContext } from '../credentials/context';
 import { BuildResourceClass } from '../graphql/generated';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';

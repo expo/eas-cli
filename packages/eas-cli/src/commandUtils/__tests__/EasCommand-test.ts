@@ -1,11 +1,9 @@
 import { flushAsync, initAsync, logEvent } from '../../analytics/rudderstackClient';
 import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
 import { getUserAsync } from '../../user/User';
-import { ensureLoggedInAsync } from '../../user/actions';
 import EasCommand from '../EasCommand';
 
 jest.mock('../../user/User');
-jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn() }));
 jest.mock('../../analytics/rudderstackClient', () => {
   const { AnalyticsEvent } = jest.requireActual('../../analytics/rudderstackClient');
   return {
@@ -30,10 +28,6 @@ afterAll(() => {
 beforeEach(() => {
   jest
     .mocked(getUserAsync)
-    .mockReset()
-    .mockImplementation(async () => mockJester);
-  jest
-    .mocked(ensureLoggedInAsync)
     .mockReset()
     .mockImplementation(async () => mockJester);
   jest.mocked(initAsync).mockReset();

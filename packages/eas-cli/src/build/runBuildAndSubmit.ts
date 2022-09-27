@@ -10,7 +10,7 @@ import {
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import { DynamicConfigContextFn } from '../commandUtils/EasCommand';
+import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import {
   AppPlatform,
   BuildFragment,
