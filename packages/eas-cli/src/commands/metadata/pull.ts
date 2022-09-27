@@ -6,13 +6,13 @@ import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand, {
   EASCommandLoggedInContext,
   EASCommandProjectConfigContext,
+  EASCommandProjectDirContext,
 } from '../../commandUtils/EasCommand';
 import { CredentialsContext } from '../../credentials/context';
 import Log, { learnMore } from '../../log';
 import { createMetadataContextAsync } from '../../metadata/context';
 import { downloadMetadataAsync } from '../../metadata/download';
 import { handleMetadataError } from '../../metadata/errors';
-import { findProjectRootAsync } from '../../project/projectUtils';
 
 export default class MetadataPull extends EasCommand {
   static override description = 'generate the local store configuration from the app stores';
@@ -28,6 +28,7 @@ export default class MetadataPull extends EasCommand {
   static override contextDefinition = {
     ...EASCommandProjectConfigContext,
     ...EASCommandLoggedInContext,
+    ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
@@ -37,11 +38,10 @@ export default class MetadataPull extends EasCommand {
     const {
       actor,
       projectConfig: { exp, projectId },
+      projectDir,
     } = await this.getContextAsync(MetadataPull, {
       nonInteractive: false,
     });
-
-    const projectDir = await findProjectRootAsync();
 
     // this command is interactive (all nonInteractive flags passed to utility functions are false)
     await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false });

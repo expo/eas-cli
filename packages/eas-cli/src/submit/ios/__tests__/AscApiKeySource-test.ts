@@ -46,7 +46,11 @@ async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platfor
     },
     nonInteractive: true,
     actor: mockJester,
-    getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
+    getDynamicProjectConfigAsync: async () => ({
+      exp: testProject.appJSON.expo,
+      projectId,
+      projectDir: testProject.projectRoot,
+    }),
   });
 }
 

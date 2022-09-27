@@ -4,10 +4,13 @@ import chalk from 'chalk';
 
 import { cleanUpOldEasBuildGradleScriptAsync } from '../../build/android/syncProjectConfiguration';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
-import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
+import EasCommand, {
+  EASCommandProjectConfigContext,
+  EASCommandProjectDirContext,
+} from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
-import { findProjectRootAsync, isExpoUpdatesInstalled } from '../../project/projectUtils';
+import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
@@ -27,12 +30,14 @@ export default class BuildConfigure extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandProjectConfigContext,
+    ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildConfigure);
     const {
       projectConfig: { exp, projectId },
+      projectDir,
     } = await this.getContextAsync(BuildConfigure, {
       nonInteractive: false,
     });
@@ -43,7 +48,6 @@ export default class BuildConfigure extends EasCommand {
 
     await getVcsClient().ensureRepoExistsAsync();
 
-    const projectDir = await findProjectRootAsync();
     const expoUpdatesIsInstalled = isExpoUpdatesInstalled(projectDir);
 
     const platform =
