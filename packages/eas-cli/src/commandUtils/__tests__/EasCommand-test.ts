@@ -2,7 +2,7 @@ import { flushAsync, initAsync, logEvent } from '../../analytics/rudderstackClie
 import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
 import { getUserAsync } from '../../user/User';
 import { ensureLoggedInAsync } from '../../user/actions';
-import EasCommand, { CommandConfiguration } from '../EasCommand';
+import EasCommand from '../EasCommand';
 
 jest.mock('../../user/User');
 jest.mock('../../user/actions', () => ({ ensureLoggedInAsync: jest.fn() }));
@@ -41,12 +41,8 @@ beforeEach(() => {
   jest.mocked(logEvent).mockReset();
 });
 
-const createTestEasCommand = (authValue: boolean): typeof EasCommand => {
+const createTestEasCommand = (): typeof EasCommand => {
   class TestEasCommand extends EasCommand {
-    protected override commandConfiguration: CommandConfiguration = {
-      allowUnauthenticated: !authValue,
-    };
-
     async runAsync(): Promise<void> {}
   }
 
@@ -63,37 +59,29 @@ describe(EasCommand.name, () => {
     //
     // See https://github.com/oclif/command/blob/master/src/command.ts#L80
     // and look for "Config.load"
-    it('ensures the user is logged in', async () => {
-      const TestEasCommand = createTestEasCommand(true);
-      await TestEasCommand.run();
-
-      expect(ensureLoggedInAsync).toHaveBeenCalled();
-    }, 15_000);
-
-    it('ensures the user data is read from cache', async () => {
-      const TestEasCommand = createTestEasCommand(false);
+    it('ensures the user data is read', async () => {
+      const TestEasCommand = createTestEasCommand();
       await TestEasCommand.run();
 
       expect(jest.mocked(getUserAsync)).toBeCalledTimes(1);
-      expect(jest.mocked(ensureLoggedInAsync)).not.toBeCalled();
-    });
+    }, 15_000);
 
     it('initializes analytics', async () => {
-      const TestEasCommand = createTestEasCommand(true);
+      const TestEasCommand = createTestEasCommand();
       await TestEasCommand.run();
 
       expect(initAsync).toHaveBeenCalled();
     });
 
     it('flushes analytics', async () => {
-      const TestEasCommand = createTestEasCommand(true);
+      const TestEasCommand = createTestEasCommand();
       await TestEasCommand.run();
 
       expect(flushAsync).toHaveBeenCalled();
     });
 
     it('logs events', async () => {
-      const TestEasCommand = createTestEasCommand(true);
+      const TestEasCommand = createTestEasCommand();
       await TestEasCommand.run();
 
       expect(logEvent).toHaveBeenCalledWith('action', {
@@ -104,7 +92,7 @@ describe(EasCommand.name, () => {
 
   describe('after exceptions', () => {
     it('flushes analytics', async () => {
-      const TestEasCommand = createTestEasCommand(true);
+      const TestEasCommand = createTestEasCommand();
       try {
         await TestEasCommand.run().then(() => {
           throw new Error('foo');

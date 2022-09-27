@@ -24,12 +24,6 @@ import GitClient from '../vcs/clients/git';
 
 export interface CommandConfiguration {
   /**
-   * When user data is unavailable locally, determines if the command will
-   * force the user to log in. By default, all commands require authentication.
-   */
-  allowUnauthenticated?: boolean;
-
-  /**
    * Whether a command can be run outside of an Expo project directory.
    * By default, all commands must be run inside an Expo project directory.
    */
@@ -180,14 +174,8 @@ export default abstract class EasCommand extends Command {
       await this.ensureEasCliIsNotInDependenciesAsync(projectDir);
     }
 
-    if (!this.commandConfiguration.allowUnauthenticated) {
-      const { flags } = await this.parse();
-      const nonInteractive = (flags as any)['non-interactive'] ?? false;
-      await ensureLoggedInAsync({ nonInteractive });
-    } else {
-      await getUserAsync();
-    }
-
+    // this is needed for logEvent call below as it identifies the user in the analytics system
+    await getUserAsync();
     logEvent(AnalyticsEvent.ACTION, {
       // id is assigned by oclif in constructor based on the filepath:
       // commands/submit === submit, commands/build/list === build:list
