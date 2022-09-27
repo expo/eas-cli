@@ -3,8 +3,8 @@ import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand, {
-  EASCommandDynamicProjectConfigContext,
   EASCommandLoggedInContext,
+  EASCommandProjectConfigContext,
   EASCommandProjectDirContext,
 } from '../commandUtils/EasCommand';
 import { StatuspageServiceName, SubmissionFragment } from '../graphql/generated';
@@ -95,13 +95,16 @@ export default class Submit extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
-    ...EASCommandDynamicProjectConfigContext,
+    ...EASCommandProjectConfigContext,
     ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Submit);
-    const { actor, getDynamicProjectConfigAsync, projectDir } = await this.getContextAsync(Submit, {
+    const {
+      actor,
+      projectConfig: { exp, projectId, projectDir },
+    } = await this.getContextAsync(Submit, {
       nonInteractive: false,
     });
 
@@ -121,6 +124,7 @@ export default class Submit extends EasCommand {
 
     const submissions: SubmissionFragment[] = [];
     for (const submissionProfile of submissionProfiles) {
+      // this command doesn't make use of env when getting the project config
       const ctx = await createSubmissionContextAsync({
         platform: submissionProfile.platform,
         projectDir,
@@ -128,7 +132,8 @@ export default class Submit extends EasCommand {
         archiveFlags: flagsWithPlatform.archiveFlags,
         nonInteractive: flagsWithPlatform.nonInteractive,
         actor,
-        getDynamicProjectConfigAsync,
+        exp,
+        projectId,
       });
 
       if (submissionProfiles.length > 1) {

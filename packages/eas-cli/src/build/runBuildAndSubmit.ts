@@ -181,7 +181,6 @@ export async function runBuildAndSubmitAsync(
         buildProfile: startedBuild.buildProfile.profile,
         submitProfile,
         nonInteractive: flags.nonInteractive,
-        getDynamicProjectConfigAsync,
       });
       startedBuild.build = await BuildQuery.withSubmissionsByIdAsync(startedBuild.build.id);
       submissions.push(submission);
@@ -323,7 +322,6 @@ async function prepareAndStartSubmissionAsync({
   buildProfile,
   submitProfile,
   nonInteractive,
-  getDynamicProjectConfigAsync,
 }: {
   build: BuildFragment;
   buildCtx: BuildContext<Platform>;
@@ -332,7 +330,6 @@ async function prepareAndStartSubmissionAsync({
   buildProfile: BuildProfile;
   submitProfile: SubmitProfile;
   nonInteractive: boolean;
-  getDynamicProjectConfigAsync: DynamicConfigContextFn;
 }): Promise<SubmissionFragment> {
   const platform = toPlatform(build.platform);
   const submissionCtx = await createSubmissionContextAsync({
@@ -345,7 +342,8 @@ async function prepareAndStartSubmissionAsync({
     credentialsCtx: buildCtx.credentialsCtx,
     applicationIdentifier: buildCtx.android?.applicationId ?? buildCtx.ios?.bundleIdentifier,
     actor: buildCtx.user,
-    getDynamicProjectConfigAsync,
+    projectId: buildCtx.projectId,
+    exp: buildCtx.exp,
   });
 
   if (moreBuilds) {

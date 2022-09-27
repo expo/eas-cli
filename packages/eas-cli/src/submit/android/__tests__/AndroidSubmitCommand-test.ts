@@ -90,11 +90,8 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: true,
         actor: mockJester,
-        getDynamicProjectConfigAsync: async () => ({
-          exp: testProject.appJSON.expo,
-          projectId,
-          projectDir: testProject.projectRoot,
-        }),
+        exp: testProject.appJSON.expo,
+        projectId,
       });
       const command = new AndroidSubmitCommand(ctx);
       await expect(command.runAsync()).rejects.toThrowError();
@@ -119,11 +116,8 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
-        getDynamicProjectConfigAsync: async () => ({
-          exp: testProject.appJSON.expo,
-          projectId,
-          projectDir: testProject.projectRoot,
-        }),
+        exp: testProject.appJSON.expo,
+        projectId,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
@@ -160,11 +154,8 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
-        getDynamicProjectConfigAsync: async () => ({
-          exp: testProject.appJSON.expo,
-          projectId,
-          projectDir: testProject.projectRoot,
-        }),
+        exp: testProject.appJSON.expo,
+        projectId,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();

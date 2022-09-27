@@ -64,11 +64,8 @@ describe(IosSubmitCommand, () => {
         },
         nonInteractive: true,
         actor: mockJester,
-        getDynamicProjectConfigAsync: async () => ({
-          exp: testProject.appJSON.expo,
-          projectId,
-          projectDir: testProject.projectRoot,
-        }),
+        exp: testProject.appJSON.expo,
+        projectId,
       });
       const command = new IosSubmitCommand(ctx);
       await expect(command.runAsync()).rejects.toThrowError();
@@ -94,11 +91,8 @@ describe(IosSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
-        getDynamicProjectConfigAsync: async () => ({
-          exp: testProject.appJSON.expo,
-          projectId,
-          projectDir: testProject.projectRoot,
-        }),
+        exp: testProject.appJSON.expo,
+        projectId,
       });
       const command = new IosSubmitCommand(ctx);
       await command.runAsync();
