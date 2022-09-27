@@ -55,7 +55,7 @@ export default class DeviceDelete extends EasCommand {
     if (!appleTeamIdentifier) {
       const appleTeam = await selectAppleTeamOnAccountAsync({
         accountName: account.name,
-        selectionPromptTitle: `What Apple Team would you like to list devices for?`,
+        selectionPromptTitle: `What Apple team would you like to list devices for?`,
         paginatedQueryOptions,
       });
       appleTeamIdentifier = appleTeam.appleTeamIdentifier;

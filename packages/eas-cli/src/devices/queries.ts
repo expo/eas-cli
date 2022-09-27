@@ -1,6 +1,8 @@
 import chalk from 'chalk';
 
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
+import { formatAppleTeam } from '../credentials/ios/actions/AppleTeamFormatting';
+import { formatDeviceLabel } from '../credentials/ios/actions/DeviceUtils';
 import { AppleDeviceQuery } from '../credentials/ios/api/graphql/queries/AppleDeviceQuery';
 import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import { AppleDeviceFragment, AppleTeamFragment } from '../graphql/generated';
@@ -78,7 +80,7 @@ export async function selectAppleDeviceOnAppleTeamAsync({
         }),
       promptOptions: {
         title: selectionPromptTitle,
-        createDisplayTextForSelectionPromptListItem: appleDevice => formatDevice(appleDevice),
+        createDisplayTextForSelectionPromptListItem: appleDevice => formatDeviceLabel(appleDevice),
         getIdentifierForQueryItem: appleTeam => appleTeam.id,
       },
     });
@@ -134,16 +136,26 @@ function renderPageOfAppleDevices({
   paginatedQueryOptions,
 }: {
   devices: AppleDeviceFragment[];
-  appleTeam?: AppleTeamIdAndName;
+  appleTeam: AppleTeamIdAndName;
   paginatedQueryOptions: PaginatedQueryOptions;
 }): void {
   if (paginatedQueryOptions.json) {
     printJsonOnlyOutput(devices);
   } else {
-    const list = devices
-      .map(device => formatDevice(device, appleTeam))
-      .join(`\n\n${chalk.dim('———')}\n\n`);
+    if (devices.length === 0) {
+      Log.log(
+        `Could not find devices on Apple team -- ${formatAppleTeam({
+          appleTeamIdentifier: appleTeam.appleTeamIdentifier,
+          appleTeamName: appleTeam.appleTeamName,
+        })}`
+      );
+    } else {
+      const list = devices
+        .map(device => formatDevice(device, appleTeam))
+        .join(`\n\n${chalk.dim('———')}\n\n`);
 
-    Log.log(`\n${list}`);
+      Log.log(`\n${list}`);
+      Log.addNewLineIfNone();
+    }
   }
 }

@@ -49,14 +49,13 @@ export default class BuildList extends EasCommand {
           offset: 0,
           limit: undefined,
         },
-        selectionPromptTitle: 'What Apple Team would you like to list devices for?',
+        selectionPromptTitle: 'What Apple team would you like to list devices for?',
       });
       appleTeamIdentifier = selectedAppleTeam.appleTeamIdentifier;
       appleTeamName = selectedAppleTeam.appleTeamName;
     }
 
     assert(appleTeamIdentifier, 'No team identifier is specified');
-
     await listAndRenderAppleDevicesOnAppleTeamAsync({
       accountName: account.name,
       appleTeam: {
