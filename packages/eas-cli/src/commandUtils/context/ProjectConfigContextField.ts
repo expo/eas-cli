@@ -16,10 +16,12 @@ import ProjectDirContextField from './ProjectDirContextField';
 export default class ProjectConfigContextField extends ContextField<{
   projectId: string;
   exp: ExpoConfig;
+  projectDir: string;
 }> {
   async getValueAsync({ nonInteractive }: ContextOptions): Promise<{
     projectId: string;
     exp: ExpoConfig;
+    projectDir: string;
   }> {
     const projectDir = await ProjectDirContextField['findProjectDirAndVerifyProjectSetupAsync']();
     const expBefore = getExpoConfig(projectDir);
@@ -31,6 +33,7 @@ export default class ProjectConfigContextField extends ContextField<{
     return {
       projectId,
       exp,
+      projectDir,
     };
   }
 

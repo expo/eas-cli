@@ -4,7 +4,6 @@ import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand, {
   EASCommandLoggedInContext,
   EASCommandProjectConfigContext,
-  EASCommandProjectDirContext,
 } from '../../commandUtils/EasCommand';
 import { CredentialsContext } from '../../credentials/context';
 import Log, { learnMore } from '../../log';
@@ -26,7 +25,6 @@ export default class MetadataPush extends EasCommand {
   static override contextDefinition = {
     ...EASCommandProjectConfigContext,
     ...EASCommandLoggedInContext,
-    ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
@@ -35,8 +33,7 @@ export default class MetadataPush extends EasCommand {
     const { flags } = await this.parse(MetadataPush);
     const {
       actor,
-      projectConfig: { exp, projectId },
-      projectDir,
+      projectConfig: { exp, projectId, projectDir },
     } = await this.getContextAsync(MetadataPush, {
       nonInteractive: false,
     });
