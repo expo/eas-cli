@@ -19,6 +19,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Provide suggestions for developers when archive size is large. ([#1363](https://github.com/expo/eas-cli/pull/1363) by [@szdziedzic](https://github.com/szdziedzic))
 - Improve `eas init` command. ([#1376](https://github.com/expo/eas-cli/pull/1376) by [@wschurman](https://github.com/wschurman))
 - Warn about outdated channel configuration before build when using eas update. ([#1397](https://github.com/expo/eas-cli/pull/1397) by [@kbrandwijk](https://github.com/kbrandwijk))
+- Validate that owner and projectId and slug all are in alignment. ([#1405](https://github.com/expo/eas-cli/pull/1405) by [@wschurman](https://github.com/wschurman))
 
 ### 🐛 Bug fixes
 
@@ -28,7 +29,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Remove 'owner' app config field dependency. ([#1368](https://github.com/expo/eas-cli/pull/1368), [#1369](https://github.com/expo/eas-cli/pull/1369), [#1371](https://github.com/expo/eas-cli/pull/1371), [#1372](https://github.com/expo/eas-cli/pull/1372), [#1373](https://github.com/expo/eas-cli/pull/1373), by [@wschurman](https://github.com/wschurman))
 - Add Xcode 14 image. ([#1365](https://github.com/expo/eas-cli/pull/1365) by [@szdziedzic](https://github.com/szdziedzic))
 - Update max `versionCode` for Android. ([#1400](https://github.com/expo/eas-cli/pull/1400) by [@wkozyra95](https://github.com/wkozyra95))
-- Add and use command context to declare command dependencies.  ([#1383](https://github.com/expo/eas-cli/pull/1383), [#1384](https://github.com/expo/eas-cli/pull/1384), [#1387](https://github.com/expo/eas-cli/pull/1387), by [@wschurman](https://github.com/wschurman))
+- Add and use command context to declare command dependencies.  ([#1383](https://github.com/expo/eas-cli/pull/1383), [#1384](https://github.com/expo/eas-cli/pull/1384), [#1387](https://github.com/expo/eas-cli/pull/1387), [#1388](https://github.com/expo/eas-cli/pull/1388), [#1390](https://github.com/expo/eas-cli/pull/1390), [#1391](https://github.com/expo/eas-cli/pull/1391), [#1394](https://github.com/expo/eas-cli/pull/1394), [#1402](https://github.com/expo/eas-cli/pull/1402), [#1403](https://github.com/expo/eas-cli/pull/1403), by [@wschurman](https://github.com/wschurman))
 
 ## [2.1.0](https://github.com/expo/eas-cli/releases/tag/v2.1.0) - 2022-09-05
 
