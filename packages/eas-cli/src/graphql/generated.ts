@@ -4831,7 +4831,7 @@ export type AppleDevicesByTeamIdentifierQueryVariables = Exact<{
 }>;
 
 
-export type AppleDevicesByTeamIdentifierQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, appleTeams: Array<{ __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null, appleDevices: Array<{ __typename?: 'AppleDevice', id: string, identifier: string, name?: string | null, deviceClass?: AppleDeviceClass | null, enabled?: boolean | null }> }> } } };
+export type AppleDevicesByTeamIdentifierQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, appleTeams: Array<{ __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null, appleDevices: Array<{ __typename?: 'AppleDevice', id: string, identifier: string, name?: string | null, deviceClass?: AppleDeviceClass | null, enabled?: boolean | null, model?: string | null }> }> } } };
 
 export type AppleDevicesByIdentifierQueryVariables = Exact<{
   accountName: Scalars['String'];
@@ -4839,7 +4839,7 @@ export type AppleDevicesByIdentifierQueryVariables = Exact<{
 }>;
 
 
-export type AppleDevicesByIdentifierQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, appleDevices: Array<{ __typename?: 'AppleDevice', id: string, identifier: string, name?: string | null, deviceClass?: AppleDeviceClass | null, enabled?: boolean | null, appleTeam: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } }> } } };
+export type AppleDevicesByIdentifierQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, appleDevices: Array<{ __typename?: 'AppleDevice', id: string, model?: string | null, identifier: string, name?: string | null, deviceClass?: AppleDeviceClass | null, enabled?: boolean | null, appleTeam: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } }> } } };
 
 export type AppleDistributionCertificateByAppQueryVariables = Exact<{
   projectFullName: Scalars['String'];

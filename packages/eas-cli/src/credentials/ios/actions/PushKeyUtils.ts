@@ -11,7 +11,7 @@ import { filterRevokedAndUntrackedPushKeysFromEasServersAsync } from '../appstor
 import { APPLE_KEYS_TOO_MANY_GENERATED_ERROR } from '../appstore/pushKey';
 import { pushKeySchema } from '../credentials';
 import { isPushKeyValidAndTrackedAsync } from '../validators/validatePushKey';
-import { formatAppleTeam } from './AppleTeamUtils';
+import { formatAppleTeam } from './AppleTeamFormatting';
 
 export async function provideOrGeneratePushKeyAsync(ctx: CredentialsContext): Promise<PushKey> {
   if (!ctx.nonInteractive) {

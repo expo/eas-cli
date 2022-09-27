@@ -15,7 +15,7 @@ import {
 } from '../../../../../graphql/generated';
 import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
-import { formatAppleTeam } from '../../../actions/AppleTeamUtils';
+import { formatAppleTeam } from '../../../actions/AppleTeamFormatting';
 
 export type AppleDeviceFragmentWithAppleTeam = AppleDeviceFragment & {
   appleTeam: AppleTeamFragment;
@@ -112,6 +112,7 @@ export const AppleDeviceQuery = {
                       name
                       deviceClass
                       enabled
+                      model
                     }
                   }
                 }
@@ -128,7 +129,7 @@ export const AppleDeviceQuery = {
     const [appleTeam] = data.account.byName.appleTeams;
     const { appleDevices } = appleTeam;
     if (!appleDevices) {
-      throw new Error(`Could not find devices on apple team -- ${formatAppleTeam(appleTeam)}`);
+      throw new Error(`Could not find devices on Apple team -- ${formatAppleTeam(appleTeam)}`);
     }
     return appleDevices;
   },
@@ -147,6 +148,7 @@ export const AppleDeviceQuery = {
                   id
                   appleDevices(identifier: $identifier) {
                     id
+                    model
                     identifier
                     name
                     deviceClass
@@ -172,7 +174,7 @@ export const AppleDeviceQuery = {
     const device = data.account.byName.appleDevices[0];
     if (!device) {
       throw new DeviceNotFoundError(
-        `Device [${identifier}] not found on account [${accountName}].`
+        `Device with id ${identifier} was not found on account ${accountName}.`
       );
     }
     return device;

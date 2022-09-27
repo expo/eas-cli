@@ -17,7 +17,7 @@ import { filterRevokedDistributionCertsFromEasServers } from '../appstore/Creden
 import { AppleTooManyCertsError } from '../appstore/distributionCertificate';
 import { distributionCertificateSchema } from '../credentials';
 import { validateDistributionCertificateAsync } from '../validators/validateDistributionCertificate';
-import { formatAppleTeam } from './AppleTeamUtils';
+import { formatAppleTeam } from './AppleTeamFormatting';
 
 export function formatDistributionCertificate(
   distributionCertificate: AppleDistributionCertificateFragment,

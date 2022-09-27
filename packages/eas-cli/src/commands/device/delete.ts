@@ -4,11 +4,7 @@ import assert from 'assert';
 
 import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import {
-  EasPaginatedQueryFlags,
-  PaginatedQueryOptions,
-  getPaginatedQueryOptions,
-} from '../../commandUtils/pagination';
+import { PaginatedQueryOptions, getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { AppleDeviceMutation } from '../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
 import {
   AppleDeviceQuery,
@@ -31,9 +27,8 @@ export default class DeviceDelete extends EasCommand {
   static override description = 'remove a registered device from your account';
 
   static override flags = {
-    'apple-team-id': Flags.string(),
-    udid: Flags.string({ multiple: false, description: 'The device ID to disable' }),
-    ...EasPaginatedQueryFlags,
+    'apple-team-id': Flags.string({ description: 'The Apple team ID on which to find the device' }),
+    udid: Flags.string({ description: 'The Apple device ID to disable' }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -63,7 +58,7 @@ export default class DeviceDelete extends EasCommand {
         selectionPromptTitle: `What Apple Team would you like to list devices for?`,
         paginatedQueryOptions,
       });
-      appleTeamIdentifier = appleTeam.id;
+      appleTeamIdentifier = appleTeam.appleTeamIdentifier;
       appleTeamName = appleTeam.appleTeamName;
     }
 

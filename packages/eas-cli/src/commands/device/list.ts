@@ -40,13 +40,18 @@ export default class BuildList extends EasCommand {
 
     const account = await getOwnerAccountForProjectIdAsync(projectId);
 
+    // if they don't provide a team id, fetch devices on their account
     if (!appleTeamIdentifier) {
       const selectedAppleTeam = await selectAppleTeamOnAccountAsync({
         accountName: account.name,
-        paginatedQueryOptions,
+        paginatedQueryOptions: {
+          ...paginatedQueryOptions,
+          offset: 0,
+          limit: undefined,
+        },
         selectionPromptTitle: 'What Apple Team would you like to list devices for?',
       });
-      appleTeamIdentifier = selectedAppleTeam.id;
+      appleTeamIdentifier = selectedAppleTeam.appleTeamIdentifier;
       appleTeamName = selectedAppleTeam.appleTeamName;
     }
 

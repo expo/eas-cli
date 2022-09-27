@@ -25,7 +25,7 @@ export async function selectAppleTeamOnAccountAsync({
   paginatedQueryOptions: PaginatedQueryOptions;
 }): Promise<AppleTeamFragment> {
   if (paginatedQueryOptions.nonInteractive) {
-    throw new Error('Unable to select an apple team in non-interactive mode.');
+    throw new Error('Unable to select an Apple team in non-interactive mode.');
   } else {
     const selectedAppleTeam = await paginatedQueryWithSelectPromptAsync({
       limit: paginatedQueryOptions.limit ?? TEAMS_LIMIT,
@@ -64,7 +64,7 @@ export async function selectAppleDeviceOnAppleTeamAsync({
   paginatedQueryOptions: PaginatedQueryOptions;
 }): Promise<AppleDeviceFragment> {
   if (paginatedQueryOptions.nonInteractive) {
-    throw new Error('Unable to select an apple device in non-interactive mode.');
+    throw new Error('Unable to select an Apple device in non-interactive mode.');
   } else {
     const selectedAppleDevice = await paginatedQueryWithSelectPromptAsync({
       limit: paginatedQueryOptions.limit ?? DEVICES_LIMIT,
@@ -84,7 +84,7 @@ export async function selectAppleDeviceOnAppleTeamAsync({
     });
     if (!selectedAppleDevice) {
       throw new Error(
-        `Couldn't find any devices on the apple team with the id ${appleTeamIdentifier}`
+        `Couldn't find any devices on the Apple team with the id ${appleTeamIdentifier}`
       );
     }
     return selectedAppleDevice;
@@ -104,6 +104,8 @@ export async function listAndRenderAppleDevicesOnAppleTeamAsync({
     const devices = await AppleDeviceQuery.getAllForAppleTeamAsync({
       accountName,
       appleTeamIdentifier: appleTeam.appleTeamIdentifier,
+      offset: paginatedQueryOptions.offset,
+      limit: paginatedQueryOptions.limit,
     });
     renderPageOfAppleDevices({ devices, appleTeam, paginatedQueryOptions });
   } else {
