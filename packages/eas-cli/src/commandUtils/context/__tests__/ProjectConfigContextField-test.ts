@@ -2,6 +2,7 @@ import { getConfig, modifyConfigAsync } from '@expo/config';
 import { vol } from 'memfs';
 
 import { Role } from '../../../graphql/generated';
+import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import ActorContextField from '../ActorContextField';
 import ProjectConfigContextField from '../ProjectConfigContextField';
@@ -10,6 +11,7 @@ import ProjectDirContextField from '../ProjectDirContextField';
 jest.mock('@expo/config');
 jest.mock('fs');
 
+jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../ActorContextField');
 jest.mock('../ProjectDirContextField');
 jest.mock('../../../user/User');
@@ -60,6 +62,12 @@ describe(ProjectConfigContextField.name, () => {
     jest.mocked(getConfig).mockReturnValue({
       exp: { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
     } as any);
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+      id: '1234',
+      fullName: '@notnotbrent/test',
+      slug: 'test',
+      ownerAccount: { name: 'notnotbrent' } as any,
+    });
     jest.mocked(ProjectDirContextField['findProjectRootAsync']).mockResolvedValue('/app');
     await expect(
       new ProjectConfigContextField().getValueAsync({ nonInteractive: false })
@@ -67,6 +75,42 @@ describe(ProjectConfigContextField.name, () => {
       projectId: '1234',
       exp: { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
     });
+  });
+
+  it('throws when the owner is out of sync', async () => {
+    jest.mocked(getConfig).mockReturnValue({
+      exp: { name: 'test', slug: 'test', owner: 'wat', extra: { eas: { projectId: '1234' } } },
+    } as any);
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+      id: '1234',
+      fullName: '@notnotbrent/test',
+      slug: 'test',
+      ownerAccount: { name: 'notnotbrent' } as any,
+    });
+    jest.mocked(ProjectDirContextField['findProjectRootAsync']).mockResolvedValue('/app');
+    await expect(
+      new ProjectConfigContextField().getValueAsync({ nonInteractive: false })
+    ).rejects.toThrow(
+      `Project config: Project identified by 'extra.eas.projectId' is not owned by owner specified in the 'owner' field. (project = 'notnotbrent', config = 'wat')`
+    );
+  });
+
+  it('throws when the slug is out of sync', async () => {
+    jest.mocked(getConfig).mockReturnValue({
+      exp: { name: 'test', slug: 'wat', extra: { eas: { projectId: '1234' } } },
+    } as any);
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+      id: '1234',
+      fullName: '@notnotbrent/test',
+      slug: 'test',
+      ownerAccount: { name: 'notnotbrent' } as any,
+    });
+    jest.mocked(ProjectDirContextField['findProjectRootAsync']).mockResolvedValue('/app');
+    await expect(
+      new ProjectConfigContextField().getValueAsync({ nonInteractive: false })
+    ).rejects.toThrow(
+      `Project config: Slug for project identified by 'extra.eas.projectId' does not match the 'slug' field. (project = 'test', config = 'wat')`
+    );
   });
 
   it('fetches the project ID when not in app config, and sets it in the config', async () => {

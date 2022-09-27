@@ -1639,6 +1639,12 @@ export type AppleTeamAppleAppIdentifiersArgs = {
 };
 
 
+export type AppleTeamAppleDevicesArgs = {
+  limit?: InputMaybe<Scalars['Int']>;
+  offset?: InputMaybe<Scalars['Int']>;
+};
+
+
 export type AppleTeamAppleProvisioningProfilesArgs = {
   appleAppIdentifierId?: InputMaybe<Scalars['ID']>;
 };
@@ -2030,6 +2036,17 @@ export type BuildOrBuildJob = {
   id: Scalars['ID'];
 };
 
+export type BuildOrBuildJobQuery = {
+  __typename?: 'BuildOrBuildJobQuery';
+  /** Look up EAS Build or Classic Build Job by ID */
+  byId: EasBuildOrClassicBuildJob;
+};
+
+
+export type BuildOrBuildJobQueryByIdArgs = {
+  buildOrBuildJobId: Scalars['ID'];
+};
+
 export type BuildParamsInput = {
   resourceClass: BuildResourceClass;
 };
@@ -2374,6 +2391,8 @@ export enum EasBuildDeprecationInfoType {
   UserFacing = 'USER_FACING'
 }
 
+export type EasBuildOrClassicBuildJob = Build | BuildJob;
+
 export enum EasServiceMetric {
   AssetsRequests = 'ASSETS_REQUESTS',
   BandwidthUsage = 'BANDWIDTH_USAGE',
@@ -2554,6 +2573,15 @@ export type GitHubAppQuery = {
   __typename?: 'GitHubAppQuery';
   appIdentifier: Scalars['String'];
   clientIdentifier: Scalars['String'];
+  searchRepositories: Array<GitHubAppInstallationAccessibleRepository>;
+};
+
+
+export type GitHubAppQuerySearchRepositoriesArgs = {
+  githubAppInstallationId: Scalars['ID'];
+  page?: InputMaybe<Scalars['Int']>;
+  perPage?: InputMaybe<Scalars['Int']>;
+  query: Scalars['String'];
 };
 
 export type GitHubRepository = {
@@ -3467,6 +3495,7 @@ export type RootQuery = {
   appleTeam: AppleTeamQuery;
   asset: AssetQuery;
   buildJobs: BuildJobQuery;
+  buildOrBuildJob: BuildOrBuildJobQuery;
   /** Top-level query object for querying BuildPublicData publicly. */
   buildPublicData: BuildPublicDataQuery;
   builds: BuildQuery;
