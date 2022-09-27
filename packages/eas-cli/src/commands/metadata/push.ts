@@ -34,7 +34,7 @@ export default class MetadataPush extends EasCommand {
     const { flags } = await this.parse(MetadataPush);
     const {
       actor,
-      projectConfig: { exp },
+      projectConfig: { exp, projectId },
     } = await this.getContextAsync(MetadataPush, {
       nonInteractive: false,
     });
@@ -45,7 +45,7 @@ export default class MetadataPush extends EasCommand {
     await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false });
 
     const credentialsCtx = new CredentialsContext({
-      exp,
+      projectInfo: { exp, projectId },
       projectDir,
       user: actor,
       nonInteractive: false,

@@ -8,7 +8,6 @@ import { GradleBuildContext } from '../../../project/android/gradle';
 import {
   getOwnerAccountForProjectIdAsync,
   getProjectConfigDescription,
-  getProjectIdAsync,
 } from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
@@ -93,7 +92,7 @@ export async function getAppLookupParamsFromContextAsync(
 ): Promise<AppLookupParams> {
   ctx.ensureProjectContext();
   const projectName = ctx.exp.slug;
-  const projectId = await getProjectIdAsync(ctx.exp, { nonInteractive: ctx.nonInteractive });
+  const projectId = ctx.projectId;
   const account = await getOwnerAccountForProjectIdAsync(projectId);
 
   const androidApplicationIdentifier = await getApplicationIdAsync(

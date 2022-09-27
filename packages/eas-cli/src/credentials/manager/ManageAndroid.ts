@@ -4,7 +4,6 @@ import assert from 'assert';
 
 import Log, { learnMore } from '../../log';
 import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
-import { getProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { AssignFcm } from '../android/actions/AssignFcm';
 import { AssignGoogleServiceAccountKey } from '../android/actions/AssignGoogleServiceAccountKey';
@@ -49,13 +48,13 @@ export class ManageAndroid {
   constructor(private callingAction: Action, private projectDir: string) {}
 
   async runAsync(currentActions: ActionInfo[] = highLevelActions): Promise<void> {
-    const hasProjectContext = !!CredentialsContext.getExpoConfigInProject(this.projectDir);
+    const hasProjectContext = !!this.callingAction.projectInfo;
     const buildProfile = hasProjectContext
       ? await new SelectBuildProfileFromEasJson(this.projectDir, Platform.ANDROID).runAsync()
       : null;
     const ctx = new CredentialsContext({
       projectDir: process.cwd(),
-      // this command is interactive by design
+      projectInfo: this.callingAction.projectInfo,
       user: this.callingAction.actor,
       env: buildProfile?.env,
       nonInteractive: false,
@@ -140,10 +139,6 @@ export class ManageAndroid {
     buildProfile: BuildProfile<Platform.ANDROID>
   ): Promise<GradleBuildContext | undefined> {
     assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
-
-    // ensure the project exists on the EAS server
-    await getProjectIdAsync(ctx.exp, { nonInteractive: ctx.nonInteractive });
-
     return await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
   }
 
