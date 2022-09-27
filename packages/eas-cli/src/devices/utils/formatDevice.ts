@@ -1,15 +1,20 @@
 import { AppleDevice, AppleTeam } from '../../graphql/generated';
 import formatFields from '../../utils/formatFields';
 
-type Device = Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'deviceClass' | 'enabled'>;
+type Device = Pick<AppleDevice, 'id' | 'identifier' | 'name' | 'deviceClass' | 'enabled' | 'model'>;
 
-type Team = Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName'>;
+export type AppleTeamIdAndName = Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName'>;
 
-export default function formatDevice(device: Device, team?: Team): string {
+export default function formatDevice(device: Device, team?: AppleTeamIdAndName): string {
   const fields = [
     { label: 'ID', value: device.id },
     { label: 'Name', value: device.name ?? 'Unknown' },
-    { label: 'Class', value: device.deviceClass ?? 'Unknown' },
+    {
+      label: 'Class',
+      value: device.deviceClass
+        ? `${device.deviceClass}${device.model ? ` ${device.model}` : ''}`
+        : 'Unknown',
+    },
     { label: 'UDID', value: device.identifier },
   ];
 
