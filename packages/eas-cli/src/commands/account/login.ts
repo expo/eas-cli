@@ -1,5 +1,5 @@
 import EasCommand from '../../commandUtils/EasCommand';
-import ActorContextField from '../../commandUtils/context/ActorContextField';
+import { showLoginPromptAsync } from '../../commandUtils/context/contextUtils/ensureLoggedInAsync';
 import Log from '../../log';
 
 export default class AccountLogin extends EasCommand {
@@ -7,7 +7,7 @@ export default class AccountLogin extends EasCommand {
   static override aliases = ['login'];
 
   async runAsync(): Promise<void> {
-    await ActorContextField['showLoginPromptAsync']();
+    await showLoginPromptAsync();
     Log.log('Logged in');
   }
 }

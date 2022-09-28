@@ -2,8 +2,8 @@ import { ExpoConfig } from '@expo/config-types';
 
 import { getExpoConfig } from '../../project/expoConfig';
 import ContextField, { ContextOptions } from './ContextField';
-import ProjectConfigContextField from './ProjectConfigContextField';
-import ProjectDirContextField from './ProjectDirContextField';
+import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
+import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
 
 export class OptionalProjectConfigContextField extends ContextField<
   | {
@@ -23,7 +23,7 @@ export class OptionalProjectConfigContextField extends ContextField<
   > {
     let projectDir: string;
     try {
-      projectDir = await ProjectDirContextField['findProjectDirAndVerifyProjectSetupAsync']();
+      projectDir = await findProjectDirAndVerifyProjectSetupAsync();
       if (!projectDir) {
         return undefined;
       }
@@ -32,7 +32,7 @@ export class OptionalProjectConfigContextField extends ContextField<
     }
 
     const expBefore = getExpoConfig(projectDir);
-    const projectId = await ProjectConfigContextField['getProjectIdAsync'](expBefore, {
+    const projectId = await getProjectIdAsync(expBefore, {
       nonInteractive,
     });
     const exp = getExpoConfig(projectDir);

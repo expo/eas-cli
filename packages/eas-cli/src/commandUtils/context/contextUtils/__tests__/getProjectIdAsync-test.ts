@@ -1,30 +1,30 @@
 import { getConfig, modifyConfigAsync } from '@expo/config';
 import { vol } from 'memfs';
 
-import { Role } from '../../../graphql/generated';
-import { AppQuery } from '../../../graphql/queries/AppQuery';
-import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import ActorContextField from '../ActorContextField';
-import ProjectConfigContextField from '../ProjectConfigContextField';
-import ProjectDirContextField from '../ProjectDirContextField';
+import { Role } from '../../../../graphql/generated';
+import { AppQuery } from '../../../../graphql/queries/AppQuery';
+import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
+import { ensureLoggedInAsync } from '../../contextUtils/ensureLoggedInAsync';
+import { findProjectRootAsync } from '../findProjectDirAndVerifyProjectSetupAsync';
+import { getProjectIdAsync } from '../getProjectIdAsync';
 
 jest.mock('@expo/config');
 jest.mock('fs');
 
-jest.mock('../../../graphql/queries/AppQuery');
-jest.mock('../ActorContextField');
-jest.mock('../ProjectDirContextField');
-jest.mock('../../../user/User');
-jest.mock('../../../ora', () => ({
+jest.mock('../../../../graphql/queries/AppQuery');
+jest.mock('../../contextUtils/ensureLoggedInAsync');
+jest.mock('../../contextUtils/findProjectDirAndVerifyProjectSetupAsync');
+jest.mock('../../../../user/User');
+jest.mock('../../../../ora', () => ({
   ora: () => ({
     start: () => ({ succeed: () => {}, fail: () => {} }),
   }),
 }));
-jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
+jest.mock('../../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
 
-describe(ProjectConfigContextField.name, () => {
+describe(getProjectIdAsync, () => {
   beforeEach(() => {
-    jest.mocked(ActorContextField['ensureLoggedInAsync']).mockResolvedValue({
+    jest.mocked(ensureLoggedInAsync).mockResolvedValue({
       __typename: 'User',
       id: 'user_id',
       username: 'notnotbrent',
@@ -56,6 +56,8 @@ describe(ProjectConfigContextField.name, () => {
       },
       '/app'
     );
+
+    jest.mocked(findProjectRootAsync).mockResolvedValue('/app');
   });
 
   it('gets the project ID from app config if exists', async () => {
@@ -68,13 +70,13 @@ describe(ProjectConfigContextField.name, () => {
       slug: 'test',
       ownerAccount: { name: 'notnotbrent' } as any,
     });
-    jest.mocked(ProjectDirContextField['findProjectRootAsync']).mockResolvedValue('/app');
+
     await expect(
-      new ProjectConfigContextField().getValueAsync({ nonInteractive: false })
-    ).resolves.toEqual({
-      projectId: '1234',
-      exp: { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
-    });
+      getProjectIdAsync(
+        { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
+        { nonInteractive: false }
+      )
+    ).resolves.toEqual('1234');
   });
 
   it('throws when the owner is out of sync', async () => {
@@ -87,9 +89,12 @@ describe(ProjectConfigContextField.name, () => {
       slug: 'test',
       ownerAccount: { name: 'notnotbrent' } as any,
     });
-    jest.mocked(ProjectDirContextField['findProjectRootAsync']).mockResolvedValue('/app');
+
     await expect(
-      new ProjectConfigContextField().getValueAsync({ nonInteractive: false })
+      getProjectIdAsync(
+        { name: 'test', slug: 'test', owner: 'wat', extra: { eas: { projectId: '1234' } } },
+        { nonInteractive: false }
+      )
     ).rejects.toThrow(
       `Project config: Project identified by 'extra.eas.projectId' is not owned by owner specified in the 'owner' field. (project = 'notnotbrent', config = 'wat')`
     );
@@ -105,9 +110,12 @@ describe(ProjectConfigContextField.name, () => {
       slug: 'test',
       ownerAccount: { name: 'notnotbrent' } as any,
     });
-    jest.mocked(ProjectDirContextField['findProjectRootAsync']).mockResolvedValue('/app');
+
     await expect(
-      new ProjectConfigContextField().getValueAsync({ nonInteractive: false })
+      getProjectIdAsync(
+        { name: 'test', slug: 'wat', extra: { eas: { projectId: '1234' } } },
+        { nonInteractive: false }
+      )
     ).rejects.toThrow(
       `Project config: Slug for project identified by 'extra.eas.projectId' does not match the 'slug' field. (project = 'test', config = 'wat')`
     );
@@ -115,7 +123,6 @@ describe(ProjectConfigContextField.name, () => {
 
   it('fetches the project ID when not in app config, and sets it in the config', async () => {
     jest.mocked(getConfig).mockReturnValue({ exp: { name: 'test', slug: 'test' } } as any);
-    jest.mocked(ProjectDirContextField['findProjectRootAsync']).mockResolvedValue('/app');
     jest.mocked(modifyConfigAsync).mockResolvedValue({
       type: 'success',
       config: { expo: { name: 'test', slug: 'test', extra: { eas: { projectId: '2345' } } } },
@@ -124,13 +131,14 @@ describe(ProjectConfigContextField.name, () => {
       .mocked(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync)
       .mockImplementation(async () => '2345');
 
-    const projectConfig = await new ProjectConfigContextField().getValueAsync({
-      nonInteractive: false,
-    });
-    expect(projectConfig).toMatchObject({
-      projectId: '2345',
-      exp: expect.any(Object),
-    });
+    const projectId = await getProjectIdAsync(
+      { name: 'test', slug: 'test' },
+      {
+        nonInteractive: false,
+      }
+    );
+
+    expect(projectId).toEqual('2345');
 
     expect(modifyConfigAsync).toHaveBeenCalledTimes(1);
     expect(modifyConfigAsync).toHaveBeenCalledWith('/app', {
@@ -140,7 +148,6 @@ describe(ProjectConfigContextField.name, () => {
 
   it('throws if writing the ID back to the config fails', async () => {
     jest.mocked(getConfig).mockReturnValue({ exp: { name: 'test', slug: 'test' } } as any);
-    jest.mocked(ProjectDirContextField['findProjectRootAsync']).mockResolvedValue('/app');
     jest.mocked(modifyConfigAsync).mockResolvedValue({
       type: 'fail',
       config: null,
@@ -150,7 +157,7 @@ describe(ProjectConfigContextField.name, () => {
       .mockImplementation(async () => '4567');
 
     await expect(
-      new ProjectConfigContextField().getValueAsync({ nonInteractive: false })
+      getProjectIdAsync({ name: 'test', slug: 'test' }, { nonInteractive: false })
     ).rejects.toThrow();
   });
 });
