@@ -147,7 +147,7 @@ function handleBuildRequestError(error: any, platform: Platform): never {
     throw new Error('Build request failed.');
   } else if (error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED') {
     Log.error(
-      `EAS Build free tier is temporarily disabled and we are not accepting new builds. Try again later. ${learnMore(
+      `EAS Build free tier is temporarily disabled and we are not accepting any new builds. Try again later. ${learnMore(
         'https://expo.fyi/eas-build-queues'
       )}`
     );
@@ -156,7 +156,7 @@ function handleBuildRequestError(error: any, platform: Platform): never {
     error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED_IOS'
   ) {
     Log.error(
-      `EAS Build free tier is temporarily disabled for iOS and we are not accepting new builds. Try again later. ${learnMore(
+      `EAS Build free tier is temporarily disabled for iOS and we are not accepting any new builds. Try again later. ${learnMore(
         'https://expo.fyi/eas-build-queues'
       )}`
     );
@@ -165,7 +165,7 @@ function handleBuildRequestError(error: any, platform: Platform): never {
     error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED_ANDROID'
   ) {
     Log.error(
-      `EAS Build free tier is temporarily disabled for Android and we are not accepting new builds. Try again later. ${learnMore(
+      `EAS Build free tier is temporarily disabled for Android and we are not accepting any new builds. Try again later. ${learnMore(
         'https://expo.fyi/eas-build-queues'
       )}`
     );
