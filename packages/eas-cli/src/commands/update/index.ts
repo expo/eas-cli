@@ -501,7 +501,7 @@ export default class UpdatePublish extends EasCommand {
 
       publishSpinner.succeed('Published!');
     } catch (e) {
-      publishSpinner.fail('Failed to published updates');
+      publishSpinner.fail('Failed to publish updates');
       throw e;
     }
 
