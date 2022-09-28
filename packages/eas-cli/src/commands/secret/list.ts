@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 import dateFormat from 'dateformat';
 
-import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
+import EasCommand from '../../commandUtils/EasCommand';
 import { EnvironmentSecretsQuery } from '../../graphql/queries/EnvironmentSecretsQuery';
 import { EnvironmentSecretTypeToSecretType } from '../../graphql/types/EnvironmentSecret';
 import Log from '../../log';
@@ -11,7 +11,7 @@ export default class EnvironmentSecretList extends EasCommand {
   static override description = 'list environment secrets available for your current app';
 
   static override contextDefinition = {
-    ...EASCommandProjectConfigContext,
+    ...this.ContextOptions.ProjectConfig,
   };
 
   async runAsync(): Promise<void> {

@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
+import EasCommand from '../../commandUtils/EasCommand';
 import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
 import { AppInfoQuery, AppInfoQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
@@ -33,7 +33,7 @@ export default class ProjectInfo extends EasCommand {
   static override description = 'information about the current project';
 
   static override contextDefinition = {
-    ...EASCommandProjectConfigContext,
+    ...this.ContextOptions.ProjectConfig,
   };
 
   async runAsync(): Promise<void> {

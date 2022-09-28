@@ -1,5 +1,5 @@
 import { formatGraphQLBuild } from '../../build/utils/formatBuild';
-import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
+import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { BuildFragment } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
@@ -18,7 +18,7 @@ export default class BuildView extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectConfigContext,
+    ...this.ContextOptions.ProjectConfig,
   };
 
   async runAsync(): Promise<void> {

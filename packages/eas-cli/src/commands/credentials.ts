@@ -1,9 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import EasCommand, {
-  EASCommandLoggedInContext,
-  EASCommandOptionalProjectConfigContext,
-} from '../commandUtils/EasCommand';
+import EasCommand from '../commandUtils/EasCommand';
 import { SelectPlatform } from '../credentials/manager/SelectPlatform';
 
 export default class Credentials extends EasCommand {
@@ -14,8 +11,8 @@ export default class Credentials extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandLoggedInContext,
-    ...EASCommandOptionalProjectConfigContext,
+    ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.OptionalProjectConfig,
   };
 
   async runAsync(): Promise<void> {

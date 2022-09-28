@@ -1,7 +1,7 @@
 import openBrowserAsync from 'better-opn';
 
 import { getProjectDashboardUrl } from '../build/utils/url';
-import EasCommand, { EASCommandProjectConfigContext } from '../commandUtils/EasCommand';
+import EasCommand from '../commandUtils/EasCommand';
 import { ora } from '../ora';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 
@@ -9,7 +9,7 @@ export default class Open extends EasCommand {
   static override description = 'open the project page in a web browser';
 
   static override contextDefinition = {
-    ...EASCommandProjectConfigContext,
+    ...this.ContextOptions.ProjectConfig,
   };
 
   async runAsync(): Promise<void> {

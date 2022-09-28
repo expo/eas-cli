@@ -2,11 +2,7 @@ import { EasJsonAccessor } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand, {
-  EASCommandLoggedInContext,
-  EASCommandProjectConfigContext,
-  EASCommandProjectDirContext,
-} from '../commandUtils/EasCommand';
+import EasCommand from '../commandUtils/EasCommand';
 import { StatuspageServiceName, SubmissionFragment } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
@@ -94,9 +90,9 @@ export default class Submit extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandLoggedInContext,
-    ...EASCommandProjectConfigContext,
-    ...EASCommandProjectDirContext,
+    ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectDir,
   };
 
   async runAsync(): Promise<void> {
