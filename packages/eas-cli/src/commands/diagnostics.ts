@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import envinfo from 'envinfo';
 
-import EasCommand, { EASCommandProjectDirContext } from '../commandUtils/EasCommand';
+import EasCommand from '../commandUtils/EasCommand';
 import Log from '../log';
 import { resolveWorkflowAsync } from '../project/workflow';
 import { easCliVersion } from '../utils/easCli';
@@ -10,7 +10,7 @@ export default class Diagnostics extends EasCommand {
   static override description = 'display environment info';
 
   static override contextDefinition = {
-    ...EASCommandProjectDirContext,
+    ...this.ContextOptions.ProjectDir,
   };
 
   async runAsync(): Promise<void> {

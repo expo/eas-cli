@@ -6,11 +6,7 @@ import chalk from 'chalk';
 
 import { updateNativeVersionsAsync as updateAndroidNativeVersionsAsync } from '../../../build/android/version';
 import { updateNativeVersionsAsync as updateIosNativeVersionsAsync } from '../../../build/ios/version';
-import EasCommand, {
-  EASCommandDynamicProjectConfigContext,
-  EASCommandLoggedInContext,
-  EASCommandProjectDirContext,
-} from '../../../commandUtils/EasCommand';
+import EasCommand from '../../../commandUtils/EasCommand';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
 import Log from '../../../log';
@@ -59,9 +55,9 @@ export default class BuildVersionSyncView extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandLoggedInContext,
-    ...EASCommandDynamicProjectConfigContext,
-    ...EASCommandProjectDirContext,
+    ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.DynamicProjectConfig,
+    ...this.ContextOptions.ProjectDir,
   };
 
   public async runAsync(): Promise<void> {

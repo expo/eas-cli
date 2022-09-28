@@ -2,7 +2,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
+import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { WebhookFragment } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
@@ -28,7 +28,7 @@ export default class WebhookDelete extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectConfigContext,
+    ...this.ContextOptions.ProjectConfig,
   };
 
   async runAsync(): Promise<void> {

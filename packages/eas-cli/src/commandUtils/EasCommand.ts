@@ -14,27 +14,6 @@ import { OptionalProjectConfigContextField } from './context/OptionalProjectConf
 import ProjectConfigContextField from './context/ProjectConfigContextField';
 import ProjectDirContextField from './context/ProjectDirContextField';
 
-export const EASCommandProjectConfigContext = {
-  projectConfig: new ProjectConfigContextField(),
-};
-
-export const EASCommandDynamicProjectConfigContext = {
-  // eslint-disable-next-line async-protect/async-suffix
-  getDynamicProjectConfigAsync: new DynamicProjectConfigContextField(),
-};
-
-export const EASCommandProjectDirContext = {
-  projectDir: new ProjectDirContextField(),
-};
-
-export const EASCommandOptionalProjectConfigContext = {
-  projectConfig: new OptionalProjectConfigContextField(),
-};
-
-export const EASCommandLoggedInContext = {
-  actor: new ActorContextField(),
-};
-
 type ContextInput<
   T extends {
     [name: string]: any;
@@ -52,8 +31,55 @@ type ContextOutput<
 };
 
 export default abstract class EasCommand extends Command {
+  protected static readonly ContextOptions = {
+    /**
+     * Require this command to be run when logged-in. Returns the logged-in actor in the context.
+     */
+    LoggedIn: {
+      actor: new ActorContextField(),
+    },
+    /**
+     * Require the project to be identified and registered on server if this command is being
+     * run within a project directory, null otherwise.
+     */
+    OptionalProjectConfig: {
+      projectConfig: new OptionalProjectConfigContextField(),
+    },
+    /**
+     * Require this command to be run in a project directory. Return the project directory in the context.
+     */
+    ProjectDir: {
+      projectDir: new ProjectDirContextField(),
+    },
+    /**
+     * Provides functions to load the project config when dynamic config options are needed (custom Env for example).
+     */
+    DynamicProjectConfig: {
+      // eslint-disable-next-line async-protect/async-suffix
+      getDynamicProjectConfigAsync: new DynamicProjectConfigContextField(),
+    },
+    /**
+     * Require the project to be identified and registered on server. Returns the project config in the context.
+     */
+    ProjectConfig: {
+      projectConfig: new ProjectConfigContextField(),
+    },
+  };
+
+  /**
+   * Context allows for subclasses (commands) to declare their prerequisites in a type-safe manner.
+   * These declarative definitions each output a context property that is the result of the prerequisite being
+   * satisfied. These allow a unified common interface to be shared amongst commands in order to provide a more
+   * consistent CLI experience.
+   *
+   * For example, let's say a command needs the EAS project ID to make a GraphQL mutation. It should declare that
+   * it requires the `ProjectConfig` context, and then call `getContextAsync` to get the project ID.
+   */
   static contextDefinition: ContextInput = {};
 
+  /**
+   * Execute the context in the contextDefinition to satisfy command prerequisites.
+   */
   protected async getContextAsync<
     C extends {
       [name: string]: any;

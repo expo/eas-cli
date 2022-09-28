@@ -5,11 +5,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
-import EasCommand, {
-  EASCommandDynamicProjectConfigContext,
-  EASCommandLoggedInContext,
-  EASCommandProjectDirContext,
-} from '../../commandUtils/EasCommand';
+import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
@@ -66,9 +62,9 @@ export default class BuildInspect extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandLoggedInContext,
-    ...EASCommandDynamicProjectConfigContext,
-    ...EASCommandProjectDirContext,
+    ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.DynamicProjectConfig,
+    ...this.ContextOptions.ProjectDir,
   };
 
   async runAsync(): Promise<void> {

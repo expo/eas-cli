@@ -1,7 +1,7 @@
 import { Flags } from '@oclif/core';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
-import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
+import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
@@ -33,7 +33,7 @@ export default class UpdateList extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectConfigContext,
+    ...this.ContextOptions.ProjectConfig,
   };
 
   async runAsync(): Promise<void> {

@@ -2,7 +2,7 @@ import { Device, DeviceStatus } from '@expo/apple-utils';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
 
-import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
+import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { PaginatedQueryOptions, getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { AppleDeviceMutation } from '../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
@@ -33,7 +33,7 @@ export default class DeviceDelete extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectConfigContext,
+    ...this.ContextOptions.ProjectConfig,
   };
 
   async runAsync(): Promise<void> {

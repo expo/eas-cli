@@ -3,10 +3,7 @@ import chalk from 'chalk';
 import path from 'path';
 
 import { ensureProjectConfiguredAsync } from '../../build/configure';
-import EasCommand, {
-  EASCommandLoggedInContext,
-  EASCommandProjectConfigContext,
-} from '../../commandUtils/EasCommand';
+import EasCommand from '../../commandUtils/EasCommand';
 import { CredentialsContext } from '../../credentials/context';
 import Log, { learnMore } from '../../log';
 import { createMetadataContextAsync } from '../../metadata/context';
@@ -25,8 +22,8 @@ export default class MetadataPull extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectConfigContext,
-    ...EASCommandLoggedInContext,
+    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {

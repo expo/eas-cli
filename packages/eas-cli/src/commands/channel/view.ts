@@ -4,7 +4,7 @@ import {
   listAndRenderBranchesAndUpdatesOnChannelAsync,
   selectChannelOnAppAsync,
 } from '../../channel/queries';
-import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
+import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { EasPaginatedQueryFlags, getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { enableJsonOutput } from '../../utils/json';
@@ -26,7 +26,7 @@ export default class ChannelView extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandProjectConfigContext,
+    ...this.ContextOptions.ProjectConfig,
   };
 
   async runAsync(): Promise<void> {

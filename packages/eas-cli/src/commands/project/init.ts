@@ -4,10 +4,7 @@ import nullthrows from 'nullthrows';
 import terminalLink from 'terminal-link';
 
 import { getProjectDashboardUrl } from '../../build/utils/url';
-import EasCommand, {
-  EASCommandLoggedInContext,
-  EASCommandProjectDirContext,
-} from '../../commandUtils/EasCommand';
+import EasCommand from '../../commandUtils/EasCommand';
 import { saveProjectIdToAppConfigAsync } from '../../commandUtils/context/contextUtils/getProjectIdAsync';
 import { AppPrivacy, Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
@@ -44,8 +41,8 @@ export default class ProjectInit extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandLoggedInContext,
-    ...EASCommandProjectDirContext,
+    ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.ProjectDir,
   };
 
   private static async saveProjectIdAndLogSuccessAsync(

@@ -4,11 +4,7 @@ import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand, {
-  EASCommandDynamicProjectConfigContext,
-  EASCommandLoggedInContext,
-  EASCommandProjectDirContext,
-} from '../../../commandUtils/EasCommand';
+import EasCommand from '../../../commandUtils/EasCommand';
 import { AppVersionMutation } from '../../../graphql/mutations/AppVersionMutation';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
@@ -42,9 +38,9 @@ export default class BuildVersionSetView extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandLoggedInContext,
-    ...EASCommandDynamicProjectConfigContext,
-    ...EASCommandProjectDirContext,
+    ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.DynamicProjectConfig,
+    ...this.ContextOptions.ProjectDir,
   };
 
   public async runAsync(): Promise<void> {

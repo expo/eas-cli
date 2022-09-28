@@ -10,7 +10,7 @@ import { getEASUpdateURL } from '../../api';
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
-import EasCommand, { EASCommandDynamicProjectConfigContext } from '../../commandUtils/EasCommand';
+import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -167,7 +167,7 @@ export default class UpdatePublish extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...EASCommandDynamicProjectConfigContext,
+    ...this.ContextOptions.DynamicProjectConfig,
   };
 
   async runAsync(): Promise<void> {
