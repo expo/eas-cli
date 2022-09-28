@@ -1,17 +1,17 @@
 import { vol } from 'memfs';
 
-import ProjectDirContextField from '../ProjectDirContextField';
+import { findProjectRootAsync } from '../findProjectDirAndVerifyProjectSetupAsync';
 
 jest.mock('@expo/config');
 jest.mock('fs');
 
-jest.mock('../../../prompts');
+jest.mock('../../../../prompts');
 
 beforeEach(() => {
   jest.resetAllMocks();
 });
 
-describe(ProjectDirContextField['findProjectRootAsync'], () => {
+describe(findProjectRootAsync, () => {
   beforeEach(() => {
     vol.reset();
   });
@@ -23,7 +23,7 @@ describe(ProjectDirContextField['findProjectRootAsync'], () => {
       },
       '/app'
     );
-    await expect(ProjectDirContextField['findProjectRootAsync']({ cwd: '/app' })).rejects.toThrow(
+    await expect(findProjectRootAsync({ cwd: '/app' })).rejects.toThrow(
       'Run this command inside a project directory.'
     );
   });
@@ -37,7 +37,7 @@ describe(ProjectDirContextField['findProjectRootAsync'], () => {
         },
         '/app'
       );
-      const projectDir = await ProjectDirContextField['findProjectRootAsync']({
+      const projectDir = await findProjectRootAsync({
         cwd: '/app',
         defaultToProcessCwd: true,
       });
@@ -56,7 +56,7 @@ describe(ProjectDirContextField['findProjectRootAsync'], () => {
       },
       '/app'
     );
-    const projectRoot = await ProjectDirContextField['findProjectRootAsync']({ cwd: '/app/src' });
+    const projectRoot = await findProjectRootAsync({ cwd: '/app/src' });
     expect(projectRoot).toBe('/app');
   });
 });

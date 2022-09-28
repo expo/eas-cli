@@ -3,8 +3,8 @@ import chalk from 'chalk';
 import { vol } from 'memfs';
 
 import ActorContextField from '../../../commandUtils/context/ActorContextField';
-import ProjectConfigContextField from '../../../commandUtils/context/ProjectConfigContextField';
 import ProjectDirContextField from '../../../commandUtils/context/ProjectDirContextField';
+import { saveProjectIdToAppConfigAsync } from '../../../commandUtils/context/contextUtils/getProjectIdAsync';
 import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { AppMutation } from '../../../graphql/mutations/AppMutation';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
@@ -22,7 +22,7 @@ jest.mock('../../../ora', () => ({
   }),
 }));
 jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
-jest.mock('../../../commandUtils/context/ProjectConfigContextField');
+jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
 
 let originalProcessArgv: string[];
 
@@ -93,23 +93,20 @@ describe(ProjectInit.name, () => {
       describe('interactive', () => {
         it('is no-op if already configured for id', async () => {
           await new ProjectInit(['--id', '1234'], commandOptions).run();
-          expect(ProjectConfigContextField['saveProjectIdToAppConfigAsync']).not.toHaveBeenCalled();
+          expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
         });
 
         it('prompts to overwrite when different', async () => {
           jest.mocked(confirmAsync).mockResolvedValue(true);
           await new ProjectInit(['--id', '12345'], commandOptions).run();
-          expect(ProjectConfigContextField['saveProjectIdToAppConfigAsync']).toHaveBeenCalledWith(
-            '/test-project',
-            '12345'
-          );
+          expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '12345');
           expect(confirmAsync).toHaveBeenCalled();
         });
 
         it('aborts when prompt to overwrite is declined', async () => {
           jest.mocked(confirmAsync).mockResolvedValue(false);
           await new ProjectInit(['--id', '12345'], commandOptions).run();
-          expect(ProjectConfigContextField['saveProjectIdToAppConfigAsync']).not.toHaveBeenCalled();
+          expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
           expect(confirmAsync).toHaveBeenCalled();
         });
       });
@@ -119,10 +116,7 @@ describe(ProjectInit.name, () => {
           await new ProjectInit(['--id', '12345', '--force'], {
             root: '/test-project',
           } as any).run();
-          expect(ProjectConfigContextField['saveProjectIdToAppConfigAsync']).toHaveBeenCalledWith(
-            '/test-project',
-            '12345'
-          );
+          expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '12345');
           expect(confirmAsync).not.toHaveBeenCalled();
         });
       });
@@ -138,7 +132,7 @@ describe(ProjectInit.name, () => {
               '1234'
             )}. Use --force flag to overwrite.`
           );
-          expect(ProjectConfigContextField['saveProjectIdToAppConfigAsync']).not.toHaveBeenCalled();
+          expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
         });
       });
     });
@@ -150,10 +144,7 @@ describe(ProjectInit.name, () => {
 
       it('configures', async () => {
         await new ProjectInit(['--id', '1234'], commandOptions).run();
-        expect(ProjectConfigContextField['saveProjectIdToAppConfigAsync']).toHaveBeenCalledWith(
-          '/test-project',
-          '1234'
-        );
+        expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '1234');
       });
     });
   });
@@ -166,7 +157,7 @@ describe(ProjectInit.name, () => {
 
       it('does not configure', async () => {
         await new ProjectInit([], commandOptions).run();
-        expect(ProjectConfigContextField['saveProjectIdToAppConfigAsync']).not.toHaveBeenCalled();
+        expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
       });
     });
 
@@ -184,10 +175,7 @@ describe(ProjectInit.name, () => {
           it('prompts for confirmation to link', async () => {
             jest.mocked(confirmAsync).mockResolvedValue(true);
             await new ProjectInit([], commandOptions).run();
-            expect(ProjectConfigContextField['saveProjectIdToAppConfigAsync']).toHaveBeenCalledWith(
-              '/test-project',
-              '123456'
-            );
+            expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '123456');
             expect(confirmAsync).toHaveBeenCalledTimes(1);
           });
 
@@ -196,9 +184,7 @@ describe(ProjectInit.name, () => {
             await expect(new ProjectInit([], commandOptions).run()).rejects.toThrow(
               'Project ID configuration canceled. Re-run the command to select a different account/project.'
             );
-            expect(
-              ProjectConfigContextField['saveProjectIdToAppConfigAsync']
-            ).not.toHaveBeenCalled();
+            expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
             expect(confirmAsync).toHaveBeenCalledTimes(1);
           });
         });
@@ -208,10 +194,7 @@ describe(ProjectInit.name, () => {
             jest.mocked(confirmAsync).mockResolvedValue(true);
             jest.mocked(AppMutation.createAppAsync).mockResolvedValue('0129');
             await new ProjectInit([], commandOptions).run();
-            expect(ProjectConfigContextField['saveProjectIdToAppConfigAsync']).toHaveBeenCalledWith(
-              '/test-project',
-              '0129'
-            );
+            expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '0129');
             expect(confirmAsync).toHaveBeenCalledTimes(1);
           });
 
@@ -220,9 +203,7 @@ describe(ProjectInit.name, () => {
             await expect(new ProjectInit([], commandOptions).run()).rejects.toThrowError(
               'Project ID configuration canceled for @jester/testing-123.'
             );
-            expect(
-              ProjectConfigContextField['saveProjectIdToAppConfigAsync']
-            ).not.toHaveBeenCalled();
+            expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
             expect(confirmAsync).toHaveBeenCalledTimes(1);
           });
         });
@@ -248,7 +229,7 @@ describe(ProjectInit.name, () => {
         await expect(new ProjectInit([], commandOptions).run()).rejects.toThrowError(
           `You don't have permission to create a new project on the other account and no matching project already exists on the account.`
         );
-        expect(ProjectConfigContextField['saveProjectIdToAppConfigAsync']).not.toHaveBeenCalled();
+        expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
       });
     });
   });
