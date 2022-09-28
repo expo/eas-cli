@@ -1,20 +1,23 @@
 import { Platform } from '@expo/eas-build-job';
 import envinfo from 'envinfo';
 
-import EasCommand, { CommandConfiguration } from '../commandUtils/EasCommand';
+import EasCommand, { EASCommandProjectDirContext } from '../commandUtils/EasCommand';
 import Log from '../log';
-import { findProjectRootAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
 import { easCliVersion } from '../utils/easCli';
 
 export default class Diagnostics extends EasCommand {
   static override description = 'display environment info';
 
-  protected override commandConfiguration: CommandConfiguration = {
-    allowUnauthenticated: true,
+  static override contextDefinition = {
+    ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
+    const { projectDir } = await this.getContextAsync(Diagnostics, {
+      nonInteractive: true,
+    });
+
     const info = await envinfo.run(
       {
         System: ['OS', 'Shell'],
@@ -40,12 +43,11 @@ export default class Diagnostics extends EasCommand {
     );
 
     Log.log(info.trimEnd());
-    await this.printWorkflowAsync();
+    await this.printWorkflowAsync(projectDir);
     Log.newLine();
   }
 
-  private async printWorkflowAsync(): Promise<void> {
-    const projectDir = await findProjectRootAsync();
+  private async printWorkflowAsync(projectDir: string): Promise<void> {
     const androidWorkflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
     const iosWorkflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
 

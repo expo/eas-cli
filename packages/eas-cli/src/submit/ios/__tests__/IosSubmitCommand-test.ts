@@ -8,7 +8,7 @@ import {
 } from '../../../credentials/__tests__/fixtures-constants';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
-import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
 import { createSubmissionContextAsync } from '../../context';
 import IosSubmitCommand from '../IosSubmitCommand';
 
@@ -49,10 +49,6 @@ describe(IosSubmitCommand, () => {
     jest.mocked(getOwnerAccountForProjectIdAsync).mockResolvedValue(mockJester.accounts[0]);
   });
 
-  afterEach(() => {
-    jest.mocked(getProjectIdAsync).mockClear();
-  });
-
   describe('non-interactive mode', () => {
     it("throws error if didn't provide appleId and ascAppId in the submit profile", async () => {
       const projectId = uuidv4();
@@ -68,7 +64,8 @@ describe(IosSubmitCommand, () => {
         },
         nonInteractive: true,
         actor: mockJester,
-        getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
+        exp: testProject.appJSON.expo,
+        projectId,
       });
       const command = new IosSubmitCommand(ctx);
       await expect(command.runAsync()).rejects.toThrowError();
@@ -94,7 +91,8 @@ describe(IosSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
-        getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
+        exp: testProject.appJSON.expo,
+        projectId,
       });
       const command = new IosSubmitCommand(ctx);
       await command.runAsync();

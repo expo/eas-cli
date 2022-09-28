@@ -1,16 +1,20 @@
-import { ApiV2Error } from '../../api';
-import { promptAsync } from '../../prompts';
-import { loginAsync } from '../User';
-import { showLoginPromptAsync } from '../actions';
-import { UserSecondFactorDeviceMethod, retryUsernamePasswordAuthWithOTPAsync } from '../otp';
+import { ApiV2Error } from '../../../api';
+import { promptAsync } from '../../../prompts';
+import { loginAsync } from '../../../user/User';
+import {
+  UserSecondFactorDeviceMethod,
+  retryUsernamePasswordAuthWithOTPAsync,
+} from '../../../user/otp';
+import ActorContextField from '../ActorContextField';
 
-jest.mock('../../prompts');
-jest.mock('../../api', () => ({
-  ApiV2Error: jest.requireActual('../../api').ApiV2Error,
+jest.mock('../../../prompts');
+jest.mock('../../../api', () => ({
+  ApiV2Error: jest.requireActual('../../../api').ApiV2Error,
+  getExpoApiBaseUrl: jest.fn(),
 }));
 
-jest.mock('../otp');
-jest.mock('../User', () => ({
+jest.mock('../../../user/otp');
+jest.mock('../../../user/User', () => ({
   loginAsync: jest.fn(),
 }));
 
@@ -23,7 +27,7 @@ beforeEach(() => {
   jest.mocked(loginAsync).mockReset();
 });
 
-describe(showLoginPromptAsync, () => {
+describe(ActorContextField['showLoginPromptAsync'], () => {
   it('prompts for OTP when 2FA is enabled', async () => {
     jest
       .mocked(promptAsync)
@@ -53,7 +57,7 @@ describe(showLoginPromptAsync, () => {
       })
       .mockImplementation(async () => {});
 
-    await showLoginPromptAsync();
+    await ActorContextField['showLoginPromptAsync']();
 
     expect(retryUsernamePasswordAuthWithOTPAsync).toHaveBeenCalledWith('hello', 'world', {
       secondFactorDevices: [

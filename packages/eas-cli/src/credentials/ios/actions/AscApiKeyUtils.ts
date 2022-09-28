@@ -20,7 +20,7 @@ import {
   ascApiKeyIssuerIdSchema,
 } from '../credentials';
 import { isAscApiKeyValidAndTrackedAsync } from '../validators/validateAscApiKey';
-import { formatAppleTeam } from './AppleTeamUtils';
+import { formatAppleTeam } from './AppleTeamFormatting';
 
 export enum AppStoreApiKeyPurpose {
   SUBMISSION_SERVICE = 'EAS Submit',

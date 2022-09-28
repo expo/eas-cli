@@ -13,20 +13,20 @@ export async function syncProjectConfigurationAsync({
   exp,
   targets,
   localAutoIncrement,
-  nonInteractive,
+  projectId,
 }: {
   projectDir: string;
   exp: ExpoConfig;
   targets: Target[];
   localAutoIncrement?: IosVersionAutoIncrement;
-  nonInteractive: boolean;
+  projectId: string;
 }): Promise<void> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   const versionBumpStrategy = resolveVersionBumpStrategy(localAutoIncrement ?? false);
 
   if (workflow === Workflow.GENERIC) {
     if (isExpoUpdatesInstalled(projectDir)) {
-      await syncUpdatesConfigurationAsync(projectDir, exp, { nonInteractive });
+      await syncUpdatesConfigurationAsync(projectDir, exp, projectId);
     }
     await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy, targets });
   } else {

@@ -10,7 +10,6 @@ import Log, { learnMore } from '../../log';
 import { createMetadataContextAsync } from '../../metadata/context';
 import { handleMetadataError } from '../../metadata/errors';
 import { uploadMetadataAsync } from '../../metadata/upload';
-import { findProjectRootAsync } from '../../project/projectUtils';
 
 export default class MetadataPush extends EasCommand {
   static override description = 'sync the local store configuration to the app stores';
@@ -34,18 +33,16 @@ export default class MetadataPush extends EasCommand {
     const { flags } = await this.parse(MetadataPush);
     const {
       actor,
-      projectConfig: { exp },
+      projectConfig: { exp, projectId, projectDir },
     } = await this.getContextAsync(MetadataPush, {
       nonInteractive: false,
     });
-
-    const projectDir = await findProjectRootAsync();
 
     // this command is interactive (all nonInteractive flags passed to utility functions are false)
     await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false });
 
     const credentialsCtx = new CredentialsContext({
-      exp,
+      projectInfo: { exp, projectId },
       projectDir,
       user: actor,
       nonInteractive: false,

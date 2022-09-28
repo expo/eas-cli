@@ -10,7 +10,6 @@ import { AppPlatform } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform, appPlatformDisplayNames } from '../../platform';
 import {
-  findProjectRootAsync,
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledOrAvailable,
 } from '../../project/projectUtils';
@@ -43,12 +42,11 @@ export default class UpdateConfigure extends EasCommand {
     );
     const { flags } = await this.parse(UpdateConfigure);
     const {
-      projectConfig: { projectId, exp },
+      projectConfig: { projectId, exp, projectDir },
     } = await this.getContextAsync(UpdateConfigure, {
       nonInteractive: true,
     });
     const platform = flags.platform as RequestedPlatform;
-    const projectDir = await findProjectRootAsync();
 
     if (!isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion)) {
       await installExpoUpdatesAsync(projectDir);
@@ -76,14 +74,14 @@ export default class UpdateConfigure extends EasCommand {
       [RequestedPlatform.Android, RequestedPlatform.All].includes(platform) &&
       androidWorkflow === Workflow.GENERIC
     ) {
-      await syncAndroidUpdatesConfigurationAsync(projectDir, updatedExp, { nonInteractive: true });
+      await syncAndroidUpdatesConfigurationAsync(projectDir, updatedExp, projectId);
       Log.withTick(`Configured ${chalk.bold('AndroidManifest.xml')} for EAS Update`);
     }
     if (
       [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
       iosWorkflow === Workflow.GENERIC
     ) {
-      await syncIosUpdatesConfigurationAsync(projectDir, updatedExp, { nonInteractive: true });
+      await syncIosUpdatesConfigurationAsync(projectDir, updatedExp, projectId);
       Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
     }
 

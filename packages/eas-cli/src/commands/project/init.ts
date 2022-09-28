@@ -4,18 +4,18 @@ import nullthrows from 'nullthrows';
 import terminalLink from 'terminal-link';
 
 import { getProjectDashboardUrl } from '../../build/utils/url';
-import EasCommand, { EASCommandLoggedInContext } from '../../commandUtils/EasCommand';
+import EasCommand, {
+  EASCommandLoggedInContext,
+  EASCommandProjectDirContext,
+} from '../../commandUtils/EasCommand';
+import ProjectIdContextField from '../../commandUtils/context/ProjectConfigContextField';
 import { AppPrivacy, Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import {
-  findProjectRootAsync,
-  saveProjectIdToAppConfigAsync,
-  toAppPrivacy,
-} from '../../project/projectUtils';
+import { toAppPrivacy } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { Actor } from '../../user/User';
 
@@ -45,21 +45,22 @@ export default class ProjectInit extends EasCommand {
 
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
+    ...EASCommandProjectDirContext,
   };
 
   private static async saveProjectIdAndLogSuccessAsync(
     projectDir: string,
     projectId: string
   ): Promise<void> {
-    await saveProjectIdToAppConfigAsync(projectDir, projectId);
+    await ProjectIdContextField['saveProjectIdToAppConfigAsync'](projectDir, projectId);
     Log.withTick(`Project successfully linked (ID: ${chalk.bold(projectId)}) (modified app.json)`);
   }
 
   private static async initializeWithExplicitIDAsync(
     projectId: string,
+    projectDir: string,
     { force, nonInteractive }: InitializeMethodOptions
   ): Promise<void> {
-    const projectDir = await findProjectRootAsync();
     const exp = getExpoConfig(projectDir);
     const existingProjectId = exp.extra?.eas?.projectId;
 
@@ -101,8 +102,10 @@ export default class ProjectInit extends EasCommand {
     }
   }
 
-  private static async initializeWithInteractiveSelectionAsync(actor: Actor): Promise<void> {
-    const projectDir = await findProjectRootAsync();
+  private static async initializeWithInteractiveSelectionAsync(
+    actor: Actor,
+    projectDir: string
+  ): Promise<void> {
     const exp = getExpoConfig(projectDir);
     const existingProjectId = exp.extra?.eas?.projectId;
 
@@ -218,12 +221,12 @@ export default class ProjectInit extends EasCommand {
     const {
       flags: { id, force, 'non-interactive': nonInteractive },
     } = await this.parse(ProjectInit);
-    const { actor } = await this.getContextAsync(ProjectInit, { nonInteractive });
+    const { actor, projectDir } = await this.getContextAsync(ProjectInit, { nonInteractive });
 
     if (id) {
-      await ProjectInit.initializeWithExplicitIDAsync(id, { force, nonInteractive });
+      await ProjectInit.initializeWithExplicitIDAsync(id, projectDir, { force, nonInteractive });
     } else {
-      await ProjectInit.initializeWithInteractiveSelectionAsync(actor);
+      await ProjectInit.initializeWithInteractiveSelectionAsync(actor, projectDir);
     }
   }
 }

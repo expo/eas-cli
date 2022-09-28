@@ -15,7 +15,7 @@ import {
 } from '../../../graphql/generated';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
-import { getOwnerAccountForProjectIdAsync, getProjectIdAsync } from '../../../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
 import { createSubmissionContextAsync } from '../../context';
 import { getRecentBuildsForSubmissionAsync } from '../../utils/builds';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
@@ -73,10 +73,6 @@ describe(AndroidSubmitCommand, () => {
     jest.mocked(getOwnerAccountForProjectIdAsync).mockResolvedValue(mockJester.accounts[0]);
   });
 
-  afterEach(() => {
-    jest.mocked(getProjectIdAsync).mockClear();
-  });
-
   describe('non-interactive mode', () => {
     it("throws error if didn't provide serviceAccountKeyPath in the submit profile", async () => {
       const projectId = uuidv4();
@@ -94,7 +90,8 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: true,
         actor: mockJester,
-        getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
+        exp: testProject.appJSON.expo,
+        projectId,
       });
       const command = new AndroidSubmitCommand(ctx);
       await expect(command.runAsync()).rejects.toThrowError();
@@ -119,7 +116,8 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
-        getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
+        exp: testProject.appJSON.expo,
+        projectId,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
@@ -156,7 +154,8 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
-        getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
+        exp: testProject.appJSON.expo,
+        projectId,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();

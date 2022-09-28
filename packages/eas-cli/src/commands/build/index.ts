@@ -10,12 +10,12 @@ import { UserInputResourceClass } from '../../build/types';
 import EasCommand, {
   EASCommandDynamicProjectConfigContext,
   EASCommandLoggedInContext,
+  EASCommandProjectDirContext,
 } from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { StatuspageServiceName } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
-import { findProjectRootAsync } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
 import uniq from '../../utils/expodash/uniq';
 import { enableJsonOutput } from '../../utils/json';
@@ -102,6 +102,7 @@ export default class Build extends EasCommand {
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
     ...EASCommandDynamicProjectConfigContext,
+    ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
@@ -112,11 +113,9 @@ export default class Build extends EasCommand {
     }
     const flags = this.sanitizeFlags(rawFlags);
 
-    const { actor, getDynamicProjectConfigAsync } = await this.getContextAsync(Build, {
+    const { actor, getDynamicProjectConfigAsync, projectDir } = await this.getContextAsync(Build, {
       nonInteractive: flags.nonInteractive,
     });
-
-    const projectDir = await findProjectRootAsync();
 
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 

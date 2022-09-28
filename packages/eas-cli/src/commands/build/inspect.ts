@@ -8,11 +8,11 @@ import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand, {
   EASCommandDynamicProjectConfigContext,
   EASCommandLoggedInContext,
+  EASCommandProjectDirContext,
 } from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
-import { findProjectRootAsync } from '../../project/projectUtils';
 import { getTmpDirectory } from '../../utils/paths';
 import { getVcsClient } from '../../vcs';
 
@@ -68,13 +68,17 @@ export default class BuildInspect extends EasCommand {
   static override contextDefinition = {
     ...EASCommandLoggedInContext,
     ...EASCommandDynamicProjectConfigContext,
+    ...EASCommandProjectDirContext,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildInspect);
-    const { actor, getDynamicProjectConfigAsync } = await this.getContextAsync(BuildInspect, {
-      nonInteractive: false,
-    });
+    const { actor, getDynamicProjectConfigAsync, projectDir } = await this.getContextAsync(
+      BuildInspect,
+      {
+        nonInteractive: false,
+      }
+    );
 
     const outputDirectory = path.resolve(process.cwd(), flags.output);
     const tmpWorkingdir = path.join(getTmpDirectory(), uuidv4());
@@ -93,7 +97,6 @@ export default class BuildInspect extends EasCommand {
       await vcs.makeShallowCopyAsync(tmpWorkingdir);
       await this.copyToOutputDirAsync(tmpWorkingdir, outputDirectory);
     } else {
-      const projectDir = await findProjectRootAsync();
       try {
         await runBuildAndSubmitAsync(
           projectDir,

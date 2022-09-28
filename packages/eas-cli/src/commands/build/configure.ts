@@ -7,7 +7,7 @@ import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand, { EASCommandProjectConfigContext } from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
-import { findProjectRootAsync, isExpoUpdatesInstalled } from '../../project/projectUtils';
+import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
@@ -32,7 +32,7 @@ export default class BuildConfigure extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildConfigure);
     const {
-      projectConfig: { exp },
+      projectConfig: { exp, projectId, projectDir },
     } = await this.getContextAsync(BuildConfigure, {
       nonInteractive: false,
     });
@@ -43,7 +43,6 @@ export default class BuildConfigure extends EasCommand {
 
     await getVcsClient().ensureRepoExistsAsync();
 
-    const projectDir = await findProjectRootAsync();
     const expoUpdatesIsInstalled = isExpoUpdatesInstalled(projectDir);
 
     const platform =
@@ -66,14 +65,14 @@ export default class BuildConfigure extends EasCommand {
       if ([RequestedPlatform.Android, RequestedPlatform.All].includes(platform)) {
         const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
         if (workflow === Workflow.GENERIC) {
-          await syncAndroidUpdatesConfigurationAsync(projectDir, exp, { nonInteractive: false });
+          await syncAndroidUpdatesConfigurationAsync(projectDir, exp, projectId);
         }
       }
 
       if ([RequestedPlatform.Ios, RequestedPlatform.All].includes(platform)) {
         const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
         if (workflow === Workflow.GENERIC) {
-          await syncIosUpdatesConfigurationAsync(projectDir, exp, { nonInteractive: false });
+          await syncIosUpdatesConfigurationAsync(projectDir, exp, projectId);
         }
       }
     }

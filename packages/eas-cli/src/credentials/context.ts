@@ -12,6 +12,11 @@ import * as IosGraphqlClient from './ios/api/GraphqlClient';
 import AppStoreApi from './ios/appstore/AppStoreApi';
 import { AuthenticationMode } from './ios/appstore/authenticateTypes';
 
+export type CredentialsContextProjectInfo = {
+  exp: ExpoConfig;
+  projectId: string;
+};
+
 export class CredentialsContext {
   public readonly android = AndroidGraphqlClient;
   public readonly appStore = new AppStoreApi();
@@ -22,11 +27,13 @@ export class CredentialsContext {
   public readonly easJsonCliConfig?: EasJson['cli'];
 
   private shouldAskAuthenticateAppStore: boolean = true;
-  private resolvedExp?: ExpoConfig;
+
+  private projectInfo: CredentialsContextProjectInfo | null;
 
   constructor(
     private options: {
-      exp?: ExpoConfig;
+      // if null, this implies not running in a project context
+      projectInfo: CredentialsContextProjectInfo | null;
       easJsonCliConfig?: EasJson['cli'];
       nonInteractive: boolean;
       projectDir: string;
@@ -38,13 +45,7 @@ export class CredentialsContext {
     this.projectDir = options.projectDir;
     this.user = options.user;
     this.nonInteractive = options.nonInteractive ?? false;
-
-    this.resolvedExp = options.exp;
-    if (!this.resolvedExp) {
-      this.resolvedExp =
-        CredentialsContext.getExpoConfigInProject(this.projectDir, { env: options.env }) ??
-        undefined;
-    }
+    this.projectInfo = options.projectInfo;
   }
 
   static getExpoConfigInProject(
@@ -60,12 +61,17 @@ export class CredentialsContext {
   }
 
   get hasProjectContext(): boolean {
-    return !!this.resolvedExp;
+    return !!this.projectInfo;
   }
 
   get exp(): ExpoConfig {
     this.ensureProjectContext();
-    return this.resolvedExp!;
+    return this.projectInfo!.exp;
+  }
+
+  get projectId(): string {
+    this.ensureProjectContext();
+    return this.projectInfo!.projectId;
   }
 
   public ensureProjectContext(): void {

@@ -149,7 +149,8 @@ describe(getServiceAccountKeyResultAsync, () => {
       },
       nonInteractive: true,
       actor: mockJester,
-      getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
+      exp: testProject.appJSON.expo,
+      projectId,
     });
     const source: ServiceAccountSource = {
       sourceType: ServiceAccountSourceType.path,
@@ -185,7 +186,8 @@ describe(getServiceAccountKeyResultAsync, () => {
       },
       nonInteractive: true,
       actor: mockJester,
-      getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
+      exp: testProject.appJSON.expo,
+      projectId,
     });
     const source: ServiceAccountSource = {
       sourceType: ServiceAccountSourceType.prompt,
@@ -217,7 +219,8 @@ describe(getServiceAccountKeyResultAsync, () => {
       },
       nonInteractive: true,
       actor: mockJester,
-      getDynamicProjectConfigAsync: async () => ({ exp: testProject.appJSON.expo, projectId }),
+      exp: testProject.appJSON.expo,
+      projectId,
     });
     const serviceAccountResult = await getServiceAccountKeyResultAsync(ctx, {
       sourceType: ServiceAccountSourceType.credentialsService,
