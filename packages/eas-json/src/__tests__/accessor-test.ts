@@ -70,7 +70,7 @@ describe(EasJsonAccessor, () => {
     const accessor = new EasJsonAccessor(fakeAppPath);
     await expect(accessor.readAsync()).rejects.toThrowError(InvalidEasJsonError);
     await expect(accessor.readAsync()).rejects.toThrowError(
-      /^Found invalid character in.+eas\.json.+/
+      /^Found invalid character in .*eas\.json.+/
     );
   });
 
@@ -84,6 +84,6 @@ describe(EasJsonAccessor, () => {
 
     const accessor = new EasJsonAccessor(fakeAppPath);
     await expect(accessor.readAsync()).rejects.toThrowError(InvalidEasJsonError);
-    await expect(accessor.readAsync()).rejects.toThrowError(/^(.+)?eas\.json(.+)? is empty\.+$/g);
+    await expect(accessor.readAsync()).rejects.toThrowError(/^.*eas\.json.* is empty\.$/g);
   });
 });

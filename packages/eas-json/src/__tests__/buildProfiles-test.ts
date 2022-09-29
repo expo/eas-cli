@@ -298,7 +298,7 @@ test('invalid eas.json when using wrong buildType', async () => {
   const promise = EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'production');
   await expect(promise).rejects.toThrowError(InvalidEasJsonError);
   await expect(promise).rejects.toThrowError(
-    /(.+)?eas\.json(.+)? is not valid\.\r?\n- "build.production.android.buildType" must be one of \[apk, app-bundle\]$/g
+    /.*eas\.json.* is not valid\.\r?\n- "build.production.android.buildType" must be one of \[apk, app-bundle\]$/g
   );
 });
 
@@ -321,7 +321,7 @@ test('invalid semver value', async () => {
   const promise = EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'production');
   await expect(promise).rejects.toThrowError(InvalidEasJsonError);
   await expect(promise).rejects.toThrowError(
-    /(.+)?eas\.json(.+)? is not valid\.\r?\n- "build.production.node" failed custom validation because alpha is not a valid version$/g
+    /.*eas\.json.* is not valid\.\r?\n- "build.production.node" failed custom validation because alpha is not a valid version$/g
   );
 });
 
