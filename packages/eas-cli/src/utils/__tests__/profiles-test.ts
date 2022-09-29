@@ -1,5 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
 import { EasJsonAccessor, EasJsonUtils, errors } from '@expo/eas-json';
+import { MissingProfileError } from '@expo/eas-json/build/errors';
 
 import { selectAsync } from '../../prompts';
 import { getProfilesAsync } from '../profiles';
@@ -45,7 +46,7 @@ describe(getProfilesAsync, () => {
 
   it('throws an error if there are no profiles in eas.json', async () => {
     getBuildProfileAsync.mockImplementation(async () => {
-      throw new errors.MissingProfileError();
+      throw new MissingProfileError();
     });
     getBuildProfileNamesAsync.mockImplementation(() => Promise.resolve([]));
 
@@ -56,7 +57,7 @@ describe(getProfilesAsync, () => {
         profileName: undefined,
         type: 'build',
       })
-    ).rejects.toThrowError(errors.MissingProfileError);
+    ).rejects.toThrowError(MissingProfileError);
   });
 
   it('gets a specific profile', async () => {

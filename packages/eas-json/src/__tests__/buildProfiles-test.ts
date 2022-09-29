@@ -3,6 +3,7 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 
 import { EasJsonAccessor } from '../accessor';
+import { InvalidEasJsonError } from '../errors';
 import { EasJsonUtils } from '../utils';
 
 jest.mock('fs');
@@ -295,8 +296,9 @@ test('invalid eas.json when using wrong buildType', async () => {
 
   const accessor = new EasJsonAccessor('/project');
   const promise = EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'production');
+  await expect(promise).rejects.toThrowError(InvalidEasJsonError);
   await expect(promise).rejects.toThrowError(
-    'eas.json is not valid [ValidationError: "build.production.android.buildType" must be one of [apk, app-bundle]]'
+    /.+eas\.json.+ is not valid\.\n- "build.production.android.buildType" must be one of \[apk, app-bundle\]/
   );
 });
 
@@ -317,8 +319,9 @@ test('invalid semver value', async () => {
 
   const accessor = new EasJsonAccessor('/project');
   const promise = EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'production');
+  await expect(promise).rejects.toThrowError(InvalidEasJsonError);
   await expect(promise).rejects.toThrowError(
-    'eas.json is not valid [ValidationError: "build.production.node" failed custom validation because alpha is not a valid version]'
+    /.+eas\.json.+ is not valid\.\n- "build.production.node" failed custom validation because alpha is not a valid version$/
   );
 });
 
