@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
 class NamedError extends Error {
-  constructor(message: string) {
+  constructor(message?: string) {
     super(message);
     this.name = chalk.red(this.constructor.name);
   }
