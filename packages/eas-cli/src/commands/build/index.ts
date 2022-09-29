@@ -3,6 +3,7 @@ import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import figures from 'figures';
+import fs from 'fs-extra';
 import path from 'path';
 
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
@@ -232,6 +233,9 @@ async function handleDeprecatedEasJsonAsync(
   projectDir: string,
   nonInteractive: boolean
 ): Promise<void> {
+  if (!(await fs.pathExists(EasJsonAccessor.formatEasJsonPath(projectDir)))) {
+    return;
+  }
   const easJsonAccessor = new EasJsonAccessor(projectDir);
   const profileNames = await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor);
   const platformAndProfileNames: [Platform, string][] = profileNames.flatMap(profileName => [
