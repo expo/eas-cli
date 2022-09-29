@@ -82,6 +82,10 @@ export class EasJsonAccessor {
 
     this.easJsonRawContents = await fs.readFile(this.easJsonPath, 'utf-8');
 
+    if (this.easJsonRawContents.trim().length === 0) {
+      throw new InvalidEasJsonError(`${chalk.bold('eas.json')} is empty.`);
+    }
+
     try {
       const rawJSON = JSON.parse(this.easJsonRawContents);
       this.easJsonRawObject = rawJSON;
