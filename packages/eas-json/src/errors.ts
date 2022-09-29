@@ -1,16 +1,7 @@
-import chalk from 'chalk';
+export class InvalidEasJsonError extends Error {}
 
-class NamedError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = chalk.red(this.constructor.name);
-  }
-}
+export class MissingEasJsonError extends Error {}
 
-export class InvalidEasJsonError extends NamedError {}
+export class MissingProfileError extends Error {}
 
-export class MissingEasJsonError extends NamedError {}
-
-export class MissingProfileError extends NamedError {}
-
-export class MissingParentProfileError extends NamedError {}
+export class MissingParentProfileError extends Error {}
