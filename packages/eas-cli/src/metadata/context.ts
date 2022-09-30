@@ -7,6 +7,7 @@ import assert from 'assert';
 import { Analytics } from '../analytics/AnalyticsManager';
 import { CredentialsContext } from '../credentials/context';
 import { getRequestContext } from '../credentials/ios/appstore/authenticate';
+import { getExpoConfig } from '../project/expoConfig';
 import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
 import { Actor } from '../user/User';
 
@@ -18,11 +19,11 @@ export type MetadataContext = {
   /** Configured store config path, relative from projectDir (defaults to store.config.json) */
   metadataPath: string;
   /** Authenticated Expo account */
-  user: Actor;
-  /** The store credentials manager */
-  credentialsCtx: CredentialsContext;
+  user?: Actor;
   /** The analytics manager for EAS cli */
   analytics: Analytics;
+  /** The store credentials manager */
+  credentialsCtx?: CredentialsContext;
   /** The app bundle identifier to use for the store */
   bundleIdentifier: string;
   /** Root of the Expo project directory */
@@ -44,9 +45,9 @@ export type MetadataAppStoreAuthentication = {
  */
 export async function createMetadataContextAsync(params: {
   projectDir: string;
-  credentialsCtx: CredentialsContext;
   analytics: Analytics;
-  exp: ExpoConfig;
+  credentialsCtx?: CredentialsContext;
+  exp?: ExpoConfig;
   profileName?: string;
 }): Promise<MetadataContext> {
   const easJsonAccessor = new EasJsonAccessor(params.projectDir);
@@ -56,8 +57,8 @@ export async function createMetadataContextAsync(params: {
     params.profileName
   );
 
-  const exp = params.exp;
-  const user = params.credentialsCtx.user;
+  const exp = params.exp ?? getExpoConfig(params.projectDir);
+  const user = params.credentialsCtx ? params.credentialsCtx.user : undefined;
   const bundleIdentifier =
     submitProfile.bundleIdentifier ?? (await getBundleIdentifierAsync(params.projectDir, exp));
 
@@ -82,6 +83,8 @@ export async function ensureMetadataAppStoreAuthenticatedAsync({
   credentialsCtx,
   bundleIdentifier,
 }: MetadataContext): Promise<MetadataAppStoreAuthentication> {
+  assert(credentialsCtx, 'Failed to authenticate with App Store Connect');
+
   const authCtx = await credentialsCtx.appStore.ensureAuthenticatedAsync();
   assert(authCtx.authState, 'Failed to authenticate with App Store Connect');
 
