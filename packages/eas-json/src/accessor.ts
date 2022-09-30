@@ -1,5 +1,6 @@
 import { codeFrameColumns } from '@babel/code-frame';
 import assert from 'assert';
+import chalk from 'chalk';
 import fs from 'fs-extra';
 import * as fleece from 'golden-fleece';
 import path from 'path';
@@ -38,7 +39,10 @@ export class EasJsonAccessor {
       noDefaults: true,
     });
     if (error) {
-      throw new InvalidEasJsonError(`eas.json is not valid [${error.toString()}]`);
+      const errorMessages = error.message.split('. ');
+      throw new InvalidEasJsonError(
+        `${chalk.bold('eas.json')} is not valid.\n- ${errorMessages.join('\n- ')}`
+      );
     }
     this.easJson = value;
     return value;
@@ -70,11 +74,17 @@ export class EasJsonAccessor {
   public async readRawJsonAsync(): Promise<any> {
     if (!(await fs.pathExists(this.easJsonPath))) {
       throw new MissingEasJsonError(
-        `eas.json could not be found at ${this.easJsonPath}. Learn more at https://expo.fyi/eas-json`
+        `${chalk.bold('eas.json')} could not be found at ${
+          this.easJsonPath
+        }. Learn more at https://expo.fyi/eas-json`
       );
     }
 
     this.easJsonRawContents = await fs.readFile(this.easJsonPath, 'utf-8');
+
+    if (this.easJsonRawContents.trim().length === 0) {
+      throw new InvalidEasJsonError(`${chalk.bold('eas.json')} is empty.`);
+    }
 
     try {
       const rawJSON = JSON.parse(this.easJsonRawContents);
@@ -90,12 +100,16 @@ export class EasJsonAccessor {
       this.isJson5 = true;
       return rawJSON;
     } catch (originalError: any) {
-      const err = new Error('Found invalid JSON in eas.json.');
       if (originalError.loc) {
+        const err = new InvalidEasJsonError(
+          `Found invalid character in ${chalk.bold('eas.json')}.`
+        );
         const codeFrame = codeFrameColumns(this.easJsonRawContents, { start: originalError.loc });
         err.message += `\n${codeFrame}`;
+        throw err;
+      } else {
+        throw new InvalidEasJsonError(`Found invalid JSON in ${chalk.bold('eas.json')}.`);
       }
-      throw err;
     }
   }
 

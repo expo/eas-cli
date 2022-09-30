@@ -3,6 +3,7 @@ import { vol } from 'memfs';
 import path from 'path';
 
 import { EasJsonAccessor } from '../accessor';
+import { InvalidEasJsonError } from '../errors';
 
 const fixturesDir = path.join(__dirname, 'fixtures');
 const fakeAppPath = '/fake/path/app';
@@ -67,6 +68,22 @@ describe(EasJsonAccessor, () => {
     );
 
     const accessor = new EasJsonAccessor(fakeAppPath);
-    await expect(accessor.readAsync()).rejects.toThrow(/Found invalid JSON in eas.json/);
+    await expect(accessor.readAsync()).rejects.toThrowError(InvalidEasJsonError);
+    await expect(accessor.readAsync()).rejects.toThrowError(
+      /^Found invalid character in .*eas\.json.+/
+    );
+  });
+
+  test('reading empty JSON file', async () => {
+    vol.fromJSON(
+      {
+        './eas.json': await fsReal.readFile(path.join(fixturesDir, 'eas-empty.json'), 'utf-8'),
+      },
+      fakeAppPath
+    );
+
+    const accessor = new EasJsonAccessor(fakeAppPath);
+    await expect(accessor.readAsync()).rejects.toThrowError(InvalidEasJsonError);
+    await expect(accessor.readAsync()).rejects.toThrowError(/^.*eas\.json.* is empty\.$/g);
   });
 });
