@@ -778,7 +778,7 @@
   },
   "properties": {
     "configVersion": {
-      "const": 0,
+      "enum": [0],
       "description": "The EAS metadata store configuration version"
     },
     "apple": {
