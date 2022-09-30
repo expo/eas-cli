@@ -35,6 +35,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix automatic eas.json generation when running `eas build`. ([#1415](https://github.com/expo/eas-cli/pull/1415) by [@wkozyra95](https://github.com/wkozyra95))
+- Make Apple Platform detection more robust. ([#1417](https://github.com/expo/eas-cli/pull/1417) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🧹 Chores
 
