@@ -6,7 +6,7 @@ import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
-import { createAppleWriter, getStaticConfigFilePath } from './config';
+import { createAppleWriter, getStaticConfigFilePath } from './config/resolve';
 import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
 import { MetadataDownloadError, MetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';

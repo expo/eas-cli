@@ -1,6 +1,6 @@
 import path from 'path';
 
-import { getStaticConfigFilePath, loadConfigAsync } from '../config';
+import { getStaticConfigFilePath, loadConfigAsync } from '../config/resolve';
 import { MetadataValidationError } from '../errors';
 
 describe(getStaticConfigFilePath, () => {
