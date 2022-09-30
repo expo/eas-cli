@@ -35,6 +35,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add and use command context to declare command dependencies.  ([#1383](https://github.com/expo/eas-cli/pull/1383), [#1384](https://github.com/expo/eas-cli/pull/1384), [#1387](https://github.com/expo/eas-cli/pull/1387), [#1388](https://github.com/expo/eas-cli/pull/1388), [#1390](https://github.com/expo/eas-cli/pull/1390), [#1391](https://github.com/expo/eas-cli/pull/1391), [#1394](https://github.com/expo/eas-cli/pull/1394), [#1402](https://github.com/expo/eas-cli/pull/1402), [#1403](https://github.com/expo/eas-cli/pull/1403), by [@wschurman](https://github.com/wschurman))
 - Fix typo in the ad hoc build message. ([#1407](https://github.com/expo/eas-cli/pull/1407) by [@Simek](https://github.com/Simek))
 - Improve errors and error messages formatting related to **eas.json**. ([#1414](https://github.com/expo/eas-cli/pull/1414) by [@Simek](https://github.com/Simek))
+- Surface invalid eas.json errors in an optional project context. ([#1418](https://github.com/expo/eas-cli/pull/1418) by [@quinlanj](https://github.com/quinlanj))
 
 ## [2.1.0](https://github.com/expo/eas-cli/releases/tag/v2.1.0) - 2022-09-05
 
