@@ -100,12 +100,16 @@ export class EasJsonAccessor {
       this.isJson5 = true;
       return rawJSON;
     } catch (originalError: any) {
-      const err = new InvalidEasJsonError(`Found invalid character in ${chalk.bold('eas.json')}.`);
       if (originalError.loc) {
+        const err = new InvalidEasJsonError(
+          `Found invalid character in ${chalk.bold('eas.json')}.`
+        );
         const codeFrame = codeFrameColumns(this.easJsonRawContents, { start: originalError.loc });
         err.message += `\n${codeFrame}`;
+        throw err;
+      } else {
+        throw new InvalidEasJsonError(`Found invalid JSON in ${chalk.bold('eas.json')}.`);
       }
-      throw err;
     }
   }
 
