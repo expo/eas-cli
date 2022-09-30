@@ -1,4 +1,5 @@
 import { ExpoConfig } from '@expo/config-types';
+import { InvalidEasJsonError } from '@expo/eas-json/build/errors';
 
 import { getExpoConfig } from '../../project/expoConfig';
 import ContextField, { ContextOptions } from './ContextField';
@@ -27,7 +28,10 @@ export class OptionalProjectConfigContextField extends ContextField<
       if (!projectDir) {
         return undefined;
       }
-    } catch {
+    } catch (e) {
+      if (e instanceof InvalidEasJsonError) {
+        throw e;
+      }
       return undefined;
     }
 
