@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
+import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import { CredentialsContext } from '../../context';
 import {
   DistributionCertificate,
@@ -29,7 +29,7 @@ export async function generateProvisioningProfileAsync(
   const appleAuthCtx = await ctx.appStore.ensureAuthenticatedAsync();
   const type = appleAuthCtx.team.inHouse ? 'Enterprise ' : 'AppStore';
   const profileName = `*[expo] ${bundleIdentifier} ${type} ${new Date().toISOString()}`; // Apple drops [ if its the first char (!!)
-  const applePlatform = await getApplePlatformFromSdkRoot(target);
+  const applePlatform = await getApplePlatformFromTarget(target);
   return await ctx.appStore.createProvisioningProfileAsync(
     bundleIdentifier,
     distCert,

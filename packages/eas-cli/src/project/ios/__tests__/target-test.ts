@@ -1,8 +1,8 @@
 import { testTarget } from '../../../credentials/__tests__/fixtures-ios';
 import { ApplePlatform } from '../../../credentials/ios/appstore/constants';
-import { getApplePlatformFromSdkRoot } from '../target';
+import { getApplePlatformFromDeviceFamily, getApplePlatformFromSdkRoot } from '../target';
 
-function getApplePlatform(sdkRoot: string): ApplePlatform {
+function getApplePlatformWithSdkRoot(sdkRoot: string): ApplePlatform | null {
   const target = {
     ...testTarget,
     buildSettings: {
@@ -10,6 +10,18 @@ function getApplePlatform(sdkRoot: string): ApplePlatform {
     },
   };
   return getApplePlatformFromSdkRoot(target);
+}
+
+function getApplePlatformWithDeviceFamily(
+  deviceFamily: string | number | undefined
+): ApplePlatform | null {
+  const target = {
+    ...testTarget,
+    buildSettings: {
+      TARGETED_DEVICE_FAMILY: deviceFamily,
+    },
+  };
+  return getApplePlatformFromDeviceFamily(target);
 }
 
 describe(getApplePlatformFromSdkRoot, () => {
@@ -21,13 +33,24 @@ describe(getApplePlatformFromSdkRoot, () => {
   });
   test('existing SDKs work with the function', () => {
     // sdks from `xcodebuild -showsdks`
-    expect(getApplePlatform('iphoneos14.4')).toBe(ApplePlatform.IOS);
-    expect(getApplePlatform('iphonesimulator14.4')).toBe(ApplePlatform.IOS);
-    expect(getApplePlatform('driverkit.macosx20.2 ')).toBe(ApplePlatform.MAC_OS);
-    expect(getApplePlatform('macosx11.1')).toBe(ApplePlatform.MAC_OS);
-    expect(getApplePlatform('appletvos14.3')).toBe(ApplePlatform.TV_OS);
-    expect(getApplePlatform('appletvsimulator14.3')).toBe(ApplePlatform.IOS);
-    expect(getApplePlatform('watchos7.2')).toBe(ApplePlatform.IOS);
-    expect(getApplePlatform('watchsimulator7.2')).toBe(ApplePlatform.IOS);
+    expect(getApplePlatformWithSdkRoot('iphoneos14.4')).toBe(ApplePlatform.IOS);
+    expect(getApplePlatformWithSdkRoot('iphonesimulator14.4')).toBe(null);
+    expect(getApplePlatformWithSdkRoot('driverkit.macosx20.2 ')).toBe(ApplePlatform.MAC_OS);
+    expect(getApplePlatformWithSdkRoot('macosx11.1')).toBe(ApplePlatform.MAC_OS);
+    expect(getApplePlatformWithSdkRoot('appletvos14.3')).toBe(ApplePlatform.TV_OS);
+    expect(getApplePlatformWithSdkRoot('appletvsimulator14.3')).toBe(null);
+    expect(getApplePlatformWithSdkRoot('watchos7.2')).toBe(null);
+    expect(getApplePlatformWithSdkRoot('watchsimulator7.2')).toBe(null);
+  });
+});
+
+describe(getApplePlatformFromDeviceFamily, () => {
+  test('apple platform can be obtained from device family types', () => {
+    expect(getApplePlatformWithDeviceFamily('1')).toBe(ApplePlatform.IOS);
+    expect(getApplePlatformWithDeviceFamily('3')).toBe(ApplePlatform.TV_OS);
+    expect(getApplePlatformWithDeviceFamily(1)).toBe(ApplePlatform.IOS);
+    expect(getApplePlatformWithDeviceFamily(3)).toBe(ApplePlatform.TV_OS);
+    expect(getApplePlatformWithDeviceFamily(undefined)).toBe(null);
+    expect(getApplePlatformWithDeviceFamily('ilovecats')).toBe(null);
   });
 });

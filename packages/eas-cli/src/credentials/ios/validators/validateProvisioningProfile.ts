@@ -6,7 +6,7 @@ import nullthrows from 'nullthrows';
 
 import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated';
 import Log from '../../../log';
-import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
+import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ProfileClass } from '../appstore/provisioningProfile';
@@ -94,7 +94,7 @@ async function validateProvisioningProfileWithAppleAsync(
   assert(buildCredentials.provisioningProfile, 'Provisioning Profile must be defined');
   const { developerPortalIdentifier, provisioningProfile } = buildCredentials.provisioningProfile;
 
-  const applePlatform = await getApplePlatformFromSdkRoot(target);
+  const applePlatform = await getApplePlatformFromTarget(target);
   const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
     app.bundleIdentifier,
     applePlatform,
