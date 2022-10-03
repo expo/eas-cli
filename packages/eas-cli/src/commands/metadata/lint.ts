@@ -39,10 +39,6 @@ export default class MetadataLint extends EasCommand {
       enableJsonOutput();
     }
 
-    // this command is interactive (all nonInteractive flags passed to utility functions are false)
-    // await getProjectIdAsync(exp, { nonInteractive: false });
-    // await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false });
-
     const metadataCtx = await createMetadataContextAsync({
       projectDir,
       exp,
