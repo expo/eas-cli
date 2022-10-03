@@ -22,8 +22,12 @@ export function validateConfig(config: unknown): Issue[] {
     };
   });
 
-  // TODO(cedric): check if it's safe to run this without valid schema
-  issues.push(...validateRules(appleRules, config as MetadataConfig));
+  try {
+    issues.push(...validateRules(appleRules, config as MetadataConfig));
+  } catch {
+    // When the rules are failing, the json schema validation errors explain the issue
+    // TODO(cedric): optionally add debugging logging for these types of errors
+  }
 
   return issues;
 }
