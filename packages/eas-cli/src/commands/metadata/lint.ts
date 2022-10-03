@@ -1,3 +1,4 @@
+import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -22,16 +23,14 @@ export default class MetadataLint extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectDir,
   };
 
   async runAsync(): Promise<void> {
     Log.warn('EAS Metadata is in beta and subject to breaking changes.');
 
     const { flags } = await this.parse(MetadataLint);
-    const {
-      projectConfig: { exp, projectDir },
-    } = await this.getContextAsync(MetadataLint, {
+    const { projectDir } = await this.getContextAsync(MetadataLint, {
       nonInteractive: false,
     });
 
@@ -39,6 +38,7 @@ export default class MetadataLint extends EasCommand {
       enableJsonOutput();
     }
 
+    const { exp } = getConfig(projectDir);
     const metadataCtx = await createMetadataContextAsync({
       projectDir,
       exp,
