@@ -274,11 +274,10 @@ export function getApplePlatformFromDeviceFamily(target: Target): ApplePlatform 
   if (!deviceFamily) {
     return null;
   }
-  if (deviceFamily === '1,2') {
-    return ApplePlatform.IOS;
-  }
   if (typeof deviceFamily === 'string') {
-    const deviceFamilyNumber = Number(deviceFamily);
+    const devices = deviceFamily.split(',');
+    const arbitraryDevice = devices[0];
+    const deviceFamilyNumber = Number(arbitraryDevice);
     return deviceFamilyToPlatform(deviceFamilyNumber);
   } else if (typeof deviceFamily === 'number') {
     return deviceFamilyToPlatform(deviceFamily);
