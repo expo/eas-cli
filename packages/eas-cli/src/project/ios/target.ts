@@ -260,6 +260,15 @@ export function getApplePlatformFromSdkRoot(target: Target): ApplePlatform | nul
   }
 }
 
+/**
+ * Get Apple Platform from the Xcode TARGETED_DEVICE_FAMILY where possible.
+ *
+ * References:
+ * https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/XcodeBuildSettingRef/1-Build_Setting_Reference/build_setting_ref.html
+ * https://stackoverflow.com/questions/39677524/xcode-8-how-to-change-targeted-device-family#comment100316573_39677659
+ *
+ * @returns - Apple Platform when known, defaults to null when unknown
+ */
 export function getApplePlatformFromDeviceFamily(target: Target): ApplePlatform | null {
   const deviceFamily = target.buildSettings?.TARGETED_DEVICE_FAMILY;
   if (!deviceFamily) {
