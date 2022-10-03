@@ -46,6 +46,7 @@ describe(getApplePlatformFromSdkRoot, () => {
 
 describe(getApplePlatformFromDeviceFamily, () => {
   test('apple platform can be obtained from device family types', () => {
+    expect(getApplePlatformWithDeviceFamily('1,2')).toBe(ApplePlatform.IOS);
     expect(getApplePlatformWithDeviceFamily('1')).toBe(ApplePlatform.IOS);
     expect(getApplePlatformWithDeviceFamily('3')).toBe(ApplePlatform.TV_OS);
     expect(getApplePlatformWithDeviceFamily(1)).toBe(ApplePlatform.IOS);
