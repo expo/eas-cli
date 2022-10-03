@@ -18,7 +18,7 @@ import {
 } from '../graphql/generated';
 import { BuildResult } from '../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
-import Log, { learnMore } from '../log';
+import Log, { learnMore, link } from '../log';
 import { Ora, ora } from '../ora';
 import {
   appPlatformDisplayNames,
@@ -140,12 +140,34 @@ function handleBuildRequestError(error: any, platform: Platform): never {
     error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE'
   ) {
     Log.error(
-      'EAS Build is down for maintenance. Try again later. Check https://status.expo.dev/ for updates.'
+      `EAS Build is down for maintenance. Try again later. Check ${link(
+        'https://status.expo.dev/'
+      )} for updates.`
     );
     throw new Error('Build request failed.');
   } else if (error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED') {
     Log.error(
-      'EAS Build free tier is temporarily disabled. Try again later. Check https://status.expo.dev/ for updates.'
+      `EAS Build free tier is temporarily disabled and we are not accepting any new builds. Try again later. ${learnMore(
+        'https://expo.fyi/eas-build-queues'
+      )}`
+    );
+    throw new Error('Build request failed.');
+  } else if (
+    error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED_IOS'
+  ) {
+    Log.error(
+      `EAS Build free tier is temporarily disabled for iOS and we are not accepting any new builds. Try again later. ${learnMore(
+        'https://expo.fyi/eas-build-queues'
+      )}`
+    );
+    throw new Error('Build request failed.');
+  } else if (
+    error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED_ANDROID'
+  ) {
+    Log.error(
+      `EAS Build free tier is temporarily disabled for Android and we are not accepting any new builds. Try again later. ${learnMore(
+        'https://expo.fyi/eas-build-queues'
+      )}`
     );
     throw new Error('Build request failed.');
   } else if (
