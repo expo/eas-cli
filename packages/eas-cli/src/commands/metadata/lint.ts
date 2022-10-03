@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -6,7 +5,6 @@ import Log from '../../log';
 import { loadConfigAsync } from '../../metadata/config/resolve';
 import { createMetadataContextAsync } from '../../metadata/context';
 import { MetadataValidationError, logMetadataValidationError } from '../../metadata/errors';
-import { findProjectRootAsync } from '../../project/projectUtils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class MetadataLint extends EasCommand {
@@ -23,16 +21,23 @@ export default class MetadataLint extends EasCommand {
     }),
   };
 
+  static override contextDefinition = {
+    ...this.ContextOptions.ProjectConfig,
+  };
+
   async runAsync(): Promise<void> {
     Log.warn('EAS Metadata is in beta and subject to breaking changes.');
 
     const { flags } = await this.parse(MetadataLint);
+    const {
+      projectConfig: { exp, projectDir },
+    } = await this.getContextAsync(MetadataLint, {
+      nonInteractive: false,
+    });
+
     if (flags.json) {
       enableJsonOutput();
     }
-
-    const projectDir = await findProjectRootAsync();
-    const { exp } = getConfig(projectDir, { skipSDKVersionRequirement: true });
 
     // this command is interactive (all nonInteractive flags passed to utility functions are false)
     // await getProjectIdAsync(exp, { nonInteractive: false });
