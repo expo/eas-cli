@@ -36,6 +36,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Fix typo in the ad hoc build message. ([#1407](https://github.com/expo/eas-cli/pull/1407) by [@Simek](https://github.com/Simek))
 - Improve errors and error messages formatting related to **eas.json**. ([#1414](https://github.com/expo/eas-cli/pull/1414) by [@Simek](https://github.com/Simek))
 - Handle errors from platform-specific kill switches to disable free tier builds. ([#1401](https://github.com/expo/eas-cli/pull/1401) by [@szdziedzic](https://github.com/szdziedzic))
+- Surface invalid eas.json errors in an optional project context. ([#1418](https://github.com/expo/eas-cli/pull/1418) by [@quinlanj](https://github.com/quinlanj))
 
 ## [2.1.0](https://github.com/expo/eas-cli/releases/tag/v2.1.0) - 2022-09-05
 
