@@ -7,7 +7,7 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { ora } from '../../../ora';
-import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
+import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
@@ -46,7 +46,7 @@ export class ConfigureProvisioningProfile {
       return null;
     }
 
-    const applePlatform = await getApplePlatformFromSdkRoot(this.target);
+    const applePlatform = await getApplePlatformFromTarget(this.target);
     const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
       this.app.bundleIdentifier,
       applePlatform

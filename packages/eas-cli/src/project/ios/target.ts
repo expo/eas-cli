@@ -229,13 +229,25 @@ function resolveBareProjectBuildSettings(
 }
 
 /**
- * Get Apple Platform from the Xcode SDKROOT where possible.
+ * Get Apple Platform from the Xcode Target where possible.
  * @returns - Apple Platform when known, defaults to IOS when unknown
  */
-export function getApplePlatformFromSdkRoot(target: Target): ApplePlatform {
+export function getApplePlatformFromTarget(target: Target): ApplePlatform {
+  return (
+    getApplePlatformFromSdkRoot(target) ??
+    getApplePlatformFromDeviceFamily(target) ??
+    ApplePlatform.IOS
+  );
+}
+
+/**
+ * Get Apple Platform from the Xcode SDKROOT where possible.
+ * @returns - Apple Platform when known, defaults to null when unknown
+ */
+export function getApplePlatformFromSdkRoot(target: Target): ApplePlatform | null {
   const sdkRoot = target.buildSettings?.SDKROOT;
   if (!sdkRoot) {
-    return ApplePlatform.IOS;
+    return null;
   }
   if (sdkRoot.includes('iphoneos')) {
     return ApplePlatform.IOS;
@@ -244,6 +256,43 @@ export function getApplePlatformFromSdkRoot(target: Target): ApplePlatform {
   } else if (sdkRoot.includes('macosx')) {
     return ApplePlatform.MAC_OS;
   } else {
+    return null;
+  }
+}
+
+/**
+ * Get Apple Platform from the Xcode TARGETED_DEVICE_FAMILY where possible.
+ *
+ * References:
+ * https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/XcodeBuildSettingRef/1-Build_Setting_Reference/build_setting_ref.html
+ * https://stackoverflow.com/questions/39677524/xcode-8-how-to-change-targeted-device-family#comment100316573_39677659
+ *
+ * @returns - Apple Platform when known, defaults to null when unknown
+ */
+export function getApplePlatformFromDeviceFamily(target: Target): ApplePlatform | null {
+  const deviceFamily = target.buildSettings?.TARGETED_DEVICE_FAMILY;
+  if (!deviceFamily) {
+    return null;
+  }
+  if (typeof deviceFamily === 'string') {
+    const devices = deviceFamily.split(',');
+    const arbitraryDevice = devices[0];
+    const deviceFamilyNumber = Number(arbitraryDevice);
+    return deviceFamilyToPlatform(deviceFamilyNumber);
+  } else if (typeof deviceFamily === 'number') {
+    return deviceFamilyToPlatform(deviceFamily);
+  }
+  throw new Error(
+    `Unexpected device family type in XCode build settings: ${JSON.stringify(deviceFamily)}`
+  );
+}
+
+function deviceFamilyToPlatform(deviceFamily: number): ApplePlatform | null {
+  if (deviceFamily === 1 || deviceFamily === 2) {
     return ApplePlatform.IOS;
+  } else if (deviceFamily === 3) {
+    return ApplePlatform.TV_OS;
+  } else {
+    return null;
   }
 }

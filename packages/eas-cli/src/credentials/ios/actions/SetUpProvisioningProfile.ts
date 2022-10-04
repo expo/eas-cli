@@ -6,7 +6,7 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
-import { getApplePlatformFromSdkRoot } from '../../../project/ios/target';
+import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
@@ -114,7 +114,7 @@ export class SetUpProvisioningProfile {
     }
 
     // See if the profile we have exists on the Apple Servers
-    const applePlatform = await getApplePlatformFromSdkRoot(this.target);
+    const applePlatform = await getApplePlatformFromTarget(this.target);
     const existingProfiles = await ctx.appStore.listProvisioningProfilesAsync(
       this.app.bundleIdentifier,
       applePlatform
