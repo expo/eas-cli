@@ -97,7 +97,7 @@ describe(getProjectIdAsync, () => {
         { nonInteractive: false }
       )
     ).rejects.toThrow(
-      `Project config: Project identified by 'extra.eas.projectId' (notnotbrent) is not owned by owner specified in the 'owner' field (wat). ${learnMore(
+      `Project config: Project identified by "extra.eas.projectId" (notnotbrent) is not owned by owner specified in the "owner" field (wat). ${learnMore(
         'https://expo.fyi/eas-project-id'
       )}`
     );
