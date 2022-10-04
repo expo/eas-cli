@@ -4,7 +4,7 @@ import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
 import { AppQuery } from '../../../graphql/queries/AppQuery';
-import Log from '../../../log';
+import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
 import { getExpoConfig } from '../../../project/expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
@@ -79,13 +79,21 @@ export async function getProjectIdAsync(
     const appForProjectId = await AppQuery.byIdAsync(localProjectId);
     if (exp.owner && exp.owner !== appForProjectId.ownerAccount.name) {
       throw new Error(
-        `Project config: Project identified by 'extra.eas.projectId' is not owned by owner specified in the 'owner' field. (project = '${appForProjectId.ownerAccount.name}', config = '${exp.owner}')`
+        `Project config: Project identified by "extra.eas.projectId" (${
+          appForProjectId.ownerAccount.name
+        }) is not owned by owner specified in the "owner" field (${exp.owner}). ${learnMore(
+          'https://expo.fyi/eas-project-id'
+        )}`
       );
     }
 
     if (exp.slug && exp.slug !== appForProjectId.slug) {
       throw new Error(
-        `Project config: Slug for project identified by 'extra.eas.projectId' does not match the 'slug' field. (project = '${appForProjectId.slug}', config = '${exp.slug}')`
+        `Project config: Slug for project identified by "extra.eas.projectId" (${
+          appForProjectId.slug
+        }) does not match the "slug" field (${exp.slug}). ${learnMore(
+          'https://expo.fyi/eas-project-id'
+        )}`
       );
     }
 

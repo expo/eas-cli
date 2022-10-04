@@ -3,6 +3,7 @@ import { vol } from 'memfs';
 
 import { Role } from '../../../../graphql/generated';
 import { AppQuery } from '../../../../graphql/queries/AppQuery';
+import { learnMore } from '../../../../log';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { ensureLoggedInAsync } from '../../contextUtils/ensureLoggedInAsync';
 import { findProjectRootAsync } from '../findProjectDirAndVerifyProjectSetupAsync';
@@ -96,7 +97,9 @@ describe(getProjectIdAsync, () => {
         { nonInteractive: false }
       )
     ).rejects.toThrow(
-      `Project config: Project identified by 'extra.eas.projectId' is not owned by owner specified in the 'owner' field. (project = 'notnotbrent', config = 'wat')`
+      `Project config: Project identified by "extra.eas.projectId" (notnotbrent) is not owned by owner specified in the "owner" field (wat). ${learnMore(
+        'https://expo.fyi/eas-project-id'
+      )}`
     );
   });
 
@@ -117,7 +120,9 @@ describe(getProjectIdAsync, () => {
         { nonInteractive: false }
       )
     ).rejects.toThrow(
-      `Project config: Slug for project identified by 'extra.eas.projectId' does not match the 'slug' field. (project = 'test', config = 'wat')`
+      `Project config: Slug for project identified by "extra.eas.projectId" (test) does not match the "slug" field (wat). ${learnMore(
+        'https://expo.fyi/eas-project-id'
+      )}`
     );
   });
 
