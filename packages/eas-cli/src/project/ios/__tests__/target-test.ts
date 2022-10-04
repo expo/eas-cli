@@ -1,5 +1,6 @@
 import { testTarget } from '../../../credentials/__tests__/fixtures-ios';
 import { ApplePlatform } from '../../../credentials/ios/appstore/constants';
+import { Target } from '../../../credentials/ios/types';
 import { getApplePlatformFromDeviceFamily, getApplePlatformFromSdkRoot } from '../target';
 
 function getApplePlatformWithSdkRoot(sdkRoot: string): ApplePlatform | null {

@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Make Apple Platform detection more robust. ([#1417](https://github.com/expo/eas-cli/pull/1417) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🧹 Chores
 
 ## [2.2.0](https://github.com/expo/eas-cli/releases/tag/v2.2.0) - 2022-10-04
@@ -35,7 +37,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix automatic eas.json generation when running `eas build`. ([#1415](https://github.com/expo/eas-cli/pull/1415) by [@wkozyra95](https://github.com/wkozyra95))
-- Make Apple Platform detection more robust. ([#1417](https://github.com/expo/eas-cli/pull/1417) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🧹 Chores
 
@@ -43,7 +44,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Remove 'owner' app config field dependency. ([#1368](https://github.com/expo/eas-cli/pull/1368), [#1369](https://github.com/expo/eas-cli/pull/1369), [#1371](https://github.com/expo/eas-cli/pull/1371), [#1372](https://github.com/expo/eas-cli/pull/1372), [#1373](https://github.com/expo/eas-cli/pull/1373), by [@wschurman](https://github.com/wschurman))
 - Add Xcode 14 image. ([#1365](https://github.com/expo/eas-cli/pull/1365) by [@szdziedzic](https://github.com/szdziedzic))
 - Update max `versionCode` for Android. ([#1400](https://github.com/expo/eas-cli/pull/1400) by [@wkozyra95](https://github.com/wkozyra95))
-- Add and use command context to declare command dependencies.  ([#1383](https://github.com/expo/eas-cli/pull/1383), [#1384](https://github.com/expo/eas-cli/pull/1384), [#1387](https://github.com/expo/eas-cli/pull/1387), [#1388](https://github.com/expo/eas-cli/pull/1388), [#1390](https://github.com/expo/eas-cli/pull/1390), [#1391](https://github.com/expo/eas-cli/pull/1391), [#1394](https://github.com/expo/eas-cli/pull/1394), [#1402](https://github.com/expo/eas-cli/pull/1402), [#1403](https://github.com/expo/eas-cli/pull/1403), by [@wschurman](https://github.com/wschurman))
+- Add and use command context to declare command dependencies. ([#1383](https://github.com/expo/eas-cli/pull/1383), [#1384](https://github.com/expo/eas-cli/pull/1384), [#1387](https://github.com/expo/eas-cli/pull/1387), [#1388](https://github.com/expo/eas-cli/pull/1388), [#1390](https://github.com/expo/eas-cli/pull/1390), [#1391](https://github.com/expo/eas-cli/pull/1391), [#1394](https://github.com/expo/eas-cli/pull/1394), [#1402](https://github.com/expo/eas-cli/pull/1402), [#1403](https://github.com/expo/eas-cli/pull/1403), by [@wschurman](https://github.com/wschurman))
 - Fix typo in the ad hoc build message. ([#1407](https://github.com/expo/eas-cli/pull/1407) by [@Simek](https://github.com/Simek))
 - Improve errors and error messages formatting related to **eas.json**. ([#1414](https://github.com/expo/eas-cli/pull/1414) by [@Simek](https://github.com/Simek))
 - Handle errors from platform-specific kill switches to disable free tier builds. ([#1401](https://github.com/expo/eas-cli/pull/1401) by [@szdziedzic](https://github.com/szdziedzic))
