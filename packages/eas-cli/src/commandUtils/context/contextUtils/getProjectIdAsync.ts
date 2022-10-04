@@ -79,9 +79,9 @@ export async function getProjectIdAsync(
     const appForProjectId = await AppQuery.byIdAsync(localProjectId);
     if (exp.owner && exp.owner !== appForProjectId.ownerAccount.name) {
       throw new Error(
-        `Project config: Project identified by 'extra.eas.projectId' (${
+        `Project config: Project identified by "extra.eas.projectId" (${
           appForProjectId.ownerAccount.name
-        }) is not owned by owner specified in the 'owner' field (${exp.owner}). ${learnMore(
+        }) is not owned by owner specified in the "owner" field (${exp.owner}). ${learnMore(
           'https://expo.fyi/eas-project-id'
         )}`
       );
