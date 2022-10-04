@@ -120,7 +120,7 @@ describe(getProjectIdAsync, () => {
         { nonInteractive: false }
       )
     ).rejects.toThrow(
-      `Project config: Slug for project identified by 'extra.eas.projectId' (test) does not match the 'slug' field (wat). ${learnMore(
+      `Project config: Slug for project identified by "extra.eas.projectId" (test) does not match the "slug" field (wat). ${learnMore(
         'https://expo.fyi/eas-project-id'
       )}`
     );

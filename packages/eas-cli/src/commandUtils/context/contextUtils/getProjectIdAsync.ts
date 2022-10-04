@@ -89,9 +89,9 @@ export async function getProjectIdAsync(
 
     if (exp.slug && exp.slug !== appForProjectId.slug) {
       throw new Error(
-        `Project config: Slug for project identified by 'extra.eas.projectId' (${
+        `Project config: Slug for project identified by "extra.eas.projectId" (${
           appForProjectId.slug
-        }) does not match the 'slug' field (${exp.slug}). ${learnMore(
+        }) does not match the "slug" field (${exp.slug}). ${learnMore(
           'https://expo.fyi/eas-project-id'
         )}`
       );
