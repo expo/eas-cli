@@ -6,6 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [2.2.0](https://github.com/expo/eas-cli/releases/tag/v2.2.0) - 2022-10-04
+
+### 🛠 Breaking changes
+
 - Prompt before configuring EAS project. ([#1356](https://github.com/expo/eas-cli/pull/1356) by [@wschurman](https://github.com/wschurman))
 - Adds paginated support to device commands. Removes the ability to delete multiple devices at once. ([#1381](https://github.com/expo/eas-cli/pull/1381) by [@kgc00](https://github.com/kgc00))
 
