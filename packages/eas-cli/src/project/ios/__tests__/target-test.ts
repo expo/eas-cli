@@ -15,7 +15,7 @@ function getApplePlatformWithSdkRoot(sdkRoot: string): ApplePlatform | null {
 function getApplePlatformWithDeviceFamily(
   deviceFamily: string | number | undefined
 ): ApplePlatform | null {
-  const target = {
+  const target: Target = {
     ...testTarget,
     buildSettings: {
       TARGETED_DEVICE_FAMILY: deviceFamily,
