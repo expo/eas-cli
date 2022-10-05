@@ -172,6 +172,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
       if (!(await fs.pathExists(secretFilePath))) {
         throw new Error(`File "${secretValue}" does not exist`);
       }
+      secretValue = await fs.readFile(secretFilePath, 'base64');
     }
 
     if (scope === EnvironmentSecretScope.PROJECT) {
