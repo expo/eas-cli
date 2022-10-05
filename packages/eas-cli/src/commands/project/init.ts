@@ -110,7 +110,7 @@ export default class ProjectInit extends EasCommand {
       Log.succeed(
         `Project already linked (ID: ${chalk.bold(
           existingProjectId
-        )}). To re-configure, remove the extra.eas.projectId field from your app config.`
+        )}). To re-configure, remove the "extra.eas.projectId" field from your app config.`
       );
       return;
     }

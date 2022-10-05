@@ -43,9 +43,9 @@ export async function saveProjectIdToAppConfigAsync(
       );
       Log.warn();
       Log.warn(
-        `To complete the setup process, set the ${chalk.bold(
+        `To complete the setup process, set "${chalk.bold(
           'extra.eas.projectId'
-        )} in your ${chalk.bold(getProjectConfigDescription(projectDir))}:`
+        )}" in your ${chalk.bold(getProjectConfigDescription(projectDir))}:`
       );
       Log.warn();
       Log.warn(chalk.bold(JSON.stringify({ expo: { extra: { eas: { projectId } } } }, null, 2)));
