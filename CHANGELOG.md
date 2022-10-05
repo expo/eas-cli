@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Make Apple Platform detection more robust. ([#1417](https://github.com/expo/eas-cli/pull/1417) by [@quinlanj](https://github.com/quinlanj))
+- Fix creating EAS secret from file. ([#1423](https://github.com/expo/eas-cli/pull/1423) by [@dsokal](https://github.com/dsokal))
 
 ### 🧹 Chores
 
