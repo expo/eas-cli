@@ -9,6 +9,7 @@ import {
 } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
+import { env } from 'process';
 
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import {
@@ -138,9 +139,11 @@ export async function runBuildAndSubmitAsync(
       moreBuilds: platforms.length > 1,
       buildProfile,
       resourceClass:
-        platformToGraphQLResourceClassMapping[buildProfile.platform][
-          flags.userInputResourceClass ?? UserInputResourceClass.DEFAULT
-        ],
+        env.EXPO_USE_M1_RESOURCE_CLASS && buildProfile.platform === Platform.IOS
+          ? BuildResourceClass.IosM1Large
+          : platformToGraphQLResourceClassMapping[buildProfile.platform][
+              flags.userInputResourceClass ?? UserInputResourceClass.DEFAULT
+            ],
       easJsonCliConfig,
       actor,
       getDynamicProjectConfigAsync,
