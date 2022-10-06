@@ -7,9 +7,9 @@ import {
   EasJsonUtils,
   SubmitProfile,
 } from '@expo/eas-json';
+import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
-import { env } from 'process';
 
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import {
@@ -77,19 +77,39 @@ export interface BuildFlags {
   message?: string;
 }
 
-const platformToGraphQLResourceClassMapping: Record<
-  Platform,
-  Record<UserInputResourceClass, BuildResourceClass>
-> = {
-  [Platform.ANDROID]: {
-    [UserInputResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
-    [UserInputResourceClass.LARGE]: BuildResourceClass.AndroidLarge,
-  },
-  [Platform.IOS]: {
+function resolveResourceClass(
+  platform: Platform,
+  resourceClassInput: UserInputResourceClass
+): BuildResourceClass {
+  const iosMapping: Record<UserInputResourceClass, BuildResourceClass> = {
     [UserInputResourceClass.DEFAULT]: BuildResourceClass.IosDefault,
     [UserInputResourceClass.LARGE]: BuildResourceClass.IosLarge,
-  },
-};
+    [UserInputResourceClass.M1_EXPERIMENTAL]: BuildResourceClass.IosM1Large,
+  };
+
+  const androidMapping: Record<
+    Exclude<UserInputResourceClass, UserInputResourceClass.M1_EXPERIMENTAL>,
+    BuildResourceClass
+  > = {
+    [UserInputResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
+    [UserInputResourceClass.LARGE]: BuildResourceClass.AndroidLarge,
+  };
+
+  if (platform !== Platform.IOS && resourceClassInput === UserInputResourceClass.M1_EXPERIMENTAL) {
+    Errors.error('m1-experimental option for --resource-class flag is allowed only for iOS', {
+      exit: 1,
+    });
+  }
+
+  return platform === Platform.ANDROID
+    ? androidMapping[
+        resourceClassInput as Exclude<
+          UserInputResourceClass,
+          UserInputResourceClass.M1_EXPERIMENTAL
+        >
+      ]
+    : iosMapping[resourceClassInput];
+}
 
 export async function runBuildAndSubmitAsync(
   projectDir: string,
@@ -138,12 +158,10 @@ export async function runBuildAndSubmitAsync(
       flags,
       moreBuilds: platforms.length > 1,
       buildProfile,
-      resourceClass:
-        env.EXPO_USE_M1_RESOURCE_CLASS && buildProfile.platform === Platform.IOS
-          ? BuildResourceClass.IosM1Large
-          : platformToGraphQLResourceClassMapping[buildProfile.platform][
-              flags.userInputResourceClass ?? UserInputResourceClass.DEFAULT
-            ],
+      resourceClass: resolveResourceClass(
+        buildProfile.platform,
+        flags.userInputResourceClass ?? UserInputResourceClass.DEFAULT
+      ),
       easJsonCliConfig,
       actor,
       getDynamicProjectConfigAsync,
