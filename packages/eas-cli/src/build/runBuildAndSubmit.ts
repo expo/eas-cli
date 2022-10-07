@@ -7,7 +7,6 @@ import {
   EasJsonUtils,
   SubmitProfile,
 } from '@expo/eas-json';
-import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -99,11 +98,8 @@ function resolveResourceClass(
   resourceClassInput: UserInputResourceClass
 ): BuildResourceClass {
   if (platform !== Platform.IOS && resourceClassInput === UserInputResourceClass.M1_EXPERIMENTAL) {
-    Errors.error(
-      `Resource class ${UserInputResourceClass.M1_EXPERIMENTAL} is only available for iOS builds`,
-      {
-        exit: 1,
-      }
+    throw new Error(
+      `Resource class ${UserInputResourceClass.M1_EXPERIMENTAL} is only available for iOS builds`
     );
   }
 
