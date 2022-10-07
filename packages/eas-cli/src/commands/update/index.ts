@@ -59,7 +59,6 @@ import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 import { getVcsClient } from '../../vcs';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
-import UpdateConfigure from './configure';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
 export type PublishPlatformFlag = PublishPlatform | 'all';
@@ -640,6 +639,7 @@ async function getRuntimeVersionObjectAsync(
       Errors.exit(1);
     }
 
+    const { default: UpdateConfigure } = await import('./configure');
     await UpdateConfigure.run(['-p', platformFlag]);
 
     const { exp: newConfig } = await getDynamicProjectConfigAsync({
