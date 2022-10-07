@@ -595,7 +595,9 @@ function transformRuntimeVersions(exp: ExpoConfig, platforms: Platform[]): Recor
       platform,
       nullthrows(
         Updates.getRuntimeVersion(exp, platform),
-        `Unable to determine runtime version for ${requestedPlatformDisplayNames[platform]}. Learn more: https://docs.expo.dev/eas-update/runtime-versions/`
+        `Unable to determine runtime version for ${
+          requestedPlatformDisplayNames[platform]
+        }. ${chalk.dim('Learn more: https://docs.expo.dev/eas-update/runtime-versions/')}`
       ),
     ])
   );
@@ -623,10 +625,10 @@ async function getRuntimeVersionObjectAsync(
 
   try {
     return transformRuntimeVersions(exp, platforms);
-  } catch (error) {
-    Log.warn(error);
+  } catch (error: any) {
+    ora().start().fail(error.message);
 
-    const runConfig = await selectAsync(`Do you want us to run expo updates:config for you?`, [
+    const runConfig = await selectAsync(`Do you want us to run 'eas update:configure' for you?`, [
       { title: 'Yes', value: true },
       {
         title: 'No, I will edit files or run the command manually (EAS CLI exits)',
