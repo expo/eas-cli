@@ -151,9 +151,12 @@ export default class Build extends EasCommand {
       flags['resource-class'] === UserInputResourceClass.M1_EXPERIMENTAL &&
       flags.platform !== Platform.IOS
     ) {
-      Errors.error('m1-experimental option for --resource-class flag is allowed only for iOS', {
-        exit: 1,
-      });
+      Errors.error(
+        `Resource class ${UserInputResourceClass.M1_EXPERIMENTAL} is only available for iOS builds`,
+        {
+          exit: 1,
+        }
+      );
     }
 
     const requestedPlatform =

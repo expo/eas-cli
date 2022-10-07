@@ -77,38 +77,44 @@ export interface BuildFlags {
   message?: string;
 }
 
+const iosUserInputResourceClassToBuildResourceClassMapping: Record<
+  UserInputResourceClass,
+  BuildResourceClass
+> = {
+  [UserInputResourceClass.DEFAULT]: BuildResourceClass.IosDefault,
+  [UserInputResourceClass.LARGE]: BuildResourceClass.IosLarge,
+  [UserInputResourceClass.M1_EXPERIMENTAL]: BuildResourceClass.IosM1Large,
+};
+
+const androidUserInputResourceClassToBuildResourceClassMapping: Record<
+  Exclude<UserInputResourceClass, UserInputResourceClass.M1_EXPERIMENTAL>,
+  BuildResourceClass
+> = {
+  [UserInputResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
+  [UserInputResourceClass.LARGE]: BuildResourceClass.AndroidLarge,
+};
+
 function resolveResourceClass(
   platform: Platform,
   resourceClassInput: UserInputResourceClass
 ): BuildResourceClass {
-  const iosMapping: Record<UserInputResourceClass, BuildResourceClass> = {
-    [UserInputResourceClass.DEFAULT]: BuildResourceClass.IosDefault,
-    [UserInputResourceClass.LARGE]: BuildResourceClass.IosLarge,
-    [UserInputResourceClass.M1_EXPERIMENTAL]: BuildResourceClass.IosM1Large,
-  };
-
-  const androidMapping: Record<
-    Exclude<UserInputResourceClass, UserInputResourceClass.M1_EXPERIMENTAL>,
-    BuildResourceClass
-  > = {
-    [UserInputResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
-    [UserInputResourceClass.LARGE]: BuildResourceClass.AndroidLarge,
-  };
-
   if (platform !== Platform.IOS && resourceClassInput === UserInputResourceClass.M1_EXPERIMENTAL) {
-    Errors.error('m1-experimental option for --resource-class flag is allowed only for iOS', {
-      exit: 1,
-    });
+    Errors.error(
+      `Resource class ${UserInputResourceClass.M1_EXPERIMENTAL} is only available for iOS builds`,
+      {
+        exit: 1,
+      }
+    );
   }
 
   return platform === Platform.ANDROID
-    ? androidMapping[
+    ? androidUserInputResourceClassToBuildResourceClassMapping[
         resourceClassInput as Exclude<
           UserInputResourceClass,
           UserInputResourceClass.M1_EXPERIMENTAL
         >
       ]
-    : iosMapping[resourceClassInput];
+    : iosUserInputResourceClassToBuildResourceClassMapping[resourceClassInput];
 }
 
 export async function runBuildAndSubmitAsync(

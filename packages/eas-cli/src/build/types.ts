@@ -18,7 +18,7 @@ export enum UserInputResourceClass {
   LARGE = 'large',
   /**
    * @experimental
-   * This resource class is not yet ready to be used in production. For testing purposes only. Might be depricated / deleted at any time.
+   * This resource class is not yet ready to be used in production. For testing purposes only. Might be deprecated / deleted at any time.
    */
   M1_EXPERIMENTAL = 'm1-experimental',
 }
