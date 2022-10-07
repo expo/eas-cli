@@ -589,13 +589,13 @@ export default class UpdatePublish extends EasCommand {
   }
 }
 
-function transformRuntimeVersions(exp: ExpoConfig, platforms: Platform[]) {
+function transformRuntimeVersions(exp: ExpoConfig, platforms: Platform[]): Record<string, string> {
   return Object.fromEntries(
     platforms.map(platform => [
       platform,
       nullthrows(
         Updates.getRuntimeVersion(exp, platform),
-        `Unable to determine runtime version for ${requestedPlatformDisplayNames[platform]}.`
+        `Unable to determine runtime version for ${requestedPlatformDisplayNames[platform]}. Learn more: https://docs.expo.dev/eas-update/runtime-versions/`
       ),
     ])
   );
