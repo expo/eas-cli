@@ -12,6 +12,7 @@ import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/uti
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -28,6 +29,7 @@ import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
+import { requestedPlatformDisplayNames } from '../../platform';
 import {
   getOwnerAccountForProjectIdAsync,
   installExpoUpdatesAsync,
@@ -42,7 +44,7 @@ import {
   uploadAssetsAsync,
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
-import { confirmAsync, promptAsync } from '../../prompts';
+import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 import { formatUpdateMessage } from '../../update/utils';
 import {
@@ -57,6 +59,7 @@ import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 import { getVcsClient } from '../../vcs';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
+import UpdateConfigure from './configure';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
 export type PublishPlatformFlag = PublishPlatform | 'all';
@@ -247,7 +250,12 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
+    const runtimeVersions = await getRuntimeVersionObjectAsync(
+      exp,
+      platformFlag,
+      projectDir,
+      getDynamicProjectConfigAsync
+    );
     await checkEASUpdateURLIsSetAsync(exp, projectId);
 
     if (!branchName) {
@@ -581,10 +589,23 @@ export default class UpdatePublish extends EasCommand {
   }
 }
 
+function transformRuntimeVersions(exp: ExpoConfig, platforms: Platform[]) {
+  return Object.fromEntries(
+    platforms.map(platform => [
+      platform,
+      nullthrows(
+        Updates.getRuntimeVersion(exp, platform),
+        `Unable to determine runtime version for ${requestedPlatformDisplayNames[platform]}.`
+      ),
+    ])
+  );
+}
+
 async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
   platformFlag: PublishPlatformFlag,
-  projectDir: string
+  projectDir: string,
+  getDynamicProjectConfigAsync: DynamicConfigContextFn
 ): Promise<Record<string, string>> {
   const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
 
@@ -600,15 +621,31 @@ async function getRuntimeVersionObjectAsync(
     }
   }
 
-  return Object.fromEntries(
-    platforms.map(platform => [
-      platform,
-      nullthrows(
-        Updates.getRuntimeVersion(exp, platform),
-        `Unable to determine runtime version for ${platform}`
-      ),
-    ])
-  );
+  try {
+    return transformRuntimeVersions(exp, platforms);
+  } catch (error) {
+    Log.warn(error);
+
+    const runConfig = await selectAsync(`Do you want us to run expo updates:config for you?`, [
+      { title: 'Yes', value: true },
+      {
+        title: 'No, I will edit files or run the command manually (EAS CLI exits)',
+        value: false,
+      },
+    ]);
+
+    if (!runConfig) {
+      Errors.exit(1);
+    }
+
+    await UpdateConfigure.run(['-p', platformFlag]);
+
+    const { exp: newConfig } = await getDynamicProjectConfigAsync({
+      isPublicConfig: true,
+    });
+
+    return transformRuntimeVersions(newConfig, platforms);
+  }
 }
 
 async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig, projectId: string): Promise<void> {
