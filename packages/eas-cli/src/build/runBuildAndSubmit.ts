@@ -76,19 +76,42 @@ export interface BuildFlags {
   message?: string;
 }
 
-const platformToGraphQLResourceClassMapping: Record<
-  Platform,
-  Record<UserInputResourceClass, BuildResourceClass>
+const iosUserInputResourceClassToBuildResourceClassMapping: Record<
+  UserInputResourceClass,
+  BuildResourceClass
 > = {
-  [Platform.ANDROID]: {
-    [UserInputResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
-    [UserInputResourceClass.LARGE]: BuildResourceClass.AndroidLarge,
-  },
-  [Platform.IOS]: {
-    [UserInputResourceClass.DEFAULT]: BuildResourceClass.IosDefault,
-    [UserInputResourceClass.LARGE]: BuildResourceClass.IosLarge,
-  },
+  [UserInputResourceClass.DEFAULT]: BuildResourceClass.IosDefault,
+  [UserInputResourceClass.LARGE]: BuildResourceClass.IosLarge,
+  [UserInputResourceClass.M1_EXPERIMENTAL]: BuildResourceClass.IosM1Large,
 };
+
+const androidUserInputResourceClassToBuildResourceClassMapping: Record<
+  Exclude<UserInputResourceClass, UserInputResourceClass.M1_EXPERIMENTAL>,
+  BuildResourceClass
+> = {
+  [UserInputResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
+  [UserInputResourceClass.LARGE]: BuildResourceClass.AndroidLarge,
+};
+
+function resolveResourceClass(
+  platform: Platform,
+  resourceClassInput: UserInputResourceClass
+): BuildResourceClass {
+  if (platform !== Platform.IOS && resourceClassInput === UserInputResourceClass.M1_EXPERIMENTAL) {
+    throw new Error(
+      `Resource class ${UserInputResourceClass.M1_EXPERIMENTAL} is only available for iOS builds`
+    );
+  }
+
+  return platform === Platform.ANDROID
+    ? androidUserInputResourceClassToBuildResourceClassMapping[
+        resourceClassInput as Exclude<
+          UserInputResourceClass,
+          UserInputResourceClass.M1_EXPERIMENTAL
+        >
+      ]
+    : iosUserInputResourceClassToBuildResourceClassMapping[resourceClassInput];
+}
 
 export async function runBuildAndSubmitAsync(
   projectDir: string,
@@ -137,10 +160,10 @@ export async function runBuildAndSubmitAsync(
       flags,
       moreBuilds: platforms.length > 1,
       buildProfile,
-      resourceClass:
-        platformToGraphQLResourceClassMapping[buildProfile.platform][
-          flags.userInputResourceClass ?? UserInputResourceClass.DEFAULT
-        ],
+      resourceClass: resolveResourceClass(
+        buildProfile.platform,
+        flags.userInputResourceClass ?? UserInputResourceClass.DEFAULT
+      ),
       easJsonCliConfig,
       actor,
       getDynamicProjectConfigAsync,

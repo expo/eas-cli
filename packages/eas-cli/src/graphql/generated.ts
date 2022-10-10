@@ -297,8 +297,6 @@ export type AccountMutation = {
   setPaymentSource: Account;
   /** Require authorization to send push notifications for experiences owned by this account */
   setPushSecurityEnabled: Account;
-  /** Add a subscription */
-  subscribeToProduct: Account;
 };
 
 
@@ -370,13 +368,6 @@ export type AccountMutationSetPaymentSourceArgs = {
 export type AccountMutationSetPushSecurityEnabledArgs = {
   accountID: Scalars['ID'];
   pushSecurityEnabled: Scalars['Boolean'];
-};
-
-
-export type AccountMutationSubscribeToProductArgs = {
-  accountName: Scalars['ID'];
-  paymentSource: Scalars['ID'];
-  productId: Scalars['ID'];
 };
 
 export type AccountQuery = {
@@ -2124,6 +2115,8 @@ export enum BuildResourceClass {
   AndroidLarge = 'ANDROID_LARGE',
   IosDefault = 'IOS_DEFAULT',
   IosLarge = 'IOS_LARGE',
+  /** @experimental This resource class is not yet ready to be used in production. For testing purposes only. */
+  IosM1Large = 'IOS_M1_LARGE',
   Legacy = 'LEGACY'
 }
 

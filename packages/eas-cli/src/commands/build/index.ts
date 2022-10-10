@@ -147,6 +147,17 @@ export default class Build extends EasCommand {
     if (flags.json && !nonInteractive) {
       Errors.error('--json is allowed only when building in non-interactive mode', { exit: 1 });
     }
+    if (
+      flags['resource-class'] === UserInputResourceClass.M1_EXPERIMENTAL &&
+      flags.platform !== Platform.IOS
+    ) {
+      Errors.error(
+        `Resource class ${UserInputResourceClass.M1_EXPERIMENTAL} is only available for iOS builds`,
+        {
+          exit: 1,
+        }
+      );
+    }
 
     const requestedPlatform =
       flags.platform &&
