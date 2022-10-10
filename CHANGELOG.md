@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add new experimental resource class for M1 Macs. ([#1425](https://github.com/expo/eas-cli/pull/1425) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
