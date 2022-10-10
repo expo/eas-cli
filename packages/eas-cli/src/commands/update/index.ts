@@ -253,7 +253,8 @@ export default class UpdatePublish extends EasCommand {
       exp,
       platformFlag,
       projectDir,
-      getDynamicProjectConfigAsync
+      getDynamicProjectConfigAsync,
+      nonInteractive
     );
     await checkEASUpdateURLIsSetAsync(exp, projectId);
 
@@ -606,7 +607,8 @@ async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
   platformFlag: PublishPlatformFlag,
   projectDir: string,
-  getDynamicProjectConfigAsync: DynamicConfigContextFn
+  getDynamicProjectConfigAsync: DynamicConfigContextFn,
+  nonInteractive: boolean
 ): Promise<Record<string, string>> {
   const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
 
@@ -625,6 +627,10 @@ async function getRuntimeVersionObjectAsync(
   try {
     return transformRuntimeVersions(exp, platforms);
   } catch (error: any) {
+    if (nonInteractive) {
+      Errors.error(error, { exit: 1 });
+    }
+
     ora().start().fail(error.message);
 
     const runConfig = await selectAsync(`Do you want us to run 'eas update:configure' for you?`, [
