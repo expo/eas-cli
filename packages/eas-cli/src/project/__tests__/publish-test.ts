@@ -350,6 +350,7 @@ describe(filterOutAssetsThatAlreadyExistAsync, () => {
         },
       ];
     });
+
     expect(
       (await filterOutAssetsThatAlreadyExistAsync(graphqlClient, [{ storageKey: 'blah' } as any]))
         .length

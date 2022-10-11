@@ -2,7 +2,6 @@ import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
 import { SubmissionEvent } from '../../analytics/events';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { MinimalAscApiKey } from '../../credentials/ios/credentials';
 import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
@@ -110,11 +109,12 @@ export default class IosSubmitter extends BaseSubmitter<
     };
   }
 
-  protected async createPlatformSubmissionAsync(
-    graphqlClient: ExpoGraphqlClient,
-    { projectId, submissionConfig, buildId }: SubmissionInput<Platform.IOS>
-  ): Promise<SubmissionFragment> {
-    return await SubmissionMutation.createIosSubmissionAsync(graphqlClient, {
+  protected async createPlatformSubmissionAsync({
+    projectId,
+    submissionConfig,
+    buildId,
+  }: SubmissionInput<Platform.IOS>): Promise<SubmissionFragment> {
+    return await SubmissionMutation.createIosSubmissionAsync(this.ctx.graphqlClient, {
       appId: projectId,
       config: submissionConfig,
       submittedBuildId: buildId,

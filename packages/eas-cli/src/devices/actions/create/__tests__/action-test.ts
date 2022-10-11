@@ -27,13 +27,12 @@ beforeEach(() => {
 describe(DeviceCreateAction, () => {
   describe('#runAsync', () => {
     it('calls runRegistrationUrlMethodAsync if user chooses the website method', async () => {
-      const graphqlClient = instance(mock<ExpoGraphqlClient>());
-
       jest.mocked(prompts).mockImplementationOnce(async () => ({
         method: RegistrationMethod.WEBSITE,
       }));
       const appStoreApiMock = mock<AppStoreApi>();
       const appStoreApi = instance(appStoreApiMock);
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
 
       const account: AccountFragment = {
         id: 'account_id',
@@ -59,13 +58,12 @@ describe(DeviceCreateAction, () => {
     });
 
     it('calls runInputMethodAsync if user chooses the input method', async () => {
-      const graphqlClient = instance(mock<ExpoGraphqlClient>());
-
       jest.mocked(prompts).mockImplementationOnce(async () => ({
         method: RegistrationMethod.INPUT,
       }));
       const appStoreApiMock = mock<AppStoreApi>();
       const appStoreApi = instance(appStoreApiMock);
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
 
       const account: AccountFragment = {
         id: 'account_id',
@@ -91,13 +89,12 @@ describe(DeviceCreateAction, () => {
     });
 
     it('calls runDeveloperPortalMethodAsync if user chooses the developer portal method', async () => {
-      const graphqlClient = instance(mock<ExpoGraphqlClient>());
-
       jest.mocked(prompts).mockImplementationOnce(async () => ({
         method: RegistrationMethod.DEVELOPER_PORTAL,
       }));
       const appStoreApiMock = mock<AppStoreApi>();
       const appStoreApi = instance(appStoreApiMock);
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
 
       const account: AccountFragment = {
         id: 'account_id',

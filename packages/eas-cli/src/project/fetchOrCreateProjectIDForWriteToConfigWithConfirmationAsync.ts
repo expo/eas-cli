@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import terminalLink from 'terminal-link';
 
 import { getProjectDashboardUrl } from '../build/utils/url';
-import { legacyGraphqlClient } from '../graphql/client';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPrivacy, Role } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
@@ -17,6 +17,7 @@ import { Actor } from '../user/User';
  *    If yes, register and return that. If not, throw.
  */
 export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync(
+  graphqlClient: ExpoGraphqlClient,
   projectInfo: {
     accountName: string;
     projectName: string;
@@ -50,6 +51,7 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
   }
 
   const projectIdOnServer = await findProjectIdByAccountNameAndSlugNullableAsync(
+    graphqlClient,
     accountName,
     projectName
   );
@@ -88,7 +90,7 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
 
   const spinner = ora(`Creating ${chalk.bold(projectFullName)} on Expo`).start();
   try {
-    const id = await AppMutation.createAppAsync(legacyGraphqlClient, {
+    const id = await AppMutation.createAppAsync(graphqlClient, {
       accountId: account.id,
       projectName,
       privacy: projectInfo.privacy ?? AppPrivacy.Public,
@@ -108,11 +110,12 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
  * @returns A promise resolving to Project ID, null if it doesn't exist
  */
 export async function findProjectIdByAccountNameAndSlugNullableAsync(
+  graphqlClient: ExpoGraphqlClient,
   accountName: string,
   slug: string
 ): Promise<string | null> {
   try {
-    const { id } = await AppQuery.byFullNameAsync(legacyGraphqlClient, `@${accountName}/${slug}`);
+    const { id } = await AppQuery.byFullNameAsync(graphqlClient, `@${accountName}/${slug}`);
     return id;
   } catch (err: any) {
     if (err.graphQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {

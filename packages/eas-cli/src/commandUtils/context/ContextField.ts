@@ -1,4 +1,7 @@
+import SessionManager from '../../user/SessionManager';
+
 export interface ContextOptions {
+  sessionManager: SessionManager;
   nonInteractive: boolean;
 }
 
