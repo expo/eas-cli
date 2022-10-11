@@ -210,7 +210,7 @@ export default class UpdatePublish extends EasCommand {
     // If a group was specified, that means we are republishing it.
     republish = republish || !!group;
 
-    const { exp, projectId, projectDir } = await getDynamicProjectConfigAsync({
+    let { exp, projectId, projectDir } = await getDynamicProjectConfigAsync({
       isPublicConfig: true,
     });
 
@@ -248,13 +248,17 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(
+    const [runtimeVersions, updatedConfig] = await getRuntimeVersionObjectAsync(
       exp,
       platformFlag,
       projectDir,
       projectId,
       nonInteractive
     );
+
+    if (updatedConfig) {
+      exp = updatedConfig;
+    }
     await checkEASUpdateURLIsSetAsync(exp, projectId);
 
     if (!branchName) {
@@ -608,7 +612,7 @@ async function getRuntimeVersionObjectAsync(
   projectDir: string,
   projectId: string,
   nonInteractive: boolean
-): Promise<Record<string, string>> {
+): Promise<[Record<string, string>, ExpoConfig | null]> {
   const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
 
   for (const platform of platforms) {
@@ -624,7 +628,7 @@ async function getRuntimeVersionObjectAsync(
   }
 
   try {
-    return transformRuntimeVersions(exp, platforms);
+    return [transformRuntimeVersions(exp, platforms), null];
   } catch (error: any) {
     if (nonInteractive) {
       Errors.error(error, { exit: 1 });
@@ -653,7 +657,7 @@ async function getRuntimeVersionObjectAsync(
       workflows: await getCombinedWorkflowDataAsync(projectDir),
     });
 
-    return transformRuntimeVersions(newConfig, platforms);
+    return [transformRuntimeVersions(newConfig, platforms), newConfig];
   }
 }
 
