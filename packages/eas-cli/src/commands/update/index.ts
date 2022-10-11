@@ -636,13 +636,18 @@ async function getRuntimeVersionObjectAsync(
 
     ora().start().fail(error.message);
 
-    const runConfig = await selectAsync(`Do you want us to run 'eas update:configure' for you?`, [
-      { title: 'Yes', value: true },
-      {
-        title: 'No, I will edit files or run the command manually (EAS CLI exits)',
-        value: false,
-      },
-    ]);
+    const runConfig = await selectAsync(
+      `Do you want us to run automatic ${chalk.bold(
+        'app.json'
+      )} configuration for EAS Update for you?`,
+      [
+        { title: 'Yes', value: true },
+        {
+          title: 'No, I will set the runtime version manually (EAS CLI exits)',
+          value: false,
+        },
+      ]
+    );
 
     if (!runConfig) {
       Errors.exit(1);

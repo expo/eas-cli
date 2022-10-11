@@ -56,6 +56,7 @@ export default class UpdateConfigure extends EasCommand {
     }
 
     const workflows = await getCombinedWorkflowDataAsync(projectDir);
+
     const updatedExp = await configureAppJSONForEASUpdateAsync({
       projectDir,
       projectId,
@@ -64,30 +65,20 @@ export default class UpdateConfigure extends EasCommand {
       workflows,
     });
 
-    Log.withTick(`Configured ${chalk.bold('app.json')} for EAS Update`);
-
-    // configure native files for EAS Update
-    if (
-      [RequestedPlatform.Android, RequestedPlatform.All].includes(platform) &&
-      workflows.android === Workflow.GENERIC
-    ) {
-      await syncAndroidUpdatesConfigurationAsync(graphqlClient, projectDir, updatedExp, projectId);
-      Log.withTick(`Configured ${chalk.bold('AndroidManifest.xml')} for EAS Update`);
-    }
-    if (
-      [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
-      workflows.ios === Workflow.GENERIC
-    ) {
-      await syncIosUpdatesConfigurationAsync(graphqlClient, projectDir, updatedExp, projectId);
-      Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
-    }
+    await configureNativeFilesForEASUpdateAsync({
+      projectDir,
+      projectId,
+      exp: updatedExp,
+      platform,
+      workflows,
+    });
 
     Log.addNewLineIfNone();
     Log.log(`🎉 Your app is configured to run EAS Update!`);
   }
 }
 
-type ConfigureAppJSONForEASUpdateArgs = {
+type ConfigureForEASUpdateArgs = {
   projectDir: string;
   exp: ExpoConfig;
   platform: RequestedPlatform;
@@ -101,7 +92,7 @@ export async function configureAppJSONForEASUpdateAsync({
   platform,
   workflows,
   projectId,
-}: ConfigureAppJSONForEASUpdateArgs): Promise<ExpoConfig> {
+}: ConfigureForEASUpdateArgs): Promise<ExpoConfig> {
   // this command is non-interactive in the way it was designed
   const easUpdateURL = getEASUpdateURL(projectId);
   const updates = { ...exp.updates, url: easUpdateURL };
@@ -295,7 +286,32 @@ export async function configureAppJSONForEASUpdateAsync({
   }
   assert(result.config, 'A successful result should have a config');
 
+  Log.withTick(`Configured ${chalk.bold('app.json')} for EAS Update`);
+
   return result.config.expo;
+}
+
+async function configureNativeFilesForEASUpdateAsync({
+  projectDir,
+  exp,
+  platform,
+  workflows,
+  projectId,
+}: ConfigureForEASUpdateArgs): Promise<void> {
+  if (
+    [RequestedPlatform.Android, RequestedPlatform.All].includes(platform) &&
+    workflows.android === Workflow.GENERIC
+  ) {
+    await syncAndroidUpdatesConfigurationAsync(graphqlClient, projectDir, updatedExp, projectId);
+    Log.withTick(`Configured ${chalk.bold('AndroidManifest.xml')} for EAS Update`);
+  }
+  if (
+    [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
+    workflows.ios === Workflow.GENERIC
+  ) {
+    await syncIosUpdatesConfigurationAsync(graphqlClient, projectDir, updatedExp, projectId);
+    Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
+  }
 }
 
 function isRuntimeEqual(
