@@ -14,12 +14,14 @@ export default class BranchList extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BranchList);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchList, {
       nonInteractive: flags['non-interactive'],
     });
@@ -29,6 +31,6 @@ export default class BranchList extends EasCommand {
       enableJsonOutput();
     }
 
-    await listAndRenderBranchesOnAppAsync({ projectId, paginatedQueryOptions });
+    await listAndRenderBranchesOnAppAsync(graphqlClient, { projectId, paginatedQueryOptions });
   }
 }

@@ -3,6 +3,7 @@ import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   jester as mockJester,
   testProjectId,
@@ -22,18 +23,13 @@ import AndroidSubmitCommand from '../AndroidSubmitCommand';
 
 jest.mock('fs');
 jest.mock('../../../ora');
-jest.mock('../../../graphql/mutations/SubmissionMutation', () => ({
-  SubmissionMutation: {
-    createAndroidSubmissionAsync: jest.fn(),
+jest.mock('../../../graphql/mutations/SubmissionMutation');
+jest.mock('../../../credentials/android/api/graphql/queries/AndroidAppCredentialsQuery', () => ({
+  AndroidAppCredentialsQuery: {
+    withCommonFieldsByApplicationIdentifierAsync: jest.fn(),
   },
 }));
 jest.mock('../../utils/builds');
-jest.mock('../../../user/User', () => ({
-  getUserAsync: jest.fn(() => mockJester),
-}));
-jest.mock('../../../user/actions', () => ({
-  ensureLoggedInAsync: jest.fn(() => mockJester),
-}));
 jest.mock('../../../project/projectUtils');
 
 describe(AndroidSubmitCommand, () => {
@@ -70,12 +66,14 @@ describe(AndroidSubmitCommand, () => {
   });
 
   beforeEach(() => {
+    jest.clearAllMocks();
     jest.mocked(getOwnerAccountForProjectIdAsync).mockResolvedValue(mockJester.accounts[0]);
   });
 
   describe('non-interactive mode', () => {
     it("throws error if didn't provide serviceAccountKeyPath in the submit profile", async () => {
       const projectId = uuidv4();
+      const graphqlClient = {} as any as ExpoGraphqlClient;
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
@@ -90,17 +88,21 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: true,
         actor: mockJester,
+        graphqlClient,
         exp: testProject.appJSON.expo,
         projectId,
       });
       const command = new AndroidSubmitCommand(ctx);
-      await expect(command.runAsync()).rejects.toThrowError();
+      await expect(command.runAsync()).rejects.toThrowError(
+        'Google Service Account Keys cannot be set up in --non-interactive mode.'
+      );
     });
   });
 
   describe('sending submission', () => {
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
+      const graphqlClient = {} as any as ExpoGraphqlClient;
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
@@ -116,13 +118,15 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
+        graphqlClient,
         exp: testProject.appJSON.expo,
         projectId,
       });
+
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
 
-      expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith({
+      expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
         config: {
           archiveUrl: 'http://expo.dev/fake.apk',
@@ -139,6 +143,7 @@ describe(AndroidSubmitCommand, () => {
       jest
         .mocked(getRecentBuildsForSubmissionAsync)
         .mockResolvedValueOnce([fakeBuildFragment as BuildFragment]);
+      const graphqlClient = {} as any as ExpoGraphqlClient;
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
@@ -154,13 +159,14 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
+        graphqlClient,
         exp: testProject.appJSON.expo,
         projectId,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
 
-      expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith({
+      expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
         config: {
           googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],

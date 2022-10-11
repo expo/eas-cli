@@ -2,7 +2,8 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 import nullthrows from 'nullthrows';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   AndroidJobInput,
   BuildFragment,
@@ -23,12 +24,15 @@ export interface BuildResult {
 }
 
 export const BuildMutation = {
-  async createAndroidBuildAsync(input: {
-    appId: string;
-    job: AndroidJobInput;
-    metadata: BuildMetadataInput;
-    buildParams: BuildParamsInput;
-  }): Promise<BuildResult> {
+  async createAndroidBuildAsync(
+    graphqlClient: ExpoGraphqlClient,
+    input: {
+      appId: string;
+      job: AndroidJobInput;
+      metadata: BuildMetadataInput;
+      buildParams: BuildParamsInput;
+    }
+  ): Promise<BuildResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<CreateAndroidBuildMutation, CreateAndroidBuildMutationVariables>(
@@ -66,12 +70,15 @@ export const BuildMutation = {
     );
     return nullthrows(data.build?.createAndroidBuild);
   },
-  async createIosBuildAsync(input: {
-    appId: string;
-    job: IosJobInput;
-    metadata: BuildMetadataInput;
-    buildParams: BuildParamsInput;
-  }): Promise<BuildResult> {
+  async createIosBuildAsync(
+    graphqlClient: ExpoGraphqlClient,
+    input: {
+      appId: string;
+      job: IosJobInput;
+      metadata: BuildMetadataInput;
+      buildParams: BuildParamsInput;
+    }
+  ): Promise<BuildResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<CreateIosBuildMutation, CreateIosBuildMutationVariables>(

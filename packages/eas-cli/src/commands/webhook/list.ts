@@ -21,6 +21,7 @@ export default class WebhookList extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -29,15 +30,20 @@ export default class WebhookList extends EasCommand {
     } = await this.parse(WebhookList);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(WebhookList, {
       nonInteractive: true,
     });
 
-    const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
+    const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
     const spinner = ora(`Fetching the list of webhook on project ${projectDisplayName}`).start();
     try {
-      const webhooks = await WebhookQuery.byAppIdAsync(projectId, event && { event });
+      const webhooks = await WebhookQuery.byAppIdAsync(
+        graphqlClient,
+        projectId,
+        event && { event }
+      );
       if (webhooks.length === 0) {
         spinner.fail(`There are no webhooks on project ${projectDisplayName}`);
       } else {

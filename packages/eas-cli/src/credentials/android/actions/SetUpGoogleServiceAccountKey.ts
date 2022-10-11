@@ -21,7 +21,10 @@ export class SetUpGoogleServiceAccountKey {
     if (isKeySetup) {
       Log.succeed('Google Service Account Key already set up.');
       return nullthrows(
-        await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(this.app),
+        await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
+          ctx.graphqlClient,
+          this.app
+        ),
         'androidAppCredentials cannot be null if google service account key is already set up'
       );
     }
@@ -32,6 +35,7 @@ export class SetUpGoogleServiceAccountKey {
     }
 
     const keysForAccount = await ctx.android.getGoogleServiceAccountKeysForAccountAsync(
+      ctx.graphqlClient,
       this.app.account
     );
     let googleServiceAccountKey = null;
@@ -47,6 +51,7 @@ export class SetUpGoogleServiceAccountKey {
 
   private async isGoogleServiceAccountKeySetupAsync(ctx: CredentialsContext): Promise<boolean> {
     const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
+      ctx.graphqlClient,
       this.app
     );
     return !!appCredentials?.googleServiceAccountKeyForSubmissions;

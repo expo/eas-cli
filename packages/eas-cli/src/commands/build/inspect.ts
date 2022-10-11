@@ -69,12 +69,13 @@ export default class BuildInspect extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildInspect);
-    const { actor, getDynamicProjectConfigAsync, projectDir } = await this.getContextAsync(
-      BuildInspect,
-      {
-        nonInteractive: false,
-      }
-    );
+    const {
+      loggedIn: { actor, graphqlClient },
+      getDynamicProjectConfigAsync,
+      projectDir,
+    } = await this.getContextAsync(BuildInspect, {
+      nonInteractive: false,
+    });
 
     const outputDirectory = path.resolve(process.cwd(), flags.output);
     const tmpWorkingdir = path.join(getTmpDirectory(), uuidv4());
@@ -95,6 +96,7 @@ export default class BuildInspect extends EasCommand {
     } else {
       try {
         await runBuildAndSubmitAsync(
+          graphqlClient,
           projectDir,
           {
             nonInteractive: false,

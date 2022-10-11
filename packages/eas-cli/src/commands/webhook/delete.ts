@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { WebhookFragment } from '../../graphql/generated';
 import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
@@ -29,6 +30,7 @@ export default class WebhookDelete extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -38,14 +40,15 @@ export default class WebhookDelete extends EasCommand {
     } = await this.parse(WebhookDelete);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(WebhookDelete, {
       nonInteractive,
     });
 
     let webhook: WebhookFragment | undefined =
-      webhookId && (await WebhookQuery.byIdAsync(webhookId));
+      webhookId && (await WebhookQuery.byIdAsync(graphqlClient, webhookId));
     if (!webhookId) {
-      const webhooks = await fetchWebhooksByAppIdAsync(projectId);
+      const webhooks = await fetchWebhooksByAppIdAsync(graphqlClient, projectId);
       if (webhooks.length === 0) {
         process.exit(1);
       }
@@ -86,7 +89,7 @@ export default class WebhookDelete extends EasCommand {
 
     const spinner = ora('Deleting the webhook').start();
     try {
-      await WebhookMutation.deleteWebhookAsync(webhookId);
+      await WebhookMutation.deleteWebhookAsync(graphqlClient, webhookId);
       spinner.succeed('Successfully deleted the webhook');
     } catch (err) {
       spinner.fail('Failed to delete the webhook');
@@ -95,10 +98,13 @@ export default class WebhookDelete extends EasCommand {
   }
 }
 
-async function fetchWebhooksByAppIdAsync(appId: string): Promise<WebhookFragment[]> {
+async function fetchWebhooksByAppIdAsync(
+  graphqlClient: ExpoGraphqlClient,
+  appId: string
+): Promise<WebhookFragment[]> {
   const spinner = ora('Fetching webhooks').start();
   try {
-    const webhooks = await WebhookQuery.byAppIdAsync(appId);
+    const webhooks = await WebhookQuery.byAppIdAsync(graphqlClient, appId);
     if (webhooks.length === 0) {
       spinner.fail('There are no webhooks on the project');
       return [];

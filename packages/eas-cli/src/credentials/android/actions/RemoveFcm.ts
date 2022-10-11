@@ -13,6 +13,7 @@ export class RemoveFcm {
       );
     }
     const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
+      ctx.graphqlClient,
       this.app
     );
     const fcm = appCredentials?.androidFcm;
@@ -33,7 +34,7 @@ export class RemoveFcm {
       return;
     }
 
-    await ctx.android.deleteFcmAsync(fcm);
+    await ctx.android.deleteFcmAsync(ctx.graphqlClient, fcm);
     Log.succeed('FCM API Key removed');
   }
 }

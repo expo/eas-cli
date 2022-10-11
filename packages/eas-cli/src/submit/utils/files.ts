@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { UploadSessionType } from '../../graphql/generated';
 import { uploadFileAtPathToS3Async } from '../../uploads';
 import { createProgressTracker } from '../../utils/progress';
@@ -13,9 +14,13 @@ export async function isExistingFileAsync(filePath: string): Promise<boolean> {
   }
 }
 
-export async function uploadAppArchiveAsync(path: string): Promise<string> {
+export async function uploadAppArchiveAsync(
+  graphqlClient: ExpoGraphqlClient,
+  path: string
+): Promise<string> {
   const fileSize = (await fs.stat(path)).size;
   const { url } = await uploadFileAtPathToS3Async(
+    graphqlClient,
     UploadSessionType.EasSubmitAppArchive,
     path,
     createProgressTracker({

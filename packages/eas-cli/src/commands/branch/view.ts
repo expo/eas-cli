@@ -28,6 +28,7 @@ export default class BranchView extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -38,6 +39,7 @@ export default class BranchView extends EasCommand {
     const { 'non-interactive': nonInteractive } = flags;
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchView, {
       nonInteractive,
     });
@@ -52,7 +54,7 @@ export default class BranchView extends EasCommand {
         throw new Error('Branch name may not be empty.');
       }
 
-      ({ name: branchName } = await selectBranchOnAppAsync({
+      ({ name: branchName } = await selectBranchOnAppAsync(graphqlClient, {
         projectId,
         promptTitle: 'Which branch would you like to view?',
         displayTextForListItem: updateBranch => updateBranch.name,
@@ -65,7 +67,7 @@ export default class BranchView extends EasCommand {
       }));
     }
 
-    await listAndRenderUpdateGroupsOnBranchAsync({
+    await listAndRenderUpdateGroupsOnBranchAsync(graphqlClient, {
       projectId,
       branchName,
       paginatedQueryOptions,

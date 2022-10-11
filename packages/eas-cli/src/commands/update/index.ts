@@ -11,6 +11,7 @@ import { selectBranchOnAppAsync } from '../../branch/queries';
 import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -60,17 +61,20 @@ import { createUpdateChannelOnAppAsync } from '../channel/create';
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
 export type PublishPlatformFlag = PublishPlatform | 'all';
 
-async function ensureChannelExistsAsync({
-  appId,
-  branchId,
-  channelName,
-}: {
-  appId: string;
-  branchId: string;
-  channelName: string;
-}): Promise<void> {
+async function ensureChannelExistsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    appId,
+    branchId,
+    channelName,
+  }: {
+    appId: string;
+    branchId: string;
+    channelName: string;
+  }
+): Promise<void> {
   try {
-    await createUpdateChannelOnAppAsync({
+    await createUpdateChannelOnAppAsync(graphqlClient, {
       appId,
       channelName,
       branchId,
@@ -88,26 +92,29 @@ async function ensureChannelExistsAsync({
   }
 }
 
-export async function ensureBranchExistsAsync({
-  appId,
-  name: branchName,
-}: ViewBranchQueryVariables): Promise<{
+export async function ensureBranchExistsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { appId, name: branchName }: ViewBranchQueryVariables
+): Promise<{
   branchId: string;
 }> {
   try {
-    const updateBranch = await BranchQuery.getBranchByNameAsync({
+    const updateBranch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
       appId,
       name: branchName,
     });
 
     const { id } = updateBranch;
-    await ensureChannelExistsAsync({ appId, branchId: id, channelName: branchName });
+    await ensureChannelExistsAsync(graphqlClient, { appId, branchId: id, channelName: branchName });
     return { branchId: id };
   } catch (error) {
     if (error instanceof BranchNotFoundError) {
-      const newUpdateBranch = await createUpdateBranchOnAppAsync({ appId, name: branchName });
+      const newUpdateBranch = await createUpdateBranchOnAppAsync(graphqlClient, {
+        appId,
+        name: branchName,
+      });
       Log.withTick(`Created branch: ${chalk.bold(branchName)}`);
-      await ensureChannelExistsAsync({
+      await ensureChannelExistsAsync(graphqlClient, {
         appId,
         branchId: newUpdateBranch.id,
         channelName: branchName,
@@ -168,6 +175,7 @@ export default class UpdatePublish extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -186,7 +194,10 @@ export default class UpdatePublish extends EasCommand {
       'non-interactive': nonInteractive,
       json: jsonFlag,
     } = flags;
-    const { getDynamicProjectConfigAsync } = await this.getContextAsync(UpdatePublish, {
+    const {
+      getDynamicProjectConfigAsync,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
     });
 
@@ -206,7 +217,7 @@ export default class UpdatePublish extends EasCommand {
       isPublicConfig: false,
     });
 
-    await maybeWarnAboutEasOutagesAsync([StatuspageServiceName.EasUpdate]);
+    await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 
@@ -246,7 +257,7 @@ export default class UpdatePublish extends EasCommand {
         throw new Error('Must supply --branch or use --auto when in non-interactive mode');
       } else {
         try {
-          const branch = await selectBranchOnAppAsync({
+          const branch = await selectBranchOnAppAsync(graphqlClient, {
             projectId,
             promptTitle: `Which branch would you like to ${
               republish ? 'republish' : 'publish'
@@ -286,14 +297,16 @@ export default class UpdatePublish extends EasCommand {
         'group' | 'message' | 'runtimeVersion' | 'manifestFragment' | 'platform'
       >[];
       if (group) {
-        const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync({ groupId: group });
+        const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, {
+          groupId: group,
+        });
         updatesToRepublish = updatesByGroup;
       } else {
         if (nonInteractive) {
           throw new Error('Must supply --group when in non-interactive mode');
         }
 
-        updatesToRepublish = await selectUpdateGroupOnBranchAsync({
+        updatesToRepublish = await selectUpdateGroupOnBranchAsync(graphqlClient, {
           projectId,
           branchName,
           paginatedQueryOptions,
@@ -393,6 +406,7 @@ export default class UpdatePublish extends EasCommand {
         const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
         const assets = await collectAssetsAsync({ inputDir: inputDir!, platforms });
         const uploadResults = await uploadAssetsAsync(
+          graphqlClient,
           assets,
           projectId,
           (totalAssets, missingAssets) => {
@@ -423,7 +437,7 @@ export default class UpdatePublish extends EasCommand {
         .map(pair => pair[0]);
     }
 
-    const { branchId } = await ensureBranchExistsAsync({
+    const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
       name: branchName,
     });
@@ -455,7 +469,7 @@ export default class UpdatePublish extends EasCommand {
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();
     try {
-      newUpdates = await PublishMutation.publishUpdateGroupAsync(updateGroups);
+      newUpdates = await PublishMutation.publishUpdateGroupAsync(graphqlClient, updateGroups);
 
       if (codeSigningInfo) {
         Log.log('🔒 Signing updates');
@@ -488,7 +502,7 @@ export default class UpdatePublish extends EasCommand {
 
                 const manifestSignature = signManifestBody(manifestBody, codeSigningInfo);
 
-                await PublishMutation.setCodeSigningInfoAsync(newUpdate.id, {
+                await PublishMutation.setCodeSigningInfoAsync(graphqlClient, newUpdate.id, {
                   alg: codeSigningInfo.codeSigningMetadata.alg,
                   keyid: codeSigningInfo.codeSigningMetadata.keyid,
                   sig: manifestSignature,
@@ -531,7 +545,7 @@ export default class UpdatePublish extends EasCommand {
         const updateGroupId = newUpdatesForRuntimeVersion[0].group;
 
         const projectName = exp.slug;
-        const accountName = (await getOwnerAccountForProjectIdAsync(projectId)).name;
+        const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
         const updateGroupUrl = getUpdateGroupUrl(accountName, projectName, updateGroupId);
         const updateGroupLink = link(updateGroupUrl, { dim: false });
 

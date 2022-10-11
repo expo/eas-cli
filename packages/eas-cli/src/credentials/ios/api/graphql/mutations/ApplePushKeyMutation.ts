@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   ApplePushKeyFragment,
   ApplePushKeyInput,
@@ -13,6 +14,7 @@ import { ApplePushKeyFragmentNode } from '../../../../../graphql/types/credentia
 
 export const ApplePushKeyMutation = {
   async createApplePushKeyAsync(
+    graphqlClient: ExpoGraphqlClient,
     applePushKeyInput: ApplePushKeyInput,
     accountId: string
   ): Promise<ApplePushKeyFragment> {
@@ -46,7 +48,10 @@ export const ApplePushKeyMutation = {
     );
     return data.applePushKey.createApplePushKey;
   },
-  async deleteApplePushKeyAsync(applePushKeyId: string): Promise<void> {
+  async deleteApplePushKeyAsync(
+    graphqlClient: ExpoGraphqlClient,
+    applePushKeyId: string
+  ): Promise<void> {
     await withErrorHandlingAsync(
       graphqlClient
         .mutation<DeleteApplePushKeyMutation>(

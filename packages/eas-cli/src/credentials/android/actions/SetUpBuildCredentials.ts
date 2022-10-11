@@ -68,9 +68,14 @@ export class SetUpBuildCredentials {
     keystore: AndroidKeystoreFragment;
   }): Promise<AndroidAppBuildCredentialsFragment> {
     if (name) {
-      return await ctx.android.createOrUpdateAndroidAppBuildCredentialsByNameAsync(app, name, {
-        androidKeystoreId: keystore.id,
-      });
+      return await ctx.android.createOrUpdateAndroidAppBuildCredentialsByNameAsync(
+        ctx.graphqlClient,
+        app,
+        name,
+        {
+          androidKeystoreId: keystore.id,
+        }
+      );
     }
     return await createOrUpdateDefaultAndroidAppBuildCredentialsAsync(ctx, app, {
       androidKeystoreId: keystore.id,
@@ -91,6 +96,7 @@ export class SetUpBuildCredentials {
     }
 
     const defaultBuildCredentials = await ctx.android.getDefaultAndroidAppBuildCredentialsAsync(
+      ctx.graphqlClient,
       app
     );
     const defaultKeystore = defaultBuildCredentials?.androidKeystore ?? null;
@@ -113,6 +119,7 @@ export class SetUpBuildCredentials {
     name: string;
   }): Promise<AndroidAppBuildCredentialsFragment | null> {
     const maybeBuildCredentials = await ctx.android.getAndroidAppBuildCredentialsByNameAsync(
+      ctx.graphqlClient,
       app,
       name
     );

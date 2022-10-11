@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleTeamByIdentifierQuery,
   AppleTeamFragment,
@@ -11,11 +12,10 @@ import {
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
 
 export const AppleTeamQuery = {
-  async getAllForAccountAsync({
-    accountName,
-    offset,
-    limit,
-  }: AppleTeamsByAccountNameQueryVariables): Promise<AppleTeamFragment[]> {
+  async getAllForAccountAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { accountName, offset, limit }: AppleTeamsByAccountNameQueryVariables
+  ): Promise<AppleTeamFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AppleTeamsByAccountNameQuery>(
@@ -44,6 +44,7 @@ export const AppleTeamQuery = {
     return data.account.byName.appleTeams ?? [];
   },
   async getByAppleTeamIdentifierAsync(
+    graphqlClient: ExpoGraphqlClient,
     accountId: string,
     appleTeamIdentifier: string
   ): Promise<AppleTeamFragment | null> {

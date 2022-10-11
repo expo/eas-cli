@@ -3,6 +3,7 @@ import { AppVersionSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import AndroidCredentialsProvider, {
   AndroidCredentials,
 } from '../../credentials/android/AndroidCredentialsProvider';
@@ -63,7 +64,7 @@ This means that it will most likely produce an AAB and you will not be able to i
   const applicationId = await getApplicationIdAsync(ctx.projectDir, ctx.exp, gradleContext);
   const versionCodeOverride =
     ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
-      ? await resolveRemoteVersionCodeAsync({
+      ? await resolveRemoteVersionCodeAsync(ctx.graphqlClient, {
           projectDir: ctx.projectDir,
           projectId: ctx.projectId,
           exp: ctx.exp,
@@ -84,7 +85,7 @@ export async function prepareAndroidBuildAsync(
       return await ensureAndroidCredentialsAsync(ctx);
     },
     syncProjectConfigurationAsync: async () => {
-      await syncProjectConfigurationAsync({
+      await syncProjectConfigurationAsync(ctx.graphqlClient, {
         projectDir: ctx.projectDir,
         exp: ctx.exp,
         localAutoIncrement:
@@ -101,6 +102,7 @@ export async function prepareAndroidBuildAsync(
       return await prepareJobAsync(ctx, jobData);
     },
     sendBuildRequestAsync: async (
+      graphqlClient: ExpoGraphqlClient,
       appId: string,
       job: Android.Job,
       metadata: Metadata,
@@ -108,7 +110,7 @@ export async function prepareAndroidBuildAsync(
     ): Promise<BuildResult> => {
       const graphqlMetadata = transformMetadata(metadata);
       const graphqlJob = transformJob(job);
-      return await BuildMutation.createAndroidBuildAsync({
+      return await BuildMutation.createAndroidBuildAsync(graphqlClient, {
         appId,
         job: graphqlJob,
         metadata: graphqlMetadata,

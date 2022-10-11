@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AndroidAppBuildCredentialsFragment,
   AndroidAppBuildCredentialsInput,
@@ -17,6 +18,7 @@ export type AndroidAppBuildCredentialsMetadataInput = Omit<
 >;
 export const AndroidAppBuildCredentialsMutation = {
   async createAndroidAppBuildCredentialsAsync(
+    graphqlClient: ExpoGraphqlClient,
     androidAppBuildCredentialsInput: AndroidAppBuildCredentialsInput,
     androidAppCredentialsId: string
   ): Promise<AndroidAppBuildCredentialsFragment> {
@@ -54,6 +56,7 @@ export const AndroidAppBuildCredentialsMutation = {
     return data.androidAppBuildCredentials.createAndroidAppBuildCredentials;
   },
   async setKeystoreAsync(
+    graphqlClient: ExpoGraphqlClient,
     androidAppBuildCredentialsId: string,
     keystoreId: string
   ): Promise<AndroidAppBuildCredentialsFragment> {

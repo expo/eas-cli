@@ -1,6 +1,7 @@
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   AppPlatform,
   AppVersion,
@@ -10,6 +11,7 @@ import {
 
 export const AppVersionQuery = {
   async latestVersionAsync(
+    graphqlClient: ExpoGraphqlClient,
     appId: string,
     platform: AppPlatform,
     applicationIdentifier: string

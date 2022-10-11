@@ -62,12 +62,13 @@ export default class BuildVersionSyncView extends EasCommand {
 
   public async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildVersionSyncView);
-    const { actor, getDynamicProjectConfigAsync, projectDir } = await this.getContextAsync(
-      BuildVersionSyncView,
-      {
-        nonInteractive: true,
-      }
-    );
+    const {
+      loggedIn: { actor, graphqlClient },
+      getDynamicProjectConfigAsync,
+      projectDir,
+    } = await this.getContextAsync(BuildVersionSyncView, {
+      nonInteractive: true,
+    });
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
     const easJsonAccessor = new EasJsonAccessor(projectDir);
@@ -96,6 +97,7 @@ export default class BuildVersionSyncView extends EasCommand {
         actor
       );
       const remoteVersions = await AppVersionQuery.latestVersionAsync(
+        graphqlClient,
         projectId,
         toAppPlatform(profileInfo.platform),
         applicationIdentifier

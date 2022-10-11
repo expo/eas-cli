@@ -1,6 +1,7 @@
 import prompts from 'prompts';
 import { instance, mock } from 'ts-mockito';
 
+import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import AppStoreApi from '../../../../credentials/ios/appstore/AppStoreApi';
 import { AccountFragment, Role } from '../../../../graphql/generated';
 import DeviceCreateAction, { RegistrationMethod } from '../action';
@@ -31,6 +32,7 @@ describe(DeviceCreateAction, () => {
       }));
       const appStoreApiMock = mock<AppStoreApi>();
       const appStoreApi = instance(appStoreApiMock);
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
 
       const account: AccountFragment = {
         id: 'account_id',
@@ -49,7 +51,7 @@ describe(DeviceCreateAction, () => {
         appleTeamIdentifier: 'ABC123Y',
         appleTeamName: 'John Doe (Individual)',
       };
-      const action = new DeviceCreateAction(appStoreApi, account, appleTeam);
+      const action = new DeviceCreateAction(graphqlClient, appStoreApi, account, appleTeam);
       await action.runAsync();
 
       expect(runRegistrationUrlMethodAsync).toBeCalled();
@@ -61,6 +63,7 @@ describe(DeviceCreateAction, () => {
       }));
       const appStoreApiMock = mock<AppStoreApi>();
       const appStoreApi = instance(appStoreApiMock);
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
 
       const account: AccountFragment = {
         id: 'account_id',
@@ -79,7 +82,7 @@ describe(DeviceCreateAction, () => {
         appleTeamIdentifier: 'ABC123Y',
         appleTeamName: 'John Doe (Individual)',
       };
-      const action = new DeviceCreateAction(appStoreApi, account, appleTeam);
+      const action = new DeviceCreateAction(graphqlClient, appStoreApi, account, appleTeam);
       await action.runAsync();
 
       expect(runInputMethodAsync).toBeCalled();
@@ -91,6 +94,7 @@ describe(DeviceCreateAction, () => {
       }));
       const appStoreApiMock = mock<AppStoreApi>();
       const appStoreApi = instance(appStoreApiMock);
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
 
       const account: AccountFragment = {
         id: 'account_id',
@@ -109,7 +113,7 @@ describe(DeviceCreateAction, () => {
         appleTeamIdentifier: 'ABC123Y',
         appleTeamName: 'John Doe (Individual)',
       };
-      const action = new DeviceCreateAction(appStoreApi, account, appleTeam);
+      const action = new DeviceCreateAction(graphqlClient, appStoreApi, account, appleTeam);
       await action.runAsync();
 
       expect(runDeveloperPortalMethodAsync).toBeCalled();

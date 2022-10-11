@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import path from 'path';
 import type { XCBuildConfiguration } from 'xcode';
 
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { Target } from '../../credentials/ios/types';
 import { AppPlatform } from '../../graphql/generated';
 import { AppVersionMutation } from '../../graphql/mutations/AppVersionMutation';
@@ -255,20 +256,24 @@ export function evaluateTemplateString(
  * Returns buildNumber that will be used for the next build. If current build profile
  * has an 'autoIncrement' option set, it increments the version on server.
  */
-export async function resolveRemoteBuildNumberAsync({
-  projectDir,
-  projectId,
-  exp,
-  applicationTarget,
-  buildProfile,
-}: {
-  projectDir: string;
-  projectId: string;
-  exp: ExpoConfig;
-  applicationTarget: Target;
-  buildProfile: BuildProfile<Platform.IOS>;
-}): Promise<string> {
+export async function resolveRemoteBuildNumberAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectDir,
+    projectId,
+    exp,
+    applicationTarget,
+    buildProfile,
+  }: {
+    projectDir: string;
+    projectId: string;
+    exp: ExpoConfig;
+    applicationTarget: Target;
+    buildProfile: BuildProfile<Platform.IOS>;
+  }
+): Promise<string> {
   const remoteVersions = await AppVersionQuery.latestVersionAsync(
+    graphqlClient,
     projectId,
     AppPlatform.Ios,
     applicationTarget.bundleIdentifier
@@ -307,7 +312,7 @@ export async function resolveRemoteBuildNumberAsync({
       `Initializing buildNumber with ${chalk.bold(currentBuildVersion)}.`
     ).start();
     try {
-      await AppVersionMutation.createAppVersionAsync({
+      await AppVersionMutation.createAppVersionAsync(graphqlClient, {
         appId: projectId,
         platform: AppPlatform.Ios,
         applicationIdentifier: applicationTarget.bundleIdentifier,
@@ -329,7 +334,7 @@ export async function resolveRemoteBuildNumberAsync({
       )}.`
     ).start();
     try {
-      await AppVersionMutation.createAppVersionAsync({
+      await AppVersionMutation.createAppVersionAsync(graphqlClient, {
         appId: projectId,
         platform: AppPlatform.Ios,
         applicationIdentifier: applicationTarget.bundleIdentifier,

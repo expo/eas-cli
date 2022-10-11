@@ -44,7 +44,7 @@ export class SetUpAscApiKey {
     if (isKeySetup) {
       Log.succeed('App Store Connect API Key already set up.');
       return nullthrows(
-        await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(this.app),
+        await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(ctx.graphqlClient, this.app),
         'iosAppCredentials cannot be null if App Store Connect API Key is already set up'
       );
     }
@@ -103,7 +103,10 @@ export class SetUpAscApiKey {
     ctx: CredentialsContext,
     purpose: AppStoreApiKeyPurpose
   ): Promise<boolean> {
-    const appCredentials = await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(this.app);
+    const appCredentials = await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(
+      ctx.graphqlClient,
+      this.app
+    );
     if (purpose !== AppStoreApiKeyPurpose.SUBMISSION_SERVICE) {
       throw new Error(`App Store Connect API Key setup is not yet supported for ${purpose}.`);
     }

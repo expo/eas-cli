@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AndroidKeystoreFragment,
   AndroidKeystoreInput,
@@ -13,6 +14,7 @@ import { AndroidKeystoreFragmentNode } from '../../../../../graphql/types/creden
 
 export const AndroidKeystoreMutation = {
   async createAndroidKeystoreAsync(
+    graphqlClient: ExpoGraphqlClient,
     androidKeystoreInput: AndroidKeystoreInput,
     accountId: string
   ): Promise<AndroidKeystoreFragment> {
@@ -49,7 +51,10 @@ export const AndroidKeystoreMutation = {
     );
     return data.androidKeystore.createAndroidKeystore;
   },
-  async deleteAndroidKeystoreAsync(androidKeystoreId: string): Promise<void> {
+  async deleteAndroidKeystoreAsync(
+    graphqlClient: ExpoGraphqlClient,
+    androidKeystoreId: string
+  ): Promise<void> {
     await withErrorHandlingAsync(
       graphqlClient
         .mutation<DeleteAndroidKeystoreMutation>(

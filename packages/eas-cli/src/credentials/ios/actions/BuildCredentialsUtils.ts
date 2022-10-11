@@ -17,7 +17,11 @@ export async function getAllBuildCredentialsAsync(
   ctx: CredentialsContext,
   app: AppLookupParams
 ): Promise<IosAppBuildCredentialsFragment[]> {
-  const appCredentials = await ctx.ios.getIosAppCredentialsWithBuildCredentialsAsync(app, {});
+  const appCredentials = await ctx.ios.getIosAppCredentialsWithBuildCredentialsAsync(
+    ctx.graphqlClient,
+    app,
+    {}
+  );
   if (!appCredentials) {
     return [];
   }
@@ -29,9 +33,13 @@ export async function getBuildCredentialsAsync(
   app: AppLookupParams,
   iosDistributionType: GraphQLIosDistributionType
 ): Promise<IosAppBuildCredentialsFragment | null> {
-  const appCredentials = await ctx.ios.getIosAppCredentialsWithBuildCredentialsAsync(app, {
-    iosDistributionType,
-  });
+  const appCredentials = await ctx.ios.getIosAppCredentialsWithBuildCredentialsAsync(
+    ctx.graphqlClient,
+    app,
+    {
+      iosDistributionType,
+    }
+  );
   if (!appCredentials || appCredentials.iosAppBuildCredentialsList.length === 0) {
     return null;
   }
@@ -69,10 +77,11 @@ export async function assignBuildCredentialsAsync(
     appleTeam ?? (await resolveAppleTeamIfAuthenticatedAsync(ctx, app))
   );
   const appleAppIdentifier = await ctx.ios.createOrGetExistingAppleAppIdentifierAsync(
+    ctx.graphqlClient,
     app,
     resolvedAppleTeam
   );
-  return await ctx.ios.createOrUpdateIosAppBuildCredentialsAsync(app, {
+  return await ctx.ios.createOrUpdateIosAppBuildCredentialsAsync(ctx.graphqlClient, app, {
     appleTeam: resolvedAppleTeam,
     appleAppIdentifierId: appleAppIdentifier.id,
     appleDistributionCertificateId: distCert.id,
@@ -85,7 +94,7 @@ export async function getAppFromContextAsync(ctx: CredentialsContext): Promise<A
   ctx.ensureProjectContext();
   const projectName = ctx.exp.slug;
   const projectId = ctx.projectId;
-  const account = await getOwnerAccountForProjectIdAsync(projectId);
+  const account = await getOwnerAccountForProjectIdAsync(ctx.graphqlClient, projectId);
   return {
     account,
     projectName,

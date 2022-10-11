@@ -1,6 +1,7 @@
 import { Ios, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { AppVersionSource } from '@expo/eas-json';
 
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { IosCredentials } from '../../credentials/ios/types';
 import { BuildParamsInput } from '../../graphql/generated';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
@@ -46,7 +47,7 @@ export async function createIosContextAsync(
   const applicationTarget = findApplicationTarget(targets);
   const buildNumberOverride =
     ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
-      ? await resolveRemoteBuildNumberAsync({
+      ? await resolveRemoteBuildNumberAsync(ctx.graphqlClient, {
           projectDir: ctx.projectDir,
           projectId: ctx.projectId,
           exp: ctx.exp,
@@ -72,7 +73,7 @@ export async function prepareIosBuildAsync(
       return ensureIosCredentialsAsync(ctx, ctx.ios.targets);
     },
     syncProjectConfigurationAsync: async () => {
-      await syncProjectConfigurationAsync({
+      await syncProjectConfigurationAsync(ctx.graphqlClient, {
         projectDir: ctx.projectDir,
         exp: ctx.exp,
         targets: ctx.ios.targets,
@@ -93,6 +94,7 @@ export async function prepareIosBuildAsync(
       });
     },
     sendBuildRequestAsync: async (
+      graphqlClient: ExpoGraphqlClient,
       appId: string,
       job: Ios.Job,
       metadata: Metadata,
@@ -100,7 +102,7 @@ export async function prepareIosBuildAsync(
     ): Promise<BuildResult> => {
       const graphqlMetadata = transformMetadata(metadata);
       const graphqlJob = transformJob(job);
-      return await BuildMutation.createIosBuildAsync({
+      return await BuildMutation.createIosBuildAsync(graphqlClient, {
         appId,
         job: graphqlJob,
         metadata: graphqlMetadata,

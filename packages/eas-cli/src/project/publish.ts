@@ -7,6 +7,7 @@ import mime from 'mime';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
@@ -232,9 +233,11 @@ export async function collectAssetsAsync({
 }
 
 export async function filterOutAssetsThatAlreadyExistAsync(
+  graphqlClient: ExpoGraphqlClient,
   uniqueAssetsWithStorageKey: (RawAsset & { storageKey: string })[]
 ): Promise<(RawAsset & { storageKey: string })[]> {
   const assetMetadata = await PublishQuery.getAssetMetadataAsync(
+    graphqlClient,
     uniqueAssetsWithStorageKey.map(asset => asset.storageKey)
   );
   const missingAssetKeys = assetMetadata
@@ -255,6 +258,7 @@ type AssetUploadResult = {
 };
 
 export async function uploadAssetsAsync(
+  graphqlClient: ExpoGraphqlClient,
   assetsForUpdateInfoGroup: CollectedAssets,
   projectId: string,
   updateSpinnerText?: (totalAssets: number, missingAssets: number) => void
@@ -286,13 +290,14 @@ export async function uploadAssetsAsync(
   const totalAssets = uniqueAssets.length;
 
   updateSpinnerText?.(totalAssets, totalAssets);
-  let missingAssets = await filterOutAssetsThatAlreadyExistAsync(uniqueAssets);
+  let missingAssets = await filterOutAssetsThatAlreadyExistAsync(graphqlClient, uniqueAssets);
   const uniqueUploadedAssetCount = missingAssets.length;
 
   const missingAssetChunks = chunk(missingAssets, 100);
   const specifications: string[] = [];
   for (const missingAssets of missingAssetChunks) {
     const { specifications: chunkSpecifications } = await PublishMutation.getUploadURLsAsync(
+      graphqlClient,
       missingAssets.map(ma => ma.contentType)
     );
     specifications.push(...chunkSpecifications);
@@ -303,7 +308,7 @@ export async function uploadAssetsAsync(
   const assetUploadPromiseLimit = promiseLimit(15);
 
   const [assetLimitPerUpdateGroup] = await Promise.all([
-    PublishQuery.getAssetLimitPerUpdateGroupAsync(projectId),
+    PublishQuery.getAssetLimitPerUpdateGroupAsync(graphqlClient, projectId),
     missingAssets.map((missingAsset, i) => {
       assetUploadPromiseLimit(async () => {
         const presignedPost: PresignedPost = JSON.parse(specifications[i]);
@@ -317,7 +322,7 @@ export async function uploadAssetsAsync(
     const timeoutPromise = new Promise(resolve =>
       setTimeout(resolve, Math.min(timeout * 1000, 5000))
     ); // linear backoff
-    missingAssets = await filterOutAssetsThatAlreadyExistAsync(missingAssets);
+    missingAssets = await filterOutAssetsThatAlreadyExistAsync(graphqlClient, missingAssets);
     await timeoutPromise; // await after filterOutAssetsThatAlreadyExistAsync for easy mocking with jest.runAllTimers
     timeout += 1;
     updateSpinnerText?.(totalAssets, missingAssets.length);

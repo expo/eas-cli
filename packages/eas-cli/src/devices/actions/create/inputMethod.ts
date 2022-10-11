@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
 import { AppleDeviceClass, AppleTeam } from '../../../graphql/generated';
 import Log from '../../../log';
@@ -20,6 +21,7 @@ const DEVICE_CLASS_DISPLAY_NAMES: Record<AppleDeviceClass, string> = {
 };
 
 export async function runInputMethodAsync(
+  graphqlClient: ExpoGraphqlClient,
   accountId: string,
   appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
 ): Promise<void> {
@@ -29,7 +31,7 @@ export async function runInputMethodAsync(
 
   let registerNextDevice = true;
   while (registerNextDevice) {
-    await collectDataAndRegisterDeviceAsync({ accountId, appleTeam });
+    await collectDataAndRegisterDeviceAsync(graphqlClient, { accountId, appleTeam });
     Log.newLine();
     registerNextDevice = await confirmAsync({
       message: 'Do you want to register another device?',
@@ -37,18 +39,22 @@ export async function runInputMethodAsync(
   }
 }
 
-async function collectDataAndRegisterDeviceAsync({
-  accountId,
-  appleTeam,
-}: {
-  accountId: string;
-  appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>;
-}): Promise<void> {
+async function collectDataAndRegisterDeviceAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    accountId,
+    appleTeam,
+  }: {
+    accountId: string;
+    appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>;
+  }
+): Promise<void> {
   const { udid, deviceClass, name } = await collectDeviceDataAsync(appleTeam);
 
   const spinner = ora(`Registering Apple device on Expo`).start();
   try {
     await AppleDeviceMutation.createAppleDeviceAsync(
+      graphqlClient,
       {
         appleTeamId: appleTeam.id,
         identifier: udid,

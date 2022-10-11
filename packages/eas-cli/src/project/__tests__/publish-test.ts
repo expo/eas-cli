@@ -1,8 +1,10 @@
 import fs from 'fs-extra';
 import mockdate from 'mockdate';
 import path from 'path';
+import { instance, mock } from 'ts-mockito';
 import { v4 as uuidv4 } from 'uuid';
 
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { defaultPublishPlatforms } from '../../commands/update';
 import { AssetMetadataStatus } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
@@ -330,9 +332,11 @@ describe(filterOutAssetsThatAlreadyExistAsync, () => {
         },
       ];
     });
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
 
     expect(
-      (await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])).length
+      (await filterOutAssetsThatAlreadyExistAsync(graphqlClient, [{ storageKey: 'blah' } as any]))
+        .length
     ).toBe(1);
   });
   it('ignores an asset that exists', async () => {
@@ -345,8 +349,11 @@ describe(filterOutAssetsThatAlreadyExistAsync, () => {
         },
       ];
     });
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
+
     expect(
-      (await filterOutAssetsThatAlreadyExistAsync([{ storageKey: 'blah' } as any])).length
+      (await filterOutAssetsThatAlreadyExistAsync(graphqlClient, [{ storageKey: 'blah' } as any]))
+        .length
     ).toBe(0);
   });
 });
@@ -441,9 +448,12 @@ describe(uploadAssetsAsync, () => {
         }, // ios.code
       ];
     });
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
 
     mockdate.set(0);
-    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup, testProjectId)).resolves.toEqual({
+    await expect(
+      uploadAssetsAsync(graphqlClient, assetsForUpdateInfoGroup, testProjectId)
+    ).resolves.toEqual({
       assetCount: 6,
       uniqueAssetCount: 3,
       uniqueUploadedAssetCount: 0,
@@ -474,9 +484,12 @@ describe(uploadAssetsAsync, () => {
         }, // ios.code
       ];
     });
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
 
     mockdate.set(0);
-    await expect(uploadAssetsAsync(assetsForUpdateInfoGroup, testProjectId)).resolves.toEqual({
+    await expect(
+      uploadAssetsAsync(graphqlClient, assetsForUpdateInfoGroup, testProjectId)
+    ).resolves.toEqual({
       assetCount: 6,
       uniqueAssetCount: 3,
       uniqueUploadedAssetCount: 2,
@@ -509,9 +522,15 @@ describe(uploadAssetsAsync, () => {
       ];
     });
     const updateSpinnerFn = jest.fn((_totalAssets, _missingAssets) => {});
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
 
     mockdate.set(0);
-    await uploadAssetsAsync(assetsForUpdateInfoGroup, testProjectId, updateSpinnerFn);
+    await uploadAssetsAsync(
+      graphqlClient,
+      assetsForUpdateInfoGroup,
+      testProjectId,
+      updateSpinnerFn
+    );
     const calls = updateSpinnerFn.mock.calls;
     expect(calls).toEqual([
       [3, 3],

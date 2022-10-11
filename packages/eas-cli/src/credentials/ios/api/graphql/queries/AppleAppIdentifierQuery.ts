@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleAppIdentifierByBundleIdQuery,
   AppleAppIdentifierFragment,
@@ -10,6 +11,7 @@ import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/cre
 
 export const AppleAppIdentifierQuery = {
   async byBundleIdentifierAsync(
+    graphqlClient: ExpoGraphqlClient,
     accountName: string,
     bundleIdentifier: string
   ): Promise<AppleAppIdentifierFragment | null> {

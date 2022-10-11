@@ -110,7 +110,11 @@ export default class Build extends EasCommand {
     }
     const flags = this.sanitizeFlags(rawFlags);
 
-    const { actor, getDynamicProjectConfigAsync, projectDir } = await this.getContextAsync(Build, {
+    const {
+      loggedIn: { actor, graphqlClient },
+      getDynamicProjectConfigAsync,
+      projectDir,
+    } = await this.getContextAsync(Build, {
       nonInteractive: flags.nonInteractive,
     });
 
@@ -118,6 +122,7 @@ export default class Build extends EasCommand {
 
     if (!flags.localBuildOptions.enable) {
       await maybeWarnAboutEasOutagesAsync(
+        graphqlClient,
         flags.autoSubmit
           ? [StatuspageServiceName.EasBuild, StatuspageServiceName.EasSubmit]
           : [StatuspageServiceName.EasBuild]
@@ -127,6 +132,7 @@ export default class Build extends EasCommand {
     const flagsWithPlatform = await this.ensurePlatformSelectedAsync(flags);
 
     await runBuildAndSubmitAsync(
+      graphqlClient,
       projectDir,
       flagsWithPlatform,
       actor,

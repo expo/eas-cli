@@ -18,7 +18,7 @@ export class SetUpPushKey {
   constructor(private app: AppLookupParams) {}
 
   async isPushKeySetupAsync(ctx: CredentialsContext): Promise<boolean> {
-    const pushKey = await ctx.ios.getPushKeyForAppAsync(this.app);
+    const pushKey = await ctx.ios.getPushKeyForAppAsync(ctx.graphqlClient, this.app);
     return !!pushKey;
   }
 
@@ -29,10 +29,13 @@ export class SetUpPushKey {
 
     const isPushKeySetup = await this.isPushKeySetupAsync(ctx);
     if (isPushKeySetup) {
-      return await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(this.app);
+      return await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(ctx.graphqlClient, this.app);
     }
 
-    const pushKeysForAccount = await ctx.ios.getPushKeysForAccountAsync(this.app.account);
+    const pushKeysForAccount = await ctx.ios.getPushKeysForAccountAsync(
+      ctx.graphqlClient,
+      this.app.account
+    );
     let pushKey: ApplePushKeyFragment;
     if (pushKeysForAccount.length === 0) {
       pushKey = await new CreatePushKey(this.app.account).runAsync(ctx);
@@ -43,7 +46,10 @@ export class SetUpPushKey {
   }
 
   private async createOrReusePushKeyAsync(ctx: CredentialsContext): Promise<ApplePushKeyFragment> {
-    const pushKeysForAccount = await ctx.ios.getPushKeysForAccountAsync(this.app.account);
+    const pushKeysForAccount = await ctx.ios.getPushKeysForAccountAsync(
+      ctx.graphqlClient,
+      this.app.account
+    );
     assert(
       pushKeysForAccount.length > 0,
       'createOrReusePushKeyAsync: There are no Push Keys available in your EAS account.'

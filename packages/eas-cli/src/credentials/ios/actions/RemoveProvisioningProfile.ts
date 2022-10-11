@@ -22,6 +22,7 @@ export class RemoveProvisioningProfiles {
       return;
     }
     await ctx.ios.deleteProvisioningProfilesAsync(
+      ctx.graphqlClient,
       this.provisioningProfiles.map(profile => profile.id)
     );
     const appAndBundles = this.apps

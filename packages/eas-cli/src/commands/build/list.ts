@@ -57,6 +57,7 @@ export default class BuildList extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -71,6 +72,7 @@ export default class BuildList extends EasCommand {
     } = flags;
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildList, {
       nonInteractive,
     });
@@ -81,9 +83,9 @@ export default class BuildList extends EasCommand {
     const platform = toAppPlatform(requestedPlatform);
     const graphqlBuildStatus = toGraphQLBuildStatus(buildStatus);
     const graphqlBuildDistribution = toGraphQLBuildDistribution(buildDistribution);
-    const displayName = await getDisplayNameForProjectIdAsync(projectId);
+    const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
-    await listAndRenderBuildsOnAppAsync({
+    await listAndRenderBuildsOnAppAsync(graphqlClient, {
       projectId,
       projectDisplayName: displayName,
       filter: {

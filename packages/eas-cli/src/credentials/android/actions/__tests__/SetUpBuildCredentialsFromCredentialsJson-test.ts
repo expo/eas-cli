@@ -72,13 +72,17 @@ describe(SetUpBuildCredentialsFromCredentialsJson, () => {
 
     // expect keystore to be created with credentials.json content
     expect(ctx.android.createKeystoreAsync).toHaveBeenCalledTimes(1);
-    expect(ctx.android.createKeystoreAsync).toBeCalledWith(appLookupParams.account, {
-      keystorePassword: testJksAndroidKeystoreFragment.keystorePassword,
-      keyAlias: testJksAndroidKeystoreFragment.keyAlias,
-      keyPassword: testJksAndroidKeystoreFragment.keyPassword,
-      keystore: Buffer.from('some-binary-content').toString('base64'),
-      type: AndroidKeystoreType.Unknown,
-    });
+    expect(ctx.android.createKeystoreAsync).toBeCalledWith(
+      ctx.graphqlClient,
+      appLookupParams.account,
+      {
+        keystorePassword: testJksAndroidKeystoreFragment.keystorePassword,
+        keyAlias: testJksAndroidKeystoreFragment.keyAlias,
+        keyPassword: testJksAndroidKeystoreFragment.keyPassword,
+        keystore: Buffer.from('some-binary-content').toString('base64'),
+        type: AndroidKeystoreType.Unknown,
+      }
+    );
 
     // expect new build credentials to be created
     expect(ctx.android.createAndroidAppBuildCredentialsAsync).toHaveBeenCalledTimes(1);
@@ -122,13 +126,17 @@ describe(SetUpBuildCredentialsFromCredentialsJson, () => {
 
     // expect keystore to be created with credentials.json content
     expect(ctx.android.createKeystoreAsync).toHaveBeenCalledTimes(1);
-    expect(ctx.android.createKeystoreAsync).toBeCalledWith(appLookupParams.account, {
-      keystorePassword: testJksAndroidKeystoreFragment.keystorePassword,
-      keyAlias: testJksAndroidKeystoreFragment.keyAlias,
-      keyPassword: testJksAndroidKeystoreFragment.keyPassword,
-      keystore: Buffer.from('some-binary-content').toString('base64'),
-      type: AndroidKeystoreType.Unknown,
-    });
+    expect(ctx.android.createKeystoreAsync).toBeCalledWith(
+      ctx.graphqlClient,
+      appLookupParams.account,
+      {
+        keystorePassword: testJksAndroidKeystoreFragment.keystorePassword,
+        keyAlias: testJksAndroidKeystoreFragment.keyAlias,
+        keyPassword: testJksAndroidKeystoreFragment.keyPassword,
+        keystore: Buffer.from('some-binary-content').toString('base64'),
+        type: AndroidKeystoreType.Unknown,
+      }
+    );
 
     // expect existing build credentials to be updated
     expect(ctx.android.updateAndroidAppBuildCredentialsAsync).toHaveBeenCalledTimes(1);

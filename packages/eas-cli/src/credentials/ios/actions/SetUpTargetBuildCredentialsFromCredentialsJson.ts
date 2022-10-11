@@ -44,10 +44,14 @@ export class SetUpTargetBuildCredentialsFromCredentialsJson {
     const appleTeamFromProvisioningProfile = readAppleTeam(
       this.targetCredentials.provisioningProfile
     );
-    const appleTeam = await ctx.ios.createOrGetExistingAppleTeamAsync(this.app.account, {
-      appleTeamIdentifier: appleTeamFromProvisioningProfile.teamId,
-      appleTeamName: appleTeamFromProvisioningProfile.teamName,
-    });
+    const appleTeam = await ctx.ios.createOrGetExistingAppleTeamAsync(
+      ctx.graphqlClient,
+      this.app.account,
+      {
+        appleTeamIdentifier: appleTeamFromProvisioningProfile.teamId,
+        appleTeamName: appleTeamFromProvisioningProfile.teamName,
+      }
+    );
     const distributionCertificateToAssign = await this.getDistributionCertificateToAssignAsync(
       ctx,
       appleTeam,
@@ -109,7 +113,7 @@ export class SetUpTargetBuildCredentialsFromCredentialsJson {
     const { certificateP12, certificatePassword } = this.targetCredentials.distributionCertificate;
 
     if (!currentDistributionCertificate) {
-      return await ctx.ios.createDistributionCertificateAsync(this.app.account, {
+      return await ctx.ios.createDistributionCertificateAsync(ctx.graphqlClient, this.app.account, {
         certP12: certificateP12,
         certPassword: certificatePassword,
         teamId: appleTeam.appleTeamIdentifier,
@@ -119,7 +123,7 @@ export class SetUpTargetBuildCredentialsFromCredentialsJson {
 
     const isSameCertificate = currentDistributionCertificate.certificateP12 === certificateP12;
     if (!isSameCertificate) {
-      return await ctx.ios.createDistributionCertificateAsync(this.app.account, {
+      return await ctx.ios.createDistributionCertificateAsync(ctx.graphqlClient, this.app.account, {
         certP12: certificateP12,
         certPassword: certificatePassword,
         teamId: appleTeam.appleTeamIdentifier,
@@ -158,12 +162,18 @@ export class SetUpTargetBuildCredentialsFromCredentialsJson {
     const { provisioningProfile } = this.targetCredentials;
 
     const appleAppIdentifier = await ctx.ios.createOrGetExistingAppleAppIdentifierAsync(
+      ctx.graphqlClient,
       this.app,
       appleTeam
     );
-    return await ctx.ios.createProvisioningProfileAsync(this.app, appleAppIdentifier, {
-      appleProvisioningProfile: provisioningProfile,
-    });
+    return await ctx.ios.createProvisioningProfileAsync(
+      ctx.graphqlClient,
+      this.app,
+      appleAppIdentifier,
+      {
+        appleProvisioningProfile: provisioningProfile,
+      }
+    );
   }
 }
 

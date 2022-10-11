@@ -1,3 +1,4 @@
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { selectPlatformAsync } from '../../platform';
 import { Actor } from '../../user/User';
 import { CredentialsContextProjectInfo } from '../context';
@@ -7,6 +8,7 @@ import { ManageIos } from './ManageIos';
 export class SelectPlatform {
   constructor(
     public readonly actor: Actor,
+    public readonly graphqlClient: ExpoGraphqlClient,
     public readonly projectInfo: CredentialsContextProjectInfo | null,
     private readonly flagPlatform?: string
   ) {}

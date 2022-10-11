@@ -3,9 +3,10 @@ import gql from 'graphql-tag';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { withErrorHandlingAsync } from '../../graphql/client';
 import {
   DeleteUpdateBranchMutation,
   DeleteUpdateBranchMutationVariables,
@@ -18,10 +19,10 @@ import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { toggleConfirmAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-async function getBranchInfoAsync({
-  appId,
-  name,
-}: GetBranchInfoQueryVariables): Promise<GetBranchInfoQuery> {
+async function getBranchInfoAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { appId, name }: GetBranchInfoQueryVariables
+): Promise<GetBranchInfoQuery> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .query<GetBranchInfoQuery, GetBranchInfoQueryVariables>(
@@ -49,9 +50,10 @@ async function getBranchInfoAsync({
   return data;
 }
 
-async function deleteBranchOnAppAsync({
-  branchId,
-}: DeleteUpdateBranchMutationVariables): Promise<DeleteUpdateBranchResult> {
+async function deleteBranchOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { branchId }: DeleteUpdateBranchMutationVariables
+): Promise<DeleteUpdateBranchResult> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .mutation<DeleteUpdateBranchMutation, DeleteUpdateBranchMutationVariables>(
@@ -78,6 +80,7 @@ export default class BranchDelete extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   static override args = [
@@ -106,15 +109,16 @@ export default class BranchDelete extends EasCommand {
 
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchDelete, { nonInteractive });
-    const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
+    const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
     if (!branchName) {
       const validationMessage = 'branch name may not be empty.';
       if (nonInteractive) {
         throw new Error(validationMessage);
       }
-      ({ name: branchName } = await selectBranchOnAppAsync({
+      ({ name: branchName } = await selectBranchOnAppAsync(graphqlClient, {
         projectId,
         displayTextForListItem: updateBranch => updateBranch.name,
         promptTitle: 'Which branch would you like to delete?',
@@ -122,7 +126,7 @@ export default class BranchDelete extends EasCommand {
       }));
     }
 
-    const data = await getBranchInfoAsync({ appId: projectId, name: branchName });
+    const data = await getBranchInfoAsync(graphqlClient, { appId: projectId, name: branchName });
     const branchId = data.app?.byId.updateBranchByName?.id;
     if (!branchId) {
       throw new Error(`Could not find branch ${branchName} on ${projectDisplayName}`);
@@ -142,7 +146,7 @@ export default class BranchDelete extends EasCommand {
       }
     }
 
-    const deletionResult = await deleteBranchOnAppAsync({
+    const deletionResult = await deleteBranchOnAppAsync(graphqlClient, {
       branchId,
     });
 

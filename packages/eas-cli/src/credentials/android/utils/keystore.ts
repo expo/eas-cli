@@ -6,6 +6,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Analytics, BuildEvent } from '../../../analytics/events';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import fetch from '../../../fetch';
 import { AndroidKeystoreType } from '../../../graphql/generated';
 import { KeystoreGenerationUrlMutation } from '../../../graphql/mutations/KeystoreGenerationUrlMutation';
@@ -35,16 +36,20 @@ enum KeystoreCreateStep {
   Success = 'success',
 }
 
-export async function generateRandomKeystoreAsync(projectId: string): Promise<KeystoreWithType> {
+export async function generateRandomKeystoreAsync(
+  graphqlClient: ExpoGraphqlClient,
+  projectId: string
+): Promise<KeystoreWithType> {
   const keystoreData: KeystoreParams = {
     keystorePassword: crypto.randomBytes(16).toString('hex'),
     keyPassword: crypto.randomBytes(16).toString('hex'),
     keyAlias: crypto.randomBytes(16).toString('hex'),
   };
-  return await createKeystoreAsync(keystoreData, projectId);
+  return await createKeystoreAsync(graphqlClient, keystoreData, projectId);
 }
 
 async function createKeystoreAsync(
+  graphqlClient: ExpoGraphqlClient,
   keystoreParams: KeystoreParams,
   projectId: string
 ): Promise<KeystoreWithType> {
@@ -65,7 +70,7 @@ async function createKeystoreAsync(
       }
     }
     if (!keystore) {
-      keystore = await createKeystoreInCloudAsync(keystoreParams, {
+      keystore = await createKeystoreInCloudAsync(graphqlClient, keystoreParams, {
         showKeytoolDetectionMsg: !localAttempt,
       });
     }
@@ -132,6 +137,7 @@ interface KeystoreServiceResult {
 }
 
 async function createKeystoreInCloudAsync(
+  graphqlClient: ExpoGraphqlClient,
   keystoreParams: KeystoreParams,
   { showKeytoolDetectionMsg = true } = {}
 ): Promise<KeystoreWithType> {
@@ -140,7 +146,7 @@ async function createKeystoreInCloudAsync(
   }
   const spinner = ora('Generating keystore in the cloud...').start();
   try {
-    const url = await KeystoreGenerationUrlMutation.createKeystoreGenerationUrlAsync();
+    const url = await KeystoreGenerationUrlMutation.createKeystoreGenerationUrlAsync(graphqlClient);
     const response = await fetch(url, {
       method: 'POST',
       body: JSON.stringify(keystoreParams),

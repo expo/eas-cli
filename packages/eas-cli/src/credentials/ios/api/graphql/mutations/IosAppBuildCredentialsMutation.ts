@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   IosAppBuildCredentials,
   IosAppBuildCredentialsFragment,
@@ -13,6 +14,7 @@ import { IosAppBuildCredentialsFragmentNode } from '../../../../../graphql/types
 
 export const IosAppBuildCredentialsMutation = {
   async createIosAppBuildCredentialsAsync(
+    graphqlClient: ExpoGraphqlClient,
     iosAppBuildCredentialsInput: IosAppBuildCredentialsInput,
     iosAppCredentialsId: string
   ): Promise<IosAppBuildCredentials> {
@@ -48,6 +50,7 @@ export const IosAppBuildCredentialsMutation = {
     return data.iosAppBuildCredentials.createIosAppBuildCredentials;
   },
   async setDistributionCertificateAsync(
+    graphqlClient: ExpoGraphqlClient,
     iosAppBuildCredentialsId: string,
     distributionCertificateId: string
   ): Promise<IosAppBuildCredentials> {
@@ -83,6 +86,7 @@ export const IosAppBuildCredentialsMutation = {
     return data.iosAppBuildCredentials.setDistributionCertificate;
   },
   async setProvisioningProfileAsync(
+    graphqlClient: ExpoGraphqlClient,
     iosAppBuildCredentialsId: string,
     provisioningProfileId: string
   ): Promise<IosAppBuildCredentialsFragment> {

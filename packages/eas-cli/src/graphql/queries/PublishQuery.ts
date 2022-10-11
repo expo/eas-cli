@@ -1,6 +1,7 @@
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   AssetMetadataResult,
   GetAssetLimitPerUpdateGroupForAppQuery,
@@ -9,7 +10,10 @@ import {
 } from '../generated';
 
 export const PublishQuery = {
-  async getAssetMetadataAsync(storageKeys: string[]): Promise<AssetMetadataResult[]> {
+  async getAssetMetadataAsync(
+    graphqlClient: ExpoGraphqlClient,
+    storageKeys: string[]
+  ): Promise<AssetMetadataResult[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<GetAssetMetadataQuery>(
@@ -36,6 +40,7 @@ export const PublishQuery = {
     return data.asset.metadata;
   },
   async getAssetLimitPerUpdateGroupAsync(
+    graphqlClient: ExpoGraphqlClient,
     appId: string
   ): Promise<GetAssetLimitPerUpdateGroupForAppQuery['app']['byId']['assetLimitPerUpdateGroup']> {
     const data = await withErrorHandlingAsync(

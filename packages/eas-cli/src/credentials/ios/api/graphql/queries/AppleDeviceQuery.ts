@@ -2,8 +2,9 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { DeviceNotFoundError } from '../../../../../devices/utils/errors';
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleDevice,
   AppleDeviceFragment,
@@ -36,6 +37,7 @@ export type AppleDevicesByIdentifierQueryResult = AppleDeviceQueryResult & {
 
 export const AppleDeviceQuery = {
   async getAllByAppleTeamIdentifierAsync(
+    graphqlClient: ExpoGraphqlClient,
     accountId: string,
     appleTeamIdentifier: string,
     { useCache = true }: { useCache?: boolean } = {}
@@ -83,12 +85,10 @@ export const AppleDeviceQuery = {
     return appleDevices;
   },
 
-  async getAllForAppleTeamAsync({
-    accountName,
-    appleTeamIdentifier,
-    offset,
-    limit,
-  }: AppleDevicesByTeamIdentifierQueryVariables): Promise<AppleDeviceFragment[]> {
+  async getAllForAppleTeamAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { accountName, appleTeamIdentifier, offset, limit }: AppleDevicesByTeamIdentifierQueryVariables
+  ): Promise<AppleDeviceFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AppleDevicesByTeamIdentifierQuery>(
@@ -135,6 +135,7 @@ export const AppleDeviceQuery = {
   },
 
   async getByDeviceIdentifierAsync(
+    graphqlClient: ExpoGraphqlClient,
     accountName: string,
     identifier: string
   ): Promise<AppleDevicesByIdentifierQueryResult> {

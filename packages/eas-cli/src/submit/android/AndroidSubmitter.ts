@@ -47,7 +47,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
   constructor(ctx: SubmissionContext<Platform.ANDROID>, options: AndroidSubmissionOptions) {
     const sourceOptionsResolver = {
       // eslint-disable-next-line async-protect/async-suffix
-      archive: async () => await getArchiveAsync(this.options.archiveSource),
+      archive: async () => await getArchiveAsync(ctx.graphqlClient, this.options.archiveSource),
       // eslint-disable-next-line async-protect/async-suffix
       serviceAccountKeyResult: async () => {
         return await getServiceAccountKeyResultAsync(this.ctx, this.options.serviceAccountSource);
@@ -89,7 +89,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
     submissionConfig,
     buildId,
   }: SubmissionInput<Platform.ANDROID>): Promise<SubmissionFragment> {
-    return await SubmissionMutation.createAndroidSubmissionAsync({
+    return await SubmissionMutation.createAndroidSubmissionAsync(this.ctx.graphqlClient, {
       appId: projectId,
       config: submissionConfig,
       submittedBuildId: buildId,

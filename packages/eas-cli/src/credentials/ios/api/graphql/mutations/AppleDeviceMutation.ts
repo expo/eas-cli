@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleDeviceFragment,
   AppleDeviceInput,
@@ -12,6 +13,7 @@ import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credential
 
 export const AppleDeviceMutation = {
   async createAppleDeviceAsync(
+    graphqlClient: ExpoGraphqlClient,
     appleDeviceInput: AppleDeviceInput,
     accountId: string
   ): Promise<AppleDeviceFragment> {
@@ -41,7 +43,10 @@ export const AppleDeviceMutation = {
     );
     return data.appleDevice.createAppleDevice;
   },
-  async deleteAppleDeviceAsync(deviceId: string): Promise<string> {
+  async deleteAppleDeviceAsync(
+    graphqlClient: ExpoGraphqlClient,
+    deviceId: string
+  ): Promise<string> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<DeleteAppleDeviceResult>(

@@ -100,6 +100,7 @@ export class ConfigureProvisioningProfile {
     const spinner = ora(`Updating Expo profile for ${projectTag}`).start();
     try {
       const configuredProvisioningProfile = await ctx.ios.updateProvisioningProfileAsync(
+        ctx.graphqlClient,
         this.originalProvisioningProfile.id,
         {
           appleProvisioningProfile: updatedProfile.provisioningProfile,

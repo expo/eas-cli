@@ -21,13 +21,16 @@ export async function canCopyLegacyCredentialsAsync(
   ctx: CredentialsContext,
   app: AppLookupParams
 ): Promise<boolean> {
-  const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(app);
+  const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
+    ctx.graphqlClient,
+    app
+  );
   if (appCredentials) {
     return false; // modern credentials already exist
   }
 
   const legacyAppCredentials =
-    await ctx.android.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(app);
+    await ctx.android.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(ctx.graphqlClient, app);
   return !!legacyAppCredentials; // user has some legacy credentials
 }
 
@@ -44,30 +47,37 @@ export async function promptUserAndCopyLegacyCredentialsAsync(
 
   try {
     const legacyAppCredentials =
-      await ctx.android.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(app);
+      await ctx.android.getLegacyAndroidAppCredentialsWithCommonFieldsAsync(ctx.graphqlClient, app);
     if (!legacyAppCredentials) {
       return;
     }
 
     const appCredentials =
-      await ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(app);
+      await ctx.android.createOrGetExistingAndroidAppCredentialsWithBuildCredentialsAsync(
+        ctx.graphqlClient,
+        app
+      );
     const legacyFcm = legacyAppCredentials.androidFcm;
     if (legacyFcm) {
       const clonedFcm = await ctx.android.createFcmAsync(
+        ctx.graphqlClient,
         app.account,
         legacyFcm.credential,
         legacyFcm.version
       );
-      await ctx.android.updateAndroidAppCredentialsAsync(appCredentials, {
+      await ctx.android.updateAndroidAppCredentialsAsync(ctx.graphqlClient, appCredentials, {
         androidFcmId: clonedFcm.id,
       });
     }
 
-    const legacyBuildCredentials = await ctx.android.getLegacyAndroidAppBuildCredentialsAsync(app);
+    const legacyBuildCredentials = await ctx.android.getLegacyAndroidAppBuildCredentialsAsync(
+      ctx.graphqlClient,
+      app
+    );
     const legacyKeystore = legacyBuildCredentials?.androidKeystore ?? null;
 
     if (legacyKeystore) {
-      const clonedKeystore = await ctx.android.createKeystoreAsync(app.account, {
+      const clonedKeystore = await ctx.android.createKeystoreAsync(ctx.graphqlClient, app.account, {
         keystore: legacyKeystore.keystore,
         keystorePassword: legacyKeystore.keystorePassword,
         keyAlias: legacyKeystore.keyAlias,
@@ -93,7 +103,7 @@ export async function getAppLookupParamsFromContextAsync(
   ctx.ensureProjectContext();
   const projectName = ctx.exp.slug;
   const projectId = ctx.projectId;
-  const account = await getOwnerAccountForProjectIdAsync(projectId);
+  const account = await getOwnerAccountForProjectIdAsync(ctx.graphqlClient, projectId);
 
   const androidApplicationIdentifier = await getApplicationIdAsync(
     ctx.projectDir,
@@ -125,18 +135,23 @@ export async function createOrUpdateDefaultAndroidAppBuildCredentialsAsync(
     'createOrUpdateDefaultAndroidAppBuildCredentialsAsync must be run in interactive mode'
   );
   const existingDefaultBuildCredentials =
-    await ctx.android.getDefaultAndroidAppBuildCredentialsAsync(appLookupParams);
+    await ctx.android.getDefaultAndroidAppBuildCredentialsAsync(ctx.graphqlClient, appLookupParams);
   if (existingDefaultBuildCredentials) {
     return await ctx.android.updateAndroidAppBuildCredentialsAsync(
+      ctx.graphqlClient,
       existingDefaultBuildCredentials,
       { androidKeystoreId }
     );
   }
-  return await ctx.android.createAndroidAppBuildCredentialsAsync(appLookupParams, {
-    name: generateRandomName(),
-    isDefault: true,
-    androidKeystoreId,
-  });
+  return await ctx.android.createAndroidAppBuildCredentialsAsync(
+    ctx.graphqlClient,
+    appLookupParams,
+    {
+      name: generateRandomName(),
+      isDefault: true,
+      androidKeystoreId,
+    }
+  );
 }
 
 export async function promptForNameAsync(): Promise<string> {

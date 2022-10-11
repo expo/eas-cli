@@ -1,9 +1,9 @@
 import { flushAsync, initAsync, logEvent } from '../../analytics/rudderstackClient';
-import { jester as mockJester } from '../../credentials/__tests__/fixtures-constants';
-import { getUserAsync } from '../../user/User';
+import SessionManager from '../../user/SessionManager';
 import EasCommand from '../EasCommand';
 
 jest.mock('../../user/User');
+jest.mock('../../user/SessionManager');
 jest.mock('../../analytics/rudderstackClient', () => {
   const { AnalyticsEvent } = jest.requireActual('../../analytics/rudderstackClient');
   return {
@@ -26,10 +26,6 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  jest
-    .mocked(getUserAsync)
-    .mockReset()
-    .mockImplementation(async () => mockJester);
   jest.mocked(initAsync).mockReset();
   jest.mocked(flushAsync).mockReset();
   jest.mocked(logEvent).mockReset();
@@ -57,7 +53,8 @@ describe(EasCommand.name, () => {
       const TestEasCommand = createTestEasCommand();
       await TestEasCommand.run();
 
-      expect(jest.mocked(getUserAsync)).toBeCalledTimes(1);
+      const sessionManagerSpy = jest.spyOn(SessionManager.prototype, 'getUserAsync');
+      expect(sessionManagerSpy).toBeCalledTimes(1);
     }, 15_000);
 
     it('initializes analytics', async () => {

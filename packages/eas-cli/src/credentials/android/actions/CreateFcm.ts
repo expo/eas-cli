@@ -19,6 +19,7 @@ export class CreateFcm {
       },
     ]);
     const fcmFragment = await ctx.android.createFcmAsync(
+      ctx.graphqlClient,
       this.account,
       fcmApiKey,
       AndroidFcmVersion.Legacy

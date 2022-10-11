@@ -11,6 +11,7 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
   BuildFragment,
@@ -114,6 +115,7 @@ function resolveResourceClass(
 }
 
 export async function runBuildAndSubmitAsync(
+  graphqlClient: ExpoGraphqlClient,
   projectDir: string,
   flags: BuildFlags,
   actor: Actor,
@@ -166,6 +168,7 @@ export async function runBuildAndSubmitAsync(
       ),
       easJsonCliConfig,
       actor,
+      graphqlClient,
       getDynamicProjectConfigAsync,
     });
     if (maybeBuild) {
@@ -205,7 +208,10 @@ export async function runBuildAndSubmitAsync(
         submitProfile,
         nonInteractive: flags.nonInteractive,
       });
-      startedBuild.build = await BuildQuery.withSubmissionsByIdAsync(startedBuild.build.id);
+      startedBuild.build = await BuildQuery.withSubmissionsByIdAsync(
+        graphqlClient,
+        startedBuild.build.id
+      );
       submissions.push(submission);
     }
 
@@ -222,7 +228,7 @@ export async function runBuildAndSubmitAsync(
   }
 
   const { accountName } = Object.values(buildCtxByPlatform)[0];
-  const builds = await waitForBuildEndAsync({
+  const builds = await waitForBuildEndAsync(graphqlClient, {
     buildIds: startedBuilds.map(({ build }) => build.id),
     accountName,
   });
@@ -239,13 +245,16 @@ export async function runBuildAndSubmitAsync(
     }
     exitWithNonZeroCodeIfSomeBuildsFailed(builds);
   } else {
-    const completedSubmissions = await waitForSubmissionsToCompleteAsync(submissions);
+    const completedSubmissions = await waitForSubmissionsToCompleteAsync(
+      graphqlClient,
+      submissions
+    );
     if (flags.json) {
       printJsonOnlyOutput(
         await Promise.all(
           builds
             .filter((i): i is BuildWithSubmissionsFragment => !!i)
-            .map(build => BuildQuery.withSubmissionsByIdAsync(build.id))
+            .map(build => BuildQuery.withSubmissionsByIdAsync(graphqlClient, build.id))
         )
       );
     }
@@ -261,6 +270,7 @@ async function prepareAndStartBuildAsync({
   resourceClass,
   easJsonCliConfig,
   actor,
+  graphqlClient,
   getDynamicProjectConfigAsync,
 }: {
   projectDir: string;
@@ -270,6 +280,7 @@ async function prepareAndStartBuildAsync({
   resourceClass: BuildResourceClass;
   easJsonCliConfig: EasJson['cli'];
   actor: Actor;
+  graphqlClient: ExpoGraphqlClient;
   getDynamicProjectConfigAsync: DynamicConfigContextFn;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
@@ -285,6 +296,7 @@ async function prepareAndStartBuildAsync({
     easJsonCliConfig,
     message: flags.message,
     actor,
+    graphqlClient,
     getDynamicProjectConfigAsync,
   });
 
@@ -365,6 +377,7 @@ async function prepareAndStartSubmissionAsync({
     credentialsCtx: buildCtx.credentialsCtx,
     applicationIdentifier: buildCtx.android?.applicationId ?? buildCtx.ios?.bundleIdentifier,
     actor: buildCtx.user,
+    graphqlClient: buildCtx.graphqlClient,
     projectId: buildCtx.projectId,
     exp: buildCtx.exp,
   });

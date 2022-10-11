@@ -3,6 +3,7 @@ import { Flags } from '@oclif/core';
 import assert from 'assert';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { PaginatedQueryOptions, getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { AppleDeviceMutation } from '../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
@@ -34,6 +35,7 @@ export default class DeviceDelete extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -42,10 +44,11 @@ export default class DeviceDelete extends EasCommand {
     let { 'apple-team-id': appleTeamIdentifier, udid } = flags;
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(DeviceDelete, {
       nonInteractive: paginatedQueryOptions.nonInteractive,
     });
-    const account = await getOwnerAccountForProjectIdAsync(projectId);
+    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
     let appleTeamName;
 
     if (paginatedQueryOptions.json) {
@@ -53,7 +56,7 @@ export default class DeviceDelete extends EasCommand {
     }
 
     if (!appleTeamIdentifier) {
-      const appleTeam = await selectAppleTeamOnAccountAsync({
+      const appleTeam = await selectAppleTeamOnAccountAsync(graphqlClient, {
         accountName: account.name,
         selectionPromptTitle: `What Apple team would you like to list devices for?`,
         paginatedQueryOptions,
@@ -65,8 +68,8 @@ export default class DeviceDelete extends EasCommand {
     assert(appleTeamIdentifier, 'No team identifier is specified');
 
     const chosenDevice = udid
-      ? await AppleDeviceQuery.getByDeviceIdentifierAsync(account.name, udid)
-      : await selectAppleDeviceOnAppleTeamAsync({
+      ? await AppleDeviceQuery.getByDeviceIdentifierAsync(graphqlClient, account.name, udid)
+      : await selectAppleDeviceOnAppleTeamAsync(graphqlClient, {
           accountName: account.name,
           appleTeamIdentifier,
           selectionPromptTitle: `Which device would you like to disable?`,
@@ -79,7 +82,7 @@ export default class DeviceDelete extends EasCommand {
       return;
     }
 
-    await this.removeDeviceFromExpoAsync(chosenDevice);
+    await this.removeDeviceFromExpoAsync(graphqlClient, chosenDevice);
 
     if (await this.shouldDisableDeviceOnAppleAsync(paginatedQueryOptions)) {
       await this.disableDeviceOnAppleAsync(chosenDevice, appleTeamIdentifier);
@@ -135,11 +138,12 @@ export default class DeviceDelete extends EasCommand {
   }
 
   async removeDeviceFromExpoAsync(
+    graphqlClient: ExpoGraphqlClient,
     chosenDevice: AppleDevice | AppleDeviceQueryResult
   ): Promise<void> {
     const removalSpinner = ora(`Removing Apple device on Expo`).start();
     try {
-      await AppleDeviceMutation.deleteAppleDeviceAsync(chosenDevice.id);
+      await AppleDeviceMutation.deleteAppleDeviceAsync(graphqlClient, chosenDevice.id);
       removalSpinner.succeed('Removed Apple device from Expo');
     } catch (err) {
       removalSpinner.fail();

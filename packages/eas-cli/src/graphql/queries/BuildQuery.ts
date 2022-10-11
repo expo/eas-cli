@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   BuildFragment,
   BuildWithSubmissionsFragment,
@@ -16,6 +17,7 @@ import { BuildFragmentNode, BuildFragmentWithSubmissionsNode } from '../types/Bu
 
 export const BuildQuery = {
   async byIdAsync(
+    graphqlClient: ExpoGraphqlClient,
     buildId: string,
     { useCache = true }: { useCache?: boolean } = {}
   ): Promise<BuildFragment> {
@@ -45,6 +47,7 @@ export const BuildQuery = {
     return data.builds.byId;
   },
   async withSubmissionsByIdAsync(
+    graphqlClient: ExpoGraphqlClient,
     buildId: string,
     { useCache = true }: { useCache?: boolean } = {}
   ): Promise<BuildWithSubmissionsFragment> {
@@ -73,12 +76,10 @@ export const BuildQuery = {
 
     return data.builds.byId;
   },
-  async viewBuildsOnAppAsync({
-    appId,
-    limit,
-    offset,
-    filter,
-  }: ViewBuildsOnAppQueryVariables): Promise<BuildFragment[]> {
+  async viewBuildsOnAppAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, limit, offset, filter }: ViewBuildsOnAppQueryVariables
+  ): Promise<BuildFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<ViewBuildsOnAppQuery, ViewBuildsOnAppQueryVariables>(

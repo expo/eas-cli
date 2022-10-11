@@ -24,16 +24,25 @@ export default class UpdateView extends EasCommand {
     ...EasJsonOnlyFlag,
   };
 
+  static override contextDefinition = {
+    ...this.ContextOptions.LoggedIn,
+  };
+
   async runAsync(): Promise<void> {
     const {
       args: { groupId },
       flags: { json: jsonFlag },
     } = await this.parse(UpdateView);
+
+    const {
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(UpdateView, { nonInteractive: true });
+
     if (jsonFlag) {
       enableJsonOutput();
     }
 
-    const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync({ groupId });
+    const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, { groupId });
     const [updateGroupDescription] = getUpdateGroupDescriptions([updatesByGroup]);
 
     if (jsonFlag) {

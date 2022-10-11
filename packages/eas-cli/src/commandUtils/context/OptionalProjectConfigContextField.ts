@@ -14,7 +14,7 @@ export class OptionalProjectConfigContextField extends ContextField<
     }
   | undefined
 > {
-  async getValueAsync({ nonInteractive }: ContextOptions): Promise<
+  async getValueAsync({ nonInteractive, sessionManager }: ContextOptions): Promise<
     | {
         projectId: string;
         exp: ExpoConfig;
@@ -36,7 +36,7 @@ export class OptionalProjectConfigContextField extends ContextField<
     }
 
     const expBefore = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(expBefore, {
+    const projectId = await getProjectIdAsync(sessionManager, expBefore, {
       nonInteractive,
     });
     const exp = getExpoConfig(projectDir);

@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleProvisioningProfileFragment,
   AppleProvisioningProfileInput,
@@ -18,6 +19,7 @@ export type AppleProvisioningProfileMutationResult = AppleProvisioningProfileFra
 
 export const AppleProvisioningProfileMutation = {
   async createAppleProvisioningProfileAsync(
+    graphqlClient: ExpoGraphqlClient,
     appleProvisioningProfileInput: AppleProvisioningProfileInput,
     accountId: string,
     appleAppIdentifierId: string
@@ -60,6 +62,7 @@ export const AppleProvisioningProfileMutation = {
     return data.appleProvisioningProfile.createAppleProvisioningProfile;
   },
   async updateAppleProvisioningProfileAsync(
+    graphqlClient: ExpoGraphqlClient,
     appleProvisioningProfileId: string,
     appleProvisioningProfileInput: {
       appleProvisioningProfile: string;
@@ -100,7 +103,10 @@ export const AppleProvisioningProfileMutation = {
     );
     return data.appleProvisioningProfile.updateAppleProvisioningProfile;
   },
-  async deleteAppleProvisioningProfilesAsync(appleProvisioningProfileIds: string[]): Promise<void> {
+  async deleteAppleProvisioningProfilesAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appleProvisioningProfileIds: string[]
+  ): Promise<void> {
     await withErrorHandlingAsync(
       graphqlClient
         .mutation<UpdateAppleProvisioningProfileMutation>(

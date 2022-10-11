@@ -13,6 +13,7 @@ export class UseExistingGoogleServiceAccountKey {
       );
     }
     const gsaKeyFragments = await ctx.android.getGoogleServiceAccountKeysForAccountAsync(
+      ctx.graphqlClient,
       this.account
     );
     if (gsaKeyFragments.length === 0) {

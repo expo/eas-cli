@@ -62,6 +62,7 @@ export class SetUpBuildCredentialsFromCredentialsJson {
       }
     }
     const keystoreFragment = await ctx.android.createKeystoreAsync(
+      ctx.graphqlClient,
       this.app.account,
       providedKeystoreWithType
     );
@@ -70,12 +71,17 @@ export class SetUpBuildCredentialsFromCredentialsJson {
       selectBuildCredentialsResult.resultType ===
       SelectAndroidBuildCredentialsResultType.CREATE_REQUEST
     ) {
-      buildCredentials = await ctx.android.createAndroidAppBuildCredentialsAsync(this.app, {
-        ...selectBuildCredentialsResult.result,
-        androidKeystoreId: keystoreFragment.id,
-      });
+      buildCredentials = await ctx.android.createAndroidAppBuildCredentialsAsync(
+        ctx.graphqlClient,
+        this.app,
+        {
+          ...selectBuildCredentialsResult.result,
+          androidKeystoreId: keystoreFragment.id,
+        }
+      );
     } else {
       buildCredentials = await ctx.android.updateAndroidAppBuildCredentialsAsync(
+        ctx.graphqlClient,
         selectBuildCredentialsResult.result,
         {
           androidKeystoreId: keystoreFragment.id,

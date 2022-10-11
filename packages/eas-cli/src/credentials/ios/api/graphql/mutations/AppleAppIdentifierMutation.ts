@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleAppIdentifierFragment,
   AppleAppIdentifierInput,
@@ -12,6 +13,7 @@ import { AppleAppIdentifierFragmentNode } from '../../../../../graphql/types/cre
 
 export const AppleAppIdentifierMutation = {
   async createAppleAppIdentifierAsync(
+    graphqlClient: ExpoGraphqlClient,
     appleAppIdentifierInput: AppleAppIdentifierInput,
     accountId: string
   ): Promise<AppleAppIdentifierFragment> {

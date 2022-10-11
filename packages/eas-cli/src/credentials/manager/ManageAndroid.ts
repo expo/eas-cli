@@ -56,6 +56,7 @@ export class ManageAndroid {
       projectDir: process.cwd(),
       projectInfo: this.callingAction.projectInfo,
       user: this.callingAction.actor,
+      graphqlClient: this.callingAction.graphqlClient,
       env: buildProfile?.env,
       nonInteractive: false,
     });
@@ -71,6 +72,7 @@ export class ManageAndroid {
         if (ctx.hasProjectContext) {
           const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, gradleContext);
           const appCredentials = await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
+            ctx.graphqlClient,
             appLookupParams
           );
           if (!appCredentials) {
@@ -161,12 +163,17 @@ export class ManageAndroid {
         selectBuildCredentialsResult.resultType ===
         SelectAndroidBuildCredentialsResultType.CREATE_REQUEST
       ) {
-        await ctx.android.createAndroidAppBuildCredentialsAsync(appLookupParams, {
-          ...selectBuildCredentialsResult.result,
-          androidKeystoreId: keystore.id,
-        });
+        await ctx.android.createAndroidAppBuildCredentialsAsync(
+          ctx.graphqlClient,
+          appLookupParams,
+          {
+            ...selectBuildCredentialsResult.result,
+            androidKeystoreId: keystore.id,
+          }
+        );
       } else {
         await ctx.android.updateAndroidAppBuildCredentialsAsync(
+          ctx.graphqlClient,
           selectBuildCredentialsResult.result,
           {
             androidKeystoreId: keystore.id,

@@ -8,6 +8,7 @@ import nullthrows from 'nullthrows';
 import { withAnalyticsAsync } from '../analytics/common';
 import { BuildEvent } from '../analytics/events';
 import { getExpoWebsiteBaseUrl } from '../api';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
   BuildFragment,
@@ -55,6 +56,7 @@ interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
   syncProjectConfigurationAsync(ctx: BuildContext<TPlatform>): Promise<void>;
   prepareJobAsync(ctx: BuildContext<TPlatform>, jobData: JobData<Credentials>): Promise<Job>;
   sendBuildRequestAsync(
+    graphqlClient: ExpoGraphqlClient,
     appId: string,
     job: TJob,
     metadata: Metadata,
@@ -213,6 +215,7 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         projectTarballPath = projectTarball.path;
 
         const { bucketKey } = await uploadFileAtPathToS3Async(
+          ctx.graphqlClient,
           UploadSessionType.EasBuildProjectSources,
           projectTarball.path,
           createProgressTracker({
@@ -254,6 +257,7 @@ async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJ
       }
 
       const { build, deprecationInfo } = await builder.sendBuildRequestAsync(
+        ctx.graphqlClient,
         ctx.projectId,
         job,
         metadata,
@@ -275,6 +279,7 @@ async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJ
 type MaybeBuildFragment = BuildFragment | null;
 
 export async function waitForBuildEndAsync(
+  graphqlClient: ExpoGraphqlClient,
   { buildIds, accountName }: { buildIds: string[]; accountName: string },
   { intervalSec = 10 } = {}
 ): Promise<MaybeBuildFragment[]> {
@@ -289,7 +294,7 @@ export async function waitForBuildEndAsync(
     spinner = ora('Waiting for builds to complete. You can press Ctrl+C to exit.').start();
   }
   while (true) {
-    const builds = await getBuildsSafelyAsync(buildIds);
+    const builds = await getBuildsSafelyAsync(graphqlClient, buildIds);
     const { refetch } =
       builds.length === 1
         ? await handleSingleBuildProgressAsync({ build: builds[0], accountName }, { spinner })
@@ -301,10 +306,13 @@ export async function waitForBuildEndAsync(
   }
 }
 
-async function getBuildsSafelyAsync(buildIds: string[]): Promise<MaybeBuildFragment[]> {
+async function getBuildsSafelyAsync(
+  graphqlClient: ExpoGraphqlClient,
+  buildIds: string[]
+): Promise<MaybeBuildFragment[]> {
   const promises = buildIds.map(async buildId => {
     try {
-      return await BuildQuery.byIdAsync(buildId, { useCache: false });
+      return await BuildQuery.byIdAsync(graphqlClient, buildId, { useCache: false });
     } catch (err) {
       Log.debug('Failed to fetch the build status', err);
       return null;

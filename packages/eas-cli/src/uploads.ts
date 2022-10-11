@@ -6,17 +6,19 @@ import nullthrows from 'nullthrows';
 import promiseRetry from 'promise-retry';
 import { URL } from 'url';
 
+import { ExpoGraphqlClient } from './commandUtils/context/contextUtils/createGraphqlClient';
 import fetch from './fetch';
 import { UploadSessionType } from './graphql/generated';
 import { PresignedPost, UploadSessionMutation } from './graphql/mutations/UploadSessionMutation';
 import { ProgressHandler } from './utils/progress';
 
 export async function uploadFileAtPathToS3Async(
+  graphqlClient: ExpoGraphqlClient,
   type: UploadSessionType,
   path: string,
   handleProgressEvent: ProgressHandler
 ): Promise<{ url: string; bucketKey: string }> {
-  const presignedPost = await UploadSessionMutation.createUploadSessionAsync(type);
+  const presignedPost = await UploadSessionMutation.createUploadSessionAsync(graphqlClient, type);
   assert(presignedPost.fields.key, 'key is not specified in in presigned post');
 
   const response = await uploadWithPresignedPostWithProgressAsync(

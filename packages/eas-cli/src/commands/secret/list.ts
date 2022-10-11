@@ -12,16 +12,18 @@ export default class EnvironmentSecretList extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentSecretList, {
       nonInteractive: true,
     });
 
-    const secrets = await EnvironmentSecretsQuery.allAsync(projectId);
+    const secrets = await EnvironmentSecretsQuery.allAsync(graphqlClient, projectId);
 
     const table = new Table({
       head: ['Name', 'Type', 'Scope', 'ID', 'Updated at'],

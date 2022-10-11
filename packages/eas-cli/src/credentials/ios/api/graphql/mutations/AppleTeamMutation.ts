@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AccountFragment,
   AppleTeamFragment,
@@ -17,6 +18,7 @@ export type AppleTeamMutationResult = AppleTeamFragment & {
 
 export const AppleTeamMutation = {
   async createAppleTeamAsync(
+    graphqlClient: ExpoGraphqlClient,
     appleTeamInput: AppleTeamInput,
     accountId: string
   ): Promise<AppleTeamMutationResult> {

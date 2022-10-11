@@ -12,11 +12,14 @@ export type DynamicConfigContextFn = (options?: ExpoConfigOptions) => Promise<{
 }>;
 
 export class DynamicProjectConfigContextField extends ContextField<DynamicConfigContextFn> {
-  async getValueAsync({ nonInteractive }: ContextOptions): Promise<DynamicConfigContextFn> {
+  async getValueAsync({
+    nonInteractive,
+    sessionManager,
+  }: ContextOptions): Promise<DynamicConfigContextFn> {
     return async (options?: ExpoConfigOptions) => {
       const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
       const expBefore = getExpoConfig(projectDir, options);
-      const projectId = await getProjectIdAsync(expBefore, {
+      const projectId = await getProjectIdAsync(sessionManager, expBefore, {
         nonInteractive,
         env: options?.env,
       });

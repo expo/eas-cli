@@ -4,6 +4,7 @@ import prompts from 'prompts';
 import { URL } from 'url';
 import * as uuid from 'uuid';
 
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPlatform, BuildFragment } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
@@ -72,35 +73,41 @@ export type ArchiveSource =
   | ArchiveBuildListSource
   | ArchivePromptSource;
 
-export async function getArchiveAsync(source: ArchiveSource): Promise<Archive> {
+export async function getArchiveAsync(
+  graphqlClient: ExpoGraphqlClient,
+  source: ArchiveSource
+): Promise<Archive> {
   switch (source.sourceType) {
     case ArchiveSourceType.prompt: {
-      return await handlePromptSourceAsync(source);
+      return await handlePromptSourceAsync(graphqlClient, source);
     }
     case ArchiveSourceType.url: {
-      return await handleUrlSourceAsync(source);
+      return await handleUrlSourceAsync(graphqlClient, source);
     }
     case ArchiveSourceType.latest: {
-      return await handleLatestSourceAsync(source);
+      return await handleLatestSourceAsync(graphqlClient, source);
     }
     case ArchiveSourceType.path: {
-      return await handlePathSourceAsync(source);
+      return await handlePathSourceAsync(graphqlClient, source);
     }
     case ArchiveSourceType.buildId: {
-      return await handleBuildIdSourceAsync(source);
+      return await handleBuildIdSourceAsync(graphqlClient, source);
     }
     case ArchiveSourceType.buildList: {
-      return await handleBuildListSourceAsync(source);
+      return await handleBuildListSourceAsync(graphqlClient, source);
     }
   }
 }
 
-async function handleUrlSourceAsync(source: ArchiveUrlSource): Promise<Archive> {
+async function handleUrlSourceAsync(
+  graphqlClient: ExpoGraphqlClient,
+  source: ArchiveUrlSource
+): Promise<Archive> {
   const { url } = source;
 
   if (!validateUrl(url)) {
     Log.error(chalk.bold(`The URL you provided is invalid: ${url}`));
-    return getArchiveAsync({
+    return getArchiveAsync(graphqlClient, {
       ...source,
       sourceType: ArchiveSourceType.prompt,
     });
@@ -109,7 +116,7 @@ async function handleUrlSourceAsync(source: ArchiveUrlSource): Promise<Archive> 
   const maybeBuildId = isBuildDetailsPage(url);
   if (maybeBuildId) {
     if (await askIfUseBuildIdFromUrlAsync(source, maybeBuildId)) {
-      return getArchiveAsync({
+      return getArchiveAsync(graphqlClient, {
         ...source,
         sourceType: ArchiveSourceType.buildId,
         id: maybeBuildId,
@@ -123,9 +130,13 @@ async function handleUrlSourceAsync(source: ArchiveUrlSource): Promise<Archive> 
   };
 }
 
-async function handleLatestSourceAsync(source: ArchiveLatestSource): Promise<Archive> {
+async function handleLatestSourceAsync(
+  graphqlClient: ExpoGraphqlClient,
+  source: ArchiveLatestSource
+): Promise<Archive> {
   try {
     const [latestBuild] = await getRecentBuildsForSubmissionAsync(
+      graphqlClient,
       toAppPlatform(source.platform),
       source.projectId
     );
@@ -136,7 +147,7 @@ async function handleLatestSourceAsync(source: ArchiveLatestSource): Promise<Arc
           "Couldn't find any builds for this project on EAS servers. It looks like you haven't run 'eas build' yet."
         )
       );
-      return getArchiveAsync({
+      return getArchiveAsync(graphqlClient, {
         ...source,
         sourceType: ArchiveSourceType.prompt,
       });
@@ -152,26 +163,32 @@ async function handleLatestSourceAsync(source: ArchiveLatestSource): Promise<Arc
   }
 }
 
-async function handlePathSourceAsync(source: ArchivePathSource): Promise<Archive> {
+async function handlePathSourceAsync(
+  graphqlClient: ExpoGraphqlClient,
+  source: ArchivePathSource
+): Promise<Archive> {
   if (!(await isExistingFileAsync(source.path))) {
     Log.error(chalk.bold(`${source.path} doesn't exist`));
-    return getArchiveAsync({
+    return getArchiveAsync(graphqlClient, {
       ...source,
       sourceType: ArchiveSourceType.prompt,
     });
   }
 
   Log.log('Uploading your app archive to the Expo Submission Service');
-  const uploadUrl = await uploadAppArchiveAsync(source.path);
+  const uploadUrl = await uploadAppArchiveAsync(graphqlClient, source.path);
   return {
     url: uploadUrl,
     source,
   };
 }
 
-async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<Archive> {
+async function handleBuildIdSourceAsync(
+  graphqlClient: ExpoGraphqlClient,
+  source: ArchiveBuildIdSource
+): Promise<Archive> {
   try {
-    const build = await BuildQuery.byIdAsync(source.id);
+    const build = await BuildQuery.byIdAsync(graphqlClient, source.id);
 
     if (build.platform !== toAppPlatform(source.platform)) {
       const expectedPlatformName = appPlatformDisplayNames[toAppPlatform(source.platform)];
@@ -182,7 +199,7 @@ async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<A
         )
       );
 
-      return getArchiveAsync({
+      return getArchiveAsync(graphqlClient, {
         ...source,
         sourceType: ArchiveSourceType.prompt,
       });
@@ -202,22 +219,30 @@ async function handleBuildIdSourceAsync(source: ArchiveBuildIdSource): Promise<A
     );
     Log.debug('Original error:', err);
 
-    return getArchiveAsync({
+    return getArchiveAsync(graphqlClient, {
       ...source,
       sourceType: ArchiveSourceType.prompt,
     });
   }
 }
 
-async function handleBuildListSourceAsync(source: ArchiveBuildListSource): Promise<Archive> {
+async function handleBuildListSourceAsync(
+  graphqlClient: ExpoGraphqlClient,
+  source: ArchiveBuildListSource
+): Promise<Archive> {
   try {
     const appPlatform = toAppPlatform(source.platform);
     const expiryDate = new Date(); // artifacts expire after 30 days
     expiryDate.setDate(expiryDate.getDate() - 30);
 
-    const recentBuilds = await getRecentBuildsForSubmissionAsync(appPlatform, source.projectId, {
-      limit: BUILD_LIST_ITEM_COUNT,
-    });
+    const recentBuilds = await getRecentBuildsForSubmissionAsync(
+      graphqlClient,
+      appPlatform,
+      source.projectId,
+      {
+        limit: BUILD_LIST_ITEM_COUNT,
+      }
+    );
 
     if (recentBuilds.length < 1) {
       Log.error(
@@ -226,7 +251,7 @@ async function handleBuildListSourceAsync(source: ArchiveBuildListSource): Promi
             "It looks like you haven't run 'eas build' yet."
         )
       );
-      return getArchiveAsync({
+      return getArchiveAsync(graphqlClient, {
         ...source,
         sourceType: ArchiveSourceType.prompt,
       });
@@ -239,7 +264,7 @@ async function handleBuildListSourceAsync(source: ArchiveBuildListSource): Promi
             'EAS keeps your build artifacts only for 30 days.'
         )
       );
-      return getArchiveAsync({
+      return getArchiveAsync(graphqlClient, {
         ...source,
         sourceType: ArchiveSourceType.prompt,
       });
@@ -260,7 +285,7 @@ async function handleBuildListSourceAsync(source: ArchiveBuildListSource): Promi
     });
 
     if (selectedBuild == null) {
-      return getArchiveAsync({
+      return getArchiveAsync(graphqlClient, {
         ...source,
         sourceType: ArchiveSourceType.prompt,
       });
@@ -320,7 +345,10 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
   };
 }
 
-async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Archive> {
+async function handlePromptSourceAsync(
+  graphqlClient: ExpoGraphqlClient,
+  source: ArchivePromptSource
+): Promise<Archive> {
   const { sourceType: sourceTypeRaw } = await promptAsync({
     name: 'sourceType',
     type: 'select',
@@ -345,7 +373,7 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
   switch (sourceType) {
     case ArchiveSourceType.url: {
       const url = await askForArchiveUrlAsync(source.platform);
-      return getArchiveAsync({
+      return getArchiveAsync(graphqlClient, {
         ...source,
         sourceType: ArchiveSourceType.url,
         url,
@@ -353,21 +381,21 @@ async function handlePromptSourceAsync(source: ArchivePromptSource): Promise<Arc
     }
     case ArchiveSourceType.path: {
       const path = await askForArchivePathAsync(source.platform);
-      return getArchiveAsync({
+      return getArchiveAsync(graphqlClient, {
         ...source,
         sourceType: ArchiveSourceType.path,
         path,
       });
     }
     case ArchiveSourceType.buildList: {
-      return getArchiveAsync({
+      return getArchiveAsync(graphqlClient, {
         ...source,
         sourceType: ArchiveSourceType.buildList,
       });
     }
     case ArchiveSourceType.buildId: {
       const id = await askForBuildIdAsync();
-      return getArchiveAsync({
+      return getArchiveAsync(graphqlClient, {
         ...source,
         sourceType: ArchiveSourceType.buildId,
         id,

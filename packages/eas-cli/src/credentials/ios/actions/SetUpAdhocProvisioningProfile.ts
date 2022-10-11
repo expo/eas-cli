@@ -97,7 +97,11 @@ export class SetUpAdhocProvisioningProfile {
     assert(appleTeam, 'Apple Team must be defined here');
 
     // 2. Fetch devices registered on EAS servers
-    let registeredAppleDevices = await ctx.ios.getDevicesForAppleTeamAsync(app, appleTeam);
+    let registeredAppleDevices = await ctx.ios.getDevicesForAppleTeamAsync(
+      ctx.graphqlClient,
+      app,
+      appleTeam
+    );
     if (registeredAppleDevices.length === 0) {
       const shouldRegisterDevices = await confirmAsync({
         message: `You don't have any registered devices yet. Would you like to register them now?`,
@@ -136,6 +140,7 @@ export class SetUpAdhocProvisioningProfile {
 
     // 5. Create or update the profile on servers
     const appleAppIdentifier = await ctx.ios.createOrGetExistingAppleAppIdentifierAsync(
+      ctx.graphqlClient,
       app,
       appleTeam
     );
@@ -145,10 +150,11 @@ export class SetUpAdhocProvisioningProfile {
         currentBuildCredentials.provisioningProfile.developerPortalIdentifier !==
         provisioningProfileStoreInfo.provisioningProfileId
       ) {
-        await ctx.ios.deleteProvisioningProfilesAsync([
+        await ctx.ios.deleteProvisioningProfilesAsync(ctx.graphqlClient, [
           currentBuildCredentials.provisioningProfile.id,
         ]);
         appleProvisioningProfile = await ctx.ios.createProvisioningProfileAsync(
+          ctx.graphqlClient,
           app,
           appleAppIdentifier,
           {
@@ -161,6 +167,7 @@ export class SetUpAdhocProvisioningProfile {
       }
     } else {
       appleProvisioningProfile = await ctx.ios.createProvisioningProfileAsync(
+        ctx.graphqlClient,
         app,
         appleAppIdentifier,
         {
@@ -196,7 +203,11 @@ export class SetUpAdhocProvisioningProfile {
     const provisioningProfile = nullthrows(buildCredentials.provisioningProfile);
 
     const appleTeam = nullthrows(provisioningProfile.appleTeam);
-    const registeredAppleDevices = await ctx.ios.getDevicesForAppleTeamAsync(app, appleTeam);
+    const registeredAppleDevices = await ctx.ios.getDevicesForAppleTeamAsync(
+      ctx.graphqlClient,
+      app,
+      appleTeam
+    );
 
     const provisionedDevices = provisioningProfile.appleDevices;
 
@@ -271,7 +282,7 @@ export class SetUpAdhocProvisioningProfile {
     appleTeam: AppleTeamFragment
   ): Promise<AppleDeviceFragment[]> {
     const { app } = this.options;
-    const action = new DeviceCreateAction(ctx.appStore, app.account, appleTeam);
+    const action = new DeviceCreateAction(ctx.graphqlClient, ctx.appStore, app.account, appleTeam);
     const method = await action.runAsync();
 
     while (true) {
@@ -282,7 +293,7 @@ export class SetUpAdhocProvisioningProfile {
       }
       Log.newLine();
 
-      const devices = await ctx.ios.getDevicesForAppleTeamAsync(app, appleTeam, {
+      const devices = await ctx.ios.getDevicesForAppleTeamAsync(ctx.graphqlClient, app, appleTeam, {
         useCache: false,
       });
       if (devices.length === 0) {

@@ -45,12 +45,13 @@ export default class BuildVersionSetView extends EasCommand {
 
   public async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildVersionSetView);
-    const { actor, getDynamicProjectConfigAsync, projectDir } = await this.getContextAsync(
-      BuildVersionSetView,
-      {
-        nonInteractive: false,
-      }
-    );
+    const {
+      loggedIn: { actor, graphqlClient },
+      getDynamicProjectConfigAsync,
+      projectDir,
+    } = await this.getContextAsync(BuildVersionSetView, {
+      nonInteractive: false,
+    });
 
     const platform = await selectPlatformAsync(flags.platform);
     const easJsonAccessor = new EasJsonAccessor(projectDir);
@@ -62,7 +63,7 @@ export default class BuildVersionSetView extends EasCommand {
     );
 
     const { exp, projectId } = await getDynamicProjectConfigAsync({ env: profile.env });
-    const displayName = await getDisplayNameForProjectIdAsync(projectId);
+    const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
     validateAppConfigForRemoteVersionSource(exp, platform);
 
@@ -74,6 +75,7 @@ export default class BuildVersionSetView extends EasCommand {
       actor
     );
     const remoteVersions = await AppVersionQuery.latestVersionAsync(
+      graphqlClient,
       projectId,
       toAppPlatform(platform),
       applicationIdentifier
@@ -104,7 +106,7 @@ export default class BuildVersionSetView extends EasCommand {
           ? value => isValidVersionCode(value) || `Invalid value: ${VERSION_CODE_REQUIREMENTS}.`
           : value => isValidBuildNumber(value) || `Invalid value: ${BUILD_NUMBER_REQUIREMENTS}.`,
     });
-    await AppVersionMutation.createAppVersionAsync({
+    await AppVersionMutation.createAppVersionAsync(graphqlClient, {
       appId: projectId,
       platform: toAppPlatform(platform),
       applicationIdentifier,

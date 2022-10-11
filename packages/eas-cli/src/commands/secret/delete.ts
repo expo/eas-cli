@@ -23,6 +23,7 @@ export default class EnvironmentSecretDelete extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -31,6 +32,7 @@ export default class EnvironmentSecretDelete extends EasCommand {
     } = await this.parse(EnvironmentSecretDelete);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentSecretDelete, {
       nonInteractive,
     });
@@ -42,7 +44,7 @@ export default class EnvironmentSecretDelete extends EasCommand {
         throw new Error(validationMessage);
       }
 
-      const secrets = await EnvironmentSecretsQuery.allAsync(projectId);
+      const secrets = await EnvironmentSecretsQuery.allAsync(graphqlClient, projectId);
       ({ secret } = await promptAsync({
         type: 'autocomplete',
         name: 'secret',
@@ -83,7 +85,7 @@ export default class EnvironmentSecretDelete extends EasCommand {
       }
     }
 
-    await EnvironmentSecretMutation.deleteAsync(id);
+    await EnvironmentSecretMutation.deleteAsync(graphqlClient, id);
 
     Log.withTick(`️Deleted secret${secret?.name ? ` "${secret?.name}"` : ''} with id "${id}".`);
   }

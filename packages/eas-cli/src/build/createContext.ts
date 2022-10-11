@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { TrackingContext } from '../analytics/common';
 import { Analytics, BuildEvent } from '../analytics/events';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
 import { BuildResourceClass } from '../graphql/generated';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
@@ -31,6 +32,7 @@ export async function createBuildContextAsync<T extends Platform>({
   resourceClass,
   message,
   actor,
+  graphqlClient,
   getDynamicProjectConfigAsync,
 }: {
   buildProfileName: string;
@@ -45,12 +47,13 @@ export async function createBuildContextAsync<T extends Platform>({
   resourceClass: BuildResourceClass;
   message?: string;
   actor: Actor;
+  graphqlClient: ExpoGraphqlClient;
   getDynamicProjectConfigAsync: DynamicConfigContextFn;
 }): Promise<BuildContext<T>> {
   const { exp, projectId } = await getDynamicProjectConfigAsync({ env: buildProfile.env });
 
   const projectName = exp.slug;
-  const account = await getOwnerAccountForProjectIdAsync(projectId);
+  const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
   const workflow = await resolveWorkflowAsync(projectDir, platform);
   const accountId = account.id;
   const runFromCI = getenv.boolish('CI', false);
@@ -60,6 +63,7 @@ export async function createBuildContextAsync<T extends Platform>({
     nonInteractive,
     projectDir,
     user: actor,
+    graphqlClient,
     env: buildProfile.env,
     easJsonCliConfig,
   });
@@ -99,6 +103,7 @@ export async function createBuildContextAsync<T extends Platform>({
     projectName,
     trackingCtx,
     user: actor,
+    graphqlClient,
     workflow,
     message,
     runFromCI,

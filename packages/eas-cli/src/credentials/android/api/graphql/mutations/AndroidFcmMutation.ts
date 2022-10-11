@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AndroidFcmFragment,
   AndroidFcmInput,
@@ -13,6 +14,7 @@ import { AndroidFcmFragmentNode } from '../../../../../graphql/types/credentials
 
 export const AndroidFcmMutation = {
   async createAndroidFcmAsync(
+    graphqlClient: ExpoGraphqlClient,
     androidFcmInput: AndroidFcmInput,
     accountId: string
   ): Promise<AndroidFcmFragment> {
@@ -43,7 +45,10 @@ export const AndroidFcmMutation = {
     );
     return data.androidFcm.createAndroidFcm;
   },
-  async deleteAndroidFcmAsync(androidFcmId: string): Promise<void> {
+  async deleteAndroidFcmAsync(
+    graphqlClient: ExpoGraphqlClient,
+    androidFcmId: string
+  ): Promise<void> {
     await withErrorHandlingAsync(
       graphqlClient
         .mutation<DeleteAndroidFcmMutation>(

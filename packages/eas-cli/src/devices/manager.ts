@@ -1,6 +1,7 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppleTeamMutation } from '../credentials/ios/api/graphql/mutations/AppleTeamMutation';
 import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery';
 import { AccountFragment, AppleTeamFragment } from '../graphql/generated';
@@ -28,22 +29,31 @@ export default class DeviceManager {
 
     const account = await this.resolveAccountAsync();
     const appleAuthCtx = await this.ctx.appStore.ensureAuthenticatedAsync();
-    const appleTeam = await ensureAppleTeamExistsAsync(account.id, {
+    const appleTeam = await ensureAppleTeamExistsAsync(this.ctx.graphqlClient, account.id, {
       appleTeamIdentifier: appleAuthCtx.team.id,
       appleTeamName: appleAuthCtx.team.name,
     });
-    const action = new DeviceCreateAction(this.ctx.appStore, account, appleTeam);
+    const action = new DeviceCreateAction(
+      this.ctx.graphqlClient,
+      this.ctx.appStore,
+      account,
+      appleTeam
+    );
     await action.runAsync();
   }
 
   private async resolveAccountAsync(): Promise<AccountFragment> {
-    const resolver = new AccountResolver(this.ctx.projectId, this.ctx.user);
+    const resolver = new AccountResolver(this.ctx.graphqlClient, this.ctx.projectId, this.ctx.user);
     return await resolver.resolveAccountAsync();
   }
 }
 
 export class AccountResolver {
-  constructor(private projectId: string | null, private user: Actor) {}
+  constructor(
+    private graphqlClient: ExpoGraphqlClient,
+    private projectId: string | null,
+    private user: Actor
+  ) {}
 
   public async resolveAccountAsync(): Promise<AccountFragment> {
     if (this.projectId) {
@@ -57,7 +67,7 @@ export class AccountResolver {
 
   private async resolveProjectAccountAsync(): Promise<AccountFragment | undefined> {
     assert(this.projectId, 'expo config is not set');
-    const account = await getOwnerAccountForProjectIdAsync(this.projectId);
+    const account = await getOwnerAccountForProjectIdAsync(this.graphqlClient, this.projectId);
 
     const useProjectAccount = await confirmAsync({
       message: `You're inside the project directory. Would you like to use the ${chalk.underline(
@@ -84,10 +94,12 @@ export class AccountResolver {
 }
 
 async function ensureAppleTeamExistsAsync(
+  graphqlClient: ExpoGraphqlClient,
   accountId: string,
   { appleTeamIdentifier, appleTeamName }: { appleTeamIdentifier: string; appleTeamName?: string }
 ): Promise<AppleTeamFragment> {
   const appleTeam = await AppleTeamQuery.getByAppleTeamIdentifierAsync(
+    graphqlClient,
     accountId,
     appleTeamIdentifier
   );
@@ -95,6 +107,7 @@ async function ensureAppleTeamExistsAsync(
     return appleTeam;
   } else {
     return await AppleTeamMutation.createAppleTeamAsync(
+      graphqlClient,
       {
         appleTeamIdentifier,
         appleTeamName,
