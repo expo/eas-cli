@@ -12,7 +12,6 @@ import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/uti
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -29,7 +28,7 @@ import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
-import { requestedPlatformDisplayNames } from '../../platform';
+import { RequestedPlatform, requestedPlatformDisplayNames } from '../../platform';
 import {
   getOwnerAccountForProjectIdAsync,
   installExpoUpdatesAsync,
@@ -43,7 +42,7 @@ import {
   isUploadedAssetCountAboveWarningThreshold,
   uploadAssetsAsync,
 } from '../../project/publish';
-import { resolveWorkflowAsync } from '../../project/workflow';
+import { getCombinedWorkflowDataAsync, resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 import { formatUpdateMessage } from '../../update/utils';
@@ -253,7 +252,7 @@ export default class UpdatePublish extends EasCommand {
       exp,
       platformFlag,
       projectDir,
-      getDynamicProjectConfigAsync,
+      projectId,
       nonInteractive
     );
     await checkEASUpdateURLIsSetAsync(exp, projectId);
@@ -597,7 +596,7 @@ function transformRuntimeVersions(exp: ExpoConfig, platforms: Platform[]): Recor
         Updates.getRuntimeVersion(exp, platform),
         `Unable to determine runtime version for ${
           requestedPlatformDisplayNames[platform]
-        }. ${chalk.dim('Learn more: https://docs.expo.dev/eas-update/runtime-versions/')}`
+        }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
       ),
     ])
   );
@@ -607,7 +606,7 @@ async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
   platformFlag: PublishPlatformFlag,
   projectDir: string,
-  getDynamicProjectConfigAsync: DynamicConfigContextFn,
+  projectId: string,
   nonInteractive: boolean
 ): Promise<Record<string, string>> {
   const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
@@ -645,11 +644,13 @@ async function getRuntimeVersionObjectAsync(
       Errors.exit(1);
     }
 
-    const { default: UpdateConfigure } = await import('./configure');
-    await UpdateConfigure.run(['-p', platformFlag]);
-
-    const { exp: newConfig } = await getDynamicProjectConfigAsync({
-      isPublicConfig: true,
+    const { configureAppJSONForEASUpdateAsync } = await import('./configure');
+    const newConfig = await configureAppJSONForEASUpdateAsync({
+      exp,
+      projectDir,
+      projectId,
+      platform: platformFlag as RequestedPlatform,
+      workflows: await getCombinedWorkflowDataAsync(projectDir),
     });
 
     return transformRuntimeVersions(newConfig, platforms);

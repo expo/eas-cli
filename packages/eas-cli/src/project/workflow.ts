@@ -34,3 +34,16 @@ export async function resolveWorkflowAsync(
   }
   return Workflow.MANAGED;
 }
+
+export type CombinedWorkflowData = {
+  [value in Platform]: Workflow;
+};
+
+export async function getCombinedWorkflowDataAsync(
+  projectDir: string
+): Promise<CombinedWorkflowData> {
+  return {
+    android: await resolveWorkflowAsync(projectDir, Platform.ANDROID),
+    ios: await resolveWorkflowAsync(projectDir, Platform.IOS),
+  };
+}
