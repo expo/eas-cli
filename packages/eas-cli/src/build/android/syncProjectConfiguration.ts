@@ -6,30 +6,34 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../../log';
 import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { syncUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 
-export async function syncProjectConfigurationAsync({
-  projectDir,
-  exp,
-  localAutoIncrement,
-  projectId,
-}: {
-  projectDir: string;
-  exp: ExpoConfig;
-  localAutoIncrement?: AndroidVersionAutoIncrement;
-  projectId: string;
-}): Promise<void> {
+export async function syncProjectConfigurationAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectDir,
+    exp,
+    localAutoIncrement,
+    projectId,
+  }: {
+    projectDir: string;
+    exp: ExpoConfig;
+    localAutoIncrement?: AndroidVersionAutoIncrement;
+    projectId: string;
+  }
+): Promise<void> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
   const versionBumpStrategy = resolveVersionBumpStrategy(localAutoIncrement ?? false);
 
   if (workflow === Workflow.GENERIC) {
     await cleanUpOldEasBuildGradleScriptAsync(projectDir);
     if (isExpoUpdatesInstalled(projectDir)) {
-      await syncUpdatesConfigurationAsync(projectDir, exp, projectId);
+      await syncUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
     }
     await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy });
   } else {

@@ -51,6 +51,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -66,12 +67,13 @@ export default class EnvironmentSecretCreate extends EasCommand {
     } = await this.parse(EnvironmentSecretCreate);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentSecretCreate, {
       nonInteractive,
     });
 
-    const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
-    const ownerAccount = await getOwnerAccountForProjectIdAsync(projectId);
+    const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
+    const ownerAccount = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
 
     if (!scope) {
       const validationMessage = 'Secret scope may not be empty.';
@@ -178,12 +180,13 @@ export default class EnvironmentSecretCreate extends EasCommand {
     if (scope === EnvironmentSecretScope.PROJECT) {
       if (force) {
         const { appSecrets: existingSecrets } = await EnvironmentSecretsQuery.byAppIdAsync(
+          graphqlClient,
           projectId
         );
         const existingSecret = existingSecrets.find(secret => secret.name === name);
 
         if (existingSecret) {
-          await EnvironmentSecretMutation.deleteAsync(existingSecret.id);
+          await EnvironmentSecretMutation.deleteAsync(graphqlClient, existingSecret.id);
           Log.withTick(
             `Deleting existing secret ${chalk.bold(name)} on project ${chalk.bold(
               projectDisplayName
@@ -193,6 +196,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
       }
 
       const secret = await EnvironmentSecretMutation.createForAppAsync(
+        graphqlClient,
         { name, value: secretValue, type: SecretTypeToEnvironmentSecretType[secretType] },
         projectId
       );
@@ -218,12 +222,13 @@ export default class EnvironmentSecretCreate extends EasCommand {
     } else if (scope === EnvironmentSecretScope.ACCOUNT) {
       if (force) {
         const { accountSecrets: existingSecrets } = await EnvironmentSecretsQuery.byAppIdAsync(
+          graphqlClient,
           projectId
         );
         const existingSecret = existingSecrets.find(secret => secret.name === name);
 
         if (existingSecret) {
-          await EnvironmentSecretMutation.deleteAsync(existingSecret.id);
+          await EnvironmentSecretMutation.deleteAsync(graphqlClient, existingSecret.id);
 
           Log.withTick(
             `Deleting existing secret ${chalk.bold(name)} on account ${chalk.bold(
@@ -234,6 +239,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
       }
 
       const secret = await EnvironmentSecretMutation.createForAccountAsync(
+        graphqlClient,
         { name, value: secretValue, type: SecretTypeToEnvironmentSecretType[secretType] },
         ownerAccount.id
       );

@@ -2,6 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   jester as mockJester,
   testProjectId,
@@ -52,6 +53,7 @@ describe(IosSubmitCommand, () => {
   describe('non-interactive mode', () => {
     it("throws error if didn't provide appleId and ascAppId in the submit profile", async () => {
       const projectId = uuidv4();
+      const graphqlClient = {} as any as ExpoGraphqlClient;
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.IOS,
@@ -64,6 +66,7 @@ describe(IosSubmitCommand, () => {
         },
         nonInteractive: true,
         actor: mockJester,
+        graphqlClient,
         exp: testProject.appJSON.expo,
         projectId,
       });
@@ -75,6 +78,7 @@ describe(IosSubmitCommand, () => {
   describe('sending submission', () => {
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
+      const graphqlClient = {} as any as ExpoGraphqlClient;
 
       process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
 
@@ -91,13 +95,14 @@ describe(IosSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
+        graphqlClient,
         exp: testProject.appJSON.expo,
         projectId,
       });
       const command = new IosSubmitCommand(ctx);
       await command.runAsync();
 
-      expect(SubmissionMutation.createIosSubmissionAsync).toHaveBeenCalledWith({
+      expect(SubmissionMutation.createIosSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
         config: {
           archiveUrl: 'http://expo.dev/fake.ipa',

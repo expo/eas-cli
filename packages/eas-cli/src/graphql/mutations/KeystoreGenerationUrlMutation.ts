@@ -1,10 +1,11 @@
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import { CreateKeystoreGenerationUrlMutation } from '../generated';
 
 export const KeystoreGenerationUrlMutation = {
-  async createKeystoreGenerationUrlAsync(): Promise<string> {
+  async createKeystoreGenerationUrlAsync(graphqlClient: ExpoGraphqlClient): Promise<string> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<CreateKeystoreGenerationUrlMutation>(

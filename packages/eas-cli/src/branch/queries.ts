@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import CliTable from 'cli-table3';
 
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { UpdateBranchFragment } from '../graphql/generated';
 import { BranchQuery } from '../graphql/queries/BranchQuery';
@@ -14,17 +15,20 @@ import {
 
 export const BRANCHES_LIMIT = 50;
 
-export async function selectBranchOnAppAsync({
-  projectId,
-  promptTitle,
-  displayTextForListItem,
-  paginatedQueryOptions,
-}: {
-  projectId: string;
-  displayTextForListItem: (queryItem: UpdateBranchFragment) => string;
-  promptTitle: string;
-  paginatedQueryOptions: PaginatedQueryOptions;
-}): Promise<UpdateBranchFragment> {
+export async function selectBranchOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    promptTitle,
+    displayTextForListItem,
+    paginatedQueryOptions,
+  }: {
+    projectId: string;
+    displayTextForListItem: (queryItem: UpdateBranchFragment) => string;
+    promptTitle: string;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<UpdateBranchFragment> {
   if (paginatedQueryOptions.nonInteractive) {
     throw new Error('Unable to select a branch in non-interactive mode.');
   }
@@ -32,7 +36,8 @@ export async function selectBranchOnAppAsync({
   const selectedBranch = await paginatedQueryWithSelectPromptAsync({
     limit: paginatedQueryOptions.limit ?? BRANCHES_LIMIT,
     offset: paginatedQueryOptions.offset,
-    queryToPerform: (limit, offset) => queryBranchesOnProjectAsync(limit, offset, projectId),
+    queryToPerform: (limit, offset) =>
+      queryBranchesOnProjectAsync(graphqlClient, limit, offset, projectId),
     promptOptions: {
       title: promptTitle,
       getIdentifierForQueryItem: updateBranchFragment => updateBranchFragment.id,
@@ -45,15 +50,19 @@ export async function selectBranchOnAppAsync({
   return selectedBranch;
 }
 
-export async function listAndRenderBranchesOnAppAsync({
-  projectId,
-  paginatedQueryOptions,
-}: {
-  projectId: string;
-  paginatedQueryOptions: PaginatedQueryOptions;
-}): Promise<void> {
+export async function listAndRenderBranchesOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    paginatedQueryOptions,
+  }: {
+    projectId: string;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<void> {
   if (paginatedQueryOptions.nonInteractive) {
     const branches = await queryBranchesOnProjectAsync(
+      graphqlClient,
       paginatedQueryOptions.limit ?? BRANCHES_LIMIT,
       paginatedQueryOptions.offset,
       projectId
@@ -63,7 +72,8 @@ export async function listAndRenderBranchesOnAppAsync({
     await paginatedQueryWithConfirmPromptAsync({
       limit: paginatedQueryOptions.limit ?? BRANCHES_LIMIT,
       offset: paginatedQueryOptions.offset,
-      queryToPerform: (limit, offset) => queryBranchesOnProjectAsync(limit, offset, projectId),
+      queryToPerform: (limit, offset) =>
+        queryBranchesOnProjectAsync(graphqlClient, limit, offset, projectId),
       promptOptions: {
         title: 'Load more branches?',
         renderListItems: branches => renderPageOfBranches(branches, paginatedQueryOptions),
@@ -73,11 +83,12 @@ export async function listAndRenderBranchesOnAppAsync({
 }
 
 async function queryBranchesOnProjectAsync(
+  graphqlClient: ExpoGraphqlClient,
   limit: number,
   offset: number,
   projectId: string
 ): Promise<UpdateBranchFragment[]> {
-  return await BranchQuery.listBranchesOnAppAsync({
+  return await BranchQuery.listBranchesOnAppAsync(graphqlClient, {
     appId: projectId,
     limit,
     offset,

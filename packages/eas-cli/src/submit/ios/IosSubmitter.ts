@@ -2,6 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
 import { SubmissionEvent } from '../../analytics/events';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { MinimalAscApiKey } from '../../credentials/ios/credentials';
 import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
@@ -55,7 +56,7 @@ export default class IosSubmitter extends BaseSubmitter<
   constructor(ctx: SubmissionContext<Platform.IOS>, options: IosSubmissionOptions) {
     const sourceOptionsResolver = {
       // eslint-disable-next-line async-protect/async-suffix
-      archive: async () => await getArchiveAsync(this.options.archiveSource),
+      archive: async () => await getArchiveAsync(ctx.graphqlClient, this.options.archiveSource),
       // eslint-disable-next-line async-protect/async-suffix
       credentials: async () => {
         const maybeAppSpecificPassword = this.options.appSpecificPasswordSource
@@ -109,12 +110,11 @@ export default class IosSubmitter extends BaseSubmitter<
     };
   }
 
-  protected async createPlatformSubmissionAsync({
-    projectId,
-    submissionConfig,
-    buildId,
-  }: SubmissionInput<Platform.IOS>): Promise<SubmissionFragment> {
-    return await SubmissionMutation.createIosSubmissionAsync({
+  protected async createPlatformSubmissionAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { projectId, submissionConfig, buildId }: SubmissionInput<Platform.IOS>
+  ): Promise<SubmissionFragment> {
+    return await SubmissionMutation.createIosSubmissionAsync(graphqlClient, {
       appId: projectId,
       config: submissionConfig,
       submittedBuildId: buildId,

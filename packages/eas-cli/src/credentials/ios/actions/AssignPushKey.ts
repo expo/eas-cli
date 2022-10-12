@@ -14,12 +14,17 @@ export class AssignPushKey {
     const appleTeam =
       (await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app)) ?? pushKey.appleTeam ?? null;
     const appCredentials = await ctx.ios.createOrGetIosAppCredentialsWithCommonFieldsAsync(
+      ctx.graphqlClient,
       this.app,
       { appleTeam: appleTeam ?? undefined }
     );
-    const updatedAppCredentials = await ctx.ios.updateIosAppCredentialsAsync(appCredentials, {
-      applePushKeyId: pushKey.id,
-    });
+    const updatedAppCredentials = await ctx.ios.updateIosAppCredentialsAsync(
+      ctx.graphqlClient,
+      appCredentials,
+      {
+        applePushKeyId: pushKey.id,
+      }
+    );
     Log.succeed(`Push Key assigned to ${this.app.projectName}: ${this.app.bundleIdentifier}`);
     return updatedAppCredentials;
   }

@@ -3,6 +3,7 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile, EasJson } from '@expo/eas-json';
 
 import { TrackingContext } from '../analytics/common';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
 import { Target } from '../credentials/ios/types';
 import { BuildResourceClass } from '../graphql/generated';
@@ -47,6 +48,7 @@ export interface BuildContext<T extends Platform> {
   message?: string;
   trackingCtx: TrackingContext;
   user: Actor;
+  graphqlClient: ExpoGraphqlClient;
   workflow: Workflow;
   android: T extends Platform.ANDROID ? AndroidBuildContext : undefined;
   ios: T extends Platform.IOS ? IosBuildContext : undefined;

@@ -1,3 +1,4 @@
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../../log';
 import { pressAnyKeyToContinueAsync } from '../../prompts';
 import { Actor } from '../../user/User';
@@ -5,6 +6,7 @@ import { CredentialsContext, CredentialsContextProjectInfo } from '../context';
 
 export interface Action<T = void> {
   actor: Actor;
+  graphqlClient: ExpoGraphqlClient;
   projectInfo: CredentialsContextProjectInfo | null;
   runAsync(ctx: CredentialsContext): Promise<T>;
 }

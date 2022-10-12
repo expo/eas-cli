@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   CommonAndroidAppCredentialsFragment,
   CommonAndroidAppCredentialsWithBuildCredentialsByApplicationIdentifierQuery,
@@ -11,6 +12,7 @@ import { CommonAndroidAppCredentialsFragmentNode } from '../../../../../graphql/
 
 export const AndroidAppCredentialsQuery = {
   async withCommonFieldsByApplicationIdentifierAsync(
+    graphqlClient: ExpoGraphqlClient,
     projectFullName: string,
     {
       androidApplicationIdentifier,

@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   StatuspageServiceFragment,
   StatuspageServiceName,
@@ -9,9 +10,10 @@ import { StatuspageServiceQuery } from '../graphql/queries/StatuspageServiceQuer
 import Log, { link } from '../log';
 
 export async function maybeWarnAboutEasOutagesAsync(
+  graphqlClient: ExpoGraphqlClient,
   serviceNames: StatuspageServiceName[]
 ): Promise<void> {
-  const services = await getStatuspageServiceAsync(serviceNames);
+  const services = await getStatuspageServiceAsync(graphqlClient, serviceNames);
 
   for (const service of services) {
     warnAboutServiceOutage(service);
@@ -49,10 +51,11 @@ function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
 }
 
 async function getStatuspageServiceAsync(
+  graphqlClient: ExpoGraphqlClient,
   serviceNames: StatuspageServiceName[]
 ): Promise<StatuspageServiceFragment[]> {
   try {
-    return await StatuspageServiceQuery.statuspageServicesAsync(serviceNames);
+    return await StatuspageServiceQuery.statuspageServicesAsync(graphqlClient, serviceNames);
   } catch {
     return [];
   }

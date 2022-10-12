@@ -10,17 +10,19 @@ export default class Open extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
     // this command is interactive by nature (only really run by humans in a terminal)
     const {
       projectConfig: { projectId, exp },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(Open, {
       nonInteractive: false,
     });
 
-    const account = await getOwnerAccountForProjectIdAsync(projectId);
+    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
 
     const projectName = exp.slug;
 

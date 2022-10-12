@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleDistributionCertificateFragment,
   AppleDistributionCertificateInput,
@@ -19,6 +20,7 @@ export type AppleDistributionCertificateMutationResult = AppleDistributionCertif
 
 export const AppleDistributionCertificateMutation = {
   async createAppleDistributionCertificateAsync(
+    graphqlClient: ExpoGraphqlClient,
     appleDistributionCertificateInput: AppleDistributionCertificateInput,
     accountId: string
   ): Promise<AppleDistributionCertificateMutationResult> {
@@ -61,6 +63,7 @@ export const AppleDistributionCertificateMutation = {
     return data.appleDistributionCertificate.createAppleDistributionCertificate;
   },
   async deleteAppleDistributionCertificateAsync(
+    graphqlClient: ExpoGraphqlClient,
     appleDistributionCertificateId: string
   ): Promise<void> {
     await withErrorHandlingAsync(

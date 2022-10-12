@@ -2,6 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
 import { SubmissionEvent } from '../../analytics/events';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AndroidSubmissionConfigInput,
   SubmissionAndroidReleaseStatus,
@@ -47,7 +48,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
   constructor(ctx: SubmissionContext<Platform.ANDROID>, options: AndroidSubmissionOptions) {
     const sourceOptionsResolver = {
       // eslint-disable-next-line async-protect/async-suffix
-      archive: async () => await getArchiveAsync(this.options.archiveSource),
+      archive: async () => await getArchiveAsync(ctx.graphqlClient, this.options.archiveSource),
       // eslint-disable-next-line async-protect/async-suffix
       serviceAccountKeyResult: async () => {
         return await getServiceAccountKeyResultAsync(this.ctx, this.options.serviceAccountSource);
@@ -84,12 +85,11 @@ export default class AndroidSubmitter extends BaseSubmitter<
     };
   }
 
-  protected async createPlatformSubmissionAsync({
-    projectId,
-    submissionConfig,
-    buildId,
-  }: SubmissionInput<Platform.ANDROID>): Promise<SubmissionFragment> {
-    return await SubmissionMutation.createAndroidSubmissionAsync({
+  protected async createPlatformSubmissionAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { projectId, submissionConfig, buildId }: SubmissionInput<Platform.ANDROID>
+  ): Promise<SubmissionFragment> {
+    return await SubmissionMutation.createAndroidSubmissionAsync(graphqlClient, {
       appId: projectId,
       config: submissionConfig,
       submittedBuildId: buildId,

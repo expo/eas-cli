@@ -46,7 +46,7 @@ export class SetUpProvisioningProfile {
   ): Promise<IosAppBuildCredentialsFragment> {
     const buildCredentials = await this.createAndAssignProfileAsync(ctx, distCert);
     // delete 'currentProfile' since its no longer valid
-    await ctx.ios.deleteProvisioningProfilesAsync([currentProfile.id]);
+    await ctx.ios.deleteProvisioningProfilesAsync(ctx.graphqlClient, [currentProfile.id]);
     return buildCredentials;
   }
 

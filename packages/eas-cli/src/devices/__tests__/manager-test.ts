@@ -1,5 +1,7 @@
 import prompts from 'prompts';
+import { instance, mock } from 'ts-mockito';
 
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { Role } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import { Actor } from '../../user/User';
@@ -58,11 +60,12 @@ describe(AccountResolver, () => {
       });
 
       it('returns the account defined in app.json/app.config.js if user confirms', async () => {
+        const graphqlClient = instance(mock<ExpoGraphqlClient>());
         jest.mocked(prompts).mockImplementationOnce(async () => ({
           value: true,
         }));
 
-        const resolver = new AccountResolver('1234', user);
+        const resolver = new AccountResolver(graphqlClient, '1234', user);
         const account = await resolver.resolveAccountAsync();
         expect(account).toEqual({
           id: user.accounts[1].id,
@@ -72,6 +75,7 @@ describe(AccountResolver, () => {
       });
 
       it('asks the user to choose the account from his account list if he rejects to use the one defined in app.json / app.config.js', async () => {
+        const graphqlClient = instance(mock<ExpoGraphqlClient>());
         jest.mocked(prompts).mockImplementationOnce(async () => ({
           useProjectAccount: false,
         }));
@@ -79,7 +83,7 @@ describe(AccountResolver, () => {
           account: user.accounts[0],
         }));
 
-        const resolver = new AccountResolver('1234', user);
+        const resolver = new AccountResolver(graphqlClient, '1234', user);
         const account = await resolver.resolveAccountAsync();
         expect(account).toEqual(user.accounts[0]);
       });
@@ -87,11 +91,12 @@ describe(AccountResolver, () => {
 
     describe('when outside project dir', () => {
       it('asks the user to choose the account from his account list', async () => {
+        const graphqlClient = instance(mock<ExpoGraphqlClient>());
         jest.mocked(prompts).mockImplementationOnce(async () => ({
           account: user.accounts[0],
         }));
 
-        const resolver = new AccountResolver(null, user);
+        const resolver = new AccountResolver(graphqlClient, null, user);
         const account = await resolver.resolveAccountAsync();
         expect(account).toEqual(user.accounts[0]);
       });

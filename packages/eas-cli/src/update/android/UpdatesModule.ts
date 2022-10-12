@@ -1,17 +1,19 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidConfig, AndroidManifest } from '@expo/config-plugins';
 
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { RequestedPlatform } from '../../platform';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { ensureValidVersions } from '../utils';
 
 export async function syncUpdatesConfigurationAsync(
+  graphqlClient: ExpoGraphqlClient,
   projectDir: string,
   exp: ExpoConfig,
   projectId: string
 ): Promise<void> {
   ensureValidVersions(exp, RequestedPlatform.Android);
-  const accountName = (await getOwnerAccountForProjectIdAsync(projectId)).name;
+  const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
 
   const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
   const androidManifest = await getAndroidManifestAsync(projectDir);

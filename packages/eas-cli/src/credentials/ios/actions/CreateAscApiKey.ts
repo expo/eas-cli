@@ -15,7 +15,7 @@ export class CreateAscApiKey {
     }
 
     const ascApiKey = await provideOrGenerateAscApiKeyAsync(ctx, purpose);
-    const result = await ctx.ios.createAscApiKeyAsync(this.account, ascApiKey);
+    const result = await ctx.ios.createAscApiKeyAsync(ctx.graphqlClient, this.account, ascApiKey);
     Log.succeed('Created App Store Connect API Key');
     return result;
   }

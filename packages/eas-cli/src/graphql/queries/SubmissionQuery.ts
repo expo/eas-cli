@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   AppPlatform,
   GetAllSubmissionsForAppQuery,
@@ -22,6 +23,7 @@ type Filters = {
 
 export const SubmissionQuery = {
   async byIdAsync(
+    graphqlClient: ExpoGraphqlClient,
     submissionId: string,
     { useCache = true }: { useCache?: boolean } = {}
   ): Promise<SubmissionFragment> {
@@ -51,6 +53,7 @@ export const SubmissionQuery = {
   },
 
   async allForAppAsync(
+    graphqlClient: ExpoGraphqlClient,
     appId: string,
     { limit = 10, offset = 0, status, platform }: Filters
   ): Promise<SubmissionFragment[]> {

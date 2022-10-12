@@ -19,6 +19,7 @@ export default class BuildView extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -28,6 +29,7 @@ export default class BuildView extends EasCommand {
     } = await this.parse(BuildView);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildView, {
       nonInteractive: true,
     });
@@ -35,7 +37,7 @@ export default class BuildView extends EasCommand {
       enableJsonOutput();
     }
 
-    const displayName = await getDisplayNameForProjectIdAsync(projectId);
+    const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
     const spinner = ora().start('Fetching the build…');
 
@@ -43,9 +45,9 @@ export default class BuildView extends EasCommand {
       let build: BuildFragment;
 
       if (buildId) {
-        build = await BuildQuery.byIdAsync(buildId);
+        build = await BuildQuery.byIdAsync(graphqlClient, buildId);
       } else {
-        const builds = await BuildQuery.viewBuildsOnAppAsync({
+        const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
           appId: projectId,
           offset: 0,
           limit: 1,

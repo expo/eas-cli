@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import terminalLink from 'terminal-link';
 
 import { getProjectDashboardUrl } from '../build/utils/url';
+import { legacyGraphqlClient } from '../graphql/client';
 import { AppPrivacy, Role } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
@@ -87,7 +88,7 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
 
   const spinner = ora(`Creating ${chalk.bold(projectFullName)} on Expo`).start();
   try {
-    const id = await AppMutation.createAppAsync({
+    const id = await AppMutation.createAppAsync(legacyGraphqlClient, {
       accountId: account.id,
       projectName,
       privacy: projectInfo.privacy ?? AppPrivacy.Public,
@@ -111,7 +112,7 @@ export async function findProjectIdByAccountNameAndSlugNullableAsync(
   slug: string
 ): Promise<string | null> {
   try {
-    const { id } = await AppQuery.byFullNameAsync(`@${accountName}/${slug}`);
+    const { id } = await AppQuery.byFullNameAsync(legacyGraphqlClient, `@${accountName}/${slug}`);
     return id;
   } catch (err: any) {
     if (err.graphQLErrors?.some((it: any) => it.extensions?.errorCode !== 'EXPERIENCE_NOT_FOUND')) {

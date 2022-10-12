@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   StatuspageServiceByServiceNamesQuery,
   StatuspageServiceByServiceNamesQueryVariables,
@@ -12,6 +13,7 @@ import { StatuspageServiceFragmentNode } from '../types/StatuspageService';
 
 export const StatuspageServiceQuery = {
   async statuspageServicesAsync(
+    graphqlClient: ExpoGraphqlClient,
     serviceNames: StatuspageServiceName[]
   ): Promise<StatuspageServiceFragment[]> {
     const data = await withErrorHandlingAsync(

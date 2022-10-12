@@ -2,7 +2,8 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 import nullthrows from 'nullthrows';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   CreateAndroidSubmissionInput,
   CreateAndroidSubmissionMutation,
@@ -16,6 +17,7 @@ import { SubmissionFragmentNode } from '../types/Submission';
 
 export const SubmissionMutation = {
   async createAndroidSubmissionAsync(
+    graphqlClient: ExpoGraphqlClient,
     input: CreateAndroidSubmissionInput
   ): Promise<SubmissionFragment> {
     const data = await withErrorHandlingAsync(
@@ -46,7 +48,10 @@ export const SubmissionMutation = {
     );
     return nullthrows(data.submission.createAndroidSubmission.submission);
   },
-  async createIosSubmissionAsync(input: CreateIosSubmissionInput): Promise<SubmissionFragment> {
+  async createIosSubmissionAsync(
+    graphqlClient: ExpoGraphqlClient,
+    input: CreateIosSubmissionInput
+  ): Promise<SubmissionFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<CreateIosSubmissionMutation, CreateIosSubmissionMutationVariables>(

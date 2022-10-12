@@ -2,8 +2,9 @@ import gql from 'graphql-tag';
 
 import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { withErrorHandlingAsync } from '../../graphql/client';
 import {
   DeleteUpdateChannelMutation,
   DeleteUpdateChannelMutationVariables,
@@ -31,6 +32,7 @@ export default class ChannelDelete extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -40,6 +42,7 @@ export default class ChannelDelete extends EasCommand {
     } = await this.parse(ChannelDelete);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelDelete, {
       nonInteractive,
     });
@@ -49,7 +52,7 @@ export default class ChannelDelete extends EasCommand {
 
     let channelId, channelName;
     if (nameArg) {
-      const { id, name } = await ChannelQuery.viewUpdateChannelAsync({
+      const { id, name } = await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
         appId: projectId,
         channelName: nameArg,
       });
@@ -59,7 +62,7 @@ export default class ChannelDelete extends EasCommand {
       if (nonInteractive) {
         throw new Error('Channel name must be set when running in non-interactive mode');
       }
-      const { id, name } = await selectChannelOnAppAsync({
+      const { id, name } = await selectChannelOnAppAsync(graphqlClient, {
         projectId,
         selectionPromptTitle: 'Select a channel to delete',
         paginatedQueryOptions: {
@@ -85,7 +88,7 @@ export default class ChannelDelete extends EasCommand {
       }
     }
 
-    const deletionResult = await deleteChannelOnAppAsync({
+    const deletionResult = await deleteChannelOnAppAsync(graphqlClient, {
       channelId,
     });
 
@@ -97,9 +100,10 @@ export default class ChannelDelete extends EasCommand {
   }
 }
 
-async function deleteChannelOnAppAsync({
-  channelId,
-}: DeleteUpdateChannelMutationVariables): Promise<DeleteUpdateChannelResult> {
+async function deleteChannelOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { channelId }: DeleteUpdateChannelMutationVariables
+): Promise<DeleteUpdateChannelResult> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .mutation<DeleteUpdateChannelMutation, DeleteUpdateChannelMutationVariables>(

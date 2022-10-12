@@ -5,6 +5,7 @@ import path from 'path';
 import resolveFrom from 'resolve-from';
 import semver from 'semver';
 
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AccountFragment, AppPrivacy } from '../graphql/generated';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import Log from '../log';
@@ -105,13 +106,17 @@ export async function installExpoUpdatesAsync(projectDir: string): Promise<void>
 }
 
 export async function getOwnerAccountForProjectIdAsync(
+  graphqlClient: ExpoGraphqlClient,
   projectId: string
 ): Promise<AccountFragment> {
-  const app = await AppQuery.byIdAsync(projectId);
+  const app = await AppQuery.byIdAsync(graphqlClient, projectId);
   return app.ownerAccount;
 }
 
-export async function getDisplayNameForProjectIdAsync(projectId: string): Promise<string> {
-  const app = await AppQuery.byIdAsync(projectId);
+export async function getDisplayNameForProjectIdAsync(
+  graphqlClient: ExpoGraphqlClient,
+  projectId: string
+): Promise<string> {
+  const app = await AppQuery.byIdAsync(graphqlClient, projectId);
   return app.fullName;
 }

@@ -22,6 +22,7 @@ export default class BuildList extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -29,6 +30,7 @@ export default class BuildList extends EasCommand {
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildList, {
       nonInteractive: paginatedQueryOptions.nonInteractive,
     });
@@ -38,11 +40,11 @@ export default class BuildList extends EasCommand {
       enableJsonOutput();
     }
 
-    const account = await getOwnerAccountForProjectIdAsync(projectId);
+    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
 
     // if they don't provide a team id, fetch devices on their account
     if (!appleTeamIdentifier) {
-      const selectedAppleTeam = await selectAppleTeamOnAccountAsync({
+      const selectedAppleTeam = await selectAppleTeamOnAccountAsync(graphqlClient, {
         accountName: account.name,
         paginatedQueryOptions: {
           ...paginatedQueryOptions,
@@ -56,7 +58,7 @@ export default class BuildList extends EasCommand {
     }
 
     assert(appleTeamIdentifier, 'No team identifier is specified');
-    await listAndRenderAppleDevicesOnAppleTeamAsync({
+    await listAndRenderAppleDevicesOnAppleTeamAsync(graphqlClient, {
       accountName: account.name,
       appleTeam: {
         appleTeamIdentifier,

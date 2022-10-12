@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   CommonIosAppCredentialsFragment,
   CreateIosAppCredentialsMutation,
@@ -14,6 +15,7 @@ import { CommonIosAppCredentialsFragmentNode } from '../../../../../graphql/type
 
 export const IosAppCredentialsMutation = {
   async createIosAppCredentialsAsync(
+    graphqlClient: ExpoGraphqlClient,
     iosAppCredentialsInput: IosAppCredentialsInput,
     appId: string,
     appleAppIdentifierId: string
@@ -55,6 +57,7 @@ export const IosAppCredentialsMutation = {
     return data.iosAppCredentials.createIosAppCredentials;
   },
   async setPushKeyAsync(
+    graphqlClient: ExpoGraphqlClient,
     iosAppCredentialsId: string,
     pushKeyId: string
   ): Promise<CommonIosAppCredentialsFragment> {
@@ -82,6 +85,7 @@ export const IosAppCredentialsMutation = {
     return data.iosAppCredentials.setPushKey;
   },
   async setAppStoreConnectApiKeyForSubmissionsAsync(
+    graphqlClient: ExpoGraphqlClient,
     iosAppCredentialsId: string,
     ascApiKeyId: string
   ): Promise<CommonIosAppCredentialsFragment> {

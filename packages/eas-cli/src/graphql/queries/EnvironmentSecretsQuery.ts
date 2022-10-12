@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import { EnvironmentSecretFragment, EnvironmentSecretsByAppIdQuery } from '../generated';
 import { EnvironmentSecretFragmentNode } from '../types/EnvironmentSecret';
 
@@ -15,7 +16,10 @@ export type EnvironmentSecretWithScope = EnvironmentSecretFragment & {
 };
 
 export const EnvironmentSecretsQuery = {
-  async byAppIdAsync(appId: string): Promise<{
+  async byAppIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appId: string
+  ): Promise<{
     accountSecrets: EnvironmentSecretFragment[];
     appSecrets: EnvironmentSecretFragment[];
   }> {
@@ -54,8 +58,11 @@ export const EnvironmentSecretsQuery = {
       appSecrets: data.app?.byId.environmentSecrets ?? [],
     };
   },
-  async allAsync(projectId: string): Promise<EnvironmentSecretWithScope[]> {
-    const { accountSecrets, appSecrets } = await this.byAppIdAsync(projectId);
+  async allAsync(
+    graphqlClient: ExpoGraphqlClient,
+    projectId: string
+  ): Promise<EnvironmentSecretWithScope[]> {
+    const { accountSecrets, appSecrets } = await this.byAppIdAsync(graphqlClient, projectId);
     return [
       ...appSecrets.map(s => ({ ...s, scope: EnvironmentSecretScope.PROJECT })),
       ...accountSecrets.map(s => ({ ...s, scope: EnvironmentSecretScope.ACCOUNT })),

@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   CommonAndroidAppCredentialsFragment,
   CreateAndroidAppCredentialsMutation,
@@ -13,6 +14,7 @@ import { CommonAndroidAppCredentialsFragmentNode } from '../../../../../graphql/
 
 export const AndroidAppCredentialsMutation = {
   async createAndroidAppCredentialsAsync(
+    graphqlClient: ExpoGraphqlClient,
     androidAppCredentialsInput: {
       fcmId?: string;
     },
@@ -56,6 +58,7 @@ export const AndroidAppCredentialsMutation = {
     return data.androidAppCredentials.createAndroidAppCredentials;
   },
   async setFcmKeyAsync(
+    graphqlClient: ExpoGraphqlClient,
     androidAppCredentialsId: string,
     fcmId: string
   ): Promise<CommonAndroidAppCredentialsFragment> {
@@ -84,6 +87,7 @@ export const AndroidAppCredentialsMutation = {
     return data.androidAppCredentials.setFcm;
   },
   async setGoogleServiceAccountKeyForSubmissionsAsync(
+    graphqlClient: ExpoGraphqlClient,
     androidAppCredentialsId: string,
     googleServiceAccountKeyId: string
   ): Promise<CommonAndroidAppCredentialsFragment> {

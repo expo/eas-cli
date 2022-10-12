@@ -20,7 +20,7 @@ jest.mock('../../api', () => ({
   ApiV2Error: jest.requireActual('../../api').ApiV2Error,
 }));
 jest.mock('../../graphql/client', () => ({
-  graphqlClient: {
+  legacyGraphqlClient: {
     query: () => {
       return {
         toPromise: () =>

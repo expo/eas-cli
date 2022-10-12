@@ -31,12 +31,19 @@ export default class WebhookUpdate extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
+  static override contextDefinition = {
+    ...this.ContextOptions.LoggedIn,
+  };
+
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(WebhookUpdate);
+    const {
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(WebhookUpdate, { nonInteractive: flags['non-interactive'] });
 
     const webhookId = flags.id;
 
-    const webhook = await WebhookQuery.byIdAsync(webhookId);
+    const webhook = await WebhookQuery.byIdAsync(graphqlClient, webhookId);
     const webhookInputParams = await prepareInputParamsAsync(
       pick(flags, ['event', 'url', 'secret', 'non-interactive']),
       webhook
@@ -44,7 +51,7 @@ export default class WebhookUpdate extends EasCommand {
 
     const spinner = ora('Updating a webhook').start();
     try {
-      await WebhookMutation.updateWebhookAsync(webhookId, webhookInputParams);
+      await WebhookMutation.updateWebhookAsync(graphqlClient, webhookId, webhookInputParams);
       spinner.succeed('Successfully updated a webhook');
     } catch (err) {
       spinner.fail('Failed to update a webhook');

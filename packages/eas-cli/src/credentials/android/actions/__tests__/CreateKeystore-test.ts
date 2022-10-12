@@ -40,6 +40,7 @@ describe('CreateKeystore', () => {
 
     // expect keystore to be created on expo servers
     expect(ctx.android.createKeystoreAsync).toHaveBeenCalledWith(
+      ctx.graphqlClient,
       appLookupParams.account,
       expect.objectContaining(testKeystore)
     );

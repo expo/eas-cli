@@ -3,6 +3,7 @@ import chalk from 'chalk';
 
 import { withAnalyticsAsync } from '../analytics/common';
 import { SubmissionEvent } from '../analytics/events';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
 import Log, { link } from '../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../platform';
@@ -33,11 +34,12 @@ export async function submitAsync<T extends Platform>(
 }
 
 export async function waitToCompleteAsync(
+  graphqlClient: ExpoGraphqlClient,
   submissions: SubmissionFragment[],
   { verbose = false }: { verbose?: boolean } = {}
 ): Promise<SubmissionFragment[]> {
   Log.newLine();
-  const completedSubmissions = await waitForSubmissionsEndAsync(submissions);
+  const completedSubmissions = await waitForSubmissionsEndAsync(graphqlClient, submissions);
   const moreSubmissions = completedSubmissions.length > 1;
   if (moreSubmissions) {
     Log.newLine();

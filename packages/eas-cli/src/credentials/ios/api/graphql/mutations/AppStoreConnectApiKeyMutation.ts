@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppStoreConnectApiKeyFragment,
   AppStoreConnectApiKeyInput,
@@ -13,6 +14,7 @@ import { AppStoreConnectApiKeyFragmentNode } from '../../../../../graphql/types/
 
 export const AppStoreConnectApiKeyMutation = {
   async createAppStoreConnectApiKeyAsync(
+    graphqlClient: ExpoGraphqlClient,
     appStoreConnectApiKeyInput: AppStoreConnectApiKeyInput,
     accountId: string
   ): Promise<AppStoreConnectApiKeyFragment> {
@@ -49,7 +51,10 @@ export const AppStoreConnectApiKeyMutation = {
     );
     return data.appStoreConnectApiKey.createAppStoreConnectApiKey;
   },
-  async deleteAppStoreConnectApiKeyAsync(appStoreConnectApiKeyId: string): Promise<void> {
+  async deleteAppStoreConnectApiKeyAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appStoreConnectApiKeyId: string
+  ): Promise<void> {
     await withErrorHandlingAsync(
       graphqlClient
         .mutation<DeleteAppStoreConnectApiKeyMutation>(

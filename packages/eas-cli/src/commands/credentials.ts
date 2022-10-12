@@ -17,10 +17,18 @@ export default class Credentials extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(Credentials);
-    const { actor, projectConfig } = await this.getContextAsync(Credentials, {
+    const {
+      loggedIn: { actor, graphqlClient },
+      projectConfig,
+    } = await this.getContextAsync(Credentials, {
       nonInteractive: false,
     });
 
-    await new SelectPlatform(actor, projectConfig ?? null, flags.platform).runAsync();
+    await new SelectPlatform(
+      actor,
+      graphqlClient,
+      projectConfig ?? null,
+      flags.platform
+    ).runAsync();
   }
 }

@@ -1,5 +1,6 @@
 import nullthrows from 'nullthrows';
 
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../../graphql/generated';
 import { SubmissionQuery } from '../../graphql/queries/SubmissionQuery';
 import Log from '../../log';
@@ -14,6 +15,7 @@ const APP_STORE_NAMES: Record<AppPlatform, string> = {
 const CHECK_INTERVAL_MS = 5_000;
 
 export async function waitForSubmissionsEndAsync(
+  graphqlClient: ExpoGraphqlClient,
   initialSubmissions: SubmissionFragment[]
 ): Promise<SubmissionFragment[]> {
   Log.log(
@@ -28,7 +30,7 @@ export async function waitForSubmissionsEndAsync(
     const submissions = await Promise.all(
       initialSubmissions.map(({ id }) => {
         try {
-          return SubmissionQuery.byIdAsync(id, { useCache: false });
+          return SubmissionQuery.byIdAsync(graphqlClient, id, { useCache: false });
         } catch (err) {
           Log.debug('Failed to fetch the submission status', err);
           return null;

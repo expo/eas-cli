@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppStoreConnectApiKeyByAccountQuery,
   AppStoreConnectApiKeyFragment,
@@ -9,7 +10,10 @@ import {
 import { AppStoreConnectApiKeyFragmentNode } from '../../../../../graphql/types/credentials/AppStoreConnectApiKey';
 
 export const AppStoreConnectApiKeyQuery = {
-  async getAllForAccountAsync(accountName: string): Promise<AppStoreConnectApiKeyFragment[]> {
+  async getAllForAccountAsync(
+    graphqlClient: ExpoGraphqlClient,
+    accountName: string
+  ): Promise<AppStoreConnectApiKeyFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AppStoreConnectApiKeyByAccountQuery>(

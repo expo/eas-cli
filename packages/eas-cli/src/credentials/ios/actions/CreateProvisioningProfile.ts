@@ -32,10 +32,12 @@ export class CreateProvisioningProfile {
     const provisioningProfile = await this.provideOrGenerateAsync(ctx, appleAuthCtx);
     const appleTeam = nullthrows(await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app));
     const appleAppIdentifier = await ctx.ios.createOrGetExistingAppleAppIdentifierAsync(
+      ctx.graphqlClient,
       this.app,
       appleTeam
     );
     const provisioningProfileMutationResult = await ctx.ios.createProvisioningProfileAsync(
+      ctx.graphqlClient,
       this.app,
       appleAppIdentifier,
       {

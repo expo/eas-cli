@@ -2,8 +2,9 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { withErrorHandlingAsync } from '../../graphql/client';
 import {
   DeleteUpdateGroupMutation,
   UpdateMutationDeleteUpdateGroupArgs,
@@ -12,11 +13,14 @@ import Log from '../../log';
 import { confirmAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-async function deleteUpdateGroupAsync({
-  group,
-}: {
-  group: string;
-}): Promise<DeleteUpdateGroupMutation> {
+async function deleteUpdateGroupAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    group,
+  }: {
+    group: string;
+  }
+): Promise<DeleteUpdateGroupMutation> {
   return await withErrorHandlingAsync(
     graphqlClient
       .mutation<DeleteUpdateGroupMutation, UpdateMutationDeleteUpdateGroupArgs>(
@@ -50,11 +54,19 @@ export default class UpdateDelete extends EasCommand {
     ...EasNonInteractiveAndJsonFlags,
   };
 
+  static override contextDefinition = {
+    ...this.ContextOptions.LoggedIn,
+  };
+
   async runAsync(): Promise<void> {
     const {
       args: { groupId: group },
       flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(UpdateDelete);
+
+    const {
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(UpdateDelete, { nonInteractive });
 
     if (jsonFlag) {
       enableJsonOutput();
@@ -78,7 +90,7 @@ export default class UpdateDelete extends EasCommand {
       }
     }
 
-    await deleteUpdateGroupAsync({ group });
+    await deleteUpdateGroupAsync(graphqlClient, { group });
 
     if (jsonFlag) {
       printJsonOnlyOutput({ group });

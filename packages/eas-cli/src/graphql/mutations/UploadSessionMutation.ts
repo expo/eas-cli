@@ -1,6 +1,7 @@
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   CreateUploadSessionMutation,
   CreateUploadSessionMutationVariables,
@@ -13,7 +14,10 @@ export interface PresignedPost {
 }
 
 export const UploadSessionMutation = {
-  async createUploadSessionAsync(type: UploadSessionType): Promise<PresignedPost> {
+  async createUploadSessionAsync(
+    graphqlClient: ExpoGraphqlClient,
+    type: UploadSessionType
+  ): Promise<PresignedPost> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<CreateUploadSessionMutation, CreateUploadSessionMutationVariables>(

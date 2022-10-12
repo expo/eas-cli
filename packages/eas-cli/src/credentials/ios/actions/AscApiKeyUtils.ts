@@ -169,7 +169,10 @@ export async function getAscApiKeysFromAccountAsync(
   account: AccountFragment,
   { filterDifferentAppleTeam }: { filterDifferentAppleTeam?: boolean } = {}
 ): Promise<AppStoreConnectApiKeyFragment[]> {
-  const ascApiKeysForAccount = await ctx.ios.getAscApiKeysForAccountAsync(account);
+  const ascApiKeysForAccount = await ctx.ios.getAscApiKeysForAccountAsync(
+    ctx.graphqlClient,
+    account
+  );
 
   if (!filterDifferentAppleTeam) {
     return ascApiKeysForAccount;

@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   WebhookByIdQuery,
   WebhookByIdQueryVariables,
@@ -13,7 +14,11 @@ import {
 import { WebhookFragmentNode } from '../types/Webhook';
 
 export const WebhookQuery = {
-  async byAppIdAsync(appId: string, webhookFilter?: WebhookFilter): Promise<WebhookFragment[]> {
+  async byAppIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appId: string,
+    webhookFilter?: WebhookFilter
+  ): Promise<WebhookFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<WebhooksByAppIdQuery, WebhooksByAppIdQueryVariables>(
@@ -40,7 +45,7 @@ export const WebhookQuery = {
     );
     return data.app?.byId.webhooks ?? [];
   },
-  async byIdAsync(webhookId: string): Promise<WebhookFragment> {
+  async byIdAsync(graphqlClient: ExpoGraphqlClient, webhookId: string): Promise<WebhookFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<WebhookByIdQuery, WebhookByIdQueryVariables>(

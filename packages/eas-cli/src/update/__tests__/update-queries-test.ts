@@ -1,3 +1,6 @@
+import { instance, mock } from 'ts-mockito';
+
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import { selectUpdateGroupOnBranchAsync } from '../queries';
 
@@ -26,8 +29,9 @@ describe('update queries', () => {
     });
 
     it('to throw when no items are available', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
       expect(async () => {
-        await selectUpdateGroupOnBranchAsync({
+        await selectUpdateGroupOnBranchAsync(graphqlClient, {
           branchName,
           projectId: appId,
           paginatedQueryOptions: {
@@ -41,8 +45,9 @@ describe('update queries', () => {
     });
 
     it('to throw when in non-interactive mode', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
       expect(async () => {
-        await selectUpdateGroupOnBranchAsync({
+        await selectUpdateGroupOnBranchAsync(graphqlClient, {
           branchName,
           projectId: appId,
           paginatedQueryOptions: {
