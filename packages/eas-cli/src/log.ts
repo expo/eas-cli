@@ -45,6 +45,10 @@ export default class Log {
     Log.warn(`› ${chalk.bold('--' + flag)} flag is deprecated. ${message}`);
   }
 
+  public static failed(message: string): void {
+    Log.log(`${chalk.red(logSymbols.error)} ${message}`);
+  }
+
   public static succeed(message: string): void {
     Log.log(`${chalk.green(logSymbols.success)} ${message}`);
   }

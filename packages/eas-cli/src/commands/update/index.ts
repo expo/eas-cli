@@ -634,7 +634,7 @@ async function getRuntimeVersionObjectAsync(
       Errors.error(error, { exit: 1 });
     }
 
-    ora().start().fail(error.message);
+    Log.failed(error.message);
 
     const runConfig = await selectAsync(
       `Do you want us to run automatic ${chalk.bold(
