@@ -23,18 +23,13 @@ import AndroidSubmitCommand from '../AndroidSubmitCommand';
 
 jest.mock('fs');
 jest.mock('../../../ora');
-jest.mock('../../../graphql/mutations/SubmissionMutation', () => ({
-  SubmissionMutation: {
-    createAndroidSubmissionAsync: jest.fn(),
+jest.mock('../../../graphql/mutations/SubmissionMutation');
+jest.mock('../../../credentials/android/api/graphql/queries/AndroidAppCredentialsQuery', () => ({
+  AndroidAppCredentialsQuery: {
+    withCommonFieldsByApplicationIdentifierAsync: jest.fn(),
   },
 }));
 jest.mock('../../utils/builds');
-jest.mock('../../../user/User', () => ({
-  getUserAsync: jest.fn(() => mockJester),
-}));
-jest.mock('../../../user/actions', () => ({
-  ensureLoggedInAsync: jest.fn(() => mockJester),
-}));
 jest.mock('../../../project/projectUtils');
 
 describe(AndroidSubmitCommand, () => {
@@ -71,6 +66,7 @@ describe(AndroidSubmitCommand, () => {
   });
 
   beforeEach(() => {
+    jest.clearAllMocks();
     jest.mocked(getOwnerAccountForProjectIdAsync).mockResolvedValue(mockJester.accounts[0]);
   });
 
@@ -97,7 +93,9 @@ describe(AndroidSubmitCommand, () => {
         projectId,
       });
       const command = new AndroidSubmitCommand(ctx);
-      await expect(command.runAsync()).rejects.toThrowError();
+      await expect(command.runAsync()).rejects.toThrowError(
+        'Google Service Account Keys cannot be set up in --non-interactive mode.'
+      );
     });
   });
 
@@ -124,6 +122,7 @@ describe(AndroidSubmitCommand, () => {
         exp: testProject.appJSON.expo,
         projectId,
       });
+
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
 

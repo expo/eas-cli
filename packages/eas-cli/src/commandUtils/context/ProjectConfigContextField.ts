@@ -10,14 +10,14 @@ export default class ProjectConfigContextField extends ContextField<{
   exp: ExpoConfig;
   projectDir: string;
 }> {
-  async getValueAsync({ nonInteractive }: ContextOptions): Promise<{
+  async getValueAsync({ nonInteractive, sessionManager }: ContextOptions): Promise<{
     projectId: string;
     exp: ExpoConfig;
     projectDir: string;
   }> {
     const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
     const expBefore = getExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(expBefore, {
+    const projectId = await getProjectIdAsync(sessionManager, expBefore, {
       nonInteractive,
     });
     const exp = getExpoConfig(projectDir);

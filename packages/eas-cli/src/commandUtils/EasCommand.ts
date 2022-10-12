@@ -6,13 +6,15 @@ import {
   initAsync as initAnalyticsAsync,
   logEvent,
 } from '../analytics/rudderstackClient';
-import { getUserAsync } from '../user/User';
+import SessionManager from '../user/SessionManager';
 import ContextField from './context/ContextField';
 import { DynamicProjectConfigContextField } from './context/DynamicProjectConfigContextField';
 import LoggedInContextField from './context/LoggedInContextField';
+import MaybeLoggedInContextField from './context/MaybeLoggedInContextField';
 import { OptionalProjectConfigContextField } from './context/OptionalProjectConfigContextField';
 import ProjectConfigContextField from './context/ProjectConfigContextField';
 import ProjectDirContextField from './context/ProjectDirContextField';
+import SessionManagementContextField from './context/SessionManagementContextField';
 
 type ContextInput<
   T extends {
@@ -33,10 +35,24 @@ type ContextOutput<
 export default abstract class EasCommand extends Command {
   protected static readonly ContextOptions = {
     /**
-     * Require this command to be run when logged-in. Returns the logged-in actor in the context.
+     * Require this command to be run when logged-in. Returns the logged-in actor and a logged-in
+     * graphql client in the context.
      */
     LoggedIn: {
       loggedIn: new LoggedInContextField(),
+    },
+    /**
+     * Do not require this command to be run when logged-in, but if it is get the logged-in actor and a
+     * maybe-logged-in graphql client.
+     */
+    MaybeLoggedIn: {
+      maybeLoggedIn: new MaybeLoggedInContextField(),
+    },
+    /**
+     * Specify this context requirement if the command needs to mutate the user session.
+     */
+    SessionManagment: {
+      sessionManager: new SessionManagementContextField(),
     },
     /**
      * Require the project to be identified and registered on server if this command is being
@@ -92,12 +108,24 @@ export default abstract class EasCommand extends Command {
 
     const contextValuePairs = await Promise.all(
       Object.keys(contextDefinition).map(async contextKey => {
-        return [contextKey, await contextDefinition[contextKey].getValueAsync({ nonInteractive })];
+        return [
+          contextKey,
+          await contextDefinition[contextKey].getValueAsync({
+            nonInteractive,
+            sessionManager: this.sessionManager,
+          }),
+        ];
       })
     );
 
     return Object.fromEntries(contextValuePairs);
   }
+
+  /**
+   * The user session manager. Responsible for coordinating all user session related state.
+   * If needed in a subclass, SessionManager ContextOption.
+   */
+  private readonly sessionManager = new SessionManager();
 
   protected abstract runAsync(): Promise<any>;
 
@@ -106,7 +134,8 @@ export default abstract class EasCommand extends Command {
     await initAnalyticsAsync();
 
     // this is needed for logEvent call below as it identifies the user in the analytics system
-    await getUserAsync();
+    await this.sessionManager.getUserAsync();
+
     logEvent(AnalyticsEvent.ACTION, {
       // id is assigned by oclif in constructor based on the filepath:
       // commands/submit === submit, commands/build/list === build:list

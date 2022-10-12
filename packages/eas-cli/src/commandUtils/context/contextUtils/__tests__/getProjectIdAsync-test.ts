@@ -1,11 +1,12 @@
 import { getConfig, modifyConfigAsync } from '@expo/config';
 import { vol } from 'memfs';
+import { anything, instance, mock, when } from 'ts-mockito';
 
 import { Role } from '../../../../graphql/generated';
 import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { learnMore } from '../../../../log';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import { ensureLoggedInAsync } from '../../contextUtils/ensureLoggedInAsync';
+import SessionManager from '../../../../user/SessionManager';
 import { findProjectRootAsync } from '../findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from '../getProjectIdAsync';
 
@@ -13,7 +14,6 @@ jest.mock('@expo/config');
 jest.mock('fs');
 
 jest.mock('../../../../graphql/queries/AppQuery');
-jest.mock('../../contextUtils/ensureLoggedInAsync');
 jest.mock('../../contextUtils/findProjectDirAndVerifyProjectSetupAsync');
 jest.mock('../../../../user/User');
 jest.mock('../../../../ora', () => ({
@@ -24,30 +24,37 @@ jest.mock('../../../../ora', () => ({
 jest.mock('../../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
 
 describe(getProjectIdAsync, () => {
+  let sessionManager: SessionManager;
+
   beforeEach(() => {
-    jest.mocked(ensureLoggedInAsync).mockResolvedValue({
-      __typename: 'User',
-      id: 'user_id',
-      username: 'notnotbrent',
-      primaryAccount: {
-        id: 'account_id_1',
-        name: 'notnotbrent',
-        users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
-      },
-      accounts: [
-        {
+    const sessionManagerMock = mock<SessionManager>();
+    when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
+      actor: {
+        __typename: 'User',
+        id: 'user_id',
+        username: 'notnotbrent',
+        primaryAccount: {
           id: 'account_id_1',
           name: 'notnotbrent',
           users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
         },
-        {
-          id: 'account_id_2',
-          name: 'dominik',
-          users: [{ role: Role.ViewOnly, actor: { id: 'user_id' } }],
-        },
-      ],
-      isExpoAdmin: false,
+        accounts: [
+          {
+            id: 'account_id_1',
+            name: 'notnotbrent',
+            users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
+          },
+          {
+            id: 'account_id_2',
+            name: 'dominik',
+            users: [{ role: Role.ViewOnly, actor: { id: 'user_id' } }],
+          },
+        ],
+        isExpoAdmin: false,
+      },
+      authenticationInfo: { accessToken: 'fake', sessionSecret: null },
     });
+    sessionManager = instance(sessionManagerMock);
 
     vol.fromJSON(
       {
@@ -74,6 +81,7 @@ describe(getProjectIdAsync, () => {
 
     await expect(
       getProjectIdAsync(
+        sessionManager,
         { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
         { nonInteractive: false }
       )
@@ -93,6 +101,7 @@ describe(getProjectIdAsync, () => {
 
     await expect(
       getProjectIdAsync(
+        sessionManager,
         { name: 'test', slug: 'test', owner: 'wat', extra: { eas: { projectId: '1234' } } },
         { nonInteractive: false }
       )
@@ -116,6 +125,7 @@ describe(getProjectIdAsync, () => {
 
     await expect(
       getProjectIdAsync(
+        sessionManager,
         { name: 'test', slug: 'wat', extra: { eas: { projectId: '1234' } } },
         { nonInteractive: false }
       )
@@ -137,6 +147,7 @@ describe(getProjectIdAsync, () => {
       .mockImplementation(async () => '2345');
 
     const projectId = await getProjectIdAsync(
+      sessionManager,
       { name: 'test', slug: 'test' },
       {
         nonInteractive: false,
@@ -162,7 +173,7 @@ describe(getProjectIdAsync, () => {
       .mockImplementation(async () => '4567');
 
     await expect(
-      getProjectIdAsync({ name: 'test', slug: 'test' }, { nonInteractive: false })
+      getProjectIdAsync(sessionManager, { name: 'test', slug: 'test' }, { nonInteractive: false })
     ).rejects.toThrow();
   });
 });

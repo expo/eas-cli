@@ -33,9 +33,11 @@ export default class UpdateView extends EasCommand {
       args: { groupId },
       flags: { json: jsonFlag },
     } = await this.parse(UpdateView);
+
     const {
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(UpdateView, { nonInteractive: true });
+
     if (jsonFlag) {
       enableJsonOutput();
     }

@@ -1,9 +1,10 @@
 import assert from 'assert';
 import nock from 'nock';
 
-import { ApiV2Error, api, getExpoApiBaseUrl } from '../api';
+import { ApiV2Error } from '../ApiV2Error';
+import { ApiV2Client, getExpoApiBaseUrl } from '../api';
 
-describe('apiClient', () => {
+describe(ApiV2Client, () => {
   it('converts Expo APIv2 error to ApiV2Error', async () => {
     nock(getExpoApiBaseUrl())
       .post('/v2/test')
@@ -21,7 +22,9 @@ describe('apiClient', () => {
 
     let error: Error | null = null;
     try {
-      await api.postAsync('test', { body: {} });
+      await new ApiV2Client({ accessToken: null, sessionSecret: null }).postAsync('test', {
+        body: {},
+      });
     } catch (e: any) {
       error = e;
     }
@@ -41,7 +44,9 @@ describe('apiClient', () => {
 
     let error: Error | null = null;
     try {
-      await api.postAsync('test', { body: {} });
+      await new ApiV2Client({ accessToken: null, sessionSecret: null }).postAsync('test', {
+        body: {},
+      });
     } catch (e: any) {
       error = e;
     }

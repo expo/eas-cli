@@ -161,6 +161,7 @@ export default class ProjectInit extends EasCommand {
     const projectName = exp.slug;
     const projectFullName = `@${accountName}/${projectName}`;
     const existingProjectIdOnServer = await findProjectIdByAccountNameAndSlugNullableAsync(
+      graphqlClient,
       accountName,
       projectName
     );

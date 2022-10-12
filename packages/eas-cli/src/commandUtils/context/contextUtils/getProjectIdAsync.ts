@@ -3,15 +3,15 @@ import { ExpoConfig } from '@expo/config-types';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { legacyGraphqlClient } from '../../../graphql/client';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
 import { getExpoConfig } from '../../../project/expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { toAppPrivacy } from '../../../project/projectUtils';
+import SessionManager from '../../../user/SessionManager';
 import { Actor } from '../../../user/User';
-import { ensureLoggedInAsync } from './ensureLoggedInAsync';
+import { createGraphqlClient } from './createGraphqlClient';
 import { findProjectRootAsync } from './findProjectDirAndVerifyProjectSetupAsync';
 
 /**
@@ -71,13 +71,22 @@ export async function saveProjectIdToAppConfigAsync(
  * @deprecated Should not be used outside of context functions.
  */
 export async function getProjectIdAsync(
+  sessionManager: SessionManager,
   exp: ExpoConfig,
   options: { env?: Env; nonInteractive: boolean }
 ): Promise<string> {
+  // all codepaths in this function require a logged-in user with access to the owning account
+  // since they either query the app via graphql or create it, which includes getting info about
+  // the owner
+  const { actor, authenticationInfo } = await sessionManager.ensureLoggedInAsync({
+    nonInteractive: options.nonInteractive,
+  });
+  const graphqlClient = createGraphqlClient(authenticationInfo);
+
   const localProjectId = exp.extra?.eas?.projectId;
   if (localProjectId) {
     // check that the local project ID matches account and slug
-    const appForProjectId = await AppQuery.byIdAsync(legacyGraphqlClient, localProjectId);
+    const appForProjectId = await AppQuery.byIdAsync(graphqlClient, localProjectId);
     if (exp.owner && exp.owner !== appForProjectId.ownerAccount.name) {
       throw new Error(
         `Project config: Project identified by "extra.eas.projectId" (${
@@ -122,10 +131,8 @@ export async function getProjectIdAsync(
     }
   };
 
-  const actor = await ensureLoggedInAsync({
-    nonInteractive: options.nonInteractive,
-  });
   const projectId = await fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync(
+    graphqlClient,
     {
       accountName: getAccountNameForEASProjectSync(exp, actor),
       projectName: exp.slug,

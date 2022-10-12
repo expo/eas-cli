@@ -1,9 +1,6 @@
 import { CombinedError as GraphqlError, OperationResult } from '@urql/core';
 
-import { createGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../log';
-
-export const legacyGraphqlClient = createGraphqlClient();
 
 export async function withErrorHandlingAsync<T>(promise: Promise<OperationResult<T>>): Promise<T> {
   const { data, error } = await promise;

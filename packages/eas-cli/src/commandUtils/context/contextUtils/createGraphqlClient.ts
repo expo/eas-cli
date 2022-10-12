@@ -15,18 +15,19 @@ import fetch from 'node-fetch';
 
 import { getExpoApiBaseUrl } from '../../../api';
 import { httpsProxyAgent } from '../../../fetch';
-import { getAccessToken, getSessionSecret } from '../../../user/sessionStorage';
 
 export interface ExpoGraphqlClient extends Client {
-  // eslint-disable-next-line @typescript-eslint/ban-types
-  query<Data = any, Variables extends object = {}>(
+  query<Data = any, Variables extends object = object>(
     query: DocumentNode | TypedDocumentNode<Data, Variables> | string,
     variables: Variables | undefined,
     context: Partial<OperationContext> & { additionalTypenames: string[] }
   ): PromisifiedSource<OperationResult<Data, Variables>>;
 }
 
-export function createGraphqlClient(): ExpoGraphqlClient {
+export function createGraphqlClient(authInfo: {
+  accessToken: string | null;
+  sessionSecret: string | null;
+}): ExpoGraphqlClient {
   return createUrqlClient({
     url: getExpoApiBaseUrl() + '/graphql',
     exchanges: [
@@ -48,13 +49,10 @@ export function createGraphqlClient(): ExpoGraphqlClient {
     fetch,
     fetchOptions: (): RequestInit => {
       const headers: Record<string, string> = {};
-      const token = getAccessToken();
-      if (token) {
-        headers.authorization = `Bearer ${token}`;
-      }
-      const sessionSecret = getSessionSecret();
-      if (!token && sessionSecret) {
-        headers['expo-session'] = sessionSecret;
+      if (authInfo.accessToken) {
+        headers.authorization = `Bearer ${authInfo.accessToken}`;
+      } else if (authInfo.sessionSecret) {
+        headers['expo-session'] = authInfo.sessionSecret;
       }
       return {
         ...(httpsProxyAgent ? { agent: httpsProxyAgent } : {}),
