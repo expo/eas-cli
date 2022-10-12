@@ -1,8 +1,13 @@
-import { flushAsync, initAsync, logEvent } from '../../analytics/rudderstackClient';
+import {
+  flushAsync,
+  initAsync,
+  logEvent,
+  setUserDataAsync,
+} from '../../analytics/rudderstackClient';
+import { jester } from '../../credentials/__tests__/fixtures-constants';
 import SessionManager from '../../user/SessionManager';
 import EasCommand from '../EasCommand';
 
-jest.mock('../../user/User');
 jest.mock('../../user/SessionManager');
 jest.mock('../../analytics/rudderstackClient', () => {
   const { AnalyticsEvent } = jest.requireActual('../../analytics/rudderstackClient');
@@ -11,6 +16,7 @@ jest.mock('../../analytics/rudderstackClient', () => {
     logEvent: jest.fn(),
     initAsync: jest.fn(),
     flushAsync: jest.fn(),
+    setUserDataAsync: jest.fn(),
   };
 });
 
@@ -26,13 +32,18 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  jest.mocked(initAsync).mockReset();
-  jest.mocked(flushAsync).mockReset();
-  jest.mocked(logEvent).mockReset();
+  jest.resetAllMocks();
 });
 
-const createTestEasCommand = (): typeof EasCommand => {
+const createTestEasCommand = ({
+  requireLoggedIn = false,
+}: { requireLoggedIn?: boolean } = {}): typeof EasCommand => {
   class TestEasCommand extends EasCommand {
+    static override contextDefinition = requireLoggedIn
+      ? {
+          ...this.ContextOptions.LoggedIn,
+        }
+      : {};
     async runAsync(): Promise<void> {}
   }
 
@@ -56,6 +67,47 @@ describe(EasCommand.name, () => {
       const sessionManagerSpy = jest.spyOn(SessionManager.prototype, 'getUserAsync');
       expect(sessionManagerSpy).toBeCalledTimes(1);
     }, 15_000);
+
+    it('sets the analytics user data when command requires log in', async () => {
+      const sessionManagerEnsureLoggedInSpy = jest.spyOn(
+        SessionManager.prototype,
+        'ensureLoggedInAsync'
+      );
+      sessionManagerEnsureLoggedInSpy.mockResolvedValue({
+        actor: jester,
+        authenticationInfo: { accessToken: null, sessionSecret: '' },
+      });
+
+      const TestEasCommand = createTestEasCommand({ requireLoggedIn: true });
+      await TestEasCommand.run();
+
+      expect(setUserDataAsync).toHaveBeenCalledWith(jester.id, {
+        user_id: jester.id,
+        user_type: jester.__typename,
+        username: jester.username,
+      });
+    });
+
+    it('sets the analytics user data when command does not require log in if user already logged in', async () => {
+      const sessionManagerGetUserAsyncSpy = jest.spyOn(SessionManager.prototype, 'getUserAsync');
+      sessionManagerGetUserAsyncSpy.mockResolvedValue(jester);
+
+      const TestEasCommand = createTestEasCommand({ requireLoggedIn: false });
+      await TestEasCommand.run();
+
+      expect(setUserDataAsync).toHaveBeenCalledWith(jester.id, {
+        user_id: jester.id,
+        user_type: jester.__typename,
+        username: jester.username,
+      });
+    });
+
+    it('does not set the analytics user data when command does not require log in if user is not logged in', async () => {
+      const TestEasCommand = createTestEasCommand({ requireLoggedIn: false });
+      await TestEasCommand.run();
+
+      expect(setUserDataAsync).not.toHaveBeenCalled();
+    });
 
     it('initializes analytics', async () => {
       const TestEasCommand = createTestEasCommand();
