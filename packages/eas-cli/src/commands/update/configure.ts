@@ -1,5 +1,5 @@
 import { ExpoConfig, modifyConfigAsync } from '@expo/config';
-import { Workflow } from '@expo/eas-build-job';
+import { Platform, Workflow } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -13,8 +13,7 @@ import {
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledOrAvailable,
 } from '../../project/projectUtils';
-import { getCombinedWorkflowDataAsync } from '../../project/workflow';
-import type { CombinedWorkflowData } from '../../project/workflow';
+import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
 
@@ -55,7 +54,7 @@ export default class UpdateConfigure extends EasCommand {
       await installExpoUpdatesAsync(projectDir);
     }
 
-    const workflows = await getCombinedWorkflowDataAsync(projectDir);
+    const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
 
     const updatedExp = await configureAppJSONForEASUpdateAsync({
       projectDir,
@@ -82,7 +81,7 @@ type ConfigureForEASUpdateArgs = {
   projectDir: string;
   exp: ExpoConfig;
   platform: RequestedPlatform;
-  workflows: CombinedWorkflowData;
+  workflows: Record<Platform, Workflow>;
   projectId: string;
 };
 

@@ -35,13 +35,9 @@ export async function resolveWorkflowAsync(
   return Workflow.MANAGED;
 }
 
-export type CombinedWorkflowData = {
-  [value in Platform]: Workflow;
-};
-
-export async function getCombinedWorkflowDataAsync(
+export async function resolveWorkflowPerPlatformAsync(
   projectDir: string
-): Promise<CombinedWorkflowData> {
+): Promise<Record<Platform, Workflow>> {
   return {
     android: await resolveWorkflowAsync(projectDir, Platform.ANDROID),
     ios: await resolveWorkflowAsync(projectDir, Platform.IOS),

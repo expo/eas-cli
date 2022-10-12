@@ -42,7 +42,7 @@ import {
   isUploadedAssetCountAboveWarningThreshold,
   uploadAssetsAsync,
 } from '../../project/publish';
-import { getCombinedWorkflowDataAsync, resolveWorkflowAsync } from '../../project/workflow';
+import { resolveWorkflowAsync, resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 import { formatUpdateMessage } from '../../update/utils';
@@ -659,7 +659,7 @@ async function getRuntimeVersionObjectAsync(
       projectDir,
       projectId,
       platform: platformFlag as RequestedPlatform,
-      workflows: await getCombinedWorkflowDataAsync(projectDir),
+      workflows: await resolveWorkflowPerPlatformAsync(projectDir),
     });
 
     return [transformRuntimeVersions(newConfig, platforms), newConfig];
