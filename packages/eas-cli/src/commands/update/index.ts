@@ -210,7 +210,7 @@ export default class UpdatePublish extends EasCommand {
     // If a group was specified, that means we are republishing it.
     republish = republish || !!group;
 
-    let { exp, projectId, projectDir } = await getDynamicProjectConfigAsync({
+    const { exp, projectId, projectDir } = await getDynamicProjectConfigAsync({
       isPublicConfig: true,
     });
 
@@ -248,7 +248,7 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
-    const [runtimeVersions, updatedConfig] = await getRuntimeVersionObjectAsync(
+    const [runtimeVersions, expUpdated] = await getRuntimeVersionObjectAsync(
       exp,
       platformFlag,
       projectDir,
@@ -256,10 +256,7 @@ export default class UpdatePublish extends EasCommand {
       nonInteractive
     );
 
-    if (updatedConfig) {
-      exp = updatedConfig;
-    }
-    await checkEASUpdateURLIsSetAsync(exp, projectId);
+    await checkEASUpdateURLIsSetAsync(expUpdated, projectId);
 
     if (!branchName) {
       if (autoFlag) {
@@ -555,7 +552,7 @@ export default class UpdatePublish extends EasCommand {
         const newIosUpdate = newUpdatesForRuntimeVersion.find(update => update.platform === 'ios');
         const updateGroupId = newUpdatesForRuntimeVersion[0].group;
 
-        const projectName = exp.slug;
+        const projectName = expUpdated.slug;
         const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
         const updateGroupUrl = getUpdateGroupUrl(accountName, projectName, updateGroupId);
         const updateGroupLink = link(updateGroupUrl, { dim: false });
@@ -612,7 +609,7 @@ async function getRuntimeVersionObjectAsync(
   projectDir: string,
   projectId: string,
   nonInteractive: boolean
-): Promise<[Record<string, string>, ExpoConfig | null]> {
+): Promise<[Record<string, string>, ExpoConfig]> {
   const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
 
   for (const platform of platforms) {
@@ -628,7 +625,7 @@ async function getRuntimeVersionObjectAsync(
   }
 
   try {
-    return [transformRuntimeVersions(exp, platforms), null];
+    return [transformRuntimeVersions(exp, platforms), exp];
   } catch (error: any) {
     if (nonInteractive) {
       Errors.error(error, { exit: 1 });
