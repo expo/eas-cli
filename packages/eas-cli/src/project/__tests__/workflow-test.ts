@@ -1,16 +1,16 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 
-import { resolveWorkflowAsync } from '../workflow';
+import { resolveWorkflowAsync, resolveWorkflowPerPlatformAsync } from '../workflow';
 
 jest.mock('fs');
+
+const projectDir = '/app';
 
 describe(resolveWorkflowAsync, () => {
   beforeEach(() => {
     vol.reset();
   });
-
-  const projectDir = '/app';
 
   test('bare workflow for both platforms', async () => {
     vol.fromJSON(
@@ -55,5 +55,26 @@ describe(resolveWorkflowAsync, () => {
       Workflow.MANAGED
     );
     await expect(resolveWorkflowAsync(projectDir, Platform.IOS)).resolves.toBe(Workflow.MANAGED);
+  });
+});
+
+describe(resolveWorkflowPerPlatformAsync, () => {
+  beforeEach(() => {
+    vol.reset();
+  });
+
+  test('returns the correct combined value', async () => {
+    vol.fromJSON(
+      {
+        './ios/helloworld.xcodeproj/project.pbxproj': 'fake',
+        './android/app/src/main/AndroidManifest.xml': 'fake',
+      },
+      projectDir
+    );
+
+    await expect(resolveWorkflowPerPlatformAsync(projectDir)).resolves.toEqual({
+      android: Workflow.GENERIC,
+      ios: Workflow.GENERIC,
+    });
   });
 });
