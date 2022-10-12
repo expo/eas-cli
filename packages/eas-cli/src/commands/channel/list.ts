@@ -19,6 +19,7 @@ export default class ChannelList extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -27,6 +28,7 @@ export default class ChannelList extends EasCommand {
     const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelList, {
       nonInteractive,
     });
@@ -34,7 +36,7 @@ export default class ChannelList extends EasCommand {
       enableJsonOutput();
     }
 
-    await listAndRenderChannelsOnAppAsync({
+    await listAndRenderChannelsOnAppAsync(graphqlClient, {
       projectId,
       paginatedQueryOptions,
     });

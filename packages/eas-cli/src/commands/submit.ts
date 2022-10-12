@@ -98,7 +98,7 @@ export default class Submit extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Submit);
     const {
-      actor,
+      loggedIn: { actor, graphqlClient },
       projectConfig: { exp, projectId, projectDir },
     } = await this.getContextAsync(Submit, {
       nonInteractive: false,
@@ -106,7 +106,7 @@ export default class Submit extends EasCommand {
 
     const flags = this.sanitizeFlags(rawFlags);
 
-    await maybeWarnAboutEasOutagesAsync([StatuspageServiceName.EasSubmit]);
+    await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasSubmit]);
 
     const flagsWithPlatform = await this.ensurePlatformSelectedAsync(flags);
 
@@ -128,6 +128,7 @@ export default class Submit extends EasCommand {
         archiveFlags: flagsWithPlatform.archiveFlags,
         nonInteractive: flagsWithPlatform.nonInteractive,
         actor,
+        graphqlClient,
         exp,
         projectId,
       });
@@ -150,7 +151,7 @@ export default class Submit extends EasCommand {
     printSubmissionDetailsUrls(submissions);
 
     if (flagsWithPlatform.wait) {
-      const completedSubmissions = await waitToCompleteAsync(submissions, {
+      const completedSubmissions = await waitToCompleteAsync(graphqlClient, submissions, {
         verbose: flagsWithPlatform.verbose,
       });
       exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);

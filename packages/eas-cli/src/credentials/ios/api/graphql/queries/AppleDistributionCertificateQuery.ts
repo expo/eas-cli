@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleDistributionCertificateByAccountQuery,
   AppleDistributionCertificateByAppQuery,
@@ -14,6 +15,7 @@ import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/
 
 export const AppleDistributionCertificateQuery = {
   async getForAppAsync(
+    graphqlClient: ExpoGraphqlClient,
     projectFullName: string,
     {
       appleAppIdentifierId,
@@ -76,6 +78,7 @@ export const AppleDistributionCertificateQuery = {
     );
   },
   async getAllForAccountAsync(
+    graphqlClient: ExpoGraphqlClient,
     accountName: string
   ): Promise<AppleDistributionCertificateFragment[]> {
     const data = await withErrorHandlingAsync(

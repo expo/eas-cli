@@ -3,6 +3,7 @@ import { ExpoConfig } from '@expo/config-types';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import { legacyGraphqlClient } from '../../../graphql/client';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
@@ -76,7 +77,7 @@ export async function getProjectIdAsync(
   const localProjectId = exp.extra?.eas?.projectId;
   if (localProjectId) {
     // check that the local project ID matches account and slug
-    const appForProjectId = await AppQuery.byIdAsync(localProjectId);
+    const appForProjectId = await AppQuery.byIdAsync(legacyGraphqlClient, localProjectId);
     if (exp.owner && exp.owner !== appForProjectId.ownerAccount.name) {
       throw new Error(
         `Project config: Project identified by "extra.eas.projectId" (${

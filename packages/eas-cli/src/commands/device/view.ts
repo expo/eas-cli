@@ -12,6 +12,7 @@ export default class DeviceView extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -32,15 +33,20 @@ If you are not sure what is the UDID of the device you are looking for, run:
     }
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(DeviceView, {
       nonInteractive: true,
     });
-    const account = await getOwnerAccountForProjectIdAsync(projectId);
+    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
 
     const spinner = ora().start(`Fetching device details for ${UDID}…`);
 
     try {
-      const device = await AppleDeviceQuery.getByDeviceIdentifierAsync(account.name, UDID);
+      const device = await AppleDeviceQuery.getByDeviceIdentifierAsync(
+        graphqlClient,
+        account.name,
+        UDID
+      );
 
       if (device) {
         spinner.succeed('Fetched device details');

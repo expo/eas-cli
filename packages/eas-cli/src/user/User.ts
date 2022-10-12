@@ -2,7 +2,7 @@ import gql from 'graphql-tag';
 
 import * as Analytics from '../analytics/rudderstackClient';
 import { api } from '../api';
-import { graphqlClient } from '../graphql/client';
+import { legacyGraphqlClient } from '../graphql/client';
 import { CurrentUserQuery } from '../graphql/generated';
 import { UserQuery } from '../graphql/queries/UserQuery';
 import { getAccessToken, getSessionSecret, setSessionAsync } from './sessionStorage';
@@ -32,7 +32,7 @@ export function getActorDisplayName(user?: Actor): string {
 
 export async function getUserAsync(): Promise<Actor | undefined> {
   if (!currentUser && (getAccessToken() || getSessionSecret())) {
-    const user = await UserQuery.currentUserAsync();
+    const user = await UserQuery.currentUserAsync(legacyGraphqlClient);
     currentUser = user ?? undefined;
     if (user) {
       await Analytics.setUserDataAsync(user.id, {
@@ -56,7 +56,7 @@ export async function loginAsync({
 }): Promise<void> {
   const body = await api.postAsync('auth/loginAsync', { body: { username, password, otp } });
   const { sessionSecret } = body.data;
-  const result = await graphqlClient
+  const result = await legacyGraphqlClient
     .query(
       gql`
         query UserQuery {

@@ -28,6 +28,7 @@ export class SetUpDistributionCertificate {
 
     try {
       const currentCertificate = await ctx.ios.getDistributionCertificateForAppAsync(
+        ctx.graphqlClient,
         this.app,
         this.distributionType,
         { appleTeam }
@@ -179,6 +180,7 @@ export class SetUpDistributionCertificate {
     const validDistCertSerialNumberSet = new Set(validDistCertSerialNumbers);
 
     const distCertsForAccount = await ctx.ios.getDistributionCertificatesForAccountAsync(
+      ctx.graphqlClient,
       this.app.account
     );
     const distCertsForAppleTeam = distCertsForAccount.filter(distCert => {

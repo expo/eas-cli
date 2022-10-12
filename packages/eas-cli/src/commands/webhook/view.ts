@@ -15,14 +15,21 @@ export default class WebhookView extends EasCommand {
     },
   ];
 
+  static override contextDefinition = {
+    ...this.ContextOptions.LoggedIn,
+  };
+
   async runAsync(): Promise<void> {
     const {
       args: { ID: webhookId },
     } = await this.parse(WebhookView);
+    const {
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(WebhookView, { nonInteractive: true });
 
     const spinner = ora(`Fetching the webhook details for ID ${webhookId}`).start();
     try {
-      const webhook = await WebhookQuery.byIdAsync(webhookId);
+      const webhook = await WebhookQuery.byIdAsync(graphqlClient, webhookId);
       spinner.succeed(`Found the webhook details`);
       Log.log(`\n${formatWebhook(webhook)}`);
     } catch (err) {

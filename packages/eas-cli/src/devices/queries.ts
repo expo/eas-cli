@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { formatAppleTeam } from '../credentials/ios/actions/AppleTeamFormatting';
 import { formatDeviceLabel } from '../credentials/ios/actions/DeviceUtils';
@@ -17,15 +18,18 @@ import formatDevice, { AppleTeamIdAndName } from './utils/formatDevice';
 export const TEAMS_LIMIT = 50;
 export const DEVICES_LIMIT = 50;
 
-export async function selectAppleTeamOnAccountAsync({
-  accountName,
-  selectionPromptTitle,
-  paginatedQueryOptions,
-}: {
-  accountName: string;
-  selectionPromptTitle: string;
-  paginatedQueryOptions: PaginatedQueryOptions;
-}): Promise<AppleTeamFragment> {
+export async function selectAppleTeamOnAccountAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    accountName,
+    selectionPromptTitle,
+    paginatedQueryOptions,
+  }: {
+    accountName: string;
+    selectionPromptTitle: string;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<AppleTeamFragment> {
   if (paginatedQueryOptions.nonInteractive) {
     throw new Error('Unable to select an Apple team in non-interactive mode.');
   } else {
@@ -33,7 +37,7 @@ export async function selectAppleTeamOnAccountAsync({
       limit: paginatedQueryOptions.limit ?? TEAMS_LIMIT,
       offset: paginatedQueryOptions.offset,
       queryToPerform: (limit, offset) =>
-        AppleTeamQuery.getAllForAccountAsync({
+        AppleTeamQuery.getAllForAccountAsync(graphqlClient, {
           accountName,
           limit,
           offset,
@@ -54,17 +58,20 @@ export async function selectAppleTeamOnAccountAsync({
   }
 }
 
-export async function selectAppleDeviceOnAppleTeamAsync({
-  accountName,
-  appleTeamIdentifier,
-  selectionPromptTitle,
-  paginatedQueryOptions,
-}: {
-  accountName: string;
-  appleTeamIdentifier: string;
-  selectionPromptTitle: string;
-  paginatedQueryOptions: PaginatedQueryOptions;
-}): Promise<AppleDeviceFragment> {
+export async function selectAppleDeviceOnAppleTeamAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    accountName,
+    appleTeamIdentifier,
+    selectionPromptTitle,
+    paginatedQueryOptions,
+  }: {
+    accountName: string;
+    appleTeamIdentifier: string;
+    selectionPromptTitle: string;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<AppleDeviceFragment> {
   if (paginatedQueryOptions.nonInteractive) {
     throw new Error('Unable to select an Apple device in non-interactive mode.');
   } else {
@@ -72,7 +79,7 @@ export async function selectAppleDeviceOnAppleTeamAsync({
       limit: paginatedQueryOptions.limit ?? DEVICES_LIMIT,
       offset: paginatedQueryOptions.offset,
       queryToPerform: (limit, offset) =>
-        AppleDeviceQuery.getAllForAppleTeamAsync({
+        AppleDeviceQuery.getAllForAppleTeamAsync(graphqlClient, {
           accountName,
           appleTeamIdentifier,
           limit,
@@ -93,17 +100,20 @@ export async function selectAppleDeviceOnAppleTeamAsync({
   }
 }
 
-export async function listAndRenderAppleDevicesOnAppleTeamAsync({
-  accountName,
-  appleTeam,
-  paginatedQueryOptions,
-}: {
-  accountName: string;
-  appleTeam: AppleTeamIdAndName;
-  paginatedQueryOptions: PaginatedQueryOptions;
-}): Promise<void> {
+export async function listAndRenderAppleDevicesOnAppleTeamAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    accountName,
+    appleTeam,
+    paginatedQueryOptions,
+  }: {
+    accountName: string;
+    appleTeam: AppleTeamIdAndName;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<void> {
   if (paginatedQueryOptions.nonInteractive) {
-    const devices = await AppleDeviceQuery.getAllForAppleTeamAsync({
+    const devices = await AppleDeviceQuery.getAllForAppleTeamAsync(graphqlClient, {
       accountName,
       appleTeamIdentifier: appleTeam.appleTeamIdentifier,
       offset: paginatedQueryOptions.offset,
@@ -115,7 +125,7 @@ export async function listAndRenderAppleDevicesOnAppleTeamAsync({
       limit: paginatedQueryOptions.limit ?? DEVICES_LIMIT,
       offset: paginatedQueryOptions.offset,
       queryToPerform: (limit, offset) =>
-        AppleDeviceQuery.getAllForAppleTeamAsync({
+        AppleDeviceQuery.getAllForAppleTeamAsync(graphqlClient, {
           accountName,
           appleTeamIdentifier: appleTeam.appleTeamIdentifier,
           limit,

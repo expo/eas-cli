@@ -1,9 +1,11 @@
 import { AppJSONConfig, PackageJSONConfig, getConfig } from '@expo/config';
 import chalk from 'chalk';
 import { vol } from 'memfs';
+import { instance, mock } from 'ts-mockito';
 
-import ActorContextField from '../../../commandUtils/context/ActorContextField';
+import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
 import ProjectDirContextField from '../../../commandUtils/context/ProjectDirContextField';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../../../commandUtils/context/contextUtils/getProjectIdAsync';
 import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { AppMutation } from '../../../graphql/mutations/AppMutation';
@@ -71,10 +73,13 @@ function mockTestProject(options: {
   );
 
   const mockManifest = { exp: appJSON.expo };
+  const graphqlClient = instance(mock<ExpoGraphqlClient>());
 
   jest.mocked(getConfig).mockReturnValue(mockManifest as any);
   jest.spyOn(ProjectDirContextField.prototype, 'getValueAsync').mockResolvedValue('/test-project');
-  jest.spyOn(ActorContextField.prototype, 'getValueAsync').mockResolvedValue(jester);
+  jest
+    .spyOn(LoggedInContextField.prototype, 'getValueAsync')
+    .mockResolvedValue({ actor: jester, graphqlClient });
 }
 
 const commandOptions = { root: '/test-project' } as any;

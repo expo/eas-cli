@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   CommonIosAppCredentialsFragment,
   CommonIosAppCredentialsWithBuildCredentialsByAppIdentifierIdQuery,
@@ -17,6 +18,7 @@ import {
 
 export const IosAppCredentialsQuery = {
   async withBuildCredentialsByAppIdentifierIdAsync(
+    graphqlClient: ExpoGraphqlClient,
     projectFullName: string,
     {
       appleAppIdentifierId,
@@ -69,6 +71,7 @@ export const IosAppCredentialsQuery = {
     return data.app.byFullName.iosAppCredentials[0] ?? null;
   },
   async withCommonFieldsByAppIdentifierIdAsync(
+    graphqlClient: ExpoGraphqlClient,
     projectFullName: string,
     {
       appleAppIdentifierId,

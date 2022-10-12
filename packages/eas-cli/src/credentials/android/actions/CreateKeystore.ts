@@ -1,3 +1,4 @@
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AccountFragment, AndroidKeystoreFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
@@ -15,19 +16,26 @@ export class CreateKeystore {
     }
 
     const projectId = ctx.projectId;
-    const keystore = await this.provideOrGenerateAsync(projectId);
-    const keystoreFragment = await ctx.android.createKeystoreAsync(this.account, keystore);
+    const keystore = await this.provideOrGenerateAsync(ctx.graphqlClient, projectId);
+    const keystoreFragment = await ctx.android.createKeystoreAsync(
+      ctx.graphqlClient,
+      this.account,
+      keystore
+    );
     Log.succeed('Created keystore');
     return keystoreFragment;
   }
 
-  private async provideOrGenerateAsync(projectId: string): Promise<KeystoreWithType> {
+  private async provideOrGenerateAsync(
+    graphqlClient: ExpoGraphqlClient,
+    projectId: string
+  ): Promise<KeystoreWithType> {
     const providedKeystore = await askForUserProvidedAsync(keystoreSchema);
     if (providedKeystore) {
       const providedKeystoreWithType = getKeystoreWithType(providedKeystore);
       validateKeystore(providedKeystoreWithType);
       return providedKeystoreWithType;
     }
-    return await generateRandomKeystoreAsync(projectId);
+    return await generateRandomKeystoreAsync(graphqlClient, projectId);
   }
 }

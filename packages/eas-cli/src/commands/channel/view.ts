@@ -27,6 +27,7 @@ export default class ChannelView extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -38,6 +39,7 @@ export default class ChannelView extends EasCommand {
     const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelView, {
       nonInteractive,
     });
@@ -50,7 +52,7 @@ export default class ChannelView extends EasCommand {
       if (nonInteractive) {
         throw new Error(validationMessage);
       }
-      const selectedUpdateChannel = await selectChannelOnAppAsync({
+      const selectedUpdateChannel = await selectChannelOnAppAsync(graphqlClient, {
         projectId,
         selectionPromptTitle: 'Select a channel to view',
         paginatedQueryOptions: {
@@ -63,7 +65,7 @@ export default class ChannelView extends EasCommand {
       assert(channelName, `A channel must be selected.`);
     }
 
-    await listAndRenderBranchesAndUpdatesOnChannelAsync({
+    await listAndRenderBranchesAndUpdatesOnChannelAsync(graphqlClient, {
       projectId,
       channelName,
       paginatedQueryOptions,

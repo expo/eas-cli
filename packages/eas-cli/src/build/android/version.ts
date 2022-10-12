@@ -5,6 +5,7 @@ import { BuildProfile } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPlatform } from '../../graphql/generated';
 import { AppVersionMutation } from '../../graphql/mutations/AppVersionMutation';
 import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
@@ -174,20 +175,24 @@ async function writeBuildGradleAsync({
  * Returns buildNumber that will be used for the next build. If current build profile
  * has an 'autoIncrement' option set, it increments the version on server.
  */
-export async function resolveRemoteVersionCodeAsync({
-  projectDir,
-  projectId,
-  exp,
-  applicationId,
-  buildProfile,
-}: {
-  projectDir: string;
-  projectId: string;
-  exp: ExpoConfig;
-  applicationId: string;
-  buildProfile: BuildProfile<Platform.ANDROID>;
-}): Promise<string> {
+export async function resolveRemoteVersionCodeAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectDir,
+    projectId,
+    exp,
+    applicationId,
+    buildProfile,
+  }: {
+    projectDir: string;
+    projectId: string;
+    exp: ExpoConfig;
+    applicationId: string;
+    buildProfile: BuildProfile<Platform.ANDROID>;
+  }
+): Promise<string> {
   const remoteVersions = await AppVersionQuery.latestVersionAsync(
+    graphqlClient,
     projectId,
     AppPlatform.Android,
     applicationId
@@ -217,7 +222,7 @@ export async function resolveRemoteVersionCodeAsync({
       `Initializing versionCode with ${chalk.bold(currentBuildVersion)}.`
     ).start();
     try {
-      await AppVersionMutation.createAppVersionAsync({
+      await AppVersionMutation.createAppVersionAsync(graphqlClient, {
         appId: projectId,
         platform: AppPlatform.Android,
         applicationIdentifier: applicationId,
@@ -239,7 +244,7 @@ export async function resolveRemoteVersionCodeAsync({
       )}.`
     ).start();
     try {
-      await AppVersionMutation.createAppVersionAsync({
+      await AppVersionMutation.createAppVersionAsync(graphqlClient, {
         appId: projectId,
         platform: AppPlatform.Android,
         applicationIdentifier: applicationId,

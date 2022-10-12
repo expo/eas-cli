@@ -1,12 +1,16 @@
 import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../graphql/client';
 import { AppInfoQuery, AppInfoQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
 
-async function projectInfoByIdAsync(appId: string): Promise<AppInfoQuery> {
+async function projectInfoByIdAsync(
+  graphqlClient: ExpoGraphqlClient,
+  appId: string
+): Promise<AppInfoQuery> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .query<AppInfoQuery, AppInfoQueryVariables>(
@@ -34,16 +38,18 @@ export default class ProjectInfo extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(ProjectInfo, {
       nonInteractive: true,
     });
 
-    const { app } = await projectInfoByIdAsync(projectId);
+    const { app } = await projectInfoByIdAsync(graphqlClient, projectId);
     if (!app) {
       throw new Error(`Could not find project with id: ${projectId}`);
     }

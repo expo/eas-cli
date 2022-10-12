@@ -7,9 +7,9 @@ import {
   logEvent,
 } from '../analytics/rudderstackClient';
 import { getUserAsync } from '../user/User';
-import ActorContextField from './context/ActorContextField';
 import ContextField from './context/ContextField';
 import { DynamicProjectConfigContextField } from './context/DynamicProjectConfigContextField';
+import LoggedInContextField from './context/LoggedInContextField';
 import { OptionalProjectConfigContextField } from './context/OptionalProjectConfigContextField';
 import ProjectConfigContextField from './context/ProjectConfigContextField';
 import ProjectDirContextField from './context/ProjectDirContextField';
@@ -36,7 +36,7 @@ export default abstract class EasCommand extends Command {
      * Require this command to be run when logged-in. Returns the logged-in actor in the context.
      */
     LoggedIn: {
-      actor: new ActorContextField(),
+      loggedIn: new LoggedInContextField(),
     },
     /**
      * Require the project to be identified and registered on server if this command is being

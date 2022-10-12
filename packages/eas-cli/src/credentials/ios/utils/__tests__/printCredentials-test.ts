@@ -1,6 +1,8 @@
 import mockdate from 'mockdate';
 import nullthrows from 'nullthrows';
+import { instance, mock } from 'ts-mockito';
 
+import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../../../../log';
 import { IosAppCredentialsQuery } from '../../api/graphql/queries/IosAppCredentialsQuery';
 import { App, Target } from '../../types';
@@ -14,6 +16,7 @@ mockdate.set(new Date('4/20/2021'));
 
 describe('print credentials', () => {
   it('prints the IosAppCredentials map', async () => {
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
     const app: App = {
       account: {
         id: 'account-id',
@@ -23,9 +26,13 @@ describe('print credentials', () => {
       projectName: 'test52',
     };
     const testIosAppCredentialsData =
-      await IosAppCredentialsQuery.withCommonFieldsByAppIdentifierIdAsync('@quinlanj/test52', {
-        appleAppIdentifierId: 'test-id',
-      });
+      await IosAppCredentialsQuery.withCommonFieldsByAppIdentifierIdAsync(
+        graphqlClient,
+        '@quinlanj/test52',
+        {
+          appleAppIdentifierId: 'test-id',
+        }
+      );
     const appCredentials = {
       test52: nullthrows(testIosAppCredentialsData),
     };

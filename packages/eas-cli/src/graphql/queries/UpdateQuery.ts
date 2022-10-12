@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   UpdateFragment,
   ViewUpdateGroupsOnAppQuery,
@@ -14,9 +15,10 @@ import {
 import { UpdateFragmentNode } from '../types/Update';
 
 export const UpdateQuery = {
-  async viewUpdateGroupAsync({
-    groupId,
-  }: ViewUpdatesByGroupQueryVariables): Promise<UpdateFragment[]> {
+  async viewUpdateGroupAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { groupId }: ViewUpdatesByGroupQueryVariables
+  ): Promise<UpdateFragment[]> {
     const { updatesByGroup } = await withErrorHandlingAsync(
       graphqlClient
         .query<ViewUpdatesByGroupQuery, ViewUpdatesByGroupQueryVariables>(
@@ -43,13 +45,10 @@ export const UpdateQuery = {
 
     return updatesByGroup;
   },
-  async viewUpdateGroupsOnBranchAsync({
-    limit,
-    offset,
-    appId,
-    branchName,
-    filter,
-  }: ViewUpdateGroupsOnBranchQueryVariables): Promise<UpdateFragment[][]> {
+  async viewUpdateGroupsOnBranchAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { limit, offset, appId, branchName, filter }: ViewUpdateGroupsOnBranchQueryVariables
+  ): Promise<UpdateFragment[][]> {
     const response = await withErrorHandlingAsync(
       graphqlClient
         .query<ViewUpdateGroupsOnBranchQuery, ViewUpdateGroupsOnBranchQueryVariables>(
@@ -95,12 +94,10 @@ export const UpdateQuery = {
 
     return branch.updateGroups;
   },
-  async viewUpdateGroupsOnAppAsync({
-    limit,
-    offset,
-    appId,
-    filter,
-  }: ViewUpdateGroupsOnAppQueryVariables): Promise<UpdateFragment[][]> {
+  async viewUpdateGroupsOnAppAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { limit, offset, appId, filter }: ViewUpdateGroupsOnAppQueryVariables
+  ): Promise<UpdateFragment[][]> {
     const response = await withErrorHandlingAsync(
       graphqlClient
         .query<ViewUpdateGroupsOnAppQuery, ViewUpdateGroupsOnAppQueryVariables>(

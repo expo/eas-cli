@@ -38,7 +38,7 @@ export class RemovePushKey {
     }
 
     Log.log('Removing Push Key');
-    await ctx.ios.deletePushKeyAsync(this.pushKey.id);
+    await ctx.ios.deletePushKeyAsync(ctx.graphqlClient, this.pushKey.id);
 
     let shouldRevoke = false;
     if (!ctx.nonInteractive) {

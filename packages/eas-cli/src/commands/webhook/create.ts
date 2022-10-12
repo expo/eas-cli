@@ -27,12 +27,14 @@ export default class WebhookCreate extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(WebhookCreate);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(WebhookCreate, {
       nonInteractive: flags['non-interactive'],
     });
@@ -40,7 +42,7 @@ export default class WebhookCreate extends EasCommand {
 
     const spinner = ora('Creating a webhook').start();
     try {
-      await WebhookMutation.createWebhookAsync(projectId, webhookInputParams);
+      await WebhookMutation.createWebhookAsync(graphqlClient, projectId, webhookInputParams);
       spinner.succeed('Successfully created a webhook');
     } catch (err) {
       spinner.fail('Failed to create a webhook');

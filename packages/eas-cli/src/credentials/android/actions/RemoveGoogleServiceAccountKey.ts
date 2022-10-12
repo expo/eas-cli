@@ -15,6 +15,7 @@ export class SelectAndRemoveGoogleServiceAccountKey {
     }
 
     const gsaKeyFragments = await ctx.android.getGoogleServiceAccountKeysForAccountAsync(
+      ctx.graphqlClient,
       this.account
     );
     if (gsaKeyFragments.length === 0) {
@@ -47,6 +48,9 @@ export class RemoveGoogleServiceAccountKey {
     }
 
     Log.log('Removing Google Service Account Key.');
-    await ctx.android.deleteGoogleServiceAccountKeyAsync(this.googleServiceAccountKey);
+    await ctx.android.deleteGoogleServiceAccountKeyAsync(
+      ctx.graphqlClient,
+      this.googleServiceAccountKey
+    );
   }
 }

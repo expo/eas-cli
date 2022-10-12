@@ -5,6 +5,7 @@ import terminalLink from 'terminal-link';
 
 import { getProjectDashboardUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../../commandUtils/context/contextUtils/getProjectIdAsync';
 import { AppPrivacy, Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
@@ -100,6 +101,7 @@ export default class ProjectInit extends EasCommand {
   }
 
   private static async initializeWithInteractiveSelectionAsync(
+    graphqlClient: ExpoGraphqlClient,
     actor: Actor,
     projectDir: string
   ): Promise<void> {
@@ -200,7 +202,7 @@ export default class ProjectInit extends EasCommand {
     const spinner = ora(`Creating ${chalk.bold(projectFullName)}`).start();
     let createdProjectId: string;
     try {
-      createdProjectId = await AppMutation.createAppAsync({
+      createdProjectId = await AppMutation.createAppAsync(graphqlClient, {
         accountId: account.id,
         projectName,
         privacy: toAppPrivacy(exp.privacy) ?? AppPrivacy.Public,
@@ -218,12 +220,15 @@ export default class ProjectInit extends EasCommand {
     const {
       flags: { id, force, 'non-interactive': nonInteractive },
     } = await this.parse(ProjectInit);
-    const { actor, projectDir } = await this.getContextAsync(ProjectInit, { nonInteractive });
+    const {
+      loggedIn: { actor, graphqlClient },
+      projectDir,
+    } = await this.getContextAsync(ProjectInit, { nonInteractive });
 
     if (id) {
       await ProjectInit.initializeWithExplicitIDAsync(id, projectDir, { force, nonInteractive });
     } else {
-      await ProjectInit.initializeWithInteractiveSelectionAsync(actor, projectDir);
+      await ProjectInit.initializeWithInteractiveSelectionAsync(graphqlClient, actor, projectDir);
     }
   }
 }

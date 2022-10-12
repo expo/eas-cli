@@ -1,6 +1,7 @@
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   CodeSigningInfoInput,
   GetSignedUploadMutation,
@@ -12,6 +13,7 @@ import {
 
 export const PublishMutation = {
   async getUploadURLsAsync(
+    graphqlClient: ExpoGraphqlClient,
     contentTypes: string[]
   ): Promise<GetSignedUploadMutation['asset']['getSignedAssetUploadSpecifications']> {
     const data = await withErrorHandlingAsync(
@@ -35,6 +37,7 @@ export const PublishMutation = {
     return data.asset.getSignedAssetUploadSpecifications;
   },
   async publishUpdateGroupAsync(
+    graphqlClient: ExpoGraphqlClient,
     publishUpdateGroupsInput: PublishUpdateGroupInput[]
   ): Promise<UpdatePublishMutation['updateBranch']['publishUpdateGroups']> {
     const data = await withErrorHandlingAsync(
@@ -61,6 +64,7 @@ export const PublishMutation = {
   },
 
   async setCodeSigningInfoAsync(
+    graphqlClient: ExpoGraphqlClient,
     updateId: string,
     codeSigningInfo: CodeSigningInfoInput
   ): Promise<SetCodeSigningInfoMutation['update']['setCodeSigningInfo']> {

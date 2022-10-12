@@ -35,7 +35,7 @@ export class RemoveAscApiKey {
     }
 
     Log.log('Removing API Key');
-    await ctx.ios.deleteAscApiKeyAsync(this.ascApiKey.id);
+    await ctx.ios.deleteAscApiKeyAsync(ctx.graphqlClient, this.ascApiKey.id);
 
     let shouldRevoke = false;
     if (!ctx.nonInteractive) {

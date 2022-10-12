@@ -1,6 +1,7 @@
 import prompts from 'prompts';
 import { instance, mock } from 'ts-mockito';
 
+import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import AppStoreApi from '../../../../credentials/ios/appstore/AppStoreApi';
 import { AccountFragment, Role } from '../../../../graphql/generated';
 import DeviceCreateAction, { RegistrationMethod } from '../action';
@@ -26,6 +27,8 @@ beforeEach(() => {
 describe(DeviceCreateAction, () => {
   describe('#runAsync', () => {
     it('calls runRegistrationUrlMethodAsync if user chooses the website method', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+
       jest.mocked(prompts).mockImplementationOnce(async () => ({
         method: RegistrationMethod.WEBSITE,
       }));
@@ -49,13 +52,15 @@ describe(DeviceCreateAction, () => {
         appleTeamIdentifier: 'ABC123Y',
         appleTeamName: 'John Doe (Individual)',
       };
-      const action = new DeviceCreateAction(appStoreApi, account, appleTeam);
+      const action = new DeviceCreateAction(graphqlClient, appStoreApi, account, appleTeam);
       await action.runAsync();
 
       expect(runRegistrationUrlMethodAsync).toBeCalled();
     });
 
     it('calls runInputMethodAsync if user chooses the input method', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+
       jest.mocked(prompts).mockImplementationOnce(async () => ({
         method: RegistrationMethod.INPUT,
       }));
@@ -79,13 +84,15 @@ describe(DeviceCreateAction, () => {
         appleTeamIdentifier: 'ABC123Y',
         appleTeamName: 'John Doe (Individual)',
       };
-      const action = new DeviceCreateAction(appStoreApi, account, appleTeam);
+      const action = new DeviceCreateAction(graphqlClient, appStoreApi, account, appleTeam);
       await action.runAsync();
 
       expect(runInputMethodAsync).toBeCalled();
     });
 
     it('calls runDeveloperPortalMethodAsync if user chooses the developer portal method', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+
       jest.mocked(prompts).mockImplementationOnce(async () => ({
         method: RegistrationMethod.DEVELOPER_PORTAL,
       }));
@@ -109,7 +116,7 @@ describe(DeviceCreateAction, () => {
         appleTeamIdentifier: 'ABC123Y',
         appleTeamName: 'John Doe (Individual)',
       };
-      const action = new DeviceCreateAction(appStoreApi, account, appleTeam);
+      const action = new DeviceCreateAction(graphqlClient, appStoreApi, account, appleTeam);
       await action.runAsync();
 
       expect(runDeveloperPortalMethodAsync).toBeCalled();

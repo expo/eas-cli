@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import AppStoreApi from '../../../credentials/ios/appstore/AppStoreApi';
 import { AccountFragment, AppleTeam } from '../../../graphql/generated';
 import Log from '../../../log';
@@ -17,6 +18,7 @@ export enum RegistrationMethod {
 
 export default class DeviceCreateAction {
   constructor(
+    private graphqlClient: ExpoGraphqlClient,
     private appStoreApi: AppStoreApi,
     private account: AccountFragment,
     private appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
@@ -25,11 +27,16 @@ export default class DeviceCreateAction {
   public async runAsync(): Promise<RegistrationMethod> {
     const method = await this.askForRegistrationMethodAsync();
     if (method === RegistrationMethod.WEBSITE) {
-      await runRegistrationUrlMethodAsync(this.account.id, this.appleTeam);
+      await runRegistrationUrlMethodAsync(this.graphqlClient, this.account.id, this.appleTeam);
     } else if (method === RegistrationMethod.DEVELOPER_PORTAL) {
-      await runDeveloperPortalMethodAsync(this.appStoreApi, this.account.id, this.appleTeam);
+      await runDeveloperPortalMethodAsync(
+        this.graphqlClient,
+        this.appStoreApi,
+        this.account.id,
+        this.appleTeam
+      );
     } else if (method === RegistrationMethod.INPUT) {
-      await runInputMethodAsync(this.account.id, this.appleTeam);
+      await runInputMethodAsync(this.graphqlClient, this.account.id, this.appleTeam);
     } else if (method === RegistrationMethod.EXIT) {
       Log.log('Bye!');
       process.exit(0);

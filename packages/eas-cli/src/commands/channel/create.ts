@@ -3,8 +3,9 @@ import gql from 'graphql-tag';
 
 import { BranchNotFoundError } from '../../branch/utils';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { withErrorHandlingAsync } from '../../graphql/client';
 import {
   CreateUpdateChannelOnAppMutation,
   CreateUpdateChannelOnAppMutationVariables,
@@ -17,15 +18,18 @@ import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 
-export async function createUpdateChannelOnAppAsync({
-  appId,
-  channelName,
-  branchId,
-}: {
-  appId: string;
-  channelName: string;
-  branchId: string;
-}): Promise<CreateUpdateChannelOnAppMutation> {
+export async function createUpdateChannelOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    appId,
+    channelName,
+    branchId,
+  }: {
+    appId: string;
+    channelName: string;
+    branchId: string;
+  }
+): Promise<CreateUpdateChannelOnAppMutation> {
   // Point the new channel at a branch with its same name.
   const branchMapping = JSON.stringify({
     data: [{ branchId, branchMappingLogic: 'true' }],
@@ -72,6 +76,7 @@ export default class ChannelCreate extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -81,6 +86,7 @@ export default class ChannelCreate extends EasCommand {
     } = await this.parse(ChannelCreate);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelCreate, {
       nonInteractive,
     });
@@ -105,7 +111,7 @@ export default class ChannelCreate extends EasCommand {
     let branchMessage: string;
 
     try {
-      const branch = await BranchQuery.getBranchByNameAsync({
+      const branch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
         appId: projectId,
         name: channelName,
       });
@@ -113,7 +119,7 @@ export default class ChannelCreate extends EasCommand {
       branchMessage = `We found a branch with the same name`;
     } catch (error) {
       if (error instanceof BranchNotFoundError) {
-        const newBranch = await createUpdateBranchOnAppAsync({
+        const newBranch = await createUpdateBranchOnAppAsync(graphqlClient, {
           appId: projectId,
           name: channelName,
         });
@@ -126,7 +132,7 @@ export default class ChannelCreate extends EasCommand {
 
     const {
       updateChannel: { createUpdateChannelForApp: newChannel },
-    } = await createUpdateChannelOnAppAsync({
+    } = await createUpdateChannelOnAppAsync(graphqlClient, {
       appId: projectId,
       channelName,
       branchId,
@@ -144,7 +150,7 @@ export default class ChannelCreate extends EasCommand {
       Log.addNewLineIfNone();
       Log.withTick(
         `Created a new channel on project ${chalk.bold(
-          await getDisplayNameForProjectIdAsync(projectId)
+          await getDisplayNameForProjectIdAsync(graphqlClient, projectId)
         )}`
       );
       Log.log(

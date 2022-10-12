@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   GoogleServiceAccountKeyByAccountQuery,
   GoogleServiceAccountKeyFragment,
@@ -9,7 +10,10 @@ import {
 import { GoogleServiceAccountKeyFragmentNode } from '../../../../../graphql/types/credentials/GoogleServiceAccountKey';
 
 export const GoogleServiceAccountKeyQuery = {
-  async getAllForAccountAsync(accountName: string): Promise<GoogleServiceAccountKeyFragment[]> {
+  async getAllForAccountAsync(
+    graphqlClient: ExpoGraphqlClient,
+    accountName: string
+  ): Promise<GoogleServiceAccountKeyFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<GoogleServiceAccountKeyByAccountQuery>(

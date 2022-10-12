@@ -12,7 +12,7 @@ export class CreatePushKey {
     }
 
     const pushKey = await provideOrGeneratePushKeyAsync(ctx);
-    const result = await ctx.ios.createPushKeyAsync(this.account, pushKey);
+    const result = await ctx.ios.createPushKeyAsync(ctx.graphqlClient, this.account, pushKey);
     Log.succeed('Created push key');
     return result;
   }

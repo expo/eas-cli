@@ -27,12 +27,14 @@ export default class BuildConfigure extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildConfigure);
     const {
       projectConfig: { exp, projectId, projectDir },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildConfigure, {
       nonInteractive: false,
     });
@@ -65,14 +67,14 @@ export default class BuildConfigure extends EasCommand {
       if ([RequestedPlatform.Android, RequestedPlatform.All].includes(platform)) {
         const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
         if (workflow === Workflow.GENERIC) {
-          await syncAndroidUpdatesConfigurationAsync(projectDir, exp, projectId);
+          await syncAndroidUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
         }
       }
 
       if ([RequestedPlatform.Ios, RequestedPlatform.All].includes(platform)) {
         const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
         if (workflow === Workflow.GENERIC) {
-          await syncIosUpdatesConfigurationAsync(projectDir, exp, projectId);
+          await syncIosUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
         }
       }
     }

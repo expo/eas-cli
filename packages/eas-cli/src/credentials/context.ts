@@ -3,6 +3,7 @@ import { Env } from '@expo/eas-build-job';
 import { EasJson } from '@expo/eas-json';
 import chalk from 'chalk';
 
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../log';
 import { getExpoConfig } from '../project/expoConfig';
 import { confirmAsync } from '../prompts';
@@ -24,6 +25,7 @@ export class CredentialsContext {
   public readonly nonInteractive: boolean;
   public readonly projectDir: string;
   public readonly user: Actor;
+  public readonly graphqlClient: ExpoGraphqlClient;
   public readonly easJsonCliConfig?: EasJson['cli'];
 
   private shouldAskAuthenticateAppStore: boolean = true;
@@ -38,12 +40,14 @@ export class CredentialsContext {
       nonInteractive: boolean;
       projectDir: string;
       user: Actor;
+      graphqlClient: ExpoGraphqlClient;
       env?: Env;
     }
   ) {
     this.easJsonCliConfig = options.easJsonCliConfig;
     this.projectDir = options.projectDir;
     this.user = options.user;
+    this.graphqlClient = options.graphqlClient;
     this.nonInteractive = options.nonInteractive ?? false;
     this.projectInfo = options.projectInfo;
   }

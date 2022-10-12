@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   ViewUpdateChannelOnAppQuery,
   ViewUpdateChannelOnAppQueryVariables,
@@ -19,10 +20,10 @@ export type UpdateChannelByNameObject = NonNullable<
 >;
 
 export const ChannelQuery = {
-  async viewUpdateChannelAsync({
-    appId,
-    channelName,
-  }: ViewUpdateChannelOnAppQueryVariables): Promise<UpdateChannelByNameObject> {
+  async viewUpdateChannelAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, channelName }: ViewUpdateChannelOnAppQueryVariables
+  ): Promise<UpdateChannelByNameObject> {
     const response = await withErrorHandlingAsync(
       graphqlClient
         .query<ViewUpdateChannelOnAppQuery, ViewUpdateChannelOnAppQueryVariables>(
@@ -63,11 +64,10 @@ export const ChannelQuery = {
 
     return updateChannelByName;
   },
-  async viewUpdateChannelsOnAppAsync({
-    appId,
-    limit,
-    offset,
-  }: ViewUpdateChannelsOnAppQueryVariables): Promise<UpdateChannelObject[]> {
+  async viewUpdateChannelsOnAppAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, limit, offset }: ViewUpdateChannelsOnAppQueryVariables
+  ): Promise<UpdateChannelObject[]> {
     const response = await withErrorHandlingAsync(
       graphqlClient
         .query<ViewUpdateChannelsOnAppQuery, ViewUpdateChannelsOnAppQueryVariables>(

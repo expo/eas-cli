@@ -2,8 +2,9 @@ import chalk from 'chalk';
 import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { withErrorHandlingAsync } from '../../graphql/client';
 import {
   Build,
   BuildStatus,
@@ -17,7 +18,10 @@ import { appPlatformEmojis } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, selectAsync } from '../../prompts';
 
-async function cancelBuildAsync(buildId: string): Promise<Pick<Build, 'id' | 'status'>> {
+async function cancelBuildAsync(
+  graphqlClient: ExpoGraphqlClient,
+  buildId: string
+): Promise<Pick<Build, 'id' | 'status'>> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .mutation<CancelBuildMutation, CancelBuildMutationVariables>(
@@ -56,6 +60,7 @@ function formatUnfinishedBuild(
 }
 
 export async function selectBuildToCancelAsync(
+  graphqlClient: ExpoGraphqlClient,
   projectId: string,
   projectDisplayName: string
 ): Promise<string | null> {
@@ -64,19 +69,19 @@ export async function selectBuildToCancelAsync(
   let builds;
   try {
     const [newBuilds, inQueueBuilds, inProgressBuilds] = await Promise.all([
-      BuildQuery.viewBuildsOnAppAsync({
+      BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
         appId: projectId,
         offset: 0,
         limit: 10,
         filter: { status: BuildStatus.New },
       }),
-      BuildQuery.viewBuildsOnAppAsync({
+      BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
         appId: projectId,
         offset: 0,
         limit: 10,
         filter: { status: BuildStatus.InQueue },
       }),
-      BuildQuery.viewBuildsOnAppAsync({
+      BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
         appId: projectId,
         offset: 0,
         limit: 10,
@@ -111,9 +116,12 @@ export async function selectBuildToCancelAsync(
   }
 }
 
-async function ensureBuildExistsAsync(buildId: string): Promise<void> {
+async function ensureBuildExistsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  buildId: string
+): Promise<void> {
   try {
-    await BuildQuery.byIdAsync(buildId);
+    await BuildQuery.byIdAsync(graphqlClient, buildId);
   } catch {
     throw new Error(`Couldn't find a build matching the id ${buildId}`);
   }
@@ -130,6 +138,7 @@ export default class BuildCancel extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -139,14 +148,15 @@ export default class BuildCancel extends EasCommand {
     } = await this.parse(BuildCancel);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildCancel, {
       nonInteractive,
     });
 
-    const displayName = await getDisplayNameForProjectIdAsync(projectId);
+    const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
     if (buildIdFromArg) {
-      await ensureBuildExistsAsync(buildIdFromArg);
+      await ensureBuildExistsAsync(graphqlClient, buildIdFromArg);
     }
 
     let buildId: string | null = buildIdFromArg;
@@ -155,7 +165,7 @@ export default class BuildCancel extends EasCommand {
         throw new Error('BUILD_ID must not be empty in non-interactive mode');
       }
 
-      buildId = await selectBuildToCancelAsync(projectId, displayName);
+      buildId = await selectBuildToCancelAsync(graphqlClient, projectId, displayName);
       if (!buildId) {
         return;
       }
@@ -163,7 +173,7 @@ export default class BuildCancel extends EasCommand {
 
     const spinner = ora().start('Canceling the build…');
     try {
-      const { status } = await cancelBuildAsync(buildId);
+      const { status } = await cancelBuildAsync(graphqlClient, buildId);
       if (status === BuildStatus.Canceled) {
         spinner.succeed('Build canceled');
       } else {

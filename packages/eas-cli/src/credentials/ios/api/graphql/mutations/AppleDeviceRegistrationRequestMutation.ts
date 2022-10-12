@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleDeviceRegistrationRequestFragment,
   CreateAppleDeviceRegistrationRequestMutation,
@@ -10,6 +11,7 @@ import { AppleDeviceRegistrationRequestFragmentNode } from '../../../../../graph
 
 export const AppleDeviceRegistrationRequestMutation = {
   async createAppleDeviceRegistrationRequestAsync(
+    graphqlClient: ExpoGraphqlClient,
     appleTeamId: string,
     accountId: string
   ): Promise<AppleDeviceRegistrationRequestFragment> {

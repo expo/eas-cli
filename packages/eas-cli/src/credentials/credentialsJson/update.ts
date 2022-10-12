@@ -210,12 +210,15 @@ async function getTargetBuildCredentialsAsync(
   target: Target,
   iosDistributionType: IosDistributionType
 ): Promise<TargetCredentials | null> {
-  const appCredentials = await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync({
-    account: app.account,
-    projectName: app.projectName,
-    bundleIdentifier: target.bundleIdentifier,
-    parentBundleIdentifier: target.parentBundleIdentifier,
-  });
+  const appCredentials = await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(
+    ctx.graphqlClient,
+    {
+      account: app.account,
+      projectName: app.projectName,
+      bundleIdentifier: target.bundleIdentifier,
+      parentBundleIdentifier: target.parentBundleIdentifier,
+    }
+  );
   const appBuildCredentials =
     appCredentials?.iosAppBuildCredentialsList.find(
       appBuildCredentials => appBuildCredentials.iosDistributionType === iosDistributionType

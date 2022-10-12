@@ -46,7 +46,7 @@ export async function createIosContextAsync(
   const applicationTarget = findApplicationTarget(targets);
   const buildNumberOverride =
     ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
-      ? await resolveRemoteBuildNumberAsync({
+      ? await resolveRemoteBuildNumberAsync(ctx.graphqlClient, {
           projectDir: ctx.projectDir,
           projectId: ctx.projectId,
           exp: ctx.exp,
@@ -72,7 +72,7 @@ export async function prepareIosBuildAsync(
       return ensureIosCredentialsAsync(ctx, ctx.ios.targets);
     },
     syncProjectConfigurationAsync: async () => {
-      await syncProjectConfigurationAsync({
+      await syncProjectConfigurationAsync(ctx.graphqlClient, {
         projectDir: ctx.projectDir,
         exp: ctx.exp,
         targets: ctx.ios.targets,
@@ -100,7 +100,7 @@ export async function prepareIosBuildAsync(
     ): Promise<BuildResult> => {
       const graphqlMetadata = transformMetadata(metadata);
       const graphqlJob = transformJob(job);
-      return await BuildMutation.createIosBuildAsync({
+      return await BuildMutation.createIosBuildAsync(ctx.graphqlClient, {
         appId,
         job: graphqlJob,
         metadata: graphqlMetadata,

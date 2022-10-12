@@ -1,7 +1,9 @@
 import { Platform } from '@expo/eas-build-job';
 import { vol } from 'memfs';
+import { instance, mock } from 'ts-mockito';
 import { v4 as uuidv4 } from 'uuid';
 
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   jester as mockJester,
   testAppQueryByIdResponse,
@@ -35,6 +37,7 @@ const testProject = createTestProject(testProjectId, mockJester.accounts[0].name
 const projectId = uuidv4();
 
 async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platform.IOS>> {
+  const graphqlClient = instance(mock<ExpoGraphqlClient>());
   return await createSubmissionContextAsync({
     platform: Platform.IOS,
     projectDir: testProject.projectRoot,
@@ -46,6 +49,7 @@ async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platfor
     },
     nonInteractive: true,
     actor: mockJester,
+    graphqlClient,
     exp: testProject.appJSON.expo,
     projectId,
   });

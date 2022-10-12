@@ -115,7 +115,7 @@ export async function selectPushKeyAsync(
   ctx: CredentialsContext,
   account: AccountFragment
 ): Promise<ApplePushKeyFragment | null> {
-  const pushKeysForAccount = await ctx.ios.getPushKeysForAccountAsync(account);
+  const pushKeysForAccount = await ctx.ios.getPushKeysForAccountAsync(ctx.graphqlClient, account);
   if (pushKeysForAccount.length === 0) {
     Log.warn(`There are no Push Keys available in your EAS account.`);
     return null;

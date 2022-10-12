@@ -3,6 +3,7 @@ import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   jester as mockJester,
   testProjectId,
@@ -76,6 +77,7 @@ describe(AndroidSubmitCommand, () => {
   describe('non-interactive mode', () => {
     it("throws error if didn't provide serviceAccountKeyPath in the submit profile", async () => {
       const projectId = uuidv4();
+      const graphqlClient = {} as any as ExpoGraphqlClient;
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
@@ -90,6 +92,7 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: true,
         actor: mockJester,
+        graphqlClient,
         exp: testProject.appJSON.expo,
         projectId,
       });
@@ -101,6 +104,7 @@ describe(AndroidSubmitCommand, () => {
   describe('sending submission', () => {
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
+      const graphqlClient = {} as any as ExpoGraphqlClient;
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
@@ -116,13 +120,14 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
+        graphqlClient,
         exp: testProject.appJSON.expo,
         projectId,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
 
-      expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith({
+      expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
         config: {
           archiveUrl: 'http://expo.dev/fake.apk',
@@ -136,6 +141,7 @@ describe(AndroidSubmitCommand, () => {
 
     it('assigns the build ID to submission', async () => {
       const projectId = uuidv4();
+      const graphqlClient = {} as any as ExpoGraphqlClient;
       jest
         .mocked(getRecentBuildsForSubmissionAsync)
         .mockResolvedValueOnce([fakeBuildFragment as BuildFragment]);
@@ -154,13 +160,14 @@ describe(AndroidSubmitCommand, () => {
         },
         nonInteractive: false,
         actor: mockJester,
+        graphqlClient,
         exp: testProject.appJSON.expo,
         projectId,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();
 
-      expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith({
+      expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
         config: {
           googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],

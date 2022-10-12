@@ -19,14 +19,19 @@ export class AssignAscApiKey {
     const appleTeam =
       (await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app)) ?? ascApiKey.appleTeam ?? null;
     const appCredentials = await ctx.ios.createOrGetIosAppCredentialsWithCommonFieldsAsync(
+      ctx.graphqlClient,
       this.app,
       { appleTeam: appleTeam ?? undefined }
     );
     let updatedAppCredentials;
     if (purpose === AppStoreApiKeyPurpose.SUBMISSION_SERVICE) {
-      updatedAppCredentials = await ctx.ios.updateIosAppCredentialsAsync(appCredentials, {
-        ascApiKeyIdForSubmissions: ascApiKey.id,
-      });
+      updatedAppCredentials = await ctx.ios.updateIosAppCredentialsAsync(
+        ctx.graphqlClient,
+        appCredentials,
+        {
+          ascApiKeyIdForSubmissions: ascApiKey.id,
+        }
+      );
     } else {
       throw new Error(`${purpose} is not yet supported.`);
     }

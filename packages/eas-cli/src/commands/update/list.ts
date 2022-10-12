@@ -34,6 +34,7 @@ export default class UpdateList extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -41,6 +42,7 @@ export default class UpdateList extends EasCommand {
     const { branch: branchFlag, all, json: jsonFlag, 'non-interactive': nonInteractive } = flags;
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(UpdateList, {
       nonInteractive,
     });
@@ -51,10 +53,10 @@ export default class UpdateList extends EasCommand {
     }
 
     if (all) {
-      listAndRenderUpdateGroupsOnAppAsync({ projectId, paginatedQueryOptions });
+      listAndRenderUpdateGroupsOnAppAsync(graphqlClient, { projectId, paginatedQueryOptions });
     } else {
       if (branchFlag) {
-        listAndRenderUpdateGroupsOnBranchAsync({
+        listAndRenderUpdateGroupsOnBranchAsync(graphqlClient, {
           projectId,
           branchName: branchFlag,
           paginatedQueryOptions,
@@ -65,7 +67,7 @@ export default class UpdateList extends EasCommand {
           throw new Error(validationMessage);
         }
 
-        const selectedBranch = await selectBranchOnAppAsync({
+        const selectedBranch = await selectBranchOnAppAsync(graphqlClient, {
           projectId,
           promptTitle: 'Which branch would you like to view?',
           displayTextForListItem: updateBranch => updateBranch.name,
@@ -77,7 +79,7 @@ export default class UpdateList extends EasCommand {
               offset: 0,
             },
         });
-        listAndRenderUpdateGroupsOnBranchAsync({
+        listAndRenderUpdateGroupsOnBranchAsync(graphqlClient, {
           projectId,
           branchName: selectedBranch.name,
           paginatedQueryOptions,

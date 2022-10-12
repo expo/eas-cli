@@ -34,6 +34,7 @@ export default class UpdateConfigure extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -43,6 +44,7 @@ export default class UpdateConfigure extends EasCommand {
     const { flags } = await this.parse(UpdateConfigure);
     const {
       projectConfig: { projectId, exp, projectDir },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(UpdateConfigure, {
       nonInteractive: true,
     });
@@ -74,14 +76,14 @@ export default class UpdateConfigure extends EasCommand {
       [RequestedPlatform.Android, RequestedPlatform.All].includes(platform) &&
       androidWorkflow === Workflow.GENERIC
     ) {
-      await syncAndroidUpdatesConfigurationAsync(projectDir, updatedExp, projectId);
+      await syncAndroidUpdatesConfigurationAsync(graphqlClient, projectDir, updatedExp, projectId);
       Log.withTick(`Configured ${chalk.bold('AndroidManifest.xml')} for EAS Update`);
     }
     if (
       [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
       iosWorkflow === Workflow.GENERIC
     ) {
-      await syncIosUpdatesConfigurationAsync(projectDir, updatedExp, projectId);
+      await syncIosUpdatesConfigurationAsync(graphqlClient, projectDir, updatedExp, projectId);
       Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
     }
 

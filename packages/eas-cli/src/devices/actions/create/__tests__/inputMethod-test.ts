@@ -1,5 +1,7 @@
 import prompts from 'prompts';
+import { instance, mock } from 'ts-mockito';
 
+import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppleDeviceMutation } from '../../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
 import { AppleDeviceClass, AppleTeam } from '../../../../graphql/generated';
 import { runInputMethodAsync } from '../inputMethod';
@@ -22,6 +24,7 @@ describe(runInputMethodAsync, () => {
     mockDeviceData('b12cba9856d89c932ab7a4b813c4d932534e1679', 'my iPad', AppleDeviceClass.Ipad);
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: false }));
 
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
     const accountId = 'account-id';
     // @ts-expect-error appleTeam is missing properties of AppleTeam GraphQL type
     const appleTeam: AppleTeam = {
@@ -30,7 +33,7 @@ describe(runInputMethodAsync, () => {
       appleTeamName: 'John Doe (Individual)',
     };
 
-    await runInputMethodAsync(accountId, appleTeam);
+    await runInputMethodAsync(graphqlClient, accountId, appleTeam);
 
     expect(AppleDeviceMutation.createAppleDeviceAsync).toHaveBeenCalledTimes(2);
   });

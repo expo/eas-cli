@@ -3,8 +3,9 @@ import gql from 'graphql-tag';
 
 import { getDefaultBranchNameAsync } from '../../branch/utils';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { withErrorHandlingAsync } from '../../graphql/client';
 import {
   CreateUpdateBranchForAppMutation,
   CreateUpdateBranchForAppMutationVariables,
@@ -15,10 +16,10 @@ import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-export async function createUpdateBranchOnAppAsync({
-  appId,
-  name,
-}: CreateUpdateBranchForAppMutationVariables): Promise<Pick<UpdateBranch, 'id' | 'name'>> {
+export async function createUpdateBranchOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { appId, name }: CreateUpdateBranchForAppMutationVariables
+): Promise<Pick<UpdateBranch, 'id' | 'name'>> {
   const result = await withErrorHandlingAsync(
     graphqlClient
       .mutation<CreateUpdateBranchForAppMutation, CreateUpdateBranchForAppMutationVariables>(
@@ -63,6 +64,7 @@ export default class BranchCreate extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -72,6 +74,7 @@ export default class BranchCreate extends EasCommand {
     } = await this.parse(BranchCreate);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchCreate, {
       nonInteractive,
     });
@@ -80,7 +83,7 @@ export default class BranchCreate extends EasCommand {
       enableJsonOutput();
     }
 
-    const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
+    const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
     if (!name) {
       const validationMessage = 'Branch name may not be empty.';
@@ -96,7 +99,7 @@ export default class BranchCreate extends EasCommand {
       }));
     }
 
-    const newBranch = await createUpdateBranchOnAppAsync({ appId: projectId, name });
+    const newBranch = await createUpdateBranchOnAppAsync(graphqlClient, { appId: projectId, name });
 
     if (jsonFlag) {
       printJsonOnlyOutput(newBranch);

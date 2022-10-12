@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { BuildFilter, BuildFragment } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
@@ -10,19 +11,22 @@ import { formatGraphQLBuild } from './utils/formatBuild';
 
 export const BUILDS_LIMIT = 50;
 
-export async function listAndRenderBuildsOnAppAsync({
-  projectId,
-  projectDisplayName,
-  filter,
-  paginatedQueryOptions,
-}: {
-  projectId: string;
-  projectDisplayName: string;
-  filter?: BuildFilter;
-  paginatedQueryOptions: PaginatedQueryOptions;
-}): Promise<void> {
+export async function listAndRenderBuildsOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    projectDisplayName,
+    filter,
+    paginatedQueryOptions,
+  }: {
+    projectId: string;
+    projectDisplayName: string;
+    filter?: BuildFilter;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<void> {
   if (paginatedQueryOptions.nonInteractive) {
-    const builds = await BuildQuery.viewBuildsOnAppAsync({
+    const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
       appId: projectId,
       limit: paginatedQueryOptions.limit ?? BUILDS_LIMIT,
       offset: paginatedQueryOptions.offset,
@@ -34,7 +38,7 @@ export async function listAndRenderBuildsOnAppAsync({
       limit: paginatedQueryOptions.limit ?? BUILDS_LIMIT,
       offset: paginatedQueryOptions.offset,
       queryToPerform: (limit, offset) =>
-        BuildQuery.viewBuildsOnAppAsync({
+        BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
           appId: projectId,
           limit,
           offset,

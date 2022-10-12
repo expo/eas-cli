@@ -1,5 +1,6 @@
 import { Device, DeviceClass } from '@expo/apple-utils';
 
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
 import {
   AppleDeviceFragmentWithAppleTeam,
@@ -21,12 +22,14 @@ const DEVICE_CLASS_TO_GRAPHQL_TYPE: Partial<Record<DeviceClass, AppleDeviceClass
 };
 
 export async function runDeveloperPortalMethodAsync(
+  graphqlClient: ExpoGraphqlClient,
   appStoreApi: AppStoreApi,
   accountId: string,
   appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
 ): Promise<void> {
   const appleAuthCtx = await appStoreApi.ensureAuthenticatedAsync();
   const unregisteredPortalDevices = await findUnregisteredPortalDevicesAsync(
+    graphqlClient,
     appleAuthCtx,
     accountId,
     appleTeam
@@ -36,10 +39,11 @@ export async function runDeveloperPortalMethodAsync(
     return;
   }
   const devicesToImport = await chooseDevicesToImportAsync(unregisteredPortalDevices);
-  await importDevicesAsync(accountId, appleTeam, devicesToImport);
+  await importDevicesAsync(graphqlClient, accountId, appleTeam, devicesToImport);
 }
 
 async function importDevicesAsync(
+  graphqlClient: ExpoGraphqlClient,
   accountId: string,
   appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>,
   devices: Device[]
@@ -50,7 +54,7 @@ async function importDevicesAsync(
   const deviceChunks = chunk(devices, DEVICE_IMPORT_CHUNK_SIZE);
   try {
     for (const deviceChunk of deviceChunks) {
-      await importDeviceChunkAsync(accountId, appleTeam, deviceChunk);
+      await importDeviceChunkAsync(graphqlClient, accountId, appleTeam, deviceChunk);
     }
   } catch (err) {
     spinner.fail();
@@ -60,12 +64,14 @@ async function importDevicesAsync(
 }
 
 async function importDeviceChunkAsync(
+  graphqlClient: ExpoGraphqlClient,
   accountId: string,
   appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>,
   devices: Device[]
 ): Promise<void> {
   const promises = devices.map(device => {
     return AppleDeviceMutation.createAppleDeviceAsync(
+      graphqlClient,
       {
         appleTeamId: appleTeam.id,
         identifier: device.attributes.udid,
@@ -79,11 +85,13 @@ async function importDeviceChunkAsync(
 }
 
 async function findUnregisteredPortalDevicesAsync(
+  graphqlClient: ExpoGraphqlClient,
   appleAuthCtx: AuthCtx,
   accountId: string,
   appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
 ): Promise<Device[]> {
   const expoRegisteredDevices = await AppleDeviceQuery.getAllByAppleTeamIdentifierAsync(
+    graphqlClient,
     accountId,
     appleTeam.appleTeamIdentifier,
     { useCache: false }

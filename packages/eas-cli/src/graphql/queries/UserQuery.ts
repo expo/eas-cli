@@ -1,12 +1,13 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import { CurrentUserQuery } from '../generated';
 import { AccountFragmentNode } from '../types/Account';
 
 export const UserQuery = {
-  async currentUserAsync(): Promise<CurrentUserQuery['meActor']> {
+  async currentUserAsync(graphqlClient: ExpoGraphqlClient): Promise<CurrentUserQuery['meActor']> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<CurrentUserQuery>(

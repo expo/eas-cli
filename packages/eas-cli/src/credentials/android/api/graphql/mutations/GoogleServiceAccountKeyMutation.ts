@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   CreateGoogleServiceAccountKeyMutation,
   DeleteGoogleServiceAccountKeyMutation,
@@ -13,6 +14,7 @@ import { GoogleServiceAccountKeyFragmentNode } from '../../../../../graphql/type
 
 export const GoogleServiceAccountKeyMutation = {
   async createGoogleServiceAccountKeyAsync(
+    graphqlClient: ExpoGraphqlClient,
     googleServiceAccountKeyInput: GoogleServiceAccountKeyInput,
     accountId: string
   ): Promise<GoogleServiceAccountKeyFragment> {
@@ -49,7 +51,10 @@ export const GoogleServiceAccountKeyMutation = {
     );
     return data.googleServiceAccountKey.createGoogleServiceAccountKey;
   },
-  async deleteGoogleServiceAccountKeyAsync(googleServiceAccountKeyId: string): Promise<void> {
+  async deleteGoogleServiceAccountKeyAsync(
+    graphqlClient: ExpoGraphqlClient,
+    googleServiceAccountKeyId: string
+  ): Promise<void> {
     await withErrorHandlingAsync(
       graphqlClient
         .mutation<DeleteGoogleServiceAccountKeyMutation>(

@@ -65,6 +65,7 @@ export class ManageIos {
       projectDir: process.cwd(),
       projectInfo: this.callingAction.projectInfo,
       user: this.callingAction.actor,
+      graphqlClient: this.callingAction.graphqlClient,
       env: buildProfile?.env,
       nonInteractive: false,
     });
@@ -75,7 +76,7 @@ export class ManageIos {
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
     const getAccountForProjectAsync = async (projectId: string): Promise<AccountFragment> => {
-      return await getOwnerAccountForProjectIdAsync(projectId);
+      return await getOwnerAccountForProjectIdAsync(ctx.graphqlClient, projectId);
     };
 
     const account = ctx.hasProjectContext
@@ -99,7 +100,10 @@ export class ManageIos {
           for (const target of targets) {
             const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, target);
             iosAppCredentialsMap[target.targetName] =
-              await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(appLookupParams);
+              await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(
+                ctx.graphqlClient,
+                appLookupParams
+              );
           }
           displayIosCredentials(app, iosAppCredentialsMap, targets);
         }
@@ -283,6 +287,7 @@ export class ManageIos {
       }
       case IosActionType.RemoveProvisioningProfile: {
         const iosAppCredentials = await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(
+          ctx.graphqlClient,
           appLookupParams
         );
         const provisioningProfile = iosAppCredentials?.iosAppBuildCredentialsList.find(

@@ -2,7 +2,8 @@ import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../../../../../graphql/client';
+import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleAppIdentifierFragment,
   AppleDeviceFragment,
@@ -21,6 +22,7 @@ export type AppleProvisioningProfileQueryResult = AppleProvisioningProfileFragme
 } & { appleDevices: AppleDeviceFragment[] } & { appleAppIdentifier: AppleAppIdentifierFragment };
 export const AppleProvisioningProfileQuery = {
   async getForAppAsync(
+    graphqlClient: ExpoGraphqlClient,
     projectFullName: string,
     {
       appleAppIdentifierId,

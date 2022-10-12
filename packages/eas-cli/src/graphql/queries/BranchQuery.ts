@@ -2,7 +2,8 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { BranchNotFoundError } from '../../branch/utils';
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   BranchesByAppQuery,
   BranchesByAppQueryVariables,
@@ -20,12 +21,10 @@ export type UpdateBranchOnChannelObject = NonNullable<
 >['updateBranches'][number];
 
 export const BranchQuery = {
-  async getBranchByNameAsync({
-    appId,
-    name,
-  }: ViewBranchQueryVariables): Promise<
-    NonNullable<ViewBranchQuery['app']['byId']['updateBranchByName']>
-  > {
+  async getBranchByNameAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, name }: ViewBranchQueryVariables
+  ): Promise<NonNullable<ViewBranchQuery['app']['byId']['updateBranchByName']>> {
     const response = await withErrorHandlingAsync<ViewBranchQuery>(
       graphqlClient
         .query<ViewBranchQuery, ViewBranchQueryVariables>(
@@ -56,11 +55,10 @@ export const BranchQuery = {
     }
     return updateBranchByName;
   },
-  async listBranchesOnAppAsync({
-    appId,
-    limit,
-    offset,
-  }: BranchesByAppQueryVariables): Promise<UpdateBranchFragment[]> {
+  async listBranchesOnAppAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, limit, offset }: BranchesByAppQueryVariables
+  ): Promise<UpdateBranchFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<BranchesByAppQuery, BranchesByAppQueryVariables>(
@@ -90,12 +88,10 @@ export const BranchQuery = {
 
     return data?.app?.byId.updateBranches ?? [];
   },
-  async listBranchesOnChannelAsync({
-    appId,
-    channelName,
-    offset,
-    limit,
-  }: ViewBranchesOnUpdateChannelQueryVariables): Promise<UpdateBranchOnChannelObject[]> {
+  async listBranchesOnChannelAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, channelName, offset, limit }: ViewBranchesOnUpdateChannelQueryVariables
+  ): Promise<UpdateBranchOnChannelObject[]> {
     const response = await withErrorHandlingAsync(
       graphqlClient
         .query<ViewBranchesOnUpdateChannelQuery, ViewBranchesOnUpdateChannelQueryVariables>(

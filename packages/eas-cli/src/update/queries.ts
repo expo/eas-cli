@@ -2,6 +2,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 import CliTable from 'cli-table3';
 
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import {
   UpdateFragment,
@@ -27,15 +28,18 @@ import {
 export const UPDATES_LIMIT = 50;
 export const UPDATE_GROUPS_LIMIT = 25;
 
-export async function listAndRenderUpdateGroupsOnAppAsync({
-  projectId,
-  paginatedQueryOptions,
-}: {
-  projectId: string;
-  paginatedQueryOptions: PaginatedQueryOptions;
-}): Promise<void> {
+export async function listAndRenderUpdateGroupsOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    paginatedQueryOptions,
+  }: {
+    projectId: string;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<void> {
   if (paginatedQueryOptions.nonInteractive) {
-    const updateGroups = await queryUpdateGroupsOnAppAsync({
+    const updateGroups = await queryUpdateGroupsOnAppAsync(graphqlClient, {
       limit: paginatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
       offset: paginatedQueryOptions.offset,
       appId: projectId,
@@ -46,7 +50,7 @@ export async function listAndRenderUpdateGroupsOnAppAsync({
       limit: paginatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
       offset: paginatedQueryOptions.offset,
       queryToPerform: (limit, offset) =>
-        queryUpdateGroupsOnAppAsync({ limit, offset, appId: projectId }),
+        queryUpdateGroupsOnAppAsync(graphqlClient, { limit, offset, appId: projectId }),
       promptOptions: {
         title: 'Load more update groups?',
         renderListItems: updateGroups =>
@@ -56,17 +60,20 @@ export async function listAndRenderUpdateGroupsOnAppAsync({
   }
 }
 
-export async function listAndRenderUpdateGroupsOnBranchAsync({
-  projectId,
-  branchName,
-  paginatedQueryOptions,
-}: {
-  projectId: string;
-  branchName: string;
-  paginatedQueryOptions: PaginatedQueryOptions;
-}): Promise<void> {
+export async function listAndRenderUpdateGroupsOnBranchAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    branchName,
+    paginatedQueryOptions,
+  }: {
+    projectId: string;
+    branchName: string;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<void> {
   if (paginatedQueryOptions.nonInteractive) {
-    const updateGroups = await queryUpdateGroupsOnBranchAsync({
+    const updateGroups = await queryUpdateGroupsOnBranchAsync(graphqlClient, {
       limit: paginatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
       offset: paginatedQueryOptions.offset,
       appId: projectId,
@@ -78,7 +85,12 @@ export async function listAndRenderUpdateGroupsOnBranchAsync({
       limit: paginatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
       offset: paginatedQueryOptions.offset,
       queryToPerform: (limit, offset) =>
-        queryUpdateGroupsOnBranchAsync({ limit, offset, appId: projectId, branchName }),
+        queryUpdateGroupsOnBranchAsync(graphqlClient, {
+          limit,
+          offset,
+          appId: projectId,
+          branchName,
+        }),
       promptOptions: {
         title: 'Load more update groups?',
         renderListItems: updateGroups =>
@@ -88,15 +100,18 @@ export async function listAndRenderUpdateGroupsOnBranchAsync({
   }
 }
 
-export async function selectUpdateGroupOnBranchAsync({
-  projectId,
-  branchName,
-  paginatedQueryOptions,
-}: {
-  projectId: string;
-  branchName: string;
-  paginatedQueryOptions: PaginatedQueryOptions;
-}): Promise<UpdateFragment[]> {
+export async function selectUpdateGroupOnBranchAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    branchName,
+    paginatedQueryOptions,
+  }: {
+    projectId: string;
+    branchName: string;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<UpdateFragment[]> {
   if (paginatedQueryOptions.nonInteractive) {
     throw new Error('Unable to select an update in non-interactive mode.');
   }
@@ -105,7 +120,12 @@ export async function selectUpdateGroupOnBranchAsync({
     limit: paginatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
     offset: paginatedQueryOptions.offset,
     queryToPerform: (limit, offset) =>
-      queryUpdateGroupsOnBranchAsync({ appId: projectId, branchName, limit, offset }),
+      queryUpdateGroupsOnBranchAsync(graphqlClient, {
+        appId: projectId,
+        branchName,
+        limit,
+        offset,
+      }),
     promptOptions: {
       title: 'Load more update groups?',
       createDisplayTextForSelectionPromptListItem: updateGroup => formatUpdateTitle(updateGroup[0]),
@@ -121,15 +141,17 @@ export async function selectUpdateGroupOnBranchAsync({
 }
 
 async function queryUpdateGroupsOnBranchAsync(
+  graphqlClient: ExpoGraphqlClient,
   args: ViewUpdateGroupsOnBranchQueryVariables
 ): Promise<UpdateFragment[][]> {
-  return await UpdateQuery.viewUpdateGroupsOnBranchAsync(args);
+  return await UpdateQuery.viewUpdateGroupsOnBranchAsync(graphqlClient, args);
 }
 
 async function queryUpdateGroupsOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
   args: ViewUpdateGroupsOnAppQueryVariables
 ): Promise<UpdateFragment[][]> {
-  return await UpdateQuery.viewUpdateGroupsOnAppAsync(args);
+  return await UpdateQuery.viewUpdateGroupsOnAppAsync(graphqlClient, args);
 }
 
 function renderUpdateGroupsOnBranchAsTable({

@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   CreateEnvironmentSecretForAccountMutation,
   CreateEnvironmentSecretForAppMutation,
@@ -13,6 +14,7 @@ import { EnvironmentSecretFragmentNode } from '../types/EnvironmentSecret';
 
 export const EnvironmentSecretMutation = {
   async createForAccountAsync(
+    graphqlClient: ExpoGraphqlClient,
     input: { name: string; value: string; type: EnvironmentSecretType },
     accountId: string
   ): Promise<EnvironmentSecretFragment> {
@@ -44,6 +46,7 @@ export const EnvironmentSecretMutation = {
     return data.environmentSecret.createEnvironmentSecretForAccount;
   },
   async createForAppAsync(
+    graphqlClient: ExpoGraphqlClient,
     input: { name: string; value: string; type: EnvironmentSecretType },
     appId: string
   ): Promise<EnvironmentSecretFragment> {
@@ -71,7 +74,7 @@ export const EnvironmentSecretMutation = {
 
     return data.environmentSecret.createEnvironmentSecretForApp;
   },
-  async deleteAsync(id: string): Promise<{ id: string }> {
+  async deleteAsync(graphqlClient: ExpoGraphqlClient, id: string): Promise<{ id: string }> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<DeleteEnvironmentSecretMutation>(

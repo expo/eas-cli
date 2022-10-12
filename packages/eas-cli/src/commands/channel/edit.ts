@@ -5,8 +5,9 @@ import gql from 'graphql-tag';
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { graphqlClient, withErrorHandlingAsync } from '../../graphql/client';
+import { withErrorHandlingAsync } from '../../graphql/client';
 import {
   UpdateChannelBranchMappingMutation,
   UpdateChannelBranchMappingMutationVariables,
@@ -16,12 +17,10 @@ import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-export async function updateChannelBranchMappingAsync({
-  channelId,
-  branchMapping,
-}: UpdateChannelBranchMappingMutationVariables): Promise<
-  UpdateChannelBranchMappingMutation['updateChannel']['editUpdateChannel']
-> {
+export async function updateChannelBranchMappingAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { channelId, branchMapping }: UpdateChannelBranchMappingMutationVariables
+): Promise<UpdateChannelBranchMappingMutation['updateChannel']['editUpdateChannel']> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .mutation<UpdateChannelBranchMappingMutation, UpdateChannelBranchMappingMutationVariables>(
@@ -67,6 +66,7 @@ export default class ChannelEdit extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -76,6 +76,7 @@ export default class ChannelEdit extends EasCommand {
     } = await this.parse(ChannelEdit);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelEdit, {
       nonInteractive,
     });
@@ -84,8 +85,11 @@ export default class ChannelEdit extends EasCommand {
     }
 
     const existingChannel = args.name
-      ? await ChannelQuery.viewUpdateChannelAsync({ appId: projectId, channelName: args.name })
-      : await selectChannelOnAppAsync({
+      ? await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
+          appId: projectId,
+          channelName: args.name,
+        })
+      : await selectChannelOnAppAsync(graphqlClient, {
           projectId,
           selectionPromptTitle: 'Select a channel to edit',
           paginatedQueryOptions: { json, nonInteractive, offset: 0 },
@@ -96,11 +100,11 @@ export default class ChannelEdit extends EasCommand {
     }
 
     const branch = branchFlag
-      ? await BranchQuery.getBranchByNameAsync({
+      ? await BranchQuery.getBranchByNameAsync(graphqlClient, {
           appId: projectId,
           name: branchFlag,
         })
-      : await selectBranchOnAppAsync({
+      : await selectBranchOnAppAsync(graphqlClient, {
           projectId,
           promptTitle: `Which branch would you like ${existingChannel.name} to point at?`,
           displayTextForListItem: updateBranch => updateBranch.name,
@@ -111,7 +115,7 @@ export default class ChannelEdit extends EasCommand {
           },
         });
 
-    const channel = await updateChannelBranchMappingAsync({
+    const channel = await updateChannelBranchMappingAsync(graphqlClient, {
       channelId: existingChannel.id,
       // todo: move branch mapping logic to utility
       branchMapping: JSON.stringify({

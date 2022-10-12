@@ -1,7 +1,8 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { graphqlClient, withErrorHandlingAsync } from '../client';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { withErrorHandlingAsync } from '../client';
 import {
   CreateWebhookMutation,
   CreateWebhookMutationVariables,
@@ -15,7 +16,11 @@ import {
 import { WebhookFragmentNode } from '../types/Webhook';
 
 export const WebhookMutation = {
-  async createWebhookAsync(appId: string, webhookInput: WebhookInput): Promise<WebhookFragment> {
+  async createWebhookAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appId: string,
+    webhookInput: WebhookInput
+  ): Promise<WebhookFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<CreateWebhookMutation, CreateWebhookMutationVariables>(
@@ -37,6 +42,7 @@ export const WebhookMutation = {
     return data.webhook.createWebhook;
   },
   async updateWebhookAsync(
+    graphqlClient: ExpoGraphqlClient,
     webhookId: string,
     webhookInput: WebhookInput
   ): Promise<WebhookFragment> {
@@ -60,7 +66,7 @@ export const WebhookMutation = {
     );
     return data.webhook.updateWebhook;
   },
-  async deleteWebhookAsync(webhookId: string): Promise<void> {
+  async deleteWebhookAsync(graphqlClient: ExpoGraphqlClient, webhookId: string): Promise<void> {
     await withErrorHandlingAsync(
       graphqlClient
         .mutation<DeleteWebhookMutation, DeleteWebhookMutationVariables>(

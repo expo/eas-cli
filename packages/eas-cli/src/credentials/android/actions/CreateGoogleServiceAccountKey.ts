@@ -20,6 +20,7 @@ export class CreateGoogleServiceAccountKey {
     }
     const jsonKeyObject = await this.provideAsync(ctx);
     const gsaKeyFragment = await ctx.android.createGoogleServiceAccountKeyAsync(
+      ctx.graphqlClient,
       this.account,
       jsonKeyObject
     );

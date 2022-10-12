@@ -2,6 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 
 import { withAnalyticsAsync } from '../analytics/common';
 import { Event, SubmissionEvent } from '../analytics/events';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AndroidSubmissionConfigInput,
   IosSubmissionConfigInput,
@@ -78,7 +79,10 @@ export default abstract class BaseSubmitter<
     const platformDisplayName = appPlatformDisplayNames[toAppPlatform(this.ctx.platform)];
     const scheduleSpinner = ora(`Scheduling ${platformDisplayName} submission`).start();
     try {
-      const submission = this.createPlatformSubmissionAsync(submissionInput);
+      const submission = this.createPlatformSubmissionAsync(
+        this.ctx.graphqlClient,
+        submissionInput
+      );
       scheduleSpinner.succeed(`Scheduled ${platformDisplayName} submission`);
       return submission;
     } catch (err) {
@@ -102,6 +106,7 @@ export default abstract class BaseSubmitter<
   }
 
   protected abstract createPlatformSubmissionAsync(
+    graphqlClient: ExpoGraphqlClient,
     input: SubmissionInput<P>
   ): Promise<SubmissionFragment>;
 }

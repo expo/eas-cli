@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import {
   ViewBranchesOnUpdateChannelQueryVariables,
@@ -18,15 +19,18 @@ import { logChannelDetails } from './utils';
 
 export const CHANNELS_LIMIT = 25;
 
-export async function selectChannelOnAppAsync({
-  projectId,
-  selectionPromptTitle,
-  paginatedQueryOptions,
-}: {
-  projectId: string;
-  selectionPromptTitle: string;
-  paginatedQueryOptions: PaginatedQueryOptions;
-}): Promise<UpdateChannelObject> {
+export async function selectChannelOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    selectionPromptTitle,
+    paginatedQueryOptions,
+  }: {
+    projectId: string;
+    selectionPromptTitle: string;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<UpdateChannelObject> {
   if (paginatedQueryOptions.nonInteractive) {
     throw new Error('Unable to select a channel in non-interactive mode.');
   }
@@ -34,7 +38,8 @@ export async function selectChannelOnAppAsync({
   const updateChannel = await paginatedQueryWithSelectPromptAsync({
     limit: paginatedQueryOptions.limit ?? CHANNELS_LIMIT,
     offset: paginatedQueryOptions.offset,
-    queryToPerform: (limit, offset) => queryChannelsOnAppAsync({ appId: projectId, limit, offset }),
+    queryToPerform: (limit, offset) =>
+      queryChannelsOnAppAsync(graphqlClient, { appId: projectId, limit, offset }),
     promptOptions: {
       title: selectionPromptTitle,
       createDisplayTextForSelectionPromptListItem: updateChannel => updateChannel.name,
@@ -48,15 +53,18 @@ export async function selectChannelOnAppAsync({
   return updateChannel;
 }
 
-export async function listAndRenderChannelsOnAppAsync({
-  projectId,
-  paginatedQueryOptions,
-}: {
-  projectId: string;
-  paginatedQueryOptions: PaginatedQueryOptions;
-}): Promise<void> {
+export async function listAndRenderChannelsOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    paginatedQueryOptions,
+  }: {
+    projectId: string;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<void> {
   if (paginatedQueryOptions.nonInteractive) {
-    const channels = await queryChannelsOnAppAsync({
+    const channels = await queryChannelsOnAppAsync(graphqlClient, {
       appId: projectId,
       limit: paginatedQueryOptions.limit ?? CHANNELS_LIMIT,
       offset: paginatedQueryOptions.offset,
@@ -67,7 +75,7 @@ export async function listAndRenderChannelsOnAppAsync({
       limit: paginatedQueryOptions.limit ?? CHANNELS_LIMIT,
       offset: paginatedQueryOptions.offset,
       queryToPerform: (limit, offset) =>
-        queryChannelsOnAppAsync({ limit, offset, appId: projectId }),
+        queryChannelsOnAppAsync(graphqlClient, { limit, offset, appId: projectId }),
       promptOptions: {
         title: 'Load more channels?',
         renderListItems: channels => renderPageOfChannels(channels, paginatedQueryOptions),
@@ -76,20 +84,23 @@ export async function listAndRenderChannelsOnAppAsync({
   }
 }
 
-export async function listAndRenderBranchesAndUpdatesOnChannelAsync({
-  projectId: appId,
-  channelName,
-  paginatedQueryOptions,
-}: {
-  projectId: string;
-  channelName: string;
-  paginatedQueryOptions: PaginatedQueryOptions;
-}): Promise<void> {
-  const channel = await ChannelQuery.viewUpdateChannelAsync({ appId, channelName });
+export async function listAndRenderBranchesAndUpdatesOnChannelAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId: appId,
+    channelName,
+    paginatedQueryOptions,
+  }: {
+    projectId: string;
+    channelName: string;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<void> {
+  const channel = await ChannelQuery.viewUpdateChannelAsync(graphqlClient, { appId, channelName });
   renderChannelHeaderContent({ channelName: channel.name, channelId: channel.id });
 
   if (paginatedQueryOptions.nonInteractive) {
-    const branches = await queryBranchesAndUpdateGroupsOnChannelAsync({
+    const branches = await queryBranchesAndUpdateGroupsOnChannelAsync(graphqlClient, {
       appId,
       channelName,
       offset: paginatedQueryOptions.offset,
@@ -101,7 +112,7 @@ export async function listAndRenderBranchesAndUpdatesOnChannelAsync({
       limit: paginatedQueryOptions.limit ?? CHANNELS_LIMIT,
       offset: paginatedQueryOptions.offset,
       queryToPerform: (limit, offset) =>
-        queryBranchesAndUpdateGroupsOnChannelAsync({
+        queryBranchesAndUpdateGroupsOnChannelAsync(graphqlClient, {
           channelName,
           appId,
           offset,
@@ -116,12 +127,11 @@ export async function listAndRenderBranchesAndUpdatesOnChannelAsync({
   }
 }
 
-async function queryChannelsOnAppAsync({
-  appId,
-  offset,
-  limit,
-}: ViewUpdateChannelsOnAppQueryVariables): Promise<UpdateChannelObject[]> {
-  return await ChannelQuery.viewUpdateChannelsOnAppAsync({
+async function queryChannelsOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { appId, offset, limit }: ViewUpdateChannelsOnAppQueryVariables
+): Promise<UpdateChannelObject[]> {
+  return await ChannelQuery.viewUpdateChannelsOnAppAsync(graphqlClient, {
     appId,
     offset,
     limit,
@@ -129,9 +139,10 @@ async function queryChannelsOnAppAsync({
 }
 
 async function queryBranchesAndUpdateGroupsOnChannelAsync(
+  graphqlClient: ExpoGraphqlClient,
   args: ViewBranchesOnUpdateChannelQueryVariables
 ): Promise<UpdateBranchOnChannelObject[]> {
-  return await BranchQuery.listBranchesOnChannelAsync(args);
+  return await BranchQuery.listBranchesOnChannelAsync(graphqlClient, args);
 }
 
 function renderPageOfChannels(

@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { TrackingContext } from '../analytics/common';
 import { Analytics, SubmissionEvent } from '../analytics/events';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { Actor } from '../user/User';
@@ -22,6 +23,7 @@ export interface SubmissionContext<T extends Platform> {
   projectId: string;
   projectName: string;
   user: Actor;
+  graphqlClient: ExpoGraphqlClient;
   applicationIdentifierOverride?: string;
 }
 
@@ -42,19 +44,29 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   projectDir: string;
   applicationIdentifier?: string;
   actor: Actor;
+  graphqlClient: ExpoGraphqlClient;
   exp: ExpoConfig;
   projectId: string;
 }): Promise<SubmissionContext<T>> {
-  const { applicationIdentifier, projectDir, nonInteractive, actor, exp, projectId } = params;
+  const {
+    applicationIdentifier,
+    projectDir,
+    nonInteractive,
+    actor,
+    exp,
+    projectId,
+    graphqlClient,
+  } = params;
   const { env, ...rest } = params;
   const projectName = exp.slug;
-  const account = await getOwnerAccountForProjectIdAsync(projectId);
+  const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
   const accountId = account.id;
   let credentialsCtx: CredentialsContext | undefined = params.credentialsCtx;
   if (!credentialsCtx) {
     credentialsCtx = new CredentialsContext({
       projectDir,
       user: actor,
+      graphqlClient,
       projectInfo: { exp, projectId },
       nonInteractive,
     });

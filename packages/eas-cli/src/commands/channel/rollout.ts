@@ -3,6 +3,7 @@ import chalk from 'chalk';
 
 import { BranchMapping, getBranchMapping } from '../../channel/utils';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { UpdateBranch } from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
@@ -54,25 +55,28 @@ function getRolloutInfo(channel: UpdateChannelByNameObject): {
   return { newBranch, oldBranch, currentPercent };
 }
 
-async function startRolloutAsync({
-  channelName,
-  branchName,
-  percent,
-  projectId,
-  displayName,
-  currentBranchMapping,
-  channel,
-  nonInteractive,
-}: {
-  channelName?: string;
-  branchName: string;
-  percent?: number;
-  projectId: string;
-  displayName: string;
-  currentBranchMapping: BranchMapping;
-  channel: UpdateChannelByNameObject;
-  nonInteractive: boolean;
-}): Promise<{
+async function startRolloutAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    channelName,
+    branchName,
+    percent,
+    projectId,
+    displayName,
+    currentBranchMapping,
+    channel,
+    nonInteractive,
+  }: {
+    channelName?: string;
+    branchName: string;
+    percent?: number;
+    projectId: string;
+    displayName: string;
+    currentBranchMapping: BranchMapping;
+    channel: UpdateChannelByNameObject;
+    nonInteractive: boolean;
+  }
+): Promise<{
   newChannelInfo: {
     id: string;
     name: string;
@@ -80,7 +84,7 @@ async function startRolloutAsync({
   };
   logMessage: string;
 }> {
-  const branch = await BranchQuery.getBranchByNameAsync({
+  const branch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
     appId: projectId,
     name: branchName,
   });
@@ -116,7 +120,7 @@ async function startRolloutAsync({
       currentBranchMapping.data[0],
     ],
   };
-  const newChannelInfo = await updateChannelBranchMappingAsync({
+  const newChannelInfo = await updateChannelBranchMappingAsync(graphqlClient, {
     channelId: channel.id,
     branchMapping: JSON.stringify(newBranchMapping),
   });
@@ -139,19 +143,22 @@ async function startRolloutAsync({
   return { newChannelInfo, logMessage };
 }
 
-async function editRolloutAsync({
-  channelName,
-  percent,
-  nonInteractive,
-  currentBranchMapping,
-  channel,
-}: {
-  channelName?: string;
-  percent?: number;
-  nonInteractive: boolean;
-  currentBranchMapping: BranchMapping;
-  channel: UpdateChannelByNameObject;
-}): Promise<{
+async function editRolloutAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    channelName,
+    percent,
+    nonInteractive,
+    currentBranchMapping,
+    channel,
+  }: {
+    channelName?: string;
+    percent?: number;
+    nonInteractive: boolean;
+    currentBranchMapping: BranchMapping;
+    channel: UpdateChannelByNameObject;
+  }
+): Promise<{
   newChannelInfo: {
     id: string;
     name: string;
@@ -178,7 +185,7 @@ async function editRolloutAsync({
   const newBranchMapping = { ...currentBranchMapping };
   newBranchMapping.data[0].branchMappingLogic.operand = percent / 100;
 
-  const newChannelInfo = await updateChannelBranchMappingAsync({
+  const newChannelInfo = await updateChannelBranchMappingAsync(graphqlClient, {
     channelId: channel.id,
     branchMapping: JSON.stringify(newBranchMapping),
   });
@@ -194,19 +201,22 @@ async function editRolloutAsync({
   return { newChannelInfo, logMessage };
 }
 
-async function endRolloutAsync({
-  channelName,
-  branchName,
-  nonInteractive,
-  projectId,
-  channel,
-}: {
-  channelName?: string;
-  branchName?: string;
-  nonInteractive: boolean;
-  projectId: string;
-  channel: UpdateChannelByNameObject;
-}): Promise<{
+async function endRolloutAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    channelName,
+    branchName,
+    nonInteractive,
+    projectId,
+    channel,
+  }: {
+    channelName?: string;
+    branchName?: string;
+    nonInteractive: boolean;
+    projectId: string;
+    channel: UpdateChannelByNameObject;
+  }
+): Promise<{
   newChannelInfo: {
     id: string;
     name: string;
@@ -219,7 +229,7 @@ async function endRolloutAsync({
 
   let endOnNewBranch;
   if (branchName) {
-    const branch = await BranchQuery.getBranchByNameAsync({
+    const branch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
       appId: projectId,
       name: branchName,
     });
@@ -270,7 +280,7 @@ async function endRolloutAsync({
     ],
   };
 
-  const newChannelInfo = await updateChannelBranchMappingAsync({
+  const newChannelInfo = await updateChannelBranchMappingAsync(graphqlClient, {
     channelId: channel.id,
     branchMapping: JSON.stringify(newBranchMapping),
   });
@@ -313,6 +323,7 @@ export default class ChannelRollout extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -328,6 +339,7 @@ export default class ChannelRollout extends EasCommand {
     } = await this.parse(ChannelRollout);
     const {
       projectConfig: { projectId },
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelRollout, {
       nonInteractive,
     });
@@ -335,9 +347,9 @@ export default class ChannelRollout extends EasCommand {
       enableJsonOutput();
     }
 
-    const projectDisplayName = await getDisplayNameForProjectIdAsync(projectId);
+    const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
-    const channel = await ChannelQuery.viewUpdateChannelAsync({
+    const channel = await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
       appId: projectId,
       channelName: channelName!,
     });
@@ -382,7 +394,7 @@ export default class ChannelRollout extends EasCommand {
       logMessage: string;
     };
     if (!isRollout) {
-      rolloutMutationResult = await startRolloutAsync({
+      rolloutMutationResult = await startRolloutAsync(graphqlClient, {
         channelName,
         branchName: branchName ?? (await promptForBranchNameAsync(channelName, nonInteractive)),
         percent,
@@ -393,7 +405,7 @@ export default class ChannelRollout extends EasCommand {
         channel,
       });
     } else if (endFlag) {
-      rolloutMutationResult = await endRolloutAsync({
+      rolloutMutationResult = await endRolloutAsync(graphqlClient, {
         channelName,
         branchName,
         nonInteractive,
@@ -401,7 +413,7 @@ export default class ChannelRollout extends EasCommand {
         channel,
       });
     } else {
-      rolloutMutationResult = await editRolloutAsync({
+      rolloutMutationResult = await editRolloutAsync(graphqlClient, {
         channelName,
         percent,
         nonInteractive,
