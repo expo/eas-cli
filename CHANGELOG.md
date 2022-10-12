@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Move graphql and session into command context. ([#1435](https://github.com/expo/eas-cli/pull/1435), [#1436](https://github.com/expo/eas-cli/pull/1436) by [@wschurman](https://github.com/wschurman))
+
 ## [2.3.0](https://github.com/expo/eas-cli/releases/tag/v2.3.0) - 2022-10-10
 
 ### 🎉 New features
