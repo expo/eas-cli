@@ -74,7 +74,7 @@ export async function loadConfigAsync({
 export function createAppleReader(config: MetadataConfig): AppleConfigReader {
   assert(config.configVersion === 0, 'Unsupported store configuration version');
   assert(config.apple !== undefined, 'No apple configuration found');
-  return new AppleConfigReader(config.apple!);
+  return new AppleConfigReader(config.apple);
 }
 
 /** Create the serializer to write the App Store to the store configuration. */
