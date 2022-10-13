@@ -1,5 +1,5 @@
+import filter from '../../../utils/expodash/filter';
 import { IssueRule } from '../../config/issue';
-import { coalesce } from '../../utils/array';
 
 const KEYWORD_CHARACTER_LIMIT = 100;
 
@@ -15,7 +15,7 @@ export const infoKeywordLength: IssueRule = {
       return null;
     }
 
-    return coalesce(
+    return filter(
       Object.keys(config.apple.info).map(locale => {
         const keywords = config.apple?.info?.[locale].keywords ?? [];
         const length = keywords.join(',').length;

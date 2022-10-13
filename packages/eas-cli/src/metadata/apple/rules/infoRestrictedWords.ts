@@ -1,5 +1,5 @@
+import filter from '../../../utils/expodash/filter';
 import { IssueRule } from '../../config/issue';
-import { coalesce } from '../../utils/array';
 import { AppleInfo } from '../types';
 
 const RESTRICTED_PROPERTIES: (keyof AppleInfo)[] = ['title', 'subtitle', 'description', 'keywords'];
@@ -19,9 +19,9 @@ export const infoRestrictedWords: IssueRule = {
       return null;
     }
 
-    return coalesce(
+    return filter(
       Object.keys(config.apple.info).map(locale =>
-        coalesce(
+        filter(
           RESTRICTED_PROPERTIES.map(property => {
             const value = getStringValue(config.apple?.info?.[locale][property]);
             const issueDescription = getDescriptionForFirstMatch(value);
