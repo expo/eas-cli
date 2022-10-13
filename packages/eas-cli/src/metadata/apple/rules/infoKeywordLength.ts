@@ -4,7 +4,7 @@ import { coalesce } from '../../utils/array';
 const KEYWORD_CHARACTER_LIMIT = 100;
 
 /**
- * Keywords are limited to 100 characters when converted to a comma separated string string.
+ * Keywords are limited to 100 characters when converted to a comma separated string.
  * @see https://developer.apple.com/app-store/search/
  */
 export const infoKeywordLength: IssueRule = {
