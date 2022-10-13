@@ -3,11 +3,10 @@ import { createValidator, getReadableErrors } from '../utils/ajv';
 import { Issue, IssueRule, IssueSeverity } from './issue';
 import { MetadataConfig } from './schema';
 
-/** The pre-compiled AJV validator instance, with the metadata spec */
-const validator = createValidator().compile(require('../../../schema/metadata-0.json'));
-
 /** Validate the user-provided validation for issues */
 export function validateConfig(config: unknown): Issue[] {
+  const validator = createValidator().compile(require('../../../schema/metadata-0.json'));
+
   validator(config);
 
   const issues: Issue[] = getReadableErrors(validator.errors ?? []).map(error => {
