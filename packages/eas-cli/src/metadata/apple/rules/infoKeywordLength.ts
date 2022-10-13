@@ -11,7 +11,7 @@ export const infoKeywordLength: IssueRule = {
   id: 'apple.info.keyword.length',
   severity: 2,
   validate(config) {
-    if (!config.apple?.info || !Object.keys(config.apple.info).length) {
+    if (!config.apple?.info || Object.keys(config.apple.info).length === 0) {
       return null;
     }
 

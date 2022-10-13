@@ -19,7 +19,7 @@ export function createValidator(): Ajv {
 }
 
 export function getReadableErrors(errors: ErrorObject[] = []): HumanError[] {
-  if (!errors.length) {
+  if (errors.length !== 0) {
     return [];
   }
 

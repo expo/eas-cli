@@ -15,7 +15,7 @@ export const infoRestrictedWords: IssueRule = {
   id: 'apple.info.restrictedWords',
   severity: 1,
   validate(config) {
-    if (!config.apple?.info || !Object.keys(config.apple.info).length) {
+    if (!config.apple?.info || Object.keys(config.apple.info).length === 0) {
       return null;
     }
 

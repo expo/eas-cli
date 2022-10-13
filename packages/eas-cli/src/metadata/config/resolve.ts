@@ -62,7 +62,7 @@ export async function loadConfigAsync({
   if (!skipValidation) {
     const issues = validateConfig(configData);
 
-    if (issues.length) {
+    if (issues.length > 0) {
       throw new MetadataValidationError(`Metadata store config errors found`, issues);
     }
   }
