@@ -55,14 +55,9 @@ export function logMetadataValidationError(error: MetadataValidationError): void
   Log.error(chalk.bold(error.message));
   if (error.errors?.length > 0) {
     // TODO(cedric): group errors by property to make multiple errors for same property more readable
-    Log.log(
-      error.errors
-        .map(err => {
-          const dataPath = err.path.join('.');
-          return `  - ${chalk.bold(`$.${dataPath}`)} ${err.message}`;
-        })
-        .join('\n')
-    );
+    for (const err of error.errors) {
+      Log.log(`  - ${chalk.bold(`$.${err.path.join('.')}`)} ${err.message}`);
+    }
   }
 }
 
