@@ -5,6 +5,8 @@
   "version": "0.31.0",
   "scripts": {
     "changelog-entry": "ts-node-esm src/changelogEntry.ts",
+    "next-version": "ts-node-esm src/nextVersion.ts",
+    "release": "./src/release.sh",
     "release-changelog": "ts-node-esm src/releaseChangelog.ts",
     "update-local-plugin": "./src/updateLocalPlugin.sh",
     "typecheck": "tsc"

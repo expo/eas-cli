@@ -12,7 +12,7 @@
     "watch": "yarn start",
     "eas": "packages/eas-cli/bin/run",
     "lint": "eslint .",
-    "release": "./scripts/bin/run update-local-plugin && lerna version --exact",
+    "release": "./scripts/bin/run release",
     "test": "jest",
     "clean": "lerna run clean && rm -rf node_modules coverage"
   },

@@ -5,5 +5,5 @@ set -eo pipefail
 SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 
 pushd $SCRIPTS_DIR >/dev/null 2>&1
-yarn $@
+yarn --silent $@
 popd >/dev/null 2>&1
