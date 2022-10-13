@@ -58,7 +58,7 @@ export async function createMetadataContextAsync(params: {
   );
 
   const exp = params.exp ?? getExpoConfig(params.projectDir);
-  const user = params.credentialsCtx ? params.credentialsCtx.user : undefined;
+  const user = params.credentialsCtx?.user;
   const bundleIdentifier =
     submitProfile.bundleIdentifier ?? (await getBundleIdentifierAsync(params.projectDir, exp));
 
