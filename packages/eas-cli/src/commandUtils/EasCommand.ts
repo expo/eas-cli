@@ -132,10 +132,6 @@ export default abstract class EasCommand extends Command {
    */
   private readonly sessionManager = new SessionManager();
 
-  override get ctor(): typeof EasCommand {
-    return this.constructor as typeof EasCommand;
-  }
-
   protected abstract runAsync(): Promise<any>;
 
   // eslint-disable-next-line async-protect/async-suffix
@@ -145,7 +141,7 @@ export default abstract class EasCommand extends Command {
     // identify the user in the analytics system ahead of running the command
     // to log run before any potential ctrl-c
     let actor: Actor | undefined;
-    if ('loggedIn' in this.ctor.contextDefinition) {
+    if ('loggedIn' in (this.ctor as typeof EasCommand).contextDefinition) {
       // don't throw for invalid flags/args here (this should be handled in the command's own parse call)
       let nonInteractive: boolean;
       try {
