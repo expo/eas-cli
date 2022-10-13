@@ -131,6 +131,24 @@ describe(EasCommand.name, () => {
         action: `eas ${TestEasCommand.id}`,
       });
     });
+
+    it('logs events even if there are invalid flags passed', async () => {
+      const sessionManagerEnsureLoggedInSpy = jest.spyOn(
+        SessionManager.prototype,
+        'ensureLoggedInAsync'
+      );
+      sessionManagerEnsureLoggedInSpy.mockResolvedValue({
+        actor: jester,
+        authenticationInfo: { accessToken: null, sessionSecret: '' },
+      });
+
+      const TestEasCommand = createTestEasCommand({ requireLoggedIn: true });
+      await TestEasCommand.run(['--wat']);
+
+      expect(logEvent).toHaveBeenCalledWith('action', {
+        action: `eas ${TestEasCommand.id}`,
+      });
+    });
   });
 
   describe('after exceptions', () => {

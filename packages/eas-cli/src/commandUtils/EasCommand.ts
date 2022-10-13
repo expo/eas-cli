@@ -146,8 +146,14 @@ export default abstract class EasCommand extends Command {
     // to log run before any potential ctrl-c
     let actor: Actor | undefined;
     if ('loggedIn' in this.ctor.contextDefinition) {
-      const { flags } = await this.parse();
-      const nonInteractive = (flags as any)['non-interactive'] ?? false;
+      // don't throw for invalid flags/args here (this should be handled in the command's own parse call)
+      let nonInteractive: boolean;
+      try {
+        const { flags } = await this.parse();
+        nonInteractive = (flags as any)['non-interactive'] ?? false;
+      } catch {
+        nonInteractive = false;
+      }
       actor = (await this.sessionManager.ensureLoggedInAsync({ nonInteractive })).actor;
     } else {
       actor = await this.sessionManager.getUserAsync();
