@@ -31,7 +31,7 @@ export default class MetadataLint extends EasCommand {
 
     const { flags } = await this.parse(MetadataLint);
     const { projectDir } = await this.getContextAsync(MetadataLint, {
-      nonInteractive: false,
+      nonInteractive: true,
     });
 
     if (flags.json) {
