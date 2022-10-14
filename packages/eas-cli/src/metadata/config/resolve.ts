@@ -1,3 +1,4 @@
+import { SubmitProfile } from '@expo/eas-json';
 import assert from 'assert';
 import fs from 'fs-extra';
 import path from 'path';
@@ -21,17 +22,29 @@ async function resolveDynamicConfigAsync(configFile: string): Promise<unknown> {
 }
 
 /**
+ * Resolve the prefered store config file name from the submit profile.
+ * This is relative to the project directory, and uses `store.config.json` by default.
+ */
+function resolveConfigFilePath(profile: SubmitProfile): string {
+  if ('metadataPath' in profile) {
+    return profile.metadataPath ?? 'store.config.json';
+  }
+
+  return 'store.config.json';
+}
+
+/**
  * Get the static configuration file path, based on the metadata context.
  * This uses any custom name provided, but swaps out the extension for `.json`.
  */
 export function getStaticConfigFilePath({
   projectDir,
-  metadataPath,
+  profile,
 }: {
   projectDir: string;
-  metadataPath: string;
+  profile: SubmitProfile;
 }): string {
-  const configFile = path.join(projectDir, metadataPath);
+  const configFile = path.join(projectDir, resolveConfigFilePath(profile));
   const configExtension = path.extname(configFile);
 
   return path.join(projectDir, `${path.basename(configFile, configExtension)}.json`);
@@ -45,14 +58,14 @@ export function getStaticConfigFilePath({
  */
 export async function loadConfigAsync({
   projectDir,
-  metadataPath,
+  profile,
   skipValidation = false,
 }: {
   projectDir: string;
-  metadataPath: string;
+  profile: SubmitProfile;
   skipValidation?: boolean;
 }): Promise<MetadataConfig> {
-  const configFile = path.join(projectDir, metadataPath);
+  const configFile = path.join(projectDir, resolveConfigFilePath(profile));
   if (!(await fs.pathExists(configFile))) {
     throw new MetadataValidationError(`Metadata store config file not found: "${configFile}"`);
   }

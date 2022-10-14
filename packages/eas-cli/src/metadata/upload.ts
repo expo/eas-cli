@@ -9,11 +9,7 @@ import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
 import { createAppleReader, loadConfigAsync } from './config/resolve';
 import { MetadataConfig } from './config/schema';
-import {
-  getMetadataAppStoreAsync,
-  getMetadataBundleIdentifierAsync,
-  getMetadataFilePath,
-} from './context';
+import { getMetadataAppStoreAsync, getMetadataBundleIdentifierAsync } from './context';
 import { MetadataUploadError, MetadataValidationError, logMetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
 
@@ -83,10 +79,8 @@ async function loadConfigWithValidationPromptAsync(
   projectDir: string,
   profile: SubmitProfile
 ): Promise<MetadataConfig> {
-  const metadataPath = getMetadataFilePath(profile);
-
   try {
-    return await loadConfigAsync({ projectDir, metadataPath });
+    return await loadConfigAsync({ projectDir, profile });
   } catch (error) {
     if (error instanceof MetadataValidationError) {
       logMetadataValidationError(error);
@@ -96,7 +90,7 @@ async function loadConfigWithValidationPromptAsync(
       );
 
       if (await confirmAsync({ message: 'Do you still want to push the store configuration?' })) {
-        return await loadConfigAsync({ projectDir, metadataPath, skipValidation: true });
+        return await loadConfigAsync({ projectDir, profile, skipValidation: true });
       }
     }
 

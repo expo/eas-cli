@@ -15,18 +15,6 @@ export type MetadataAppStoreAuthentication = {
 };
 
 /**
- * Resolve the metadata config file from the selected submit profile.
- * When `metadataPath` is not configured, it falls back to `store.config.json`.
- */
-export function getMetadataFilePath(profile: SubmitProfile): string {
-  if ('metadataPath' in profile) {
-    return profile.metadataPath ?? 'store.config.json';
-  }
-
-  return 'store.config.json';
-}
-
-/**
  * Resolve the bundle identifier from the selected submit profile.
  * This bundle identifier is used as target for the metadata submission.
  */

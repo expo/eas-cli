@@ -10,11 +10,7 @@ import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
 import { createAppleWriter, getStaticConfigFilePath } from './config/resolve';
-import {
-  getMetadataAppStoreAsync,
-  getMetadataBundleIdentifierAsync,
-  getMetadataFilePath,
-} from './context';
+import { getMetadataAppStoreAsync, getMetadataBundleIdentifierAsync } from './context';
 import { MetadataDownloadError, MetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
 
@@ -33,10 +29,7 @@ export async function downloadMetadataAsync({
   exp: ExpoConfig;
   credentialsCtx: CredentialsContext;
 }): Promise<string> {
-  const filePath = getStaticConfigFilePath({
-    projectDir,
-    metadataPath: getMetadataFilePath(profile),
-  });
+  const filePath = getStaticConfigFilePath({ projectDir, profile });
 
   const fileExists = await fs.pathExists(filePath);
   if (fileExists) {
