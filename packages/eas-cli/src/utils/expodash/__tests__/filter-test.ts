@@ -1,8 +1,8 @@
 import { truthy } from '../filter';
 
 describe(truthy, () => {
-  it('filters <0 numbers', () => {
-    expect([1, 0, -2, 2].filter(truthy)).toEqual([1, 2]);
+  it('filters 0 numbers', () => {
+    expect([1, 0, -2, 2].filter(truthy)).toEqual([1, -2, 2]);
   });
 
   it('filters empty strings', () => {
