@@ -11,7 +11,6 @@ import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { AppMutation } from '../../../graphql/mutations/AppMutation';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { confirmAsync, promptAsync } from '../../../prompts';
-import SessionManager from '../../../user/SessionManager';
 import ProjectInit from '../init';
 
 jest.mock('fs');
@@ -81,10 +80,6 @@ function mockTestProject(options: {
   jest
     .spyOn(LoggedInContextField.prototype, 'getValueAsync')
     .mockResolvedValue({ actor: jester, graphqlClient });
-  jest.spyOn(SessionManager.prototype, 'ensureLoggedInAsync').mockResolvedValue({
-    actor: jester,
-    authenticationInfo: { accessToken: null, sessionSecret: '' },
-  });
 }
 
 const commandOptions = { root: '/test-project' } as any;
