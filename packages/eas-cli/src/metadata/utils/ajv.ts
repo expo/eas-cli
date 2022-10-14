@@ -2,6 +2,8 @@ import { AggregateAjvError, HumanError } from '@segment/ajv-human-errors';
 import Ajv, { ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 
+const jsonSchema = require('ajv/lib/refs/json-schema-draft-06.json');
+
 /**
  * Create a new AJV validator using the JSON Schema 06 draft.
  * It also adds the additional formats from the `ajv-formats` package.
@@ -15,7 +17,7 @@ export function createValidator(): Ajv {
     allErrors: true, // Required for `ajv-human-errors`
   });
 
-  return addFormats(validator).addMetaSchema(require('ajv/lib/refs/json-schema-draft-06.json'));
+  return addFormats(validator).addMetaSchema(jsonSchema);
 }
 
 export function getReadableErrors(errors: ErrorObject[] = []): HumanError[] {
