@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { SubmissionEvent } from '../../analytics/events';
+import { SubmissionEvent } from '../../analytics/AnalyticsManager';
 import { MinimalAscApiKey } from '../../credentials/ios/credentials';
 import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';

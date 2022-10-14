@@ -24,6 +24,7 @@ export default class MetadataPull extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Analytics,
   };
 
   async runAsync(): Promise<void> {
@@ -33,6 +34,7 @@ export default class MetadataPull extends EasCommand {
     const {
       loggedIn: { actor, graphqlClient },
       projectConfig: { exp, projectId, projectDir },
+      analyticsManager,
     } = await this.getContextAsync(MetadataPull, {
       nonInteractive: false,
     });
@@ -45,11 +47,13 @@ export default class MetadataPull extends EasCommand {
       projectDir,
       user: actor,
       graphqlClient,
+      analyticsManager,
       nonInteractive: false,
     });
 
     const metadataCtx = await createMetadataContextAsync({
       credentialsCtx,
+      analyticsManager,
       projectDir,
       exp,
       profileName: flags.profile,

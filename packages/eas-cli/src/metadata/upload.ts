@@ -1,4 +1,4 @@
-import { MetadataEvent } from '../analytics/events';
+import { MetadataEvent } from '../analytics/AnalyticsManager';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
@@ -18,6 +18,7 @@ export async function uploadMetadataAsync(
   const storeConfig = await loadConfigWithValidationPromptAsync(metadataCtx);
   const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataCtx);
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
+    metadataCtx.analyticsManager,
     MetadataEvent.APPLE_METADATA_UPLOAD,
     { app, auth }
   );

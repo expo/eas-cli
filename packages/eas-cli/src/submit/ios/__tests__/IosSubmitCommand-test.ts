@@ -1,7 +1,9 @@
 import { Platform } from '@expo/eas-build-job';
 import { vol } from 'memfs';
+import { instance, mock } from 'ts-mockito';
 import { v4 as uuidv4 } from 'uuid';
 
+import { IAnalyticsManager } from '../../../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   jester as mockJester,
@@ -54,6 +56,7 @@ describe(IosSubmitCommand, () => {
     it("throws error if didn't provide appleId and ascAppId in the submit profile", async () => {
       const projectId = uuidv4();
       const graphqlClient = {} as any as ExpoGraphqlClient;
+      const analyticsManager = instance(mock<IAnalyticsManager>());
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.IOS,
@@ -67,6 +70,7 @@ describe(IosSubmitCommand, () => {
         nonInteractive: true,
         actor: mockJester,
         graphqlClient,
+        analyticsManager,
         exp: testProject.appJSON.expo,
         projectId,
       });
@@ -79,6 +83,7 @@ describe(IosSubmitCommand, () => {
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
       const graphqlClient = {} as any as ExpoGraphqlClient;
+      const analyticsManager = instance(mock<IAnalyticsManager>());
 
       process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
 
@@ -96,6 +101,7 @@ describe(IosSubmitCommand, () => {
         nonInteractive: false,
         actor: mockJester,
         graphqlClient,
+        analyticsManager,
         exp: testProject.appJSON.expo,
         projectId,
       });

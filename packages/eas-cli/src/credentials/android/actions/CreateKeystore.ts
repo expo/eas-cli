@@ -1,3 +1,4 @@
+import { IAnalyticsManager } from '../../../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AccountFragment, AndroidKeystoreFragment } from '../../../graphql/generated';
 import Log from '../../../log';
@@ -16,7 +17,11 @@ export class CreateKeystore {
     }
 
     const projectId = ctx.projectId;
-    const keystore = await this.provideOrGenerateAsync(ctx.graphqlClient, projectId);
+    const keystore = await this.provideOrGenerateAsync(
+      ctx.graphqlClient,
+      ctx.analyticsManager,
+      projectId
+    );
     const keystoreFragment = await ctx.android.createKeystoreAsync(
       ctx.graphqlClient,
       this.account,
@@ -28,6 +33,7 @@ export class CreateKeystore {
 
   private async provideOrGenerateAsync(
     graphqlClient: ExpoGraphqlClient,
+    analyticsManager: IAnalyticsManager,
     projectId: string
   ): Promise<KeystoreWithType> {
     const providedKeystore = await askForUserProvidedAsync(keystoreSchema);
@@ -36,6 +42,6 @@ export class CreateKeystore {
       validateKeystore(providedKeystoreWithType);
       return providedKeystoreWithType;
     }
-    return await generateRandomKeystoreAsync(graphqlClient, projectId);
+    return await generateRandomKeystoreAsync(graphqlClient, analyticsManager, projectId);
   }
 }

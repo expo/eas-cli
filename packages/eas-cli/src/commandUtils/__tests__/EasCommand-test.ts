@@ -1,16 +1,17 @@
-import { flushAsync, initAsync, logEvent } from '../../analytics/rudderstackClient';
+import {
+  IAnalayticsManagerWithOrchestration,
+  createAnalyticsManagerAsync,
+} from '../../analytics/AnalyticsManager';
 import SessionManager from '../../user/SessionManager';
 import EasCommand from '../EasCommand';
 
 jest.mock('../../user/User');
 jest.mock('../../user/SessionManager');
-jest.mock('../../analytics/rudderstackClient', () => {
-  const { AnalyticsEvent } = jest.requireActual('../../analytics/rudderstackClient');
+jest.mock('../../analytics/AnalyticsManager', () => {
+  const { CommandEvent } = jest.requireActual('../../analytics/AnalyticsManager');
   return {
-    AnalyticsEvent,
-    logEvent: jest.fn(),
-    initAsync: jest.fn(),
-    flushAsync: jest.fn(),
+    CommandEvent,
+    createAnalyticsManagerAsync: jest.fn(),
   };
 });
 
@@ -25,10 +26,16 @@ afterAll(() => {
   process.argv = originalProcessArgv;
 });
 
+const analyticsManager: IAnalayticsManagerWithOrchestration = {
+  logEvent: jest.fn((): void => {}),
+  setActor: jest.fn((): void => {}),
+  flushAsync: jest.fn(async (): Promise<void> => {}),
+};
+
 beforeEach(() => {
-  jest.mocked(initAsync).mockReset();
-  jest.mocked(flushAsync).mockReset();
-  jest.mocked(logEvent).mockReset();
+  jest.resetAllMocks();
+
+  jest.mocked(createAnalyticsManagerAsync).mockResolvedValue(analyticsManager);
 });
 
 const createTestEasCommand = (): typeof EasCommand => {
@@ -61,21 +68,21 @@ describe(EasCommand.name, () => {
       const TestEasCommand = createTestEasCommand();
       await TestEasCommand.run();
 
-      expect(initAsync).toHaveBeenCalled();
+      expect(createAnalyticsManagerAsync).toHaveBeenCalled();
     });
 
     it('flushes analytics', async () => {
       const TestEasCommand = createTestEasCommand();
       await TestEasCommand.run();
 
-      expect(flushAsync).toHaveBeenCalled();
+      expect(analyticsManager.flushAsync).toHaveBeenCalled();
     });
 
     it('logs events', async () => {
       const TestEasCommand = createTestEasCommand();
       await TestEasCommand.run();
 
-      expect(logEvent).toHaveBeenCalledWith('action', {
+      expect(analyticsManager.logEvent).toHaveBeenCalledWith('action', {
         action: `eas ${TestEasCommand.id}`,
       });
     });
@@ -90,7 +97,7 @@ describe(EasCommand.name, () => {
         });
       } catch {}
 
-      expect(flushAsync).toHaveBeenCalled();
+      expect(analyticsManager.flushAsync).toHaveBeenCalled();
     });
   });
 });

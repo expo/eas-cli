@@ -1,5 +1,6 @@
 import { ProfileType } from '@expo/app-store';
 
+import { IAnalyticsManager } from '../../../analytics/AnalyticsManager';
 import Log from '../../../log';
 import {
   AscApiKey,
@@ -192,9 +193,12 @@ export default class AppStoreApi {
     return await getAscApiKeyAsync(userCtx, keyId);
   }
 
-  public async createAscApiKeyAsync({ nickname }: { nickname: string }): Promise<AscApiKey> {
+  public async createAscApiKeyAsync(
+    analyticsManager: IAnalyticsManager,
+    { nickname }: { nickname: string }
+  ): Promise<AscApiKey> {
     const userCtx = await this.ensureUserAuthenticatedAsync();
-    return await createAscApiKeyAsync(userCtx, { nickname });
+    return await createAscApiKeyAsync(analyticsManager, userCtx, { nickname });
   }
 
   public async revokeAscApiKeyAsync(keyId: string): Promise<AscApiKeyInfo> {

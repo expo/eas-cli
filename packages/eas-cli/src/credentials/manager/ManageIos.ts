@@ -66,6 +66,7 @@ export class ManageIos {
       projectInfo: this.callingAction.projectInfo,
       user: this.callingAction.actor,
       graphqlClient: this.callingAction.graphqlClient,
+      analyticsManager: this.callingAction.analyticsManager,
       env: buildProfile?.env,
       nonInteractive: false,
     });

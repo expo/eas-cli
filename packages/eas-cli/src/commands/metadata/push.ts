@@ -22,6 +22,7 @@ export default class MetadataPush extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Analytics,
   };
 
   async runAsync(): Promise<void> {
@@ -31,6 +32,7 @@ export default class MetadataPush extends EasCommand {
     const {
       loggedIn: { actor, graphqlClient },
       projectConfig: { exp, projectId, projectDir },
+      analyticsManager,
     } = await this.getContextAsync(MetadataPush, {
       nonInteractive: false,
     });
@@ -43,11 +45,13 @@ export default class MetadataPush extends EasCommand {
       projectDir,
       user: actor,
       graphqlClient,
+      analyticsManager,
       nonInteractive: false,
     });
 
     const metadataCtx = await createMetadataContextAsync({
       credentialsCtx,
+      analyticsManager,
       projectDir,
       exp,
       profileName: flags.profile,

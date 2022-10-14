@@ -3,6 +3,7 @@ import { vol } from 'memfs';
 import path from 'path';
 
 import { ApiV2Error } from '../../ApiV2Error';
+import { IAnalayticsManagerWithOrchestration } from '../../analytics/AnalyticsManager';
 import { ApiV2Client } from '../../api';
 import Log from '../../log';
 import { promptAsync, selectAsync } from '../../prompts';
@@ -34,6 +35,12 @@ const authStub: any = {
 
 const OLD_ENV = process.env;
 
+const analyticsManager: IAnalayticsManagerWithOrchestration = {
+  logEvent: jest.fn((): void => {}),
+  setActor: jest.fn((): void => {}),
+  flushAsync: jest.fn(async (): Promise<void> => {}),
+};
+
 beforeEach(() => {
   vol.reset();
   jest.resetModules();
@@ -48,27 +55,27 @@ afterEach(() => {
 describe(SessionManager, () => {
   describe('getSession', () => {
     it('returns null when session is not stored', () => {
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       expect(sessionManager['getSession']()).toBeNull();
     });
 
     it('returns stored session data', async () => {
       await fs.mkdirp(path.dirname(getStateJsonPath()));
       await fs.writeJSON(getStateJsonPath(), { auth: authStub });
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       expect(sessionManager['getSession']()).toMatchObject(authStub);
     });
   });
 
   describe('setSessionAsync', () => {
     it('stores empty session data', async () => {
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       await sessionManager['setSessionAsync']();
       expect(await fs.pathExists(getStateJsonPath())).toBeTruthy();
     });
 
     it('stores actual session data', async () => {
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       await sessionManager['setSessionAsync'](authStub);
       expect(await fs.readJSON(getStateJsonPath())).toMatchObject({ auth: authStub });
     });
@@ -76,25 +83,25 @@ describe(SessionManager, () => {
 
   describe('getAccessToken', () => {
     it('returns null when envvar is undefined', () => {
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       expect(sessionManager['getAccessToken']()).toBeNull();
     });
 
     it('returns token when envar is defined', () => {
       process.env.EXPO_TOKEN = 'mytesttoken';
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       expect(sessionManager['getAccessToken']()).toBe('mytesttoken');
     });
   });
 
   describe('getSessionSecret', () => {
     it('returns null when session is not stored', () => {
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       expect(sessionManager['getSessionSecret']()).toBeNull();
     });
 
     it('returns secret when session is stored', async () => {
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       await sessionManager['setSessionAsync'](authStub);
       expect(sessionManager['getSessionSecret']()).toBe(authStub.sessionSecret);
     });
@@ -102,18 +109,18 @@ describe(SessionManager, () => {
 
   describe('getUserAsync', () => {
     it('skips fetching user without access token or session secret', async () => {
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       expect(await sessionManager.getUserAsync()).toBeUndefined();
     });
 
     it('fetches user when access token is defined', async () => {
       process.env.EXPO_TOKEN = 'accesstoken';
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       expect(await sessionManager.getUserAsync()).toMatchObject({ __typename: 'User' });
     });
 
     it('fetches user when session secret is defined', async () => {
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       await sessionManager['setSessionAsync']({
         sessionSecret: 'blah',
         userId: '1234',
@@ -131,7 +138,7 @@ describe(SessionManager, () => {
         id: 'USER_ID',
         username: 'USERNAME',
       });
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       await sessionManager['loginAsync']({ username: 'USERNAME', password: 'PASSWORD' });
       expect(await fs.readFile(getStateJsonPath(), 'utf8')).toMatchInlineSnapshot(`
         "{
@@ -154,7 +161,7 @@ describe(SessionManager, () => {
         id: 'USER_ID',
         username: 'USERNAME',
       });
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       await sessionManager['loginAsync']({ username: 'USERNAME', password: 'PASSWORD' });
 
       expect(sessionManager['getSessionSecret']()).toBe('SESSION_SECRET');
@@ -174,7 +181,7 @@ describe(SessionManager, () => {
           throw new Error("shouldn't happen");
         });
 
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       const sessionManagerRetryUsernamePasswordAuthWithOTPAsyncSpy = jest.spyOn(
         sessionManager as any,
         'retryUsernamePasswordAuthWithOTPAsync'
@@ -233,7 +240,7 @@ describe(SessionManager, () => {
         .mockImplementation(() => {
           throw new Error("shouldn't happen");
         });
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       const sessionManagerLoginAsyncSpy = jest.spyOn(sessionManager as any, 'loginAsync');
 
       await sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah', {
@@ -262,7 +269,7 @@ describe(SessionManager, () => {
         .mockImplementation(() => {
           throw new Error("shouldn't happen");
         });
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       const sessionManagerLoginAsyncSpy = jest.spyOn(sessionManager as any, 'loginAsync');
 
       await sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah', {
@@ -296,7 +303,7 @@ describe(SessionManager, () => {
         .mockImplementation(() => {
           throw new Error("shouldn't happen");
         });
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
 
       const sessionManagerLoginAsyncSpy = jest.spyOn(sessionManager as any, 'loginAsync');
 
@@ -329,7 +336,7 @@ describe(SessionManager, () => {
         .mockImplementation(() => {
           throw new Error("shouldn't happen");
         });
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
 
       await expect(
         sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah', {
@@ -363,7 +370,7 @@ describe(SessionManager, () => {
         .mockImplementation(() => {
           throw new Error("shouldn't happen");
         });
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
 
       await sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah', {
         secondFactorDevices: [
@@ -409,7 +416,7 @@ describe(SessionManager, () => {
       });
       const apiV2PostSpy = jest.spyOn(ApiV2Client.prototype, 'postAsync');
 
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
       await sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah', {
         secondFactorDevices: [
           {
@@ -456,7 +463,7 @@ describe(SessionManager, () => {
         .mockImplementation(() => {
           throw new Error("shouldn't happen");
         });
-      const sessionManager = new SessionManager();
+      const sessionManager = new SessionManager(analyticsManager);
 
       await expect(
         sessionManager['retryUsernamePasswordAuthWithOTPAsync']('blah', 'blah', {

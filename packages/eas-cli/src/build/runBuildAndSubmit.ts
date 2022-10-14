@@ -10,6 +10,7 @@ import {
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import { IAnalyticsManager } from '../analytics/AnalyticsManager';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -116,6 +117,7 @@ function resolveResourceClass(
 
 export async function runBuildAndSubmitAsync(
   graphqlClient: ExpoGraphqlClient,
+  analyticsManager: IAnalyticsManager,
   projectDir: string,
   flags: BuildFlags,
   actor: Actor,
@@ -169,6 +171,7 @@ export async function runBuildAndSubmitAsync(
       easJsonCliConfig,
       actor,
       graphqlClient,
+      analyticsManager,
       getDynamicProjectConfigAsync,
     });
     if (maybeBuild) {
@@ -271,6 +274,7 @@ async function prepareAndStartBuildAsync({
   easJsonCliConfig,
   actor,
   graphqlClient,
+  analyticsManager,
   getDynamicProjectConfigAsync,
 }: {
   projectDir: string;
@@ -281,6 +285,7 @@ async function prepareAndStartBuildAsync({
   easJsonCliConfig: EasJson['cli'];
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
+  analyticsManager: IAnalyticsManager;
   getDynamicProjectConfigAsync: DynamicConfigContextFn;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
@@ -297,6 +302,7 @@ async function prepareAndStartBuildAsync({
     message: flags.message,
     actor,
     graphqlClient,
+    analyticsManager,
     getDynamicProjectConfigAsync,
   });
 
@@ -378,6 +384,7 @@ async function prepareAndStartSubmissionAsync({
     applicationIdentifier: buildCtx.android?.applicationId ?? buildCtx.ios?.bundleIdentifier,
     actor: buildCtx.user,
     graphqlClient: buildCtx.graphqlClient,
+    analyticsManager: buildCtx.analyticsManager,
     projectId: buildCtx.projectId,
     exp: buildCtx.exp,
   });
