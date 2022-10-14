@@ -1,12 +1,14 @@
-import { getConfig } from '@expo/config';
+import { Platform } from '@expo/eas-build-job';
+import { EasJsonAccessor } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { loadConfigAsync } from '../../metadata/config/resolve';
-import { createMetadataContextAsync } from '../../metadata/context';
+import { getMetadataFilePath } from '../../metadata/context';
 import { MetadataValidationError, logMetadataValidationError } from '../../metadata/errors';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { getProfilesAsync } from '../../utils/profiles';
 
 export default class MetadataLint extends EasCommand {
   static override description = 'validate the local store configuration';
@@ -23,12 +25,13 @@ export default class MetadataLint extends EasCommand {
   };
 
   static override contextDefinition = {
+    // The metadata lint command is created to integrate in other dev tooling, like vscode-expo.
+    // These integrations might spam this command, so we avoid communicating with our services here.
+    // Note that this is an exception and you should normally use `ProjectConfig` instead.
     ...this.ContextOptions.ProjectDir,
   };
 
   async runAsync(): Promise<void> {
-    Log.warn('EAS Metadata is in beta and subject to breaking changes.');
-
     const { flags } = await this.parse(MetadataLint);
     const { projectDir } = await this.getContextAsync(MetadataLint, {
       nonInteractive: true,
@@ -36,17 +39,25 @@ export default class MetadataLint extends EasCommand {
 
     if (flags.json) {
       enableJsonOutput();
+    } else {
+      Log.warn('EAS Metadata is in beta and subject to breaking changes.');
     }
 
-    const { exp } = getConfig(projectDir);
-    const metadataCtx = await createMetadataContextAsync({
-      projectDir,
-      exp,
+    const submitProfiles = await getProfilesAsync({
+      type: 'submit',
+      easJsonAccessor: new EasJsonAccessor(projectDir),
+      platforms: [Platform.IOS],
       profileName: flags.profile,
     });
 
+    if (submitProfiles.length !== 1) {
+      throw new Error('Metadata only supports iOS and a single submit profile.');
+    }
+
+    const submitProfile = submitProfiles[0].profile;
+
     try {
-      await loadConfigAsync(metadataCtx);
+      await loadConfigAsync({ projectDir, metadataPath: getMetadataFilePath(submitProfile) });
 
       if (flags.json) {
         return printJsonOnlyOutput([]);
