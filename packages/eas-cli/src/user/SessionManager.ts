@@ -5,7 +5,6 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { ApiV2Error } from '../ApiV2Error';
-import * as Analytics from '../analytics/rudderstackClient';
 import { ApiV2Client } from '../api';
 import { createGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CurrentUserQuery } from '../graphql/generated';
@@ -13,7 +12,6 @@ import { UserQuery } from '../graphql/queries/UserQuery';
 import Log, { learnMore } from '../log';
 import { promptAsync, selectAsync } from '../prompts';
 import { getStateJsonPath } from '../utils/paths';
-import { getActorDisplayName } from './User';
 import { fetchSessionSecretAndUserAsync } from './fetchSessionSecretAndUser';
 
 type UserSettingsData = {
@@ -95,13 +93,6 @@ export default class SessionManager {
       };
       const user = await UserQuery.currentUserAsync(createGraphqlClient(authenticationInfo));
       this.currentUser = user ?? undefined;
-      if (user) {
-        await Analytics.setUserDataAsync(user.id, {
-          username: getActorDisplayName(user),
-          user_id: user.id,
-          user_type: user.__typename,
-        });
-      }
     }
     return this.currentUser;
   }
