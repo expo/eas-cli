@@ -18,7 +18,7 @@ export type MetadataAppStoreAuthentication = {
  * Resolve the bundle identifier from the selected submit profile.
  * This bundle identifier is used as target for the metadata submission.
  */
-export async function getMetadataBundleIdentifierAsync(
+async function resolveAppStoreBundleIdentifierAsync(
   projectDir: string,
   profile: SubmitProfile,
   exp: ExpoConfig
@@ -34,16 +34,25 @@ export async function getMetadataBundleIdentifierAsync(
  * To start syncing ASC entities, we need access to the apple utils App instance.
  * This resolves both the authentication and that App instance.
  */
-export async function getMetadataAppStoreAsync(
-  credentialsCtx: CredentialsContext,
-  bundleIdentifier: string
-): Promise<MetadataAppStoreAuthentication> {
+export async function getAppStoreAuthAsync({
+  projectDir,
+  profile,
+  exp,
+  credentialsCtx,
+}: {
+  projectDir: string;
+  profile: SubmitProfile;
+  exp: ExpoConfig;
+  credentialsCtx: CredentialsContext;
+}): Promise<MetadataAppStoreAuthentication> {
+  const bundleId = await resolveAppStoreBundleIdentifierAsync(projectDir, profile, exp);
+
   const authCtx = await credentialsCtx.appStore.ensureAuthenticatedAsync();
   assert(authCtx.authState, 'Failed to authenticate with App Store Connect');
 
   // TODO: improve error handling by mentioning possible configuration errors
-  const app = await App.findAsync(getRequestContext(authCtx), { bundleId: bundleIdentifier });
-  assert(app, `Failed to load app "${bundleIdentifier}" from App Store Connect`);
+  const app = await App.findAsync(getRequestContext(authCtx), { bundleId });
+  assert(app, `Failed to load app "${bundleId}" from App Store Connect`);
 
   return { app, auth: authCtx.authState };
 }

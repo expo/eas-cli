@@ -5,7 +5,6 @@ import { Flags } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { loadConfigAsync } from '../../metadata/config/resolve';
-import { getMetadataFilePath } from '../../metadata/context';
 import { MetadataValidationError, logMetadataValidationError } from '../../metadata/errors';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { getProfilesAsync } from '../../utils/profiles';
@@ -57,7 +56,7 @@ export default class MetadataLint extends EasCommand {
     const submitProfile = submitProfiles[0].profile;
 
     try {
-      await loadConfigAsync({ projectDir, metadataPath: getMetadataFilePath(submitProfile) });
+      await loadConfigAsync({ projectDir, profile: submitProfile });
 
       if (flags.json) {
         return printJsonOnlyOutput([]);

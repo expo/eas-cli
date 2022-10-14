@@ -9,8 +9,8 @@ import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
+import { getAppStoreAuthAsync } from './auth';
 import { createAppleWriter, getStaticConfigFilePath } from './config/resolve';
-import { getMetadataAppStoreAsync, getMetadataBundleIdentifierAsync } from './context';
 import { MetadataDownloadError, MetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
 
@@ -42,8 +42,13 @@ export async function downloadMetadataAsync({
     }
   }
 
-  const bundleIdentifier = await getMetadataBundleIdentifierAsync(projectDir, profile, exp);
-  const { app, auth } = await getMetadataAppStoreAsync(credentialsCtx, bundleIdentifier);
+  const { app, auth } = await getAppStoreAuthAsync({
+    exp,
+    credentialsCtx,
+    projectDir,
+    profile,
+  });
+
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
     metadataCtx.analytics,
     MetadataEvent.APPLE_METADATA_DOWNLOAD,

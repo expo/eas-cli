@@ -7,9 +7,9 @@ import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
+import { getAppStoreAuthAsync } from './auth';
 import { createAppleReader, loadConfigAsync } from './config/resolve';
 import { MetadataConfig } from './config/schema';
-import { getMetadataAppStoreAsync, getMetadataBundleIdentifierAsync } from './context';
 import { MetadataUploadError, MetadataValidationError, logMetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
 
@@ -29,8 +29,13 @@ export async function uploadMetadataAsync({
   credentialsCtx: CredentialsContext;
 }): Promise<{ appleLink: string }> {
   const storeConfig = await loadConfigWithValidationPromptAsync(projectDir, profile);
-  const bundleIdentifier = await getMetadataBundleIdentifierAsync(projectDir, profile, exp);
-  const { app, auth } = await getMetadataAppStoreAsync(credentialsCtx, bundleIdentifier);
+  const { app, auth } = await getAppStoreAuthAsync({
+    exp,
+    credentialsCtx,
+    projectDir,
+    profile,
+  });
+
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
     metadataCtx.analytics,
     MetadataEvent.APPLE_METADATA_UPLOAD,
