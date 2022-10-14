@@ -11,9 +11,13 @@ enum SubmissionErrorCode {
   ANDROID_FIRST_UPLOAD_ERROR = 'SUBMISSION_SERVICE_ANDROID_FIRST_UPLOAD_ERROR',
   ANDROID_OLD_VERSION_CODE_ERROR = 'SUBMISSION_SERVICE_ANDROID_OLD_VERSION_CODE_ERROR',
   ANDROID_MISSING_PRIVACY_POLICY = 'SUBMISSION_SERVICE_ANDROID_MISSING_PRIVACY_POLICY',
-  IOS_OLD_VERSION_CODE_ERROR = 'SUBMISSION_SERVICE_IOS_OLD_VERSION_CODE_ERROR',
+  IOS_OLD_APP_VERSION = 'SUBMISSION_SERVICE_IOS_OLD_APP_VERSION',
+  IOS_OLD_BUILD_NUMBER = 'SUBMISSION_SERVICE_IOS_OLD_BUILD_NUMBER',
+  IOS_INVALID_APP_VERSION_NUMBER = 'SUBMISSION_SERVICE_IOS_INVALID_APP_VERSION_NUMBER',
+  IOS_INVALID_BUILD_NUMBER = 'SUBMISSION_SERVICE_IOS_INVALID_BUILD_NUMBER',
   IOS_UNKNOWN_ERROR = 'SUBMISSION_SERVICE_IOS_UNKNOWN_ERROR',
   IOS_MISSING_APP_ICON = 'SUBMISSION_SERVICE_IOS_MISSING_APP_ICON',
+  IOS_TRANSPARENT_APP_ICON = 'SUBMISSION_SERVICE_IOS_TRANSPARENT_APP_ICON',
   IOS_INVALID_SIGNATURE = 'SUBMISSION_SERVICE_IOS_INVALID_SIGNATURE',
   IOS_INCORRECT_CREDENTIALS = 'SUBMISSION_SERVICE_IOS_INVALID_CREDENTIALS',
   IOS_IPAD_INVALID_ORIENTATION = 'SUBMISSION_SERVICE_IOS_IPAD_INVALID_ORIENTATION',
@@ -45,17 +49,36 @@ const SubmissionErrorMessages: Record<SubmissionErrorCode, string> = {
   [SubmissionErrorCode.ANDROID_MISSING_PRIVACY_POLICY]:
     'The app has permissions that require a privacy policy set for the app.\n' +
     `${learnMore('https://expo.fyi/missing-privacy-policy')}.`,
-  [SubmissionErrorCode.IOS_OLD_VERSION_CODE_ERROR]:
+  [SubmissionErrorCode.IOS_OLD_APP_VERSION]:
     "You've already submitted this version of the app.\n" +
-    'Versions are identified by Build Numbers (expo.ios.buildNumber in app.json).\n' +
-    "If you're submitting an Expo project built with EAS Build, increment the build number in app.json and build the project again.\n" +
+    'Versions are identified by CFBundleShortVersionString from Info.plist (expo.version in app.json).\n' +
+    "If you're submitting an Expo project built with EAS Build, increment the version (expo.version) in app.json and build the project again.",
+  [SubmissionErrorCode.IOS_OLD_BUILD_NUMBER]:
+    "You've already submitted this build of the app.\n" +
+    'Builds are identified by CFBundleVersion from Info.plist (expo.ios.buildNumber in app.json).\n' +
+    "If you're submitting an Expo project built with EAS Build, increment the build number (expo.ios.buildNumber) in app.json and build the project again.\n" +
     `${learnMore('https://expo.fyi/bumping-ios-build-number')}.`,
+  [SubmissionErrorCode.IOS_INVALID_APP_VERSION_NUMBER]:
+    'Invalid app version number.\n' +
+    'Versions are identified by CFBundleShortVersionString from Info.plist (expo.version in app.json).\n' +
+    "If you're submitting an Expo project built with EAS Build, fix the version (expo.version) in app.json and build the project again.\n" +
+    `${learnMore(
+      'https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleshortversionstring'
+    )}.`,
+  [SubmissionErrorCode.IOS_INVALID_BUILD_NUMBER]:
+    'Invalid build number.\n' +
+    'Builds are identified by CFBundleVersion from Info.plist (expo.ios.buildNumber in app.json).\n' +
+    "If you're submitting an Expo project built with EAS Build, fix the build number (expo.ios.buildNumber) in app.json and build the project again.\n" +
+    `${learnMore(
+      'https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleversion'
+    )}.`,
   [SubmissionErrorCode.IOS_UNKNOWN_ERROR]:
     "We couldn't figure out what went wrong. See logs to learn more.",
   [SubmissionErrorCode.IOS_MISSING_APP_ICON]:
     'Your iOS app icon is missing or is an invalid format. The icon must be a 1024x1024 PNG image with no transparency.\n' +
     'Check your icon image and icon configuration in app.json.\n' +
     `${learnMore('https://docs.expo.dev/guides/app-icons/')}`,
+  [SubmissionErrorCode.IOS_TRANSPARENT_APP_ICON]: `Invalid App Store Icon. The App Store Icon can't be transparent nor contain an alpha channel.`,
   [SubmissionErrorCode.IOS_INVALID_SIGNATURE]:
     'Your app signature seems to be invalid.\n' +
     "Check your iOS Distribution Certificate and your app's Provisioning Profile.\n" +
