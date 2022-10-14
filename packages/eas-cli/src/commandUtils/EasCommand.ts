@@ -6,9 +6,7 @@ import {
   initAsync as initAnalyticsAsync,
   logEvent,
 } from '../analytics/rudderstackClient';
-import * as Analytics from '../analytics/rudderstackClient';
 import SessionManager from '../user/SessionManager';
-import { Actor, getActorDisplayName } from '../user/User';
 import ContextField from './context/ContextField';
 import { DynamicProjectConfigContextField } from './context/DynamicProjectConfigContextField';
 import LoggedInContextField from './context/LoggedInContextField';
@@ -78,11 +76,8 @@ export default abstract class EasCommand extends Command {
     },
     /**
      * Require the project to be identified and registered on server. Returns the project config in the context.
-     * This also requires the user to be logged in (getProjectIdAsync requires logged in), so also expose that context.
-     * Exposing the loggedIn context here helps us determine ahead of time to require user login for logging purposes.
      */
     ProjectConfig: {
-      loggedIn: new LoggedInContextField(),
       projectConfig: new ProjectConfigContextField(),
     },
   };
@@ -138,29 +133,8 @@ export default abstract class EasCommand extends Command {
   async run(): Promise<any> {
     await initAnalyticsAsync();
 
-    // identify the user in the analytics system ahead of running the command
-    // to log run before any potential ctrl-c
-    let actor: Actor | undefined;
-    if ('loggedIn' in (this.ctor as typeof EasCommand).contextDefinition) {
-      // don't throw for invalid flags/args here (this should be handled in the command's own parse call)
-      let nonInteractive: boolean;
-      try {
-        const { flags } = await this.parse();
-        nonInteractive = (flags as any)['non-interactive'] ?? false;
-      } catch {
-        nonInteractive = false;
-      }
-      actor = (await this.sessionManager.ensureLoggedInAsync({ nonInteractive })).actor;
-    } else {
-      actor = await this.sessionManager.getUserAsync();
-    }
-    if (actor) {
-      await Analytics.setUserDataAsync(actor.id, {
-        username: getActorDisplayName(actor),
-        user_id: actor.id,
-        user_type: actor.__typename,
-      });
-    }
+    // this is needed for logEvent call below as it identifies the user in the analytics system
+    await this.sessionManager.getUserAsync();
 
     logEvent(AnalyticsEvent.ACTION, {
       // id is assigned by oclif in constructor based on the filepath:
