@@ -1,4 +1,4 @@
-import filter from '../../../utils/expodash/filter';
+import { truthy } from '../../../utils/expodash/filter';
 import { IssueRule } from '../../config/issue';
 
 const KEYWORD_CHARACTER_LIMIT = 100;
@@ -15,8 +15,8 @@ export const infoKeywordLength: IssueRule = {
       return null;
     }
 
-    return filter(
-      Object.keys(config.apple.info).map(locale => {
+    return Object.keys(config.apple.info)
+      .map(locale => {
         const keywords = config.apple?.info?.[locale].keywords ?? [];
         const length = keywords.join(',').length;
 
@@ -31,6 +31,6 @@ export const infoKeywordLength: IssueRule = {
 
         return null;
       })
-    );
+      .filter(truthy);
   },
 };

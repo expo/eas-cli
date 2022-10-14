@@ -1,19 +1,19 @@
-import filter from '../filter';
+import { truthy } from '../filter';
 
-describe(filter, () => {
-  it('returns all numbers', () => {
-    expect(filter([1, 0, 2])).toEqual([1, 0, 2]);
+describe(truthy, () => {
+  it('filters <0 numbers', () => {
+    expect([1, 0, -2, 2].filter(truthy)).toEqual([1, 2]);
   });
 
-  it('returns all strings', () => {
-    expect(filter(['hello', '', 'world'])).toEqual(['hello', '', 'world']);
+  it('filters empty strings', () => {
+    expect(['hello', '', 'world'].filter(truthy)).toEqual(['hello', 'world']);
   });
 
-  it('filters null from list', () => {
-    expect(filter(['hello', null, 0, ''])).toEqual(['hello', 0, '']);
+  it('filters null from strings or numbers', () => {
+    expect(['hello', null, 1, ''].filter(truthy)).toEqual(['hello', 1]);
   });
 
-  it('filters undefined from list', () => {
-    expect(filter(['hello', undefined, 0, ''])).toEqual(['hello', 0, '']);
+  it('filters undefined from strings or numbers', () => {
+    expect(['hello', undefined, 1, ''].filter(truthy)).toEqual(['hello', 1]);
   });
 });

@@ -1,4 +1,4 @@
-import filter from '../../../utils/expodash/filter';
+import { truthy } from '../../../utils/expodash/filter';
 import { IssueRule } from '../../config/issue';
 import { AppleInfo } from '../types';
 
@@ -19,27 +19,26 @@ export const infoRestrictedWords: IssueRule = {
       return null;
     }
 
-    return filter(
-      Object.keys(config.apple.info).map(locale =>
-        filter(
-          RESTRICTED_PROPERTIES.map(property => {
-            const value = getStringValue(config.apple?.info?.[locale][property]);
-            const issueDescription = getDescriptionForFirstMatch(value);
+    return Object.keys(config.apple.info)
+      .map(locale =>
+        RESTRICTED_PROPERTIES.map(property => {
+          const value = getStringValue(config.apple?.info?.[locale][property]);
+          const issueDescription = getDescriptionForFirstMatch(value);
 
-            if (issueDescription) {
-              return {
-                id: this.id,
-                severity: this.severity,
-                path: ['apple', 'info', locale, property],
-                message: issueDescription,
-              };
-            }
+          if (issueDescription) {
+            return {
+              id: this.id,
+              severity: this.severity,
+              path: ['apple', 'info', locale, property],
+              message: issueDescription,
+            };
+          }
 
-            return null;
-          })
-        )
+          return null;
+        }).filter(truthy)
       )
-    ).flat();
+      .filter(truthy)
+      .flat();
   },
 };
 
