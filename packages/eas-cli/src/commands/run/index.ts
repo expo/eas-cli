@@ -1,10 +1,16 @@
 import { Errors, Flags } from '@oclif/core';
 
-import { listAndSelectBuildsOnAppAsync } from '../../build/queries';
+import { getLatestBuildAsync, listAndSelectBuildsOnAppAsync } from '../../build/queries';
 import { BuildDistributionType } from '../../build/types';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasPaginatedQueryFlags, getPaginatedQueryOptions } from '../../commandUtils/pagination';
-import { AppPlatform, BuildStatus } from '../../graphql/generated';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import {
+  EasPaginatedQueryFlags,
+  PaginatedQueryOptions,
+  getPaginatedQueryOptions,
+} from '../../commandUtils/pagination';
+import { AppPlatform, BuildFragment, BuildStatus } from '../../graphql/generated';
+import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { RunArchiveFlags, runAsync } from '../../run/run';
@@ -63,7 +69,7 @@ export default class Run extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Run);
     const flags = await this.sanitizeFlagsAsync(rawFlags);
-    const paginatedQueryOptions = getPaginatedQueryOptions(flags);
+    const queryOptions = getPaginatedQueryOptions(flags);
     const {
       loggedIn: { actor, graphqlClient },
       projectConfig: { projectId },
@@ -71,25 +77,9 @@ export default class Run extends EasCommand {
       nonInteractive: false,
     });
 
-    if (
-      !flags.runArchiveFlags.id &&
-      !flags.runArchiveFlags.path &&
-      !flags.runArchiveFlags.url &&
-      !flags.runArchiveFlags.latest
-    ) {
-      await listAndSelectBuildsOnAppAsync(graphqlClient, {
-        projectId,
-        projectDisplayName: await getDisplayNameForProjectIdAsync(graphqlClient, projectId),
-        filter: {
-          platform: requestedPlatformToGraphqlAppPlatform(flags.requestedPlatform),
-          distribution: toGraphQLBuildDistribution(BuildDistributionType.SIMULATOR),
-          status: BuildStatus.Finished,
-        },
-        paginatedQueryOptions,
-      });
-    }
+    const maybeBuild = await maybeGetBuildIdAsync(graphqlClient, flags, projectId, queryOptions);
 
-    await runAsync(graphqlClient, projectId, flags.runArchiveFlags, actor);
+    await runAsync(graphqlClient, actor, flags.runArchiveFlags, maybeBuild);
   }
 
   private async sanitizeFlagsAsync(flags: RawRunFlags): Promise<RunCommandFlags> {
@@ -126,4 +116,46 @@ function requestedPlatformToGraphqlAppPlatform(
     case RequestedPlatform.All:
       return undefined;
   }
+}
+
+async function maybeGetBuildIdAsync(
+  graphqlClient: ExpoGraphqlClient,
+  flags: RunCommandFlags,
+  projectId: string,
+  paginatedQueryOptions: PaginatedQueryOptions
+): Promise<BuildFragment | undefined> {
+  if (flags.runArchiveFlags.id) {
+    return BuildQuery.byIdAsync(graphqlClient, flags.runArchiveFlags.id);
+  }
+
+  if (
+    !flags.runArchiveFlags.id &&
+    !flags.runArchiveFlags.path &&
+    !flags.runArchiveFlags.url &&
+    !flags.runArchiveFlags.latest
+  ) {
+    return await listAndSelectBuildsOnAppAsync(graphqlClient, {
+      projectId,
+      projectDisplayName: await getDisplayNameForProjectIdAsync(graphqlClient, projectId),
+      filter: {
+        platform: requestedPlatformToGraphqlAppPlatform(flags.requestedPlatform),
+        distribution: toGraphQLBuildDistribution(BuildDistributionType.SIMULATOR),
+        status: BuildStatus.Finished,
+      },
+      queryOptions: paginatedQueryOptions,
+    });
+  }
+
+  if (flags.runArchiveFlags.latest) {
+    return await getLatestBuildAsync(graphqlClient, {
+      projectId,
+      filter: {
+        platform: requestedPlatformToGraphqlAppPlatform(flags.requestedPlatform),
+        distribution: toGraphQLBuildDistribution(BuildDistributionType.SIMULATOR),
+        status: BuildStatus.Finished,
+      },
+    });
+  }
+
+  return undefined;
 }

@@ -60,18 +60,18 @@ export async function listAndSelectBuildsOnAppAsync(
     projectId,
     projectDisplayName,
     filter,
-    paginatedQueryOptions,
+    queryOptions,
   }: {
     projectId: string;
     projectDisplayName: string;
     filter?: BuildFilter;
-    paginatedQueryOptions: PaginatedQueryOptions;
+    queryOptions: PaginatedQueryOptions;
   }
-): Promise<string> {
+): Promise<BuildFragment> {
   const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
     appId: projectId,
-    limit: paginatedQueryOptions.limit ?? BUILDS_LIMIT,
-    offset: paginatedQueryOptions.offset,
+    limit: queryOptions.limit ?? BUILDS_LIMIT,
+    offset: queryOptions.offset,
     filter,
   });
 
@@ -79,16 +79,40 @@ export async function listAndSelectBuildsOnAppAsync(
     throw new Error('No simulator builds found for given criteria.');
   }
 
-  const { selectedSimulatorBuildId } = await promptAsync({
+  const { selectedSimulatorBuild } = await promptAsync({
     type: 'select',
     message: `Select simulator build to run for ${projectDisplayName} app`,
-    name: 'selectedSimulatorBuildId',
+    name: 'selectedSimulatorBuild',
     choices: builds.map(build => ({
       title: `id: ${build.id}, platform: ${build.platform}, appVersion: ${build.appVersion}, appBuildVersion: ${build.appBuildVersion}`,
-      value: build.id,
+      value: build,
     })),
   });
-  return selectedSimulatorBuildId;
+  return selectedSimulatorBuild;
+}
+
+export async function getLatestBuildAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    filter,
+  }: {
+    projectId: string;
+    filter?: BuildFilter;
+  }
+): Promise<BuildFragment> {
+  const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
+    appId: projectId,
+    limit: 1,
+    offset: 0,
+    filter,
+  });
+
+  if (builds.length === 0) {
+    throw new Error('No simulator builds found for given criteria.');
+  }
+
+  return builds[0];
 }
 
 function renderPageOfBuilds({

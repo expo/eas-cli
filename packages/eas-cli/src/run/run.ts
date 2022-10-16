@@ -1,4 +1,6 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { BuildFragment } from '../graphql/generated';
+import Log from '../log';
 import { Actor } from '../user/User';
 
 export interface RunArchiveFlags {
@@ -10,7 +12,9 @@ export interface RunArchiveFlags {
 
 export async function runAsync(
   graphqlClient: ExpoGraphqlClient,
-  buildId: string,
+  actor: Actor,
   runArchiveFlags: RunArchiveFlags,
-  actor: Actor
-): Promise<void> {}
+  build?: BuildFragment
+): Promise<void> {
+  Log.log(build?.id);
+}
