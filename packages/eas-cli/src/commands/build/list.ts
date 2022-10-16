@@ -134,7 +134,7 @@ const toGraphQLBuildStatus = (buildStatus?: BuildStatus): GraphQLBuildStatus | u
   }
 };
 
-const toGraphQLBuildDistribution = (
+export const toGraphQLBuildDistribution = (
   buildDistribution?: BuildDistributionType
 ): DistributionType | undefined => {
   if (buildDistribution === BuildDistributionType.STORE) {

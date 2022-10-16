@@ -5,6 +5,7 @@ import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { BuildFilter, BuildFragment } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log from '../log';
+import { promptAsync } from '../prompts';
 import { printJsonOnlyOutput } from '../utils/json';
 import { paginatedQueryWithConfirmPromptAsync } from '../utils/queries';
 import { formatGraphQLBuild } from './utils/formatBuild';
@@ -51,6 +52,43 @@ export async function listAndRenderBuildsOnAppAsync(
       },
     });
   }
+}
+
+export async function listAndSelectBuildsOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    projectDisplayName,
+    filter,
+    paginatedQueryOptions,
+  }: {
+    projectId: string;
+    projectDisplayName: string;
+    filter?: BuildFilter;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<string> {
+  const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
+    appId: projectId,
+    limit: paginatedQueryOptions.limit ?? BUILDS_LIMIT,
+    offset: paginatedQueryOptions.offset,
+    filter,
+  });
+
+  if (builds.length === 0) {
+    throw new Error('No simulator builds found for given criteria.');
+  }
+
+  const { selectedSimulatorBuildId } = await promptAsync({
+    type: 'select',
+    message: `Select simulator build to run for ${projectDisplayName} app`,
+    name: 'selectedSimulatorBuildId',
+    choices: builds.map(build => ({
+      title: `id: ${build.id}, platform: ${build.platform}, appVersion: ${build.appVersion}, appBuildVersion: ${build.appBuildVersion}`,
+      value: build.id,
+    })),
+  });
+  return selectedSimulatorBuildId;
 }
 
 function renderPageOfBuilds({
