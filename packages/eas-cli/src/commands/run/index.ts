@@ -9,11 +9,11 @@ import {
   PaginatedQueryOptions,
   getPaginatedQueryOptions,
 } from '../../commandUtils/pagination';
-import { AppPlatform, BuildFragment, BuildStatus } from '../../graphql/generated';
+import { BuildFragment, BuildStatus } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
-import { RunArchiveFlags, runAsync } from '../../run/run';
+import { RunArchiveFlags, requestedPlatformToGraphqlAppPlatform, runAsync } from '../../run/run';
 import { toGraphQLBuildDistribution } from '../build/list';
 
 interface RawRunFlags {
@@ -71,7 +71,7 @@ export default class Run extends EasCommand {
     const flags = await this.sanitizeFlagsAsync(rawFlags);
     const queryOptions = getPaginatedQueryOptions(flags);
     const {
-      loggedIn: { actor, graphqlClient },
+      loggedIn: { graphqlClient },
       projectConfig: { projectId },
     } = await this.getContextAsync(Run, {
       nonInteractive: false,
@@ -79,7 +79,7 @@ export default class Run extends EasCommand {
 
     const maybeBuild = await maybeGetBuildIdAsync(graphqlClient, flags, projectId, queryOptions);
 
-    await runAsync(graphqlClient, actor, flags.runArchiveFlags, maybeBuild);
+    await runAsync(flags.runArchiveFlags, flags.requestedPlatform, maybeBuild);
   }
 
   private async sanitizeFlagsAsync(flags: RawRunFlags): Promise<RunCommandFlags> {
@@ -102,19 +102,6 @@ export default class Run extends EasCommand {
       limit,
       offset,
     };
-  }
-}
-
-function requestedPlatformToGraphqlAppPlatform(
-  requestedPlatform: RequestedPlatform
-): AppPlatform | undefined {
-  switch (requestedPlatform) {
-    case RequestedPlatform.Android:
-      return AppPlatform.Android;
-    case RequestedPlatform.Ios:
-      return AppPlatform.Ios;
-    case RequestedPlatform.All:
-      return undefined;
   }
 }
 

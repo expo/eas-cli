@@ -11914,6 +11914,18 @@
             "deprecationReason": null
           },
           {
+            "name": "actualResourceClass",
+            "description": "The actual resource class of the builder assigned to the build job",
+            "args": [],
+            "type": {
+              "kind": "ENUM",
+              "name": "BuildResourceClass",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "appBuildVersion",
             "description": "",
             "args": [],
@@ -12391,12 +12403,16 @@
           },
           {
             "name": "resourceClass",
-            "description": "",
+            "description": "The builder resource class requested by the developer",
             "args": [],
             "type": {
-              "kind": "ENUM",
-              "name": "BuildResourceClass",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "BuildResourceClass",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -17284,7 +17300,7 @@
                   "name": "Int",
                   "ofType": null
                 },
-                "defaultValue": "1",
+                "defaultValue": null,
                 "isDeprecated": false,
                 "deprecationReason": null
               },
@@ -17296,7 +17312,7 @@
                   "name": "Int",
                   "ofType": null
                 },
-                "defaultValue": "50",
+                "defaultValue": null,
                 "isDeprecated": false,
                 "deprecationReason": null
               }
@@ -17305,17 +17321,9 @@
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "GitHubAppInstallationAccessibleRepository",
-                    "ofType": null
-                  }
-                }
+                "kind": "OBJECT",
+                "name": "GitHubRepositoryPaginationResult",
+                "ofType": null
               }
             },
             "isDeprecated": false,
@@ -17717,6 +17725,39 @@
             "deprecationReason": null
           },
           {
+            "name": "installation",
+            "description": "",
+            "args": [
+              {
+                "name": "id",
+                "description": "",
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "GitHubAppInstallation",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "searchRepositories",
             "description": "",
             "args": [
@@ -17733,30 +17774,6 @@
                   }
                 },
                 "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "page",
-                "description": "",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": "1",
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "perPage",
-                "description": "",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": "50",
                 "isDeprecated": false,
                 "deprecationReason": null
               },
@@ -17781,17 +17798,9 @@
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "GitHubAppInstallationAccessibleRepository",
-                    "ofType": null
-                  }
-                }
+                "kind": "OBJECT",
+                "name": "GitHubRepositoryPaginationResult",
+                "ofType": null
               }
             },
             "isDeprecated": false,
@@ -18149,6 +18158,57 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "GitHubRepositoryPaginationResult",
+        "description": "",
+        "fields": [
+          {
+            "name": "repositories",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "GitHubAppInstallationAccessibleRepository",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "totalCount",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
                 "ofType": null
               }
             },
