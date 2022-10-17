@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Remove EAS Submit errors from codebase. The errors have been moved to the server side. ([#1443](https://github.com/expo/eas-cli/pull/1443) by [@dsokal](https://github.com/dsokal))
+
 ## [2.4.0](https://github.com/expo/eas-cli/releases/tag/v2.4.0) - 2022-10-14
 
 ### 🎉 New features
