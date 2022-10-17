@@ -2,10 +2,10 @@ import spawnAsync from '@expo/spawn-async';
 import path from 'path';
 
 import * as simulator from './simulator';
-import { assertPlatform } from './systemRequirements';
+import { ensureSystemRequirementsAsync } from './systemRequirements';
 
 export async function runAppOnIosSimulatorAsync(appPath: string): Promise<void> {
-  assertPlatform();
+  await ensureSystemRequirementsAsync();
 
   const selectedSimulator = await simulator.getBestIosSimulatorAsync();
   await simulator.ensureSimulatorBootedAsync(selectedSimulator);

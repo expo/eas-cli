@@ -2,7 +2,7 @@ import { AppPlatform, BuildFragment } from '../graphql/generated';
 import { RequestedPlatform } from '../platform';
 import { downloadAndExtractAppAsync, extractAppFromLocalArchiveAsync } from '../utils/download';
 import { runAppOnAndroidSimulatorAsync } from './android/AndroidRunner';
-import { runAppOnIosSimulatorAsync } from './ios/IosRunner';
+import { runAppOnIosSimulatorAsync } from './ios/iosRunner';
 
 export interface RunArchiveFlags {
   latest?: boolean;
