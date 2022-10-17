@@ -1,3 +1,4 @@
+import * as osascript from '@expo/osascript';
 import spawnAsync, { SpawnOptions, SpawnResult } from '@expo/spawn-async';
 import chalk from 'chalk';
 import path from 'path';
@@ -236,10 +237,20 @@ async function waitForSimulatorAppToStartAsync(
 }
 
 async function isSimulatorAppRunningAsync(): Promise<boolean> {
-  const { stdout } = await spawnAsync('pgrep', ['Simulator']);
-
-  if (stdout.split('\n').length < 4) {
-    return false;
+  try {
+    const zeroMeansNo = (
+      await osascript.execAsync(
+        'tell app "System Events" to count processes whose name is "Simulator"'
+      )
+    ).trim();
+    if (zeroMeansNo === '0') {
+      return false;
+    }
+  } catch (error: any) {
+    if (error.message.includes('Application isn’t running')) {
+      return false;
+    }
+    throw error;
   }
 
   return true;
