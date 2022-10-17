@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [2.4.1](https://github.com/expo/eas-cli/releases/tag/v2.4.1) - 2022-10-17
+
+### 🐛 Bug fixes
+
 - Bump `eas-cli-local-build-plugin` to 0.0.144 to not require `yarn` for local builds. ([c05ef](https://github.com/expo/eas-cli/commit/c05ef9cccaa819d8e5fb84858cb09cadaae90134) by [@dsokal](https://github.com/dsokal))
 
 ### 🧹 Chores
