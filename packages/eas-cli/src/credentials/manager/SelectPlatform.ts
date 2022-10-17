@@ -1,4 +1,4 @@
-import { IAnalyticsManager } from '../../analytics/AnalyticsManager';
+import { Analytics } from '../../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { selectPlatformAsync } from '../../platform';
 import { Actor } from '../../user/User';
@@ -10,7 +10,7 @@ export class SelectPlatform {
   constructor(
     public readonly actor: Actor,
     public readonly graphqlClient: ExpoGraphqlClient,
-    public readonly analyticsManager: IAnalyticsManager,
+    public readonly analytics: Analytics,
     public readonly projectInfo: CredentialsContextProjectInfo | null,
     private readonly flagPlatform?: string
   ) {}

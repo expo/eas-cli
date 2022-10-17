@@ -3,7 +3,7 @@ import { vol } from 'memfs';
 import { instance, mock } from 'ts-mockito';
 import { v4 as uuidv4 } from 'uuid';
 
-import { IAnalyticsManager } from '../../../analytics/AnalyticsManager';
+import { Analytics } from '../../../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   jester as mockJester,
@@ -39,7 +39,7 @@ const projectId = uuidv4();
 
 async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platform.IOS>> {
   const graphqlClient = instance(mock<ExpoGraphqlClient>());
-  const analyticsManager = instance(mock<IAnalyticsManager>());
+  const analytics = instance(mock<Analytics>());
   return await createSubmissionContextAsync({
     platform: Platform.IOS,
     projectDir: testProject.projectRoot,
@@ -52,7 +52,7 @@ async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platfor
     nonInteractive: true,
     actor: mockJester,
     graphqlClient,
-    analyticsManager,
+    analytics,
     exp: testProject.appJSON.expo,
     projectId,
   });

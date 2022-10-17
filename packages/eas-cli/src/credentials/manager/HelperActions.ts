@@ -1,4 +1,4 @@
-import { IAnalyticsManager } from '../../analytics/AnalyticsManager';
+import { Analytics } from '../../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../../log';
 import { pressAnyKeyToContinueAsync } from '../../prompts';
@@ -8,7 +8,7 @@ import { CredentialsContext, CredentialsContextProjectInfo } from '../context';
 export interface Action<T = void> {
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
-  analyticsManager: IAnalyticsManager;
+  analytics: Analytics;
   projectInfo: CredentialsContextProjectInfo | null;
   runAsync(ctx: CredentialsContext): Promise<T>;
 }

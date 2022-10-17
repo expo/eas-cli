@@ -1,7 +1,7 @@
 import { ApiKey, ApiKeyProps, ApiKeyType, UserRole } from '@expo/apple-utils';
 import promiseRetry from 'promise-retry';
 
-import { IAnalyticsManager, SubmissionEvent } from '../../../analytics/AnalyticsManager';
+import { Analytics, SubmissionEvent } from '../../../analytics/AnalyticsManager';
 import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
 import { AscApiKey, AscApiKeyInfo } from './Credentials.types';
@@ -58,7 +58,7 @@ export async function getAscApiKeyAsync(
  * is available for download.
  * */
 export async function downloadWithRetryAsync(
-  analyticsManager: IAnalyticsManager,
+  analytics: Analytics,
   key: ApiKey,
   {
     minTimeout = 1000,
@@ -82,7 +82,7 @@ export async function downloadWithRetryAsync(
             Log.log(
               `Received an unexpected response from Apple, retrying in ${secondsToRetry} seconds...`
             );
-            analyticsManager.logEvent(SubmissionEvent.API_KEY_DOWNLOAD_RETRY, {
+            analytics.logEvent(SubmissionEvent.API_KEY_DOWNLOAD_RETRY, {
               errorName: e.name,
               reason: e.message,
               retry: number,
@@ -98,7 +98,7 @@ export async function downloadWithRetryAsync(
         minTimeout,
       }
     );
-    analyticsManager.logEvent(SubmissionEvent.API_KEY_DOWNLOAD_SUCCESS, {});
+    analytics.logEvent(SubmissionEvent.API_KEY_DOWNLOAD_SUCCESS, {});
     return keyP8;
   } catch (e: any) {
     if (
@@ -111,7 +111,7 @@ export async function downloadWithRetryAsync(
         )}`
       );
     }
-    analyticsManager.logEvent(SubmissionEvent.API_KEY_DOWNLOAD_FAIL, {
+    analytics.logEvent(SubmissionEvent.API_KEY_DOWNLOAD_FAIL, {
       errorName: e.name,
       reason: e.message,
     });
@@ -124,7 +124,7 @@ export async function downloadWithRetryAsync(
  * **Does not support App Store Connect API (CI).**
  */
 export async function createAscApiKeyAsync(
-  analyticsManager: IAnalyticsManager,
+  analytics: Analytics,
   userAuthCtx: UserAuthCtx,
   {
     nickname,
@@ -142,7 +142,7 @@ export async function createAscApiKeyAsync(
       roles: roles ?? [UserRole.ADMIN],
       keyType: keyType ?? ApiKeyType.PUBLIC_API,
     });
-    const keyP8 = await downloadWithRetryAsync(analyticsManager, key);
+    const keyP8 = await downloadWithRetryAsync(analytics, key);
     if (!keyP8) {
       const { nickname, roles } = key.attributes;
       const humanReadableKey = `App Store Connect Key '${nickname}' (${

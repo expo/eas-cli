@@ -50,7 +50,7 @@ export default abstract class BaseSubmitter<
 
       const sourceOption = await withAnalyticsAsync<
         ResolvedSourceOptions[keyof ResolvedSourceOptions]
-      >(this.ctx.analyticsManager, async () => await this.sourceOptionResolver[sourceOptionKey](), {
+      >(this.ctx.analytics, async () => await this.sourceOptionResolver[sourceOptionKey](), {
         attemptEvent: sourceOptionAnalytics.attemptEvent,
         successEvent: sourceOptionAnalytics.successEvent,
         failureEvent: sourceOptionAnalytics.failureEvent,
@@ -91,7 +91,7 @@ export default abstract class BaseSubmitter<
     submissionInput: SubmissionInput<P>
   ): Promise<SubmissionFragment> {
     return await withAnalyticsAsync<SubmissionFragment>(
-      this.ctx.analyticsManager,
+      this.ctx.analytics,
       async () => this.createSubmissionAsync(submissionInput),
       {
         attemptEvent: SubmissionEvent.SUBMIT_REQUEST_ATTEMPT,

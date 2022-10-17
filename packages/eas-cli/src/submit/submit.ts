@@ -17,7 +17,7 @@ export async function submitAsync<T extends Platform>(
   ctx: SubmissionContext<T>
 ): Promise<SubmissionFragment> {
   return await withAnalyticsAsync(
-    ctx.analyticsManager,
+    ctx.analytics,
     async () => {
       const command =
         ctx.platform === Platform.ANDROID

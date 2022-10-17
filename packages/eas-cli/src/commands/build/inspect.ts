@@ -74,7 +74,7 @@ export default class BuildInspect extends EasCommand {
       loggedIn: { actor, graphqlClient },
       getDynamicProjectConfigAsync,
       projectDir,
-      analyticsManager,
+      analytics,
     } = await this.getContextAsync(BuildInspect, {
       nonInteractive: false,
     });
@@ -99,7 +99,7 @@ export default class BuildInspect extends EasCommand {
       try {
         await runBuildAndSubmitAsync(
           graphqlClient,
-          analyticsManager,
+          analytics,
           projectDir,
           {
             nonInteractive: false,

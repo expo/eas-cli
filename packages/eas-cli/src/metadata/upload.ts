@@ -18,7 +18,7 @@ export async function uploadMetadataAsync(
   const storeConfig = await loadConfigWithValidationPromptAsync(metadataCtx);
   const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataCtx);
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
-    metadataCtx.analyticsManager,
+    metadataCtx.analytics,
     MetadataEvent.APPLE_METADATA_UPLOAD,
     { app, auth }
   );

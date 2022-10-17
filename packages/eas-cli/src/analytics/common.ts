@@ -1,11 +1,15 @@
-import { AnalyticsEvent, IAnalyticsManager } from './AnalyticsManager';
+import { Analytics, AnalyticsEvent } from './AnalyticsManager';
 
 export type TrackingContext = Record<string, string | number | boolean>;
 
 export async function withAnalyticsAsync<Result>(
-  analyticsManager: IAnalyticsManager,
+  analytics: Analytics,
   fn: () => Promise<Result>,
-  analytics: {
+  {
+    successEvent,
+    failureEvent,
+    trackingCtx,
+  }: {
     attemptEvent: AnalyticsEvent;
     successEvent: AnalyticsEvent;
     failureEvent: AnalyticsEvent;
@@ -14,11 +18,11 @@ export async function withAnalyticsAsync<Result>(
 ): Promise<Result> {
   try {
     const result = await fn();
-    analyticsManager.logEvent(analytics.successEvent, analytics.trackingCtx);
+    analytics.logEvent(successEvent, trackingCtx);
     return result;
   } catch (error: any) {
-    analyticsManager.logEvent(analytics.failureEvent, {
-      ...analytics.trackingCtx,
+    analytics.logEvent(failureEvent, {
+      ...trackingCtx,
       reason: error.message,
     });
     throw error;

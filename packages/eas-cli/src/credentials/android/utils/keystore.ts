@@ -5,7 +5,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-import { BuildEvent, IAnalyticsManager } from '../../../analytics/AnalyticsManager';
+import { Analytics, BuildEvent } from '../../../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import fetch from '../../../fetch';
 import { AndroidKeystoreType } from '../../../graphql/generated';
@@ -38,7 +38,7 @@ enum KeystoreCreateStep {
 
 export async function generateRandomKeystoreAsync(
   graphqlClient: ExpoGraphqlClient,
-  analyticsManager: IAnalyticsManager,
+  analytics: Analytics,
   projectId: string
 ): Promise<KeystoreWithType> {
   const keystoreData: KeystoreParams = {
@@ -46,16 +46,16 @@ export async function generateRandomKeystoreAsync(
     keyPassword: crypto.randomBytes(16).toString('hex'),
     keyAlias: crypto.randomBytes(16).toString('hex'),
   };
-  return await createKeystoreAsync(graphqlClient, analyticsManager, keystoreData, projectId);
+  return await createKeystoreAsync(graphqlClient, analytics, keystoreData, projectId);
 }
 
 async function createKeystoreAsync(
   graphqlClient: ExpoGraphqlClient,
-  analyticsManager: IAnalyticsManager,
+  analytics: Analytics,
   keystoreParams: KeystoreParams,
   projectId: string
 ): Promise<KeystoreWithType> {
-  analyticsManager.logEvent(BuildEvent.ANDROID_KEYSTORE_CREATE, {
+  analytics.logEvent(BuildEvent.ANDROID_KEYSTORE_CREATE, {
     project_id: projectId,
     step: KeystoreCreateStep.Attempt,
     type: AndroidKeystoreType.Jks,
@@ -76,14 +76,14 @@ async function createKeystoreAsync(
         showKeytoolDetectionMsg: !localAttempt,
       });
     }
-    analyticsManager.logEvent(BuildEvent.ANDROID_KEYSTORE_CREATE, {
+    analytics.logEvent(BuildEvent.ANDROID_KEYSTORE_CREATE, {
       project_id: projectId,
       step: KeystoreCreateStep.Success,
       type: AndroidKeystoreType.Jks,
     });
     return keystore;
   } catch (error: any) {
-    analyticsManager.logEvent(BuildEvent.ANDROID_KEYSTORE_CREATE, {
+    analytics.logEvent(BuildEvent.ANDROID_KEYSTORE_CREATE, {
       project_id: projectId,
       step: KeystoreCreateStep.Fail,
       reason: error.message,

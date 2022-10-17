@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { ApiV2Error } from '../ApiV2Error';
-import { IAnalayticsManagerWithOrchestration } from '../analytics/AnalyticsManager';
+import { AnalyticsWithOrchestration } from '../analytics/AnalyticsManager';
 import { ApiV2Client } from '../api';
 import { createGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CurrentUserQuery } from '../graphql/generated';
@@ -55,7 +55,7 @@ type Actor = NonNullable<CurrentUserQuery['meActor']>;
 export default class SessionManager {
   private currentActor: Actor | undefined;
 
-  constructor(private readonly analyticsManager: IAnalayticsManagerWithOrchestration) {}
+  constructor(private readonly analytics: AnalyticsWithOrchestration) {}
 
   public getAccessToken(): string | null {
     return process.env.EXPO_TOKEN ?? null;
@@ -97,7 +97,7 @@ export default class SessionManager {
       const actor = await UserQuery.currentUserAsync(createGraphqlClient(authenticationInfo));
       this.currentActor = actor ?? undefined;
       if (actor) {
-        this.analyticsManager.setActor(actor);
+        this.analytics.setActor(actor);
       }
     }
     return this.currentActor;

@@ -78,7 +78,7 @@ export async function prepareBuildRequestForPlatformAsync<
 >(builder: Builder<TPlatform, Credentials, TJob>): Promise<BuildRequestSender> {
   const { ctx } = builder;
   const credentialsResult = await withAnalyticsAsync(
-    ctx.analyticsManager,
+    ctx.analytics,
     async () => await builder.ensureCredentialsAsync(ctx),
     {
       attemptEvent: BuildEvent.GATHER_CREDENTIALS_ATTEMPT,
@@ -89,7 +89,7 @@ export async function prepareBuildRequestForPlatformAsync<
   );
 
   await withAnalyticsAsync(
-    ctx.analyticsManager,
+    ctx.analytics,
     async () => await builder.syncProjectConfigurationAsync(ctx),
     {
       attemptEvent: BuildEvent.CONFIGURE_PROJECT_ATTEMPT,
@@ -197,7 +197,7 @@ async function uploadProjectAsync<TPlatform extends Platform>(
   let projectTarballPath;
   try {
     return await withAnalyticsAsync(
-      ctx.analyticsManager,
+      ctx.analytics,
       async () => {
         Log.newLine();
         Log.log(
@@ -256,7 +256,7 @@ async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJ
 ): Promise<BuildFragment> {
   const { ctx } = builder;
   return await withAnalyticsAsync(
-    ctx.analyticsManager,
+    ctx.analytics,
     async () => {
       if (Log.isDebug) {
         Log.log(`Starting ${requestedPlatformDisplayNames[job.platform]} build`);

@@ -3,7 +3,7 @@ import { Env } from '@expo/eas-build-job';
 import { EasJson } from '@expo/eas-json';
 import chalk from 'chalk';
 
-import { IAnalyticsManager } from '../analytics/AnalyticsManager';
+import { Analytics } from '../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../log';
 import { getExpoConfig } from '../project/expoConfig';
@@ -27,7 +27,7 @@ export class CredentialsContext {
   public readonly projectDir: string;
   public readonly user: Actor;
   public readonly graphqlClient: ExpoGraphqlClient;
-  public readonly analyticsManager: IAnalyticsManager;
+  public readonly analytics: Analytics;
   public readonly easJsonCliConfig?: EasJson['cli'];
 
   private shouldAskAuthenticateAppStore: boolean = true;
@@ -43,7 +43,7 @@ export class CredentialsContext {
       projectDir: string;
       user: Actor;
       graphqlClient: ExpoGraphqlClient;
-      analyticsManager: IAnalyticsManager;
+      analytics: Analytics;
       env?: Env;
     }
   ) {
@@ -51,7 +51,7 @@ export class CredentialsContext {
     this.projectDir = options.projectDir;
     this.user = options.user;
     this.graphqlClient = options.graphqlClient;
-    this.analyticsManager = options.analyticsManager;
+    this.analytics = options.analytics;
     this.nonInteractive = options.nonInteractive ?? false;
     this.projectInfo = options.projectInfo;
   }

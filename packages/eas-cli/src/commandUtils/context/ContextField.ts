@@ -1,9 +1,9 @@
-import { IAnalyticsManager } from '../../analytics/AnalyticsManager';
+import { Analytics } from '../../analytics/AnalyticsManager';
 import SessionManager from '../../user/SessionManager';
 
 export interface ContextOptions {
   sessionManager: SessionManager;
-  analyticsManager: IAnalyticsManager;
+  analytics: Analytics;
   nonInteractive: boolean;
 }
 

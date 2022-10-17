@@ -1,7 +1,4 @@
-import {
-  IAnalayticsManagerWithOrchestration,
-  createAnalyticsManagerAsync,
-} from '../../analytics/AnalyticsManager';
+import { AnalyticsWithOrchestration, createAnalyticsAsync } from '../../analytics/AnalyticsManager';
 import SessionManager from '../../user/SessionManager';
 import EasCommand from '../EasCommand';
 
@@ -11,7 +8,7 @@ jest.mock('../../analytics/AnalyticsManager', () => {
   const { CommandEvent } = jest.requireActual('../../analytics/AnalyticsManager');
   return {
     CommandEvent,
-    createAnalyticsManagerAsync: jest.fn(),
+    createAnalyticsAsync: jest.fn(),
   };
 });
 
@@ -26,7 +23,7 @@ afterAll(() => {
   process.argv = originalProcessArgv;
 });
 
-const analyticsManager: IAnalayticsManagerWithOrchestration = {
+const analytics: AnalyticsWithOrchestration = {
   logEvent: jest.fn((): void => {}),
   setActor: jest.fn((): void => {}),
   flushAsync: jest.fn(async (): Promise<void> => {}),
@@ -35,7 +32,7 @@ const analyticsManager: IAnalayticsManagerWithOrchestration = {
 beforeEach(() => {
   jest.resetAllMocks();
 
-  jest.mocked(createAnalyticsManagerAsync).mockResolvedValue(analyticsManager);
+  jest.mocked(createAnalyticsAsync).mockResolvedValue(analytics);
 });
 
 const createTestEasCommand = (): typeof EasCommand => {
@@ -68,21 +65,21 @@ describe(EasCommand.name, () => {
       const TestEasCommand = createTestEasCommand();
       await TestEasCommand.run();
 
-      expect(createAnalyticsManagerAsync).toHaveBeenCalled();
+      expect(createAnalyticsAsync).toHaveBeenCalled();
     });
 
     it('flushes analytics', async () => {
       const TestEasCommand = createTestEasCommand();
       await TestEasCommand.run();
 
-      expect(analyticsManager.flushAsync).toHaveBeenCalled();
+      expect(analytics.flushAsync).toHaveBeenCalled();
     });
 
     it('logs events', async () => {
       const TestEasCommand = createTestEasCommand();
       await TestEasCommand.run();
 
-      expect(analyticsManager.logEvent).toHaveBeenCalledWith('action', {
+      expect(analytics.logEvent).toHaveBeenCalledWith('action', {
         action: `eas ${TestEasCommand.id}`,
       });
     });
@@ -97,7 +94,7 @@ describe(EasCommand.name, () => {
         });
       } catch {}
 
-      expect(analyticsManager.flushAsync).toHaveBeenCalled();
+      expect(analytics.flushAsync).toHaveBeenCalled();
     });
   });
 });

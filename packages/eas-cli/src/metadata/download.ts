@@ -31,7 +31,7 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
 
   const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataCtx);
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
-    metadataCtx.analyticsManager,
+    metadataCtx.analytics,
     MetadataEvent.APPLE_METADATA_DOWNLOAD,
     { app, auth }
   );

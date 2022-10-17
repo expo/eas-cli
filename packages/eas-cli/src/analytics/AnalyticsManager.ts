@@ -7,7 +7,7 @@ import { Actor, getActorDisplayName } from '../user/User';
 import UserSettings from '../user/UserSettings';
 import { easCliVersion } from '../utils/easCli';
 
-const PLATFORM_TO_ANALYTICS_PLATFORM: { [platform: string]: string } = {
+const PLATFORM_TO_ANALYTICS_PLATFORM: Partial<Record<NodeJS.Platform, string>> = {
   darwin: 'Mac',
   win32: 'Windows',
   linux: 'Linux',
@@ -74,7 +74,7 @@ export enum MetadataEvent {
 /**
  * The interface for commands to use to log events to analytics.
  */
-export interface IAnalyticsManager {
+export interface Analytics {
   logEvent(name: AnalyticsEvent, properties: Record<string, any>): void;
 }
 
@@ -82,7 +82,7 @@ export interface IAnalyticsManager {
  * The interface for commands to use to orchestrate the analytics system. Should only be necessary to use
  * this within EASCommand.
  */
-export interface IAnalayticsManagerWithOrchestration extends IAnalyticsManager {
+export interface AnalyticsWithOrchestration extends Analytics {
   setActor(actor: Actor): void;
   flushAsync(): Promise<void>;
 }
@@ -111,7 +111,7 @@ export async function getAnalyticsEnabledAsync(): Promise<boolean> {
 /**
  * Create an instance of IAnalyticsManager based on the user's analytics enabled preferences.
  */
-export async function createAnalyticsManagerAsync(): Promise<IAnalayticsManagerWithOrchestration> {
+export async function createAnalyticsAsync(): Promise<AnalyticsWithOrchestration> {
   // TODO: remove after some time
   const amplitudeEnabled = await UserSettings.getAsync(USER_SETTINGS_KEY_AMPLITUDE_ENABLED, null);
   if (amplitudeEnabled !== null) {
@@ -133,7 +133,7 @@ export async function createAnalyticsManagerAsync(): Promise<IAnalayticsManagerW
 
   const analyticsEnabled = await UserSettings.getAsync(USER_SETTINGS_KEY_ANALYTICS_ENABLED, true);
   if (!analyticsEnabled) {
-    return new NoOpAnalyticsManager();
+    return new NoOpAnalytics();
   }
 
   const persistedDeviceId = await UserSettings.getAsync(
@@ -144,16 +144,16 @@ export async function createAnalyticsManagerAsync(): Promise<IAnalayticsManagerW
   if (!persistedDeviceId) {
     await UserSettings.setAsync(USER_SETTINGS_KEY_ANALYTICS_DEVICE_ID, deviceId);
   }
-  return new AnalyticsManager(deviceId);
+  return new RudderstackAnalytics(deviceId);
 }
 
-class NoOpAnalyticsManager implements IAnalayticsManagerWithOrchestration {
+class NoOpAnalytics implements AnalyticsWithOrchestration {
   logEvent(): void {}
   setActor(): void {}
   async flushAsync(): Promise<void> {}
 }
 
-const AnalyticsManagerConfig =
+const RudderstackAnalyticsConfig =
   process.env.EXPO_STAGING || process.env.EXPO_LOCAL
     ? {
         // staging environment
@@ -166,10 +166,10 @@ const AnalyticsManagerConfig =
         rudderstackDataPlaneURL: 'https://cdp.expo.dev',
       };
 
-class AnalyticsManager implements IAnalayticsManagerWithOrchestration {
+class RudderstackAnalytics implements AnalyticsWithOrchestration {
   private readonly rudderstackClient = new RudderAnalytics(
-    AnalyticsManagerConfig.rudderstackWriteKey,
-    new URL('/v1/batch', AnalyticsManagerConfig.rudderstackDataPlaneURL).toString(),
+    RudderstackAnalyticsConfig.rudderstackWriteKey,
+    new URL('/v1/batch', RudderstackAnalyticsConfig.rudderstackDataPlaneURL).toString(),
     {
       flushInterval: 300,
     }

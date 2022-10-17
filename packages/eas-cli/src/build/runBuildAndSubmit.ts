@@ -10,7 +10,7 @@ import {
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import { IAnalyticsManager } from '../analytics/AnalyticsManager';
+import { Analytics } from '../analytics/AnalyticsManager';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -117,7 +117,7 @@ function resolveResourceClass(
 
 export async function runBuildAndSubmitAsync(
   graphqlClient: ExpoGraphqlClient,
-  analyticsManager: IAnalyticsManager,
+  analytics: Analytics,
   projectDir: string,
   flags: BuildFlags,
   actor: Actor,
@@ -171,7 +171,7 @@ export async function runBuildAndSubmitAsync(
       easJsonCliConfig,
       actor,
       graphqlClient,
-      analyticsManager,
+      analytics,
       getDynamicProjectConfigAsync,
     });
     if (maybeBuild) {
@@ -274,7 +274,7 @@ async function prepareAndStartBuildAsync({
   easJsonCliConfig,
   actor,
   graphqlClient,
-  analyticsManager,
+  analytics,
   getDynamicProjectConfigAsync,
 }: {
   projectDir: string;
@@ -285,7 +285,7 @@ async function prepareAndStartBuildAsync({
   easJsonCliConfig: EasJson['cli'];
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
-  analyticsManager: IAnalyticsManager;
+  analytics: Analytics;
   getDynamicProjectConfigAsync: DynamicConfigContextFn;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
@@ -302,7 +302,7 @@ async function prepareAndStartBuildAsync({
     message: flags.message,
     actor,
     graphqlClient,
-    analyticsManager,
+    analytics,
     getDynamicProjectConfigAsync,
   });
 
@@ -384,7 +384,7 @@ async function prepareAndStartSubmissionAsync({
     applicationIdentifier: buildCtx.android?.applicationId ?? buildCtx.ios?.bundleIdentifier,
     actor: buildCtx.user,
     graphqlClient: buildCtx.graphqlClient,
-    analyticsManager: buildCtx.analyticsManager,
+    analytics: buildCtx.analytics,
     projectId: buildCtx.projectId,
     exp: buildCtx.exp,
   });

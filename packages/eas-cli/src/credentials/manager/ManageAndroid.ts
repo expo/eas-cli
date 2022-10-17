@@ -57,7 +57,7 @@ export class ManageAndroid {
       projectInfo: this.callingAction.projectInfo,
       user: this.callingAction.actor,
       graphqlClient: this.callingAction.graphqlClient,
-      analyticsManager: this.callingAction.analyticsManager,
+      analytics: this.callingAction.analytics,
       env: buildProfile?.env,
       nonInteractive: false,
     });

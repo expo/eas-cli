@@ -1,9 +1,10 @@
 import { Command } from '@oclif/core';
+import nullthrows from 'nullthrows';
 
 import {
+  AnalyticsWithOrchestration,
   CommandEvent,
-  IAnalayticsManagerWithOrchestration,
-  createAnalyticsManagerAsync,
+  createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
 import SessionManager from '../user/SessionManager';
 import AnalyticsContextField from './context/AnalyticsContextField';
@@ -87,7 +88,7 @@ export default abstract class EasCommand extends Command {
      * Analytics manager. Returns the analytics manager in the context for use by the command.
      */
     Analytics: {
-      analyticsManager: new AnalyticsContextField(),
+      analytics: new AnalyticsContextField(),
     },
   };
 
@@ -123,7 +124,7 @@ export default abstract class EasCommand extends Command {
         await contextField.getValueAsync({
           nonInteractive,
           sessionManager: this.sessionManager,
-          analyticsManager: this.analyticsManager,
+          analytics: this.analytics,
         }),
       ]);
     }
@@ -135,26 +136,32 @@ export default abstract class EasCommand extends Command {
    * The user session manager. Responsible for coordinating all user session related state.
    * If needed in a subclass, use the SessionManager ContextOption.
    */
-  private sessionManager!: SessionManager;
+  private sessionManagerInternal?: SessionManager;
+  private get sessionManager(): SessionManager {
+    return nullthrows(this.sessionManagerInternal);
+  }
 
   /**
    * The analytics manager. Used for logging analytics.
    * It is set up here to ensure a consistent set up.
    */
-  private analyticsManager!: IAnalayticsManagerWithOrchestration;
+  private analyticsInternal?: AnalyticsWithOrchestration;
+  private get analytics(): AnalyticsWithOrchestration {
+    return nullthrows(this.analyticsInternal);
+  }
 
   protected abstract runAsync(): Promise<any>;
 
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
-    this.analyticsManager = await createAnalyticsManagerAsync();
-    this.sessionManager = new SessionManager(this.analyticsManager);
+    this.analyticsInternal = await createAnalyticsAsync();
+    this.sessionManagerInternal = new SessionManager(this.analytics);
 
     // this is needed for logEvent call below as it identifies the user in the analytics system
     // if possible
     await this.sessionManager.getUserAsync();
 
-    this.analyticsManager.logEvent(CommandEvent.ACTION, {
+    this.analytics.logEvent(CommandEvent.ACTION, {
       // id is assigned by oclif in constructor based on the filepath:
       // commands/submit === submit, commands/build/list === build:list
       action: `eas ${this.id}`,
@@ -165,7 +172,7 @@ export default abstract class EasCommand extends Command {
 
   // eslint-disable-next-line async-protect/async-suffix
   override async finally(err: Error): Promise<any> {
-    await this.analyticsManager.flushAsync();
+    await this.analytics.flushAsync();
     return super.finally(err);
   }
 }

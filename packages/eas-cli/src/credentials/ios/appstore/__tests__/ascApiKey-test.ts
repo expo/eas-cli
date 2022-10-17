@@ -1,7 +1,7 @@
 import { ApiKey, ApiKeyType, UnexpectedResponse, UserRole } from '@expo/apple-utils';
 import { instance, mock } from 'ts-mockito';
 
-import { IAnalyticsManager } from '../../../../analytics/AnalyticsManager';
+import { Analytics } from '../../../../analytics/AnalyticsManager';
 import {
   createAscApiKeyAsync,
   downloadWithRetryAsync,
@@ -74,11 +74,11 @@ test(`getAscApiKeyAsync`, async () => {
 });
 
 test(`createAscApiKeyAsync`, async () => {
-  const analyticsManager = instance(mock<IAnalyticsManager>());
+  const analytics = instance(mock<Analytics>());
   const mockRequestContext = {};
   jest.spyOn(ApiKey, 'createAsync').mockImplementation(async () => mockApiKey);
   jest.mocked(getRequestContext).mockImplementation(() => mockRequestContext);
-  const result = await createAscApiKeyAsync(analyticsManager, mockAuthCtx, {
+  const result = await createAscApiKeyAsync(analytics, mockAuthCtx, {
     nickname: 'test-name',
   });
   expect(ApiKey.createAsync).toHaveBeenLastCalledWith(mockRequestContext, {
@@ -104,7 +104,7 @@ test(`revokeAscApiKeyAsync`, async () => {
 
 test(`downloadWithRetryAsync`, async () => {
   const cacheFailureMessage = `The specified resource does not exist - There is no resource of type 'apiKeys' with id 'TEST-ID'`;
-  const analyticsManager = instance(mock<IAnalyticsManager>());
+  const analytics = instance(mock<Analytics>());
   // complete failure
   const mockApiKeyWithDownloadError = {
     ...mockApiKey,
@@ -113,7 +113,7 @@ test(`downloadWithRetryAsync`, async () => {
     }),
   } as unknown as ApiKey;
   await expect(
-    downloadWithRetryAsync(analyticsManager, mockApiKeyWithDownloadError, { minTimeout: 1 }) // stay within jest timeout window
+    downloadWithRetryAsync(analytics, mockApiKeyWithDownloadError, { minTimeout: 1 }) // stay within jest timeout window
   ).rejects.toThrowError(cacheFailureMessage);
   // expect to try once and retry 3 times = 4 total
   expect(mockApiKeyWithDownloadError.downloadAsync as jest.Mock).toBeCalledTimes(7);
@@ -125,7 +125,7 @@ test(`downloadWithRetryAsync`, async () => {
     throw new UnexpectedResponse(cacheFailureMessage);
   });
   const keyP8AfterOneFailure = await downloadWithRetryAsync(
-    analyticsManager,
+    analytics,
     mockApiKeyWithOneTimeDownloadError,
     {
       minTimeout: 1,
@@ -136,7 +136,7 @@ test(`downloadWithRetryAsync`, async () => {
   // successful case
   (mockApiKey.downloadAsync as jest.Mock).mockClear();
   const keyP8NoFailure = await downloadWithRetryAsync(
-    analyticsManager,
+    analytics,
     mockApiKeyWithOneTimeDownloadError,
     {
       minTimeout: 1,
