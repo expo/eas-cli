@@ -6,6 +6,7 @@ import chalk from 'chalk';
 
 import { getEASUpdateURL } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPlatform } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform, appPlatformDisplayNames } from '../../platform';
@@ -70,6 +71,7 @@ export default class UpdateConfigure extends EasCommand {
       exp: updatedExp,
       platform,
       workflows,
+      graphqlClient,
     });
 
     Log.addNewLineIfNone();
@@ -296,19 +298,20 @@ async function configureNativeFilesForEASUpdateAsync({
   platform,
   workflows,
   projectId,
-}: ConfigureForEASUpdateArgs): Promise<void> {
+  graphqlClient,
+}: ConfigureForEASUpdateArgs & { graphqlClient: ExpoGraphqlClient }): Promise<void> {
   if (
     [RequestedPlatform.Android, RequestedPlatform.All].includes(platform) &&
     workflows.android === Workflow.GENERIC
   ) {
-    await syncAndroidUpdatesConfigurationAsync(graphqlClient, projectDir, updatedExp, projectId);
+    await syncAndroidUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
     Log.withTick(`Configured ${chalk.bold('AndroidManifest.xml')} for EAS Update`);
   }
   if (
     [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
     workflows.ios === Workflow.GENERIC
   ) {
-    await syncIosUpdatesConfigurationAsync(graphqlClient, projectDir, updatedExp, projectId);
+    await syncIosUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
     Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
   }
 }

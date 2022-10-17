@@ -58,6 +58,7 @@ import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 import { getVcsClient } from '../../vcs';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
+import { configureAppJSONForEASUpdateAsync } from './configure';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
 export type PublishPlatformFlag = PublishPlatform | 'all';
@@ -337,7 +338,7 @@ export default class UpdatePublish extends EasCommand {
         if (updatesToRepublishFilteredByPlatform.length !== defaultPublishPlatforms.length) {
           Log.warn(`You are republishing an update that wasn't published for all platforms.`);
         }
-        publicationPlatformMessage = `The republished update will appear on the same plaforms it was originally published on: ${updatesToRepublishFilteredByPlatform
+        publicationPlatformMessage = `The republished update will appear on the same platforms it was originally published on: ${updatesToRepublishFilteredByPlatform
           .map(update => update.platform)
           .join(', ')}`;
       } else {
@@ -631,7 +632,7 @@ async function getRuntimeVersionObjectAsync(
       Errors.error(error, { exit: 1 });
     }
 
-    Log.failed(error.message);
+    Log.fail(error.message);
 
     const runConfig = await selectAsync(
       `Do you want us to run automatic ${chalk.bold(
@@ -650,7 +651,6 @@ async function getRuntimeVersionObjectAsync(
       Errors.exit(1);
     }
 
-    const { configureAppJSONForEASUpdateAsync } = await import('./configure');
     const newConfig = await configureAppJSONForEASUpdateAsync({
       exp,
       projectDir,
