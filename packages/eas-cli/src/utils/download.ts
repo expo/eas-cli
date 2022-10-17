@@ -94,14 +94,17 @@ async function downloadFileWithProgressBarAsync(
   await pipeline(response.body, fs.createWriteStream(outputPath));
 }
 
-export async function downloadAndExtractAppAsync(url: string): Promise<string> {
+export async function downloadAndExtractAppAsync(
+  url: string,
+  applicationExtension: string
+): Promise<string> {
   const outputDir = tempy.directory();
 
   const tmpArchivePath = tempy.file({ name: `${v4()}.tar.gz` });
   await downloadFileWithProgressBarAsync(url, tmpArchivePath, 'Downloading app archive...');
   await extractAsync(tmpArchivePath, outputDir);
 
-  const appFileName = await glob('*.app', {
+  const appFileName = await glob(`*.${applicationExtension}`, {
     cwd: outputDir,
     onlyFiles: false,
   });

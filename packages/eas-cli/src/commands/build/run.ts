@@ -14,7 +14,7 @@ import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { RunArchiveFlags, requestedPlatformToGraphqlAppPlatform, runAsync } from '../../run/run';
-import { toGraphQLBuildDistribution } from '../build/list';
+import { toGraphQLBuildDistribution } from './list';
 
 interface RawRunFlags {
   latest?: boolean;

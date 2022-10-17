@@ -4,6 +4,7 @@ import path from 'path';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
+import { sleepAsync } from '../../utils/promise';
 
 interface IosSimulator {
   runtime: string;
@@ -18,10 +19,12 @@ interface IosSimulator {
 }
 
 export async function runAppOnIosSimulatorAsync(appPath: string): Promise<void> {
+  assertPlatform();
+
   const selectedSimulator = await getBestIosSimulatorAsync();
   await ensureSimulatorBootedAsync(selectedSimulator);
 
-  await openSimulatorAppAsync(selectedSimulator.udid);
+  await ensureSimulatorAppOpenedAsync(selectedSimulator.udid);
 
   const bundleIdentifier = await getAppBundleIdentifierAsync(appPath);
   await installAppOnIosAsync(selectedSimulator.udid, appPath);
@@ -30,7 +33,12 @@ export async function runAppOnIosSimulatorAsync(appPath: string): Promise<void> 
 }
 
 async function installAppOnIosAsync(deviceId: string, filePath: string): Promise<void> {
+  Log.newLine();
+  Log.log('Installing your app on the simulator...');
+
   await simctlAsync(['install', deviceId, filePath]);
+
+  Log.succeed('Successfully installed your app on the simulator!');
 }
 
 async function simctlAsync(
@@ -183,7 +191,12 @@ async function launchAppOnIosSimulatorAsync(
   simulatorUdid: string,
   bundleIdentifier: string
 ): Promise<void> {
+  Log.newLine();
+  Log.log('Launching your app...');
+
   await simctlAsync(['launch', simulatorUdid, bundleIdentifier]);
+
+  Log.succeed('Successfully launched your app!');
 }
 
 async function getAppBundleIdentifierAsync(appPath: string): Promise<string> {
@@ -202,4 +215,50 @@ async function getAppBundleIdentifierAsync(appPath: string): Promise<string> {
   }
 
   return stdout.trim();
+}
+
+// I think the app can be open while no simulators are booted.
+async function waitForSimulatorAppToStartAsync(
+  maxWaitTimeMs: number,
+  intervalMs: number
+): Promise<void> {
+  Log.newLine();
+  Log.log('Waiting for Simulator app to start...');
+
+  const startTime = Date.now();
+  while (Date.now() - startTime < maxWaitTimeMs) {
+    if (await isSimulatorAppRunningAsync()) {
+      return;
+    }
+    await sleepAsync(Math.min(intervalMs, Math.max(maxWaitTimeMs - (Date.now() - startTime), 0)));
+  }
+  throw new Error('Timed out waiting for simulator app to start.');
+}
+
+async function isSimulatorAppRunningAsync(): Promise<boolean> {
+  const { stdout } = await spawnAsync('pgrep', ['Simulator']);
+
+  if (stdout.split('\n').length < 4) {
+    return false;
+  }
+
+  return true;
+}
+
+async function ensureSimulatorAppOpenedAsync(simulatorUuid: string): Promise<void> {
+  if (await isSimulatorAppRunningAsync()) {
+    return;
+  }
+
+  await openSimulatorAppAsync(simulatorUuid);
+  await waitForSimulatorAppToStartAsync(60 * 1000, 1000);
+}
+
+function assertPlatform(): void {
+  if (process.platform !== 'darwin') {
+    Log.error(
+      chalk`iOS apps can only be built on macOS devices. Use {cyan eas build -p ios} to build in the cloud.`
+    );
+    throw Error('iOS apps can only be built on macOS devices.');
+  }
 }
