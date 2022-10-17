@@ -1,6 +1,6 @@
 import { AppPlatform, BuildFragment } from '../graphql/generated';
 import { RequestedPlatform } from '../platform';
-import { downloadAndExtractAppAsync } from '../utils/download';
+import { downloadAndExtractAppAsync, extractAppFromLocalArchiveAsync } from '../utils/download';
 import { runAppOnAndroidSimulatorAsync } from './android/AndroidRunner';
 import { runAppOnIosSimulatorAsync } from './ios/IosRunner';
 
@@ -48,6 +48,10 @@ async function getSimulatorBuildPathAsync(
 
   if (runArchiveFlags.url) {
     return await downloadAndExtractAppAsync(runArchiveFlags.url, appExtension);
+  }
+
+  if (runArchiveFlags.path!.includes('.tar.gz')) {
+    return await extractAppFromLocalArchiveAsync(runArchiveFlags.path!, appExtension);
   }
 
   return runArchiveFlags.path!;

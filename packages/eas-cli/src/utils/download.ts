@@ -102,8 +102,23 @@ export async function downloadAndExtractAppAsync(
 
   const tmpArchivePath = tempy.file({ name: `${v4()}.tar.gz` });
   await downloadFileWithProgressBarAsync(url, tmpArchivePath, 'Downloading app archive...');
-  await extractAsync(tmpArchivePath, outputDir);
+  await tarExtractAsync(tmpArchivePath, outputDir);
 
+  return await getAppPathAsync(outputDir, applicationExtension);
+}
+
+export async function extractAppFromLocalArchiveAsync(
+  appArchivePath: string,
+  applicationExtension: string
+): Promise<string> {
+  const outputDir = tempy.directory();
+
+  await tarExtractAsync(appArchivePath, outputDir);
+
+  return await getAppPathAsync(outputDir, applicationExtension);
+}
+
+async function getAppPathAsync(outputDir: string, applicationExtension: string): Promise<string> {
   const appFileName = await glob(`*.${applicationExtension}`, {
     cwd: outputDir,
     onlyFiles: false,
@@ -116,7 +131,7 @@ export async function downloadAndExtractAppAsync(
   return path.join(outputDir, appFileName[0]);
 }
 
-async function extractAsync(input: string, output: string): Promise<void> {
+async function tarExtractAsync(input: string, output: string): Promise<void> {
   try {
     if (process.platform !== 'win32') {
       await spawnAsync('tar', ['-xf', input, '-C', output], {
