@@ -1,12 +1,13 @@
 import { Command } from '@oclif/core';
+import nullthrows from 'nullthrows';
 
 import {
-  AnalyticsEvent,
-  flushAsync as flushAnalyticsAsync,
-  initAsync as initAnalyticsAsync,
-  logEvent,
-} from '../analytics/rudderstackClient';
+  AnalyticsWithOrchestration,
+  CommandEvent,
+  createAnalyticsAsync,
+} from '../analytics/AnalyticsManager';
 import SessionManager from '../user/SessionManager';
+import AnalyticsContextField from './context/AnalyticsContextField';
 import ContextField from './context/ContextField';
 import { DynamicProjectConfigContextField } from './context/DynamicProjectConfigContextField';
 import LoggedInContextField from './context/LoggedInContextField';
@@ -76,9 +77,18 @@ export default abstract class EasCommand extends Command {
     },
     /**
      * Require the project to be identified and registered on server. Returns the project config in the context.
+     * This also requires the user to be logged in (getProjectIdAsync requires logged in), so also expose that context.
+     * Exposing the loggedIn context here helps us guarantee user identification for logging purposes.
      */
     ProjectConfig: {
+      loggedIn: new LoggedInContextField(),
       projectConfig: new ProjectConfigContextField(),
+    },
+    /**
+     * Analytics manager. Returns the analytics manager in the context for use by the command.
+     */
+    Analytics: {
+      analytics: new AnalyticsContextField(),
     },
   };
 
@@ -106,37 +116,52 @@ export default abstract class EasCommand extends Command {
   ): Promise<ContextOutput<C>> {
     const contextDefinition = commandClass.contextDefinition;
 
-    const contextValuePairs = await Promise.all(
-      Object.keys(contextDefinition).map(async contextKey => {
-        return [
-          contextKey,
-          await contextDefinition[contextKey].getValueAsync({
-            nonInteractive,
-            sessionManager: this.sessionManager,
-          }),
-        ];
-      })
-    );
+    // do these serially so that they don't do things like ask for login twice in parallel
+    const contextValuePairs = [];
+    for (const [contextKey, contextField] of Object.entries(contextDefinition)) {
+      contextValuePairs.push([
+        contextKey,
+        await contextField.getValueAsync({
+          nonInteractive,
+          sessionManager: this.sessionManager,
+          analytics: this.analytics,
+        }),
+      ]);
+    }
 
     return Object.fromEntries(contextValuePairs);
   }
 
   /**
    * The user session manager. Responsible for coordinating all user session related state.
-   * If needed in a subclass, SessionManager ContextOption.
+   * If needed in a subclass, use the SessionManager ContextOption.
    */
-  private readonly sessionManager = new SessionManager();
+  private sessionManagerInternal?: SessionManager;
+  private get sessionManager(): SessionManager {
+    return nullthrows(this.sessionManagerInternal);
+  }
+
+  /**
+   * The analytics manager. Used for logging analytics.
+   * It is set up here to ensure a consistent set up.
+   */
+  private analyticsInternal?: AnalyticsWithOrchestration;
+  private get analytics(): AnalyticsWithOrchestration {
+    return nullthrows(this.analyticsInternal);
+  }
 
   protected abstract runAsync(): Promise<any>;
 
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
-    await initAnalyticsAsync();
+    this.analyticsInternal = await createAnalyticsAsync();
+    this.sessionManagerInternal = new SessionManager(this.analytics);
 
     // this is needed for logEvent call below as it identifies the user in the analytics system
+    // if possible
     await this.sessionManager.getUserAsync();
 
-    logEvent(AnalyticsEvent.ACTION, {
+    this.analytics.logEvent(CommandEvent.ACTION, {
       // id is assigned by oclif in constructor based on the filepath:
       // commands/submit === submit, commands/build/list === build:list
       action: `eas ${this.id}`,
@@ -147,7 +172,7 @@ export default abstract class EasCommand extends Command {
 
   // eslint-disable-next-line async-protect/async-suffix
   override async finally(err: Error): Promise<any> {
-    await flushAnalyticsAsync();
+    await this.analytics.flushAsync();
     return super.finally(err);
   }
 }

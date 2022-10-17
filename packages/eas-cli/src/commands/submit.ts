@@ -93,6 +93,7 @@ export default class Submit extends EasCommand {
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.Analytics,
   };
 
   async runAsync(): Promise<void> {
@@ -100,6 +101,7 @@ export default class Submit extends EasCommand {
     const {
       loggedIn: { actor, graphqlClient },
       projectConfig: { exp, projectId, projectDir },
+      analytics,
     } = await this.getContextAsync(Submit, {
       nonInteractive: false,
     });
@@ -129,6 +131,7 @@ export default class Submit extends EasCommand {
         nonInteractive: flagsWithPlatform.nonInteractive,
         actor,
         graphqlClient,
+        analytics,
         exp,
         projectId,
       });

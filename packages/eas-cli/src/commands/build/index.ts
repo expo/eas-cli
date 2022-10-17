@@ -100,6 +100,7 @@ export default class Build extends EasCommand {
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.Analytics,
   };
 
   async runAsync(): Promise<void> {
@@ -114,6 +115,7 @@ export default class Build extends EasCommand {
       loggedIn: { actor, graphqlClient },
       getDynamicProjectConfigAsync,
       projectDir,
+      analytics,
     } = await this.getContextAsync(Build, {
       nonInteractive: flags.nonInteractive,
     });
@@ -133,6 +135,7 @@ export default class Build extends EasCommand {
 
     await runBuildAndSubmitAsync(
       graphqlClient,
+      analytics,
       projectDir,
       flagsWithPlatform,
       actor,

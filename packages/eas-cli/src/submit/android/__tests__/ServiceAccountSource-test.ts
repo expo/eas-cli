@@ -4,6 +4,7 @@ import { vol } from 'memfs';
 import { instance, mock } from 'ts-mockito';
 import { v4 as uuidv4 } from 'uuid';
 
+import { Analytics } from '../../../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testAndroidAppCredentialsFragment } from '../../../credentials/__tests__/fixtures-android';
 import {
@@ -139,6 +140,7 @@ describe(getServiceAccountKeyPathAsync, () => {
 describe(getServiceAccountKeyResultAsync, () => {
   it('returns a local Service Account Key file with a ServiceAccountSourceType.path source', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
+    const analytics = instance(mock<Analytics>());
     const ctx = await createSubmissionContextAsync({
       platform: Platform.ANDROID,
       projectDir: testProject.projectRoot,
@@ -153,6 +155,7 @@ describe(getServiceAccountKeyResultAsync, () => {
       nonInteractive: true,
       actor: mockJester,
       graphqlClient,
+      analytics,
       exp: testProject.appJSON.expo,
       projectId,
     });
@@ -178,6 +181,7 @@ describe(getServiceAccountKeyResultAsync, () => {
       filePath: '/project_dir/subdir/service-account.json',
     }));
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
+    const analytics = instance(mock<Analytics>());
     const ctx = await createSubmissionContextAsync({
       platform: Platform.ANDROID,
       projectDir: testProject.projectRoot,
@@ -192,6 +196,7 @@ describe(getServiceAccountKeyResultAsync, () => {
       nonInteractive: true,
       actor: mockJester,
       graphqlClient,
+      analytics,
       exp: testProject.appJSON.expo,
       projectId,
     });
@@ -213,6 +218,7 @@ describe(getServiceAccountKeyResultAsync, () => {
 
   it('returns a remote Service Account Key file with a ServiceAccountSourceType.credentialService source', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
+    const analytics = instance(mock<Analytics>());
     const ctx = await createSubmissionContextAsync({
       platform: Platform.ANDROID,
       projectDir: testProject.projectRoot,
@@ -227,6 +233,7 @@ describe(getServiceAccountKeyResultAsync, () => {
       nonInteractive: true,
       actor: mockJester,
       graphqlClient,
+      analytics,
       exp: testProject.appJSON.expo,
       projectId,
     });

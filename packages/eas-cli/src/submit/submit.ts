@@ -1,8 +1,8 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import { SubmissionEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
-import { SubmissionEvent } from '../analytics/events';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
 import Log, { link } from '../log';
@@ -17,6 +17,7 @@ export async function submitAsync<T extends Platform>(
   ctx: SubmissionContext<T>
 ): Promise<SubmissionFragment> {
   return await withAnalyticsAsync(
+    ctx.analytics,
     async () => {
       const command =
         ctx.platform === Platform.ANDROID

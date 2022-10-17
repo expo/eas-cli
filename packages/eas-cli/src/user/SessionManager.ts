@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { ApiV2Error } from '../ApiV2Error';
-import * as Analytics from '../analytics/rudderstackClient';
+import { AnalyticsWithOrchestration } from '../analytics/AnalyticsManager';
 import { ApiV2Client } from '../api';
 import { createGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CurrentUserQuery } from '../graphql/generated';
@@ -13,7 +13,6 @@ import { UserQuery } from '../graphql/queries/UserQuery';
 import Log, { learnMore } from '../log';
 import { promptAsync, selectAsync } from '../prompts';
 import { getStateJsonPath } from '../utils/paths';
-import { getActorDisplayName } from './User';
 import { fetchSessionSecretAndUserAsync } from './fetchSessionSecretAndUser';
 
 type UserSettingsData = {
@@ -54,7 +53,9 @@ type LoggedInAuthenticationInfo =
 type Actor = NonNullable<CurrentUserQuery['meActor']>;
 
 export default class SessionManager {
-  private currentUser: Actor | undefined;
+  private currentActor: Actor | undefined;
+
+  constructor(private readonly analytics: AnalyticsWithOrchestration) {}
 
   public getAccessToken(): string | null {
     return process.env.EXPO_TOKEN ?? null;
@@ -83,27 +84,23 @@ export default class SessionManager {
   }
 
   public async logoutAsync(): Promise<void> {
-    this.currentUser = undefined;
+    this.currentActor = undefined;
     await this.setSessionAsync(undefined);
   }
 
   public async getUserAsync(): Promise<Actor | undefined> {
-    if (!this.currentUser && (this.getAccessToken() || this.getSessionSecret())) {
+    if (!this.currentActor && (this.getAccessToken() || this.getSessionSecret())) {
       const authenticationInfo = {
         accessToken: this.getAccessToken(),
         sessionSecret: this.getSessionSecret(),
       };
-      const user = await UserQuery.currentUserAsync(createGraphqlClient(authenticationInfo));
-      this.currentUser = user ?? undefined;
-      if (user) {
-        await Analytics.setUserDataAsync(user.id, {
-          username: getActorDisplayName(user),
-          user_id: user.id,
-          user_type: user.__typename,
-        });
+      const actor = await UserQuery.currentUserAsync(createGraphqlClient(authenticationInfo));
+      this.currentActor = actor ?? undefined;
+      if (actor) {
+        this.analytics.setActor(actor);
       }
     }
-    return this.currentUser;
+    return this.currentActor;
   }
 
   /**

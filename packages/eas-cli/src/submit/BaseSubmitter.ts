@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 
+import { AnalyticsEvent, SubmissionEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
-import { Event, SubmissionEvent } from '../analytics/events';
 import {
   AndroidSubmissionConfigInput,
   IosSubmissionConfigInput,
@@ -22,9 +22,9 @@ export interface SubmissionInput<P extends Platform> {
 }
 
 interface AnalyticEvents {
-  attemptEvent: Event;
-  successEvent: Event;
-  failureEvent: Event;
+  attemptEvent: AnalyticsEvent;
+  successEvent: AnalyticsEvent;
+  failureEvent: AnalyticsEvent;
 }
 
 export default abstract class BaseSubmitter<
@@ -50,7 +50,7 @@ export default abstract class BaseSubmitter<
 
       const sourceOption = await withAnalyticsAsync<
         ResolvedSourceOptions[keyof ResolvedSourceOptions]
-      >(async () => await this.sourceOptionResolver[sourceOptionKey](), {
+      >(this.ctx.analytics, async () => await this.sourceOptionResolver[sourceOptionKey](), {
         attemptEvent: sourceOptionAnalytics.attemptEvent,
         successEvent: sourceOptionAnalytics.successEvent,
         failureEvent: sourceOptionAnalytics.failureEvent,
@@ -91,6 +91,7 @@ export default abstract class BaseSubmitter<
     submissionInput: SubmissionInput<P>
   ): Promise<SubmissionFragment> {
     return await withAnalyticsAsync<SubmissionFragment>(
+      this.ctx.analytics,
       async () => this.createSubmissionAsync(submissionInput),
       {
         attemptEvent: SubmissionEvent.SUBMIT_REQUEST_ATTEMPT,

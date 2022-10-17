@@ -1,8 +1,10 @@
 import { Platform } from '@expo/eas-build-job';
 import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { vol } from 'memfs';
+import { instance, mock } from 'ts-mockito';
 import { v4 as uuidv4 } from 'uuid';
 
+import { Analytics } from '../../../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   jester as mockJester,
@@ -74,6 +76,7 @@ describe(AndroidSubmitCommand, () => {
     it("throws error if didn't provide serviceAccountKeyPath in the submit profile", async () => {
       const projectId = uuidv4();
       const graphqlClient = {} as any as ExpoGraphqlClient;
+      const analytics = instance(mock<Analytics>());
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
@@ -89,6 +92,7 @@ describe(AndroidSubmitCommand, () => {
         nonInteractive: true,
         actor: mockJester,
         graphqlClient,
+        analytics,
         exp: testProject.appJSON.expo,
         projectId,
       });
@@ -103,6 +107,7 @@ describe(AndroidSubmitCommand, () => {
     it('sends a request to Submission Service', async () => {
       const projectId = uuidv4();
       const graphqlClient = {} as any as ExpoGraphqlClient;
+      const analytics = instance(mock<Analytics>());
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
@@ -119,6 +124,7 @@ describe(AndroidSubmitCommand, () => {
         nonInteractive: false,
         actor: mockJester,
         graphqlClient,
+        analytics,
         exp: testProject.appJSON.expo,
         projectId,
       });
@@ -141,6 +147,7 @@ describe(AndroidSubmitCommand, () => {
     it('assigns the build ID to submission', async () => {
       const projectId = uuidv4();
       const graphqlClient = {} as any as ExpoGraphqlClient;
+      const analytics = instance(mock<Analytics>());
       jest
         .mocked(getRecentBuildsForSubmissionAsync)
         .mockResolvedValueOnce([fakeBuildFragment as BuildFragment]);
@@ -160,6 +167,7 @@ describe(AndroidSubmitCommand, () => {
         nonInteractive: false,
         actor: mockJester,
         graphqlClient,
+        analytics,
         exp: testProject.appJSON.expo,
         projectId,
       });

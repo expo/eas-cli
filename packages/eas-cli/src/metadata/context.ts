@@ -4,6 +4,7 @@ import { Platform } from '@expo/eas-build-job';
 import { EasJsonAccessor, EasJsonUtils, SubmitProfile } from '@expo/eas-json';
 import assert from 'assert';
 
+import { Analytics } from '../analytics/AnalyticsManager';
 import { CredentialsContext } from '../credentials/context';
 import { getRequestContext } from '../credentials/ios/appstore/authenticate';
 import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
@@ -20,6 +21,8 @@ export type MetadataContext = {
   user: Actor;
   /** The store credentials manager */
   credentialsCtx: CredentialsContext;
+  /** The analytics manager for EAS cli */
+  analytics: Analytics;
   /** The app bundle identifier to use for the store */
   bundleIdentifier: string;
   /** Root of the Expo project directory */
@@ -42,6 +45,7 @@ export type MetadataAppStoreAuthentication = {
 export async function createMetadataContextAsync(params: {
   projectDir: string;
   credentialsCtx: CredentialsContext;
+  analytics: Analytics;
   exp: ExpoConfig;
   profileName?: string;
 }): Promise<MetadataContext> {
@@ -62,6 +66,7 @@ export async function createMetadataContextAsync(params: {
     profile: submitProfile,
     metadataPath: submitProfile.metadataPath ?? 'store.config.json',
     user,
+    analytics: params.analytics,
     credentialsCtx: params.credentialsCtx,
     bundleIdentifier,
     projectDir: params.projectDir,

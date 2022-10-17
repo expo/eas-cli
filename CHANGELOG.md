@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Initialize analytics consistently and move analytics into context. ([#1444](https://github.com/expo/eas-cli/pull/1444) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 ## [2.4.1](https://github.com/expo/eas-cli/releases/tag/v2.4.1) - 2022-10-17

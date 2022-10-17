@@ -2,6 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 import { instance, mock } from 'ts-mockito';
 import { v4 as uuidv4 } from 'uuid';
 
+import { Analytics } from '../../../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   jester as mockJester,
@@ -47,6 +48,7 @@ describe(getFromCredentialsServiceAsync, () => {
 
   it('returns an App Specific Password from the credentialService source', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
+    const analytics = instance(mock<Analytics>());
     const ctx = await createSubmissionContextAsync({
       platform: Platform.IOS,
       projectDir: testProject.projectRoot,
@@ -59,6 +61,7 @@ describe(getFromCredentialsServiceAsync, () => {
       nonInteractive: false,
       actor: mockJester,
       graphqlClient,
+      analytics,
       exp: testProject.appJSON.expo,
       projectId,
     });
@@ -78,6 +81,7 @@ describe(getFromCredentialsServiceAsync, () => {
   });
   it('returns an ASC API Key from the credentialService source', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
+    const analytics = instance(mock<Analytics>());
     const ctx = await createSubmissionContextAsync({
       platform: Platform.IOS,
       projectDir: testProject.projectRoot,
@@ -90,6 +94,7 @@ describe(getFromCredentialsServiceAsync, () => {
       nonInteractive: true,
       actor: mockJester,
       graphqlClient,
+      analytics,
       exp: testProject.appJSON.expo,
       projectId,
     });

@@ -2,7 +2,7 @@ import { App, Session, getRequestClient } from '@expo/apple-utils';
 import type { AxiosError } from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
-import { Analytics, MetadataEvent } from '../../analytics/events';
+import { Analytics, MetadataEvent } from '../../analytics/AnalyticsManager';
 
 export type TelemetryContext = {
   app: App;
@@ -15,6 +15,7 @@ export type TelemetryContext = {
  * Returns an execution ID to group all events of a single run together, and a unsubscribe function.
  */
 export function subscribeTelemetry(
+  analytics: Analytics,
   event: MetadataEvent,
   options: TelemetryContext
 ): {
@@ -29,7 +30,7 @@ export function subscribeTelemetry(
 
   const responseInterceptorId = interceptors.response.use(
     response => {
-      Analytics.logEvent(event, {
+      analytics.logEvent(event, {
         executionId,
         type: 'response',
         phase: 'resolved',
@@ -42,7 +43,7 @@ export function subscribeTelemetry(
       return response;
     },
     (error: AxiosError) => {
-      Analytics.logEvent(event, {
+      analytics.logEvent(event, {
         executionId,
         type: 'response',
         phase: 'rejected',

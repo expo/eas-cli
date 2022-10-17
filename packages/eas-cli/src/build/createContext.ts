@@ -5,8 +5,8 @@ import getenv from 'getenv';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
+import { Analytics, BuildEvent } from '../analytics/AnalyticsManager';
 import { TrackingContext } from '../analytics/common';
-import { Analytics, BuildEvent } from '../analytics/events';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
@@ -33,6 +33,7 @@ export async function createBuildContextAsync<T extends Platform>({
   message,
   actor,
   graphqlClient,
+  analytics,
   getDynamicProjectConfigAsync,
 }: {
   buildProfileName: string;
@@ -48,6 +49,7 @@ export async function createBuildContextAsync<T extends Platform>({
   message?: string;
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
+  analytics: Analytics;
   getDynamicProjectConfigAsync: DynamicConfigContextFn;
 }): Promise<BuildContext<T>> {
   const { exp, projectId } = await getDynamicProjectConfigAsync({ env: buildProfile.env });
@@ -64,6 +66,7 @@ export async function createBuildContextAsync<T extends Platform>({
     projectDir,
     user: actor,
     graphqlClient,
+    analytics,
     env: buildProfile.env,
     easJsonCliConfig,
   });
@@ -83,7 +86,7 @@ export async function createBuildContextAsync<T extends Platform>({
     no_wait: noWait,
     run_from_ci: runFromCI,
   };
-  Analytics.logEvent(BuildEvent.BUILD_COMMAND, trackingCtx);
+  analytics.logEvent(BuildEvent.BUILD_COMMAND, trackingCtx);
 
   const commonContext: CommonContext<T> = {
     accountName: account.name,
@@ -104,6 +107,7 @@ export async function createBuildContextAsync<T extends Platform>({
     trackingCtx,
     user: actor,
     graphqlClient,
+    analytics,
     workflow,
     message,
     runFromCI,

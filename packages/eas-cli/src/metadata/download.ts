@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 
-import { MetadataEvent } from '../analytics/events';
+import { MetadataEvent } from '../analytics/AnalyticsManager';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
@@ -31,6 +31,7 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
 
   const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataCtx);
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
+    metadataCtx.analytics,
     MetadataEvent.APPLE_METADATA_DOWNLOAD,
     { app, auth }
   );

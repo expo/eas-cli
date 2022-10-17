@@ -5,8 +5,8 @@ import cliProgress from 'cli-progress';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 
+import { BuildEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
-import { BuildEvent } from '../analytics/events';
 import { getExpoWebsiteBaseUrl } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -78,6 +78,7 @@ export async function prepareBuildRequestForPlatformAsync<
 >(builder: Builder<TPlatform, Credentials, TJob>): Promise<BuildRequestSender> {
   const { ctx } = builder;
   const credentialsResult = await withAnalyticsAsync(
+    ctx.analytics,
     async () => await builder.ensureCredentialsAsync(ctx),
     {
       attemptEvent: BuildEvent.GATHER_CREDENTIALS_ATTEMPT,
@@ -87,12 +88,16 @@ export async function prepareBuildRequestForPlatformAsync<
     }
   );
 
-  await withAnalyticsAsync(async () => await builder.syncProjectConfigurationAsync(ctx), {
-    attemptEvent: BuildEvent.CONFIGURE_PROJECT_ATTEMPT,
-    successEvent: BuildEvent.CONFIGURE_PROJECT_SUCCESS,
-    failureEvent: BuildEvent.CONFIGURE_PROJECT_FAIL,
-    trackingCtx: ctx.trackingCtx,
-  });
+  await withAnalyticsAsync(
+    ctx.analytics,
+    async () => await builder.syncProjectConfigurationAsync(ctx),
+    {
+      attemptEvent: BuildEvent.CONFIGURE_PROJECT_ATTEMPT,
+      successEvent: BuildEvent.CONFIGURE_PROJECT_SUCCESS,
+      failureEvent: BuildEvent.CONFIGURE_PROJECT_FAIL,
+      trackingCtx: ctx.trackingCtx,
+    }
+  );
 
   if (await getVcsClient().isCommitRequiredAsync()) {
     Log.addNewLineIfNone();
@@ -192,6 +197,7 @@ async function uploadProjectAsync<TPlatform extends Platform>(
   let projectTarballPath;
   try {
     return await withAnalyticsAsync(
+      ctx.analytics,
       async () => {
         Log.newLine();
         Log.log(
@@ -250,6 +256,7 @@ async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJ
 ): Promise<BuildFragment> {
   const { ctx } = builder;
   return await withAnalyticsAsync(
+    ctx.analytics,
     async () => {
       if (Log.isDebug) {
         Log.log(`Starting ${requestedPlatformDisplayNames[job.platform]} build`);
