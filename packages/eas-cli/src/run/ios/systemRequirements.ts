@@ -1,8 +1,10 @@
+import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import semver from 'semver';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
+import { getSimulatorAppIdAsync } from './simulator';
 import * as xcode from './xcode';
 import { installXcrunAsync, isXcrunInstalledAsync } from './xcrun';
 
@@ -66,8 +68,37 @@ async function ensureXcrunInstalledAsync(): Promise<void> {
   }
 }
 
-export async function ensureSystemRequirementsAsync(): Promise<void> {
+async function assertSimulatorAppInstalledAsync(): Promise<void> {
+  const simulatorAppId = await getSimulatorAppIdAsync();
+  if (!simulatorAppId) {
+    throw new Error(
+      `Can't determine id of Simulator app; the Simulator is most likely not installed on this machine. Run 'sudo xcode-select -s /Applications/Xcode.app'`
+    );
+  }
+
+  if (
+    simulatorAppId !== 'com.apple.iphonesimulator' &&
+    simulatorAppId !== 'com.apple.CoreSimulator.SimulatorTrampoline'
+  ) {
+    throw new Error(
+      `Simulator is installed but is identified as '${simulatorAppId}', can't recognize what that is`
+    );
+  }
+
+  try {
+    // make sure we can run simctl
+    await spawnAsync('xcrun', ['simctl', 'help']);
+  } catch (error: any) {
+    Log.warn(`Unable to run simctl:\n${error.toString()}`);
+    throw new Error(
+      'xcrun is not configured correctly. Ensure `sudo xcode-select --reset` works before running this command again.'
+    );
+  }
+}
+
+export async function validateSystemRequirementsAsync(): Promise<void> {
   assertPlatform();
   await assertCorrectXcodeVersionInstalledAsync();
   await ensureXcrunInstalledAsync();
+  await assertSimulatorAppInstalledAsync();
 }

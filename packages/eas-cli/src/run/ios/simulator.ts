@@ -181,3 +181,11 @@ export async function installAppAsync(deviceId: string, filePath: string): Promi
 
   Log.succeed('Successfully installed your app on the simulator!');
 }
+
+export async function getSimulatorAppIdAsync(): Promise<string | undefined> {
+  try {
+    return (await osascript.execAsync('id of app "Simulator"')).trim();
+  } catch {
+    return undefined;
+  }
+}
