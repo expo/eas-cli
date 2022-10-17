@@ -629,7 +629,7 @@ async function getRuntimeVersionObjectAsync(
     return [transformRuntimeVersions(exp, platforms), exp];
   } catch (error: any) {
     if (nonInteractive) {
-      Errors.error(error, { exit: 1 });
+      throw error;
     }
 
     Log.fail(error.message);
