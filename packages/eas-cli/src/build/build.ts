@@ -84,7 +84,7 @@ export async function prepareBuildRequestForPlatformAsync<
       attemptEvent: BuildEvent.GATHER_CREDENTIALS_ATTEMPT,
       successEvent: BuildEvent.GATHER_CREDENTIALS_SUCCESS,
       failureEvent: BuildEvent.GATHER_CREDENTIALS_FAIL,
-      trackingCtx: ctx.trackingCtx,
+      properties: ctx.analyticsEventProperties,
     }
   );
 
@@ -95,7 +95,7 @@ export async function prepareBuildRequestForPlatformAsync<
       attemptEvent: BuildEvent.CONFIGURE_PROJECT_ATTEMPT,
       successEvent: BuildEvent.CONFIGURE_PROJECT_SUCCESS,
       failureEvent: BuildEvent.CONFIGURE_PROJECT_FAIL,
-      trackingCtx: ctx.trackingCtx,
+      properties: ctx.analyticsEventProperties,
     }
   );
 
@@ -238,7 +238,7 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         attemptEvent: BuildEvent.PROJECT_UPLOAD_ATTEMPT,
         successEvent: BuildEvent.PROJECT_UPLOAD_SUCCESS,
         failureEvent: BuildEvent.PROJECT_UPLOAD_FAIL,
-        trackingCtx: ctx.trackingCtx,
+        properties: ctx.analyticsEventProperties,
       }
     );
   } finally {
@@ -276,7 +276,7 @@ async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJ
       attemptEvent: BuildEvent.BUILD_REQUEST_ATTEMPT,
       successEvent: BuildEvent.BUILD_REQUEST_SUCCESS,
       failureEvent: BuildEvent.BUILD_REQUEST_FAIL,
-      trackingCtx: ctx.trackingCtx,
+      properties: ctx.analyticsEventProperties,
     }
   );
 }

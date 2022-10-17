@@ -54,7 +54,7 @@ export default abstract class BaseSubmitter<
         attemptEvent: sourceOptionAnalytics.attemptEvent,
         successEvent: sourceOptionAnalytics.successEvent,
         failureEvent: sourceOptionAnalytics.failureEvent,
-        trackingCtx: this.ctx.trackingCtx,
+        properties: this.ctx.analyticsEventProperties,
       });
       resolvedSourceOptions[sourceOptionKey] = sourceOption;
     }
@@ -97,7 +97,7 @@ export default abstract class BaseSubmitter<
         attemptEvent: SubmissionEvent.SUBMIT_REQUEST_ATTEMPT,
         successEvent: SubmissionEvent.SUBMIT_REQUEST_SUCCESS,
         failureEvent: SubmissionEvent.SUBMIT_REQUEST_FAIL,
-        trackingCtx: this.ctx.trackingCtx,
+        properties: this.ctx.analyticsEventProperties,
       }
     );
   }

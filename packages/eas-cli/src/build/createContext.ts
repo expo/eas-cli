@@ -5,8 +5,7 @@ import getenv from 'getenv';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
-import { Analytics, BuildEvent } from '../analytics/AnalyticsManager';
-import { TrackingContext } from '../analytics/common';
+import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/AnalyticsManager';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
@@ -76,7 +75,7 @@ export async function createBuildContextAsync<T extends Platform>({
     projectDir,
     buildProfile,
   });
-  const trackingCtx = {
+  const analyticsEventProperties = {
     tracking_id: uuidv4(),
     platform,
     ...(accountId && { account_id: accountId }),
@@ -86,7 +85,7 @@ export async function createBuildContextAsync<T extends Platform>({
     no_wait: noWait,
     run_from_ci: runFromCI,
   };
-  analytics.logEvent(BuildEvent.BUILD_COMMAND, trackingCtx);
+  analytics.logEvent(BuildEvent.BUILD_COMMAND, analyticsEventProperties);
 
   const commonContext: CommonContext<T> = {
     accountName: account.name,
@@ -104,7 +103,7 @@ export async function createBuildContextAsync<T extends Platform>({
     projectDir,
     projectId,
     projectName,
-    trackingCtx,
+    analyticsEventProperties,
     user: actor,
     graphqlClient,
     analytics,
@@ -135,7 +134,7 @@ function getDevClientEventProperties({
   platform: Platform;
   projectDir: string;
   buildProfile: BuildProfile;
-}): Partial<TrackingContext> {
+}): Partial<AnalyticsEventProperties> {
   let includesDevClient;
   const version = tryGetDevClientVersion(projectDir);
   if (platform === Platform.ANDROID && 'gradleCommand' in buildProfile) {

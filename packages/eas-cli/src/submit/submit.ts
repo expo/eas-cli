@@ -29,7 +29,7 @@ export async function submitAsync<T extends Platform>(
       attemptEvent: SubmissionEvent.SUBMIT_COMMAND_ATTEMPT,
       successEvent: SubmissionEvent.SUBMIT_COMMAND_SUCCESS,
       failureEvent: SubmissionEvent.SUBMIT_COMMAND_FAIL,
-      trackingCtx: ctx.trackingCtx,
+      properties: ctx.analyticsEventProperties,
     }
   );
 }
