@@ -46,7 +46,7 @@ export default class Run extends EasCommand {
       exclusive: ['latest', 'id', 'path'],
     }),
     path: Flags.string({
-      description: 'Path to the simulator build file file',
+      description: 'Path to the simulator build archive or simulator build app',
       exclusive: ['latest', 'id', 'url'],
     }),
     id: Flags.string({
@@ -94,6 +94,19 @@ export default class Run extends EasCommand {
           { exit: 1 }
         );
       }
+    }
+
+    if (
+      runArchiveFlags.path &&
+      !(
+        runArchiveFlags.path.includes('.tar.gz') ||
+        runArchiveFlags.path.includes('.app') ||
+        runArchiveFlags.path.includes('.apk')
+      )
+    ) {
+      Errors.error('The path must point to a .tar.gz archive, .apk file, or .app directory', {
+        exit: 1,
+      });
     }
 
     return {
