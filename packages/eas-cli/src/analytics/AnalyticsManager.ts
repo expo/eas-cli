@@ -71,11 +71,13 @@ export enum MetadataEvent {
   APPLE_METADATA_UPLOAD = 'metadata cli upload apple response',
 }
 
+export type AnalyticsEventProperties = Record<string, string | number | boolean>;
+
 /**
  * The interface for commands to use to log events to analytics.
  */
 export interface Analytics {
-  logEvent(name: AnalyticsEvent, properties: Record<string, any>): void;
+  logEvent(name: AnalyticsEvent, properties: AnalyticsEventProperties): void;
 }
 
 /**
@@ -109,7 +111,7 @@ export async function getAnalyticsEnabledAsync(): Promise<boolean> {
 }
 
 /**
- * Create an instance of IAnalyticsManager based on the user's analytics enabled preferences.
+ * Create an instance of Analytics based on the user's analytics enabled preferences.
  */
 export async function createAnalyticsAsync(): Promise<AnalyticsWithOrchestration> {
   // TODO: remove after some time
@@ -202,7 +204,7 @@ class RudderstackAnalytics implements AnalyticsWithOrchestration {
     this.identifiedActor = actor;
   }
 
-  public logEvent(name: AnalyticsEvent, properties: Record<string, any>): void {
+  public logEvent(name: AnalyticsEvent, properties: AnalyticsEventProperties): void {
     const userId = this.identifiedActor?.id;
     const deviceId = this.persistentDeviceId;
     const commonEventProperties = { source_version: easCliVersion, source: 'eas cli' };

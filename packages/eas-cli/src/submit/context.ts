@@ -3,8 +3,11 @@ import { Platform } from '@expo/eas-build-job';
 import { SubmitProfile } from '@expo/eas-json';
 import { v4 as uuidv4 } from 'uuid';
 
-import { Analytics, SubmissionEvent } from '../analytics/AnalyticsManager';
-import { TrackingContext } from '../analytics/common';
+import {
+  Analytics,
+  AnalyticsEventProperties,
+  SubmissionEvent,
+} from '../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
@@ -14,7 +17,7 @@ export interface SubmissionContext<T extends Platform> {
   accountName: string;
   archiveFlags: SubmitArchiveFlags;
   credentialsCtx: CredentialsContext;
-  trackingCtx: TrackingContext;
+  analyticsEventProperties: AnalyticsEventProperties;
   exp: ExpoConfig;
   nonInteractive: boolean;
   platform: T;
@@ -76,14 +79,14 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     });
   }
 
-  const trackingCtx = {
+  const analyticsEventProperties = {
     tracking_id: uuidv4(),
     platform: params.platform,
     ...(accountId && { account_id: accountId }),
     project_id: projectId,
   };
 
-  rest.analytics.logEvent(SubmissionEvent.SUBMIT_COMMAND, trackingCtx);
+  rest.analytics.logEvent(SubmissionEvent.SUBMIT_COMMAND, analyticsEventProperties);
 
   return {
     ...rest,
@@ -91,7 +94,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     credentialsCtx,
     projectName,
     user: actor,
-    trackingCtx,
+    analyticsEventProperties,
     applicationIdentifierOverride: applicationIdentifier,
   };
 }

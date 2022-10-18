@@ -2,8 +2,7 @@ import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile, EasJson } from '@expo/eas-json';
 
-import { Analytics } from '../analytics/AnalyticsManager';
-import { TrackingContext } from '../analytics/common';
+import { Analytics, AnalyticsEventProperties } from '../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
 import { Target } from '../credentials/ios/types';
@@ -47,7 +46,7 @@ export interface BuildContext<T extends Platform> {
   projectId: string;
   projectName: string;
   message?: string;
-  trackingCtx: TrackingContext;
+  analyticsEventProperties: AnalyticsEventProperties;
   user: Actor;
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
