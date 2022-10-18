@@ -292,7 +292,7 @@ export async function configureAppJSONForEASUpdateAsync({
   return result.config.expo;
 }
 
-async function configureNativeFilesForEASUpdateAsync({
+export async function configureNativeFilesForEASUpdateAsync({
   projectDir,
   exp,
   platform,

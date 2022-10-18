@@ -58,7 +58,10 @@ import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 import { getVcsClient } from '../../vcs';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
-import { configureAppJSONForEASUpdateAsync } from './configure';
+import {
+  configureAppJSONForEASUpdateAsync,
+  configureNativeFilesForEASUpdateAsync,
+} from './configure';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
 export type PublishPlatformFlag = PublishPlatform | 'all';
@@ -254,7 +257,8 @@ export default class UpdatePublish extends EasCommand {
       platformFlag,
       projectDir,
       projectId,
-      nonInteractive
+      nonInteractive,
+      graphqlClient
     );
 
     await checkEASUpdateURLIsSetAsync(expUpdated, projectId);
@@ -426,7 +430,7 @@ export default class UpdatePublish extends EasCommand {
         );
         uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
         assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
-        unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
+        unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, expUpdated);
         const uploadAssetSuccessMessage = uploadedAssetCount
           ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'asset' : 'assets'}!`
           : `Uploading assets skipped -- no new assets found!`;
@@ -609,7 +613,8 @@ async function getRuntimeVersionObjectAsync(
   platformFlag: PublishPlatformFlag,
   projectDir: string,
   projectId: string,
-  nonInteractive: boolean
+  nonInteractive: boolean,
+  graphqlClient: ExpoGraphqlClient
 ): Promise<[Record<string, string>, ExpoConfig]> {
   const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
 
@@ -651,13 +656,40 @@ async function getRuntimeVersionObjectAsync(
       Errors.exit(1);
     }
 
-    const newConfig = await configureAppJSONForEASUpdateAsync({
+    const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
+    const configUpdate = await configureAppJSONForEASUpdateAsync({
       exp,
       projectDir,
       projectId,
       platform: platformFlag as RequestedPlatform,
-      workflows: await resolveWorkflowPerPlatformAsync(projectDir),
+      workflows,
     });
+
+    const newConfig: ExpoConfig = { ...exp, ...configUpdate };
+
+    await configureNativeFilesForEASUpdateAsync({
+      exp: newConfig,
+      projectDir,
+      projectId,
+      platform: platformFlag as RequestedPlatform,
+      workflows,
+      graphqlClient,
+    });
+
+    const continueWithChanges = await selectAsync(
+      `Would you like to continue update process with uncommitted changes in repository?`,
+      [
+        { title: 'Yes', value: true },
+        {
+          title: 'No, I will commit the modified files first (EAS CLI exits)',
+          value: false,
+        },
+      ]
+    );
+
+    if (!continueWithChanges) {
+      Errors.exit(1);
+    }
 
     return [transformRuntimeVersions(newConfig, platforms), newConfig];
   }
