@@ -18,9 +18,21 @@ import { Client } from '../vcs';
 
 export default class GitClient extends Client {
   public override async ensureRepoExistsAsync(): Promise<void> {
-    if (!(await isGitInstalledAsync())) {
+    try {
+      if (!(await isGitInstalledAsync())) {
+        Log.error(
+          `${chalk.bold('git')} command not found. Install it before proceeding or set ${chalk.bold(
+            'EAS_NO_VCS=1'
+          )} to use EAS CLI without Git (or any other version control system).`
+        );
+        Log.error(learnMore('https://expo.fyi/eas-vcs-workflow'));
+        Errors.exit(1);
+      }
+    } catch (error: any) {
       Log.error(
-        `${chalk.bold('git')} command not found. Install it before proceeding or set ${chalk.bold(
+        `${chalk.bold('git')} found, but ${chalk.bold('git --help')} exited with status ${
+          error.status
+        }. Repair your Git installation, or set ${chalk.bold(
           'EAS_NO_VCS=1'
         )} to use EAS CLI without Git (or any other version control system).`
       );
