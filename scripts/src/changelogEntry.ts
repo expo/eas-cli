@@ -1,17 +1,11 @@
-import { CATEGORY_HEADERS, EntryCategory } from './changelog/consts.js';
+import { CATEGORY_HEADERS } from './changelog/consts.js';
+import { Entry, EntryCategory, formatEntry } from './changelog/entry.js';
 import { readAndParseChangelogAsync, writeChangelogAsync } from './changelog/file.js';
 import * as markdown from './markdown.js';
 import { nullthrows } from './nullthrows.js';
 
 const [rawCategory, ...rest] = process.argv.slice(2);
 const message = rest.join(' ');
-
-interface Entry {
-  category: EntryCategory;
-  message: string;
-  author: string;
-  prNumber: number;
-}
 
 (async function main(rawCategory: string, rawMessage: string): Promise<void> {
   const [category, message] = sanitizeInput(rawCategory, rawMessage);
@@ -62,14 +56,6 @@ function addEntry(tokens: markdown.Tokens, entry: Entry): void {
   const entryMarkdown = formatEntry(entry);
   const listItemToken = markdown.createListItemToken(entryMarkdown);
   listToken.items.push(listItemToken);
-}
-
-function formatEntry({ message, prNumber, author }: Entry): string {
-  const capitalizedMessage = `${message[0].toUpperCase()}${message.slice(1)}`;
-  const messageWithDot = capitalizedMessage.endsWith('.')
-    ? capitalizedMessage
-    : `${capitalizedMessage}.`;
-  return `${messageWithDot} ([#${prNumber}](https://github.com/expo/eas-cli/pull/${prNumber}) by [@${author}](https://github.com/${author}))`;
 }
 
 function sanitizeInput(

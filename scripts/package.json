@@ -6,6 +6,7 @@
   "scripts": {
     "changelog-entry": "ts-node-esm src/changelogEntry.ts",
     "next-version": "ts-node-esm src/nextVersion.ts",
+    "lint-changelog": "ts-node-esm src/lintChangelog.ts",
     "release": "./src/release.sh",
     "release-changelog": "ts-node-esm src/releaseChangelog.ts",
     "update-local-plugin": "./src/updateLocalPlugin.sh",
@@ -17,6 +18,7 @@
     "node": ">=14.16"
   },
   "dependencies": {
+    "chalk": "5.1.2",
     "dateformat": "4.5.1",
     "fs-extra": "10.1.0",
     "lodash-es": "4.17.21",
