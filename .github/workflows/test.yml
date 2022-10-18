@@ -32,6 +32,9 @@ jobs:
           # Remove this whenever we solved those OOM errors.
           NODE_OPTIONS: --max-old-space-size=4096
       - run: yarn lint --max-warnings=0
+      - run: yarn install --frozen-lockfile --check-files
+        working-directory: ./scripts
+      - run: yarn lint-changelog
       - uses: codecov/codecov-action@v1
         if: ${{ matrix.coverage }}
         with:

@@ -1,11 +1,6 @@
 import { URL } from 'node:url';
 
-export enum EntryCategory {
-  BreakingChange = 'breaking-change',
-  NewFeature = 'new-feature',
-  BugFix = 'bug-fix',
-  Chore = 'chore',
-}
+import { EntryCategory } from './entry.js';
 
 export const CHANGELOG_PATH = new URL('../../../CHANGELOG.md', import.meta.url);
 

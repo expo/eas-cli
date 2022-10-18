@@ -1,4 +1,5 @@
-import { CATEGORY_HEADERS, EntryCategory } from './changelog/consts.js';
+import { CATEGORY_HEADERS } from './changelog/consts.js';
+import { EntryCategory } from './changelog/entry.js';
 import { readAndParseChangelogAsync } from './changelog/file.js';
 import * as markdown from './markdown.js';
 
