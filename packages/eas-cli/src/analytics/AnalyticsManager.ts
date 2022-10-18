@@ -111,7 +111,7 @@ export async function getAnalyticsEnabledAsync(): Promise<boolean> {
 }
 
 /**
- * Create an instance of IAnalyticsManager based on the user's analytics enabled preferences.
+ * Create an instance of Analytics based on the user's analytics enabled preferences.
  */
 export async function createAnalyticsAsync(): Promise<AnalyticsWithOrchestration> {
   // TODO: remove after some time
