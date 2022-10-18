@@ -1,3 +1,5 @@
+import { getProjectConfigDescription, modifyConfigAsync } from '@expo/config';
+import { ExpoConfig } from '@expo/config-types';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -9,6 +11,7 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { saveProjectIdToAppConfigAsync } from '../../commandUtils/context/contextUtils/getProjectIdAsync';
 import { AppPrivacy, Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
+import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
@@ -54,7 +57,99 @@ export default class ProjectInit extends EasCommand {
     Log.withTick(`Project successfully linked (ID: ${chalk.bold(projectId)}) (modified app.json)`);
   }
 
-  private static async initializeWithExplicitIDAsync(
+  private static async modifyExpoConfigAsync(
+    projectDir: string,
+    modifications: Partial<ExpoConfig>
+  ): Promise<void> {
+    const result = await modifyConfigAsync(projectDir, modifications);
+    switch (result.type) {
+      case 'success':
+        break;
+      case 'warn': {
+        Log.warn();
+        Log.warn(
+          `Warning: Your project uses dynamic app configuration, and cannot be automatically modified.`
+        );
+        Log.warn(
+          chalk.dim(
+            'https://docs.expo.dev/workflow/configuration/#dynamic-configuration-with-appconfigjs'
+          )
+        );
+        Log.warn();
+        Log.warn(
+          `To complete the setup process, add the following in your ${chalk.bold(
+            getProjectConfigDescription(projectDir)
+          )}:`
+        );
+        Log.warn();
+        Log.warn(chalk.bold(JSON.stringify(modifications, null, 2)));
+        Log.warn();
+        throw new Error(result.message);
+      }
+      case 'fail':
+        throw new Error(result.message);
+      default:
+        throw new Error('Unexpected result type from modifyConfigAsync');
+    }
+  }
+
+  private static async ensureOwnerSlugConsistencyAsync(
+    graphqlClient: ExpoGraphqlClient,
+    projectId: string,
+    projectDir: string,
+    { force, nonInteractive }: InitializeMethodOptions
+  ): Promise<void> {
+    const exp = getExpoConfig(projectDir);
+    const appForProjectId = await AppQuery.byIdAsync(graphqlClient, projectId);
+    const correctOwner = appForProjectId.ownerAccount.name;
+    const correctSlug = appForProjectId.slug;
+
+    if (exp.owner && exp.owner !== correctOwner) {
+      if (force) {
+        await this.modifyExpoConfigAsync(projectDir, { owner: correctOwner });
+      } else {
+        const message = `Project owner (${correctOwner}) does not match the value configured in the "owner" field (${exp.owner}).`;
+        if (nonInteractive) {
+          throw new Error(`Project config error: ${message} Use --force flag to overwrite.`);
+        }
+
+        const confirm = await confirmAsync({
+          message: `${message}. Do you wish to overwrite it?`,
+        });
+        if (!confirm) {
+          throw new Error('Aborting');
+        }
+
+        await this.modifyExpoConfigAsync(projectDir, { owner: correctOwner });
+      }
+    } else if (!exp.owner) {
+      await this.modifyExpoConfigAsync(projectDir, { owner: correctOwner });
+    }
+
+    if (exp.slug && exp.slug !== correctSlug) {
+      if (force) {
+        await this.modifyExpoConfigAsync(projectDir, { slug: correctSlug });
+      } else {
+        const message = `Project slug (${correctSlug}) does not match the value configured in the "slug" field (${exp.slug}).`;
+        if (nonInteractive) {
+          throw new Error(`Project config error: ${message} Use --force flag to overwrite.`);
+        }
+
+        const confirm = await confirmAsync({
+          message: `${message}. Do you wish to overwrite it?`,
+        });
+        if (!confirm) {
+          throw new Error('Aborting');
+        }
+
+        await this.modifyExpoConfigAsync(projectDir, { slug: correctSlug });
+      }
+    } else if (!exp.slug) {
+      await this.modifyExpoConfigAsync(projectDir, { slug: correctSlug });
+    }
+  }
+
+  private static async setExplicitIDAsync(
     projectId: string,
     projectDir: string,
     { force, nonInteractive }: InitializeMethodOptions
@@ -92,12 +187,27 @@ export default class ProjectInit extends EasCommand {
         )}. Do you wish to overwrite it?`,
       });
       if (!confirm) {
-        Log.log('Aborting');
-        return;
+        throw new Error('Aborting');
       }
 
       await ProjectInit.saveProjectIdAndLogSuccessAsync(projectDir, projectId);
     }
+  }
+
+  private static async initializeWithExplicitIDAsync(
+    graphqlClient: ExpoGraphqlClient,
+    projectId: string,
+    projectDir: string,
+    { force, nonInteractive }: InitializeMethodOptions
+  ): Promise<void> {
+    await this.setExplicitIDAsync(projectId, projectDir, {
+      force,
+      nonInteractive,
+    });
+    await this.ensureOwnerSlugConsistencyAsync(graphqlClient, projectId, projectDir, {
+      force,
+      nonInteractive,
+    });
   }
 
   private static async initializeWithInteractiveSelectionAsync(
@@ -227,7 +337,10 @@ export default class ProjectInit extends EasCommand {
     } = await this.getContextAsync(ProjectInit, { nonInteractive });
 
     if (id) {
-      await ProjectInit.initializeWithExplicitIDAsync(id, projectDir, { force, nonInteractive });
+      await ProjectInit.initializeWithExplicitIDAsync(graphqlClient, id, projectDir, {
+        force,
+        nonInteractive,
+      });
     } else {
       await ProjectInit.initializeWithInteractiveSelectionAsync(graphqlClient, actor, projectDir);
     }
