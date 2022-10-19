@@ -1,11 +1,14 @@
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
+import { boolish } from 'getenv';
 import resolveFrom from 'resolve-from';
 
 import Log from '../log';
 
-export function hasVersionedExpoCli(projectDir: string): boolean {
-  return !!resolveFrom.silent(projectDir, '@expo/cli');
+export function shouldUseVersionedExpoCLI(projectDir: string): boolean {
+  // Users can disable local CLI settings EXPO_USE_LOCAL_CLI=false
+  // https://github.com/expo/expo/blob/69eddda7bb1dbfab44258f468cf7f22984c1e44e/packages/expo/bin/cli.js#L10
+  return !!resolveFrom.silent(projectDir, '@expo/cli') && boolish('EXPO_USE_LOCAL_CLI', true);
 }
 
 export async function expoCommandAsync(
