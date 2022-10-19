@@ -31,8 +31,16 @@ export default class GitClient extends Client {
     } catch (error: any) {
       Log.error(
         `${chalk.bold('git')} found, but ${chalk.bold('git --help')} exited with status ${
-          error.status
-        }. Repair your Git installation, or set ${chalk.bold(
+          error?.status
+        }${error?.stderr ? `:` : '.'}`
+      );
+
+      if (error?.stderr) {
+        Log.error(error?.stderr);
+      }
+
+      Log.error(
+        `Repair your Git installation, or set ${chalk.bold(
           'EAS_NO_VCS=1'
         )} to use EAS CLI without Git (or any other version control system).`
       );
