@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Handle case where git is installed but not working properly. ([#1454](https://github.com/expo/eas-cli/pull/1454) by [@brentvatne](https://github.com/brentvatne))
+- Remove table logging in `update:view`. ([#1463](https://github.com/expo/eas-cli/pull/1463) by [@EvanBacon](https://github.com/EvanBacon))
 
 ## [2.4.1](https://github.com/expo/eas-cli/releases/tag/v2.4.1) - 2022-10-17
 
