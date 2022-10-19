@@ -236,11 +236,22 @@ describe(resolveInputDirectoryAsync, () => {
   it('returns the correct distRoot path', async () => {
     const customDirectoryName = path.resolve(uuidv4());
     await fs.mkdir(customDirectoryName, { recursive: true });
-    expect(await resolveInputDirectoryAsync(customDirectoryName)).toBe(customDirectoryName);
+    expect(await resolveInputDirectoryAsync(customDirectoryName, { skipBundler: false })).toBe(
+      customDirectoryName
+    );
   });
   it('throws an error if the path does not exist', async () => {
     const nonExistentPath = path.resolve(uuidv4());
-    await expect(resolveInputDirectoryAsync(nonExistentPath)).rejects
+    await expect(resolveInputDirectoryAsync(nonExistentPath, { skipBundler: false })).rejects
+      .toThrow(`The input directory "${nonExistentPath}" does not exist.
+    You can allow us to build it for you by not setting the --skip-bundler flag.
+    If you chose to build it yourself you'll need to run a command to build the JS
+    bundle first.
+    You can use '--input-dir' to specify a different input directory.`);
+  });
+  it('throws a more specific error if the path does not exist and the dev opted out of bundling', async () => {
+    const nonExistentPath = path.resolve(uuidv4());
+    await expect(resolveInputDirectoryAsync(nonExistentPath, { skipBundler: true })).rejects
       .toThrow(`The input directory "${nonExistentPath}" does not exist.
     You can allow us to build it for you by not setting the --skip-bundler flag.
     If you chose to build it yourself you'll need to run a command to build the JS
@@ -252,7 +263,11 @@ describe(resolveInputDirectoryAsync, () => {
 describe(collectAssetsAsync, () => {
   it('builds an update info group', async () => {
     const fakeHash = 'md5-hash-of-jpg';
-    const bundles = { android: 'android-bundle-code', ios: 'ios-bundle-code' };
+    const bundles = {
+      android: 'android-bundle-code',
+      ios: 'ios-bundle-code',
+      web: 'web-bundle-code',
+    };
     const inputDir = uuidv4();
 
     const userDefinedAssets = [
@@ -285,11 +300,15 @@ describe(collectAssetsAsync, () => {
             assets: [{ path: `assets/${fakeHash}`, ext: 'jpg' }],
             bundle: 'bundles/ios.js',
           },
+          web: {
+            assets: [{ path: `assets/${fakeHash}`, ext: 'jpg' }],
+            bundle: 'bundles/web.js',
+          },
         },
       })
     );
 
-    expect(await collectAssetsAsync({ inputDir, platforms: defaultPublishPlatforms })).toEqual({
+    expect(await collectAssetsAsync(inputDir)).toEqual({
       android: {
         launchAsset: {
           fileExtension: '.bundle',
@@ -306,9 +325,17 @@ describe(collectAssetsAsync, () => {
         },
         assets: userDefinedAssets,
       },
+      web: {
+        launchAsset: {
+          fileExtension: '.bundle',
+          contentType: 'application/javascript',
+          path: path.resolve(`${inputDir}/bundles/web.js`),
+        },
+        assets: userDefinedAssets,
+      },
     });
 
-    expect(await collectAssetsAsync({ inputDir, platforms: ['ios'] })).toEqual({
+    expect(await collectAssetsAsync(inputDir)).toEqual({
       ios: {
         launchAsset: {
           fileExtension: '.bundle',

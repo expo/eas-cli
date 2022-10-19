@@ -1,4 +1,4 @@
-import { ExpoConfig } from '@expo/config';
+import { ExpoConfig, Platform as PublishPlatform } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
@@ -34,11 +34,12 @@ import {
   isExpoUpdatesInstalledOrAvailable,
 } from '../../project/projectUtils';
 import {
-  PublishPlatform,
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
+  ExpoCLIExportPlatformFlag,
   isUploadedAssetCountAboveWarningThreshold,
+  resolveInputDirectoryAsync,
   uploadAssetsAsync,
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
@@ -58,8 +59,7 @@ import { getVcsClient } from '../../vcs';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
 
-export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
-export type PublishPlatformFlag = PublishPlatform | 'all';
+export const defaultPublishPlatforms: Partial<PublishPlatform>[] = ['android', 'ios'];
 
 async function ensureChannelExistsAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -157,7 +157,11 @@ export default class UpdatePublish extends EasCommand {
     }),
     platform: Flags.enum({
       char: 'p',
-      options: [...defaultPublishPlatforms, 'all'],
+      options: [
+        // TODO: Add web when it's fully supported
+        ...defaultPublishPlatforms,
+        'all',
+      ],
       default: 'all',
       required: false,
     }),
@@ -205,7 +209,7 @@ export default class UpdatePublish extends EasCommand {
       enableJsonOutput();
     }
 
-    const platformFlag = platform as PublishPlatformFlag;
+    const platformFlag = platform as ExpoCLIExportPlatformFlag;
     // If a group was specified, that means we are republishing it.
     republish = republish || !!group;
 
@@ -391,39 +395,40 @@ export default class UpdatePublish extends EasCommand {
 
       // build bundle and upload assets for a new publish
       if (!skipBundler) {
-        const bundleSpinner = ora().start('Building bundle...');
+        const bundleSpinner = ora().start('Exporting...');
         try {
-          await buildBundlesAsync({ projectDir, inputDir });
-          bundleSpinner.succeed('Built bundle!');
+          await buildBundlesAsync({ projectDir, inputDir, platform: platformFlag });
+          bundleSpinner.succeed('Exported platforms');
         } catch (e) {
-          bundleSpinner.fail('Failed to build bundle!');
+          bundleSpinner.fail('Export failed');
           throw e;
         }
       }
 
-      const assetSpinner = ora().start('Uploading assets...');
+      const assetSpinner = ora().start('Uploading...');
+
+      // After possibly bundling, assert that the input directory can be found.
+      const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
+
       try {
-        const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
-        const assets = await collectAssetsAsync({ inputDir: inputDir!, platforms });
+        const assets = await collectAssetsAsync(distRoot);
         const uploadResults = await uploadAssetsAsync(
           graphqlClient,
           assets,
           projectId,
           (totalAssets, missingAssets) => {
-            assetSpinner.text = `Uploading assets. Finished (${
-              totalAssets - missingAssets
-            }/${totalAssets})`;
+            assetSpinner.text = `Uploading (${totalAssets - missingAssets}/${totalAssets})`;
           }
         );
         uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
         assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
         unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
         const uploadAssetSuccessMessage = uploadedAssetCount
-          ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'asset' : 'assets'}!`
-          : `Uploading assets skipped -- no new assets found!`;
+          ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'platform' : 'platforms'}`
+          : `Uploaded: No changes detected`;
         assetSpinner.succeed(uploadAssetSuccessMessage);
       } catch (e) {
-        assetSpinner.fail('Failed to upload assets');
+        assetSpinner.fail('Failed to upload');
         throw e;
       }
     }
@@ -516,6 +521,7 @@ export default class UpdatePublish extends EasCommand {
       publishSpinner.succeed('Published!');
     } catch (e) {
       publishSpinner.fail('Failed to publish updates');
+      console.log('e', e);
       throw e;
     }
 
@@ -583,7 +589,7 @@ export default class UpdatePublish extends EasCommand {
 
 async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
-  platformFlag: PublishPlatformFlag,
+  platformFlag: ExpoCLIExportPlatformFlag,
   projectDir: string
 ): Promise<Record<string, string>> {
   const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
