@@ -98,9 +98,7 @@ export async function validateAppVersionRuntimePolicySupportAsync(
 }
 
 export async function installExpoUpdatesAsync(projectDir: string): Promise<void> {
-  Log.newLine();
-  Log.log(`Running ${chalk.bold('expo install expo-updates')}`);
-  Log.newLine();
+  Log.log(chalk.gray`> npx expo install expo-updates`);
   await expoCommandAsync(projectDir, ['install', 'expo-updates']);
   Log.newLine();
 }
