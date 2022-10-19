@@ -1,4 +1,4 @@
-import { AppJSONConfig, PackageJSONConfig, getConfig } from '@expo/config';
+import { AppJSONConfig, PackageJSONConfig, getConfig, modifyConfigAsync } from '@expo/config';
 import chalk from 'chalk';
 import { vol } from 'memfs';
 import { instance, mock } from 'ts-mockito';
@@ -7,8 +7,9 @@ import LoggedInContextField from '../../../commandUtils/context/LoggedInContextF
 import ProjectDirContextField from '../../../commandUtils/context/ProjectDirContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../../../commandUtils/context/contextUtils/getProjectIdAsync';
-import { jester } from '../../../credentials/__tests__/fixtures-constants';
+import { jester, jester2 } from '../../../credentials/__tests__/fixtures-constants';
 import { AppMutation } from '../../../graphql/mutations/AppMutation';
+import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import ProjectInit from '../init';
@@ -18,6 +19,7 @@ jest.mock('@expo/config');
 jest.mock('../../../prompts');
 jest.mock('../../../user/actions');
 jest.mock('../../../graphql/mutations/AppMutation');
+jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../ora', () => ({
   ora: () => ({
     start: () => ({ succeed: () => {}, fail: () => {} }),
@@ -97,11 +99,23 @@ describe(ProjectInit.name, () => {
 
       describe('interactive', () => {
         it('is no-op if already configured for id', async () => {
+          jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+            id: '1234',
+            slug: 'testing-123',
+            fullName: '@jester/testing-123',
+            ownerAccount: jester.accounts[0],
+          });
           await new ProjectInit(['--id', '1234'], commandOptions).run();
           expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
         });
 
         it('prompts to overwrite when different', async () => {
+          jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+            id: '1234',
+            slug: 'testing-123',
+            fullName: '@jester/testing-123',
+            ownerAccount: jester.accounts[0],
+          });
           jest.mocked(confirmAsync).mockResolvedValue(true);
           await new ProjectInit(['--id', '12345'], commandOptions).run();
           expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '12345');
@@ -109,8 +123,16 @@ describe(ProjectInit.name, () => {
         });
 
         it('aborts when prompt to overwrite is declined', async () => {
+          jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+            id: '1234',
+            slug: 'testing-123',
+            fullName: '@jester/testing-123',
+            ownerAccount: jester.accounts[0],
+          });
           jest.mocked(confirmAsync).mockResolvedValue(false);
-          await new ProjectInit(['--id', '12345'], commandOptions).run();
+          await expect(
+            new ProjectInit(['--id', '12345'], commandOptions).run()
+          ).rejects.toThrowError('Aborting');
           expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
           expect(confirmAsync).toHaveBeenCalled();
         });
@@ -118,6 +140,12 @@ describe(ProjectInit.name, () => {
 
       describe('force', () => {
         it('does not prompt to overwrite when different', async () => {
+          jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+            id: '1234',
+            slug: 'testing-123',
+            fullName: '@jester/testing-123',
+            ownerAccount: jester.accounts[0],
+          });
           await new ProjectInit(['--id', '12345', '--force'], {
             root: '/test-project',
           } as any).run();
@@ -140,16 +168,170 @@ describe(ProjectInit.name, () => {
           expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
         });
       });
+
+      describe('checks owner and slug consistency', () => {
+        it('is a no-op if already consistent', async () => {
+          jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+            id: '1234',
+            slug: 'testing-123',
+            fullName: '@jester/testing-123',
+            ownerAccount: jester.accounts[0],
+          });
+
+          await new ProjectInit(['--id', '1234'], commandOptions).run();
+          expect(modifyConfigAsync).not.toHaveBeenCalled();
+        });
+
+        it('prompts to configure if not consistent', async () => {
+          jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+            id: '1234',
+            slug: 'testing-124',
+            fullName: '@jester2/testing-124',
+            ownerAccount: jester2.accounts[0],
+          });
+
+          jest.mocked(confirmAsync).mockResolvedValue(true);
+          jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+
+          await new ProjectInit(['--id', '1234'], commandOptions).run();
+
+          expect(confirmAsync).toHaveBeenCalled();
+          expect(modifyConfigAsync).toHaveBeenCalledTimes(2);
+          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { owner: 'jester2' });
+          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { slug: 'testing-124' });
+        });
+
+        it('overrides if force flag is present and it is not consistent', async () => {
+          jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+            id: '1234',
+            slug: 'testing-124',
+            fullName: '@jester2/testing-124',
+            ownerAccount: jester2.accounts[0],
+          });
+
+          jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+
+          await new ProjectInit(['--id', '1234', '--force'], commandOptions).run();
+
+          expect(confirmAsync).not.toHaveBeenCalled();
+          expect(modifyConfigAsync).toHaveBeenCalledTimes(2);
+          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { owner: 'jester2' });
+          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { slug: 'testing-124' });
+        });
+
+        it('throws if non-interactive is present and it is not consistent', async () => {
+          jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+            id: '1234',
+            slug: 'testing-124',
+            fullName: '@jester2/testing-124',
+            ownerAccount: jester2.accounts[0],
+          });
+
+          jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+
+          await expect(
+            new ProjectInit(['--id', '1234', '--non-interactive'], commandOptions).run()
+          ).rejects.toThrow(
+            'Project config error: Project owner (jester2) does not match the value configured in the "owner" field (jester). Use --force flag to overwrite.'
+          );
+
+          expect(confirmAsync).not.toHaveBeenCalled();
+          expect(modifyConfigAsync).not.toHaveBeenCalled();
+        });
+      });
     });
 
     describe('when it is not yet configured', () => {
-      beforeEach(() => {
-        mockTestProject({});
-      });
-
       it('configures', async () => {
+        mockTestProject({ configuredOwner: jester.accounts[0].name });
+        jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+          id: '1234',
+          slug: 'testing-123',
+          fullName: '@jester/testing-123',
+          ownerAccount: jester.accounts[0],
+        });
+
         await new ProjectInit(['--id', '1234'], commandOptions).run();
         expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '1234');
+      });
+
+      describe('checks owner and slug consistency', () => {
+        it('is a no-op if already consistent', async () => {
+          mockTestProject({ configuredOwner: jester.accounts[0].name });
+
+          jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+            id: '1234',
+            slug: 'testing-123',
+            fullName: '@jester/testing-123',
+            ownerAccount: jester.accounts[0],
+          });
+
+          await new ProjectInit(['--id', '1234'], commandOptions).run();
+          expect(modifyConfigAsync).not.toHaveBeenCalled();
+        });
+
+        it('prompts to configure if not consistent', async () => {
+          mockTestProject({ configuredOwner: jester.accounts[0].name });
+
+          jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+            id: '1234',
+            slug: 'testing-124',
+            fullName: '@jester2/testing-124',
+            ownerAccount: jester2.accounts[0],
+          });
+
+          jest.mocked(confirmAsync).mockResolvedValue(true);
+          jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+
+          await new ProjectInit(['--id', '1234'], commandOptions).run();
+
+          expect(confirmAsync).toHaveBeenCalled();
+          expect(modifyConfigAsync).toHaveBeenCalledTimes(2);
+          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { owner: 'jester2' });
+          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { slug: 'testing-124' });
+        });
+
+        it('overrides if force flag is present and it is not consistent', async () => {
+          mockTestProject({ configuredOwner: jester.accounts[0].name });
+
+          jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+            id: '1234',
+            slug: 'testing-124',
+            fullName: '@jester2/testing-124',
+            ownerAccount: jester2.accounts[0],
+          });
+
+          jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+
+          await new ProjectInit(['--id', '1234', '--force'], commandOptions).run();
+
+          expect(confirmAsync).not.toHaveBeenCalled();
+          expect(modifyConfigAsync).toHaveBeenCalledTimes(2);
+          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { owner: 'jester2' });
+          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { slug: 'testing-124' });
+        });
+
+        it('throws if non-interactive is present and it is not consistent', async () => {
+          mockTestProject({ configuredOwner: jester.accounts[0].name });
+
+          jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+            id: '1234',
+            slug: 'testing-124',
+            fullName: '@jester2/testing-124',
+            ownerAccount: jester2.accounts[0],
+          });
+
+          jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+
+          await expect(
+            new ProjectInit(['--id', '1234', '--non-interactive'], commandOptions).run()
+          ).rejects.toThrow(
+            'Project config error: Project owner (jester2) does not match the value configured in the "owner" field (jester). Use --force flag to overwrite.'
+          );
+
+          expect(confirmAsync).not.toHaveBeenCalled();
+          expect(modifyConfigAsync).not.toHaveBeenCalled();
+        });
       });
     });
   });
