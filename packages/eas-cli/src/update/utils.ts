@@ -10,6 +10,7 @@ import { RequestedPlatform } from '../platform';
 import { confirmAsync } from '../prompts';
 import { getActorDisplayName } from '../user/User';
 import groupBy from '../utils/expodash/groupBy';
+import formatFields from '../utils/formatFields';
 import { ProfileData } from '../utils/profiles';
 
 export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
@@ -42,6 +43,15 @@ export const UPDATE_COLUMNS = [
 ];
 
 export const UPDATE_COLUMNS_WITH_BRANCH = ['Branch', ...UPDATE_COLUMNS];
+
+export function formatUpdateGroup(update: FormattedUpdateGroupDescription): string {
+  return formatFields([
+    { label: 'Platforms', value: update.platforms },
+    { label: 'Runtime Version', value: update.runtimeVersion },
+    { label: 'Message', value: update.message },
+    { label: 'Group ID', value: update.group },
+  ]);
+}
 
 export function getPlatformsForGroup({
   group,
