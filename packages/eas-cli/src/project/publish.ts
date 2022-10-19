@@ -178,7 +178,7 @@ export async function resolveInputDirectoryAsync(
   if (!(await fs.pathExists(distRoot))) {
     let error = `--input-dir="${inputDir}" not found.`;
     if (skipBundler) {
-      error += ` The --skip-bundler flag can only be used if the project was manually bundled. Ex: npx expo export && eas update --skip-bundler`;
+      error += ` --skip-bundler requires the project to be exported manually before uploading. Ex: npx expo export && eas update --skip-bundler`;
     }
     throw new Error(error);
   }
