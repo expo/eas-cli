@@ -153,7 +153,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
         // eslint-disable-next-line async-protect/async-suffix
         validate: async secretValue => {
           if (!secretValue) {
-            return 'Secret value may not be empty.';
+            return validationMessage;
           }
           if (secretType === SecretType.FILE) {
             const secretFilePath = path.resolve(secretValue);
@@ -208,13 +208,13 @@ export default class EnvironmentSecretCreate extends EasCommand {
 
       if (secretType === SecretType.STRING) {
         Log.withTick(
-          `️Created a new secret ${chalk.bold(name)} with value ${chalk.bold(
+          `Created a new secret ${chalk.bold(name)} with value ${chalk.bold(
             secretValue
           )} on project ${chalk.bold(projectDisplayName)}.`
         );
       } else {
         Log.withTick(
-          `️Created a new secret ${chalk.bold(name)} from file ${chalk.bold(
+          `Created a new secret ${chalk.bold(name)} from file ${chalk.bold(
             secretFilePath
           )} on project ${chalk.bold(projectDisplayName)}.`
         );
@@ -252,13 +252,13 @@ export default class EnvironmentSecretCreate extends EasCommand {
 
       if (secretType === SecretType.STRING) {
         Log.withTick(
-          `️Created a new secret ${chalk.bold(name)} with value ${chalk.bold(
+          `Created a new secret ${chalk.bold(name)} with value ${chalk.bold(
             secretValue
           )} on account ${chalk.bold(ownerAccount.name)}.`
         );
       } else {
         Log.withTick(
-          `️Created a new secret ${chalk.bold(name)} from file ${chalk.bold(
+          `Created a new secret ${chalk.bold(name)} from file ${chalk.bold(
             secretFilePath
           )} on account ${chalk.bold(ownerAccount.name)}.`
         );
