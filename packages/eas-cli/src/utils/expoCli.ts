@@ -4,6 +4,10 @@ import resolveFrom from 'resolve-from';
 
 import Log from '../log';
 
+export function hasVersionedExpoCli(projectDir: string): boolean {
+  return !!resolveFrom.silent(projectDir, '@expo/cli');
+}
+
 export async function expoCommandAsync(
   projectDir: string,
   args: string[],
