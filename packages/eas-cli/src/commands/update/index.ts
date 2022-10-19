@@ -34,10 +34,11 @@ import {
   isExpoUpdatesInstalledOrAvailable,
 } from '../../project/projectUtils';
 import {
+  ExpoCLIExportPlatformFlag,
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
-  ExpoCLIExportPlatformFlag,
+  filterPlatforms,
   isUploadedAssetCountAboveWarningThreshold,
   resolveInputDirectoryAsync,
   uploadAssetsAsync,
@@ -251,8 +252,9 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
     await checkEASUpdateURLIsSetAsync(exp, projectId);
+
+    let realizedPlatforms: PublishPlatform[] = [];
 
     if (!branchName) {
       if (autoFlag) {
@@ -330,10 +332,10 @@ export default class UpdatePublish extends EasCommand {
 
       let publicationPlatformMessage: string;
       if (platformFlag === 'all') {
-        if (updatesToRepublishFilteredByPlatform.length !== defaultPublishPlatforms.length) {
+        if (updatesToRepublishFilteredByPlatform.length < defaultPublishPlatforms.length) {
           Log.warn(`You are republishing an update that wasn't published for all platforms.`);
         }
-        publicationPlatformMessage = `The republished update will appear on the same plaforms it was originally published on: ${updatesToRepublishFilteredByPlatform
+        publicationPlatformMessage = `The republished update will appear on the same platforms it was originally published on: ${updatesToRepublishFilteredByPlatform
           .map(update => update.platform)
           .join(', ')}`;
       } else {
@@ -347,6 +349,9 @@ export default class UpdatePublish extends EasCommand {
 
         unsortedUpdateInfoGroups[platform] = JSON.parse(manifestFragment);
       }
+      realizedPlatforms = updatesToRepublishFilteredByPlatform.map(
+        update => update.platform as PublishPlatform
+      );
 
       // These are the same for each member of an update group
       group = updatesToRepublishFilteredByPlatform[0].group;
@@ -397,7 +402,7 @@ export default class UpdatePublish extends EasCommand {
       if (!skipBundler) {
         const bundleSpinner = ora().start('Exporting...');
         try {
-          await buildBundlesAsync({ projectDir, inputDir, platform: platformFlag });
+          await buildBundlesAsync({ projectDir, inputDir });
           bundleSpinner.succeed('Exported platforms');
         } catch (e) {
           bundleSpinner.fail('Export failed');
@@ -405,13 +410,17 @@ export default class UpdatePublish extends EasCommand {
         }
       }
 
-      const assetSpinner = ora().start('Uploading...');
-
       // After possibly bundling, assert that the input directory can be found.
       const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
 
+      const assetSpinner = ora().start('Uploading...');
+
       try {
-        const assets = await collectAssetsAsync(distRoot);
+        let assets = await collectAssetsAsync(distRoot);
+        assets = filterPlatforms(assets, platformFlag);
+
+        realizedPlatforms = Object.keys(assets) as PublishPlatform[];
+
         const uploadResults = await uploadAssetsAsync(
           graphqlClient,
           assets,
@@ -420,6 +429,7 @@ export default class UpdatePublish extends EasCommand {
             assetSpinner.text = `Uploading (${totalAssets - missingAssets}/${totalAssets})`;
           }
         );
+
         uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
         assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
         unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
@@ -434,6 +444,8 @@ export default class UpdatePublish extends EasCommand {
     }
 
     const truncatedMessage = truncatePublishUpdateMessage(message!);
+
+    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
 
     const runtimeToPlatformMapping: Record<string, string[]> = {};
     for (const runtime of new Set(Object.values(runtimeVersions))) {
@@ -521,7 +533,6 @@ export default class UpdatePublish extends EasCommand {
       publishSpinner.succeed('Published!');
     } catch (e) {
       publishSpinner.fail('Failed to publish updates');
-      console.log('e', e);
       throw e;
     }
 
@@ -536,6 +547,7 @@ export default class UpdatePublish extends EasCommand {
       }
 
       Log.addNewLineIfNone();
+
       for (const runtime of new Set(Object.values(runtimeVersions))) {
         const newUpdatesForRuntimeVersion = newUpdates.filter(
           update => update.runtimeVersion === runtime
@@ -589,15 +601,17 @@ export default class UpdatePublish extends EasCommand {
 
 async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
-  platformFlag: ExpoCLIExportPlatformFlag,
+  platforms: PublishPlatform[],
   projectDir: string
 ): Promise<Record<string, string>> {
-  const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
-
   for (const platform of platforms) {
+    if (platform === 'web') {
+      continue;
+    }
     const isPolicy = typeof (exp[platform]?.runtimeVersion ?? exp.runtimeVersion) === 'object';
     if (isPolicy) {
-      const isManaged = (await resolveWorkflowAsync(projectDir, platform)) === Workflow.MANAGED;
+      const isManaged =
+        (await resolveWorkflowAsync(projectDir, platform as Platform)) === Workflow.MANAGED;
       if (!isManaged) {
         throw new Error(
           'Runtime version policies are only supported in the managed workflow. In the bare workflow, runtime version needs to be set manually.'
@@ -607,13 +621,18 @@ async function getRuntimeVersionObjectAsync(
   }
 
   return Object.fromEntries(
-    platforms.map(platform => [
-      platform,
-      nullthrows(
-        Updates.getRuntimeVersion(exp, platform),
-        `Unable to determine runtime version for ${platform}`
-      ),
-    ])
+    platforms.map(platform => {
+      if (platform === 'web') {
+        return ['web', 'n/a'];
+      }
+      return [
+        platform,
+        nullthrows(
+          Updates.getRuntimeVersion(exp, platform),
+          `Unable to determine runtime version for ${platform}`
+        ),
+      ];
+    })
   );
 }
 

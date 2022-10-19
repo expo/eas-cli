@@ -152,11 +152,9 @@ export async function buildUnsortedUpdateInfoGroupAsync(
 export async function buildBundlesAsync({
   projectDir,
   inputDir,
-  platform,
 }: {
   projectDir: string;
   inputDir: string;
-  platform: ExpoCLIExportPlatformFlag;
 }): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
   if (!packageJSON) {
@@ -165,8 +163,6 @@ export async function buildBundlesAsync({
 
   await expoCommandAsync(projectDir, [
     'export',
-    '--platform',
-    platform,
     '--output-dir',
     inputDir,
     '--experimental-bundle',
@@ -210,6 +206,27 @@ export function loadMetadata(distRoot: string): Metadata {
   }
   Log.debug(`Loaded ${platforms.length} platform(s): ${platforms.join(', ')}`);
   return metadata;
+}
+
+export function filterPlatforms<T extends Partial<Record<Platform, any>>>(
+  record: T,
+  platformFlag: ExpoCLIExportPlatformFlag
+): T {
+  if (platformFlag === 'all') {
+    return record;
+  }
+
+  const platform = platformFlag as Platform;
+
+  if (!record[platform]) {
+    throw new Error(
+      `--platform="${platform}" not found in metadata.json. Available platforms: ${Object.keys(
+        record
+      ).join(', ')}`
+    );
+  }
+
+  return { [platform]: record[platform] } as T;
 }
 
 /** Given a directory, load the metadata.json and collect the assets for each platform. */
