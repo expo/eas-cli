@@ -1,6 +1,5 @@
 import { ExpoConfig, Platform } from '@expo/config';
 import JsonFile from '@expo/json-file';
-import chalk from 'chalk';
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import Joi from 'joi';
@@ -177,9 +176,9 @@ export async function resolveInputDirectoryAsync(
 ): Promise<string> {
   const distRoot = path.resolve(inputDir);
   if (!(await fs.pathExists(distRoot))) {
-    let error = chalk`{bold --input-dir="${inputDir}"} not found.`;
+    let error = `--input-dir="${inputDir}" not found.`;
     if (skipBundler) {
-      error += ` The {bold --skip-bundler} flag can only be used if the project was manually bundled. {gray Ex: npx expo export && eas update --skip-bundler}.`;
+      error += ` The --skip-bundler flag can only be used if the project was manually bundled. Ex: npx expo export && eas update --skip-bundler`;
     }
     throw new Error(error);
   }
