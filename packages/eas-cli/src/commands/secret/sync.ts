@@ -1,5 +1,4 @@
 import { Errors, Flags } from '@oclif/core';
-import assert from 'assert';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
@@ -48,8 +47,8 @@ export default class EnvironmentSecretSync extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    let {
-      flags: { scope, force, 'env-file': envFilePath, 'non-interactive': nonInteractive },
+    const {
+      flags: { scope, force, 'env-file': maybeEnvFilePath, 'non-interactive': nonInteractive },
     } = await this.parse(EnvironmentSecretSync);
     const {
       projectConfig: { projectId },
@@ -61,58 +60,18 @@ export default class EnvironmentSecretSync extends EasCommand {
     const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
     const ownerAccount = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
 
-    if (!envFilePath) {
-      const validationMessage = 'Env file must be passed.';
-      if (nonInteractive) {
-        throw new Error(validationMessage);
-      }
-
-      ({ envFilePath } = await promptAsync({
-        type: 'text',
-        name: 'envFilePath',
-        message: 'Path to the env file with secrets:',
-        // eslint-disable-next-line async-protect/async-suffix
-        validate: async secretValueRaw => {
-          if (!secretValueRaw) {
-            return validationMessage;
-          }
-          envFilePath = path.resolve(secretValueRaw);
-          if (!(await fs.pathExists(envFilePath))) {
-            return `File "${envFilePath}" does not exist.`;
-          }
-          return true;
-        },
-      }));
-    }
-
-    assert(envFilePath);
+    const envFilePath = await resolveEnvFilePathAsync(maybeEnvFilePath, nonInteractive);
     if (!(await fs.pathExists(envFilePath))) {
       throw new Error(`File "${envFilePath}" does not exist`);
     }
 
     const newSecrets: Record<string, string> = dotenv.parse(await fs.readFile(envFilePath));
 
-    const serverSecrets = await readAllSecretsFromServerAsync(graphqlClient, projectId, scope);
-    const commonSecretNames = findCommonSecretNames(serverSecrets, newSecrets);
-
-    if (commonSecretNames.length > 0) {
-      if (!force) {
-        Log.log(`This ${scope} already has environment secrets with the following names:`);
-        for (const name of commonSecretNames) {
-          Log.log(`- ${name}`);
-        }
-        Log.error('Run with --force flag to proceed');
-        Errors.exit(1);
-      } else {
-        const spinner = ora('Deleting secrets already present on server...').start();
-        const commonSecretNameSet = new Set(commonSecretNames);
-        const commonServerSecrets = serverSecrets.filter(({ name }) =>
-          commonSecretNameSet.has(name)
-        );
-        await deleteSecretsAsync(graphqlClient, commonServerSecrets);
-        spinner.succeed();
-      }
-    }
+    await ensureSecretsDontExistOnServerAsync(
+      graphqlClient,
+      { projectId, scope, force },
+      newSecrets
+    );
 
     await createSecretsAsync(
       graphqlClient,
@@ -133,6 +92,64 @@ export default class EnvironmentSecretSync extends EasCommand {
     );
     for (const secretName of Object.keys(newSecrets)) {
       Log.log(`- ${secretName}`);
+    }
+  }
+}
+
+async function resolveEnvFilePathAsync(
+  maybeEnvFilePath: string | undefined,
+  nonInteractive: boolean
+): Promise<string> {
+  if (maybeEnvFilePath) {
+    return maybeEnvFilePath;
+  }
+
+  const validationMessage = 'Env file must be passed.';
+  if (nonInteractive) {
+    throw new Error(validationMessage);
+  }
+
+  const { envFilePath } = await promptAsync({
+    type: 'text',
+    name: 'envFilePath',
+    message: 'Path to the env file with secrets:',
+    // eslint-disable-next-line async-protect/async-suffix
+    validate: async secretValueRaw => {
+      if (!secretValueRaw) {
+        return validationMessage;
+      }
+      const envFilePath = path.resolve(secretValueRaw);
+      if (!(await fs.pathExists(envFilePath))) {
+        return `File "${envFilePath}" does not exist.`;
+      }
+      return true;
+    },
+  });
+  return envFilePath;
+}
+
+async function ensureSecretsDontExistOnServerAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { projectId, scope, force }: { projectId: string; scope: EnvironmentSecretScope; force: boolean },
+  secrets: Record<string, string>
+): Promise<void> {
+  const serverSecrets = await readAllSecretsFromServerAsync(graphqlClient, projectId, scope);
+  const commonSecretNames = findCommonSecretNames(serverSecrets, secrets);
+
+  if (commonSecretNames.length > 0) {
+    if (!force) {
+      Log.log(`This ${scope} already has environment secrets with the following names:`);
+      for (const name of commonSecretNames) {
+        Log.log(`- ${name}`);
+      }
+      Log.error('Run with --force flag to proceed');
+      Errors.exit(1);
+    } else {
+      const spinner = ora('Deleting secrets already present on server...').start();
+      const commonSecretNameSet = new Set(commonSecretNames);
+      const commonServerSecrets = serverSecrets.filter(({ name }) => commonSecretNameSet.has(name));
+      await deleteSecretsAsync(graphqlClient, commonServerSecrets);
+      spinner.succeed();
     }
   }
 }
