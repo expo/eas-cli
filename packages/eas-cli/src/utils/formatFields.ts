@@ -4,8 +4,10 @@ type FormatFieldsOptions = {
   labelFormat: (raw: string) => string;
 };
 
+export type FormatFieldsItem = { label: string; value: string };
+
 export default function formatFields(
-  fields: { label: string; value: string }[],
+  fields: FormatFieldsItem[],
   options: FormatFieldsOptions = { labelFormat: chalk.dim }
 ): string {
   const columnWidth = fields.reduce((a, b) => (a.label.length > b.label.length ? a : b)).label
