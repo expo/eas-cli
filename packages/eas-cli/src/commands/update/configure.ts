@@ -7,7 +7,6 @@ import chalk from 'chalk';
 import { getEASUpdateURL } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
 import { AppPlatform } from '../../graphql/generated';
-import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform, appPlatformDisplayNames } from '../../platform';
 import {
@@ -88,18 +87,10 @@ export default class UpdateConfigure extends EasCommand {
       Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
     }
 
-    const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
-      appId: projectId,
-      limit: 1,
-      offset: 0,
-    });
-
-    if (builds.length > 0) {
-      Log.addNewLineIfNone();
-      Log.warn(
-        `If you have previously deployed this app to users, you will need to rebuild and submit a new version before you can update your app with EAS Update.`
-      );
-    }
+    Log.addNewLineIfNone();
+    Log.warn(
+      `If you have previously deployed this app to users, you will need to rebuild and submit a new version before you can update your app with EAS Update.`
+    );
 
     Log.addNewLineIfNone();
     Log.log(`🎉 Your app is configured to run EAS Update!`);
