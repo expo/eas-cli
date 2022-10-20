@@ -12,7 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add `eas build:run` command which runs iOS simulator builds from the CLI. ([#1447](https://github.com/expo/eas-cli/pull/1447) by [@szdziedzic](https://github.com/szdziedzic))
 - Add feature gate support. ([#1475](https://github.com/expo/eas-cli/pull/1475) by [@wschurman](https://github.com/wschurman))
 - Warn about outdated build deployment when configuring EAS Update.
-  ([#TODO](https://github.com/expo/eas-cli/pull/TODO) by [@fiberjw](https://github.com/fiberjw))
+  ([#1467](https://github.com/expo/eas-cli/pull/1467) by [@fiberjw](https://github.com/fiberjw))
 
 ### 🐛 Bug fixes
 
