@@ -5,7 +5,7 @@ import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { UpdateBranchFragment } from '../graphql/generated';
 import { BranchQuery } from '../graphql/queries/BranchQuery';
 import Log from '../log';
-import { formatUpdateBranch, formatUpdateMessage, getPlatformsForGroup } from '../update/utils';
+import { formatBranch, getBranchDescription } from '../update/utils';
 import { printJsonOnlyOutput } from '../utils/json';
 import {
   paginatedQueryWithConfirmPromptAsync,
@@ -101,29 +101,13 @@ function renderPageOfBranches(
   if (json) {
     printJsonOnlyOutput(currentPage);
   } else {
-    const formattedBranches = currentPage.map(branch => {
-      if (branch.updates.length === 0) {
-        return formatUpdateBranch({ branch: branch.name });
-      }
-
-      const latestUpdate = branch.updates[0];
-      return formatUpdateBranch({
-        branch: branch.name,
-        update: {
-          message: formatUpdateMessage(latestUpdate),
-          runtimeVersion: latestUpdate.runtimeVersion,
-          group: latestUpdate.group,
-          platforms: getPlatformsForGroup({
-            group: latestUpdate.group,
-            updates: branch.updates,
-          }),
-        },
-      });
-    });
-
     Log.addNewLineIfNone();
     Log.log(chalk.bold('Branches:'));
     Log.addNewLineIfNone();
-    Log.log(formattedBranches.join(`\n\n${chalk.dim('———')}\n\n`));
+    Log.log(
+      currentPage
+        .map(branch => formatBranch(getBranchDescription(branch)))
+        .join(`\n\n${chalk.dim('———')}\n\n`)
+    );
   }
 }
