@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import Table from 'cli-table3';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
@@ -8,17 +7,13 @@ import Log from '../../../log';
 import { ora } from '../../../ora';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import { isValidUDID, normalizeUDID } from '../../udids';
+import { formatNewDevice } from '../../utils/formatDevice';
 
 interface DeviceData {
   udid: string;
   name?: string;
   deviceClass: AppleDeviceClass | null;
 }
-
-const DEVICE_CLASS_DISPLAY_NAMES: Record<AppleDeviceClass, string> = {
-  [AppleDeviceClass.Iphone]: 'iPhone',
-  [AppleDeviceClass.Ipad]: 'iPad',
-};
 
 export async function runInputMethodAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -89,7 +84,7 @@ async function collectDeviceDataAsync(
 This will ${chalk.bold('not')} register the device on the Apple Developer Portal yet.`
   );
   Log.newLine();
-  printDeviceDataSummary(deviceData, appleTeam);
+  Log.log(formatNewDevice({ ...deviceData, identifier: deviceData.udid }, appleTeam));
   Log.newLine();
 
   const registrationConfirmed = await confirmAsync({
@@ -155,22 +150,4 @@ async function promptForDeviceClassAsync(
     initial: initial !== undefined && values.indexOf(initial),
   });
   return deviceClass;
-}
-
-function printDeviceDataSummary(
-  { udid, name, deviceClass }: DeviceData,
-  appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName'>
-): void {
-  const deviceSummary = new Table({
-    colWidths: [25, 55],
-    wordWrap: true,
-  });
-  deviceSummary.push(
-    ['Apple Team ID', appleTeam.appleTeamIdentifier],
-    ['Apple Team Name', appleTeam.appleTeamName ?? '(unknown)'],
-    ['Device UDID', udid],
-    ['Device Name', name ?? '(empty)'],
-    ['Device Class', deviceClass ? DEVICE_CLASS_DISPLAY_NAMES[deviceClass] : '(unknown)']
-  );
-  Log.log(deviceSummary.toString());
 }
