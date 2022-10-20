@@ -233,15 +233,13 @@ export default class UpdatePublish extends EasCommand {
 
     if (!hasExpoUpdates) {
       const install = await confirmAsync({
-        message: `You are creating an update which requires ${chalk.bold(
-          'expo-updates'
-        )} to be installed in your app.\n  Do you want EAS CLI to install it for you?`,
+        message: chalk`The module {cyan expo-updates} must be installed to load EAS updates in-app. Install?`,
         instructions: 'The command will abort unless you agree.',
       });
       if (install) {
         await installExpoUpdatesAsync(projectDir);
       } else {
-        Errors.error(`Install ${chalk.bold('expo-updates')} manually and come back later.`, {
+        Errors.error(`Install ${chalk.bold('expo-updates')} and try again.`, {
           exit: 1,
         });
       }
