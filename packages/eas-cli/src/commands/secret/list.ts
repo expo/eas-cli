@@ -1,11 +1,13 @@
 import chalk from 'chalk';
-import Table from 'cli-table3';
 import dateFormat from 'dateformat';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EnvironmentSecretsQuery } from '../../graphql/queries/EnvironmentSecretsQuery';
-import { EnvironmentSecretTypeToSecretType } from '../../graphql/types/EnvironmentSecret';
+import {
+  EnvironmentSecretWithScope,
+  EnvironmentSecretsQuery,
+} from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
+import formatFields from '../../utils/formatFields';
 
 export default class EnvironmentSecretList extends EasCommand {
   static override description = 'list environment secrets available for your current app';
@@ -25,23 +27,18 @@ export default class EnvironmentSecretList extends EasCommand {
 
     const secrets = await EnvironmentSecretsQuery.allAsync(graphqlClient, projectId);
 
-    const table = new Table({
-      head: ['Name', 'Type', 'Scope', 'ID', 'Updated at'],
-      wordWrap: true,
-    });
-
-    for (const secret of secrets) {
-      const { name, createdAt: updatedAt, scope, id, type } = secret;
-      table.push([
-        name,
-        EnvironmentSecretTypeToSecretType[type],
-        scope,
-        id,
-        dateFormat(updatedAt, 'mmm dd HH:MM:ss'),
-      ]);
-    }
-
     Log.log(chalk`{bold Secrets for this account and project:}`);
-    Log.log(table.toString());
+    Log.log(secrets.map(secret => formatSecret(secret)).join(`\n\n${chalk.dim('———')}\n\n`));
   }
+}
+
+function formatSecret(secret: EnvironmentSecretWithScope): string {
+  return formatFields([
+    { label: 'ID', value: secret.id },
+    { label: 'Name', value: secret.name },
+    { label: 'Scope', value: secret.scope },
+    { label: 'Type', value: secret.type },
+    // TODO: Figure out why do we name it updated, while it's created at?
+    { label: 'Updated at', value: dateFormat(secret.createdAt, 'mmm dd HH:MM:ss') },
+  ]);
 }
