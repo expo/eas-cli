@@ -31,6 +31,11 @@ export type FormattedUpdateGroupDescription = {
   runtimeVersion: string;
 };
 
+export type FormattedUpdateBranchDescription = {
+  branch: string;
+  update?: FormattedUpdateGroupDescription;
+};
+
 export type FormattedUpdateGroupDescriptionWithBranch = FormattedUpdateGroupDescription & {
   branch: string;
 };
@@ -50,6 +55,16 @@ export function formatUpdateGroup(update: FormattedUpdateGroupDescription): stri
     { label: 'Runtime Version', value: update.runtimeVersion },
     { label: 'Message', value: update.message },
     { label: 'Group ID', value: update.group },
+  ]);
+}
+
+export function formatUpdateBranch({ branch, update }: FormattedUpdateBranchDescription): string {
+  return formatFields([
+    { label: 'Branch', value: branch },
+    { label: 'Platforms', value: update?.platforms ?? 'N/A' },
+    { label: 'Runtime Version', value: update?.runtimeVersion ?? 'N/A' },
+    { label: 'Message', value: update?.message ?? 'N/A' },
+    { label: 'Group ID', value: update?.group ?? 'N/A' },
   ]);
 }
 
