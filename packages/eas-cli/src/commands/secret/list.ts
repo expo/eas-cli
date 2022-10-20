@@ -38,6 +38,7 @@ function formatSecret(secret: EnvironmentSecretWithScope): string {
     { label: 'Name', value: secret.name },
     { label: 'Scope', value: secret.scope },
     { label: 'Type', value: secret.type },
-    { label: 'Updated at', value: dateFormat(secret.updatedAt, 'mmm dd HH:MM:ss') },
+    // TODO: Figure out why do we name it updated, while it's created at?
+    { label: 'Updated at', value: dateFormat(secret.createdAt, 'mmm dd HH:MM:ss') },
   ]);
 }
