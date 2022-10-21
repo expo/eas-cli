@@ -22,7 +22,7 @@ import {
 import { promptAsync } from '../../prompts';
 import intersection from '../../utils/expodash/intersection';
 
-export default class EnvironmentSecretSync extends EasCommand {
+export default class EnvironmentSecretPush extends EasCommand {
   static override description = 'read environment secrets from env file and store on the server';
 
   static override flags = {
@@ -49,11 +49,11 @@ export default class EnvironmentSecretSync extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       flags: { scope, force, 'env-file': maybeEnvFilePath, 'non-interactive': nonInteractive },
-    } = await this.parse(EnvironmentSecretSync);
+    } = await this.parse(EnvironmentSecretPush);
     const {
       projectConfig: { projectId },
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentSecretSync, {
+    } = await this.getContextAsync(EnvironmentSecretPush, {
       nonInteractive,
     });
 
