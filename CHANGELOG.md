@@ -9,12 +9,18 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Support uploading different platform combinations. ([#1461](https://github.com/expo/eas-cli/pull/1461) by [@EvanBacon](https://github.com/EvanBacon))
+- Update init command to handle slug and owner. ([#1452](https://github.com/expo/eas-cli/pull/1452) by [@wschurman](https://github.com/wschurman))
 
 ### 🐛 Bug fixes
 
 - Initialize analytics consistently and move analytics into context. ([#1444](https://github.com/expo/eas-cli/pull/1444) by [@wschurman](https://github.com/wschurman))
+- Skip using `--non-interactive` and `--experimental-bundle` flags when local Expo CLI is installed. ([#1460](https://github.com/expo/eas-cli/pull/1460) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🧹 Chores
+
+- Handle case where git is installed but not working properly. ([#1454](https://github.com/expo/eas-cli/pull/1454) by [@brentvatne](https://github.com/brentvatne))
+- Remove table logging in `update:view`. ([#1463](https://github.com/expo/eas-cli/pull/1463) by [@EvanBacon](https://github.com/EvanBacon))
+- Fix install prompt language. ([#1462](https://github.com/expo/eas-cli/pull/1462) by [@EvanBacon](https://github.com/EvanBacon))
 
 ## [2.4.1](https://github.com/expo/eas-cli/releases/tag/v2.4.1) - 2022-10-17
 
