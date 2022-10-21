@@ -38,7 +38,7 @@ import {
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
-  filterPlatforms,
+  filterExportedPlatformsByFlag,
   isUploadedAssetCountAboveWarningThreshold,
   resolveInputDirectoryAsync,
   uploadAssetsAsync,
@@ -403,7 +403,7 @@ export default class UpdatePublish extends EasCommand {
         const bundleSpinner = ora().start('Exporting...');
         try {
           await buildBundlesAsync({ projectDir, inputDir });
-          bundleSpinner.succeed('Exported platforms');
+          bundleSpinner.succeed('Exported bundle(s)');
         } catch (e) {
           bundleSpinner.fail('Export failed');
           throw e;
@@ -416,8 +416,8 @@ export default class UpdatePublish extends EasCommand {
       const assetSpinner = ora().start('Uploading...');
 
       try {
-        let assets = await collectAssetsAsync(distRoot);
-        assets = filterPlatforms(assets, platformFlag);
+        const collectedAssets = await collectAssetsAsync(distRoot);
+        const assets = filterExportedPlatformsByFlag(collectedAssets, platformFlag);
 
         realizedPlatforms = Object.keys(assets) as PublishPlatform[];
 
@@ -599,11 +599,12 @@ export default class UpdatePublish extends EasCommand {
   }
 }
 
+/** Get runtime versions grouped by platform. Runtime version is always `null` on web where the platform is always backwards compatible. */
 async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
   platforms: PublishPlatform[],
   projectDir: string
-): Promise<Record<string, string>> {
+): Promise<Record<string, string | null>> {
   for (const platform of platforms) {
     if (platform === 'web') {
       continue;
@@ -623,7 +624,7 @@ async function getRuntimeVersionObjectAsync(
   return Object.fromEntries(
     platforms.map(platform => {
       if (platform === 'web') {
-        return ['web', 'n/a'];
+        return ['web', null];
       }
       return [
         platform,

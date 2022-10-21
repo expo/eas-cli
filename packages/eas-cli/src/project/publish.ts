@@ -62,9 +62,9 @@ export const MetadataJoi = Joi.object({
   version: Joi.number().required(),
   bundler: Joi.string().required(),
   fileMetadata: Joi.object({
-    web: fileMetadataJoi,
     android: fileMetadataJoi,
     ios: fileMetadataJoi,
+    web: fileMetadataJoi,
   }).required(),
 }).required();
 
@@ -201,13 +201,13 @@ export function loadMetadata(distRoot: string): Metadata {
   }
   const platforms = Object.keys(metadata.fileMetadata);
   if (platforms.length === 0) {
-    Log.warn('No platforms were exported');
+    Log.warn('No updates were exported for any platform');
   }
   Log.debug(`Loaded ${platforms.length} platform(s): ${platforms.join(', ')}`);
   return metadata;
 }
 
-export function filterPlatforms<T extends Partial<Record<Platform, any>>>(
+export function filterExportedPlatformsByFlag<T extends Partial<Record<Platform, any>>>(
   record: T,
   platformFlag: ExpoCLIExportPlatformFlag
 ): T {
@@ -219,7 +219,7 @@ export function filterPlatforms<T extends Partial<Record<Platform, any>>>(
 
   if (!record[platform]) {
     throw new Error(
-      `--platform="${platform}" not found in metadata.json. Available platforms: ${Object.keys(
+      `--platform="${platform}" not found in metadata.json. Available platform(s): ${Object.keys(
         record
       ).join(', ')}`
     );
@@ -229,8 +229,8 @@ export function filterPlatforms<T extends Partial<Record<Platform, any>>>(
 }
 
 /** Given a directory, load the metadata.json and collect the assets for each platform. */
-export async function collectAssetsAsync(inputDir: string): Promise<CollectedAssets> {
-  const metadata = loadMetadata(inputDir);
+export async function collectAssetsAsync(dir: string): Promise<CollectedAssets> {
+  const metadata = loadMetadata(dir);
 
   const collectedAssets: CollectedAssets = {};
 
@@ -239,12 +239,12 @@ export async function collectAssetsAsync(inputDir: string): Promise<CollectedAss
       launchAsset: {
         fileExtension: '.bundle',
         contentType: 'application/javascript',
-        path: path.resolve(inputDir, metadata.fileMetadata[platform].bundle),
+        path: path.resolve(dir, metadata.fileMetadata[platform].bundle),
       },
       assets: metadata.fileMetadata[platform].assets.map(asset => ({
         fileExtension: asset.ext ? ensureLeadingPeriod(asset.ext) : undefined,
         contentType: guessContentTypeFromExtension(asset.ext),
-        path: path.join(inputDir, asset.path),
+        path: path.join(dir, asset.path),
       })),
     };
   }

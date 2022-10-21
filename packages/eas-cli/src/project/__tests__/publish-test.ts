@@ -15,7 +15,7 @@ import {
   collectAssetsAsync,
   convertAssetToUpdateInfoGroupFormatAsync,
   filterOutAssetsThatAlreadyExistAsync,
-  filterPlatforms,
+  filterExportedPlatformsByFlag,
   getBase64URLEncoding,
   getStorageKey,
   getStorageKeyForAssetAsync,
@@ -92,21 +92,21 @@ describe('MetadataJoi', () => {
   });
 });
 
-describe(filterPlatforms, () => {
+describe(filterExportedPlatformsByFlag, () => {
   it(`returns all`, () => {
-    expect(filterPlatforms({ web: true, ios: true, android: true }, 'all')).toEqual({
+    expect(filterExportedPlatformsByFlag({ web: true, ios: true, android: true }, 'all')).toEqual({
       web: true,
       ios: true,
       android: true,
     });
   });
   it(`selects a platform`, () => {
-    expect(filterPlatforms({ web: true, ios: true, android: true }, 'ios')).toEqual({
+    expect(filterExportedPlatformsByFlag({ web: true, ios: true, android: true }, 'ios')).toEqual({
       ios: true,
     });
   });
   it(`asserts selected platform missing`, () => {
-    expect(() => filterPlatforms({ web: true }, 'ios')).toThrow(
+    expect(() => filterExportedPlatformsByFlag({ web: true }, 'ios')).toThrow(
       '--platform="ios" not found in metadata.json. Available platforms: web'
     );
   });
