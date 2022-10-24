@@ -17,6 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Update init command to handle slug and owner. ([#1452](https://github.com/expo/eas-cli/pull/1452) by [@wschurman](https://github.com/wschurman))
+- Add `eas secret:push`. ([#1457](https://github.com/expo/eas-cli/pull/1457) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
 
