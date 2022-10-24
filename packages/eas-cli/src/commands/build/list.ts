@@ -12,7 +12,7 @@ import {
 import { AppPlatform, BuildStatus as GraphQLBuildStatus } from '../../graphql/generated';
 import { RequestedPlatform } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
-import { buildDistributionTypeToGraphQlDistributionType } from '../../utils/buildDistribution';
+import { buildDistributionTypeToGraphQLDistributionType } from '../../utils/buildDistribution';
 import { enableJsonOutput } from '../../utils/json';
 
 export default class BuildList extends EasCommand {
@@ -80,7 +80,7 @@ export default class BuildList extends EasCommand {
     const platform = toAppPlatform(requestedPlatform);
     const graphqlBuildStatus = toGraphQLBuildStatus(buildStatus);
     const graphqlBuildDistribution =
-      buildDistributionTypeToGraphQlDistributionType(buildDistribution);
+      buildDistributionTypeToGraphQLDistributionType(buildDistribution);
     const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
     await listAndRenderBuildsOnAppAsync(graphqlClient, {

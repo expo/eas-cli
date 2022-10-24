@@ -16,7 +16,7 @@ import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { RunArchiveFlags, runAsync } from '../../run/run';
-import { buildDistributionTypeToGraphQlDistributionType } from '../../utils/buildDistribution';
+import { buildDistributionTypeToGraphQLDistributionType } from '../../utils/buildDistribution';
 import { downloadAndExtractAppAsync, extractAppFromLocalArchiveAsync } from '../../utils/download';
 
 interface RawRunFlags {
@@ -39,8 +39,7 @@ interface RunCommandFlags {
 export default class Run extends EasCommand {
   static override hidden = true;
 
-  static override description =
-    'run simulator/emulator from eas-cli just like running apps through expo cli';
+  static override description = 'run simulator/emulator builds from eas-cli';
 
   static override flags = {
     latest: Flags.boolean({
@@ -157,7 +156,7 @@ async function maybeGetBuildAsync(
       projectDisplayName: await getDisplayNameForProjectIdAsync(graphqlClient, projectId),
       filter: {
         platform: flags.selectedPlatform,
-        distribution: buildDistributionTypeToGraphQlDistributionType(
+        distribution: buildDistributionTypeToGraphQLDistributionType(
           BuildDistributionType.SIMULATOR
         ),
         status: BuildStatus.Finished,
@@ -169,7 +168,7 @@ async function maybeGetBuildAsync(
       projectId,
       filter: {
         platform: flags.selectedPlatform,
-        distribution: buildDistributionTypeToGraphQlDistributionType(
+        distribution: buildDistributionTypeToGraphQLDistributionType(
           BuildDistributionType.SIMULATOR
         ),
         status: BuildStatus.Finished,

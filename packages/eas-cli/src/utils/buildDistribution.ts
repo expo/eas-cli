@@ -1,7 +1,7 @@
 import { BuildDistributionType } from '../build/types';
 import { DistributionType } from '../graphql/generated';
 
-export const buildDistributionTypeToGraphQlDistributionType = (
+export const buildDistributionTypeToGraphQLDistributionType = (
   buildDistribution?: BuildDistributionType
 ): DistributionType | undefined => {
   if (buildDistribution === BuildDistributionType.STORE) {
