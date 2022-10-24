@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Replace `secret:list` table with formatted fields. ([#1464](https://github.com/expo/eas-cli/pull/1464) by [@byCedric](https://github.com/byCedric))
+- Replace `device:create` input table with formatted fields. ([#1465](https://github.com/expo/eas-cli/pull/1465) by [@byCedric](https://github.com/byCedric))
 
 ## [2.5.1](https://github.com/expo/eas-cli/releases/tag/v2.5.1) - 2022-10-24
 
