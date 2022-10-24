@@ -6,8 +6,8 @@ packages/eas-cli/src/commands/build @dsokal @wkozyra95
 packages/eas-cli/src/submit @dsokal
 packages/eas-cli/src/commands/submit.ts @dsokal
 
-packages/eas-cli/src/update @wschurman
-packages/eas-cli/src/commands/update @wschurman
+packages/eas-cli/src/update @EvanBacon @byCedric @wschurman
+packages/eas-cli/src/commands/update @EvanBacon @byCedric @wschurman
 
 packages/eas-cli/schema @bycedric
 packages/eas-cli/src/metadata @bycedric
