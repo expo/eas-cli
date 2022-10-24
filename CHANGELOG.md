@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Revert using local CLI for `expo export` ([#1460](https://github.com/expo/eas-cli/pull/1460)). ([#1472](https://github.com/expo/eas-cli/pull/1472) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [2.5.0](https://github.com/expo/eas-cli/releases/tag/v2.5.0) - 2022-10-24
