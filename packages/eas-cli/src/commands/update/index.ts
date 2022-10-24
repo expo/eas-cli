@@ -67,6 +67,34 @@ import {
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
 export type PublishPlatformFlag = PublishPlatform | 'all';
 
+type RawUpdateFlags = {
+  auto: boolean;
+  branch?: string;
+  message?: string;
+  group?: string;
+  republish?: boolean;
+  platform: string;
+  'input-dir': string;
+  'skip-bundler': boolean;
+  'private-key-path'?: string;
+  'non-interactive': boolean;
+  json: boolean;
+};
+
+type UpdateFlags = {
+  auto: boolean;
+  platform: PublishPlatformFlag;
+  branchName?: string;
+  updateMessage?: string;
+  republish: boolean;
+  groupId?: string;
+  inputDir: string;
+  skipBundler: boolean;
+  privateKeyPath?: string;
+  json: boolean;
+  nonInteractive: boolean;
+};
+
 async function ensureChannelExistsAsync(
   graphqlClient: ExpoGraphqlClient,
   {
@@ -185,21 +213,22 @@ export default class UpdatePublish extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(UpdatePublish);
-    const paginatedQueryOptions = getPaginatedQueryOptions(flags);
+    const { flags: rawFlags } = await this.parse(UpdatePublish);
+    const paginatedQueryOptions = getPaginatedQueryOptions(rawFlags);
     let {
-      branch: branchName,
       auto: autoFlag,
-      message,
+      platform: platformFlag,
+      branchName,
+      updateMessage,
       republish,
-      group,
-      'input-dir': inputDir,
-      'skip-bundler': skipBundler,
-      platform,
-      'private-key-path': privateKeyPath,
-      'non-interactive': nonInteractive,
+      groupId,
+      inputDir,
+      skipBundler,
+      privateKeyPath,
       json: jsonFlag,
-    } = flags;
+      nonInteractive,
+    } = this.sanitizeFlags(rawFlags);
+
     const {
       getDynamicProjectConfigAsync,
       loggedIn: { graphqlClient },
@@ -210,10 +239,6 @@ export default class UpdatePublish extends EasCommand {
     if (jsonFlag) {
       enableJsonOutput();
     }
-
-    const platformFlag = platform as PublishPlatformFlag;
-    // If a group was specified, that means we are republishing it.
-    republish = republish || !!group;
 
     const {
       exp: expBeforeRuntimeVersionUpdate,
@@ -316,9 +341,9 @@ export default class UpdatePublish extends EasCommand {
         Update,
         'group' | 'message' | 'runtimeVersion' | 'manifestFragment' | 'platform'
       >[];
-      if (group) {
+      if (groupId) {
         const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, {
-          groupId: group,
+          groupId,
         });
         updatesToRepublish = updatesByGroup;
       } else {
@@ -339,7 +364,7 @@ export default class UpdatePublish extends EasCommand {
       if (updatesToRepublishFilteredByPlatform.length === 0) {
         throw new Error(
           `There are no updates on branch "${branchName}" published for the platform(s) "${platformFlag}" with group ID "${
-            group ? group : updatesToRepublish[0].group
+            groupId ? groupId : updatesToRepublish[0].group
           }". Did you mean to publish a new update instead?`
         );
       }
@@ -365,11 +390,11 @@ export default class UpdatePublish extends EasCommand {
       }
 
       // These are the same for each member of an update group
-      group = updatesToRepublishFilteredByPlatform[0].group;
+      groupId = updatesToRepublishFilteredByPlatform[0].group;
       oldMessage = updatesToRepublishFilteredByPlatform[0].message ?? '';
       oldRuntimeVersion = updatesToRepublishFilteredByPlatform[0].runtimeVersion;
 
-      if (!message) {
+      if (!updateMessage) {
         if (nonInteractive) {
           throw new Error('Must supply --message when in non-interactive mode');
         }
@@ -378,20 +403,20 @@ export default class UpdatePublish extends EasCommand {
         if (jsonFlag) {
           throw new Error(validationMessage);
         }
-        ({ publishMessage: message } = await promptAsync({
+        ({ updateMessage } = await promptAsync({
           type: 'text',
-          name: 'publishMessage',
+          name: 'updateMessage',
           message: `Provide an update message.`,
-          initial: `Republish "${oldMessage!}" - group: ${group}`,
+          initial: `Republish "${oldMessage!}" - group: ${groupId}`,
           validate: (value: any) => (value ? true : validationMessage),
         }));
       }
     } else {
-      if (!message && autoFlag) {
-        message = (await getVcsClient().getLastCommitMessageAsync())?.trim();
+      if (!updateMessage && autoFlag) {
+        updateMessage = (await getVcsClient().getLastCommitMessageAsync())?.trim();
       }
 
-      if (!message) {
+      if (!updateMessage) {
         if (nonInteractive) {
           throw new Error('Must supply --message or use --auto when in non-interactive mode');
         }
@@ -400,9 +425,9 @@ export default class UpdatePublish extends EasCommand {
         if (jsonFlag) {
           throw new Error(validationMessage);
         }
-        ({ publishMessage: message } = await promptAsync({
+        ({ updateMessage } = await promptAsync({
           type: 'text',
-          name: 'publishMessage',
+          name: 'updateMessage',
           message: `Provide an update message.`,
           initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
           validate: (value: any) => (value ? true : validationMessage),
@@ -448,7 +473,7 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
-    const truncatedMessage = truncatePublishUpdateMessage(message!);
+    const truncatedMessage = truncatePublishUpdateMessage(updateMessage!);
 
     const runtimeToPlatformMapping: Record<string, string[]> = {};
     for (const runtime of new Set(Object.values(runtimeVersions))) {
@@ -598,6 +623,38 @@ export default class UpdatePublish extends EasCommand {
         }
       }
     }
+  }
+
+  private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
+    const nonInteractive = flags['non-interactive'] ?? false;
+
+    const { auto, branch: branchName, message: updateMessage } = flags;
+    if (nonInteractive && !auto && !(branchName && updateMessage)) {
+      Errors.error(
+        '--auto or both --branch and --message are required when updating in non-interactive mode',
+        { exit: 1 }
+      );
+    }
+
+    const groupId = flags.group;
+    const republish = flags.republish || !!groupId; // When --group is defined, we are republishing
+    if (nonInteractive && republish && !groupId) {
+      Errors.error(`--group is required when updating in non-interactive mode`, { exit: 1 });
+    }
+
+    return {
+      auto,
+      branchName,
+      updateMessage,
+      groupId,
+      republish,
+      inputDir: flags['input-dir'],
+      skipBundler: flags['skip-bundler'],
+      platform: flags.platform as PublishPlatformFlag,
+      privateKeyPath: flags['private-key-path'],
+      nonInteractive,
+      json: flags.json ?? false,
+    };
   }
 }
 
