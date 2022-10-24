@@ -1,7 +1,7 @@
-import type { ErrorObject } from 'ajv';
 import chalk from 'chalk';
 
 import Log, { link } from '../log';
+import { Issue } from './config/issue';
 
 /**
  * Before syncing data to the ASC API, we need to validate the metadata config.
@@ -9,7 +9,7 @@ import Log, { link } from '../log';
  * and should contain useful information for the user to solve before trying again.
  */
 export class MetadataValidationError extends Error {
-  public constructor(message?: string, public readonly errors: ErrorObject[] = []) {
+  public constructor(message?: string, public readonly errors: Issue[] = []) {
     super(message ?? 'Store configuration validation failed');
   }
 }
@@ -55,7 +55,9 @@ export function logMetadataValidationError(error: MetadataValidationError): void
   Log.error(chalk.bold(error.message));
   if (error.errors?.length > 0) {
     // TODO(cedric): group errors by property to make multiple errors for same property more readable
-    Log.log(error.errors.map(err => `  - ${chalk.bold(err.dataPath)} ${err.message}`).join('\n'));
+    for (const err of error.errors) {
+      Log.log(`  - ${chalk.bold(`$.${err.path.join('.')}`)} ${err.message}`);
+    }
   }
 }
 

@@ -1,10 +1,15 @@
-import { MetadataEvent } from '../analytics/AnalyticsManager';
+import { ExpoConfig } from '@expo/config-types';
+import { SubmitProfile } from '@expo/eas-json';
+
+import { Analytics, MetadataEvent } from '../analytics/AnalyticsManager';
+import { CredentialsContext } from '../credentials/context';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
-import { MetadataConfig, createAppleReader, loadConfigAsync } from './config';
-import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
+import { getAppStoreAuthAsync } from './auth';
+import { createAppleReader, loadConfigAsync } from './config/resolve';
+import { MetadataConfig } from './config/schema';
 import { MetadataUploadError, MetadataValidationError, logMetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
 
@@ -12,13 +17,29 @@ import { subscribeTelemetry } from './utils/telemetry';
  * Sync a local store configuration with the stores.
  * Note, only App Store is supported at this time.
  */
-export async function uploadMetadataAsync(
-  metadataCtx: MetadataContext
-): Promise<{ appleLink: string }> {
-  const storeConfig = await loadConfigWithValidationPromptAsync(metadataCtx);
-  const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataCtx);
+export async function uploadMetadataAsync({
+  projectDir,
+  profile,
+  exp,
+  analytics,
+  credentialsCtx,
+}: {
+  projectDir: string;
+  profile: SubmitProfile;
+  exp: ExpoConfig;
+  analytics: Analytics;
+  credentialsCtx: CredentialsContext;
+}): Promise<{ appleLink: string }> {
+  const storeConfig = await loadConfigWithValidationPromptAsync(projectDir, profile);
+  const { app, auth } = await getAppStoreAuthAsync({
+    exp,
+    credentialsCtx,
+    projectDir,
+    profile,
+  });
+
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
-    metadataCtx.analytics,
+    analytics,
     MetadataEvent.APPLE_METADATA_UPLOAD,
     { app, auth }
   );
@@ -28,7 +49,7 @@ export async function uploadMetadataAsync(
 
   const errors: Error[] = [];
   const config = createAppleReader(storeConfig);
-  const tasks = createAppleTasks(metadataCtx, {
+  const tasks = createAppleTasks({
     // We need to resolve a different version as soon as possible.
     // This version is the parent model of all changes we are going to push.
     version: config.getVersion()?.versionString,
@@ -62,10 +83,11 @@ export async function uploadMetadataAsync(
 }
 
 async function loadConfigWithValidationPromptAsync(
-  metadataCtx: MetadataContext
+  projectDir: string,
+  profile: SubmitProfile
 ): Promise<MetadataConfig> {
   try {
-    return await loadConfigAsync(metadataCtx);
+    return await loadConfigAsync({ projectDir, profile });
   } catch (error) {
     if (error instanceof MetadataValidationError) {
       logMetadataValidationError(error);
@@ -75,7 +97,7 @@ async function loadConfigWithValidationPromptAsync(
       );
 
       if (await confirmAsync({ message: 'Do you still want to push the store configuration?' })) {
-        return await loadConfigAsync({ ...metadataCtx, skipValidation: true });
+        return await loadConfigAsync({ projectDir, profile, skipValidation: true });
       }
     }
 

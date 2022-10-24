@@ -1,13 +1,16 @@
+import { ExpoConfig } from '@expo/config-types';
+import { SubmitProfile } from '@expo/eas-json';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { MetadataEvent } from '../analytics/AnalyticsManager';
+import { Analytics, MetadataEvent } from '../analytics/AnalyticsManager';
+import { CredentialsContext } from '../credentials/context';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
-import { createAppleWriter, getStaticConfigFilePath } from './config';
-import { MetadataContext, ensureMetadataAppStoreAuthenticatedAsync } from './context';
+import { getAppStoreAuthAsync } from './auth';
+import { createAppleWriter, getStaticConfigFilePath } from './config/resolve';
 import { MetadataDownloadError, MetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
 
@@ -15,12 +18,24 @@ import { subscribeTelemetry } from './utils/telemetry';
  * Generate a local store configuration from the stores.
  * Note, only App Store is supported at this time.
  */
-export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promise<string> {
-  const filePath = getStaticConfigFilePath(metadataCtx);
-  const fileExists = await fs.pathExists(filePath);
+export async function downloadMetadataAsync({
+  projectDir,
+  profile,
+  exp,
+  analytics,
+  credentialsCtx,
+}: {
+  projectDir: string;
+  profile: SubmitProfile;
+  exp: ExpoConfig;
+  analytics: Analytics;
+  credentialsCtx: CredentialsContext;
+}): Promise<string> {
+  const filePath = getStaticConfigFilePath({ projectDir, profile });
 
+  const fileExists = await fs.pathExists(filePath);
   if (fileExists) {
-    const filePathRelative = path.relative(metadataCtx.projectDir, filePath);
+    const filePathRelative = path.relative(projectDir, filePath);
     const overwrite = await confirmAsync({
       message: `Do you want to overwrite the existing "${filePathRelative}"?`,
     });
@@ -29,9 +44,15 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
     }
   }
 
-  const { app, auth } = await ensureMetadataAppStoreAuthenticatedAsync(metadataCtx);
+  const { app, auth } = await getAppStoreAuthAsync({
+    exp,
+    credentialsCtx,
+    projectDir,
+    profile,
+  });
+
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
-    metadataCtx.analytics,
+    analytics,
     MetadataEvent.APPLE_METADATA_DOWNLOAD,
     { app, auth }
   );
@@ -41,7 +62,7 @@ export async function downloadMetadataAsync(metadataCtx: MetadataContext): Promi
 
   const errors: Error[] = [];
   const config = createAppleWriter();
-  const tasks = createAppleTasks(metadataCtx);
+  const tasks = createAppleTasks();
   const taskCtx = { app };
 
   for (const task of tasks) {
