@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [2.5.0](https://github.com/expo/eas-cli/releases/tag/v2.5.0) - 2022-10-24
+
+### 🎉 New features
+
 - Update init command to handle slug and owner. ([#1452](https://github.com/expo/eas-cli/pull/1452) by [@wschurman](https://github.com/wschurman))
 
 ### 🐛 Bug fixes
