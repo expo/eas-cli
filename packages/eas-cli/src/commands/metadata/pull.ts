@@ -67,6 +67,7 @@ export default class MetadataPull extends EasCommand {
 
     try {
       const filePath = await downloadMetadataAsync({
+        analytics,
         exp,
         credentialsCtx,
         projectDir,

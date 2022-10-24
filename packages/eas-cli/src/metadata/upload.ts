@@ -1,7 +1,7 @@
 import { ExpoConfig } from '@expo/config-types';
 import { SubmitProfile } from '@expo/eas-json';
 
-import { MetadataEvent } from '../analytics/events';
+import { Analytics, MetadataEvent } from '../analytics/AnalyticsManager';
 import { CredentialsContext } from '../credentials/context';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
@@ -21,11 +21,13 @@ export async function uploadMetadataAsync({
   projectDir,
   profile,
   exp,
+  analytics,
   credentialsCtx,
 }: {
   projectDir: string;
   profile: SubmitProfile;
   exp: ExpoConfig;
+  analytics: Analytics;
   credentialsCtx: CredentialsContext;
 }): Promise<{ appleLink: string }> {
   const storeConfig = await loadConfigWithValidationPromptAsync(projectDir, profile);
@@ -37,7 +39,7 @@ export async function uploadMetadataAsync({
   });
 
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
-    metadataCtx.analytics,
+    analytics,
     MetadataEvent.APPLE_METADATA_UPLOAD,
     { app, auth }
   );

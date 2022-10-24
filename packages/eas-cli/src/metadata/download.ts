@@ -3,7 +3,7 @@ import { SubmitProfile } from '@expo/eas-json';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { MetadataEvent } from '../analytics/events';
+import { Analytics, MetadataEvent } from '../analytics/AnalyticsManager';
 import { CredentialsContext } from '../credentials/context';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
@@ -22,11 +22,13 @@ export async function downloadMetadataAsync({
   projectDir,
   profile,
   exp,
+  analytics,
   credentialsCtx,
 }: {
   projectDir: string;
   profile: SubmitProfile;
   exp: ExpoConfig;
+  analytics: Analytics;
   credentialsCtx: CredentialsContext;
 }): Promise<string> {
   const filePath = getStaticConfigFilePath({ projectDir, profile });
@@ -50,7 +52,7 @@ export async function downloadMetadataAsync({
   });
 
   const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
-    metadataCtx.analytics,
+    analytics,
     MetadataEvent.APPLE_METADATA_DOWNLOAD,
     { app, auth }
   );

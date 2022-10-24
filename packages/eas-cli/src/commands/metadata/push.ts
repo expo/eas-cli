@@ -65,6 +65,7 @@ export default class MetadataPush extends EasCommand {
 
     try {
       const { appleLink } = await uploadMetadataAsync({
+        analytics,
         exp,
         credentialsCtx,
         projectDir,
