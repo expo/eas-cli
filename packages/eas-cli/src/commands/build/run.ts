@@ -37,19 +37,22 @@ interface RunCommandFlags {
 }
 
 export default class Run extends EasCommand {
-  static override description = 'run simulator build';
+  static override hidden = true;
+
+  static override description =
+    'run simulator/emulator from eas-cli just like running apps through expo cli';
 
   static override flags = {
     latest: Flags.boolean({
-      description: 'Run the latest simulator build for specified platform',
+      description: 'Run the latest simulator/emulator build for specified platform',
       exclusive: ['id', 'path', 'url'],
     }),
     url: Flags.string({
-      description: 'Simulator build archive url',
+      description: 'Simulator/Emulator build archive url',
       exclusive: ['latest', 'id', 'path'],
     }),
     path: Flags.string({
-      description: 'Path to the simulator build archive or simulator build app',
+      description: 'Path to the simulator/emulator build archive or simulator build app',
       exclusive: ['latest', 'id', 'url'],
     }),
     id: Flags.string({
