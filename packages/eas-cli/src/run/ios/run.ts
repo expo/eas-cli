@@ -7,7 +7,7 @@ import { validateSystemRequirementsAsync } from './systemRequirements';
 export async function runAppOnIosSimulatorAsync(appPath: string): Promise<void> {
   await validateSystemRequirementsAsync();
 
-  const selectedSimulator = await simulator.getBestIosSimulatorAsync();
+  const selectedSimulator = await simulator.selectSimulatorAsync();
   await simulator.ensureSimulatorBootedAsync(selectedSimulator);
 
   await simulator.ensureSimulatorAppOpenedAsync(selectedSimulator.udid);
@@ -19,7 +19,7 @@ export async function runAppOnIosSimulatorAsync(appPath: string): Promise<void> 
 }
 
 async function getAppBundleIdentifierAsync(appPath: string): Promise<string> {
-  const { stdout } = await spawnAsync('xcrun', [
+  const { stdout, stderr } = await spawnAsync('xcrun', [
     'plutil',
     '-extract',
     'CFBundleIdentifier',
@@ -29,7 +29,7 @@ async function getAppBundleIdentifierAsync(appPath: string): Promise<string> {
 
   if (!stdout) {
     throw new Error(
-      `Could not read app bundle identifier from ${path.join(appPath, 'Info.plist')}`
+      `Could not read app bundle identifier from ${path.join(appPath, 'Info.plist')}: ${stderr}`
     );
   }
 

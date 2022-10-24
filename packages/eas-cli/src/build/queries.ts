@@ -76,7 +76,7 @@ export async function listAndSelectBuildsOnAppAsync(
   });
 
   if (builds.length === 0) {
-    throw new Error('No simulator builds found for given criteria.');
+    throw new Error('Found no builds matching the provided criteria.');
   }
 
   const { selectedSimulatorBuild } = await promptAsync({
@@ -109,7 +109,7 @@ export async function getLatestBuildAsync(
   });
 
   if (builds.length === 0) {
-    throw new Error('No simulator builds found for given criteria.');
+    throw new Error('Found no build matching the provided criteria.');
   }
 
   return builds[0];

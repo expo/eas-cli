@@ -4,12 +4,9 @@ import chalk from 'chalk';
 import Log from '../../log';
 import { sleepAsync } from '../../utils/promise';
 
-export async function xcrunAsync(
-  args: (string | undefined)[],
-  options?: SpawnOptions
-): Promise<SpawnResult> {
+export async function xcrunAsync(args: string[], options?: SpawnOptions): Promise<SpawnResult> {
   try {
-    return await spawnAsync('xcrun', args.filter(Boolean) as string[], options);
+    return await spawnAsync('xcrun', args, options);
   } catch (e) {
     throwXcrunError(e);
   }

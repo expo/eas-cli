@@ -10,10 +10,8 @@ import { installXcrunAsync, isXcrunInstalledAsync } from './xcrun';
 
 function assertPlatform(): void {
   if (process.platform !== 'darwin') {
-    Log.error(
-      chalk`iOS apps can only be built on macOS devices. Use {cyan eas build -p ios} to build in the cloud.`
-    );
-    throw Error('iOS apps can only be built on macOS devices.');
+    Log.error('iOS simulator apps can only be run on macOS devices.');
+    throw Error('iOS simulator apps can only be run on macOS devices.');
   }
 }
 

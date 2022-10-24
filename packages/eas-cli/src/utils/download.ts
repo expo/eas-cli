@@ -2,15 +2,15 @@ import spawnAsync from '@expo/spawn-async';
 import cliProgress from 'cli-progress';
 import glob from 'fast-glob';
 import fs from 'fs';
-import fetch, { RequestInit } from 'node-fetch';
 import path from 'path';
 import { Stream } from 'stream';
 import { extract } from 'tar';
-import tempy from 'tempy';
 import { promisify } from 'util';
-import { v4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
+import fetch, { RequestInit } from '../fetch';
 import Log from '../log';
+import { getTmpDirectory } from './paths';
 
 const pipeline = promisify(Stream.pipeline);
 
@@ -98,9 +98,13 @@ export async function downloadAndExtractAppAsync(
   url: string,
   applicationExtension: string
 ): Promise<string> {
-  const outputDir = tempy.directory();
+  const outputDir = await ensureTmpDirExistAsync(path.join(getTmpDirectory(), uuidv4()));
 
-  const tmpArchivePath = tempy.file({ name: `${v4()}.tar.gz` });
+  const tmpArchivePathDir = await ensureTmpDirExistAsync(
+    path.join(getTmpDirectory(), `${uuidv4()}`)
+  );
+  const tmpArchivePath = path.join(tmpArchivePathDir, `${uuidv4()}.tar.gz`);
+
   await downloadFileWithProgressBarAsync(url, tmpArchivePath, 'Downloading app archive...');
   await tarExtractAsync(tmpArchivePath, outputDir);
 
@@ -111,7 +115,7 @@ export async function extractAppFromLocalArchiveAsync(
   appArchivePath: string,
   applicationExtension: string
 ): Promise<string> {
-  const outputDir = tempy.directory();
+  const outputDir = await ensureTmpDirExistAsync(path.join(getTmpDirectory(), uuidv4()));
 
   await tarExtractAsync(appArchivePath, outputDir);
 
@@ -148,4 +152,9 @@ async function tarExtractAsync(input: string, output: string): Promise<void> {
   // tar node module has previously had problems with big files, and seems to
   // be slower, so only use it as a backup.
   await extract({ file: input, cwd: output });
+}
+
+async function ensureTmpDirExistAsync(dirPath: string): Promise<string> {
+  await fs.promises.mkdir(dirPath, { recursive: true });
+  return dirPath;
 }

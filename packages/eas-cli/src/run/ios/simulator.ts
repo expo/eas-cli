@@ -18,7 +18,7 @@ interface IosSimulator {
   lastBootedAt?: Date;
 }
 
-export async function getBestIosSimulatorAsync(): Promise<IosSimulator> {
+export async function selectSimulatorAsync(): Promise<IosSimulator> {
   const bootedSimulator = await getFirstBootedIosSimulatorAsync();
 
   if (bootedSimulator) {
@@ -51,14 +51,21 @@ export async function getFirstBootedIosSimulatorAsync(): Promise<IosSimulator | 
 }
 
 export async function getAvaliableIosSimulatorsListAsync(query?: string): Promise<IosSimulator[]> {
-  const { stdout } = await simctlAsync(['list', 'devices', '--json', query]);
+  const { stdout } = query
+    ? await simctlAsync(['list', 'devices', '--json', query])
+    : await simctlAsync(['list', 'devices', '--json']);
   const info = parseSimControlJsonResults(stdout);
 
   const iosSimulators = [];
 
   for (const runtime of Object.keys(info.devices)) {
     // Given a string like 'com.apple.CoreSimulator.SimRuntime.tvOS-13-4'
-    const runtimeSuffix = runtime.split('com.apple.CoreSimulator.SimRuntime.').pop()!;
+    const runtimeSuffix = runtime.split('com.apple.CoreSimulator.SimRuntime.').pop();
+
+    if (!runtimeSuffix) {
+      continue;
+    }
+
     // Create an array [tvOS, 13, 4]
     const [osType, ...osVersionComponents] = runtimeSuffix.split('-');
 
@@ -141,7 +148,7 @@ async function waitForSimulatorAppToStartAsync(
     }
     await sleepAsync(Math.min(intervalMs, Math.max(maxWaitTimeMs - (Date.now() - startTime), 0)));
   }
-  throw new Error('Timed out waiting for simulator app to start.');
+  throw new Error('Timed out waiting for the iOS simulator to start.');
 }
 
 async function isSimulatorAppRunningAsync(): Promise<boolean> {
