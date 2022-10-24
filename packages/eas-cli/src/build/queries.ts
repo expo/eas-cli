@@ -5,6 +5,7 @@ import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { BuildFilter, BuildFragment } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log from '../log';
+import { appPlatformDisplayNames } from '../platform';
 import { promptAsync } from '../prompts';
 import { printJsonOnlyOutput } from '../utils/json';
 import { paginatedQueryWithConfirmPromptAsync } from '../utils/queries';
@@ -84,7 +85,9 @@ export async function listAndSelectBuildsOnAppAsync(
     message: `Select simulator build to run for ${projectDisplayName} app`,
     name: 'selectedSimulatorBuild',
     choices: builds.map(build => ({
-      title: `id: ${build.id}, platform: ${build.platform}, appVersion: ${build.appVersion}, appBuildVersion: ${build.appBuildVersion}`,
+      title: `id: ${build.id}, platform: ${appPlatformDisplayNames[build.platform]}, version: ${
+        build.appVersion
+      }, build number: ${build.appBuildVersion}`,
       value: build,
     })),
   });
