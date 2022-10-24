@@ -1,12 +1,11 @@
 import chalk from 'chalk';
-import CliTable from 'cli-table3';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { UpdateBranchFragment } from '../graphql/generated';
 import { BranchQuery } from '../graphql/queries/BranchQuery';
 import Log from '../log';
-import { UPDATE_COLUMNS, formatUpdateMessage, getPlatformsForGroup } from '../update/utils';
+import { formatBranch, getBranchDescription } from '../update/utils';
 import { printJsonOnlyOutput } from '../utils/json';
 import {
   paginatedQueryWithConfirmPromptAsync,
@@ -102,34 +101,13 @@ function renderPageOfBranches(
   if (json) {
     printJsonOnlyOutput(currentPage);
   } else {
-    const table = new CliTable({
-      head: ['Branch', ...UPDATE_COLUMNS],
-      wordWrap: true,
-    });
-
-    table.push(
-      ...currentPage.map(branch => {
-        if (branch.updates.length === 0) {
-          return [branch.name, 'N/A', 'N/A', 'N/A', 'N/A'];
-        }
-
-        const latestUpdateOnBranch = branch.updates[0];
-        return [
-          branch.name,
-          formatUpdateMessage(latestUpdateOnBranch),
-          latestUpdateOnBranch.runtimeVersion,
-          latestUpdateOnBranch.group,
-          getPlatformsForGroup({
-            group: latestUpdateOnBranch.group,
-            updates: branch.updates,
-          }),
-        ];
-      })
-    );
-
     Log.addNewLineIfNone();
     Log.log(chalk.bold('Branches:'));
     Log.addNewLineIfNone();
-    Log.log(table.toString());
+    Log.log(
+      currentPage
+        .map(branch => formatBranch(getBranchDescription(branch)))
+        .join(`\n\n${chalk.dim('———')}\n\n`)
+    );
   }
 }

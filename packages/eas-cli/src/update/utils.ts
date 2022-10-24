@@ -4,7 +4,14 @@ import chalk from 'chalk';
 import dateFormat from 'dateformat';
 
 import { getEASUpdateURL } from '../api';
-import { Maybe, Robot, Update, UpdateFragment, User } from '../graphql/generated';
+import {
+  Maybe,
+  Robot,
+  Update,
+  UpdateBranchFragment,
+  UpdateFragment,
+  User,
+} from '../graphql/generated';
 import Log, { learnMore } from '../log';
 import { RequestedPlatform } from '../platform';
 import { confirmAsync } from '../prompts';
@@ -31,6 +38,11 @@ export type FormattedUpdateGroupDescription = {
   runtimeVersion: string;
 };
 
+export type FormattedBranchDescription = {
+  branch: string;
+  update?: FormattedUpdateGroupDescription;
+};
+
 export type FormattedUpdateGroupDescriptionWithBranch = FormattedUpdateGroupDescription & {
   branch: string;
 };
@@ -50,6 +62,16 @@ export function formatUpdateGroup(update: FormattedUpdateGroupDescription): stri
     { label: 'Runtime Version', value: update.runtimeVersion },
     { label: 'Message', value: update.message },
     { label: 'Group ID', value: update.group },
+  ]);
+}
+
+export function formatBranch({ branch, update }: FormattedBranchDescription): string {
+  return formatFields([
+    { label: 'Branch', value: branch },
+    { label: 'Platforms', value: update?.platforms ?? 'N/A' },
+    { label: 'Runtime Version', value: update?.runtimeVersion ?? 'N/A' },
+    { label: 'Message', value: update?.message ?? 'N/A' },
+    { label: 'Group ID', value: update?.group ?? 'N/A' },
   ]);
 }
 
@@ -170,6 +192,26 @@ export function getUpdateGroupDescriptionsWithBranch(
     group: updateGroup[0].group,
     platforms: formatPlatformForUpdateGroup(updateGroup),
   }));
+}
+
+export function getBranchDescription(branch: UpdateBranchFragment): FormattedBranchDescription {
+  if (branch.updates.length === 0) {
+    return { branch: branch.name };
+  }
+
+  const latestUpdate = branch.updates[0];
+  return {
+    branch: branch.name,
+    update: {
+      message: formatUpdateMessage(latestUpdate),
+      runtimeVersion: latestUpdate.runtimeVersion,
+      group: latestUpdate.group,
+      platforms: getPlatformsForGroup({
+        group: latestUpdate.group,
+        updates: branch.updates,
+      }),
+    },
+  };
 }
 
 export async function checkEASUpdateURLIsSetAsync(
