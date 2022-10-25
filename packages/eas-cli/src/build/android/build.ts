@@ -24,7 +24,11 @@ import {
 import { AndroidBuildContext, BuildContext, CommonContext } from '../context';
 import { transformMetadata } from '../graphql';
 import { logCredentialsSource } from '../utils/credentials';
-import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
+import {
+  checkGoogleServicesFileAsync,
+  checkNodeEnvVariable,
+  validateIconForManagedProjectAsync,
+} from '../validate';
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
@@ -53,6 +57,7 @@ This means that it will most likely produce an AAB and you will not be able to i
 
   checkNodeEnvVariable(ctx);
   await checkGoogleServicesFileAsync(ctx);
+  await validateIconForManagedProjectAsync(ctx);
 
   const gradleContext = await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
 

@@ -10,7 +10,11 @@ import { findApplicationTarget, resolveTargetsAsync } from '../../project/ios/ta
 import { BuildRequestSender, JobData, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommonContext, IosBuildContext } from '../context';
 import { transformMetadata } from '../graphql';
-import { checkGoogleServicesFileAsync, checkNodeEnvVariable } from '../validate';
+import {
+  checkGoogleServicesFileAsync,
+  checkNodeEnvVariable,
+  validateIconForManagedProjectAsync,
+} from '../validate';
 import { ensureIosCredentialsAsync } from './credentials';
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
@@ -28,6 +32,7 @@ export async function createIosContextAsync(
 
   checkNodeEnvVariable(ctx);
   await checkGoogleServicesFileAsync(ctx);
+  await validateIconForManagedProjectAsync(ctx);
 
   const xcodeBuildContext = await resolveXcodeBuildContextAsync(
     {
