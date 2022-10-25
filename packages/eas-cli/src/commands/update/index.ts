@@ -640,9 +640,9 @@ async function getRuntimeVersionObjectAsync(
     Log.fail(error.message);
 
     const runConfig = await selectAsync(
-      `Do you want us to run automatic ${chalk.bold(
+      `Configure runtime version in ${chalk.bold(
         'app.json'
-      )} configuration for EAS Update for you?`,
+      )} automatically for EAS Update?`,
       [
         { title: 'Yes', value: true },
         {
@@ -677,7 +677,7 @@ async function getRuntimeVersionObjectAsync(
     });
 
     const continueWithChanges = await selectAsync(
-      `Would you like to continue update process with uncommitted changes in repository?`,
+      `Continue update process with uncommitted changes in repository?`,
       [
         { title: 'Yes', value: true },
         {
