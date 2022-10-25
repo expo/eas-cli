@@ -6,7 +6,6 @@ import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import { getEASUpdateURL } from '../../api';
 import { ensureBranchExistsAsync, selectBranchOnAppAsync } from '../../branch/queries';
 import { getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
@@ -43,9 +42,9 @@ import {
   uploadAssetsAsync,
 } from '../../project/publish';
 import { resolveWorkflowAsync, resolveWorkflowPerPlatformAsync } from '../../project/workflow';
-import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
+import { confirmAsync, promptAsync } from '../../prompts';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
-import { formatUpdateMessage } from '../../update/utils';
+import { checkEASUpdateURLIsSetAsync, formatUpdateMessage } from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -56,10 +55,6 @@ import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 import { getVcsClient } from '../../vcs';
-import {
-  configureAppJSONForEASUpdateAsync,
-  configureNativeFilesForEASUpdateAsync,
-} from './configure';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
 export type PublishPlatformFlag = PublishPlatform | 'all';
@@ -219,10 +214,10 @@ export default class UpdatePublish extends EasCommand {
       expBeforeRuntimeVersionUpdate,
       platformFlag,
       projectDir,
-      projectId,
-      nonInteractive,
-      graphqlClient,
-      getDynamicProjectConfigAsync
+      // projectId,
+      // nonInteractive,
+      // graphqlClient,
+      // getDynamicProjectConfigAsync
     );
 
     await checkEASUpdateURLIsSetAsync(exp, projectId);
@@ -614,10 +609,10 @@ async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
   platformFlag: PublishPlatformFlag,
   projectDir: string,
-  projectId: string,
-  nonInteractive: boolean,
-  graphqlClient: ExpoGraphqlClient,
-  getDynamicProjectConfigAsync: DynamicConfigContextFn
+  // projectId: string,
+  // nonInteractive: boolean,
+  // graphqlClient: ExpoGraphqlClient,
+  // getDynamicProjectConfigAsync: DynamicConfigContextFn
 ): Promise<[Record<string, string>, ExpoConfig]> {
   const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
 
@@ -633,81 +628,71 @@ async function getRuntimeVersionObjectAsync(
     }
   }
 
-  try {
-    return [transformRuntimeVersions(exp, platforms), exp];
-  } catch (error: any) {
-    if (nonInteractive) {
-      throw error;
-    }
+  // TODO: add refetching the config when project was auto-setup
+  return [transformRuntimeVersions(exp, platforms), exp];
 
-    Log.fail(error.message);
+  // try {
+  //   return [transformRuntimeVersions(exp, platforms), exp];
+  // } catch (error: any) {
+  //   if (nonInteractive) {
+  //     throw error;
+  //   }
 
-    const runConfig = await selectAsync(
-      `Configure runtime version in ${chalk.bold('app.json')} automatically for EAS Update?`,
-      [
-        { title: 'Yes', value: true },
-        {
-          title: 'No, I will set the runtime version manually (EAS CLI exits)',
-          value: false,
-        },
-      ]
-    );
+  //   Log.fail(error.message);
 
-    if (!runConfig) {
-      Errors.exit(1);
-    }
+  //   const runConfig = await selectAsync(
+  //     `Configure runtime version in ${chalk.bold('app.json')} automatically for EAS Update?`,
+  //     [
+  //       { title: 'Yes', value: true },
+  //       {
+  //         title: 'No, I will set the runtime version manually (EAS CLI exits)',
+  //         value: false,
+  //       },
+  //     ]
+  //   );
 
-    const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
-    await configureAppJSONForEASUpdateAsync({
-      exp,
-      projectDir,
-      projectId,
-      platform: platformFlag as RequestedPlatform,
-      workflows,
-    });
+  //   if (!runConfig) {
+  //     Errors.exit(1);
+  //   }
 
-    const newConfig: ExpoConfig = (await getDynamicProjectConfigAsync({ isPublicConfig: true }))
-      .exp;
+  //   const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
+  //   await configureAppJSONForEASUpdateAsync({
+  //     exp,
+  //     projectDir,
+  //     projectId,
+  //     platform: platformFlag as RequestedPlatform,
+  //     workflows,
+  //   });
 
-    await configureNativeFilesForEASUpdateAsync({
-      exp: newConfig,
-      projectDir,
-      projectId,
-      platform: platformFlag as RequestedPlatform,
-      workflows,
-      graphqlClient,
-    });
+  //   const newConfig: ExpoConfig = (await getDynamicProjectConfigAsync({ isPublicConfig: true }))
+  //     .exp;
 
-    const continueWithChanges = await selectAsync(
-      `Continue update process with uncommitted changes in repository?`,
-      [
-        { title: 'Yes', value: true },
-        {
-          title: 'No, I will commit the modified files first (EAS CLI exits)',
-          value: false,
-        },
-      ]
-    );
+  //   await configureNativeFilesForEASUpdateAsync({
+  //     exp: newConfig,
+  //     projectDir,
+  //     projectId,
+  //     platform: platformFlag as RequestedPlatform,
+  //     workflows,
+  //     graphqlClient,
+  //   });
 
-    if (!continueWithChanges) {
-      Errors.exit(1);
-    }
+  //   const continueWithChanges = await selectAsync(
+  //     `Continue update process with uncommitted changes in repository?`,
+  //     [
+  //       { title: 'Yes', value: true },
+  //       {
+  //         title: 'No, I will commit the modified files first (EAS CLI exits)',
+  //         value: false,
+  //       },
+  //     ]
+  //   );
 
-    return [transformRuntimeVersions(newConfig, platforms), newConfig];
-  }
-}
+  //   if (!continueWithChanges) {
+  //     Errors.exit(1);
+  //   }
 
-async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig, projectId: string): Promise<void> {
-  const configuredURL = exp.updates?.url;
-  const expectedURL = getEASUpdateURL(projectId);
-
-  if (configuredURL !== expectedURL) {
-    throw new Error(
-      `The update URL is incorrectly configured for EAS Update. Set updates.url to ${expectedURL} in your ${chalk.bold(
-        'app.json'
-      )}.`
-    );
-  }
+  //   return [transformRuntimeVersions(newConfig, platforms), newConfig];
+  // }
 }
 
 export const truncatePublishUpdateMessage = (originalMessage: string): string => {

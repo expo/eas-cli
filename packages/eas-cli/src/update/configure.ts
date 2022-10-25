@@ -1,0 +1,280 @@
+import { modifyConfigAsync } from '@expo/config';
+import { ExpoConfig } from '@expo/config-types';
+import { Platform, Workflow } from '@expo/eas-build-job';
+import chalk from 'chalk';
+import { learnMore } from 'utils/log';
+
+import { getEASUpdateURL } from '../api';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { AppPlatform } from '../graphql/generated';
+import Log from '../log';
+import { RequestedPlatform, appPlatformDisplayNames } from '../platform';
+import {
+  installExpoUpdatesAsync,
+  isExpoUpdatesInstalledOrAvailable,
+} from '../project/projectUtils';
+import { resolveWorkflowPerPlatformAsync } from '../project/workflow';
+import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from './android/UpdatesModule';
+import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from './ios/UpdatesModule';
+import { checkEASUpdateURLIsSetAsync } from './utils';
+
+export const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
+export const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0' as const;
+
+function getDefaultRuntimeVersion(workflow: Workflow): NonNullable<ExpoConfig['runtimeVersion']> {
+  return workflow === Workflow.GENERIC
+    ? DEFAULT_BARE_RUNTIME_VERSION
+    : DEFAULT_MANAGED_RUNTIME_VERSION;
+}
+
+function isRuntimeEqual(
+  runtimeVersionA: NonNullable<ExpoConfig['runtimeVersion']>,
+  runtimeVersionB: NonNullable<ExpoConfig['runtimeVersion']>
+): boolean {
+  if (typeof runtimeVersionA === 'string' && typeof runtimeVersionB === 'string') {
+    return runtimeVersionA === runtimeVersionB;
+  } else if (typeof runtimeVersionA === 'object' && typeof runtimeVersionB === 'object') {
+    return runtimeVersionA.policy === runtimeVersionB.policy;
+  } else {
+    return false;
+  }
+}
+
+/**
+ * Make sure the `app.json` is configured to use EAS Updates.
+ * This does a couple of things:
+ *   - Ensure update URL is set to the project EAS endpoint
+ *   - Ensure runtimeVersion is defined for both or individual platforms
+ *   - Output the changes made, or the changes required to make manually
+ */
+export async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
+  exp,
+  projectId,
+  projectDir,
+  platform,
+  workflows,
+}: {
+  exp: ExpoConfig;
+  projectId: string;
+  projectDir: string;
+  platform: RequestedPlatform;
+  workflows: Record<Platform, Workflow>;
+}): Promise<{ projectChanged: boolean; exp: ExpoConfig }> {
+  const modifyConfig: Partial<ExpoConfig> = {};
+
+  if (!checkEASUpdateURLIsSetAsync(exp, projectId)) {
+    modifyConfig.updates = { url: getEASUpdateURL(projectId) };
+  }
+
+  let androidRuntimeVersion = exp.android?.runtimeVersion ?? exp.runtimeVersion;
+  let iosRuntimeVersion = exp.ios?.runtimeVersion ?? exp.runtimeVersion;
+
+  if (
+    (['all', 'android'].includes(platform) && !androidRuntimeVersion) ||
+    (['all', 'ios'].includes(platform) && !iosRuntimeVersion)
+  ) {
+    androidRuntimeVersion = androidRuntimeVersion ?? getDefaultRuntimeVersion(workflows.android);
+    iosRuntimeVersion = iosRuntimeVersion ?? getDefaultRuntimeVersion(workflows.ios);
+
+    if (platform === 'all' && isRuntimeEqual(androidRuntimeVersion, iosRuntimeVersion)) {
+      modifyConfig.runtimeVersion = androidRuntimeVersion;
+    } else {
+      if (['all', 'android'].includes(platform)) {
+        modifyConfig.runtimeVersion = undefined;
+        modifyConfig.android = { runtimeVersion: androidRuntimeVersion };
+      }
+      if (['all', 'ios'].includes(platform)) {
+        modifyConfig.runtimeVersion = undefined;
+        modifyConfig.ios = { runtimeVersion: iosRuntimeVersion };
+      }
+    }
+  }
+
+  if (Object.keys(modifyConfig).length === 0) {
+    return { exp, projectChanged: false };
+  }
+
+  // NOTE(cedric): might be better with a mergeDeep method, or handle in `modifyConfigAsync`
+  const result = await modifyConfigAsync(projectDir, {
+    ...exp,
+    runtimeVersion: modifyConfig.runtimeVersion ?? exp.runtimeVersion,
+    updates: { ...exp.updates, url: modifyConfig.updates?.url ?? exp.updates?.url },
+    android: {
+      ...exp.android,
+      runtimeVersion: modifyConfig.android?.runtimeVersion ?? exp.android?.runtimeVersion,
+    },
+    ios: {
+      ...exp.ios,
+      runtimeVersion: modifyConfig.ios?.runtimeVersion ?? exp.ios?.runtimeVersion,
+    },
+  });
+
+  switch (result.type) {
+    case 'success':
+      logEasUpdatesAutoConfig({ exp, modifyConfig });
+      return {
+        projectChanged: true,
+        // TODO(cedric): fix return type of `modifyConfigAsync` to avoid `null` for type === success repsonses
+        exp: result.config!.expo,
+      };
+
+    case 'warn':
+      warnEASUpdatesManualConfig({ modifyConfig, workflows });
+      throw new Error(result.message);
+
+    case 'fail':
+      throw new Error(result.message);
+
+    default:
+      throw new Error(
+        `Unexpected result type "${result.type}" received when modifying the project config.`
+      );
+  }
+}
+
+function logEasUpdatesAutoConfig({
+  modifyConfig,
+  exp,
+}: {
+  modifyConfig: Partial<ExpoConfig>;
+  exp: ExpoConfig;
+}): void {
+  if (modifyConfig.updates?.url) {
+    Log.withTick(
+      exp.updates?.url
+        ? `Overwrote updates.url "${exp.updates.url}" with "${modifyConfig.updates.url}"`
+        : `Configured updates.url to "${modifyConfig.updates.url}"`
+    );
+  }
+
+  if (modifyConfig.android?.runtimeVersion ?? modifyConfig.runtimeVersion) {
+    Log.withTick(
+      `Configured runtimeVersion for ${
+        appPlatformDisplayNames[AppPlatform.Android]
+      } with "${JSON.stringify(
+        modifyConfig.android?.runtimeVersion ?? modifyConfig.runtimeVersion
+      )}" in app.json`
+    );
+  }
+
+  if (modifyConfig.ios?.runtimeVersion ?? modifyConfig.runtimeVersion) {
+    Log.withTick(
+      `Configured runtimeVersion for ${
+        appPlatformDisplayNames[AppPlatform.Ios]
+      } with "${JSON.stringify(
+        modifyConfig.ios?.runtimeVersion ?? modifyConfig.runtimeVersion
+      )}" in app.json`
+    );
+  }
+}
+
+function warnEASUpdatesManualConfig({
+  modifyConfig,
+  workflows,
+}: {
+  modifyConfig: Partial<ExpoConfig>;
+  workflows: Record<Platform, Workflow>;
+}): void {
+  Log.addNewLineIfNone();
+  Log.warn(
+    `It looks like you are using a dynamic configuration! ${learnMore(
+      'https://docs.expo.dev/workflow/configuration/#dynamic-configuration-with-appconfigjs)'
+    )}`
+  );
+  Log.warn(
+    `In order to finish configuring your project for EAS Update, you are going to need manually add the following to your app.config.js:\n${learnMore(
+      'https://expo.fyi/eas-update-config.md'
+    )}\n`
+  );
+  Log.log(chalk.bold(JSON.stringify(modifyConfig, null, 2)));
+  Log.addNewLineIfNone();
+
+  if (workflows.android === Workflow.GENERIC || workflows.ios === Workflow.GENERIC) {
+    Log.warn(
+      `You will also have to manually edit the projects ${chalk.bold(
+        'Expo.plist/AndroidManifest.xml'
+      )}. ${learnMore('https://expo.fyi/eas-update-config.md#native-configuration')}`
+    );
+  }
+
+  Log.addNewLineIfNone();
+}
+
+/**
+ * Make sure that the current `app.json` configuration for EAS Updates is set natively.
+ */
+export async function ensureEASUpdatesIsConfiguredNativelyAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    exp,
+    projectId,
+    projectDir,
+    platform,
+    workflows,
+  }: {
+    exp: ExpoConfig;
+    projectId: string;
+    projectDir: string;
+    platform: RequestedPlatform;
+    workflows: Record<Platform, Workflow>;
+  }
+): Promise<void> {
+  if (['all', 'android'].includes(platform) && workflows.android === Workflow.GENERIC) {
+    await syncAndroidUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
+    Log.withTick(`Configured ${chalk.bold('AndroidManifest.xml')} for EAS Update`);
+  }
+
+  if (['all', 'ios'].includes(platform) && workflows.ios === Workflow.GENERIC) {
+    await syncIosUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
+    Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
+  }
+}
+
+export async function ensureEASUpdatesIsConfiguredAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    exp,
+    projectId,
+    projectDir,
+    platform,
+  }: {
+    exp: ExpoConfig;
+    projectId: string;
+    projectDir: string;
+    platform: RequestedPlatform;
+  }
+): Promise<{ projectChanged: boolean; exp: ExpoConfig }> {
+  const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion);
+  if (!hasExpoUpdates) {
+    // Logging is handled inside this method
+    await installExpoUpdatesAsync(projectDir);
+  }
+
+  const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
+  const { projectChanged, exp: newExp } = await ensureEASUpdatesIsConfiguredInExpoConfigAsync({
+    exp,
+    projectDir,
+    projectId,
+    platform,
+    workflows,
+  });
+
+  if (projectChanged || !hasExpoUpdates) {
+    await ensureEASUpdatesIsConfiguredNativelyAsync(graphqlClient, {
+      exp: newExp,
+      projectDir,
+      projectId,
+      platform,
+      workflows,
+    });
+  }
+
+  if (projectChanged) {
+    Log.addNewLineIfNone();
+    Log.warn(
+      `All builds of your app going forward will be eligible to receive updates published with EAS Update.`
+    );
+  }
+
+  return { projectChanged, exp: newExp };
+}
