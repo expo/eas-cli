@@ -11,8 +11,6 @@ import { getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import { ensureChannelExistsAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -27,12 +25,8 @@ import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
-import { RequestedPlatform, requestedPlatformDisplayNames } from '../../platform';
-import {
-  getOwnerAccountForProjectIdAsync,
-  installExpoUpdatesAsync,
-  isExpoUpdatesInstalledOrAvailable,
-} from '../../project/projectUtils';
+import { requestedPlatformDisplayNames } from '../../platform';
+import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
   PublishPlatform,
   buildBundlesAsync,
@@ -41,8 +35,8 @@ import {
   isUploadedAssetCountAboveWarningThreshold,
   uploadAssetsAsync,
 } from '../../project/publish';
-import { resolveWorkflowAsync, resolveWorkflowPerPlatformAsync } from '../../project/workflow';
-import { confirmAsync, promptAsync } from '../../prompts';
+import { resolveWorkflowAsync } from '../../project/workflow';
+import { promptAsync } from '../../prompts';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 import { checkEASUpdateURLIsSetAsync, formatUpdateMessage } from '../../update/utils';
 import {
@@ -181,34 +175,9 @@ export default class UpdatePublish extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
+    await checkEASUpdateURLIsSetAsync(expBeforeRuntimeVersionUpdate, projectId);
+
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
-
-    const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
-      projectDir,
-      expBeforeRuntimeVersionUpdate.sdkVersion
-    );
-    if (!hasExpoUpdates && nonInteractive) {
-      Errors.error(
-        `${chalk.bold(
-          'expo-updates'
-        )} must already be installed when executing in non-interactive mode`,
-        { exit: 1 }
-      );
-    }
-
-    if (!hasExpoUpdates) {
-      const install = await confirmAsync({
-        message: chalk`The module {cyan expo-updates} must be installed to load EAS updates in-app. Install?`,
-        instructions: 'The command will abort unless you agree.',
-      });
-      if (install) {
-        await installExpoUpdatesAsync(projectDir);
-      } else {
-        Errors.error(`Install ${chalk.bold('expo-updates')} and try again.`, {
-          exit: 1,
-        });
-      }
-    }
 
     const [runtimeVersions, exp] = await getRuntimeVersionObjectAsync(
       expBeforeRuntimeVersionUpdate,
@@ -219,8 +188,6 @@ export default class UpdatePublish extends EasCommand {
       // graphqlClient,
       // getDynamicProjectConfigAsync
     );
-
-    await checkEASUpdateURLIsSetAsync(exp, projectId);
 
     if (!branchName) {
       if (autoFlag) {
