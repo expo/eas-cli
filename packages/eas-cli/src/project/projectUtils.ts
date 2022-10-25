@@ -104,7 +104,6 @@ export async function installExpoUpdatesAsync(
   Log.log(chalk.gray`> npx expo install expo-updates`);
   try {
     await expoCommandAsync(projectDir, ['install', 'expo-updates'], { silent: options?.silent });
-    Log.withTick('Installed expo-updates');
   } catch (error: any) {
     if (options?.silent) {
       Log.error('stdout' in error ? error.stdout : error.message);
