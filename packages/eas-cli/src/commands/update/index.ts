@@ -423,6 +423,7 @@ export default class UpdatePublish extends EasCommand {
       branchId,
       channelName: branchName,
     });
+    Log.withTick(`Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`);
 
     // Sort the updates into different groups based on their platform specific runtime versions
     const updateGroups: PublishUpdateGroupInput[] = Object.entries(runtimeToPlatformMapping).map(
