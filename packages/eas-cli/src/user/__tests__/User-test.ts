@@ -18,6 +18,7 @@ const userStub: Actor = {
     },
   ],
   isExpoAdmin: false,
+  featureGates: {},
 };
 
 const robotStub: Actor = {
@@ -26,6 +27,7 @@ const robotStub: Actor = {
   firstName: 'GLaDOS',
   accounts: [],
   isExpoAdmin: false,
+  featureGates: {},
 };
 
 describe('getActorDisplayName', () => {

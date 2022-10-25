@@ -1,6 +1,7 @@
 import { AppFragment, Role } from '../../graphql/generated';
+import { Actor } from '../../user/User';
 
-export const jester = {
+export const jester: Actor = {
   __typename: 'User' as const,
   id: 'jester-id',
   username: 'jester',
@@ -22,6 +23,7 @@ export const jester = {
     },
   ],
   isExpoAdmin: false,
+  featureGates: {},
 };
 
 export const jester2 = {
@@ -36,6 +38,7 @@ export const jester2 = {
     },
   ],
   isExpoAdmin: false,
+  featureGates: {},
 };
 
 export const testUsername = jester.username;

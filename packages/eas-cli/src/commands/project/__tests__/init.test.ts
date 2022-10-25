@@ -7,6 +7,8 @@ import LoggedInContextField from '../../../commandUtils/context/LoggedInContextF
 import ProjectDirContextField from '../../../commandUtils/context/ProjectDirContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../../../commandUtils/context/contextUtils/getProjectIdAsync';
+import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
+import FeatureGating from '../../../commandUtils/gating/FeatureGating';
 import { jester, jester2 } from '../../../credentials/__tests__/fixtures-constants';
 import { AppMutation } from '../../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
@@ -79,9 +81,11 @@ function mockTestProject(options: {
 
   jest.mocked(getConfig).mockReturnValue(mockManifest as any);
   jest.spyOn(ProjectDirContextField.prototype, 'getValueAsync').mockResolvedValue('/test-project');
-  jest
-    .spyOn(LoggedInContextField.prototype, 'getValueAsync')
-    .mockResolvedValue({ actor: jester, graphqlClient });
+  jest.spyOn(LoggedInContextField.prototype, 'getValueAsync').mockResolvedValue({
+    actor: jester,
+    featureGating: new FeatureGating({}, new FeatureGateEnvOverrides()),
+    graphqlClient,
+  });
 }
 
 const commandOptions = { root: '/test-project' } as any;

@@ -30,6 +30,7 @@ export const UserQuery = {
                   id
                   ...AccountFragment
                 }
+                featureGates
                 isExpoAdmin
               }
             }
