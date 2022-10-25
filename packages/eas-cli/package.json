@@ -17,6 +17,7 @@
     "@expo/eas-json": "2.2.0",
     "@expo/json-file": "8.2.36",
     "@expo/multipart-body-parser": "1.1.0",
+    "@expo/osascript": "2.0.33",
     "@expo/package-manager": "0.0.56",
     "@expo/pkcs12": "0.0.8",
     "@expo/plist": "0.0.18",

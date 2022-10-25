@@ -5,6 +5,8 @@ import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { BuildFilter, BuildFragment } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log from '../log';
+import { appPlatformDisplayNames } from '../platform';
+import { promptAsync } from '../prompts';
 import { printJsonOnlyOutput } from '../utils/json';
 import { paginatedQueryWithConfirmPromptAsync } from '../utils/queries';
 import { formatGraphQLBuild } from './utils/formatBuild';
@@ -51,6 +53,69 @@ export async function listAndRenderBuildsOnAppAsync(
       },
     });
   }
+}
+
+export async function listAndSelectBuildsOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    projectDisplayName,
+    filter,
+    queryOptions,
+  }: {
+    projectId: string;
+    projectDisplayName: string;
+    filter?: BuildFilter;
+    queryOptions: PaginatedQueryOptions;
+  }
+): Promise<BuildFragment> {
+  const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
+    appId: projectId,
+    limit: queryOptions.limit ?? BUILDS_LIMIT,
+    offset: queryOptions.offset,
+    filter,
+  });
+
+  if (builds.length === 0) {
+    throw new Error('Found no builds matching the provided criteria.');
+  }
+
+  const { selectedSimulatorBuild } = await promptAsync({
+    type: 'select',
+    message: `Select simulator build to run for ${projectDisplayName} app`,
+    name: 'selectedSimulatorBuild',
+    choices: builds.map(build => ({
+      title: `id: ${build.id}, platform: ${appPlatformDisplayNames[build.platform]}, version: ${
+        build.appVersion
+      }, build number: ${build.appBuildVersion}`,
+      value: build,
+    })),
+  });
+  return selectedSimulatorBuild;
+}
+
+export async function getLatestBuildAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    filter,
+  }: {
+    projectId: string;
+    filter?: BuildFilter;
+  }
+): Promise<BuildFragment> {
+  const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
+    appId: projectId,
+    limit: 1,
+    offset: 0,
+    filter,
+  });
+
+  if (builds.length === 0) {
+    throw new Error('Found no build matching the provided criteria.');
+  }
+
+  return builds[0];
 }
 
 function renderPageOfBuilds({
