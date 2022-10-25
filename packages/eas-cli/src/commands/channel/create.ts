@@ -18,6 +18,7 @@ import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 
+// NOTE(cedric): copied to src/channel/queries.ts to reuse in multiple commands
 export async function createUpdateChannelOnAppAsync(
   graphqlClient: ExpoGraphqlClient,
   {

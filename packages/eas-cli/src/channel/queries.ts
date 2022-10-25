@@ -1,8 +1,12 @@
 import chalk from 'chalk';
+import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
+import { withErrorHandlingAsync } from '../graphql/client';
 import {
+  CreateUpdateChannelOnAppMutation,
+  CreateUpdateChannelOnAppMutationVariables,
   ViewBranchesOnUpdateChannelQueryVariables,
   ViewUpdateChannelsOnAppQueryVariables,
 } from '../graphql/generated';
@@ -196,4 +200,65 @@ function renderChannelHeaderContent({
   );
   Log.addNewLineIfNone();
   Log.log(chalk`{bold Branches pointed at this channel and their most recent update group:}`);
+}
+
+export async function createChannelAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    appId,
+    branchId,
+    channelName,
+  }: {
+    appId: string;
+    branchId: string;
+    channelName: string;
+  }
+): Promise<CreateUpdateChannelOnAppMutation> {
+  // Point the new channel at a branch with its same name.
+  const branchMapping = JSON.stringify({
+    data: [{ branchId, branchMappingLogic: 'true' }],
+    version: 0,
+  });
+  return await withErrorHandlingAsync(
+    graphqlClient
+      .mutation<CreateUpdateChannelOnAppMutation, CreateUpdateChannelOnAppMutationVariables>(
+        gql`
+          mutation CreateUpdateChannelOnApp($appId: ID!, $name: String!, $branchMapping: String!) {
+            updateChannel {
+              createUpdateChannelForApp(appId: $appId, name: $name, branchMapping: $branchMapping) {
+                id
+                name
+                branchMapping
+              }
+            }
+          }
+        `,
+        {
+          appId,
+          name: channelName,
+          branchMapping,
+        }
+      )
+      .toPromise()
+  );
+}
+
+export async function ensureChannelExistsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { appId, branchId, channelName }: { appId: string; branchId: string; channelName: string }
+): Promise<void> {
+  try {
+    await createChannelAsync(graphqlClient, {
+      appId,
+      channelName,
+      branchId,
+    });
+  } catch (e: any) {
+    const isIgnorableError =
+      e.graphQLErrors?.length === 1 &&
+      e.graphQLErrors[0].extensions.errorCode === 'CHANNEL_ALREADY_EXISTS';
+    if (!isIgnorableError) {
+      throw e;
+    }
+  }
 }

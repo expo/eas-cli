@@ -7,9 +7,10 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { getEASUpdateURL } from '../../api';
-import { selectBranchOnAppAsync } from '../../branch/queries';
-import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/utils';
+import { ensureBranchExistsAsync, selectBranchOnAppAsync } from '../../branch/queries';
+import { getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
+import { ensureChannelExistsAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -22,10 +23,8 @@ import {
   Update,
   UpdateInfoGroup,
   UpdatePublishMutation,
-  ViewBranchQueryVariables,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
@@ -57,8 +56,6 @@ import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 import { getVcsClient } from '../../vcs';
-import { createUpdateBranchOnAppAsync } from '../branch/create';
-import { createUpdateChannelOnAppAsync } from '../channel/create';
 import {
   configureAppJSONForEASUpdateAsync,
   configureNativeFilesForEASUpdateAsync,
@@ -94,71 +91,6 @@ type UpdateFlags = {
   json: boolean;
   nonInteractive: boolean;
 };
-
-async function ensureChannelExistsAsync(
-  graphqlClient: ExpoGraphqlClient,
-  {
-    appId,
-    branchId,
-    channelName,
-  }: {
-    appId: string;
-    branchId: string;
-    channelName: string;
-  }
-): Promise<void> {
-  try {
-    await createUpdateChannelOnAppAsync(graphqlClient, {
-      appId,
-      channelName,
-      branchId,
-    });
-    Log.withTick(
-      `Created a channel: ${chalk.bold(channelName)} pointed at branch: ${chalk.bold(channelName)}.`
-    );
-  } catch (e: any) {
-    const isIgnorableError =
-      e.graphQLErrors?.length === 1 &&
-      e.graphQLErrors[0].extensions.errorCode === 'CHANNEL_ALREADY_EXISTS';
-    if (!isIgnorableError) {
-      throw e;
-    }
-  }
-}
-
-export async function ensureBranchExistsAsync(
-  graphqlClient: ExpoGraphqlClient,
-  { appId, name: branchName }: ViewBranchQueryVariables
-): Promise<{
-  branchId: string;
-}> {
-  try {
-    const updateBranch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
-      appId,
-      name: branchName,
-    });
-
-    const { id } = updateBranch;
-    await ensureChannelExistsAsync(graphqlClient, { appId, branchId: id, channelName: branchName });
-    return { branchId: id };
-  } catch (error) {
-    if (error instanceof BranchNotFoundError) {
-      const newUpdateBranch = await createUpdateBranchOnAppAsync(graphqlClient, {
-        appId,
-        name: branchName,
-      });
-      Log.withTick(`Created branch: ${chalk.bold(branchName)}`);
-      await ensureChannelExistsAsync(graphqlClient, {
-        appId,
-        branchId: newUpdateBranch.id,
-        channelName: branchName,
-      });
-      return { branchId: newUpdateBranch.id };
-    } else {
-      throw error;
-    }
-  }
-}
 
 export default class UpdatePublish extends EasCommand {
   static override description = 'publish an update group';
@@ -484,7 +416,12 @@ export default class UpdatePublish extends EasCommand {
 
     const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
-      name: branchName,
+      branchName,
+    });
+    await ensureChannelExistsAsync(graphqlClient, {
+      appId: projectId,
+      branchId,
+      channelName: branchName,
     });
 
     // Sort the updates into different groups based on their platform specific runtime versions

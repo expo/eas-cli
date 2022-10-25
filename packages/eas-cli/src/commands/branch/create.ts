@@ -16,6 +16,7 @@ import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
+// NOTE(cedric): copied to src/branch/queries.ts to reuse in multiple commands
 export async function createUpdateBranchOnAppAsync(
   graphqlClient: ExpoGraphqlClient,
   { appId, name }: CreateUpdateBranchForAppMutationVariables
