@@ -2,12 +2,11 @@ import { modifyConfigAsync } from '@expo/config';
 import { ExpoConfig } from '@expo/config-types';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import chalk from 'chalk';
-import { learnMore } from 'utils/log';
 
 import { getEASUpdateURL } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPlatform } from '../graphql/generated';
-import Log from '../log';
+import Log, { learnMore } from '../log';
 import { RequestedPlatform, appPlatformDisplayNames } from '../platform';
 import {
   installExpoUpdatesAsync,
@@ -16,7 +15,6 @@ import {
 import { resolveWorkflowPerPlatformAsync } from '../project/workflow';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from './android/UpdatesModule';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from './ios/UpdatesModule';
-import { checkEASUpdateURLIsSetAsync } from './utils';
 
 export const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
 export const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0' as const;
@@ -62,7 +60,7 @@ export async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
 }): Promise<{ projectChanged: boolean; exp: ExpoConfig }> {
   const modifyConfig: Partial<ExpoConfig> = {};
 
-  if (!checkEASUpdateURLIsSetAsync(exp, projectId)) {
+  if (exp.updates?.url !== getEASUpdateURL(projectId)) {
     modifyConfig.updates = { url: getEASUpdateURL(projectId) };
   }
 
@@ -95,7 +93,7 @@ export async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
   }
 
   // NOTE(cedric): might be better with a mergeDeep method, or handle in `modifyConfigAsync`
-  const result = await modifyConfigAsync(projectDir, {
+  const mergedExp = {
     ...exp,
     runtimeVersion: modifyConfig.runtimeVersion ?? exp.runtimeVersion,
     updates: { ...exp.updates, url: modifyConfig.updates?.url ?? exp.updates?.url },
@@ -107,7 +105,13 @@ export async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
       ...exp.ios,
       runtimeVersion: modifyConfig.ios?.runtimeVersion ?? exp.ios?.runtimeVersion,
     },
-  });
+  };
+
+  // TODO(cedric): check where these properties are coming from, they pop up in `eas update`
+  delete mergedExp.originalFullName;
+  delete mergedExp.currentFullName;
+  delete mergedExp.platforms;
+  const result = await modifyConfigAsync(projectDir, mergedExp);
 
   switch (result.type) {
     case 'success':
@@ -115,7 +119,7 @@ export async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
       return {
         projectChanged: true,
         // TODO(cedric): fix return type of `modifyConfigAsync` to avoid `null` for type === success repsonses
-        exp: result.config!.expo,
+        exp: result.config?.expo ?? mergedExp,
       };
 
     case 'warn':
@@ -153,7 +157,7 @@ function logEasUpdatesAutoConfig({
         appPlatformDisplayNames[AppPlatform.Android]
       } with "${JSON.stringify(
         modifyConfig.android?.runtimeVersion ?? modifyConfig.runtimeVersion
-      )}" in app.json`
+      )}"`
     );
   }
 
@@ -161,9 +165,7 @@ function logEasUpdatesAutoConfig({
     Log.withTick(
       `Configured runtimeVersion for ${
         appPlatformDisplayNames[AppPlatform.Ios]
-      } with "${JSON.stringify(
-        modifyConfig.ios?.runtimeVersion ?? modifyConfig.runtimeVersion
-      )}" in app.json`
+      } with "${JSON.stringify(modifyConfig.ios?.runtimeVersion ?? modifyConfig.runtimeVersion)}"`
     );
   }
 }
@@ -246,8 +248,8 @@ export async function ensureEASUpdatesIsConfiguredAsync(
 ): Promise<{ projectChanged: boolean; exp: ExpoConfig }> {
   const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion);
   if (!hasExpoUpdates) {
-    // Logging is handled inside this method
-    await installExpoUpdatesAsync(projectDir);
+    await installExpoUpdatesAsync(projectDir, { silent: true });
+    Log.withTick('Installed expo updates');
   }
 
   const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
@@ -274,6 +276,7 @@ export async function ensureEASUpdatesIsConfiguredAsync(
     Log.warn(
       `All builds of your app going forward will be eligible to receive updates published with EAS Update.`
     );
+    Log.newLine();
   }
 
   return { projectChanged, exp: newExp };
