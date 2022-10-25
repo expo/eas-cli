@@ -215,7 +215,11 @@ export default class UpdatePublish extends EasCommand {
     // If a group was specified, that means we are republishing it.
     republish = republish || !!group;
 
-    const { exp, projectId, projectDir } = await getDynamicProjectConfigAsync({
+    const {
+      exp: expBeforeRuntimeVersionUpdate,
+      projectId,
+      projectDir,
+    } = await getDynamicProjectConfigAsync({
       isPublicConfig: true,
     });
 
@@ -227,7 +231,10 @@ export default class UpdatePublish extends EasCommand {
 
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 
-    const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion);
+    const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
+      projectDir,
+      expBeforeRuntimeVersionUpdate.sdkVersion
+    );
     if (!hasExpoUpdates && nonInteractive) {
       Errors.error(
         `${chalk.bold(
@@ -253,8 +260,8 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
-    const [runtimeVersions, expUpdated] = await getRuntimeVersionObjectAsync(
-      exp,
+    const [runtimeVersions, exp] = await getRuntimeVersionObjectAsync(
+      expBeforeRuntimeVersionUpdate,
       platformFlag,
       projectDir,
       projectId,
@@ -263,7 +270,7 @@ export default class UpdatePublish extends EasCommand {
       getDynamicProjectConfigAsync
     );
 
-    await checkEASUpdateURLIsSetAsync(expUpdated, projectId);
+    await checkEASUpdateURLIsSetAsync(exp, projectId);
 
     if (!branchName) {
       if (autoFlag) {
@@ -432,7 +439,7 @@ export default class UpdatePublish extends EasCommand {
         );
         uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
         assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
-        unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, expUpdated);
+        unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
         const uploadAssetSuccessMessage = uploadedAssetCount
           ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'asset' : 'assets'}!`
           : `Uploading assets skipped -- no new assets found!`;
@@ -559,7 +566,7 @@ export default class UpdatePublish extends EasCommand {
         const newIosUpdate = newUpdatesForRuntimeVersion.find(update => update.platform === 'ios');
         const updateGroupId = newUpdatesForRuntimeVersion[0].group;
 
-        const projectName = expUpdated.slug;
+        const projectName = exp.slug;
         const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
         const updateGroupUrl = getUpdateGroupUrl(accountName, projectName, updateGroupId);
         const updateGroupLink = link(updateGroupUrl, { dim: false });
