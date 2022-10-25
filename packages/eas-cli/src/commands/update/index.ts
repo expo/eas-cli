@@ -92,7 +92,7 @@ type UpdateFlags = {
   skipBundler: boolean;
   privateKeyPath?: string;
   json: boolean;
-  nonInteractive?: boolean;
+  nonInteractive: boolean;
 };
 
 async function ensureChannelExistsAsync(
