@@ -1,9 +1,8 @@
-import { truncatePublishUpdateMessage } from '../../commands/update';
 import Log from '../../log';
-import { getPlatformsForGroup } from '../utils';
+import { getPlatformsForGroup, truncateString } from '../utils';
 
 describe('update utility functions', () => {
-  describe(truncatePublishUpdateMessage.name, () => {
+  describe(truncateString, () => {
     const warnSpy = jest.spyOn(Log, 'warn');
     beforeEach(() => {
       warnSpy.mockClear();
@@ -11,14 +10,14 @@ describe('update utility functions', () => {
 
     it('does not alter messages with less than 1024 characters', () => {
       const message = 'Small message =)';
-      const truncatedMessage = truncatePublishUpdateMessage(message);
+      const truncatedMessage = truncateString(message);
       expect(truncatedMessage).toEqual(message);
       expect(warnSpy).not.toBeCalled();
     });
 
     it('truncates messages to a length of 1024, including ellipses', () => {
       const longMessage = Array.from({ length: 2024 }, () => 'a').join('');
-      const truncatedMessage = truncatePublishUpdateMessage(longMessage);
+      const truncatedMessage = truncateString(longMessage);
       expect(truncatedMessage.length).toEqual(1024);
       expect(truncatedMessage.slice(-3)).toEqual('...');
       expect(warnSpy).toBeCalledWith(

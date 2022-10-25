@@ -38,7 +38,11 @@ import {
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
-import { checkEASUpdateURLIsSetAsync, formatUpdateMessage } from '../../update/utils';
+import {
+  checkEASUpdateURLIsSetAsync,
+  formatUpdateMessage,
+  truncateString as truncateUpdateMessage,
+} from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -182,7 +186,7 @@ export default class UpdatePublish extends EasCommand {
     const [runtimeVersions, exp] = await getRuntimeVersionObjectAsync(
       expBeforeRuntimeVersionUpdate,
       platformFlag,
-      projectDir,
+      projectDir
       // projectId,
       // nonInteractive,
       // graphqlClient,
@@ -367,7 +371,10 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
-    const truncatedMessage = truncatePublishUpdateMessage(updateMessage!);
+    const truncatedMessage = truncateUpdateMessage(updateMessage!, 1024);
+    if (truncatedMessage !== updateMessage) {
+      Log.warn('Update message exceeds the allowed 1024 character limit. Truncating message...');
+    }
 
     const runtimeToPlatformMapping: Record<string, string[]> = {};
     for (const runtime of new Set(Object.values(runtimeVersions))) {
@@ -575,7 +582,7 @@ function transformRuntimeVersions(exp: ExpoConfig, platforms: Platform[]): Recor
 async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
   platformFlag: PublishPlatformFlag,
-  projectDir: string,
+  projectDir: string
   // projectId: string,
   // nonInteractive: boolean,
   // graphqlClient: ExpoGraphqlClient,
@@ -661,11 +668,3 @@ async function getRuntimeVersionObjectAsync(
   //   return [transformRuntimeVersions(newConfig, platforms), newConfig];
   // }
 }
-
-export const truncatePublishUpdateMessage = (originalMessage: string): string => {
-  if (originalMessage.length > 1024) {
-    Log.warn('Update message exceeds the allowed 1024 character limit. Truncating message...');
-    return originalMessage.substring(0, 1021) + '...';
-  }
-  return originalMessage;
-};
