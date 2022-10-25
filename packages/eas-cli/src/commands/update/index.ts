@@ -626,7 +626,7 @@ export default class UpdatePublish extends EasCommand {
   }
 
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
-    const nonInteractive = flags['non-interactive'] ?? false;
+    const nonInteractive = flags['non-interactive'];
 
     const { auto, branch: branchName, message: updateMessage } = flags;
     if (nonInteractive && !auto && !(branchName && updateMessage)) {
