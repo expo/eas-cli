@@ -2222,6 +2222,7 @@ export type CreateAccessTokenResponse = {
 
 export type CreateAndroidSubmissionInput = {
   appId: Scalars['ID'];
+  archiveSource?: InputMaybe<SubmissionArchiveSourceInput>;
   archiveUrl?: InputMaybe<Scalars['String']>;
   config: AndroidSubmissionConfigInput;
   submittedBuildId?: InputMaybe<Scalars['ID']>;
@@ -2248,6 +2249,7 @@ export type CreateGitHubRepositoryInput = {
   appId: Scalars['ID'];
   githubAppInstallationId: Scalars['ID'];
   githubRepositoryIdentifier: Scalars['Int'];
+  nodeIdentifier: Scalars['String'];
 };
 
 export type CreateGitHubRepositorySettingsInput = {
@@ -2258,6 +2260,7 @@ export type CreateGitHubRepositorySettingsInput = {
 
 export type CreateIosSubmissionInput = {
   appId: Scalars['ID'];
+  archiveSource?: InputMaybe<SubmissionArchiveSourceInput>;
   archiveUrl?: InputMaybe<Scalars['String']>;
   config: IosSubmissionConfigInput;
   submittedBuildId?: InputMaybe<Scalars['ID']>;
@@ -2317,6 +2320,16 @@ export type DeleteEnvironmentSecretResult = {
 
 export type DeleteGoogleServiceAccountKeyResult = {
   __typename?: 'DeleteGoogleServiceAccountKeyResult';
+  id: Scalars['ID'];
+};
+
+export type DeleteIosAppBuildCredentialsResult = {
+  __typename?: 'DeleteIosAppBuildCredentialsResult';
+  id: Scalars['ID'];
+};
+
+export type DeleteIosAppCredentialsResult = {
+  __typename?: 'DeleteIosAppCredentialsResult';
   id: Scalars['ID'];
 };
 
@@ -2529,6 +2542,7 @@ export type GitHubAppInstallationAccessibleRepository = {
   description?: Maybe<Scalars['String']>;
   id: Scalars['Int'];
   name: Scalars['String'];
+  nodeId: Scalars['String'];
   owner: GitHubRepositoryOwner;
   private: Scalars['Boolean'];
   url: Scalars['String'];
@@ -2591,6 +2605,7 @@ export type GitHubRepository = {
   githubRepositoryIdentifier: Scalars['Int'];
   id: Scalars['ID'];
   metadata?: Maybe<GitHubRepositoryMetadata>;
+  nodeIdentifier: Scalars['String'];
 };
 
 export type GitHubRepositoryMetadata = {
@@ -2801,6 +2816,8 @@ export type IosAppBuildCredentialsMutation = {
   __typename?: 'IosAppBuildCredentialsMutation';
   /** Create a set of build credentials for an iOS app */
   createIosAppBuildCredentials: IosAppBuildCredentials;
+  /** Disassociate the build credentials from an iOS app */
+  deleteIosAppBuildCredentials: DeleteIosAppBuildCredentialsResult;
   /** Set the distribution certificate to be used for an iOS app */
   setDistributionCertificate: IosAppBuildCredentials;
   /** Set the provisioning profile to be used for an iOS app */
@@ -2811,6 +2828,11 @@ export type IosAppBuildCredentialsMutation = {
 export type IosAppBuildCredentialsMutationCreateIosAppBuildCredentialsArgs = {
   iosAppBuildCredentialsInput: IosAppBuildCredentialsInput;
   iosAppCredentialsId: Scalars['ID'];
+};
+
+
+export type IosAppBuildCredentialsMutationDeleteIosAppBuildCredentialsArgs = {
+  id: Scalars['ID'];
 };
 
 
@@ -2862,6 +2884,8 @@ export type IosAppCredentialsMutation = {
   __typename?: 'IosAppCredentialsMutation';
   /** Create a set of credentials for an iOS app */
   createIosAppCredentials: IosAppCredentials;
+  /** Delete a set of credentials for an iOS app */
+  deleteIosAppCredentials: DeleteIosAppCredentialsResult;
   /** Set the App Store Connect Api Key to be used for submitting an iOS app */
   setAppStoreConnectApiKeyForSubmissions: IosAppCredentials;
   /** Set the push key to be used in an iOS app */
@@ -2876,6 +2900,11 @@ export type IosAppCredentialsMutationCreateIosAppCredentialsArgs = {
 };
 
 
+export type IosAppCredentialsMutationDeleteIosAppCredentialsArgs = {
+  id: Scalars['ID'];
+};
+
+
 export type IosAppCredentialsMutationSetAppStoreConnectApiKeyForSubmissionsArgs = {
   ascApiKeyId: Scalars['ID'];
   id: Scalars['ID'];
@@ -2885,6 +2914,16 @@ export type IosAppCredentialsMutationSetAppStoreConnectApiKeyForSubmissionsArgs 
 export type IosAppCredentialsMutationSetPushKeyArgs = {
   id: Scalars['ID'];
   pushKeyId: Scalars['ID'];
+};
+
+export type IosAppCredentialsQuery = {
+  __typename?: 'IosAppCredentialsQuery';
+  byId: IosAppCredentials;
+};
+
+
+export type IosAppCredentialsQueryByIdArgs = {
+  iosAppCredentialsId: Scalars['ID'];
 };
 
 /** @deprecated Use developmentClient option instead. */
@@ -3512,6 +3551,8 @@ export type RootQuery = {
   githubApp: GitHubAppQuery;
   /** Top-level query object for querying Stripe Invoices. */
   invoice: InvoiceQuery;
+  /** Top-level query object for querying IosAppCredentials. */
+  iosAppCredentials: IosAppCredentialsQuery;
   /**
    * If authenticated as a typical end user, this is the appropriate top-level
    * query object
@@ -3842,6 +3883,20 @@ export enum SubmissionAndroidTrack {
   Production = 'PRODUCTION'
 }
 
+export type SubmissionArchiveSourceInput = {
+  /** Required if the archive source type is GCS_BUILD_APPLICATION_ARCHIVE or GCS_SUBMIT_ARCHIVE */
+  bucketKey?: InputMaybe<Scalars['String']>;
+  type: SubmissionArchiveSourceType;
+  /** Required if the archive source type is URL */
+  url?: InputMaybe<Scalars['String']>;
+};
+
+export enum SubmissionArchiveSourceType {
+  GcsBuildApplicationArchive = 'GCS_BUILD_APPLICATION_ARCHIVE',
+  GcsSubmitArchive = 'GCS_SUBMIT_ARCHIVE',
+  Url = 'URL'
+}
+
 export type SubmissionError = {
   __typename?: 'SubmissionError';
   errorCode?: Maybe<Scalars['String']>;
@@ -4106,8 +4161,10 @@ export type UploadSessionCreateUploadSessionArgs = {
 };
 
 export enum UploadSessionType {
+  EasBuildGcsProjectSources = 'EAS_BUILD_GCS_PROJECT_SOURCES',
   EasBuildProjectSources = 'EAS_BUILD_PROJECT_SOURCES',
-  EasSubmitAppArchive = 'EAS_SUBMIT_APP_ARCHIVE'
+  EasSubmitAppArchive = 'EAS_SUBMIT_APP_ARCHIVE',
+  EasSubmitGcsAppArchive = 'EAS_SUBMIT_GCS_APP_ARCHIVE'
 }
 
 export type UsageMetricTotal = {
@@ -5222,7 +5279,7 @@ export type ViewUpdateGroupsOnAppQuery = { __typename?: 'RootQuery', app: { __ty
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?: { __typename: 'Robot', firstName?: string | null, id: string, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'User', username: string, id: string, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'User', id: string } }> }, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'User', id: string } }> }> } | null };
+export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?: { __typename: 'Robot', firstName?: string | null, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'User', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'User', id: string } }> }, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'User', id: string } }> }> } | null };
 
 export type WebhooksByAppIdQueryVariables = Exact<{
   appId: Scalars['String'];
