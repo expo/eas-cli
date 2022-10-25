@@ -11,6 +11,7 @@ import { selectBranchOnAppAsync } from '../../branch/queries';
 import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
+import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
@@ -258,7 +259,8 @@ export default class UpdatePublish extends EasCommand {
       projectDir,
       projectId,
       nonInteractive,
-      graphqlClient
+      graphqlClient,
+      getDynamicProjectConfigAsync
     );
 
     await checkEASUpdateURLIsSetAsync(expUpdated, projectId);
@@ -614,7 +616,8 @@ async function getRuntimeVersionObjectAsync(
   projectDir: string,
   projectId: string,
   nonInteractive: boolean,
-  graphqlClient: ExpoGraphqlClient
+  graphqlClient: ExpoGraphqlClient,
+  getDynamicProjectConfigAsync: DynamicConfigContextFn
 ): Promise<[Record<string, string>, ExpoConfig]> {
   const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
 
@@ -655,7 +658,7 @@ async function getRuntimeVersionObjectAsync(
     }
 
     const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
-    const configUpdate = await configureAppJSONForEASUpdateAsync({
+    await configureAppJSONForEASUpdateAsync({
       exp,
       projectDir,
       projectId,
@@ -663,7 +666,8 @@ async function getRuntimeVersionObjectAsync(
       workflows,
     });
 
-    const newConfig: ExpoConfig = { ...exp, ...configUpdate };
+    const newConfig: ExpoConfig = (await getDynamicProjectConfigAsync({ isPublicConfig: true }))
+      .exp;
 
     await configureNativeFilesForEASUpdateAsync({
       exp: newConfig,
