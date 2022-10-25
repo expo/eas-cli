@@ -153,12 +153,11 @@ async function waitForSimulatorAppToStartAsync(
 
 async function isSimulatorAppRunningAsync(): Promise<boolean> {
   try {
-    const zeroMeansNo = (
-      await osascript.execAsync(
-        'tell app "System Events" to count processes whose name is "Simulator"'
-      )
-    ).trim();
-    if (zeroMeansNo === '0') {
+    const result = await osascript.execAsync(
+      'tell app "System Events" to count processes whose name is "Simulator"'
+    );
+
+    if (result.trim() === '0') {
       return false;
     }
   } catch (error: any) {

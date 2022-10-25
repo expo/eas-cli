@@ -98,11 +98,12 @@ export async function downloadAndExtractAppAsync(
   url: string,
   applicationExtension: string
 ): Promise<string> {
-  const outputDir = await ensureTmpDirExistAsync(path.join(getTmpDirectory(), uuidv4()));
+  const outputDir = path.join(getTmpDirectory(), uuidv4());
+  await fs.promises.mkdir(outputDir, { recursive: true });
 
-  const tmpArchivePathDir = await ensureTmpDirExistAsync(
-    path.join(getTmpDirectory(), `${uuidv4()}`)
-  );
+  const tmpArchivePathDir = path.join(getTmpDirectory(), uuidv4());
+  await fs.promises.mkdir(tmpArchivePathDir, { recursive: true });
+
   const tmpArchivePath = path.join(tmpArchivePathDir, `${uuidv4()}.tar.gz`);
 
   await downloadFileWithProgressBarAsync(url, tmpArchivePath, 'Downloading app archive...');
@@ -115,7 +116,8 @@ export async function extractAppFromLocalArchiveAsync(
   appArchivePath: string,
   applicationExtension: string
 ): Promise<string> {
-  const outputDir = await ensureTmpDirExistAsync(path.join(getTmpDirectory(), uuidv4()));
+  const outputDir = path.join(getTmpDirectory(), uuidv4());
+  await fs.promises.mkdir(outputDir, { recursive: true });
 
   await tarExtractAsync(appArchivePath, outputDir);
 
@@ -152,9 +154,4 @@ async function tarExtractAsync(input: string, output: string): Promise<void> {
   // tar node module has previously had problems with big files, and seems to
   // be slower, so only use it as a backup.
   await extract({ file: input, cwd: output });
-}
-
-async function ensureTmpDirExistAsync(dirPath: string): Promise<string> {
-  await fs.promises.mkdir(dirPath, { recursive: true });
-  return dirPath;
 }
