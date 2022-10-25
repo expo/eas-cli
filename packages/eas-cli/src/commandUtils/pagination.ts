@@ -1,4 +1,5 @@
 import { Flags } from '@oclif/core';
+import { OptionFlag } from '@oclif/core/lib/interfaces';
 
 import { EasNonInteractiveAndJsonFlags } from './flags';
 
@@ -37,7 +38,7 @@ export const getLimitFlagWithCustomValues = ({
 }: {
   defaultTo: number;
   limit: number;
-}): any =>
+}): OptionFlag<number | undefined> =>
   Flags.integer({
     description: `The number of items to fetch each query. Defaults to ${defaultTo} and is capped at ${limit}.`,
     // eslint-disable-next-line async-protect/async-suffix
