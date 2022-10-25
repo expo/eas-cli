@@ -640,9 +640,7 @@ async function getRuntimeVersionObjectAsync(
     Log.fail(error.message);
 
     const runConfig = await selectAsync(
-      `Configure runtime version in ${chalk.bold(
-        'app.json'
-      )} automatically for EAS Update?`,
+      `Configure runtime version in ${chalk.bold('app.json')} automatically for EAS Update?`,
       [
         { title: 'Yes', value: true },
         {
