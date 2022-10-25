@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add custom metadata validation command with more complex rules. ([#1416](https://github.com/expo/eas-cli/pull/1416) by [@byCedric](https://github.com/byCedric))
+- Add `eas build:run` command which runs iOS simulator builds from the CLI. ([#1447](https://github.com/expo/eas-cli/pull/1447) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 
