@@ -36,7 +36,6 @@ describe(shouldUseVersionedExpoCLIExpensive, () => {
   });
 
   it(`returns true if EXPO_USE_LOCAL_CLI is unset`, () => {
-    delete process.env.EXPO_USE_LOCAL_CLI;
     expect(shouldUseVersionedExpoCLIExpensive('/')).toBe(true);
   });
 

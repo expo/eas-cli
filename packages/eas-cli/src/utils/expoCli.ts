@@ -1,4 +1,3 @@
-import { getConfig } from '@expo/config';
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import { boolish } from 'getenv';
@@ -6,6 +5,7 @@ import resolveFrom from 'resolve-from';
 import semver from 'semver';
 
 import Log from '../log';
+import { getExpoConfig } from '../project/expoConfig';
 import { memoize } from './expodash/memoize';
 
 // Aggressively returns `true` (UNVERSIONED, invalid SDK version format) to push users towards the versioned CLI.
@@ -36,7 +36,7 @@ export function shouldUseVersionedExpoCLIExpensive(projectDir: string): boolean 
   try {
     // NOTE(EvanBacon): The CLI package could be available through a monorepo
     // we need to ensure the project is specifically using a known supported Expo SDK version.
-    const { sdkVersion } = getConfig(projectDir).exp;
+    const { sdkVersion } = getExpoConfig(projectDir);
 
     if (
       // If the version isn't defined then skip the check.

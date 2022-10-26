@@ -9,5 +9,5 @@ export function memoize<T extends (...args: any[]) => any>(fn: T): T {
     const result = fn(...args);
     cache[key] = result;
     return result;
-  }) as any;
+  }) as T;
 }
