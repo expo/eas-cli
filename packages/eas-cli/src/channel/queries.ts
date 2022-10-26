@@ -153,14 +153,13 @@ function renderPageOfChannels(
     printJsonOnlyOutput({ currentPage });
   } else {
     for (const channel of currentPage) {
+      renderChannelHeaderContent({ channelName: channel.name, channelId: channel.id });
       Log.addNewLineIfNone();
-      Log.log(
-        formatFields([
-          { label: 'Name', value: channel.name },
-          { label: 'ID', value: channel.id },
-        ])
-      );
       logChannelDetails(channel);
+
+      if (currentPage.indexOf(channel) < currentPage.length - 1) {
+        Log.log(`\n${chalk.dim('———')}\n`);
+      }
     }
   }
 }
@@ -174,13 +173,8 @@ function renderPageOfBranchesOnChannel(
   if (json) {
     printJsonOnlyOutput({ currentPage: channelWithNewBranches });
   } else {
+    // The channel details contain both the branch and latest update group
     Log.addNewLineIfNone();
-    Log.log(
-      formatFields([
-        { label: 'Name', value: channel.name },
-        { label: 'ID', value: channel.id },
-      ])
-    );
     logChannelDetails(channelWithNewBranches);
   }
 }
