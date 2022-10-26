@@ -89,7 +89,7 @@ export default class UpdateConfigure extends EasCommand {
 
     Log.addNewLineIfNone();
     Log.warn(
-      `If you have previously deployed this app to users, you will need to rebuild and submit a new version before you can update your app with EAS Update.`
+      `All builds of your app going forward will be eligible to receive updates published with EAS Update.`
     );
 
     Log.addNewLineIfNone();
