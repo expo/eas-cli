@@ -18,11 +18,9 @@ import {
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
 import {
-  UPDATE_COLUMNS,
   UPDATE_COLUMNS_WITH_BRANCH,
   formatUpdateGroup,
   formatUpdateTitle,
-  getUpdateGroupDescriptions,
   getUpdateGroupDescriptionsWithBranch,
 } from './utils';
 

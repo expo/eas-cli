@@ -40,6 +40,7 @@ export type FormattedUpdateGroupDescription = {
 
 export type FormattedBranchDescription = {
   branch: string;
+  branchRolloutPercentage?: number;
   update?: FormattedUpdateGroupDescription;
 };
 
@@ -65,9 +66,18 @@ export function formatUpdateGroup(update: FormattedUpdateGroupDescription): stri
   ]);
 }
 
-export function formatBranch({ branch, update }: FormattedBranchDescription): string {
+export function formatBranch({
+  branch,
+  branchRolloutPercentage,
+  update,
+}: FormattedBranchDescription): string {
+  const rolloutField = branchRolloutPercentage
+    ? [{ label: 'Rollout', value: `${branchRolloutPercentage}%` }]
+    : [];
+
   return formatFields([
     { label: 'Branch', value: branch },
+    ...rolloutField,
     { label: 'Platforms', value: update?.platforms ?? 'N/A' },
     { label: 'Runtime Version', value: update?.runtimeVersion ?? 'N/A' },
     { label: 'Message', value: update?.message ?? 'N/A' },
