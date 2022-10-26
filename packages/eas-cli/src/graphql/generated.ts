@@ -401,6 +401,7 @@ export type AccountSsoConfiguration = {
   issuer?: Maybe<Scalars['String']>;
   jwksEndpoint?: Maybe<Scalars['String']>;
   redirectUri: Scalars['String'];
+  revokeEndpoint?: Maybe<Scalars['String']>;
   tokenEndpoint?: Maybe<Scalars['String']>;
   updatedAt: Scalars['DateTime'];
   userInfoEndpoint?: Maybe<Scalars['String']>;
@@ -415,6 +416,7 @@ export type AccountSsoConfigurationData = {
   issuer?: InputMaybe<Scalars['String']>;
   jwksEndpoint?: InputMaybe<Scalars['String']>;
   redirectUri: Scalars['String'];
+  revokeEndpoint?: InputMaybe<Scalars['String']>;
   tokenEndpoint?: InputMaybe<Scalars['String']>;
   userInfoEndpoint?: InputMaybe<Scalars['String']>;
 };
@@ -457,6 +459,7 @@ export type AccountSsoConfigurationPublicData = {
   issuer?: Maybe<Scalars['String']>;
   jwksEndpoint?: Maybe<Scalars['String']>;
   redirectUri: Scalars['String'];
+  revokeEndpoint?: Maybe<Scalars['String']>;
   tokenEndpoint?: Maybe<Scalars['String']>;
   userInfoEndpoint?: Maybe<Scalars['String']>;
 };
