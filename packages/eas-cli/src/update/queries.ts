@@ -20,6 +20,7 @@ import {
 import {
   UPDATE_COLUMNS,
   UPDATE_COLUMNS_WITH_BRANCH,
+  formatUpdateGroup,
   formatUpdateTitle,
   getUpdateGroupDescriptions,
   getUpdateGroupDescriptionsWithBranch,
@@ -79,7 +80,7 @@ export async function listAndRenderUpdateGroupsOnBranchAsync(
       appId: projectId,
       branchName,
     });
-    renderUpdateGroupsOnBranchAsTable({ updateGroups, branchName, paginatedQueryOptions });
+    renderUpdateGroupsOnBranch({ updateGroups, branchName, paginatedQueryOptions });
   } else {
     await paginatedQueryWithConfirmPromptAsync({
       limit: paginatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
@@ -94,7 +95,7 @@ export async function listAndRenderUpdateGroupsOnBranchAsync(
       promptOptions: {
         title: 'Load more update groups?',
         renderListItems: updateGroups =>
-          renderUpdateGroupsOnBranchAsTable({ updateGroups, branchName, paginatedQueryOptions }),
+          renderUpdateGroupsOnBranch({ updateGroups, branchName, paginatedQueryOptions }),
       },
     });
   }
@@ -154,15 +155,16 @@ async function queryUpdateGroupsOnAppAsync(
   return await UpdateQuery.viewUpdateGroupsOnAppAsync(graphqlClient, args);
 }
 
-function renderUpdateGroupsOnBranchAsTable({
-  updateGroups,
+function renderUpdateGroupsOnBranch({
   branchName,
+  updateGroups,
   paginatedQueryOptions: { json },
 }: {
-  updateGroups: UpdateFragment[][];
   branchName: string;
+  updateGroups: UpdateFragment[][];
   paginatedQueryOptions: PaginatedQueryOptions;
 }): void {
+  // Ensure all updates are from the same branch
   const branchNames = updateGroups.flatMap(updateGroup =>
     updateGroup.map(update => update.branch.name)
   );
@@ -171,36 +173,32 @@ function renderUpdateGroupsOnBranchAsTable({
     'Each update must belong to the same branch.'
   );
 
+  const updateGroupDescriptions = getUpdateGroupDescriptionsWithBranch(updateGroups);
   const branch = {
     name: branchName,
     id: updateGroups[0]?.[0].branch.id ?? 'N/A',
   };
 
-  const updateGroupDescriptions = getUpdateGroupDescriptions(updateGroups);
-
   if (json) {
-    printJsonOnlyOutput({ ...branch, currentPage: updateGroupDescriptions });
-  } else {
-    const updateGroupsTable = new CliTable({
-      head: UPDATE_COLUMNS,
-      wordWrap: true,
-    });
-
-    updateGroupDescriptions.forEach(({ message, runtimeVersion, group, platforms }) => {
-      updateGroupsTable.push([message, runtimeVersion, group, platforms]);
-    });
-
-    Log.addNewLineIfNone();
-    Log.log(chalk.bold('Branch:'));
-    Log.log(
-      formatFields([
-        { label: 'Name', value: branch.name },
-        { label: 'ID', value: branch.id },
-      ])
-    );
-    Log.addNewLineIfNone();
-    Log.log(updateGroupsTable.toString());
+    return printJsonOnlyOutput({ ...branch, currentPage: updateGroupDescriptions });
   }
+
+  Log.addNewLineIfNone();
+  Log.log(chalk.bold('Branch:'));
+  Log.log(
+    formatFields([
+      { label: 'Name', value: branch.name },
+      { label: 'ID', value: branch.id },
+    ])
+  );
+  Log.newLine();
+  Log.log(chalk.bold('Recent update groups:'));
+  Log.newLine();
+  Log.log(
+    updateGroupDescriptions
+      .map(description => formatUpdateGroup(description))
+      .join(`\n\n${chalk.dim('———')}\n\n`)
+  );
 }
 
 function renderUpdateGroupsOnAppAsTable(
