@@ -4,12 +4,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import Log, { learnMore } from '../log';
-import {
-  ImageNonPngError,
-  ImageTransparencyError,
-  ensurePNGIsNotTransparentAsync,
-  isPNGAsync,
-} from '../utils/image';
+import { ImageTransparencyError, ensurePNGIsNotTransparentAsync, isPNGAsync } from '../utils/image';
 import { getVcsClient } from '../vcs';
 import { CommonContext } from './context';
 
@@ -66,52 +61,75 @@ export async function validateIconForManagedProjectAsync<T extends Platform>(
   }
 
   if (ctx.platform === Platform.ANDROID) {
-    await validateAndroidIconAsync(ctx as CommonContext<Platform.ANDROID>);
+    await validateAndroidPNGsAsync(ctx as CommonContext<Platform.ANDROID>);
   } else {
-    await validateIosIconAsync(ctx as CommonContext<Platform.IOS>);
+    await validateIosPNGsAsync(ctx as CommonContext<Platform.IOS>);
   }
 }
 
-async function validateAndroidIconAsync(ctx: CommonContext<Platform.ANDROID>): Promise<void> {
-  if (!ctx.exp.android?.adaptiveIcon?.foregroundImage) {
-    return;
-  }
+type ConfigPng = { configPath: string; pngPath: string | undefined };
 
-  const { foregroundImage } = ctx.exp.android.adaptiveIcon;
-  if (!foregroundImage.endsWith('.png')) {
-    Log.error(`The Android Adaptive Icon foreground image must be a PNG file.`);
-    Log.error(`"expo.android.adaptiveIcon.foregroundImage" = ${foregroundImage}`);
-    Errors.exit(1);
-  }
-
-  if (!(await isPNGAsync(foregroundImage))) {
-    Log.error(`The Android Adaptive Icon foreground image must be a PNG file.`);
-    Log.error(`${foregroundImage} is not valid PNG`);
-    Errors.exit(1);
-  }
+async function validateAndroidPNGsAsync(ctx: CommonContext<Platform.ANDROID>): Promise<void> {
+  const pngs: ConfigPng[] = [
+    {
+      configPath: 'exp.icon',
+      pngPath: ctx.exp.icon,
+    },
+    {
+      configPath: 'exp.android.icon',
+      pngPath: ctx.exp.android?.icon,
+    },
+    {
+      configPath: 'exp.android.adaptiveIcon.foregroundImage',
+      pngPath: ctx.exp.android?.adaptiveIcon?.foregroundImage,
+    },
+    {
+      configPath: 'exp.android.adaptiveIcon.backgroundImage',
+      pngPath: ctx.exp.android?.adaptiveIcon?.backgroundImage,
+    },
+    {
+      configPath: 'exp.splash.image',
+      pngPath: ctx.exp.splash?.image,
+    },
+    {
+      configPath: 'exp.notification.icon',
+      pngPath: ctx.exp.notification?.icon,
+    },
+  ];
+  await validatePNGsAsync(pngs);
 }
 
-async function validateIosIconAsync(ctx: CommonContext<Platform.IOS>): Promise<void> {
+async function validateIosPNGsAsync(ctx: CommonContext<Platform.IOS>): Promise<void> {
+  const pngs: ConfigPng[] = [
+    {
+      configPath: 'exp.icon',
+      pngPath: ctx.exp.icon,
+    },
+    {
+      configPath: 'exp.ios.icon',
+      pngPath: ctx.exp.ios?.icon,
+    },
+    {
+      configPath: 'exp.splash.image',
+      pngPath: ctx.exp.splash?.image,
+    },
+    {
+      configPath: 'exp.notification.icon',
+      pngPath: ctx.exp.notification?.icon,
+    },
+  ];
+  await validatePNGsAsync(pngs);
+
   const icon = ctx.exp.ios?.icon ?? ctx.exp.icon;
   if (!icon) {
     return;
   }
   const iconConfigPath = `expo${ctx.exp.ios?.icon ? '.ios' : ''}.icon`;
 
-  if (!icon.endsWith('.png')) {
-    Log.error(`The iOS app icon must be a PNG file.`);
-    Log.error(`"${iconConfigPath}" = ${icon}`);
-    Errors.exit(1);
-  }
-
   try {
     await ensurePNGIsNotTransparentAsync(icon);
   } catch (err: any) {
-    if (err instanceof ImageNonPngError) {
-      Log.error(`The iOS app icon must be a PNG file.`);
-      Log.error(`"${iconConfigPath}" = ${icon}`);
-      Errors.exit(1);
-    } else if (err instanceof ImageTransparencyError) {
+    if (err instanceof ImageTransparencyError) {
       Log.error(
         `Your iOS app icon (${iconConfigPath}) can't have transparency if you wish to upload your app to the Apple App Store.`
       );
@@ -120,5 +138,38 @@ async function validateIosIconAsync(ctx: CommonContext<Platform.IOS>): Promise<v
     } else {
       throw err;
     }
+  }
+}
+
+async function validatePNGsAsync(configPngs: ConfigPng[]): Promise<void> {
+  const validationPromises = configPngs.map(configPng => validatePNGAsync(configPng));
+  const validationResults = await Promise.allSettled(validationPromises);
+  const failedValidations = validationResults.filter(
+    (result): result is PromiseRejectedResult => result.status === 'rejected'
+  );
+
+  if (failedValidations.length === 0) {
+    return;
+  }
+
+  Log.error('PNG images validation failed:');
+  for (const { reason } of failedValidations) {
+    const error: Error = reason;
+    Log.error(`- ${error.message}`);
+  }
+  Errors.exit(1);
+}
+
+async function validatePNGAsync({ configPath, pngPath }: ConfigPng): Promise<void> {
+  if (!pngPath) {
+    return;
+  }
+
+  if (!pngPath.endsWith('.png')) {
+    throw new Error(`"${configPath}" is not a PNG file`);
+  }
+
+  if (!(await isPNGAsync(pngPath))) {
+    throw new Error(`"${configPath}" is not valid PNG`);
   }
 }

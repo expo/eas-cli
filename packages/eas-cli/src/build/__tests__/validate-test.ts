@@ -61,7 +61,7 @@ describe(validateIconForManagedProjectAsync, () => {
   });
 
   describe(Platform.IOS, () => {
-    it('exits if foregroundImage is not a file with .png extension', async () => {
+    it('exits if icon is not a file with .png extension', async () => {
       const ctxMock = mock<CommonContext<Platform.IOS>>();
       when(ctxMock.workflow).thenReturn(Workflow.MANAGED);
       when(ctxMock.platform).thenReturn(Platform.IOS);
