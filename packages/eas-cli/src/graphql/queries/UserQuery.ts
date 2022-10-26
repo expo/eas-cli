@@ -36,7 +36,7 @@ export const UserQuery = {
             }
             ${print(AccountFragmentNode)}
           `,
-          /* variables */ undefined,
+          {},
           {
             additionalTypenames: ['User'],
           }

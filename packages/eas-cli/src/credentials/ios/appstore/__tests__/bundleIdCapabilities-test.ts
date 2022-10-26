@@ -254,7 +254,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
     ]);
 
     expect(results.enabled).toMatchInlineSnapshot(`
-      Array [
+      [
         "HealthKit",
         "Apple Pay Payment Processing",
         "iCloud",

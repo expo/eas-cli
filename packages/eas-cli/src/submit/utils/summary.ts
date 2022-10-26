@@ -61,7 +61,7 @@ export function formatArchiveSourceSummary({ source, build }: Archive): ArchiveS
   return summarySlice;
 }
 
-export function printSummary<T>(summary: T, keyMap: Record<keyof T, string>): void {
+export function printSummary<T extends object>(summary: T, keyMap: Record<keyof T, string>): void {
   const fields = [];
   for (const [key, value] of Object.entries(summary)) {
     const label = `${keyMap[key as keyof T]}:`;
