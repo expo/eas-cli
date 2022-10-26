@@ -1,6 +1,5 @@
 import assert from 'assert';
 import chalk from 'chalk';
-import CliTable from 'cli-table3';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
@@ -18,7 +17,7 @@ import {
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
 import {
-  UPDATE_COLUMNS_WITH_BRANCH,
+  formatBranch,
   formatUpdateGroup,
   formatUpdateTitle,
   getUpdateGroupDescriptionsWithBranch,
@@ -43,7 +42,7 @@ export async function listAndRenderUpdateGroupsOnAppAsync(
       offset: paginatedQueryOptions.offset,
       appId: projectId,
     });
-    renderUpdateGroupsOnAppAsTable(updateGroups, paginatedQueryOptions);
+    renderUpdateGroupsOnApp({ updateGroups, paginatedQueryOptions });
   } else {
     await paginatedQueryWithConfirmPromptAsync({
       limit: paginatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
@@ -53,7 +52,7 @@ export async function listAndRenderUpdateGroupsOnAppAsync(
       promptOptions: {
         title: 'Load more update groups?',
         renderListItems: updateGroups =>
-          renderUpdateGroupsOnAppAsTable(updateGroups, paginatedQueryOptions),
+          renderUpdateGroupsOnApp({ updateGroups, paginatedQueryOptions }),
       },
     });
   }
@@ -199,27 +198,30 @@ function renderUpdateGroupsOnBranch({
   );
 }
 
-function renderUpdateGroupsOnAppAsTable(
-  updateGroups: UpdateFragment[][],
-  { json }: PaginatedQueryOptions
-): void {
+function renderUpdateGroupsOnApp({
+  updateGroups,
+  paginatedQueryOptions: { json },
+}: {
+  updateGroups: UpdateFragment[][];
+  paginatedQueryOptions: PaginatedQueryOptions;
+}): void {
   const updateGroupDescriptions = getUpdateGroupDescriptionsWithBranch(updateGroups);
 
   if (json) {
     printJsonOnlyOutput({ currentPage: updateGroupDescriptions });
-  } else {
-    const updateGroupsTable = new CliTable({
-      head: UPDATE_COLUMNS_WITH_BRANCH,
-      wordWrap: true,
-    });
-
-    updateGroupDescriptions.forEach(({ branch, message, runtimeVersion, group, platforms }) => {
-      updateGroupsTable.push([branch, message, runtimeVersion, group, platforms]);
-    });
-
-    Log.addNewLineIfNone();
-    Log.log(chalk.bold('Recent update groups:'));
-    Log.addNewLineIfNone();
-    Log.log(updateGroupsTable.toString());
   }
+
+  Log.addNewLineIfNone();
+  Log.log(chalk.bold('Recent update groups:'));
+  Log.newLine();
+  Log.log(
+    updateGroupDescriptions
+      .map(({ branch, ...update }) =>
+        formatBranch({
+          branch,
+          update,
+        })
+      )
+      .join(`\n\n${chalk.dim('———')}\n\n`)
+  );
 }
