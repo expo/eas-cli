@@ -88,6 +88,11 @@ export default class UpdateConfigure extends EasCommand {
     }
 
     Log.addNewLineIfNone();
+    Log.warn(
+      `All builds of your app going forward will be eligible to receive updates published with EAS Update.`
+    );
+
+    Log.addNewLineIfNone();
     Log.log(`🎉 Your app is configured to run EAS Update!`);
   }
 }
