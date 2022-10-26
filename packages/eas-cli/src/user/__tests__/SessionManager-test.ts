@@ -142,11 +142,11 @@ describe(SessionManager, () => {
       await sessionManager['loginAsync']({ username: 'USERNAME', password: 'PASSWORD' });
       expect(await fs.readFile(getStateJsonPath(), 'utf8')).toMatchInlineSnapshot(`
         "{
-          \\"auth\\": {
-            \\"sessionSecret\\": \\"SESSION_SECRET\\",
-            \\"userId\\": \\"USER_ID\\",
-            \\"username\\": \\"USERNAME\\",
-            \\"currentConnection\\": \\"Username-Password-Authentication\\"
+          "auth": {
+            "sessionSecret": "SESSION_SECRET",
+            "userId": "USER_ID",
+            "username": "USERNAME",
+            "currentConnection": "Username-Password-Authentication"
           }
         }
         "
