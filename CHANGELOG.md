@@ -20,6 +20,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Replace `device:create` input table with formatted fields. ([#1465](https://github.com/expo/eas-cli/pull/1465) by [@byCedric](https://github.com/byCedric))
 - Replace `channel:view` table with formatted fields. ([#1466](https://github.com/expo/eas-cli/pull/1466) by [@byCedric](https://github.com/byCedric))
 - Upgrade dependencies. ([#1480](https://github.com/expo/eas-cli/pull/1480) by [@dsokal](https://github.com/dsokal))
+- Replace all remaining tables with formatted fields. ([#1481](https://github.com/expo/eas-cli/pull/1481) by [@byCedric](https://github.com/byCedric))
 
 ## [2.5.1](https://github.com/expo/eas-cli/releases/tag/v2.5.1) - 2022-10-24
 
