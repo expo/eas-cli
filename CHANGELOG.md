@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Add custom metadata validation command with more complex rules. ([#1416](https://github.com/expo/eas-cli/pull/1416) by [@byCedric](https://github.com/byCedric))
 - Use local CLI for `expo export` in SDK +46. ([#1474](https://github.com/expo/eas-cli/pull/1474) by [@EvanBacon](https://github.com/EvanBacon))
+- Add `eas build:run` command which runs iOS simulator builds from the CLI. ([#1447](https://github.com/expo/eas-cli/pull/1447) by [@szdziedzic](https://github.com/szdziedzic))
+- Add feature gate support. ([#1475](https://github.com/expo/eas-cli/pull/1475) by [@wschurman](https://github.com/wschurman))
 
 ### 🐛 Bug fixes
 
@@ -18,6 +20,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Replace `secret:list` table with formatted fields. ([#1464](https://github.com/expo/eas-cli/pull/1464) by [@byCedric](https://github.com/byCedric))
 - Replace `device:create` input table with formatted fields. ([#1465](https://github.com/expo/eas-cli/pull/1465) by [@byCedric](https://github.com/byCedric))
 - Replace `channel:view` table with formatted fields. ([#1466](https://github.com/expo/eas-cli/pull/1466) by [@byCedric](https://github.com/byCedric))
+- Upgrade dependencies. ([#1480](https://github.com/expo/eas-cli/pull/1480) by [@dsokal](https://github.com/dsokal))
 
 ## [2.5.1](https://github.com/expo/eas-cli/releases/tag/v2.5.1) - 2022-10-24
 

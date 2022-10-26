@@ -9,13 +9,10 @@ import {
   getLimitFlagWithCustomValues,
   getPaginatedQueryOptions,
 } from '../../commandUtils/pagination';
-import {
-  AppPlatform,
-  DistributionType,
-  BuildStatus as GraphQLBuildStatus,
-} from '../../graphql/generated';
+import { AppPlatform, BuildStatus as GraphQLBuildStatus } from '../../graphql/generated';
 import { RequestedPlatform } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
+import { buildDistributionTypeToGraphQLDistributionType } from '../../utils/buildDistribution';
 import { enableJsonOutput } from '../../utils/json';
 
 export default class BuildList extends EasCommand {
@@ -82,7 +79,8 @@ export default class BuildList extends EasCommand {
 
     const platform = toAppPlatform(requestedPlatform);
     const graphqlBuildStatus = toGraphQLBuildStatus(buildStatus);
-    const graphqlBuildDistribution = toGraphQLBuildDistribution(buildDistribution);
+    const graphqlBuildDistribution =
+      buildDistributionTypeToGraphQLDistributionType(buildDistribution);
     const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
     await listAndRenderBuildsOnAppAsync(graphqlClient, {
@@ -131,19 +129,5 @@ const toGraphQLBuildStatus = (buildStatus?: BuildStatus): GraphQLBuildStatus | u
     return GraphQLBuildStatus.Finished;
   } else {
     return GraphQLBuildStatus.Canceled;
-  }
-};
-
-const toGraphQLBuildDistribution = (
-  buildDistribution?: BuildDistributionType
-): DistributionType | undefined => {
-  if (buildDistribution === BuildDistributionType.STORE) {
-    return DistributionType.Store;
-  } else if (buildDistribution === BuildDistributionType.INTERNAL) {
-    return DistributionType.Internal;
-  } else if (buildDistribution === BuildDistributionType.SIMULATOR) {
-    return DistributionType.Simulator;
-  } else {
-    return undefined;
   }
 };

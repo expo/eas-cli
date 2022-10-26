@@ -2,11 +2,11 @@
 
 exports[`EasJsonAccessor patching JSON file 1`] = `
 "{
-  \\"build\\": {
-    \\"production\\": {
-      \\"env\\": {
-        \\"TEST\\": \\"123\\",
-        \\"ABC\\": \\"456\\"
+  "build": {
+    "production": {
+      "env": {
+        "TEST": "123",
+        "ABC": "456"
       }
     }
   }
@@ -16,12 +16,12 @@ exports[`EasJsonAccessor patching JSON file 1`] = `
 
 exports[`EasJsonAccessor patching JSON5 file (preserves comments) 1`] = `
 "{
-  \\"build\\": {
-    \\"production\\": {
+  "build": {
+    "production": {
       // comment
-      \\"env\\": {
-        \\"TEST\\": \\"123\\",
-        ABC: \\"456\\"
+      "env": {
+        "TEST": "123",
+        ABC: "456"
       }
     }
   }

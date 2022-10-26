@@ -18,7 +18,8 @@ export const KeystoreGenerationUrlMutation = {
                 }
               }
             }
-          `
+          `,
+          {}
         )
         .toPromise()
     );

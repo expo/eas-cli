@@ -2275,6 +2275,18 @@
             "deprecationReason": null
           },
           {
+            "name": "revokeEndpoint",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "tokenEndpoint",
             "description": "",
             "args": [],
@@ -2437,6 +2449,18 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "revokeEndpoint",
+            "description": "",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -2730,6 +2754,18 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "revokeEndpoint",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -11914,6 +11950,18 @@
             "deprecationReason": null
           },
           {
+            "name": "actualResourceClass",
+            "description": "The actual resource class of the builder assigned to the build job",
+            "args": [],
+            "type": {
+              "kind": "ENUM",
+              "name": "BuildResourceClass",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "appBuildVersion",
             "description": "",
             "args": [],
@@ -12391,12 +12439,16 @@
           },
           {
             "name": "resourceClass",
-            "description": "",
+            "description": "The builder resource class requested by the developer",
             "args": [],
             "type": {
-              "kind": "ENUM",
-              "name": "BuildResourceClass",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "BuildResourceClass",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -15407,6 +15459,18 @@
             "deprecationReason": null
           },
           {
+            "name": "archiveSource",
+            "description": "",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "SubmissionArchiveSourceInput",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "archiveUrl",
             "description": "",
             "type": {
@@ -15641,6 +15705,22 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "nodeIdentifier",
+            "description": "",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "interfaces": null,
@@ -15707,6 +15787,18 @@
                 "name": "ID",
                 "ofType": null
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "archiveSource",
+            "description": "",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "SubmissionArchiveSourceInput",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -16056,6 +16148,60 @@
       {
         "kind": "OBJECT",
         "name": "DeleteGoogleServiceAccountKeyResult",
+        "description": "",
+        "fields": [
+          {
+            "name": "id",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "DeleteIosAppBuildCredentialsResult",
+        "description": "",
+        "fields": [
+          {
+            "name": "id",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "DeleteIosAppCredentialsResult",
         "description": "",
         "fields": [
           {
@@ -17284,7 +17430,7 @@
                   "name": "Int",
                   "ofType": null
                 },
-                "defaultValue": "1",
+                "defaultValue": null,
                 "isDeprecated": false,
                 "deprecationReason": null
               },
@@ -17296,7 +17442,7 @@
                   "name": "Int",
                   "ofType": null
                 },
-                "defaultValue": "50",
+                "defaultValue": null,
                 "isDeprecated": false,
                 "deprecationReason": null
               }
@@ -17305,17 +17451,9 @@
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "GitHubAppInstallationAccessibleRepository",
-                    "ofType": null
-                  }
-                }
+                "kind": "OBJECT",
+                "name": "GitHubRepositoryPaginationResult",
+                "ofType": null
               }
             },
             "isDeprecated": false,
@@ -17454,6 +17592,22 @@
           },
           {
             "name": "name",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "nodeId",
             "description": "",
             "args": [],
             "type": {
@@ -17717,6 +17871,39 @@
             "deprecationReason": null
           },
           {
+            "name": "installation",
+            "description": "",
+            "args": [
+              {
+                "name": "id",
+                "description": "",
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "GitHubAppInstallation",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "searchRepositories",
             "description": "",
             "args": [
@@ -17733,30 +17920,6 @@
                   }
                 },
                 "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "page",
-                "description": "",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": "1",
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "perPage",
-                "description": "",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": "50",
                 "isDeprecated": false,
                 "deprecationReason": null
               },
@@ -17781,17 +17944,9 @@
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "GitHubAppInstallationAccessibleRepository",
-                    "ofType": null
-                  }
-                }
+                "kind": "OBJECT",
+                "name": "GitHubRepositoryPaginationResult",
+                "ofType": null
               }
             },
             "isDeprecated": false,
@@ -17880,6 +18035,22 @@
               "kind": "OBJECT",
               "name": "GitHubRepositoryMetadata",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "nodeIdentifier",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -18149,6 +18320,57 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "GitHubRepositoryPaginationResult",
+        "description": "",
+        "fields": [
+          {
+            "name": "repositories",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "GitHubAppInstallationAccessibleRepository",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "totalCount",
+            "description": "",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
                 "ofType": null
               }
             },
@@ -19475,6 +19697,39 @@
             "deprecationReason": null
           },
           {
+            "name": "deleteIosAppBuildCredentials",
+            "description": "Disassociate the build credentials from an iOS app",
+            "args": [
+              {
+                "name": "id",
+                "description": "",
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "DeleteIosAppBuildCredentialsResult",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "setDistributionCertificate",
             "description": "Set the distribution certificate to be used for an iOS app",
             "args": [
@@ -19888,6 +20143,39 @@
             "deprecationReason": null
           },
           {
+            "name": "deleteIosAppCredentials",
+            "description": "Delete a set of credentials for an iOS app",
+            "args": [
+              {
+                "name": "id",
+                "description": "",
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "DeleteIosAppCredentialsResult",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "setAppStoreConnectApiKeyForSubmissions",
             "description": "Set the App Store Connect Api Key to be used for submitting an iOS app",
             "args": [
@@ -19958,6 +20246,50 @@
               },
               {
                 "name": "pushKeyId",
+                "description": "",
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "IosAppCredentials",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "IosAppCredentialsQuery",
+        "description": "",
+        "fields": [
+          {
+            "name": "byId",
+            "description": "",
+            "args": [
+              {
+                "name": "iosAppCredentialsId",
                 "description": "",
                 "type": {
                   "kind": "NON_NULL",
@@ -24395,6 +24727,22 @@
             "deprecationReason": null
           },
           {
+            "name": "iosAppCredentials",
+            "description": "Top-level query object for querying IosAppCredentials.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "IosAppCredentialsQuery",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "me",
             "description": "If authenticated as a typical end user, this is the appropriate top-level\nquery object",
             "args": [],
@@ -26445,6 +26793,86 @@
         "possibleTypes": null
       },
       {
+        "kind": "INPUT_OBJECT",
+        "name": "SubmissionArchiveSourceInput",
+        "description": "",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "bucketKey",
+            "description": "Required if the archive source type is GCS_BUILD_APPLICATION_ARCHIVE or GCS_SUBMIT_ARCHIVE",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "type",
+            "description": "",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "SubmissionArchiveSourceType",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "url",
+            "description": "Required if the archive source type is URL",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "SubmissionArchiveSourceType",
+        "description": "",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "GCS_BUILD_APPLICATION_ARCHIVE",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "GCS_SUBMIT_ARCHIVE",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "URL",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
         "kind": "OBJECT",
         "name": "SubmissionError",
         "description": "",
@@ -28223,6 +28651,12 @@
         "interfaces": null,
         "enumValues": [
           {
+            "name": "EAS_BUILD_GCS_PROJECT_SOURCES",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "EAS_BUILD_PROJECT_SOURCES",
             "description": "",
             "isDeprecated": false,
@@ -28230,6 +28664,12 @@
           },
           {
             "name": "EAS_SUBMIT_APP_ARCHIVE",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "EAS_SUBMIT_GCS_APP_ARCHIVE",
             "description": "",
             "isDeprecated": false,
             "deprecationReason": null

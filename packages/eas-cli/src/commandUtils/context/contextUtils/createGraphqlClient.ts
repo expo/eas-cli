@@ -1,4 +1,5 @@
 import {
+  AnyVariables,
   Client,
   OperationContext,
   OperationResult,
@@ -17,9 +18,9 @@ import { getExpoApiBaseUrl } from '../../../api';
 import { httpsProxyAgent } from '../../../fetch';
 
 export interface ExpoGraphqlClient extends Client {
-  query<Data = any, Variables extends object = object>(
+  query<Data = any, Variables extends AnyVariables = AnyVariables>(
     query: DocumentNode | TypedDocumentNode<Data, Variables> | string,
-    variables: Variables | undefined,
+    variables: Variables,
     context: Partial<OperationContext> & { additionalTypenames: string[] }
   ): PromisifiedSource<OperationResult<Data, Variables>>;
 }

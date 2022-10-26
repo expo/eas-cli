@@ -48,11 +48,11 @@ export function subscribeTelemetry(
         type: 'response',
         phase: 'rejected',
         method: error.request.method.toUpperCase(),
-        url: scrubber(error.config.url),
+        url: scrubber(error.config?.url),
         error: scrubber(error.message),
         status: String(error.response?.status),
         statusText: scrubber(error.response?.statusText),
-        input: scrubber(error.config.data),
+        input: scrubber(error.config?.data),
         output: scrubber(error.response?.data),
       });
 
