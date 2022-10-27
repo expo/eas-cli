@@ -2,7 +2,7 @@ import chalk from 'chalk';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
-import { BuildFilter, BuildFragment } from '../graphql/generated';
+import { AppPlatform, BuildFilter, BuildFragment } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log from '../log';
 import { appPlatformDisplayNames } from '../platform';
@@ -87,7 +87,9 @@ export async function listAndSelectBuildsOnAppAsync(
     choices: builds.map(build => ({
       title: `id: ${build.id}, platform: ${appPlatformDisplayNames[build.platform]}, version: ${
         build.appVersion
-      }, build number: ${build.appBuildVersion}`,
+      }, ${build.platform === AppPlatform.Ios ? 'buildNumber' : 'versionCode'}: ${
+        build.appBuildVersion
+      }`,
       value: build,
     })),
   });

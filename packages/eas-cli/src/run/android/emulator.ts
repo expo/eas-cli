@@ -27,7 +27,13 @@ function getEmulatorExecutable(): string {
 }
 
 async function emulatorAsync(...options: string[]): Promise<SpawnResult> {
-  return await spawnAsync(emulatorExecutable, options);
+  try {
+    return await spawnAsync(emulatorExecutable, options);
+  } catch (error: any) {
+    const errorMessage = (error.stderr || error.stdout || error.message).trim();
+    error.message = errorMessage;
+    throw error;
+  }
 }
 
 async function getAvaliableAndroidEmulatorsAsync(): Promise<AndroidEmulator[]> {

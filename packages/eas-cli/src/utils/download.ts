@@ -104,7 +104,7 @@ export async function downloadAndExtractAppAsync(
 
   if (platform === AppPlatform.Android) {
     const apkFilePath = path.join(outputDir, `${uuidv4()}.apk`);
-    await downloadFileWithProgressBarAsync(url, apkFilePath, 'Downloading app archive...');
+    await downloadFileWithProgressBarAsync(url, apkFilePath, 'Downloading app...');
     return apkFilePath;
   } else {
     const tmpArchivePathDir = path.join(getTmpDirectory(), uuidv4());

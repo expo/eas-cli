@@ -49,7 +49,7 @@ export default class Run extends EasCommand {
       exclusive: ['latest', 'id', 'path'],
     }),
     path: Flags.string({
-      description: 'Path to the simulator/emulator build archive or simulator build app',
+      description: 'Path to the simulator/emulator build archive or app',
       exclusive: ['latest', 'id', 'url'],
     }),
     id: Flags.string({

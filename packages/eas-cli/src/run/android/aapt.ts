@@ -5,7 +5,13 @@ import Log from '../../log';
 import { sdkRoot } from './sdk';
 
 async function aaptAsync(...options: string[]): Promise<SpawnResult> {
-  return await spawnAsync(await getAaptExecutableAsync(), options);
+  try {
+    return await spawnAsync(await getAaptExecutableAsync(), options);
+  } catch (error: any) {
+    const errorMessage = (error.stderr || error.stdout || error.message).trim();
+    error.message = errorMessage;
+    throw error;
+  }
 }
 
 export async function getAaptExecutableAsync(): Promise<string> {
