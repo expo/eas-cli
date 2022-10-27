@@ -34,3 +34,13 @@ export async function resolveWorkflowAsync(
   }
   return Workflow.MANAGED;
 }
+
+export async function resolveWorkflowPerPlatformAsync(
+  projectDir: string
+): Promise<Record<Platform, Workflow>> {
+  const [android, ios] = await Promise.all([
+    resolveWorkflowAsync(projectDir, Platform.ANDROID),
+    resolveWorkflowAsync(projectDir, Platform.IOS),
+  ]);
+  return { android, ios };
+}

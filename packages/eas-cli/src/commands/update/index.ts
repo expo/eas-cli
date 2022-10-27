@@ -11,6 +11,7 @@ import { selectBranchOnAppAsync } from '../../branch/queries';
 import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
+import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
@@ -28,6 +29,7 @@ import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
+import { RequestedPlatform, requestedPlatformDisplayNames } from '../../platform';
 import {
   getOwnerAccountForProjectIdAsync,
   installExpoUpdatesAsync,
@@ -41,8 +43,8 @@ import {
   isUploadedAssetCountAboveWarningThreshold,
   uploadAssetsAsync,
 } from '../../project/publish';
-import { resolveWorkflowAsync } from '../../project/workflow';
-import { confirmAsync, promptAsync } from '../../prompts';
+import { resolveWorkflowAsync, resolveWorkflowPerPlatformAsync } from '../../project/workflow';
+import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 import { formatUpdateMessage } from '../../update/utils';
 import {
@@ -57,6 +59,10 @@ import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 import { getVcsClient } from '../../vcs';
 import { createUpdateBranchOnAppAsync } from '../branch/create';
 import { createUpdateChannelOnAppAsync } from '../channel/create';
+import {
+  configureAppJSONForEASUpdateAsync,
+  configureNativeFilesForEASUpdateAsync,
+} from './configure';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
 export type PublishPlatformFlag = PublishPlatform | 'all';
@@ -209,7 +215,11 @@ export default class UpdatePublish extends EasCommand {
     // If a group was specified, that means we are republishing it.
     republish = republish || !!group;
 
-    const { exp, projectId, projectDir } = await getDynamicProjectConfigAsync({
+    const {
+      exp: expBeforeRuntimeVersionUpdate,
+      projectId,
+      projectDir,
+    } = await getDynamicProjectConfigAsync({
       isPublicConfig: true,
     });
 
@@ -221,7 +231,10 @@ export default class UpdatePublish extends EasCommand {
 
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 
-    const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion);
+    const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
+      projectDir,
+      expBeforeRuntimeVersionUpdate.sdkVersion
+    );
     if (!hasExpoUpdates && nonInteractive) {
       Errors.error(
         `${chalk.bold(
@@ -245,7 +258,16 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
+    const [runtimeVersions, exp] = await getRuntimeVersionObjectAsync(
+      expBeforeRuntimeVersionUpdate,
+      platformFlag,
+      projectDir,
+      projectId,
+      nonInteractive,
+      graphqlClient,
+      getDynamicProjectConfigAsync
+    );
+
     await checkEASUpdateURLIsSetAsync(exp, projectId);
 
     if (!branchName) {
@@ -327,7 +349,7 @@ export default class UpdatePublish extends EasCommand {
         if (updatesToRepublishFilteredByPlatform.length !== defaultPublishPlatforms.length) {
           Log.warn(`You are republishing an update that wasn't published for all platforms.`);
         }
-        publicationPlatformMessage = `The republished update will appear on the same plaforms it was originally published on: ${updatesToRepublishFilteredByPlatform
+        publicationPlatformMessage = `The republished update will appear on the same platforms it was originally published on: ${updatesToRepublishFilteredByPlatform
           .map(update => update.platform)
           .join(', ')}`;
       } else {
@@ -579,11 +601,29 @@ export default class UpdatePublish extends EasCommand {
   }
 }
 
+function transformRuntimeVersions(exp: ExpoConfig, platforms: Platform[]): Record<string, string> {
+  return Object.fromEntries(
+    platforms.map(platform => [
+      platform,
+      nullthrows(
+        Updates.getRuntimeVersion(exp, platform),
+        `Unable to determine runtime version for ${
+          requestedPlatformDisplayNames[platform]
+        }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
+      ),
+    ])
+  );
+}
+
 async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
   platformFlag: PublishPlatformFlag,
-  projectDir: string
-): Promise<Record<string, string>> {
+  projectDir: string,
+  projectId: string,
+  nonInteractive: boolean,
+  graphqlClient: ExpoGraphqlClient,
+  getDynamicProjectConfigAsync: DynamicConfigContextFn
+): Promise<[Record<string, string>, ExpoConfig]> {
   const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
 
   for (const platform of platforms) {
@@ -598,15 +638,68 @@ async function getRuntimeVersionObjectAsync(
     }
   }
 
-  return Object.fromEntries(
-    platforms.map(platform => [
-      platform,
-      nullthrows(
-        Updates.getRuntimeVersion(exp, platform),
-        `Unable to determine runtime version for ${platform}`
-      ),
-    ])
-  );
+  try {
+    return [transformRuntimeVersions(exp, platforms), exp];
+  } catch (error: any) {
+    if (nonInteractive) {
+      throw error;
+    }
+
+    Log.fail(error.message);
+
+    const runConfig = await selectAsync(
+      `Configure runtime version in ${chalk.bold('app.json')} automatically for EAS Update?`,
+      [
+        { title: 'Yes', value: true },
+        {
+          title: 'No, I will set the runtime version manually (EAS CLI exits)',
+          value: false,
+        },
+      ]
+    );
+
+    if (!runConfig) {
+      Errors.exit(1);
+    }
+
+    const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
+    await configureAppJSONForEASUpdateAsync({
+      exp,
+      projectDir,
+      projectId,
+      platform: platformFlag as RequestedPlatform,
+      workflows,
+    });
+
+    const newConfig: ExpoConfig = (await getDynamicProjectConfigAsync({ isPublicConfig: true }))
+      .exp;
+
+    await configureNativeFilesForEASUpdateAsync({
+      exp: newConfig,
+      projectDir,
+      projectId,
+      platform: platformFlag as RequestedPlatform,
+      workflows,
+      graphqlClient,
+    });
+
+    const continueWithChanges = await selectAsync(
+      `Continue update process with uncommitted changes in repository?`,
+      [
+        { title: 'Yes', value: true },
+        {
+          title: 'No, I will commit the modified files first (EAS CLI exits)',
+          value: false,
+        },
+      ]
+    );
+
+    if (!continueWithChanges) {
+      Errors.exit(1);
+    }
+
+    return [transformRuntimeVersions(newConfig, platforms), newConfig];
+  }
 }
 
 async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig, projectId: string): Promise<void> {
