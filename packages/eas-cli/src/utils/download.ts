@@ -95,7 +95,7 @@ async function downloadFileWithProgressBarAsync(
   await pipeline(response.body, fs.createWriteStream(outputPath));
 }
 
-export async function downloadAndExtractAppAsync(
+export async function downloadAndMaybeExtractAppAsync(
   url: string,
   platform: AppPlatform
 ): Promise<string> {

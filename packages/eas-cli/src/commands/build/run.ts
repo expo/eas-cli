@@ -15,7 +15,10 @@ import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { RunArchiveFlags, runAsync } from '../../run/run';
-import { downloadAndExtractAppAsync, extractAppFromLocalArchiveAsync } from '../../utils/download';
+import {
+  downloadAndMaybeExtractAppAsync,
+  extractAppFromLocalArchiveAsync,
+} from '../../utils/download';
 
 interface RawRunFlags {
   latest?: boolean;
@@ -191,14 +194,14 @@ async function getPathToSimulatorBuildAppAsync(
       throw new Error('Build does not have an application archive url');
     }
 
-    return await downloadAndExtractAppAsync(
+    return await downloadAndMaybeExtractAppAsync(
       maybeBuild.artifacts.applicationArchiveUrl,
       flags.selectedPlatform
     );
   }
 
   if (flags.runArchiveFlags.url) {
-    return await downloadAndExtractAppAsync(flags.runArchiveFlags.url, flags.selectedPlatform);
+    return await downloadAndMaybeExtractAppAsync(flags.runArchiveFlags.url, flags.selectedPlatform);
   }
 
   if (flags.runArchiveFlags.path?.endsWith('.tar.gz')) {
