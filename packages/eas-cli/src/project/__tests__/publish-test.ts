@@ -16,7 +16,9 @@ import {
   convertAssetToUpdateInfoGroupFormatAsync,
   filterExportedPlatformsByFlag,
   filterOutAssetsThatAlreadyExistAsync,
+  getAssetHashFromPath,
   getBase64URLEncoding,
+  getOriginalPathFromAssetMap,
   getStorageKey,
   getStorageKeyForAssetAsync,
   guessContentTypeFromExtension,
@@ -279,6 +281,52 @@ describe(resolveInputDirectoryAsync, () => {
   });
 });
 
+describe(getAssetHashFromPath, () => {
+  it('returns asset hash from path', () => {
+    expect(getAssetHashFromPath('assets/5b2a819c71d035ca45d223e4c47ed4f9')).toBe(
+      '5b2a819c71d035ca45d223e4c47ed4f9'
+    );
+  });
+  it('returns null for incorrect path', () => {
+    expect(getAssetHashFromPath('assets/this/is/not/a/hash.jpg')).toBeNull();
+  });
+});
+
+describe(getOriginalPathFromAssetMap, () => {
+  // Partial assetmap.json, with only fields we need
+  const fakeAssetMap = {
+    '5b2a819c71d035ca45d223e4c47ed4f9': {
+      httpServerLocation: '/assets/src/assets',
+      name: 'asset-420',
+      type: 'jpg',
+    },
+  };
+  it('returns built path when asset map is null', () => {
+    expect(
+      getOriginalPathFromAssetMap(null, {
+        path: 'assets/5b2a819c71d035ca45d223e4c47ed4f9',
+        ext: 'jpg',
+      })
+    ).toBe('assets/5b2a819c71d035ca45d223e4c47ed4f9.jpg');
+  });
+  it('returns built path when asset is not found in asset map', () => {
+    expect(
+      getOriginalPathFromAssetMap(fakeAssetMap, {
+        path: 'assets/fb64d3b2fb71b3d739ad5c13a93e12c5',
+        ext: 'jpg',
+      })
+    ).toBe('assets/fb64d3b2fb71b3d739ad5c13a93e12c5.jpg');
+  });
+  it('returns reconstructed original path from existing asset in asset map', () => {
+    expect(
+      getOriginalPathFromAssetMap(fakeAssetMap, {
+        path: 'assets/5b2a819c71d035ca45d223e4c47ed4f9',
+        ext: 'jpg',
+      })
+    ).toBe('/src/assets/asset-420.jpg');
+  });
+});
+
 describe(collectAssetsAsync, () => {
   it('builds an update info group', async () => {
     const fakeHash = 'md5-hash-of-jpg';
@@ -294,6 +342,7 @@ describe(collectAssetsAsync, () => {
         fileExtension: '.jpg',
         contentType: 'image/jpeg',
         path: `${inputDir}/assets/${fakeHash}`,
+        originalPath: `assets/${fakeHash}.jpg`,
       },
     ];
 
@@ -410,6 +459,7 @@ describe(uploadAssetsAsync, () => {
   const androidBundlePath = uuidv4();
   const iosBundlePath = uuidv4();
   const dummyFilePath = uuidv4();
+  const dummyOriginalFilePath = uuidv4();
   const userDefinedPath = uuidv4();
   const testProjectId = uuidv4();
   const expectedAssetLimit = 1400;
@@ -427,7 +477,15 @@ describe(uploadAssetsAsync, () => {
         contentType: 'application/javascript',
         path: androidBundlePath,
       },
-      assets: [userDefinedAsset, { type: 'jpg', contentType: 'image/jpeg', path: dummyFilePath }],
+      assets: [
+        userDefinedAsset,
+        {
+          type: 'jpg',
+          contentType: 'image/jpeg',
+          path: dummyFilePath,
+          originalPath: dummyOriginalFilePath,
+        },
+      ],
     },
     ios: {
       launchAsset: {
@@ -435,7 +493,15 @@ describe(uploadAssetsAsync, () => {
         contentType: 'application/javascript',
         path: androidBundlePath,
       },
-      assets: [userDefinedAsset, { type: 'jpg', contentType: 'image/jpeg', path: dummyFilePath }],
+      assets: [
+        userDefinedAsset,
+        {
+          type: 'jpg',
+          contentType: 'image/jpeg',
+          path: dummyFilePath,
+          originalPath: dummyOriginalFilePath,
+        },
+      ],
     },
   };
 
@@ -490,8 +556,10 @@ describe(uploadAssetsAsync, () => {
       uploadAssetsAsync(graphqlClient, assetsForUpdateInfoGroup, testProjectId)
     ).resolves.toEqual({
       assetCount: 6,
+      launchAssetCount: 2,
       uniqueAssetCount: 3,
       uniqueUploadedAssetCount: 0,
+      uniqueUploadedAssetPaths: [],
       assetLimitPerUpdateGroup: expectedAssetLimit,
     });
   });
@@ -526,8 +594,10 @@ describe(uploadAssetsAsync, () => {
       uploadAssetsAsync(graphqlClient, assetsForUpdateInfoGroup, testProjectId)
     ).resolves.toEqual({
       assetCount: 6,
+      launchAssetCount: 2,
       uniqueAssetCount: 3,
       uniqueUploadedAssetCount: 2,
+      uniqueUploadedAssetPaths: [],
       assetLimitPerUpdateGroup: expectedAssetLimit,
     });
   });
