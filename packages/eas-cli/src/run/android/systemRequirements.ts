@@ -2,9 +2,9 @@ import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import { existsSync } from 'fs-extra';
 
-import { getAaptExecutablePathAsync } from './aapt';
-import { adbExecutablePath } from './adb';
-import { emulatorExecutablePath } from './emulator';
+import { getAaptExecutableAsync } from './aapt';
+import { adbExecutable } from './adb';
+import { emulatorExecutable } from './emulator';
 
 async function whichAsync(executable: string): Promise<string | null> {
   const { stdout } = await spawnAsync('which', [executable]);
@@ -39,11 +39,7 @@ function assertExecutableExists(executable: string): void {
 }
 
 export async function assertExecutablesExistAsync(): Promise<void> {
-  for (const executable of [
-    adbExecutablePath,
-    emulatorExecutablePath,
-    await getAaptExecutablePathAsync(),
-  ]) {
+  for (const executable of [adbExecutable, emulatorExecutable, await getAaptExecutableAsync()]) {
     assertExecutableExists(executable);
   }
 }

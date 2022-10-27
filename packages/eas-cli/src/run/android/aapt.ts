@@ -5,10 +5,10 @@ import Log from '../../log';
 import { sdkRoot } from './sdk';
 
 async function aaptAsync(...options: string[]): Promise<SpawnResult> {
-  return await spawnAsync(await getAaptExecutablePathAsync(), options);
+  return await spawnAsync(await getAaptExecutableAsync(), options);
 }
 
-export async function getAaptExecutablePathAsync(): Promise<string> {
+export async function getAaptExecutableAsync(): Promise<string> {
   if (sdkRoot) {
     const aaptPaths = await glob(`${sdkRoot}/build-tools/**/aapt`, {});
 

@@ -16,9 +16,9 @@ import { sdkRoot } from './sdk';
 
 export const EMULATOR_MAX_WAIT_TIMEOUT = 60 * 1000 * 3;
 
-export const emulatorExecutablePath = getEmulatorExecutablePath();
+export const emulatorExecutable = getEmulatorExecutable();
 
-function getEmulatorExecutablePath(): string {
+function getEmulatorExecutable(): string {
   if (sdkRoot) {
     return `${sdkRoot}/emulator/emulator`;
   }
@@ -27,7 +27,7 @@ function getEmulatorExecutablePath(): string {
 }
 
 async function emulatorAsync(...options: string[]): Promise<SpawnResult> {
-  return await spawnAsync(emulatorExecutablePath, options);
+  return await spawnAsync(emulatorExecutable, options);
 }
 
 async function getAvaliableAndroidEmulatorsAsync(): Promise<AndroidEmulator[]> {
@@ -62,7 +62,7 @@ async function bootEmulatorAsync(
 
   // Start a process to open an emulator
   const emulatorProcess = spawnAsync(
-    emulatorExecutablePath,
+    emulatorExecutable,
     [
       `@${emulator.name}`,
       // disable animation for faster boot -- this might make it harder to detect if it mounted properly tho

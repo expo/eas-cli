@@ -8,16 +8,15 @@ import { sdkRoot } from './sdk';
 export interface AndroidEmulator {
   pid?: string;
   name: string;
-  isBooted?: boolean;
 }
 
 const BEGINNING_OF_ADB_ERROR_MESSAGE = 'error: ';
 
-export const adbExecutablePath = getAdbExecutablePath();
+export const adbExecutable = getAdbExecutable();
 
 export async function adbAsync(...args: string[]): Promise<SpawnResult> {
   try {
-    return await spawnAsync(adbExecutablePath, args);
+    return await spawnAsync(adbExecutable, args);
   } catch (error: any) {
     let errorMessage = (error.stderr || error.stdout || error.message).trim();
     if (errorMessage.startsWith(BEGINNING_OF_ADB_ERROR_MESSAGE)) {
@@ -28,7 +27,7 @@ export async function adbAsync(...args: string[]): Promise<SpawnResult> {
   }
 }
 
-function getAdbExecutablePath(): string {
+function getAdbExecutable(): string {
   if (sdkRoot) {
     return `${sdkRoot}/platform-tools/adb`;
   }
@@ -68,28 +67,23 @@ export async function getRunningEmulatorsAsync(): Promise<AndroidEmulator[]> {
   // First line is `"List of devices attached"`, remove it
   // @ts-ignore: todo
   const attachedDevices: {
-    props: string[];
+    pid: string;
     type: string;
-    isAuthorized: boolean;
   }[] = splitItems
     .slice(1, splitItems.length)
     .map(line => {
       // unauthorized: ['FA8251A00719', 'unauthorized', 'usb:338690048X', 'transport_id:5']
       // authorized: ['FA8251A00719', 'device', 'usb:336592896X', 'product:walleye', 'model:Pixel_2', 'device:walleye', 'transport_id:4']
       // emulator: ['emulator-5554', 'offline', 'transport_id:1']
-      const props = line.split(' ').filter(Boolean);
+      const [pid] = line.split(' ').filter(Boolean);
 
-      const isAuthorized = props[1] !== 'unauthorized';
       const type = line.includes('emulator') ? 'emulator' : 'device';
-      return { props, type, isAuthorized };
+      return { pid, type };
     })
-    .filter(({ props: [pid], type }) => !!pid && type === 'emulator');
+    .filter(({ pid, type }) => !!pid && type === 'emulator');
 
   const devicePromises = attachedDevices.map<Promise<AndroidEmulator>>(async props => {
-    const {
-      props: [pid],
-      isAuthorized,
-    } = props;
+    const { pid } = props;
 
     let name: string | null = null;
 
@@ -98,8 +92,6 @@ export async function getRunningEmulatorsAsync(): Promise<AndroidEmulator[]> {
     return {
       pid,
       name,
-      isAuthorized,
-      isBooted: true,
     };
   });
 
