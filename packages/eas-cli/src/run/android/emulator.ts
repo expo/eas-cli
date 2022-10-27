@@ -1,6 +1,5 @@
 import spawnAsync, { SpawnResult } from '@expo/spawn-async';
 import chalk from 'chalk';
-import { spawn } from 'child_process';
 import assert from 'node:assert';
 import os from 'os';
 
@@ -62,7 +61,7 @@ async function bootEmulatorAsync(
   Log.log(`Opening emulator ${chalk.bold(emulator.name)}`);
 
   // Start a process to open an emulator
-  const emulatorProcess = spawn(
+  const emulatorProcess = spawnAsync(
     emulatorExecutablePath,
     [
       `@${emulator.name}`,
@@ -75,7 +74,7 @@ async function bootEmulatorAsync(
     }
   );
 
-  emulatorProcess.unref();
+  emulatorProcess.child.unref();
 
   return await waitForEmulatorToBeBootedAsync(timeout, interval);
 }
