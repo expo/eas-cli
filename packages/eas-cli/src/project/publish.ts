@@ -15,6 +15,7 @@ import Log from '../log';
 import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
 import { expoCommandAsync, shouldUseVersionedExpoCLI } from '../utils/expoCli';
 import chunk from '../utils/expodash/chunk';
+import { truthy } from '../utils/expodash/filter';
 import uniqBy from '../utils/expodash/uniqBy';
 
 export type ExpoCLIExportPlatformFlag = Platform | 'all';
@@ -30,6 +31,8 @@ export type RawAsset = {
   fileExtension?: string;
   contentType: string;
   path: string;
+  /** Original asset path derrived from asset map, or exported folder */
+  originalPath?: string;
 };
 
 type CollectedAssets = {
@@ -51,6 +54,16 @@ type ManifestFragment = {
 type UpdateInfoGroup = {
   [key in Platform]: ManifestFragment;
 };
+
+// Partial copy of `@expo/dev-server` `BundleAssetWithFileHashes`
+type AssetMap = Record<
+  string,
+  {
+    httpServerLocation: string;
+    name: string;
+    type: string;
+  }
+>;
 
 const fileMetadataJoi = Joi.object({
   assets: Joi.array()
@@ -170,6 +183,7 @@ export async function buildBundlesAsync({
       '--output-dir',
       inputDir,
       '--dump-sourcemap',
+      '--dump-assetmap',
       '--platform',
       platformFlag,
     ]);
@@ -182,6 +196,7 @@ export async function buildBundlesAsync({
       '--experimental-bundle',
       '--non-interactive',
       '--dump-sourcemap',
+      '--dump-assetmap',
       '--platform',
       platformFlag,
     ]);
@@ -246,9 +261,48 @@ export function filterExportedPlatformsByFlag<T extends Partial<Record<Platform,
   return { [platform]: record[platform] } as T;
 }
 
+/** Try to load the asset map for logging the names of assets published */
+export async function loadAssetMapAsync(distRoot: string): Promise<AssetMap | null> {
+  const assetMapPath = path.join(distRoot, 'assetmap.json');
+
+  if (!(await fs.pathExists(assetMapPath))) {
+    return null;
+  }
+
+  const assetMap: AssetMap = JsonFile.read(path.join(distRoot, 'assetmap.json'));
+  // TODO: basic validation?
+  return assetMap;
+}
+
+// exposed for testing
+export function getAssetHashFromPath(assetPath: string): string | null {
+  const [, hash] = assetPath.match(new RegExp(/assets\/([a-z0-9]+)$/, 'i')) ?? [];
+  return hash ?? null;
+}
+
+// exposed for testing
+export function getOriginalPathFromAssetMap(
+  assetMap: AssetMap | null,
+  asset: { path: string; ext: string }
+): string | null {
+  if (!assetMap) {
+    return null;
+  }
+  const assetHash = getAssetHashFromPath(asset.path);
+  const assetMapEntry = assetHash && assetMap[assetHash];
+
+  if (!assetMapEntry) {
+    return null;
+  }
+
+  const pathPrefix = assetMapEntry.httpServerLocation.substring('/assets'.length);
+  return `${pathPrefix}/${assetMapEntry.name}.${assetMapEntry.type}`;
+}
+
 /** Given a directory, load the metadata.json and collect the assets for each platform. */
 export async function collectAssetsAsync(dir: string): Promise<CollectedAssets> {
   const metadata = loadMetadata(dir);
+  const assetmap = await loadAssetMapAsync(dir);
 
   const collectedAssets: CollectedAssets = {};
 
@@ -261,6 +315,7 @@ export async function collectAssetsAsync(dir: string): Promise<CollectedAssets> 
       },
       assets: metadata.fileMetadata[platform].assets.map(asset => ({
         fileExtension: asset.ext ? ensureLeadingPeriod(asset.ext) : undefined,
+        originalPath: getOriginalPathFromAssetMap(assetmap, asset) ?? undefined,
         contentType: guessContentTypeFromExtension(asset.ext),
         path: path.join(dir, asset.path),
       })),
@@ -294,9 +349,17 @@ export async function filterOutAssetsThatAlreadyExistAsync(
 }
 
 type AssetUploadResult = {
+  /** All found assets within the exported folder per platform */
   assetCount: number;
+  /** The uploaded JS bundles, per platform */
+  launchAssetCount: number;
+  /** All unique assets within the exported folder with platforms combined */
   uniqueAssetCount: number;
+  /** All unique assets uploaded  */
   uniqueUploadedAssetCount: number;
+  /** All (non-launch) asset original paths, used for logging */
+  uniqueUploadedAssetPaths: string[];
+  /** The asset limit received from the server */
   assetLimitPerUpdateGroup: number;
 };
 
@@ -308,7 +371,9 @@ export async function uploadAssetsAsync(
 ): Promise<AssetUploadResult> {
   let assets: RawAsset[] = [];
   let platform: keyof CollectedAssets;
+  const launchAssets: RawAsset[] = [];
   for (platform in assetsForUpdateInfoGroup) {
+    launchAssets.push(assetsForUpdateInfoGroup[platform]!.launchAsset);
     assets = [
       ...assets,
       assetsForUpdateInfoGroup[platform]!.launchAsset,
@@ -335,6 +400,7 @@ export async function uploadAssetsAsync(
   updateSpinnerText?.(totalAssets, totalAssets);
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(graphqlClient, uniqueAssets);
   const uniqueUploadedAssetCount = missingAssets.length;
+  const uniqueUploadedAssetPaths = missingAssets.map(asset => asset.originalPath).filter(truthy);
 
   const missingAssetChunks = chunk(missingAssets, 100);
   const specifications: string[] = [];
@@ -372,8 +438,10 @@ export async function uploadAssetsAsync(
   }
   return {
     assetCount: assets.length,
+    launchAssetCount: launchAssets.length,
     uniqueAssetCount: uniqueAssets.length,
     uniqueUploadedAssetCount,
+    uniqueUploadedAssetPaths,
     assetLimitPerUpdateGroup,
   };
 }
