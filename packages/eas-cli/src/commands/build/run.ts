@@ -3,7 +3,6 @@ import { existsSync } from 'fs-extra';
 import assert from 'node:assert';
 
 import { getLatestBuildAsync, listAndSelectBuildsOnAppAsync } from '../../build/queries';
-import { BuildDistributionType } from '../../build/types';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -11,12 +10,11 @@ import {
   PaginatedQueryOptions,
   getPaginatedQueryOptions,
 } from '../../commandUtils/pagination';
-import { AppPlatform, BuildFragment, BuildStatus } from '../../graphql/generated';
+import { AppPlatform, BuildFragment, BuildStatus, DistributionType } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { RunArchiveFlags, runAsync } from '../../run/run';
-import { buildDistributionTypeToGraphQLDistributionType } from '../../utils/buildDistribution';
 import { downloadAndExtractAppAsync, extractAppFromLocalArchiveAsync } from '../../utils/download';
 
 interface RawRunFlags {
@@ -143,6 +141,11 @@ async function maybeGetBuildAsync(
   projectId: string,
   paginatedQueryOptions: PaginatedQueryOptions
 ): Promise<BuildFragment | null> {
+  const distributionType =
+    flags.selectedPlatform === AppPlatform.Ios
+      ? DistributionType.Simulator
+      : DistributionType.Internal;
+
   if (flags.runArchiveFlags.id) {
     return BuildQuery.byIdAsync(graphqlClient, flags.runArchiveFlags.id);
   } else if (
@@ -156,9 +159,7 @@ async function maybeGetBuildAsync(
       projectDisplayName: await getDisplayNameForProjectIdAsync(graphqlClient, projectId),
       filter: {
         platform: flags.selectedPlatform,
-        distribution: buildDistributionTypeToGraphQLDistributionType(
-          BuildDistributionType.SIMULATOR
-        ),
+        distribution: distributionType,
         status: BuildStatus.Finished,
       },
       queryOptions: paginatedQueryOptions,
@@ -168,9 +169,7 @@ async function maybeGetBuildAsync(
       projectId,
       filter: {
         platform: flags.selectedPlatform,
-        distribution: buildDistributionTypeToGraphQLDistributionType(
-          BuildDistributionType.SIMULATOR
-        ),
+        distribution: distributionType,
         status: BuildStatus.Finished,
       },
     });
@@ -186,7 +185,6 @@ async function getPathToSimulatorBuildAppAsync(
   queryOptions: PaginatedQueryOptions
 ): Promise<string> {
   const maybeBuild = await maybeGetBuildAsync(graphqlClient, flags, projectId, queryOptions);
-  const appExtension = flags.selectedPlatform === AppPlatform.Ios ? 'app' : 'apk';
 
   if (maybeBuild) {
     if (!maybeBuild.artifacts?.applicationArchiveUrl) {
@@ -195,16 +193,19 @@ async function getPathToSimulatorBuildAppAsync(
 
     return await downloadAndExtractAppAsync(
       maybeBuild.artifacts.applicationArchiveUrl,
-      appExtension
+      flags.selectedPlatform
     );
   }
 
   if (flags.runArchiveFlags.url) {
-    return await downloadAndExtractAppAsync(flags.runArchiveFlags.url, appExtension);
+    return await downloadAndExtractAppAsync(flags.runArchiveFlags.url, flags.selectedPlatform);
   }
 
   if (flags.runArchiveFlags.path?.endsWith('.tar.gz')) {
-    return await extractAppFromLocalArchiveAsync(flags.runArchiveFlags.path!, appExtension);
+    return await extractAppFromLocalArchiveAsync(
+      flags.runArchiveFlags.path!,
+      flags.selectedPlatform
+    );
   }
 
   // this should never fail, due to the validation in sanitizeFlagsAsync

@@ -9,6 +9,7 @@ import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 
 import fetch, { RequestInit } from '../fetch';
+import { AppPlatform } from '../graphql/generated';
 import Log from '../log';
 import { getTmpDirectory } from './paths';
 
@@ -96,32 +97,38 @@ async function downloadFileWithProgressBarAsync(
 
 export async function downloadAndExtractAppAsync(
   url: string,
-  applicationExtension: string
+  platform: AppPlatform
 ): Promise<string> {
   const outputDir = path.join(getTmpDirectory(), uuidv4());
   await fs.promises.mkdir(outputDir, { recursive: true });
 
-  const tmpArchivePathDir = path.join(getTmpDirectory(), uuidv4());
-  await fs.promises.mkdir(tmpArchivePathDir, { recursive: true });
+  if (platform === AppPlatform.Android) {
+    const apkFilePath = path.join(outputDir, `${uuidv4()}.apk`);
+    await downloadFileWithProgressBarAsync(url, apkFilePath, 'Downloading app archive...');
+    return apkFilePath;
+  } else {
+    const tmpArchivePathDir = path.join(getTmpDirectory(), uuidv4());
+    await fs.promises.mkdir(tmpArchivePathDir, { recursive: true });
 
-  const tmpArchivePath = path.join(tmpArchivePathDir, `${uuidv4()}.tar.gz`);
+    const tmpArchivePath = path.join(tmpArchivePathDir, `${uuidv4()}.tar.gz`);
 
-  await downloadFileWithProgressBarAsync(url, tmpArchivePath, 'Downloading app archive...');
-  await tarExtractAsync(tmpArchivePath, outputDir);
+    await downloadFileWithProgressBarAsync(url, tmpArchivePath, 'Downloading app archive...');
+    await tarExtractAsync(tmpArchivePath, outputDir);
 
-  return await getAppPathAsync(outputDir, applicationExtension);
+    return await getAppPathAsync(outputDir, 'app');
+  }
 }
 
 export async function extractAppFromLocalArchiveAsync(
   appArchivePath: string,
-  applicationExtension: string
+  platform: AppPlatform
 ): Promise<string> {
   const outputDir = path.join(getTmpDirectory(), uuidv4());
   await fs.promises.mkdir(outputDir, { recursive: true });
 
   await tarExtractAsync(appArchivePath, outputDir);
 
-  return await getAppPathAsync(outputDir, applicationExtension);
+  return await getAppPathAsync(outputDir, platform === AppPlatform.Android ? 'apk' : 'app');
 }
 
 async function getAppPathAsync(outputDir: string, applicationExtension: string): Promise<string> {
