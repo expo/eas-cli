@@ -16,12 +16,12 @@ import Log, { learnMore } from '../../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../../platform';
 import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url';
 
-export function printLogsUrls(builds: BuildFragment[]): void {
+export function printLogsUrls(builds: BuildFragment[], accountName: string): void {
   if (builds.length === 1) {
-    Log.log(`Build details: ${chalk.underline(getBuildLogsUrl(builds[0]))}`);
+    Log.log(`Build details: ${chalk.underline(getBuildLogsUrl(builds[0], accountName))}`);
   } else {
     builds.forEach(build => {
-      const logsUrl = getBuildLogsUrl(build);
+      const logsUrl = getBuildLogsUrl(build, accountName);
       Log.log(
         `${appPlatformEmojis[build.platform]} ${
           appPlatformDisplayNames[build.platform]
@@ -31,18 +31,20 @@ export function printLogsUrls(builds: BuildFragment[]): void {
   }
 }
 
-export function printBuildResults(builds: (BuildFragment | null)[]): void {
+export function printBuildResults(builds: (BuildFragment | null)[], accountName: string): void {
   Log.newLine();
   if (builds.length === 1) {
     const [build] = builds;
     assert(build, 'Build should be defined');
-    printBuildResult(build);
+    printBuildResult(build, accountName);
   } else {
-    (builds.filter(i => i) as BuildFragment[]).forEach(build => printBuildResult(build));
+    (builds.filter(i => i) as BuildFragment[]).forEach(build =>
+      printBuildResult(build, accountName)
+    );
   }
 }
 
-function printBuildResult(build: BuildFragment): void {
+function printBuildResult(build: BuildFragment, accountName: string): void {
   Log.addNewLineIfNone();
   if (build.status === BuildStatus.Errored) {
     const userError = build.error;
@@ -66,7 +68,7 @@ function printBuildResult(build: BuildFragment): void {
   }
 
   if (build.distribution === DistributionType.Internal) {
-    const logsUrl = getBuildLogsUrl(build);
+    const logsUrl = getBuildLogsUrl(build, accountName);
     // It's tricky to install the .apk file directly on Android so let's fallback
     // to the build details page and let people press the button to download there
     const qrcodeUrl =

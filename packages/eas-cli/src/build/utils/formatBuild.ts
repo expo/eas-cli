@@ -76,7 +76,10 @@ export function formatGraphQLBuild(build: BuildFragment): string {
     },
     {
       label: 'Logs',
-      value: getBuildLogsUrl(build),
+      value: getBuildLogsUrl(
+        build,
+        build.project.__typename === 'App' ? build.project.ownerAccount.name : undefined
+      ),
     },
     {
       label: 'Artifact',

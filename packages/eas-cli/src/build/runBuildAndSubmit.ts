@@ -184,8 +184,13 @@ export async function runBuildAndSubmitAsync(
     return;
   }
 
+  const { accountName } = Object.values(buildCtxByPlatform)[0];
+
   Log.newLine();
-  printLogsUrls(startedBuilds.map(startedBuild => startedBuild.build));
+  printLogsUrls(
+    startedBuilds.map(startedBuild => startedBuild.build),
+    accountName
+  );
   Log.newLine();
 
   const submissions: SubmissionFragment[] = [];
@@ -230,13 +235,12 @@ export async function runBuildAndSubmitAsync(
     return;
   }
 
-  const { accountName } = Object.values(buildCtxByPlatform)[0];
   const builds = await waitForBuildEndAsync(graphqlClient, {
     buildIds: startedBuilds.map(({ build }) => build.id),
     accountName,
   });
   if (!flags.json) {
-    printBuildResults(builds);
+    printBuildResults(builds, accountName);
   }
 
   const haveAllBuildsFailedOrCanceled = builds.every(
