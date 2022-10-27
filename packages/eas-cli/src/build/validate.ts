@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import Log, { learnMore } from '../log';
-import { ImageTransparencyError, ensurePNGIsNotTransparentAsync, isPNGAsync } from '../utils/image';
+import { isPNGAsync } from '../utils/image';
 import { getVcsClient } from '../vcs';
 import { CommonContext } from './context';
 
@@ -62,9 +62,13 @@ export async function validateIconForManagedProjectAsync<T extends Platform>(
 
   if (ctx.platform === Platform.ANDROID) {
     await validateAndroidPNGsAsync(ctx as CommonContext<Platform.ANDROID>);
-  } else {
-    await validateIosPNGsAsync(ctx as CommonContext<Platform.IOS>);
   }
+  // Validating iOS PNGs is currently disabled
+  // See https://github.com/expo/eas-cli/pull/1477 for context
+  //
+  // else {
+  //   await validateIosPNGsAsync(ctx as CommonContext<Platform.IOS>);
+  // }
 }
 
 type ConfigPng = { configPath: string; pngPath: string | undefined };
@@ -99,47 +103,50 @@ async function validateAndroidPNGsAsync(ctx: CommonContext<Platform.ANDROID>): P
   await validatePNGsAsync(pngs);
 }
 
-async function validateIosPNGsAsync(ctx: CommonContext<Platform.IOS>): Promise<void> {
-  const pngs: ConfigPng[] = [
-    {
-      configPath: 'exp.icon',
-      pngPath: ctx.exp.icon,
-    },
-    {
-      configPath: 'exp.ios.icon',
-      pngPath: ctx.exp.ios?.icon,
-    },
-    {
-      configPath: 'exp.splash.image',
-      pngPath: ctx.exp.splash?.image,
-    },
-    {
-      configPath: 'exp.notification.icon',
-      pngPath: ctx.exp.notification?.icon,
-    },
-  ];
-  await validatePNGsAsync(pngs);
+// Validating iOS PNGs is currently disabled
+// See https://github.com/expo/eas-cli/pull/1477 for context
+//
+// async function validateIosPNGsAsync(ctx: CommonContext<Platform.IOS>): Promise<void> {
+//   const pngs: ConfigPng[] = [
+//     {
+//       configPath: 'exp.icon',
+//       pngPath: ctx.exp.icon,
+//     },
+//     {
+//       configPath: 'exp.ios.icon',
+//       pngPath: ctx.exp.ios?.icon,
+//     },
+//     {
+//       configPath: 'exp.splash.image',
+//       pngPath: ctx.exp.splash?.image,
+//     },
+//     {
+//       configPath: 'exp.notification.icon',
+//       pngPath: ctx.exp.notification?.icon,
+//     },
+//   ];
+//   await validatePNGsAsync(pngs);
 
-  const icon = ctx.exp.ios?.icon ?? ctx.exp.icon;
-  if (!icon) {
-    return;
-  }
-  const iconConfigPath = `expo${ctx.exp.ios?.icon ? '.ios' : ''}.icon`;
+//   const icon = ctx.exp.ios?.icon ?? ctx.exp.icon;
+//   if (!icon) {
+//     return;
+//   }
+//   const iconConfigPath = `expo${ctx.exp.ios?.icon ? '.ios' : ''}.icon`;
 
-  try {
-    await ensurePNGIsNotTransparentAsync(icon);
-  } catch (err: any) {
-    if (err instanceof ImageTransparencyError) {
-      Log.error(
-        `Your iOS app icon (${iconConfigPath}) can't have transparency if you wish to upload your app to the Apple App Store.`
-      );
-      Log.error(learnMore('https://expo.fyi/remove-alpha-channel', { dim: false }));
-      Errors.exit(1);
-    } else {
-      throw err;
-    }
-  }
-}
+//   try {
+//     await ensurePNGIsNotTransparentAsync(icon);
+//   } catch (err: any) {
+//     if (err instanceof ImageTransparencyError) {
+//       Log.error(
+//         `Your iOS app icon (${iconConfigPath}) can't have transparency if you wish to upload your app to the Apple App Store.`
+//       );
+//       Log.error(learnMore('https://expo.fyi/remove-alpha-channel', { dim: false }));
+//       Errors.exit(1);
+//     } else {
+//       throw err;
+//     }
+//   }
+// }
 
 async function validatePNGsAsync(configPngs: ConfigPng[]): Promise<void> {
   const validationPromises = configPngs.map(configPng => validatePNGAsync(configPng));

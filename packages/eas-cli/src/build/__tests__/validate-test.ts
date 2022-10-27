@@ -60,7 +60,9 @@ describe(validateIconForManagedProjectAsync, () => {
     });
   });
 
-  describe(Platform.IOS, () => {
+  // Validating iOS PNGs is currently disabled
+  // See https://github.com/expo/eas-cli/pull/1477 for context
+  xdescribe(Platform.IOS, () => {
     it('exits if icon is not a file with .png extension', async () => {
       const ctxMock = mock<CommonContext<Platform.IOS>>();
       when(ctxMock.workflow).thenReturn(Workflow.MANAGED);
