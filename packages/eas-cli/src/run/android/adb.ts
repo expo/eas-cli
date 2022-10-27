@@ -1,9 +1,9 @@
 import spawnAsync, { SpawnResult } from '@expo/spawn-async';
-import path from 'node:path';
 import os from 'os';
 
 import Log from '../../log';
 import { sleepAsync } from '../../utils/promise';
+import { sdkRoot } from './sdk';
 
 export interface AndroidEmulator {
   pid?: string;
@@ -11,19 +11,13 @@ export interface AndroidEmulator {
   isBooted?: boolean;
 }
 
-const ANDROID_DEFAULT_LOCATION: Readonly<Partial<Record<NodeJS.Platform, string>>> = {
-  darwin: path.join(os.homedir(), 'Library', 'Android', 'sdk'),
-  linux: path.join(os.homedir(), 'Android', 'sdk'),
-  win32: path.join(os.homedir(), 'AppData', 'Local', 'Android', 'Sdk'),
-};
-
 const BEGINNING_OF_ADB_ERROR_MESSAGE = 'error: ';
 
-const defaultLocation = ANDROID_DEFAULT_LOCATION[process.platform];
+export const adbExecutablePath = getAdbExecutablePath();
 
 export async function adbAsync(...args: string[]): Promise<SpawnResult> {
   try {
-    return await spawnAsync(getAdbExecutablePath(), args);
+    return await spawnAsync(adbExecutablePath, args);
   } catch (error: any) {
     let errorMessage = (error.stderr || error.stdout || error.message).trim();
     if (errorMessage.startsWith(BEGINNING_OF_ADB_ERROR_MESSAGE)) {
@@ -34,28 +28,13 @@ export async function adbAsync(...args: string[]): Promise<SpawnResult> {
   }
 }
 
-export function getAdbExecutablePath(): string {
-  const sdkRoot = getAndroidSdkRoot();
-
+function getAdbExecutablePath(): string {
   if (sdkRoot) {
     return `${sdkRoot}/platform-tools/adb`;
   }
 
   Log.debug('Failed to resolve the Android SDK path, falling back to global adb executable');
   return 'adb';
-}
-
-// TODO: add validation somewhere
-export function getAndroidSdkRoot(): string | null {
-  if (process.env.ANDROID_HOME) {
-    return process.env.ANDROID_HOME;
-  } else if (process.env.ANDROID_SDK_ROOT) {
-    return process.env.ANDROID_SDK_ROOT;
-  } else if (defaultLocation) {
-    return defaultLocation;
-  } else {
-    return null;
-  }
 }
 
 export function sanitizeAdbDeviceName(deviceName: string): string | undefined {

@@ -9,17 +9,17 @@ import { promptAsync } from '../../prompts';
 import {
   AndroidEmulator,
   adbAsync,
-  getAndroidSdkRoot,
   getFirstRunningEmulatorAsync,
   isEmulatorBootedAsync,
   waitForEmulatorToBeBootedAsync,
 } from './adb';
+import { sdkRoot } from './sdk';
 
 export const EMULATOR_MAX_WAIT_TIMEOUT = 60 * 1000 * 3;
 
-function getEmulatorExecutablePath(): string {
-  const sdkRoot = getAndroidSdkRoot();
+export const emulatorExecutablePath = getEmulatorExecutablePath();
 
+function getEmulatorExecutablePath(): string {
   if (sdkRoot) {
     return `${sdkRoot}/emulator/emulator`;
   }
@@ -28,7 +28,7 @@ function getEmulatorExecutablePath(): string {
 }
 
 async function emulatorAsync(...options: string[]): Promise<SpawnResult> {
-  return await spawnAsync(getEmulatorExecutablePath(), options);
+  return await spawnAsync(emulatorExecutablePath, options);
 }
 
 async function getAvaliableAndroidEmulatorsAsync(): Promise<AndroidEmulator[]> {
@@ -63,7 +63,7 @@ async function bootEmulatorAsync(
 
   // Start a process to open an emulator
   const emulatorProcess = spawn(
-    getEmulatorExecutablePath(),
+    emulatorExecutablePath,
     [
       `@${emulator.name}`,
       // disable animation for faster boot -- this might make it harder to detect if it mounted properly tho

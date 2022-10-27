@@ -2,15 +2,13 @@ import spawnAsync, { SpawnResult } from '@expo/spawn-async';
 import glob from 'fast-glob';
 
 import Log from '../../log';
-import { getAndroidSdkRoot } from './adb';
+import { sdkRoot } from './sdk';
 
 async function aaptAsync(...options: string[]): Promise<SpawnResult> {
   return await spawnAsync(await getAaptExecutablePathAsync(), options);
 }
 
-async function getAaptExecutablePathAsync(): Promise<string> {
-  const sdkRoot = getAndroidSdkRoot();
-
+export async function getAaptExecutablePathAsync(): Promise<string> {
   if (sdkRoot) {
     const aaptPaths = await glob(`${sdkRoot}/build-tools/**/aapt`, {});
 
