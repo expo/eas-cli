@@ -1,32 +1,31 @@
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
-import { existsSync } from 'fs-extra';
+import { pathExists } from 'fs-extra';
 
 import { getAaptExecutableAsync } from './aapt';
-import { adbExecutable } from './adb';
-import { emulatorExecutable } from './emulator';
+import { getAdbExecutableAsync } from './adb';
+import { getEmulatorExecutableAsync } from './emulator';
 
-async function whichAsync(executable: string): Promise<string | null> {
-  const { stdout } = await spawnAsync('which', [executable]);
-
-  if (!stdout || stdout.includes('not found')) {
-    return null;
+async function checkIfGlobalExecutableExistsAsync(executable: string): Promise<boolean> {
+  try {
+    await spawnAsync(executable);
+    return false;
+  } catch {
+    return false;
   }
-
-  return stdout.trim();
 }
 
-function assertExecutableExists(executable: string): void {
+async function assertExecutableExistsAsync(executable: string): Promise<void> {
   if (executable.includes('/')) {
-    if (!existsSync(executable)) {
+    if (!(await pathExists(executable))) {
       throw new Error(
         `Couldn't find ${chalk.bold(
           executable
-        )} executable in the Android SDK. Please make sure it's installed.`
+        )} executable in the Android SDK. Please make sure ${chalk.bold(executable)} is installed.`
       );
     }
   } else {
-    if (!whichAsync(executable)) {
+    if (!(await checkIfGlobalExecutableExistsAsync('addd'))) {
       throw new Error(
         `Couldn't find ${chalk.bold(
           executable
@@ -39,7 +38,11 @@ function assertExecutableExists(executable: string): void {
 }
 
 export async function assertExecutablesExistAsync(): Promise<void> {
-  for (const executable of [adbExecutable, emulatorExecutable, await getAaptExecutableAsync()]) {
-    assertExecutableExists(executable);
+  for (const executable of [
+    await getAdbExecutableAsync(),
+    await getEmulatorExecutableAsync(),
+    await getAaptExecutableAsync(),
+  ]) {
+    await assertExecutableExistsAsync(executable);
   }
 }

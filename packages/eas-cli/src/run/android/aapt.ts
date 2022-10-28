@@ -2,7 +2,7 @@ import spawnAsync, { SpawnResult } from '@expo/spawn-async';
 import glob from 'fast-glob';
 
 import Log from '../../log';
-import { sdkRoot } from './sdk';
+import { getAndroidSdkRootAsync } from './sdk';
 
 async function aaptAsync(...options: string[]): Promise<SpawnResult> {
   try {
@@ -15,18 +15,18 @@ async function aaptAsync(...options: string[]): Promise<SpawnResult> {
 }
 
 export async function getAaptExecutableAsync(): Promise<string> {
-  if (sdkRoot) {
-    const aaptPaths = await glob(`${sdkRoot}/build-tools/**/aapt`, {});
+  const sdkRoot = await getAndroidSdkRootAsync();
+  if (!sdkRoot) {
+    Log.debug('Failed to resolve the Android SDK path, falling back to global aapt executable');
+    return 'aapt';
+  }
+  const aaptPaths = await glob(`${sdkRoot}/build-tools/**/aapt`);
 
-    if (aaptPaths.length === 0) {
-      throw new Error('Failed to resolve the Android aapt path');
-    }
-
-    return aaptPaths.sort().reverse()[0];
+  if (aaptPaths.length === 0) {
+    throw new Error('Failed to resolve the Android aapt path');
   }
 
-  Log.debug('Failed to resolve the Android SDK path, falling back to global aapt executable');
-  return 'aapt';
+  return aaptPaths.sort().reverse()[0];
 }
 
 export async function getAptParametersAsync(

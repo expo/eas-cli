@@ -2,8 +2,9 @@ import spawnAsync, { SpawnResult } from '@expo/spawn-async';
 import os from 'os';
 
 import Log from '../../log';
+import { truthy } from '../../utils/expodash/filter';
 import { sleepAsync } from '../../utils/promise';
-import { sdkRoot } from './sdk';
+import { getAndroidSdkRootAsync } from './sdk';
 
 export interface AndroidEmulator {
   pid?: string;
@@ -12,9 +13,8 @@ export interface AndroidEmulator {
 
 const BEGINNING_OF_ADB_ERROR_MESSAGE = 'error: ';
 
-export const adbExecutable = getAdbExecutable();
-
 export async function adbAsync(...args: string[]): Promise<SpawnResult> {
+  const adbExecutable = await getAdbExecutableAsync();
   try {
     return await spawnAsync(adbExecutable, args);
   } catch (error: any) {
@@ -27,13 +27,14 @@ export async function adbAsync(...args: string[]): Promise<SpawnResult> {
   }
 }
 
-function getAdbExecutable(): string {
-  if (sdkRoot) {
-    return `${sdkRoot}/platform-tools/adb`;
+export async function getAdbExecutableAsync(): Promise<string> {
+  const sdkRoot = await getAndroidSdkRootAsync();
+  if (!sdkRoot) {
+    Log.debug('Failed to resolve the Android SDK path, falling back to global adb executable');
+    return 'adb';
   }
 
-  Log.debug('Failed to resolve the Android SDK path, falling back to global adb executable');
-  return 'adb';
+  return `${sdkRoot}/platform-tools/adb`;
 }
 
 export function sanitizeAdbDeviceName(deviceName: string): string | undefined {
@@ -65,7 +66,6 @@ export async function getRunningEmulatorsAsync(): Promise<AndroidEmulator[]> {
 
   const splitItems = stdout.trim().replace(/\n$/, '').split(os.EOL);
   // First line is `"List of devices attached"`, remove it
-  // @ts-ignore: todo
   const attachedDevices: {
     pid: string;
     type: string;
@@ -75,7 +75,7 @@ export async function getRunningEmulatorsAsync(): Promise<AndroidEmulator[]> {
       // unauthorized: ['FA8251A00719', 'unauthorized', 'usb:338690048X', 'transport_id:5']
       // authorized: ['FA8251A00719', 'device', 'usb:336592896X', 'product:walleye', 'model:Pixel_2', 'device:walleye', 'transport_id:4']
       // emulator: ['emulator-5554', 'offline', 'transport_id:1']
-      const [pid] = line.split(' ').filter(Boolean);
+      const [pid] = line.split(' ').filter(truthy);
 
       const type = line.includes('emulator') ? 'emulator' : 'device';
       return { pid, type };
@@ -85,9 +85,7 @@ export async function getRunningEmulatorsAsync(): Promise<AndroidEmulator[]> {
   const devicePromises = attachedDevices.map<Promise<AndroidEmulator>>(async props => {
     const { pid } = props;
 
-    let name: string | null = null;
-
-    name = (await getAdbNameForDeviceIdAsync(pid)) ?? '';
+    const name = (await getAdbNameForDeviceIdAsync(pid)) ?? '';
 
     return {
       pid,
@@ -100,7 +98,7 @@ export async function getRunningEmulatorsAsync(): Promise<AndroidEmulator[]> {
 
 export async function getFirstRunningEmulatorAsync(): Promise<AndroidEmulator | null> {
   const emulators = await getRunningEmulatorsAsync();
-  return emulators[0] || null;
+  return emulators[0] ?? null;
 }
 
 /**

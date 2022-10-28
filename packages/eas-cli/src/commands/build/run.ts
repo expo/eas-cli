@@ -1,5 +1,5 @@
 import { Errors, Flags } from '@oclif/core';
-import { existsSync } from 'fs-extra';
+import { pathExists } from 'fs-extra';
 import assert from 'node:assert';
 
 import { getLatestBuildAsync, listAndSelectBuildsOnAppAsync } from '../../build/queries';
@@ -104,7 +104,7 @@ export default class Run extends EasCommand {
         (runArchiveFlags.path.endsWith('.tar.gz') ||
           runArchiveFlags.path.endsWith('.app') ||
           runArchiveFlags.path.endsWith('.apk')) &&
-        existsSync(runArchiveFlags.path)
+        (await pathExists(runArchiveFlags.path))
       )
     ) {
       Errors.error('The path must point to a .tar.gz archive, .apk file, or .app directory', {
@@ -206,7 +206,7 @@ async function getPathToSimulatorBuildAppAsync(
 
   if (flags.runArchiveFlags.path?.endsWith('.tar.gz')) {
     return await extractAppFromLocalArchiveAsync(
-      flags.runArchiveFlags.path!,
+      flags.runArchiveFlags.path,
       flags.selectedPlatform
     );
   }

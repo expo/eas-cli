@@ -5,6 +5,7 @@ import os from 'os';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
+import { truthy } from '../../utils/expodash/filter';
 import {
   AndroidEmulator,
   adbAsync,
@@ -12,13 +13,12 @@ import {
   isEmulatorBootedAsync,
   waitForEmulatorToBeBootedAsync,
 } from './adb';
-import { sdkRoot } from './sdk';
+import { getAndroidSdkRootAsync } from './sdk';
 
 export const EMULATOR_MAX_WAIT_TIMEOUT = 60 * 1000 * 3;
 
-export const emulatorExecutable = getEmulatorExecutable();
-
-function getEmulatorExecutable(): string {
+export async function getEmulatorExecutableAsync(): Promise<string> {
+  const sdkRoot = await getAndroidSdkRootAsync();
   if (sdkRoot) {
     return `${sdkRoot}/emulator/emulator`;
   }
@@ -27,6 +27,7 @@ function getEmulatorExecutable(): string {
 }
 
 async function emulatorAsync(...options: string[]): Promise<SpawnResult> {
+  const emulatorExecutable = await getEmulatorExecutableAsync();
   try {
     return await spawnAsync(emulatorExecutable, options);
   } catch (error: any) {
@@ -42,7 +43,7 @@ async function getAvaliableAndroidEmulatorsAsync(): Promise<AndroidEmulator[]> {
 
     return stdout
       .split(os.EOL)
-      .filter(Boolean)
+      .filter(truthy)
       .map(name => ({
         name,
       }));
@@ -66,20 +67,16 @@ async function bootEmulatorAsync(
   Log.newLine();
   Log.log(`Opening emulator ${chalk.bold(emulator.name)}`);
 
-  // Start a process to open an emulator
-  const emulatorProcess = spawnAsync(
-    emulatorExecutable,
-    [
-      `@${emulator.name}`,
-      // disable animation for faster boot -- this might make it harder to detect if it mounted properly tho
-      //'-no-boot-anim'
-    ],
-    {
-      stdio: 'ignore',
-      detached: true,
-    }
-  );
+  const emulatorExecutable = await getEmulatorExecutableAsync();
 
+  // Start a process to open an emulator
+  const emulatorProcess = spawnAsync(emulatorExecutable, [`@${emulator.name}`], {
+    stdio: 'ignore',
+    detached: true,
+  });
+
+  // we don't want to wait for the emulator process to exit before we can finish `eas build:run` command
+  // https://github.com/expo/eas-cli/pull/1485#discussion_r1007935871
   emulatorProcess.child.unref();
 
   return await waitForEmulatorToBeBootedAsync(timeout, interval);
@@ -100,7 +97,7 @@ export async function selectEmulatorAsync(): Promise<AndroidEmulator> {
   Log.newLine();
   const { selectedEmulator } = await promptAsync({
     type: 'select',
-    message: `Select a emulator to run your app on`,
+    message: `Select an emulator to run your app on`,
     name: 'selectedEmulator',
     choices: emulators.map(emulator => ({
       title: emulator.name,
@@ -114,11 +111,11 @@ export async function selectEmulatorAsync(): Promise<AndroidEmulator> {
 export async function ensureEmulatorBootedAsync(
   emulator: AndroidEmulator
 ): Promise<AndroidEmulator> {
-  if (emulator.pid && (await isEmulatorBootedAsync(emulator.pid))) {
-    return emulator;
+  if (!emulator.pid || !(await isEmulatorBootedAsync(emulator.pid))) {
+    return await bootEmulatorAsync(emulator);
   }
 
-  return await bootEmulatorAsync(emulator);
+  return emulator;
 }
 
 export async function installAppAsync(
