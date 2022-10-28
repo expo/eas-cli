@@ -27,7 +27,7 @@ import { logCredentialsSource } from '../utils/credentials';
 import {
   checkGoogleServicesFileAsync,
   checkNodeEnvVariable,
-  validateIconForManagedProjectAsync,
+  validatePNGsForManagedProjectAsync,
 } from '../validate';
 import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
@@ -57,7 +57,7 @@ This means that it will most likely produce an AAB and you will not be able to i
 
   checkNodeEnvVariable(ctx);
   await checkGoogleServicesFileAsync(ctx);
-  await validateIconForManagedProjectAsync(ctx);
+  await validatePNGsForManagedProjectAsync(ctx);
 
   const gradleContext = await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
 

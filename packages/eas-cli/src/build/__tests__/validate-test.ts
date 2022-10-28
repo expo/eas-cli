@@ -4,16 +4,29 @@ import path from 'path';
 import { instance, mock, when } from 'ts-mockito';
 
 import { CommonContext } from '../context';
-import { validateIconForManagedProjectAsync } from '../validate';
+import { validatePNGsForManagedProjectAsync } from '../validate';
 
 const fixturesPath = path.join(__dirname, 'fixtures');
 
-describe(validateIconForManagedProjectAsync, () => {
-  it('does not validate the icons for generic projects', async () => {
+describe(validatePNGsForManagedProjectAsync, () => {
+  it('does not validate PNGs for generic projects', async () => {
     const ctxMock = mock<CommonContext<Platform.ANDROID>>();
     when(ctxMock.workflow).thenReturn(Workflow.GENERIC);
     const ctx = instance(ctxMock);
-    await expect(validateIconForManagedProjectAsync(ctx)).resolves.not.toThrow();
+    await expect(validatePNGsForManagedProjectAsync(ctx)).resolves.not.toThrow();
+  });
+
+  it('does not validate PNGs for projects with SDK >= 47', async () => {
+    const ctxMock = mock<CommonContext<Platform.ANDROID>>();
+    when(ctxMock.workflow).thenReturn(Workflow.GENERIC);
+    when(ctxMock.exp).thenReturn({
+      name: 'blah',
+      slug: 'blah',
+      android: { adaptiveIcon: { foregroundImage: 'assets/icon.jpg' } },
+      sdkVersion: '47.0.0',
+    });
+    const ctx = instance(ctxMock);
+    await expect(validatePNGsForManagedProjectAsync(ctx)).resolves.not.toThrow();
   });
 
   describe(Platform.ANDROID, () => {
@@ -25,10 +38,11 @@ describe(validateIconForManagedProjectAsync, () => {
         name: 'blah',
         slug: 'blah',
         android: { adaptiveIcon: { foregroundImage: 'assets/icon.jpg' } },
+        sdkVersion: '46.0.0',
       });
       const ctx = instance(ctxMock);
 
-      await expect(validateIconForManagedProjectAsync(ctx)).rejects.toThrow(ExitError);
+      await expect(validatePNGsForManagedProjectAsync(ctx)).rejects.toThrow(ExitError);
     });
 
     it('exits if foregroundImage is not a png file', async () => {
@@ -39,10 +53,11 @@ describe(validateIconForManagedProjectAsync, () => {
         name: 'blah',
         slug: 'blah',
         android: { adaptiveIcon: { foregroundImage: path.join(fixturesPath, 'icon-jpg.png') } },
+        sdkVersion: '46.0.0',
       });
       const ctx = instance(ctxMock);
 
-      await expect(validateIconForManagedProjectAsync(ctx)).rejects.toThrow(ExitError);
+      await expect(validatePNGsForManagedProjectAsync(ctx)).rejects.toThrow(ExitError);
     });
 
     it('does not throw if foregroundImage is a png file', async () => {
@@ -53,10 +68,11 @@ describe(validateIconForManagedProjectAsync, () => {
         name: 'blah',
         slug: 'blah',
         android: { adaptiveIcon: { foregroundImage: path.join(fixturesPath, 'icon-alpha.png') } },
+        sdkVersion: '46.0.0',
       });
       const ctx = instance(ctxMock);
 
-      await expect(validateIconForManagedProjectAsync(ctx)).resolves.not.toThrow();
+      await expect(validatePNGsForManagedProjectAsync(ctx)).resolves.not.toThrow();
     });
   });
 
@@ -71,10 +87,11 @@ describe(validateIconForManagedProjectAsync, () => {
         name: 'blah',
         slug: 'blah',
         ios: { icon: path.join(fixturesPath, 'assets/icon.jpg') },
+        sdkVersion: '46.0.0',
       });
       const ctx = instance(ctxMock);
 
-      await expect(validateIconForManagedProjectAsync(ctx)).rejects.toThrow(ExitError);
+      await expect(validatePNGsForManagedProjectAsync(ctx)).rejects.toThrow(ExitError);
     });
 
     it('exits if icon is not a png file', async () => {
@@ -85,10 +102,11 @@ describe(validateIconForManagedProjectAsync, () => {
         name: 'blah',
         slug: 'blah',
         ios: { icon: path.join(fixturesPath, 'icon-jpg.png') },
+        sdkVersion: '46.0.0',
       });
       const ctx = instance(ctxMock);
 
-      await expect(validateIconForManagedProjectAsync(ctx)).rejects.toThrow(ExitError);
+      await expect(validatePNGsForManagedProjectAsync(ctx)).rejects.toThrow(ExitError);
     });
 
     it('exits if icon has alpha channel (transparency)', async () => {
@@ -99,10 +117,11 @@ describe(validateIconForManagedProjectAsync, () => {
         name: 'blah',
         slug: 'blah',
         ios: { icon: path.join(fixturesPath, 'icon-alpha.png') },
+        sdkVersion: '46.0.0',
       });
       const ctx = instance(ctxMock);
 
-      await expect(validateIconForManagedProjectAsync(ctx)).rejects.toThrow(ExitError);
+      await expect(validatePNGsForManagedProjectAsync(ctx)).rejects.toThrow(ExitError);
     });
 
     it('does not throw if icon is a png file and does not have alpha channel', async () => {
@@ -113,10 +132,11 @@ describe(validateIconForManagedProjectAsync, () => {
         name: 'blah',
         slug: 'blah',
         ios: { icon: path.join(fixturesPath, 'icon-no-alpha.png') },
+        sdkVersion: '46.0.0',
       });
       const ctx = instance(ctxMock);
 
-      await expect(validateIconForManagedProjectAsync(ctx)).resolves.not.toThrow();
+      await expect(validatePNGsForManagedProjectAsync(ctx)).resolves.not.toThrow();
     });
   });
 });

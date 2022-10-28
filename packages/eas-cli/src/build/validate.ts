@@ -2,6 +2,7 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { Errors } from '@oclif/core';
 import fs from 'fs-extra';
 import path from 'path';
+import semver from 'semver';
 
 import Log, { learnMore } from '../log';
 import { isPNGAsync } from '../utils/image';
@@ -53,10 +54,16 @@ function isInsideDirectory(file: string, directory: string): boolean {
   return file.startsWith(directory);
 }
 
-export async function validateIconForManagedProjectAsync<T extends Platform>(
+export async function validatePNGsForManagedProjectAsync<T extends Platform>(
   ctx: CommonContext<T>
 ): Promise<void> {
   if (ctx.workflow !== Workflow.MANAGED) {
+    return;
+  }
+
+  // don't run PNG checks on SDK 47 and newer
+  // see https://github.com/expo/eas-cli/pull/1477#issuecomment-1293914917
+  if (!ctx.exp.sdkVersion || semver.satisfies(ctx.exp.sdkVersion, '>= 47.0.0')) {
     return;
   }
 

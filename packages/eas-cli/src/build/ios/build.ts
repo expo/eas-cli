@@ -13,7 +13,7 @@ import { transformMetadata } from '../graphql';
 import {
   checkGoogleServicesFileAsync,
   checkNodeEnvVariable,
-  validateIconForManagedProjectAsync,
+  validatePNGsForManagedProjectAsync,
 } from '../validate';
 import { ensureIosCredentialsAsync } from './credentials';
 import { transformJob } from './graphql';
@@ -32,7 +32,7 @@ export async function createIosContextAsync(
 
   checkNodeEnvVariable(ctx);
   await checkGoogleServicesFileAsync(ctx);
-  await validateIconForManagedProjectAsync(ctx);
+  await validatePNGsForManagedProjectAsync(ctx);
 
   const xcodeBuildContext = await resolveXcodeBuildContextAsync(
     {
