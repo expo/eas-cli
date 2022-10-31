@@ -1,8 +1,15 @@
 import chalk from 'chalk';
+import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
-import { UpdateBranchFragment } from '../graphql/generated';
+import { withErrorHandlingAsync } from '../graphql/client';
+import {
+  CreateUpdateBranchForAppMutation,
+  CreateUpdateBranchForAppMutationVariables,
+  UpdateBranch,
+  UpdateBranchFragment,
+} from '../graphql/generated';
 import { BranchQuery } from '../graphql/queries/BranchQuery';
 import Log from '../log';
 import { formatBranch, getBranchDescription } from '../update/utils';
@@ -11,6 +18,7 @@ import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
+import { BranchNotFoundError } from './utils';
 
 export const BRANCHES_LIMIT = 50;
 
@@ -109,5 +117,67 @@ function renderPageOfBranches(
         .map(branch => formatBranch(getBranchDescription(branch)))
         .join(`\n\n${chalk.dim('———')}\n\n`)
     );
+  }
+}
+
+export async function createUpdateBranchOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { appId, name }: CreateUpdateBranchForAppMutationVariables
+): Promise<Pick<UpdateBranch, 'id' | 'name'>> {
+  const result = await withErrorHandlingAsync(
+    graphqlClient
+      .mutation<CreateUpdateBranchForAppMutation, CreateUpdateBranchForAppMutationVariables>(
+        gql`
+          mutation createUpdateBranchForApp($appId: ID!, $name: String!) {
+            updateBranch {
+              createUpdateBranchForApp(appId: $appId, name: $name) {
+                id
+                name
+              }
+            }
+          }
+        `,
+        {
+          appId,
+          name,
+        }
+      )
+      .toPromise()
+  );
+  const newBranch = result.updateBranch.createUpdateBranchForApp;
+  if (!newBranch) {
+    throw new Error(`Could not create branch ${name}.`);
+  }
+  return newBranch;
+}
+
+export async function ensureBranchExistsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    appId,
+    branchName,
+  }: {
+    appId: string;
+    branchName: string;
+  }
+): Promise<{ branchId: string }> {
+  try {
+    const updateBranch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
+      appId,
+      name: branchName,
+    });
+
+    const { id } = updateBranch;
+    return { branchId: id };
+  } catch (error) {
+    if (error instanceof BranchNotFoundError) {
+      const newUpdateBranch = await createUpdateBranchOnAppAsync(graphqlClient, {
+        appId,
+        name: branchName,
+      });
+      return { branchId: newUpdateBranch.id };
+    } else {
+      throw error;
+    }
   }
 }
