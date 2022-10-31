@@ -202,7 +202,7 @@ function renderChannelHeaderContent({
   Log.log(chalk`{bold Branches pointed at this channel and their most recent update group:}`);
 }
 
-export async function createChannelAsync(
+export async function createChannelOnAppAsync(
   graphqlClient: ExpoGraphqlClient,
   {
     appId,
@@ -248,7 +248,7 @@ export async function ensureChannelExistsAsync(
   { appId, branchId, channelName }: { appId: string; branchId: string; channelName: string }
 ): Promise<void> {
   try {
-    await createChannelAsync(graphqlClient, {
+    await createChannelOnAppAsync(graphqlClient, {
       appId,
       channelName,
       branchId,
