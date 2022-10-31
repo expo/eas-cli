@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
+import { createUpdateBranchOnAppAsync } from '../../branch/queries';
 import { BranchNotFoundError } from '../../branch/utils';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -16,7 +17,6 @@ import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { createUpdateBranchOnAppAsync } from '../branch/create';
 
 // NOTE(cedric): copied to src/channel/queries.ts to reuse in multiple commands
 export async function createUpdateChannelOnAppAsync(

@@ -1,52 +1,13 @@
 import chalk from 'chalk';
-import gql from 'graphql-tag';
 
+import { createUpdateBranchOnAppAsync } from '../../branch/queries';
 import { getDefaultBranchNameAsync } from '../../branch/utils';
 import EasCommand from '../../commandUtils/EasCommand';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { withErrorHandlingAsync } from '../../graphql/client';
-import {
-  CreateUpdateBranchForAppMutation,
-  CreateUpdateBranchForAppMutationVariables,
-  UpdateBranch,
-} from '../../graphql/generated';
 import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-
-// NOTE(cedric): copied to src/branch/queries.ts to reuse in multiple commands
-export async function createUpdateBranchOnAppAsync(
-  graphqlClient: ExpoGraphqlClient,
-  { appId, name }: CreateUpdateBranchForAppMutationVariables
-): Promise<Pick<UpdateBranch, 'id' | 'name'>> {
-  const result = await withErrorHandlingAsync(
-    graphqlClient
-      .mutation<CreateUpdateBranchForAppMutation, CreateUpdateBranchForAppMutationVariables>(
-        gql`
-          mutation createUpdateBranchForApp($appId: ID!, $name: String!) {
-            updateBranch {
-              createUpdateBranchForApp(appId: $appId, name: $name) {
-                id
-                name
-              }
-            }
-          }
-        `,
-        {
-          appId,
-          name,
-        }
-      )
-      .toPromise()
-  );
-  const newBranch = result.updateBranch.createUpdateBranchForApp;
-  if (!newBranch) {
-    throw new Error(`Could not create branch ${name}.`);
-  }
-  return newBranch;
-}
 
 export default class BranchCreate extends EasCommand {
   static override description = 'create a branch';
