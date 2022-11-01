@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Remove friction from the initial EAS update setup. ([#1479](https://github.com/expo/eas-cli/pull/1479) by [@byCedric](https://github.com/byCedric))
+- Deprecate `--auto` flag on `eas update` and always default `--branch` or `--message` from git. ([#1500](https://github.com/expo/eas-cli/pull/1500) by [@byCedric](https://github.com/byCedric))
 
 ## [2.6.0](https://github.com/expo/eas-cli/releases/tag/v2.6.0) - 2022-10-27
 
