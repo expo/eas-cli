@@ -175,12 +175,17 @@ export default class UpdatePublish extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
-    const { exp } = await ensureEASUpdatesIsConfiguredAsync(graphqlClient, {
+    const { projectChanged } = await ensureEASUpdatesIsConfiguredAsync(graphqlClient, {
       exp: expPossiblyWithoutEasUpdateConfigured,
       platform: platformFlag,
       projectDir,
       projectId,
     });
+
+    // Reload the project config when the project was changed
+    const exp = projectChanged
+      ? (await getDynamicProjectConfigAsync()).exp
+      : expPossiblyWithoutEasUpdateConfigured;
 
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 

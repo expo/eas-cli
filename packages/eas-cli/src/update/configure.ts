@@ -239,7 +239,7 @@ export async function ensureEASUpdatesIsConfiguredNativelyAsync(
 export async function ensureEASUpdatesIsConfiguredAsync(
   graphqlClient: ExpoGraphqlClient,
   {
-    exp,
+    exp: expWithoutUpdates,
     projectId,
     projectDir,
     platform,
@@ -249,25 +249,29 @@ export async function ensureEASUpdatesIsConfiguredAsync(
     projectDir: string;
     platform: RequestedPlatform;
   }
-): Promise<{ projectChanged: boolean; exp: ExpoConfig }> {
-  const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion);
+): Promise<{ projectChanged: boolean }> {
+  const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
+    projectDir,
+    expWithoutUpdates.sdkVersion
+  );
   if (!hasExpoUpdates) {
     await installExpoUpdatesAsync(projectDir, { silent: true });
     Log.withTick('Installed expo updates');
   }
 
   const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
-  const { projectChanged, exp: newExp } = await ensureEASUpdatesIsConfiguredInExpoConfigAsync({
-    exp,
-    projectDir,
-    projectId,
-    platform,
-    workflows,
-  });
+  const { projectChanged, exp: expWithUpdates } =
+    await ensureEASUpdatesIsConfiguredInExpoConfigAsync({
+      exp: expWithoutUpdates,
+      projectDir,
+      projectId,
+      platform,
+      workflows,
+    });
 
   if (projectChanged || !hasExpoUpdates) {
     await ensureEASUpdatesIsConfiguredNativelyAsync(graphqlClient, {
-      exp: newExp,
+      exp: expWithUpdates,
       projectDir,
       projectId,
       platform,
@@ -283,5 +287,5 @@ export async function ensureEASUpdatesIsConfiguredAsync(
     Log.newLine();
   }
 
-  return { projectChanged, exp: newExp };
+  return { projectChanged };
 }
