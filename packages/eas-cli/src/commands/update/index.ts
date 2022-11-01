@@ -546,6 +546,7 @@ export default class UpdatePublish extends EasCommand {
               : []),
             ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
             { label: 'Message', value: truncatedMessage },
+            ...(gitCommitHash ? [{ label: 'Commit', value: gitCommitHash }] : []),
             { label: 'Website link', value: updateGroupLink },
           ])
         );
