@@ -117,8 +117,9 @@ export default class UpdatePublish extends EasCommand {
       required: false,
     }),
     auto: Flags.boolean({
+      // Deprecated, but OCLIF deprecated logs is not great
       description:
-        'Use the current git branch and commit message for the EAS branch and update message',
+        'Use the current git branch and commit message for the EAS branch and update message (deprecated)',
       default: false,
     }),
     'private-key-path': Flags.string({
@@ -532,12 +533,12 @@ export default class UpdatePublish extends EasCommand {
 
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
     const nonInteractive = flags['non-interactive'] ?? false;
-
     const { auto, branch: branchName, message: updateMessage } = flags;
-    if (nonInteractive && !auto && !(branchName && updateMessage)) {
-      Errors.error(
-        '--auto or both --branch and --message are required when updating in non-interactive mode',
-        { exit: 1 }
+
+    if (auto) {
+      // When `branchName` or `updateMessage` is omitted, we always (auto) default to git
+      Log.warn(
+        '--auto flag is deprecated. When --branch and --message are not provided, both flags default to git branch and commit message.'
       );
     }
 
@@ -548,7 +549,8 @@ export default class UpdatePublish extends EasCommand {
     }
 
     return {
-      auto,
+      // TODO(cedric): remove this flag when refactoring the update command
+      auto: true,
       branchName,
       updateMessage,
       groupId,
