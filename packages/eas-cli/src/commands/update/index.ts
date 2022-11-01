@@ -184,11 +184,7 @@ export default class UpdatePublish extends EasCommand {
 
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(
-      expPossiblyWithoutEasUpdateConfigured,
-      platformFlag,
-      projectDir
-    );
+    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
 
     if (!branchName) {
       if (autoFlag) {
