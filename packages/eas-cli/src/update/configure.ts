@@ -232,6 +232,15 @@ export async function ensureEASUpdatesIsConfiguredNativelyAsync(
   }
 }
 
+/**
+ * Make sure EAS Update is fully configured in the current project.
+ * This goes over a checklist and performs the following checks or changes:
+ *   - Enure the `expo-updates` package is currently installed.
+ *   - Ensure `app.json` is configured for EAS Updates
+ *     - Sets `runtimeVersion` if not set
+ *     - Sets `updates.url` if not set
+ *   - Ensure latest changes are reflected in the native config, if any
+ */
 export async function ensureEASUpdatesIsConfiguredAsync(
   graphqlClient: ExpoGraphqlClient,
   {

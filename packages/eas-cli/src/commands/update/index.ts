@@ -25,7 +25,7 @@ import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
-import { requestedPlatformDisplayNames } from '../../platform';
+import { RequestedPlatform, requestedPlatformDisplayNames } from '../../platform';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
   PublishPlatform,
@@ -37,12 +37,9 @@ import {
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
+import { ensureEASUpdatesIsConfiguredAsync } from '../../update/configure';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
-import {
-  checkEASUpdateURLIsSetAsync,
-  formatUpdateMessage,
-  truncateString as truncateUpdateMessage,
-} from '../../update/utils';
+import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -55,7 +52,6 @@ import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 import { getVcsClient } from '../../vcs';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
-export type PublishPlatformFlag = PublishPlatform | 'all';
 
 type RawUpdateFlags = {
   auto: boolean;
@@ -73,7 +69,7 @@ type RawUpdateFlags = {
 
 type UpdateFlags = {
   auto: boolean;
-  platform: PublishPlatformFlag;
+  platform: RequestedPlatform;
   branchName?: string;
   updateMessage?: string;
   republish: boolean;
@@ -166,7 +162,7 @@ export default class UpdatePublish extends EasCommand {
     }
 
     const {
-      exp: expBeforeRuntimeVersionUpdate,
+      exp: expPossiblyWithoutEasUpdateConfigured,
       projectId,
       projectDir,
     } = await getDynamicProjectConfigAsync({
@@ -179,18 +175,19 @@ export default class UpdatePublish extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
-    await checkEASUpdateURLIsSetAsync(expBeforeRuntimeVersionUpdate, projectId);
+    const { exp } = await ensureEASUpdatesIsConfiguredAsync(graphqlClient, {
+      exp: expPossiblyWithoutEasUpdateConfigured,
+      platform: platformFlag,
+      projectDir,
+      projectId,
+    });
 
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 
-    const [runtimeVersions, exp] = await getRuntimeVersionObjectAsync(
-      expBeforeRuntimeVersionUpdate,
+    const runtimeVersions = await getRuntimeVersionObjectAsync(
+      expPossiblyWithoutEasUpdateConfigured,
       platformFlag,
       projectDir
-      // projectId,
-      // nonInteractive,
-      // graphqlClient,
-      // getDynamicProjectConfigAsync
     );
 
     if (!branchName) {
@@ -557,7 +554,7 @@ export default class UpdatePublish extends EasCommand {
       republish,
       inputDir: flags['input-dir'],
       skipBundler: flags['skip-bundler'],
-      platform: flags.platform as PublishPlatformFlag,
+      platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
       nonInteractive,
       json: flags.json ?? false,
@@ -581,14 +578,10 @@ function transformRuntimeVersions(exp: ExpoConfig, platforms: Platform[]): Recor
 
 async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
-  platformFlag: PublishPlatformFlag,
+  platform: RequestedPlatform,
   projectDir: string
-  // projectId: string,
-  // nonInteractive: boolean,
-  // graphqlClient: ExpoGraphqlClient,
-  // getDynamicProjectConfigAsync: DynamicConfigContextFn
-): Promise<[Record<string, string>, ExpoConfig]> {
-  const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
+): Promise<Record<string, string>> {
+  const platforms = (platform === 'all' ? ['android', 'ios'] : [platform]) as Platform[];
 
   for (const platform of platforms) {
     const isPolicy = typeof (exp[platform]?.runtimeVersion ?? exp.runtimeVersion) === 'object';
@@ -602,69 +595,5 @@ async function getRuntimeVersionObjectAsync(
     }
   }
 
-  // TODO: add refetching the config when project was auto-setup
-  return [transformRuntimeVersions(exp, platforms), exp];
-
-  // try {
-  //   return [transformRuntimeVersions(exp, platforms), exp];
-  // } catch (error: any) {
-  //   if (nonInteractive) {
-  //     throw error;
-  //   }
-
-  //   Log.fail(error.message);
-
-  //   const runConfig = await selectAsync(
-  //     `Configure runtime version in ${chalk.bold('app.json')} automatically for EAS Update?`,
-  //     [
-  //       { title: 'Yes', value: true },
-  //       {
-  //         title: 'No, I will set the runtime version manually (EAS CLI exits)',
-  //         value: false,
-  //       },
-  //     ]
-  //   );
-
-  //   if (!runConfig) {
-  //     Errors.exit(1);
-  //   }
-
-  //   const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
-  //   await configureAppJSONForEASUpdateAsync({
-  //     exp,
-  //     projectDir,
-  //     projectId,
-  //     platform: platformFlag as RequestedPlatform,
-  //     workflows,
-  //   });
-
-  //   const newConfig: ExpoConfig = (await getDynamicProjectConfigAsync({ isPublicConfig: true }))
-  //     .exp;
-
-  //   await configureNativeFilesForEASUpdateAsync({
-  //     exp: newConfig,
-  //     projectDir,
-  //     projectId,
-  //     platform: platformFlag as RequestedPlatform,
-  //     workflows,
-  //     graphqlClient,
-  //   });
-
-  //   const continueWithChanges = await selectAsync(
-  //     `Continue update process with uncommitted changes in repository?`,
-  //     [
-  //       { title: 'Yes', value: true },
-  //       {
-  //         title: 'No, I will commit the modified files first (EAS CLI exits)',
-  //         value: false,
-  //       },
-  //     ]
-  //   );
-
-  //   if (!continueWithChanges) {
-  //     Errors.exit(1);
-  //   }
-
-  //   return [transformRuntimeVersions(newConfig, platforms), newConfig];
-  // }
+  return transformRuntimeVersions(exp, platforms);
 }
