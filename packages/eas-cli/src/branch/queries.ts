@@ -128,7 +128,7 @@ export async function createUpdateBranchOnAppAsync(
     graphqlClient
       .mutation<CreateUpdateBranchForAppMutation, CreateUpdateBranchForAppMutationVariables>(
         gql`
-          mutation createUpdateBranchForApp($appId: ID!, $name: String!) {
+          mutation CreateUpdateBranchForApp($appId: ID!, $name: String!) {
             updateBranch {
               createUpdateBranchForApp(appId: $appId, name: $name) {
                 id
