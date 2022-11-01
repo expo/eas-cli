@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add Git commit to EAS Update record. ([#1499](https://github.com/expo/eas-cli/pull/1499) by [@fiberjw](https://github.com/fiberjw))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
