@@ -95,14 +95,14 @@ export async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
   // NOTE(cedric): might be better with a mergeDeep method, or handle in `modifyConfigAsync`
   const mergedExp = {
     runtimeVersion: modifyConfig.runtimeVersion ?? exp.runtimeVersion,
-    updates: { ...exp.updates, url: modifyConfig.updates?.url ?? exp.updates?.url },
+    updates: { ...exp.updates, ...modifyConfig.updates },
     android: {
       ...exp.android,
-      runtimeVersion: modifyConfig.android?.runtimeVersion ?? exp.android?.runtimeVersion,
+      ...modifyConfig.android,
     },
     ios: {
       ...exp.ios,
-      runtimeVersion: modifyConfig.ios?.runtimeVersion ?? exp.ios?.runtimeVersion,
+      ...modifyConfig.ios,
     },
   };
 
