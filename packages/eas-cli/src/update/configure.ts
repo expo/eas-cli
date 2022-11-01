@@ -108,6 +108,7 @@ export async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
   };
 
   // TODO(cedric): check where these properties are coming from, they pop up in `eas update`
+  delete mergedExp['_internal'];
   delete mergedExp.originalFullName;
   delete mergedExp.currentFullName;
   delete mergedExp.platforms;
