@@ -108,6 +108,7 @@ export async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
   };
 
   // TODO(cedric): check where these properties are coming from, they pop up in `eas update`
+  delete mergedExp.sdkVersion; // Note(cedric): this is always returned from `getConfig`, but we don't want to set it
   delete mergedExp['_internal'];
   delete mergedExp.originalFullName;
   delete mergedExp.currentFullName;
