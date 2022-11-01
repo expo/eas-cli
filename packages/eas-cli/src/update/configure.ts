@@ -94,7 +94,6 @@ export async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
 
   // NOTE(cedric): might be better with a mergeDeep method, or handle in `modifyConfigAsync`
   const mergedExp = {
-    ...exp,
     runtimeVersion: modifyConfig.runtimeVersion ?? exp.runtimeVersion,
     updates: { ...exp.updates, url: modifyConfig.updates?.url ?? exp.updates?.url },
     android: {
@@ -107,12 +106,6 @@ export async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
     },
   };
 
-  // TODO(cedric): check where these properties are coming from, they pop up in `eas update`
-  delete mergedExp.sdkVersion; // Note(cedric): this is always returned from `getConfig`, but we don't want to set it
-  delete mergedExp['_internal'];
-  delete mergedExp.originalFullName;
-  delete mergedExp.currentFullName;
-  delete mergedExp.platforms;
   const result = await modifyConfigAsync(projectDir, mergedExp);
 
   switch (result.type) {
@@ -121,7 +114,7 @@ export async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
       return {
         projectChanged: true,
         // TODO(cedric): fix return type of `modifyConfigAsync` to avoid `null` for type === success repsonses
-        exp: result.config?.expo ?? mergedExp,
+        exp: result.config?.expo!,
       };
 
     case 'warn':
