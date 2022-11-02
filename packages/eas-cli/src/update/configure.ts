@@ -188,7 +188,9 @@ function warnEASUpdatesManualConfig({
 
   if (workflows.android === Workflow.GENERIC || workflows.ios === Workflow.GENERIC) {
     Log.warn(
-      chalk`The native config files {bold Expo.plist & AndroidManifest.xml} must be updated to support EAS Update. ${learnMore('https://expo.fyi/eas-update-config.md#native-configuration')}`
+      chalk`The native config files {bold Expo.plist & AndroidManifest.xml} must be updated to support EAS Update. ${learnMore(
+        'https://expo.fyi/eas-update-config.md#native-configuration'
+      )}`
     );
   }
 
