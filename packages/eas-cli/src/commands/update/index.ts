@@ -6,14 +6,11 @@ import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import { getEASUpdateURL } from '../../api';
 import { ensureBranchExistsAsync, selectBranchOnAppAsync } from '../../branch/queries';
 import { getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import { ensureChannelExistsAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -29,11 +26,7 @@ import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../../platform';
-import {
-  getOwnerAccountForProjectIdAsync,
-  installExpoUpdatesAsync,
-  isExpoUpdatesInstalledOrAvailable,
-} from '../../project/projectUtils';
+import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
   PublishPlatform,
   buildBundlesAsync,
@@ -42,10 +35,11 @@ import {
   isUploadedAssetCountAboveWarningThreshold,
   uploadAssetsAsync,
 } from '../../project/publish';
-import { resolveWorkflowAsync, resolveWorkflowPerPlatformAsync } from '../../project/workflow';
-import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
+import { resolveWorkflowAsync } from '../../project/workflow';
+import { promptAsync } from '../../prompts';
+import { ensureEASUpdatesIsConfiguredAsync } from '../../update/configure';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
-import { formatUpdateMessage } from '../../update/utils';
+import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -56,13 +50,8 @@ import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 import { getVcsClient } from '../../vcs';
-import {
-  configureAppJSONForEASUpdateAsync,
-  configureNativeFilesForEASUpdateAsync,
-} from './configure';
 
 export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
-export type PublishPlatformFlag = PublishPlatform | 'all';
 
 type RawUpdateFlags = {
   auto: boolean;
@@ -80,7 +69,7 @@ type RawUpdateFlags = {
 
 type UpdateFlags = {
   auto: boolean;
-  platform: PublishPlatformFlag;
+  platform: RequestedPlatform;
   branchName?: string;
   updateMessage?: string;
   republish: boolean;
@@ -173,7 +162,7 @@ export default class UpdatePublish extends EasCommand {
     }
 
     const {
-      exp: expBeforeRuntimeVersionUpdate,
+      exp: expPossiblyWithoutEasUpdateConfigured,
       projectId,
       projectDir,
     } = await getDynamicProjectConfigAsync({
@@ -186,46 +175,16 @@ export default class UpdatePublish extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
-    const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
-
-    const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
-      projectDir,
-      expBeforeRuntimeVersionUpdate.sdkVersion
-    );
-    if (!hasExpoUpdates && nonInteractive) {
-      Errors.error(
-        `${chalk.bold(
-          'expo-updates'
-        )} must already be installed when executing in non-interactive mode`,
-        { exit: 1 }
-      );
-    }
-
-    if (!hasExpoUpdates) {
-      const install = await confirmAsync({
-        message: chalk`The module {cyan expo-updates} must be installed to load EAS updates in-app. Install?`,
-        instructions: 'The command will abort unless you agree.',
-      });
-      if (install) {
-        await installExpoUpdatesAsync(projectDir);
-      } else {
-        Errors.error(`Install ${chalk.bold('expo-updates')} and try again.`, {
-          exit: 1,
-        });
-      }
-    }
-
-    const [runtimeVersions, exp] = await getRuntimeVersionObjectAsync(
-      expBeforeRuntimeVersionUpdate,
-      platformFlag,
+    await ensureEASUpdatesIsConfiguredAsync(graphqlClient, {
+      exp: expPossiblyWithoutEasUpdateConfigured,
+      platform: platformFlag,
       projectDir,
       projectId,
-      nonInteractive,
-      graphqlClient,
-      getDynamicProjectConfigAsync
-    );
+    });
 
-    await checkEASUpdateURLIsSetAsync(exp, projectId);
+    const { exp } = await getDynamicProjectConfigAsync();
+    const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
+    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
 
     if (!branchName) {
       if (autoFlag) {
@@ -405,7 +364,10 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
-    const truncatedMessage = truncatePublishUpdateMessage(updateMessage!);
+    const truncatedMessage = truncateUpdateMessage(updateMessage!, 1024);
+    if (truncatedMessage !== updateMessage) {
+      Log.warn('Update message exceeds the allowed 1024 character limit. Truncating message...');
+    }
 
     const runtimeToPlatformMapping: Record<string, string[]> = {};
     for (const runtime of new Set(Object.values(runtimeVersions))) {
@@ -588,7 +550,7 @@ export default class UpdatePublish extends EasCommand {
       republish,
       inputDir: flags['input-dir'],
       skipBundler: flags['skip-bundler'],
-      platform: flags.platform as PublishPlatformFlag,
+      platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
       nonInteractive,
       json: flags.json ?? false,
@@ -612,14 +574,10 @@ function transformRuntimeVersions(exp: ExpoConfig, platforms: Platform[]): Recor
 
 async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
-  platformFlag: PublishPlatformFlag,
-  projectDir: string,
-  projectId: string,
-  nonInteractive: boolean,
-  graphqlClient: ExpoGraphqlClient,
-  getDynamicProjectConfigAsync: DynamicConfigContextFn
-): Promise<[Record<string, string>, ExpoConfig]> {
-  const platforms = (platformFlag === 'all' ? ['android', 'ios'] : [platformFlag]) as Platform[];
+  platform: RequestedPlatform,
+  projectDir: string
+): Promise<Record<string, string>> {
+  const platforms = (platform === 'all' ? ['android', 'ios'] : [platform]) as Platform[];
 
   for (const platform of platforms) {
     const isPolicy = typeof (exp[platform]?.runtimeVersion ?? exp.runtimeVersion) === 'object';
@@ -633,87 +591,5 @@ async function getRuntimeVersionObjectAsync(
     }
   }
 
-  try {
-    return [transformRuntimeVersions(exp, platforms), exp];
-  } catch (error: any) {
-    if (nonInteractive) {
-      throw error;
-    }
-
-    Log.fail(error.message);
-
-    const runConfig = await selectAsync(
-      `Configure runtime version in ${chalk.bold('app.json')} automatically for EAS Update?`,
-      [
-        { title: 'Yes', value: true },
-        {
-          title: 'No, I will set the runtime version manually (EAS CLI exits)',
-          value: false,
-        },
-      ]
-    );
-
-    if (!runConfig) {
-      Errors.exit(1);
-    }
-
-    const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
-    await configureAppJSONForEASUpdateAsync({
-      exp,
-      projectDir,
-      projectId,
-      platform: platformFlag as RequestedPlatform,
-      workflows,
-    });
-
-    const newConfig: ExpoConfig = (await getDynamicProjectConfigAsync({ isPublicConfig: true }))
-      .exp;
-
-    await configureNativeFilesForEASUpdateAsync({
-      exp: newConfig,
-      projectDir,
-      projectId,
-      platform: platformFlag as RequestedPlatform,
-      workflows,
-      graphqlClient,
-    });
-
-    const continueWithChanges = await selectAsync(
-      `Continue update process with uncommitted changes in repository?`,
-      [
-        { title: 'Yes', value: true },
-        {
-          title: 'No, I will commit the modified files first (EAS CLI exits)',
-          value: false,
-        },
-      ]
-    );
-
-    if (!continueWithChanges) {
-      Errors.exit(1);
-    }
-
-    return [transformRuntimeVersions(newConfig, platforms), newConfig];
-  }
+  return transformRuntimeVersions(exp, platforms);
 }
-
-async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig, projectId: string): Promise<void> {
-  const configuredURL = exp.updates?.url;
-  const expectedURL = getEASUpdateURL(projectId);
-
-  if (configuredURL !== expectedURL) {
-    throw new Error(
-      `The update URL is incorrectly configured for EAS Update. Set updates.url to ${expectedURL} in your ${chalk.bold(
-        'app.json'
-      )}.`
-    );
-  }
-}
-
-export const truncatePublishUpdateMessage = (originalMessage: string): string => {
-  if (originalMessage.length > 1024) {
-    Log.warn('Update message exceeds the allowed 1024 character limit. Truncating message...');
-    return originalMessage.substring(0, 1021) + '...';
-  }
-  return originalMessage;
-};
