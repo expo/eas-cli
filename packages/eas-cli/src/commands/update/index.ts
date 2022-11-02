@@ -175,20 +175,15 @@ export default class UpdatePublish extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
-    const { projectChanged } = await ensureEASUpdatesIsConfiguredAsync(graphqlClient, {
+    await ensureEASUpdatesIsConfiguredAsync(graphqlClient, {
       exp: expPossiblyWithoutEasUpdateConfigured,
       platform: platformFlag,
       projectDir,
       projectId,
     });
 
-    // Reload the project config when the project was changed
-    const exp = projectChanged
-      ? (await getDynamicProjectConfigAsync()).exp
-      : expPossiblyWithoutEasUpdateConfigured;
-
+    const { exp } = await getDynamicProjectConfigAsync();
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
-
     const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
 
     if (!branchName) {

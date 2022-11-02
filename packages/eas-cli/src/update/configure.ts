@@ -247,7 +247,7 @@ export async function ensureEASUpdatesIsConfiguredAsync(
     projectDir: string;
     platform: RequestedPlatform;
   }
-): Promise<{ projectChanged: boolean }> {
+): Promise<void> {
   const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
     projectDir,
     expWithoutUpdates.sdkVersion
@@ -284,6 +284,4 @@ export async function ensureEASUpdatesIsConfiguredAsync(
     );
     Log.newLine();
   }
-
-  return { projectChanged };
 }
