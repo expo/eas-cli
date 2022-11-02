@@ -148,16 +148,18 @@ export async function buildUnsortedUpdateInfoGroupAsync(
 export async function buildBundlesAsync({
   projectDir,
   inputDir,
+  exp,
 }: {
   projectDir: string;
   inputDir: string;
+  exp: Pick<ExpoConfig, 'sdkVersion'>;
 }): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
   if (!packageJSON) {
     throw new Error('Could not locate package.json');
   }
 
-  if (shouldUseVersionedExpoCLI(projectDir)) {
+  if (shouldUseVersionedExpoCLI(projectDir, exp)) {
     await expoCommandAsync(projectDir, ['export', '--output-dir', inputDir, '--dump-sourcemap']);
   } else {
     // Legacy global Expo CLI
