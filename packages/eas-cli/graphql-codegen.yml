@@ -5,6 +5,8 @@ documents:
   - 'src/credentials/ios/api/graphql/**/!(*.d).{ts,tsx}'
   - 'src/credentials/android/api/graphql/**/!(*.d).{ts,tsx}'
   - 'src/commands/**/*.ts'
+  - 'src/branch/**/*.ts'
+  - 'src/channel/**/*.ts'
 generates:
   src/graphql/generated.ts:
     plugins:

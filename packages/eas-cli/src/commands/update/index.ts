@@ -387,6 +387,8 @@ export default class UpdatePublish extends EasCommand {
     });
     Log.withTick(`Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`);
 
+    const gitCommitHash = await getVcsClient().getCommitHashAsync();
+
     // Sort the updates into different groups based on their platform specific runtime versions
     const updateGroups: PublishUpdateGroupInput[] = Object.entries(runtimeToPlatformMapping).map(
       ([runtime, platforms]) => {
@@ -407,6 +409,7 @@ export default class UpdatePublish extends EasCommand {
           updateInfoGroup: localUpdateInfoGroup,
           runtimeVersion: republish ? oldRuntimeVersion : runtime,
           message: truncatedMessage,
+          gitCommitHash,
           awaitingCodeSigningInfo: !!codeSigningInfo,
         };
       }
@@ -505,6 +508,7 @@ export default class UpdatePublish extends EasCommand {
               : []),
             ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
             { label: 'Message', value: truncatedMessage },
+            ...(gitCommitHash ? [{ label: 'Commit', value: gitCommitHash }] : []),
             { label: 'Website link', value: updateGroupLink },
           ])
         );

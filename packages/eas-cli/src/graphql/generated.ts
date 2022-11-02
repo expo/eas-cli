@@ -3336,6 +3336,7 @@ export type PublicArtifacts = {
 export type PublishUpdateGroupInput = {
   awaitingCodeSigningInfo?: InputMaybe<Scalars['Boolean']>;
   branchId: Scalars['String'];
+  gitCommitHash?: InputMaybe<Scalars['String']>;
   message?: InputMaybe<Scalars['String']>;
   runtimeVersion: Scalars['String'];
   updateInfoGroup: UpdateInfoGroup;
@@ -3992,6 +3993,7 @@ export type Update = ActivityTimelineProjectActivity & {
   branchId: Scalars['ID'];
   codeSigningInfo?: Maybe<CodeSigningInfo>;
   createdAt: Scalars['DateTime'];
+  gitCommitHash?: Maybe<Scalars['String']>;
   group: Scalars['String'];
   id: Scalars['ID'];
   manifestFragment: Scalars['String'];
@@ -4540,6 +4542,15 @@ export type CreateUpdateBranchForAppMutationVariables = Exact<{
 
 export type CreateUpdateBranchForAppMutation = { __typename?: 'RootMutation', updateBranch: { __typename?: 'UpdateBranchMutation', createUpdateBranchForApp: { __typename?: 'UpdateBranch', id: string, name: string } } };
 
+export type CreateUpdateChannelOnAppMutationVariables = Exact<{
+  appId: Scalars['ID'];
+  name: Scalars['String'];
+  branchMapping: Scalars['String'];
+}>;
+
+
+export type CreateUpdateChannelOnAppMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', createUpdateChannelForApp: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } } };
+
 export type GetBranchInfoQueryVariables = Exact<{
   appId: Scalars['String'];
   name: Scalars['String'];
@@ -4568,15 +4579,6 @@ export type CancelBuildMutationVariables = Exact<{
 
 
 export type CancelBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', cancel: { __typename?: 'Build', id: string, status: BuildStatus } } };
-
-export type CreateUpdateChannelOnAppMutationVariables = Exact<{
-  appId: Scalars['ID'];
-  name: Scalars['String'];
-  branchMapping: Scalars['String'];
-}>;
-
-
-export type CreateUpdateChannelOnAppMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', createUpdateChannelForApp: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } } };
 
 export type DeleteUpdateChannelMutationVariables = Exact<{
   channelId: Scalars['ID'];
