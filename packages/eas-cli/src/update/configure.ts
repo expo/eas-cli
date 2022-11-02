@@ -39,6 +39,25 @@ function isRuntimeEqual(
 }
 
 /**
+ * Partially merge the EAS Update config with the existing Expo config.
+ * This preserves and merges the nested update-related properties.
+ */
+function mergeExpoConfig(exp: ExpoConfig, modifyExp: Partial<ExpoConfig>): Partial<ExpoConfig> {
+  return {
+    runtimeVersion: modifyExp.runtimeVersion ?? exp.runtimeVersion,
+    updates: { ...exp.updates, ...modifyExp.updates },
+    android: {
+      ...exp.android,
+      ...modifyExp.android,
+    },
+    ios: {
+      ...exp.ios,
+      ...modifyExp.ios,
+    },
+  };
+}
+
+/**
  * Make sure the `app.json` is configured to use EAS Updates.
  * This does a couple of things:
  *   - Ensure update URL is set to the project EAS endpoint
@@ -92,20 +111,7 @@ async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
     return { exp, projectChanged: false };
   }
 
-  // NOTE(cedric): might be better with a mergeDeep method, or handle in `modifyConfigAsync`
-  const mergedExp = {
-    runtimeVersion: modifyConfig.runtimeVersion ?? exp.runtimeVersion,
-    updates: { ...exp.updates, ...modifyConfig.updates },
-    android: {
-      ...exp.android,
-      ...modifyConfig.android,
-    },
-    ios: {
-      ...exp.ios,
-      ...modifyConfig.ios,
-    },
-  };
-
+  const mergedExp = mergeExpoConfig(exp, modifyConfig);
   const result = await modifyConfigAsync(projectDir, mergedExp);
 
   switch (result.type) {
