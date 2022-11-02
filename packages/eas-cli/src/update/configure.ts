@@ -38,6 +38,20 @@ function isRuntimeEqual(
   }
 }
 
+function replaceUndefinedObjectValues(
+  value: Record<string, any>,
+  replacement: any
+): Record<string, any> {
+  for (const key in value) {
+    if (value[key] === undefined) {
+      value[key] = replacement;
+    } else if (typeof value[key] === 'object') {
+      value[key] = replaceUndefinedObjectValues(value[key], replacement);
+    }
+  }
+  return value;
+}
+
 /**
  * Partially merge the EAS Update config with the existing Expo config.
  * This preserves and merges the nested update-related properties.
@@ -189,7 +203,12 @@ function warnEASUpdatesManualConfig({
       'https://expo.fyi/eas-update-config'
     )}\n`
   );
-  Log.log(chalk.bold(JSON.stringify(modifyConfig, null, 2)));
+
+  Log.log(
+    chalk.bold(
+      JSON.stringify(replaceUndefinedObjectValues(modifyConfig, '<remove this key>'), null, 2)
+    )
+  );
   Log.addNewLineIfNone();
 
   if (workflows.android === Workflow.GENERIC || workflows.ios === Workflow.GENERIC) {
