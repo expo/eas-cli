@@ -261,7 +261,7 @@ export async function ensureEASUpdatesIsConfiguredAsync(
     expWithoutUpdates.sdkVersion
   );
   if (!hasExpoUpdates) {
-    await installExpoUpdatesAsync(projectDir, { silent: true });
+    await installExpoUpdatesAsync(projectDir, { silent: !Log.isDebug });
     Log.withTick('Installed expo updates');
   }
 
