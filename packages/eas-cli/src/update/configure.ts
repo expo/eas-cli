@@ -45,7 +45,7 @@ function isRuntimeEqual(
  *   - Ensure runtimeVersion is defined for both or individual platforms
  *   - Output the changes made, or the changes required to make manually
  */
-export async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
+async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
   exp,
   projectId,
   projectDir,
@@ -200,7 +200,7 @@ function warnEASUpdatesManualConfig({
 /**
  * Make sure that the current `app.json` configuration for EAS Updates is set natively.
  */
-export async function ensureEASUpdatesIsConfiguredNativelyAsync(
+async function ensureEASUpdatesIsConfiguredNativelyAsync(
   graphqlClient: ExpoGraphqlClient,
   {
     exp,
