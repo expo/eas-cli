@@ -179,7 +179,7 @@ function warnEASUpdatesManualConfig({
     )}`
   );
   Log.warn(
-    `In order to finish configuring your project for EAS Update, you are going to need manually add the following to your app.config.js:\n${learnMore(
+    `Finish configuring EAS Update by adding the following to the project app.config.js:\n${learnMore(
       'https://expo.fyi/eas-update-config.md'
     )}\n`
   );
@@ -188,9 +188,7 @@ function warnEASUpdatesManualConfig({
 
   if (workflows.android === Workflow.GENERIC || workflows.ios === Workflow.GENERIC) {
     Log.warn(
-      `You will also have to manually edit the projects ${chalk.bold(
-        'Expo.plist/AndroidManifest.xml'
-      )}. ${learnMore('https://expo.fyi/eas-update-config.md#native-configuration')}`
+      chalk`The native config files {bold Expo.plist & AndroidManifest.xml} must be updated to support EAS Update. ${learnMore('https://expo.fyi/eas-update-config.md#native-configuration')}`
     );
   }
 
