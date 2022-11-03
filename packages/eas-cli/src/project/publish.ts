@@ -13,7 +13,7 @@ import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
 import { uploadWithPresignedPostWithRetryAsync } from '../uploads';
-import { expoCommandAsync } from '../utils/expoCli';
+import { expoCommandAsync, shouldUseVersionedExpoCLI } from '../utils/expoCli';
 import chunk from '../utils/expodash/chunk';
 import uniqBy from '../utils/expodash/uniqBy';
 
@@ -148,23 +148,30 @@ export async function buildUnsortedUpdateInfoGroupAsync(
 export async function buildBundlesAsync({
   projectDir,
   inputDir,
+  exp,
 }: {
   projectDir: string;
   inputDir: string;
+  exp: Pick<ExpoConfig, 'sdkVersion'>;
 }): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
   if (!packageJSON) {
     throw new Error('Could not locate package.json');
   }
 
-  await expoCommandAsync(projectDir, [
-    'export',
-    '--output-dir',
-    inputDir,
-    '--experimental-bundle',
-    '--non-interactive',
-    '--dump-sourcemap',
-  ]);
+  if (shouldUseVersionedExpoCLI(projectDir, exp)) {
+    await expoCommandAsync(projectDir, ['export', '--output-dir', inputDir, '--dump-sourcemap']);
+  } else {
+    // Legacy global Expo CLI
+    await expoCommandAsync(projectDir, [
+      'export',
+      '--output-dir',
+      inputDir,
+      '--experimental-bundle',
+      '--non-interactive',
+      '--dump-sourcemap',
+    ]);
+  }
 }
 
 export async function resolveInputDirectoryAsync(customInputDirectory: string): Promise<string> {
