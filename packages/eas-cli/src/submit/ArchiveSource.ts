@@ -318,7 +318,7 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
 
   const buildDate = new Date(updatedAt);
 
-  const formatedCommitData =
+  const formattedCommitData =
     gitCommitHash && gitCommitMessage
       ? `${chalk.dim(gitCommitHash.slice(0, 7))} "${chalk.bold(gitCommitMessage)}"`
       : 'Unknown';
@@ -329,7 +329,7 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
     `\tProfile: ${formatValue(buildProfile)}`,
     `\tChannel: ${formatValue(releaseChannel)}`,
     `\tRuntime version: ${formatValue(runtimeVersion)}`,
-    `\tCommit: ${formatedCommitData}`,
+    `\tCommit: ${formattedCommitData}`,
   ].join('\n');
 
   return {
