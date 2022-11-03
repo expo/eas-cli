@@ -5,12 +5,13 @@ import { URL } from 'url';
 import * as uuid from 'uuid';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { AppPlatform, BuildFragment } from '../graphql/generated';
+import { BuildFragment } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log, { learnMore } from '../log';
 import { appPlatformDisplayNames } from '../platform';
 import { confirmAsync, promptAsync } from '../prompts';
+import { fromNow } from '../utils/date';
 import { getRecentBuildsForSubmissionAsync } from './utils/builds';
 import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files';
 
@@ -304,38 +305,31 @@ async function handleBuildListSourceAsync(
 function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choice {
   const {
     id,
-    platform,
     updatedAt,
-    appVersion,
-    sdkVersion,
     runtimeVersion,
     buildProfile,
-    appBuildVersion,
     releaseChannel,
-    initiatingActor,
+    gitCommitHash,
+    gitCommitMessage,
   } = build;
 
   const formatValue = (field?: string | null): string =>
     field ? chalk.bold(field) : chalk.dim('Unknown');
 
   const buildDate = new Date(updatedAt);
-  const maybeRuntimeVersion = runtimeVersion ? `Runtime: ${formatValue(runtimeVersion)}` : null;
-  const maybeSdkVersion = sdkVersion ? `SDK: ${formatValue(sdkVersion)}` : null;
-  const appBuildVersionString = `${
-    platform === AppPlatform.Android ? 'Version code' : 'Build number'
-  }: ${formatValue(appBuildVersion)}`;
+
+  const formatedCommitData =
+    gitCommitHash && gitCommitMessage
+      ? `${chalk.dim(gitCommitHash.slice(0, 7))} "${chalk.bold(gitCommitMessage)}"`
+      : 'Unknown';
 
   const title = [
-    `ID: ${chalk.dim(id)}, Finished at: ${chalk.bold(buildDate.toLocaleString())}`,
-    [
-      `\tApp version: ${formatValue(appVersion)}, ${appBuildVersionString}`,
-      maybeRuntimeVersion,
-      maybeSdkVersion,
-    ]
-      .filter(it => it != null)
-      .join(', '),
-    `\tProfile: ${formatValue(buildProfile)}, Release channel: ${formatValue(releaseChannel)}`,
-    `\tAuthored by: ${formatValue(initiatingActor?.displayName)}`,
+    `ID: ${chalk.dim(id)}`,
+    `\t${chalk.dim(`${fromNow(buildDate)} ago`)}`,
+    `\tProfile: ${formatValue(buildProfile)}`,
+    `\tChannel: ${formatValue(releaseChannel)}`,
+    `\tRuntime version: ${formatValue(runtimeVersion)}`,
+    `\tCommit: ${formatedCommitData}`,
   ].join('\n');
 
   return {
