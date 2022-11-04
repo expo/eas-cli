@@ -10,7 +10,7 @@ import {
   testProjectId,
 } from '../../../credentials/__tests__/fixtures-constants';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
-import { createTestProject } from '../../../project/__tests__/project-utils';
+import { createTestProject } from '../../../project/__tests__/utils';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
 import { createSubmissionContextAsync } from '../../context';
 import IosSubmitCommand from '../IosSubmitCommand';

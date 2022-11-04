@@ -12,7 +12,7 @@ import {
 } from '../../../credentials/__tests__/fixtures-constants';
 import { getCredentialsFromUserAsync } from '../../../credentials/utils/promptForCredentials';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
-import { createTestProject } from '../../../project/__tests__/project-utils';
+import { createTestProject } from '../../../project/__tests__/utils';
 import { promptAsync } from '../../../prompts';
 import { SubmissionContext, createSubmissionContextAsync } from '../../context';
 import {

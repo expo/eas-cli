@@ -275,10 +275,7 @@ export async function ensureEASUpdatesIsConfiguredAsync(
     platform: RequestedPlatform;
   }
 ): Promise<void> {
-  const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
-    projectDir,
-    expWithoutUpdates.sdkVersion
-  );
+  const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(projectDir, expWithoutUpdates);
   if (!hasExpoUpdates) {
     await installExpoUpdatesAsync(projectDir, { silent: !Log.isDebug });
     Log.withTick('Installed expo updates');

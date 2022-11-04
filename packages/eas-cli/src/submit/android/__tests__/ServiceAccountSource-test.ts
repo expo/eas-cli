@@ -12,7 +12,7 @@ import {
   testProjectId,
 } from '../../../credentials/__tests__/fixtures-constants';
 import { SetUpGoogleServiceAccountKey } from '../../../credentials/android/actions/SetUpGoogleServiceAccountKey';
-import { createTestProject } from '../../../project/__tests__/project-utils';
+import { createTestProject } from '../../../project/__tests__/utils';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
 import { createSubmissionContextAsync } from '../../context';

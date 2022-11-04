@@ -6,6 +6,7 @@ import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
 import { getUsername } from '../../project/projectUtils';
 import { getVcsClient } from '../../vcs';
 import { BuildContext } from '../context';
+import { resolveChannel } from '../utils/updates';
 
 interface JobData {
   projectArchive: ArchiveSource;
@@ -58,7 +59,7 @@ export async function prepareJobAsync(
       buildCredentials,
     },
     releaseChannel: ctx.buildProfile.releaseChannel,
-    updates: { channel: ctx.buildProfile.channel },
+    updates: { channel: resolveChannel(ctx) },
     developmentClient: ctx.buildProfile.developmentClient,
     simulator: ctx.buildProfile.simulator,
     scheme: jobData.buildScheme,

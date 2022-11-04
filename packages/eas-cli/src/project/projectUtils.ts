@@ -64,16 +64,17 @@ export function isExpoUpdatesInstalled(projectDir: string): boolean {
   return !!(packageJson.dependencies && 'expo-updates' in packageJson.dependencies);
 }
 
-export function isExpoUpdatesInstalledOrAvailable(
-  projectDir: string,
-  sdkVersion?: string
-): boolean {
+export function isExpoUpdatesInstalledOrAvailable(projectDir: string, exp: ExpoConfig): boolean {
   // before sdk 44, expo-updates was included in with the expo module
-  if (sdkVersion && semver.lt(sdkVersion, '44.0.0')) {
+  if (exp.sdkVersion && semver.lt(exp.sdkVersion, '44.0.0')) {
     return true;
   }
 
   return isExpoUpdatesInstalled(projectDir);
+}
+
+export function isEASUpdateConfigured(projectDir: string, exp: ExpoConfig): boolean {
+  return isExpoUpdatesInstalledOrAvailable(projectDir, exp) && exp.updates?.url !== undefined;
 }
 
 export async function validateAppVersionRuntimePolicySupportAsync(

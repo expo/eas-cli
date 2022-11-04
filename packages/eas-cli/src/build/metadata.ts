@@ -5,7 +5,11 @@ import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
 
 import Log from '../log';
-import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils';
+import {
+  getUsername,
+  isEASUpdateConfigured,
+  isExpoUpdatesInstalled,
+} from '../project/projectUtils';
 import {
   readChannelSafelyAsync as readAndroidChannelSafelyAsync,
   readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync,
@@ -19,6 +23,7 @@ import { getVcsClient } from '../vcs';
 import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from './android/version';
 import { BuildContext } from './context';
 import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
+import { resolveChannel } from './utils/updates';
 
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>
@@ -111,15 +116,16 @@ async function resolveChannelOrReleaseChannelAsync<T extends Platform>(
   if (!isExpoUpdatesInstalled(ctx.projectDir)) {
     return null;
   }
-  if (ctx.buildProfile.channel) {
-    return { channel: ctx.buildProfile.channel };
+  const maybeChannel = resolveChannel(ctx);
+  if (maybeChannel) {
+    return { channel: maybeChannel };
   }
   if (ctx.buildProfile.releaseChannel) {
     return { releaseChannel: ctx.buildProfile.releaseChannel };
   }
-  const channel = await getNativeChannelAsync(ctx);
-  if (channel) {
-    return { channel };
+  const nativeChannel = await getNativeChannelAsync(ctx);
+  if (isEASUpdateConfigured(ctx.projectDir, ctx.exp) && nativeChannel) {
+    return { channel: nativeChannel };
   }
   const releaseChannel = await getNativeReleaseChannelAsync(ctx);
   return { releaseChannel };

@@ -7,6 +7,7 @@ import { AndroidCredentials } from '../../credentials/android/AndroidCredentials
 import { getUsername } from '../../project/projectUtils';
 import { getVcsClient } from '../../vcs';
 import { BuildContext } from '../context';
+import { resolveChannel } from '../utils/updates';
 
 interface JobData {
   projectArchive: ArchiveSource;
@@ -68,7 +69,7 @@ export async function prepareJobAsync(
       ...buildCredentials,
     },
     releaseChannel: ctx.buildProfile.releaseChannel,
-    updates: { channel: ctx.buildProfile.channel },
+    updates: { channel: resolveChannel(ctx) },
     developmentClient: buildProfile.developmentClient,
     gradleCommand: buildProfile.gradleCommand,
     applicationArchivePath: buildProfile.applicationArchivePath ?? buildProfile.artifactPath,
