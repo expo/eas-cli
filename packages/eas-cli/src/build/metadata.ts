@@ -120,12 +120,12 @@ async function resolveChannelOrReleaseChannelAsync<T extends Platform>(
   if (maybeChannel) {
     return { channel: maybeChannel };
   }
-  if (ctx.buildProfile.releaseChannel) {
-    return { releaseChannel: ctx.buildProfile.releaseChannel };
-  }
   const nativeChannel = await getNativeChannelAsync(ctx);
   if (isEASUpdateConfigured(ctx.projectDir, ctx.exp) && nativeChannel) {
     return { channel: nativeChannel };
+  }
+  if (ctx.buildProfile.releaseChannel) {
+    return { releaseChannel: ctx.buildProfile.releaseChannel };
   }
   const releaseChannel = await getNativeReleaseChannelAsync(ctx);
   return { releaseChannel };
