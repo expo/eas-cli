@@ -31,8 +31,9 @@ async function emulatorAsync(...options: string[]): Promise<SpawnResult> {
   try {
     return await spawnAsync(emulatorExecutable, options);
   } catch (error: any) {
-    const errorMessage = (error.stderr || error.stdout || error.message).trim();
-    error.message = errorMessage;
+    if (error.stderr) {
+      Log.error(error.stderr);
+    }
     throw error;
   }
 }

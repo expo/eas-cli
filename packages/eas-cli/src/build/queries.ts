@@ -5,7 +5,6 @@ import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { AppPlatform, BuildFilter, BuildFragment } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log from '../log';
-import { appPlatformDisplayNames } from '../platform';
 import { promptAsync } from '../prompts';
 import { printJsonOnlyOutput } from '../utils/json';
 import { paginatedQueryWithConfirmPromptAsync } from '../utils/queries';
@@ -55,6 +54,26 @@ export async function listAndRenderBuildsOnAppAsync(
   }
 }
 
+function formatBuildChoiceValue(value: string | undefined | null): string {
+  return value ? chalk.bold(value) : chalk.dim('Unknown');
+}
+
+function formatBuildChoiceTitle(build: BuildFragment): string {
+  const formattedCommitData =
+    build.gitCommitHash && build.gitCommitMessage
+      ? `${chalk.dim(build.gitCommitHash.slice(0, 7))} "${chalk.bold(build.gitCommitMessage)}"`
+      : 'Unknown';
+
+  return [
+    `ID: ${chalk.dim(build.id)}`,
+    `\tVersion: ${formatBuildChoiceValue(build.appVersion)}`,
+    `\t${
+      build.platform === AppPlatform.Ios ? 'Build number' : 'Version code'
+    }: ${formatBuildChoiceValue(build.appBuildVersion)}`,
+    `\tCommit: ${formattedCommitData}`,
+  ].join('\n');
+}
+
 export async function listAndSelectBuildsOnAppAsync(
   graphqlClient: ExpoGraphqlClient,
   {
@@ -62,11 +81,15 @@ export async function listAndSelectBuildsOnAppAsync(
     projectDisplayName,
     filter,
     queryOptions,
+    selectPromptDisabledFunction,
+    warningMessage,
   }: {
     projectId: string;
     projectDisplayName: string;
     filter?: BuildFilter;
     queryOptions: PaginatedQueryOptions;
+    selectPromptDisabledFunction?: (build: BuildFragment) => boolean;
+    warningMessage?: string;
   }
 ): Promise<BuildFragment> {
   const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
@@ -85,13 +108,11 @@ export async function listAndSelectBuildsOnAppAsync(
     message: `Select simulator build to run for ${projectDisplayName} app`,
     name: 'selectedSimulatorBuild',
     choices: builds.map(build => ({
-      title: `id: ${build.id}, platform: ${appPlatformDisplayNames[build.platform]}, version: ${
-        build.appVersion
-      }, ${build.platform === AppPlatform.Ios ? 'buildNumber' : 'versionCode'}: ${
-        build.appBuildVersion
-      }`,
+      title: formatBuildChoiceTitle(build),
       value: build,
+      disabled: selectPromptDisabledFunction?.(build),
     })),
+    warn: warningMessage,
   });
   return selectedSimulatorBuild;
 }

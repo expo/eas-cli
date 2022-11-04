@@ -8,8 +8,9 @@ async function aaptAsync(...options: string[]): Promise<SpawnResult> {
   try {
     return await spawnAsync(await getAaptExecutableAsync(), options);
   } catch (error: any) {
-    const errorMessage = (error.stderr || error.stdout || error.message).trim();
-    error.message = errorMessage;
+    if (error.stderr) {
+      Log.error(error.stderr);
+    }
     throw error;
   }
 }
@@ -25,8 +26,8 @@ export async function getAaptExecutableAsync(): Promise<string> {
   if (aaptPaths.length === 0) {
     throw new Error('Failed to resolve the Android aapt path');
   }
-
-  return aaptPaths.sort().reverse()[0];
+  const sorted = aaptPaths.sort();
+  return sorted[sorted.length - 1];
 }
 
 export async function getAptParametersAsync(

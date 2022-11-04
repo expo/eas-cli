@@ -145,9 +145,7 @@ async function maybeGetBuildAsync(
   paginatedQueryOptions: PaginatedQueryOptions
 ): Promise<BuildFragment | null> {
   const distributionType =
-    flags.selectedPlatform === AppPlatform.Ios
-      ? DistributionType.Simulator
-      : DistributionType.Internal;
+    flags.selectedPlatform === AppPlatform.Ios ? DistributionType.Simulator : undefined;
 
   if (flags.runArchiveFlags.id) {
     return BuildQuery.byIdAsync(graphqlClient, flags.runArchiveFlags.id);
@@ -166,6 +164,11 @@ async function maybeGetBuildAsync(
         status: BuildStatus.Finished,
       },
       queryOptions: paginatedQueryOptions,
+      selectPromptDisabledFunction: build =>
+        build.platform === AppPlatform.Ios
+          ? false
+          : !build.artifacts?.applicationArchiveUrl?.endsWith('.apk'),
+      warningMessage: 'This build is not a simulator/emulator build',
     });
   } else if (flags.runArchiveFlags.latest) {
     return await getLatestBuildAsync(graphqlClient, {

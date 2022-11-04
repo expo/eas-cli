@@ -38,11 +38,12 @@ async function assertExecutableExistsAsync(executable: string): Promise<void> {
 }
 
 export async function assertExecutablesExistAsync(): Promise<void> {
-  for (const executable of [
+  const executables = [
     await getAdbExecutableAsync(),
     await getEmulatorExecutableAsync(),
     await getAaptExecutableAsync(),
-  ]) {
+  ];
+  for (const executable of executables) {
     await assertExecutableExistsAsync(executable);
   }
 }

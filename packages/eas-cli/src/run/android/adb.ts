@@ -38,10 +38,7 @@ export async function getAdbExecutableAsync(): Promise<string> {
 }
 
 export function sanitizeAdbDeviceName(deviceName: string): string | undefined {
-  return deviceName
-    .trim()
-    .split(/[\r\n]+/)
-    .shift();
+  return deviceName.trim().split(/[\r\n]+/)[0];
 }
 
 /**
@@ -76,17 +73,13 @@ export async function getRunningEmulatorsAsync(): Promise<AndroidEmulator[]> {
       // authorized: ['FA8251A00719', 'device', 'usb:336592896X', 'product:walleye', 'model:Pixel_2', 'device:walleye', 'transport_id:4']
       // emulator: ['emulator-5554', 'offline', 'transport_id:1']
       const [pid] = line.split(' ').filter(truthy);
-
       const type = line.includes('emulator') ? 'emulator' : 'device';
       return { pid, type };
     })
     .filter(({ pid, type }) => !!pid && type === 'emulator');
 
-  const devicePromises = attachedDevices.map<Promise<AndroidEmulator>>(async props => {
-    const { pid } = props;
-
+  const devicePromises = attachedDevices.map<Promise<AndroidEmulator>>(async ({ pid }) => {
     const name = (await getAdbNameForDeviceIdAsync(pid)) ?? '';
-
     return {
       pid,
       name,
