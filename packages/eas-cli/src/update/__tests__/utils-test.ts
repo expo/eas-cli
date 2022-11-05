@@ -1,29 +1,18 @@
-import { truncatePublishUpdateMessage } from '../../commands/update';
-import Log from '../../log';
-import { getPlatformsForGroup } from '../utils';
+import { getPlatformsForGroup, truncateString } from '../utils';
 
 describe('update utility functions', () => {
-  describe(truncatePublishUpdateMessage.name, () => {
-    const warnSpy = jest.spyOn(Log, 'warn');
-    beforeEach(() => {
-      warnSpy.mockClear();
-    });
-
+  describe(truncateString, () => {
     it('does not alter messages with less than 1024 characters', () => {
       const message = 'Small message =)';
-      const truncatedMessage = truncatePublishUpdateMessage(message);
+      const truncatedMessage = truncateString(message, 1024);
       expect(truncatedMessage).toEqual(message);
-      expect(warnSpy).not.toBeCalled();
     });
 
     it('truncates messages to a length of 1024, including ellipses', () => {
       const longMessage = Array.from({ length: 2024 }, () => 'a').join('');
-      const truncatedMessage = truncatePublishUpdateMessage(longMessage);
+      const truncatedMessage = truncateString(longMessage, 1024);
       expect(truncatedMessage.length).toEqual(1024);
       expect(truncatedMessage.slice(-3)).toEqual('...');
-      expect(warnSpy).toBeCalledWith(
-        'Update message exceeds the allowed 1024 character limit. Truncating message...'
-      );
     });
   });
 

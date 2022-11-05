@@ -1,2 +1,5 @@
 * text eol=lf
+*.png binary
+*.jpg binary
+
 **/yarn.lock linguist-generated

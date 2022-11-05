@@ -1,3 +1,5 @@
+import { Platform } from '@expo/eas-build-job';
+import { EasJsonAccessor } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import path from 'path';
@@ -6,9 +8,9 @@ import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
 import { CredentialsContext } from '../../credentials/context';
 import Log, { learnMore } from '../../log';
-import { createMetadataContextAsync } from '../../metadata/context';
 import { downloadMetadataAsync } from '../../metadata/download';
 import { handleMetadataError } from '../../metadata/errors';
+import { getProfilesAsync } from '../../utils/profiles';
 
 export default class MetadataPull extends EasCommand {
   static override description = 'generate the local store configuration from the app stores';
@@ -42,6 +44,18 @@ export default class MetadataPull extends EasCommand {
     // this command is interactive (all nonInteractive flags passed to utility functions are false)
     await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false });
 
+    const submitProfiles = await getProfilesAsync({
+      type: 'submit',
+      easJsonAccessor: new EasJsonAccessor(projectDir),
+      platforms: [Platform.IOS],
+      profileName: flags.profile,
+    });
+
+    if (submitProfiles.length !== 1) {
+      throw new Error('Metadata only supports iOS and a single submit profile.');
+    }
+
+    const submitProfile = submitProfiles[0].profile;
     const credentialsCtx = new CredentialsContext({
       projectInfo: { exp, projectId },
       projectDir,
@@ -51,16 +65,14 @@ export default class MetadataPull extends EasCommand {
       nonInteractive: false,
     });
 
-    const metadataCtx = await createMetadataContextAsync({
-      credentialsCtx,
-      analytics,
-      projectDir,
-      exp,
-      profileName: flags.profile,
-    });
-
     try {
-      const filePath = await downloadMetadataAsync(metadataCtx);
+      const filePath = await downloadMetadataAsync({
+        analytics,
+        exp,
+        credentialsCtx,
+        projectDir,
+        profile: submitProfile,
+      });
       const relativePath = path.relative(process.cwd(), filePath);
 
       Log.addNewLineIfNone();

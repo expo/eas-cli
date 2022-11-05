@@ -6,12 +6,11 @@ import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import { getEASUpdateURL } from '../../api';
-import { selectBranchOnAppAsync } from '../../branch/queries';
-import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/utils';
+import { ensureBranchExistsAsync, selectBranchOnAppAsync } from '../../branch/queries';
+import { getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
+import { ensureChannelExistsAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -21,18 +20,13 @@ import {
   Update,
   UpdateInfoGroup,
   UpdatePublishMutation,
-  ViewBranchQueryVariables,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
-import {
-  getOwnerAccountForProjectIdAsync,
-  installExpoUpdatesAsync,
-  isExpoUpdatesInstalledOrAvailable,
-} from '../../project/projectUtils';
+import { RequestedPlatform, requestedPlatformDisplayNames } from '../../platform';
+import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
   ExpoCLIExportPlatformFlag,
   buildBundlesAsync,
@@ -44,9 +38,10 @@ import {
   uploadAssetsAsync,
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
-import { confirmAsync, promptAsync } from '../../prompts';
+import { promptAsync } from '../../prompts';
+import { ensureEASUpdatesIsConfiguredAsync } from '../../update/configure';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
-import { formatUpdateMessage } from '../../update/utils';
+import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -57,75 +52,36 @@ import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 import { getVcsClient } from '../../vcs';
-import { createUpdateBranchOnAppAsync } from '../branch/create';
-import { createUpdateChannelOnAppAsync } from '../channel/create';
 
 export const defaultPublishPlatforms: Partial<PublishPlatform>[] = ['android', 'ios'];
 
-async function ensureChannelExistsAsync(
-  graphqlClient: ExpoGraphqlClient,
-  {
-    appId,
-    branchId,
-    channelName,
-  }: {
-    appId: string;
-    branchId: string;
-    channelName: string;
-  }
-): Promise<void> {
-  try {
-    await createUpdateChannelOnAppAsync(graphqlClient, {
-      appId,
-      channelName,
-      branchId,
-    });
-    Log.withTick(
-      `Created a channel: ${chalk.bold(channelName)} pointed at branch: ${chalk.bold(channelName)}.`
-    );
-  } catch (e: any) {
-    const isIgnorableError =
-      e.graphQLErrors?.length === 1 &&
-      e.graphQLErrors[0].extensions.errorCode === 'CHANNEL_ALREADY_EXISTS';
-    if (!isIgnorableError) {
-      throw e;
-    }
-  }
-}
+type RawUpdateFlags = {
+  auto: boolean;
+  branch?: string;
+  message?: string;
+  group?: string;
+  republish?: boolean;
+  platform: string;
+  'input-dir': string;
+  'skip-bundler': boolean;
+  'private-key-path'?: string;
+  'non-interactive': boolean;
+  json: boolean;
+};
 
-export async function ensureBranchExistsAsync(
-  graphqlClient: ExpoGraphqlClient,
-  { appId, name: branchName }: ViewBranchQueryVariables
-): Promise<{
-  branchId: string;
-}> {
-  try {
-    const updateBranch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
-      appId,
-      name: branchName,
-    });
-
-    const { id } = updateBranch;
-    await ensureChannelExistsAsync(graphqlClient, { appId, branchId: id, channelName: branchName });
-    return { branchId: id };
-  } catch (error) {
-    if (error instanceof BranchNotFoundError) {
-      const newUpdateBranch = await createUpdateBranchOnAppAsync(graphqlClient, {
-        appId,
-        name: branchName,
-      });
-      Log.withTick(`Created branch: ${chalk.bold(branchName)}`);
-      await ensureChannelExistsAsync(graphqlClient, {
-        appId,
-        branchId: newUpdateBranch.id,
-        channelName: branchName,
-      });
-      return { branchId: newUpdateBranch.id };
-    } else {
-      throw error;
-    }
-  }
-}
+type UpdateFlags = {
+  auto: boolean;
+  platform: RequestedPlatform;
+  branchName?: string;
+  updateMessage?: string;
+  republish: boolean;
+  groupId?: string;
+  inputDir: string;
+  skipBundler: boolean;
+  privateKeyPath?: string;
+  json: boolean;
+  nonInteractive: boolean;
+};
 
 export default class UpdatePublish extends EasCommand {
   static override description = 'publish an update group';
@@ -184,21 +140,22 @@ export default class UpdatePublish extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(UpdatePublish);
-    const paginatedQueryOptions = getPaginatedQueryOptions(flags);
+    const { flags: rawFlags } = await this.parse(UpdatePublish);
+    const paginatedQueryOptions = getPaginatedQueryOptions(rawFlags);
     let {
-      branch: branchName,
       auto: autoFlag,
-      message,
+      platform: platformFlag,
+      branchName,
+      updateMessage,
       republish,
-      group,
-      'input-dir': inputDir,
-      'skip-bundler': skipBundler,
-      platform,
-      'private-key-path': privateKeyPath,
-      'non-interactive': nonInteractive,
+      groupId,
+      inputDir,
+      skipBundler,
+      privateKeyPath,
       json: jsonFlag,
-    } = flags;
+      nonInteractive,
+    } = this.sanitizeFlags(rawFlags);
+
     const {
       getDynamicProjectConfigAsync,
       loggedIn: { graphqlClient },
@@ -210,11 +167,11 @@ export default class UpdatePublish extends EasCommand {
       enableJsonOutput();
     }
 
-    const platformFlag = platform as ExpoCLIExportPlatformFlag;
-    // If a group was specified, that means we are republishing it.
-    republish = republish || !!group;
-
-    const { exp, projectId, projectDir } = await getDynamicProjectConfigAsync({
+    const {
+      exp: expPossiblyWithoutEasUpdateConfigured,
+      projectId,
+      projectDir,
+    } = await getDynamicProjectConfigAsync({
       isPublicConfig: true,
     });
 
@@ -224,33 +181,16 @@ export default class UpdatePublish extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
+    await ensureEASUpdatesIsConfiguredAsync(graphqlClient, {
+      exp: expPossiblyWithoutEasUpdateConfigured,
+      platform: platformFlag,
+      projectDir,
+      projectId,
+    });
+
+    const { exp } = await getDynamicProjectConfigAsync();
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
-
-    const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(projectDir, exp.sdkVersion);
-    if (!hasExpoUpdates && nonInteractive) {
-      Errors.error(
-        `${chalk.bold(
-          'expo-updates'
-        )} must already be installed when executing in non-interactive mode`,
-        { exit: 1 }
-      );
-    }
-
-    if (!hasExpoUpdates) {
-      const install = await confirmAsync({
-        message: chalk`The module {cyan expo-updates} must be installed to load EAS updates in-app. Install?`,
-        instructions: 'The command will abort unless you agree.',
-      });
-      if (install) {
-        await installExpoUpdatesAsync(projectDir);
-      } else {
-        Errors.error(`Install ${chalk.bold('expo-updates')} and try again.`, {
-          exit: 1,
-        });
-      }
-    }
-
-    await checkEASUpdateURLIsSetAsync(exp, projectId);
+    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
 
     let realizedPlatforms: PublishPlatform[] = [];
 
@@ -300,9 +240,9 @@ export default class UpdatePublish extends EasCommand {
         Update,
         'group' | 'message' | 'runtimeVersion' | 'manifestFragment' | 'platform'
       >[];
-      if (group) {
+      if (groupId) {
         const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, {
-          groupId: group,
+          groupId,
         });
         updatesToRepublish = updatesByGroup;
       } else {
@@ -323,7 +263,7 @@ export default class UpdatePublish extends EasCommand {
       if (updatesToRepublishFilteredByPlatform.length === 0) {
         throw new Error(
           `There are no updates on branch "${branchName}" published for the platform(s) "${platformFlag}" with group ID "${
-            group ? group : updatesToRepublish[0].group
+            groupId ? groupId : updatesToRepublish[0].group
           }". Did you mean to publish a new update instead?`
         );
       }
@@ -352,11 +292,11 @@ export default class UpdatePublish extends EasCommand {
       );
 
       // These are the same for each member of an update group
-      group = updatesToRepublishFilteredByPlatform[0].group;
+      groupId = updatesToRepublishFilteredByPlatform[0].group;
       oldMessage = updatesToRepublishFilteredByPlatform[0].message ?? '';
       oldRuntimeVersion = updatesToRepublishFilteredByPlatform[0].runtimeVersion;
 
-      if (!message) {
+      if (!updateMessage) {
         if (nonInteractive) {
           throw new Error('Must supply --message when in non-interactive mode');
         }
@@ -365,20 +305,20 @@ export default class UpdatePublish extends EasCommand {
         if (jsonFlag) {
           throw new Error(validationMessage);
         }
-        ({ publishMessage: message } = await promptAsync({
+        ({ updateMessage } = await promptAsync({
           type: 'text',
-          name: 'publishMessage',
+          name: 'updateMessage',
           message: `Provide an update message.`,
-          initial: `Republish "${oldMessage!}" - group: ${group}`,
+          initial: `Republish "${oldMessage!}" - group: ${groupId}`,
           validate: (value: any) => (value ? true : validationMessage),
         }));
       }
     } else {
-      if (!message && autoFlag) {
-        message = (await getVcsClient().getLastCommitMessageAsync())?.trim();
+      if (!updateMessage && autoFlag) {
+        updateMessage = (await getVcsClient().getLastCommitMessageAsync())?.trim();
       }
 
-      if (!message) {
+      if (!updateMessage) {
         if (nonInteractive) {
           throw new Error('Must supply --message or use --auto when in non-interactive mode');
         }
@@ -387,9 +327,9 @@ export default class UpdatePublish extends EasCommand {
         if (jsonFlag) {
           throw new Error(validationMessage);
         }
-        ({ publishMessage: message } = await promptAsync({
+        ({ updateMessage } = await promptAsync({
           type: 'text',
-          name: 'publishMessage',
+          name: 'updateMessage',
           message: `Provide an update message.`,
           initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
           validate: (value: any) => (value ? true : validationMessage),
@@ -400,7 +340,7 @@ export default class UpdatePublish extends EasCommand {
       if (!skipBundler) {
         const bundleSpinner = ora().start('Exporting...');
         try {
-          await buildBundlesAsync({ projectDir, inputDir });
+          await buildBundlesAsync({ projectDir, inputDir, exp });
           bundleSpinner.succeed('Exported bundle(s)');
         } catch (e) {
           bundleSpinner.fail('Export failed');
@@ -441,7 +381,10 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
-    const truncatedMessage = truncatePublishUpdateMessage(message!);
+    const truncatedMessage = truncateUpdateMessage(updateMessage!, 1024);
+    if (truncatedMessage !== updateMessage) {
+      Log.warn('Update message exceeds the allowed 1024 character limit. Truncating message...');
+    }
 
     const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
 
@@ -454,8 +397,16 @@ export default class UpdatePublish extends EasCommand {
 
     const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
-      name: branchName,
+      branchName,
     });
+    await ensureChannelExistsAsync(graphqlClient, {
+      appId: projectId,
+      branchId,
+      channelName: branchName,
+    });
+    Log.withTick(`Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`);
+
+    const gitCommitHash = await getVcsClient().getCommitHashAsync();
 
     // Sort the updates into different groups based on their platform specific runtime versions
     const updateGroups: PublishUpdateGroupInput[] = Object.entries(runtimeToPlatformMapping).map(
@@ -477,6 +428,7 @@ export default class UpdatePublish extends EasCommand {
           updateInfoGroup: localUpdateInfoGroup,
           runtimeVersion: republish ? oldRuntimeVersion : runtime,
           message: truncatedMessage,
+          gitCommitHash,
           awaitingCodeSigningInfo: !!codeSigningInfo,
         };
       }
@@ -576,6 +528,7 @@ export default class UpdatePublish extends EasCommand {
               : []),
             ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
             { label: 'Message', value: truncatedMessage },
+            ...(gitCommitHash ? [{ label: 'Commit', value: gitCommitHash }] : []),
             { label: 'Website link', value: updateGroupLink },
           ])
         );
@@ -594,6 +547,38 @@ export default class UpdatePublish extends EasCommand {
         }
       }
     }
+  }
+
+  private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
+    const nonInteractive = flags['non-interactive'] ?? false;
+
+    const { auto, branch: branchName, message: updateMessage } = flags;
+    if (nonInteractive && !auto && !(branchName && updateMessage)) {
+      Errors.error(
+        '--auto or both --branch and --message are required when updating in non-interactive mode',
+        { exit: 1 }
+      );
+    }
+
+    const groupId = flags.group;
+    const republish = flags.republish || !!groupId; // When --group is defined, we are republishing
+    if (nonInteractive && republish && !groupId) {
+      Errors.error(`--group is required when updating in non-interactive mode`, { exit: 1 });
+    }
+
+    return {
+      auto,
+      branchName,
+      updateMessage,
+      groupId,
+      republish,
+      inputDir: flags['input-dir'],
+      skipBundler: flags['skip-bundler'],
+      platform: flags.platform as RequestedPlatform,
+      privateKeyPath: flags['private-key-path'],
+      nonInteractive,
+      json: flags.json ?? false,
+    };
   }
 }
 
@@ -628,30 +613,11 @@ async function getRuntimeVersionObjectAsync(
         platform,
         nullthrows(
           Updates.getRuntimeVersion(exp, platform),
-          `Unable to determine runtime version for ${platform}`
+          `Unable to determine runtime version for ${
+            requestedPlatformDisplayNames[platform]
+          }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
         ),
       ];
     })
   );
 }
-
-async function checkEASUpdateURLIsSetAsync(exp: ExpoConfig, projectId: string): Promise<void> {
-  const configuredURL = exp.updates?.url;
-  const expectedURL = getEASUpdateURL(projectId);
-
-  if (configuredURL !== expectedURL) {
-    throw new Error(
-      `The update URL is incorrectly configured for EAS Update. Set updates.url to ${expectedURL} in your ${chalk.bold(
-        'app.json'
-      )}.`
-    );
-  }
-}
-
-export const truncatePublishUpdateMessage = (originalMessage: string): string => {
-  if (originalMessage.length > 1024) {
-    Log.warn('Update message exceeds the allowed 1024 character limit. Truncating message...');
-    return originalMessage.substring(0, 1021) + '...';
-  }
-  return originalMessage;
-};

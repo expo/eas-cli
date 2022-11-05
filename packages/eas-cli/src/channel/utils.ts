@@ -1,9 +1,13 @@
 import assert from 'assert';
-import CliTable from 'cli-table3';
+import chalk from 'chalk';
 
 import { UpdateChannelObject } from '../graphql/queries/ChannelQuery';
 import Log from '../log';
-import { UPDATE_COLUMNS, getUpdateGroupDescriptionsWithBranch } from '../update/utils';
+import {
+  FormattedBranchDescription,
+  formatBranch,
+  getUpdateGroupDescriptionsWithBranch,
+} from '../update/utils';
 
 export type BranchMapping = {
   version: number;
@@ -75,38 +79,39 @@ export function getBranchMapping(branchMappingString?: string): {
 
 export function logChannelDetails(channel: UpdateChannelObject): void {
   const { branchMapping, isRollout, rolloutPercent } = getBranchMapping(channel.branchMapping);
-
-  const updateChannelsTable = new CliTable({
-    head: ['branch', ...(isRollout ? ['rollout percent'] : []), ...UPDATE_COLUMNS],
-    wordWrap: true,
-  });
-
   if (branchMapping.data.length > 2) {
     throw new Error('Branch Mapping data must have length less than or equal to 2.');
   }
 
   const rolloutBranchIds = branchMapping.data.map(data => data.branchId);
-
-  for (const currentBranch of channel.updateBranches) {
-    const updateGroupDescriptions = getUpdateGroupDescriptionsWithBranch(
-      currentBranch.updateGroups
+  const branchDescription = channel.updateBranches.flatMap(branch => {
+    const updateGroupWithBranchDescriptions = getUpdateGroupDescriptionsWithBranch(
+      branch.updateGroups
     );
 
-    const isRolloutBranch = isRollout && rolloutBranchIds.includes(currentBranch.id);
-    const isBaseBranch = rolloutBranchIds.length > 0 && rolloutBranchIds[0] === currentBranch.id;
+    const isRolloutBranch = isRollout && rolloutBranchIds.includes(branch.id);
+    const isBaseBranch = rolloutBranchIds.length > 0 && rolloutBranchIds[0] === branch.id;
+    let rolloutPercentNumber: number | undefined = undefined;
+    if (isRolloutBranch) {
+      rolloutPercentNumber = isBaseBranch ? rolloutPercent! * 100 : (1 - rolloutPercent!) * 100;
+    }
 
-    updateGroupDescriptions.forEach(({ branch, message, runtimeVersion, group, platforms }) => {
-      updateChannelsTable.push([
+    return updateGroupWithBranchDescriptions.map(
+      ({ branch, ...updateGroup }): FormattedBranchDescription => ({
         branch,
-        ...(isRolloutBranch
-          ? [isBaseBranch ? `${rolloutPercent! * 100}%` : `${(1 - rolloutPercent!) * 100}%`]
-          : []),
-        message,
-        runtimeVersion,
-        group,
-        platforms,
-      ]);
-    });
+        branchRolloutPercentage: rolloutPercentNumber,
+        update: updateGroup,
+      })
+    );
+  });
+
+  if (branchDescription.length === 0) {
+    Log.log(chalk.dim('No branches are pointed to this channel.'));
+  } else {
+    Log.log(
+      branchDescription
+        .map(description => formatBranch(description))
+        .join(`\n\n${chalk.dim('———')}\n\n`)
+    );
   }
-  Log.log(updateChannelsTable.toString());
 }

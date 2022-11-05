@@ -1,19 +1,13 @@
-import Ajv from 'ajv';
+import { SubmitProfile } from '@expo/eas-json';
 import assert from 'assert';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { AppleConfigReader } from './apple/config/reader';
-import { AppleConfigWriter } from './apple/config/writer';
-import { AppleMetadata } from './apple/types';
-import { MetadataValidationError } from './errors';
-
-export interface MetadataConfig {
-  /** The store configuration version */
-  configVersion: number;
-  /** All App Store related configuration */
-  apple?: AppleMetadata;
-}
+import { AppleConfigReader } from '../apple/config/reader';
+import { AppleConfigWriter } from '../apple/config/writer';
+import { MetadataValidationError } from '../errors';
+import { MetadataConfig } from './schema';
+import { validateConfig } from './validate';
 
 /**
  * Resolve the dynamic config from the user.
@@ -28,17 +22,29 @@ async function resolveDynamicConfigAsync(configFile: string): Promise<unknown> {
 }
 
 /**
+ * Resolve the prefered store config file name from the submit profile.
+ * This is relative to the project directory, and uses `store.config.json` by default.
+ */
+function resolveConfigFilePath(profile: SubmitProfile): string {
+  if ('metadataPath' in profile) {
+    return profile.metadataPath ?? 'store.config.json';
+  }
+
+  return 'store.config.json';
+}
+
+/**
  * Get the static configuration file path, based on the metadata context.
  * This uses any custom name provided, but swaps out the extension for `.json`.
  */
 export function getStaticConfigFilePath({
   projectDir,
-  metadataPath,
+  profile,
 }: {
   projectDir: string;
-  metadataPath: string;
+  profile: SubmitProfile;
 }): string {
-  const configFile = path.join(projectDir, metadataPath);
+  const configFile = path.join(projectDir, resolveConfigFilePath(profile));
   const configExtension = path.extname(configFile);
 
   return path.join(projectDir, `${path.basename(configFile, configExtension)}.json`);
@@ -52,14 +58,14 @@ export function getStaticConfigFilePath({
  */
 export async function loadConfigAsync({
   projectDir,
-  metadataPath,
+  profile,
   skipValidation = false,
 }: {
   projectDir: string;
-  metadataPath: string;
+  profile: SubmitProfile;
   skipValidation?: boolean;
 }): Promise<MetadataConfig> {
-  const configFile = path.join(projectDir, metadataPath);
+  const configFile = path.join(projectDir, resolveConfigFilePath(profile));
   if (!(await fs.pathExists(configFile))) {
     throw new MetadataValidationError(`Metadata store config file not found: "${configFile}"`);
   }
@@ -67,37 +73,20 @@ export async function loadConfigAsync({
   const configData = await resolveDynamicConfigAsync(configFile);
 
   if (!skipValidation) {
-    const { valid, errors: validationErrors } = validateConfig(configData);
+    const issues = validateConfig(configData);
 
-    if (!valid) {
-      throw new MetadataValidationError(`Metadata store config errors found`, validationErrors);
+    if (issues.length > 0) {
+      throw new MetadataValidationError(`Metadata store config errors found`, issues);
     }
   }
 
   return configData as MetadataConfig;
 }
 
-/**
- * Run the JSON Schema validation to normalize defaults and flag early config errors.
- * This includes validating the known store limitations for every configurable property.
- */
-export function validateConfig(config: unknown): {
-  valid: boolean;
-  errors: Ajv.ErrorObject[];
-} {
-  const validator = new Ajv({ allErrors: true, useDefaults: true })
-    .addMetaSchema(require('ajv/lib/refs/json-schema-draft-06.json'))
-    .compile(require('../../schema/metadata-0.json'));
-
-  const valid = validator(config) as boolean;
-
-  return { valid, errors: validator.errors || [] };
-}
-
 /** Create a versioned deserializer to fetch App Store data from the store configuration. */
 export function createAppleReader(config: MetadataConfig): AppleConfigReader {
   assert(config.configVersion === 0, 'Unsupported store configuration version');
-  assert(config.apple, 'No apple configuration found');
+  assert(config.apple !== undefined, 'No apple configuration found');
   return new AppleConfigReader(config.apple);
 }
 

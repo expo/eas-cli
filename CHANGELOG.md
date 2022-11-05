@@ -9,12 +9,50 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Support uploading different platform combinations. ([#1461](https://github.com/expo/eas-cli/pull/1461) by [@EvanBacon](https://github.com/EvanBacon))
+- Add Git commit to EAS Update record. ([#1499](https://github.com/expo/eas-cli/pull/1499) by [@fiberjw](https://github.com/fiberjw))
+- Use local CLI for `expo export` in SDK +46. ([#1474](https://github.com/expo/eas-cli/pull/1474) by [@EvanBacon](https://github.com/EvanBacon))
+- Validate icon PNGs before running Android build. ([#1477](https://github.com/expo/eas-cli/pull/1477) by [@dsokal](https://github.com/dsokal))
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+- Remove friction from the initial EAS update setup. ([#1479](https://github.com/expo/eas-cli/pull/1479) by [@byCedric](https://github.com/byCedric))
+
+## [2.6.0](https://github.com/expo/eas-cli/releases/tag/v2.6.0) - 2022-10-27
+
+### 🎉 New features
+
+- Add custom metadata validation command with more complex rules. ([#1416](https://github.com/expo/eas-cli/pull/1416) by [@byCedric](https://github.com/byCedric))
+- Add `eas build:run` command which runs iOS simulator builds from the CLI. ([#1447](https://github.com/expo/eas-cli/pull/1447) by [@szdziedzic](https://github.com/szdziedzic))
+- Add feature gate support. ([#1475](https://github.com/expo/eas-cli/pull/1475) by [@wschurman](https://github.com/wschurman))
+- Warn about outdated build deployment when configuring EAS Update. ([#1467](https://github.com/expo/eas-cli/pull/1467) by [@fiberjw](https://github.com/fiberjw))
+
+### 🧹 Chores
+
+- Replace `secret:list` table with formatted fields. ([#1464](https://github.com/expo/eas-cli/pull/1464) by [@byCedric](https://github.com/byCedric))
+- Replace `device:create` input table with formatted fields. ([#1465](https://github.com/expo/eas-cli/pull/1465) by [@byCedric](https://github.com/byCedric))
+- Replace `channel:view` table with formatted fields. ([#1466](https://github.com/expo/eas-cli/pull/1466) by [@byCedric](https://github.com/byCedric))
+- Upgrade dependencies. ([#1480](https://github.com/expo/eas-cli/pull/1480) by [@dsokal](https://github.com/dsokal))
+- Replace all remaining tables with formatted fields. ([#1481](https://github.com/expo/eas-cli/pull/1481) by [@byCedric](https://github.com/byCedric))
+
+## [2.5.1](https://github.com/expo/eas-cli/releases/tag/v2.5.1) - 2022-10-24
+
+### 🐛 Bug fixes
+
+- Revert using local CLI for `expo export` ([#1460](https://github.com/expo/eas-cli/pull/1460)). ([#1472](https://github.com/expo/eas-cli/pull/1472) by [@dsokal](https://github.com/dsokal))
+
+## [2.5.0](https://github.com/expo/eas-cli/releases/tag/v2.5.0) - 2022-10-24
+
+### 🎉 New features
+
 - Update init command to handle slug and owner. ([#1452](https://github.com/expo/eas-cli/pull/1452) by [@wschurman](https://github.com/wschurman))
+- Add `eas secret:push`. ([#1457](https://github.com/expo/eas-cli/pull/1457) by [@dsokal](https://github.com/dsokal))
 
 ### 🐛 Bug fixes
 
 - Initialize analytics consistently and move analytics into context. ([#1444](https://github.com/expo/eas-cli/pull/1444) by [@wschurman](https://github.com/wschurman))
-- Skip using `--non-interactive` and `--experimental-bundle` flags when local Expo CLI is installed. ([#1460](https://github.com/expo/eas-cli/pull/1460) by [@EvanBacon](https://github.com/EvanBacon))
+- - Skip using `--non-interactive` and `--experimental-bundle` flags when local Expo CLI is installed. ([#1460](https://github.com/expo/eas-cli/pull/1460) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🧹 Chores
 

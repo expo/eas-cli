@@ -30,12 +30,13 @@ export const UserQuery = {
                   id
                   ...AccountFragment
                 }
+                featureGates
                 isExpoAdmin
               }
             }
             ${print(AccountFragmentNode)}
           `,
-          /* variables */ undefined,
+          {},
           {
             additionalTypenames: ['User'],
           }

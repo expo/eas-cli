@@ -1,4 +1,3 @@
-import { MetadataContext } from '../../context';
 import { AppleTask } from '../task';
 import { AgeRatingTask } from './age-rating';
 import { AppInfoTask } from './app-info';
@@ -12,10 +11,7 @@ type AppleTaskOptions = {
 /**
  * List of all eligible tasks to sync local store configuration to the App store.
  */
-export function createAppleTasks(
-  _ctx: MetadataContext,
-  { version }: AppleTaskOptions = {}
-): AppleTask[] {
+export function createAppleTasks({ version }: AppleTaskOptions = {}): AppleTask[] {
   return [
     new AppVersionTask({ version }),
     new AppInfoTask(),

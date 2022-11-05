@@ -1,63 +1,16 @@
 import chalk from 'chalk';
-import gql from 'graphql-tag';
 
+import { createUpdateBranchOnAppAsync } from '../../branch/queries';
 import { BranchNotFoundError } from '../../branch/utils';
+import { createChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { withErrorHandlingAsync } from '../../graphql/client';
-import {
-  CreateUpdateChannelOnAppMutation,
-  CreateUpdateChannelOnAppMutationVariables,
-} from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { createUpdateBranchOnAppAsync } from '../branch/create';
-
-export async function createUpdateChannelOnAppAsync(
-  graphqlClient: ExpoGraphqlClient,
-  {
-    appId,
-    channelName,
-    branchId,
-  }: {
-    appId: string;
-    channelName: string;
-    branchId: string;
-  }
-): Promise<CreateUpdateChannelOnAppMutation> {
-  // Point the new channel at a branch with its same name.
-  const branchMapping = JSON.stringify({
-    data: [{ branchId, branchMappingLogic: 'true' }],
-    version: 0,
-  });
-  return await withErrorHandlingAsync(
-    graphqlClient
-      .mutation<CreateUpdateChannelOnAppMutation, CreateUpdateChannelOnAppMutationVariables>(
-        gql`
-          mutation CreateUpdateChannelOnApp($appId: ID!, $name: String!, $branchMapping: String!) {
-            updateChannel {
-              createUpdateChannelForApp(appId: $appId, name: $name, branchMapping: $branchMapping) {
-                id
-                name
-                branchMapping
-              }
-            }
-          }
-        `,
-        {
-          appId,
-          name: channelName,
-          branchMapping,
-        }
-      )
-      .toPromise()
-  );
-}
 
 export default class ChannelCreate extends EasCommand {
   static override description = 'create a channel';
@@ -132,7 +85,7 @@ export default class ChannelCreate extends EasCommand {
 
     const {
       updateChannel: { createUpdateChannelForApp: newChannel },
-    } = await createUpdateChannelOnAppAsync(graphqlClient, {
+    } = await createChannelOnAppAsync(graphqlClient, {
       appId: projectId,
       channelName,
       branchId,

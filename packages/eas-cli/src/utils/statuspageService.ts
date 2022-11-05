@@ -33,6 +33,7 @@ function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
 
   const outageType = service.status === StatuspageServiceStatus.MajorOutage ? 'major' : 'partial';
 
+  Log.addNewLineIfNone();
   Log.warn(
     chalk.bold(`${humanReadableServiceName[service.name]} is experiencing a ${outageType} outage.`)
   );
