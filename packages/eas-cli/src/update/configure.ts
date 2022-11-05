@@ -272,7 +272,7 @@ export async function ensureEASUpdatesIsConfiguredAsync(
     exp: ExpoConfig;
     projectId: string;
     projectDir: string;
-    platform: RequestedPlatform;
+    platform: RequestedPlatform | null;
   }
 ): Promise<void> {
   const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
@@ -282,6 +282,12 @@ export async function ensureEASUpdatesIsConfiguredAsync(
   if (!hasExpoUpdates) {
     await installExpoUpdatesAsync(projectDir, { silent: !Log.isDebug });
     Log.withTick('Installed expo updates');
+  }
+
+  // Bail out if using a platform that doesn't require runtime versions
+  // or native setup, i.e. web.
+  if (!platform) {
+    return;
   }
 
   const workflows = await resolveWorkflowPerPlatformAsync(projectDir);

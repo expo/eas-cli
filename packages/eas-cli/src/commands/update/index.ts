@@ -71,7 +71,7 @@ type RawUpdateFlags = {
 
 type UpdateFlags = {
   auto: boolean;
-  platform: RequestedPlatform;
+  platform: ExpoCLIExportPlatformFlag;
   branchName?: string;
   updateMessage?: string;
   republish: boolean;
@@ -82,6 +82,21 @@ type UpdateFlags = {
   json: boolean;
   nonInteractive: boolean;
 };
+
+function getRequestedPlatform(platform: ExpoCLIExportPlatformFlag): RequestedPlatform | null {
+  switch (platform) {
+    case 'android':
+      return RequestedPlatform.Android;
+    case 'ios':
+      return RequestedPlatform.Ios;
+    case 'web':
+      return null;
+    case 'all':
+      return RequestedPlatform.All;
+    default:
+      throw new Error(`Unsupported platform: ${platform}`);
+  }
+}
 
 export default class UpdatePublish extends EasCommand {
   static override description = 'publish an update group';
@@ -183,14 +198,13 @@ export default class UpdatePublish extends EasCommand {
 
     await ensureEASUpdatesIsConfiguredAsync(graphqlClient, {
       exp: expPossiblyWithoutEasUpdateConfigured,
-      platform: platformFlag,
+      platform: getRequestedPlatform(platformFlag),
       projectDir,
       projectId,
     });
 
     const { exp } = await getDynamicProjectConfigAsync();
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
 
     let realizedPlatforms: PublishPlatform[] = [];
 
@@ -388,11 +402,12 @@ export default class UpdatePublish extends EasCommand {
 
     const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
 
-    const runtimeToPlatformMapping: Record<string, string[]> = {};
-    for (const runtime of new Set(Object.values(runtimeVersions))) {
-      runtimeToPlatformMapping[runtime] = Object.entries(runtimeVersions)
-        .filter(pair => pair[1] === runtime)
-        .map(pair => pair[0]);
+    const runtimeToPlatformMapping: { runtimeVersion: string; platforms: string[] }[] = [];
+    for (const runtime of runtimeVersions) {
+      const platforms = runtimeVersions
+        .filter(({ runtimeVersion }) => runtimeVersion === runtime.runtimeVersion)
+        .map(({ platform }) => platform);
+      runtimeToPlatformMapping.push({ runtimeVersion: runtime.runtimeVersion, platforms });
     }
 
     const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
@@ -409,8 +424,8 @@ export default class UpdatePublish extends EasCommand {
     const gitCommitHash = await getVcsClient().getCommitHashAsync();
 
     // Sort the updates into different groups based on their platform specific runtime versions
-    const updateGroups: PublishUpdateGroupInput[] = Object.entries(runtimeToPlatformMapping).map(
-      ([runtime, platforms]) => {
+    const updateGroups: PublishUpdateGroupInput[] = runtimeToPlatformMapping.map(
+      ({ runtimeVersion, platforms }) => {
         const localUpdateInfoGroup = Object.fromEntries(
           platforms.map(platform => [
             platform,
@@ -426,7 +441,7 @@ export default class UpdatePublish extends EasCommand {
         return {
           branchId,
           updateInfoGroup: localUpdateInfoGroup,
-          runtimeVersion: republish ? oldRuntimeVersion : runtime,
+          runtimeVersion: republish ? oldRuntimeVersion : runtimeVersion,
           message: truncatedMessage,
           gitCommitHash,
           awaitingCodeSigningInfo: !!codeSigningInfo,
@@ -498,12 +513,14 @@ export default class UpdatePublish extends EasCommand {
 
       Log.addNewLineIfNone();
 
-      for (const runtime of new Set(Object.values(runtimeVersions))) {
+      for (const runtime of runtimeVersions) {
         const newUpdatesForRuntimeVersion = newUpdates.filter(
-          update => update.runtimeVersion === runtime
+          update => update.runtimeVersion === runtime.runtimeVersion
         );
         if (newUpdatesForRuntimeVersion.length === 0) {
-          throw new Error(`Publish response is missing updates with runtime ${runtime}.`);
+          throw new Error(
+            `Publish response is missing updates with runtime ${runtime.runtimeVersion}.`
+          );
         }
         const platforms = newUpdatesForRuntimeVersion.map(update => update.platform);
         const newAndroidUpdate = newUpdatesForRuntimeVersion.find(
@@ -520,7 +537,7 @@ export default class UpdatePublish extends EasCommand {
         Log.log(
           formatFields([
             { label: 'Branch', value: branchName },
-            { label: 'Runtime version', value: runtime },
+            { label: 'Runtime version', value: runtime.runtimeVersion ?? 'N/A' },
             { label: 'Platform', value: platforms.join(', ') },
             { label: 'Update group ID', value: updateGroupId },
             ...(newAndroidUpdate
@@ -587,7 +604,7 @@ async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
   platforms: PublishPlatform[],
   projectDir: string
-): Promise<Record<string, string | null>> {
+): Promise<{ platform: string; runtimeVersion: string }[]> {
   for (const platform of platforms) {
     if (platform === 'web') {
       continue;
@@ -604,20 +621,18 @@ async function getRuntimeVersionObjectAsync(
     }
   }
 
-  return Object.fromEntries(
-    platforms.map(platform => {
-      if (platform === 'web') {
-        return ['web', null];
-      }
-      return [
-        platform,
-        nullthrows(
-          Updates.getRuntimeVersion(exp, platform),
-          `Unable to determine runtime version for ${
-            requestedPlatformDisplayNames[platform]
-          }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
-        ),
-      ];
-    })
-  );
+  return [...new Set(platforms)].map(platform => {
+    if (platform === 'web') {
+      return { platform: 'web', runtimeVersion: 'UNVERSIONED' };
+    }
+    return {
+      platform,
+      runtimeVersion: nullthrows(
+        Updates.getRuntimeVersion(exp, platform),
+        `Unable to determine runtime version for ${
+          requestedPlatformDisplayNames[platform]
+        }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
+      ),
+    };
+  });
 }
