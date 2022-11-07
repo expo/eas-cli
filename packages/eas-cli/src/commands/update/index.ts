@@ -48,6 +48,7 @@ import {
   getManifestBodyAsync,
   signManifestBody,
 } from '../../utils/code-signing';
+import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
@@ -514,7 +515,7 @@ export default class UpdatePublish extends EasCommand {
 
       Log.addNewLineIfNone();
 
-      for (const runtime of runtimeVersions) {
+      for (const runtime of uniqBy(runtimeVersions, version => version.runtimeVersion)) {
         const newUpdatesForRuntimeVersion = newUpdates.filter(
           update => update.runtimeVersion === runtime.runtimeVersion
         );
