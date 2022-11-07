@@ -152,10 +152,12 @@ export async function buildBundlesAsync({
   projectDir,
   inputDir,
   exp,
+  platformFlag,
 }: {
   projectDir: string;
   inputDir: string;
   exp: Pick<ExpoConfig, 'sdkVersion'>;
+  platformFlag: ExpoCLIExportPlatformFlag;
 }): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
   if (!packageJSON) {
@@ -163,7 +165,14 @@ export async function buildBundlesAsync({
   }
 
   if (shouldUseVersionedExpoCLI(projectDir, exp)) {
-    await expoCommandAsync(projectDir, ['export', '--output-dir', inputDir, '--dump-sourcemap']);
+    await expoCommandAsync(projectDir, [
+      'export',
+      '--output-dir',
+      inputDir,
+      '--dump-sourcemap',
+      '--platform',
+      platformFlag,
+    ]);
   } else {
     // Legacy global Expo CLI
     await expoCommandAsync(projectDir, [
@@ -173,6 +182,8 @@ export async function buildBundlesAsync({
       '--experimental-bundle',
       '--non-interactive',
       '--dump-sourcemap',
+      '--platform',
+      platformFlag,
     ]);
   }
 }

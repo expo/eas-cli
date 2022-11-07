@@ -354,7 +354,7 @@ export default class UpdatePublish extends EasCommand {
       if (!skipBundler) {
         const bundleSpinner = ora().start('Exporting...');
         try {
-          await buildBundlesAsync({ projectDir, inputDir, exp });
+          await buildBundlesAsync({ projectDir, inputDir, exp, platformFlag });
           bundleSpinner.succeed('Exported bundle(s)');
         } catch (e) {
           bundleSpinner.fail('Export failed');
@@ -370,7 +370,6 @@ export default class UpdatePublish extends EasCommand {
       try {
         const collectedAssets = await collectAssetsAsync(distRoot);
         const assets = filterExportedPlatformsByFlag(collectedAssets, platformFlag);
-
         realizedPlatforms = Object.keys(assets) as PublishPlatform[];
 
         const uploadResults = await uploadAssetsAsync(
@@ -407,7 +406,9 @@ export default class UpdatePublish extends EasCommand {
       const platforms = runtimeVersions
         .filter(({ runtimeVersion }) => runtimeVersion === runtime.runtimeVersion)
         .map(({ platform }) => platform);
-      runtimeToPlatformMapping.push({ runtimeVersion: runtime.runtimeVersion, platforms });
+      if (!runtimeToPlatformMapping.find(item => item.runtimeVersion === runtime.runtimeVersion)) {
+        runtimeToPlatformMapping.push({ runtimeVersion: runtime.runtimeVersion, platforms });
+      }
     }
 
     const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
@@ -537,7 +538,7 @@ export default class UpdatePublish extends EasCommand {
         Log.log(
           formatFields([
             { label: 'Branch', value: branchName },
-            { label: 'Runtime version', value: runtime.runtimeVersion ?? 'N/A' },
+            { label: 'Runtime version', value: runtime.runtimeVersion },
             { label: 'Platform', value: platforms.join(', ') },
             { label: 'Update group ID', value: updateGroupId },
             ...(newAndroidUpdate
