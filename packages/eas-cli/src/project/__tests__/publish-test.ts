@@ -106,8 +106,10 @@ describe(filterExportedPlatformsByFlag, () => {
     });
   });
   it(`asserts selected platform missing`, () => {
-    expect(() => filterExportedPlatformsByFlag({ web: true }, 'ios')).toThrow(
-      '--platform="ios" not found in metadata.json. Available platforms: web'
+    expect(() =>
+      filterExportedPlatformsByFlag({ web: true }, 'ios')
+    ).toThrowErrorMatchingInlineSnapshot(
+      `"--platform="ios" not found in metadata.json. Available platform(s): web"`
     );
   });
 });
