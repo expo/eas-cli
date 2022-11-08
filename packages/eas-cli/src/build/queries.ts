@@ -59,9 +59,12 @@ function formatBuildChoiceValue(value: string | undefined | null): string {
 }
 
 function formatBuildChoiceTitle(build: BuildFragment): string {
+  const splittedCommitMessage = build.gitCommitMessage?.split('\n');
   const formattedCommitData =
-    build.gitCommitHash && build.gitCommitMessage
-      ? `${chalk.dim(build.gitCommitHash.slice(0, 7))} "${chalk.bold(build.gitCommitMessage)}"`
+    build.gitCommitHash && splittedCommitMessage && splittedCommitMessage.length > 0
+      ? `${chalk.dim(build.gitCommitHash.slice(0, 7))} "${chalk.bold(
+          splittedCommitMessage[0] + (splittedCommitMessage.length > 1 ? '…' : '')
+        )}"`
       : 'Unknown';
 
   return [
