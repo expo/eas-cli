@@ -12,17 +12,19 @@ import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated'
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PresignedPost } from '../graphql/mutations/UploadSessionMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
+import Log from '../log';
 import { uploadWithPresignedPostWithRetryAsync } from '../uploads';
 import { expoCommandAsync, shouldUseVersionedExpoCLI } from '../utils/expoCli';
 import chunk from '../utils/expodash/chunk';
 import uniqBy from '../utils/expodash/uniqBy';
 
-export type PublishPlatform = Extract<'android' | 'ios', Platform>;
+export type ExpoCLIExportPlatformFlag = Platform | 'all';
+
 type Metadata = {
   version: number;
   bundler: 'metro';
   fileMetadata: {
-    [key in 'android' | 'ios']: { assets: { path: string; ext: string }[]; bundle: string };
+    [key in Platform]: { assets: { path: string; ext: string }[]; bundle: string };
   };
 };
 export type RawAsset = {
@@ -31,7 +33,7 @@ export type RawAsset = {
   path: string;
 };
 type CollectedAssets = {
-  [platform in PublishPlatform]?: {
+  [platform in Platform]?: {
     launchAsset: RawAsset;
     assets: RawAsset[];
   };
@@ -47,7 +49,7 @@ type ManifestFragment = {
   extra?: ManifestExtra;
 };
 type UpdateInfoGroup = {
-  [key in PublishPlatform]: ManifestFragment;
+  [key in Platform]: ManifestFragment;
 };
 
 const fileMetadataJoi = Joi.object({
@@ -55,13 +57,14 @@ const fileMetadataJoi = Joi.object({
     .required()
     .items(Joi.object({ path: Joi.string().required(), ext: Joi.string().required() })),
   bundle: Joi.string().required(),
-}).required();
+}).optional();
 export const MetadataJoi = Joi.object({
   version: Joi.number().required(),
   bundler: Joi.string().required(),
   fileMetadata: Joi.object({
     android: fileMetadataJoi,
     ios: fileMetadataJoi,
+    web: fileMetadataJoi,
   }).required(),
 }).required();
 
@@ -129,7 +132,7 @@ export async function buildUnsortedUpdateInfoGroupAsync(
   assets: CollectedAssets,
   exp: ExpoConfig
 ): Promise<UpdateInfoGroup> {
-  let platform: PublishPlatform;
+  let platform: Platform;
   const updateInfoGroup: Partial<UpdateInfoGroup> = {};
   for (platform in assets) {
     updateInfoGroup[platform] = {
@@ -149,10 +152,12 @@ export async function buildBundlesAsync({
   projectDir,
   inputDir,
   exp,
+  platformFlag,
 }: {
   projectDir: string;
   inputDir: string;
   exp: Pick<ExpoConfig, 'sdkVersion'>;
+  platformFlag: ExpoCLIExportPlatformFlag;
 }): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
   if (!packageJSON) {
@@ -160,7 +165,14 @@ export async function buildBundlesAsync({
   }
 
   if (shouldUseVersionedExpoCLI(projectDir, exp)) {
-    await expoCommandAsync(projectDir, ['export', '--output-dir', inputDir, '--dump-sourcemap']);
+    await expoCommandAsync(projectDir, [
+      'export',
+      '--output-dir',
+      inputDir,
+      '--dump-sourcemap',
+      '--platform',
+      platformFlag,
+    ]);
   } else {
     // Legacy global Expo CLI
     await expoCommandAsync(projectDir, [
@@ -170,18 +182,23 @@ export async function buildBundlesAsync({
       '--experimental-bundle',
       '--non-interactive',
       '--dump-sourcemap',
+      '--platform',
+      platformFlag,
     ]);
   }
 }
 
-export async function resolveInputDirectoryAsync(customInputDirectory: string): Promise<string> {
-  const distRoot = path.resolve(customInputDirectory);
+export async function resolveInputDirectoryAsync(
+  inputDir: string,
+  { skipBundler }: { skipBundler?: boolean }
+): Promise<string> {
+  const distRoot = path.resolve(inputDir);
   if (!(await fs.pathExists(distRoot))) {
-    throw new Error(`The input directory "${customInputDirectory}" does not exist.
-    You can allow us to build it for you by not setting the --skip-bundler flag.
-    If you chose to build it yourself you'll need to run a command to build the JS
-    bundle first.
-    You can use '--input-dir' to specify a different input directory.`);
+    let error = `--input-dir="${inputDir}" not found.`;
+    if (skipBundler) {
+      error += ` --skip-bundler requires the project to be exported manually before uploading. Ex: npx expo export && eas update --skip-bundler`;
+    }
+    throw new Error(error);
   }
   return distRoot;
 }
@@ -200,43 +217,62 @@ export function loadMetadata(distRoot: string): Metadata {
   if (metadata.bundler !== 'metro') {
     throw new Error('Only bundles created with Metro are currently supported');
   }
+  const platforms = Object.keys(metadata.fileMetadata);
+  if (platforms.length === 0) {
+    Log.warn('No updates were exported for any platform');
+  }
+  Log.debug(`Loaded ${platforms.length} platform(s): ${platforms.join(', ')}`);
   return metadata;
 }
 
-export async function collectAssetsAsync({
-  inputDir,
-  platforms,
-}: {
-  inputDir: string;
-  platforms: PublishPlatform[];
-}): Promise<CollectedAssets> {
-  const distRoot = await resolveInputDirectoryAsync(inputDir);
-  const metadata = loadMetadata(distRoot);
+export function filterExportedPlatformsByFlag<T extends Partial<Record<Platform, any>>>(
+  record: T,
+  platformFlag: ExpoCLIExportPlatformFlag
+): T {
+  if (platformFlag === 'all') {
+    return record;
+  }
 
-  const assetsFinal: CollectedAssets = {};
-  for (const platform of platforms) {
-    assetsFinal[platform] = {
+  const platform = platformFlag as Platform;
+
+  if (!record[platform]) {
+    throw new Error(
+      `--platform="${platform}" not found in metadata.json. Available platform(s): ${Object.keys(
+        record
+      ).join(', ')}`
+    );
+  }
+
+  return { [platform]: record[platform] } as T;
+}
+
+/** Given a directory, load the metadata.json and collect the assets for each platform. */
+export async function collectAssetsAsync(dir: string): Promise<CollectedAssets> {
+  const metadata = loadMetadata(dir);
+
+  const collectedAssets: CollectedAssets = {};
+
+  for (const platform of Object.keys(metadata.fileMetadata) as Platform[]) {
+    collectedAssets[platform] = {
       launchAsset: {
         fileExtension: '.bundle',
         contentType: 'application/javascript',
-        path: path.resolve(distRoot, metadata.fileMetadata[platform].bundle),
+        path: path.resolve(dir, metadata.fileMetadata[platform].bundle),
       },
-      assets: metadata.fileMetadata[platform].assets.map(asset => {
-        let fileExtension;
-        if (asset.ext) {
-          // ensure the file extension has a '.' prefix
-          fileExtension = asset.ext.startsWith('.') ? asset.ext : `.${asset.ext}`;
-        }
-        return {
-          fileExtension,
-          contentType: guessContentTypeFromExtension(asset.ext),
-          path: path.join(distRoot, asset.path),
-        };
-      }),
+      assets: metadata.fileMetadata[platform].assets.map(asset => ({
+        fileExtension: asset.ext ? ensureLeadingPeriod(asset.ext) : undefined,
+        contentType: guessContentTypeFromExtension(asset.ext),
+        path: path.join(dir, asset.path),
+      })),
     };
   }
 
-  return assetsFinal;
+  return collectedAssets;
+}
+
+// ensure the file extension has a '.' prefix
+function ensureLeadingPeriod(extension: string): string {
+  return extension.startsWith('.') ? extension : `.${extension}`;
 }
 
 export async function filterOutAssetsThatAlreadyExistAsync(
