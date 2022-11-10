@@ -20,6 +20,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Remove friction from the initial EAS update setup. ([#1479](https://github.com/expo/eas-cli/pull/1479) by [@byCedric](https://github.com/byCedric))
+- Improve choice formatting when selecting a build to submit in the `eas submit` command. ([#1502](https://github.com/expo/eas-cli/pull/1502) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [2.6.0](https://github.com/expo/eas-cli/releases/tag/v2.6.0) - 2022-10-27
 
