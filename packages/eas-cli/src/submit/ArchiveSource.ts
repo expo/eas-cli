@@ -323,9 +323,9 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
       ? `${chalk.dim(gitCommitHash.slice(0, 7))} "${chalk.bold(gitCommitMessage)}"`
       : 'Unknown';
 
-  const title = [
-    `ID: ${chalk.dim(id)}`,
-    `\t${chalk.dim(`${fromNow(buildDate)} ago`)}`,
+  const title = `ID: ${chalk.dim(id)} (${chalk.dim(`${fromNow(buildDate)} ago`)})`;
+
+  const description = [
     `\tProfile: ${formatValue(buildProfile)}`,
     `\tChannel: ${formatValue(releaseChannel)}`,
     `\tRuntime version: ${formatValue(runtimeVersion)}`,
@@ -334,6 +334,7 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
 
   return {
     title,
+    description,
     value: build,
     disabled: buildDate < expiryDate,
   };
