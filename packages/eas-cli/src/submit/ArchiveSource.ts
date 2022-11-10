@@ -303,15 +303,8 @@ async function handleBuildListSourceAsync(
 }
 
 function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choice {
-  const {
-    id,
-    updatedAt,
-    runtimeVersion,
-    buildProfile,
-    releaseChannel,
-    gitCommitHash,
-    gitCommitMessage,
-  } = build;
+  const { id, updatedAt, runtimeVersion, buildProfile, gitCommitHash, gitCommitMessage, channel } =
+    build;
 
   const formatValue = (field?: string | null): string =>
     field ? chalk.bold(field) : chalk.dim('Unknown');
@@ -327,7 +320,7 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
 
   const description = [
     `\tProfile: ${formatValue(buildProfile)}`,
-    `\tChannel: ${formatValue(releaseChannel)}`,
+    `\tChannel: ${formatValue(channel)}`,
     `\tRuntime version: ${formatValue(runtimeVersion)}`,
     `\tCommit: ${formattedCommitData}`,
   ].join('\n');
