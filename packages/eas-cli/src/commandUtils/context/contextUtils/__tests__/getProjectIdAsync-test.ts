@@ -158,9 +158,13 @@ describe(getProjectIdAsync, () => {
     expect(projectId).toEqual('2345');
 
     expect(modifyConfigAsync).toHaveBeenCalledTimes(1);
-    expect(modifyConfigAsync).toHaveBeenCalledWith('/app', {
-      extra: { eas: { projectId: '2345' } },
-    });
+    expect(modifyConfigAsync).toHaveBeenCalledWith(
+      '/app',
+      {
+        extra: { eas: { projectId: '2345' } },
+      },
+      { skipSDKVersionRequirement: true }
+    );
   });
 
   it('throws if writing the ID back to the config fails', async () => {
