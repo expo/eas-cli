@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fixed the values of the distribution enum on the build profile schema receiving the incorrect descriptions. ([#1504](https://github.com/expo/eas-cli/pull/1504) by [@macksal](https://github.com/macksal))
+- Remove hard dependency on expo package being installed to init a project. ([#1517](https://github.com/expo/eas-cli/pull/1517) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🧹 Chores
 
