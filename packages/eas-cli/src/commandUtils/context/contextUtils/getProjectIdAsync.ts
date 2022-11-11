@@ -25,9 +25,13 @@ export async function saveProjectIdToAppConfigAsync(
   options: { env?: Env } = {}
 ): Promise<void> {
   const exp = getExpoConfig(projectDir, options);
-  const result = await modifyConfigAsync(projectDir, {
-    extra: { ...exp.extra, eas: { ...exp.extra?.eas, projectId } },
-  });
+  const result = await modifyConfigAsync(
+    projectDir,
+    {
+      extra: { ...exp.extra, eas: { ...exp.extra?.eas, projectId } },
+    },
+    { skipSDKVersionRequirement: true }
+  );
 
   switch (result.type) {
     case 'success':
