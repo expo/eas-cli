@@ -1,4 +1,5 @@
 import { Analytics } from '../../analytics/AnalyticsManager';
+import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../../log';
 import { pressAnyKeyToContinueAsync } from '../../prompts';
@@ -10,6 +11,7 @@ export interface Action<T = void> {
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
   projectInfo: CredentialsContextProjectInfo | null;
+  getDynamicProjectConfigAsync: DynamicConfigContextFn;
   runAsync(ctx: CredentialsContext): Promise<T>;
 }
 

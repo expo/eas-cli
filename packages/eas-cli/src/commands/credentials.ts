@@ -13,6 +13,7 @@ export default class Credentials extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.OptionalProjectConfig,
+    ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.Analytics,
   };
 
@@ -21,6 +22,7 @@ export default class Credentials extends EasCommand {
     const {
       loggedIn: { actor, graphqlClient },
       projectConfig,
+      getDynamicProjectConfigAsync,
       analytics,
     } = await this.getContextAsync(Credentials, {
       nonInteractive: false,
@@ -31,6 +33,7 @@ export default class Credentials extends EasCommand {
       graphqlClient,
       analytics,
       projectConfig ?? null,
+      getDynamicProjectConfigAsync,
       flags.platform
     ).runAsync();
   }
