@@ -27,7 +27,7 @@ import {
   displayAndroidAppCredentials,
   displayEmptyAndroidCredentials,
 } from '../android/utils/printCredentials';
-import { CredentialsContext } from '../context';
+import { CredentialsContext, CredentialsContextProjectInfo } from '../context';
 import { ActionInfo, AndroidActionType, Scope } from './Actions';
 import {
   buildCredentialsActions,
@@ -52,9 +52,16 @@ export class ManageAndroid {
     const buildProfile = hasProjectContext
       ? await new SelectBuildProfileFromEasJson(this.projectDir, Platform.ANDROID).runAsync()
       : null;
+    let projectInfo: CredentialsContextProjectInfo | null = null;
+    if (hasProjectContext) {
+      const { exp, projectId } = await this.callingAction.getDynamicProjectConfigAsync({
+        env: buildProfile?.env,
+      });
+      projectInfo = { exp, projectId };
+    }
     const ctx = new CredentialsContext({
       projectDir: process.cwd(),
-      projectInfo: this.callingAction.projectInfo,
+      projectInfo,
       user: this.callingAction.actor,
       graphqlClient: this.callingAction.graphqlClient,
       analytics: this.callingAction.analytics,

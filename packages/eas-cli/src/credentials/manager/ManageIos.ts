@@ -15,7 +15,7 @@ import { resolveTargetsAsync } from '../../project/ios/target';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { ensureActorHasPrimaryAccount } from '../../user/actions';
-import { CredentialsContext } from '../context';
+import { CredentialsContext, CredentialsContextProjectInfo } from '../context';
 import {
   AppStoreApiKeyPurpose,
   selectAscApiKeysFromAccountAsync,
@@ -61,9 +61,18 @@ export class ManageIos {
     const buildProfile = this.callingAction.projectInfo
       ? await new SelectBuildProfileFromEasJson(this.projectDir, Platform.IOS).runAsync()
       : null;
+
+    let projectInfo: CredentialsContextProjectInfo | null = null;
+    if (this.callingAction.projectInfo) {
+      const { exp, projectId } = await this.callingAction.getDynamicProjectConfigAsync({
+        env: buildProfile?.env,
+      });
+      projectInfo = { exp, projectId };
+    }
+
     const ctx = new CredentialsContext({
       projectDir: process.cwd(),
-      projectInfo: this.callingAction.projectInfo,
+      projectInfo,
       user: this.callingAction.actor,
       graphqlClient: this.callingAction.graphqlClient,
       analytics: this.callingAction.analytics,
