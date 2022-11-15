@@ -1,3 +1,4 @@
+import { EasJsonUtils } from '@expo/eas-json';
 import fs from 'fs-extra';
 import mockdate from 'mockdate';
 import path from 'path';
@@ -10,6 +11,7 @@ import { AssetMetadataStatus } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../../graphql/queries/PublishQuery';
 import {
+  CollectedAssets,
   MetadataJoi,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
@@ -28,6 +30,17 @@ import {
 
 jest.mock('../../uploads');
 jest.mock('fs');
+jest.mock('@expo/eas-json', () => {
+  const actual = jest.requireActual('@expo/eas-json');
+
+  const EasJsonUtilsMock = {
+    getUpdatesConfigAsync: jest.fn(),
+  };
+  return {
+    ...actual,
+    EasJsonUtils: EasJsonUtilsMock,
+  };
+});
 
 const dummyFileBuffer = Buffer.from('dummy-file');
 
@@ -96,20 +109,38 @@ describe('MetadataJoi', () => {
 
 describe(filterExportedPlatformsByFlag, () => {
   it(`returns all`, () => {
-    expect(filterExportedPlatformsByFlag({ web: true, ios: true, android: true }, 'all')).toEqual({
-      web: true,
-      ios: true,
-      android: true,
-    });
+    expect(
+      filterExportedPlatformsByFlag(
+        new Map([
+          ['web', {}],
+          ['ios', {}],
+          ['android', {}],
+        ]),
+        'all'
+      )
+    ).toEqual(
+      new Map([
+        ['web', {}],
+        ['ios', {}],
+        ['android', {}],
+      ])
+    );
   });
   it(`selects a platform`, () => {
-    expect(filterExportedPlatformsByFlag({ web: true, ios: true, android: true }, 'ios')).toEqual({
-      ios: true,
-    });
+    expect(
+      filterExportedPlatformsByFlag(
+        new Map([
+          ['web', {}],
+          ['ios', {}],
+          ['android', {}],
+        ]),
+        'ios'
+      )
+    ).toEqual(new Map([['ios', {}]]));
   });
   it(`asserts selected platform missing`, () => {
     expect(() =>
-      filterExportedPlatformsByFlag({ web: true }, 'ios')
+      filterExportedPlatformsByFlag(new Map([['web', {}]]), 'ios')
     ).toThrowErrorMatchingInlineSnapshot(
       `"--platform="ios" not found in metadata.json. Available platform(s): web"`
     );
@@ -207,22 +238,25 @@ describe(buildUnsortedUpdateInfoGroupAsync, () => {
   it('returns the correct value', async () => {
     await expect(
       buildUnsortedUpdateInfoGroupAsync(
-        {
-          android: {
-            launchAsset: {
-              fileExtension: '.bundle',
-              contentType: 'bundle/javascript',
-              path: androidBundlePath,
-            },
-            assets: [
-              {
-                fileExtension: '.jpg',
-                contentType: 'image/jpeg',
-                path: assetPath,
+        new Map([
+          [
+            'android',
+            {
+              launchAsset: {
+                fileExtension: '.bundle',
+                contentType: 'bundle/javascript',
+                path: androidBundlePath,
               },
-            ],
-          },
-        },
+              assets: [
+                {
+                  fileExtension: '.jpg',
+                  contentType: 'image/jpeg',
+                  path: assetPath,
+                },
+              ],
+            },
+          ],
+        ]),
         {
           slug: 'hello',
           name: 'hello',
@@ -394,31 +428,155 @@ describe(collectAssetsAsync, () => {
       })
     );
 
-    expect(await collectAssetsAsync(inputDir)).toEqual({
-      android: {
-        launchAsset: {
-          fileExtension: '.bundle',
-          contentType: 'application/javascript',
-          path: `${inputDir}/bundles/android.js`,
-        },
-        assets: userDefinedAssets,
+    const projectDir = path.resolve();
+    expect(await collectAssetsAsync(projectDir, inputDir)).toEqual({
+      excludedAssets: [],
+      collectedAssets: new Map([
+        [
+          'android',
+          {
+            launchAsset: {
+              fileExtension: '.bundle',
+              contentType: 'application/javascript',
+              path: `${inputDir}/bundles/android.js`,
+            },
+            assets: userDefinedAssets,
+          },
+        ],
+        [
+          'ios',
+          {
+            launchAsset: {
+              fileExtension: '.bundle',
+              contentType: 'application/javascript',
+              path: `${inputDir}/bundles/ios.js`,
+            },
+            assets: userDefinedAssets,
+          },
+        ],
+        [
+          'web',
+          {
+            launchAsset: {
+              fileExtension: '.bundle',
+              contentType: 'application/javascript',
+              path: `${inputDir}/bundles/web.js`,
+            },
+            assets: userDefinedAssets,
+          },
+        ],
+      ]),
+    });
+  });
+
+  it('supports asset exclusion', async () => {
+    const fakeHash = 'hdahukw8adhawi8fawhfa8';
+    const bundles = {
+      android: 'android-bundle-code',
+      ios: 'ios-bundle-code',
+      web: 'web-bundle-code',
+    };
+    const inputDir = path.resolve(uuidv4());
+
+    const userDefinedAssets = [
+      {
+        fileExtension: '.jpg',
+        contentType: 'image/jpeg',
+        path: `${inputDir}/assets/${fakeHash}`,
+        originalPath: `assets/wat.jpg`,
       },
-      ios: {
-        launchAsset: {
-          fileExtension: '.bundle',
-          contentType: 'application/javascript',
-          path: `${inputDir}/bundles/ios.js`,
+    ];
+
+    const bundleDir = path.resolve(`${inputDir}/bundles`);
+    const assetDir = path.resolve(`${inputDir}/assets`);
+    await fs.mkdir(bundleDir, { recursive: true });
+    await fs.mkdir(assetDir, { recursive: true });
+    for (const platform of defaultPublishPlatforms) {
+      await fs.writeFile(path.resolve(inputDir, `bundles/${platform}.js`), bundles[platform]);
+    }
+    await fs.writeFile(path.resolve(`${inputDir}/assets/${fakeHash}`), dummyFileBuffer);
+    await fs.writeFile(
+      path.resolve(inputDir, 'metadata.json'),
+      JSON.stringify({
+        version: 0,
+        bundler: 'metro',
+        fileMetadata: {
+          android: {
+            assets: [{ path: `assets/${fakeHash}`, ext: 'jpg' }],
+            bundle: 'bundles/android.js',
+          },
+          ios: {
+            assets: [{ path: `assets/${fakeHash}`, ext: 'jpg' }],
+            bundle: 'bundles/ios.js',
+          },
+          web: {
+            assets: [{ path: `assets/${fakeHash}`, ext: 'jpg' }],
+            bundle: 'bundles/web.js',
+          },
         },
-        assets: userDefinedAssets,
-      },
-      web: {
-        launchAsset: {
-          fileExtension: '.bundle',
-          contentType: 'application/javascript',
-          path: `${inputDir}/bundles/web.js`,
+      })
+    );
+    await fs.writeFile(
+      path.resolve(inputDir, 'assetmap.json'),
+      JSON.stringify({
+        [fakeHash]: {
+          __packager_asset: true,
+          fileSystemLocation: '/Users/blah/temp/assets',
+          httpServerLocation: 'assets/assets',
+          width: 2339,
+          height: 1560,
+          scales: [1],
+          files: ['/Users/blah/temp/assets/wat.jpg'],
+          hash: fakeHash,
+          name: 'wat',
+          type: 'jpg',
+          fileHashes: [fakeHash],
         },
-        assets: userDefinedAssets,
-      },
+      })
+    );
+
+    jest.mocked(EasJsonUtils.getUpdatesConfigAsync).mockResolvedValue({
+      assetExcludePatterns: ['**/*.jpg'],
+    });
+
+    const projectDir = path.resolve();
+    expect(await collectAssetsAsync(projectDir, inputDir)).toEqual({
+      excludedAssets: userDefinedAssets,
+      collectedAssets: new Map([
+        [
+          'android',
+          {
+            launchAsset: {
+              fileExtension: '.bundle',
+              contentType: 'application/javascript',
+              path: `${inputDir}/bundles/android.js`,
+            },
+            assets: [],
+          },
+        ],
+        [
+          'ios',
+          {
+            launchAsset: {
+              fileExtension: '.bundle',
+              contentType: 'application/javascript',
+              path: `${inputDir}/bundles/ios.js`,
+            },
+            assets: [],
+          },
+        ],
+        [
+          'web',
+          {
+            launchAsset: {
+              fileExtension: '.bundle',
+              contentType: 'application/javascript',
+              path: `${inputDir}/bundles/web.js`,
+            },
+            assets: [],
+          },
+        ],
+      ]),
     });
   });
 });
@@ -488,40 +646,46 @@ describe(uploadAssetsAsync, () => {
     path: userDefinedPath,
   };
 
-  const assetsForUpdateInfoGroup = {
-    android: {
-      launchAsset: {
-        type: 'bundle',
-        contentType: 'application/javascript',
-        path: androidBundlePath,
-      },
-      assets: [
-        userDefinedAsset,
-        {
-          type: 'jpg',
-          contentType: 'image/jpeg',
-          path: dummyFilePath,
-          originalPath: dummyOriginalFilePath,
+  const assetsForUpdateInfoGroup: CollectedAssets = new Map([
+    [
+      'android',
+      {
+        launchAsset: {
+          type: 'bundle',
+          contentType: 'application/javascript',
+          path: androidBundlePath,
         },
-      ],
-    },
-    ios: {
-      launchAsset: {
-        type: 'bundle',
-        contentType: 'application/javascript',
-        path: androidBundlePath,
+        assets: [
+          userDefinedAsset,
+          {
+            type: 'jpg',
+            contentType: 'image/jpeg',
+            path: dummyFilePath,
+            originalPath: dummyOriginalFilePath,
+          },
+        ],
       },
-      assets: [
-        userDefinedAsset,
-        {
-          type: 'jpg',
-          contentType: 'image/jpeg',
-          path: dummyFilePath,
-          originalPath: dummyOriginalFilePath,
+    ],
+    [
+      'ios',
+      {
+        launchAsset: {
+          type: 'bundle',
+          contentType: 'application/javascript',
+          path: androidBundlePath,
         },
-      ],
-    },
-  };
+        assets: [
+          userDefinedAsset,
+          {
+            type: 'jpg',
+            contentType: 'image/jpeg',
+            path: dummyFilePath,
+            originalPath: dummyOriginalFilePath,
+          },
+        ],
+      },
+    ],
+  ]);
 
   beforeAll(async () => {
     await fs.writeFile(androidBundlePath, publishBundles.android.code);

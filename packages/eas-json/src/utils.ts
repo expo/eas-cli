@@ -48,4 +48,18 @@ export class EasJsonUtils {
     const easJson = await accessor.readAsync();
     return resolveSubmitProfile({ easJson, platform, profileName });
   }
+
+  public static async getUpdatesConfigAsync(
+    accessor: EasJsonAccessor
+  ): Promise<EasJson['update'] | null> {
+    try {
+      const easJson = await accessor.readAsync();
+      return easJson.update ?? null;
+    } catch (err: any) {
+      if (err instanceof MissingEasJsonError) {
+        return null;
+      }
+      throw err;
+    }
+  }
 }

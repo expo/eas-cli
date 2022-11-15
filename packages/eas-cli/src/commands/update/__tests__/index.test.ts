@@ -225,8 +225,8 @@ function mockTestExport({
     );
   }
 
-  jest.mocked(collectAssetsAsync).mockResolvedValue(
-    Object.fromEntries(
+  jest.mocked(collectAssetsAsync).mockResolvedValue({
+    collectedAssets: new Map(
       platforms.map(platform => [
         platform,
         {
@@ -237,8 +237,9 @@ function mockTestExport({
           },
         },
       ])
-    )
-  );
+    ),
+    excludedAssets: [],
+  });
 
   jest.mocked(uploadAssetsAsync).mockResolvedValue({
     // platforms are mocked all containing only the launch asset

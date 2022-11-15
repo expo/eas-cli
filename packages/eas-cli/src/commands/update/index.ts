@@ -302,9 +302,9 @@ export default class UpdatePublish extends EasCommand {
     let assetLimitPerUpdateGroup = 0;
 
     try {
-      const collectedAssets = await collectAssetsAsync(distRoot);
+      const { collectedAssets, excludedAssets } = await collectAssetsAsync(projectDir, distRoot);
       const assets = filterExportedPlatformsByFlag(collectedAssets, platformFlag);
-      realizedPlatforms = Object.keys(assets) as PublishPlatform[];
+      realizedPlatforms = Array.from(assets.keys());
 
       const uploadResults = await uploadAssetsAsync(
         graphqlClient,
@@ -330,6 +330,13 @@ export default class UpdatePublish extends EasCommand {
       Log.withTick(
         `Uploaded ${uploadedBundleCount} app ${uploadedBundleCount === 1 ? 'bundle' : 'bundles'}`
       );
+      if (excludedAssets.length > 0) {
+        Log.withTick(
+          `Excluded ${excludedAssets.length} ${
+            excludedAssets.length === 1 ? 'asset' : 'assets'
+          } from upload`
+        );
+      }
       if (uploadedNormalAssetCount === 0) {
         Log.withTick(`Uploading assets skipped - no new assets found`);
       } else {
@@ -408,6 +415,7 @@ export default class UpdatePublish extends EasCommand {
         };
       }
     );
+
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();
     try {

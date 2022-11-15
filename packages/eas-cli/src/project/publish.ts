@@ -1,9 +1,12 @@
 import { ExpoConfig, Platform } from '@expo/config';
+import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import Joi from 'joi';
 import mime from 'mime';
+import minimatch from 'minimatch';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
@@ -16,6 +19,9 @@ import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads
 import { expoCommandAsync, shouldUseVersionedExpoCLI } from '../utils/expoCli';
 import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
+import mapMap from '../utils/expodash/mapMap';
+import mapMapAsync from '../utils/expodash/mapMapAsync';
+import partition from '../utils/expodash/partition';
 import uniqBy from '../utils/expodash/uniqBy';
 
 export type ExpoCLIExportPlatformFlag = Platform | 'all';
@@ -35,12 +41,15 @@ export type RawAsset = {
   originalPath?: string;
 };
 
-type CollectedAssets = {
-  [platform in Platform]?: {
+export type CollectedAssets = Map<
+  Platform,
+  {
     launchAsset: RawAsset;
     assets: RawAsset[];
-  };
-};
+  }
+>;
+
+type ExcludedAssets = RawAsset[];
 
 type ManifestExtra = {
   expoClient?: { [key: string]: any };
@@ -145,20 +154,21 @@ export async function buildUnsortedUpdateInfoGroupAsync(
   assets: CollectedAssets,
   exp: ExpoConfig
 ): Promise<UpdateInfoGroup> {
-  let platform: Platform;
-  const updateInfoGroup: Partial<UpdateInfoGroup> = {};
-  for (platform in assets) {
-    updateInfoGroup[platform] = {
-      launchAsset: await convertAssetToUpdateInfoGroupFormatAsync(assets[platform]?.launchAsset!),
-      assets: await Promise.all(
-        (assets[platform]?.assets ?? []).map(convertAssetToUpdateInfoGroupFormatAsync)
-      ),
-      extra: {
-        expoClient: exp,
-      },
-    };
-  }
-  return updateInfoGroup as UpdateInfoGroup;
+  return Object.fromEntries(
+    (
+      await mapMapAsync(assets, async (collectedAssets): Promise<ManifestFragment> => {
+        return {
+          launchAsset: await convertAssetToUpdateInfoGroupFormatAsync(collectedAssets.launchAsset),
+          assets: await Promise.all(
+            collectedAssets.assets.map(convertAssetToUpdateInfoGroupFormatAsync)
+          ),
+          extra: {
+            expoClient: exp,
+          },
+        };
+      })
+    ).entries()
+  ) as UpdateInfoGroup;
 }
 
 export async function buildBundlesAsync({
@@ -240,25 +250,25 @@ export function loadMetadata(distRoot: string): Metadata {
   return metadata;
 }
 
-export function filterExportedPlatformsByFlag<T extends Partial<Record<Platform, any>>>(
-  record: T,
+export function filterExportedPlatformsByFlag<V>(
+  record: Map<Platform, V>,
   platformFlag: ExpoCLIExportPlatformFlag
-): T {
+): Map<Platform, V> {
   if (platformFlag === 'all') {
     return record;
   }
 
   const platform = platformFlag as Platform;
 
-  if (!record[platform]) {
+  if (!record.has(platform)) {
     throw new Error(
-      `--platform="${platform}" not found in metadata.json. Available platform(s): ${Object.keys(
-        record
+      `--platform="${platform}" not found in metadata.json. Available platform(s): ${Array.from(
+        record.keys()
       ).join(', ')}`
     );
   }
 
-  return { [platform]: record[platform] } as T;
+  return new Map([[platform, nullthrows(record.get(platform))]]);
 }
 
 /** Try to load the asset map for logging the names of assets published */
@@ -300,29 +310,77 @@ export function getOriginalPathFromAssetMap(
 }
 
 /** Given a directory, load the metadata.json and collect the assets for each platform. */
-export async function collectAssetsAsync(dir: string): Promise<CollectedAssets> {
-  const metadata = loadMetadata(dir);
-  const assetmap = await loadAssetMapAsync(dir);
+export async function collectAssetsAsync(
+  projectDir: string,
+  distRoot: string
+): Promise<{ collectedAssets: CollectedAssets; excludedAssets: ExcludedAssets }> {
+  const metadata = loadMetadata(distRoot);
+  const assetmap = await loadAssetMapAsync(distRoot);
 
-  const collectedAssets: CollectedAssets = {};
+  const easJsonAccessor = new EasJsonAccessor(projectDir);
+  const updatesConfig = await EasJsonUtils.getUpdatesConfigAsync(easJsonAccessor);
+  const assetExcludePatterns = updatesConfig?.assetExcludePatterns;
 
-  for (const platform of Object.keys(metadata.fileMetadata) as Platform[]) {
-    collectedAssets[platform] = {
-      launchAsset: {
-        fileExtension: '.bundle',
-        contentType: 'application/javascript',
-        path: path.resolve(dir, metadata.fileMetadata[platform].bundle),
-      },
-      assets: metadata.fileMetadata[platform].assets.map(asset => ({
-        fileExtension: asset.ext ? ensureLeadingPeriod(asset.ext) : undefined,
-        originalPath: getOriginalPathFromAssetMap(assetmap, asset) ?? undefined,
-        contentType: guessContentTypeFromExtension(asset.ext),
-        path: path.join(dir, asset.path),
-      })),
+  const platformToAssets = new Map(
+    (Object.keys(metadata.fileMetadata) as Platform[]).map(platform => [
+      platform,
+      metadata.fileMetadata[platform].assets,
+    ])
+  );
+
+  const platformToIncludedAndExcludedAssets = mapMap(platformToAssets, assets => {
+    if (!assetExcludePatterns) {
+      return {
+        includedAssets: assets,
+        excludedAssets: [],
+      };
+    }
+
+    const [includedAssets, excludedAssets] = partition(assets, asset => {
+      const originalPath = getOriginalPathFromAssetMap(assetmap, asset) ?? undefined;
+      return (
+        !originalPath || !assetExcludePatterns.some(pattern => minimatch(originalPath, pattern))
+      );
+    });
+
+    return {
+      includedAssets,
+      excludedAssets,
     };
-  }
+  });
 
-  return collectedAssets;
+  const transformAsset = (asset: { path: string; ext: string }): RawAsset => {
+    return {
+      fileExtension: asset.ext ? ensureLeadingPeriod(asset.ext) : undefined,
+      originalPath: getOriginalPathFromAssetMap(assetmap, asset) ?? undefined,
+      contentType: guessContentTypeFromExtension(asset.ext),
+      path: path.join(distRoot, asset.path),
+    };
+  };
+
+  const collectedAssets = mapMap(
+    platformToIncludedAndExcludedAssets,
+    ({ includedAssets }, platform) => {
+      return {
+        launchAsset: {
+          fileExtension: '.bundle',
+          contentType: 'application/javascript',
+          path: path.resolve(distRoot, metadata.fileMetadata[platform].bundle),
+        },
+        assets: includedAssets.map(transformAsset),
+      };
+    }
+  );
+  const excludedAssets = uniqBy(
+    Array.from(
+      mapMap(platformToIncludedAndExcludedAssets, ({ excludedAssets }) =>
+        excludedAssets.map(transformAsset)
+      ).values()
+    ).flat(),
+    rawAsset => rawAsset.path
+  );
+
+  return { collectedAssets, excludedAssets };
 }
 
 // ensure the file extension has a '.' prefix
@@ -370,16 +428,11 @@ export async function uploadAssetsAsync(
   updateSpinnerText?: (totalAssets: number, missingAssets: number) => void
 ): Promise<AssetUploadResult> {
   let assets: RawAsset[] = [];
-  let platform: keyof CollectedAssets;
   const launchAssets: RawAsset[] = [];
-  for (platform in assetsForUpdateInfoGroup) {
-    launchAssets.push(assetsForUpdateInfoGroup[platform]!.launchAsset);
-    assets = [
-      ...assets,
-      assetsForUpdateInfoGroup[platform]!.launchAsset,
-      ...assetsForUpdateInfoGroup[platform]!.assets,
-    ];
-  }
+  mapMap(assetsForUpdateInfoGroup, collectedAssets => {
+    launchAssets.push(collectedAssets.launchAsset);
+    assets = [...assets, collectedAssets.launchAsset, ...collectedAssets.assets];
+  });
 
   const assetsWithStorageKey = await Promise.all(
     assets.map(async asset => {
