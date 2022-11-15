@@ -1,9 +1,11 @@
 import { ExpoConfig, Platform } from '@expo/config';
+import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import Joi from 'joi';
 import mime from 'mime';
+import minimatch from 'minimatch';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
@@ -16,6 +18,7 @@ import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads
 import { expoCommandAsync, shouldUseVersionedExpoCLI } from '../utils/expoCli';
 import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
+import partition from '../utils/expodash/partition';
 import uniqBy from '../utils/expodash/uniqBy';
 
 export type ExpoCLIExportPlatformFlag = Platform | 'all';
@@ -360,11 +363,14 @@ type AssetUploadResult = {
   uniqueUploadedAssetPaths: string[];
   /** The asset limit received from the server */
   assetLimitPerUpdateGroup: number;
+  /** The assets excluded from upload */
+  excludedAssets: RawAsset[];
 };
 
 export async function uploadAssetsAsync(
   graphqlClient: ExpoGraphqlClient,
   assetsForUpdateInfoGroup: CollectedAssets,
+  projectDir: string,
   projectId: string,
   updateSpinnerText?: (totalAssets: number, missingAssets: number) => void
 ): Promise<AssetUploadResult> {
@@ -378,6 +384,19 @@ export async function uploadAssetsAsync(
       assetsForUpdateInfoGroup[platform]!.launchAsset,
       ...assetsForUpdateInfoGroup[platform]!.assets,
     ];
+  }
+
+  const easJsonAccessor = new EasJsonAccessor(projectDir);
+  const updatesConfig = await EasJsonUtils.getUpdatesConfigAsync(easJsonAccessor);
+  const assetExcludePatterns = updatesConfig?.assetExcludePatterns;
+  let excludedAssets: RawAsset[] = [];
+  if (assetExcludePatterns) {
+    // some assets (like bundles) don't have original path so include those by default
+    [assets, excludedAssets] = partition(
+      assets,
+      ({ originalPath }) =>
+        !originalPath || !assetExcludePatterns.some(pattern => minimatch(originalPath, pattern))
+    );
   }
 
   const assetsWithStorageKey = await Promise.all(
@@ -439,6 +458,7 @@ export async function uploadAssetsAsync(
     assetCount: assets.length,
     launchAssetCount: launchAssets.length,
     uniqueAssetCount: uniqueAssets.length,
+    excludedAssets,
     uniqueUploadedAssetCount,
     uniqueUploadedAssetPaths,
     assetLimitPerUpdateGroup,

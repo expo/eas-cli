@@ -25,4 +25,7 @@ export interface EasJson {
   };
   build?: { [profileName: string]: EasJsonBuildProfile };
   submit?: { [profileName: string]: EasJsonSubmitProfile };
+  update?: {
+    assetExcludePatterns?: string[];
+  };
 }

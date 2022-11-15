@@ -13,4 +13,7 @@ export const EasJsonSchema = Joi.object({
   }),
   build: Joi.object().pattern(Joi.string(), BuildProfileSchema),
   submit: Joi.object().pattern(Joi.string(), SubmitProfileSchema),
+  update: Joi.object({
+    assetExcludePatterns: Joi.array().items(Joi.string()),
+  }),
 });

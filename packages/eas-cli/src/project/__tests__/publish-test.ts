@@ -1,3 +1,4 @@
+import { EasJsonUtils } from '@expo/eas-json';
 import fs from 'fs-extra';
 import mockdate from 'mockdate';
 import path from 'path';
@@ -28,6 +29,17 @@ import {
 
 jest.mock('../../uploads');
 jest.mock('fs');
+jest.mock('@expo/eas-json', () => {
+  const actual = jest.requireActual('@expo/eas-json');
+
+  const EasJsonUtilsMock = {
+    getUpdatesConfigAsync: jest.fn(),
+  };
+  return {
+    ...actual,
+    EasJsonUtils: EasJsonUtilsMock,
+  };
+});
 
 const dummyFileBuffer = Buffer.from('dummy-file');
 
@@ -570,12 +582,14 @@ describe(uploadAssetsAsync, () => {
     });
 
     mockdate.set(0);
+    const projectDir = path.resolve();
     await expect(
-      uploadAssetsAsync(graphqlClient, assetsForUpdateInfoGroup, testProjectId)
+      uploadAssetsAsync(graphqlClient, assetsForUpdateInfoGroup, projectDir, testProjectId)
     ).resolves.toEqual({
       assetCount: 6,
       launchAssetCount: 2,
       uniqueAssetCount: 3,
+      excludedAssets: [],
       uniqueUploadedAssetCount: 0,
       uniqueUploadedAssetPaths: [],
       assetLimitPerUpdateGroup: expectedAssetLimit,
@@ -608,12 +622,14 @@ describe(uploadAssetsAsync, () => {
     });
 
     mockdate.set(0);
+    const projectDir = path.resolve();
     await expect(
-      uploadAssetsAsync(graphqlClient, assetsForUpdateInfoGroup, testProjectId)
+      uploadAssetsAsync(graphqlClient, assetsForUpdateInfoGroup, projectDir, testProjectId)
     ).resolves.toEqual({
       assetCount: 6,
       launchAssetCount: 2,
       uniqueAssetCount: 3,
+      excludedAssets: [],
       uniqueUploadedAssetCount: 2,
       uniqueUploadedAssetPaths: [],
       assetLimitPerUpdateGroup: expectedAssetLimit,
@@ -648,9 +664,11 @@ describe(uploadAssetsAsync, () => {
     const updateSpinnerFn = jest.fn((_totalAssets, _missingAssets) => {});
 
     mockdate.set(0);
+    const projectDir = path.resolve();
     await uploadAssetsAsync(
       graphqlClient,
       assetsForUpdateInfoGroup,
+      projectDir,
       testProjectId,
       updateSpinnerFn
     );
@@ -660,5 +678,133 @@ describe(uploadAssetsAsync, () => {
       [3, 2],
       [3, 0],
     ]);
+  });
+});
+
+describe(uploadAssetsAsync, () => {
+  jest.spyOn(PublishMutation, 'getUploadURLsAsync').mockImplementation(async () => {
+    return { specifications: ['{}', '{}', '{}'] };
+  });
+
+  jest
+    .spyOn(PublishQuery, 'getAssetLimitPerUpdateGroupAsync')
+    .mockImplementation(async () => expectedAssetLimit);
+
+  const publishBundles = {
+    android: {
+      code: 'android bundle code',
+      assets: [{ files: ['md5-hash-of-file'], type: 'jpg' }],
+      map: 'dummy-string',
+    },
+    ios: {
+      code: 'ios bundle code',
+      assets: [{ files: ['md5-hash-of-file'], type: 'jpg' }],
+      map: 'dummy-string',
+    },
+  };
+
+  const androidBundlePath = uuidv4();
+  const iosBundlePath = uuidv4();
+  const dummyFilePath = `${uuidv4()}.jpg`; // this one should be excluded
+  const userDefinedPath = `${uuidv4()}.bundle`;
+  const testProjectId = uuidv4();
+  const expectedAssetLimit = 1400;
+
+  const userDefinedAsset = {
+    type: 'bundle',
+    contentType: 'application/octet-stream',
+    path: userDefinedPath,
+    originalPath: 'random.bundle',
+  };
+
+  const assetsForUpdateInfoGroup = {
+    android: {
+      launchAsset: {
+        type: 'bundle',
+        contentType: 'application/javascript',
+        path: androidBundlePath,
+      },
+      assets: [
+        userDefinedAsset,
+        { type: 'jpg', contentType: 'image/jpeg', path: dummyFilePath, originalPath: 'test.jpg' },
+      ],
+    },
+    ios: {
+      launchAsset: {
+        type: 'bundle',
+        contentType: 'application/javascript',
+        path: androidBundlePath,
+      },
+      assets: [
+        userDefinedAsset,
+        { type: 'jpg', contentType: 'image/jpeg', path: dummyFilePath, originalPath: 'test.jpg' },
+      ],
+    },
+  };
+
+  beforeAll(async () => {
+    await fs.writeFile(androidBundlePath, publishBundles.android.code);
+    await fs.writeFile(iosBundlePath, publishBundles.ios.code);
+    await fs.writeFile(dummyFilePath, dummyFileBuffer);
+    await fs.writeFile(userDefinedPath, 'I am an octet stream');
+  });
+
+  afterAll(async () => {
+    await fs.remove(androidBundlePath);
+    await fs.remove(iosBundlePath);
+    await fs.remove(dummyFilePath);
+    await fs.remove(userDefinedPath);
+  });
+
+  it('supports asset exclusion', async () => {
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
+    jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
+      const status = AssetMetadataStatus.Exists;
+      jest.runAllTimers();
+      return [
+        {
+          storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
+          status,
+          __typename: 'AssetMetadataResult',
+        }, // userDefinedAsset
+        {
+          storageKey: 'bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4',
+          status,
+          __typename: 'AssetMetadataResult',
+        }, // android.code
+        {
+          storageKey: 'dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ',
+          status,
+          __typename: 'AssetMetadataResult',
+        }, // ios.code
+      ];
+    });
+
+    mockdate.set(0);
+    const projectDir = path.resolve();
+    jest.mocked(EasJsonUtils.getUpdatesConfigAsync).mockResolvedValue({
+      assetExcludePatterns: ['**/*.jpg'],
+    });
+
+    await expect(
+      uploadAssetsAsync(graphqlClient, assetsForUpdateInfoGroup, projectDir, testProjectId)
+    ).resolves.toMatchObject({
+      assetCount: 4,
+      excludedAssets: [
+        {
+          contentType: 'image/jpeg',
+          originalPath: 'test.jpg',
+          type: 'jpg',
+        },
+        {
+          contentType: 'image/jpeg',
+          originalPath: 'test.jpg',
+          type: 'jpg',
+        },
+      ],
+      launchAssetCount: 2,
+      uniqueAssetCount: 2,
+      assetLimitPerUpdateGroup: expectedAssetLimit,
+    });
   });
 });

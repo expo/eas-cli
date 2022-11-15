@@ -3347,6 +3347,7 @@ export type PublicArtifacts = {
 export type PublishUpdateGroupInput = {
   awaitingCodeSigningInfo?: InputMaybe<Scalars['Boolean']>;
   branchId: Scalars['String'];
+  excludedAssets?: InputMaybe<Array<PartialManifestAsset>>;
   gitCommitHash?: InputMaybe<Scalars['String']>;
   message?: InputMaybe<Scalars['String']>;
   runtimeVersion: Scalars['String'];

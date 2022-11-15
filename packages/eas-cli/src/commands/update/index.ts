@@ -15,6 +15,7 @@ import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
+  PartialManifestAsset,
   PublishUpdateGroupInput,
   StatuspageServiceName,
   Update,
@@ -32,6 +33,7 @@ import {
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
+  convertAssetToUpdateInfoGroupFormatAsync,
   filterExportedPlatformsByFlag,
   isUploadedAssetCountAboveWarningThreshold,
   resolveInputDirectoryAsync,
@@ -246,6 +248,7 @@ export default class UpdatePublish extends EasCommand {
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
     let oldMessage: string, oldRuntimeVersion: string;
     let uploadedAssetCount = 0;
+    let excludedAssets: PartialManifestAsset[] = [];
     let assetLimitPerUpdateGroup = 0;
 
     if (republish) {
@@ -376,6 +379,7 @@ export default class UpdatePublish extends EasCommand {
         const uploadResults = await uploadAssetsAsync(
           graphqlClient,
           assets,
+          projectDir,
           projectId,
           (totalAssets, missingAssets) => {
             assetSpinner.text = `Uploading (${totalAssets - missingAssets}/${totalAssets})`;
@@ -383,6 +387,9 @@ export default class UpdatePublish extends EasCommand {
         );
 
         uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
+        excludedAssets = await Promise.all(
+          uploadResults.excludedAssets.map(convertAssetToUpdateInfoGroupFormatAsync)
+        );
         assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
         unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
 
@@ -397,6 +404,9 @@ export default class UpdatePublish extends EasCommand {
         Log.withTick(
           `Uploaded ${uploadedBundleCount} app ${uploadedBundleCount === 1 ? 'bundle' : 'bundles'}`
         );
+        if (excludedAssets.length > 0) {
+          Log.withTick(`Excluded ${excludedAssets.length} assets from upload`);
+        }
         if (uploadedNormalAssetCount === 0) {
           Log.withTick(`Uploading assets skipped - no new assets found`);
         } else {
@@ -474,6 +484,7 @@ export default class UpdatePublish extends EasCommand {
           message: truncatedMessage,
           gitCommitHash,
           awaitingCodeSigningInfo: !!codeSigningInfo,
+          excludedAssets,
         };
       }
     );
