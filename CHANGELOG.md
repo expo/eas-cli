@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Print prompt message when failing because of the non-interactive shell. ([#1523](https://github.com/expo/eas-cli/pull/1523) by [@wkozyra95](https://github.com/wkozyra95))
+
 ## [2.7.0](https://github.com/expo/eas-cli/releases/tag/v2.7.0) - 2022-11-11
 
 ### 🎉 New features
