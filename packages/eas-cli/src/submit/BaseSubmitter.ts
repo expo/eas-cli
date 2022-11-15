@@ -5,6 +5,7 @@ import { withAnalyticsAsync } from '../analytics/common';
 import {
   AndroidSubmissionConfigInput,
   IosSubmissionConfigInput,
+  SubmissionArchiveSourceInput,
   SubmissionFragment,
 } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
@@ -19,6 +20,7 @@ export interface SubmissionInput<P extends Platform> {
     ? AndroidSubmissionConfigInput
     : IosSubmissionConfigInput;
   buildId?: string;
+  archiveSource?: SubmissionArchiveSourceInput;
 }
 
 interface AnalyticEvents {

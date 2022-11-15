@@ -106,6 +106,7 @@ export default class IosSubmitter extends BaseSubmitter<
       projectId: this.options.projectId,
       submissionConfig,
       buildId: resolvedSourceOptions.archive.build?.id,
+      archiveSource: resolvedSourceOptions.archive.resolvedArchiveSource,
     };
   }
 
@@ -113,24 +114,25 @@ export default class IosSubmitter extends BaseSubmitter<
     projectId,
     submissionConfig,
     buildId,
+    archiveSource,
   }: SubmissionInput<Platform.IOS>): Promise<SubmissionFragment> {
     return await SubmissionMutation.createIosSubmissionAsync(this.ctx.graphqlClient, {
       appId: projectId,
       config: submissionConfig,
       submittedBuildId: buildId,
+      archiveSource,
     });
   }
 
   private formatSubmissionConfig(
     options: IosSubmissionOptions,
-    { archive, credentials }: ResolvedSourceOptions
+    { credentials }: ResolvedSourceOptions
   ): IosSubmissionConfigInput {
     const { appSpecificPassword, ascApiKeyResult } = credentials;
     const { appleIdUsername, ascAppIdentifier } = options;
     return {
       ascAppIdentifier,
       appleIdUsername,
-      archiveUrl: archive.url,
       ...(appSpecificPassword ? this.formatAppSpecificPassword(appSpecificPassword) : null),
       ...(ascApiKeyResult?.result ? this.formatAscApiKeyResult(ascApiKeyResult.result) : null),
     };

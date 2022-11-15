@@ -15,6 +15,7 @@ import {
   BuildFragment,
   SubmissionAndroidReleaseStatus,
   SubmissionAndroidTrack,
+  SubmissionArchiveSourceType,
 } from '../../../graphql/generated';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
@@ -134,8 +135,8 @@ describe(AndroidSubmitCommand, () => {
 
       expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
+        archiveSource: { type: SubmissionArchiveSourceType.Url, url: 'http://expo.dev/fake.apk' },
         config: {
-          archiveUrl: 'http://expo.dev/fake.apk',
           googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],
           releaseStatus: SubmissionAndroidReleaseStatus.Draft,
           track: SubmissionAndroidTrack.Internal,

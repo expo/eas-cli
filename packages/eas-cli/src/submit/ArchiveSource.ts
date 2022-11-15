@@ -5,7 +5,11 @@ import { URL } from 'url';
 import * as uuid from 'uuid';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { BuildFragment } from '../graphql/generated';
+import {
+  BuildFragment,
+  SubmissionArchiveSourceInput,
+  SubmissionArchiveSourceType,
+} from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log, { learnMore } from '../log';
@@ -63,7 +67,7 @@ interface ArchivePromptSource extends ArchiveSourceBase {
 export interface Archive {
   build?: BuildFragment;
   source: ArchiveSource;
-  url?: string;
+  resolvedArchiveSource?: SubmissionArchiveSourceInput;
 }
 
 export type ArchiveSource =
@@ -126,7 +130,7 @@ async function handleUrlSourceAsync(
   }
 
   return {
-    url,
+    resolvedArchiveSource: { type: SubmissionArchiveSourceType.Url, url },
     source,
   };
 }
@@ -177,9 +181,9 @@ async function handlePathSourceAsync(
   }
 
   Log.log('Uploading your app archive to EAS Submit');
-  const uploadUrl = await uploadAppArchiveAsync(graphqlClient, source.path);
+  const bucketKey = await uploadAppArchiveAsync(graphqlClient, source.path);
   return {
-    url: uploadUrl,
+    resolvedArchiveSource: { type: SubmissionArchiveSourceType.GcsSubmitArchive, bucketKey },
     source,
   };
 }

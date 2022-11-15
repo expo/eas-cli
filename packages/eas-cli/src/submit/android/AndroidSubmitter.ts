@@ -71,7 +71,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
   public async createSubmissionInputAsync(
     resolvedSourceOptions: ResolvedSourceOptions
   ): Promise<SubmissionInput<Platform.ANDROID>> {
-    const submissionConfig = await this.formatSubmissionConfig(this.options, resolvedSourceOptions);
+    const submissionConfig = this.formatSubmissionConfig(this.options, resolvedSourceOptions);
 
     printSummary(
       this.prepareSummaryData(this.options, resolvedSourceOptions),
@@ -81,6 +81,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
       projectId: this.options.projectId,
       submissionConfig,
       buildId: resolvedSourceOptions.archive.build?.id,
+      archiveSource: resolvedSourceOptions.archive.resolvedArchiveSource,
     };
   }
 
@@ -88,21 +89,22 @@ export default class AndroidSubmitter extends BaseSubmitter<
     projectId,
     submissionConfig,
     buildId,
+    archiveSource,
   }: SubmissionInput<Platform.ANDROID>): Promise<SubmissionFragment> {
     return await SubmissionMutation.createAndroidSubmissionAsync(this.ctx.graphqlClient, {
       appId: projectId,
       config: submissionConfig,
       submittedBuildId: buildId,
+      archiveSource,
     });
   }
 
   private formatSubmissionConfig(
     options: AndroidSubmissionOptions,
-    { archive, serviceAccountKeyResult }: ResolvedSourceOptions
+    { serviceAccountKeyResult }: ResolvedSourceOptions
   ): AndroidSubmissionConfigInput {
     const { track, releaseStatus, changesNotSentForReview } = options;
     return {
-      archiveUrl: archive.url,
       track,
       changesNotSentForReview,
       releaseStatus,

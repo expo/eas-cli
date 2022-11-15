@@ -4,11 +4,17 @@ import { vol } from 'memfs';
 import { v4 as uuidv4 } from 'uuid';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { AppPlatform, BuildFragment, UploadSessionType } from '../../graphql/generated';
+import {
+  AppPlatform,
+  BuildFragment,
+  SubmissionArchiveSourceInput,
+  SubmissionArchiveSourceType,
+  UploadSessionType,
+} from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import { confirmAsync, promptAsync } from '../../prompts';
-import { uploadFileAtPathToS3Async } from '../../uploads';
+import { uploadFileAtPathToGCSAsync } from '../../uploads';
 import {
   Archive,
   ArchiveSourceType,
@@ -28,12 +34,15 @@ jest.mock('../../graphql/queries/BuildQuery', () => ({
   },
 }));
 
-const ARCHIVE_URL = 'https://url.to/archive.tar.gz';
+const ARCHIVE_SOURCE = {
+  type: SubmissionArchiveSourceType.Url,
+  url: 'https://url.to/archive.tar.gz',
+};
 
 const MOCK_BUILD_FRAGMENT: Partial<BuildFragment> = {
   id: uuidv4(),
   artifacts: {
-    buildUrl: ARCHIVE_URL,
+    buildUrl: ARCHIVE_SOURCE.url,
   },
   appVersion: '1.2.3',
   platform: AppPlatform.Android,
@@ -70,7 +79,7 @@ describe(getArchiveAsync, () => {
     const archive = await getArchiveAsync(graphqlClient, {
       ...SOURCE_STUB_INPUT,
       sourceType: ArchiveSourceType.url,
-      url: ARCHIVE_URL,
+      url: ARCHIVE_SOURCE.url,
     });
 
     assertArchiveResult(archive, ArchiveSourceType.url);
@@ -80,7 +89,7 @@ describe(getArchiveAsync, () => {
     jest
       .mocked(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
-      .mockResolvedValueOnce({ url: ARCHIVE_URL });
+      .mockResolvedValueOnce({ url: ARCHIVE_SOURCE.url });
 
     const archive = await getArchiveAsync(graphqlClient, {
       ...SOURCE_STUB_INPUT,
@@ -111,7 +120,7 @@ describe(getArchiveAsync, () => {
     jest
       .mocked(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
-      .mockResolvedValueOnce({ url: ARCHIVE_URL });
+      .mockResolvedValueOnce({ url: ARCHIVE_SOURCE.url });
 
     const archive = await getArchiveAsync(graphqlClient, {
       ...SOURCE_STUB_INPUT,
@@ -140,7 +149,7 @@ describe(getArchiveAsync, () => {
     jest
       .mocked(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
-      .mockResolvedValueOnce({ url: ARCHIVE_URL });
+      .mockResolvedValueOnce({ url: ARCHIVE_SOURCE.url });
 
     const archive = await getArchiveAsync(graphqlClient, {
       ...SOURCE_STUB_INPUT,
@@ -176,7 +185,7 @@ describe(getArchiveAsync, () => {
     jest
       .mocked(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
-      .mockResolvedValueOnce({ url: ARCHIVE_URL });
+      .mockResolvedValueOnce({ url: ARCHIVE_SOURCE.url });
 
     const archive = await getArchiveAsync(graphqlClient, {
       ...SOURCE_STUB_INPUT,
@@ -218,7 +227,7 @@ describe(getArchiveAsync, () => {
     jest
       .mocked(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
-      .mockResolvedValueOnce({ url: ARCHIVE_URL });
+      .mockResolvedValueOnce({ url: ARCHIVE_SOURCE.url });
 
     const archive = await getArchiveAsync(graphqlClient, {
       ...SOURCE_STUB_INPUT,
@@ -236,7 +245,7 @@ describe(getArchiveAsync, () => {
       .mocked(promptAsync)
       .mockResolvedValueOnce({ selectedBuild: null })
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
-      .mockResolvedValueOnce({ url: ARCHIVE_URL });
+      .mockResolvedValueOnce({ url: ARCHIVE_SOURCE.url });
 
     const archive = await getArchiveAsync(graphqlClient, {
       ...SOURCE_STUB_INPUT,
@@ -250,9 +259,7 @@ describe(getArchiveAsync, () => {
     const path = '/archive.apk';
     await fs.writeFile(path, 'some content');
 
-    jest
-      .mocked(uploadFileAtPathToS3Async)
-      .mockResolvedValueOnce({ url: ARCHIVE_URL, bucketKey: 'wat' });
+    jest.mocked(uploadFileAtPathToGCSAsync).mockResolvedValueOnce('wat');
 
     const archive = await getArchiveAsync(graphqlClient, {
       ...SOURCE_STUB_INPUT,
@@ -260,20 +267,25 @@ describe(getArchiveAsync, () => {
       path,
     });
 
-    expect(uploadFileAtPathToS3Async).toBeCalledWith(
+    expect(uploadFileAtPathToGCSAsync).toBeCalledWith(
       graphqlClient,
-      UploadSessionType.EasSubmitAppArchive,
+      UploadSessionType.EasSubmitGcsAppArchive,
       path,
       expect.anything()
     );
-    assertArchiveResult(archive, ArchiveSourceType.path);
+    assertArchiveResult(
+      archive,
+      ArchiveSourceType.path,
+
+      { type: SubmissionArchiveSourceType.GcsSubmitArchive, bucketKey: 'wat' }
+    );
   });
 
   it('prompts again if provided path doesnt exist', async () => {
     jest
       .mocked(promptAsync)
       .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
-      .mockResolvedValueOnce({ url: ARCHIVE_URL });
+      .mockResolvedValueOnce({ url: ARCHIVE_SOURCE.url });
 
     const archive = await getArchiveAsync(graphqlClient, {
       ...SOURCE_STUB_INPUT,
@@ -288,10 +300,10 @@ describe(getArchiveAsync, () => {
 function assertArchiveResult(
   archive: Archive,
   expectedSourceType: ArchiveSourceType,
-  expectedUrl: string = ARCHIVE_URL
+  expectedSource: SubmissionArchiveSourceInput = ARCHIVE_SOURCE
 ): void {
   expect(archive.source.sourceType).toBe(expectedSourceType);
-  if (archive.url) {
-    expect(archive.url).toBe(expectedUrl);
+  if (archive.resolvedArchiveSource) {
+    expect(archive.resolvedArchiveSource).toMatchObject(expectedSource);
   }
 }

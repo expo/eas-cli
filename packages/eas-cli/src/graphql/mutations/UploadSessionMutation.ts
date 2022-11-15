@@ -8,16 +8,17 @@ import {
   UploadSessionType,
 } from '../generated';
 
-export interface PresignedPost {
+export interface SignedUrl {
   url: string;
-  fields: Record<string, string>;
+  headers: Record<string, string>;
+  bucketKey: string;
 }
 
 export const UploadSessionMutation = {
   async createUploadSessionAsync(
     graphqlClient: ExpoGraphqlClient,
     type: UploadSessionType
-  ): Promise<PresignedPost> {
+  ): Promise<SignedUrl> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<CreateUploadSessionMutation, CreateUploadSessionMutationVariables>(
