@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { AppPlatform, BuildFragment } from '../../graphql/generated';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
-import { Archive, ArchiveSourceType } from '../ArchiveSource';
+import { ArchiveSourceType, ResolvedArchiveSource } from '../ArchiveSource';
 export interface ArchiveSourceSummaryFields {
   archiveUrl?: string;
   archivePath?: string;
@@ -43,19 +43,20 @@ function formatSubmissionBuildSummary(build: BuildFragment): string {
   );
 }
 
-export function formatArchiveSourceSummary({ source, build }: Archive): ArchiveSourceSummaryFields {
+export function formatArchiveSourceSummary(
+  archive: ResolvedArchiveSource
+): ArchiveSourceSummaryFields {
   const summarySlice: ArchiveSourceSummaryFields = {};
 
-  switch (source.sourceType) {
-    case ArchiveSourceType.path:
-      summarySlice.archivePath = source.path;
+  switch (archive.sourceType) {
+    case ArchiveSourceType.gcs:
+      summarySlice.archivePath = archive.localSource.path;
       break;
     case ArchiveSourceType.url:
-      summarySlice.archiveUrl = source.url;
+      summarySlice.archiveUrl = archive.url;
       break;
-    case ArchiveSourceType.buildId:
-    case ArchiveSourceType.latest:
-      summarySlice.formattedBuild = formatSubmissionBuildSummary(build!);
+    case ArchiveSourceType.build:
+      summarySlice.formattedBuild = formatSubmissionBuildSummary(archive.build!);
       break;
   }
   return summarySlice;

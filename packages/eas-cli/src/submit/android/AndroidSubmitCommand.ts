@@ -114,7 +114,7 @@ export default class AndroidSubmitCommand {
 
   private resolveArchiveSource(): Result<ArchiveSource> {
     try {
-      return result(resolveArchiveSource(this.ctx, Platform.ANDROID));
+      return result(resolveArchiveSource(this.ctx));
     } catch (err: any) {
       return result(err);
     }
