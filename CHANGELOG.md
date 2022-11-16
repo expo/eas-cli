@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [2.7.1](https://github.com/expo/eas-cli/releases/tag/v2.7.1) - 2022-11-16
+
+### 🐛 Bug fixes
+
 - Use envs from the build profile to resolve credentials in `eas credentials`. ([#1520](https://github.com/expo/eas-cli/pull/1520) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
