@@ -176,7 +176,7 @@ async function handlePathSourceAsync(
     });
   }
 
-  Log.log('Uploading your app archive to the Expo Submission Service');
+  Log.log('Uploading your app archive to EAS Submit');
   const uploadUrl = await uploadAppArchiveAsync(graphqlClient, source.path);
   return {
     url: uploadUrl,
