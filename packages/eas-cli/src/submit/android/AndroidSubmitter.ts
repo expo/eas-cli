@@ -51,7 +51,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
         await getArchiveAsync(
           {
             graphqlClient: ctx.graphqlClient,
-            platform: Platform.IOS,
+            platform: Platform.ANDROID,
             projectId: ctx.projectId,
             nonInteractive: ctx.nonInteractive,
           },
