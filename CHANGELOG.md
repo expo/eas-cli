@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Better wording in eas submit. ([#1527](https://github.com/expo/eas-cli/pull/1527) by [@dsokal](https://github.com/dsokal))
+
 ## [2.7.1](https://github.com/expo/eas-cli/releases/tag/v2.7.1) - 2022-11-16
 
 ### 🐛 Bug fixes

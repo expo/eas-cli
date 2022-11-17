@@ -75,7 +75,7 @@ export default class Submit extends EasCommand {
       exclusive: ['latest', 'id', 'path'],
     }),
     verbose: Flags.boolean({
-      description: 'Always print logs from Submission Service',
+      description: 'Always print logs from EAS Submit',
       default: false,
     }),
     wait: Flags.boolean({
