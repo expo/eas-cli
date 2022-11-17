@@ -10,12 +10,21 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+- Better wording in eas submit. ([#1527](https://github.com/expo/eas-cli/pull/1527) by [@dsokal](https://github.com/dsokal))
+
+## [2.7.1](https://github.com/expo/eas-cli/releases/tag/v2.7.1) - 2022-11-16
+
+### 🐛 Bug fixes
+
 - Use envs from the build profile to resolve credentials in `eas credentials`. ([#1520](https://github.com/expo/eas-cli/pull/1520) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
 
 - Print prompt message when failing because of the non-interactive shell. ([#1523](https://github.com/expo/eas-cli/pull/1523) by [@wkozyra95](https://github.com/wkozyra95))
 - Add SDK version to the analytics build events. ([#1529](https://github.com/expo/eas-cli/pull/1529) by [@wkozyra95](https://github.com/wkozyra95))
+- Add Xcode 14.1 image to `eas-json`. ([#1511](https://github.com/expo/eas-cli/pull/1511) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [2.7.0](https://github.com/expo/eas-cli/releases/tag/v2.7.0) - 2022-11-11
 

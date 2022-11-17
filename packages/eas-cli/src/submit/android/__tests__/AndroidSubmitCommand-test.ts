@@ -104,7 +104,7 @@ describe(AndroidSubmitCommand, () => {
   });
 
   describe('sending submission', () => {
-    it('sends a request to Submission Service', async () => {
+    it('sends a request to EAS Submit', async () => {
       const projectId = uuidv4();
       const graphqlClient = {} as any as ExpoGraphqlClient;
       const analytics = instance(mock<Analytics>());
