@@ -78,6 +78,7 @@ export async function createBuildContextAsync<T extends Platform>({
   const analyticsEventProperties = {
     tracking_id: uuidv4(),
     platform,
+    ...(exp.sdkVersion && { sdk_version: exp.sdkVersion }),
     ...(accountId && { account_id: accountId }),
     project_id: projectId,
     project_type: workflow,
