@@ -28,10 +28,16 @@ export const SubmissionMutation = {
               $appId: ID!
               $config: AndroidSubmissionConfigInput!
               $submittedBuildId: ID
+              $archiveSource: SubmissionArchiveSourceInput
             ) {
               submission {
                 createAndroidSubmission(
-                  input: { appId: $appId, config: $config, submittedBuildId: $submittedBuildId }
+                  input: {
+                    appId: $appId
+                    config: $config
+                    submittedBuildId: $submittedBuildId
+                    archiveSource: $archiveSource
+                  }
                 ) {
                   submission {
                     id
@@ -60,10 +66,16 @@ export const SubmissionMutation = {
               $appId: ID!
               $config: IosSubmissionConfigInput!
               $submittedBuildId: ID
+              $archiveSource: SubmissionArchiveSourceInput
             ) {
               submission {
                 createIosSubmission(
-                  input: { appId: $appId, config: $config, submittedBuildId: $submittedBuildId }
+                  input: {
+                    appId: $appId
+                    config: $config
+                    submittedBuildId: $submittedBuildId
+                    archiveSource: $archiveSource
+                  }
                 ) {
                   submission {
                     id

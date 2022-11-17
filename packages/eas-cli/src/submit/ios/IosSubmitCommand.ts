@@ -196,7 +196,7 @@ export default class IosSubmitCommand {
 
   private resolveArchiveSource(): Result<ArchiveSource> {
     try {
-      return result(resolveArchiveSource(this.ctx, Platform.IOS));
+      return result(resolveArchiveSource(this.ctx));
     } catch (err: any) {
       return result(err);
     }

@@ -2523,6 +2523,12 @@ export type GetSignedAssetUploadSpecificationsResult = {
   specifications: Array<Scalars['String']>;
 };
 
+export enum GitHubAppEnvironment {
+  Development = 'DEVELOPMENT',
+  Production = 'PRODUCTION',
+  Staging = 'STAGING'
+}
+
 export type GitHubAppInstallation = {
   __typename?: 'GitHubAppInstallation';
   accessibleRepositories: GitHubRepositoryPaginationResult;
@@ -2586,7 +2592,9 @@ export type GitHubAppQuery = {
   __typename?: 'GitHubAppQuery';
   appIdentifier: Scalars['String'];
   clientIdentifier: Scalars['String'];
+  environment: GitHubAppEnvironment;
   installation: GitHubAppInstallation;
+  name: Scalars['String'];
   searchRepositories: GitHubRepositoryPaginationResult;
 };
 
@@ -2613,12 +2621,14 @@ export type GitHubRepository = {
 
 export type GitHubRepositoryMetadata = {
   __typename?: 'GitHubRepositoryMetadata';
+  defaultBranch?: Maybe<Scalars['String']>;
   githubRepoDescription?: Maybe<Scalars['String']>;
   githubRepoName: Scalars['String'];
   githubRepoOwnerName: Scalars['String'];
   githubRepoUrl: Scalars['String'];
   lastPushed: Scalars['DateTime'];
   lastUpdated: Scalars['DateTime'];
+  openGraphImageUrl?: Maybe<Scalars['String']>;
   private: Scalars['Boolean'];
 };
 
@@ -3287,6 +3297,7 @@ export type ProjectArchiveSourceInput = {
 };
 
 export enum ProjectArchiveSourceType {
+  Gcs = 'GCS',
   S3 = 'S3',
   Url = 'URL'
 }
@@ -5072,6 +5083,7 @@ export type CreateAndroidSubmissionMutationVariables = Exact<{
   appId: Scalars['ID'];
   config: AndroidSubmissionConfigInput;
   submittedBuildId?: InputMaybe<Scalars['ID']>;
+  archiveSource?: InputMaybe<SubmissionArchiveSourceInput>;
 }>;
 
 
@@ -5081,6 +5093,7 @@ export type CreateIosSubmissionMutationVariables = Exact<{
   appId: Scalars['ID'];
   config: IosSubmissionConfigInput;
   submittedBuildId?: InputMaybe<Scalars['ID']>;
+  archiveSource?: InputMaybe<SubmissionArchiveSourceInput>;
 }>;
 
 

@@ -26,7 +26,7 @@ import {
   appPlatformEmojis,
   requestedPlatformDisplayNames,
 } from '../platform';
-import { uploadFileAtPathToS3Async } from '../uploads';
+import { uploadFileAtPathToGCSAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
@@ -113,7 +113,7 @@ export async function prepareBuildRequestForPlatformAsync<
         path: (await makeProjectTarballAsync()).path,
       } as const)
     : ({
-        type: ArchiveSourceType.S3,
+        type: ArchiveSourceType.GCS,
         bucketKey: await uploadProjectAsync(ctx),
       } as const);
 
@@ -219,9 +219,9 @@ async function uploadProjectAsync<TPlatform extends Platform>(
 
         projectTarballPath = projectTarball.path;
 
-        const { bucketKey } = await uploadFileAtPathToS3Async(
+        const bucketKey = await uploadFileAtPathToGCSAsync(
           ctx.graphqlClient,
-          UploadSessionType.EasBuildProjectSources,
+          UploadSessionType.EasBuildGcsProjectSources,
           projectTarball.path,
           createProgressTracker({
             total: projectTarball.size,
