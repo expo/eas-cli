@@ -1,5 +1,7 @@
 import { Platform } from '@expo/config';
 import { Flags } from '@oclif/core';
+import assert from 'assert';
+import chalk from 'chalk';
 
 import { ensureBranchExistsAsync } from '../../branch/queries';
 import { getUpdateGroupUrl } from '../../build/utils/url';
@@ -9,6 +11,7 @@ import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { Update } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
+import { PublishQuery } from '../../graphql/queries/PublishQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
@@ -106,6 +109,16 @@ export default class UpdateRepublish extends EasCommand {
       );
     }
 
+    // This command only republishes a single update group, but branch name might be different
+    // It can be used to "promote" and existing update to a different branch
+    const groupId = updatesToPublish[0].groupId;
+    const runtimeVersion = updatesToPublish[0].runtimeVersion;
+    const branchName = flags.branchName ?? updatesToPublish[0].branchName;
+
+    // Prevent users from republishing updates to a different branch.
+    // When using environment variables, the branch name is not updated, possibly causing unexpected sideeffects.
+    assertBranchNameIsEqualToExistingUpdateBranch(updatesToPublish, branchName, flags);
+
     if (rawFlags.platform === 'all') {
       Log.withTick(`The republished update will appear only on: ${rawFlags.platform}`);
     } else {
@@ -121,12 +134,20 @@ export default class UpdateRepublish extends EasCommand {
       );
     }
 
-    const updateMessage = await getOrAskUpdateMessageAsync(updatesToPublish, flags);
+    // If codesigning was created for the original update, we need to add it to the republish
+    const codeSigningByPlatform = await PublishQuery.getCodeSigningInfoFromUpdateGroupAsync(
+      graphqlClient,
+      groupId
+    );
 
-    // This command only republishes a single update group, but branch name might be different
-    // It can be used to "promote" and existing update to a different branch
-    const runtimeVersion = updatesToPublish[0].runtimeVersion;
-    const branchName = flags.branchName ?? updatesToPublish[0].branchName;
+    const shouldCodeSignRepublish = Object.keys(codeSigningByPlatform).length > 0;
+    if (shouldCodeSignRepublish) {
+      Log.withTick(
+        `The republished update will be signed with the same codesigning as the original update.`
+      );
+    }
+
+    const updateMessage = await getOrAskUpdateMessageAsync(updatesToPublish, flags);
     const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
       branchName,
@@ -144,12 +165,31 @@ export default class UpdateRepublish extends EasCommand {
           updateInfoGroup: Object.fromEntries(
             updatesToPublish.map(update => [update.platform, JSON.parse(update.manifestFragment)])
           ),
+          awaitingCodeSigningInfo: shouldCodeSignRepublish,
           // Try to inherit the git commit hash
           gitCommitHash: updatesToPublish[0].gitCommitHash,
-          // TODO
-          // awaitingCodeSigningInfo
         },
       ]);
+
+      if (shouldCodeSignRepublish) {
+        await Promise.all(
+          updatesRepublished
+            .filter(update => update.platform in codeSigningByPlatform)
+            .map(async update => {
+              const codeSigningInfo = codeSigningByPlatform[update.platform as Platform];
+              assert(
+                codeSigningInfo,
+                `Code signing info not found for update on platform ${update.platform}, can't republish update.`
+              );
+
+              await PublishMutation.setCodeSigningInfoAsync(graphqlClient, update.id, {
+                alg: codeSigningInfo.alg,
+                keyid: codeSigningInfo.keyid,
+                sig: codeSigningInfo.sig,
+              });
+            })
+        );
+      }
 
       publishIndicator.succeed('Republished update');
     } catch (error: any) {
@@ -241,6 +281,7 @@ async function getOrAskUpdatesAsync(
   throw new Error('Must supply --group or --branch');
 }
 
+/** Ask the user which update needs to be republished by branch name, this requires interactive mode */
 async function askUpdatesFromBranchNameAsync(
   graphqlClient: ExpoGraphqlClient,
   {
@@ -267,6 +308,7 @@ async function askUpdatesFromBranchNameAsync(
   }));
 }
 
+/** Get or ask the user for the update (group) message for the republish */
 async function getOrAskUpdateMessageAsync(
   updates: UpdateToRepublish[],
   flags: UpdateRepublishFlags
@@ -292,6 +334,36 @@ async function getOrAskUpdateMessageAsync(
   });
 
   return sanitizeUpdateMessage(updateMessage);
+}
+
+/**
+ * Make sure the user-provided branch name matches the original update group branch name.
+ * Because no new artifacts are created during republish, environment variables containing the
+ * branch name are not updated. This may cause unexpected side effects when "promoting" updates
+ * to different branches.
+ */
+function assertBranchNameIsEqualToExistingUpdateBranch(
+  updates: UpdateToRepublish[],
+  branchName: string,
+  flags: UpdateRepublishFlags
+): void {
+  if (flags.branchName && updates[0].branchName !== branchName) {
+    Log.addNewLineIfNone();
+    Log.warn(
+      `The original update was published to branch ${updates[0].branchName}, and can't be republished to ${branchName}.`
+    );
+    Log.warn(`Instead, create a new update on branch ${branchName}:`);
+
+    const { gitCommitHash } = updates.find(update => update.gitCommitHash) ?? {};
+    if (gitCommitHash) {
+      Log.warn(`  ${chalk.bold(`git checkout ${gitCommitHash}`)}`);
+    }
+
+    Log.warn(`  ${chalk.bold(`eas update --branch ${branchName}`)}`);
+    Log.addNewLineIfNone();
+
+    throw new Error('Cannot republish update to a different branch');
+  }
 }
 
 function sanitizeUpdateMessage(updateMessage: string): string {
