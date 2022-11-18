@@ -5244,6 +5244,13 @@ export type GetAssetLimitPerUpdateGroupForAppQueryVariables = Exact<{
 
 export type GetAssetLimitPerUpdateGroupForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, assetLimitPerUpdateGroup: number } } };
 
+export type ViewCodeSigningInfoFromUpdateGroupQueryVariables = Exact<{
+  updateGroupId: Scalars['ID'];
+}>;
+
+
+export type ViewCodeSigningInfoFromUpdateGroupQuery = { __typename?: 'RootQuery', updatesByGroup: Array<{ __typename?: 'Update', id: string, platform: string, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null }> };
+
 export type StatuspageServiceByServiceNamesQueryVariables = Exact<{
   serviceNames: Array<StatuspageServiceName> | StatuspageServiceName;
 }>;
