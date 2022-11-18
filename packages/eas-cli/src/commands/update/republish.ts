@@ -98,26 +98,15 @@ export default class UpdateRepublish extends EasCommand {
     if (existingUpdates.length === 0) {
       throw new Error(`There are no published updates found`);
     }
-
     if (updatesToPublish.length === 0) {
       throw new Error(
-        `There are no updates on branch "${flags.branchName}" published for the platform(s) "${
-          rawFlags.platform
-        }" with group ID "${
+        `There are no updates on branch "${
+          existingUpdates[0].branchName
+        }" published for the platform(s) "${rawFlags.platform}" with group ID "${
           flags.groupId ? flags.groupId : updatesToPublish[0].groupId
         }". Did you mean to publish a new update instead?`
       );
     }
-
-    // This command only republishes a single update group, but branch name might be different
-    // It can be used to "promote" and existing update to a different branch
-    const groupId = updatesToPublish[0].groupId;
-    const runtimeVersion = updatesToPublish[0].runtimeVersion;
-    const branchName = flags.branchName ?? updatesToPublish[0].branchName;
-
-    // Prevent users from republishing updates to a different branch.
-    // When using environment variables, the branch name is not updated, possibly causing unexpected sideeffects.
-    assertBranchNameIsEqualToExistingUpdateBranch(updatesToPublish, branchName, flags);
 
     if (rawFlags.platform === 'all') {
       Log.withTick(`The republished update will appear only on: ${rawFlags.platform}`);
@@ -134,12 +123,21 @@ export default class UpdateRepublish extends EasCommand {
       );
     }
 
+    // This command only republishes a single update group
+    // The update group properties are the same for all updates
+    const groupId = updatesToPublish[0].groupId;
+    const runtimeVersion = updatesToPublish[0].runtimeVersion;
+    const branchName = flags.branchName ?? updatesToPublish[0].branchName;
+
+    // Prevent users from republishing updates to a different branch.
+    // When using environment variables, the branch name is not updated, possibly causing unexpected sideeffects.
+    assertBranchNameIsEqualToExistingUpdateBranch(updatesToPublish, branchName, flags);
+
     // If codesigning was created for the original update, we need to add it to the republish
     const codeSigningByPlatform = await PublishQuery.getCodeSigningInfoFromUpdateGroupAsync(
       graphqlClient,
       groupId
     );
-
     const shouldCodeSignRepublish = Object.keys(codeSigningByPlatform).length > 0;
     if (shouldCodeSignRepublish) {
       Log.withTick(
@@ -165,9 +163,8 @@ export default class UpdateRepublish extends EasCommand {
           updateInfoGroup: Object.fromEntries(
             updatesToPublish.map(update => [update.platform, JSON.parse(update.manifestFragment)])
           ),
-          awaitingCodeSigningInfo: shouldCodeSignRepublish,
-          // Try to inherit the git commit hash
           gitCommitHash: updatesToPublish[0].gitCommitHash,
+          awaitingCodeSigningInfo: shouldCodeSignRepublish,
         },
       ]);
 
