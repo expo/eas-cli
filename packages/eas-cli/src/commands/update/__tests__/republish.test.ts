@@ -87,7 +87,44 @@ describe(UpdateRepublish.name, () => {
     );
   });
 
-  it('creates new update from existing update', async () => {
+  it('creates a new update from existing update', async () => {
+    const flags = ['--group=1234', '--branch=main', '--message=test-republish'];
+
+    mockTestProject();
+    // Mock queries to retrieve the update and code signing info
+    jest.mocked(UpdateQuery.viewUpdateGroupAsync).mockResolvedValue([updateStub]);
+    jest.mocked(PublishQuery.getCodeSigningInfoFromUpdateGroupAsync).mockResolvedValue({});
+    // Mock mutations to store the new update
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({ branchId: updateStub.branch.id });
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue([
+      {
+        ...updateStub,
+        id: 'update-new',
+        platform: 'ios',
+      },
+    ]);
+
+    await new UpdateRepublish(flags, commandOptions).run();
+
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalledWith(
+      expect.any(Object), // graphql client
+      expect.arrayContaining([
+        expect.objectContaining({
+          branchId: updateStub.branch.id,
+          runtimeVersion: updateStub.runtimeVersion,
+          updateInfoGroup: expect.objectContaining({
+            ios: expect.any(Object),
+          }),
+          gitCommitHash: updateStub.gitCommitHash,
+          awaitingCodeSigningInfo: false,
+        }),
+      ])
+    );
+
+    expect(PublishMutation.setCodeSigningInfoAsync).not.toHaveBeenCalled();
+  });
+
+  it('creates a new update from existing update with codesigning', async () => {
     const flags = ['--group=1234', '--branch=main', '--message=test-republish'];
     const codeSigning = {
       alg: 'alg',
