@@ -216,9 +216,7 @@ export default class UpdatePublish extends EasCommand {
         try {
           const branch = await selectBranchOnAppAsync(graphqlClient, {
             projectId,
-            promptTitle: `Which branch would you like to ${
-              republish ? 'republish' : 'publish'
-            } on?`,
+            promptTitle: `Which branch would you like to publish on?`,
             displayTextForListItem: updateBranch =>
               `${updateBranch.name} ${chalk.grey(
                 `- current update: ${formatUpdateMessage(updateBranch.updates[0])}`
@@ -439,7 +437,7 @@ export default class UpdatePublish extends EasCommand {
           ])
         );
 
-        if (republish && !oldRuntimeVersion) {
+        if (!oldRuntimeVersion) {
           throw new Error(
             'Cannot find the runtime version of the update group that is being republished.'
           );
@@ -447,7 +445,7 @@ export default class UpdatePublish extends EasCommand {
         return {
           branchId,
           updateInfoGroup: localUpdateInfoGroup,
-          runtimeVersion: republish ? oldRuntimeVersion : runtimeVersion,
+          runtimeVersion,
           message: truncatedMessage,
           gitCommitHash,
           isGitWorkingTreeDirty,
