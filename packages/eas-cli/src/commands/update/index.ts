@@ -17,12 +17,10 @@ import fetch from '../../fetch';
 import {
   PublishUpdateGroupInput,
   StatuspageServiceName,
-  Update,
   UpdateInfoGroup,
   UpdatePublishMutation,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../../platform';
@@ -40,7 +38,6 @@ import {
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { ensureEASUpdatesIsConfiguredAsync } from '../../update/configure';
-import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
@@ -240,155 +237,73 @@ export default class UpdatePublish extends EasCommand {
     }
 
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
-    let oldMessage: string, oldRuntimeVersion: string;
+    let oldRuntimeVersion: string;
     let uploadedAssetCount = 0;
     let assetLimitPerUpdateGroup = 0;
 
-    if (republish) {
-      // If we are republishing, we don't need to worry about building the bundle or uploading the assets.
-      // Instead we get the `updateInfoGroup` from the update we wish to republish.
-      let updatesToRepublish: Pick<
-        Update,
-        'group' | 'message' | 'runtimeVersion' | 'manifestFragment' | 'platform'
-      >[];
-      if (groupId) {
-        const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, {
-          groupId,
-        });
-        updatesToRepublish = updatesByGroup;
-      } else {
-        if (nonInteractive) {
-          throw new Error('Must supply --group when in non-interactive mode');
-        }
+    if (!updateMessage && autoFlag) {
+      updateMessage = (await getVcsClient().getLastCommitMessageAsync())?.trim();
+    }
 
-        updatesToRepublish = await selectUpdateGroupOnBranchAsync(graphqlClient, {
-          projectId,
-          branchName,
-          paginatedQueryOptions,
-        });
-      }
-      const updatesToRepublishFilteredByPlatform = updatesToRepublish.filter(
-        // Only republish to the specified platforms
-        update => platformFlag === 'all' || update.platform === platformFlag
-      );
-      if (updatesToRepublishFilteredByPlatform.length === 0) {
-        throw new Error(
-          `There are no updates on branch "${branchName}" published for the platform(s) "${platformFlag}" with group ID "${
-            groupId ? groupId : updatesToRepublish[0].group
-          }". Did you mean to publish a new update instead?`
-        );
+    if (!updateMessage) {
+      if (nonInteractive) {
+        throw new Error('Must supply --message or use --auto when in non-interactive mode');
       }
 
-      let publicationPlatformMessage: string;
-      if (platformFlag === 'all') {
-        if (updatesToRepublishFilteredByPlatform.length < defaultPublishPlatforms.length) {
-          Log.warn(`You are republishing an update that wasn't published for all platforms.`);
-        }
-        publicationPlatformMessage = `The republished update will appear on the same platforms it was originally published on: ${updatesToRepublishFilteredByPlatform
-          .map(update => update.platform)
-          .join(', ')}`;
-      } else {
-        publicationPlatformMessage = `The republished update will appear only on: ${platformFlag}`;
+      const validationMessage = 'publish message may not be empty.';
+      if (jsonFlag) {
+        throw new Error(validationMessage);
       }
-      Log.withTick(publicationPlatformMessage);
+      ({ updateMessage } = await promptAsync({
+        type: 'text',
+        name: 'updateMessage',
+        message: `Provide an update message.`,
+        initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
+        validate: (value: any) => (value ? true : validationMessage),
+      }));
+    }
 
-      for (const update of updatesToRepublishFilteredByPlatform) {
-        const { manifestFragment } = update;
-        const platform = update.platform as PublishPlatform;
-
-        unsortedUpdateInfoGroups[platform] = JSON.parse(manifestFragment);
-      }
-      realizedPlatforms = updatesToRepublishFilteredByPlatform.map(
-        update => update.platform as PublishPlatform
-      );
-
-      // These are the same for each member of an update group
-      groupId = updatesToRepublishFilteredByPlatform[0].group;
-      oldMessage = updatesToRepublishFilteredByPlatform[0].message ?? '';
-      oldRuntimeVersion = updatesToRepublishFilteredByPlatform[0].runtimeVersion;
-
-      if (!updateMessage) {
-        if (nonInteractive) {
-          throw new Error('Must supply --message when in non-interactive mode');
-        }
-
-        const validationMessage = 'publish message may not be empty.';
-        if (jsonFlag) {
-          throw new Error(validationMessage);
-        }
-        ({ updateMessage } = await promptAsync({
-          type: 'text',
-          name: 'updateMessage',
-          message: `Provide an update message.`,
-          initial: `Republish "${oldMessage!}" - group: ${groupId}`,
-          validate: (value: any) => (value ? true : validationMessage),
-        }));
-      }
-    } else {
-      if (!updateMessage && autoFlag) {
-        updateMessage = (await getVcsClient().getLastCommitMessageAsync())?.trim();
-      }
-
-      if (!updateMessage) {
-        if (nonInteractive) {
-          throw new Error('Must supply --message or use --auto when in non-interactive mode');
-        }
-
-        const validationMessage = 'publish message may not be empty.';
-        if (jsonFlag) {
-          throw new Error(validationMessage);
-        }
-        ({ updateMessage } = await promptAsync({
-          type: 'text',
-          name: 'updateMessage',
-          message: `Provide an update message.`,
-          initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
-          validate: (value: any) => (value ? true : validationMessage),
-        }));
-      }
-
-      // build bundle and upload assets for a new publish
-      if (!skipBundler) {
-        const bundleSpinner = ora().start('Exporting...');
-        try {
-          await buildBundlesAsync({ projectDir, inputDir, exp, platformFlag });
-          bundleSpinner.succeed('Exported bundle(s)');
-        } catch (e) {
-          bundleSpinner.fail('Export failed');
-          throw e;
-        }
-      }
-
-      // After possibly bundling, assert that the input directory can be found.
-      const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
-
-      const assetSpinner = ora().start('Uploading...');
-
+    // build bundle and upload assets for a new publish
+    if (!skipBundler) {
+      const bundleSpinner = ora().start('Exporting...');
       try {
-        const collectedAssets = await collectAssetsAsync(distRoot);
-        const assets = filterExportedPlatformsByFlag(collectedAssets, platformFlag);
-        realizedPlatforms = Object.keys(assets) as PublishPlatform[];
-
-        const uploadResults = await uploadAssetsAsync(
-          graphqlClient,
-          assets,
-          projectId,
-          (totalAssets, missingAssets) => {
-            assetSpinner.text = `Uploading (${totalAssets - missingAssets}/${totalAssets})`;
-          }
-        );
-
-        uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
-        assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
-        unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
-        const uploadAssetSuccessMessage = uploadedAssetCount
-          ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'platform' : 'platforms'}`
-          : `Uploaded: No changes detected`;
-        assetSpinner.succeed(uploadAssetSuccessMessage);
+        await buildBundlesAsync({ projectDir, inputDir, exp, platformFlag });
+        bundleSpinner.succeed('Exported bundle(s)');
       } catch (e) {
-        assetSpinner.fail('Failed to upload');
+        bundleSpinner.fail('Export failed');
         throw e;
       }
+    }
+
+    // After possibly bundling, assert that the input directory can be found.
+    const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
+
+    const assetSpinner = ora().start('Uploading...');
+
+    try {
+      const collectedAssets = await collectAssetsAsync(distRoot);
+      const assets = filterExportedPlatformsByFlag(collectedAssets, platformFlag);
+      realizedPlatforms = Object.keys(assets) as PublishPlatform[];
+
+      const uploadResults = await uploadAssetsAsync(
+        graphqlClient,
+        assets,
+        projectId,
+        (totalAssets, missingAssets) => {
+          assetSpinner.text = `Uploading (${totalAssets - missingAssets}/${totalAssets})`;
+        }
+      );
+
+      uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
+      assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
+      unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
+      const uploadAssetSuccessMessage = uploadedAssetCount
+        ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'platform' : 'platforms'}`
+        : `Uploaded: No changes detected`;
+      assetSpinner.succeed(uploadAssetSuccessMessage);
+    } catch (e) {
+      assetSpinner.fail('Failed to upload');
+      throw e;
     }
 
     const truncatedMessage = truncateUpdateMessage(updateMessage!, 1024);
