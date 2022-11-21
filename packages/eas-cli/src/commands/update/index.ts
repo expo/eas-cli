@@ -77,8 +77,6 @@ type UpdateFlags = {
   platform: ExpoCLIExportPlatformFlag;
   branchName?: string;
   updateMessage?: string;
-  republish: boolean;
-  groupId?: string;
   inputDir: string;
   skipBundler: boolean;
   privateKeyPath?: string;
@@ -165,8 +163,6 @@ export default class UpdatePublish extends EasCommand {
       platform: platformFlag,
       branchName,
       updateMessage,
-      republish,
-      groupId,
       inputDir,
       skipBundler,
       privateKeyPath,
@@ -612,18 +608,10 @@ export default class UpdatePublish extends EasCommand {
       Errors.error('--group and --republush flags are deprecated', { exit: 1 });
     }
 
-    const groupId = flags.group;
-    const republish = flags.republish || !!groupId; // When --group is defined, we are republishing
-    if (nonInteractive && republish && !groupId) {
-      Errors.error(`--group is required when updating in non-interactive mode`, { exit: 1 });
-    }
-
     return {
       auto,
       branchName,
       updateMessage,
-      groupId,
-      republish,
       inputDir: flags['input-dir'],
       skipBundler: flags['skip-bundler'],
       platform: flags.platform as RequestedPlatform,
