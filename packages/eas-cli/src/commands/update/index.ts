@@ -60,14 +60,16 @@ type RawUpdateFlags = {
   auto: boolean;
   branch?: string;
   message?: string;
-  group?: string;
-  republish?: boolean;
   platform: string;
   'input-dir': string;
   'skip-bundler': boolean;
   'private-key-path'?: string;
   'non-interactive': boolean;
   json: boolean;
+  /** @deprecated see UpdateRepublish command */
+  group?: string;
+  /** @deprecated see UpdateRepublish command */
+  republish?: boolean;
 };
 
 type UpdateFlags = {
@@ -112,11 +114,11 @@ export default class UpdatePublish extends EasCommand {
       required: false,
     }),
     republish: Flags.boolean({
-      description: 'Republish an update group',
+      description: 'Republish an update group (deprecated, see republish command)',
       exclusive: ['input-dir', 'skip-bundler'],
     }),
     group: Flags.string({
-      description: 'Update group to republish',
+      description: 'Update group to republish (deprecated, see republish command)',
       exclusive: ['input-dir', 'skip-bundler'],
     }),
     'input-dir': Flags.string({
@@ -591,6 +593,23 @@ export default class UpdatePublish extends EasCommand {
         '--auto or both --branch and --message are required when updating in non-interactive mode',
         { exit: 1 }
       );
+    }
+
+    if (flags.group || flags.republish) {
+      const cmd = [
+        'eas update:republish',
+        ...(flags.branch ? ['--branch', flags.branch] : []),
+        ...(flags.group ? ['--group', flags.group] : []),
+      ].join(' ');
+
+      Log.newLine();
+      Log.warn(
+        'The --group and --republish flags are deprecated, use the republish command instead:'
+      );
+      Log.warn(`  ${chalk.bold(cmd)}`);
+      Log.newLine();
+
+      Errors.error('--group and --republush flags are deprecated', { exit: 1 });
     }
 
     const groupId = flags.group;
