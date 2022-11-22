@@ -59,7 +59,7 @@ function formatBuildChoiceValue(value: string | undefined | null): string {
   return value ? chalk.bold(value) : chalk.dim('Unknown');
 }
 
-function formatBuildChoiceAndDescription(build: BuildFragment): {
+function formatBuildChoiceTitleAndDescription(build: BuildFragment): {
   title: string;
   description: string;
 } {
@@ -117,7 +117,7 @@ export async function listAndSelectBuildsOnAppAsync(
     message: `Select simulator build to run for ${projectDisplayName} app`,
     name: 'selectedSimulatorBuild',
     choices: builds.map(build => {
-      const buildChoice = formatBuildChoiceAndDescription(build);
+      const buildChoice = formatBuildChoiceTitleAndDescription(build);
       return {
         title: buildChoice.title,
         description: buildChoice.description,
