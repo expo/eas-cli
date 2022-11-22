@@ -1,5 +1,4 @@
 import spawnAsync from '@expo/spawn-async';
-import cliProgress from 'cli-progress';
 import glob from 'fast-glob';
 import fs from 'fs';
 import path from 'path';
@@ -11,14 +10,16 @@ import { v4 as uuidv4 } from 'uuid';
 import fetch, { RequestInit } from '../fetch';
 import { AppPlatform } from '../graphql/generated';
 import Log from '../log';
+import { formatBytes } from './files';
 import { getTmpDirectory } from './paths';
+import { ProgressHandler, createProgressTracker } from './progress';
 
 const pipeline = promisify(Stream.pipeline);
 
-type ProgressCallback = (progress: number, total: number, loaded: number) => void;
+let didProgressBarFinish = false;
 
 function wrapFetchWithProgress() {
-  return async (url: string, init: RequestInit, onProgressCallback: ProgressCallback) => {
+  return async (url: string, init: RequestInit, progressHandler: ProgressHandler) => {
     const response = await fetch(url, init);
 
     if (response.ok) {
@@ -41,7 +42,15 @@ function wrapFetchWithProgress() {
 
         const progress = length / total;
 
-        onProgressCallback(progress, total, length);
+        if (!didProgressBarFinish) {
+          progressHandler({
+            progress: { total, percent: progress, transferred: length },
+            isComplete: total === length,
+          });
+          if (total === length) {
+            didProgressBarFinish = true;
+          }
+        }
       };
 
       response.body.on('data', chunk => {
@@ -57,35 +66,23 @@ function wrapFetchWithProgress() {
   };
 }
 
-async function downloadFileWithProgressBarAsync(
+async function downloadFileWithProgressTrackerAsync(
   url: string,
   outputPath: string,
-  infoMessage?: string
+  progressTrackerMessage: string | ((ratio: number, total: number) => string),
+  progressTrackerCompletedMessage: string
 ): Promise<void> {
   Log.newLine();
-  Log.log(infoMessage ? infoMessage : `Downloading file from ${url}...`);
 
-  const downloadProgressBar = new cliProgress.SingleBar(
-    { format: '|{bar}|' },
-    cliProgress.Presets.rect
-  );
-
-  let downloadProgressBarStarted = false;
   const response = await wrapFetchWithProgress()(
     url,
     {
       timeout: 1000 * 60 * 5, // 5 minutes
     },
-    (_progress: number, total: number, loaded: number): void => {
-      if (!downloadProgressBarStarted) {
-        downloadProgressBar.start(total, loaded);
-        downloadProgressBarStarted = true;
-      } else if (loaded < total) {
-        downloadProgressBar.update(loaded);
-      } else {
-        downloadProgressBar.stop();
-      }
-    }
+    createProgressTracker({
+      message: progressTrackerMessage,
+      completedMessage: progressTrackerCompletedMessage,
+    })
   );
 
   if (!response.ok) {
@@ -104,7 +101,12 @@ export async function downloadAndMaybeExtractAppAsync(
 
   if (platform === AppPlatform.Android) {
     const apkFilePath = path.join(outputDir, `${uuidv4()}.apk`);
-    await downloadFileWithProgressBarAsync(url, apkFilePath, 'Downloading app...');
+    await downloadFileWithProgressTrackerAsync(
+      url,
+      apkFilePath,
+      (ratio, total) => `Downloading app (${formatBytes(total * ratio)} / ${formatBytes(total)})`,
+      'Successfully downloaded app'
+    );
     return apkFilePath;
   } else {
     const tmpArchivePathDir = path.join(getTmpDirectory(), uuidv4());
@@ -112,7 +114,13 @@ export async function downloadAndMaybeExtractAppAsync(
 
     const tmpArchivePath = path.join(tmpArchivePathDir, `${uuidv4()}.tar.gz`);
 
-    await downloadFileWithProgressBarAsync(url, tmpArchivePath, 'Downloading app archive...');
+    await downloadFileWithProgressTrackerAsync(
+      url,
+      tmpArchivePath,
+      (ratio, total) =>
+        `Downloading app archive (${formatBytes(total * ratio)} / ${formatBytes(total)})`,
+      'Successfully downloaded app archive'
+    );
     await tarExtractAsync(tmpArchivePath, outputDir);
 
     return await getAppPathAsync(outputDir, 'app');
