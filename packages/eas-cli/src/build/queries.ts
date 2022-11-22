@@ -6,6 +6,7 @@ import { AppPlatform, BuildFilter, BuildFragment } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log from '../log';
 import { promptAsync } from '../prompts';
+import { fromNow } from '../utils/date';
 import { printJsonOnlyOutput } from '../utils/json';
 import { paginatedQueryWithConfirmPromptAsync } from '../utils/queries';
 import { formatGraphQLBuild } from './utils/formatBuild';
@@ -58,7 +59,10 @@ function formatBuildChoiceValue(value: string | undefined | null): string {
   return value ? chalk.bold(value) : chalk.dim('Unknown');
 }
 
-function formatBuildChoiceTitle(build: BuildFragment): string {
+function formatBuildChoiceAndDescription(build: BuildFragment): {
+  title: string;
+  description: string;
+} {
   const splittedCommitMessage = build.gitCommitMessage?.split('\n');
   const formattedCommitData =
     build.gitCommitHash && splittedCommitMessage && splittedCommitMessage.length > 0
@@ -67,14 +71,16 @@ function formatBuildChoiceTitle(build: BuildFragment): string {
         )}"`
       : 'Unknown';
 
-  return [
-    `ID: ${chalk.dim(build.id)}`,
-    `\tVersion: ${formatBuildChoiceValue(build.appVersion)}`,
-    `\t${
-      build.platform === AppPlatform.Ios ? 'Build number' : 'Version code'
-    }: ${formatBuildChoiceValue(build.appBuildVersion)}`,
-    `\tCommit: ${formattedCommitData}`,
-  ].join('\n');
+  return {
+    title: `ID: ${chalk.dim(build.id)} (${chalk.dim(`${fromNow(new Date(build.updatedAt))} ago`)})`,
+    description: [
+      `\tVersion: ${formatBuildChoiceValue(build.appVersion)}`,
+      `\t${
+        build.platform === AppPlatform.Ios ? 'Build number' : 'Version code'
+      }: ${formatBuildChoiceValue(build.appBuildVersion)}`,
+      `\tCommit: ${formattedCommitData}`,
+    ].join('\n'),
+  };
 }
 
 export async function listAndSelectBuildsOnAppAsync(
@@ -110,11 +116,15 @@ export async function listAndSelectBuildsOnAppAsync(
     type: 'select',
     message: `Select simulator build to run for ${projectDisplayName} app`,
     name: 'selectedSimulatorBuild',
-    choices: builds.map(build => ({
-      title: formatBuildChoiceTitle(build),
-      value: build,
-      disabled: selectPromptDisabledFunction?.(build),
-    })),
+    choices: builds.map(build => {
+      const buildChoice = formatBuildChoiceAndDescription(build);
+      return {
+        title: buildChoice.title,
+        description: buildChoice.description,
+        value: build,
+        disabled: selectPromptDisabledFunction?.(build),
+      };
+    }),
     warn: warningMessage,
   });
   return selectedSimulatorBuild;
