@@ -376,11 +376,11 @@ export default class UpdatePublish extends EasCommand {
         .map(pair => pair[0]);
     }
 
-    const { branchId, branchIsCreated } = await ensureBranchExistsAsync(graphqlClient, {
+    const { branchId, createdBranch } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
       branchName,
     });
-    if (branchIsCreated) {
+    if (createdBranch) {
       await ensureChannelExistsAsync(graphqlClient, {
         appId: projectId,
         branchId,

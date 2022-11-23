@@ -160,7 +160,7 @@ export async function ensureBranchExistsAsync(
     appId: string;
     branchName: string;
   }
-): Promise<{ branchId: string; branchIsCreated: boolean }> {
+): Promise<{ branchId: string; createdBranch: boolean }> {
   try {
     const updateBranch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
       appId,
@@ -168,14 +168,14 @@ export async function ensureBranchExistsAsync(
     });
 
     const { id } = updateBranch;
-    return { branchId: id, branchIsCreated: false };
+    return { branchId: id, createdBranch: false };
   } catch (error) {
     if (error instanceof BranchNotFoundError) {
       const newUpdateBranch = await createUpdateBranchOnAppAsync(graphqlClient, {
         appId,
         name: branchName,
       });
-      return { branchId: newUpdateBranch.id, branchIsCreated: true };
+      return { branchId: newUpdateBranch.id, createdBranch: true };
     } else {
       throw error;
     }
