@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Only create a new channel when update branch is new. ([#1507](https://github.com/expo/eas-cli/pull/1507) by [@byCedric](https://github.com/byCedric))
+
 ### 🧹 Chores
 
 - Better wording in eas submit. ([#1527](https://github.com/expo/eas-cli/pull/1527) by [@dsokal](https://github.com/dsokal))

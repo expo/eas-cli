@@ -412,15 +412,18 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
-    const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
+    const { branchId, createdBranch } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
       branchName,
     });
-    await ensureChannelExistsAsync(graphqlClient, {
-      appId: projectId,
-      branchId,
-      channelName: branchName,
-    });
+    if (createdBranch) {
+      await ensureChannelExistsAsync(graphqlClient, {
+        appId: projectId,
+        branchId,
+        channelName: branchName,
+      });
+    }
+
     Log.withTick(`Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`);
 
     const gitCommitHash = await getVcsClient().getCommitHashAsync();
