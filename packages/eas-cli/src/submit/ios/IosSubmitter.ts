@@ -6,7 +6,7 @@ import { MinimalAscApiKey } from '../../credentials/ios/credentials';
 import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
 import formatFields from '../../utils/formatFields';
-import { Archive, ArchiveSource, getArchiveAsync } from '../ArchiveSource';
+import { ArchiveSource, ResolvedArchiveSource, getArchiveAsync } from '../ArchiveSource';
 import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
 import { SubmissionContext } from '../context';
 import {
@@ -40,7 +40,7 @@ export interface IosSubmissionOptions
 }
 
 interface ResolvedSourceOptions {
-  archive: Archive;
+  archive: ResolvedArchiveSource;
   credentials: {
     appSpecificPassword?: AppSpecificPasswordCredentials;
     ascApiKeyResult?: AscApiKeyResult;
@@ -55,7 +55,16 @@ export default class IosSubmitter extends BaseSubmitter<
   constructor(ctx: SubmissionContext<Platform.IOS>, options: IosSubmissionOptions) {
     const sourceOptionsResolver = {
       // eslint-disable-next-line async-protect/async-suffix
-      archive: async () => await getArchiveAsync(ctx.graphqlClient, this.options.archiveSource),
+      archive: async () =>
+        await getArchiveAsync(
+          {
+            graphqlClient: ctx.graphqlClient,
+            platform: Platform.IOS,
+            projectId: ctx.projectId,
+            nonInteractive: ctx.nonInteractive,
+          },
+          this.options.archiveSource
+        ),
       // eslint-disable-next-line async-protect/async-suffix
       credentials: async () => {
         const maybeAppSpecificPassword = this.options.appSpecificPasswordSource
@@ -105,7 +114,7 @@ export default class IosSubmitter extends BaseSubmitter<
     return {
       projectId: this.options.projectId,
       submissionConfig,
-      buildId: resolvedSourceOptions.archive.build?.id,
+      ...this.formatArchive(resolvedSourceOptions.archive),
     };
   }
 
@@ -113,24 +122,25 @@ export default class IosSubmitter extends BaseSubmitter<
     projectId,
     submissionConfig,
     buildId,
+    archiveSource,
   }: SubmissionInput<Platform.IOS>): Promise<SubmissionFragment> {
     return await SubmissionMutation.createIosSubmissionAsync(this.ctx.graphqlClient, {
       appId: projectId,
       config: submissionConfig,
       submittedBuildId: buildId,
+      archiveSource,
     });
   }
 
   private formatSubmissionConfig(
     options: IosSubmissionOptions,
-    { archive, credentials }: ResolvedSourceOptions
+    { credentials }: ResolvedSourceOptions
   ): IosSubmissionConfigInput {
     const { appSpecificPassword, ascApiKeyResult } = credentials;
     const { appleIdUsername, ascAppIdentifier } = options;
     return {
       ascAppIdentifier,
       appleIdUsername,
-      archiveUrl: archive.url,
       ...(appSpecificPassword ? this.formatAppSpecificPassword(appSpecificPassword) : null),
       ...(ascApiKeyResult?.result ? this.formatAscApiKeyResult(ascApiKeyResult.result) : null),
     };

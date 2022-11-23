@@ -1,4 +1,5 @@
 import { Analytics } from '../../analytics/AnalyticsManager';
+import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { selectPlatformAsync } from '../../platform';
 import { Actor } from '../../user/User';
@@ -12,6 +13,7 @@ export class SelectPlatform {
     public readonly graphqlClient: ExpoGraphqlClient,
     public readonly analytics: Analytics,
     public readonly projectInfo: CredentialsContextProjectInfo | null,
+    public readonly getDynamicProjectConfigAsync: DynamicConfigContextFn,
     private readonly flagPlatform?: string
   ) {}
 

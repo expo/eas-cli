@@ -8,6 +8,33 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+- Only create a new channel when update branch is new. ([#1507](https://github.com/expo/eas-cli/pull/1507) by [@byCedric](https://github.com/byCedric))
+
+### 🧹 Chores
+
+- Better wording in eas submit. ([#1527](https://github.com/expo/eas-cli/pull/1527) by [@dsokal](https://github.com/dsokal))
+- Upload project sources for EAS Build and archives for EAS Submit to GCS. ([#1524](https://github.com/expo/eas-cli/pull/1524) by [@wkozyra95](https://github.com/wkozyra95))
+- Add a better error message for when an invalid `image` is set in `eas-json`. ([#1531](https://github.com/expo/eas-cli/pull/1531) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [2.7.1](https://github.com/expo/eas-cli/releases/tag/v2.7.1) - 2022-11-16
+
+### 🐛 Bug fixes
+
+- Use envs from the build profile to resolve credentials in `eas credentials`. ([#1520](https://github.com/expo/eas-cli/pull/1520) by [@wkozyra95](https://github.com/wkozyra95))
+
+### 🧹 Chores
+
+- Print prompt message when failing because of the non-interactive shell. ([#1523](https://github.com/expo/eas-cli/pull/1523) by [@wkozyra95](https://github.com/wkozyra95))
+- Add SDK version to the analytics build events. ([#1529](https://github.com/expo/eas-cli/pull/1529) by [@wkozyra95](https://github.com/wkozyra95))
+- Add Xcode 14.1 image to `eas-json`. ([#1511](https://github.com/expo/eas-cli/pull/1511) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [2.7.0](https://github.com/expo/eas-cli/releases/tag/v2.7.0) - 2022-11-11
+
+### 🎉 New features
+
+- Support uploading different platform combinations in `eas update`. ([#1461](https://github.com/expo/eas-cli/pull/1461) by [@EvanBacon](https://github.com/EvanBacon))
 - Add Git commit to EAS Update record. ([#1499](https://github.com/expo/eas-cli/pull/1499) by [@fiberjw](https://github.com/fiberjw))
 - Use local CLI for `expo export` in SDK +46. ([#1474](https://github.com/expo/eas-cli/pull/1474) by [@EvanBacon](https://github.com/EvanBacon))
 - Validate icon PNGs before running Android build. ([#1477](https://github.com/expo/eas-cli/pull/1477) by [@dsokal](https://github.com/dsokal))
@@ -15,11 +42,12 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fixed the values of the distribution enum on the build profile schema receiving the incorrect descriptions. ([#1504](https://github.com/expo/eas-cli/pull/1504) by [@macksal](https://github.com/macksal))
-- Only create a new channel when update branch is new. ([#1507](https://github.com/expo/eas-cli/pull/1507) by [@byCedric](https://github.com/byCedric))
+- Remove hard dependency on expo package being installed to init a project. ([#1517](https://github.com/expo/eas-cli/pull/1517) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🧹 Chores
 
 - Remove friction from the initial EAS update setup. ([#1479](https://github.com/expo/eas-cli/pull/1479) by [@byCedric](https://github.com/byCedric))
+- Improve choice formatting when selecting a build to submit in the `eas submit` command. ([#1502](https://github.com/expo/eas-cli/pull/1502) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [2.6.0](https://github.com/expo/eas-cli/releases/tag/v2.6.0) - 2022-10-27
 

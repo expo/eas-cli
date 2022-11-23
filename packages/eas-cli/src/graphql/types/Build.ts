@@ -45,6 +45,7 @@ export const BuildFragmentNode = gql`
     appBuildVersion
     runtimeVersion
     gitCommitHash
+    gitCommitMessage
     initialQueuePosition
     queuePosition
     estimatedWaitTimeLeftSeconds

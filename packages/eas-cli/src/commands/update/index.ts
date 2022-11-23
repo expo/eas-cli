@@ -1,4 +1,4 @@
-import { ExpoConfig } from '@expo/config';
+import { ExpoConfig, Platform as PublishPlatform } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
@@ -28,11 +28,13 @@ import { ora } from '../../ora';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../../platform';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
-  PublishPlatform,
+  ExpoCLIExportPlatformFlag,
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
+  filterExportedPlatformsByFlag,
   isUploadedAssetCountAboveWarningThreshold,
+  resolveInputDirectoryAsync,
   uploadAssetsAsync,
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
@@ -46,12 +48,13 @@ import {
   getManifestBodyAsync,
   signManifestBody,
 } from '../../utils/code-signing';
+import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 import { getVcsClient } from '../../vcs';
 
-export const defaultPublishPlatforms: PublishPlatform[] = ['android', 'ios'];
+export const defaultPublishPlatforms: Partial<PublishPlatform>[] = ['android', 'ios'];
 
 type RawUpdateFlags = {
   auto: boolean;
@@ -69,7 +72,7 @@ type RawUpdateFlags = {
 
 type UpdateFlags = {
   auto: boolean;
-  platform: RequestedPlatform;
+  platform: ExpoCLIExportPlatformFlag;
   branchName?: string;
   updateMessage?: string;
   republish: boolean;
@@ -80,6 +83,21 @@ type UpdateFlags = {
   json: boolean;
   nonInteractive: boolean;
 };
+
+function getRequestedPlatform(platform: ExpoCLIExportPlatformFlag): RequestedPlatform | null {
+  switch (platform) {
+    case 'android':
+      return RequestedPlatform.Android;
+    case 'ios':
+      return RequestedPlatform.Ios;
+    case 'web':
+      return null;
+    case 'all':
+      return RequestedPlatform.All;
+    default:
+      throw new Error(`Unsupported platform: ${platform}`);
+  }
+}
 
 export default class UpdatePublish extends EasCommand {
   static override description = 'publish an update group';
@@ -112,7 +130,11 @@ export default class UpdatePublish extends EasCommand {
     }),
     platform: Flags.enum({
       char: 'p',
-      options: [...defaultPublishPlatforms, 'all'],
+      options: [
+        // TODO: Add web when it's fully supported
+        ...defaultPublishPlatforms,
+        'all',
+      ],
       default: 'all',
       required: false,
     }),
@@ -177,14 +199,15 @@ export default class UpdatePublish extends EasCommand {
 
     await ensureEASUpdatesIsConfiguredAsync(graphqlClient, {
       exp: expPossiblyWithoutEasUpdateConfigured,
-      platform: platformFlag,
+      platform: getRequestedPlatform(platformFlag),
       projectDir,
       projectId,
     });
 
     const { exp } = await getDynamicProjectConfigAsync();
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, platformFlag, projectDir);
+
+    let realizedPlatforms: PublishPlatform[] = [];
 
     if (!branchName) {
       if (autoFlag) {
@@ -262,7 +285,7 @@ export default class UpdatePublish extends EasCommand {
 
       let publicationPlatformMessage: string;
       if (platformFlag === 'all') {
-        if (updatesToRepublishFilteredByPlatform.length !== defaultPublishPlatforms.length) {
+        if (updatesToRepublishFilteredByPlatform.length < defaultPublishPlatforms.length) {
           Log.warn(`You are republishing an update that wasn't published for all platforms.`);
         }
         publicationPlatformMessage = `The republished update will appear on the same platforms it was originally published on: ${updatesToRepublishFilteredByPlatform
@@ -279,6 +302,9 @@ export default class UpdatePublish extends EasCommand {
 
         unsortedUpdateInfoGroups[platform] = JSON.parse(manifestFragment);
       }
+      realizedPlatforms = updatesToRepublishFilteredByPlatform.map(
+        update => update.platform as PublishPlatform
+      );
 
       // These are the same for each member of an update group
       groupId = updatesToRepublishFilteredByPlatform[0].group;
@@ -327,39 +353,44 @@ export default class UpdatePublish extends EasCommand {
 
       // build bundle and upload assets for a new publish
       if (!skipBundler) {
-        const bundleSpinner = ora().start('Building bundle...');
+        const bundleSpinner = ora().start('Exporting...');
         try {
-          await buildBundlesAsync({ projectDir, inputDir, exp });
-          bundleSpinner.succeed('Built bundle!');
+          await buildBundlesAsync({ projectDir, inputDir, exp, platformFlag });
+          bundleSpinner.succeed('Exported bundle(s)');
         } catch (e) {
-          bundleSpinner.fail('Failed to build bundle!');
+          bundleSpinner.fail('Export failed');
           throw e;
         }
       }
 
-      const assetSpinner = ora().start('Uploading assets...');
+      // After possibly bundling, assert that the input directory can be found.
+      const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
+
+      const assetSpinner = ora().start('Uploading...');
+
       try {
-        const platforms = platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
-        const assets = await collectAssetsAsync({ inputDir: inputDir!, platforms });
+        const collectedAssets = await collectAssetsAsync(distRoot);
+        const assets = filterExportedPlatformsByFlag(collectedAssets, platformFlag);
+        realizedPlatforms = Object.keys(assets) as PublishPlatform[];
+
         const uploadResults = await uploadAssetsAsync(
           graphqlClient,
           assets,
           projectId,
           (totalAssets, missingAssets) => {
-            assetSpinner.text = `Uploading assets. Finished (${
-              totalAssets - missingAssets
-            }/${totalAssets})`;
+            assetSpinner.text = `Uploading (${totalAssets - missingAssets}/${totalAssets})`;
           }
         );
+
         uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
         assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
         unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
         const uploadAssetSuccessMessage = uploadedAssetCount
-          ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'asset' : 'assets'}!`
-          : `Uploading assets skipped -- no new assets found!`;
+          ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'platform' : 'platforms'}`
+          : `Uploaded: No changes detected`;
         assetSpinner.succeed(uploadAssetSuccessMessage);
       } catch (e) {
-        assetSpinner.fail('Failed to upload assets');
+        assetSpinner.fail('Failed to upload');
         throw e;
       }
     }
@@ -369,11 +400,16 @@ export default class UpdatePublish extends EasCommand {
       Log.warn('Update message exceeds the allowed 1024 character limit. Truncating message...');
     }
 
-    const runtimeToPlatformMapping: Record<string, string[]> = {};
-    for (const runtime of new Set(Object.values(runtimeVersions))) {
-      runtimeToPlatformMapping[runtime] = Object.entries(runtimeVersions)
-        .filter(pair => pair[1] === runtime)
-        .map(pair => pair[0]);
+    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
+
+    const runtimeToPlatformMapping: { runtimeVersion: string; platforms: string[] }[] = [];
+    for (const runtime of runtimeVersions) {
+      const platforms = runtimeVersions
+        .filter(({ runtimeVersion }) => runtimeVersion === runtime.runtimeVersion)
+        .map(({ platform }) => platform);
+      if (!runtimeToPlatformMapping.find(item => item.runtimeVersion === runtime.runtimeVersion)) {
+        runtimeToPlatformMapping.push({ runtimeVersion: runtime.runtimeVersion, platforms });
+      }
     }
 
     const { branchId, createdBranch } = await ensureBranchExistsAsync(graphqlClient, {
@@ -393,8 +429,8 @@ export default class UpdatePublish extends EasCommand {
     const gitCommitHash = await getVcsClient().getCommitHashAsync();
 
     // Sort the updates into different groups based on their platform specific runtime versions
-    const updateGroups: PublishUpdateGroupInput[] = Object.entries(runtimeToPlatformMapping).map(
-      ([runtime, platforms]) => {
+    const updateGroups: PublishUpdateGroupInput[] = runtimeToPlatformMapping.map(
+      ({ runtimeVersion, platforms }) => {
         const localUpdateInfoGroup = Object.fromEntries(
           platforms.map(platform => [
             platform,
@@ -410,7 +446,7 @@ export default class UpdatePublish extends EasCommand {
         return {
           branchId,
           updateInfoGroup: localUpdateInfoGroup,
-          runtimeVersion: republish ? oldRuntimeVersion : runtime,
+          runtimeVersion: republish ? oldRuntimeVersion : runtimeVersion,
           message: truncatedMessage,
           gitCommitHash,
           awaitingCodeSigningInfo: !!codeSigningInfo,
@@ -481,12 +517,15 @@ export default class UpdatePublish extends EasCommand {
       }
 
       Log.addNewLineIfNone();
-      for (const runtime of new Set(Object.values(runtimeVersions))) {
+
+      for (const runtime of uniqBy(runtimeVersions, version => version.runtimeVersion)) {
         const newUpdatesForRuntimeVersion = newUpdates.filter(
-          update => update.runtimeVersion === runtime
+          update => update.runtimeVersion === runtime.runtimeVersion
         );
         if (newUpdatesForRuntimeVersion.length === 0) {
-          throw new Error(`Publish response is missing updates with runtime ${runtime}.`);
+          throw new Error(
+            `Publish response is missing updates with runtime ${runtime.runtimeVersion}.`
+          );
         }
         const platforms = newUpdatesForRuntimeVersion.map(update => update.platform);
         const newAndroidUpdate = newUpdatesForRuntimeVersion.find(
@@ -503,7 +542,7 @@ export default class UpdatePublish extends EasCommand {
         Log.log(
           formatFields([
             { label: 'Branch', value: branchName },
-            { label: 'Runtime version', value: runtime },
+            { label: 'Runtime version', value: runtime.runtimeVersion },
             { label: 'Platform', value: platforms.join(', ') },
             { label: 'Update group ID', value: updateGroupId },
             ...(newAndroidUpdate
@@ -565,31 +604,20 @@ export default class UpdatePublish extends EasCommand {
   }
 }
 
-function transformRuntimeVersions(exp: ExpoConfig, platforms: Platform[]): Record<string, string> {
-  return Object.fromEntries(
-    platforms.map(platform => [
-      platform,
-      nullthrows(
-        Updates.getRuntimeVersion(exp, platform),
-        `Unable to determine runtime version for ${
-          requestedPlatformDisplayNames[platform]
-        }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
-      ),
-    ])
-  );
-}
-
+/** Get runtime versions grouped by platform. Runtime version is always `null` on web where the platform is always backwards compatible. */
 async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
-  platform: RequestedPlatform,
+  platforms: PublishPlatform[],
   projectDir: string
-): Promise<Record<string, string>> {
-  const platforms = (platform === 'all' ? ['android', 'ios'] : [platform]) as Platform[];
-
+): Promise<{ platform: string; runtimeVersion: string }[]> {
   for (const platform of platforms) {
+    if (platform === 'web') {
+      continue;
+    }
     const isPolicy = typeof (exp[platform]?.runtimeVersion ?? exp.runtimeVersion) === 'object';
     if (isPolicy) {
-      const isManaged = (await resolveWorkflowAsync(projectDir, platform)) === Workflow.MANAGED;
+      const isManaged =
+        (await resolveWorkflowAsync(projectDir, platform as Platform)) === Workflow.MANAGED;
       if (!isManaged) {
         throw new Error(
           'Runtime version policies are only supported in the managed workflow. In the bare workflow, runtime version needs to be set manually.'
@@ -598,5 +626,18 @@ async function getRuntimeVersionObjectAsync(
     }
   }
 
-  return transformRuntimeVersions(exp, platforms);
+  return [...new Set(platforms)].map(platform => {
+    if (platform === 'web') {
+      return { platform: 'web', runtimeVersion: 'UNVERSIONED' };
+    }
+    return {
+      platform,
+      runtimeVersion: nullthrows(
+        Updates.getRuntimeVersion(exp, platform),
+        `Unable to determine runtime version for ${
+          requestedPlatformDisplayNames[platform]
+        }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
+      ),
+    };
+  });
 }

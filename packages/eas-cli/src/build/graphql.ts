@@ -16,6 +16,11 @@ export function transformProjectArchive(archiveSource: ArchiveSource): ProjectAr
       type: ProjectArchiveSourceType.S3,
       bucketKey: archiveSource.bucketKey,
     };
+  } else if (archiveSource.type === ArchiveSourceType.GCS) {
+    return {
+      type: ProjectArchiveSourceType.Gcs,
+      bucketKey: archiveSource.bucketKey,
+    };
   } else if (archiveSource.type === ArchiveSourceType.URL) {
     return {
       type: ProjectArchiveSourceType.Url,
