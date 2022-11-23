@@ -98,6 +98,12 @@ export default class Run extends EasCommand {
 
     const selectedPlatform = await resolvePlatformAsync(platform);
 
+    if (platform === 'ios' && process.platform !== 'darwin') {
+      Errors.error('You can only run iOS build on Apple device', {
+        exit: 1,
+      });
+    }
+
     if (
       runArchiveFlags.path &&
       !(
@@ -133,7 +139,7 @@ async function resolvePlatformAsync(platform?: string): Promise<AppPlatform> {
     choices: [
       { title: 'Android', value: AppPlatform.Android },
       { title: 'iOS', value: AppPlatform.Ios },
-    ],
+    ].filter(choice => choice.value !== AppPlatform.Ios || process.platform === 'darwin'),
   });
   return selectedPlatform;
 }
