@@ -4167,6 +4167,11 @@
   resolved "https://registry.yarnpkg.com/@types/tough-cookie/-/tough-cookie-4.0.2.tgz#6286b4c7228d58ab7866d19716f3696e03a09397"
   integrity sha512-Q5vtl1W5ue16D+nIaW8JWebSSraJVlK+EthKn7e7UcD4KWsaSJ8BqGPXNaPghgtcn/fhvrN17Tv8ksUsQpiplw==
 
+"@types/unixify@1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@types/unixify/-/unixify-1.0.0.tgz#22d673f3bc481cf899228d51bb30ecf0490ef76c"
+  integrity sha512-JZMxxE1x9vR5TfKM0SmiePGlAc4h7LK4likxmwYKDCZfJjPHe4yL/ulkuKWV7oOYTxtbmBHYisnpiaBssosQdw==
+
 "@types/uuid@8.3.4":
   version "8.3.4"
   resolved "https://registry.yarnpkg.com/@types/uuid/-/uuid-8.3.4.tgz#bd86a43617df0594787d38b735f55c805becf1bc"

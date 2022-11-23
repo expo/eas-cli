@@ -1,6 +1,7 @@
 import spawnAsync, { SpawnResult } from '@expo/spawn-async';
 import glob from 'fast-glob';
 import path from 'path';
+import unixify from 'unixify';
 
 import Log from '../../log';
 import { getAndroidSdkRootAsync } from './sdk';
@@ -22,7 +23,14 @@ export async function getAaptExecutableAsync(): Promise<string> {
     Log.debug('Failed to resolve the Android SDK path, falling back to global aapt executable');
     return 'aapt';
   }
-  const aaptPaths = await glob(path.join(sdkRoot, 'build-tools', '**', 'aapt'));
+  const aaptPaths = await glob(
+    path.join(
+      unixify(sdkRoot),
+      'build-tools',
+      '**',
+      ['win32', 'win64'].includes(process.platform) ? 'aapt.exe' : 'aapt'
+    )
+  );
 
   if (aaptPaths.length === 0) {
     throw new Error('Failed to resolve the Android aapt path');
