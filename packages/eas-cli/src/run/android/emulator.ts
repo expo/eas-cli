@@ -2,6 +2,7 @@ import spawnAsync, { SpawnResult } from '@expo/spawn-async';
 import chalk from 'chalk';
 import assert from 'node:assert';
 import os from 'os';
+import path from 'path';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
@@ -15,12 +16,12 @@ import {
 } from './adb';
 import { getAndroidSdkRootAsync } from './sdk';
 
-export const EMULATOR_MAX_WAIT_TIMEOUT = 60 * 1000 * 3;
+export const EMULATOR_MAX_WAIT_TIMEOUT_MS = 60 * 1000 * 3;
 
 export async function getEmulatorExecutableAsync(): Promise<string> {
   const sdkRoot = await getAndroidSdkRootAsync();
   if (sdkRoot) {
-    return `${sdkRoot}/emulator/emulator`;
+    return path.join(sdkRoot, 'emulator', 'emulator');
   }
 
   return 'emulator';
@@ -57,7 +58,7 @@ async function getAvaliableAndroidEmulatorsAsync(): Promise<AndroidEmulator[]> {
 async function bootEmulatorAsync(
   emulator: AndroidEmulator,
   {
-    timeout = EMULATOR_MAX_WAIT_TIMEOUT,
+    timeout = EMULATOR_MAX_WAIT_TIMEOUT_MS,
     interval = 1000,
   }: {
     /** Time in milliseconds to wait before asserting a timeout error. */

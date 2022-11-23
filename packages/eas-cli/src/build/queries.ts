@@ -63,11 +63,11 @@ function formatBuildChoiceTitleAndDescription(build: BuildFragment): {
   title: string;
   description: string;
 } {
-  const splittedCommitMessage = build.gitCommitMessage?.split('\n');
+  const splitCommitMessage = build.gitCommitMessage?.split('\n');
   const formattedCommitData =
-    build.gitCommitHash && splittedCommitMessage && splittedCommitMessage.length > 0
+    build.gitCommitHash && splitCommitMessage && splitCommitMessage.length > 0
       ? `${chalk.dim(build.gitCommitHash.slice(0, 7))} "${chalk.bold(
-          splittedCommitMessage[0] + (splittedCommitMessage.length > 1 ? '…' : '')
+          splitCommitMessage[0] + (splitCommitMessage.length > 1 ? '…' : '')
         )}"`
       : 'Unknown';
 

@@ -1,5 +1,6 @@
 import spawnAsync, { SpawnResult } from '@expo/spawn-async';
 import os from 'os';
+import path from 'path';
 
 import Log from '../../log';
 import { truthy } from '../../utils/expodash/filter';
@@ -34,7 +35,7 @@ export async function getAdbExecutableAsync(): Promise<string> {
     return 'adb';
   }
 
-  return `${sdkRoot}/platform-tools/adb`;
+  return path.join(sdkRoot, 'platform-tools', 'adb');
 }
 
 export function sanitizeAdbDeviceName(deviceName: string): string | undefined {
@@ -61,12 +62,13 @@ export async function getAdbNameForDeviceIdAsync(emulatorPid: string): Promise<s
 export async function getRunningEmulatorsAsync(): Promise<AndroidEmulator[]> {
   const { stdout } = await adbAsync('devices', '-l');
 
-  const splitItems = stdout.trim().replace(/\n$/, '').split(os.EOL);
-  // First line is `"List of devices attached"`, remove it
+  const splitItems = stdout.trim().split(os.EOL);
+
   const attachedDevices: {
     pid: string;
     type: string;
   }[] = splitItems
+    // First line is `"List of devices attached"`, remove it
     .slice(1, splitItems.length)
     .map(line => {
       // unauthorized: ['FA8251A00719', 'unauthorized', 'usb:338690048X', 'transport_id:5']
@@ -124,7 +126,7 @@ export async function waitForEmulatorToBeBootedAsync(
     if (emulator?.pid && (await isEmulatorBootedAsync(emulator.pid))) {
       return emulator;
     }
-    await sleepAsync(Math.min(intervalMs, Math.max(maxWaitTimeMs - (Date.now() - startTime), 0)));
+    await sleepAsync(intervalMs);
   }
   throw new Error('Timed out waiting for the Android emulator to start.');
 }

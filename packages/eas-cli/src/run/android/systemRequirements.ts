@@ -1,49 +1,27 @@
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
-import { pathExists } from 'fs-extra';
 
 import { getAaptExecutableAsync } from './aapt';
 import { getAdbExecutableAsync } from './adb';
 import { getEmulatorExecutableAsync } from './emulator';
 
-async function checkIfGlobalExecutableExistsAsync(executable: string): Promise<boolean> {
+async function assertExecutableExistsAsync(executable: string, options?: string[]): Promise<void> {
   try {
-    await spawnAsync(executable);
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-async function assertExecutableExistsAsync(executable: string): Promise<void> {
-  if (executable.includes('/')) {
-    if (!(await pathExists(executable))) {
-      throw new Error(
-        `Couldn't find ${chalk.bold(
-          executable
-        )} executable in the Android SDK. Please make sure ${chalk.bold(executable)} is installed.`
-      );
-    }
-  } else {
-    if (!(await checkIfGlobalExecutableExistsAsync('addd'))) {
-      throw new Error(
-        `Couldn't find ${chalk.bold(
-          executable
-        )} executable in your PATH. Please make sure Android Studio is installed on your device and ${chalk.bold(
-          'ANDROID_HOME'
-        )} or ${chalk.bold('ANDROID_SDK_ROOT')} env variables are set.`
-      );
-    }
+    await spawnAsync(executable, options);
+  } catch (err: any) {
+    throw new Error(
+      `${chalk.bold(
+        executable
+      )} executable doesn't seem to work. Please make sure Android Studio is installed on your device and ${chalk.bold(
+        'ANDROID_HOME'
+      )} or ${chalk.bold('ANDROID_SDK_ROOT')} env variables are set.
+${err.message}`
+    );
   }
 }
 
 export async function assertExecutablesExistAsync(): Promise<void> {
-  const executables = [
-    await getAdbExecutableAsync(),
-    await getEmulatorExecutableAsync(),
-    await getAaptExecutableAsync(),
-  ];
-  for (const executable of executables) {
-    await assertExecutableExistsAsync(executable);
-  }
+  await assertExecutableExistsAsync(await getAdbExecutableAsync(), ['--version']);
+  await assertExecutableExistsAsync(await getEmulatorExecutableAsync(), ['-list-avds']);
+  await assertExecutableExistsAsync(await getAaptExecutableAsync(), ['version']);
 }

@@ -99,7 +99,7 @@ export async function downloadAndMaybeExtractAppAsync(
   const outputDir = path.join(getTmpDirectory(), uuidv4());
   await fs.promises.mkdir(outputDir, { recursive: true });
 
-  if (platform === AppPlatform.Android) {
+  if (url.endsWith('apk')) {
     const apkFilePath = path.join(outputDir, `${uuidv4()}.apk`);
     await downloadFileWithProgressTrackerAsync(
       url,
@@ -123,7 +123,7 @@ export async function downloadAndMaybeExtractAppAsync(
     );
     await tarExtractAsync(tmpArchivePath, outputDir);
 
-    return await getAppPathAsync(outputDir, 'app');
+    return await getAppPathAsync(outputDir, platform === AppPlatform.Ios ? 'app' : 'apk');
   }
 }
 
