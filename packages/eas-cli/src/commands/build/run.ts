@@ -99,7 +99,7 @@ export default class Run extends EasCommand {
     const selectedPlatform = await resolvePlatformAsync(platform);
 
     if (platform === 'ios' && process.platform !== 'darwin') {
-      Errors.error('You can only run iOS build on Apple device', {
+      Errors.error('You can only run iOS build on macOS devices', {
         exit: 1,
       });
     }
@@ -173,7 +173,7 @@ async function maybeGetBuildAsync(
       selectPromptDisabledFunction: build =>
         build.platform === AppPlatform.Ios
           ? false
-          : !build.artifacts?.applicationArchiveUrl?.endsWith('.apk'),
+          : !build.artifacts?.applicationArchiveUrl?.endsWith('.apk') ?? false,
       warningMessage: 'This build is not a simulator/emulator build',
     });
   } else if (flags.runArchiveFlags.latest) {

@@ -35,7 +35,7 @@ export async function getAdbExecutableAsync(): Promise<string> {
     return 'adb';
   }
 
-  return path.join(sdkRoot, 'platform-tools', 'adb');
+  return path.join(sdkRoot, 'platform-tools/adb');
 }
 
 export function sanitizeAdbDeviceName(deviceName: string): string | undefined {

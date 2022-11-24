@@ -1,7 +1,6 @@
 import spawnAsync, { SpawnResult } from '@expo/spawn-async';
 import glob from 'fast-glob';
 import path from 'path';
-import unixify from 'unixify';
 
 import Log from '../../log';
 import { getAndroidSdkRootAsync } from './sdk';
@@ -24,9 +23,13 @@ export async function getAaptExecutableAsync(): Promise<string> {
     return 'aapt';
   }
   const aaptPaths = await glob(
-    unixify(
-      path.join(sdkRoot, 'build-tools', '**', process.platform === 'win32' ? 'aapt.exe' : 'aapt')
-    )
+    path.posix.join(
+      sdkRoot,
+      'build-tools',
+      '**',
+      process.platform === 'win32' ? 'aapt.exe' : 'aapt'
+    ),
+    { cwd: sdkRoot, absolute: true }
   );
 
   if (aaptPaths.length === 0) {
