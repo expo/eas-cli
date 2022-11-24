@@ -23,12 +23,7 @@ export async function getAaptExecutableAsync(): Promise<string> {
     return 'aapt';
   }
   const aaptPaths = await glob(
-    path.posix.join(
-      sdkRoot,
-      'build-tools',
-      '**',
-      process.platform === 'win32' ? 'aapt.exe' : 'aapt'
-    ),
+    path.posix.join('build-tools/**', process.platform === 'win32' ? 'aapt.exe' : 'aapt'),
     { cwd: sdkRoot, absolute: true }
   );
 

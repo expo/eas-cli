@@ -128,6 +128,10 @@ export default class Run extends EasCommand {
 }
 
 async function resolvePlatformAsync(platform?: string): Promise<AppPlatform> {
+  if (process.platform !== 'darwin') {
+    return AppPlatform.Android;
+  }
+
   if (platform && Object.values(AppPlatform).includes(platform.toUpperCase() as AppPlatform)) {
     return platform.toUpperCase() as AppPlatform;
   }
