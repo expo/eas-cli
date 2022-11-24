@@ -143,7 +143,7 @@ async function resolvePlatformAsync(platform?: string): Promise<AppPlatform> {
     choices: [
       { title: 'Android', value: AppPlatform.Android },
       { title: 'iOS', value: AppPlatform.Ios },
-    ].filter(choice => choice.value !== AppPlatform.Ios || process.platform === 'darwin'),
+    ],
   });
   return selectedPlatform;
 }
@@ -165,7 +165,7 @@ async function maybeGetBuildAsync(
     !flags.runArchiveFlags.url &&
     !flags.runArchiveFlags.latest
   ) {
-    return await listAndSelectBuildsOnAppAsync(graphqlClient, {
+    return await listAndSelectBuildsOnAppAsync(graphqlClient, flags.selectedPlatform, {
       projectId,
       projectDisplayName: await getDisplayNameForProjectIdAsync(graphqlClient, projectId),
       filter: {

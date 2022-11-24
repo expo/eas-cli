@@ -85,6 +85,7 @@ function formatBuildChoiceTitleAndDescription(build: BuildFragment): {
 
 export async function listAndSelectBuildsOnAppAsync(
   graphqlClient: ExpoGraphqlClient,
+  selectedPlatform: AppPlatform,
   {
     projectId,
     projectDisplayName,
@@ -114,7 +115,9 @@ export async function listAndSelectBuildsOnAppAsync(
 
   const { selectedSimulatorBuild } = await promptAsync({
     type: 'select',
-    message: `Select simulator build to run for ${projectDisplayName} app`,
+    message: `Select ${selectedPlatform === AppPlatform.Ios ? 'iOS' : 'Android'} ${
+      selectedPlatform === AppPlatform.Ios ? 'simulator' : 'emulator'
+    } build to run for ${projectDisplayName} app`,
     name: 'selectedSimulatorBuild',
     choices: builds.map(build => {
       const buildChoice = formatBuildChoiceTitleAndDescription(build);
