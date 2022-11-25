@@ -1,9 +1,8 @@
 import { Errors, Flags } from '@oclif/core';
-import { existsSync } from 'fs-extra';
+import { pathExists } from 'fs-extra';
 import assert from 'node:assert';
 
 import { getLatestBuildAsync, listAndSelectBuildsOnAppAsync } from '../../build/queries';
-import { BuildDistributionType } from '../../build/types';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -11,13 +10,15 @@ import {
   PaginatedQueryOptions,
   getPaginatedQueryOptions,
 } from '../../commandUtils/pagination';
-import { AppPlatform, BuildFragment, BuildStatus } from '../../graphql/generated';
+import { AppPlatform, BuildFragment, BuildStatus, DistributionType } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { RunArchiveFlags, runAsync } from '../../run/run';
-import { buildDistributionTypeToGraphQLDistributionType } from '../../utils/buildDistribution';
-import { downloadAndExtractAppAsync, extractAppFromLocalArchiveAsync } from '../../utils/download';
+import {
+  downloadAndMaybeExtractAppAsync,
+  extractAppFromLocalArchiveAsync,
+} from '../../utils/download';
 
 interface RawRunFlags {
   latest?: boolean;
@@ -51,7 +52,7 @@ export default class Run extends EasCommand {
       exclusive: ['latest', 'id', 'path'],
     }),
     path: Flags.string({
-      description: 'Path to the simulator/emulator build archive or simulator build app',
+      description: 'Path to the simulator/emulator build archive or app',
       exclusive: ['latest', 'id', 'url'],
     }),
     id: Flags.string({
@@ -97,13 +98,19 @@ export default class Run extends EasCommand {
 
     const selectedPlatform = await resolvePlatformAsync(platform);
 
+    if (platform === 'ios' && process.platform !== 'darwin') {
+      Errors.error('You can only use an iOS simulator to run apps on macOS devices', {
+        exit: 1,
+      });
+    }
+
     if (
       runArchiveFlags.path &&
       !(
         (runArchiveFlags.path.endsWith('.tar.gz') ||
           runArchiveFlags.path.endsWith('.app') ||
           runArchiveFlags.path.endsWith('.apk')) &&
-        existsSync(runArchiveFlags.path)
+        (await pathExists(runArchiveFlags.path))
       )
     ) {
       Errors.error('The path must point to a .tar.gz archive, .apk file, or .app directory', {
@@ -121,6 +128,10 @@ export default class Run extends EasCommand {
 }
 
 async function resolvePlatformAsync(platform?: string): Promise<AppPlatform> {
+  if (process.platform !== 'darwin') {
+    return AppPlatform.Android;
+  }
+
   if (platform && Object.values(AppPlatform).includes(platform.toUpperCase() as AppPlatform)) {
     return platform.toUpperCase() as AppPlatform;
   }
@@ -143,6 +154,9 @@ async function maybeGetBuildAsync(
   projectId: string,
   paginatedQueryOptions: PaginatedQueryOptions
 ): Promise<BuildFragment | null> {
+  const distributionType =
+    flags.selectedPlatform === AppPlatform.Ios ? DistributionType.Simulator : undefined;
+
   if (flags.runArchiveFlags.id) {
     return BuildQuery.byIdAsync(graphqlClient, flags.runArchiveFlags.id);
   } else if (
@@ -151,26 +165,27 @@ async function maybeGetBuildAsync(
     !flags.runArchiveFlags.url &&
     !flags.runArchiveFlags.latest
   ) {
-    return await listAndSelectBuildsOnAppAsync(graphqlClient, {
+    return await listAndSelectBuildsOnAppAsync(graphqlClient, flags.selectedPlatform, {
       projectId,
       projectDisplayName: await getDisplayNameForProjectIdAsync(graphqlClient, projectId),
       filter: {
         platform: flags.selectedPlatform,
-        distribution: buildDistributionTypeToGraphQLDistributionType(
-          BuildDistributionType.SIMULATOR
-        ),
+        distribution: distributionType,
         status: BuildStatus.Finished,
       },
       queryOptions: paginatedQueryOptions,
+      selectPromptDisabledFunction: build =>
+        build.platform === AppPlatform.Ios
+          ? false
+          : !build.artifacts?.applicationArchiveUrl?.endsWith('.apk') ?? false,
+      warningMessage: 'This is not a simulator/emulator build',
     });
   } else if (flags.runArchiveFlags.latest) {
     return await getLatestBuildAsync(graphqlClient, {
       projectId,
       filter: {
         platform: flags.selectedPlatform,
-        distribution: buildDistributionTypeToGraphQLDistributionType(
-          BuildDistributionType.SIMULATOR
-        ),
+        distribution: distributionType,
         status: BuildStatus.Finished,
       },
     });
@@ -186,25 +201,27 @@ async function getPathToSimulatorBuildAppAsync(
   queryOptions: PaginatedQueryOptions
 ): Promise<string> {
   const maybeBuild = await maybeGetBuildAsync(graphqlClient, flags, projectId, queryOptions);
-  const appExtension = flags.selectedPlatform === AppPlatform.Ios ? 'app' : 'apk';
 
   if (maybeBuild) {
     if (!maybeBuild.artifacts?.applicationArchiveUrl) {
       throw new Error('Build does not have an application archive url');
     }
 
-    return await downloadAndExtractAppAsync(
+    return await downloadAndMaybeExtractAppAsync(
       maybeBuild.artifacts.applicationArchiveUrl,
-      appExtension
+      flags.selectedPlatform
     );
   }
 
   if (flags.runArchiveFlags.url) {
-    return await downloadAndExtractAppAsync(flags.runArchiveFlags.url, appExtension);
+    return await downloadAndMaybeExtractAppAsync(flags.runArchiveFlags.url, flags.selectedPlatform);
   }
 
   if (flags.runArchiveFlags.path?.endsWith('.tar.gz')) {
-    return await extractAppFromLocalArchiveAsync(flags.runArchiveFlags.path!, appExtension);
+    return await extractAppFromLocalArchiveAsync(
+      flags.runArchiveFlags.path,
+      flags.selectedPlatform
+    );
   }
 
   // this should never fail, due to the validation in sanitizeFlagsAsync
