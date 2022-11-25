@@ -204,8 +204,7 @@ function getEasBuildRunCachedAppPath(
 ): string {
   return path.join(
     getEasBuildRunCacheDirectoryPath(),
-    projectId,
-    `${buildId}.${platform === AppPlatform.Ios ? 'app' : 'apk'}`
+    `${projectId}_${buildId}.${platform === AppPlatform.Ios ? 'app' : 'apk'}`
   );
 }
 
@@ -226,7 +225,7 @@ async function getPathToSimulatorBuildAppAsync(
 
     if (await pathExists(cachedAppPath)) {
       Log.newLine();
-      Log.log(`Using cached app from ${cachedAppPath}`);
+      Log.log(`Using cached app...`);
       return cachedAppPath;
     }
 

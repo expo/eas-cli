@@ -26,7 +26,7 @@ function dotExpoHomeDirectory(): string {
 const getStateJsonPath = (): string => path.join(dotExpoHomeDirectory(), 'state.json');
 
 export const getEasBuildRunCacheDirectoryPath = (): string =>
-  path.join(dotExpoHomeDirectory(), 'eas-build-run-cache');
+  path.join(getTmpDirectory(), 'eas-build-run-cache');
 
 // Paths for storing things like data, config, cache, etc.
 // Should use the correct OS-specific paths (e.g. XDG base directory on Linux)
