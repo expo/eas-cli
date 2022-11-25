@@ -237,7 +237,6 @@ export default class UpdatePublish extends EasCommand {
     }
 
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
-    let oldRuntimeVersion: string;
     let uploadedAssetCount = 0;
     let assetLimitPerUpdateGroup = 0;
 
@@ -352,11 +351,6 @@ export default class UpdatePublish extends EasCommand {
           ])
         );
 
-        if (!oldRuntimeVersion) {
-          throw new Error(
-            'Cannot find the runtime version of the update group that is being republished.'
-          );
-        }
         return {
           branchId,
           updateInfoGroup: localUpdateInfoGroup,
