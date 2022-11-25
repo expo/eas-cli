@@ -505,17 +505,17 @@ export default class UpdatePublish extends EasCommand {
     }
 
     if (flags.group || flags.republish) {
-      const cmd = [
-        'eas update:republish',
-        ...(flags.branch ? ['--branch', flags.branch] : []),
-        ...(flags.group ? ['--group', flags.group] : []),
-      ].join(' ');
+      // Pick the first flag set that is defined, in this specific order
+      const args = [
+        ['--group', flags.group],
+        ['--branch', flags.branch],
+      ].filter(([_, value]) => value)[0];
 
       Log.newLine();
       Log.warn(
         'The --group and --republish flags are deprecated, use the republish command instead:'
       );
-      Log.warn(`  ${chalk.bold(cmd)}`);
+      Log.warn(`  ${chalk.bold([`eas update:republish`, ...(args ?? [])].join(' '))}`);
       Log.newLine();
 
       Errors.error('--group and --republush flags are deprecated', { exit: 1 });
