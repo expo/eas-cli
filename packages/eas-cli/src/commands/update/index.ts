@@ -511,7 +511,7 @@ export default class UpdatePublish extends EasCommand {
       Log.warn(`  ${chalk.bold([`eas update:republish`, ...(args ?? [])].join(' '))}`);
       Log.newLine();
 
-      Errors.error('--group and --republush flags are deprecated', { exit: 1 });
+      Errors.error('--group and --republish flags are deprecated', { exit: 1 });
     }
 
     return {
