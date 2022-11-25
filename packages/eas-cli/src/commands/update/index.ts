@@ -236,10 +236,6 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
-    let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
-    let uploadedAssetCount = 0;
-    let assetLimitPerUpdateGroup = 0;
-
     if (!updateMessage && autoFlag) {
       updateMessage = (await getVcsClient().getLastCommitMessageAsync())?.trim();
     }
@@ -278,6 +274,9 @@ export default class UpdatePublish extends EasCommand {
     const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
 
     const assetSpinner = ora().start('Uploading...');
+    let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
+    let uploadedAssetCount = 0;
+    let assetLimitPerUpdateGroup = 0;
 
     try {
       const collectedAssets = await collectAssetsAsync(distRoot);
