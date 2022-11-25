@@ -1,7 +1,7 @@
 import { Errors, Flags } from '@oclif/core';
 import { pathExists } from 'fs-extra';
 import assert from 'node:assert';
-import path from 'node:path';
+import path from 'path';
 
 import { getLatestBuildAsync, listAndSelectBuildsOnAppAsync } from '../../build/queries';
 import EasCommand from '../../commandUtils/EasCommand';
