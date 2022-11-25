@@ -23,13 +23,12 @@ function formatDeviceClass(device: Device | NewDevice): string {
 
 export default function formatDevice(device: Device, team?: AppleTeamIdAndName): string {
   const fields: FormatFieldsItem[] = [
-    { label: 'ID', value: device.id },
+    { label: 'UDID', value: device.identifier },
     { label: 'Name', value: device.name ?? 'Unknown' },
     {
       label: 'Class',
       value: formatDeviceClass(device),
     },
-    { label: 'UDID', value: device.identifier },
   ];
 
   if (team) {
