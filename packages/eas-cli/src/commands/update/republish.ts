@@ -1,8 +1,6 @@
 import { Platform } from '@expo/config';
 import { Flags } from '@oclif/core';
-import chalk from 'chalk';
 
-import { ensureBranchExistsAsync } from '../../branch/queries';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -42,6 +40,7 @@ type UpdateRepublishFlags = {
 
 type UpdateToRepublish = {
   groupId: string;
+  branchId: string;
   branchName: string;
 } & Pick<
   Update,
@@ -58,13 +57,15 @@ export default class UpdateRepublish extends EasCommand {
 
   static override flags = {
     branch: Flags.string({
-      description: 'Branch name to select an update from',
+      description: 'Branch name to select an update to republish from',
+      exclusive: ['group'],
     }),
     group: Flags.string({
       description: 'Update group ID to republish',
+      exclusive: ['branch'],
     }),
     message: Flags.string({
-      description: 'Short message describing the update',
+      description: 'Short message describing the republished update',
       required: false,
     }),
     platform: Flags.enum({
@@ -131,12 +132,9 @@ export default class UpdateRepublish extends EasCommand {
 
     // This command only republishes a single update group
     // The update group properties are the same for all updates
-    const runtimeVersion = updatesToPublish[0].runtimeVersion;
-    const branchName = flags.branchName ?? updatesToPublish[0].branchName;
+    const { branchId, branchName, runtimeVersion } = updatesToPublish[0];
 
-    // Prevent users from republishing updates to a different branch.
-    // When using environment variables, the branch name is not updated, possibly causing unexpected sideeffects.
-    assertBranchNameIsEqualToExistingUpdateBranch(updatesToPublish, branchName, flags);
+    const updateMessage = await getOrAskUpdateMessageAsync(updatesToPublish, flags);
 
     // If codesigning was created for the original update, we need to add it to the republish
     const shouldRepublishWithCodesigning = updatesToPublish.some(update => update.codeSigningInfo);
@@ -145,12 +143,6 @@ export default class UpdateRepublish extends EasCommand {
         `The republished update will be signed with the same codesigning as the original update.`
       );
     }
-
-    const updateMessage = await getOrAskUpdateMessageAsync(updatesToPublish, flags);
-    const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
-      appId: projectId,
-      branchName,
-    });
 
     const publishIndicator = ora('Republishing...').start();
     let updatesRepublished: Awaited<ReturnType<typeof PublishMutation.publishUpdateGroupAsync>>;
@@ -258,8 +250,9 @@ async function getOrAskUpdatesAsync(
 
     return updateGroups.map(group => ({
       ...group,
-      branchName: group.branch.name,
       groupId: group.group,
+      branchId: group.branch.id,
+      branchName: group.branch.name,
     }));
   }
 
@@ -296,6 +289,7 @@ async function askUpdatesFromBranchNameAsync(
 
   return updateGroups.map(group => ({
     groupId: group.id,
+    branchId: group.branch.id,
     branchName: group.branch.name,
     ...group,
   }));
@@ -327,36 +321,6 @@ async function getOrAskUpdateMessageAsync(
   });
 
   return sanitizeUpdateMessage(updateMessage);
-}
-
-/**
- * Make sure the user-provided branch name matches the original update group branch name.
- * Because no new artifacts are created during republish, environment variables containing the
- * branch name are not updated. This may cause unexpected side effects when "promoting" updates
- * to different branches.
- */
-function assertBranchNameIsEqualToExistingUpdateBranch(
-  updates: UpdateToRepublish[],
-  branchName: string,
-  flags: UpdateRepublishFlags
-): void {
-  if (flags.branchName && updates[0].branchName !== branchName) {
-    Log.addNewLineIfNone();
-    Log.warn(
-      `The original update was published to branch ${updates[0].branchName}, and can't be republished to ${branchName}.`
-    );
-    Log.warn(`Instead, create a new update on branch ${branchName}:`);
-
-    const { gitCommitHash } = updates.find(update => update.gitCommitHash) ?? {};
-    if (gitCommitHash) {
-      Log.warn(`  ${chalk.bold(`git checkout ${gitCommitHash}`)}`);
-    }
-
-    Log.warn(`  ${chalk.bold(`eas update --branch ${branchName}`)}`);
-    Log.addNewLineIfNone();
-
-    throw new Error('Cannot republish update to a different branch');
-  }
 }
 
 function sanitizeUpdateMessage(updateMessage: string): string {

@@ -2,7 +2,6 @@ import { AppJSONConfig, PackageJSONConfig, getConfig } from '@expo/config';
 import { vol } from 'memfs';
 import { instance, mock } from 'ts-mockito';
 
-import { ensureBranchExistsAsync } from '../../../branch/queries';
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
 import ProjectConfigContextField from '../../../commandUtils/context/ProjectConfigContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -38,11 +37,9 @@ const codeSigningStub: CodeSigningInfo = {
 
 jest.mock('fs');
 jest.mock('@expo/config');
-jest.mock('../../../branch/queries');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
 jest.mock('../../../graphql/mutations/PublishMutation');
 jest.mock('../../../graphql/queries/AppQuery');
-jest.mock('../../../graphql/queries/PublishQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
 jest.mock('../../../ora', () => ({
   ora: () => ({
@@ -84,25 +81,23 @@ describe(UpdateRepublish.name, () => {
     );
   });
 
-  it('errors when republishing update to different branch', async () => {
-    const flags = ['--group=1234', '--branch=other'];
+  it('errors when republishing update with both --group and --branch', async () => {
+    const flags = ['--group=1234', '--branch=main'];
 
     mockTestProject();
-    jest.mocked(UpdateQuery.viewUpdateGroupAsync).mockResolvedValue([updateStub]);
 
     await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
-      'Cannot republish update to a different branch'
+      /--branch=main cannot also be provided when using --group/
     );
   });
 
   it('creates a new update from existing update', async () => {
-    const flags = ['--group=1234', '--branch=main', '--message=test-republish'];
+    const flags = ['--group=1234', '--message=test-republish'];
 
     mockTestProject();
     // Mock queries to retrieve the update and code signing info
     jest.mocked(UpdateQuery.viewUpdateGroupAsync).mockResolvedValue([updateStub]);
     // Mock mutations to store the new update
-    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({ branchId: updateStub.branch.id });
     jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue([
       {
         ...updateStub,
@@ -133,7 +128,7 @@ describe(UpdateRepublish.name, () => {
   });
 
   it('creates a new update from existing update with codesigning', async () => {
-    const flags = ['--group=1234', '--branch=main', '--message=test-republish'];
+    const flags = ['--group=1234', '--message=test-republish'];
     const codeSigning = {
       alg: 'alg',
       keyid: 'keyid',
@@ -146,7 +141,6 @@ describe(UpdateRepublish.name, () => {
       .mocked(UpdateQuery.viewUpdateGroupAsync)
       .mockResolvedValue([{ ...updateStub, codeSigningInfo: codeSigningStub }]);
     // Mock mutations to store the new update
-    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({ branchId: updateStub.branch.id });
     jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue([
       {
         ...updateStub,
