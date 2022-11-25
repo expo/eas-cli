@@ -41,8 +41,6 @@ interface RunCommandFlags {
 }
 
 export default class Run extends EasCommand {
-  static override hidden = true;
-
   static override description = 'run simulator/emulator builds from eas-cli';
 
   static override flags = {
