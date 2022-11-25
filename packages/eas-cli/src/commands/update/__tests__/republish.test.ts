@@ -9,15 +9,15 @@ import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/cr
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
 import FeatureGating from '../../../commandUtils/gating/FeatureGating';
 import { jester } from '../../../credentials/__tests__/fixtures-constants';
+import { CodeSigningInfo, UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
-import { PublishQuery } from '../../../graphql/queries/PublishQuery';
 import { UpdateQuery } from '../../../graphql/queries/UpdateQuery';
 import UpdateRepublish from '../republish';
 
 const projectRoot = '/test-project';
 const commandOptions = { root: projectRoot } as any;
-const updateStub: any = {
+const updateStub: UpdateFragment = {
   id: 'update-1234',
   group: 'group-1234',
   branch: { id: 'branch-1234', name: 'main' },
@@ -26,6 +26,14 @@ const updateStub: any = {
   platform: 'ios',
   gitCommitHash: 'commit',
   manifestFragment: JSON.stringify({ fake: 'manifest' }),
+  codeSigningInfo: null,
+  createdAt: '2022-01-01T12:00:00Z',
+};
+
+const codeSigningStub: CodeSigningInfo = {
+  keyid: 'keyid',
+  alg: 'alg',
+  sig: 'sig',
 };
 
 jest.mock('fs');
@@ -93,7 +101,6 @@ describe(UpdateRepublish.name, () => {
     mockTestProject();
     // Mock queries to retrieve the update and code signing info
     jest.mocked(UpdateQuery.viewUpdateGroupAsync).mockResolvedValue([updateStub]);
-    jest.mocked(PublishQuery.getCodeSigningInfoFromUpdateGroupAsync).mockResolvedValue({});
     // Mock mutations to store the new update
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({ branchId: updateStub.branch.id });
     jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue([
@@ -101,6 +108,7 @@ describe(UpdateRepublish.name, () => {
         ...updateStub,
         id: 'update-new',
         platform: 'ios',
+        manifestPermalink: 'https://expo.dev/@test/test-project/manifest',
       },
     ]);
 
@@ -134,10 +142,9 @@ describe(UpdateRepublish.name, () => {
 
     mockTestProject();
     // Mock queries to retrieve the update and code signing info
-    jest.mocked(UpdateQuery.viewUpdateGroupAsync).mockResolvedValue([updateStub]);
-    jest.mocked(PublishQuery.getCodeSigningInfoFromUpdateGroupAsync).mockResolvedValue({
-      ios: codeSigning,
-    });
+    jest
+      .mocked(UpdateQuery.viewUpdateGroupAsync)
+      .mockResolvedValue([{ ...updateStub, codeSigningInfo: codeSigningStub }]);
     // Mock mutations to store the new update
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({ branchId: updateStub.branch.id });
     jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue([
@@ -145,6 +152,7 @@ describe(UpdateRepublish.name, () => {
         ...updateStub,
         id: 'update-new',
         platform: 'ios',
+        manifestPermalink: 'https://expo.dev/@test/test-project/manifest',
       },
     ]);
     jest.mocked(PublishMutation.setCodeSigningInfoAsync).mockResolvedValue({} as any);

@@ -1,6 +1,5 @@
 import { Platform } from '@expo/config';
 import { Flags } from '@oclif/core';
-import assert from 'assert';
 import chalk from 'chalk';
 
 import { ensureBranchExistsAsync } from '../../branch/queries';
@@ -11,7 +10,6 @@ import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { Update } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import { PublishQuery } from '../../graphql/queries/PublishQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
@@ -45,7 +43,15 @@ type UpdateRepublishFlags = {
 type UpdateToRepublish = {
   groupId: string;
   branchName: string;
-} & Pick<Update, 'message' | 'runtimeVersion' | 'manifestFragment' | 'platform' | 'gitCommitHash'>;
+} & Pick<
+  Update,
+  | 'message'
+  | 'runtimeVersion'
+  | 'manifestFragment'
+  | 'platform'
+  | 'gitCommitHash'
+  | 'codeSigningInfo'
+>;
 
 export default class UpdateRepublish extends EasCommand {
   static override description = 'rollback to an existing update';
@@ -125,7 +131,6 @@ export default class UpdateRepublish extends EasCommand {
 
     // This command only republishes a single update group
     // The update group properties are the same for all updates
-    const groupId = updatesToPublish[0].groupId;
     const runtimeVersion = updatesToPublish[0].runtimeVersion;
     const branchName = flags.branchName ?? updatesToPublish[0].branchName;
 
@@ -134,12 +139,8 @@ export default class UpdateRepublish extends EasCommand {
     assertBranchNameIsEqualToExistingUpdateBranch(updatesToPublish, branchName, flags);
 
     // If codesigning was created for the original update, we need to add it to the republish
-    const codeSigningByPlatform = await PublishQuery.getCodeSigningInfoFromUpdateGroupAsync(
-      graphqlClient,
-      groupId
-    );
-    const shouldCodeSignRepublish = Object.keys(codeSigningByPlatform).length > 0;
-    if (shouldCodeSignRepublish) {
+    const shouldRepublishWithCodesigning = updatesToPublish.some(update => update.codeSigningInfo);
+    if (shouldRepublishWithCodesigning) {
       Log.withTick(
         `The republished update will be signed with the same codesigning as the original update.`
       );
@@ -164,27 +165,22 @@ export default class UpdateRepublish extends EasCommand {
             updatesToPublish.map(update => [update.platform, JSON.parse(update.manifestFragment)])
           ),
           gitCommitHash: updatesToPublish[0].gitCommitHash,
-          awaitingCodeSigningInfo: shouldCodeSignRepublish,
+          awaitingCodeSigningInfo: shouldRepublishWithCodesigning,
         },
       ]);
 
-      if (shouldCodeSignRepublish) {
-        await Promise.all(
-          updatesRepublished
-            .filter(update => update.platform in codeSigningByPlatform)
-            .map(async update => {
-              const codeSigningInfo = codeSigningByPlatform[update.platform as Platform];
-              assert(
-                codeSigningInfo,
-                `Code signing info not found for update on platform ${update.platform}, can't republish update.`
-              );
+      if (shouldRepublishWithCodesigning) {
+        const codeSigningByPlatform = Object.fromEntries(
+          updatesToPublish.map(update => [update.platform, update.codeSigningInfo])
+        );
 
-              await PublishMutation.setCodeSigningInfoAsync(graphqlClient, update.id, {
-                alg: codeSigningInfo.alg,
-                keyid: codeSigningInfo.keyid,
-                sig: codeSigningInfo.sig,
-              });
-            })
+        await Promise.all(
+          updatesRepublished.map(async update => {
+            const codeSigning = codeSigningByPlatform[update.platform];
+            if (codeSigning) {
+              await PublishMutation.setCodeSigningInfoAsync(graphqlClient, update.id, codeSigning);
+            }
+          })
         );
       }
 
