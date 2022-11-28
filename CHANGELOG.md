@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Ask for the missing application identifier consistently in `eas build:version:sync` command. ([#1543](https://github.com/expo/eas-cli/pull/1543) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🧹 Chores
 
 ## [2.8.0](https://github.com/expo/eas-cli/releases/tag/v2.8.0) - 2022-11-28
