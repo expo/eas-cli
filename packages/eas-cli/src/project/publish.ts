@@ -283,18 +283,19 @@ export function getAssetHashFromPath(assetPath: string): string | null {
 export function getOriginalPathFromAssetMap(
   assetMap: AssetMap | null,
   asset: { path: string; ext: string }
-): string {
-  if (assetMap) {
-    const assetHash = getAssetHashFromPath(asset.path);
-    const assetMapEntry = assetHash && assetMap[assetHash];
+): string | null {
+  if (!assetMap) {
+    return null;
+  }
+  const assetHash = getAssetHashFromPath(asset.path);
+  const assetMapEntry = assetHash && assetMap[assetHash];
 
-    if (assetMapEntry) {
-      const pathPrefix = assetMapEntry.httpServerLocation.substring('/assets'.length);
-      return `${pathPrefix}/${assetMapEntry.name}.${assetMapEntry.type}`;
-    }
+  if (!assetMapEntry) {
+    return null;
   }
 
-  return `${asset.path}.${asset.ext}`;
+  const pathPrefix = assetMapEntry.httpServerLocation.substring('/assets'.length);
+  return `${pathPrefix}/${assetMapEntry.name}.${assetMapEntry.type}`;
 }
 
 /** Given a directory, load the metadata.json and collect the assets for each platform. */
@@ -313,7 +314,7 @@ export async function collectAssetsAsync(dir: string): Promise<CollectedAssets> 
       },
       assets: metadata.fileMetadata[platform].assets.map(asset => ({
         fileExtension: asset.ext ? ensureLeadingPeriod(asset.ext) : undefined,
-        originalPath: getOriginalPathFromAssetMap(assetmap, asset),
+        originalPath: getOriginalPathFromAssetMap(assetmap, asset) ?? undefined,
         contentType: guessContentTypeFromExtension(asset.ext),
         path: path.join(dir, asset.path),
       })),

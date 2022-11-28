@@ -301,21 +301,21 @@ describe(getOriginalPathFromAssetMap, () => {
       type: 'jpg',
     },
   };
-  it('returns built path when asset map is null', () => {
+  it('returns null path when asset map is null', () => {
     expect(
       getOriginalPathFromAssetMap(null, {
         path: 'assets/5b2a819c71d035ca45d223e4c47ed4f9',
         ext: 'jpg',
       })
-    ).toBe('assets/5b2a819c71d035ca45d223e4c47ed4f9.jpg');
+    ).toBeNull();
   });
-  it('returns built path when asset is not found in asset map', () => {
+  it('returns null when asset is not found in asset map', () => {
     expect(
       getOriginalPathFromAssetMap(fakeAssetMap, {
         path: 'assets/fb64d3b2fb71b3d739ad5c13a93e12c5',
         ext: 'jpg',
       })
-    ).toBe('assets/fb64d3b2fb71b3d739ad5c13a93e12c5.jpg');
+    ).toBeNull();
   });
   it('returns reconstructed original path from existing asset in asset map', () => {
     expect(
@@ -329,7 +329,7 @@ describe(getOriginalPathFromAssetMap, () => {
 
 describe(collectAssetsAsync, () => {
   it('builds an update info group', async () => {
-    const fakeHash = 'md5-hash-of-jpg';
+    const fakeHash = 'hdahukw8adhawi8fawhfa8';
     const bundles = {
       android: 'android-bundle-code',
       ios: 'ios-bundle-code',
@@ -342,7 +342,7 @@ describe(collectAssetsAsync, () => {
         fileExtension: '.jpg',
         contentType: 'image/jpeg',
         path: `${inputDir}/assets/${fakeHash}`,
-        originalPath: `assets/${fakeHash}.jpg`,
+        originalPath: `assets/wat.jpg`,
       },
     ];
 
@@ -372,6 +372,24 @@ describe(collectAssetsAsync, () => {
             assets: [{ path: `assets/${fakeHash}`, ext: 'jpg' }],
             bundle: 'bundles/web.js',
           },
+        },
+      })
+    );
+    await fs.writeFile(
+      path.resolve(inputDir, 'assetmap.json'),
+      JSON.stringify({
+        [fakeHash]: {
+          __packager_asset: true,
+          fileSystemLocation: '/Users/blah/temp/assets',
+          httpServerLocation: 'assets/assets',
+          width: 2339,
+          height: 1560,
+          scales: [1],
+          files: ['/Users/blah/temp/assets/wat.jpg'],
+          hash: fakeHash,
+          name: 'wat',
+          type: 'jpg',
+          fileHashes: [fakeHash],
         },
       })
     );
