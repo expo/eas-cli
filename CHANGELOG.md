@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [2.8.0](https://github.com/expo/eas-cli/releases/tag/v2.8.0) - 2022-11-28
+
+### 🎉 New features
+
 - Add `eas build:run` support for Android. ([#1485](https://github.com/expo/eas-cli/pull/1485) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
