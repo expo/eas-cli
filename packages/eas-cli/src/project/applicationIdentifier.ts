@@ -8,7 +8,10 @@ import {
   getApplicationIdAsync,
 } from './android/applicationId';
 import { resolveGradleBuildContextAsync } from './android/gradle';
-import { getBundleIdentifierAsync } from './ios/bundleIdentifier';
+import {
+  ensureBundleIdentifierIsDefinedForManagedProjectAsync,
+  getBundleIdentifierAsync,
+} from './ios/bundleIdentifier';
 import { resolveXcodeBuildContextAsync } from './ios/scheme';
 import { findApplicationTarget, resolveTargetsAsync } from './ios/target';
 import { resolveWorkflowAsync } from './workflow';
@@ -23,15 +26,20 @@ export async function getApplicationIdentifierAsync(
   if (platform === Platform.ANDROID) {
     const profile = buildProfile as BuildProfile<Platform.ANDROID>;
     const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
-    const gradleContext = await resolveGradleBuildContextAsync(projectDir, profile);
 
     if (workflow === Workflow.MANAGED) {
-      await ensureApplicationIdIsDefinedForManagedProjectAsync(projectDir, exp, actor);
+      return await ensureApplicationIdIsDefinedForManagedProjectAsync(projectDir, exp, actor);
     }
 
+    const gradleContext = await resolveGradleBuildContextAsync(projectDir, profile);
     return await getApplicationIdAsync(projectDir, exp, gradleContext);
   } else {
+    const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
     const profile = buildProfile as BuildProfile<Platform.IOS>;
+    if (workflow === Workflow.MANAGED) {
+      return await ensureBundleIdentifierIsDefinedForManagedProjectAsync(projectDir, exp, actor);
+    }
+
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(
       { exp, projectDir, nonInteractive: false },
       profile
