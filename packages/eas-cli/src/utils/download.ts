@@ -74,22 +74,29 @@ async function downloadFileWithProgressTrackerAsync(
 ): Promise<void> {
   Log.newLine();
 
-  const response = await wrapFetchWithProgress()(
-    url,
-    {
-      timeout: 1000 * 60 * 5, // 5 minutes
-    },
-    createProgressTracker({
-      message: progressTrackerMessage,
-      completedMessage: progressTrackerCompletedMessage,
-    })
-  );
+  try {
+    const response = await wrapFetchWithProgress()(
+      url,
+      {
+        timeout: 1000 * 60 * 5, // 5 minutes
+      },
+      createProgressTracker({
+        message: progressTrackerMessage,
+        completedMessage: progressTrackerCompletedMessage,
+      })
+    );
 
-  if (!response.ok) {
-    throw new Error(`Failed to download file from ${url}`);
+    if (!response.ok) {
+      throw new Error(`Failed to download file from ${url}`);
+    }
+
+    await pipeline(response.body, fs.createWriteStream(outputPath));
+  } catch (error: any) {
+    if (await fs.pathExists(outputPath)) {
+      await fs.remove(outputPath);
+    }
+    throw error;
   }
-
-  await pipeline(response.body, fs.createWriteStream(outputPath));
 }
 
 async function maybeCacheAppAsync(appPath: string, cachedAppPath?: string): Promise<string> {
