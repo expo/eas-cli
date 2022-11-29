@@ -149,6 +149,14 @@ async function resolvePlatformAsync(platform?: string): Promise<AppPlatform> {
   return selectedPlatform;
 }
 
+function isAab(build: BuildFragment | undefined): boolean {
+  return build?.artifacts?.applicationArchiveUrl?.endsWith('.aab') ?? false;
+}
+
+function didArtifactsExpired(build: BuildFragment): boolean {
+  return new Date().getTime() - new Date(build.updatedAt).getTime() > 30 * 24 * 60 * 60 * 1000; // 30 days
+}
+
 async function maybeGetBuildAsync(
   graphqlClient: ExpoGraphqlClient,
   flags: RunCommandFlags,
@@ -176,10 +184,9 @@ async function maybeGetBuildAsync(
       },
       queryOptions: paginatedQueryOptions,
       selectPromptDisabledFunction: build =>
-        build.platform === AppPlatform.Ios
-          ? false
-          : !build.artifacts?.applicationArchiveUrl?.endsWith('.apk') ?? false,
-      warningMessage: 'This is not a simulator/emulator build',
+        !build.artifacts?.applicationArchiveUrl || isAab(build) || didArtifactsExpired(build),
+      warningMessage:
+        'Artifacts for this build have expired and are no longer available or this is not a simulator/emulator build.',
     });
   } else if (flags.runArchiveFlags.latest) {
     return await getLatestBuildAsync(graphqlClient, {
