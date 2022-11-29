@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add caching for `eas build:run` command. ([#1542](https://github.com/expo/eas-cli/pull/1542) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🐛 Bug fixes
 
 - Ask for the missing application identifier consistently in `eas build:version:sync` command. ([#1543](https://github.com/expo/eas-cli/pull/1543) by [@wkozyra95](https://github.com/wkozyra95))
