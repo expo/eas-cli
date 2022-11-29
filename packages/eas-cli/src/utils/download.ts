@@ -1,6 +1,6 @@
 import spawnAsync from '@expo/spawn-async';
 import glob from 'fast-glob';
-import fs from 'fs';
+import fs from 'fs-extra';
 import path from 'path';
 import { Stream } from 'stream';
 import { extract } from 'tar';
@@ -74,27 +74,44 @@ async function downloadFileWithProgressTrackerAsync(
 ): Promise<void> {
   Log.newLine();
 
-  const response = await wrapFetchWithProgress()(
-    url,
-    {
-      timeout: 1000 * 60 * 5, // 5 minutes
-    },
-    createProgressTracker({
-      message: progressTrackerMessage,
-      completedMessage: progressTrackerCompletedMessage,
-    })
-  );
+  try {
+    const response = await wrapFetchWithProgress()(
+      url,
+      {
+        timeout: 1000 * 60 * 5, // 5 minutes
+      },
+      createProgressTracker({
+        message: progressTrackerMessage,
+        completedMessage: progressTrackerCompletedMessage,
+      })
+    );
 
-  if (!response.ok) {
-    throw new Error(`Failed to download file from ${url}`);
+    if (!response.ok) {
+      throw new Error(`Failed to download file from ${url}`);
+    }
+
+    await pipeline(response.body, fs.createWriteStream(outputPath));
+  } catch (error: any) {
+    if (await fs.pathExists(outputPath)) {
+      await fs.remove(outputPath);
+    }
+    throw error;
   }
+}
 
-  await pipeline(response.body, fs.createWriteStream(outputPath));
+async function maybeCacheAppAsync(appPath: string, cachedAppPath?: string): Promise<string> {
+  if (cachedAppPath) {
+    await fs.ensureDir(path.dirname(cachedAppPath));
+    await fs.move(appPath, cachedAppPath);
+    return cachedAppPath;
+  }
+  return appPath;
 }
 
 export async function downloadAndMaybeExtractAppAsync(
   url: string,
-  platform: AppPlatform
+  platform: AppPlatform,
+  cachedAppPath?: string
 ): Promise<string> {
   const outputDir = path.join(getTmpDirectory(), uuidv4());
   await fs.promises.mkdir(outputDir, { recursive: true });
@@ -107,10 +124,10 @@ export async function downloadAndMaybeExtractAppAsync(
       (ratio, total) => `Downloading app (${formatBytes(total * ratio)} / ${formatBytes(total)})`,
       'Successfully downloaded app'
     );
-    return apkFilePath;
+    return maybeCacheAppAsync(apkFilePath, cachedAppPath);
   } else {
     const tmpArchivePathDir = path.join(getTmpDirectory(), uuidv4());
-    await fs.promises.mkdir(tmpArchivePathDir, { recursive: true });
+    await fs.mkdir(tmpArchivePathDir, { recursive: true });
 
     const tmpArchivePath = path.join(tmpArchivePathDir, `${uuidv4()}.tar.gz`);
 
@@ -123,7 +140,9 @@ export async function downloadAndMaybeExtractAppAsync(
     );
     await tarExtractAsync(tmpArchivePath, outputDir);
 
-    return await getAppPathAsync(outputDir, platform === AppPlatform.Ios ? 'app' : 'apk');
+    const appPath = await getAppPathAsync(outputDir, platform === AppPlatform.Ios ? 'app' : 'apk');
+
+    return maybeCacheAppAsync(appPath, cachedAppPath);
   }
 }
 

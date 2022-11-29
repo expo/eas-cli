@@ -1,6 +1,7 @@
 import { Errors, Flags } from '@oclif/core';
 import { pathExists } from 'fs-extra';
 import assert from 'node:assert';
+import path from 'path';
 
 import { getLatestBuildAsync, listAndSelectBuildsOnAppAsync } from '../../build/queries';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -12,6 +13,7 @@ import {
 } from '../../commandUtils/pagination';
 import { AppPlatform, BuildFragment, BuildStatus, DistributionType } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
+import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { RunArchiveFlags, runAsync } from '../../run/run';
@@ -19,6 +21,7 @@ import {
   downloadAndMaybeExtractAppAsync,
   extractAppFromLocalArchiveAsync,
 } from '../../utils/download';
+import { getEasBuildRunCacheDirectoryPath } from '../../utils/paths';
 
 interface RawRunFlags {
   latest?: boolean;
@@ -38,8 +41,6 @@ interface RunCommandFlags {
 }
 
 export default class Run extends EasCommand {
-  static override hidden = true;
-
   static override description = 'run simulator/emulator builds from eas-cli';
 
   static override flags = {
@@ -194,6 +195,17 @@ async function maybeGetBuildAsync(
   }
 }
 
+function getEasBuildRunCachedAppPath(
+  projectId: string,
+  buildId: string,
+  platform: AppPlatform
+): string {
+  return path.join(
+    getEasBuildRunCacheDirectoryPath(),
+    `${projectId}_${buildId}.${platform === AppPlatform.Ios ? 'app' : 'apk'}`
+  );
+}
+
 async function getPathToSimulatorBuildAppAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
@@ -203,13 +215,26 @@ async function getPathToSimulatorBuildAppAsync(
   const maybeBuild = await maybeGetBuildAsync(graphqlClient, flags, projectId, queryOptions);
 
   if (maybeBuild) {
+    const cachedAppPath = getEasBuildRunCachedAppPath(
+      projectId,
+      maybeBuild.id,
+      flags.selectedPlatform
+    );
+
+    if (await pathExists(cachedAppPath)) {
+      Log.newLine();
+      Log.log(`Using cached app...`);
+      return cachedAppPath;
+    }
+
     if (!maybeBuild.artifacts?.applicationArchiveUrl) {
       throw new Error('Build does not have an application archive url');
     }
 
     return await downloadAndMaybeExtractAppAsync(
       maybeBuild.artifacts.applicationArchiveUrl,
-      flags.selectedPlatform
+      flags.selectedPlatform,
+      cachedAppPath
     );
   }
 
