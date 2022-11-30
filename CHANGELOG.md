@@ -9,7 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add caching for `eas build:run` command. ([#1542](https://github.com/expo/eas-cli/pull/1542) by [@szdziedzic](https://github.com/szdziedzic))
-- Add isGitWorkingTreeDirty to EAS Update records. ([#1550](https://github.com/expo/eas-cli/pull/1550) by [@FiberJW](https://github.com/FiberJW))
+- Add `isGitWorkingTreeDirty` to EAS Update records. ([#1550](https://github.com/expo/eas-cli/pull/1550) by [@FiberJW](https://github.com/FiberJW))
 
 ### 🐛 Bug fixes
 
