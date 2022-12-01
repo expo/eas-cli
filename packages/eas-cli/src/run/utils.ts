@@ -1,0 +1,19 @@
+import { AppPlatform, BuildFragment, BuildStatus, DistributionType } from '../graphql/generated';
+
+function isAab(build: BuildFragment): boolean {
+  return build.artifacts?.applicationArchiveUrl?.endsWith('.aab') ?? false;
+}
+
+function didArtifactsExpire(build: BuildFragment): boolean {
+  return new Date().getTime() - new Date(build.updatedAt).getTime() > 30 * 24 * 60 * 60 * 1000; // 30 days
+}
+
+export function isRunableOnSimulatorOrEmulator(build: BuildFragment): boolean {
+  return (
+    build.status === BuildStatus.Finished &&
+    !!build.artifacts?.applicationArchiveUrl &&
+    ((build.platform === AppPlatform.Ios && build.distribution === DistributionType.Simulator) ||
+      (build.platform === AppPlatform.Android && !isAab(build))) &&
+    !didArtifactsExpire(build)
+  );
+}

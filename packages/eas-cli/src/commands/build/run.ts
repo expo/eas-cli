@@ -17,6 +17,7 @@ import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { RunArchiveFlags, runAsync } from '../../run/run';
+import { isRunableOnSimulatorOrEmulator } from '../../run/utils';
 import {
   downloadAndMaybeExtractAppAsync,
   extractAppFromLocalArchiveAsync,
@@ -149,14 +150,6 @@ async function resolvePlatformAsync(platform?: string): Promise<AppPlatform> {
   return selectedPlatform;
 }
 
-function isAab(build: BuildFragment | undefined): boolean {
-  return build?.artifacts?.applicationArchiveUrl?.endsWith('.aab') ?? false;
-}
-
-function didArtifactsExpire(build: BuildFragment): boolean {
-  return new Date().getTime() - new Date(build.updatedAt).getTime() > 30 * 24 * 60 * 60 * 1000; // 30 days
-}
-
 async function maybeGetBuildAsync(
   graphqlClient: ExpoGraphqlClient,
   flags: RunCommandFlags,
@@ -183,8 +176,7 @@ async function maybeGetBuildAsync(
         status: BuildStatus.Finished,
       },
       queryOptions: paginatedQueryOptions,
-      selectPromptDisabledFunction: build =>
-        !build.artifacts?.applicationArchiveUrl || isAab(build) || didArtifactsExpire(build),
+      selectPromptDisabledFunction: build => !isRunableOnSimulatorOrEmulator(build),
       warningMessage:
         'Artifacts for this build have expired and are no longer available, or this is not a simulator/emulator build.',
     });

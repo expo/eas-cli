@@ -20,7 +20,6 @@ import {
   BuildResourceClass,
   BuildStatus,
   BuildWithSubmissionsFragment,
-  DistributionType,
   SubmissionFragment,
 } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
@@ -41,6 +40,7 @@ import {
 } from '../project/remoteVersionSource';
 import { confirmAsync } from '../prompts';
 import { runAsync } from '../run/run';
+import { isRunableOnSimulatorOrEmulator } from '../run/utils';
 import { createSubmissionContextAsync } from '../submit/context';
 import {
   exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
@@ -51,11 +51,12 @@ import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { validateBuildProfileConfigMatchesProjectConfigAsync } from '../update/utils';
 import { Actor } from '../user/User';
 import { downloadAndMaybeExtractAppAsync } from '../utils/download';
+import { truthy } from '../utils/expodash/filter';
 import { printJsonOnlyOutput } from '../utils/json';
 import { ProfileData, getProfilesAsync } from '../utils/profiles';
 import { getVcsClient } from '../vcs';
 import { prepareAndroidBuildAsync } from './android/build';
-import { BuildRequestSender, waitForBuildEndAsync } from './build';
+import { BuildRequestSender, MaybeBuildFragment, waitForBuildEndAsync } from './build';
 import { ensureProjectConfiguredAsync } from './configure';
 import { BuildContext } from './context';
 import { createBuildContextAsync } from './createContext';
@@ -248,30 +249,7 @@ export async function runBuildAndSubmitAsync(
     build => build?.status && [BuildStatus.Errored, BuildStatus.Canceled].includes(build?.status)
   );
 
-  const simBuilds = builds.filter(
-    build =>
-      build?.status === BuildStatus.Finished &&
-      !!build?.artifacts?.applicationArchiveUrl &&
-      (build?.distribution === DistributionType.Simulator ||
-        !build.artifacts.applicationArchiveUrl.endsWith('aab'))
-  );
-
-  if (simBuilds.length > 0 && !flags.autoSubmit && !flags.nonInteractive) {
-    for (const simBuild of simBuilds) {
-      assert(simBuild?.platform);
-      if (simBuild.platform === AppPlatform.Android || process.platform === 'darwin') {
-        Log.newLine();
-        const confirm = await confirmAsync({
-          message: `Would you like to automatically run the ${
-            simBuild.platform === AppPlatform.Android ? 'Android' : 'iOS'
-          } build on your ${simBuild.platform === AppPlatform.Android ? 'emulator' : 'simulator'}?`,
-        });
-        if (confirm) {
-          await downloadAndRunAsync(simBuild);
-        }
-      }
-    }
-  }
+  await maybeDownloadAndRunSimulatorBuildsAsync(builds, flags);
 
   if (haveAllBuildsFailedOrCanceled || !flags.autoSubmit) {
     if (flags.json) {
@@ -448,4 +426,27 @@ async function downloadAndRunAsync(build: BuildFragment): Promise<void> {
     build.platform
   );
   await runAsync(buildPath, build.platform);
+}
+
+async function maybeDownloadAndRunSimulatorBuildsAsync(
+  builds: MaybeBuildFragment[],
+  flags: BuildFlags
+): Promise<void> {
+  const simBuilds = builds.filter(truthy).filter(isRunableOnSimulatorOrEmulator);
+
+  if (simBuilds.length > 0 && !flags.autoSubmit && !flags.nonInteractive) {
+    for (const simBuild of simBuilds) {
+      if (simBuild.platform === AppPlatform.Android || process.platform === 'darwin') {
+        Log.newLine();
+        const confirm = await confirmAsync({
+          message: `Would you like to run the ${
+            simBuild.platform === AppPlatform.Android ? 'Android' : 'iOS'
+          } build on ${simBuild.platform === AppPlatform.Android ? 'an emulator' : 'a simulator'}?`,
+        });
+        if (confirm) {
+          await downloadAndRunAsync(simBuild);
+        }
+      }
+    }
+  }
 }
