@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Ask for the missing application identifier consistently in `eas build:version:sync` command. ([#1543](https://github.com/expo/eas-cli/pull/1543) by [@wkozyra95](https://github.com/wkozyra95))
 - Disable selecting builds whose artifacts have expired in the `eas build:run` command. ([#1547](https://github.com/expo/eas-cli/pull/1547) by [@szdziedzic](https://github.com/szdziedzic))
+- Change intent with which the `eas build:run` command opens an Android app to `android.intent.action.MAIN`. ([#1556](https://github.com/expo/eas-cli/pull/1556) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 
