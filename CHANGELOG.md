@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Ask for the missing application identifier consistently in `eas build:version:sync` command. ([#1543](https://github.com/expo/eas-cli/pull/1543) by [@wkozyra95](https://github.com/wkozyra95))
+- Disable selecting builds whose artifacts have expired in the `eas build:run` command. ([#1547](https://github.com/expo/eas-cli/pull/1547) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 
