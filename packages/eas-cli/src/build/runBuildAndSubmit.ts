@@ -40,7 +40,7 @@ import {
 } from '../project/remoteVersionSource';
 import { confirmAsync } from '../prompts';
 import { runAsync } from '../run/run';
-import { isRunableOnSimulatorOrEmulator } from '../run/utils';
+import { isRunnableOnSimulatorOrEmulator } from '../run/utils';
 import { createSubmissionContextAsync } from '../submit/context';
 import {
   exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
@@ -432,7 +432,7 @@ async function maybeDownloadAndRunSimulatorBuildsAsync(
   builds: MaybeBuildFragment[],
   flags: BuildFlags
 ): Promise<void> {
-  const simBuilds = builds.filter(truthy).filter(isRunableOnSimulatorOrEmulator);
+  const simBuilds = builds.filter(truthy).filter(isRunnableOnSimulatorOrEmulator);
 
   if (simBuilds.length > 0 && !flags.autoSubmit && !flags.nonInteractive) {
     for (const simBuild of simBuilds) {

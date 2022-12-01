@@ -8,7 +8,7 @@ function didArtifactsExpire(build: BuildFragment): boolean {
   return new Date().getTime() - new Date(build.updatedAt).getTime() > 30 * 24 * 60 * 60 * 1000; // 30 days
 }
 
-export function isRunableOnSimulatorOrEmulator(build: BuildFragment): boolean {
+export function isRunnableOnSimulatorOrEmulator(build: BuildFragment): boolean {
   return (
     build.status === BuildStatus.Finished &&
     !!build.artifacts?.applicationArchiveUrl &&

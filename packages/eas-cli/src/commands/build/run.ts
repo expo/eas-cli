@@ -17,7 +17,7 @@ import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { RunArchiveFlags, runAsync } from '../../run/run';
-import { isRunableOnSimulatorOrEmulator } from '../../run/utils';
+import { isRunnableOnSimulatorOrEmulator } from '../../run/utils';
 import {
   downloadAndMaybeExtractAppAsync,
   extractAppFromLocalArchiveAsync,
@@ -176,7 +176,7 @@ async function maybeGetBuildAsync(
         status: BuildStatus.Finished,
       },
       queryOptions: paginatedQueryOptions,
-      selectPromptDisabledFunction: build => !isRunableOnSimulatorOrEmulator(build),
+      selectPromptDisabledFunction: build => !isRunnableOnSimulatorOrEmulator(build),
       warningMessage:
         'Artifacts for this build have expired and are no longer available, or this is not a simulator/emulator build.',
     });
