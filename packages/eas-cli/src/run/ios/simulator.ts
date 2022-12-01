@@ -33,7 +33,7 @@ export async function selectSimulatorAsync(): Promise<IosSimulator> {
     message: `Select a simulator to run your app on`,
     name: 'selectedSimulator',
     choices: simulators.map(simulator => ({
-      title: `ios ${simulator.osVersion} ${simulator.name}`,
+      title: `iOS ${simulator.osVersion} ${simulator.name}`,
       value: simulator,
     })),
   });
