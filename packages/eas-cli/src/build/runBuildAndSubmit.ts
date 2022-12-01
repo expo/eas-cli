@@ -250,6 +250,7 @@ export async function runBuildAndSubmitAsync(
 
   const simBuilds = builds.filter(
     build =>
+      build?.status === BuildStatus.Finished &&
       !!build?.artifacts?.applicationArchiveUrl &&
       (build?.distribution === DistributionType.Simulator ||
         !build.artifacts.applicationArchiveUrl.endsWith('aab'))
