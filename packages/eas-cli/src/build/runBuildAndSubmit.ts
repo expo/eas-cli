@@ -7,6 +7,7 @@ import {
   EasJsonUtils,
   SubmitProfile,
 } from '@expo/eas-json';
+import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -19,6 +20,7 @@ import {
   BuildResourceClass,
   BuildStatus,
   BuildWithSubmissionsFragment,
+  DistributionType,
   SubmissionFragment,
 } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
@@ -37,6 +39,8 @@ import {
   validateAppConfigForRemoteVersionSource,
   validateBuildProfileVersionSettings,
 } from '../project/remoteVersionSource';
+import { confirmAsync } from '../prompts';
+import { runAsync } from '../run/run';
 import { createSubmissionContextAsync } from '../submit/context';
 import {
   exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
@@ -46,6 +50,7 @@ import {
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { validateBuildProfileConfigMatchesProjectConfigAsync } from '../update/utils';
 import { Actor } from '../user/User';
+import { downloadAndMaybeExtractAppAsync } from '../utils/download';
 import { printJsonOnlyOutput } from '../utils/json';
 import { ProfileData, getProfilesAsync } from '../utils/profiles';
 import { getVcsClient } from '../vcs';
@@ -242,6 +247,31 @@ export async function runBuildAndSubmitAsync(
   const haveAllBuildsFailedOrCanceled = builds.every(
     build => build?.status && [BuildStatus.Errored, BuildStatus.Canceled].includes(build?.status)
   );
+
+  const simBuilds = builds.filter(
+    build =>
+      !!build?.artifacts?.applicationArchiveUrl &&
+      (build?.distribution === DistributionType.Simulator ||
+        !build.artifacts.applicationArchiveUrl.endsWith('aab'))
+  );
+
+  if (simBuilds.length > 0 && !flags.autoSubmit && !flags.nonInteractive) {
+    for (const simBuild of simBuilds) {
+      assert(simBuild?.platform);
+      if (simBuild.platform === AppPlatform.Android || process.platform === 'darwin') {
+        Log.newLine();
+        const confirm = await confirmAsync({
+          message: `Would you like to automatically run the ${
+            simBuild.platform === AppPlatform.Android ? 'Android' : 'iOS'
+          } build on your ${simBuild.platform === AppPlatform.Android ? 'emulator' : 'simulator'}?`,
+        });
+        if (confirm) {
+          await downloadAndRunAsync(simBuild);
+        }
+      }
+    }
+  }
+
   if (haveAllBuildsFailedOrCanceled || !flags.autoSubmit) {
     if (flags.json) {
       printJsonOnlyOutput(builds);
@@ -408,4 +438,13 @@ function exitWithNonZeroCodeIfSomeBuildsFailed(maybeBuilds: (BuildFragment | nul
   if (failedBuilds.length > 0) {
     process.exit(1);
   }
+}
+
+async function downloadAndRunAsync(build: BuildFragment): Promise<void> {
+  assert(build.artifacts?.applicationArchiveUrl);
+  const buildPath = await downloadAndMaybeExtractAppAsync(
+    build.artifacts.applicationArchiveUrl,
+    build.platform
+  );
+  await runAsync(buildPath, build.platform);
 }
