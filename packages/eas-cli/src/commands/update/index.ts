@@ -17,12 +17,10 @@ import fetch from '../../fetch';
 import {
   PublishUpdateGroupInput,
   StatuspageServiceName,
-  Update,
   UpdateInfoGroup,
   UpdatePublishMutation,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../../platform';
@@ -40,7 +38,6 @@ import {
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { ensureEASUpdatesIsConfiguredAsync } from '../../update/configure';
-import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
@@ -60,14 +57,16 @@ type RawUpdateFlags = {
   auto: boolean;
   branch?: string;
   message?: string;
-  group?: string;
-  republish?: boolean;
   platform: string;
   'input-dir': string;
   'skip-bundler': boolean;
   'private-key-path'?: string;
   'non-interactive': boolean;
   json: boolean;
+  /** @deprecated see UpdateRepublish command */
+  group?: string;
+  /** @deprecated see UpdateRepublish command */
+  republish?: boolean;
 };
 
 type UpdateFlags = {
@@ -75,8 +74,6 @@ type UpdateFlags = {
   platform: ExpoCLIExportPlatformFlag;
   branchName?: string;
   updateMessage?: string;
-  republish: boolean;
-  groupId?: string;
   inputDir: string;
   skipBundler: boolean;
   privateKeyPath?: string;
@@ -112,11 +109,11 @@ export default class UpdatePublish extends EasCommand {
       required: false,
     }),
     republish: Flags.boolean({
-      description: 'Republish an update group',
+      description: 'Republish an update group (deprecated, see republish command)',
       exclusive: ['input-dir', 'skip-bundler'],
     }),
     group: Flags.string({
-      description: 'Update group to republish',
+      description: 'Update group to republish (deprecated, see republish command)',
       exclusive: ['input-dir', 'skip-bundler'],
     }),
     'input-dir': Flags.string({
@@ -163,8 +160,6 @@ export default class UpdatePublish extends EasCommand {
       platform: platformFlag,
       branchName,
       updateMessage,
-      republish,
-      groupId,
       inputDir,
       skipBundler,
       privateKeyPath,
@@ -218,9 +213,7 @@ export default class UpdatePublish extends EasCommand {
         try {
           const branch = await selectBranchOnAppAsync(graphqlClient, {
             projectId,
-            promptTitle: `Which branch would you like to ${
-              republish ? 'republish' : 'publish'
-            } on?`,
+            promptTitle: `Which branch would you like to publish on?`,
             displayTextForListItem: updateBranch =>
               `${updateBranch.name} ${chalk.grey(
                 `- current update: ${formatUpdateMessage(updateBranch.updates[0])}`
@@ -243,156 +236,72 @@ export default class UpdatePublish extends EasCommand {
       }
     }
 
+    if (!updateMessage && autoFlag) {
+      updateMessage = (await getVcsClient().getLastCommitMessageAsync())?.trim();
+    }
+
+    if (!updateMessage) {
+      if (nonInteractive) {
+        throw new Error('Must supply --message or use --auto when in non-interactive mode');
+      }
+
+      const validationMessage = 'publish message may not be empty.';
+      if (jsonFlag) {
+        throw new Error(validationMessage);
+      }
+      ({ updateMessage } = await promptAsync({
+        type: 'text',
+        name: 'updateMessage',
+        message: `Provide an update message.`,
+        initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
+        validate: (value: any) => (value ? true : validationMessage),
+      }));
+    }
+
+    // build bundle and upload assets for a new publish
+    if (!skipBundler) {
+      const bundleSpinner = ora().start('Exporting...');
+      try {
+        await buildBundlesAsync({ projectDir, inputDir, exp, platformFlag });
+        bundleSpinner.succeed('Exported bundle(s)');
+      } catch (e) {
+        bundleSpinner.fail('Export failed');
+        throw e;
+      }
+    }
+
+    // After possibly bundling, assert that the input directory can be found.
+    const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
+
+    const assetSpinner = ora().start('Uploading...');
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
-    let oldMessage: string, oldRuntimeVersion: string;
     let uploadedAssetCount = 0;
     let assetLimitPerUpdateGroup = 0;
 
-    if (republish) {
-      // If we are republishing, we don't need to worry about building the bundle or uploading the assets.
-      // Instead we get the `updateInfoGroup` from the update we wish to republish.
-      let updatesToRepublish: Pick<
-        Update,
-        'group' | 'message' | 'runtimeVersion' | 'manifestFragment' | 'platform'
-      >[];
-      if (groupId) {
-        const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, {
-          groupId,
-        });
-        updatesToRepublish = updatesByGroup;
-      } else {
-        if (nonInteractive) {
-          throw new Error('Must supply --group when in non-interactive mode');
+    try {
+      const collectedAssets = await collectAssetsAsync(distRoot);
+      const assets = filterExportedPlatformsByFlag(collectedAssets, platformFlag);
+      realizedPlatforms = Object.keys(assets) as PublishPlatform[];
+
+      const uploadResults = await uploadAssetsAsync(
+        graphqlClient,
+        assets,
+        projectId,
+        (totalAssets, missingAssets) => {
+          assetSpinner.text = `Uploading (${totalAssets - missingAssets}/${totalAssets})`;
         }
-
-        updatesToRepublish = await selectUpdateGroupOnBranchAsync(graphqlClient, {
-          projectId,
-          branchName,
-          paginatedQueryOptions,
-        });
-      }
-      const updatesToRepublishFilteredByPlatform = updatesToRepublish.filter(
-        // Only republish to the specified platforms
-        update => platformFlag === 'all' || update.platform === platformFlag
-      );
-      if (updatesToRepublishFilteredByPlatform.length === 0) {
-        throw new Error(
-          `There are no updates on branch "${branchName}" published for the platform(s) "${platformFlag}" with group ID "${
-            groupId ? groupId : updatesToRepublish[0].group
-          }". Did you mean to publish a new update instead?`
-        );
-      }
-
-      let publicationPlatformMessage: string;
-      if (platformFlag === 'all') {
-        if (updatesToRepublishFilteredByPlatform.length < defaultPublishPlatforms.length) {
-          Log.warn(`You are republishing an update that wasn't published for all platforms.`);
-        }
-        publicationPlatformMessage = `The republished update will appear on the same platforms it was originally published on: ${updatesToRepublishFilteredByPlatform
-          .map(update => update.platform)
-          .join(', ')}`;
-      } else {
-        publicationPlatformMessage = `The republished update will appear only on: ${platformFlag}`;
-      }
-      Log.withTick(publicationPlatformMessage);
-
-      for (const update of updatesToRepublishFilteredByPlatform) {
-        const { manifestFragment } = update;
-        const platform = update.platform as PublishPlatform;
-
-        unsortedUpdateInfoGroups[platform] = JSON.parse(manifestFragment);
-      }
-      realizedPlatforms = updatesToRepublishFilteredByPlatform.map(
-        update => update.platform as PublishPlatform
       );
 
-      // These are the same for each member of an update group
-      groupId = updatesToRepublishFilteredByPlatform[0].group;
-      oldMessage = updatesToRepublishFilteredByPlatform[0].message ?? '';
-      oldRuntimeVersion = updatesToRepublishFilteredByPlatform[0].runtimeVersion;
-
-      if (!updateMessage) {
-        if (nonInteractive) {
-          throw new Error('Must supply --message when in non-interactive mode');
-        }
-
-        const validationMessage = 'publish message may not be empty.';
-        if (jsonFlag) {
-          throw new Error(validationMessage);
-        }
-        ({ updateMessage } = await promptAsync({
-          type: 'text',
-          name: 'updateMessage',
-          message: `Provide an update message.`,
-          initial: `Republish "${oldMessage!}" - group: ${groupId}`,
-          validate: (value: any) => (value ? true : validationMessage),
-        }));
-      }
-    } else {
-      if (!updateMessage && autoFlag) {
-        updateMessage = (await getVcsClient().getLastCommitMessageAsync())?.trim();
-      }
-
-      if (!updateMessage) {
-        if (nonInteractive) {
-          throw new Error('Must supply --message or use --auto when in non-interactive mode');
-        }
-
-        const validationMessage = 'publish message may not be empty.';
-        if (jsonFlag) {
-          throw new Error(validationMessage);
-        }
-        ({ updateMessage } = await promptAsync({
-          type: 'text',
-          name: 'updateMessage',
-          message: `Provide an update message.`,
-          initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
-          validate: (value: any) => (value ? true : validationMessage),
-        }));
-      }
-
-      // build bundle and upload assets for a new publish
-      if (!skipBundler) {
-        const bundleSpinner = ora().start('Exporting...');
-        try {
-          await buildBundlesAsync({ projectDir, inputDir, exp, platformFlag });
-          bundleSpinner.succeed('Exported bundle(s)');
-        } catch (e) {
-          bundleSpinner.fail('Export failed');
-          throw e;
-        }
-      }
-
-      // After possibly bundling, assert that the input directory can be found.
-      const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
-
-      const assetSpinner = ora().start('Uploading...');
-
-      try {
-        const collectedAssets = await collectAssetsAsync(distRoot);
-        const assets = filterExportedPlatformsByFlag(collectedAssets, platformFlag);
-        realizedPlatforms = Object.keys(assets) as PublishPlatform[];
-
-        const uploadResults = await uploadAssetsAsync(
-          graphqlClient,
-          assets,
-          projectId,
-          (totalAssets, missingAssets) => {
-            assetSpinner.text = `Uploading (${totalAssets - missingAssets}/${totalAssets})`;
-          }
-        );
-
-        uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
-        assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
-        unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
-        const uploadAssetSuccessMessage = uploadedAssetCount
-          ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'platform' : 'platforms'}`
-          : `Uploaded: No changes detected`;
-        assetSpinner.succeed(uploadAssetSuccessMessage);
-      } catch (e) {
-        assetSpinner.fail('Failed to upload');
-        throw e;
-      }
+      uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
+      assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
+      unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
+      const uploadAssetSuccessMessage = uploadedAssetCount
+        ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'platform' : 'platforms'}`
+        : `Uploaded: No changes detected`;
+      assetSpinner.succeed(uploadAssetSuccessMessage);
+    } catch (e) {
+      assetSpinner.fail('Failed to upload');
+      throw e;
     }
 
     const truncatedMessage = truncateUpdateMessage(updateMessage!, 1024);
@@ -441,15 +350,10 @@ export default class UpdatePublish extends EasCommand {
           ])
         );
 
-        if (republish && !oldRuntimeVersion) {
-          throw new Error(
-            'Cannot find the runtime version of the update group that is being republished.'
-          );
-        }
         return {
           branchId,
           updateInfoGroup: localUpdateInfoGroup,
-          runtimeVersion: republish ? oldRuntimeVersion : runtimeVersion,
+          runtimeVersion,
           message: truncatedMessage,
           gitCommitHash,
           isGitWorkingTreeDirty,
@@ -593,18 +497,27 @@ export default class UpdatePublish extends EasCommand {
       );
     }
 
-    const groupId = flags.group;
-    const republish = flags.republish || !!groupId; // When --group is defined, we are republishing
-    if (nonInteractive && republish && !groupId) {
-      Errors.error(`--group is required when updating in non-interactive mode`, { exit: 1 });
+    if (flags.group || flags.republish) {
+      // Pick the first flag set that is defined, in this specific order
+      const args = [
+        ['--group', flags.group],
+        ['--branch', flags.branch],
+      ].filter(([_, value]) => value)[0];
+
+      Log.newLine();
+      Log.warn(
+        'The --group and --republish flags are deprecated, use the republish command instead:'
+      );
+      Log.warn(`  ${chalk.bold([`eas update:republish`, ...(args ?? [])].join(' '))}`);
+      Log.newLine();
+
+      Errors.error('--group and --republish flags are deprecated', { exit: 1 });
     }
 
     return {
       auto,
       branchName,
       updateMessage,
-      groupId,
-      republish,
       inputDir: flags['input-dir'],
       skipBundler: flags['skip-bundler'],
       platform: flags.platform as RequestedPlatform,

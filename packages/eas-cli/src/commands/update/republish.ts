@@ -288,10 +288,10 @@ async function askUpdatesFromBranchNameAsync(
   });
 
   return updateGroups.map(group => ({
+    ...group,
     groupId: group.id,
     branchId: group.branch.id,
     branchName: group.branch.name,
-    ...group,
   }));
 }
 
