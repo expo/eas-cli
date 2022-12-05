@@ -281,7 +281,7 @@ async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJ
   );
 }
 
-type MaybeBuildFragment = BuildFragment | null;
+export type MaybeBuildFragment = BuildFragment | null;
 
 export async function waitForBuildEndAsync(
   graphqlClient: ExpoGraphqlClient,

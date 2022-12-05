@@ -7,7 +7,7 @@ import { extract } from 'tar';
 import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 
-import fetch, { RequestInit } from '../fetch';
+import fetch, { RequestInit, Response } from '../fetch';
 import { AppPlatform } from '../graphql/generated';
 import Log from '../log';
 import { formatBytes } from './files';
@@ -16,9 +16,12 @@ import { ProgressHandler, createProgressTracker } from './progress';
 
 const pipeline = promisify(Stream.pipeline);
 
-let didProgressBarFinish = false;
-
-function wrapFetchWithProgress() {
+function wrapFetchWithProgress(): (
+  url: string,
+  init: RequestInit,
+  progressHandler: ProgressHandler
+) => Promise<Response> {
+  let didProgressBarFinish = false;
   return async (url: string, init: RequestInit, progressHandler: ProgressHandler) => {
     const response = await fetch(url, init);
 
