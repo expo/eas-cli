@@ -439,7 +439,7 @@ async function maybeDownloadAndRunSimulatorBuildsAsync(
       if (simBuild.platform === AppPlatform.Android || process.platform === 'darwin') {
         Log.newLine();
         const confirm = await confirmAsync({
-          message: `Would you like to run the ${
+          message: `Install and run the ${
             simBuild.platform === AppPlatform.Android ? 'Android' : 'iOS'
           } build on ${simBuild.platform === AppPlatform.Android ? 'an emulator' : 'a simulator'}?`,
         });
