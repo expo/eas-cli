@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [2.9.0](https://github.com/expo/eas-cli/releases/tag/v2.9.0) - 2022-12-05
+
+### 🎉 New features
+
 - Add caching for `eas build:run` command. ([#1542](https://github.com/expo/eas-cli/pull/1542) by [@szdziedzic](https://github.com/szdziedzic))
 - Add `isGitWorkingTreeDirty` to EAS Update records. ([#1550](https://github.com/expo/eas-cli/pull/1550) by [@FiberJW](https://github.com/FiberJW))
 - Prompt developer to download the app after the simulator build is finished. ([#1554](https://github.com/expo/eas-cli/pull/1554) by [@szdziedzic](https://github.com/szdziedzic))
@@ -17,8 +25,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - Ask for the missing application identifier consistently in `eas build:version:sync` command. ([#1543](https://github.com/expo/eas-cli/pull/1543) by [@wkozyra95](https://github.com/wkozyra95))
 - Disable selecting builds whose artifacts have expired in the `eas build:run` command. ([#1547](https://github.com/expo/eas-cli/pull/1547) by [@szdziedzic](https://github.com/szdziedzic))
 - Change intent with which the `eas build:run` command opens an Android app to `android.intent.action.MAIN`. ([#1556](https://github.com/expo/eas-cli/pull/1556) by [@szdziedzic](https://github.com/szdziedzic))
-
-### 🧹 Chores
 
 ## [2.8.0](https://github.com/expo/eas-cli/releases/tag/v2.8.0) - 2022-11-28
 
