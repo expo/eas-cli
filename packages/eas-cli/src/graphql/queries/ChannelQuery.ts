@@ -1,6 +1,7 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import { ChannelNotFoundError } from '../../channel/errors';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
@@ -59,7 +60,7 @@ export const ChannelQuery = {
 
     const { updateChannelByName } = response.app.byId;
     if (!updateChannelByName) {
-      throw new Error(`Could not find channel with the name ${channelName}`);
+      throw new ChannelNotFoundError(`Could not find channel with the name ${channelName}`);
     }
 
     return updateChannelByName;

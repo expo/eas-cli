@@ -6,11 +6,17 @@ import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import { ensureBranchExistsAsync, selectBranchOnAppAsync } from '../../branch/queries';
-import { getDefaultBranchNameAsync } from '../../branch/utils';
+import {
+  createUpdateBranchOnAppAsync,
+  ensureBranchExistsAsync,
+  selectBranchOnAppAsync,
+} from '../../branch/queries';
+import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
-import { ensureChannelExistsAsync } from '../../channel/queries';
+import { ChannelNotFoundError } from '../../channel/errors';
+import { createChannelOnAppAsync, ensureChannelExistsAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -21,6 +27,8 @@ import {
   UpdatePublishMutation,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
+import { BranchQuery } from '../../graphql/queries/BranchQuery';
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../../platform';
@@ -56,6 +64,7 @@ export const defaultPublishPlatforms: Partial<PublishPlatform>[] = ['android', '
 type RawUpdateFlags = {
   auto: boolean;
   branch?: string;
+  channel?: string;
   message?: string;
   platform: string;
   'input-dir': string;
@@ -73,6 +82,7 @@ type UpdateFlags = {
   auto: boolean;
   platform: ExpoCLIExportPlatformFlag;
   branchName?: string;
+  channelName?: string;
   updateMessage?: string;
   inputDir: string;
   skipBundler: boolean;
@@ -102,6 +112,10 @@ export default class UpdatePublish extends EasCommand {
   static override flags = {
     branch: Flags.string({
       description: 'Branch to publish the update group on',
+      required: false,
+    }),
+    channel: Flags.string({
+      description: 'Channel that the published update should affect',
       required: false,
     }),
     message: Flags.string({
@@ -158,7 +172,7 @@ export default class UpdatePublish extends EasCommand {
     let {
       auto: autoFlag,
       platform: platformFlag,
-      branchName,
+      channelName,
       updateMessage,
       inputDir,
       skipBundler,
@@ -166,6 +180,7 @@ export default class UpdatePublish extends EasCommand {
       json: jsonFlag,
       nonInteractive,
     } = this.sanitizeFlags(rawFlags);
+    let branchName = this.sanitizeFlags(rawFlags).branchName;
 
     const {
       getDynamicProjectConfigAsync,
@@ -204,11 +219,25 @@ export default class UpdatePublish extends EasCommand {
 
     let realizedPlatforms: PublishPlatform[] = [];
 
+    if (channelName && branchName) {
+      throw new Error(
+        'Cannot specify both --channel and --branch. Specify either --channel, --branch, or --auto'
+      );
+    }
+
+    if (channelName) {
+      branchName = await this.getBranchNameFromChannelNameAsync(
+        graphqlClient,
+        projectId,
+        channelName
+      );
+    }
+
     if (!branchName) {
       if (autoFlag) {
         branchName = await getDefaultBranchNameAsync();
       } else if (nonInteractive) {
-        throw new Error('Must supply --branch or use --auto when in non-interactive mode');
+        throw new Error('Must supply --channel, --branch or --auto when in non-interactive mode');
       } else {
         try {
           const branch = await selectBranchOnAppAsync(graphqlClient, {
@@ -489,10 +518,10 @@ export default class UpdatePublish extends EasCommand {
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
     const nonInteractive = flags['non-interactive'] ?? false;
 
-    const { auto, branch: branchName, message: updateMessage } = flags;
-    if (nonInteractive && !auto && !(branchName && updateMessage)) {
+    const { auto, branch: branchName, channel: channelName, message: updateMessage } = flags;
+    if (nonInteractive && !auto && !(branchName && channelName && updateMessage)) {
       Errors.error(
-        '--auto or both --branch and --message are required when updating in non-interactive mode',
+        '--auto or both --channel or --branch and --message are required when updating in non-interactive mode',
         { exit: 1 }
       );
     }
@@ -517,6 +546,7 @@ export default class UpdatePublish extends EasCommand {
     return {
       auto,
       branchName,
+      channelName,
       updateMessage,
       inputDir: flags['input-dir'],
       skipBundler: flags['skip-bundler'],
@@ -525,6 +555,75 @@ export default class UpdatePublish extends EasCommand {
       nonInteractive,
       json: flags.json ?? false,
     };
+  }
+
+  public async getBranchNameFromChannelNameAsync(
+    graphqlClient: ExpoGraphqlClient,
+    projectId: string,
+    channelName: string
+  ): Promise<string | undefined> {
+    let branchName;
+
+    try {
+      const channel = await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
+        appId: projectId,
+        channelName,
+      });
+
+      if (channel.updateBranches.length === 1) {
+        branchName = channel.updateBranches[0].name;
+      } else if (channel.updateBranches.length === 0) {
+        throw new Error(
+          "Channel has no branches associated with it. Run 'eas channel:edit' to map a branch"
+        );
+      } else {
+        throw new Error(
+          "Channel has multiple branches associated with it. Instead, use 'eas update --branch'"
+        );
+      }
+    } catch (error) {
+      if (!(error instanceof ChannelNotFoundError)) {
+        throw error;
+      }
+
+      let branchId;
+
+      try {
+        const branch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
+          appId: projectId,
+          name: channelName,
+        });
+        branchId = branch.id;
+      } catch (error) {
+        if (error instanceof BranchNotFoundError) {
+          const newBranch = await createUpdateBranchOnAppAsync(graphqlClient, {
+            appId: projectId,
+            name: channelName,
+          });
+          branchId = newBranch.id;
+        } else {
+          throw error;
+        }
+      }
+
+      const {
+        updateChannel: { createUpdateChannelForApp: newChannel },
+      } = await createChannelOnAppAsync(graphqlClient, {
+        appId: projectId,
+        channelName,
+        branchId,
+      });
+
+      if (!newChannel) {
+        throw new Error(
+          `Could not create channel with name ${channelName} on project with id ${projectId}`
+        );
+      }
+
+      branchName = channelName;
+    }
+
+    return branchName;
   }
 }
 
