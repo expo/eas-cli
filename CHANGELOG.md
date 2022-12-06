@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Make the not recognized image error handler run only if the image is present under a valid key and has an invalid value. ([#1565](https://github.com/expo/eas-cli/pull/1565) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 - Remove old republish code from the update command. ([#1535](https://github.com/expo/eas-cli/pull/1535) by [@byCedric](https://github.com/byCedric))
