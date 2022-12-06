@@ -25,9 +25,9 @@ const customErrorMessageHandlers: ((err: ValidationError) => void)[] = [
       ) {
         throw new InvalidEasJsonError(
           chalk.red(
-            `Specified build image '${detail?.context?.value}' under the '${detail.path.join(
-              '.'
-            )}' key is not recognized. Please update your EAS CLI and see ${link(
+            `Specified build image '${
+              detail?.context?.value
+            }' is not recognized. Please update your EAS CLI and see ${link(
               'https://docs.expo.dev/build-reference/infrastructure/'
             )} for supported build images.`
           )
