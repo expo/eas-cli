@@ -15,12 +15,19 @@ const customErrorMessageHandlers: ((err: ValidationError) => void)[] = [
   // Ask user to upgrade eas-cli version or check the docs when image is invalid.
   (err: ValidationError) => {
     for (const detail of err.details) {
-      if (detail.path[detail.path.length - 1] === 'image') {
+      // image should be only placed under 'build.profilename.platform.image' key
+      // if it's not the case show standard Joi error
+      if (
+        detail.path.length === 4 &&
+        detail.path[0] === 'build' &&
+        ['ios', 'android'].includes(detail.path[2].toString()) &&
+        detail.path[3] === 'image'
+      ) {
         throw new InvalidEasJsonError(
           chalk.red(
-            `Specified build image '${
-              detail?.context?.value
-            }' is not recognized. Please update your EAS CLI and see ${link(
+            `Specified build image '${detail?.context?.value}' under the '${detail.path.join(
+              '.'
+            )}' key is not recognized. Please update your EAS CLI and see ${link(
               'https://docs.expo.dev/build-reference/infrastructure/'
             )} for supported build images.`
           )
