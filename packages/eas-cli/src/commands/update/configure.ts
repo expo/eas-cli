@@ -55,14 +55,14 @@ export default class UpdateConfigure extends EasCommand {
     Log.log(`1. Create a new build. Example: ${chalk.green('`eas build --profile production`')}.`);
     Log.log('2. Make changes in your project.');
     Log.log(`3. Publish an update. Example: ${chalk.green('`eas update --channel production`')}.`);
-    Log.log('4. Force close and reopen your app at least twice to view the published update.');
+    Log.log('4. Force close and reopen the app at least twice to view the update.');
 
     Log.newLine();
     Log.log('Preview an update:');
     Log.log(
       `1. Publish an update to a branch. Example: ${chalk.green(
         '`eas update --branch new-feature`'
-      )}`
+      )}.`
     );
     Log.log(
       '2. In Expo Go or a development build, navigate to Projects > [project name] > Branch > Open.'
