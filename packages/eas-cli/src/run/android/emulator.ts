@@ -1,6 +1,6 @@
 import spawnAsync, { SpawnResult } from '@expo/spawn-async';
+import assert from 'assert';
 import chalk from 'chalk';
-import assert from 'node:assert';
 import os from 'os';
 import path from 'path';
 
