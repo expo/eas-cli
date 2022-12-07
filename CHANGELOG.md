@@ -6,9 +6,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Move update republish to separate command. ([#1533](https://github.com/expo/eas-cli/pull/1533) by [@byCedric](https://github.com/byCedric))
-
 ### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [3.0.0](https://github.com/expo/eas-cli/releases/tag/v3.0.0) - 2022-12-07
+
+### 🛠 Breaking changes
+
+- Move update republish to separate command. ([#1533](https://github.com/expo/eas-cli/pull/1533) by [@byCedric](https://github.com/byCedric))
 
 ### 🐛 Bug fixes
 
