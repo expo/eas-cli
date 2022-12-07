@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Make the not recognized image error handler run only if the image is present under a valid key and has an invalid value. ([#1565](https://github.com/expo/eas-cli/pull/1565) by [@szdziedzic](https://github.com/szdziedzic))
+- Fix the `node:assert` import error by using imports from `assert` instead of from `node:assert`. ([#1569](https://github.com/expo/eas-cli/pull/1569) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 
