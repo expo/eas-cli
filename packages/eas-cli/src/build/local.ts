@@ -8,8 +8,14 @@ import { ora } from '../ora';
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
 const PLUGIN_PACKAGE_VERSION = '0.0.120';
 
+export enum LocalBuildMode {
+  DISABLED,
+  LOCAL_BUILD_PLUGIN,
+  INTERNAL,
+}
+
 export interface LocalBuildOptions {
-  enable: boolean;
+  localBuildMode: LocalBuildMode;
   skipCleanup?: boolean;
   skipNativeBuild?: boolean;
   artifactsDir?: string;

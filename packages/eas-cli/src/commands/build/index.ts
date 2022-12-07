@@ -6,6 +6,7 @@ import figures from 'figures';
 import fs from 'fs-extra';
 import path from 'path';
 
+import { LocalBuildMode } from '../../build/local';
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
@@ -126,7 +127,7 @@ export default class Build extends EasCommand {
 
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 
-    if (!flags.localBuildOptions.enable) {
+    if (flags.localBuildOptions.localBuildMode === LocalBuildMode.DISABLED) {
       await maybeWarnAboutEasOutagesAsync(
         graphqlClient,
         flags.autoSubmit
@@ -194,12 +195,12 @@ export default class Build extends EasCommand {
       nonInteractive,
       localBuildOptions: flags['local']
         ? {
-            enable: true,
+            localBuildMode: LocalBuildMode.LOCAL_BUILD_PLUGIN,
             verbose: true,
             artifactPath: flags.output && path.resolve(process.cwd(), flags.output),
           }
         : {
-            enable: false,
+            localBuildMode: LocalBuildMode.DISABLED,
           },
       wait: flags['wait'],
       clearCache: flags['clear-cache'],
@@ -216,7 +217,7 @@ export default class Build extends EasCommand {
   ): Promise<BuildFlags> {
     const requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
 
-    if (flags.localBuildOptions.enable) {
+    if (flags.localBuildOptions.localBuildMode !== LocalBuildMode.DISABLED) {
       if (flags.autoSubmit) {
         // TODO: implement this
         Errors.error('Auto-submits are not yet supported when building locally', { exit: 1 });

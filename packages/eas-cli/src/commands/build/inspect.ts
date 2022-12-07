@@ -4,6 +4,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
+import { LocalBuildMode } from '../../build/local';
 import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
@@ -110,7 +111,7 @@ export default class BuildInspect extends EasCommand {
             requestedPlatform: flags.platform,
             profile: flags.profile,
             localBuildOptions: {
-              enable: true,
+              localBuildMode: LocalBuildMode.LOCAL_BUILD_PLUGIN,
               ...(flags.stage === InspectStage.PRE_BUILD ? { skipNativeBuild: true } : {}),
               ...(flags.stage === InspectStage.POST_BUILD ? { skipCleanup: true } : {}),
               verbose: flags.verbose,
