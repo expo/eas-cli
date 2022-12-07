@@ -1,7 +1,9 @@
 import { modifyConfigAsync } from '@expo/config';
 import { ExpoConfig } from '@expo/config-types';
 import { Platform, Workflow } from '@expo/eas-build-job';
+import { EasJsonAccessor } from '@expo/eas-json';
 import chalk from 'chalk';
+import fs from 'fs-extra';
 
 import { getEASUpdateURL } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -225,7 +227,7 @@ function warnEASUpdatesManualConfig({
 /**
  * Make sure that the current `app.json` configuration for EAS Updates is set natively.
  */
-async function ensureEASUpdatesIsConfiguredNativelyAsync(
+async function ensureEASUpdateIsConfiguredNativelyAsync(
   graphqlClient: ExpoGraphqlClient,
   {
     exp,
@@ -253,6 +255,71 @@ async function ensureEASUpdatesIsConfiguredNativelyAsync(
 }
 
 /**
+ * Make sure EAS Build profiles are configured to work with EAS Update by adding channels to build profiles.
+ */
+
+async function ensureEASUpdateIsConfiguredInEasConfigAsync({
+  projectDir,
+}: {
+  projectDir: string;
+}): Promise<void> {
+  const easConfigPath = EasJsonAccessor.formatEasJsonPath(projectDir);
+
+  if (await fs.pathExists(easConfigPath)) {
+    try {
+      const easConfigJson = await fs.readFile(easConfigPath, 'utf-8');
+      const easConfigData = JSON.parse(easConfigJson);
+      const easBuildProfilesWithChannels = Object.keys(easConfigData.build).reduce(
+        (acc, profileNameKey) => {
+          const buildProfile = easConfigData.build[profileNameKey];
+          const isNotAlreadyConfigured = !buildProfile.channel && !buildProfile.releaseChannel;
+
+          if (isNotAlreadyConfigured) {
+            return {
+              ...acc,
+              [profileNameKey]: {
+                ...buildProfile,
+                channel: profileNameKey,
+              },
+            };
+          }
+
+          return {
+            ...acc,
+            [profileNameKey]: {
+              ...easConfigData.build[profileNameKey],
+            },
+          };
+        },
+        {}
+      );
+
+      await fs.writeFile(
+        easConfigPath,
+        `${JSON.stringify(
+          {
+            ...easConfigData,
+            build: easBuildProfilesWithChannels,
+          },
+          null,
+          2
+        )}\n`
+      );
+
+      Log.withTick(`Configured ${chalk.bold('eas.json')}.`);
+    } catch (error) {
+      Log.error(`We were not able to configure ${chalk.bold('eas.json')}. Error: ${error}.`);
+    }
+  } else {
+    Log.warn(
+      `EAS Build is not configured. If you'd like to use EAS Build with EAS Update, run \`eas build:configure\`, then re-run \`eas update:configure\` to configure ${chalk.bold(
+        'eas.json'
+      )} with EAS Update.`
+    );
+  }
+}
+
+/**
  * Make sure EAS Update is fully configured in the current project.
  * This goes over a checklist and performs the following checks or changes:
  *   - Enure the `expo-updates` package is currently installed.
@@ -261,7 +328,7 @@ async function ensureEASUpdatesIsConfiguredNativelyAsync(
  *     - Sets `updates.url` if not set
  *   - Ensure latest changes are reflected in the native config, if any
  */
-export async function ensureEASUpdatesIsConfiguredAsync(
+export async function ensureEASUpdateIsConfiguredAsync(
   graphqlClient: ExpoGraphqlClient,
   {
     exp: expWithoutUpdates,
@@ -300,8 +367,10 @@ export async function ensureEASUpdatesIsConfiguredAsync(
       workflows,
     });
 
+  await ensureEASUpdateIsConfiguredInEasConfigAsync({ projectDir });
+
   if (projectChanged || !hasExpoUpdates) {
-    await ensureEASUpdatesIsConfiguredNativelyAsync(graphqlClient, {
+    await ensureEASUpdateIsConfiguredNativelyAsync(graphqlClient, {
       exp: expWithUpdates,
       projectDir,
       projectId,
