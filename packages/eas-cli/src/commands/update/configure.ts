@@ -52,9 +52,9 @@ export default class UpdateConfigure extends EasCommand {
     Log.log(`${chalk.bold('Next steps')}:`);
     Log.newLine();
     Log.log('Update a production build:');
-    Log.log(`1. Create a new build. Example: ${chalk.green('`eas build --profile production`')}.`);
+    Log.log(`1. Create a new build. Example: ${chalk.bold('eas build --profile production')}.`);
     Log.log('2. Make changes in your project.');
-    Log.log(`3. Publish an update. Example: ${chalk.green('`eas update --channel production`')}.`);
+    Log.log(`3. Publish an update. Example: ${chalk.bold('eas update --channel production')}.`);
     Log.log('4. Force close and reopen the app at least twice to view the update.');
 
     Log.newLine();
