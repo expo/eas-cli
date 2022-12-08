@@ -127,7 +127,7 @@ export default class Build extends EasCommand {
 
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 
-    if (flags.localBuildOptions.localBuildMode === LocalBuildMode.DISABLED) {
+    if (!flags.localBuildOptions.localBuildMode) {
       await maybeWarnAboutEasOutagesAsync(
         graphqlClient,
         flags.autoSubmit
@@ -199,9 +199,7 @@ export default class Build extends EasCommand {
             verbose: true,
             artifactPath: flags.output && path.resolve(process.cwd(), flags.output),
           }
-        : {
-            localBuildMode: LocalBuildMode.DISABLED,
-          },
+        : {},
       wait: flags['wait'],
       clearCache: flags['clear-cache'],
       json: flags['json'],
@@ -217,7 +215,7 @@ export default class Build extends EasCommand {
   ): Promise<BuildFlags> {
     const requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
 
-    if (flags.localBuildOptions.localBuildMode !== LocalBuildMode.DISABLED) {
+    if (!flags.localBuildOptions.localBuildMode) {
       if (flags.autoSubmit) {
         // TODO: implement this
         Errors.error('Auto-submits are not yet supported when building locally', { exit: 1 });

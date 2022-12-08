@@ -62,7 +62,7 @@ import { ensureProjectConfiguredAsync } from './configure';
 import { BuildContext } from './context';
 import { createBuildContextAsync } from './createContext';
 import { prepareIosBuildAsync } from './ios/build';
-import { LocalBuildMode, LocalBuildOptions } from './local';
+import { LocalBuildOptions } from './local';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
@@ -221,7 +221,7 @@ export async function runBuildAndSubmitAsync(
     buildCtxByPlatform[toAppPlatform(buildProfile.platform)] = buildCtx;
   }
 
-  if (flags.localBuildOptions.localBuildMode !== LocalBuildMode.DISABLED) {
+  if (flags.localBuildOptions.localBuildMode) {
     return;
   }
 

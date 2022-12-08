@@ -23,6 +23,7 @@ export default class Config extends EasCommand {
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
+    // This option is used only on EAS Build worker to read build profile from eas.json.
     'eas-json-only': Flags.boolean({
       hidden: true,
     }),

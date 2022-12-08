@@ -7,8 +7,13 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { RequestedPlatform } from '../../platform';
 import { enableJsonOutput } from '../../utils/json';
 
+/**
+ * This command will be run on the EAS Build workers, when building
+ * directly from git. This command resolves credentials and other
+ * build configuration, that normally would be included in the
+ * job and metadata objects, and prints them to stdout.
+ */
 export default class BuildInternal extends EasCommand {
-  static override description = 'start a build';
   static override hidden = true;
 
   static override flags = {

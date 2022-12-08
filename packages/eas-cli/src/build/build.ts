@@ -115,15 +115,15 @@ export async function prepareBuildRequestForPlatformAsync<
       type: ArchiveSourceType.PATH,
       path: (await makeProjectTarballAsync()).path,
     };
-  } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.DISABLED) {
-    projectArchive = {
-      type: ArchiveSourceType.GCS,
-      bucketKey: await uploadProjectAsync(ctx),
-    };
   } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
     projectArchive = {
       type: ArchiveSourceType.PATH,
       path: process.cwd(),
+    };
+  } else if (!ctx.localBuildOptions.localBuildMode) {
+    projectArchive = {
+      type: ArchiveSourceType.GCS,
+      bucketKey: await uploadProjectAsync(ctx),
     };
   }
   assert(projectArchive);
@@ -139,15 +139,15 @@ export async function prepareBuildRequestForPlatformAsync<
     if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
       await runLocalBuildAsync(job, metadata, ctx.localBuildOptions);
       return undefined;
-    } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.DISABLED) {
+    } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
+      printJsonOnlyOutput({ job, metadata });
+      return undefined;
+    } else if (!ctx.localBuildOptions.localBuildMode) {
       try {
         return await sendBuildRequestAsync(builder, job, metadata, buildParams);
       } catch (error: any) {
         handleBuildRequestError(error, job.platform);
       }
-    } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
-      printJsonOnlyOutput({ job, metadata });
-      return undefined;
     } else {
       throw new Error('Unknown localBuildMode.');
     }
