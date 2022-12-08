@@ -271,45 +271,42 @@ async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: string): Pr
   }
 
   try {
-    const easJsonData = await fs.readFile(easJsonPath, 'utf-8');
-    const easJson = JSON.parse(easJsonData);
-    const easBuildProfilesWithChannels = Object.keys(easJson.build).reduce(
-      (acc, profileNameKey) => {
-        const buildProfile = easJson.build[profileNameKey];
-        const isNotAlreadyConfigured = !buildProfile.channel && !buildProfile.releaseChannel;
+    const easJsonAccessor = new EasJsonAccessor(projectDir);
+    await easJsonAccessor.readRawJsonAsync();
 
-        if (isNotAlreadyConfigured) {
+    easJsonAccessor.patch(easJsonRawObject => {
+      const easBuildProfilesWithChannels = Object.keys(easJsonRawObject.build).reduce(
+        (acc, profileNameKey) => {
+          const buildProfile = easJsonRawObject.build[profileNameKey];
+          const isNotAlreadyConfigured = !buildProfile.channel && !buildProfile.releaseChannel;
+
+          if (isNotAlreadyConfigured) {
+            return {
+              ...acc,
+              [profileNameKey]: {
+                ...buildProfile,
+                channel: profileNameKey,
+              },
+            };
+          }
+
           return {
             ...acc,
             [profileNameKey]: {
-              ...buildProfile,
-              channel: profileNameKey,
+              ...easJsonRawObject.build[profileNameKey],
             },
           };
-        }
-
-        return {
-          ...acc,
-          [profileNameKey]: {
-            ...easJson.build[profileNameKey],
-          },
-        };
-      },
-      {}
-    );
-
-    await fs.writeFile(
-      easJsonPath,
-      `${JSON.stringify(
-        {
-          ...easJson,
-          build: easBuildProfilesWithChannels,
         },
-        null,
-        2
-      )}\n`
-    );
+        {}
+      );
 
+      return {
+        ...easJsonRawObject,
+        build: easBuildProfilesWithChannels,
+      };
+    });
+
+    await easJsonAccessor.writeAsync();
     Log.withTick(`Configured ${chalk.bold('eas.json')}.`);
   } catch (error) {
     Log.error(`We were not able to configure ${chalk.bold('eas.json')}. Error: ${error}.`);

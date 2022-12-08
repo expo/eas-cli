@@ -60,9 +60,7 @@ export default class UpdateConfigure extends EasCommand {
     Log.newLine();
     Log.log('Preview an update:');
     Log.log(
-      `1. Publish an update to a branch. Example: ${chalk.bold(
-        'eas update --branch new-feature'
-      )}.`
+      `1. Publish an update to a branch. Example: ${chalk.bold('eas update --branch new-feature')}.`
     );
     Log.log(
       '2. In Expo Go or a development build, navigate to Projects > [project name] > Branch > Open.'
