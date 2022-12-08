@@ -15,7 +15,7 @@ import { ApplePlatform } from './constants';
 import { getCertificateBySerialNumberAsync, transformCertificate } from './distributionCertificate';
 
 export enum ProfileClass {
-  Dev = 'development',
+  Development = 'development',
   Adhoc = 'ad_hoc',
   General = 'general',
 }
@@ -39,7 +39,7 @@ function resolveProfileTypeAppleTv(
   profileClass: ProfileClass,
   isEnterprise?: boolean
 ): ProfileType {
-  if (profileClass === ProfileClass.Dev) {
+  if (profileClass === ProfileClass.Development) {
     return ProfileType.TVOS_APP_DEVELOPMENT;
   } else if (profileClass === ProfileClass.Adhoc) {
     return ProfileType.TVOS_APP_ADHOC;
@@ -52,7 +52,7 @@ function resolveProfileTypeAppleTv(
 }
 
 function resolveProfileTypeIos(profileClass: ProfileClass, isEnterprise?: boolean): ProfileType {
-  if (profileClass === ProfileClass.Dev) {
+  if (profileClass === ProfileClass.Development) {
     return ProfileType.IOS_APP_DEVELOPMENT;
   } else if (profileClass === ProfileClass.Adhoc) {
     return ProfileType.IOS_APP_ADHOC;

@@ -5,7 +5,7 @@ export enum CredentialsSource {
   REMOTE = 'remote',
 }
 
-export type DistributionType = 'store' | 'internal';
+export type DistributionType = 'store' | 'internal' | 'development';
 
 export type IosEnterpriseProvisioning = 'adhoc' | 'universal';
 
