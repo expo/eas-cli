@@ -229,6 +229,7 @@ export async function createProvisioningProfileAsync(
     const profile = await Profile.createAsync(context, {
       bundleId: bundleIdItem.id,
       name: profileName,
+      // TODO: Development should probably contain multiple certs.
       certificates: [certificate.id],
       devices: [],
       profileType,

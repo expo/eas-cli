@@ -34,6 +34,7 @@ export default class BuildList extends EasCommand {
     }),
     distribution: Flags.enum({
       options: [
+        BuildDistributionType.DEVELOPMENT,
         BuildDistributionType.STORE,
         BuildDistributionType.INTERNAL,
         BuildDistributionType.SIMULATOR,

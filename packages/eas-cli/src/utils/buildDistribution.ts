@@ -10,6 +10,8 @@ export const buildDistributionTypeToGraphQLDistributionType = (
     return DistributionType.Internal;
   } else if (buildDistribution === BuildDistributionType.SIMULATOR) {
     return DistributionType.Simulator;
+  } else if (buildDistribution === BuildDistributionType.DEVELOPMENT) {
+    return DistributionType.Development;
   } else {
     return undefined;
   }

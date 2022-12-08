@@ -113,7 +113,7 @@
           "markdownDescription": "The channel is a name we can give to multiple builds to identify them easily. [Learn more](https://docs.expo.dev/eas-update/how-eas-update-works/)\n\n**This field only applies to the EAS Update service**, if your project still uses Classic Updates then use the [releaseChannel](https://docs.expo.dev/build-reference/eas-json/#releasechannel) field instead."
         },
         "distribution": {
-          "enum": ["internal", "store"],
+          "enum": ["internal", "store", "development"],
           "description": "The method of distributing your app. Learn more: https://docs.expo.dev/build/internal-distribution/",
           "markdownDescription": "The method of distributing your app.\n\n- `internal` - with this option you'll be able to share your build URLs with anyone, and they will be able to install the builds to their devices straight from the Expo website. When using `internal`, make sure the build produces an APK or IPA file. Otherwise, the shareable URL will be useless. [Learn more](https://docs.expo.dev/build/internal-distribution/)\n- `store` - produces builds for store uploads, your build URLs won't be shareable.",
           "markdownEnumDescriptions": [

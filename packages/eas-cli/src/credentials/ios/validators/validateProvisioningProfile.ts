@@ -100,6 +100,8 @@ async function validateProvisioningProfileWithAppleAsync(
     applePlatform,
     buildCredentials.iosDistributionType === IosDistributionType.AdHoc
       ? ProfileClass.Adhoc
+      : buildCredentials.iosDistributionType === IosDistributionType.Development
+      ? ProfileClass.Dev
       : ProfileClass.General
   );
 

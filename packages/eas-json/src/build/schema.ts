@@ -11,7 +11,7 @@ const CacheSchema = Joi.object({
 
 const CommonBuildProfileSchema = Joi.object({
   credentialsSource: Joi.string().valid('local', 'remote').default('remote'),
-  distribution: Joi.string().valid('store', 'internal').default('store'),
+  distribution: Joi.string().valid('store', 'development', 'internal').default('store'),
   cache: CacheSchema,
   releaseChannel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
   channel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
