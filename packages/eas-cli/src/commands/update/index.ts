@@ -6,12 +6,8 @@ import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import {
-  createUpdateBranchOnAppAsync,
-  ensureBranchExistsAsync,
-  selectBranchOnAppAsync,
-} from '../../branch/queries';
-import { BranchNotFoundError, getDefaultBranchNameAsync } from '../../branch/utils';
+import { ensureBranchExistsAsync, selectBranchOnAppAsync } from '../../branch/queries';
+import { getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import { ChannelNotFoundError } from '../../channel/errors';
 import { createChannelOnAppAsync, ensureChannelExistsAsync } from '../../channel/queries';
@@ -27,7 +23,6 @@ import {
   UpdatePublishMutation,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
@@ -586,26 +581,10 @@ export default class UpdatePublish extends EasCommand {
         throw error;
       }
 
-      let branchId;
-
-      try {
-        const branch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
-          appId: projectId,
-          name: channelName,
-        });
-        branchId = branch.id;
-      } catch (error) {
-        if (error instanceof BranchNotFoundError) {
-          const newBranch = await createUpdateBranchOnAppAsync(graphqlClient, {
-            appId: projectId,
-            name: channelName,
-          });
-          branchId = newBranch.id;
-        } else {
-          throw error;
-        }
-      }
-
+      const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
+        appId: projectId,
+        branchName: channelName,
+      });
       const {
         updateChannel: { createUpdateChannelForApp: newChannel },
       } = await createChannelOnAppAsync(graphqlClient, {
