@@ -15,6 +15,7 @@ import { ApplePlatform } from './constants';
 import { getCertificateBySerialNumberAsync, transformCertificate } from './distributionCertificate';
 
 export enum ProfileClass {
+  Dev = 'development',
   Adhoc = 'ad_hoc',
   General = 'general',
 }
@@ -38,26 +39,29 @@ function resolveProfileTypeAppleTv(
   profileClass: ProfileClass,
   isEnterprise?: boolean
 ): ProfileType {
+  if (profileClass === ProfileClass.Dev) {
+    return ProfileType.TVOS_APP_DEVELOPMENT;
+  } else if (profileClass === ProfileClass.Adhoc) {
+    return ProfileType.TVOS_APP_ADHOC;
+  }
   if (isEnterprise) {
-    return profileClass === ProfileClass.Adhoc
-      ? ProfileType.TVOS_APP_ADHOC
-      : ProfileType.TVOS_APP_INHOUSE;
+    return ProfileType.TVOS_APP_INHOUSE;
   } else {
-    return profileClass === ProfileClass.Adhoc
-      ? ProfileType.TVOS_APP_ADHOC
-      : ProfileType.TVOS_APP_STORE;
+    return ProfileType.TVOS_APP_STORE;
   }
 }
 
 function resolveProfileTypeIos(profileClass: ProfileClass, isEnterprise?: boolean): ProfileType {
+  if (profileClass === ProfileClass.Dev) {
+    return ProfileType.IOS_APP_DEVELOPMENT;
+  } else if (profileClass === ProfileClass.Adhoc) {
+    return ProfileType.IOS_APP_ADHOC;
+  }
+
   if (isEnterprise) {
-    return profileClass === ProfileClass.Adhoc
-      ? ProfileType.IOS_APP_ADHOC
-      : ProfileType.IOS_APP_INHOUSE;
+    return ProfileType.IOS_APP_INHOUSE;
   } else {
-    return profileClass === ProfileClass.Adhoc
-      ? ProfileType.IOS_APP_ADHOC
-      : ProfileType.IOS_APP_STORE;
+    return ProfileType.IOS_APP_STORE;
   }
 }
 
