@@ -258,64 +258,61 @@ async function ensureEASUpdateIsConfiguredNativelyAsync(
  * Make sure EAS Build profiles are configured to work with EAS Update by adding channels to build profiles.
  */
 
-async function ensureEASUpdateIsConfiguredInEasConfigAsync({
-  projectDir,
-}: {
-  projectDir: string;
-}): Promise<void> {
-  const easConfigPath = EasJsonAccessor.formatEasJsonPath(projectDir);
+async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: string): Promise<void> {
+  const easJsonPath = EasJsonAccessor.formatEasJsonPath(projectDir);
 
-  if (await fs.pathExists(easConfigPath)) {
-    try {
-      const easConfigJson = await fs.readFile(easConfigPath, 'utf-8');
-      const easConfigData = JSON.parse(easConfigJson);
-      const easBuildProfilesWithChannels = Object.keys(easConfigData.build).reduce(
-        (acc, profileNameKey) => {
-          const buildProfile = easConfigData.build[profileNameKey];
-          const isNotAlreadyConfigured = !buildProfile.channel && !buildProfile.releaseChannel;
+  if (!(await fs.pathExists(easJsonPath))) {
+    Log.warn(
+      `EAS Build is not configured. If you'd like to use EAS Build with EAS Update, run \`eas build:configure\`, then re-run ${chalk.bold(
+        'eas update:configure'
+      )} to configure ${chalk.bold('eas.json')} with EAS Update.`
+    );
+    return;
+  }
 
-          if (isNotAlreadyConfigured) {
-            return {
-              ...acc,
-              [profileNameKey]: {
-                ...buildProfile,
-                channel: profileNameKey,
-              },
-            };
-          }
+  try {
+    const easJsonData = await fs.readFile(easJsonPath, 'utf-8');
+    const easJson = JSON.parse(easJsonData);
+    const easBuildProfilesWithChannels = Object.keys(easJson.build).reduce(
+      (acc, profileNameKey) => {
+        const buildProfile = easJson.build[profileNameKey];
+        const isNotAlreadyConfigured = !buildProfile.channel && !buildProfile.releaseChannel;
 
+        if (isNotAlreadyConfigured) {
           return {
             ...acc,
             [profileNameKey]: {
-              ...easConfigData.build[profileNameKey],
+              ...buildProfile,
+              channel: profileNameKey,
             },
           };
-        },
-        {}
-      );
+        }
 
-      await fs.writeFile(
-        easConfigPath,
-        `${JSON.stringify(
-          {
-            ...easConfigData,
-            build: easBuildProfilesWithChannels,
+        return {
+          ...acc,
+          [profileNameKey]: {
+            ...easJson.build[profileNameKey],
           },
-          null,
-          2
-        )}\n`
-      );
-
-      Log.withTick(`Configured ${chalk.bold('eas.json')}.`);
-    } catch (error) {
-      Log.error(`We were not able to configure ${chalk.bold('eas.json')}. Error: ${error}.`);
-    }
-  } else {
-    Log.warn(
-      `EAS Build is not configured. If you'd like to use EAS Build with EAS Update, run \`eas build:configure\`, then re-run \`eas update:configure\` to configure ${chalk.bold(
-        'eas.json'
-      )} with EAS Update.`
+        };
+      },
+      {}
     );
+
+    await fs.writeFile(
+      easJsonPath,
+      `${JSON.stringify(
+        {
+          ...easJson,
+          build: easBuildProfilesWithChannels,
+        },
+        null,
+        2
+      )}\n`
+    );
+
+    Log.withTick(`Configured ${chalk.bold('eas.json')}.`);
+  } catch (error) {
+    Log.error(`We were not able to configure ${chalk.bold('eas.json')}. Error: ${error}.`);
   }
 }
 
@@ -367,7 +364,7 @@ export async function ensureEASUpdateIsConfiguredAsync(
       workflows,
     });
 
-  await ensureEASUpdateIsConfiguredInEasConfigAsync({ projectDir });
+  await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
 
   if (projectChanged || !hasExpoUpdates) {
     await ensureEASUpdateIsConfiguredNativelyAsync(graphqlClient, {
