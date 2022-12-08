@@ -14,7 +14,10 @@ export async function promptAsync<T extends string = string>(
   options: Options = {}
 ): Promise<Answers<T>> {
   if (!process.stdin.isTTY && !global.test) {
-    throw new Error('Input is required, but stdin is not readable.');
+    const message = Array.isArray(questions) ? questions[0]?.message : questions.message;
+    throw new Error(
+      `Input is required, but stdin is not readable. Failed to display prompt: ${message}`
+    );
   }
   return await prompts<T>(questions, {
     onCancel() {

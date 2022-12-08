@@ -1,37 +1,29 @@
-import assert from 'assert';
 import FormData from 'form-data';
 import fs from 'fs-extra';
 import { Response } from 'node-fetch';
-import nullthrows from 'nullthrows';
 import promiseRetry from 'promise-retry';
-import { URL } from 'url';
 
 import { ExpoGraphqlClient } from './commandUtils/context/contextUtils/createGraphqlClient';
 import fetch from './fetch';
 import { UploadSessionType } from './graphql/generated';
-import { PresignedPost, UploadSessionMutation } from './graphql/mutations/UploadSessionMutation';
+import { SignedUrl, UploadSessionMutation } from './graphql/mutations/UploadSessionMutation';
 import { ProgressHandler } from './utils/progress';
 
-export async function uploadFileAtPathToS3Async(
+export interface PresignedPost {
+  url: string;
+  fields: Record<string, string>;
+}
+
+export async function uploadFileAtPathToGCSAsync(
   graphqlClient: ExpoGraphqlClient,
   type: UploadSessionType,
   path: string,
   handleProgressEvent: ProgressHandler
-): Promise<{ url: string; bucketKey: string }> {
-  const presignedPost = await UploadSessionMutation.createUploadSessionAsync(graphqlClient, type);
-  assert(presignedPost.fields.key, 'key is not specified in in presigned post');
+): Promise<string> {
+  const signedUrl = await UploadSessionMutation.createUploadSessionAsync(graphqlClient, type);
 
-  const response = await uploadWithPresignedPostWithProgressAsync(
-    path,
-    presignedPost,
-    handleProgressEvent
-  );
-  const location = nullthrows(
-    response.headers.get('location'),
-    `location does not exist in response headers (make sure you're uploading to AWS S3)`
-  );
-  const url = fixS3Url(location);
-  return { url, bucketKey: presignedPost.fields.key };
+  await uploadWithSignedUrlWithProgressAsync(path, signedUrl, handleProgressEvent);
+  return signedUrl.bucketKey;
 }
 
 export async function uploadWithPresignedPostWithRetryAsync(
@@ -72,10 +64,10 @@ export async function uploadWithPresignedPostWithRetryAsync(
   );
 }
 
-async function createPresignedPostFormDataAsync(
+async function uploadWithPresignedPostAsync(
   file: string,
   presignedPost: PresignedPost
-): Promise<{ form: FormData; fileSize: number }> {
+): Promise<Response> {
   const fileStat = await fs.stat(file);
   const fileSize = fileStat.size;
   const form = new FormData();
@@ -83,14 +75,6 @@ async function createPresignedPostFormDataAsync(
     form.append(fieldKey, fieldValue);
   }
   form.append('file', fs.createReadStream(file), { knownLength: fileSize });
-  return { form, fileSize };
-}
-
-async function uploadWithPresignedPostAsync(
-  file: string,
-  presignedPost: PresignedPost
-): Promise<Response> {
-  const { form } = await createPresignedPostFormDataAsync(file, presignedPost);
   const formHeaders = form.getHeaders();
   return await fetch(presignedPost.url, {
     method: 'POST',
@@ -101,23 +85,25 @@ async function uploadWithPresignedPostAsync(
   });
 }
 
-async function uploadWithPresignedPostWithProgressAsync(
+async function uploadWithSignedUrlWithProgressAsync(
   file: string,
-  presignedPost: PresignedPost,
+  signedUrl: SignedUrl,
   handleProgressEvent: ProgressHandler
 ): Promise<Response> {
-  const { form, fileSize } = await createPresignedPostFormDataAsync(file, presignedPost);
-  const formHeaders = form.getHeaders();
-  const uploadPromise = fetch(presignedPost.url, {
-    method: 'POST',
-    body: form,
+  const fileStat = await fs.stat(file);
+  const fileSize = fileStat.size;
+
+  const readStream = fs.createReadStream(file);
+  const uploadPromise = fetch(signedUrl.url, {
+    method: 'PUT',
+    body: readStream,
     headers: {
-      ...formHeaders,
+      ...signedUrl.headers,
     },
   });
 
   let currentSize = 0;
-  form.addListener('data', (chunk: Buffer) => {
+  readStream.addListener('data', (chunk: Buffer) => {
     currentSize += Buffer.byteLength(chunk);
     handleProgressEvent({
       progress: {
@@ -135,15 +121,4 @@ async function uploadWithPresignedPostWithProgressAsync(
     handleProgressEvent({ isComplete: true, error });
     throw error;
   }
-}
-
-/**
- * S3 returns broken URLs, sth like:
- * https://submission-service-archives.s3.amazonaws.com/production%2Fdc98ca84-1473-4cb3-ae81-8c7b291cb27e%2F4424aa95-b985-4e2f-8755-9507b1037c1c
- * This function replaces %2F with /.
- */
-export function fixS3Url(archiveUrl: string): string {
-  const parsed = new URL(archiveUrl);
-  parsed.pathname = decodeURIComponent(parsed.pathname);
-  return parsed.toString();
 }

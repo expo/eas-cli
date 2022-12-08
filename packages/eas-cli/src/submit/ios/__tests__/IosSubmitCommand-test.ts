@@ -9,6 +9,7 @@ import {
   jester as mockJester,
   testProjectId,
 } from '../../../credentials/__tests__/fixtures-constants';
+import { SubmissionArchiveSourceType } from '../../../graphql/generated';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
@@ -80,7 +81,7 @@ describe(IosSubmitCommand, () => {
   });
 
   describe('sending submission', () => {
-    it('sends a request to Submission Service', async () => {
+    it('sends a request to EAS Submit', async () => {
       const projectId = uuidv4();
       const graphqlClient = {} as any as ExpoGraphqlClient;
       const analytics = instance(mock<Analytics>());
@@ -110,8 +111,8 @@ describe(IosSubmitCommand, () => {
 
       expect(SubmissionMutation.createIosSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
+        archiveSource: { type: SubmissionArchiveSourceType.Url, url: 'http://expo.dev/fake.ipa' },
         config: {
-          archiveUrl: 'http://expo.dev/fake.ipa',
           appleIdUsername: 'test@example.com',
           appleAppSpecificPassword: 'supersecret',
           ascAppIdentifier: '12345678',

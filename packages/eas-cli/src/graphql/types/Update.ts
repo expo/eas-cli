@@ -9,6 +9,7 @@ export const UpdateFragmentNode = gql`
     runtimeVersion
     platform
     manifestFragment
+    gitCommitHash
     actor {
       __typename
       id
@@ -22,6 +23,11 @@ export const UpdateFragmentNode = gql`
     branch {
       id
       name
+    }
+    codeSigningInfo {
+      keyid
+      sig
+      alg
     }
   }
 `;

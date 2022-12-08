@@ -5,12 +5,15 @@ import { withAnalyticsAsync } from '../analytics/common';
 import {
   AndroidSubmissionConfigInput,
   IosSubmissionConfigInput,
+  SubmissionArchiveSourceInput,
+  SubmissionArchiveSourceType,
   SubmissionFragment,
 } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { ora } from '../ora';
 import { appPlatformDisplayNames } from '../platform';
+import { ArchiveSourceType, ResolvedArchiveSource } from './ArchiveSource';
 import { SubmissionContext } from './context';
 
 export interface SubmissionInput<P extends Platform> {
@@ -19,6 +22,7 @@ export interface SubmissionInput<P extends Platform> {
     ? AndroidSubmissionConfigInput
     : IosSubmissionConfigInput;
   buildId?: string;
+  archiveSource?: SubmissionArchiveSourceInput;
 }
 
 interface AnalyticEvents {
@@ -70,6 +74,27 @@ export default abstract class BaseSubmitter<
   public abstract createSubmissionInputAsync(
     resolvedOptions: ResolvedSourceOptions
   ): Promise<SubmissionInput<P>>;
+
+  public formatArchive(
+    archive: ResolvedArchiveSource
+  ): Pick<SubmissionInput<P>, 'archiveSource' | 'buildId'> {
+    switch (archive.sourceType) {
+      case ArchiveSourceType.url: {
+        return { archiveSource: { type: SubmissionArchiveSourceType.Url, url: archive.url } };
+      }
+      case ArchiveSourceType.gcs: {
+        return {
+          archiveSource: {
+            type: SubmissionArchiveSourceType.GcsSubmitArchive,
+            bucketKey: archive.bucketKey,
+          },
+        };
+      }
+      case ArchiveSourceType.build: {
+        return { buildId: archive.build.id };
+      }
+    }
+  }
 
   private async createSubmissionAsync(
     submissionInput: SubmissionInput<P>

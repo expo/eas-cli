@@ -1,23 +1,28 @@
 import spawnAsync from '@expo/spawn-async';
-import cliProgress from 'cli-progress';
 import glob from 'fast-glob';
-import fs from 'fs';
+import fs from 'fs-extra';
 import path from 'path';
 import { Stream } from 'stream';
 import { extract } from 'tar';
 import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 
-import fetch, { RequestInit } from '../fetch';
+import fetch, { RequestInit, Response } from '../fetch';
+import { AppPlatform } from '../graphql/generated';
 import Log from '../log';
+import { formatBytes } from './files';
 import { getTmpDirectory } from './paths';
+import { ProgressHandler, createProgressTracker } from './progress';
 
 const pipeline = promisify(Stream.pipeline);
 
-type ProgressCallback = (progress: number, total: number, loaded: number) => void;
-
-function wrapFetchWithProgress() {
-  return async (url: string, init: RequestInit, onProgressCallback: ProgressCallback) => {
+function wrapFetchWithProgress(): (
+  url: string,
+  init: RequestInit,
+  progressHandler: ProgressHandler
+) => Promise<Response> {
+  let didProgressBarFinish = false;
+  return async (url: string, init: RequestInit, progressHandler: ProgressHandler) => {
     const response = await fetch(url, init);
 
     if (response.ok) {
@@ -40,7 +45,15 @@ function wrapFetchWithProgress() {
 
         const progress = length / total;
 
-        onProgressCallback(progress, total, length);
+        if (!didProgressBarFinish) {
+          progressHandler({
+            progress: { total, percent: progress, transferred: length },
+            isComplete: total === length,
+          });
+          if (total === length) {
+            didProgressBarFinish = true;
+          }
+        }
       };
 
       response.body.on('data', chunk => {
@@ -56,72 +69,96 @@ function wrapFetchWithProgress() {
   };
 }
 
-async function downloadFileWithProgressBarAsync(
+async function downloadFileWithProgressTrackerAsync(
   url: string,
   outputPath: string,
-  infoMessage?: string
+  progressTrackerMessage: string | ((ratio: number, total: number) => string),
+  progressTrackerCompletedMessage: string
 ): Promise<void> {
   Log.newLine();
-  Log.log(infoMessage ? infoMessage : `Downloading file from ${url}...`);
 
-  const downloadProgressBar = new cliProgress.SingleBar(
-    { format: '|{bar}|' },
-    cliProgress.Presets.rect
-  );
+  try {
+    const response = await wrapFetchWithProgress()(
+      url,
+      {
+        timeout: 1000 * 60 * 5, // 5 minutes
+      },
+      createProgressTracker({
+        message: progressTrackerMessage,
+        completedMessage: progressTrackerCompletedMessage,
+      })
+    );
 
-  let downloadProgressBarStarted = false;
-  const response = await wrapFetchWithProgress()(
-    url,
-    {
-      timeout: 1000 * 60 * 5, // 5 minutes
-    },
-    (_progress: number, total: number, loaded: number): void => {
-      if (!downloadProgressBarStarted) {
-        downloadProgressBar.start(total, loaded);
-        downloadProgressBarStarted = true;
-      } else if (loaded < total) {
-        downloadProgressBar.update(loaded);
-      } else {
-        downloadProgressBar.stop();
-      }
+    if (!response.ok) {
+      throw new Error(`Failed to download file from ${url}`);
     }
-  );
 
-  if (!response.ok) {
-    throw new Error(`Failed to download file from ${url}`);
+    await pipeline(response.body, fs.createWriteStream(outputPath));
+  } catch (error: any) {
+    if (await fs.pathExists(outputPath)) {
+      await fs.remove(outputPath);
+    }
+    throw error;
   }
-
-  await pipeline(response.body, fs.createWriteStream(outputPath));
 }
 
-export async function downloadAndExtractAppAsync(
+async function maybeCacheAppAsync(appPath: string, cachedAppPath?: string): Promise<string> {
+  if (cachedAppPath) {
+    await fs.ensureDir(path.dirname(cachedAppPath));
+    await fs.move(appPath, cachedAppPath);
+    return cachedAppPath;
+  }
+  return appPath;
+}
+
+export async function downloadAndMaybeExtractAppAsync(
   url: string,
-  applicationExtension: string
+  platform: AppPlatform,
+  cachedAppPath?: string
 ): Promise<string> {
   const outputDir = path.join(getTmpDirectory(), uuidv4());
   await fs.promises.mkdir(outputDir, { recursive: true });
 
-  const tmpArchivePathDir = path.join(getTmpDirectory(), uuidv4());
-  await fs.promises.mkdir(tmpArchivePathDir, { recursive: true });
+  if (url.endsWith('apk')) {
+    const apkFilePath = path.join(outputDir, `${uuidv4()}.apk`);
+    await downloadFileWithProgressTrackerAsync(
+      url,
+      apkFilePath,
+      (ratio, total) => `Downloading app (${formatBytes(total * ratio)} / ${formatBytes(total)})`,
+      'Successfully downloaded app'
+    );
+    return maybeCacheAppAsync(apkFilePath, cachedAppPath);
+  } else {
+    const tmpArchivePathDir = path.join(getTmpDirectory(), uuidv4());
+    await fs.mkdir(tmpArchivePathDir, { recursive: true });
 
-  const tmpArchivePath = path.join(tmpArchivePathDir, `${uuidv4()}.tar.gz`);
+    const tmpArchivePath = path.join(tmpArchivePathDir, `${uuidv4()}.tar.gz`);
 
-  await downloadFileWithProgressBarAsync(url, tmpArchivePath, 'Downloading app archive...');
-  await tarExtractAsync(tmpArchivePath, outputDir);
+    await downloadFileWithProgressTrackerAsync(
+      url,
+      tmpArchivePath,
+      (ratio, total) =>
+        `Downloading app archive (${formatBytes(total * ratio)} / ${formatBytes(total)})`,
+      'Successfully downloaded app archive'
+    );
+    await tarExtractAsync(tmpArchivePath, outputDir);
 
-  return await getAppPathAsync(outputDir, applicationExtension);
+    const appPath = await getAppPathAsync(outputDir, platform === AppPlatform.Ios ? 'app' : 'apk');
+
+    return maybeCacheAppAsync(appPath, cachedAppPath);
+  }
 }
 
 export async function extractAppFromLocalArchiveAsync(
   appArchivePath: string,
-  applicationExtension: string
+  platform: AppPlatform
 ): Promise<string> {
   const outputDir = path.join(getTmpDirectory(), uuidv4());
   await fs.promises.mkdir(outputDir, { recursive: true });
 
   await tarExtractAsync(appArchivePath, outputDir);
 
-  return await getAppPathAsync(outputDir, applicationExtension);
+  return await getAppPathAsync(outputDir, platform === AppPlatform.Android ? 'apk' : 'app');
 }
 
 async function getAppPathAsync(outputDir: string, applicationExtension: string): Promise<string> {

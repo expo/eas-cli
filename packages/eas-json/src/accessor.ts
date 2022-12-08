@@ -3,11 +3,39 @@ import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import * as fleece from 'golden-fleece';
+import { ValidationError } from 'joi';
 import path from 'path';
 
 import { InvalidEasJsonError, MissingEasJsonError } from './errors';
+import { link } from './log';
 import { EasJsonSchema } from './schema';
 import { EasJson } from './types';
+
+const customErrorMessageHandlers: ((err: ValidationError) => void)[] = [
+  // Ask user to upgrade eas-cli version or check the docs when image is invalid.
+  (err: ValidationError) => {
+    for (const detail of err.details) {
+      // image should be only placed under 'build.profilename.platform.image' key
+      // if it's not the case show standard Joi error
+      if (
+        detail.path.length === 4 &&
+        detail.path[0] === 'build' &&
+        ['ios', 'android'].includes(detail.path[2].toString()) &&
+        detail.path[3] === 'image'
+      ) {
+        throw new InvalidEasJsonError(
+          chalk.red(
+            `Specified build image '${
+              detail?.context?.value
+            }' is not recognized. Please update your EAS CLI and see ${link(
+              'https://docs.expo.dev/build-reference/infrastructure/'
+            )} for supported build images.`
+          )
+        );
+      }
+    }
+  },
+];
 
 export class EasJsonAccessor {
   private easJsonPath: string;
@@ -39,6 +67,10 @@ export class EasJsonAccessor {
       noDefaults: true,
     });
     if (error) {
+      for (const handler of customErrorMessageHandlers) {
+        handler(error);
+      }
+
       const errorMessages = error.message.split('. ');
       throw new InvalidEasJsonError(
         `${chalk.bold('eas.json')} is not valid.\n- ${errorMessages.join('\n- ')}`

@@ -2,11 +2,11 @@ import chalk from 'chalk';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
-import { BuildFilter, BuildFragment } from '../graphql/generated';
+import { AppPlatform, BuildFilter, BuildFragment } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log from '../log';
-import { appPlatformDisplayNames } from '../platform';
 import { promptAsync } from '../prompts';
+import { fromNow } from '../utils/date';
 import { printJsonOnlyOutput } from '../utils/json';
 import { paginatedQueryWithConfirmPromptAsync } from '../utils/queries';
 import { formatGraphQLBuild } from './utils/formatBuild';
@@ -55,18 +55,51 @@ export async function listAndRenderBuildsOnAppAsync(
   }
 }
 
+function formatBuildChoiceValue(value: string | undefined | null): string {
+  return value ? chalk.bold(value) : chalk.dim('Unknown');
+}
+
+function formatBuildChoiceTitleAndDescription(build: BuildFragment): {
+  title: string;
+  description: string;
+} {
+  const splitCommitMessage = build.gitCommitMessage?.split('\n');
+  const formattedCommitData =
+    build.gitCommitHash && splitCommitMessage && splitCommitMessage.length > 0
+      ? `${chalk.dim(build.gitCommitHash.slice(0, 7))} "${chalk.bold(
+          splitCommitMessage[0] + (splitCommitMessage.length > 1 ? '…' : '')
+        )}"`
+      : 'Unknown';
+
+  return {
+    title: `ID: ${chalk.dim(build.id)} (${chalk.dim(`${fromNow(new Date(build.updatedAt))} ago`)})`,
+    description: [
+      `\tVersion: ${formatBuildChoiceValue(build.appVersion)}`,
+      `\t${
+        build.platform === AppPlatform.Ios ? 'Build number' : 'Version code'
+      }: ${formatBuildChoiceValue(build.appBuildVersion)}`,
+      `\tCommit: ${formattedCommitData}`,
+    ].join('\n'),
+  };
+}
+
 export async function listAndSelectBuildsOnAppAsync(
   graphqlClient: ExpoGraphqlClient,
+  selectedPlatform: AppPlatform,
   {
     projectId,
     projectDisplayName,
     filter,
     queryOptions,
+    selectPromptDisabledFunction,
+    warningMessage,
   }: {
     projectId: string;
     projectDisplayName: string;
     filter?: BuildFilter;
     queryOptions: PaginatedQueryOptions;
+    selectPromptDisabledFunction?: (build: BuildFragment) => boolean;
+    warningMessage?: string;
   }
 ): Promise<BuildFragment> {
   const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
@@ -82,14 +115,20 @@ export async function listAndSelectBuildsOnAppAsync(
 
   const { selectedSimulatorBuild } = await promptAsync({
     type: 'select',
-    message: `Select simulator build to run for ${projectDisplayName} app`,
+    message: `Select ${selectedPlatform === AppPlatform.Ios ? 'iOS' : 'Android'} ${
+      selectedPlatform === AppPlatform.Ios ? 'simulator' : 'emulator'
+    } build to run for ${projectDisplayName} app`,
     name: 'selectedSimulatorBuild',
-    choices: builds.map(build => ({
-      title: `id: ${build.id}, platform: ${appPlatformDisplayNames[build.platform]}, version: ${
-        build.appVersion
-      }, build number: ${build.appBuildVersion}`,
-      value: build,
-    })),
+    choices: builds.map(build => {
+      const buildChoice = formatBuildChoiceTitleAndDescription(build);
+      return {
+        title: buildChoice.title,
+        description: buildChoice.description,
+        value: build,
+        disabled: selectPromptDisabledFunction?.(build),
+      };
+    }),
+    warn: warningMessage,
   });
   return selectedSimulatorBuild;
 }
