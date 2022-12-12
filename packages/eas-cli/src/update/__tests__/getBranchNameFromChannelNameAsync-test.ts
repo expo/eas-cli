@@ -1,17 +1,14 @@
 import { instance, mock } from 'ts-mockito';
 
-import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import { UpdateBranch, UpdateChannel } from '../../../graphql/generated';
-import { ChannelQuery } from '../../../graphql/queries/ChannelQuery';
-import UpdatePublish from '../index';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { UpdateBranch, UpdateChannel } from '../../graphql/generated';
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
+import { getBranchNameFromChannelNameAsync } from '../getBranchNameFromChannelNameAsync';
 
-const projectRoot = '/test-project';
-const commandOptions = { root: projectRoot } as any;
+jest.mock('../../graphql/queries/ChannelQuery');
+jest.mock('../../graphql/queries/BranchQuery');
 
-jest.mock('../../../graphql/queries/ChannelQuery');
-jest.mock('../../../graphql/queries/BranchQuery');
-
-describe(UpdatePublish.prototype.getBranchNameFromChannelNameAsync, () => {
+describe(getBranchNameFromChannelNameAsync, () => {
   beforeEach(() => {
     jest.resetAllMocks();
   });
@@ -26,9 +23,7 @@ describe(UpdatePublish.prototype.getBranchNameFromChannelNameAsync, () => {
         }) as any
     );
 
-    const UpdatePublishCommand = new UpdatePublish([], commandOptions);
-
-    const result = await UpdatePublishCommand.getBranchNameFromChannelNameAsync(
+    const result = await getBranchNameFromChannelNameAsync(
       graphqlClient,
       'test-project-id',
       'channel-name'
@@ -46,14 +41,8 @@ describe(UpdatePublish.prototype.getBranchNameFromChannelNameAsync, () => {
         }) as any
     );
 
-    const UpdatePublishCommand = new UpdatePublish([], commandOptions);
-
     expect(
-      UpdatePublishCommand.getBranchNameFromChannelNameAsync(
-        graphqlClient,
-        'test-project-id',
-        'test-channel-name'
-      )
+      getBranchNameFromChannelNameAsync(graphqlClient, 'test-project-id', 'test-channel-name')
     ).rejects.toThrow(
       "Channel has no branches associated with it. Run 'eas channel:edit' to map a branch"
     );
@@ -69,14 +58,8 @@ describe(UpdatePublish.prototype.getBranchNameFromChannelNameAsync, () => {
         }) as any
     );
 
-    const UpdatePublishCommand = new UpdatePublish([], commandOptions);
-
     expect(
-      UpdatePublishCommand.getBranchNameFromChannelNameAsync(
-        graphqlClient,
-        'test-project-id',
-        'test-channel-name'
-      )
+      getBranchNameFromChannelNameAsync(graphqlClient, 'test-project-id', 'test-channel-name')
     ).rejects.toThrow(
       "Channel has multiple branches associated with it. Instead, use 'eas update --branch'"
     );
@@ -92,9 +75,7 @@ describe(UpdatePublish.prototype.getBranchNameFromChannelNameAsync, () => {
         }) as any
     );
 
-    const UpdatePublishCommand = new UpdatePublish([], commandOptions);
-
-    const result = await UpdatePublishCommand.getBranchNameFromChannelNameAsync(
+    const result = await getBranchNameFromChannelNameAsync(
       graphqlClient,
       'test-project-id',
       'test-channel-name'

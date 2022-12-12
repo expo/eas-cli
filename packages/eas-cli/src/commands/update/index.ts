@@ -9,10 +9,8 @@ import nullthrows from 'nullthrows';
 import { ensureBranchExistsAsync, selectBranchOnAppAsync } from '../../branch/queries';
 import { getDefaultBranchNameAsync } from '../../branch/utils';
 import { getUpdateGroupUrl } from '../../build/utils/url';
-import { ChannelNotFoundError } from '../../channel/errors';
-import { createChannelOnAppAsync, ensureChannelExistsAsync } from '../../channel/queries';
+import { ensureChannelExistsAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -23,7 +21,6 @@ import {
   UpdatePublishMutation,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../../platform';
@@ -41,6 +38,7 @@ import {
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { ensureEASUpdatesIsConfiguredAsync } from '../../update/configure';
+import { getBranchNameFromChannelNameAsync } from '../../update/getBranchNameFromChannelNameAsync';
 import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
@@ -221,11 +219,7 @@ export default class UpdatePublish extends EasCommand {
     }
 
     if (channelName) {
-      branchName = await this.getBranchNameFromChannelNameAsync(
-        graphqlClient,
-        projectId,
-        channelName
-      );
+      branchName = await getBranchNameFromChannelNameAsync(graphqlClient, projectId, channelName);
     }
 
     if (!branchName) {
@@ -550,59 +544,6 @@ export default class UpdatePublish extends EasCommand {
       nonInteractive,
       json: flags.json ?? false,
     };
-  }
-
-  public async getBranchNameFromChannelNameAsync(
-    graphqlClient: ExpoGraphqlClient,
-    projectId: string,
-    channelName: string
-  ): Promise<string> {
-    let branchName;
-
-    try {
-      const channel = await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
-        appId: projectId,
-        channelName,
-      });
-
-      if (channel.updateBranches.length === 1) {
-        branchName = channel.updateBranches[0].name;
-      } else if (channel.updateBranches.length === 0) {
-        throw new Error(
-          "Channel has no branches associated with it. Run 'eas channel:edit' to map a branch"
-        );
-      } else {
-        throw new Error(
-          "Channel has multiple branches associated with it. Instead, use 'eas update --branch'"
-        );
-      }
-    } catch (error) {
-      if (!(error instanceof ChannelNotFoundError)) {
-        throw error;
-      }
-
-      const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
-        appId: projectId,
-        branchName: channelName,
-      });
-      const {
-        updateChannel: { createUpdateChannelForApp: newChannel },
-      } = await createChannelOnAppAsync(graphqlClient, {
-        appId: projectId,
-        channelName,
-        branchId,
-      });
-
-      if (!newChannel) {
-        throw new Error(
-          `Could not create channel with name ${channelName} on project with id ${projectId}`
-        );
-      }
-
-      branchName = channelName;
-    }
-
-    return branchName;
   }
 }
 
