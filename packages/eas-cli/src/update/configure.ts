@@ -263,7 +263,7 @@ async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: string): Pr
 
   if (!(await fs.pathExists(easJsonPath))) {
     Log.warn(
-      `EAS Build is not configured. If you'd like to use EAS Build with EAS Update, run \`eas build:configure\`, then re-run ${chalk.bold(
+      `EAS Build is not configured. If you'd like to use EAS Build with EAS Update, run ${chalk.bold('eas build:configure')}, then re-run ${chalk.bold(
         'eas update:configure'
       )} to configure ${chalk.bold('eas.json')} with EAS Update.`
     );
