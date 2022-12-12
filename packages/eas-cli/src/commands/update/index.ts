@@ -556,7 +556,7 @@ export default class UpdatePublish extends EasCommand {
     graphqlClient: ExpoGraphqlClient,
     projectId: string,
     channelName: string
-  ): Promise<string | undefined> {
+  ): Promise<string> {
     let branchName;
 
     try {
