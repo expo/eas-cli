@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add channel configurations to **eas.json** during `eas update:configure`. ([#1570](https://github.com/expo/eas-cli/pull/1570) by [@jonsamp](https://github.com/jonsamp))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

@@ -37,7 +37,7 @@ import {
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
-import { ensureEASUpdatesIsConfiguredAsync } from '../../update/configure';
+import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
 import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
@@ -192,7 +192,7 @@ export default class UpdatePublish extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
-    await ensureEASUpdatesIsConfiguredAsync(graphqlClient, {
+    await ensureEASUpdateIsConfiguredAsync(graphqlClient, {
       exp: expPossiblyWithoutEasUpdateConfigured,
       platform: getRequestedPlatform(platformFlag),
       projectDir,
