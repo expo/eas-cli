@@ -15,6 +15,9 @@ import {
   CreateIosBuildMutationVariables,
   EasBuildDeprecationInfo,
   IosJobInput,
+  IosJobOverridesInput,
+  RetryIosBuildMutation,
+  RetryIosBuildMutationVariables,
 } from '../generated';
 import { BuildFragmentNode } from '../types/Build';
 
@@ -115,5 +118,33 @@ export const BuildMutation = {
         .toPromise()
     );
     return nullthrows(data.build?.createIosBuild);
+  },
+  async retryIosBuildAsync(
+    graphqlClient: ExpoGraphqlClient,
+    input: {
+      buildId: string;
+      jobOverrides: IosJobOverridesInput;
+    }
+  ): Promise<BuildFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<RetryIosBuildMutation, RetryIosBuildMutationVariables>(
+          gql`
+            mutation RetryIosBuildMutation($buildId: ID!, $jobOverrides: IosJobOverridesInput!) {
+              build {
+                retryIosBuild(buildId: $buildId, jobOverrides: $jobOverrides) {
+                  id
+                  ...BuildFragment
+                }
+              }
+            }
+            ${print(BuildFragmentNode)}
+          `,
+          input,
+          { noRetry: true }
+        )
+        .toPromise()
+    );
+    return nullthrows(data.build?.retryIosBuild);
   },
 };

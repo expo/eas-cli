@@ -57,7 +57,9 @@ export default class BranchView extends EasCommand {
       ({ name: branchName } = await selectBranchOnAppAsync(graphqlClient, {
         projectId,
         promptTitle: 'Which branch would you like to view?',
-        displayTextForListItem: updateBranch => updateBranch.name,
+        displayTextForListItem: updateBranch => ({
+          title: updateBranch.name,
+        }),
         // discard limit and offset because this query is not their intended target
         paginatedQueryOptions: {
           json: paginatedQueryOptions.json,

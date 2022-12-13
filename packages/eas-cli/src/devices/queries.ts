@@ -44,10 +44,11 @@ export async function selectAppleTeamOnAccountAsync(
         }),
       promptOptions: {
         title: selectionPromptTitle,
-        createDisplayTextForSelectionPromptListItem: appleTeam =>
-          appleTeam.appleTeamName
+        createDisplayTextForSelectionPromptListItem: appleTeam => ({
+          title: appleTeam.appleTeamName
             ? `${appleTeam.appleTeamName} (ID: ${appleTeam.appleTeamIdentifier})`
             : appleTeam.appleTeamIdentifier,
+        }),
         getIdentifierForQueryItem: appleTeam => appleTeam.id,
       },
     });
@@ -87,7 +88,9 @@ export async function selectAppleDeviceOnAppleTeamAsync(
         }),
       promptOptions: {
         title: selectionPromptTitle,
-        createDisplayTextForSelectionPromptListItem: appleDevice => formatDeviceLabel(appleDevice),
+        createDisplayTextForSelectionPromptListItem: appleDevice => ({
+          title: formatDeviceLabel(appleDevice),
+        }),
         getIdentifierForQueryItem: appleTeam => appleTeam.id,
       },
     });

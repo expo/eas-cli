@@ -107,7 +107,7 @@ export default class ChannelEdit extends EasCommand {
       : await selectBranchOnAppAsync(graphqlClient, {
           projectId,
           promptTitle: `Which branch would you like ${existingChannel.name} to point at?`,
-          displayTextForListItem: updateBranch => updateBranch.name,
+          displayTextForListItem: updateBranch => ({ title: updateBranch.name }),
           paginatedQueryOptions: {
             json,
             nonInteractive,

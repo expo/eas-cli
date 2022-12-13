@@ -400,7 +400,6 @@ export type AccountSsoConfiguration = {
   id: Scalars['ID'];
   issuer?: Maybe<Scalars['String']>;
   jwksEndpoint?: Maybe<Scalars['String']>;
-  redirectUri: Scalars['String'];
   revokeEndpoint?: Maybe<Scalars['String']>;
   tokenEndpoint?: Maybe<Scalars['String']>;
   updatedAt: Scalars['DateTime'];
@@ -415,7 +414,6 @@ export type AccountSsoConfigurationData = {
   clientSecret: Scalars['String'];
   issuer?: InputMaybe<Scalars['String']>;
   jwksEndpoint?: InputMaybe<Scalars['String']>;
-  redirectUri: Scalars['String'];
   revokeEndpoint?: InputMaybe<Scalars['String']>;
   tokenEndpoint?: InputMaybe<Scalars['String']>;
   userInfoEndpoint?: InputMaybe<Scalars['String']>;
@@ -458,7 +456,6 @@ export type AccountSsoConfigurationPublicData = {
   id: Scalars['ID'];
   issuer?: Maybe<Scalars['String']>;
   jwksEndpoint?: Maybe<Scalars['String']>;
-  redirectUri: Scalars['String'];
   revokeEndpoint?: Maybe<Scalars['String']>;
   tokenEndpoint?: Maybe<Scalars['String']>;
   userInfoEndpoint?: Maybe<Scalars['String']>;
@@ -922,6 +919,7 @@ export type App = Project & {
   /** Classic update release channel names that have at least one build */
   buildsReleaseChannels: Array<Scalars['String']>;
   deployment?: Maybe<Deployment>;
+  deploymentNew?: Maybe<DeploymentNew>;
   /** Deployments associated with this app */
   deployments: Array<Deployment>;
   description: Scalars['String'];
@@ -1047,6 +1045,13 @@ export type AppBuildsArgs = {
 export type AppDeploymentArgs = {
   channel: Scalars['String'];
   options?: InputMaybe<DeploymentOptions>;
+  runtimeVersion: Scalars['String'];
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppDeploymentNewArgs = {
+  channel: Scalars['String'];
   runtimeVersion: Scalars['String'];
 };
 
@@ -2381,6 +2386,36 @@ export type Deployment = {
   runtimeVersion: Scalars['String'];
 };
 
+export type DeploymentBuildEdge = {
+  __typename?: 'DeploymentBuildEdge';
+  cursor: Scalars['String'];
+  node: Build;
+};
+
+export type DeploymentBuildsConnection = {
+  __typename?: 'DeploymentBuildsConnection';
+  edges: Array<DeploymentBuildEdge>;
+  pageInfo: PageInfo;
+};
+
+/** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
+export type DeploymentNew = {
+  __typename?: 'DeploymentNew';
+  builds: DeploymentBuildsConnection;
+  channel: UpdateChannel;
+  id: Scalars['ID'];
+  runtime: Runtime;
+};
+
+
+/** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
+export type DeploymentNewBuildsArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
+};
+
 export type DeploymentOptions = {
   /** Max number of associated builds to return */
   buildListMaxSize?: InputMaybe<Scalars['Int']>;
@@ -2547,7 +2582,7 @@ export type GitHubAppInstallationAccessibleRepositoriesArgs = {
 
 export type GitHubAppInstallationAccessibleRepository = {
   __typename?: 'GitHubAppInstallationAccessibleRepository';
-  defaultBranch: Scalars['String'];
+  defaultBranch?: Maybe<Scalars['String']>;
   description?: Maybe<Scalars['String']>;
   id: Scalars['Int'];
   name: Scalars['String'];
@@ -3249,6 +3284,14 @@ export enum Order {
   Desc = 'DESC'
 }
 
+export type PageInfo = {
+  __typename?: 'PageInfo';
+  endCursor?: Maybe<Scalars['String']>;
+  hasNextPage: Scalars['Boolean'];
+  hasPreviousPage: Scalars['Boolean'];
+  startCursor?: Maybe<Scalars['String']>;
+};
+
 export type PartialManifest = {
   assets: Array<InputMaybe<PartialManifestAsset>>;
   extra?: InputMaybe<Scalars['JSONObject']>;
@@ -3630,6 +3673,14 @@ export type RootQueryUserByUserIdArgs = {
 
 export type RootQueryUserByUsernameArgs = {
   username: Scalars['String'];
+};
+
+export type Runtime = {
+  __typename?: 'Runtime';
+  app: App;
+  firstBuildCreatedAt: Scalars['DateTime'];
+  id: Scalars['ID'];
+  version: Scalars['String'];
 };
 
 export type SecondFactorBooleanResult = {
@@ -5031,6 +5082,14 @@ export type CreateIosBuildMutationVariables = Exact<{
 
 
 export type CreateIosBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', createIosBuild: { __typename?: 'CreateBuildResult', build: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, releaseChannel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string } }, deprecationInfo?: { __typename?: 'EASBuildDeprecationInfo', type: EasBuildDeprecationInfoType, message: string } | null } } };
+
+export type RetryIosBuildMutationVariables = Exact<{
+  buildId: Scalars['ID'];
+  jobOverrides: IosJobOverridesInput;
+}>;
+
+
+export type RetryIosBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', retryIosBuild: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, releaseChannel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string } } } };
 
 export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
   input: CreateEnvironmentSecretInput;

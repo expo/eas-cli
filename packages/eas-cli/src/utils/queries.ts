@@ -3,6 +3,11 @@ import uniqBy from './expodash/uniqBy';
 
 const fetchMoreValue = '_fetchMore';
 
+export interface SelectPromptEntry {
+  title: string;
+  description?: string;
+}
+
 type BasePaginatedQueryArgs<QueryReturnType extends Record<string, any>> = {
   limit: number;
   offset: number;
@@ -21,7 +26,9 @@ type PaginatedQueryWithSelectPromptArgs<QueryReturnType extends Record<string, a
   BasePaginatedQueryArgs<QueryReturnType> & {
     promptOptions: {
       readonly title: string;
-      createDisplayTextForSelectionPromptListItem: (queryItem: QueryReturnType) => string;
+      createDisplayTextForSelectionPromptListItem: (
+        queryItem: QueryReturnType
+      ) => SelectPromptEntry;
       getIdentifierForQueryItem: (queryItem: QueryReturnType) => string;
     };
   };
@@ -100,7 +107,7 @@ async function paginatedQueryWithSelectPromptInternalAsync<
   const selectionPromptListItems = uniqBy(newAccumulator, queryItem =>
     promptOptions.getIdentifierForQueryItem(queryItem)
   ).map(queryItem => ({
-    title: promptOptions.createDisplayTextForSelectionPromptListItem(queryItem),
+    ...promptOptions.createDisplayTextForSelectionPromptListItem(queryItem),
     value: promptOptions.getIdentifierForQueryItem(queryItem),
   }));
   if (areMorePagesAvailable) {

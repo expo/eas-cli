@@ -26,7 +26,7 @@ export function transformJob(job: Ios.Job): IosJobInput {
   };
 }
 
-function transformIosSecrets(secrets: {
+export function transformIosSecrets(secrets: {
   buildCredentials?: Ios.BuildCredentials;
 }): IosJobSecretsInput {
   const buildCredentials: IosJobSecretsInput['buildCredentials'] = [];
