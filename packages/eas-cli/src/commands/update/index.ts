@@ -37,7 +37,7 @@ import {
 } from '../../project/publish';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
-import { ensureEASUpdatesIsConfiguredAsync } from '../../update/configure';
+import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
 import { getBranchNameFromChannelNameAsync } from '../../update/getBranchNameFromChannelNameAsync';
 import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../../update/utils';
 import {
