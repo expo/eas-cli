@@ -5082,6 +5082,18 @@
             "deprecationReason": null
           },
           {
+            "name": "mode",
+            "description": "",
+            "type": {
+              "kind": "ENUM",
+              "name": "BuildMode",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "projectArchive",
             "description": "",
             "type": {
@@ -5381,6 +5393,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "mode",
+            "description": "",
+            "type": {
+              "kind": "ENUM",
+              "name": "BuildMode",
               "ofType": null
             },
             "defaultValue": null,
@@ -12009,7 +12033,20 @@
           {
             "name": "canRetry",
             "description": "",
-            "args": [],
+            "args": [
+              {
+                "name": "newMode",
+                "description": "",
+                "type": {
+                  "kind": "ENUM",
+                  "name": "BuildMode",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -13858,6 +13895,29 @@
         "possibleTypes": null
       },
       {
+        "kind": "ENUM",
+        "name": "BuildMode",
+        "description": "",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "BUILD",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "RESIGN",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
         "kind": "OBJECT",
         "name": "BuildMutation",
         "description": "",
@@ -14711,6 +14771,29 @@
         "possibleTypes": null
       },
       {
+        "kind": "INPUT_OBJECT",
+        "name": "BuildResignInput",
+        "description": "",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "applicationArchiveSource",
+            "description": "",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "ProjectArchiveSourceInput",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "ENUM",
         "name": "BuildResourceClass",
         "description": "",
@@ -14843,6 +14926,12 @@
           },
           {
             "name": "MANAGED",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "UNKNOWN",
             "description": "",
             "isDeprecated": false,
             "deprecationReason": null
@@ -20962,6 +21051,18 @@
             "deprecationReason": null
           },
           {
+            "name": "mode",
+            "description": "",
+            "type": {
+              "kind": "ENUM",
+              "name": "BuildMode",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "projectArchive",
             "description": "",
             "type": {
@@ -21233,11 +21334,35 @@
             "deprecationReason": null
           },
           {
+            "name": "mode",
+            "description": "",
+            "type": {
+              "kind": "ENUM",
+              "name": "BuildMode",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "releaseChannel",
             "description": "",
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "resign",
+            "description": "",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "BuildResignInput",
               "ofType": null
             },
             "defaultValue": null,
@@ -21274,6 +21399,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "type",
+            "description": "",
+            "type": {
+              "kind": "ENUM",
+              "name": "BuildWorkflow",
               "ofType": null
             },
             "defaultValue": null,
@@ -23212,6 +23349,12 @@
         "enumValues": [
           {
             "name": "GCS",
+            "description": "",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "NOOP",
             "description": "",
             "isDeprecated": false,
             "deprecationReason": null

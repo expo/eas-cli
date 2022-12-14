@@ -784,6 +784,7 @@ export type AndroidJobInput = {
   developmentClient?: InputMaybe<Scalars['Boolean']>;
   experimental?: InputMaybe<Scalars['JSONObject']>;
   gradleCommand?: InputMaybe<Scalars['String']>;
+  mode?: InputMaybe<BuildMode>;
   projectArchive: ProjectArchiveSourceInput;
   projectRootDirectory: Scalars['String'];
   releaseChannel?: InputMaybe<Scalars['String']>;
@@ -812,6 +813,7 @@ export type AndroidJobOverridesInput = {
   developmentClient?: InputMaybe<Scalars['Boolean']>;
   experimental?: InputMaybe<Scalars['JSONObject']>;
   gradleCommand?: InputMaybe<Scalars['String']>;
+  mode?: InputMaybe<BuildMode>;
   releaseChannel?: InputMaybe<Scalars['String']>;
   secrets?: InputMaybe<AndroidJobSecretsInput>;
   updates?: InputMaybe<BuildUpdatesInput>;
@@ -1805,6 +1807,12 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   workerStartedAt?: Maybe<Scalars['DateTime']>;
 };
 
+
+/** Represents an EAS Build */
+export type BuildCanRetryArgs = {
+  newMode?: InputMaybe<BuildMode>;
+};
+
 export type BuildArtifact = {
   __typename?: 'BuildArtifact';
   manifestPlistUrl?: Maybe<Scalars['String']>;
@@ -1965,6 +1973,11 @@ export type BuildMetrics = {
   buildWaitTime?: Maybe<Scalars['Int']>;
 };
 
+export enum BuildMode {
+  Build = 'BUILD',
+  Resign = 'RESIGN'
+}
+
 export type BuildMutation = {
   __typename?: 'BuildMutation';
   /**
@@ -2121,6 +2134,10 @@ export type BuildQueryByIdArgs = {
   buildId: Scalars['ID'];
 };
 
+export type BuildResignInput = {
+  applicationArchiveSource?: InputMaybe<ProjectArchiveSourceInput>;
+};
+
 export enum BuildResourceClass {
   AndroidDefault = 'ANDROID_DEFAULT',
   AndroidLarge = 'ANDROID_LARGE',
@@ -2146,7 +2163,8 @@ export type BuildUpdatesInput = {
 
 export enum BuildWorkflow {
   Generic = 'GENERIC',
-  Managed = 'MANAGED'
+  Managed = 'MANAGED',
+  Unknown = 'UNKNOWN'
 }
 
 export enum CacheControlScope {
@@ -3017,6 +3035,7 @@ export type IosJobInput = {
   /** @deprecated */
   distribution?: InputMaybe<DistributionType>;
   experimental?: InputMaybe<Scalars['JSONObject']>;
+  mode?: InputMaybe<BuildMode>;
   projectArchive: ProjectArchiveSourceInput;
   projectRootDirectory: Scalars['String'];
   releaseChannel?: InputMaybe<Scalars['String']>;
@@ -3043,10 +3062,13 @@ export type IosJobOverridesInput = {
   /** @deprecated */
   distribution?: InputMaybe<DistributionType>;
   experimental?: InputMaybe<Scalars['JSONObject']>;
+  mode?: InputMaybe<BuildMode>;
   releaseChannel?: InputMaybe<Scalars['String']>;
+  resign?: InputMaybe<BuildResignInput>;
   scheme?: InputMaybe<Scalars['String']>;
   secrets?: InputMaybe<IosJobSecretsInput>;
   simulator?: InputMaybe<Scalars['Boolean']>;
+  type?: InputMaybe<BuildWorkflow>;
   updates?: InputMaybe<BuildUpdatesInput>;
   username?: InputMaybe<Scalars['String']>;
   version?: InputMaybe<IosJobVersionInput>;
@@ -3341,6 +3363,7 @@ export type ProjectArchiveSourceInput = {
 
 export enum ProjectArchiveSourceType {
   Gcs = 'GCS',
+  Noop = 'NOOP',
   S3 = 'S3',
   Url = 'URL'
 }

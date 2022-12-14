@@ -17,8 +17,12 @@ import { EasPaginatedQueryFlags } from '../../commandUtils/pagination';
 import { CredentialsContext } from '../../credentials/context';
 import {
   BuildFragment,
+  BuildMode,
   BuildStatus,
+  BuildWorkflow,
   DistributionType,
+  IosJobOverridesInput,
+  ProjectArchiveSourceType,
   StatuspageServiceName,
 } from '../../graphql/generated';
 import { BuildMutation } from '../../graphql/mutations/BuildMutation';
@@ -138,7 +142,7 @@ export default class BuildResign extends EasCommand {
       env: buildProfile.env,
       easJsonCliConfig,
     });
-    if (buildProfile.credentialsSource !== CredentialsSource.LOCAL) {
+    if (buildProfile.credentialsSource !== CredentialsSource.LOCAL && !nonInteractive) {
       await credentialsCtx.appStore.ensureAuthenticatedAsync();
     }
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(
@@ -160,14 +164,23 @@ export default class BuildResign extends EasCommand {
       targets,
       buildProfile
     );
-    const job = {
-      buildId: build.id,
-      jobOverrides: {
-        secrets: prepareCredentialsToResign(credentialsResult.credentials),
-        builderEnvironment: { image: 'default' },
+    assert(build.artifacts?.applicationArchiveUrl, 'Missing application archive.');
+    const jobOverrides: IosJobOverridesInput = {
+      mode: BuildMode.Resign,
+      type: BuildWorkflow.Unknown,
+      resign: {
+        applicationArchiveSource: {
+          type: ProjectArchiveSourceType.Url,
+          url: build.artifacts?.applicationArchiveUrl,
+        },
       },
+      secrets: prepareCredentialsToResign(credentialsResult.credentials),
+      builderEnvironment: { image: 'default' },
     };
-    const newBuild = await BuildMutation.retryIosBuildAsync(graphqlClient, job);
+    const newBuild = await BuildMutation.retryIosBuildAsync(graphqlClient, {
+      buildId: build.id,
+      jobOverrides,
+    });
 
     Log.addNewLineIfNone();
     printLogsUrls([newBuild]);
@@ -245,7 +258,7 @@ export default class BuildResign extends EasCommand {
       filter: {
         distribution: DistributionType.Internal,
         platform: toAppPlatform(platform),
-        //status: BuildStatus.Finished,
+        status: BuildStatus.Finished,
       },
     });
     if (!build) {
