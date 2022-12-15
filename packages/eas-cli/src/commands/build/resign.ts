@@ -33,7 +33,7 @@ import { requestedPlatformDisplayNames, selectPlatformAsync } from '../../platfo
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { resolveTargetsAsync } from '../../project/ios/target';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
-import { printJsonOnlyOutput } from '../../utils/json';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
 interface BuildResignFlags {
@@ -92,6 +92,10 @@ export default class BuildResign extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(BuildResign);
+    if (rawFlags.json) {
+      enableJsonOutput();
+    }
+
     const flags = this.sanitizeFlags(rawFlags as RawBuildResignFlags);
     const { limit, offset, nonInteractive } = flags;
 
@@ -208,7 +212,7 @@ export default class BuildResign extends EasCommand {
     const nonInteractive = flags['non-interactive'];
     if (nonInteractive && !flags.id) {
       throw new Error(
-        `${chalk.bold('--build-id')} is required when running with ${chalk.bold(
+        `${chalk.bold('--id')} is required when running with ${chalk.bold(
           '--non-interactive'
         )} flag.`
       );
