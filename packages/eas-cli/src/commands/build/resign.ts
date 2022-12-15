@@ -58,7 +58,7 @@ interface RawBuildResignFlags {
 }
 
 export default class BuildResign extends EasCommand {
-  static override description = 'resign a build archive';
+  static override description = 're-sign a build archive';
 
   static override flags = {
     platform: Flags.enum({
@@ -74,10 +74,10 @@ export default class BuildResign extends EasCommand {
     wait: Flags.boolean({
       default: true,
       allowNo: true,
-      description: 'Wait for build(s) to complete',
+      description: 'Wait for build(s) to complete.',
     }),
-    'build-id': Flags.string({
-      description: 'Id of the build to resign',
+    id: Flags.string({
+      description: 'ID of the build to re-sign.',
     }),
     ...EasPaginatedQueryFlags,
     ...EasNonInteractiveAndJsonFlags,
@@ -203,6 +203,7 @@ export default class BuildResign extends EasCommand {
       printJsonOnlyOutput(buildResult[0]);
     }
   }
+
   sanitizeFlags(flags: RawBuildResignFlags): BuildResignFlags {
     const nonInteractive = flags['non-interactive'];
     const maybeBuildId = flags['build-id'];
@@ -248,7 +249,7 @@ export default class BuildResign extends EasCommand {
     }
     const build = await listAndSelectBuildOnAppAsync(graphqlClient, {
       projectId,
-      title: 'Which build would you like to sign with a new credentials?',
+      title: 'Which build would you like to re-sign with new credentials?',
       paginatedQueryOptions: {
         limit,
         offset: offset ?? 0,
@@ -262,7 +263,7 @@ export default class BuildResign extends EasCommand {
       },
     });
     if (!build) {
-      throw new Error('There are no builds that can be resigned on this project.');
+      throw new Error('There are no builds that can be re-signed on this project.');
     }
     return build;
   }
@@ -275,14 +276,14 @@ export default class BuildResign extends EasCommand {
     if (maybeBuildId) {
       const build = await BuildQuery.byIdAsync(graphqlClient, maybeBuildId);
       if (build.distribution !== DistributionType.Internal) {
-        throw new Error('This is not internal distribution build.');
+        throw new Error('This is not an internal distribution build.');
       }
       if (build.status !== BuildStatus.Finished) {
-        throw new Error('You can only resign builds that finished successfully.');
+        throw new Error('Only builds that finished successfully can be re-signed.');
       }
       if (maybePlatform && build.platform !== toAppPlatform(maybePlatform)) {
         throw new Error(
-          `Build with id ${maybeBuildId} was not created for platform ${requestedPlatformDisplayNames[maybePlatform]}.`
+          `Build with ID ${maybeBuildId} was not created for platform ${requestedPlatformDisplayNames[maybePlatform]}.`
         );
       }
       return build;
