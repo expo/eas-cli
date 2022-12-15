@@ -38,6 +38,7 @@ import {
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
+import { getBranchNameFromChannelNameAsync } from '../../update/getBranchNameFromChannelNameAsync';
 import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
@@ -56,6 +57,7 @@ export const defaultPublishPlatforms: Partial<PublishPlatform>[] = ['android', '
 type RawUpdateFlags = {
   auto: boolean;
   branch?: string;
+  channel?: string;
   message?: string;
   platform: string;
   'input-dir': string;
@@ -73,6 +75,7 @@ type UpdateFlags = {
   auto: boolean;
   platform: ExpoCLIExportPlatformFlag;
   branchName?: string;
+  channelName?: string;
   updateMessage?: string;
   inputDir: string;
   skipBundler: boolean;
@@ -102,6 +105,10 @@ export default class UpdatePublish extends EasCommand {
   static override flags = {
     branch: Flags.string({
       description: 'Branch to publish the update group on',
+      required: false,
+    }),
+    channel: Flags.string({
+      description: 'Channel that the published update should affect',
       required: false,
     }),
     message: Flags.string({
@@ -158,7 +165,7 @@ export default class UpdatePublish extends EasCommand {
     let {
       auto: autoFlag,
       platform: platformFlag,
-      branchName,
+      channelName,
       updateMessage,
       inputDir,
       skipBundler,
@@ -166,6 +173,7 @@ export default class UpdatePublish extends EasCommand {
       json: jsonFlag,
       nonInteractive,
     } = this.sanitizeFlags(rawFlags);
+    let branchName = this.sanitizeFlags(rawFlags).branchName;
 
     const {
       getDynamicProjectConfigAsync,
@@ -204,11 +212,21 @@ export default class UpdatePublish extends EasCommand {
 
     let realizedPlatforms: PublishPlatform[] = [];
 
+    if (channelName && branchName) {
+      throw new Error(
+        'Cannot specify both --channel and --branch. Specify either --channel, --branch, or --auto'
+      );
+    }
+
+    if (channelName) {
+      branchName = await getBranchNameFromChannelNameAsync(graphqlClient, projectId, channelName);
+    }
+
     if (!branchName) {
       if (autoFlag) {
         branchName = await getDefaultBranchNameAsync();
       } else if (nonInteractive) {
-        throw new Error('Must supply --branch or use --auto when in non-interactive mode');
+        throw new Error('Must supply --channel, --branch or --auto when in non-interactive mode');
       } else {
         try {
           const branch = await selectBranchOnAppAsync(graphqlClient, {
@@ -490,10 +508,10 @@ export default class UpdatePublish extends EasCommand {
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
     const nonInteractive = flags['non-interactive'] ?? false;
 
-    const { auto, branch: branchName, message: updateMessage } = flags;
-    if (nonInteractive && !auto && !(branchName && updateMessage)) {
+    const { auto, branch: branchName, channel: channelName, message: updateMessage } = flags;
+    if (nonInteractive && !auto && !(branchName && channelName && updateMessage)) {
       Errors.error(
-        '--auto or both --branch and --message are required when updating in non-interactive mode',
+        '--auto or both --channel or --branch and --message are required when updating in non-interactive mode',
         { exit: 1 }
       );
     }
@@ -518,6 +536,7 @@ export default class UpdatePublish extends EasCommand {
     return {
       auto,
       branchName,
+      channelName,
       updateMessage,
       inputDir: flags['input-dir'],
       skipBundler: flags['skip-bundler'],
