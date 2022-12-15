@@ -70,7 +70,9 @@ export default class UpdateList extends EasCommand {
         const selectedBranch = await selectBranchOnAppAsync(graphqlClient, {
           projectId,
           promptTitle: 'Which branch would you like to view?',
-          displayTextForListItem: updateBranch => updateBranch.name,
+          displayTextForListItem: updateBranch => ({
+            title: updateBranch.name,
+          }),
           paginatedQueryOptions:
             // discard limit and offset because this query is not those flag's intended target
             {

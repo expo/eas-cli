@@ -245,7 +245,7 @@ export default class Build extends EasCommand {
   }
 }
 
-async function handleDeprecatedEasJsonAsync(
+export async function handleDeprecatedEasJsonAsync(
   projectDir: string,
   nonInteractive: boolean
 ): Promise<void> {

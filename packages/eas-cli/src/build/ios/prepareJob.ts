@@ -1,8 +1,10 @@
 import { ArchiveSource, Ios, Job, Platform, sanitizeJob } from '@expo/eas-build-job';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import slash from 'slash';
 
 import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
+import { IosJobSecretsInput } from '../../graphql/generated';
 import { getUsername } from '../../project/projectUtils';
 import { getVcsClient } from '../../vcs';
 import { BuildContext } from '../context';
@@ -77,6 +79,22 @@ export async function prepareJobAsync(
     },
   };
   return sanitizeJob(job);
+}
+
+export function prepareCredentialsToResign(credentials: IosCredentials): IosJobSecretsInput {
+  const buildCredentials: IosJobSecretsInput['buildCredentials'] = [];
+  for (const targetName of Object.keys(credentials ?? {})) {
+    buildCredentials.push({
+      targetName,
+      provisioningProfileBase64: nullthrows(credentials?.[targetName].provisioningProfile),
+      distributionCertificate: {
+        dataBase64: nullthrows(credentials?.[targetName].distributionCertificate.certificateP12),
+        password: nullthrows(credentials?.[targetName].distributionCertificate.certificatePassword),
+      },
+    });
+  }
+
+  return { buildCredentials };
 }
 
 function prepareTargetCredentials(targetCredentials: TargetCredentials): Ios.TargetCredentials {

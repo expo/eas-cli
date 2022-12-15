@@ -120,7 +120,7 @@ export default class BranchDelete extends EasCommand {
       }
       ({ name: branchName } = await selectBranchOnAppAsync(graphqlClient, {
         projectId,
-        displayTextForListItem: updateBranch => updateBranch.name,
+        displayTextForListItem: updateBranch => ({ title: updateBranch.name }),
         promptTitle: 'Which branch would you like to delete?',
         paginatedQueryOptions,
       }));

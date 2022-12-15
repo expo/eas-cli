@@ -214,10 +214,11 @@ export default class UpdatePublish extends EasCommand {
           const branch = await selectBranchOnAppAsync(graphqlClient, {
             projectId,
             promptTitle: `Which branch would you like to publish on?`,
-            displayTextForListItem: updateBranch =>
-              `${updateBranch.name} ${chalk.grey(
+            displayTextForListItem: updateBranch => ({
+              title: `${updateBranch.name} ${chalk.grey(
                 `- current update: ${formatUpdateMessage(updateBranch.updates[0])}`
               )}`,
+            }),
             paginatedQueryOptions,
           });
           branchName = branch.name;

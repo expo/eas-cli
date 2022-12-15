@@ -8,7 +8,10 @@ import Log from '../log';
 import { promptAsync } from '../prompts';
 import { fromNow } from '../utils/date';
 import { printJsonOnlyOutput } from '../utils/json';
-import { paginatedQueryWithConfirmPromptAsync } from '../utils/queries';
+import {
+  paginatedQueryWithConfirmPromptAsync,
+  paginatedQueryWithSelectPromptAsync,
+} from '../utils/queries';
 import { formatGraphQLBuild } from './utils/formatBuild';
 
 export const BUILDS_LIMIT = 50;
@@ -50,6 +53,42 @@ export async function listAndRenderBuildsOnAppAsync(
         title: 'Load more builds?',
         renderListItems: builds =>
           renderPageOfBuilds({ builds, projectDisplayName, paginatedQueryOptions }),
+      },
+    });
+  }
+}
+
+export async function listAndSelectBuildOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    title,
+    filter,
+    paginatedQueryOptions,
+  }: {
+    projectId: string;
+    title: string;
+    filter?: BuildFilter;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<BuildFragment | void> {
+  if (paginatedQueryOptions.nonInteractive) {
+    throw new Error('Unable to select a build in non-interactive mode.');
+  } else {
+    return await paginatedQueryWithSelectPromptAsync({
+      limit: paginatedQueryOptions.limit ?? BUILDS_LIMIT,
+      offset: paginatedQueryOptions.offset,
+      queryToPerform: (limit, offset) =>
+        BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
+          appId: projectId,
+          limit,
+          offset,
+          filter,
+        }),
+      promptOptions: {
+        title,
+        getIdentifierForQueryItem: build => build.id,
+        createDisplayTextForSelectionPromptListItem: formatBuildChoiceTitleAndDescription,
       },
     });
   }

@@ -15,6 +15,7 @@ import Log from '../log';
 import { formatBranch, getBranchDescription } from '../update/utils';
 import { printJsonOnlyOutput } from '../utils/json';
 import {
+  SelectPromptEntry,
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
@@ -31,7 +32,7 @@ export async function selectBranchOnAppAsync(
     paginatedQueryOptions,
   }: {
     projectId: string;
-    displayTextForListItem: (queryItem: UpdateBranchFragment) => string;
+    displayTextForListItem: (queryItem: UpdateBranchFragment) => SelectPromptEntry;
     promptTitle: string;
     paginatedQueryOptions: PaginatedQueryOptions;
   }
