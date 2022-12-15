@@ -54,7 +54,7 @@ interface RawBuildResignFlags {
   platform: 'android' | 'ios' | undefined;
   profile: string | undefined;
   wait: boolean;
-  'build-id': string | undefined;
+  id: string | undefined;
 }
 
 export default class BuildResign extends EasCommand {
@@ -206,8 +206,7 @@ export default class BuildResign extends EasCommand {
 
   sanitizeFlags(flags: RawBuildResignFlags): BuildResignFlags {
     const nonInteractive = flags['non-interactive'];
-    const maybeBuildId = flags['build-id'];
-    if (nonInteractive && !maybeBuildId) {
+    if (nonInteractive && !flags.id) {
       throw new Error(
         `${chalk.bold('--build-id')} is required when running with ${chalk.bold(
           '--non-interactive'
@@ -221,7 +220,7 @@ export default class BuildResign extends EasCommand {
       limit: flags.limit,
       platform: flags.platform as Platform | undefined,
       profile: flags.profile,
-      maybeBuildId,
+      maybeBuildId: flags.id,
       wait: flags.wait,
     };
   }

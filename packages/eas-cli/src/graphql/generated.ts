@@ -3363,7 +3363,7 @@ export type ProjectArchiveSourceInput = {
 
 export enum ProjectArchiveSourceType {
   Gcs = 'GCS',
-  Noop = 'NOOP',
+  None = 'NONE',
   S3 = 'S3',
   Url = 'URL'
 }

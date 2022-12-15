@@ -62,6 +62,7 @@ export async function listAndSelectBuildOnAppAsync(
   graphqlClient: ExpoGraphqlClient,
   {
     projectId,
+    title,
     filter,
     paginatedQueryOptions,
   }: {
@@ -85,7 +86,7 @@ export async function listAndSelectBuildOnAppAsync(
           filter,
         }),
       promptOptions: {
-        title: 'Load more builds?',
+        title,
         getIdentifierForQueryItem: build => build.id,
         createDisplayTextForSelectionPromptListItem: formatBuildChoiceTitleAndDescription,
       },
