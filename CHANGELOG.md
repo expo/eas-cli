@@ -8,13 +8,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Adds `--channel` flag to `eas update`. ([#1567](https://github.com/expo/eas-cli/pull/1567) by [@jonsamp](https://github.com/jonsamp))
-- Add channel configurations to **eas.json** during `eas update:configure`. ([#1570](https://github.com/expo/eas-cli/pull/1570) by [@jonsamp](https://github.com/jonsamp))
-- Add `build:resign` command. ([#1575](https://github.com/expo/eas-cli/pull/1575) by [@wkozyra95](https://github.com/wkozyra95))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [3.1.0](https://github.com/expo/eas-cli/releases/tag/v3.1.0) - 2022-12-17
+
+### 🎉 New features
+
+- Adds `--channel` flag to `eas update`. ([#1567](https://github.com/expo/eas-cli/pull/1567) by [@jonsamp](https://github.com/jonsamp))
+- Add channel configurations to **eas.json** during `eas update:configure`. ([#1570](https://github.com/expo/eas-cli/pull/1570) by [@jonsamp](https://github.com/jonsamp))
+- Add `build:resign` command. ([#1575](https://github.com/expo/eas-cli/pull/1575) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [3.0.0](https://github.com/expo/eas-cli/releases/tag/v3.0.0) - 2022-12-07
 
