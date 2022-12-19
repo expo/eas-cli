@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix update `--channel` and `--branch` flag validation. ([#1579](https://github.com/expo/eas-cli/pull/1579) by [@byCedric](https://github.com/byCedric))
+
 ### 🧹 Chores
 
 ## [3.1.0](https://github.com/expo/eas-cli/releases/tag/v3.1.0) - 2022-12-17
