@@ -54,9 +54,39 @@ jest.mock('../../../ora', () => ({
 describe(UpdateRepublish.name, () => {
   afterEach(() => vol.reset());
 
-  it('errors without --branch or --group', async () => {
+  it('errors without --channel, --branch, or --group', async () => {
     await expect(new UpdateRepublish([], commandOptions).run()).rejects.toThrow(
       '--channel, --branch, or --group must be specified'
+    );
+  });
+
+  it('errors when providing both --group and --branch', async () => {
+    const flags = ['--group=1234', '--branch=main'];
+
+    mockTestProject();
+
+    await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
+      /--branch=main cannot also be provided when using --group/
+    );
+  });
+
+  it('errors when providing both --channel and --branch', async () => {
+    const flags = ['--channel=main', '--branch=main'];
+
+    mockTestProject();
+
+    await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
+      /--branch=main cannot also be provided when using --channel/
+    );
+  });
+
+  it('errors when providing both --group and --channel', async () => {
+    const flags = ['--group=1234', '--channel=main'];
+
+    mockTestProject();
+
+    await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
+      /--channel=main cannot also be provided when using --group/
     );
   });
 
@@ -84,16 +114,6 @@ describe(UpdateRepublish.name, () => {
 
     await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
       'There are no updates on branch "main" published for the platform(s) "android" with group ID "1234". Did you mean to publish a new update instead?'
-    );
-  });
-
-  it('errors when republishing update with both --group and --branch', async () => {
-    const flags = ['--group=1234', '--branch=main'];
-
-    mockTestProject();
-
-    await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
-      /--branch=main cannot also be provided when using --group/
     );
   });
 
