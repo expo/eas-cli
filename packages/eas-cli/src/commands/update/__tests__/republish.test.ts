@@ -48,6 +48,8 @@ jest.mock('../../../ora', () => ({
 }));
 
 describe(UpdateRepublish.name, () => {
+  afterEach(() => vol.reset());
+
   it('errors without --branch or --group', async () => {
     await expect(new UpdateRepublish([], commandOptions).run()).rejects.toThrow(
       '--branch or --group must be specified'

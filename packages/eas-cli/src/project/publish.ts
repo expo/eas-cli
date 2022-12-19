@@ -31,6 +31,7 @@ export type RawAsset = {
   contentType: string;
   path: string;
 };
+
 type CollectedAssets = {
   [platform in Platform]?: {
     launchAsset: RawAsset;
