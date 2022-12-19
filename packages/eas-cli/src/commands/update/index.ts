@@ -511,7 +511,7 @@ export default class UpdatePublish extends EasCommand {
     const { auto, branch: branchName, channel: channelName, message: updateMessage } = flags;
     if (nonInteractive && !auto && !(updateMessage && (branchName || channelName))) {
       Errors.error(
-      '--branch and --message, or --channel and --message are required when updating in non-interactive mode unless --auto is specified',
+        '--branch and --message, or --channel and --message are required when updating in non-interactive mode unless --auto is specified',
         { exit: 1 }
       );
     }
