@@ -159,9 +159,11 @@ function mockTestProject({
 function mockTestExport({
   exportDir = 'dist',
   platforms = ['android', 'ios'],
+  runtimeVersion = 'exposdk:47.0.0',
 }: {
   exportDir?: string;
   platforms?: Platform[];
+  runtimeVersion?: string;
 } = {}): {
   inputDir: string;
   platforms: Platform[];
@@ -192,14 +194,14 @@ function mockTestExport({
   );
 
   jest.mocked(uploadAssetsAsync).mockResolvedValue({
-    // 3 platforms are mocked all containing only the launch asset
+    // platforms are mocked all containing only the launch asset
     assetCount: platforms.length,
     uniqueAssetCount: platforms.length,
     uniqueUploadedAssetCount: platforms.length,
     assetLimitPerUpdateGroup: 9001,
   });
 
-  jest.mocked(Updates.getRuntimeVersion).mockReturnValue('exposdk:47.0.0');
+  jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
 
-  return { inputDir: exportDir, platforms, runtimeVersion: 'exposdk:47.0.0' };
+  return { inputDir: exportDir, platforms, runtimeVersion };
 }
