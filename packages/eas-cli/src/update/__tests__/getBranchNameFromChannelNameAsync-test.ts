@@ -61,7 +61,7 @@ describe(getBranchNameFromChannelNameAsync, () => {
     expect(
       getBranchNameFromChannelNameAsync(graphqlClient, 'test-project-id', 'test-channel-name')
     ).rejects.toThrow(
-      "Channel has multiple branches associated with it. Instead, use 'eas update --branch'"
+      "Channel has multiple branches associated with it. Instead, use '--branch' instead of '--channel'"
     );
   });
 
