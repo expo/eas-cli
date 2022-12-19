@@ -39,7 +39,7 @@ jest.mock('../../../project/publish', () => ({
   ...jest.requireActual('../../../project/publish'),
   buildBundlesAsync: jest.fn(),
   collectAssetsAsync: jest.fn(),
-  resolveInputDirectoryAsync: jest.fn(() => path.join(projectRoot, 'dist')),
+  resolveInputDirectoryAsync: jest.fn((inputDir = 'dist') => path.join(projectRoot, inputDir)),
   uploadAssetsAsync: jest.fn(),
 }));
 
