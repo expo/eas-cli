@@ -25,7 +25,7 @@ export async function getBranchNameFromChannelNameAsync(
       );
     } else {
       throw new Error(
-        "Channel has multiple branches associated with it. Instead, use 'eas update --branch'"
+        `Channel has multiple branches associated with it. Instead, use '--branch' instead of '--channel'`
       );
     }
   } catch (error) {
