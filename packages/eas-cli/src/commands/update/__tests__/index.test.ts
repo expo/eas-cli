@@ -137,7 +137,7 @@ function mockTestProject({
   configuredProjectId = '1234',
 }: {
   configuredProjectId?: string;
-} = {}): { projectId: string; } {
+} = {}): { projectId: string } {
   const packageJSON: PackageJSONConfig = {
     name: 'testing123',
     version: '0.1.0',
