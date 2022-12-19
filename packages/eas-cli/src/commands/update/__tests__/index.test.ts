@@ -15,6 +15,7 @@ import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { collectAssetsAsync, uploadAssetsAsync } from '../../../project/publish';
+import { getBranchNameFromChannelNameAsync } from '../../../update/getBranchNameFromChannelNameAsync';
 
 const projectRoot = '/test-project';
 const commandOptions = { root: projectRoot } as any;
@@ -25,6 +26,7 @@ jest.mock('@expo/config-plugins');
 jest.mock('../../../branch/queries');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
 jest.mock('../../../update/configure');
+jest.mock('../../../update/getBranchNameFromChannelNameAsync');
 jest.mock('../../../graphql/mutations/PublishMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
@@ -90,6 +92,43 @@ describe(UpdatePublish.name, () => {
     );
 
     await new UpdatePublish(flags, commandOptions).run();
+
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
+  });
+
+  it('creates a new update with --non-interactive, --channel, and --message', async () => {
+    const flags = ['--non-interactive', '--channel=channel123', '--message=abc'];
+
+    const { projectId } = mockTestProject();
+    const { platforms, runtimeVersion } = mockTestExport();
+
+    jest.mocked(getBranchNameFromChannelNameAsync).mockResolvedValue('branchFromChannel');
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branchId: 'branch123',
+      createdBranch: false,
+    });
+
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue(
+      platforms.map(platform => ({
+        id: 'update123',
+        group: 'group123',
+        runtimeVersion,
+        platform,
+        manifestPermalink: 'https://example.com/update123/manifest',
+      }))
+    );
+
+    await new UpdatePublish(flags, commandOptions).run();
+
+    expect(ensureBranchExistsAsync).toHaveBeenCalledWith(
+      expect.any(Object), // graphql client
+      {
+        appId: projectId,
+        branchName: 'branchFromChannel',
+      }
+    );
+
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
   });
 });
 
@@ -98,7 +137,7 @@ function mockTestProject({
   configuredProjectId = '1234',
 }: {
   configuredProjectId?: string;
-} = {}): void {
+} = {}): { projectId: string; } {
   const packageJSON: PackageJSONConfig = {
     name: 'testing123',
     version: '0.1.0',
@@ -153,6 +192,8 @@ function mockTestProject({
     fullName: '@jester/testing-123',
     ownerAccount: jester.accounts[0],
   });
+
+  return { projectId: configuredProjectId };
 }
 
 /** Create a new in-memory export of the project */
