@@ -13,6 +13,7 @@ import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { getBranchNameFromChannelNameAsync } from '../../update/getBranchNameFromChannelNameAsync';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 import { truncateString as truncateUpdateMessage } from '../../update/utils';
 import formatFields from '../../utils/formatFields';
@@ -22,6 +23,7 @@ const defaultRepublishPlatforms: Platform[] = ['android', 'ios'];
 
 type UpdateRepublishRawFlags = {
   branch?: string;
+  channel?: string;
   group?: string;
   message?: string;
   platform: string;
@@ -31,6 +33,7 @@ type UpdateRepublishRawFlags = {
 
 type UpdateRepublishFlags = {
   branchName?: string;
+  channelName?: string;
   groupId?: string;
   updateMessage?: string;
   platform: Platform[];
@@ -56,13 +59,17 @@ export default class UpdateRepublish extends EasCommand {
   static override description = 'rollback to an existing update';
 
   static override flags = {
+    channel: Flags.string({
+      description: 'Channel name to select an update to republish from',
+      exclusive: ['branch', 'group'],
+    }),
     branch: Flags.string({
       description: 'Branch name to select an update to republish from',
-      exclusive: ['group'],
+      exclusive: ['channel', 'group'],
     }),
     group: Flags.string({
       description: 'Update group ID to republish',
-      exclusive: ['branch'],
+      exclusive: ['branch', 'channel'],
     }),
     message: Flags.string({
       description: 'Short message describing the republished update',
@@ -217,10 +224,15 @@ export default class UpdateRepublish extends EasCommand {
 
   sanitizeFlags(rawFlags: UpdateRepublishRawFlags): UpdateRepublishFlags {
     const branchName = rawFlags.branch;
+    const channelName = rawFlags.channel;
     const groupId = rawFlags.group;
+    const nonInteractive = rawFlags['non-interactive'];
 
-    if (!branchName && !groupId) {
-      throw new Error('Either --branch or --group must be specified');
+    if (nonInteractive && !groupId) {
+      throw new Error('Only --group can be used in non-interactive mode');
+    }
+    if (!groupId && !(branchName || channelName)) {
+      throw new Error(`--channel, --branch, or --group must be specified`);
     }
 
     const platform =
@@ -228,11 +240,12 @@ export default class UpdateRepublish extends EasCommand {
 
     return {
       branchName,
+      channelName,
       groupId,
       platform,
       updateMessage: rawFlags.message,
       json: rawFlags.json ?? false,
-      nonInteractive: rawFlags['non-interactive'],
+      nonInteractive,
     };
   }
 }
@@ -264,7 +277,15 @@ async function getOrAskUpdatesAsync(
     });
   }
 
-  throw new Error('Must supply --group or --branch');
+  if (flags.channelName) {
+    return await askUpdatesFromChannelNameAsync(graphqlClient, {
+      ...flags,
+      channelName: flags.channelName,
+      projectId,
+    });
+  }
+
+  throw new Error('--channel, --branch, or --group is required');
 }
 
 /** Ask the user which update needs to be republished by branch name, this requires interactive mode */
@@ -293,6 +314,29 @@ async function askUpdatesFromBranchNameAsync(
     branchId: group.branch.id,
     branchName: group.branch.name,
   }));
+}
+/** Ask the user which update needs to be republished by channel name, this requires interactive mode */
+async function askUpdatesFromChannelNameAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    channelName,
+    json,
+    nonInteractive,
+  }: { projectId: string; channelName: string; json: boolean; nonInteractive: boolean }
+): Promise<UpdateToRepublish[]> {
+  if (nonInteractive) {
+    throw new Error('Must supply --group when in non-interactive mode');
+  }
+
+  const branchName = await getBranchNameFromChannelNameAsync(graphqlClient, projectId, channelName);
+
+  return await askUpdatesFromBranchNameAsync(graphqlClient, {
+    projectId,
+    branchName,
+    json,
+    nonInteractive,
+  });
 }
 
 /** Get or ask the user for the update (group) message for the republish */

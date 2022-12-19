@@ -12,6 +12,8 @@ import { CodeSigningInfo, UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { UpdateQuery } from '../../../graphql/queries/UpdateQuery';
+import { getBranchNameFromChannelNameAsync } from '../../../update/getBranchNameFromChannelNameAsync';
+import { selectUpdateGroupOnBranchAsync } from '../../../update/queries';
 import UpdateRepublish from '../republish';
 
 const projectRoot = '/test-project';
@@ -41,6 +43,8 @@ jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
 jest.mock('../../../graphql/mutations/PublishMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
+jest.mock('../../../update/getBranchNameFromChannelNameAsync');
+jest.mock('../../../update/queries');
 jest.mock('../../../ora', () => ({
   ora: () => ({
     start: () => ({ succeed: () => {}, fail: () => {} }),
@@ -50,9 +54,39 @@ jest.mock('../../../ora', () => ({
 describe(UpdateRepublish.name, () => {
   afterEach(() => vol.reset());
 
-  it('errors without --branch or --group', async () => {
+  it('errors without --channel, --branch, or --group', async () => {
     await expect(new UpdateRepublish([], commandOptions).run()).rejects.toThrow(
-      '--branch or --group must be specified'
+      '--channel, --branch, or --group must be specified'
+    );
+  });
+
+  it('errors when providing both --group and --branch', async () => {
+    const flags = ['--group=1234', '--branch=main'];
+
+    mockTestProject();
+
+    await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
+      /--branch=main cannot also be provided when using --group/
+    );
+  });
+
+  it('errors when providing both --channel and --branch', async () => {
+    const flags = ['--channel=main', '--branch=main'];
+
+    mockTestProject();
+
+    await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
+      /--branch=main cannot also be provided when using --channel/
+    );
+  });
+
+  it('errors when providing both --group and --channel', async () => {
+    const flags = ['--group=1234', '--channel=main'];
+
+    mockTestProject();
+
+    await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
+      /--channel=main cannot also be provided when using --group/
     );
   });
 
@@ -83,17 +117,7 @@ describe(UpdateRepublish.name, () => {
     );
   });
 
-  it('errors when republishing update with both --group and --branch', async () => {
-    const flags = ['--group=1234', '--branch=main'];
-
-    mockTestProject();
-
-    await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
-      /--branch=main cannot also be provided when using --group/
-    );
-  });
-
-  it('creates a new update from existing update', async () => {
+  it('re-creates update with --group and --message', async () => {
     const flags = ['--group=1234', '--message=test-republish'];
 
     mockTestProject();
@@ -129,7 +153,7 @@ describe(UpdateRepublish.name, () => {
     expect(PublishMutation.setCodeSigningInfoAsync).not.toHaveBeenCalled();
   });
 
-  it('creates a new update from existing update with codesigning', async () => {
+  it('re-creates update using codesigning with --group and --message', async () => {
     const flags = ['--group=1234', '--message=test-republish'];
     const codeSigning = {
       alg: 'alg',
@@ -174,6 +198,86 @@ describe(UpdateRepublish.name, () => {
       expect.any(Object), // graphql client
       'update-new',
       expect.objectContaining(codeSigning)
+    );
+  });
+
+  it('re-creates update with --branch and --message', async () => {
+    const flags = ['--branch=branch123', '--message=test-republish'];
+
+    mockTestProject();
+    // Mock the prompt to ask the user which update to republish, from branch
+    jest.mocked(selectUpdateGroupOnBranchAsync).mockResolvedValue([updateStub]);
+    // Mock mutations to store the new update
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue([
+      {
+        ...updateStub,
+        id: 'update-new',
+        platform: 'ios',
+        manifestPermalink: 'https://expo.dev/@test/test-project/manifest',
+      },
+    ]);
+
+    await new UpdateRepublish(flags, commandOptions).run();
+
+    expect(selectUpdateGroupOnBranchAsync).toHaveBeenCalledWith(
+      expect.any(Object), // graphql client
+      expect.objectContaining({ branchName: 'branch123' })
+    );
+
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalledWith(
+      expect.any(Object), // graphql client
+      expect.arrayContaining([
+        expect.objectContaining({
+          branchId: updateStub.branch.id,
+          runtimeVersion: updateStub.runtimeVersion,
+          updateInfoGroup: expect.objectContaining({
+            ios: expect.any(Object),
+          }),
+          gitCommitHash: updateStub.gitCommitHash,
+          awaitingCodeSigningInfo: false,
+        }),
+      ])
+    );
+  });
+
+  it('re-creates update with --channel and --message', async () => {
+    const flags = ['--channel=channel123', '--message=test-republish'];
+
+    mockTestProject();
+    // Mock resolving the channel to branch name, only valid for a single branch connected
+    jest.mocked(getBranchNameFromChannelNameAsync).mockResolvedValue('branchFromChannel');
+    // Mock the prompt to ask the user which update to republish, from branch
+    jest.mocked(selectUpdateGroupOnBranchAsync).mockResolvedValue([updateStub]);
+    // Mock mutations to store the new update
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue([
+      {
+        ...updateStub,
+        id: 'update-new',
+        platform: 'ios',
+        manifestPermalink: 'https://expo.dev/@test/test-project/manifest',
+      },
+    ]);
+
+    await new UpdateRepublish(flags, commandOptions).run();
+
+    expect(selectUpdateGroupOnBranchAsync).toHaveBeenCalledWith(
+      expect.any(Object), // graphql client
+      expect.objectContaining({ branchName: 'branchFromChannel' })
+    );
+
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalledWith(
+      expect.any(Object), // graphql client
+      expect.arrayContaining([
+        expect.objectContaining({
+          branchId: updateStub.branch.id,
+          runtimeVersion: updateStub.runtimeVersion,
+          updateInfoGroup: expect.objectContaining({
+            ios: expect.any(Object),
+          }),
+          gitCommitHash: updateStub.gitCommitHash,
+          awaitingCodeSigningInfo: false,
+        }),
+      ])
     );
   });
 });
