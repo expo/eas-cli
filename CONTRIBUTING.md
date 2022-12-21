@@ -1,6 +1,10 @@
 # Development
 
-Set up an alias for the EAS CLI so you can try it in projects all around your computer. The project is compiled on the fly so you don't need to run a build (watch) command. Open your `.zshrc` or other config file and add:
+Set up an alias for the EAS CLI so you can try it in projects all around your computer. The project is compiled on the fly so you don't need to run a build (watch) command.
+
+> The only exception is when you just cloned the repository or there have been changes in `packages/eas-json`. In that case, you'll have to run `yarn build` in the root.
+
+Open your `.zshrc` or other config file and add:
 
 ```
 alias easd="/PATH/TO/eas-cli/bin/run"
@@ -8,7 +12,7 @@ alias easd="/PATH/TO/eas-cli/bin/run"
 
 Then use it with `easd` like `easd build`.
 
-Optional: to start the build command in watch mode run:
+If you're making changes to `packages/eas-json` or prefer/need to work with production code, start the build command in watch mode with:
 
 ```
 yarn start
@@ -31,11 +35,14 @@ For development against staging API:
 
 - Set the `EXPO_STAGING=1` env variable either on every command run (e.g. `EXPO_STAGING=1 easd ...`) or more permamently with `export EXPO_STAGING=1` (works in a current shell session).
 
+## Working on local builds (`eas build --local`)
+
+See https://github.com/expo/eas-build/blob/main/DEVELOPMENT.md for how to set up your environment when making changes to [`eas-cli-local-build-plugin`](https://github.com/expo/eas-build/tree/main/packages/local-build-plugin) and/or [`build-tools`](https://github.com/expo/eas-build/tree/main/packages/build-tools).
+
 ## Testing
 
 Run `yarn test` either in the repository root or in a package directory that you're working on.
 
-# Releasing a new version
+## Releasing
 
-1. Run `yarn release` in the repository root folder. The next version is chosen automatically based on the changelog entries. If you want to use different version, pass the version string as a positional argument to the command, e.g. `yarn release 1.2.3`.
-2. That's it! GitHub Actions is going to take care of the rest. Watch the #eas-cli Slack channel for a successful release notification.
+See [RELEASING.md](./RELEASING.md).
