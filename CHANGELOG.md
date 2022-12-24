@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add `--channel` option to `update:republish`. ([#1580](https://github.com/expo/eas-cli/pull/1580) by [@byCedric](https://github.com/byCedric))
+- Use `appVersion` as default runtime version policy when running `eas update:configure`. ([#1588](https://github.com/expo/eas-cli/pull/1588) by [@jonsamp](https://github.com/jonsamp))
 
 ### 🐛 Bug fixes
 
