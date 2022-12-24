@@ -18,7 +18,7 @@ import { resolveWorkflowPerPlatformAsync } from '../project/workflow';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from './android/UpdatesModule';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from './ios/UpdatesModule';
 
-export const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
+export const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'appVersion' } as const;
 export const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0' as const;
 
 function getDefaultRuntimeVersion(workflow: Workflow): NonNullable<ExpoConfig['runtimeVersion']> {
