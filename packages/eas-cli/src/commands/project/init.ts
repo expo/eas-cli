@@ -3,7 +3,6 @@ import { ExpoConfig } from '@expo/config-types';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
-import terminalLink from 'terminal-link';
 
 import { getProjectDashboardUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -12,7 +11,7 @@ import { saveProjectIdToAppConfigAsync } from '../../commandUtils/context/contex
 import { AppPrivacy, Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
-import Log from '../../log';
+import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { getExpoConfig } from '../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
@@ -303,10 +302,7 @@ export default class ProjectInit extends EasCommand {
     }
 
     const projectDashboardUrl = getProjectDashboardUrl(accountName, projectName);
-    const projectLink = terminalLink(projectFullName, projectDashboardUrl, {
-      // https://github.com/sindresorhus/terminal-link/issues/18#issuecomment-1068020361
-      fallback: () => `${projectFullName} (${projectDashboardUrl})`,
-    });
+    const projectLink = link(projectDashboardUrl, { text: projectFullName });
 
     const account = nullthrows(allAccounts.find(a => a.name === accountName));
 
