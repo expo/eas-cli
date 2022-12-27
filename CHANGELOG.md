@@ -14,7 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- Make sure that all links in messages are clickable, if used terminal supports that.
+- Make sure that all links in messages are clickable, if used terminal supports that. ([#1591](https://github.com/expo/eas-cli/pull/1591) by [@Simek](https://github.com/Simek))
 
 ## [3.1.1](https://github.com/expo/eas-cli/releases/tag/v3.1.1) - 2022-12-19
 
