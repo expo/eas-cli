@@ -258,7 +258,7 @@ async function ensureEASUpdateIsConfiguredNativelyAsync(
  * Make sure EAS Build profiles are configured to work with EAS Update by adding channels to build profiles.
  */
 
-async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: string): Promise<void> {
+export async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: string): Promise<void> {
   const easJsonPath = EasJsonAccessor.formatEasJsonPath(projectDir);
 
   if (!(await fs.pathExists(easJsonPath))) {
@@ -362,8 +362,6 @@ export async function ensureEASUpdateIsConfiguredAsync(
       platform,
       workflows,
     });
-
-  await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
 
   if (projectChanged || !hasExpoUpdates) {
     await ensureEASUpdateIsConfiguredNativelyAsync(graphqlClient, {
