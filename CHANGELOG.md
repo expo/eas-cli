@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Makes eas.json configuration to only run on `update:configure`. ([#1598](https://github.com/expo/eas-cli/pull/1598) by [@jonsamp](https://github.com/jonsamp))
+
 ### 🧹 Chores
 
 ## [3.1.1](https://github.com/expo/eas-cli/releases/tag/v3.1.1) - 2022-12-19
