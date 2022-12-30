@@ -49,7 +49,7 @@ export async function selectBranchOnAppAsync(
     promptOptions: {
       title: promptTitle,
       getIdentifierForQueryItem: updateBranchFragment => updateBranchFragment.id,
-      createDisplayTextForSelectionPromptListItem: displayTextForListItem,
+      convertQueryItemToChoice: displayTextForListItem,
     },
   });
   if (!selectedBranch) {

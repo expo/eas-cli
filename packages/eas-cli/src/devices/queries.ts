@@ -44,7 +44,7 @@ export async function selectAppleTeamOnAccountAsync(
         }),
       promptOptions: {
         title: selectionPromptTitle,
-        createDisplayTextForSelectionPromptListItem: appleTeam => ({
+        convertQueryItemToChoice: appleTeam => ({
           title: appleTeam.appleTeamName
             ? `${appleTeam.appleTeamName} (ID: ${appleTeam.appleTeamIdentifier})`
             : appleTeam.appleTeamIdentifier,
@@ -88,7 +88,7 @@ export async function selectAppleDeviceOnAppleTeamAsync(
         }),
       promptOptions: {
         title: selectionPromptTitle,
-        createDisplayTextForSelectionPromptListItem: appleDevice => ({
+        convertQueryItemToChoice: appleDevice => ({
           title: formatDeviceLabel(appleDevice),
         }),
         getIdentifierForQueryItem: appleTeam => appleTeam.id,

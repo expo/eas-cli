@@ -45,7 +45,8 @@ export async function confirmAsync(
 export async function selectAsync<T>(
   message: string,
   choices: ExpoChoice<T>[],
-  options?: Options
+  options?: Options,
+  warn?: string
 ): Promise<T> {
   const { value } = await promptAsync(
     {
@@ -53,6 +54,7 @@ export async function selectAsync<T>(
       choices,
       name: 'value',
       type: 'select',
+      warn,
     },
     options
   );

@@ -3,7 +3,7 @@ import assert from 'assert';
 import { pathExists } from 'fs-extra';
 import path from 'path';
 
-import { getLatestBuildAsync, listAndSelectBuildsOnAppAsync } from '../../build/queries';
+import { getLatestBuildAsync, listAndSelectBuildOnAppAsync } from '../../build/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -167,19 +167,23 @@ async function maybeGetBuildAsync(
     !flags.runArchiveFlags.url &&
     !flags.runArchiveFlags.latest
   ) {
-    return await listAndSelectBuildsOnAppAsync(graphqlClient, flags.selectedPlatform, {
-      projectId,
-      projectDisplayName: await getDisplayNameForProjectIdAsync(graphqlClient, projectId),
-      filter: {
-        platform: flags.selectedPlatform,
-        distribution: distributionType,
-        status: BuildStatus.Finished,
-      },
-      queryOptions: paginatedQueryOptions,
-      selectPromptDisabledFunction: build => !isRunnableOnSimulatorOrEmulator(build),
-      warningMessage:
-        'Artifacts for this build have expired and are no longer available, or this is not a simulator/emulator build.',
-    });
+    return (
+      (await listAndSelectBuildOnAppAsync(graphqlClient, {
+        projectId,
+        title: `Select ${flags.selectedPlatform === AppPlatform.Ios ? 'iOS' : 'Android'} ${
+          flags.selectedPlatform === AppPlatform.Ios ? 'simulator' : 'emulator'
+        } build to run for ${await getDisplayNameForProjectIdAsync(graphqlClient, projectId)} app`,
+        filter: {
+          platform: flags.selectedPlatform,
+          distribution: distributionType,
+          status: BuildStatus.Finished,
+        },
+        paginatedQueryOptions,
+        selectPromptDisabledFunction: build => !isRunnableOnSimulatorOrEmulator(build),
+        selectPromptWarningMessage:
+          'Artifacts for this build have expired and are no longer available, or this is not a simulator/emulator build.',
+      })) ?? null
+    );
   } else if (flags.runArchiveFlags.latest) {
     return await getLatestBuildAsync(graphqlClient, {
       projectId,
