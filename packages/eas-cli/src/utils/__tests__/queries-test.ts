@@ -129,7 +129,7 @@ describe(paginatedQueryWithSelectPromptAsync.name, () => {
         promptOptions: {
           title: '',
           getIdentifierForQueryItem: item => item.id,
-          convertQueryItemToChoice: item => ({ title: 'item: ' + item.value }),
+          makePartialChoiceObject: item => ({ title: 'item: ' + item.value }),
         },
       });
 
@@ -179,7 +179,7 @@ describe(paginatedQueryWithSelectPromptAsync.name, () => {
       promptOptions: {
         title: '',
         getIdentifierForQueryItem: item => item.id,
-        convertQueryItemToChoice: item => ({ title: item.value }),
+        makePartialChoiceObject: item => ({ title: item.value }),
       },
     });
 

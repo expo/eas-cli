@@ -167,23 +167,23 @@ async function maybeGetBuildAsync(
     !flags.runArchiveFlags.url &&
     !flags.runArchiveFlags.latest
   ) {
-    return (
-      (await listAndSelectBuildOnAppAsync(graphqlClient, {
-        projectId,
-        title: `Select ${flags.selectedPlatform === AppPlatform.Ios ? 'iOS' : 'Android'} ${
-          flags.selectedPlatform === AppPlatform.Ios ? 'simulator' : 'emulator'
-        } build to run for ${await getDisplayNameForProjectIdAsync(graphqlClient, projectId)} app`,
-        filter: {
-          platform: flags.selectedPlatform,
-          distribution: distributionType,
-          status: BuildStatus.Finished,
-        },
-        paginatedQueryOptions,
-        selectPromptDisabledFunction: build => !isRunnableOnSimulatorOrEmulator(build),
-        selectPromptWarningMessage:
-          'Artifacts for this build have expired and are no longer available, or this is not a simulator/emulator build.',
-      })) ?? null
-    );
+    const build = await listAndSelectBuildOnAppAsync(graphqlClient, {
+      projectId,
+      title: `Select ${flags.selectedPlatform === AppPlatform.Ios ? 'iOS' : 'Android'} ${
+        flags.selectedPlatform === AppPlatform.Ios ? 'simulator' : 'emulator'
+      } build to run for ${await getDisplayNameForProjectIdAsync(graphqlClient, projectId)} app`,
+      filter: {
+        platform: flags.selectedPlatform,
+        distribution: distributionType,
+        status: BuildStatus.Finished,
+      },
+      paginatedQueryOptions,
+      selectPromptDisabledFunction: build => !isRunnableOnSimulatorOrEmulator(build),
+      selectPromptWarningMessage:
+        'Artifacts for this build have expired and are no longer available, or this is not a simulator/emulator build.',
+    });
+
+    return build ?? null;
   } else if (flags.runArchiveFlags.latest) {
     return await getLatestBuildAsync(graphqlClient, {
       projectId,

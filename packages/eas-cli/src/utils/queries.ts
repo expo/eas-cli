@@ -27,7 +27,7 @@ type PaginatedQueryWithSelectPromptArgs<QueryReturnType extends Record<string, a
   BasePaginatedQueryArgs<QueryReturnType> & {
     promptOptions: {
       readonly title: string;
-      convertQueryItemToChoice: (queryItem: QueryReturnType) => SelectPromptEntry;
+      makePartialChoiceObject: (queryItem: QueryReturnType) => SelectPromptEntry;
       getIdentifierForQueryItem: (queryItem: QueryReturnType) => string;
       readonly selectPromptWarningMessage?: string;
     };
@@ -107,7 +107,7 @@ async function paginatedQueryWithSelectPromptInternalAsync<
   const selectionPromptListItems = uniqBy(newAccumulator, queryItem =>
     promptOptions.getIdentifierForQueryItem(queryItem)
   ).map(queryItem => ({
-    ...promptOptions.convertQueryItemToChoice(queryItem),
+    ...promptOptions.makePartialChoiceObject(queryItem),
     value: promptOptions.getIdentifierForQueryItem(queryItem),
   }));
   if (areMorePagesAvailable) {
@@ -120,8 +120,9 @@ async function paginatedQueryWithSelectPromptInternalAsync<
   const valueOfUserSelectedListItem = await selectAsync<string>(
     promptOptions.title,
     selectionPromptListItems,
-    undefined,
-    promptOptions.selectPromptWarningMessage
+    {
+      warningMessageForDisabledEntries: promptOptions.selectPromptWarningMessage,
+    }
   );
 
   if (valueOfUserSelectedListItem === fetchMoreValue) {
