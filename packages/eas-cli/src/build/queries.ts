@@ -95,7 +95,7 @@ export async function listAndSelectBuildOnAppAsync(
 }
 
 function formatBuildChoiceValue(value: string | undefined | null): string {
-  return value ? chalk.bold(value) : chalk.dim('Unknown');
+  return value ? chalk.bold(value) : 'Unknown';
 }
 
 function formatBuildChoiceTitleAndDescription(build: BuildFragment): {
@@ -105,19 +105,21 @@ function formatBuildChoiceTitleAndDescription(build: BuildFragment): {
   const splitCommitMessage = build.gitCommitMessage?.split('\n');
   const formattedCommitData =
     build.gitCommitHash && splitCommitMessage && splitCommitMessage.length > 0
-      ? `${chalk.dim(build.gitCommitHash.slice(0, 7))} "${chalk.bold(
+      ? `${build.gitCommitHash.slice(0, 7)} "${chalk.bold(
           splitCommitMessage[0] + (splitCommitMessage.length > 1 ? '…' : '')
         )}"`
       : 'Unknown';
 
   return {
-    title: `ID: ${chalk.dim(build.id)} (${chalk.dim(`${fromNow(new Date(build.updatedAt))} ago`)})`,
+    title: `${chalk.bold(`ID:`)} ${build.id} (${chalk.bold(
+      `${fromNow(new Date(build.updatedAt))} ago`
+    )})`,
     description: [
-      `\tVersion: ${formatBuildChoiceValue(build.appVersion)}`,
-      `\t${
-        build.platform === AppPlatform.Ios ? 'Build number' : 'Version code'
-      }: ${formatBuildChoiceValue(build.appBuildVersion)}`,
-      `\tCommit: ${formattedCommitData}`,
+      `\t${chalk.bold(`Version:`)} ${formatBuildChoiceValue(build.appVersion)}`,
+      `\t${chalk.bold(
+        build.platform === AppPlatform.Ios ? 'Build number:' : 'Version code:'
+      )} ${formatBuildChoiceValue(build.appBuildVersion)}`,
+      `\t${chalk.bold(`Commit:`)} ${formattedCommitData}`,
     ].join('\n'),
   };
 }
