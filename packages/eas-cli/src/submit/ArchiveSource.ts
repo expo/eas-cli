@@ -320,23 +320,22 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
   const { id, updatedAt, runtimeVersion, buildProfile, gitCommitHash, gitCommitMessage, channel } =
     build;
 
-  const formatValue = (field?: string | null): string =>
-    field ? chalk.bold(field) : chalk.dim('Unknown');
+  const formatValue = (field?: string | null): string => (field ? chalk.bold(field) : 'Unknown');
 
   const buildDate = new Date(updatedAt);
 
   const formattedCommitData =
     gitCommitHash && gitCommitMessage
-      ? `${chalk.dim(gitCommitHash.slice(0, 7))} "${chalk.bold(gitCommitMessage)}"`
+      ? `${gitCommitHash.slice(0, 7)} "${chalk.bold(gitCommitMessage)}"`
       : 'Unknown';
 
-  const title = `ID: ${chalk.dim(id)} (${chalk.dim(`${fromNow(buildDate)} ago`)})`;
+  const title = `${chalk.bold(`ID:`)} ${id} (${chalk.bold(`${fromNow(buildDate)} ago`)})`;
 
   const description = [
-    `\tProfile: ${formatValue(buildProfile)}`,
-    `\tChannel: ${formatValue(channel)}`,
-    `\tRuntime version: ${formatValue(runtimeVersion)}`,
-    `\tCommit: ${formattedCommitData}`,
+    `\t${chalk.bold(`Profile:`)} ${formatValue(buildProfile)}`,
+    `\t${chalk.bold(`Channel:`)} ${formatValue(channel)}`,
+    `\t${chalk.bold(`Runtime version:`)} ${formatValue(runtimeVersion)}`,
+    `\t${chalk.bold(`Commit:`)} ${formattedCommitData}`,
   ].join('\n');
 
   return {
