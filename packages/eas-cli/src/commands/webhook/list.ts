@@ -19,7 +19,7 @@ export default class WebhookList extends EasCommand {
       description: 'Event type that triggers the webhook',
       options: [WebhookType.Build, WebhookType.Submit],
     }),
-    ...EasJsonOnlyFlag
+    ...EasJsonOnlyFlag,
   };
 
   static override contextDefinition = {
