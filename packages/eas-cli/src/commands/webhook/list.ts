@@ -7,6 +7,7 @@ import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { formatWebhook } from '../../webhooks/formatWebhook';
 
 export default class WebhookList extends EasCommand {
@@ -17,6 +18,9 @@ export default class WebhookList extends EasCommand {
       description: 'Event type that triggers the webhook',
       options: [WebhookType.Build, WebhookType.Submit],
     }),
+    json: Flags.boolean({
+      description: 'Enable JSON output, non-JSON messages will be printed to stderr',
+    }),
   };
 
   static override contextDefinition = {
@@ -26,7 +30,7 @@ export default class WebhookList extends EasCommand {
 
   async runAsync(): Promise<void> {
     const {
-      flags: { event },
+      flags: { event, json },
     } = await this.parse(WebhookList);
     const {
       projectConfig: { projectId },
@@ -34,6 +38,10 @@ export default class WebhookList extends EasCommand {
     } = await this.getContextAsync(WebhookList, {
       nonInteractive: true,
     });
+
+    if (json) {
+      enableJsonOutput();
+    }
 
     const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
@@ -48,10 +56,15 @@ export default class WebhookList extends EasCommand {
         spinner.fail(`There are no webhooks on project ${projectDisplayName}`);
       } else {
         spinner.succeed(`Found ${webhooks.length} webhooks on project ${projectDisplayName}`);
-        const list = webhooks
-          .map(webhook => formatWebhook(webhook))
-          .join(`\n\n${chalk.dim('———')}\n\n`);
-        Log.log(`\n${list}`);
+
+        if (json) {
+          printJsonOnlyOutput(webhooks);
+        } else {
+          const list = webhooks
+            .map(webhook => formatWebhook(webhook))
+            .join(`\n\n${chalk.dim('———')}\n\n`);
+          Log.log(`\n${list}`);
+        }
       }
     } catch (err) {
       spinner.fail(
