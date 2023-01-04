@@ -2,6 +2,7 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { WebhookType } from '../../graphql/generated';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import Log from '../../log';
@@ -18,9 +19,7 @@ export default class WebhookList extends EasCommand {
       description: 'Event type that triggers the webhook',
       options: [WebhookType.Build, WebhookType.Submit],
     }),
-    json: Flags.boolean({
-      description: 'Enable JSON output, non-JSON messages will be printed to stderr',
-    }),
+    ...EasJsonOnlyFlag
   };
 
   static override contextDefinition = {
@@ -32,16 +31,16 @@ export default class WebhookList extends EasCommand {
     const {
       flags: { event, json },
     } = await this.parse(WebhookList);
+    if (json) {
+      enableJsonOutput();
+    }
+
     const {
       projectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(WebhookList, {
       nonInteractive: true,
     });
-
-    if (json) {
-      enableJsonOutput();
-    }
 
     const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
