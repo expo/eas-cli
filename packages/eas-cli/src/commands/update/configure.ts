@@ -5,7 +5,10 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import Log from '../../log';
 import { RequestedPlatform } from '../../platform';
-import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
+import {
+  ensureEASUpdateIsConfiguredAsync,
+  ensureEASUpdateIsConfiguredInEasJsonAsync,
+} from '../../update/configure';
 
 export default class UpdateConfigure extends EasCommand {
   static override description = 'configure the project to support EAS Update';
@@ -45,6 +48,8 @@ export default class UpdateConfigure extends EasCommand {
       projectDir,
       platform,
     });
+
+    await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
 
     Log.addNewLineIfNone();
     Log.log(`🎉 Your app is configured with EAS Update!`);

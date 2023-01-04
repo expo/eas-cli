@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Makes eas.json configuration to only run on `update:configure`. ([#1598](https://github.com/expo/eas-cli/pull/1598) by [@jonsamp](https://github.com/jonsamp))
 - Fix issue with invisible build info in some terminals in the `eas build:run` and `eas build:resign` commands. ([#1602](https://github.com/expo/eas-cli/pull/1602) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
