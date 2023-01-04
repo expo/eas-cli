@@ -46,7 +46,7 @@ export async function selectChannelOnAppAsync(
       queryChannelsOnAppAsync(graphqlClient, { appId: projectId, limit, offset }),
     promptOptions: {
       title: selectionPromptTitle,
-      createDisplayTextForSelectionPromptListItem: updateChannel => ({ title: updateChannel.name }),
+      makePartialChoiceObject: updateChannel => ({ title: updateChannel.name }),
       getIdentifierForQueryItem: updateChannel => updateChannel.id,
     },
   });

@@ -126,7 +126,7 @@ export async function selectUpdateGroupOnBranchAsync(
       }),
     promptOptions: {
       title: 'Load more update groups?',
-      createDisplayTextForSelectionPromptListItem: updateGroup => ({
+      makePartialChoiceObject: updateGroup => ({
         title: formatUpdateTitle(updateGroup[0]),
       }),
       getIdentifierForQueryItem: updateGroup => updateGroup[0].group,

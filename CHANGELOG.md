@@ -21,6 +21,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Make all URLs in logs clickable in terminals supporting hyperlinks. ([#1591](https://github.com/expo/eas-cli/pull/1591) by [@Simek](https://github.com/Simek))
+- Use paginated select prompt for the `eas build:run` command. ([#1601](https://github.com/expo/eas-cli/pull/1601) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [3.1.1](https://github.com/expo/eas-cli/releases/tag/v3.1.1) - 2022-12-19
 
