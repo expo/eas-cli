@@ -91,7 +91,7 @@ export async function listAndSelectBuildOnAppAsync(
       promptOptions: {
         title,
         getIdentifierForQueryItem: build => build.id,
-        makePartialChoiceObject: createBuildToPartialChoiceFormatter(selectPromptDisabledFunction),
+        makePartialChoiceObject: createBuildToPartialChoiceMaker(selectPromptDisabledFunction),
         selectPromptWarningMessage,
       },
     });
@@ -102,7 +102,7 @@ function formatBuildChoiceValue(value: string | undefined | null): string {
   return value ? chalk.bold(value) : 'Unknown';
 }
 
-function createBuildToPartialChoiceFormatter(
+function createBuildToPartialChoiceMaker(
   selectPromptDisabledFunction?: (build: BuildFragment) => boolean
 ) {
   return (
