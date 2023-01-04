@@ -362,7 +362,7 @@ async function handleSingleBuildProgressAsync(
       spinner.succeed('Build finished');
       return { refetch: false };
     case BuildStatus.New:
-      spinner.text = `Build is waiting to enter the queue. Check your concurrency limit at ${chalk.underline(
+      spinner.text = `Build is waiting to enter the queue. Check your concurrency limit at ${link(
         formatAccountSubscriptionsUrl(accountName)
       )}.`;
       break;
@@ -383,7 +383,7 @@ async function handleSingleBuildProgressAsync(
           Log.newLine();
           Log.log('Start builds sooner in the priority queue.');
           Log.log(
-            `Sign up for EAS Production or Enterprise at ${chalk.underline(
+            `Sign up for EAS Production or Enterprise at ${link(
               formatAccountSubscriptionsUrl(accountName)
             )}`
           );

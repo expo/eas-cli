@@ -1,8 +1,9 @@
 import chalk from 'chalk';
-import terminalLink from 'terminal-link';
 // @ts-ignore
 import TurndownService from 'turndown';
 import wrapAnsi from 'wrap-ansi';
+
+import { link } from '../../../log';
 
 const turndownServices: Record<string, any> = {};
 
@@ -44,10 +45,7 @@ function getService(rootUrl: string): TurndownService {
       if (href.startsWith('/')) {
         href = `${rootUrl}${href}`;
       }
-      if (terminalLink.isSupported) {
-        return chalk.cyan(terminalLink(content, href));
-      }
-      return `${chalk.cyan(content)} (${chalk.underline(href)})`;
+      return chalk.cyan(link(href, { text: content }));
     },
   });
 

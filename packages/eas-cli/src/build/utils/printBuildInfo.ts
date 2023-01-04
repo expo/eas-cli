@@ -1,5 +1,4 @@
 import assert from 'assert';
-import chalk from 'chalk';
 import indentString from 'indent-string';
 import qrcodeTerminal from 'qrcode-terminal';
 
@@ -12,20 +11,20 @@ import {
   EasBuildDeprecationInfo,
   EasBuildDeprecationInfoType,
 } from '../../graphql/generated';
-import Log, { learnMore } from '../../log';
+import Log, { learnMore, link } from '../../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../../platform';
 import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url';
 
 export function printLogsUrls(builds: BuildFragment[]): void {
   if (builds.length === 1) {
-    Log.log(`Build details: ${chalk.underline(getBuildLogsUrl(builds[0]))}`);
+    Log.log(`Build details: ${link(getBuildLogsUrl(builds[0]))}`);
   } else {
     builds.forEach(build => {
       const logsUrl = getBuildLogsUrl(build);
       Log.log(
         `${appPlatformEmojis[build.platform]} ${
           appPlatformDisplayNames[build.platform]
-        } build details: ${chalk.underline(logsUrl)}`
+        } build details: ${link(logsUrl)}`
       );
     });
   }
@@ -79,13 +78,13 @@ function printBuildResult(build: BuildFragment): void {
         appPlatformDisplayNames[build.platform]
       } devices (or scan the QR code) to install the app:`
     );
-    Log.log(`${chalk.underline(logsUrl)}`);
+    Log.log(`${link(logsUrl)}`);
   } else {
     // TODO: it looks like buildUrl could possibly be undefined, based on the code below.
     // we should account for this case better if it is possible
     const url = build.artifacts?.buildUrl ?? '';
     Log.log(`${appPlatformEmojis[build.platform]} ${appPlatformDisplayNames[build.platform]} app:`);
-    Log.log(`${chalk.underline(url)}`);
+    Log.log(`${link(url)}`);
   }
 }
 
