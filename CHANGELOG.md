@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix issue with invisible build info in some terminals in the `eas build:run` and `eas build:resign` commands. ([#1602](https://github.com/expo/eas-cli/pull/1602) by [@szdziedzic](https://github.com/szdziedzic))
+- Fix issues with invisible build info in some terminals while using the `eas submit` command. ([#1603](https://github.com/expo/eas-cli/pull/1603) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 
