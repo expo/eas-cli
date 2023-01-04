@@ -52,6 +52,7 @@ export const BuildFragmentNode = gql`
     priority
     createdAt
     updatedAt
+    completedAt
   }
 `;
 

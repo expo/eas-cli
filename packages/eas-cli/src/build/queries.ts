@@ -112,7 +112,7 @@ function formatBuildChoiceTitleAndDescription(build: BuildFragment): {
 
   return {
     title: `${chalk.bold(`ID:`)} ${build.id} (${chalk.bold(
-      `${fromNow(new Date(build.updatedAt))} ago`
+      `${fromNow(new Date(build.completedAt))} ago`
     )})`,
     description: [
       `\t${chalk.bold(`Version:`)} ${formatBuildChoiceValue(build.appVersion)}`,
