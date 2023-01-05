@@ -5,6 +5,7 @@ import {
   EasJson,
   EasJsonAccessor,
   EasJsonUtils,
+  ResourceClass,
   SubmitProfile,
 } from '@expo/eas-json';
 import assert from 'assert';
@@ -62,7 +63,6 @@ import { BuildContext } from './context';
 import { createBuildContextAsync } from './createContext';
 import { prepareIosBuildAsync } from './ios/build';
 import { LocalBuildOptions } from './local';
-import { UserInputResourceClass } from './types';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
@@ -80,45 +80,47 @@ export interface BuildFlags {
   autoSubmit: boolean;
   submitProfile?: string;
   localBuildOptions: LocalBuildOptions;
-  userInputResourceClass?: UserInputResourceClass;
+  resourceClass?: ResourceClass;
   message?: string;
 }
 
-const iosUserInputResourceClassToBuildResourceClassMapping: Record<
-  UserInputResourceClass,
-  BuildResourceClass
-> = {
-  [UserInputResourceClass.DEFAULT]: BuildResourceClass.IosDefault,
-  [UserInputResourceClass.LARGE]: BuildResourceClass.IosLarge,
-  [UserInputResourceClass.M1_EXPERIMENTAL]: BuildResourceClass.IosM1Large,
+const iosResourceClassToBuildResourceClassMapping: Record<ResourceClass, BuildResourceClass> = {
+  [ResourceClass.DEFAULT]: BuildResourceClass.IosDefault,
+  [ResourceClass.LARGE]: BuildResourceClass.IosLarge,
+  [ResourceClass.M1_EXPERIMENTAL]: BuildResourceClass.IosM1Large,
 };
 
-const androidUserInputResourceClassToBuildResourceClassMapping: Record<
-  Exclude<UserInputResourceClass, UserInputResourceClass.M1_EXPERIMENTAL>,
+const androidResourceClassToBuildResourceClassMapping: Record<
+  Exclude<ResourceClass, ResourceClass.M1_EXPERIMENTAL>,
   BuildResourceClass
 > = {
-  [UserInputResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
-  [UserInputResourceClass.LARGE]: BuildResourceClass.AndroidLarge,
+  [ResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
+  [ResourceClass.LARGE]: BuildResourceClass.AndroidLarge,
 };
 
-function resolveResourceClass(
-  platform: Platform,
-  resourceClassInput: UserInputResourceClass
+function resolveBuildResourceClass(
+  profile: ProfileData<'build'>,
+  resourceClassFlag?: ResourceClass
 ): BuildResourceClass {
-  if (platform !== Platform.IOS && resourceClassInput === UserInputResourceClass.M1_EXPERIMENTAL) {
+  if (profile.platform !== Platform.IOS && resourceClassFlag === ResourceClass.M1_EXPERIMENTAL) {
     throw new Error(
-      `Resource class ${UserInputResourceClass.M1_EXPERIMENTAL} is only available for iOS builds`
+      `Resource class ${ResourceClass.M1_EXPERIMENTAL} is only available for iOS builds`
     );
   }
 
-  return platform === Platform.ANDROID
-    ? androidUserInputResourceClassToBuildResourceClassMapping[
-        resourceClassInput as Exclude<
-          UserInputResourceClass,
-          UserInputResourceClass.M1_EXPERIMENTAL
-        >
+  const profileResourceClass = profile.profile.resourceClass;
+  if (profileResourceClass && resourceClassFlag && resourceClassFlag !== profileResourceClass) {
+    Log.warn(
+      `Build profile specifies the "${profileResourceClass}" resource class but you passed "${resourceClassFlag}" to --resource-class.\nUsing the  "${resourceClassFlag}" as the override.`
+    );
+  }
+  const resourceClass = resourceClassFlag ?? profileResourceClass ?? ResourceClass.DEFAULT;
+
+  return profile.platform === Platform.ANDROID
+    ? androidResourceClassToBuildResourceClassMapping[
+        resourceClass as Exclude<ResourceClass, ResourceClass.M1_EXPERIMENTAL>
       ]
-    : iosUserInputResourceClassToBuildResourceClassMapping[resourceClassInput];
+    : iosResourceClassToBuildResourceClassMapping[resourceClass];
 }
 
 export async function runBuildAndSubmitAsync(
@@ -170,9 +172,9 @@ export async function runBuildAndSubmitAsync(
       flags,
       moreBuilds: platforms.length > 1,
       buildProfile,
-      resourceClass: resolveResourceClass(
-        buildProfile.platform,
-        flags.userInputResourceClass ?? UserInputResourceClass.DEFAULT
+      resourceClass: resolveBuildResourceClass(
+        buildProfile,
+        flags.resourceClass ?? ResourceClass.DEFAULT
       ),
       easJsonCliConfig,
       actor,

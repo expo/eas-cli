@@ -349,3 +349,53 @@ test('get profile names', async () => {
   const allProfileNames = await EasJsonUtils.getBuildProfileNamesAsync(accessor);
   expect(allProfileNames.sort()).toEqual(['blah', 'production'].sort());
 });
+
+test('invalid resourceClass at build profile root', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        resourceClass: 'm1-experimental',
+      },
+    },
+  });
+
+  const accessor = new EasJsonAccessor('/project');
+
+  await expect(
+    EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production')
+  ).rejects.toThrowError(/build.production.resourceClass.*must be one of/);
+});
+
+test('iOS-specific resourceClass', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        ios: {
+          resourceClass: 'm1-experimental',
+        },
+      },
+    },
+  });
+
+  const accessor = new EasJsonAccessor('/project');
+  await expect(
+    EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production')
+  ).resolves.not.toThrow();
+});
+
+test('Android-specific resourceClass', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        android: {
+          resourceClass: 'large',
+        },
+      },
+    },
+  });
+
+  const accessor = new EasJsonAccessor('/project');
+  await expect(
+    EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'production')
+  ).resolves.not.toThrow();
+});

@@ -12,13 +12,3 @@ export enum BuildDistributionType {
   INTERNAL = 'internal',
   SIMULATOR = 'simulator',
 }
-
-export enum UserInputResourceClass {
-  DEFAULT = 'default',
-  LARGE = 'large',
-  /**
-   * @experimental
-   * This resource class is not yet ready to be used in production. For testing purposes only. Might be deprecated / deleted at any time.
-   */
-  M1_EXPERIMENTAL = 'm1-experimental',
-}

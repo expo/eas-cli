@@ -8,6 +8,7 @@ export {
   DistributionType,
   IosEnterpriseProvisioning,
   IosVersionAutoIncrement,
+  ResourceClass,
 } from './build/types';
 export { EasJsonAccessor } from './accessor';
 export { EasJsonUtils } from './utils';
