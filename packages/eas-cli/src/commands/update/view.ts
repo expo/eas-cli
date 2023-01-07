@@ -4,7 +4,11 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
-import { formatUpdateGroup, getUpdateGroupDescriptions, getUpdateGroupJson } from '../../update/utils';
+import {
+  formatUpdateGroup,
+  getUpdateGroupDescriptions,
+  getUpdateGroupJson,
+} from '../../update/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class UpdateView extends EasCommand {
