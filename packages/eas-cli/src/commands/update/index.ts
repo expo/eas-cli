@@ -39,7 +39,11 @@ import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
 import { getBranchNameFromChannelNameAsync } from '../../update/getBranchNameFromChannelNameAsync';
-import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../../update/utils';
+import {
+  formatUpdateMessage,
+  getUpdateGroupJson,
+  truncateString as truncateUpdateMessage,
+} from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -434,7 +438,7 @@ export default class UpdatePublish extends EasCommand {
     }
 
     if (jsonFlag) {
-      printJsonOnlyOutput(newUpdates);
+      printJsonOnlyOutput(getUpdateGroupJson(newUpdates));
     } else {
       if (new Set(newUpdates.map(update => update.group)).size > 1) {
         Log.addNewLineIfNone();

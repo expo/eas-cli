@@ -24,6 +24,18 @@ export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'>
   actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
 };
 
+export type UpdateJson = { branch: string } & Pick<
+  UpdateFragment,
+  | 'id'
+  | 'createdAt'
+  | 'group'
+  | 'message'
+  | 'runtimeVersion'
+  | 'platform'
+  | 'manifestPermalink'
+  | 'gitCommitHash'
+>;
+
 export type UpdateGroupDescription = FormatUpdateParameter & {
   branch: string;
   group: string;
@@ -179,6 +191,20 @@ export function formatUpdateTitle(update: UpdateFragment): string {
     createdAt,
     'mmm dd HH:MM'
   )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
+}
+
+export function getUpdateGroupJson(updateGroups: UpdateFragment[]): UpdateJson[] {
+  return updateGroups.map(update => ({
+    id: update.id,
+    createdAt: update.createdAt,
+    group: update.group,
+    branch: update.branch.name,
+    message: update.message,
+    runtimeVersion: update.runtimeVersion,
+    platform: update.platform,
+    manifestPermalink: update.manifestPermalink,
+    gitCommitHash: update.gitCommitHash,
+  }));
 }
 
 export function getUpdateGroupDescriptions(
