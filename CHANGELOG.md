@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Validate chosen build in the `eas build:run` command. ([#1614](https://github.com/expo/eas-cli/pull/1614) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 ## [3.2.0](https://github.com/expo/eas-cli/releases/tag/v3.2.0) - 2023-01-09

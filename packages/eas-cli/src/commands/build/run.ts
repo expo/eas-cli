@@ -14,6 +14,7 @@ import {
 import { AppPlatform, BuildFragment, BuildStatus, DistributionType } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
+import { appPlatformDisplayNames } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { RunArchiveFlags, runAsync } from '../../run/run';
@@ -150,6 +151,35 @@ async function resolvePlatformAsync(platform?: string): Promise<AppPlatform> {
   return selectedPlatform;
 }
 
+function validateChosenBuild(
+  maybeBuild: BuildFragment | null,
+  selectedPlatform: AppPlatform
+): BuildFragment {
+  if (!maybeBuild) {
+    throw new Error('There are no simulator/emulator builds that can be run for this project.');
+  }
+
+  if (selectedPlatform !== maybeBuild.platform) {
+    throw new Error(
+      `The selected build is for ${
+        appPlatformDisplayNames[maybeBuild.platform]
+      }, but you selected ${appPlatformDisplayNames[selectedPlatform]}`
+    );
+  }
+
+  if (maybeBuild.status !== BuildStatus.Finished) {
+    throw new Error('The selected build is not finished.');
+  }
+
+  if (!isRunnableOnSimulatorOrEmulator(maybeBuild)) {
+    throw new Error(
+      'Artifacts for the latest build have expired and are no longer available, or this is not a simulator/emulator build.'
+    );
+  }
+
+  return maybeBuild;
+}
+
 async function maybeGetBuildAsync(
   graphqlClient: ExpoGraphqlClient,
   flags: RunCommandFlags,
@@ -160,7 +190,8 @@ async function maybeGetBuildAsync(
     flags.selectedPlatform === AppPlatform.Ios ? DistributionType.Simulator : undefined;
 
   if (flags.runArchiveFlags.id) {
-    return BuildQuery.byIdAsync(graphqlClient, flags.runArchiveFlags.id);
+    const build = await BuildQuery.byIdAsync(graphqlClient, flags.runArchiveFlags.id);
+    return validateChosenBuild(build, flags.selectedPlatform);
   } else if (
     !flags.runArchiveFlags.id &&
     !flags.runArchiveFlags.path &&
@@ -169,7 +200,7 @@ async function maybeGetBuildAsync(
   ) {
     const build = await listAndSelectBuildOnAppAsync(graphqlClient, {
       projectId,
-      title: `Select ${flags.selectedPlatform === AppPlatform.Ios ? 'iOS' : 'Android'} ${
+      title: `Select ${appPlatformDisplayNames[flags.selectedPlatform]} ${
         flags.selectedPlatform === AppPlatform.Ios ? 'simulator' : 'emulator'
       } build to run for ${await getDisplayNameForProjectIdAsync(graphqlClient, projectId)} app`,
       filter: {
@@ -182,10 +213,9 @@ async function maybeGetBuildAsync(
       selectPromptWarningMessage:
         'Artifacts for this build have expired and are no longer available, or this is not a simulator/emulator build.',
     });
-
-    return build ?? null;
+    return validateChosenBuild(build, flags.selectedPlatform);
   } else if (flags.runArchiveFlags.latest) {
-    return await getLatestBuildAsync(graphqlClient, {
+    const latestBuild = await getLatestBuildAsync(graphqlClient, {
       projectId,
       filter: {
         platform: flags.selectedPlatform,
@@ -193,6 +223,8 @@ async function maybeGetBuildAsync(
         status: BuildStatus.Finished,
       },
     });
+
+    return validateChosenBuild(latestBuild, flags.selectedPlatform);
   } else {
     return null;
   }

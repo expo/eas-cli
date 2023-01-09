@@ -74,11 +74,11 @@ export async function listAndSelectBuildOnAppAsync(
     selectPromptDisabledFunction?: (build: BuildFragment) => boolean;
     selectPromptWarningMessage?: string;
   }
-): Promise<BuildFragment | void> {
+): Promise<BuildFragment | null> {
   if (paginatedQueryOptions.nonInteractive) {
     throw new Error('Unable to select a build in non-interactive mode.');
   } else {
-    return await paginatedQueryWithSelectPromptAsync({
+    const selectedBuild = await paginatedQueryWithSelectPromptAsync({
       limit: paginatedQueryOptions.limit ?? BUILDS_LIMIT,
       offset: paginatedQueryOptions.offset,
       queryToPerform: (limit, offset) =>
@@ -95,6 +95,7 @@ export async function listAndSelectBuildOnAppAsync(
         selectPromptWarningMessage,
       },
     });
+    return selectedBuild ?? null;
   }
 }
 
@@ -145,7 +146,7 @@ export async function getLatestBuildAsync(
     projectId: string;
     filter?: BuildFilter;
   }
-): Promise<BuildFragment> {
+): Promise<BuildFragment | null> {
   const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
     appId: projectId,
     limit: 1,
@@ -154,7 +155,7 @@ export async function getLatestBuildAsync(
   });
 
   if (builds.length === 0) {
-    throw new Error('Found no build matching the provided criteria.');
+    return null;
   }
 
   return builds[0];
