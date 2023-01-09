@@ -1,4 +1,5 @@
 import { Errors, Flags } from '@oclif/core';
+import assert from 'assert';
 import { pathExists } from 'fs-extra';
 import path from 'path';
 
@@ -181,8 +182,10 @@ async function maybeGetBuildAsync(
       selectPromptWarningMessage:
         'Artifacts for this build have expired and are no longer available, or this is not a simulator/emulator build.',
     });
-
-    return build ?? null;
+    if (!build) {
+      throw new Error('There are no simulator/emulator builds that can be run for this project.');
+    }
+    return build;
   } else if (flags.runArchiveFlags.latest) {
     return await getLatestBuildAsync(graphqlClient, {
       projectId,
@@ -251,9 +254,7 @@ async function getPathToSimulatorBuildAppAsync(
     );
   }
 
-  if (flags.runArchiveFlags.path) {
-    return flags.runArchiveFlags.path;
-  }
-
-  throw new Error('There are no simulator/emulator builds that can be run for this project.');
+  // this should never fail, due to the validation in sanitizeFlagsAsync
+  assert(flags.runArchiveFlags.path);
+  return flags.runArchiveFlags.path;
 }
