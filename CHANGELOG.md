@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Add missing key information about updates in `eas update --json` and `eas update:view --json`. ([#1611](https://github.com/expo/eas-cli/pull/1611) by [@byCedric](https://github.com/byCedric))
+
 ### 🧹 Chores
 
 ## [3.2.1](https://github.com/expo/eas-cli/releases/tag/v3.2.1) - 2023-01-09
