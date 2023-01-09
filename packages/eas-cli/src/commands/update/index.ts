@@ -41,7 +41,7 @@ import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
 import { getBranchNameFromChannelNameAsync } from '../../update/getBranchNameFromChannelNameAsync';
 import {
   formatUpdateMessage,
-  getUpdateGroupJson,
+  getUpdateGroupJsonInfo,
   truncateString as truncateUpdateMessage,
 } from '../../update/utils';
 import {
@@ -438,7 +438,7 @@ export default class UpdatePublish extends EasCommand {
     }
 
     if (jsonFlag) {
-      printJsonOnlyOutput(getUpdateGroupJson(newUpdates));
+      printJsonOnlyOutput(getUpdateGroupJsonInfo(newUpdates));
     } else {
       if (new Set(newUpdates.map(update => update.group)).size > 1) {
         Log.addNewLineIfNone();
