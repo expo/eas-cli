@@ -151,7 +151,7 @@ async function resolvePlatformAsync(platform?: string): Promise<AppPlatform> {
   return selectedPlatform;
 }
 
-function sanitizeChosenBuild(
+function validateChosenBuild(
   maybeBuild: BuildFragment | null,
   selectedPlatform: AppPlatform
 ): BuildFragment {
@@ -191,7 +191,7 @@ async function maybeGetBuildAsync(
 
   if (flags.runArchiveFlags.id) {
     const build = await BuildQuery.byIdAsync(graphqlClient, flags.runArchiveFlags.id);
-    return sanitizeChosenBuild(build, flags.selectedPlatform);
+    return validateChosenBuild(build, flags.selectedPlatform);
   } else if (
     !flags.runArchiveFlags.id &&
     !flags.runArchiveFlags.path &&
@@ -213,7 +213,7 @@ async function maybeGetBuildAsync(
       selectPromptWarningMessage:
         'Artifacts for this build have expired and are no longer available, or this is not a simulator/emulator build.',
     });
-    return sanitizeChosenBuild(build, flags.selectedPlatform);
+    return validateChosenBuild(build, flags.selectedPlatform);
   } else if (flags.runArchiveFlags.latest) {
     const latestBuild = await getLatestBuildAsync(graphqlClient, {
       projectId,
@@ -224,7 +224,7 @@ async function maybeGetBuildAsync(
       },
     });
 
-    return sanitizeChosenBuild(latestBuild, flags.selectedPlatform);
+    return validateChosenBuild(latestBuild, flags.selectedPlatform);
   } else {
     return null;
   }
