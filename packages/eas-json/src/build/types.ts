@@ -5,6 +5,16 @@ export enum CredentialsSource {
   REMOTE = 'remote',
 }
 
+export enum ResourceClass {
+  DEFAULT = 'default',
+  LARGE = 'large',
+  /**
+   * @experimental
+   * This resource class is not yet ready to be used in production. For testing purposes only. Might be deprecated / deleted at any time.
+   */
+  M1_EXPERIMENTAL = 'm1-experimental',
+}
+
 export type DistributionType = 'store' | 'internal';
 
 export type IosEnterpriseProvisioning = 'adhoc' | 'universal';
@@ -22,6 +32,7 @@ export interface CommonBuildProfile {
   developmentClient?: boolean;
   prebuildCommand?: string;
   autoIncrement?: boolean;
+  resourceClass?: ResourceClass;
   buildArtifactPaths?: string[];
 
   node?: string;

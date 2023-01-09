@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
+import { EasJsonAccessor, EasJsonUtils, ResourceClass } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import figures from 'figures';
@@ -7,7 +7,6 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
-import { UserInputResourceClass } from '../../build/types';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { StatuspageServiceName } from '../../graphql/generated';
@@ -31,7 +30,7 @@ interface RawBuildFlags {
   json: boolean;
   'auto-submit': boolean;
   'auto-submit-with-profile'?: string;
-  'resource-class'?: UserInputResourceClass;
+  'resource-class'?: ResourceClass;
   message?: string;
 }
 
@@ -85,7 +84,7 @@ export default class Build extends EasCommand {
       exclusive: ['auto-submit'],
     }),
     'resource-class': Flags.enum({
-      options: Object.values(UserInputResourceClass),
+      options: Object.values(ResourceClass),
       hidden: true,
       description: 'The instance type that will be used to run this build [experimental]',
     }),
@@ -157,11 +156,11 @@ export default class Build extends EasCommand {
       Errors.error('--json is allowed only when building in non-interactive mode', { exit: 1 });
     }
     if (
-      flags['resource-class'] === UserInputResourceClass.M1_EXPERIMENTAL &&
+      flags['resource-class'] === ResourceClass.M1_EXPERIMENTAL &&
       flags.platform !== Platform.IOS
     ) {
       Errors.error(
-        `Resource class ${UserInputResourceClass.M1_EXPERIMENTAL} is only available for iOS builds`,
+        `Resource class ${ResourceClass.M1_EXPERIMENTAL} is only available for iOS builds`,
         {
           exit: 1,
         }
@@ -213,7 +212,7 @@ export default class Build extends EasCommand {
       json: flags['json'],
       autoSubmit: flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined,
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
-      userInputResourceClass: flags['resource-class'] ?? UserInputResourceClass.DEFAULT,
+      resourceClass: flags['resource-class'] ?? ResourceClass.DEFAULT,
       message,
     };
   }

@@ -2,6 +2,17 @@ import { Android, Ios } from '@expo/eas-build-job';
 import Joi from 'joi';
 import semver from 'semver';
 
+import { ResourceClass } from './types';
+
+const AllowedCommonResourceClasses: ResourceClass[] = [ResourceClass.DEFAULT, ResourceClass.LARGE];
+
+const AllowedAndroidResourceClasses: ResourceClass[] = [...AllowedCommonResourceClasses];
+
+const AllowedIosResourceClasses: ResourceClass[] = [
+  ...AllowedCommonResourceClasses,
+  ResourceClass.M1_EXPERIMENTAL,
+];
+
 const CacheSchema = Joi.object({
   disabled: Joi.boolean(),
   key: Joi.string().max(128),
@@ -24,6 +35,7 @@ const CommonBuildProfileSchema = Joi.object({
   expoCli: Joi.string().empty(null).custom(semverCheck),
   env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)),
   autoIncrement: Joi.alternatives().try(Joi.boolean()),
+  resourceClass: Joi.string().valid(...AllowedCommonResourceClasses),
 });
 
 const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(
@@ -38,6 +50,7 @@ const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(
       Joi.boolean(),
       Joi.string().valid('version', 'versionCode')
     ),
+    resourceClass: Joi.string().valid(...AllowedAndroidResourceClasses),
 
     artifactPath: Joi.string(),
     applicationArchivePath: Joi.string(),
@@ -58,6 +71,7 @@ const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
       Joi.string().valid('version', 'buildNumber')
     ),
     simulator: Joi.boolean(),
+    resourceClass: Joi.string().valid(...AllowedIosResourceClasses),
 
     image: Joi.string().valid(...Ios.builderBaseImages),
     bundler: Joi.string().empty(null).custom(semverCheck),
