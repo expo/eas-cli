@@ -187,7 +187,7 @@ async function maybeGetBuildAsync(
     }
     return build;
   } else if (flags.runArchiveFlags.latest) {
-    return await getLatestBuildAsync(graphqlClient, {
+    const latestBuild = await getLatestBuildAsync(graphqlClient, {
       projectId,
       filter: {
         platform: flags.selectedPlatform,
@@ -195,6 +195,10 @@ async function maybeGetBuildAsync(
         status: BuildStatus.Finished,
       },
     });
+    if (!latestBuild) {
+      throw new Error('There are no simulator/emulator builds that can be run for this project.');
+    }
+    return latestBuild;
   } else {
     return null;
   }

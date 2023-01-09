@@ -145,7 +145,7 @@ export async function getLatestBuildAsync(
     projectId: string;
     filter?: BuildFilter;
   }
-): Promise<BuildFragment> {
+): Promise<BuildFragment | null> {
   const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
     appId: projectId,
     limit: 1,
@@ -154,7 +154,7 @@ export async function getLatestBuildAsync(
   });
 
   if (builds.length === 0) {
-    throw new Error('Found no build matching the provided criteria.');
+    return null;
   }
 
   return builds[0];
