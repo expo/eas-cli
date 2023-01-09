@@ -150,6 +150,20 @@ async function resolvePlatformAsync(platform?: string): Promise<AppPlatform> {
   return selectedPlatform;
 }
 
+function sanitizeChosenBuild(maybeBuild: BuildFragment | null | undefined | void): BuildFragment {
+  if (!maybeBuild) {
+    throw new Error('There are no simulator/emulator builds that can be run for this project.');
+  }
+
+  if (!isRunnableOnSimulatorOrEmulator(maybeBuild)) {
+    throw new Error(
+      'Artifacts for the latest build have expired and are no longer available, or this is not a simulator/emulator build.'
+    );
+  }
+
+  return maybeBuild;
+}
+
 async function maybeGetBuildAsync(
   graphqlClient: ExpoGraphqlClient,
   flags: RunCommandFlags,
@@ -182,10 +196,7 @@ async function maybeGetBuildAsync(
       selectPromptWarningMessage:
         'Artifacts for this build have expired and are no longer available, or this is not a simulator/emulator build.',
     });
-    if (!build) {
-      throw new Error('There are no simulator/emulator builds that can be run for this project.');
-    }
-    return build;
+    return sanitizeChosenBuild(build);
   } else if (flags.runArchiveFlags.latest) {
     const latestBuild = await getLatestBuildAsync(graphqlClient, {
       projectId,
@@ -195,10 +206,8 @@ async function maybeGetBuildAsync(
         status: BuildStatus.Finished,
       },
     });
-    if (!latestBuild) {
-      throw new Error('There are no simulator/emulator builds that can be run for this project.');
-    }
-    return latestBuild;
+
+    return sanitizeChosenBuild(latestBuild);
   } else {
     return null;
   }
