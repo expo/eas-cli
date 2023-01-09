@@ -174,7 +174,8 @@ async function maybeGetBuildAsync(
     flags.selectedPlatform === AppPlatform.Ios ? DistributionType.Simulator : undefined;
 
   if (flags.runArchiveFlags.id) {
-    return BuildQuery.byIdAsync(graphqlClient, flags.runArchiveFlags.id);
+    const build = await BuildQuery.byIdAsync(graphqlClient, flags.runArchiveFlags.id);
+    return sanitizeChosenBuild(build);
   } else if (
     !flags.runArchiveFlags.id &&
     !flags.runArchiveFlags.path &&
