@@ -14,6 +14,7 @@ import {
 import { AppPlatform, BuildFragment, BuildStatus, DistributionType } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
+import { appPlatformDisplayNames } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { RunArchiveFlags, runAsync } from '../../run/run';
@@ -40,11 +41,6 @@ interface RunCommandFlags {
   limit?: number;
   offset?: number;
 }
-
-const appPlatformToAppPlatformName: Record<AppPlatform, string> = {
-  [AppPlatform.Android]: 'Android',
-  [AppPlatform.Ios]: 'iOS',
-};
 
 export default class Run extends EasCommand {
   static override description = 'run simulator/emulator builds from eas-cli';
@@ -156,7 +152,7 @@ async function resolvePlatformAsync(platform?: string): Promise<AppPlatform> {
 }
 
 function sanitizeChosenBuild(
-  maybeBuild: BuildFragment | null | undefined | void,
+  maybeBuild: BuildFragment | null,
   selectedPlatform: AppPlatform
 ): BuildFragment {
   if (!maybeBuild) {
@@ -166,8 +162,8 @@ function sanitizeChosenBuild(
   if (selectedPlatform !== maybeBuild.platform) {
     throw new Error(
       `The selected build is for ${
-        appPlatformToAppPlatformName[maybeBuild.platform]
-      }, but you selected ${appPlatformToAppPlatformName[selectedPlatform]}`
+        appPlatformDisplayNames[maybeBuild.platform]
+      }, but you selected ${appPlatformDisplayNames[selectedPlatform]}`
     );
   }
 
@@ -204,7 +200,7 @@ async function maybeGetBuildAsync(
   ) {
     const build = await listAndSelectBuildOnAppAsync(graphqlClient, {
       projectId,
-      title: `Select ${appPlatformToAppPlatformName[flags.selectedPlatform]} ${
+      title: `Select ${appPlatformDisplayNames[flags.selectedPlatform]} ${
         flags.selectedPlatform === AppPlatform.Ios ? 'simulator' : 'emulator'
       } build to run for ${await getDisplayNameForProjectIdAsync(graphqlClient, projectId)} app`,
       filter: {
