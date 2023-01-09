@@ -1,5 +1,4 @@
 import { Errors, Flags } from '@oclif/core';
-import assert from 'assert';
 import { pathExists } from 'fs-extra';
 import path from 'path';
 
@@ -252,7 +251,9 @@ async function getPathToSimulatorBuildAppAsync(
     );
   }
 
-  // this should never fail, due to the validation in sanitizeFlagsAsync
-  assert(flags.runArchiveFlags.path);
-  return flags.runArchiveFlags.path;
+  if (flags.runArchiveFlags.path) {
+    return flags.runArchiveFlags.path;
+  }
+
+  throw new Error('There are no simulator/emulator builds that can be run for this project.');
 }
