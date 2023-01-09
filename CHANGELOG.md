@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [3.2.0](https://github.com/expo/eas-cli/releases/tag/v3.2.0) - 2023-01-09
+
+### 🎉 New features
+
 - Add `--channel` option to `update:republish`. ([#1580](https://github.com/expo/eas-cli/pull/1580) by [@byCedric](https://github.com/byCedric))
 - Use `appVersion` as default runtime version policy when running `eas update:configure`. ([#1588](https://github.com/expo/eas-cli/pull/1588) by [@jonsamp](https://github.com/jonsamp))
 - Support `--json` flag in webhook list command. ([#1605](https://github.com/expo/eas-cli/pull/1605) by [@sheddy7](https://github.com/sheddy7))
