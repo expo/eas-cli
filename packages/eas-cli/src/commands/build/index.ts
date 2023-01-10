@@ -86,6 +86,11 @@ export default class Build extends EasCommand {
     'resource-class': Flags.enum({
       options: Object.values(ResourceClass),
       hidden: true,
+      deprecated: {
+        message: chalk.yellow(
+          'The --resource-class flag has been deprecated. Define the resource class in eas.json.'
+        ),
+      },
       description: 'The instance type that will be used to run this build [experimental]',
     }),
     message: Flags.string({
