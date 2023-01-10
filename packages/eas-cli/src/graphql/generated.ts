@@ -931,6 +931,7 @@ export type App = Project & {
   deploymentNew?: Maybe<DeploymentNew>;
   /** Deployments associated with this app */
   deployments: Array<Deployment>;
+  deploymentsNew: DeploymentsConnection;
   description: Scalars['String'];
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
@@ -1070,6 +1071,15 @@ export type AppDeploymentsArgs = {
   limit: Scalars['Int'];
   mostRecentlyUpdatedAt?: InputMaybe<Scalars['DateTime']>;
   options?: InputMaybe<DeploymentOptions>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppDeploymentsNewArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
 };
 
 
@@ -1774,6 +1784,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   appBuildVersion?: Maybe<Scalars['String']>;
   appVersion?: Maybe<Scalars['String']>;
   artifacts?: Maybe<BuildArtifacts>;
+  buildMode?: Maybe<BuildMode>;
   buildProfile?: Maybe<Scalars['String']>;
   canRetry: Scalars['Boolean'];
   cancelingActor?: Maybe<Actor>;
@@ -1960,6 +1971,7 @@ export type BuildMetadataInput = {
   appIdentifier?: InputMaybe<Scalars['String']>;
   appName?: InputMaybe<Scalars['String']>;
   appVersion?: InputMaybe<Scalars['String']>;
+  buildMode?: InputMaybe<BuildMode>;
   buildProfile?: InputMaybe<Scalars['String']>;
   channel?: InputMaybe<Scalars['String']>;
   cliVersion?: InputMaybe<Scalars['String']>;
@@ -2157,9 +2169,11 @@ export enum BuildResourceClass {
   AndroidDefault = 'ANDROID_DEFAULT',
   AndroidLarge = 'ANDROID_LARGE',
   IosDefault = 'IOS_DEFAULT',
+  IosIntelLarge = 'IOS_INTEL_LARGE',
+  IosIntelMedium = 'IOS_INTEL_MEDIUM',
   IosLarge = 'IOS_LARGE',
-  /** @experimental This resource class is not yet ready to be used in production. For testing purposes only. */
   IosM1Large = 'IOS_M1_LARGE',
+  IosM1Medium = 'IOS_M1_MEDIUM',
   Legacy = 'LEGACY'
 }
 
@@ -2425,10 +2439,17 @@ export type DeploymentBuildEdge = {
   node: Build;
 };
 
+/** Represents the connection over the builds edge of a Deployment */
 export type DeploymentBuildsConnection = {
   __typename?: 'DeploymentBuildsConnection';
   edges: Array<DeploymentBuildEdge>;
   pageInfo: PageInfo;
+};
+
+export type DeploymentEdge = {
+  __typename?: 'DeploymentEdge';
+  cursor: Scalars['String'];
+  node: DeploymentNew;
 };
 
 /** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
@@ -2452,6 +2473,13 @@ export type DeploymentNewBuildsArgs = {
 export type DeploymentOptions = {
   /** Max number of associated builds to return */
   buildListMaxSize?: InputMaybe<Scalars['Int']>;
+};
+
+/** Represents the connection over the deploymentsNew edge of an App */
+export type DeploymentsConnection = {
+  __typename?: 'DeploymentsConnection';
+  edges: Array<DeploymentEdge>;
+  pageInfo: PageInfo;
 };
 
 export enum DistributionType {

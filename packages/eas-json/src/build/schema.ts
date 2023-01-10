@@ -11,6 +11,9 @@ const AllowedAndroidResourceClasses: ResourceClass[] = [...AllowedCommonResource
 const AllowedIosResourceClasses: ResourceClass[] = [
   ...AllowedCommonResourceClasses,
   ResourceClass.M1_EXPERIMENTAL,
+  ResourceClass.M1_MEDIUM,
+  ResourceClass.INTEL_MEDIUM,
+  ResourceClass.M1_LARGE,
 ];
 
 const CacheSchema = Joi.object({
