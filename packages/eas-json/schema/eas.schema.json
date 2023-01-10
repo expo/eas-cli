@@ -177,15 +177,15 @@
           "markdownDescription": "List of paths (or patterns) where EAS Build is going to look for the build artifacts. Use `applicationArchivePath` to specify the path for uploading the application archive. Build artifacts are uploaded even if the build fails. EAS Build uses the `fast-glob` npm package for pattern matching ([see their README to learn more about the syntax you can use](https://github.com/mrmlnc/fast-glob#pattern-syntax))."
         },
         "resourceClass": {
-          "description": "The instance type that will be used to run this build, supported by Android and iOS workers. Learn more: https://docs.expo.dev/build-reference/infrastructure/",
+          "description": "The resource class that will be used to run this build, supported by both Android and iOS workers. Learn more: https://docs.expo.dev/build-reference/infrastructure/",
           "markdownDescription": "The iOS specific resource class. [Learn more](https://docs.expo.dev/build-reference/infrastructure/)",
           "default": "default",
           "anyOf": [
             {
               "enum": ["default", "large"],
               "markdownEnumDescriptions": [
-                "Medium Intel instance for iOS and medium instance for Android",
-                "Medium Intel instance for iOS and large instance for Android"
+                "Medium Intel resource class for iOS and medium resource class for Android",
+                "Medium Intel resource class for iOS and large resource class for Android"
               ]
             },
             {
@@ -240,13 +240,13 @@
           ]
         },
         "resourceClass": {
-          "description": "The Android specific instance type that will be used to run this build. Learn more: https://docs.expo.dev/build-reference/infrastructure/",
-          "markdownDescription": "The Android specific instance type that will be used to run this build. [Learn more](https://docs.expo.dev/build-reference/infrastructure/)",
+          "description": "The Android-specific resource class that will be used to run this build. Learn more: https://docs.expo.dev/build-reference/infrastructure/",
+          "markdownDescription": "The Android-specific resource class that will be used to run this build. [Learn more](https://docs.expo.dev/build-reference/infrastructure/)",
           "default": "default",
           "anyOf": [
             {
               "enum": ["default", "large"],
-              "markdownEnumDescriptions": ["Medium instance", "Large instance"]
+              "markdownEnumDescriptions": ["Medium resource class", "Large resource class"]
             },
             {
               "type": "string"
@@ -353,16 +353,16 @@
           ]
         },
         "resourceClass": {
-          "description": "The iOS specific instance type that will be used to run this build. Learn more: https://docs.expo.dev/build-reference/infrastructure/",
-          "markdownDescription": "The iOS specific instance type that will be used to run this build. [Learn more](https://docs.expo.dev/build-reference/infrastructure/)",
+          "description": "The iOS-specific resource class that will be used to run this build. Learn more: https://docs.expo.dev/build-reference/infrastructure/",
+          "markdownDescription": "The iOS-specific resource class that will be used to run this build. [Learn more](https://docs.expo.dev/build-reference/infrastructure/)",
           "default": "default",
           "anyOf": [
             {
               "enum": ["default", "m1-medium", "intel-medium"],
               "markdownEnumDescriptions": [
-                "Medium Intel instance",
-                "Medium M1 instance",
-                "Medium Intel instance"
+                "Medium Intel resource class",
+                "Medium M1 resource class",
+                "Medium Intel resource class"
               ]
             },
             {
