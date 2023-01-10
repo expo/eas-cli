@@ -137,9 +137,12 @@ function resolveBuildResourceClass(
   if (profile.platform === Platform.IOS && resourceClass === ResourceClass.M1_EXPERIMENTAL) {
     Log.warn(`Resource class ${chalk.bold('m1-experimental')} is deprecated.`);
   }
-  if (profile.platform === Platform.IOS && [ResourceClass.LARGE, ResourceClass.M1_LARGE]) {
+  if (
+    profile.platform === Platform.IOS &&
+    [ResourceClass.LARGE, ResourceClass.M1_LARGE].includes(resourceClass)
+  ) {
     Log.warn(
-      `Large resource classes are not available for iOS builds yet. Your build will use the medium resource class.`
+      `Large resource classes are not available for iOS builds yet. Your build will use the same instance type as medium resource class.`
     );
   }
 
