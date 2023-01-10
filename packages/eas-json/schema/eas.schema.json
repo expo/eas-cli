@@ -178,7 +178,7 @@
         },
         "resourceClass": {
           "description": "The resource class that will be used to run this build, supported by both Android and iOS workers. Learn more: https://docs.expo.dev/build-reference/infrastructure/",
-          "markdownDescription": "The iOS specific resource class. [Learn more](https://docs.expo.dev/build-reference/infrastructure/)",
+          "markdownDescription": "The resource class that will be used to run this build, supported by both Android and iOS workers. [Learn more](https://docs.expo.dev/build-reference/infrastructure/)",
           "default": "default",
           "anyOf": [
             {
