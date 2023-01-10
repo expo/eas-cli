@@ -146,9 +146,6 @@ export default class Build extends EasCommand {
     flags: RawBuildFlags
   ): Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform } {
     const nonInteractive = flags['non-interactive'];
-    if (flags['resource-class']) {
-      Log.warn('The --resource-class flag is deprecated.');
-    }
     if (!flags.local && flags.output) {
       Errors.error('--output is allowed only for local builds', { exit: 1 });
     }
