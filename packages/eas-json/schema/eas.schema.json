@@ -182,7 +182,7 @@
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "large", "m1-medium", "intel-medium"],
+              "enum": ["default", "large"],
               "markdownEnumDescriptions": [
                 "Medium Intel instance for iOS and medium instance for Android",
                 "Medium Intel instance for iOS and large instance for Android"
@@ -358,9 +358,8 @@
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "large", "m1-medium", "intel-medium"],
+              "enum": ["default", "m1-medium", "intel-medium"],
               "markdownEnumDescriptions": [
-                "Medium Intel instance",
                 "Medium Intel instance",
                 "Medium M1 instance",
                 "Medium Intel instance"

@@ -137,6 +137,11 @@ function resolveBuildResourceClass(
   if (profile.platform === Platform.IOS && resourceClass === ResourceClass.M1_EXPERIMENTAL) {
     Log.warn('Resource class m1-experimental is deprecated.');
   }
+  if (profile.platform === Platform.IOS && [ResourceClass.LARGE, ResourceClass.M1_LARGE]) {
+    Log.warn(
+      `Large resource might not be available for iOS builds yet. Your build will probably get converted to the medium size resource class by our backend services.`
+    );
+  }
 
   return profile.platform === Platform.ANDROID
     ? androidResourceClassToBuildResourceClassMapping[
