@@ -371,7 +371,7 @@ test('iOS-specific resourceClass', async () => {
     build: {
       production: {
         ios: {
-          resourceClass: 'm1-experimental',
+          resourceClass: 'm1-medium',
         },
       },
     },
