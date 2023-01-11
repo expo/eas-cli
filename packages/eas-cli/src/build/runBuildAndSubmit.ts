@@ -91,6 +91,7 @@ const iosResourceClassToBuildResourceClassMapping: Record<ResourceClass, BuildRe
   [ResourceClass.M1_MEDIUM]: BuildResourceClass.IosM1Medium,
   [ResourceClass.M1_LARGE]: BuildResourceClass.IosM1Large,
   [ResourceClass.INTEL_MEDIUM]: BuildResourceClass.IosIntelMedium,
+  [ResourceClass.MEDIUM]: BuildResourceClass.IosMedium,
 };
 
 const androidResourceClassToBuildResourceClassMapping: Record<
@@ -105,6 +106,7 @@ const androidResourceClassToBuildResourceClassMapping: Record<
 > = {
   [ResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
   [ResourceClass.LARGE]: BuildResourceClass.AndroidLarge,
+  [ResourceClass.MEDIUM]: BuildResourceClass.AndroidMedium,
 };
 
 function resolveBuildResourceClass(

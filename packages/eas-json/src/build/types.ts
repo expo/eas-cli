@@ -17,6 +17,7 @@ export enum ResourceClass {
   M1_MEDIUM = 'm1-medium',
   M1_LARGE = 'm1-large',
   INTEL_MEDIUM = 'intel-medium',
+  MEDIUM = 'medium',
 }
 
 export type DistributionType = 'store' | 'internal';
