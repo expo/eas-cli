@@ -123,9 +123,7 @@ function resolveBuildResourceClass(
       ResourceClass.INTEL_MEDIUM,
     ].includes(resourceClassFlag)
   ) {
-    throw new Error(
-      `Resource class ${ResourceClass.M1_EXPERIMENTAL} is only available for iOS builds`
-    );
+    throw new Error(`Resource class ${resourceClassFlag} is only available for iOS builds`);
   }
 
   const profileResourceClass = profile.profile.resourceClass;
