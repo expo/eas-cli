@@ -182,10 +182,10 @@
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "large"],
+              "enum": ["default", "medium"],
               "markdownEnumDescriptions": [
-                "Medium Intel resource class for iOS and medium resource class for Android",
-                "Medium Intel resource class for iOS and large resource class for Android"
+                "Default resource class for Android and iOS builds",
+                "Medium resource class for Android builds and default medium resource class for iOS builds"
               ]
             },
             {
@@ -245,8 +245,12 @@
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "large"],
-              "markdownEnumDescriptions": ["Medium resource class", "Large resource class"]
+              "enum": ["default", "medium", "large"],
+              "markdownEnumDescriptions": [
+                "Default resource class for Android builds",
+                "Medium resource class for Android builds",
+                "Large resource class for Android builds"
+              ]
             },
             {
               "type": "string"
@@ -358,11 +362,12 @@
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "m1-medium", "intel-medium"],
+              "enum": ["default", "medium", "m1-medium", "intel-medium"],
               "markdownEnumDescriptions": [
-                "Medium Intel resource class",
-                "Medium M1 resource class",
-                "Medium Intel resource class"
+                "Default resource class for iOS builds",
+                "Default medium resource class for iOS builds",
+                "Medium M1 resource class for iOS builds",
+                "Medium Intel resource class for iOS builds"
               ]
             },
             {
