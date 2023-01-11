@@ -13,6 +13,8 @@ export function getActorDisplayName(user?: Actor): string {
       return user.username;
     case 'Robot':
       return user.firstName ? `${user.firstName} (robot)` : 'robot';
+    case 'SSOUser':
+      return 'sso';
     default:
       return 'anonymous';
   }

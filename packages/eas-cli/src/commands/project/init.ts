@@ -243,7 +243,9 @@ export default class ProjectInit extends EasCommand {
         const sortedAccounts =
           actor.__typename === 'Robot'
             ? allAccounts
-            : [...allAccounts].sort((a, _b) => (a.name === actor.username ? -1 : 1));
+            : [...allAccounts].sort((a, _b) =>
+                actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
+              );
 
         const choices = sortedAccounts.map(account => ({
           title: account.name,

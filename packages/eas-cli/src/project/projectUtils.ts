@@ -25,6 +25,8 @@ export function getUsername(exp: ExpoConfig, user: Actor): string | undefined {
       }
       // robot users don't have usernames
       return undefined;
+    case 'SSOUser':
+      throw new Error('SSO users are not supported yet.');
   }
 }
 
