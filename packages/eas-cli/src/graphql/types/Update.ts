@@ -9,7 +9,6 @@ export const UpdateFragmentNode = gql`
     runtimeVersion
     platform
     manifestFragment
-    manifestPermalink
     gitCommitHash
     actor {
       __typename

@@ -12,7 +12,6 @@ import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/cr
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
 import FeatureGating from '../../../commandUtils/gating/FeatureGating';
 import { jester } from '../../../credentials/__tests__/fixtures-constants';
-import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { collectAssetsAsync, uploadAssetsAsync } from '../../../project/publish';
@@ -20,19 +19,6 @@ import { getBranchNameFromChannelNameAsync } from '../../../update/getBranchName
 
 const projectRoot = '/test-project';
 const commandOptions = { root: projectRoot } as any;
-const updateStub: UpdateFragment = {
-  id: 'update-1234',
-  group: 'group-1234',
-  branch: { id: 'branch-1234', name: 'main' },
-  message: 'test message',
-  runtimeVersion: 'exposdk:47.0.0',
-  platform: 'ios',
-  gitCommitHash: 'commit',
-  manifestFragment: JSON.stringify({ fake: 'manifest' }),
-  manifestPermalink: 'https://expo.dev/fake/manifest/link',
-  codeSigningInfo: null,
-  createdAt: '2022-01-01T12:00:00Z',
-};
 
 jest.mock('fs');
 jest.mock('@expo/config');
@@ -95,9 +81,15 @@ describe(UpdatePublish.name, () => {
       createdBranch: false,
     });
 
-    jest
-      .mocked(PublishMutation.publishUpdateGroupAsync)
-      .mockResolvedValue(platforms.map(platform => ({ ...updateStub, platform, runtimeVersion })));
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue(
+      platforms.map(platform => ({
+        id: 'update123',
+        group: 'group123',
+        runtimeVersion,
+        platform,
+        manifestPermalink: 'https://example.com/update123/manifest',
+      }))
+    );
 
     await new UpdatePublish(flags, commandOptions).run();
 
@@ -118,9 +110,11 @@ describe(UpdatePublish.name, () => {
 
     jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue(
       platforms.map(platform => ({
-        ...updateStub,
+        id: 'update123',
+        group: 'group123',
         runtimeVersion,
         platform,
+        manifestPermalink: 'https://example.com/update123/manifest',
       }))
     );
 

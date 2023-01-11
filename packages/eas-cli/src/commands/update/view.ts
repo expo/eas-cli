@@ -4,11 +4,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
-import {
-  formatUpdateGroup,
-  getUpdateGroupDescriptions,
-  getUpdateGroupJsonInfo,
-} from '../../update/utils';
+import { formatUpdateGroup, getUpdateGroupDescriptions } from '../../update/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class UpdateView extends EasCommand {
@@ -45,12 +41,11 @@ export default class UpdateView extends EasCommand {
     }
 
     const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, { groupId });
+    const [updateGroupDescription] = getUpdateGroupDescriptions([updatesByGroup]);
 
     if (jsonFlag) {
-      printJsonOnlyOutput(getUpdateGroupJsonInfo(updatesByGroup));
+      printJsonOnlyOutput(updateGroupDescription);
     } else {
-      const [updateGroupDescription] = getUpdateGroupDescriptions([updatesByGroup]);
-
       Log.log(chalk.bold('Update group:'));
 
       Log.log(formatUpdateGroup(updateGroupDescription));
