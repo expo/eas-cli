@@ -142,7 +142,7 @@ function resolveBuildResourceClass(
     [ResourceClass.LARGE, ResourceClass.M1_LARGE].includes(resourceClass)
   ) {
     Log.warn(
-      `Large resource classes are not available for iOS builds yet. Your build will use the medium resource class..`
+      `Large resource classes are not available for iOS builds yet. Your build will use the medium resource class.`
     );
   }
 
