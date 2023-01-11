@@ -38,7 +38,7 @@
             "When using remote, the `autoIncrement` is based on the values stored on EAS servers."
           ]
         },
-        "promptToConfigurePushNotifications" : {
+        "promptToConfigurePushNotifications": {
           "type": "boolean",
           "description": "Specifies where EAS CLI should prompt to configure Push Notifications credentials. Defaults to true.",
           "default": true
@@ -176,6 +176,19 @@
           "description": "List of paths (or patterns) where EAS Build is going to look for the build artifacts. Use `applicationArchivePath` to specify the path for uploading the application archive. Build artifacts are uploaded even if the build fails. See: https://github.com/mrmlnc/fast-glob#pattern-syntax",
           "markdownDescription": "List of paths (or patterns) where EAS Build is going to look for the build artifacts. Use `applicationArchivePath` to specify the path for uploading the application archive. Build artifacts are uploaded even if the build fails. EAS Build uses the `fast-glob` npm package for pattern matching ([see their README to learn more about the syntax you can use](https://github.com/mrmlnc/fast-glob#pattern-syntax))."
         },
+        "resourceClass": {
+          "description": "The resource class that will be used to run this build, supported by both Android and iOS workers. Learn more: https://docs.expo.dev/build-reference/infrastructure/",
+          "markdownDescription": "The resource class that will be used to run this build, supported by both Android and iOS workers. [Learn more](https://docs.expo.dev/build-reference/infrastructure/)",
+          "default": "default",
+          "anyOf": [
+            {
+              "enum": ["default", "medium"]
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
         "android": {
           "$ref": "#/definitions/BuildProfileAndroid"
         },
@@ -216,6 +229,19 @@
                 "`ubuntu-22.04-jdk-11-ndk-r21e`",
                 "`ubuntu-20.04-jdk-11-ndk-r21e`"
               ]
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "resourceClass": {
+          "description": "The Android-specific resource class that will be used to run this build. Learn more: https://docs.expo.dev/build-reference/infrastructure/",
+          "markdownDescription": "The Android-specific resource class that will be used to run this build. [Learn more](https://docs.expo.dev/build-reference/infrastructure/)",
+          "default": "default",
+          "anyOf": [
+            {
+              "enum": ["default", "medium", "large"]
             },
             {
               "type": "string"
@@ -311,7 +337,23 @@
                 "macos-big-sur-11.4-xcode-13.0",
                 "macos-big-sur-11.4-xcode-12.5"
               ],
-              "markdownEnumDescriptions": ["`macos-monterey-12.6-xcode-14.0`", "`macos-monterey-12.6-xcode-14.1`"]
+              "markdownEnumDescriptions": [
+                "`macos-monterey-12.6-xcode-14.0`",
+                "`macos-monterey-12.6-xcode-14.1`"
+              ]
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "resourceClass": {
+          "description": "The iOS-specific resource class that will be used to run this build. Learn more: https://docs.expo.dev/build-reference/infrastructure/",
+          "markdownDescription": "The iOS-specific resource class that will be used to run this build. [Learn more](https://docs.expo.dev/build-reference/infrastructure/)",
+          "default": "default",
+          "anyOf": [
+            {
+              "enum": ["default", "medium", "m1-medium", "intel-medium"]
             },
             {
               "type": "string"

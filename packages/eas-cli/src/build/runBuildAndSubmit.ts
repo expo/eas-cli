@@ -88,24 +88,42 @@ const iosResourceClassToBuildResourceClassMapping: Record<ResourceClass, BuildRe
   [ResourceClass.DEFAULT]: BuildResourceClass.IosDefault,
   [ResourceClass.LARGE]: BuildResourceClass.IosLarge,
   [ResourceClass.M1_EXPERIMENTAL]: BuildResourceClass.IosM1Large,
+  [ResourceClass.M1_MEDIUM]: BuildResourceClass.IosM1Medium,
+  [ResourceClass.M1_LARGE]: BuildResourceClass.IosM1Large,
+  [ResourceClass.INTEL_MEDIUM]: BuildResourceClass.IosIntelMedium,
+  [ResourceClass.MEDIUM]: BuildResourceClass.IosMedium,
 };
 
 const androidResourceClassToBuildResourceClassMapping: Record<
-  Exclude<ResourceClass, ResourceClass.M1_EXPERIMENTAL>,
+  Exclude<
+    ResourceClass,
+    | ResourceClass.M1_EXPERIMENTAL
+    | ResourceClass.M1_MEDIUM
+    | ResourceClass.M1_LARGE
+    | ResourceClass.INTEL_MEDIUM
+  >,
   BuildResourceClass
 > = {
   [ResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
   [ResourceClass.LARGE]: BuildResourceClass.AndroidLarge,
+  [ResourceClass.MEDIUM]: BuildResourceClass.AndroidMedium,
 };
 
 function resolveBuildResourceClass(
   profile: ProfileData<'build'>,
   resourceClassFlag?: ResourceClass
 ): BuildResourceClass {
-  if (profile.platform !== Platform.IOS && resourceClassFlag === ResourceClass.M1_EXPERIMENTAL) {
-    throw new Error(
-      `Resource class ${ResourceClass.M1_EXPERIMENTAL} is only available for iOS builds`
-    );
+  if (
+    profile.platform !== Platform.IOS &&
+    resourceClassFlag &&
+    [
+      ResourceClass.M1_EXPERIMENTAL,
+      ResourceClass.M1_MEDIUM,
+      ResourceClass.M1_LARGE,
+      ResourceClass.INTEL_MEDIUM,
+    ].includes(resourceClassFlag)
+  ) {
+    throw new Error(`Resource class ${resourceClassFlag} is only available for iOS builds`);
   }
 
   const profileResourceClass = profile.profile.resourceClass;
@@ -116,9 +134,27 @@ function resolveBuildResourceClass(
   }
   const resourceClass = resourceClassFlag ?? profileResourceClass ?? ResourceClass.DEFAULT;
 
+  if (profile.platform === Platform.IOS && resourceClass === ResourceClass.M1_EXPERIMENTAL) {
+    Log.warn(`Resource class ${chalk.bold('m1-experimental')} is deprecated.`);
+  }
+  if (
+    profile.platform === Platform.IOS &&
+    [ResourceClass.LARGE, ResourceClass.M1_LARGE].includes(resourceClass)
+  ) {
+    Log.warn(
+      `Large resource classes are not available for iOS builds yet. Your build will use the medium resource class.`
+    );
+  }
+
   return profile.platform === Platform.ANDROID
     ? androidResourceClassToBuildResourceClassMapping[
-        resourceClass as Exclude<ResourceClass, ResourceClass.M1_EXPERIMENTAL>
+        resourceClass as Exclude<
+          ResourceClass,
+          | ResourceClass.M1_EXPERIMENTAL
+          | ResourceClass.M1_MEDIUM
+          | ResourceClass.M1_LARGE
+          | ResourceClass.INTEL_MEDIUM
+        >
       ]
     : iosResourceClassToBuildResourceClassMapping[resourceClass];
 }
@@ -172,10 +208,7 @@ export async function runBuildAndSubmitAsync(
       flags,
       moreBuilds: platforms.length > 1,
       buildProfile,
-      resourceClass: resolveBuildResourceClass(
-        buildProfile,
-        flags.resourceClass ?? ResourceClass.DEFAULT
-      ),
+      resourceClass: resolveBuildResourceClass(buildProfile, flags.resourceClass),
       easJsonCliConfig,
       actor,
       graphqlClient,

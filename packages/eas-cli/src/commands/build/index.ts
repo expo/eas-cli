@@ -160,17 +160,6 @@ export default class Build extends EasCommand {
     if (flags.json && !nonInteractive) {
       Errors.error('--json is allowed only when building in non-interactive mode', { exit: 1 });
     }
-    if (
-      flags['resource-class'] === ResourceClass.M1_EXPERIMENTAL &&
-      flags.platform !== Platform.IOS
-    ) {
-      Errors.error(
-        `Resource class ${ResourceClass.M1_EXPERIMENTAL} is only available for iOS builds`,
-        {
-          exit: 1,
-        }
-      );
-    }
 
     const requestedPlatform =
       flags.platform &&
@@ -217,7 +206,7 @@ export default class Build extends EasCommand {
       json: flags['json'],
       autoSubmit: flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined,
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
-      resourceClass: flags['resource-class'] ?? ResourceClass.DEFAULT,
+      resourceClass: flags['resource-class'],
       message,
     };
   }

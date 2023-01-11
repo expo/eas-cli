@@ -4,13 +4,17 @@ import semver from 'semver';
 
 import { ResourceClass } from './types';
 
-const AllowedCommonResourceClasses: ResourceClass[] = [ResourceClass.DEFAULT, ResourceClass.LARGE];
+const AllowedCommonResourceClasses: ResourceClass[] = [ResourceClass.DEFAULT, ResourceClass.MEDIUM];
 
-const AllowedAndroidResourceClasses: ResourceClass[] = [...AllowedCommonResourceClasses];
+const AllowedAndroidResourceClasses: ResourceClass[] = [
+  ...AllowedCommonResourceClasses,
+  ResourceClass.LARGE,
+];
 
 const AllowedIosResourceClasses: ResourceClass[] = [
   ...AllowedCommonResourceClasses,
-  ResourceClass.M1_EXPERIMENTAL,
+  ResourceClass.M1_MEDIUM,
+  ResourceClass.INTEL_MEDIUM,
 ];
 
 const CacheSchema = Joi.object({

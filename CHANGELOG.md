@@ -8,6 +8,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add ability to select resource class for a build in build profile. ([#1609](https://github.com/expo/eas-cli/pull/1609) by [@dsokal](https://github.com/dsokal))
+- Deprecate `--resource-class` flag. ([#1615](https://github.com/expo/eas-cli/pull/1615) by [@dsokal](https://github.com/dsokal))
+- Add new resource classes and update already available. ([#1616](https://github.com/expo/eas-cli/pull/1616) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🐛 Bug fixes
 
 - Add missing key information about updates in `eas update --json` and `eas update:view --json`. ([#1611](https://github.com/expo/eas-cli/pull/1611) by [@byCedric](https://github.com/byCedric))
