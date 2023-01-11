@@ -88,7 +88,7 @@ export default class Build extends EasCommand {
       hidden: true,
       deprecated: {
         message: chalk.yellow(
-          'The --resource-class flag has been deprecated. Define the resource class in eas.json.'
+          'The --resource-class flag has been deprecated. Define the resource class in eas.json.\nLearn more: https://docs.expo.dev/build-reference/eas-json/'
         ),
       },
       description: 'The instance type that will be used to run this build [experimental]',
