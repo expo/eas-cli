@@ -1,3 +1,4 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -8,8 +9,10 @@ import {
   GetSignedUploadMutationVariables,
   PublishUpdateGroupInput,
   SetCodeSigningInfoMutation,
+  UpdateFragment,
   UpdatePublishMutation,
 } from '../generated';
+import { UpdateFragmentNode } from '../types/Update';
 
 export const PublishMutation = {
   async getUploadURLsAsync(
@@ -39,7 +42,7 @@ export const PublishMutation = {
   async publishUpdateGroupAsync(
     graphqlClient: ExpoGraphqlClient,
     publishUpdateGroupsInput: PublishUpdateGroupInput[]
-  ): Promise<UpdatePublishMutation['updateBranch']['publishUpdateGroups']> {
+  ): Promise<UpdateFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<UpdatePublishMutation>(
@@ -52,6 +55,7 @@ export const PublishMutation = {
                 }
               }
             }
+            ${print(UpdateFragmentNode)}
           `,
           { publishUpdateGroupsInput }
         )
