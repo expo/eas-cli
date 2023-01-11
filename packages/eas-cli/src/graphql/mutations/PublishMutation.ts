@@ -48,10 +48,7 @@ export const PublishMutation = {
               updateBranch {
                 publishUpdateGroups(publishUpdateGroupsInput: $publishUpdateGroupsInput) {
                   id
-                  group
-                  runtimeVersion
-                  platform
-                  manifestPermalink
+                  ...UpdateFragment
                 }
               }
             }
