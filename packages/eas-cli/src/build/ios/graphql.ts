@@ -8,7 +8,7 @@ export function transformJob(job: Ios.Job): IosJobInput {
   return {
     type: transformWorkflow(job.type),
     projectArchive: transformProjectArchive(job.projectArchive),
-    projectRootDirectory: job.projectRootDirectory,
+    projectRootDirectory: nullthrows(job.projectRootDirectory),
     releaseChannel: job.releaseChannel,
     updates: job.updates,
     secrets: transformIosSecrets(job.secrets),

@@ -33,7 +33,7 @@
     "@segment/ajv-human-errors": "^2.1.2",
     "@urql/core": "3.1.1",
     "@urql/exchange-retry": "1.0.0",
-    "ajv": "8.12.0",
+    "ajv": "8.11.0",
     "ajv-formats": "2.1.1",
     "better-opn": "3.0.2",
     "chalk": "4.1.2",
