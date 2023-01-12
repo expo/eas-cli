@@ -1,7 +1,7 @@
 import {
   convertCertificatePEMToCertificate,
   convertPrivateKeyPEMToPrivateKey,
-  signStringRSASHA256AndVerify,
+  signBufferRSASHA256AndVerify,
   validateSelfSignedCertificate,
 } from '@expo/code-signing-certificates';
 import { ExpoConfig } from '@expo/config';
@@ -116,10 +116,10 @@ export async function getManifestBodyAsync(res: Response): Promise<string | null
 }
 
 export function signManifestBody(body: string, codeSigningInfo: CodeSigningInfo): string {
-  return signStringRSASHA256AndVerify(
+  return signBufferRSASHA256AndVerify(
     codeSigningInfo.privateKey,
     codeSigningInfo.certificate,
-    body
+    Buffer.from(body, 'utf-8')
   );
 }
 

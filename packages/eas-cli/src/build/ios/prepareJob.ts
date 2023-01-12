@@ -1,4 +1,12 @@
-import { ArchiveSource, Ios, Job, Platform, sanitizeJob } from '@expo/eas-build-job';
+import {
+  ArchiveSource,
+  BuildMode,
+  BuildTrigger,
+  Ios,
+  Job,
+  Platform,
+  sanitizeJob,
+} from '@expo/eas-build-job';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import slash from 'slash';
@@ -77,6 +85,8 @@ export async function prepareJobAsync(
     experimental: {
       prebuildCommand: ctx.buildProfile.prebuildCommand,
     },
+    mode: BuildMode.BUILD,
+    triggeredBy: BuildTrigger.EAS_CLI,
   };
   return sanitizeJob(job);
 }

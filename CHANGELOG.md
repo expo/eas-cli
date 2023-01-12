@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Upgrade dependencies. ([#1617](https://github.com/expo/eas-cli/pull/1617) by [@dsokal](https://github.com/dsokal))
+
 ## [3.3.1](https://github.com/expo/eas-cli/releases/tag/v3.3.1) - 2023-01-11
 
 ### 🐛 Bug fixes
