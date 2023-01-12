@@ -4,6 +4,7 @@ import {
   BuildCredentialsSource,
   BuildIosEnterpriseProvisioning,
   BuildMetadataInput,
+  BuildMode,
   BuildWorkflow,
   DistributionType,
   ProjectArchiveSourceInput,
@@ -34,6 +35,7 @@ export function transformProjectArchive(archiveSource: ArchiveSource): ProjectAr
 export function transformMetadata(metadata: Metadata): BuildMetadataInput {
   return {
     ...metadata,
+    buildMode: metadata.buildMode && transformBuildMode(metadata.buildMode),
     credentialsSource:
       metadata.credentialsSource && transformCredentialsSource(metadata.credentialsSource),
     distribution: metadata.distribution && transformDistribution(metadata.distribution),
@@ -79,5 +81,13 @@ export function transformIosEnterpriseProvisioning(
     return BuildIosEnterpriseProvisioning.Adhoc;
   } else {
     return BuildIosEnterpriseProvisioning.Universal;
+  }
+}
+
+export function transformBuildMode(buildMode: Metadata['buildMode']): BuildMode {
+  if (buildMode === 'build') {
+    return BuildMode.Build;
+  } else {
+    return BuildMode.Resign;
   }
 }
