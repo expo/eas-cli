@@ -4532,21 +4532,9 @@ export type User = Actor & {
   hasPendingUserInvitations: Scalars['Boolean'];
   id: Scalars['ID'];
   industry?: Maybe<Scalars['String']>;
-  /** @deprecated No longer supported */
-  isEmailUnsubscribed: Scalars['Boolean'];
   isExpoAdmin: Scalars['Boolean'];
-  /** @deprecated No longer supported */
-  isLegacy?: Maybe<Scalars['Boolean']>;
-  /** @deprecated No longer supported */
-  isOnboarded?: Maybe<Scalars['Boolean']>;
   isSecondFactorAuthenticationEnabled: Scalars['Boolean'];
-  /** @deprecated No longer supported */
-  lastLogin?: Maybe<Scalars['DateTime']>;
   lastName?: Maybe<Scalars['String']>;
-  /** @deprecated No longer supported */
-  lastPasswordReset?: Maybe<Scalars['DateTime']>;
-  /** @deprecated 'likes' have been deprecated. */
-  likes?: Maybe<Array<Maybe<App>>>;
   location?: Maybe<Scalars['String']>;
   notificationSubscriptions: Array<NotificationSubscription>;
   /** Pending UserInvitations for this user. Only resolves for the viewer. */
@@ -4560,8 +4548,6 @@ export type User = Actor & {
   snacks: Array<Snack>;
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
-  /** @deprecated No longer supported */
-  wasLegacy?: Maybe<Scalars['Boolean']>;
 };
 
 
@@ -4588,13 +4574,6 @@ export type UserFeatureGatesArgs = {
 
 
 /** Represents a human (not robot) actor. */
-export type UserLikesArgs = {
-  limit: Scalars['Int'];
-  offset: Scalars['Int'];
-};
-
-
-/** Represents a human (not robot) actor. */
 export type UserNotificationSubscriptionsArgs = {
   filter?: InputMaybe<NotificationSubscriptionFilter>;
 };
@@ -4614,15 +4593,11 @@ export type UserDataInput = {
   githubUsername?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
   industry?: InputMaybe<Scalars['String']>;
-  isEmailUnsubscribed?: InputMaybe<Scalars['Boolean']>;
-  isLegacy?: InputMaybe<Scalars['Boolean']>;
-  isOnboarded?: InputMaybe<Scalars['Boolean']>;
   lastName?: InputMaybe<Scalars['String']>;
   location?: InputMaybe<Scalars['String']>;
   profilePhoto?: InputMaybe<Scalars['String']>;
   twitterUsername?: InputMaybe<Scalars['String']>;
   username?: InputMaybe<Scalars['String']>;
-  wasLegacy?: InputMaybe<Scalars['Boolean']>;
 };
 
 /** An pending invitation sent to an email granting membership on an Account. */
@@ -5609,7 +5584,7 @@ export type ViewUpdateGroupsOnAppQuery = { __typename?: 'RootQuery', app: { __ty
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?: { __typename: 'Robot', firstName?: string | null, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'SSOUser', id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'User', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | null };
+export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?: { __typename: 'Robot', firstName?: string | null, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'SSOUser', username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'User', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | null };
 
 export type WebhooksByAppIdQueryVariables = Exact<{
   appId: Scalars['String'];
