@@ -39,7 +39,7 @@ export class Ignore {
     if (await fs.pathExists(easIgnorePath)) {
       this.ignoreMapping = [
         ['', createIgnore().add(DEFAULT_IGNORE)],
-        ['', createIgnore().add(await this.readIgnoreFileAsync(easIgnorePath))],
+        ['', createIgnore().add(await fs.readFile(easIgnorePath, 'utf-8'))],
       ];
       return;
     }
@@ -57,7 +57,7 @@ export class Ignore {
       ignoreFilePaths.map(async filePath => {
         return [
           filePath.slice(0, filePath.length - GITIGNORE_FILENAME.length),
-          createIgnore().add(await this.readIgnoreFileAsync(path.join(this.rootDir, filePath))),
+          createIgnore().add(await fs.readFile(path.join(this.rootDir, filePath), 'utf-8')),
         ] as const;
       })
     );
@@ -71,16 +71,6 @@ export class Ignore {
       }
     }
     return false;
-  }
-
-  private async readIgnoreFileAsync(filePath: string): Promise<string> {
-    const fileContents = await fs.readFile(filePath, 'utf-8');
-    const lines = fileContents.split('\n');
-    // Strip trailing '\'. This logic can be removed after fix upstream is released.
-    // https://github.com/kaelzhang/node-ignore/issues/81
-    return lines
-      .map((line: string) => (line.slice(-1) === '\\' ? line.slice(0, -1) : line))
-      .join('\n');
   }
 }
 
