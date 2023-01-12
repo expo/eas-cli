@@ -26,6 +26,9 @@ export const UserQuery = {
                 ... on Robot {
                   firstName
                 }
+                ... on SSOUser {
+                  username
+                }
                 accounts {
                   id
                   ...AccountFragment
