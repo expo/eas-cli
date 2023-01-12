@@ -28,6 +28,7 @@
     "jest": "29.3.1",
     "jest-watch-typeahead": "2.2.1",
     "lerna": "6.3.0",
+    "nx": "15.4.5",
     "oclif": "3.4.3",
     "prettier": "2.8.2",
     "ts-jest": "29.0.3",
