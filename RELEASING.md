@@ -15,4 +15,4 @@ The algorithm works as follows:
 
 ## Updating EAS CLI version on EAS Build
 
-Release process will automatically promote new version to staging. After verifying if it works there, you can promote it to production with `npm dist-tag add eas-cli@{version} latest-eas-build`.
+The release process promotes the new version to staging. After verifying it works there, you can promote it to production with `npm dist-tag add eas-cli@{version} latest-eas-build`.
