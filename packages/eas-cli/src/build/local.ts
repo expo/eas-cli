@@ -8,8 +8,26 @@ import { ora } from '../ora';
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
 const PLUGIN_PACKAGE_VERSION = '0.0.120';
 
+export enum LocalBuildMode {
+  /**
+   * Local build that users can run on their own machines. Instead
+   * of sending build request to EAS Servers it's passing it as an argument
+   * to local-build-plugin, that will run the build locally.
+   *
+   * Triggered when running `eas build --local`.
+   */
+  LOCAL_BUILD_PLUGIN,
+  /**
+   * Type of local build that is not accessible to users directly. When
+   * cloud build is triggered by git based integration, we are running
+   * in this mode. Instead of sending build request to EAS Servers it's
+   * printing it to the stdout as JSON, so EAS Build worker can read it.
+   */
+  INTERNAL,
+}
+
 export interface LocalBuildOptions {
-  enable: boolean;
+  localBuildMode?: LocalBuildMode;
   skipCleanup?: boolean;
   skipNativeBuild?: boolean;
   artifactsDir?: string;

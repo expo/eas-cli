@@ -1,5 +1,6 @@
 import { ArchiveSource, ArchiveSourceType, Job, Metadata, Platform } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
+import assert from 'assert';
 import chalk from 'chalk';
 import cliProgress from 'cli-progress';
 import fs from 'fs-extra';
@@ -28,11 +29,12 @@ import {
 } from '../platform';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
+import { printJsonOnlyOutput } from '../utils/json';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
 import { getVcsClient } from '../vcs';
 import { BuildContext } from './context';
-import { runLocalBuildAsync } from './local';
+import { LocalBuildMode, runLocalBuildAsync } from './local';
 import { collectMetadataAsync } from './metadata';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import { makeProjectTarballAsync, reviewAndCommitChangesAsync } from './utils/repository';
@@ -107,15 +109,24 @@ export async function prepareBuildRequestForPlatformAsync<
     );
   }
 
-  const projectArchive = ctx.localBuildOptions.enable
-    ? ({
-        type: ArchiveSourceType.PATH,
-        path: (await makeProjectTarballAsync()).path,
-      } as const)
-    : ({
-        type: ArchiveSourceType.GCS,
-        bucketKey: await uploadProjectAsync(ctx),
-      } as const);
+  let projectArchive: ArchiveSource | undefined;
+  if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
+    projectArchive = {
+      type: ArchiveSourceType.PATH,
+      path: (await makeProjectTarballAsync()).path,
+    };
+  } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
+    projectArchive = {
+      type: ArchiveSourceType.PATH,
+      path: process.cwd(),
+    };
+  } else if (!ctx.localBuildOptions.localBuildMode) {
+    projectArchive = {
+      type: ArchiveSourceType.GCS,
+      bucketKey: await uploadProjectAsync(ctx),
+    };
+  }
+  assert(projectArchive);
 
   const metadata = await collectMetadataAsync(ctx);
   const buildParams = resolveBuildParamsInput(ctx);
@@ -125,15 +136,20 @@ export async function prepareBuildRequestForPlatformAsync<
   });
 
   return async () => {
-    if (ctx.localBuildOptions.enable) {
+    if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
       await runLocalBuildAsync(job, metadata, ctx.localBuildOptions);
       return undefined;
-    } else {
+    } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
+      printJsonOnlyOutput({ job, metadata });
+      return undefined;
+    } else if (!ctx.localBuildOptions.localBuildMode) {
       try {
         return await sendBuildRequestAsync(builder, job, metadata, buildParams);
       } catch (error: any) {
         handleBuildRequestError(error, job.platform);
       }
+    } else {
+      throw new Error('Unknown localBuildMode.');
     }
   };
 }

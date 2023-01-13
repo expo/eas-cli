@@ -221,7 +221,7 @@ export async function runBuildAndSubmitAsync(
     buildCtxByPlatform[toAppPlatform(buildProfile.platform)] = buildCtx;
   }
 
-  if (flags.localBuildOptions.enable) {
+  if (flags.localBuildOptions.localBuildMode) {
     return;
   }
 
