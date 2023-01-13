@@ -36,10 +36,10 @@ jobs:
           yarn pretarball-ci
           yarn oclif pack:tarballs --no-xz --targets linux-x64,linux-arm
       - id: x64
-        run: echo "::set-output name=filename::$(ls eas-*-x64.tar.gz)"
+        run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
         working-directory: ${{ github.workspace }}/packages/eas-cli/dist
       - id: arm
-        run: echo "::set-output name=filename::$(ls eas-*-arm.tar.gz)"
+        run: echo "filename=$(ls eas-*-arm.tar.gz)" >> $GITHUB_OUTPUT
         working-directory: ${{ github.workspace }}/packages/eas-cli/dist
       - name: Upload linux-x64 tarball
         uses: actions/upload-release-asset@v1
@@ -77,7 +77,7 @@ jobs:
           yarn pretarball-ci
           yarn oclif pack:tarballs --no-xz --targets darwin-x64
       - id: x64
-        run: echo "::set-output name=filename::$(ls eas-*-x64.tar.gz)"
+        run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
         working-directory: ${{ github.workspace }}/packages/eas-cli/dist
       - name: Upload darwin-x64 tarball
         uses: actions/upload-release-asset@v1
@@ -105,10 +105,10 @@ jobs:
           yarn oclif pack:win
         working-directory: ${{ github.workspace }}/packages/eas-cli
       - id: x64
-        run: echo "::set-output name=filename::$(ls eas-*-x64.exe)"
+        run: echo "filename=$(ls eas-*-x64.exe)" >> $GITHUB_OUTPUT
         working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win32
       - id: x86
-        run: echo "::set-output name=filename::$(ls eas-*-x86.exe)"
+        run: echo "filename=$(ls eas-*-x86.exe)" >> $GITHUB_OUTPUT
         working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win32
       - name: Upload x64 installer
         uses: actions/upload-release-asset@v1
@@ -145,6 +145,14 @@ jobs:
         run: yarn build
       - name: Publish packages to npm
         run: yarn lerna publish from-package --yes --no-verify-access
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+      - name: Add latest-eas-build-staging tag
+        run: |
+          VERSION=$(cat lerna.json | jq -r .version)
+          echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
+          npm dist-tag add eas-cli@$VERSION latest-eas-build-staging
+          echo "Run \"npm dist-tag add eas-cli@$VERSION latest-eas-build\" to promote it to production."
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
   release-changelog:
