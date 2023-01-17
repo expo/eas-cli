@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Test. ([#1631](https://github.com/expo/eas-cli/pull/1631) by [@szdziedzic](https://github.com/szdziedzic))
+- Test. ([#1631](https://github.com/expo/eas-cli/pull/1631) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 
