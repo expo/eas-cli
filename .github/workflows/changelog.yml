@@ -4,8 +4,6 @@ on:
 
 name: Changelog
 
-permissions: write-all
-
 jobs:
   pr-commented:
     runs-on: ubuntu-latest
@@ -45,5 +43,4 @@ jobs:
 
           git add CHANGELOG.md
           git commit -m "update CHANGELOG.md"
-          git push
-
+          git push https://${{ secrets.SZYMON_TEST_PAT }}@github.com/expo/eas-cli.git
