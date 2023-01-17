@@ -10,6 +10,8 @@ jobs:
     if: ${{ github.event.issue.pull_request && github.event.issue.user.login == github.event.comment.user.login && startsWith(github.event.comment.body, '/changelog-entry ') }}
     steps:
       - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.PAT }}
       - uses: actions/setup-node@v2
         with:
           node-version: 18
@@ -40,10 +42,6 @@ jobs:
           # use the last commit author name and email
           git config --global user.name "$(git --no-pager log --format=format:'%an' -n 1)"
           git config --global user.email "$(git --no-pager log --format=format:'%ae' -n 1)"
-
-          # set origin url
-          git remote set-url origin https://${{ secrets.SZYMON_TEST_PAT }}@github.com/szdziedzic/eas-cli
-          git pull
 
           git add CHANGELOG.md
           git commit -m "update CHANGELOG.md"
