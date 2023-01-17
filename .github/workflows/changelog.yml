@@ -4,6 +4,8 @@ on:
 
 name: Changelog
 
+permissions: write-all
+
 jobs:
   pr-commented:
     runs-on: ubuntu-latest
