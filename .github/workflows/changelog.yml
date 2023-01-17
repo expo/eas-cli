@@ -9,7 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.issue.pull_request && github.event.issue.user.login == github.event.comment.user.login && startsWith(github.event.comment.body, '/changelog-entry ') }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PAT }}
       - uses: actions/setup-node@v2
         with:
           node-version: 18
