@@ -1,5 +1,5 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { EasJson, EasJsonAccessor } from '@expo/eas-json';
+import { EasJson, EasJsonAccessor, ResourceClass } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
@@ -53,11 +53,21 @@ const EAS_JSON_MANAGED_DEFAULT: EasJson = {
     development: {
       developmentClient: true,
       distribution: 'internal',
+      ios: {
+        resourceClass: ResourceClass.M1_MEDIUM,
+      },
     },
     preview: {
       distribution: 'internal',
+      ios: {
+        resourceClass: ResourceClass.M1_MEDIUM,
+      },
     },
-    production: {},
+    production: {
+      ios: {
+        resourceClass: ResourceClass.M1_MEDIUM,
+      },
+    },
   },
   submit: {
     production: {},
@@ -76,12 +86,20 @@ const EAS_JSON_BARE_DEFAULT: EasJson = {
       },
       ios: {
         buildConfiguration: 'Debug',
+        resourceClass: ResourceClass.M1_MEDIUM,
       },
     },
     preview: {
       distribution: 'internal',
+      ios: {
+        resourceClass: ResourceClass.M1_MEDIUM,
+      },
     },
-    production: {},
+    production: {
+      ios: {
+        resourceClass: ResourceClass.M1_MEDIUM,
+      },
+    },
   },
   submit: {
     production: {},
