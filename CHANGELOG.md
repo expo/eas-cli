@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add `--json` flag to `eas config` command. ([#1568](https://github.com/expo/eas-cli/pull/1568) by [@wkozyra95](https://github.com/wkozyra95))
+- Add M1 resource class configuration to default eas.json when running eas build:configure on a new project. ([#1637](https://github.com/expo/eas-cli/pull/1637) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🐛 Bug fixes
 
