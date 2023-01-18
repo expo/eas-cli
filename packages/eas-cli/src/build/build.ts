@@ -177,8 +177,12 @@ function handleBuildRequestError(error: any, platform: Platform): never {
   } else if (
     error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED_IOS'
   ) {
+    const resourceClasses = error.graphQLErrors[0].extensions.metadata?.resourceClasses;
+    const resourceClassesString = resourceClasses
+      ? ` (resource class${resourceClasses.length > 1 ? 'es' : ''}: ${resourceClasses.join(', ')})`
+      : '';
     Log.error(
-      `EAS Build free tier is temporarily disabled for iOS and we are not accepting any new builds. Try again later. ${learnMore(
+      `EAS Build free tier is temporarily disabled for iOS${resourceClassesString} and we are not accepting any new builds. Try again later. ${learnMore(
         'https://expo.fyi/eas-build-queues'
       )}`
     );
