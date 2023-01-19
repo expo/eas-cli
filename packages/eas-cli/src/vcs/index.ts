@@ -1,4 +1,5 @@
-import log from '../log';
+import chalk from 'chalk';
+
 import GitNoCommitClient from './clients/gitNoCommit';
 import NoVcsClient from './clients/noVcs';
 import { Client } from './vcs';
@@ -10,7 +11,11 @@ let vcsClient = resolveDefaultVcsClient();
 function resolveDefaultVcsClient(): Client {
   if (process.env.EAS_NO_VCS) {
     if (process.env.NODE_ENV !== 'test') {
-      log.warn(NO_VCS_WARNING);
+      // This log might be printed before cli arguments are evaluated,
+      // so it needs to go to stderr in case command is run in JSON
+      // only mode.
+      // eslint-disable-next-line no-console
+      console.error(chalk.yellow(NO_VCS_WARNING));
     }
     return new NoVcsClient();
   }
