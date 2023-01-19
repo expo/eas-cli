@@ -18,6 +18,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Remove unnecessary workaround for trailing backslash in .gitignore. ([#1622](https://github.com/expo/eas-cli/pull/1622) by [@wkozyra95](https://github.com/wkozyra95))
 - Internal command that will be run on EAS worker when building from GitHub. ([#1568](https://github.com/expo/eas-cli/pull/1568) by [@wkozyra95](https://github.com/wkozyra95))
 - Make the disabled tier error message more descriptive. ([#1635](https://github.com/expo/eas-cli/pull/1635) by [@dsokal](https://github.com/dsokal))
+- Control some of the EAS Build error messages server-side. ([#1639](https://github.com/expo/eas-cli/pull/1639) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [3.3.2](https://github.com/expo/eas-cli/releases/tag/v3.3.2) - 2023-01-12
 
