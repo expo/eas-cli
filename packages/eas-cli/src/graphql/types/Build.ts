@@ -53,6 +53,7 @@ export const BuildFragmentNode = gql`
     createdAt
     updatedAt
     completedAt
+    resourceClass
   }
 `;
 

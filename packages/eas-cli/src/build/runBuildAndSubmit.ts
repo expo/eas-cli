@@ -275,6 +275,8 @@ export async function runBuildAndSubmitAsync(
   const builds = await waitForBuildEndAsync(graphqlClient, {
     buildIds: startedBuilds.map(({ build }) => build.id),
     accountName,
+    projectDir,
+    nonInteractive: flags.nonInteractive,
   });
   if (!flags.json) {
     printBuildResults(builds);
