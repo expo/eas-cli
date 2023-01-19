@@ -215,7 +215,7 @@ export default class Build extends EasCommand {
   ): Promise<BuildFlags> {
     const requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
 
-    if (!flags.localBuildOptions.localBuildMode) {
+    if (flags.localBuildOptions.localBuildMode) {
       if (flags.autoSubmit) {
         // TODO: implement this
         Errors.error('Auto-submits are not yet supported when building locally', { exit: 1 });
