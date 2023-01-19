@@ -154,9 +154,18 @@ export async function prepareBuildRequestForPlatformAsync<
   };
 }
 
+const SERVER_SIDE_DEFINED_ERRORS = [
+  'TURTLE_DEPRECATED_JOB_FORMAT',
+  'EAS_BUILD_FREE_TIER_DISABLED',
+  'EAS_BUILD_FREE_TIER_DISABLED_IOS',
+  'EAS_BUILD_FREE_TIER_DISABLED_ANDROID',
+];
+
 function handleBuildRequestError(error: any, platform: Platform): never {
-  if (error?.graphQLErrors?.[0]?.extensions?.errorCode === 'TURTLE_DEPRECATED_JOB_FORMAT') {
-    Log.error('EAS Build API has changed. Upgrade to the latest eas-cli version.');
+  Log.debug(JSON.stringify(error.graphQLErrors, null, 2));
+
+  if (SERVER_SIDE_DEFINED_ERRORS.includes(error?.graphQLErrors?.[0]?.extensions?.errorCode)) {
+    Log.error(error?.graphQLErrors?.[0]?.message);
     throw new Error('Build request failed.');
   } else if (
     error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE'
@@ -165,35 +174,6 @@ function handleBuildRequestError(error: any, platform: Platform): never {
       `EAS Build is down for maintenance. Try again later. Check ${link(
         'https://status.expo.dev/'
       )} for updates.`
-    );
-    throw new Error('Build request failed.');
-  } else if (error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED') {
-    Log.error(
-      `EAS Build free tier is temporarily disabled and we are not accepting any new builds. Try again later. ${learnMore(
-        'https://expo.fyi/eas-build-queues'
-      )}`
-    );
-    throw new Error('Build request failed.');
-  } else if (
-    error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED_IOS'
-  ) {
-    const resourceClasses = error.graphQLErrors[0].extensions.metadata?.resourceClasses;
-    const resourceClassesString = resourceClasses
-      ? ` (resource class${resourceClasses.length > 1 ? 'es' : ''}: ${resourceClasses.join(', ')})`
-      : '';
-    Log.error(
-      `EAS Build free tier is temporarily disabled for iOS${resourceClassesString} and we are not accepting any new builds. Try again later. ${learnMore(
-        'https://expo.fyi/eas-build-queues'
-      )}`
-    );
-    throw new Error('Build request failed.');
-  } else if (
-    error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_FREE_TIER_DISABLED_ANDROID'
-  ) {
-    Log.error(
-      `EAS Build free tier is temporarily disabled for Android and we are not accepting any new builds. Try again later. ${learnMore(
-        'https://expo.fyi/eas-build-queues'
-      )}`
     );
     throw new Error('Build request failed.');
   } else if (
