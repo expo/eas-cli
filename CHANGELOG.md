@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix running commands with `--json` flag when EAS_NO_VCS is set. ([#1641](https://github.com/expo/eas-cli/pull/1641) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🧹 Chores
 
 - Remove unnecessary workaround for trailing backslash in .gitignore. ([#1622](https://github.com/expo/eas-cli/pull/1622) by [@wkozyra95](https://github.com/wkozyra95))
