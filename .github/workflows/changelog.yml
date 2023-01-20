@@ -39,8 +39,9 @@ jobs:
           PR_COMMENT_BODY: ${{ github.event.comment.body }}
       - name: Commit and push
         run: |
-          git config --global user.email "support+ci@expo.io"
-          git config --global user.name "expo-bot"
+          # use the last commit author name and email
+          git config --global user.name "$(git --no-pager log --format=format:'%an' -n 1)"
+          git config --global user.email "$(git --no-pager log --format=format:'%ae' -n 1)"
 
           git add CHANGELOG.md
           git commit -m "update CHANGELOG.md"
