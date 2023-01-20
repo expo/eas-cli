@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [3.4.0](https://github.com/expo/eas-cli/releases/tag/v3.4.0) - 2023-01-20
+
+### 🎉 New features
+
 - Add `--json` flag to `eas config` command. ([#1568](https://github.com/expo/eas-cli/pull/1568) by [@wkozyra95](https://github.com/wkozyra95))
 - Add M1 resource class configuration to default eas.json when running eas build:configure on a new project. ([#1637](https://github.com/expo/eas-cli/pull/1637) by [@brentvatne](https://github.com/brentvatne))
 - Add prompt to switch iOS builds to M1 if the build queue is long. ([#1642](https://github.com/expo/eas-cli/pull/1642) by [@dsokal](https://github.com/dsokal))
