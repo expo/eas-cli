@@ -1,5 +1,5 @@
 import { ArchiveSource, ArchiveSourceType, Job, Metadata, Platform } from '@expo/eas-build-job';
-import { CredentialsSource } from '@expo/eas-json';
+import { CredentialsSource, EasJsonAccessor, EasJsonUtils, ResourceClass } from '@expo/eas-json';
 import assert from 'assert';
 import chalk from 'chalk';
 import cliProgress from 'cli-progress';
@@ -15,6 +15,7 @@ import {
   BuildFragment,
   BuildParamsInput,
   BuildPriority,
+  BuildResourceClass,
   BuildStatus,
   UploadSessionType,
 } from '../graphql/generated';
@@ -27,6 +28,7 @@ import {
   appPlatformEmojis,
   requestedPlatformDisplayNames,
 } from '../platform';
+import { confirmAsync } from '../prompts';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { printJsonOnlyOutput } from '../utils/json';
@@ -285,7 +287,12 @@ export type MaybeBuildFragment = BuildFragment | null;
 
 export async function waitForBuildEndAsync(
   graphqlClient: ExpoGraphqlClient,
-  { buildIds, accountName }: { buildIds: string[]; accountName: string },
+  {
+    buildIds,
+    accountName,
+    projectDir,
+    nonInteractive,
+  }: { buildIds: string[]; accountName: string; projectDir: string; nonInteractive: boolean },
   { intervalSec = 10 } = {}
 ): Promise<MaybeBuildFragment[]> {
   let spinner;
@@ -302,7 +309,10 @@ export async function waitForBuildEndAsync(
     const builds = await getBuildsSafelyAsync(graphqlClient, buildIds);
     const { refetch } =
       builds.length === 1
-        ? await handleSingleBuildProgressAsync({ build: builds[0], accountName }, { spinner })
+        ? await handleSingleBuildProgressAsync(
+            { build: builds[0], accountName, projectDir, nonInteractive },
+            { spinner }
+          )
         : await handleMultipleBuildsProgressAsync({ builds }, { spinner, originalSpinnerText });
     if (!refetch) {
       return builds;
@@ -337,7 +347,17 @@ const queueProgressBar = new cliProgress.SingleBar(
 );
 
 async function handleSingleBuildProgressAsync(
-  { build, accountName }: { build: MaybeBuildFragment; accountName: string },
+  {
+    build,
+    accountName,
+    projectDir,
+    nonInteractive,
+  }: {
+    build: MaybeBuildFragment;
+    accountName: string;
+    projectDir: string;
+    nonInteractive: boolean;
+  },
   { spinner }: { spinner: Ora }
 ): Promise<BuildProgressResult> {
   if (build === null) {
@@ -376,7 +396,8 @@ async function handleSingleBuildProgressAsync(
       if (
         !queueProgressBarStarted &&
         typeof build.initialQueuePosition === 'number' &&
-        typeof build.queuePosition === 'number'
+        typeof build.queuePosition === 'number' &&
+        typeof build.estimatedWaitTimeLeftSeconds === 'number'
       ) {
         spinner.stopAndPersist();
         if (build.priority !== BuildPriority.High) {
@@ -388,6 +409,55 @@ async function handleSingleBuildProgressAsync(
             )}`
           );
         }
+
+        if (
+          build.platform === AppPlatform.Ios &&
+          [BuildResourceClass.IosIntelLarge, BuildResourceClass.IosIntelMedium].includes(
+            build.resourceClass
+          )
+        ) {
+          let askToSwitchToM1 = false;
+          if (
+            build.priority === BuildPriority.High &&
+            build.estimatedWaitTimeLeftSeconds >= /* 10 minutes */ 10 * 60
+          ) {
+            Log.newLine();
+            Log.warn(
+              `Warning: Priority queue wait time for legacy iOS Intel workers is longer than usual (more than 10 minutes).`
+            );
+            Log.warn(`We recommend switching to the new, faster M1 workers for iOS builds.`);
+            Log.warn(
+              learnMore('https://blog.expo.dev/m1-workers-on-eas-build-dcaa2c1333ad', {
+                learnMoreMessage: 'Learn more on switching to M1 workers.',
+              })
+            );
+            askToSwitchToM1 = true;
+          } else if (
+            build.priority !== BuildPriority.High &&
+            build.estimatedWaitTimeLeftSeconds >= /* 120 minutes */ 120 * 60
+          ) {
+            Log.newLine();
+            Log.warn(
+              `Warning: Free tier queue wait time for legacy iOS Intel workers is longer than usual.`
+            );
+            Log.warn(`We recommend switching to the new, faster M1 workers for iOS builds.`);
+            Log.warn(
+              learnMore('https://blog.expo.dev/m1-workers-on-eas-build-dcaa2c1333ad', {
+                learnMoreMessage: 'Learn more on switching to M1 workers.',
+              })
+            );
+            askToSwitchToM1 = true;
+          }
+          if (!nonInteractive && askToSwitchToM1) {
+            const shouldSwitchToM1 = await confirmAsync({
+              message: `Switch iOS builds to M1 workers (modifies build profiles in eas.json)?`,
+            });
+            if (shouldSwitchToM1) {
+              await updateIosBuildProfilesToUseM1WorkersAsync(projectDir);
+            }
+          }
+        }
+
         Log.newLine();
         Log.log(`Waiting in ${priorityToQueueDisplayName[build.priority]}`);
         queueProgressBar.start(
@@ -528,4 +598,22 @@ function formatAccountSubscriptionsUrl(accountName: string): string {
     `/accounts/${accountName}/settings/subscriptions`,
     getExpoWebsiteBaseUrl()
   ).toString();
+}
+
+async function updateIosBuildProfilesToUseM1WorkersAsync(projectDir: string): Promise<void> {
+  const easJsonAccessor = new EasJsonAccessor(projectDir);
+  await easJsonAccessor.readRawJsonAsync();
+
+  const profileNames = await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor);
+  easJsonAccessor.patch(easJsonRawObject => {
+    for (const profileName of profileNames) {
+      easJsonRawObject.build[profileName].ios = {
+        ...easJsonRawObject.build[profileName].ios,
+        resourceClass: ResourceClass.M1_MEDIUM,
+      };
+    }
+    return easJsonRawObject;
+  });
+  await easJsonAccessor.writeAsync();
+  Log.withTick('Updated eas.json. Your next builds will run on M1 workers.');
 }

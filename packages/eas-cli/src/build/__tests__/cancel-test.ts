@@ -3,7 +3,13 @@ import { v4 as uuid } from 'uuid';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { selectBuildToCancelAsync } from '../../commands/build/cancel';
-import { AppPlatform, BuildFragment, BuildPriority, BuildStatus } from '../../graphql/generated';
+import {
+  AppPlatform,
+  BuildFragment,
+  BuildPriority,
+  BuildResourceClass,
+  BuildStatus,
+} from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { confirmAsync, selectAsync } from '../../prompts';
 
@@ -85,5 +91,6 @@ function createMockBuildFragment({
       },
     },
     status: BuildStatus.InQueue,
+    resourceClass: BuildResourceClass.AndroidMedium,
   };
 }
