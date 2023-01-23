@@ -16,14 +16,14 @@ export enum LocalBuildMode {
    *
    * Triggered when running `eas build --local`.
    */
-  LOCAL_BUILD_PLUGIN,
+  LOCAL_BUILD_PLUGIN = 'local-build-plugin',
   /**
    * Type of local build that is not accessible to users directly. When
    * cloud build is triggered by git based integration, we are running
    * in this mode. Instead of sending build request to EAS Servers it's
    * printing it to the stdout as JSON, so EAS Build worker can read it.
    */
-  INTERNAL,
+  INTERNAL = 'internal',
 }
 
 export interface LocalBuildOptions {
