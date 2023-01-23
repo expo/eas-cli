@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix incorrect exit code for successful local builds. ([#1649](https://github.com/expo/eas-cli/pull/1649) by [@dsokal](https://github.com/dsokal))
-
 ### 🧹 Chores
+
+## [3.4.1](https://github.com/expo/eas-cli/releases/tag/v3.4.1) - 2023-01-23
+
+### 🐛 Bug fixes
+
+- Fix incorrect exit code for successful local builds. ([#1649](https://github.com/expo/eas-cli/pull/1649) by [@dsokal](https://github.com/dsokal))
 
 ## [3.4.0](https://github.com/expo/eas-cli/releases/tag/v3.4.0) - 2023-01-20
 
