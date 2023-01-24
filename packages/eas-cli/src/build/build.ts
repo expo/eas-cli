@@ -161,6 +161,7 @@ const SERVER_SIDE_DEFINED_ERRORS = [
   'EAS_BUILD_FREE_TIER_DISABLED',
   'EAS_BUILD_FREE_TIER_DISABLED_IOS',
   'EAS_BUILD_FREE_TIER_DISABLED_ANDROID',
+  'VALIDATION_ERROR',
 ];
 
 function handleBuildRequestError(error: any, platform: Platform): never {
@@ -185,8 +186,6 @@ function handleBuildRequestError(error: any, platform: Platform): never {
       `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
     );
     throw new Error('Build request failed.');
-  } else if (error?.graphQLErrors?.[0]?.extensions?.errorCode === 'VALIDATION_ERROR') {
-    Log.error('Build request is invalid. Check the error message below.');
   } else if (error?.graphQLErrors) {
     Log.error(
       'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.'
