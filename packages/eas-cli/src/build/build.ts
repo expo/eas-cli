@@ -19,7 +19,7 @@ import {
   BuildStatus,
   UploadSessionType,
 } from '../graphql/generated';
-import { BuildResult } from '../graphql/mutations/BuildMutation';
+import { BuildMutation, BuildResult } from '../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log, { learnMore, link } from '../log';
 import { Ora, ora } from '../ora';
@@ -36,6 +36,7 @@ import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
 import { getVcsClient } from '../vcs';
 import { BuildContext } from './context';
+import { transformMetadata } from './graphql';
 import { LocalBuildMode, runLocalBuildAsync } from './local';
 import { collectMetadataAsync } from './metadata';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
@@ -142,6 +143,10 @@ export async function prepareBuildRequestForPlatformAsync<
       await runLocalBuildAsync(job, metadata, ctx.localBuildOptions);
       return undefined;
     } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
+      await BuildMutation.updateBuilMetadatadAsync(ctx.graphqlClient, {
+        buildId: nullthrows(process.env.EAS_BUILD_ID),
+        metadata: transformMetadata(metadata),
+      });
       printJsonOnlyOutput({ job, metadata });
       return undefined;
     } else if (!ctx.localBuildOptions.localBuildMode) {

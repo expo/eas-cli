@@ -1,4 +1,10 @@
-import { ArchiveSource, ArchiveSourceType, Metadata, Workflow } from '@expo/eas-build-job';
+import {
+  ArchiveSource,
+  ArchiveSourceType,
+  BuildTrigger,
+  Metadata,
+  Workflow,
+} from '@expo/eas-build-job';
 
 import {
   BuildCredentialsSource,
@@ -7,6 +13,7 @@ import {
   BuildMode,
   BuildWorkflow,
   DistributionType,
+  BuildTrigger as GraphQLBuildTrigger,
   ProjectArchiveSourceInput,
   ProjectArchiveSourceType,
 } from '../graphql/generated';
@@ -90,4 +97,13 @@ export function transformBuildMode(buildMode: Metadata['buildMode']): BuildMode 
   } else {
     return BuildMode.Resign;
   }
+}
+
+export function transformBuildTrigger(buildTrigger: BuildTrigger): GraphQLBuildTrigger {
+  if (buildTrigger === BuildTrigger.EAS_CLI) {
+    return GraphQLBuildTrigger.EasCli;
+  } else if (buildTrigger === BuildTrigger.GIT_BASED_INTEGRATION) {
+    return GraphQLBuildTrigger.GitBasedIntegration;
+  }
+  throw new Error('Unknown build trigger');
 }
