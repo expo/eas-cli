@@ -1,4 +1,3 @@
-import { Android, Ios } from '@expo/eas-build-job';
 import Joi from 'joi';
 import semver from 'semver';
 
@@ -48,7 +47,7 @@ const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(
     distribution: Joi.string().valid('store', 'internal'),
     withoutCredentials: Joi.boolean(),
 
-    image: Joi.string().valid(...Android.builderBaseImages),
+    image: Joi.string(),
     ndk: Joi.string().empty(null).custom(semverCheck),
     autoIncrement: Joi.alternatives().try(
       Joi.boolean(),
@@ -77,7 +76,7 @@ const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
     simulator: Joi.boolean(),
     resourceClass: Joi.string().valid(...AllowedIosResourceClasses),
 
-    image: Joi.string().valid(...Ios.builderBaseImages),
+    image: Joi.string(),
     bundler: Joi.string().empty(null).custom(semverCheck),
     fastlane: Joi.string().empty(null).custom(semverCheck),
     cocoapods: Joi.string().empty(null).custom(semverCheck),

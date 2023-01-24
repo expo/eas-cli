@@ -161,6 +161,7 @@ const SERVER_SIDE_DEFINED_ERRORS = [
   'EAS_BUILD_FREE_TIER_DISABLED',
   'EAS_BUILD_FREE_TIER_DISABLED_IOS',
   'EAS_BUILD_FREE_TIER_DISABLED_ANDROID',
+  'VALIDATION_ERROR',
 ];
 
 function handleBuildRequestError(error: any, platform: Platform): never {
