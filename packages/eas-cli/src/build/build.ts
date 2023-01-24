@@ -143,7 +143,7 @@ export async function prepareBuildRequestForPlatformAsync<
       await runLocalBuildAsync(job, metadata, ctx.localBuildOptions);
       return undefined;
     } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
-      await BuildMutation.updateBuilMetadatadAsync(ctx.graphqlClient, {
+      await BuildMutation.updateBuildMetadataAsync(ctx.graphqlClient, {
         buildId: nullthrows(process.env.EAS_BUILD_ID),
         metadata: transformMetadata(metadata),
       });

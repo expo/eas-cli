@@ -121,7 +121,7 @@ export const BuildMutation = {
     );
     return nullthrows(data.build?.createIosBuild);
   },
-  async updateBuilMetadatadAsync(
+  async updateBuildMetadataAsync(
     graphqlClient: ExpoGraphqlClient,
     input: {
       buildId: string;
@@ -142,8 +142,7 @@ export const BuildMutation = {
             }
             ${print(BuildFragmentNode)}
           `,
-          input,
-          { noRetry: true }
+          input
         )
         .toPromise()
     );
