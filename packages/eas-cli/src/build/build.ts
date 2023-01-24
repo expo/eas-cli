@@ -186,7 +186,7 @@ function handleBuildRequestError(error: any, platform: Platform): never {
     );
     throw new Error('Build request failed.');
   } else if (error?.graphQLErrors?.[0]?.extensions?.errorCode === 'VALIDATION_ERROR') {
-    Log.error('Your request is invalid. Check the error message below.');
+    Log.error('Build request is invalid. Check the error message below.');
   } else if (error?.graphQLErrors) {
     Log.error(
       'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.'
