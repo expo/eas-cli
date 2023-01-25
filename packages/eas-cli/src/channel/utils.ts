@@ -46,7 +46,7 @@ export function getBranchMapping(branchMappingString?: string): {
   }
 
   const isRollout = branchMapping.data.length === 2;
-  const rolloutPercent = branchMapping.data[0].branchMappingLogic.operand;
+  const rolloutPercent = branchMapping.data[0]?.branchMappingLogic.operand;
 
   switch (branchMapping.data.length) {
     case 0:
@@ -82,7 +82,7 @@ export function logChannelDetails(channel: UpdateChannelObject): void {
   if (branchMapping.data.length > 2) {
     throw new Error('Branch Mapping data must have length less than or equal to 2.');
   }
-
+  
   const rolloutBranchIds = branchMapping.data.map(data => data.branchId);
   const branchDescription = channel.updateBranches.flatMap(branch => {
     const updateGroupWithBranchDescriptions = getUpdateGroupDescriptionsWithBranch(
