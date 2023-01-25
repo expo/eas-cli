@@ -46,7 +46,7 @@ export function getBranchMapping(branchMappingString?: string): {
   }
 
   const isRollout = branchMapping.data.length === 2;
-  const rolloutPercent = branchMapping.data[0].branchMappingLogic.operand;
+  const rolloutPercent = branchMapping.data[0]?.branchMappingLogic.operand;
 
   switch (branchMapping.data.length) {
     case 0:

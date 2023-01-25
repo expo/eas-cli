@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix undefined branchMappingLogic. ([#1653](https://github.com/expo/eas-cli/pull/1653) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🧹 Chores
 
 - Move image validation to the server side and better handle server validation errors in the eas-cli. ([#1650](https://github.com/expo/eas-cli/pull/1650) by [@szdziedzic](https://github.com/szdziedzic))
