@@ -82,7 +82,7 @@ export function logChannelDetails(channel: UpdateChannelObject): void {
   if (branchMapping.data.length > 2) {
     throw new Error('Branch Mapping data must have length less than or equal to 2.');
   }
-  
+
   const rolloutBranchIds = branchMapping.data.map(data => data.branchId);
   const branchDescription = channel.updateBranches.flatMap(branch => {
     const updateGroupWithBranchDescriptions = getUpdateGroupDescriptionsWithBranch(
