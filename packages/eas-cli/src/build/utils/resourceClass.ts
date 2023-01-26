@@ -1,12 +1,11 @@
 import { ExpoConfig } from '@expo/config-types';
 import { Platform } from '@expo/eas-build-job';
-import { ResourceClass } from '@expo/eas-json';
+import { BuildProfile, ResourceClass } from '@expo/eas-json';
 import chalk from 'chalk';
 import semver from 'semver';
 
 import { BuildResourceClass } from '../../graphql/generated';
 import Log from '../../log';
-import { ProfileData } from '../../utils/profiles';
 import { getReactNativeVersionAsync } from '../metadata';
 
 const iosResourceClassToBuildResourceClassMapping: Record<ResourceClass, BuildResourceClass> = {
@@ -34,13 +33,14 @@ const androidResourceClassToBuildResourceClassMapping: Record<
   [ResourceClass.MEDIUM]: BuildResourceClass.AndroidMedium,
 };
 
-export async function resolveBuildResourceClassAsync(
-  profile: ProfileData<'build'>,
+export async function resolveBuildResourceClassAsync<T extends Platform>(
+  profile: BuildProfile<T>,
+  platform: Platform,
   projectDir: string,
   exp: ExpoConfig,
   resourceClassFlag?: ResourceClass
 ): Promise<BuildResourceClass> {
-  const profileResourceClass = profile.profile.resourceClass;
+  const profileResourceClass = profile.resourceClass;
 
   if (profileResourceClass && resourceClassFlag && resourceClassFlag !== profileResourceClass) {
     Log.warn(
@@ -50,7 +50,7 @@ export async function resolveBuildResourceClassAsync(
 
   const selectedResourceClass = resourceClassFlag ?? profileResourceClass;
 
-  return profile.platform === Platform.IOS
+  return platform === Platform.IOS
     ? await resolveIosResourceClassAsync(exp, projectDir, resourceClassFlag ?? profileResourceClass)
     : resolveAndroidResourceClass(selectedResourceClass);
 }

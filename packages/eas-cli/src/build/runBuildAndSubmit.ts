@@ -1,4 +1,3 @@
-import { ExpoConfig } from '@expo/config-types';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import {
   AppVersionSource,
@@ -19,7 +18,6 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import {
   AppPlatform,
   BuildFragment,
-  BuildResourceClass,
   BuildStatus,
   BuildWithSubmissionsFragment,
   SubmissionFragment,
@@ -67,7 +65,6 @@ import { LocalBuildOptions } from './local';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
-import { resolveBuildResourceClassAsync } from './utils/resourceClass';
 
 let metroConfigValidated = false;
 let sdkVersionChecked = false;
@@ -130,27 +127,16 @@ export async function runBuildAndSubmitAsync(
   const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
 
   for (const buildProfile of buildProfiles) {
-    const { exp, projectId } = await getDynamicProjectConfigAsync({
-      env: buildProfile.profile.env,
-    });
-
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
       flags,
       moreBuilds: platforms.length > 1,
       buildProfile,
-      resourceClass: await resolveBuildResourceClassAsync(
-        buildProfile,
-        projectDir,
-        exp,
-        flags.resourceClass
-      ),
       easJsonCliConfig,
       actor,
       graphqlClient,
       analytics,
-      exp,
-      projectId,
+      getDynamicProjectConfigAsync,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -253,29 +239,25 @@ async function prepareAndStartBuildAsync({
   flags,
   moreBuilds,
   buildProfile,
-  resourceClass,
   easJsonCliConfig,
   actor,
   graphqlClient,
   analytics,
-  exp,
-  projectId,
+  getDynamicProjectConfigAsync,
 }: {
   projectDir: string;
   flags: BuildFlags;
   moreBuilds: boolean;
   buildProfile: ProfileData<'build'>;
-  resourceClass: BuildResourceClass;
   easJsonCliConfig: EasJson['cli'];
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
-  exp: ExpoConfig;
-  projectId: string;
+  getDynamicProjectConfigAsync: DynamicConfigContextFn;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
-    resourceClass,
+    resourceClassFlag: flags.resourceClass,
     clearCache: flags.clearCache,
     buildProfile: buildProfile.profile,
     nonInteractive: flags.nonInteractive,
@@ -288,8 +270,7 @@ async function prepareAndStartBuildAsync({
     actor,
     graphqlClient,
     analytics,
-    exp,
-    projectId,
+    getDynamicProjectConfigAsync,
   });
 
   if (moreBuilds) {
