@@ -147,7 +147,7 @@ export default class IosCredentialsProvider {
     if (this.options.distribution === 'internal') {
       if (this.options.enterpriseProvisioning === 'universal' && !isEnterprise) {
         throw new Error(
-          `You must use an universal provisioning profile${
+          `You must use a universal provisioning profile${
             targetName ? ` (target '${targetName})'` : ''
           } for internal distribution if you specified "enterpriseProvisioning": "universal" in eas.json`
         );
