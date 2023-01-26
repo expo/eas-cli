@@ -37,7 +37,7 @@ export async function collectMetadataAsync<T extends Platform>(
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
     runtimeVersion: Updates.getRuntimeVersionNullable(ctx.exp, ctx.platform) ?? undefined,
-    reactNativeVersion: await getReactNativeVersionAsync(ctx),
+    reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
     ...channelOrReleaseChannel,
     distribution,
     appName: ctx.exp.name,
@@ -155,11 +155,9 @@ async function getNativeChannelAsync<T extends Platform>(
   return undefined;
 }
 
-async function getReactNativeVersionAsync(
-  ctx: BuildContext<Platform>
-): Promise<string | undefined> {
+export async function getReactNativeVersionAsync(projectDir: string): Promise<string | undefined> {
   try {
-    const reactNativePackageJsonPath = resolveFrom(ctx.projectDir, 'react-native/package.json');
+    const reactNativePackageJsonPath = resolveFrom(projectDir, 'react-native/package.json');
     return (await fs.readJson(reactNativePackageJsonPath)).version;
   } catch (err) {
     Log.debug('Failed to resolve react-native version:');

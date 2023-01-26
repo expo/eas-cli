@@ -66,6 +66,7 @@ import { LocalBuildOptions } from './local';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
+import { resolveBuildResourceClassAsync } from './utils/resourceClass';
 
 let metroConfigValidated = false;
 let sdkVersionChecked = false;
@@ -82,81 +83,6 @@ export interface BuildFlags {
   localBuildOptions: LocalBuildOptions;
   resourceClass?: ResourceClass;
   message?: string;
-}
-
-const iosResourceClassToBuildResourceClassMapping: Record<ResourceClass, BuildResourceClass> = {
-  [ResourceClass.DEFAULT]: BuildResourceClass.IosDefault,
-  [ResourceClass.LARGE]: BuildResourceClass.IosLarge,
-  [ResourceClass.M1_EXPERIMENTAL]: BuildResourceClass.IosM1Large,
-  [ResourceClass.M1_MEDIUM]: BuildResourceClass.IosM1Medium,
-  [ResourceClass.M1_LARGE]: BuildResourceClass.IosM1Large,
-  [ResourceClass.INTEL_MEDIUM]: BuildResourceClass.IosIntelMedium,
-  [ResourceClass.MEDIUM]: BuildResourceClass.IosMedium,
-};
-
-const androidResourceClassToBuildResourceClassMapping: Record<
-  Exclude<
-    ResourceClass,
-    | ResourceClass.M1_EXPERIMENTAL
-    | ResourceClass.M1_MEDIUM
-    | ResourceClass.M1_LARGE
-    | ResourceClass.INTEL_MEDIUM
-  >,
-  BuildResourceClass
-> = {
-  [ResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
-  [ResourceClass.LARGE]: BuildResourceClass.AndroidLarge,
-  [ResourceClass.MEDIUM]: BuildResourceClass.AndroidMedium,
-};
-
-function resolveBuildResourceClass(
-  profile: ProfileData<'build'>,
-  resourceClassFlag?: ResourceClass
-): BuildResourceClass {
-  if (
-    profile.platform !== Platform.IOS &&
-    resourceClassFlag &&
-    [
-      ResourceClass.M1_EXPERIMENTAL,
-      ResourceClass.M1_MEDIUM,
-      ResourceClass.M1_LARGE,
-      ResourceClass.INTEL_MEDIUM,
-    ].includes(resourceClassFlag)
-  ) {
-    throw new Error(`Resource class ${resourceClassFlag} is only available for iOS builds`);
-  }
-
-  const profileResourceClass = profile.profile.resourceClass;
-  if (profileResourceClass && resourceClassFlag && resourceClassFlag !== profileResourceClass) {
-    Log.warn(
-      `Build profile specifies the "${profileResourceClass}" resource class but you passed "${resourceClassFlag}" to --resource-class.\nUsing the  "${resourceClassFlag}" as the override.`
-    );
-  }
-  const resourceClass = resourceClassFlag ?? profileResourceClass ?? ResourceClass.DEFAULT;
-
-  if (profile.platform === Platform.IOS && resourceClass === ResourceClass.M1_EXPERIMENTAL) {
-    Log.warn(`Resource class ${chalk.bold('m1-experimental')} is deprecated.`);
-  }
-  if (
-    profile.platform === Platform.IOS &&
-    [ResourceClass.LARGE, ResourceClass.M1_LARGE].includes(resourceClass)
-  ) {
-    Log.warn(
-      `Large resource classes are not available for iOS builds yet. Your build will use the medium resource class.`
-    );
-  }
-
-  return profile.platform === Platform.ANDROID
-    ? androidResourceClassToBuildResourceClassMapping[
-        resourceClass as Exclude<
-          ResourceClass,
-          | ResourceClass.M1_EXPERIMENTAL
-          | ResourceClass.M1_MEDIUM
-          | ResourceClass.M1_LARGE
-          | ResourceClass.INTEL_MEDIUM
-        >
-      ]
-    : iosResourceClassToBuildResourceClassMapping[resourceClass];
 }
 
 export async function runBuildAndSubmitAsync(
@@ -208,7 +134,12 @@ export async function runBuildAndSubmitAsync(
       flags,
       moreBuilds: platforms.length > 1,
       buildProfile,
-      resourceClass: resolveBuildResourceClass(buildProfile, flags.resourceClass),
+      resourceClass: await resolveBuildResourceClassAsync(
+        buildProfile,
+        projectDir,
+        getDynamicProjectConfigAsync,
+        flags.resourceClass
+      ),
       easJsonCliConfig,
       actor,
       graphqlClient,
