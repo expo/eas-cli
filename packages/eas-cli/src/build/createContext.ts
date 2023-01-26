@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { BuildProfile, EasJson } from '@expo/eas-json';
+import { BuildProfile, EasJson, ResourceClass } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
 import getenv from 'getenv';
 import resolveFrom from 'resolve-from';
@@ -9,7 +9,6 @@ import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/An
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
-import { BuildResourceClass } from '../graphql/generated';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
 import { Actor } from '../user/User';
@@ -17,6 +16,7 @@ import { createAndroidContextAsync } from './android/build';
 import { BuildContext, CommonContext } from './context';
 import { createIosContextAsync } from './ios/build';
 import { LocalBuildOptions } from './local';
+import { resolveBuildResourceClassAsync } from './utils/resourceClass';
 
 export async function createBuildContextAsync<T extends Platform>({
   buildProfileName,
@@ -28,7 +28,7 @@ export async function createBuildContextAsync<T extends Platform>({
   noWait,
   platform,
   projectDir,
-  resourceClass,
+  resourceClassFlag,
   message,
   actor,
   graphqlClient,
@@ -44,15 +44,14 @@ export async function createBuildContextAsync<T extends Platform>({
   noWait: boolean;
   platform: T;
   projectDir: string;
-  resourceClass: BuildResourceClass;
+  resourceClassFlag?: ResourceClass;
   message?: string;
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
   getDynamicProjectConfigAsync: DynamicConfigContextFn;
 }): Promise<BuildContext<T>> {
-  const { exp, projectId } = await getDynamicProjectConfigAsync({ env: buildProfile.env });
-
+  const { exp, projectId } = await getDynamicProjectConfigAsync(buildProfile.env);
   const projectName = exp.slug;
   const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
   const workflow = await resolveWorkflowAsync(projectDir, platform);
@@ -87,6 +86,14 @@ export async function createBuildContextAsync<T extends Platform>({
     run_from_ci: runFromCI,
   };
   analytics.logEvent(BuildEvent.BUILD_COMMAND, analyticsEventProperties);
+
+  const resourceClass = await resolveBuildResourceClassAsync(
+    buildProfile,
+    platform,
+    projectDir,
+    exp,
+    resourceClassFlag
+  );
 
   const commonContext: CommonContext<T> = {
     accountName: account.name,

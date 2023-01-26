@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Set `m1-medium` resource class for SDK version `>=48` and RN version `>=0.71` builds with unspecified resource class. ([#1655](https://github.com/expo/eas-cli/pull/1655) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🐛 Bug fixes
 
 - Fix undefined branchMappingLogic. ([#1653](https://github.com/expo/eas-cli/pull/1653) by [@quinlanj](https://github.com/quinlanj))
