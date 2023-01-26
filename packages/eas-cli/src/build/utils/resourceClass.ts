@@ -34,24 +34,14 @@ const androidResourceClassToBuildResourceClassMapping: Record<
   [ResourceClass.MEDIUM]: BuildResourceClass.AndroidMedium,
 };
 
-async function resolveDefaultResourceFlagAsync(
-  platform: Platform,
-  buildProfile: ProfileData<'build'>,
+async function resolveIosDefaultRequestedResourceClassAsync(
+  getDynamicProjectConfigAsync: DynamicConfigContextFn,
   projectDir: string,
-  getDynamicProjectConfigAsync: DynamicConfigContextFn
+  buildProfile: ProfileData<'build'>
 ): Promise<ResourceClass> {
   const { exp } = await getDynamicProjectConfigAsync({ env: buildProfile.profile.env });
   const { sdkVersion } = exp;
   const reactNativeVersion = await getReactNativeVersionAsync(projectDir);
-  return platform === Platform.IOS
-    ? resolveIosDefaultRequestedResourceClass(sdkVersion, reactNativeVersion)
-    : ResourceClass.DEFAULT;
-}
-
-function resolveIosDefaultRequestedResourceClass(
-  sdkVersion?: string,
-  reactNativeVersion?: string
-): ResourceClass {
   if (
     (sdkVersion && semver.satisfies(sdkVersion, '>=48')) ||
     (reactNativeVersion && semver.satisfies(reactNativeVersion, '>=0.71.0'))
@@ -62,14 +52,11 @@ function resolveIosDefaultRequestedResourceClass(
   }
 }
 
-export async function resolveBuildResourceClassAsync(
-  profile: ProfileData<'build'>,
-  projectDir: string,
-  getDynamicProjectConfigAsync: DynamicConfigContextFn,
+function resolveAndroidResourceClass(
+  profileResourceClass?: ResourceClass,
   resourceClassFlag?: ResourceClass
-): Promise<BuildResourceClass> {
+): BuildResourceClass {
   if (
-    profile.platform !== Platform.IOS &&
     resourceClassFlag &&
     [
       ResourceClass.M1_EXPERIMENTAL,
@@ -81,6 +68,54 @@ export async function resolveBuildResourceClassAsync(
     throw new Error(`Resource class ${resourceClassFlag} is only available for iOS builds`);
   }
 
+  const resourceClass = resourceClassFlag ?? profileResourceClass ?? ResourceClass.DEFAULT;
+
+  return androidResourceClassToBuildResourceClassMapping[
+    resourceClass as Exclude<
+      ResourceClass,
+      | ResourceClass.M1_EXPERIMENTAL
+      | ResourceClass.M1_MEDIUM
+      | ResourceClass.M1_LARGE
+      | ResourceClass.INTEL_MEDIUM
+    >
+  ];
+}
+
+async function resolveIosResourceClassAsync(
+  buildProfile: ProfileData<'build'>,
+  getDynamicProjectConfigAsync: DynamicConfigContextFn,
+  projectDir: string,
+  profileResourceClass?: ResourceClass,
+  resourceClassFlag?: ResourceClass
+): Promise<BuildResourceClass> {
+  const resourceClass =
+    resourceClassFlag ??
+    profileResourceClass ??
+    (await resolveIosDefaultRequestedResourceClassAsync(
+      getDynamicProjectConfigAsync,
+      projectDir,
+      buildProfile
+    ));
+
+  if (resourceClass === ResourceClass.M1_EXPERIMENTAL) {
+    Log.warn(`Resource class ${chalk.bold('m1-experimental')} is deprecated.`);
+  }
+
+  if ([ResourceClass.LARGE, ResourceClass.M1_LARGE].includes(resourceClass)) {
+    Log.warn(
+      `Large resource classes are not available for iOS builds yet. Your build will use the medium resource class.`
+    );
+  }
+
+  return iosResourceClassToBuildResourceClassMapping[resourceClass];
+}
+
+export async function resolveBuildResourceClassAsync(
+  profile: ProfileData<'build'>,
+  projectDir: string,
+  getDynamicProjectConfigAsync: DynamicConfigContextFn,
+  resourceClassFlag?: ResourceClass
+): Promise<BuildResourceClass> {
   const profileResourceClass = profile.profile.resourceClass;
   if (profileResourceClass && resourceClassFlag && resourceClassFlag !== profileResourceClass) {
     Log.warn(
@@ -88,37 +123,13 @@ export async function resolveBuildResourceClassAsync(
     );
   }
 
-  const resourceClass =
-    resourceClassFlag ??
-    profileResourceClass ??
-    (await resolveDefaultResourceFlagAsync(
-      profile.platform,
-      profile,
-      projectDir,
-      getDynamicProjectConfigAsync
-    ));
-
-  if (profile.platform === Platform.IOS && resourceClass === ResourceClass.M1_EXPERIMENTAL) {
-    Log.warn(`Resource class ${chalk.bold('m1-experimental')} is deprecated.`);
-  }
-  if (
-    profile.platform === Platform.IOS &&
-    [ResourceClass.LARGE, ResourceClass.M1_LARGE].includes(resourceClass)
-  ) {
-    Log.warn(
-      `Large resource classes are not available for iOS builds yet. Your build will use the medium resource class.`
-    );
-  }
-
-  return profile.platform === Platform.ANDROID
-    ? androidResourceClassToBuildResourceClassMapping[
-        resourceClass as Exclude<
-          ResourceClass,
-          | ResourceClass.M1_EXPERIMENTAL
-          | ResourceClass.M1_MEDIUM
-          | ResourceClass.M1_LARGE
-          | ResourceClass.INTEL_MEDIUM
-        >
-      ]
-    : iosResourceClassToBuildResourceClassMapping[resourceClass];
+  return profile.platform === Platform.IOS
+    ? await resolveIosResourceClassAsync(
+        profile,
+        getDynamicProjectConfigAsync,
+        projectDir,
+        profileResourceClass,
+        resourceClassFlag
+      )
+    : resolveAndroidResourceClass(profileResourceClass, resourceClassFlag);
 }
