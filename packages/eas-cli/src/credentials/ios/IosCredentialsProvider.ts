@@ -17,7 +17,7 @@ import { getAppFromContextAsync } from './actions/BuildCredentialsUtils';
 import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials';
 import { SetUpPushKey } from './actions/SetUpPushKey';
 import { App, IosCredentials, Target } from './types';
-import { isAdHocProfile } from './utils/provisioningProfile';
+import { isAdHocProfile, isEnterpriseUniversalProfile } from './utils/provisioningProfile';
 
 interface Options {
   app: App;
@@ -143,17 +143,32 @@ export default class IosCredentialsProvider {
 
   private assertProvisioningProfileType(provisioningProfile: string, targetName?: string): void {
     const isAdHoc = isAdHocProfile(provisioningProfile);
-    if (this.options.distribution === 'internal' && !isAdHoc) {
-      throw new Error(
-        `You must use an adhoc provisioning profile${
-          targetName ? ` (target '${targetName})'` : ''
-        } for internal distribution`
-      );
-    } else if (this.options.distribution !== 'internal' && isAdHoc) {
+    const isEnterprise = isEnterpriseUniversalProfile(provisioningProfile);
+    if (this.options.distribution === 'internal') {
+      if (this.options.enterpriseProvisioning === 'universal' && !isEnterprise) {
+        throw new Error(
+          `You must use a universal provisioning profile${
+            targetName ? ` (target '${targetName})'` : ''
+          } for internal distribution if you specified "enterpriseProvisioning": "universal" in eas.json`
+        );
+      } else if (this.options.enterpriseProvisioning === 'adhoc' && !isAdHoc) {
+        throw new Error(
+          `You must use an adhoc provisioning profile${
+            targetName ? ` (target '${targetName})'` : ''
+          } for internal distribution if you specified "enterpriseProvisioning": "adhoc" in eas.json`
+        );
+      } else if (!this.options.enterpriseProvisioning && !isEnterprise && !isAdHoc) {
+        throw new Error(
+          `You must use an adhoc provisioning profile${
+            targetName ? ` (target '${targetName})'` : ''
+          } for internal distribution.`
+        );
+      }
+    } else if (isAdHoc) {
       throw new Error(
         `You can't use an adhoc provisioning profile${
           targetName ? ` (target '${targetName}')` : ''
-        } for app store distribution`
+        } for app store distribution.`
       );
     }
   }
