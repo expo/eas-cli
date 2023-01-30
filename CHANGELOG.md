@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix undefined branchMappingLogic. ([#1653](https://github.com/expo/eas-cli/pull/1653) by [@quinlanj](https://github.com/quinlanj))
+- Fix using local credentials for internal distribution builds with universal provisioning. ([#1657](https://github.com/expo/eas-cli/pull/1657) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
 
