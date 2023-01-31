@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [3.5.0](https://github.com/expo/eas-cli/releases/tag/v3.5.0) - 2023-01-31
+
+### 🎉 New features
+
 - Set `m1-medium` resource class for SDK version `>=48` and RN version `>=0.71` builds with unspecified resource class. ([#1655](https://github.com/expo/eas-cli/pull/1655) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
