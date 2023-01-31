@@ -20,7 +20,6 @@ export type Scalars = {
   DateTime: any;
   JSON: any;
   JSONObject: any;
-  Upload: any;
 };
 
 export type AcceptUserInvitationResult = {
@@ -532,7 +531,7 @@ export enum ActivityTimelineProjectActivityType {
   Update = 'UPDATE'
 }
 
-/** A user or robot that can authenticate with Expo services and be a member of accounts. */
+/** A regular user, SSO user, or robot that can authenticate with Expo services and be a member of accounts. */
 export type Actor = {
   /** Access Tokens belonging to this actor */
   accessTokens: Array<AccessToken>;
@@ -555,7 +554,7 @@ export type Actor = {
 };
 
 
-/** A user or robot that can authenticate with Expo services and be a member of accounts. */
+/** A regular user, SSO user, or robot that can authenticate with Expo services and be a member of accounts. */
 export type ActorFeatureGatesArgs = {
   filter?: InputMaybe<Array<Scalars['String']>>;
 };
@@ -785,6 +784,7 @@ export type AndroidJobInput = {
   /** @deprecated */
   artifactPath?: InputMaybe<Scalars['String']>;
   buildArtifactPaths?: InputMaybe<Array<Scalars['String']>>;
+  buildProfile?: InputMaybe<Scalars['String']>;
   buildType?: InputMaybe<AndroidBuildType>;
   builderEnvironment?: InputMaybe<AndroidBuilderEnvironmentInput>;
   cache?: InputMaybe<BuildCacheInput>;
@@ -796,6 +796,7 @@ export type AndroidJobInput = {
   projectRootDirectory: Scalars['String'];
   releaseChannel?: InputMaybe<Scalars['String']>;
   secrets?: InputMaybe<AndroidJobSecretsInput>;
+  triggeredBy?: InputMaybe<BuildTrigger>;
   type: BuildWorkflow;
   updates?: InputMaybe<BuildUpdatesInput>;
   username?: InputMaybe<Scalars['String']>;
@@ -814,6 +815,7 @@ export type AndroidJobOverridesInput = {
   /** @deprecated */
   artifactPath?: InputMaybe<Scalars['String']>;
   buildArtifactPaths?: InputMaybe<Array<Scalars['String']>>;
+  buildProfile?: InputMaybe<Scalars['String']>;
   buildType?: InputMaybe<AndroidBuildType>;
   builderEnvironment?: InputMaybe<AndroidBuilderEnvironmentInput>;
   cache?: InputMaybe<BuildCacheInput>;
@@ -830,6 +832,7 @@ export type AndroidJobOverridesInput = {
 
 export type AndroidJobSecretsInput = {
   buildCredentials?: InputMaybe<AndroidJobBuildCredentialsInput>;
+  robotAccessToken?: InputMaybe<Scalars['String']>;
 };
 
 export type AndroidJobVersionInput = {
@@ -2029,6 +2032,8 @@ export type BuildMutation = {
   retryBuild: Build;
   /** Retry an iOS EAS Build */
   retryIosBuild: Build;
+  /** Update metadata for EAS Build build */
+  updateBuildMetadata: Build;
 };
 
 
@@ -2072,6 +2077,12 @@ export type BuildMutationRetryBuildArgs = {
 export type BuildMutationRetryIosBuildArgs = {
   buildId: Scalars['ID'];
   jobOverrides?: InputMaybe<IosJobOverridesInput>;
+};
+
+
+export type BuildMutationUpdateBuildMetadataArgs = {
+  buildId: Scalars['ID'];
+  metadata: BuildMetadataInput;
 };
 
 export type BuildOrBuildJob = {
@@ -2188,6 +2199,11 @@ export enum BuildStatus {
   New = 'NEW'
 }
 
+export enum BuildTrigger {
+  EasCli = 'EAS_CLI',
+  GitBasedIntegration = 'GIT_BASED_INTEGRATION'
+}
+
 export type BuildUpdatesInput = {
   channel?: InputMaybe<Scalars['String']>;
 };
@@ -2196,11 +2212,6 @@ export enum BuildWorkflow {
   Generic = 'GENERIC',
   Managed = 'MANAGED',
   Unknown = 'UNKNOWN'
-}
-
-export enum CacheControlScope {
-  Private = 'PRIVATE',
-  Public = 'PUBLIC'
 }
 
 export type Card = {
@@ -2214,13 +2225,13 @@ export type Card = {
 
 export type Charge = {
   __typename?: 'Charge';
-  amount?: Maybe<Scalars['Int']>;
-  createdAt?: Maybe<Scalars['DateTime']>;
+  amount: Scalars['Int'];
+  createdAt: Scalars['DateTime'];
   id: Scalars['ID'];
   invoiceId?: Maybe<Scalars['String']>;
-  paid?: Maybe<Scalars['Boolean']>;
+  paid: Scalars['Boolean'];
   receiptUrl?: Maybe<Scalars['String']>;
-  wasRefunded?: Maybe<Scalars['Boolean']>;
+  wasRefunded: Scalars['Boolean'];
 };
 
 /** Represents a client build request */
@@ -3087,6 +3098,7 @@ export type IosJobInput = {
   artifactPath?: InputMaybe<Scalars['String']>;
   buildArtifactPaths?: InputMaybe<Array<Scalars['String']>>;
   buildConfiguration?: InputMaybe<Scalars['String']>;
+  buildProfile?: InputMaybe<Scalars['String']>;
   /** @deprecated */
   buildType?: InputMaybe<IosBuildType>;
   builderEnvironment?: InputMaybe<IosBuilderEnvironmentInput>;
@@ -3102,6 +3114,7 @@ export type IosJobInput = {
   scheme?: InputMaybe<Scalars['String']>;
   secrets?: InputMaybe<IosJobSecretsInput>;
   simulator?: InputMaybe<Scalars['Boolean']>;
+  triggeredBy?: InputMaybe<BuildTrigger>;
   type: BuildWorkflow;
   updates?: InputMaybe<BuildUpdatesInput>;
   username?: InputMaybe<Scalars['String']>;
@@ -3114,6 +3127,7 @@ export type IosJobOverridesInput = {
   artifactPath?: InputMaybe<Scalars['String']>;
   buildArtifactPaths?: InputMaybe<Array<Scalars['String']>>;
   buildConfiguration?: InputMaybe<Scalars['String']>;
+  buildProfile?: InputMaybe<Scalars['String']>;
   /** @deprecated */
   buildType?: InputMaybe<IosBuildType>;
   builderEnvironment?: InputMaybe<IosBuilderEnvironmentInput>;
@@ -3136,6 +3150,7 @@ export type IosJobOverridesInput = {
 
 export type IosJobSecretsInput = {
   buildCredentials?: InputMaybe<Array<InputMaybe<IosJobTargetCredentialsInput>>>;
+  robotAccessToken?: InputMaybe<Scalars['String']>;
 };
 
 export type IosJobTargetCredentialsInput = {
@@ -3469,12 +3484,15 @@ export type Project = {
 
 export type ProjectArchiveSourceInput = {
   bucketKey?: InputMaybe<Scalars['String']>;
+  gitRef?: InputMaybe<Scalars['String']>;
+  repositoryUrl?: InputMaybe<Scalars['String']>;
   type: ProjectArchiveSourceType;
   url?: InputMaybe<Scalars['String']>;
 };
 
 export enum ProjectArchiveSourceType {
   Gcs = 'GCS',
+  Git = 'GIT',
   None = 'NONE',
   S3 = 'S3',
   Url = 'URL'
@@ -3756,10 +3774,15 @@ export type RootQuery = {
    */
   me?: Maybe<User>;
   /**
-   * If authenticated as a any type of Actor, this is the appropriate top-level
+   * If authenticated as any type of Actor, this is the appropriate top-level
    * query object
    */
   meActor?: Maybe<Actor>;
+  /**
+   * If authenticated as any type of human end user (Actor types User or SSOUser),
+   * this is the appropriate top-level query object
+   */
+  meUserActor?: Maybe<UserActor>;
   project: ProjectQuery;
   snack: SnackQuery;
   /** Top-level query object for querying SSO Users. */
@@ -3823,7 +3846,7 @@ export type Runtime = {
 };
 
 /** Represents a human SSO (not robot) actor. */
-export type SsoUser = Actor & {
+export type SsoUser = Actor & UserActor & {
   __typename?: 'SSOUser';
   /** Access Tokens belonging to this actor, none at present */
   accessTokens: Array<AccessToken>;
@@ -4303,6 +4326,8 @@ export type Update = ActivityTimelineProjectActivity & {
   manifestPermalink: Scalars['String'];
   message?: Maybe<Scalars['String']>;
   platform: Scalars['String'];
+  runtime: Runtime;
+  /** @deprecated Use 'runtime' field . */
   runtimeVersion: Scalars['String'];
   updatedAt: Scalars['DateTime'];
 };
@@ -4506,7 +4531,7 @@ export type UsageMetricsTimespan = {
 };
 
 /** Represents a human (not robot) actor. */
-export type User = Actor & {
+export type User = Actor & UserActor & {
   __typename?: 'User';
   /** Access Tokens belonging to this actor */
   accessTokens: Array<AccessToken>;
@@ -4582,6 +4607,77 @@ export type UserNotificationSubscriptionsArgs = {
 
 /** Represents a human (not robot) actor. */
 export type UserSnacksArgs = {
+  limit: Scalars['Int'];
+  offset: Scalars['Int'];
+};
+
+/** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
+export type UserActor = {
+  /** Access Tokens belonging to this user actor */
+  accessTokens: Array<AccessToken>;
+  accounts: Array<Account>;
+  /**
+   * Coalesced project activity for all apps belonging to all accounts this user actor belongs to.
+   * Only resolves for the viewer.
+   */
+  activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
+  appCount: Scalars['Int'];
+  appetizeCode?: Maybe<Scalars['String']>;
+  /** Apps this user has published */
+  apps: Array<App>;
+  created: Scalars['DateTime'];
+  /**
+   * Best-effort human readable name for this human actor for use in user interfaces during action attribution.
+   * For example, when displaying a sentence indicating that actor X created a build or published an update.
+   */
+  displayName: Scalars['String'];
+  /**
+   * Server feature gate values for this user actor, optionally filtering by desired gates.
+   * Only resolves for the viewer.
+   */
+  featureGates: Scalars['JSONObject'];
+  firstName?: Maybe<Scalars['String']>;
+  fullName?: Maybe<Scalars['String']>;
+  githubUsername?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  industry?: Maybe<Scalars['String']>;
+  isExpoAdmin: Scalars['Boolean'];
+  lastName?: Maybe<Scalars['String']>;
+  location?: Maybe<Scalars['String']>;
+  /** Associated accounts */
+  primaryAccount: Account;
+  profilePhoto: Scalars['String'];
+  /** Snacks associated with this user's personal account */
+  snacks: Array<Snack>;
+  twitterUsername?: Maybe<Scalars['String']>;
+  username: Scalars['String'];
+};
+
+
+/** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
+export type UserActorActivityTimelineProjectActivitiesArgs = {
+  createdBefore?: InputMaybe<Scalars['DateTime']>;
+  filterTypes?: InputMaybe<Array<ActivityTimelineProjectActivityType>>;
+  limit: Scalars['Int'];
+};
+
+
+/** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
+export type UserActorAppsArgs = {
+  includeUnpublished?: InputMaybe<Scalars['Boolean']>;
+  limit: Scalars['Int'];
+  offset: Scalars['Int'];
+};
+
+
+/** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
+export type UserActorFeatureGatesArgs = {
+  filter?: InputMaybe<Array<Scalars['String']>>;
+};
+
+
+/** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
+export type UserActorSnacksArgs = {
   limit: Scalars['Int'];
   offset: Scalars['Int'];
 };
@@ -5308,6 +5404,14 @@ export type CreateIosBuildMutationVariables = Exact<{
 
 
 export type CreateIosBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', createIosBuild: { __typename?: 'CreateBuildResult', build: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, releaseChannel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, completedAt?: any | null, resourceClass: BuildResourceClass, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string } }, deprecationInfo?: { __typename?: 'EASBuildDeprecationInfo', type: EasBuildDeprecationInfoType, message: string } | null } } };
+
+export type UpdateBuildMetadataMutationVariables = Exact<{
+  buildId: Scalars['ID'];
+  metadata: BuildMetadataInput;
+}>;
+
+
+export type UpdateBuildMetadataMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', updateBuildMetadata: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, releaseChannel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, completedAt?: any | null, resourceClass: BuildResourceClass, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string } } } };
 
 export type RetryIosBuildMutationVariables = Exact<{
   buildId: Scalars['ID'];

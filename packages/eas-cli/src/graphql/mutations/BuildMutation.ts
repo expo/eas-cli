@@ -18,6 +18,8 @@ import {
   IosJobOverridesInput,
   RetryIosBuildMutation,
   RetryIosBuildMutationVariables,
+  UpdateBuildMetadataMutation,
+  UpdateBuildMetadataMutationVariables,
 } from '../generated';
 import { BuildFragmentNode } from '../types/Build';
 
@@ -118,6 +120,33 @@ export const BuildMutation = {
         .toPromise()
     );
     return nullthrows(data.build?.createIosBuild);
+  },
+  async updateBuildMetadataAsync(
+    graphqlClient: ExpoGraphqlClient,
+    input: {
+      buildId: string;
+      metadata: BuildMetadataInput;
+    }
+  ): Promise<BuildFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<UpdateBuildMetadataMutation, UpdateBuildMetadataMutationVariables>(
+          gql`
+            mutation UpdateBuildMetadataMutation($buildId: ID!, $metadata: BuildMetadataInput!) {
+              build {
+                updateBuildMetadata(buildId: $buildId, metadata: $metadata) {
+                  id
+                  ...BuildFragment
+                }
+              }
+            }
+            ${print(BuildFragmentNode)}
+          `,
+          input
+        )
+        .toPromise()
+    );
+    return nullthrows(data.build?.updateBuildMetadata);
   },
   async retryIosBuildAsync(
     graphqlClient: ExpoGraphqlClient,

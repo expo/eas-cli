@@ -2,11 +2,12 @@ import { Ios } from '@expo/eas-build-job';
 import nullthrows from 'nullthrows';
 
 import { IosJobInput, IosJobSecretsInput } from '../../graphql/generated';
-import { transformProjectArchive, transformWorkflow } from '../graphql';
+import { transformBuildTrigger, transformProjectArchive, transformWorkflow } from '../graphql';
 
 export function transformJob(job: Ios.Job): IosJobInput {
   return {
     type: transformWorkflow(job.type),
+    triggeredBy: transformBuildTrigger(job.triggeredBy),
     projectArchive: transformProjectArchive(job.projectArchive),
     projectRootDirectory: nullthrows(job.projectRootDirectory),
     releaseChannel: job.releaseChannel,

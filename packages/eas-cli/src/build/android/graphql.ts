@@ -1,11 +1,12 @@
 import { Android } from '@expo/eas-build-job';
 
 import { AndroidBuildType, AndroidJobInput } from '../../graphql/generated';
-import { transformProjectArchive, transformWorkflow } from '../graphql';
+import { transformBuildTrigger, transformProjectArchive, transformWorkflow } from '../graphql';
 
 export function transformJob(job: Android.Job): AndroidJobInput {
   return {
     type: transformWorkflow(job.type),
+    triggeredBy: transformBuildTrigger(job.triggeredBy),
     projectArchive: transformProjectArchive(job.projectArchive),
     projectRootDirectory: job.projectRootDirectory,
     releaseChannel: job.releaseChannel,
