@@ -18,6 +18,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Move image validation to the server side and better handle server validation errors in the eas-cli. ([#1650](https://github.com/expo/eas-cli/pull/1650) by [@szdziedzic](https://github.com/szdziedzic))
+- Update metadata on the worker when using git-based builds. ([#1651](https://github.com/expo/eas-cli/pull/1651) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [3.4.1](https://github.com/expo/eas-cli/releases/tag/v3.4.1) - 2023-01-23
 
