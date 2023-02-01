@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix the issue with the `eas.json` envs being not available when resolving dynamic config. ([#1666](https://github.com/expo/eas-cli/pull/1666) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 ## [3.5.0](https://github.com/expo/eas-cli/releases/tag/v3.5.0) - 2023-01-31

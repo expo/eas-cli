@@ -5,7 +5,7 @@ import ContextField, { ContextOptions } from './ContextField';
 import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
 
-export type DynamicConfigContextFn = (options?: ExpoConfigOptions) => Promise<{
+export type DynamicConfigContextFn = (options: ExpoConfigOptions) => Promise<{
   projectId: string;
   exp: ExpoConfig;
   projectDir: string;

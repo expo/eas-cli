@@ -51,7 +51,7 @@ export async function createBuildContextAsync<T extends Platform>({
   analytics: Analytics;
   getDynamicProjectConfigAsync: DynamicConfigContextFn;
 }): Promise<BuildContext<T>> {
-  const { exp, projectId } = await getDynamicProjectConfigAsync(buildProfile.env);
+  const { exp, projectId } = await getDynamicProjectConfigAsync({ env: buildProfile.env });
   const projectName = exp.slug;
   const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
   const workflow = await resolveWorkflowAsync(projectDir, platform);
