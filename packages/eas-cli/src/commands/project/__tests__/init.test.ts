@@ -344,11 +344,37 @@ describe(ProjectInit.name, () => {
     describe('when it is already configured', () => {
       beforeEach(() => {
         mockTestProject({ configuredProjectId: '1234', configuredOwner: jester.accounts[0].name });
+
+        jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+          id: '1234',
+          slug: 'testing-123',
+          fullName: '@jester/testing-123',
+          ownerAccount: jester.accounts[0],
+        });
       });
 
       it('does not configure', async () => {
         await new ProjectInit([], commandOptions).run();
         expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
+      });
+
+      it('checks owner and slug consistency', async () => {
+        jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+          id: '1234',
+          slug: 'testing-124',
+          fullName: '@jester2/testing-124',
+          ownerAccount: jester2.accounts[0],
+        });
+
+        jest.mocked(confirmAsync).mockResolvedValue(true);
+        jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+
+        await new ProjectInit([], commandOptions).run();
+
+        expect(confirmAsync).toHaveBeenCalled();
+        expect(modifyConfigAsync).toHaveBeenCalledTimes(2);
+        expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { owner: 'jester2' });
+        expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { slug: 'testing-124' });
       });
     });
 
@@ -365,6 +391,14 @@ describe(ProjectInit.name, () => {
 
           it('prompts for confirmation to link', async () => {
             jest.mocked(confirmAsync).mockResolvedValue(true);
+
+            jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+              id: '1234',
+              slug: 'testing-123',
+              fullName: '@jester/testing-123',
+              ownerAccount: jester.accounts[0],
+            });
+
             await new ProjectInit([], commandOptions).run();
             expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '123456');
             expect(confirmAsync).toHaveBeenCalledTimes(1);
@@ -384,6 +418,14 @@ describe(ProjectInit.name, () => {
           it('asks to create it', async () => {
             jest.mocked(confirmAsync).mockResolvedValue(true);
             jest.mocked(AppMutation.createAppAsync).mockResolvedValue('0129');
+
+            jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+              id: '0129',
+              slug: 'testing-123',
+              fullName: '@jester/testing-123',
+              ownerAccount: jester.accounts[0],
+            });
+
             await new ProjectInit([], commandOptions).run();
             expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '0129');
             expect(confirmAsync).toHaveBeenCalledTimes(1);
