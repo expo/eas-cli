@@ -2,8 +2,11 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
 import path from 'path';
+import { instance, mock } from 'ts-mockito';
 
-import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { jester, jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
+import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { promptAsync } from '../../../prompts';
 import {
   ensureBundleIdentifierIsDefinedForManagedProjectAsync,
@@ -13,6 +16,7 @@ import {
 
 jest.mock('fs');
 jest.mock('../../../prompts');
+jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 
 beforeEach(async () => {
@@ -86,6 +90,7 @@ describe(getBundleIdentifierAsync, () => {
 describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
   describe('managed project + ios.bundleIdentifier missing in app config', () => {
     it('throws an error if using app.config.js', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
       vol.fromJSON(
         {
           'app.config.js': 'module.exports = { blah: {} };',
@@ -93,10 +98,23 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
         '/app'
       );
       await expect(
-        ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any, mockJester)
+        ensureBundleIdentifierIsDefinedForManagedProjectAsync({
+          graphqlClient,
+          projectDir: '/app',
+          projectId: '1234',
+          exp: {} as any,
+        })
       ).rejects.toThrowError(/we can't update this file programmatically/);
     });
     it('prompts for the bundle identifier if using app.json', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '1234',
+        slug: 'testing-123',
+        fullName: '@jester/testing-123',
+        ownerAccount: jester.accounts[0],
+      });
+
       vol.fromJSON(
         {
           'app.json': '{ "expo": {} }',
@@ -109,11 +127,24 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
       }));
 
       await expect(
-        ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any, mockJester)
+        ensureBundleIdentifierIsDefinedForManagedProjectAsync({
+          graphqlClient,
+          projectDir: '/app',
+          projectId: '1234',
+          exp: {} as any,
+        })
       ).resolves.toBe('com.expo.notdominik');
       expect(promptAsync).toHaveBeenCalled();
     });
     it('puts the bundle identifier in app.json', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '1234',
+        slug: 'testing-123',
+        fullName: '@jester/testing-123',
+        ownerAccount: jester.accounts[0],
+      });
+
       vol.fromJSON(
         {
           'app.json': '{ "expo": {} }',
@@ -126,7 +157,12 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
       }));
 
       await expect(
-        ensureBundleIdentifierIsDefinedForManagedProjectAsync('/app', {} as any, mockJester)
+        ensureBundleIdentifierIsDefinedForManagedProjectAsync({
+          graphqlClient,
+          projectDir: '/app',
+          projectId: '1234',
+          exp: {} as any,
+        })
       ).resolves.toBe('com.expo.notdominik');
       const appJson = JSON.parse(await fs.readFile('/app/app.json', 'utf-8'));
       expect(appJson).toMatchObject({

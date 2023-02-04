@@ -2,7 +2,7 @@ import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 
-import { Actor } from '../user/User';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   getApplicationIdAsync,
@@ -16,19 +16,32 @@ import { resolveXcodeBuildContextAsync } from './ios/scheme';
 import { findApplicationTarget, resolveTargetsAsync } from './ios/target';
 import { resolveWorkflowAsync } from './workflow';
 
-export async function getApplicationIdentifierAsync(
-  projectDir: string,
-  exp: ExpoConfig,
-  buildProfile: BuildProfile,
-  platform: Platform,
-  actor: Actor
-): Promise<string> {
+export async function getApplicationIdentifierAsync({
+  graphqlClient,
+  projectDir,
+  projectId,
+  exp,
+  buildProfile,
+  platform,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  projectDir: string;
+  projectId: string;
+  exp: ExpoConfig;
+  buildProfile: BuildProfile;
+  platform: Platform;
+}): Promise<string> {
   if (platform === Platform.ANDROID) {
     const profile = buildProfile as BuildProfile<Platform.ANDROID>;
     const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
 
     if (workflow === Workflow.MANAGED) {
-      return await ensureApplicationIdIsDefinedForManagedProjectAsync(projectDir, exp, actor);
+      return await ensureApplicationIdIsDefinedForManagedProjectAsync({
+        graphqlClient,
+        projectDir,
+        projectId,
+        exp,
+      });
     }
 
     const gradleContext = await resolveGradleBuildContextAsync(projectDir, profile);
@@ -37,7 +50,12 @@ export async function getApplicationIdentifierAsync(
     const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
     const profile = buildProfile as BuildProfile<Platform.IOS>;
     if (workflow === Workflow.MANAGED) {
-      return await ensureBundleIdentifierIsDefinedForManagedProjectAsync(projectDir, exp, actor);
+      return await ensureBundleIdentifierIsDefinedForManagedProjectAsync({
+        graphqlClient,
+        projectDir,
+        projectId,
+        exp,
+      });
     }
 
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(

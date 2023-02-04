@@ -63,7 +63,7 @@ export default class BuildVersionSyncView extends EasCommand {
   public async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildVersionSyncView);
     const {
-      loggedIn: { actor, graphqlClient },
+      loggedIn: { graphqlClient },
       getDynamicProjectConfigAsync,
       projectDir,
     } = await this.getContextAsync(BuildVersionSyncView, {
@@ -89,13 +89,14 @@ export default class BuildVersionSyncView extends EasCommand {
       validateAppConfigForRemoteVersionSource(exp, profileInfo.platform);
       const platformDisplayName = appPlatformDisplayNames[toAppPlatform(profileInfo.platform)];
 
-      const applicationIdentifier = await getApplicationIdentifierAsync(
+      const applicationIdentifier = await getApplicationIdentifierAsync({
+        graphqlClient,
         projectDir,
+        projectId,
         exp,
-        profileInfo.profile,
-        profileInfo.platform,
-        actor
-      );
+        buildProfile: profileInfo.profile,
+        platform: profileInfo.platform,
+      });
       const remoteVersions = await AppVersionQuery.latestVersionAsync(
         graphqlClient,
         projectId,
