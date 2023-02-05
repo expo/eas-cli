@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Use the new developer-mdn.apple.com subdomain instead of developer.apple.com. ([#1673](https://github.com/expo/eas-cli/pull/1673) by [@brentvatne](https://github.com/brentvatne))
+
 ### 🧹 Chores
 
 ## [3.5.1](https://github.com/expo/eas-cli/releases/tag/v3.5.1) - 2023-02-01
