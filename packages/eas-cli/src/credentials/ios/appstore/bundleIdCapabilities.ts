@@ -111,7 +111,7 @@ export async function syncCapabilitiesForEntitlementsAsync(
           inspect(modifiedRequest, { depth: null, colors: true })
         );
         throw new Error(
-          `Unexpected error occurred while attempting to update capabilities for app "${bundleId.attributes.identifier}".\nCapabilities can be modified manually in the Apple developer console at https://developer.apple.com/account/resources/identifiers/bundleId/edit/${bundleId.id}.\nAuto capability syncing can be disabled with the environment variable \`EXPO_NO_CAPABILITY_SYNC=1\`.\n${error.message}`
+          `Unexpected error occurred while attempting to update capabilities for app "${bundleId.attributes.identifier}".\nCapabilities can be modified manually in the Apple developer console at https://developer-mdn.apple.com/account/resources/identifiers/bundleId/edit/${bundleId.id}.\nAuto capability syncing can be disabled with the environment variable \`EXPO_NO_CAPABILITY_SYNC=1\`.\n${error.message}`
         );
       }
     }
@@ -266,7 +266,7 @@ type CapabilityClassifier = {
 
 // NOTE(Bacon): From manually toggling values in Xcode and checking the git diff and network requests.
 // Last Updated: July 22nd, 2021
-// https://developer.apple.com/documentation/bundleresources/entitlements
+// https://developer-mdn.apple.com/documentation/bundleresources/entitlements
 export const CapabilityMapping: CapabilityClassifier[] = [
   {
     name: 'HomeKit',
@@ -413,7 +413,7 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     getOptions: getBooleanOptions,
   },
   {
-    // https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_developer_default-data-protection
+    // https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_default-data-protection
     name: 'Data Protection',
     entitlement: 'com.apple.developer.default-data-protection',
     capability: CapabilityType.DATA_PROTECTION,
@@ -446,7 +446,7 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     getOptions: getBooleanOptions,
   },
   {
-    // https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_developer_networking_networkextension
+    // https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_networking_networkextension
     name: 'Network Extensions',
     entitlement: 'com.apple.developer.networking.networkextension',
     capability: CapabilityType.NETWORK_EXTENSIONS,
@@ -465,7 +465,7 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     getOptions: getDefinedOptions,
   },
   {
-    // https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_developer_nfc_readersession_formats
+    // https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_nfc_readersession_formats
     name: 'NFC Tag Reading',
     entitlement: 'com.apple.developer.nfc.readersession.formats',
     capability: CapabilityType.NFC_TAG_READING,
@@ -482,7 +482,7 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     getOptions: getDefinedOptions,
   },
   {
-    // https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_developer_networking_vpn_api
+    // https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_networking_vpn_api
     name: 'Push Notifications',
     // com.apple.developer.aps-environment
     entitlement: 'aps-environment',
@@ -515,8 +515,8 @@ export const CapabilityMapping: CapabilityClassifier[] = [
   },
   {
     // Not in Xcode
-    // https://developer.apple.com/documentation/devicecheck/preparing_to_use_the_app_attest_service
-    // https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_developer_devicecheck_appattest-environment
+    // https://developer-mdn.apple.com/documentation/devicecheck/preparing_to_use_the_app_attest_service
+    // https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_devicecheck_appattest-environment
     name: 'App Attest',
     entitlement: 'com.apple.developer.devicecheck.appattest-environment',
     capability: CapabilityType.APP_ATTEST,
@@ -725,10 +725,10 @@ export const CapabilityMapping: CapabilityClassifier[] = [
   // it's not clear if it needs to be updated.
 
   // "Contact Notes" requires the user to ask Apple in a form:
-  // https://developer.apple.com/contact/request/contact-note-field
-  // com.apple.developer.contacts.notes: https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_developer_contacts_notes/
+  // https://developer-mdn.apple.com/contact/request/contact-note-field
+  // com.apple.developer.contacts.notes: https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_contacts_notes/
 
   // "Exposure Notification" requires the user to ask Apple in a form:
-  // https://developer.apple.com/contact/request/exposure-notification-entitlement
-  // com.apple.developer.exposure-notification: https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_developer_exposure-notification/
+  // https://developer-mdn.apple.com/contact/request/exposure-notification-entitlement
+  // com.apple.developer.exposure-notification: https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_exposure-notification/
 ];

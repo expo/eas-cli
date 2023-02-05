@@ -26,7 +26,7 @@ export interface AppleRelease {
 export interface AppleInfo {
   title: string;
   subtitle?: string;
-  /** Does not effect ASO https://developer.apple.com/app-store/product-page/ */
+  /** Does not effect ASO https://developer-mdn.apple.com/app-store/product-page/ */
   promoText?: string;
   description?: string;
   keywords?: string[];
