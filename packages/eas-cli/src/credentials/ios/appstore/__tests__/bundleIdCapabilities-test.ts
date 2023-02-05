@@ -348,7 +348,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
         'com.apple.developer.healthkit': true,
       })
     ).rejects.toThrowError(
-      `https://developer.apple.com/account/resources/identifiers/bundleId/edit/XXX333`
+      `https://developer-mdn.apple.com/account/resources/identifiers/bundleId/edit/XXX333`
     );
   });
 
