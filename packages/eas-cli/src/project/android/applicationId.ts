@@ -7,22 +7,31 @@ import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 
 import { readAppJson } from '../../build/utils/appJson';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import env from '../../env';
 import Log, { learnMore } from '../../log';
-import { getProjectConfigDescription, getUsername } from '../../project/projectUtils';
+import {
+  getOwnerAccountForProjectIdAsync,
+  getProjectConfigDescription,
+} from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { Actor } from '../../user/User';
 import { resolveWorkflowAsync } from '../workflow';
 import { GradleBuildContext } from './gradle';
 import * as gradleUtils from './gradleUtils';
 
 export const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
 
-export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
-  projectDir: string,
-  exp: ExpoConfig,
-  actor: Actor
-): Promise<string> {
+export async function ensureApplicationIdIsDefinedForManagedProjectAsync({
+  graphqlClient,
+  projectDir,
+  projectId,
+  exp,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  projectDir: string;
+  projectId: string;
+  exp: ExpoConfig;
+}): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
 
@@ -31,7 +40,7 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync(
       moduleName: gradleUtils.DEFAULT_MODULE_NAME,
     });
   } catch {
-    return await configureApplicationIdAsync(projectDir, exp, actor);
+    return await configureApplicationIdAsync({ graphqlClient, projectDir, projectId, exp });
   }
 }
 
@@ -110,11 +119,17 @@ export async function getApplicationIdAsync(
   }
 }
 
-async function configureApplicationIdAsync(
-  projectDir: string,
-  exp: ExpoConfig,
-  actor: Actor
-): Promise<string> {
+async function configureApplicationIdAsync({
+  graphqlClient,
+  projectDir,
+  projectId,
+  exp,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  projectDir: string;
+  projectId: string;
+  exp: ExpoConfig;
+}): Promise<string> {
   const paths = getConfigFilePaths(projectDir);
   // we can't automatically update app.config.js
   if (paths.dynamicConfigPath) {
@@ -132,7 +147,11 @@ async function configureApplicationIdAsync(
     )}`
   );
 
-  const suggestedAndroidApplicationId = await getSuggestedApplicationIdAsync(exp, actor);
+  const suggestedAndroidApplicationId = await getSuggestedApplicationIdAsync(
+    graphqlClient,
+    exp,
+    projectId
+  );
   const { packageName } = await promptAsync({
     name: 'packageName',
     type: 'text',
@@ -174,8 +193,9 @@ export function warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(
 }
 
 async function getSuggestedApplicationIdAsync(
+  graphqlClient: ExpoGraphqlClient,
   exp: ExpoConfig,
-  actor: Actor
+  projectId: string
 ): Promise<string | undefined> {
   // Attempt to use the ios bundle id first since it's convenient to have them aligned.
   const maybeBundleId = IOSConfig.BundleIdentifier.getBundleIdentifier(exp);
@@ -183,9 +203,9 @@ async function getSuggestedApplicationIdAsync(
     return maybeBundleId;
   } else {
     // the only callsite is heavily interactive
-    const username = getUsername(exp, actor);
+    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
     // It's common to use dashes in your node project name, strip them from the suggested package name.
-    const possibleId = `com.${username}.${exp.slug}`.split('-').join('');
+    const possibleId = `com.${account.name}.${exp.slug}`.split('-').join('');
     if (isApplicationIdValid(possibleId)) {
       return possibleId;
     }

@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix suggested application identifier to match owning account name. ([#1670](https://github.com/expo/eas-cli/pull/1670) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 ## [3.5.2](https://github.com/expo/eas-cli/releases/tag/v3.5.2) - 2023-02-05

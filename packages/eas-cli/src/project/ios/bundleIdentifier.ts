@@ -6,26 +6,37 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 
 import { readAppJson } from '../../build/utils/appJson';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
-import { Actor } from '../../user/User';
-import { getProjectConfigDescription, getUsername } from '../projectUtils';
+import { getOwnerAccountForProjectIdAsync, getProjectConfigDescription } from '../projectUtils';
 import { resolveWorkflowAsync } from '../workflow';
 
 export const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
 
-export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync(
-  projectDir: string,
-  exp: ExpoConfig,
-  actor: Actor
-): Promise<string> {
+export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync({
+  graphqlClient,
+  projectDir,
+  projectId,
+  exp,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  projectDir: string;
+  projectId: string;
+  exp: ExpoConfig;
+}): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
 
   try {
     return await getBundleIdentifierAsync(projectDir, exp);
   } catch {
-    return await configureBundleIdentifierAsync(projectDir, exp, actor);
+    return await configureBundleIdentifierAsync({
+      graphqlClient,
+      projectDir,
+      exp,
+      projectId,
+    });
   }
 }
 
@@ -100,11 +111,17 @@ export async function getBundleIdentifierAsync(
   }
 }
 
-async function configureBundleIdentifierAsync(
-  projectDir: string,
-  exp: ExpoConfig,
-  actor: Actor
-): Promise<string> {
+async function configureBundleIdentifierAsync({
+  graphqlClient,
+  projectDir,
+  projectId,
+  exp,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  projectDir: string;
+  projectId: string;
+  exp: ExpoConfig;
+}): Promise<string> {
   const paths = getConfigFilePaths(projectDir);
   // we can't automatically update app.config.js
   if (paths.dynamicConfigPath) {
@@ -122,7 +139,11 @@ async function configureBundleIdentifierAsync(
     )}`
   );
 
-  const suggestedBundleIdentifier = await getSuggestedBundleIdentifierAsync(exp, actor);
+  const suggestedBundleIdentifier = await getSuggestedBundleIdentifierAsync(
+    graphqlClient,
+    exp,
+    projectId
+  );
   const { bundleIdentifier } = await promptAsync({
     name: 'bundleIdentifier',
     type: 'text',
@@ -169,8 +190,9 @@ export function isWildcardBundleIdentifier(bundleIdentifier: string): boolean {
 }
 
 async function getSuggestedBundleIdentifierAsync(
+  graphqlClient: ExpoGraphqlClient,
   exp: ExpoConfig,
-  actor: Actor
+  projectId: string
 ): Promise<string | undefined> {
   // Attempt to use the android package name first since it's convenient to have them aligned.
   const maybeAndroidPackage = AndroidConfig.Package.getPackage(exp);
@@ -178,9 +200,9 @@ async function getSuggestedBundleIdentifierAsync(
     return maybeAndroidPackage;
   } else {
     // the only callsite is heavily interactive
-    const username = getUsername(exp, actor);
+    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
     // It's common to use dashes in your node project name, strip them from the suggested package name.
-    const possibleId = `com.${username}.${exp.slug}`.split('-').join('');
+    const possibleId = `com.${account.name}.${exp.slug}`.split('-').join('');
     if (isBundleIdentifierValid(possibleId)) {
       return possibleId;
     }
