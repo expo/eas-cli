@@ -194,16 +194,11 @@ export default class ProjectInit extends EasCommand {
   }
 
   private static async initializeWithExplicitIDAsync(
-    graphqlClient: ExpoGraphqlClient,
     projectId: string,
     projectDir: string,
     { force, nonInteractive }: InitializeMethodOptions
   ): Promise<void> {
     await this.setExplicitIDAsync(projectId, projectDir, {
-      force,
-      nonInteractive,
-    });
-    await this.ensureOwnerSlugConsistencyAsync(graphqlClient, projectId, projectDir, {
       force,
       nonInteractive,
     });
@@ -213,7 +208,7 @@ export default class ProjectInit extends EasCommand {
     graphqlClient: ExpoGraphqlClient,
     actor: Actor,
     projectDir: string
-  ): Promise<void> {
+  ): Promise<string> {
     const exp = getExpoConfig(projectDir);
     const existingProjectId = exp.extra?.eas?.projectId;
 
@@ -223,7 +218,7 @@ export default class ProjectInit extends EasCommand {
           existingProjectId
         )}). To re-configure, remove the "extra.eas.projectId" field from your app config.`
       );
-      return;
+      return existingProjectId;
     }
 
     const allAccounts = actor.accounts;
@@ -287,7 +282,7 @@ export default class ProjectInit extends EasCommand {
       }
 
       await ProjectInit.saveProjectIdAndLogSuccessAsync(projectDir, existingProjectIdOnServer);
-      return;
+      return existingProjectIdOnServer;
     }
 
     if (!accountNamesWhereUserHasSufficientPermissionsToCreateApp.has(accountName)) {
@@ -323,24 +318,36 @@ export default class ProjectInit extends EasCommand {
     }
 
     await ProjectInit.saveProjectIdAndLogSuccessAsync(projectDir, createdProjectId);
+    return createdProjectId;
   }
 
   async runAsync(): Promise<void> {
     const {
-      flags: { id, force, 'non-interactive': nonInteractive },
+      flags: { id: idArgument, force, 'non-interactive': nonInteractive },
     } = await this.parse(ProjectInit);
     const {
       loggedIn: { actor, graphqlClient },
       projectDir,
     } = await this.getContextAsync(ProjectInit, { nonInteractive });
 
-    if (id) {
-      await ProjectInit.initializeWithExplicitIDAsync(graphqlClient, id, projectDir, {
+    let idForConsistency: string;
+    if (idArgument) {
+      await ProjectInit.initializeWithExplicitIDAsync(idArgument, projectDir, {
         force,
         nonInteractive,
       });
+      idForConsistency = idArgument;
     } else {
-      await ProjectInit.initializeWithInteractiveSelectionAsync(graphqlClient, actor, projectDir);
+      idForConsistency = await ProjectInit.initializeWithInteractiveSelectionAsync(
+        graphqlClient,
+        actor,
+        projectDir
+      );
     }
+
+    await ProjectInit.ensureOwnerSlugConsistencyAsync(graphqlClient, idForConsistency, projectDir, {
+      force,
+      nonInteractive,
+    });
   }
 }

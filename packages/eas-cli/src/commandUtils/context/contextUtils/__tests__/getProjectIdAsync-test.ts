@@ -15,7 +15,6 @@ jest.mock('fs');
 
 jest.mock('../../../../graphql/queries/AppQuery');
 jest.mock('../../contextUtils/findProjectDirAndVerifyProjectSetupAsync');
-jest.mock('../../../../user/User');
 jest.mock('../../../../ora', () => ({
   ora: () => ({
     start: () => ({ succeed: () => {}, fail: () => {} }),
@@ -107,7 +106,31 @@ describe(getProjectIdAsync, () => {
         { nonInteractive: false }
       )
     ).rejects.toThrow(
-      `Project config: Project identified by "extra.eas.projectId" (notnotbrent) is not owned by owner specified in the "owner" field (wat). ${learnMore(
+      `Project config: Owner of project identified by "extra.eas.projectId" (notnotbrent) does not match owner specified in the "owner" field (wat). ${learnMore(
+        'https://expo.fyi/eas-project-id'
+      )}`
+    );
+  });
+
+  it('throws when the owner is not specified and is different than logged in user', async () => {
+    jest.mocked(getConfig).mockReturnValue({
+      exp: { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
+    } as any);
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+      id: '1234',
+      fullName: '@totallybrent/test',
+      slug: 'test',
+      ownerAccount: { name: 'totallybrent' } as any,
+    });
+
+    await expect(
+      getProjectIdAsync(
+        sessionManager,
+        { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
+        { nonInteractive: false }
+      )
+    ).rejects.toThrow(
+      `Project config: Owner of project identified by "extra.eas.projectId" (totallybrent) does not match the logged in user (notnotbrent) and the "owner" field is not specified. To ensure all libraries work correctly, "owner": "totallybrent" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
         'https://expo.fyi/eas-project-id'
       )}`
     );

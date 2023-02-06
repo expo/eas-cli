@@ -10,7 +10,7 @@ import { getExpoConfig } from '../../../project/expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { toAppPrivacy } from '../../../project/projectUtils';
 import SessionManager from '../../../user/SessionManager';
-import { Actor } from '../../../user/User';
+import { Actor, getActorUsername } from '../../../user/User';
 import { createGraphqlClient } from './createGraphqlClient';
 import { findProjectRootAsync } from './findProjectDirAndVerifyProjectSetupAsync';
 
@@ -93,9 +93,22 @@ export async function getProjectIdAsync(
     const appForProjectId = await AppQuery.byIdAsync(graphqlClient, localProjectId);
     if (exp.owner && exp.owner !== appForProjectId.ownerAccount.name) {
       throw new Error(
-        `Project config: Project identified by "extra.eas.projectId" (${
+        `Project config: Owner of project identified by "extra.eas.projectId" (${
           appForProjectId.ownerAccount.name
-        }) is not owned by owner specified in the "owner" field (${exp.owner}). ${learnMore(
+        }) does not match owner specified in the "owner" field (${exp.owner}). ${learnMore(
+          'https://expo.fyi/eas-project-id'
+        )}`
+      );
+    }
+
+    const actorUsername = getActorUsername(actor);
+    if (!exp.owner && appForProjectId.ownerAccount.name !== actorUsername) {
+      throw new Error(
+        `Project config: Owner of project identified by "extra.eas.projectId" (${
+          appForProjectId.ownerAccount.name
+        }) does not match the logged in user (${actorUsername}) and the "owner" field is not specified. To ensure all libraries work correctly, "owner": "${
+          appForProjectId.ownerAccount.name
+        }" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
           'https://expo.fyi/eas-project-id'
         )}`
       );
