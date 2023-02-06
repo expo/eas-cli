@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Use `sdkVersion` as default runtime version policy when running `eas update:configure`. ([#1669](https://github.com/expo/eas-cli/pull/1669) by [@jonsamp](https://github.com/jonsamp))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
