@@ -14,7 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix suggested application identifier to match owning account name. ([#1670](https://github.com/expo/eas-cli/pull/1670) by [@wschurman](https://github.com/wschurman))
-- "Modify update:configure to add possibly missing EAS update config properties". ([#1686](https://github.com/expo/eas-cli/pull/1686) by [@douglowder](https://github.com/douglowder))
+- Modify update:configure to add possibly missing EAS update config properties. ([#1686](https://github.com/expo/eas-cli/pull/1686) by [@douglowder](https://github.com/douglowder))
 
 ### 🧹 Chores
 
