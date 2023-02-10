@@ -61,7 +61,15 @@ function replaceUndefinedObjectValues(
 function mergeExpoConfig(exp: ExpoConfig, modifyExp: Partial<ExpoConfig>): Partial<ExpoConfig> {
   return {
     runtimeVersion: modifyExp.runtimeVersion ?? exp.runtimeVersion,
-    updates: { ...exp.updates, ...modifyExp.updates },
+    assetBundlePatterns: modifyExp.assetBundlePatterns ?? exp.assetBundlePatterns,
+    updates: {
+      ...exp.updates,
+      url: modifyExp?.updates?.url || exp.updates?.url,
+      fallbackToCacheTimeout:
+        modifyExp?.updates?.fallbackToCacheTimeout !== undefined
+          ? modifyExp?.updates?.fallbackToCacheTimeout
+          : exp?.updates?.fallbackToCacheTimeout,
+    },
     android: {
       ...exp.android,
       ...modifyExp.android,
@@ -97,6 +105,14 @@ async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
 
   if (exp.updates?.url !== getEASUpdateURL(projectId)) {
     modifyConfig.updates = { url: getEASUpdateURL(projectId) };
+  }
+
+  if (exp.updates?.fallbackToCacheTimeout === undefined) {
+    modifyConfig.updates = { url: modifyConfig?.updates?.url, fallbackToCacheTimeout: 0 };
+  }
+
+  if (!exp.assetBundlePatterns) {
+    modifyConfig.assetBundlePatterns = ['*/**'];
   }
 
   let androidRuntimeVersion = exp.android?.runtimeVersion ?? exp.runtimeVersion;
@@ -183,6 +199,18 @@ function logEasUpdatesAutoConfig({
       `Configured runtimeVersion for ${
         appPlatformDisplayNames[AppPlatform.Ios]
       } with "${JSON.stringify(modifyConfig.ios?.runtimeVersion ?? modifyConfig.runtimeVersion)}"`
+    );
+  }
+
+  if (modifyConfig?.assetBundlePatterns) {
+    Log.withTick(
+      `Configured assetBundlePatterns to ${JSON.stringify(modifyConfig.assetBundlePatterns)}`
+    );
+  }
+
+  if (modifyConfig?.updates?.fallbackToCacheTimeout !== undefined) {
+    Log.withTick(
+      `Configured updates.fallbackToCacheTimeout to ${modifyConfig?.updates?.fallbackToCacheTimeout}`
     );
   }
 }
