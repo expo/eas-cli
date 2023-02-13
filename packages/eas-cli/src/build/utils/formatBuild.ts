@@ -39,6 +39,10 @@ export function formatGraphQLBuild(build: BuildFragment): string {
       },
     },
     {
+      label: 'Message',
+      value: build.message,
+    },
+    {
       label: 'Distribution',
       value: build.distribution?.toLowerCase(),
     },
