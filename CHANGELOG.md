@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [3.6.0](https://github.com/expo/eas-cli/releases/tag/v3.6.0) - 2023-02-14
+
+### 🎉 New features
+
 - Use `sdkVersion` as default runtime version policy when running `eas update:configure`. ([#1669](https://github.com/expo/eas-cli/pull/1669) by [@jonsamp](https://github.com/jonsamp))
 - Warn when project ID but no owner specified and mismatch logged in user. ([#1667](https://github.com/expo/eas-cli/pull/1667) by [@wschurman](https://github.com/wschurman))
 - Return the build `message` if one is available. ([#1691](https://github.com/expo/eas-cli/pull/1691) by [@raulriera](https://github.com/raulriera))
