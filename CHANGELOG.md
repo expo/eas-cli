@@ -17,6 +17,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add Xcode 14.2 image to the VSCode schema. ([#1693](https://github.com/expo/eas-cli/pull/1693) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [3.5.2](https://github.com/expo/eas-cli/releases/tag/v3.5.2) - 2023-02-05
 
 ### 🐛 Bug fixes
