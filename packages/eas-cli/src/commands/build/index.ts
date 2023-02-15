@@ -227,6 +227,13 @@ export default class Build extends EasCommand {
         });
       } else if (process.platform !== 'darwin' && requestedPlatform === RequestedPlatform.Ios) {
         Errors.error('Unsupported platform, macOS is required to build apps for iOS', { exit: 1 });
+      } else if (
+        !['linux', 'darwin'].includes(process.platform) &&
+        requestedPlatform === RequestedPlatform.Android
+      ) {
+        Errors.error('Unsupported platform, macOS or Linux is required to build apps for Android', {
+          exit: 1,
+        });
       }
     }
 
