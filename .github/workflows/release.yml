@@ -161,6 +161,8 @@ jobs:
     needs: publish-to-npm
     steps:
       - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.EXPO_BOT_PAT }}
       - uses: actions/setup-node@v2
         with:
           node-version: 18
