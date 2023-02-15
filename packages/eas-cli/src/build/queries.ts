@@ -131,6 +131,7 @@ function createBuildToPartialChoiceMaker(
           build.platform === AppPlatform.Ios ? 'Build number:' : 'Version code:'
         )} ${formatBuildChoiceValue(build.appBuildVersion)}`,
         `\t${chalk.bold(`Commit:`)} ${formattedCommitData}`,
+        `\t${chalk.bold(`Message:`)} ${formatBuildChoiceValue(build.message)}`,
       ].join('\n'),
       disabled: selectPromptDisabledFunction?.(build),
     };
