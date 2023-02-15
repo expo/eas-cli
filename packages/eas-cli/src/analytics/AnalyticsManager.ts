@@ -133,7 +133,9 @@ export async function createAnalyticsAsync(): Promise<AnalyticsWithOrchestration
     await UserSettings.setAsync(USER_SETTINGS_KEY_ANALYTICS_ENABLED, false);
   }
 
-  const analyticsEnabled = await UserSettings.getAsync(USER_SETTINGS_KEY_ANALYTICS_ENABLED, true);
+  const analyticsEnabled =
+    !process.env.https_proxy && // disable analytics if running behind proxy
+    (await UserSettings.getAsync(USER_SETTINGS_KEY_ANALYTICS_ENABLED, true));
   if (!analyticsEnabled) {
     return new NoOpAnalytics();
   }
