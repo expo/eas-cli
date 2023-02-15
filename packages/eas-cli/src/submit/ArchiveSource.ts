@@ -327,34 +327,33 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
     channel,
     message,
   } = build;
-
-  const formatValue = (field?: string | null): string => (field ? chalk.bold(field) : 'Unknown');
-
   const buildDate = new Date(updatedAt);
 
+  const splitCommitMessage = gitCommitMessage?.split('\n');
   const formattedCommitData =
-    gitCommitHash && gitCommitMessage
-      ? `${gitCommitHash.slice(0, 7)} "${chalk.bold(gitCommitMessage)}"`
-      : 'Unknown';
+    gitCommitHash && splitCommitMessage && splitCommitMessage.length > 0
+      ? `${gitCommitHash.slice(0, 7)} "${chalk.bold(
+          splitCommitMessage[0] + (splitCommitMessage.length > 1 ? '…' : '')
+        )}"`
+      : null;
 
   const title = `${chalk.bold(`ID:`)} ${id} (${chalk.bold(`${fromNow(buildDate)} ago`)})`;
 
-  const descriptionItems = [
-    `\t${chalk.bold(`Profile:`)} ${formatValue(buildProfile)}`,
-    `\t${chalk.bold(`Channel:`)} ${formatValue(channel)}`,
-    `\t${chalk.bold(`Runtime version:`)} ${formatValue(runtimeVersion)}`,
-    `\t${chalk.bold(`Commit:`)} ${formattedCommitData}`,
-  ];
+  const descriptionItemNameToValue: Record<string, string | null> = {
+    Profile: buildProfile ? chalk.bold(buildProfile) : null,
+    Channel: channel ? chalk.bold(channel) : null,
+    'Runtime version': runtimeVersion ? chalk.bold(runtimeVersion) : null,
+    Commit: formattedCommitData,
+    Message: message ? chalk.bold(message) : null,
+  };
 
-  if (message) {
-    descriptionItems.push(`\t${chalk.bold(`Message:`)} ${formatValue(message).slice(0, 200)}`);
-  }
-
-  const description = descriptionItems.join('\n');
+  const descriptionItems = Object.keys(descriptionItemNameToValue)
+    .filter(k => descriptionItemNameToValue[k])
+    .map(k => `${chalk.bold(k)}: ${descriptionItemNameToValue[k]}`);
 
   return {
     title,
-    description,
+    description: descriptionItems.length > 0 ? descriptionItems.join('\n') : '',
     value: build,
     disabled: buildDate < expiryDate,
   };

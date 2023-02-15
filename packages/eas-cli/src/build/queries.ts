@@ -99,10 +99,6 @@ export async function listAndSelectBuildOnAppAsync(
   }
 }
 
-function formatBuildChoiceValue(value: string | undefined | null): string {
-  return value ? chalk.bold(value) : 'Unknown';
-}
-
 function createBuildToPartialChoiceMaker(
   selectPromptDisabledFunction?: (build: BuildFragment) => boolean
 ) {
@@ -119,27 +115,26 @@ function createBuildToPartialChoiceMaker(
         ? `${build.gitCommitHash.slice(0, 7)} "${chalk.bold(
             splitCommitMessage[0] + (splitCommitMessage.length > 1 ? '…' : '')
           )}"`
-        : 'Unknown';
+        : null;
 
-    const descriptionItems = [
-      `\t${chalk.bold(`Version:`)} ${formatBuildChoiceValue(build.appVersion)}`,
-      `\t${chalk.bold(
-        build.platform === AppPlatform.Ios ? 'Build number:' : 'Version code:'
-      )} ${formatBuildChoiceValue(build.appBuildVersion)}`,
-      `\t${chalk.bold(`Commit:`)} ${formattedCommitData}`,
-    ];
+    const descriptionItemNameToValue: Record<string, string | null> = {
+      Version: build.appVersion ? chalk.bold(build.appVersion) : null,
+      Commit: formattedCommitData,
+      Message: build.message ? chalk.bold(build.message) : null,
+    };
+    descriptionItemNameToValue[
+      build.platform === AppPlatform.Ios ? 'Build number' : 'Version code'
+    ] = build.appBuildVersion ? chalk.bold(build.appBuildVersion) : null;
 
-    if (build.message) {
-      descriptionItems.push(
-        `\t${chalk.bold(`Message:`)} ${formatBuildChoiceValue(build.message).slice(0, 200)}`
-      );
-    }
+    const descriptionItems = Object.keys(descriptionItemNameToValue)
+      .filter(k => descriptionItemNameToValue[k])
+      .map(k => `${chalk.bold(k)}: ${descriptionItemNameToValue[k]}`);
 
     return {
       title: `${chalk.bold(`ID:`)} ${build.id} (${chalk.bold(
         `${fromNow(new Date(build.completedAt))} ago`
       )})`,
-      description: descriptionItems.join('\n'),
+      description: descriptionItems.length > 0 ? descriptionItems.join('\n') : '',
       disabled: selectPromptDisabledFunction?.(build),
     };
   };
