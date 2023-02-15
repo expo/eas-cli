@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Validate the platform for local builds earlier. ([#1698](https://github.com/expo/eas-cli/pull/1698) by [@wkozyra95](https://github.com/wkozyra95))
+
 ## [3.6.0](https://github.com/expo/eas-cli/releases/tag/v3.6.0) - 2023-02-14
 
 ### 🎉 New features
