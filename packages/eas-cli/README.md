@@ -97,8 +97,6 @@ eas --help COMMAND
 * [`eas open`](#eas-open)
 * [`eas project:info`](#eas-projectinfo)
 * [`eas project:init`](#eas-projectinit)
-* [`eas run`](#eas-run)
-* [`eas run:run`](#eas-runrun)
 * [`eas secret:create`](#eas-secretcreate)
 * [`eas secret:delete`](#eas-secretdelete)
 * [`eas secret:list`](#eas-secretlist)
@@ -963,54 +961,6 @@ ALIASES
 ```
 
 _See code: [src/commands/project/init.ts](https://github.com/expo/eas-cli/blob/v3.6.0/packages/eas-cli/src/commands/project/init.ts)_
-
-## `eas run`
-
-run simulator build
-
-```
-USAGE
-  $ eas run [--latest | --id <value> | --path <value> | --url <value>] [-p android|ios|all] [--offset
-    <value>] [--limit <value>]
-
-FLAGS
-  -p, --platform=(android|ios|all)
-  --id=<value>                      ID of the simulator build to run
-  --latest                          Run the latest simulator build for specified platform
-  --limit=<value>                   The number of items to fetch each query. Defaults to 50 and is capped at 100.
-  --offset=<value>                  Start queries from specified index. Use for paginating results. Defaults to 0.
-  --path=<value>                    Path to the simulator build file file
-  --url=<value>                     Simulator build archive url
-
-DESCRIPTION
-  run simulator build
-```
-
-_See code: [src/commands/run/index.ts](https://github.com/expo/eas-cli/blob/v3.6.0/packages/eas-cli/src/commands/run/index.ts)_
-
-## `eas run:run`
-
-run simulator build
-
-```
-USAGE
-  $ eas run:run [--latest | --id <value> | --path <value> | --url <value>] [-p android|ios|all] [--offset
-    <value>] [--limit <value>]
-
-FLAGS
-  -p, --platform=(android|ios|all)
-  --id=<value>                      ID of the simulator build to run
-  --latest                          Run the latest simulator build for specified platform
-  --limit=<value>                   The number of items to fetch each query. Defaults to 50 and is capped at 100.
-  --offset=<value>                  Start queries from specified index. Use for paginating results. Defaults to 0.
-  --path=<value>                    Path to the simulator build file file
-  --url=<value>                     Simulator build archive url
-
-DESCRIPTION
-  run simulator build
-```
-
-_See code: [src/commands/run/run.ts](https://github.com/expo/eas-cli/blob/v3.6.0/packages/eas-cli/src/commands/run/run.ts)_
 
 ## `eas secret:create`
 
