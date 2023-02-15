@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Disable analytics when running behind a proxy. ([#1696](https://github.com/expo/eas-cli/pull/1696) by [@wkozyra95](https://github.com/wkozyra95))
+
 ### 🧹 Chores
 
 ## [3.6.0](https://github.com/expo/eas-cli/releases/tag/v3.6.0) - 2023-02-14
