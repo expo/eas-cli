@@ -344,7 +344,9 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
     Channel: channel ? chalk.bold(channel) : null,
     'Runtime version': runtimeVersion ? chalk.bold(runtimeVersion) : null,
     Commit: formattedCommitData,
-    Message: message ? chalk.bold(message) : null,
+    Message: message
+      ? chalk.bold(message.length > 200 ? `${message.slice(0, 200)}...` : message)
+      : null,
   };
 
   const descriptionItems = Object.keys(descriptionItemNameToValue)

@@ -120,7 +120,11 @@ function createBuildToPartialChoiceMaker(
     const descriptionItemNameToValue: Record<string, string | null> = {
       Version: build.appVersion ? chalk.bold(build.appVersion) : null,
       Commit: formattedCommitData,
-      Message: build.message ? chalk.bold(build.message) : null,
+      Message: build.message
+        ? chalk.bold(
+            build.message.length > 200 ? `${build.message.slice(0, 200)}...` : build.message
+          )
+        : null,
     };
     descriptionItemNameToValue[
       build.platform === AppPlatform.Ios ? 'Build number' : 'Version code'
