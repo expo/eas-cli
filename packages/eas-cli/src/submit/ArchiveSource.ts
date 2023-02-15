@@ -339,13 +339,18 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
 
   const title = `${chalk.bold(`ID:`)} ${id} (${chalk.bold(`${fromNow(buildDate)} ago`)})`;
 
-  const description = [
+  const descriptionItems = [
     `\t${chalk.bold(`Profile:`)} ${formatValue(buildProfile)}`,
     `\t${chalk.bold(`Channel:`)} ${formatValue(channel)}`,
     `\t${chalk.bold(`Runtime version:`)} ${formatValue(runtimeVersion)}`,
     `\t${chalk.bold(`Commit:`)} ${formattedCommitData}`,
-    `\t${chalk.bold(`Message:`)} ${formatValue(message)}`,
-  ].join('\n');
+  ];
+
+  if (message) {
+    descriptionItems.push(`\t${chalk.bold(`Message:`)} ${formatValue(message).slice(0, 200)}`);
+  }
+
+  const description = descriptionItems.join('\n');
 
   return {
     title,

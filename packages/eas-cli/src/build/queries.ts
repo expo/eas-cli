@@ -121,18 +121,25 @@ function createBuildToPartialChoiceMaker(
           )}"`
         : 'Unknown';
 
+    const descriptionItems = [
+      `\t${chalk.bold(`Version:`)} ${formatBuildChoiceValue(build.appVersion)}`,
+      `\t${chalk.bold(
+        build.platform === AppPlatform.Ios ? 'Build number:' : 'Version code:'
+      )} ${formatBuildChoiceValue(build.appBuildVersion)}`,
+      `\t${chalk.bold(`Commit:`)} ${formattedCommitData}`,
+    ];
+
+    if (build.message) {
+      descriptionItems.push(
+        `\t${chalk.bold(`Message:`)} ${formatBuildChoiceValue(build.message).slice(0, 200)}`
+      );
+    }
+
     return {
       title: `${chalk.bold(`ID:`)} ${build.id} (${chalk.bold(
         `${fromNow(new Date(build.completedAt))} ago`
       )})`,
-      description: [
-        `\t${chalk.bold(`Version:`)} ${formatBuildChoiceValue(build.appVersion)}`,
-        `\t${chalk.bold(
-          build.platform === AppPlatform.Ios ? 'Build number:' : 'Version code:'
-        )} ${formatBuildChoiceValue(build.appBuildVersion)}`,
-        `\t${chalk.bold(`Commit:`)} ${formattedCommitData}`,
-        `\t${chalk.bold(`Message:`)} ${formatBuildChoiceValue(build.message)}`,
-      ].join('\n'),
+      description: descriptionItems.join('\n'),
       disabled: selectPromptDisabledFunction?.(build),
     };
   };
