@@ -136,6 +136,54 @@ describe(getProjectIdAsync, () => {
     );
   });
 
+  it('throws when the owner is not specified and is different than logged in user which is a robot', async () => {
+    const sessionManagerMock = mock<SessionManager>();
+    when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
+      actor: {
+        __typename: 'Robot',
+        id: 'robot_id',
+        accounts: [
+          {
+            id: 'account_id_1',
+            name: 'notnotbrent',
+            users: [{ role: Role.Admin, actor: { id: 'robot_id' } }],
+          },
+          {
+            id: 'account_id_2',
+            name: 'dominik',
+            users: [{ role: Role.ViewOnly, actor: { id: 'robot_id' } }],
+          },
+        ],
+        isExpoAdmin: false,
+        featureGates: {},
+      },
+      authenticationInfo: { accessToken: 'fake', sessionSecret: null },
+    });
+    const sessionManagerRobot = instance(sessionManagerMock);
+
+    jest.mocked(getConfig).mockReturnValue({
+      exp: { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
+    } as any);
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+      id: '1234',
+      fullName: '@totallybrent/test',
+      slug: 'test',
+      ownerAccount: { name: 'totallybrent' } as any,
+    });
+
+    await expect(
+      getProjectIdAsync(
+        sessionManagerRobot,
+        { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
+        { nonInteractive: false }
+      )
+    ).rejects.toThrow(
+      `Project config: Owner of project identified by "extra.eas.projectId" (totallybrent) must be specified in "owner" field when using a robot access token. To ensure all libraries work correctly, "owner": "totallybrent" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
+        'https://expo.fyi/eas-project-id'
+      )}`
+    );
+  });
+
   it('throws when the slug is out of sync', async () => {
     jest.mocked(getConfig).mockReturnValue({
       exp: { name: 'test', slug: 'wat', extra: { eas: { projectId: '1234' } } },
