@@ -36,7 +36,8 @@
     "build": "tsc --project tsconfig.build.json",
     "watch": "yarn build --watch --preserveWatchOutput",
     "typecheck": "tsc",
-    "prepack": "rimraf build && yarn build",
+    "prepack": "yarn rebuild",
+    "rebuild": "rimraf build && yarn build",
     "test": "jest",
     "clean": "rimraf build node_modules yarn-error.log"
   },

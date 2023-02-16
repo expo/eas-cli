@@ -202,7 +202,8 @@
   "repository": "expo/eas-cli",
   "scripts": {
     "postpack": "rimraf oclif.manifest.json",
-    "prepack": "rimraf build && yarn build && node ./scripts/prepack.js",
+    "prepack": "yarn rebuild && node ./scripts/prepack.js",
+    "rebuild": "rimraf build && yarn build",
     "pretarball-ci": "./scripts/pretarball-ci.sh",
     "build": "tsc --project tsconfig.build.json",
     "watch": "yarn build --watch --preserveWatchOutput",
