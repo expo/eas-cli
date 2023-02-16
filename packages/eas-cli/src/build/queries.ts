@@ -99,10 +99,6 @@ export async function listAndSelectBuildOnAppAsync(
   }
 }
 
-function formatBuildChoiceValue(value: string | undefined | null): string {
-  return value ? chalk.bold(value) : 'Unknown';
-}
-
 function createBuildToPartialChoiceMaker(
   selectPromptDisabledFunction?: (build: BuildFragment) => boolean
 ) {
@@ -119,19 +115,34 @@ function createBuildToPartialChoiceMaker(
         ? `${build.gitCommitHash.slice(0, 7)} "${chalk.bold(
             splitCommitMessage[0] + (splitCommitMessage.length > 1 ? '…' : '')
           )}"`
-        : 'Unknown';
+        : null;
+
+    const descriptionItems: { name: string; value: string | null }[] = [
+      { name: 'Version', value: build.appVersion ? chalk.bold(build.appVersion) : null },
+      { name: 'Commit', value: formattedCommitData },
+      {
+        name: 'Message',
+        value: build.message
+          ? chalk.bold(
+              build.message.length > 200 ? `${build.message.slice(0, 200)}...` : build.message
+            )
+          : null,
+      },
+      {
+        name: build.platform === AppPlatform.Ios ? 'Build number' : 'Version code',
+        value: build.appBuildVersion ? chalk.bold(build.appBuildVersion) : null,
+      },
+    ];
+
+    const filteredDescriptionArray: string[] = descriptionItems
+      .filter(item => item.value)
+      .map(item => `${chalk.bold(item.name)}: ${item.value}`);
 
     return {
       title: `${chalk.bold(`ID:`)} ${build.id} (${chalk.bold(
         `${fromNow(new Date(build.completedAt))} ago`
       )})`,
-      description: [
-        `\t${chalk.bold(`Version:`)} ${formatBuildChoiceValue(build.appVersion)}`,
-        `\t${chalk.bold(
-          build.platform === AppPlatform.Ios ? 'Build number:' : 'Version code:'
-        )} ${formatBuildChoiceValue(build.appBuildVersion)}`,
-        `\t${chalk.bold(`Commit:`)} ${formattedCommitData}`,
-      ].join('\n'),
+      description: filteredDescriptionArray.length > 0 ? filteredDescriptionArray.join('\n') : '',
       disabled: selectPromptDisabledFunction?.(build),
     };
   };

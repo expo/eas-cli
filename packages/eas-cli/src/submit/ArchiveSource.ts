@@ -317,30 +317,48 @@ async function handleBuildListSourceAsync(
 }
 
 function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choice {
-  const { id, updatedAt, runtimeVersion, buildProfile, gitCommitHash, gitCommitMessage, channel } =
-    build;
-
-  const formatValue = (field?: string | null): string => (field ? chalk.bold(field) : 'Unknown');
-
+  const {
+    id,
+    updatedAt,
+    runtimeVersion,
+    buildProfile,
+    gitCommitHash,
+    gitCommitMessage,
+    channel,
+    message,
+  } = build;
   const buildDate = new Date(updatedAt);
 
+  const splitCommitMessage = gitCommitMessage?.split('\n');
   const formattedCommitData =
-    gitCommitHash && gitCommitMessage
-      ? `${gitCommitHash.slice(0, 7)} "${chalk.bold(gitCommitMessage)}"`
-      : 'Unknown';
+    gitCommitHash && splitCommitMessage && splitCommitMessage.length > 0
+      ? `${gitCommitHash.slice(0, 7)} "${chalk.bold(
+          splitCommitMessage[0] + (splitCommitMessage.length > 1 ? '…' : '')
+        )}"`
+      : null;
 
   const title = `${chalk.bold(`ID:`)} ${id} (${chalk.bold(`${fromNow(buildDate)} ago`)})`;
 
-  const description = [
-    `\t${chalk.bold(`Profile:`)} ${formatValue(buildProfile)}`,
-    `\t${chalk.bold(`Channel:`)} ${formatValue(channel)}`,
-    `\t${chalk.bold(`Runtime version:`)} ${formatValue(runtimeVersion)}`,
-    `\t${chalk.bold(`Commit:`)} ${formattedCommitData}`,
-  ].join('\n');
+  const descriptionItems: { name: string; value: string | null }[] = [
+    { name: 'Profile', value: buildProfile ? chalk.bold(buildProfile) : null },
+    { name: 'Channel', value: channel ? chalk.bold(channel) : null },
+    { name: 'Runtime version', value: runtimeVersion ? chalk.bold(runtimeVersion) : null },
+    { name: 'Commit', value: formattedCommitData },
+    {
+      name: 'Message',
+      value: message
+        ? chalk.bold(message.length > 200 ? `${message.slice(0, 200)}...` : message)
+        : null,
+    },
+  ];
+
+  const filteredDescriptionArray: string[] = descriptionItems
+    .filter(item => item.value)
+    .map(item => `${chalk.bold(item.name)}: ${item.value}`);
 
   return {
     title,
-    description,
+    description: filteredDescriptionArray.length > 0 ? filteredDescriptionArray.join('\n') : '',
     value: build,
     disabled: buildDate < expiryDate,
   };
