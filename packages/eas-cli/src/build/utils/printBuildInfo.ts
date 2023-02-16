@@ -15,6 +15,10 @@ import Log, { learnMore, link } from '../../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../../platform';
 import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url';
 
+function terminalLinkFallback(url: string, text: string): string {
+  return `${text} (${url})`;
+}
+
 const errorCodeToErrorMessageOverride: Record<string, (build: BuildFragment) => string> = {
   EAS_BUILD_UNKNOWN_FASTLANE_ERROR: build =>
     `The ${link(getBuildLogsUrl(build, 'run-fastlane'), {
@@ -23,6 +27,7 @@ const errorCodeToErrorMessageOverride: Record<string, (build: BuildFragment) => 
       getBuildLogsUrl(build, 'xcode-logs'),
       {
         text: '"Xcode logs"',
+        fallback: terminalLinkFallback,
       }
     )} phase for additional, more detailed logs`,
   EAS_BUILD_UNKNOWN_GRADLE_ERROR: build =>
@@ -30,6 +35,7 @@ const errorCodeToErrorMessageOverride: Record<string, (build: BuildFragment) => 
       getBuildLogsUrl(build, 'run-gradlew'),
       {
         text: '"Run gradlew"',
+        fallback: terminalLinkFallback,
       }
     )} phase for more information.`,
 };

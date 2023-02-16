@@ -90,11 +90,16 @@ export default class Log {
  */
 export function link(
   url: string,
-  { text = url, dim = true }: { text?: string; dim?: boolean } = {}
+  {
+    text = url,
+    dim = true,
+    fallback = (url: string, text: string) =>
+      text === url ? chalk.underline(url) : `${text}: ${chalk.underline(url)}`,
+  }: { text?: string; dim?: boolean; fallback?: (url: string, text: string) => string } = {}
 ): string {
   // Links can be disabled via env variables https://github.com/jamestalmage/supports-hyperlinks/blob/master/index.js
   const output = terminalLink(text, url, {
-    fallback: () => (text === url ? chalk.underline(url) : `${text}: ${chalk.underline(url)}`),
+    fallback: () => fallback(url, text),
   });
   return dim ? chalk.dim(output) : output;
 }
