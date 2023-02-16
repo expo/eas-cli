@@ -14,7 +14,7 @@
     "eas": "packages/eas-cli/bin/run",
     "lint": "eslint .",
     "lint-changelog": "./scripts/bin/run lint-changelog",
-    "release": "./scripts/bin/run release",
+    "release": "lerna run rebuild && ./scripts/bin/run release",
     "test": "jest",
     "clean": "lerna run clean && rm -rf node_modules coverage"
   },
