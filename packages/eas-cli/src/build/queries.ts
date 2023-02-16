@@ -117,28 +117,32 @@ function createBuildToPartialChoiceMaker(
           )}"`
         : null;
 
-    const descriptionItemNameToValue: Record<string, string | null> = {
-      Version: build.appVersion ? chalk.bold(build.appVersion) : null,
-      Commit: formattedCommitData,
-      Message: build.message
-        ? chalk.bold(
-            build.message.length > 200 ? `${build.message.slice(0, 200)}...` : build.message
-          )
-        : null,
-    };
-    descriptionItemNameToValue[
-      build.platform === AppPlatform.Ios ? 'Build number' : 'Version code'
-    ] = build.appBuildVersion ? chalk.bold(build.appBuildVersion) : null;
+    const descriptionItems: { name: string; value: string | null }[] = [
+      { name: 'Version', value: build.appVersion ? chalk.bold(build.appVersion) : null },
+      { name: 'Commit', value: formattedCommitData },
+      {
+        name: 'Message',
+        value: build.message
+          ? chalk.bold(
+              build.message.length > 200 ? `${build.message.slice(0, 200)}...` : build.message
+            )
+          : null,
+      },
+      {
+        name: build.platform === AppPlatform.Ios ? 'Build number' : 'Version code',
+        value: build.appBuildVersion ? chalk.bold(build.appBuildVersion) : null,
+      },
+    ];
 
-    const descriptionItems = Object.keys(descriptionItemNameToValue)
-      .filter(k => descriptionItemNameToValue[k])
-      .map(k => `${chalk.bold(k)}: ${descriptionItemNameToValue[k]}`);
+    const filteredDescriptionArray: string[] = descriptionItems
+      .filter(item => item.value)
+      .map(item => `${chalk.bold(item.name)}: ${item.value}`);
 
     return {
       title: `${chalk.bold(`ID:`)} ${build.id} (${chalk.bold(
         `${fromNow(new Date(build.completedAt))} ago`
       )})`,
-      description: descriptionItems.length > 0 ? descriptionItems.join('\n') : '',
+      description: filteredDescriptionArray.length > 0 ? filteredDescriptionArray.join('\n') : '',
       disabled: selectPromptDisabledFunction?.(build),
     };
   };

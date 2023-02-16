@@ -339,23 +339,26 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
 
   const title = `${chalk.bold(`ID:`)} ${id} (${chalk.bold(`${fromNow(buildDate)} ago`)})`;
 
-  const descriptionItemNameToValue: Record<string, string | null> = {
-    Profile: buildProfile ? chalk.bold(buildProfile) : null,
-    Channel: channel ? chalk.bold(channel) : null,
-    'Runtime version': runtimeVersion ? chalk.bold(runtimeVersion) : null,
-    Commit: formattedCommitData,
-    Message: message
-      ? chalk.bold(message.length > 200 ? `${message.slice(0, 200)}...` : message)
-      : null,
-  };
+  const descriptionItems: { name: string; value: string | null }[] = [
+    { name: 'Profile', value: buildProfile ? chalk.bold(buildProfile) : null },
+    { name: 'Channel', value: channel ? chalk.bold(channel) : null },
+    { name: 'Runtime version', value: runtimeVersion ? chalk.bold(runtimeVersion) : null },
+    { name: 'Commit', value: formattedCommitData },
+    {
+      name: 'Message',
+      value: message
+        ? chalk.bold(message.length > 200 ? `${message.slice(0, 200)}...` : message)
+        : null,
+    },
+  ];
 
-  const descriptionItems = Object.keys(descriptionItemNameToValue)
-    .filter(k => descriptionItemNameToValue[k])
-    .map(k => `${chalk.bold(k)}: ${descriptionItemNameToValue[k]}`);
+  const filteredDescriptionArray: string[] = descriptionItems
+    .filter(item => item.value)
+    .map(item => `${chalk.bold(item.name)}: ${item.value}`);
 
   return {
     title,
-    description: descriptionItems.length > 0 ? descriptionItems.join('\n') : '',
+    description: filteredDescriptionArray.length > 0 ? filteredDescriptionArray.join('\n') : '',
     value: build,
     disabled: buildDate < expiryDate,
   };
