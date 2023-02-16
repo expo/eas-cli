@@ -178,7 +178,7 @@ describe(getProjectIdAsync, () => {
         { nonInteractive: false }
       )
     ).rejects.toThrow(
-      `Project config: Owner of project identified by "extra.eas.projectId" (totallybrent) must be specified in "owner" field in when using a robot access token. To ensure all libraries work correctly, "owner": "totallybrent" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
+      `Project config: Owner of project identified by "extra.eas.projectId" (totallybrent) must be specified in "owner" field when using a robot access token. To ensure all libraries work correctly, "owner": "totallybrent" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
         'https://expo.fyi/eas-project-id'
       )}`
     );

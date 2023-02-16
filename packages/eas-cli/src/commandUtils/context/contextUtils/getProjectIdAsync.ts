@@ -118,7 +118,7 @@ export async function getProjectIdAsync(
         throw new Error(
           `Project config: Owner of project identified by "extra.eas.projectId" (${
             appForProjectId.ownerAccount.name
-          }) must be specified in "owner" field in when using a robot access token. To ensure all libraries work correctly, "owner": "${
+          }) must be specified in "owner" field when using a robot access token. To ensure all libraries work correctly, "owner": "${
             appForProjectId.ownerAccount.name
           }" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
             'https://expo.fyi/eas-project-id'
