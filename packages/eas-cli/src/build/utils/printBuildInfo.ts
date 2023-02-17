@@ -23,12 +23,12 @@ const errorCodeToErrorMessageOverride: Record<string, (build: BuildFragment) => 
   EAS_BUILD_UNKNOWN_FASTLANE_ERROR: build =>
     `The ${link(getBuildLogsUrl(build, 'run-fastlane'), {
       text: '"Run fastlane"',
-      fallback: terminalLinkFallback,
+      fallback: terminalLinkFallback(getBuildLogsUrl(build, 'run-fastlane'), '"Run fastlane"'),
     })} step failed with an unknown error. Refer to the ${link(
       getBuildLogsUrl(build, 'xcode-logs'),
       {
         text: '"Xcode logs"',
-        fallback: terminalLinkFallback,
+        fallback: terminalLinkFallback(getBuildLogsUrl(build, 'xcode-logs'), '"Xcode logs"'),
       }
     )} phase for additional, more detailed logs`,
   EAS_BUILD_UNKNOWN_GRADLE_ERROR: build =>
@@ -36,7 +36,7 @@ const errorCodeToErrorMessageOverride: Record<string, (build: BuildFragment) => 
       getBuildLogsUrl(build, 'run-gradlew'),
       {
         text: '"Run gradlew"',
-        fallback: terminalLinkFallback,
+        fallback: terminalLinkFallback(getBuildLogsUrl(build, 'run-gradlew'), '"Run gradlew"'),
       }
     )} phase for more information.`,
 };
