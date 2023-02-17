@@ -94,7 +94,8 @@ export function link(
 ): string {
   // Links can be disabled via env variables https://github.com/jamestalmage/supports-hyperlinks/blob/master/index.js
   const output = terminalLink(text, url, {
-    fallback: () => fallback ?? `${text}: ${chalk.underline(url)}`,
+    fallback: () =>
+      fallback ?? (text === url ? chalk.underline(url) : `${text}: ${chalk.underline(url)}`),
   });
   return dim ? chalk.dim(output) : output;
 }
