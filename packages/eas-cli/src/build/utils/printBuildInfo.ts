@@ -15,6 +15,32 @@ import Log, { learnMore, link } from '../../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../../platform';
 import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url';
 
+function terminalLinkFallback(url: string, text: string): string {
+  return `${text} (${url})`;
+}
+
+const errorCodeToErrorMessageOverride: Record<string, (build: BuildFragment) => string> = {
+  EAS_BUILD_UNKNOWN_FASTLANE_ERROR: build =>
+    `The ${link(getBuildLogsUrl(build, 'run-fastlane'), {
+      text: '"Run fastlane"',
+      fallback: terminalLinkFallback(getBuildLogsUrl(build, 'run-fastlane'), '"Run fastlane"'),
+    })} step failed with an unknown error. Refer to the ${link(
+      getBuildLogsUrl(build, 'xcode-logs'),
+      {
+        text: '"Xcode logs"',
+        fallback: terminalLinkFallback(getBuildLogsUrl(build, 'xcode-logs'), '"Xcode logs"'),
+      }
+    )} phase for additional, more detailed logs`,
+  EAS_BUILD_UNKNOWN_GRADLE_ERROR: build =>
+    `Gradle build failed with unknown error. See logs for the ${link(
+      getBuildLogsUrl(build, 'run-gradlew'),
+      {
+        text: '"Run gradlew"',
+        fallback: terminalLinkFallback(getBuildLogsUrl(build, 'run-gradlew'), '"Run gradlew"'),
+      }
+    )} phase for more information.`,
+};
+
 export function printLogsUrls(builds: BuildFragment[]): void {
   if (builds.length === 1) {
     Log.log(`Build details: ${link(getBuildLogsUrl(builds[0]))}`);
@@ -51,7 +77,7 @@ function printBuildResult(build: BuildFragment): void {
       } build failed${userError ? ':' : ''}`
     );
     if (userError) {
-      printUserError(userError);
+      printUserError(userError, build);
     }
     return;
   }
@@ -105,9 +131,22 @@ export function printDeprecationWarnings(deprecationInfo?: EasBuildDeprecationIn
   }
 }
 
-export function printUserError(error: BuildError): void {
-  Log.error(error.message);
-  if (error.docsUrl) {
-    Log.error(learnMore(error.docsUrl, { dim: false }));
+export function printUserError(error: BuildError, build: BuildFragment): void {
+  const maybeErrorMessageOverride = maybeGetErrorMessageOverride(error, build);
+  if (maybeErrorMessageOverride) {
+    Log.error(maybeErrorMessageOverride);
+  } else {
+    Log.error(error.message);
+    if (error.docsUrl) {
+      Log.error(learnMore(error.docsUrl, { dim: false }));
+    }
   }
+}
+
+function maybeGetErrorMessageOverride(error: BuildError, build: BuildFragment): string | null {
+  if (!(error.errorCode in errorCodeToErrorMessageOverride)) {
+    return null;
+  }
+
+  return errorCodeToErrorMessageOverride[error.errorCode](build);
 }

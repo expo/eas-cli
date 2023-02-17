@@ -10,12 +10,14 @@ export function getProjectDashboardUrl(accountName: string, projectName: string)
   ).toString();
 }
 
-export function getBuildLogsUrl(build: BuildFragment): string {
+export function getBuildLogsUrl(build: BuildFragment, hash?: string): string {
   const { project } = build;
   const url =
     project.__typename !== 'App'
       ? `/builds/${build.id}`
-      : `/accounts/${project.ownerAccount.name}/projects/${project.slug}/builds/${build.id}`;
+      : `/accounts/${project.ownerAccount.name}/projects/${project.slug}/builds/${build.id}${
+          hash ? `#${hash}` : ''
+        }`;
 
   return new URL(url, getExpoWebsiteBaseUrl()).toString();
 }
