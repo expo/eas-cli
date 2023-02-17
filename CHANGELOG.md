@@ -17,6 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Validate the platform for local builds earlier. ([#1698](https://github.com/expo/eas-cli/pull/1698) by [@wkozyra95](https://github.com/wkozyra95))
 - Display build message when picking build in `eas submit`, `eas build:resign`, and `eas build:run` commands. ([#1700](https://github.com/expo/eas-cli/pull/1700) by [@szdziedzic](https://github.com/szdziedzic))
+- Add a link directly to a build phase logs in the EAS CLI build error message. ([#1699](https://github.com/expo/eas-cli/pull/1699) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [3.6.0](https://github.com/expo/eas-cli/releases/tag/v3.6.0) - 2023-02-14
 
