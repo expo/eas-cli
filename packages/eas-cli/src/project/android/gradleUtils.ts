@@ -74,7 +74,7 @@ export function parseGradleCommand(cmd: string, buildGradle: AppBuildGradle): Gr
   const [moduleName, taskName] =
     splitCmd.length > 1 ? [splitCmd[0], splitCmd[1]] : [undefined, splitCmd[0]];
 
-  const matchResult = taskName.match(/(build|bundle|assemble)(.*)(Release|Debug)/);
+  const matchResult = taskName.match(/(build|bundle|assemble|package)(.*)(Release|Debug)/);
   if (!matchResult) {
     throw new Error(`Failed to parse gradle command: ${cmd}`);
   }
