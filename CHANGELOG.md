@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [3.6.1](https://github.com/expo/eas-cli/releases/tag/v3.6.1) - 2023-02-20
+
+### 🐛 Bug fixes
+
 - Disable analytics when running behind a proxy. ([#1696](https://github.com/expo/eas-cli/pull/1696) by [@wkozyra95](https://github.com/wkozyra95))
 - Clarify missing owner field error message for Robot users. ([#1702](https://github.com/expo/eas-cli/pull/1702) by [@wschurman](https://github.com/wschurman))
 
