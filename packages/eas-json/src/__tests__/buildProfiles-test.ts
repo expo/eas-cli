@@ -399,3 +399,64 @@ test('Android-specific resourceClass', async () => {
     EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'production')
   ).resolves.not.toThrow();
 });
+
+test('build profile with platform-specifc custom build config', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        android: {
+          config: 'production.android.yml',
+        },
+        ios: {
+          config: 'production.ios.yml',
+        },
+      },
+    },
+  });
+
+  const accessor = new EasJsonAccessor('/project');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'production'
+  );
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production');
+  expect(androidProfile).toEqual({
+    config: 'production.android.yml',
+    distribution: 'store',
+    credentialsSource: 'remote',
+  });
+  expect(iosProfile).toEqual({
+    config: 'production.ios.yml',
+    distribution: 'store',
+    credentialsSource: 'remote',
+  });
+});
+
+test('build profiles with both platform build config', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        config: 'production.yml',
+      },
+    },
+  });
+
+  const accessor = new EasJsonAccessor('/project');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'production'
+  );
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production');
+  expect(androidProfile).toEqual({
+    config: 'production.yml',
+    distribution: 'store',
+    credentialsSource: 'remote',
+  });
+  expect(iosProfile).toEqual({
+    config: 'production.yml',
+    distribution: 'store',
+    credentialsSource: 'remote',
+  });
+});

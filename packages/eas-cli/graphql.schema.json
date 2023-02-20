@@ -1358,6 +1358,18 @@
             "deprecationReason": null
           },
           {
+            "name": "userActorOwner",
+            "description": "Owning UserActor of this account if personal account",
+            "args": [],
+            "type": {
+              "kind": "INTERFACE",
+              "name": "UserActor",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "userInvitations",
             "description": "Pending user invitations for this account",
             "args": [],
@@ -5171,6 +5183,18 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "BuildCacheInput",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "customBuildConfig",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "CustomBuildConfigInput",
               "ofType": null
             },
             "defaultValue": null,
@@ -13444,6 +13468,18 @@
         "description": "Represents an Standalone App build job",
         "fields": [
           {
+            "name": "accountUserActor",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "INTERFACE",
+              "name": "UserActor",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "activityTimestamp",
             "description": null,
             "args": [],
@@ -14329,6 +14365,12 @@
         "enumValues": [
           {
             "name": "BUILD",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "CUSTOM",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -16522,6 +16564,33 @@
         ],
         "inputFields": null,
         "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "CustomBuildConfigInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "path",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },
@@ -21743,6 +21812,18 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "BuildCacheInput",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "customBuildConfig",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "CustomBuildConfigInput",
               "ofType": null
             },
             "defaultValue": null,

@@ -39,6 +39,9 @@ const CommonBuildProfileSchema = Joi.object({
   env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)),
   autoIncrement: Joi.alternatives().try(Joi.boolean()),
   resourceClass: Joi.string().valid(...AllowedCommonResourceClasses),
+
+  // TODO: add validation
+  config: Joi.string(),
 });
 
 const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(

@@ -131,6 +131,8 @@ export type Account = {
   updatedAt: Scalars['DateTime'];
   /** Account query object for querying EAS usage metrics */
   usageMetrics: AccountUsageMetrics;
+  /** Owning UserActor of this account if personal account */
+  userActorOwner?: Maybe<UserActor>;
   /** Pending user invitations for this account */
   userInvitations: Array<UserInvitation>;
   /** Actors associated with this account and permissions they hold */
@@ -790,6 +792,7 @@ export type AndroidJobInput = {
   buildType?: InputMaybe<AndroidBuildType>;
   builderEnvironment?: InputMaybe<AndroidBuilderEnvironmentInput>;
   cache?: InputMaybe<BuildCacheInput>;
+  customBuildConfig?: InputMaybe<CustomBuildConfigInput>;
   developmentClient?: InputMaybe<Scalars['Boolean']>;
   experimental?: InputMaybe<Scalars['JSONObject']>;
   gradleCommand?: InputMaybe<Scalars['String']>;
@@ -1912,6 +1915,7 @@ export enum BuildIosEnterpriseProvisioning {
 /** Represents an Standalone App build job */
 export type BuildJob = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   __typename?: 'BuildJob';
+  accountUserActor?: Maybe<UserActor>;
   activityTimestamp: Scalars['DateTime'];
   actor?: Maybe<Actor>;
   app?: Maybe<App>;
@@ -2019,6 +2023,7 @@ export type BuildMetrics = {
 
 export enum BuildMode {
   Build = 'BUILD',
+  Custom = 'CUSTOM',
   Resign = 'RESIGN'
 }
 
@@ -2358,6 +2363,10 @@ export type CreateSubmissionResult = {
   __typename?: 'CreateSubmissionResult';
   /** Created submission */
   submission: Submission;
+};
+
+export type CustomBuildConfigInput = {
+  path: Scalars['String'];
 };
 
 export type DeleteAccessTokenResult = {
@@ -3122,6 +3131,7 @@ export type IosJobInput = {
   buildType?: InputMaybe<IosBuildType>;
   builderEnvironment?: InputMaybe<IosBuilderEnvironmentInput>;
   cache?: InputMaybe<BuildCacheInput>;
+  customBuildConfig?: InputMaybe<CustomBuildConfigInput>;
   developmentClient?: InputMaybe<Scalars['Boolean']>;
   /** @deprecated */
   distribution?: InputMaybe<DistributionType>;

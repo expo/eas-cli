@@ -36,13 +36,17 @@ export async function prepareJobAsync(
   const projectRootDirectory =
     slash(path.relative(await getVcsClient().getRootPathAsync(), ctx.projectDir)) || '.';
   const username = getUsername(ctx.exp, ctx.user);
-  const buildCredentials: Ios.Job['secrets']['buildCredentials'] = {};
+  const buildCredentials: Ios.BuildSecrets['buildCredentials'] = {};
   if (jobData.credentials) {
     const targetNames = Object.keys(jobData.credentials);
     for (const targetName of targetNames) {
       buildCredentials[targetName] = prepareTargetCredentials(jobData.credentials[targetName]);
     }
   }
+
+  const maybeCustomBuildConfigPath = ctx.buildProfile.config
+    ? path.join('.eas/build', ctx.buildProfile.config)
+    : undefined;
 
   const job: Ios.Job = {
     type: ctx.workflow,
@@ -85,8 +89,13 @@ export async function prepareJobAsync(
     experimental: {
       prebuildCommand: ctx.buildProfile.prebuildCommand,
     },
-    mode: BuildMode.BUILD,
+    mode: ctx.buildProfile.config ? BuildMode.CUSTOM : BuildMode.BUILD,
     triggeredBy: BuildTrigger.EAS_CLI,
+    ...(maybeCustomBuildConfigPath && {
+      customBuildConfig: {
+        path: maybeCustomBuildConfigPath,
+      },
+    }),
   };
   return sanitizeJob(job);
 }

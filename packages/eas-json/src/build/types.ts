@@ -39,6 +39,7 @@ export interface CommonBuildProfile {
   autoIncrement?: boolean;
   resourceClass?: ResourceClass;
   buildArtifactPaths?: string[];
+  config?: string;
 
   node?: string;
   yarn?: string;

@@ -49,10 +49,14 @@ export async function prepareJobAsync(
       }
     : {};
 
-  let buildType = ctx.buildProfile.buildType;
-  if (!buildType && !buildProfile.gradleCommand && ctx.buildProfile.distribution === 'internal') {
+  let buildType = buildProfile.buildType;
+  if (!buildType && !buildProfile.gradleCommand && buildProfile.distribution === 'internal') {
     buildType = Android.BuildType.APK;
   }
+
+  const maybeCustomBuildConfigPath = ctx.buildProfile.config
+    ? path.join('.eas/build', ctx.buildProfile.config)
+    : undefined;
 
   const job: Android.Job = {
     type: ctx.workflow,
@@ -75,8 +79,8 @@ export async function prepareJobAsync(
     secrets: {
       ...buildCredentials,
     },
-    releaseChannel: ctx.buildProfile.releaseChannel,
-    updates: { channel: ctx.buildProfile.channel },
+    releaseChannel: buildProfile.releaseChannel,
+    updates: { channel: buildProfile.channel },
     developmentClient: buildProfile.developmentClient,
     gradleCommand: buildProfile.gradleCommand,
     applicationArchivePath: buildProfile.applicationArchivePath ?? buildProfile.artifactPath,
@@ -89,10 +93,15 @@ export async function prepareJobAsync(
       },
     }),
     experimental: {
-      prebuildCommand: ctx.buildProfile.prebuildCommand,
+      prebuildCommand: buildProfile.prebuildCommand,
     },
-    mode: BuildMode.BUILD,
+    mode: buildProfile.config ? BuildMode.CUSTOM : BuildMode.BUILD,
     triggeredBy: BuildTrigger.EAS_CLI,
+    ...(maybeCustomBuildConfigPath && {
+      customBuildConfig: {
+        path: maybeCustomBuildConfigPath,
+      },
+    }),
   };
 
   return sanitizeJob(job);
