@@ -400,7 +400,7 @@ test('Android-specific resourceClass', async () => {
   ).resolves.not.toThrow();
 });
 
-test('build profile with platform-specifc custom build config', async () => {
+test('build profile with platform-specific custom build config', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
       production: {
