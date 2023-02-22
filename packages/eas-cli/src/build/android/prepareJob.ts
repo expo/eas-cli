@@ -12,6 +12,7 @@ import path from 'path';
 import slash from 'slash';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
+import { getCustomBuildConfigPath } from '../../project/customBuildConfig';
 import { getUsername } from '../../project/projectUtils';
 import { getVcsClient } from '../../vcs';
 import { BuildContext } from '../context';
@@ -55,7 +56,7 @@ export async function prepareJobAsync(
   }
 
   const maybeCustomBuildConfigPath = ctx.buildProfile.config
-    ? path.join('.eas/build', ctx.buildProfile.config)
+    ? getCustomBuildConfigPath(ctx.buildProfile.config)
     : undefined;
 
   const job: Android.Job = {
