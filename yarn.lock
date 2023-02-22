@@ -1390,21 +1390,13 @@
     slugify "^1.3.4"
     sucrase "^3.20.0"
 
-"@expo/eas-build-job@0.2.102":
-  version "0.2.102"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.102.tgz#6c23388a7ac12d60a46d2a9ef779075f5c1a874b"
-  integrity sha512-1gav4gHhZCnRDIscd0/sat/fjts543QmexiWXUWDv15uzCxx/NnewN13tcmOwMV0K3Z3agOlJLRPN2t6UvIMAg==
+"@expo/eas-build-job@0.2.106":
+  version "0.2.106"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.106.tgz#a10f791986bfa9777a13b2b0e9c820673e9e38ba"
+  integrity sha512-V7ihSFNFaATM31P1b/tGrGG7sjuXBT5ZAzKnybTWr5Xl1ODOdEpSC1c9bzs9SUr2iWUFVsxyd2/7+f2+7r/l4A==
   dependencies:
-    joi "^17.4.2"
-    semver "^7.3.5"
-
-"@expo/eas-build-job@0.2.103":
-  version "0.2.103"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.103.tgz#0b587ada854570bc664f59dcd43dc3ca4221d451"
-  integrity sha512-cstgN8sVIYjq37xHm/4E6jnAlYf1gndvWfuVzRicUjp1TVyGjV9IbilSOxJp8AEqgPZK6+bZOcMRXT634M0Nmg==
-  dependencies:
-    joi "^17.4.2"
-    semver "^7.3.5"
+    joi "^17.7.0"
+    semver "^7.3.8"
 
 "@expo/image-utils@0.3.22":
   version "0.3.22"
@@ -3985,13 +3977,6 @@
     component-type "^1.2.1"
     join-component "^1.1.0"
 
-"@sideway/address@^4.1.0":
-  version "4.1.2"
-  resolved "https://registry.yarnpkg.com/@sideway/address/-/address-4.1.2.tgz#811b84333a335739d3969cfc434736268170cad1"
-  integrity sha512-idTz8ibqWFrPU8kMirL0CoPH/A29XOzzAzpyN3zQ4kAWnzmNfFmRaoMNN6VI8ske5M73HZyhIaW4OuSFIdM4oA==
-  dependencies:
-    "@hapi/hoek" "^9.0.0"
-
 "@sideway/address@^4.1.3":
   version "4.1.3"
   resolved "https://registry.yarnpkg.com/@sideway/address/-/address-4.1.3.tgz#d93cce5d45c5daec92ad76db492cc2ee3c64ab27"
@@ -4003,6 +3988,11 @@
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/@sideway/formula/-/formula-3.0.0.tgz#fe158aee32e6bd5de85044be615bc08478a0a13c"
   integrity sha512-vHe7wZ4NOXVfkoRb8T5otiENVlT7a3IAiw7H5M2+GO+9CDgcVUUsX1zalAztCmwyOr2RUTGJdgB+ZvSVqmdHmg==
+
+"@sideway/formula@^3.0.1":
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/@sideway/formula/-/formula-3.0.1.tgz#80fcbcbaf7ce031e0ef2dd29b1bfc7c3f583611f"
+  integrity sha512-/poHZJJVjx3L+zVD6g9KgHfYnb443oi7wLu/XKojDviHy6HOEOA6z1Trk5aR1dGcmPenJEgb2sK2I80LeS3MIg==
 
 "@sideway/pinpoint@^2.0.0":
   version "2.0.0"
@@ -9328,15 +9318,15 @@ joi@17.7.0:
     "@sideway/formula" "^3.0.0"
     "@sideway/pinpoint" "^2.0.0"
 
-joi@^17.4.2:
-  version "17.4.2"
-  resolved "https://registry.yarnpkg.com/joi/-/joi-17.4.2.tgz#02f4eb5cf88e515e614830239379dcbbe28ce7f7"
-  integrity sha512-Lm56PP+n0+Z2A2rfRvsfWVDXGEWjXxatPopkQ8qQ5mxCEhwHG+Ettgg5o98FFaxilOxozoa14cFhrE/hOzh/Nw==
+joi@^17.7.0:
+  version "17.8.3"
+  resolved "https://registry.yarnpkg.com/joi/-/joi-17.8.3.tgz#d772fe27a87a5cda21aace5cf11eee8671ca7e6f"
+  integrity sha512-q5Fn6Tj/jR8PfrLrx4fpGH4v9qM6o+vDUfD4/3vxxyg34OmKcNqYZ1qn2mpLza96S8tL0p0rIw2gOZX+/cTg9w==
   dependencies:
     "@hapi/hoek" "^9.0.0"
     "@hapi/topo" "^5.0.0"
-    "@sideway/address" "^4.1.0"
-    "@sideway/formula" "^3.0.0"
+    "@sideway/address" "^4.1.3"
+    "@sideway/formula" "^3.0.1"
     "@sideway/pinpoint" "^2.0.0"
 
 join-component@^1.1.0:
