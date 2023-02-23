@@ -318,10 +318,34 @@ export default class UpdatePublish extends EasCommand {
       uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
       assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
       unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
-      const uploadAssetSuccessMessage = uploadedAssetCount
-        ? `Uploaded ${uploadedAssetCount} ${uploadedAssetCount === 1 ? 'platform' : 'platforms'}`
-        : `Uploaded: No changes detected`;
-      assetSpinner.succeed(uploadAssetSuccessMessage);
+
+      // NOTE(cedric): we assume that bundles are always uploaded, and always are part of
+      // `uploadedAssetCount`, perferably we don't assume. For that, we need to refactor the
+      // `uploadAssetsAsync` and be able to determine asset type from the uploaded assets.
+      const uploadedBundleCount = uploadResults.launchAssetCount;
+      const uploadedNormalAssetCount = Math.max(0, uploadedAssetCount - uploadedBundleCount);
+      const reusedNormalAssetCount = uploadResults.uniqueAssetCount - uploadedNormalAssetCount;
+
+      assetSpinner.stop();
+      Log.withTick(
+        `Uploaded ${uploadedBundleCount} app ${uploadedBundleCount === 1 ? 'bundle' : 'bundles'}`
+      );
+      if (uploadedNormalAssetCount === 0) {
+        Log.withTick(`Uploading assets skipped - no new assets found`);
+      } else {
+        let message = `Uploaded ${uploadedNormalAssetCount} ${
+          uploadedNormalAssetCount === 1 ? 'asset' : 'assets'
+        }`;
+        if (reusedNormalAssetCount > 0) {
+          message += ` (reused ${reusedNormalAssetCount} ${
+            reusedNormalAssetCount === 1 ? 'asset' : 'assets'
+          })`;
+        }
+        Log.withTick(message);
+      }
+      for (const uploadedAssetPath of uploadResults.uniqueUploadedAssetPaths) {
+        Log.debug(chalk.dim(`- ${uploadedAssetPath}`));
+      }
     } catch (e) {
       assetSpinner.fail('Failed to upload');
       throw e;
