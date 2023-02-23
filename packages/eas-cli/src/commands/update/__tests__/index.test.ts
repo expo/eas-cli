@@ -46,7 +46,7 @@ jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
 jest.mock('../../../ora', () => ({
   ora: () => ({
-    start: () => ({ succeed: () => {}, fail: () => {} }),
+    start: () => ({ succeed: () => {}, fail: () => {}, stop: () => {} }),
   }),
 }));
 jest.mock('../../../project/publish', () => ({
@@ -246,6 +246,8 @@ function mockTestExport({
     uniqueAssetCount: platforms.length,
     uniqueUploadedAssetCount: platforms.length,
     assetLimitPerUpdateGroup: 9001,
+    launchAssetCount: 2,
+    uniqueUploadedAssetPaths: [],
   });
 
   jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
