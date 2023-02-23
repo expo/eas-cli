@@ -55,8 +55,8 @@ export async function prepareJobAsync(
     buildType = Android.BuildType.APK;
   }
 
-  const maybeCustomBuildConfigPath = ctx.buildProfile.config
-    ? getCustomBuildConfigPath(ctx.buildProfile.config)
+  const maybeCustomBuildConfigPath = buildProfile.config
+    ? getCustomBuildConfigPath(buildProfile.config)
     : undefined;
 
   const job: Android.Job = {

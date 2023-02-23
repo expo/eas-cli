@@ -109,13 +109,13 @@ function printBuildResult(build: BuildFragment): void {
   } else {
     // TODO: it looks like buildUrl could possibly be undefined, based on the code below.
     // we should account for this case better if it is possible
-    const url = build.artifacts?.buildUrl ?? '';
-    if (url !== '') {
+    const url = build.artifacts?.buildUrl;
+    if (url) {
       Log.addNewLineIfNone();
       Log.log(
         `${appPlatformEmojis[build.platform]} ${appPlatformDisplayNames[build.platform]} app:`
       );
-      Log.log(`${link(url)}`);
+      Log.log(link(url));
     }
   }
 }
