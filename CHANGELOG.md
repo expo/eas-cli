@@ -8,11 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Support variant detection for package*UniversalApk Gradle Commands. ([#1708](https://github.com/expo/eas-cli/pull/1708) by [@frw](https://github.com/frw))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [3.7.0](https://github.com/expo/eas-cli/releases/tag/v3.7.0) - 2023-02-23
+
+### 🎉 New features
+
+- Support variant detection for package*UniversalApk Gradle Commands. ([#1708](https://github.com/expo/eas-cli/pull/1708) by [@frw](https://github.com/frw))
 
 ## [3.6.1](https://github.com/expo/eas-cli/releases/tag/v3.6.1) - 2023-02-20
 
