@@ -126,11 +126,15 @@ export type Account = {
   subscription?: Maybe<SubscriptionDetails>;
   /** @deprecated No longer needed */
   subscriptionChangesPending?: Maybe<Scalars['Boolean']>;
+  /** Coalesced project activity for an app using pagination */
+  timelineActivity: TimelineActivityConnection;
   /** @deprecated See isCurrent */
   unlimitedBuilds: Scalars['Boolean'];
   updatedAt: Scalars['DateTime'];
   /** Account query object for querying EAS usage metrics */
   usageMetrics: AccountUsageMetrics;
+  /** Owning UserActor of this account if personal account */
+  userActorOwner?: Maybe<UserActor>;
   /** Pending user invitations for this account */
   userInvitations: Array<UserInvitation>;
   /** Actors associated with this account and permissions they hold */
@@ -260,6 +264,19 @@ export type AccountEnvironmentSecretsArgs = {
 export type AccountSnacksArgs = {
   limit: Scalars['Int'];
   offset: Scalars['Int'];
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
+export type AccountTimelineActivityArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  filter?: InputMaybe<TimelineActivityFilterInput>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
 };
 
 export type AccountDataInput = {
@@ -790,6 +807,7 @@ export type AndroidJobInput = {
   buildType?: InputMaybe<AndroidBuildType>;
   builderEnvironment?: InputMaybe<AndroidBuilderEnvironmentInput>;
   cache?: InputMaybe<BuildCacheInput>;
+  customBuildConfig?: InputMaybe<CustomBuildConfigInput>;
   developmentClient?: InputMaybe<Scalars['Boolean']>;
   experimental?: InputMaybe<Scalars['JSONObject']>;
   gradleCommand?: InputMaybe<Scalars['String']>;
@@ -933,10 +951,8 @@ export type App = Project & {
   /** Classic update release channel names that have at least one build */
   buildsReleaseChannels: Array<Scalars['String']>;
   deployment?: Maybe<Deployment>;
-  deploymentNew?: Maybe<DeploymentNew>;
   /** Deployments associated with this app */
-  deployments: Array<Deployment>;
-  deploymentsNew: DeploymentsConnection;
+  deployments: DeploymentsConnection;
   description: Scalars['String'];
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
@@ -1061,28 +1077,12 @@ export type AppBuildsArgs = {
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppDeploymentArgs = {
   channel: Scalars['String'];
-  options?: InputMaybe<DeploymentOptions>;
-  runtimeVersion: Scalars['String'];
-};
-
-
-/** Represents an Exponent App (or Experience in legacy terms) */
-export type AppDeploymentNewArgs = {
-  channel: Scalars['String'];
   runtimeVersion: Scalars['String'];
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppDeploymentsArgs = {
-  limit: Scalars['Int'];
-  mostRecentlyUpdatedAt?: InputMaybe<Scalars['DateTime']>;
-  options?: InputMaybe<DeploymentOptions>;
-};
-
-
-/** Represents an Exponent App (or Experience in legacy terms) */
-export type AppDeploymentsNewArgs = {
   after?: InputMaybe<Scalars['String']>;
   before?: InputMaybe<Scalars['String']>;
   first?: InputMaybe<Scalars['Int']>;
@@ -1912,6 +1912,7 @@ export enum BuildIosEnterpriseProvisioning {
 /** Represents an Standalone App build job */
 export type BuildJob = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   __typename?: 'BuildJob';
+  accountUserActor?: Maybe<UserActor>;
   activityTimestamp: Scalars['DateTime'];
   actor?: Maybe<Actor>;
   app?: Maybe<App>;
@@ -2019,6 +2020,7 @@ export type BuildMetrics = {
 
 export enum BuildMode {
   Build = 'BUILD',
+  Custom = 'CUSTOM',
   Resign = 'RESIGN'
 }
 
@@ -2200,6 +2202,8 @@ export enum BuildResourceClass {
   IosLarge = 'IOS_LARGE',
   IosM1Large = 'IOS_M1_LARGE',
   IosM1Medium = 'IOS_M1_MEDIUM',
+  IosM2Medium = 'IOS_M2_MEDIUM',
+  IosM2ProMedium = 'IOS_M2_PRO_MEDIUM',
   IosMedium = 'IOS_MEDIUM',
   Legacy = 'LEGACY'
 }
@@ -2360,6 +2364,10 @@ export type CreateSubmissionResult = {
   submission: Submission;
 };
 
+export type CustomBuildConfigInput = {
+  path: Scalars['String'];
+};
+
 export type DeleteAccessTokenResult = {
   __typename?: 'DeleteAccessTokenResult';
   id: Scalars['ID'];
@@ -2448,16 +2456,19 @@ export type DeployServerlessFunctionResult = {
 /** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
 export type Deployment = {
   __typename?: 'Deployment';
-  channel?: Maybe<UpdateChannel>;
-  /**
-   * The name of this deployment's associated channel. It is specified separately from the `channel`
-   * field to allow specifying a deployment before an EAS Update channel has been created.
-   */
-  channelName: Scalars['String'];
+  builds: DeploymentBuildsConnection;
+  channel: UpdateChannel;
   id: Scalars['ID'];
-  mostRecentlyUpdatedAt: Scalars['DateTime'];
-  recentBuilds: Array<Build>;
-  runtimeVersion: Scalars['String'];
+  runtime: Runtime;
+};
+
+
+/** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
+export type DeploymentBuildsArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
 };
 
 export type DeploymentBuildEdge = {
@@ -2476,33 +2487,10 @@ export type DeploymentBuildsConnection = {
 export type DeploymentEdge = {
   __typename?: 'DeploymentEdge';
   cursor: Scalars['String'];
-  node: DeploymentNew;
+  node: Deployment;
 };
 
-/** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
-export type DeploymentNew = {
-  __typename?: 'DeploymentNew';
-  builds: DeploymentBuildsConnection;
-  channel: UpdateChannel;
-  id: Scalars['ID'];
-  runtime: Runtime;
-};
-
-
-/** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
-export type DeploymentNewBuildsArgs = {
-  after?: InputMaybe<Scalars['String']>;
-  before?: InputMaybe<Scalars['String']>;
-  first?: InputMaybe<Scalars['Int']>;
-  last?: InputMaybe<Scalars['Int']>;
-};
-
-export type DeploymentOptions = {
-  /** Max number of associated builds to return */
-  buildListMaxSize?: InputMaybe<Scalars['Int']>;
-};
-
-/** Represents the connection over the deploymentsNew edge of an App */
+/** Represents the connection over the deployments edge of an App */
 export type DeploymentsConnection = {
   __typename?: 'DeploymentsConnection';
   edges: Array<DeploymentEdge>;
@@ -3122,6 +3110,7 @@ export type IosJobInput = {
   buildType?: InputMaybe<IosBuildType>;
   builderEnvironment?: InputMaybe<IosBuilderEnvironmentInput>;
   cache?: InputMaybe<BuildCacheInput>;
+  customBuildConfig?: InputMaybe<CustomBuildConfigInput>;
   developmentClient?: InputMaybe<Scalars['Boolean']>;
   /** @deprecated */
   distribution?: InputMaybe<DistributionType>;

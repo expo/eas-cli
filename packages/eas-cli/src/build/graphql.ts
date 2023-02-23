@@ -91,11 +91,16 @@ export function transformIosEnterpriseProvisioning(
   }
 }
 
-export function transformBuildMode(buildMode: Metadata['buildMode']): BuildMode {
+// TODO: check what in metadata
+export function transformBuildMode(buildMode: string): BuildMode {
   if (buildMode === 'build') {
     return BuildMode.Build;
-  } else {
+  } else if (buildMode === 'resign') {
     return BuildMode.Resign;
+  } else if (buildMode === 'custom') {
+    return BuildMode.Custom;
+  } else {
+    throw new Error(`Unsupported build mode: ${buildMode}`);
   }
 }
 

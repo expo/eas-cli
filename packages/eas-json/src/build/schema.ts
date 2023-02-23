@@ -24,69 +24,98 @@ const CacheSchema = Joi.object({
 });
 
 const CommonBuildProfileSchema = Joi.object({
-  credentialsSource: Joi.string().valid('local', 'remote').default('remote'),
-  distribution: Joi.string().valid('store', 'internal').default('store'),
-  cache: CacheSchema,
-  releaseChannel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
-  channel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
-  developmentClient: Joi.boolean(),
-  prebuildCommand: Joi.string(),
-  buildArtifactPaths: Joi.array().items(Joi.string()),
+  // builder
+  resourceClass: Joi.string().valid(...AllowedCommonResourceClasses),
 
+  // build environment
+  env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)),
   node: Joi.string().empty(null).custom(semverCheck),
   yarn: Joi.string().empty(null).custom(semverCheck),
   expoCli: Joi.string().empty(null).custom(semverCheck),
-  env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)),
+
+  // credentials
+  credentialsSource: Joi.string().valid('local', 'remote').default('remote'),
+  distribution: Joi.string().valid('store', 'internal').default('store'),
+
+  // updates
+  releaseChannel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
+  channel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
+
+  // build configuration
+  developmentClient: Joi.boolean(),
+  prebuildCommand: Joi.string(),
+
+  // versions
   autoIncrement: Joi.alternatives().try(Joi.boolean()),
-  resourceClass: Joi.string().valid(...AllowedCommonResourceClasses),
+
+  // artifacts
+  buildArtifactPaths: Joi.array().items(Joi.string()),
+
+  // cache
+  cache: CacheSchema,
+
+  // custom build configuration
+  config: Joi.string(),
 });
 
-const AndroidBuildProfileSchema = CommonBuildProfileSchema.concat(
+const PlatformBuildProfileSchema = CommonBuildProfileSchema.concat(
   Joi.object({
-    credentialsSource: Joi.string().valid('local', 'remote'),
-    distribution: Joi.string().valid('store', 'internal'),
+    // build environment
+    image: Joi.string(),
+
+    // artifacts
+    artifactPath: Joi.string(),
+    applicationArchivePath: Joi.string(),
+  }).oxor('artifactPath', 'applicationArchivePath')
+);
+
+const AndroidBuildProfileSchema = PlatformBuildProfileSchema.concat(
+  Joi.object({
+    // builder
+    resourceClass: Joi.string().valid(...AllowedAndroidResourceClasses),
+
+    // build environment
+    ndk: Joi.string().empty(null).custom(semverCheck),
+
+    // credentials
     withoutCredentials: Joi.boolean(),
 
-    image: Joi.string(),
-    ndk: Joi.string().empty(null).custom(semverCheck),
+    // build configuration
+    gradleCommand: Joi.string(),
+    buildType: Joi.string().valid('apk', 'app-bundle'),
+
+    // versions
     autoIncrement: Joi.alternatives().try(
       Joi.boolean(),
       Joi.string().valid('version', 'versionCode')
     ),
-    resourceClass: Joi.string().valid(...AllowedAndroidResourceClasses),
-
-    artifactPath: Joi.string(),
-    applicationArchivePath: Joi.string(),
-    buildArtifactPaths: Joi.array().items(Joi.string()),
-    gradleCommand: Joi.string(),
-
-    buildType: Joi.string().valid('apk', 'app-bundle'),
-  }).oxor('artifactPath', 'applicationArchivePath')
+  })
 );
 
-const IosBuildProfileSchema = CommonBuildProfileSchema.concat(
+const IosBuildProfileSchema = PlatformBuildProfileSchema.concat(
   Joi.object({
-    credentialsSource: Joi.string().valid('local', 'remote'),
-    distribution: Joi.string().valid('store', 'internal'),
-    enterpriseProvisioning: Joi.string().valid('adhoc', 'universal'),
-    autoIncrement: Joi.alternatives().try(
-      Joi.boolean(),
-      Joi.string().valid('version', 'buildNumber')
-    ),
-    simulator: Joi.boolean(),
+    // builder
     resourceClass: Joi.string().valid(...AllowedIosResourceClasses),
 
-    image: Joi.string(),
+    // build environment
     bundler: Joi.string().empty(null).custom(semverCheck),
     fastlane: Joi.string().empty(null).custom(semverCheck),
     cocoapods: Joi.string().empty(null).custom(semverCheck),
 
-    artifactPath: Joi.string(),
-    applicationArchivePath: Joi.string(),
-    buildArtifactPaths: Joi.array().items(Joi.string()),
+    // credentials
+    enterpriseProvisioning: Joi.string().valid('adhoc', 'universal'),
+
+    // build configuration
+    simulator: Joi.boolean(),
     scheme: Joi.string(),
     buildConfiguration: Joi.string(),
-  }).oxor('artifactPath', 'applicationArchivePath')
+
+    // versions
+    autoIncrement: Joi.alternatives().try(
+      Joi.boolean(),
+      Joi.string().valid('version', 'buildNumber')
+    ),
+  })
 );
 
 export const BuildProfileSchema = CommonBuildProfileSchema.concat(

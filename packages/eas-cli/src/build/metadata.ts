@@ -1,5 +1,5 @@
 import { Updates } from '@expo/config-plugins';
-import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
+import { BuildMode, Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
@@ -57,6 +57,7 @@ export async function collectMetadataAsync<T extends Platform>(
     }),
     runWithNoWaitFlag: ctx.noWait,
     runFromCI: ctx.runFromCI,
+    buildMode: ctx.buildProfile.config ? BuildMode.CUSTOM : BuildMode.BUILD,
   };
   return sanitizeMetadata(metadata);
 }

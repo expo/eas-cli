@@ -57,7 +57,6 @@ export function printLogsUrls(builds: BuildFragment[]): void {
 }
 
 export function printBuildResults(builds: (BuildFragment | null)[]): void {
-  Log.newLine();
   if (builds.length === 1) {
     const [build] = builds;
     assert(build, 'Build should be defined');
@@ -68,8 +67,8 @@ export function printBuildResults(builds: (BuildFragment | null)[]): void {
 }
 
 function printBuildResult(build: BuildFragment): void {
-  Log.addNewLineIfNone();
   if (build.status === BuildStatus.Errored) {
+    Log.addNewLineIfNone();
     const userError = build.error;
     Log.error(
       `${appPlatformEmojis[build.platform]} ${
@@ -82,6 +81,7 @@ function printBuildResult(build: BuildFragment): void {
     return;
   }
   if (build.status === BuildStatus.Canceled) {
+    Log.addNewLineIfNone();
     Log.error(
       `${appPlatformEmojis[build.platform]} ${
         appPlatformDisplayNames[build.platform]
@@ -91,6 +91,7 @@ function printBuildResult(build: BuildFragment): void {
   }
 
   if (build.distribution === DistributionType.Internal) {
+    Log.addNewLineIfNone();
     const logsUrl = getBuildLogsUrl(build);
     // It's tricky to install the .apk file directly on Android so let's fallback
     // to the build details page and let people press the button to download there
@@ -108,9 +109,14 @@ function printBuildResult(build: BuildFragment): void {
   } else {
     // TODO: it looks like buildUrl could possibly be undefined, based on the code below.
     // we should account for this case better if it is possible
-    const url = build.artifacts?.buildUrl ?? '';
-    Log.log(`${appPlatformEmojis[build.platform]} ${appPlatformDisplayNames[build.platform]} app:`);
-    Log.log(`${link(url)}`);
+    const url = build.artifacts?.buildUrl;
+    if (url) {
+      Log.addNewLineIfNone();
+      Log.log(
+        `${appPlatformEmojis[build.platform]} ${appPlatformDisplayNames[build.platform]} app:`
+      );
+      Log.log(link(url));
+    }
   }
 }
 

@@ -29,32 +29,42 @@ export type IosVersionAutoIncrement = VersionAutoIncrement | 'buildNumber';
 export type AndroidVersionAutoIncrement = VersionAutoIncrement | 'versionCode';
 
 export interface CommonBuildProfile {
-  credentialsSource: CredentialsSource;
-  distribution: DistributionType;
-  cache?: Omit<Cache, 'clear'>;
-  releaseChannel?: string;
-  channel?: string;
-  developmentClient?: boolean;
-  prebuildCommand?: string;
-  autoIncrement?: boolean;
+  // builder
   resourceClass?: ResourceClass;
-  buildArtifactPaths?: string[];
 
+  // build environment
+  env?: Record<string, string>;
   node?: string;
   yarn?: string;
   expoCli?: string;
-  env?: Record<string, string>;
+
+  // credentials
+  credentialsSource: CredentialsSource;
+  distribution: DistributionType;
+
+  // updates
+  releaseChannel?: string;
+  channel?: string;
+
+  // build configuration
+  developmentClient?: boolean;
+  prebuildCommand?: string;
+
+  // versions
+  autoIncrement?: boolean;
+
+  // artifacts
+  buildArtifactPaths?: string[];
+
+  // cache
+  cache?: Omit<Cache, 'clear'>;
+
+  // custom build configuration
+  config?: string;
 }
 
-export interface AndroidBuildProfile extends Omit<CommonBuildProfile, 'autoIncrement'> {
-  withoutCredentials?: boolean;
-  image?: Android.BuilderEnvironment['image'];
-  ndk?: string;
-  autoIncrement?: AndroidVersionAutoIncrement;
-
-  buildType?: Android.BuildType.APK | Android.BuildType.APP_BUNDLE;
-
-  gradleCommand?: string;
+interface PlatformBuildProfile extends Omit<CommonBuildProfile, 'autoIncrement'> {
+  // artifacts
   /**
    * @deprecated use applicationArchivePath
    */
@@ -62,22 +72,39 @@ export interface AndroidBuildProfile extends Omit<CommonBuildProfile, 'autoIncre
   applicationArchivePath?: string;
 }
 
-export interface IosBuildProfile extends Omit<CommonBuildProfile, 'autoIncrement'> {
-  enterpriseProvisioning?: IosEnterpriseProvisioning;
-  autoIncrement?: IosVersionAutoIncrement;
-  simulator?: boolean;
+export interface AndroidBuildProfile extends PlatformBuildProfile {
+  // build environment
+  image?: Android.BuilderEnvironment['image'];
+  ndk?: string;
+
+  // credentials
+  withoutCredentials?: boolean;
+
+  // build configuration
+  gradleCommand?: string;
+  buildType?: Android.BuildType.APK | Android.BuildType.APP_BUNDLE;
+
+  // versions
+  autoIncrement?: AndroidVersionAutoIncrement;
+}
+
+export interface IosBuildProfile extends PlatformBuildProfile {
+  // build environment
   image?: Ios.BuilderEnvironment['image'];
   bundler?: string;
   fastlane?: string;
   cocoapods?: string;
 
-  /**
-   * @deprecated use applicationArchivePath
-   */
-  artifactPath?: string;
-  applicationArchivePath?: string;
+  // credentials
+  enterpriseProvisioning?: IosEnterpriseProvisioning;
+
+  // build configuration
+  simulator?: boolean;
   scheme?: string;
   buildConfiguration?: string;
+
+  // versions
+  autoIncrement?: IosVersionAutoIncrement;
 }
 
 export type BuildProfile<TPlatform extends Platform = Platform> = TPlatform extends Platform.ANDROID

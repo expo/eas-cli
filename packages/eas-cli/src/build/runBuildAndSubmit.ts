@@ -31,6 +31,7 @@ import {
   appPlatformEmojis,
   toPlatforms,
 } from '../platform';
+import { validateCustomBuildConfigAsync } from '../project/customBuildConfig';
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
 import { validateAppVersionRuntimePolicySupportAsync } from '../project/projectUtils';
@@ -118,6 +119,7 @@ export async function runBuildAndSubmitAsync(
 
   for (const buildProfile of buildProfiles) {
     validateBuildProfileVersionSettings(buildProfile, easJsonCliConfig);
+    await validateCustomBuildConfigAsync(projectDir, buildProfile.profile);
   }
 
   const startedBuilds: {
