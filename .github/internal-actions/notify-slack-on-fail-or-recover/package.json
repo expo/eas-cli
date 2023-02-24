@@ -1,0 +1,12 @@
+{
+  "name": "notify-slack-on-fail-or-recover",
+  "version": "1.0.0",
+  "description": "A GitHub Action to notify Expo Slack of build failures and recovery.",
+  "main": "main.js",
+  "author": "Expo",
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "prettier": "^2.5.1"
+  }
+}

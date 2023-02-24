@@ -199,9 +199,9 @@ jobs:
         env:
           SLACK_CHANNEL: eas-cli
           SLACK_COLOR: ${{ job.status }}
-          SLACK_ICON: https://github.com/expo-ci.png?size=48
+          SLACK_ICON: https://github.com/expo-bot.png?size=48
           SLACK_TITLE: 'Released eas-cli@${{ env.EAS_CLI_VERSION }}'
           SLACK_MESSAGE: ${{ env.SLACK_CHANGELOG }}
-          SLACK_USERNAME: 'Expo CI'
+          SLACK_USERNAME: 'EAS CLI CI'
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_FOOTER: ''

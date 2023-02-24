@@ -1,0 +1,53 @@
+name: notify-slack-on-fail-or-recover
+
+inputs:
+  channel:
+    required: true
+    type: string
+  slack_webhook:
+    required: true
+    type: string
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Get previous workflow run status
+      uses: actions/github-script@v6
+      id: run-status
+      with:
+        script: |
+          const script = require('.github/internal-actions/notify-slack-on-fail-or-recover/main.js');
+          return await script({github, context, core});
+
+    - name: Commit subject
+      shell: bash
+      run: |
+        subject="$(git show --format=%s --quiet | sed 's/"/\\"/g')"
+        echo "${{ fromJSON(steps.run-status.outputs.result).previous }}"
+        echo "SUBJECT=$subject" >> "$GITHUB_ENV"
+
+    - name: Send Slack Success Notification
+      if: fromJSON(steps.run-status.outputs.result).previous == 'failure' && fromJSON(steps.run-status.outputs.result).current == 'success'
+      uses: rtCamp/action-slack-notify@v2
+      env:
+        SLACK_CHANNEL: ${{ inputs.channel }}
+        SLACK_COLOR: good
+        SLACK_ICON: https://github.com/expo-bot.png?size=48
+        SLACK_TITLE: 'Fixed, was failing'
+        SLACK_MESSAGE: ${{ env.SUBJECT }}
+        SLACK_USERNAME: 'EAS CLI CI'
+        SLACK_WEBHOOK: ${{ inputs.slack_webhook }}
+        SLACK_FOOTER: ''
+
+    - name: Send Slack Failure Notification
+      if: fromJSON(steps.run-status.outputs.result).current == 'failure'
+      uses: rtCamp/action-slack-notify@v2
+      env:
+        SLACK_CHANNEL: ${{ inputs.channel }}
+        SLACK_COLOR: danger
+        SLACK_ICON: https://github.com/expo-bot.png?size=48
+        SLACK_TITLE: 'Failed'
+        SLACK_MESSAGE: ${{ env.SUBJECT }}
+        SLACK_USERNAME: 'EAS CLI CI'
+        SLACK_WEBHOOK: ${{ inputs.slack_webhook }}
+        SLACK_FOOTER: ''
