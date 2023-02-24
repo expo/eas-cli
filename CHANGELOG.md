@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Implement Apple's proprietary Hashcash algorithm for signing authentication requests. ([#1719](https://github.com/expo/eas-cli/pull/1719) by [@EvanBacon](https://github.com/EvanBacon))
+
 ### 🧹 Chores
 
 ## [3.7.1](https://github.com/expo/eas-cli/releases/tag/v3.7.1) - 2023-02-23
