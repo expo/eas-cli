@@ -22,7 +22,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Bump `@expo/apple-utils` to fix Apple developer auth
+- Bump `@expo/apple-utils` to fix Apple developer auth. ([03c76c1](https://github.com/expo/eas-cli/commit/03c76c1e0efb9ec55e40b45e33c80b3479f920c3) by [@brentvatne](https://github.com/brentvatne))
 
 ## [3.7.0](https://github.com/expo/eas-cli/releases/tag/v3.7.0) - 2023-02-23
 
