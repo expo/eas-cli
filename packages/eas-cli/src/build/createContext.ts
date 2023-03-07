@@ -90,8 +90,6 @@ export async function createBuildContextAsync<T extends Platform>({
   const resourceClass = await resolveBuildResourceClassAsync(
     buildProfile,
     platform,
-    projectDir,
-    exp,
     resourceClassFlag
   );
 
