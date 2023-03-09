@@ -115,6 +115,20 @@ describe(EasCommand.name, () => {
         expect(logSpy).toBeCalledWith('Unexpected, internal error message');
       });
 
+      it('logs the cleaned message if needed', async () => {
+        const TestEasCommand = createTestEasCommand();
+        const logSpy = jest.spyOn(Log, 'error');
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        runAsyncMock.mockImplementation(() => {
+          throw new Error('[GraphQL] Unexpected GraphQL error message');
+        });
+        try {
+          await TestEasCommand.run();
+        } catch {}
+
+        expect(logSpy).toBeCalledWith('Unexpected GraphQL error message');
+      });
+
       it('re-throws the error with new message if provided', async () => {
         const TestEasCommand = createTestEasCommand('New base error message');
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
