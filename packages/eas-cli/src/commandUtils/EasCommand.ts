@@ -1,4 +1,5 @@
 import { Command } from '@oclif/core';
+import { CommandError } from '@oclif/core/lib/interfaces';
 import nullthrows from 'nullthrows';
 
 import {
@@ -6,6 +7,7 @@ import {
   CommandEvent,
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
+import Log from '../log';
 import SessionManager from '../user/SessionManager';
 import AnalyticsContextField from './context/AnalyticsContextField';
 import ContextField from './context/ContextField';
@@ -174,5 +176,14 @@ export default abstract class EasCommand extends Command {
   override async finally(err: Error): Promise<any> {
     await this.analytics.flushAsync();
     return super.finally(err);
+  }
+
+  protected baseErrorMessage = 'Request failed';
+  protected override catch(err: CommandError): Promise<any> {
+    const cleanMessage = err.message.startsWith('[GraphQL] ')
+      ? err.message.replace('[GraphQL] ', '')
+      : err.message;
+    Log.error(cleanMessage);
+    throw new Error(this.baseErrorMessage);
   }
 }

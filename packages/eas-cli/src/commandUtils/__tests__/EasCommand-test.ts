@@ -1,4 +1,5 @@
 import { AnalyticsWithOrchestration, createAnalyticsAsync } from '../../analytics/AnalyticsManager';
+import Log from '../../log';
 import SessionManager from '../../user/SessionManager';
 import EasCommand from '../EasCommand';
 
@@ -11,6 +12,7 @@ jest.mock('../../analytics/AnalyticsManager', () => {
     createAnalyticsAsync: jest.fn(),
   };
 });
+jest.mock('../../log');
 
 let originalProcessArgv: string[];
 
@@ -35,9 +37,10 @@ beforeEach(() => {
   jest.mocked(createAnalyticsAsync).mockResolvedValue(analytics);
 });
 
-const createTestEasCommand = (): typeof EasCommand => {
+const createTestEasCommand = (baseErrorMessage?: string): typeof EasCommand => {
   class TestEasCommand extends EasCommand {
     async runAsync(): Promise<void> {}
+    protected override baseErrorMessage = baseErrorMessage || 'Request failed';
   }
 
   TestEasCommand.id = 'TestEasCommand'; // normally oclif will assign ids, but b/c this is located outside the commands folder it will not
@@ -95,6 +98,50 @@ describe(EasCommand.name, () => {
       } catch {}
 
       expect(analytics.flushAsync).toHaveBeenCalled();
+    });
+
+    describe('catch', () => {
+      it('logs the message', async () => {
+        const TestEasCommand = createTestEasCommand();
+        const logSpy = jest.spyOn(Log, 'error');
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        runAsyncMock.mockImplementation(() => {
+          throw new Error('Unexpected, internal error message');
+        });
+        try {
+          await TestEasCommand.run();
+        } catch {}
+
+        expect(logSpy).toBeCalledWith('Unexpected, internal error message');
+      });
+
+      it('re-throws the error with new message if provided', async () => {
+        const TestEasCommand = createTestEasCommand('New base error message');
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        runAsyncMock.mockImplementation(() => {
+          throw new Error('Error message');
+        });
+        try {
+          await TestEasCommand.run();
+        } catch (caughtError) {
+          expect(caughtError).toBeInstanceOf(Error);
+          expect((caughtError as Error).message).toEqual('New base error message');
+        }
+      });
+
+      it('re-throws the error with default base message if new one not provided', async () => {
+        const TestEasCommand = createTestEasCommand();
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        runAsyncMock.mockImplementation(() => {
+          throw new Error('Error message');
+        });
+        try {
+          await TestEasCommand.run();
+        } catch (caughtError) {
+          expect(caughtError).toBeInstanceOf(Error);
+          expect((caughtError as Error).message).toEqual('Request failed');
+        }
+      });
     });
   });
 });

@@ -37,6 +37,7 @@ interface RawBuildFlags {
 
 export default class Build extends EasCommand {
   static override description = 'start a build';
+  override baseErrorMessage = 'Build request failed.';
 
   static override flags = {
     platform: Flags.enum({

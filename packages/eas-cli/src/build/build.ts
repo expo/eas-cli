@@ -173,26 +173,23 @@ function handleBuildRequestError(error: any, platform: Platform): never {
   Log.debug(JSON.stringify(error.graphQLErrors, null, 2));
 
   if (SERVER_SIDE_DEFINED_ERRORS.includes(error?.graphQLErrors?.[0]?.extensions?.errorCode)) {
-    Log.error(error?.graphQLErrors?.[0]?.message);
-    throw new Error('Build request failed.');
+    throw new Error(error?.graphQLErrors?.[0]?.message);
   } else if (
     error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE'
   ) {
-    Log.error(
+    throw new Error(
       `EAS Build is down for maintenance. Try again later. Check ${link(
         'https://status.expo.dev/'
       )} for updates.`
     );
-    throw new Error('Build request failed.');
   } else if (
     error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_TOO_MANY_PENDING_BUILDS'
   ) {
-    Log.error(
+    throw new Error(
       `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
     );
-    throw new Error('Build request failed.');
   } else if (error?.graphQLErrors) {
-    Log.error(
+    throw new Error(
       'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.'
     );
   }
