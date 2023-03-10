@@ -115,6 +115,8 @@ export type Account = {
   offers?: Maybe<Array<Offer>>;
   /** Owning User of this account if personal account */
   owner?: Maybe<User>;
+  /** Owning UserActor of this account if personal account */
+  ownerUserActor?: Maybe<UserActor>;
   pushSecurityEnabled: Scalars['Boolean'];
   /** @deprecated Legacy access tokens are deprecated */
   requiresAccessTokenForPushSecurity: Scalars['Boolean'];
@@ -133,7 +135,10 @@ export type Account = {
   updatedAt: Scalars['DateTime'];
   /** Account query object for querying EAS usage metrics */
   usageMetrics: AccountUsageMetrics;
-  /** Owning UserActor of this account if personal account */
+  /**
+   * Owning UserActor of this account if personal account
+   * @deprecated Deprecated in favor of ownerUserActor
+   */
   userActorOwner?: Maybe<UserActor>;
   /** Pending user invitations for this account */
   userInvitations: Array<UserInvitation>;
@@ -940,6 +945,7 @@ export type App = Project & {
   /** ios.appStoreUrl field from most recent classic update manifest */
   appStoreUrl?: Maybe<Scalars['String']>;
   assetLimitPerUpdateGroup: Scalars['Int'];
+  branchesPaginated: AppBranchesConnection;
   buildJobs: Array<BuildJob>;
   /**
    * Coalesced Build (EAS) or BuildJob (Classic) items for this app.
@@ -1023,6 +1029,7 @@ export type App = Project & {
   updated: Scalars['DateTime'];
   /** EAS updates owned by an app */
   updates: Array<Update>;
+  updatesPaginated: AppUpdatesConnection;
   /** @deprecated Use ownerAccount.name instead */
   username: Scalars['String'];
   /** @deprecated No longer supported */
@@ -1046,6 +1053,15 @@ export type AppActivityTimelineProjectActivitiesArgs = {
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppAndroidAppCredentialsArgs = {
   filter?: InputMaybe<AndroidAppCredentialsFilter>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppBranchesPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
 };
 
 
@@ -1183,8 +1199,29 @@ export type AppUpdatesArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
+export type AppUpdatesPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWebhooksArgs = {
   filter?: InputMaybe<WebhookFilter>;
+};
+
+export type AppBranchEdge = {
+  __typename?: 'AppBranchEdge';
+  cursor: Scalars['String'];
+  node: UpdateBranch;
+};
+
+export type AppBranchesConnection = {
+  __typename?: 'AppBranchesConnection';
+  edges: Array<AppBranchEdge>;
+  pageInfo: PageInfo;
 };
 
 export type AppDataInput = {
@@ -1375,6 +1412,18 @@ export enum AppStoreConnectUserRole {
   Technical = 'TECHNICAL',
   Unknown = 'UNKNOWN'
 }
+
+export type AppUpdateEdge = {
+  __typename?: 'AppUpdateEdge';
+  cursor: Scalars['String'];
+  node: Update;
+};
+
+export type AppUpdatesConnection = {
+  __typename?: 'AppUpdatesConnection';
+  edges: Array<AppUpdateEdge>;
+  pageInfo: PageInfo;
+};
 
 /** Represents Play Store/App Store version of an application */
 export type AppVersion = {
@@ -1796,7 +1845,10 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   __typename?: 'Build';
   activityTimestamp: Scalars['DateTime'];
   actor?: Maybe<Actor>;
-  /** The actual resource class of the builder assigned to the build job */
+  /**
+   * The actual resource class of the builder assigned to the build job
+   * @deprecated Use resourceClassDisplayName instead
+   */
   actualResourceClass?: Maybe<BuildResourceClass>;
   appBuildVersion?: Maybe<Scalars['String']>;
   appVersion?: Maybe<Scalars['String']>;
@@ -1839,8 +1891,13 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   queuePosition?: Maybe<Scalars['Int']>;
   reactNativeVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
-  /** The builder resource class requested by the developer */
+  /**
+   * The builder resource class requested by the developer
+   * @deprecated Use resourceClassDisplayName instead
+   */
   resourceClass: BuildResourceClass;
+  /** String describing the resource class used to run the build */
+  resourceClassDisplayName: Scalars['String'];
   runFromCI?: Maybe<Scalars['Boolean']>;
   runtimeVersion?: Maybe<Scalars['String']>;
   sdkVersion?: Maybe<Scalars['String']>;
@@ -2197,14 +2254,18 @@ export enum BuildResourceClass {
   AndroidLarge = 'ANDROID_LARGE',
   AndroidMedium = 'ANDROID_MEDIUM',
   IosDefault = 'IOS_DEFAULT',
+  /** @deprecated Use IOS_INTEL_MEDIUM instead */
   IosIntelLarge = 'IOS_INTEL_LARGE',
   IosIntelMedium = 'IOS_INTEL_MEDIUM',
   IosLarge = 'IOS_LARGE',
+  /** @deprecated Use IOS_M_MEDIUM instead */
   IosM1Large = 'IOS_M1_LARGE',
   IosM1Medium = 'IOS_M1_MEDIUM',
   IosM2Medium = 'IOS_M2_MEDIUM',
   IosM2ProMedium = 'IOS_M2_PRO_MEDIUM',
   IosMedium = 'IOS_MEDIUM',
+  IosMLarge = 'IOS_M_LARGE',
+  IosMMedium = 'IOS_M_MEDIUM',
   Legacy = 'LEGACY'
 }
 
@@ -2340,7 +2401,7 @@ export type CreateGitHubRepositoryInput = {
 
 export type CreateGitHubRepositorySettingsInput = {
   appId: Scalars['ID'];
-  /** The base directory is the directory to change to before starting a build. This string should be a properly formatted Unix path starting with '/', './', or the name of the directory relative to the root of the repository. Valid examples include: '/apps/expo-app', './apps/expo-app', and 'apps/expo-app'. This is intended for monorepos or apps that live in a subdirectory of a repository. */
+  /** The base directory is the directory to change to before starting a build. This string should be a properly formatted POSIX path starting with '/', './', or the name of the directory relative to the root of the repository. Valid examples include: '/apps/expo-app', './apps/expo-app', and 'apps/expo-app'. This is intended for monorepos or apps that live in a subdirectory of a repository. */
   baseDirectory: Scalars['String'];
 };
 
@@ -4597,6 +4658,8 @@ export type User = Actor & UserActor & {
   id: Scalars['ID'];
   industry?: Maybe<Scalars['String']>;
   isExpoAdmin: Scalars['Boolean'];
+  /** @deprecated This field no longer exists */
+  isLegacy: Scalars['Boolean'];
   isSecondFactorAuthenticationEnabled: Scalars['Boolean'];
   lastName?: Maybe<Scalars['String']>;
   location?: Maybe<Scalars['String']>;
@@ -4869,6 +4932,7 @@ export type UserPermission = {
   role?: Maybe<Role>;
   /** @deprecated User type is deprecated */
   user?: Maybe<User>;
+  userActor?: Maybe<UserActor>;
 };
 
 export type UserQuery = {

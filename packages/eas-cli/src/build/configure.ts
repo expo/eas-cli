@@ -54,18 +54,18 @@ const EAS_JSON_MANAGED_DEFAULT: EasJson = {
       developmentClient: true,
       distribution: 'internal',
       ios: {
-        resourceClass: ResourceClass.M1_MEDIUM,
+        resourceClass: ResourceClass.M_MEDIUM,
       },
     },
     preview: {
       distribution: 'internal',
       ios: {
-        resourceClass: ResourceClass.M1_MEDIUM,
+        resourceClass: ResourceClass.M_MEDIUM,
       },
     },
     production: {
       ios: {
-        resourceClass: ResourceClass.M1_MEDIUM,
+        resourceClass: ResourceClass.M_MEDIUM,
       },
     },
   },
@@ -86,18 +86,18 @@ const EAS_JSON_BARE_DEFAULT: EasJson = {
       },
       ios: {
         buildConfiguration: 'Debug',
-        resourceClass: ResourceClass.M1_MEDIUM,
+        resourceClass: ResourceClass.M_MEDIUM,
       },
     },
     preview: {
       distribution: 'internal',
       ios: {
-        resourceClass: ResourceClass.M1_MEDIUM,
+        resourceClass: ResourceClass.M_MEDIUM,
       },
     },
     production: {
       ios: {
-        resourceClass: ResourceClass.M1_MEDIUM,
+        resourceClass: ResourceClass.M_MEDIUM,
       },
     },
   },

@@ -8,24 +8,30 @@ import { BuildResourceClass } from '../../graphql/generated';
 import Log from '../../log';
 import { getReactNativeVersionAsync } from '../metadata';
 
+type AndroidResourceClass = Exclude<
+  ResourceClass,
+  | ResourceClass.M1_EXPERIMENTAL
+  | ResourceClass.M1_MEDIUM
+  | ResourceClass.M1_LARGE
+  | ResourceClass.INTEL_MEDIUM
+  | ResourceClass.M_MEDIUM
+  | ResourceClass.M_LARGE
+>;
+
 const iosResourceClassToBuildResourceClassMapping: Record<ResourceClass, BuildResourceClass> = {
   [ResourceClass.DEFAULT]: BuildResourceClass.IosDefault,
   [ResourceClass.LARGE]: BuildResourceClass.IosLarge,
-  [ResourceClass.M1_EXPERIMENTAL]: BuildResourceClass.IosM1Large,
-  [ResourceClass.M1_MEDIUM]: BuildResourceClass.IosM1Medium,
+  [ResourceClass.M1_EXPERIMENTAL]: BuildResourceClass.IosMMedium,
+  [ResourceClass.M1_MEDIUM]: BuildResourceClass.IosMMedium,
   [ResourceClass.M1_LARGE]: BuildResourceClass.IosM1Large,
   [ResourceClass.INTEL_MEDIUM]: BuildResourceClass.IosIntelMedium,
   [ResourceClass.MEDIUM]: BuildResourceClass.IosMedium,
+  [ResourceClass.M_MEDIUM]: BuildResourceClass.IosMMedium,
+  [ResourceClass.M_LARGE]: BuildResourceClass.IosMLarge,
 };
 
 const androidResourceClassToBuildResourceClassMapping: Record<
-  Exclude<
-    ResourceClass,
-    | ResourceClass.M1_EXPERIMENTAL
-    | ResourceClass.M1_MEDIUM
-    | ResourceClass.M1_LARGE
-    | ResourceClass.INTEL_MEDIUM
-  >,
+  AndroidResourceClass,
   BuildResourceClass
 > = {
   [ResourceClass.DEFAULT]: BuildResourceClass.AndroidDefault,
@@ -70,15 +76,7 @@ function resolveAndroidResourceClass(selectedResourceClass?: ResourceClass): Bui
 
   const resourceClass = selectedResourceClass ?? ResourceClass.DEFAULT;
 
-  return androidResourceClassToBuildResourceClassMapping[
-    resourceClass as Exclude<
-      ResourceClass,
-      | ResourceClass.M1_EXPERIMENTAL
-      | ResourceClass.M1_MEDIUM
-      | ResourceClass.M1_LARGE
-      | ResourceClass.INTEL_MEDIUM
-    >
-  ];
+  return androidResourceClassToBuildResourceClassMapping[resourceClass as AndroidResourceClass];
 }
 
 async function resolveIosResourceClassAsync(
@@ -106,7 +104,7 @@ async function resolveIosDefaultRequestedResourceClassAsync(
     (sdkVersion && semver.satisfies(sdkVersion, '>=48')) ||
     (reactNativeVersion && semver.satisfies(reactNativeVersion, '>=0.71.0'))
   ) {
-    return ResourceClass.M1_MEDIUM;
+    return ResourceClass.M_MEDIUM;
   } else {
     return ResourceClass.DEFAULT;
   }
