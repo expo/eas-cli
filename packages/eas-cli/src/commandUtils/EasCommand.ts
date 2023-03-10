@@ -106,6 +106,21 @@ export default abstract class EasCommand extends Command {
   static contextDefinition: ContextInput = {};
 
   /**
+   * The user session manager. Responsible for coordinating all user session related state.
+   * If needed in a subclass, use the SessionManager ContextOption.
+   */
+  private sessionManagerInternal?: SessionManager;
+
+  /**
+   * The analytics manager. Used for logging analytics.
+   * It is set up here to ensure a consistent setup.
+   */
+  private analyticsInternal?: AnalyticsWithOrchestration;
+
+  protected baseErrorMessage = 'Command failed.';
+  protected baseGraphQLErrorMessage = 'GraphQL request failed.';
+
+  /**
    * Execute the context in the contextDefinition to satisfy command prerequisites.
    */
   protected async getContextAsync<
@@ -134,20 +149,10 @@ export default abstract class EasCommand extends Command {
     return Object.fromEntries(contextValuePairs);
   }
 
-  /**
-   * The user session manager. Responsible for coordinating all user session related state.
-   * If needed in a subclass, use the SessionManager ContextOption.
-   */
-  private sessionManagerInternal?: SessionManager;
   private get sessionManager(): SessionManager {
     return nullthrows(this.sessionManagerInternal);
   }
 
-  /**
-   * The analytics manager. Used for logging analytics.
-   * It is set up here to ensure a consistent set up.
-   */
-  private analyticsInternal?: AnalyticsWithOrchestration;
   private get analytics(): AnalyticsWithOrchestration {
     return nullthrows(this.analyticsInternal);
   }
@@ -178,8 +183,6 @@ export default abstract class EasCommand extends Command {
     return super.finally(err);
   }
 
-  protected baseErrorMessage = 'Command failed.';
-  protected baseGraphQLErrorMessage = 'GraphQL request failed.';
   protected override catch(err: Error): Promise<any> {
     const isGraphQLError = (err: any): boolean => {
       return err?.graphQLErrors;
