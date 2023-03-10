@@ -105,7 +105,8 @@ describe(EasCommand.name, () => {
     describe('catch', () => {
       it('logs the message', async () => {
         const TestEasCommand = createTestEasCommand();
-        const logSpy = jest.spyOn(Log, 'error');
+        const logErrorSpy = jest.spyOn(Log, 'error');
+        const logDebugSpy = jest.spyOn(Log, 'debug');
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
         runAsyncMock.mockImplementation(() => {
           throw new Error('Unexpected, internal error message');
@@ -114,12 +115,14 @@ describe(EasCommand.name, () => {
           await TestEasCommand.run();
         } catch {}
 
-        expect(logSpy).toBeCalledWith('Unexpected, internal error message');
+        expect(logErrorSpy).toBeCalledWith('Unexpected, internal error message');
+        expect(logDebugSpy).toBeCalledWith('Unexpected, internal error message');
       });
 
       it('logs the cleaned message if needed', async () => {
         const TestEasCommand = createTestEasCommand();
-        const logSpy = jest.spyOn(Log, 'error');
+        const logErrorSpy = jest.spyOn(Log, 'error');
+        const logDebugSpy = jest.spyOn(Log, 'debug');
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
         runAsyncMock.mockImplementation(() => {
           const graphQLErrors = ['Unexpected GraphQL error message'];
@@ -129,7 +132,8 @@ describe(EasCommand.name, () => {
           await TestEasCommand.run();
         } catch {}
 
-        expect(logSpy).toBeCalledWith('Unexpected GraphQL error message');
+        expect(logErrorSpy).toBeCalledWith('Unexpected GraphQL error message');
+        expect(logDebugSpy).toBeCalledWith('[GraphQL] Unexpected GraphQL error message');
       });
 
       it('re-throws the error with new message if provided', async () => {

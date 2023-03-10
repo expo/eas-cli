@@ -188,6 +188,7 @@ export default abstract class EasCommand extends Command {
     const isGraphQL = isGraphQLError(err);
     const cleanMessage = isGraphQL ? err.message.replace('[GraphQL] ', '') : err.message;
     Log.error(cleanMessage);
+    Log.debug(err.message);
     throw new Error(isGraphQL ? this.baseGraphQLErrorMessage : this.baseErrorMessage);
   }
 }
