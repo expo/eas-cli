@@ -188,7 +188,6 @@ export default abstract class EasCommand extends Command {
     let baseMessage: string = '';
     if (err instanceof EasCommandError) {
       Log.error(err.message);
-      // baseMessage = this.baseErrorMessage;
       baseMessage = this.baseErrorMessage || `${this.id} command failed.`;
     } else {
       const cleanMessage =
@@ -199,8 +198,7 @@ export default abstract class EasCommand extends Command {
       baseMessage =
         err instanceof CombinedError && err?.graphQLErrors
           ? this.baseGraphQLErrorMessage
-          : // : this.baseErrorMessage;
-            this.baseErrorMessage || `${this.id} command failed.`;
+          : this.baseErrorMessage || `${this.id} command failed.`;
     }
     Log.debug(err);
     throw new Error(baseMessage);
