@@ -1,8 +1,9 @@
+import { CombinedError } from '@urql/core';
+
 import { AnalyticsWithOrchestration, createAnalyticsAsync } from '../../analytics/AnalyticsManager';
 import Log from '../../log';
 import SessionManager from '../../user/SessionManager';
 import EasCommand from '../EasCommand';
-import {CombinedError} from "@urql/core";
 
 jest.mock('../../user/User');
 jest.mock('../../user/SessionManager');
@@ -41,7 +42,7 @@ beforeEach(() => {
 const createTestEasCommand = (baseErrorMessage?: string): typeof EasCommand => {
   class TestEasCommand extends EasCommand {
     async runAsync(): Promise<void> {}
-    protected override baseErrorMessage = baseErrorMessage || 'Request failed';
+    protected override baseErrorMessage = baseErrorMessage || 'Command failed';
   }
 
   TestEasCommand.id = 'TestEasCommand'; // normally oclif will assign ids, but b/c this is located outside the commands folder it will not
@@ -155,7 +156,22 @@ describe(EasCommand.name, () => {
           await TestEasCommand.run();
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
-          expect((caughtError as Error).message).toEqual('Request failed');
+          expect((caughtError as Error).message).toEqual('Command failed');
+        }
+      });
+
+      it('re-throws the error with a different default base message in case of graphQLError', async () => {
+        const TestEasCommand = createTestEasCommand();
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        runAsyncMock.mockImplementation(() => {
+          const graphQLErrors = ['Unexpected GraphQL error message'];
+          throw new CombinedError({ graphQLErrors });
+        });
+        try {
+          await TestEasCommand.run();
+        } catch (caughtError) {
+          expect(caughtError).toBeInstanceOf(Error);
+          expect((caughtError as Error).message).toEqual('GraphQL request failed.');
         }
       });
     });

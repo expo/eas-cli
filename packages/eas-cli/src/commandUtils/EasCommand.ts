@@ -178,13 +178,16 @@ export default abstract class EasCommand extends Command {
     return super.finally(err);
   }
 
-  protected baseErrorMessage = 'Command failed';
+  protected baseErrorMessage = 'Command failed.';
+  protected baseGraphQLErrorMessage = 'GraphQL request failed.';
   protected override catch(err: CommandError): Promise<any> {
     const isGraphQLError = (err: any): boolean => {
       return err?.graphQLErrors;
     };
-    const cleanMessage = isGraphQLError(err) ? err.message.replace('[GraphQL] ', '') : err.message;
+
+    const isGraphQL = isGraphQLError(err);
+    const cleanMessage = isGraphQL ? err.message.replace('[GraphQL] ', '') : err.message;
     Log.error(cleanMessage);
-    throw new Error(this.baseErrorMessage);
+    throw new Error(isGraphQL ? this.baseGraphQLErrorMessage : this.baseErrorMessage);
   }
 }
