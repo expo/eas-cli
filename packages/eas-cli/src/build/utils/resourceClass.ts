@@ -88,11 +88,19 @@ async function resolveIosResourceClassAsync(
     selectedResourceClass ?? (await resolveIosDefaultRequestedResourceClassAsync(exp, projectDir));
 
   if (resourceClass === ResourceClass.M1_EXPERIMENTAL) {
-    Log.warn(`Resource class ${chalk.bold('m1-experimental')} is deprecated.`);
+    Log.warn(
+      `Resource class ${chalk.bold('m1-experimental')} is deprecated. Use ${chalk.bold(
+        'm-medium'
+      )} instead.`
+    );
   }
 
   if (resourceClass === ResourceClass.M1_MEDIUM) {
-    Log.warn(`Resource class ${chalk.bold('m1-medium')} is deprecated.`);
+    Log.warn(
+      `Resource class ${chalk.bold('m1-medium')} is deprecated. Use ${chalk.bold(
+        'm-medium'
+      )} instead.`
+    );
   }
 
   return iosResourceClassToBuildResourceClassMapping[resourceClass];
