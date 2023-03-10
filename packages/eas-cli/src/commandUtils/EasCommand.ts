@@ -118,7 +118,7 @@ export default abstract class EasCommand extends Command {
    */
   private analyticsInternal?: AnalyticsWithOrchestration;
 
-  protected baseErrorMessage: string = '';
+  protected baseErrorMessage?: string;
   protected baseGraphQLErrorMessage: string = 'GraphQL request failed.';
 
   /**
