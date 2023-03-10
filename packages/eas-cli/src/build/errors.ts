@@ -6,19 +6,19 @@ export class TurtleDeprecatedJobFormatError extends Error {
 
 export class EasBuildFreeTierDisabledError extends Error {
   constructor(message?: string) {
-    super(message ?? 'Eas-build free tier is disabled.');
+    super(message ?? 'EAS Build free tier is disabled.');
   }
 }
 
 export class EasBuildFreeTierDisabledIOSError extends Error {
   constructor(message?: string) {
-    super(message ?? 'Eas-build free tier is disabled for iOS.');
+    super(message ?? 'EAS Build free tier is disabled for iOS.');
   }
 }
 
 export class EasBuildFreeTierDisabledAndroidError extends Error {
   constructor(message?: string) {
-    super(message ?? 'Eas-build free tier is disabled for Android.');
+    super(message ?? 'EAS Build free tier is disabled for Android.');
   }
 }
 
@@ -30,13 +30,13 @@ export class RequestValidationError extends Error {
 
 export class EasBuildDownForMaintenanceError extends Error {
   constructor(message?: string) {
-    super(message ?? 'Eas-build is currently down for maintenance.');
+    super(message ?? 'EAS Build is currently down for maintenance.');
   }
 }
 
 export class EasBuildTooManyPendingBuildsError extends Error {
   constructor(message?: string) {
-    super(message ?? 'Eas-build has too many pending builds at the moment.');
+    super(message ?? 'EAS Build has too many pending builds at the moment.');
   }
 }
 
