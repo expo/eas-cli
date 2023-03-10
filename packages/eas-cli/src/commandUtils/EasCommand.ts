@@ -118,8 +118,8 @@ export default abstract class EasCommand extends Command {
    */
   private analyticsInternal?: AnalyticsWithOrchestration;
 
-  protected baseErrorMessage = 'Command failed.';
-  protected baseGraphQLErrorMessage = 'GraphQL request failed.';
+  protected baseErrorMessage: string = '';
+  protected baseGraphQLErrorMessage: string = 'GraphQL request failed.';
 
   /**
    * Execute the context in the contextDefinition to satisfy command prerequisites.
@@ -188,7 +188,8 @@ export default abstract class EasCommand extends Command {
     let baseMessage: string = '';
     if (err instanceof EasCommandError) {
       Log.error(err.message);
-      baseMessage = this.baseErrorMessage;
+      // baseMessage = this.baseErrorMessage;
+      baseMessage = this.baseErrorMessage || `${this.id} command failed.`;
     } else {
       const cleanMessage =
         err instanceof CombinedError && err?.graphQLErrors
@@ -198,7 +199,8 @@ export default abstract class EasCommand extends Command {
       baseMessage =
         err instanceof CombinedError && err?.graphQLErrors
           ? this.baseGraphQLErrorMessage
-          : this.baseErrorMessage;
+          : // : this.baseErrorMessage;
+            this.baseErrorMessage || `${this.id} command failed.`;
     }
     Log.debug(err);
     throw new Error(baseMessage);

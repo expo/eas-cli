@@ -42,7 +42,7 @@ beforeEach(() => {
 const createTestEasCommand = (baseErrorMessage?: string): typeof EasCommand => {
   class TestEasCommand extends EasCommand {
     async runAsync(): Promise<void> {}
-    protected override baseErrorMessage = baseErrorMessage || 'Command failed';
+    protected override baseErrorMessage = baseErrorMessage || '';
   }
 
   TestEasCommand.id = 'TestEasCommand'; // normally oclif will assign ids, but b/c this is located outside the commands folder it will not
@@ -162,7 +162,7 @@ describe(EasCommand.name, () => {
           await TestEasCommand.run();
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
-          expect((caughtError as Error).message).toEqual('Command failed');
+          expect((caughtError as Error).message).toEqual('TestEasCommand command failed.');
         }
       });
 
