@@ -91,6 +91,10 @@ async function resolveIosResourceClassAsync(
     Log.warn(`Resource class ${chalk.bold('m1-experimental')} is deprecated.`);
   }
 
+  if (resourceClass === ResourceClass.M1_MEDIUM) {
+    Log.warn(`Resource class ${chalk.bold('m1-medium')} is deprecated.`);
+  }
+
   return iosResourceClassToBuildResourceClassMapping[resourceClass];
 }
 
