@@ -1,5 +1,4 @@
 import { Command } from '@oclif/core';
-import { CommandError } from '@oclif/core/lib/interfaces';
 import nullthrows from 'nullthrows';
 
 import {
@@ -7,6 +6,7 @@ import {
   CommandEvent,
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
+import { EasCommandError } from '../build/errors';
 import Log from '../log';
 import SessionManager from '../user/SessionManager';
 import AnalyticsContextField from './context/AnalyticsContextField';
@@ -180,15 +180,22 @@ export default abstract class EasCommand extends Command {
 
   protected baseErrorMessage = 'Command failed.';
   protected baseGraphQLErrorMessage = 'GraphQL request failed.';
-  protected override catch(err: CommandError): Promise<any> {
+  protected override catch(err: Error): Promise<any> {
     const isGraphQLError = (err: any): boolean => {
       return err?.graphQLErrors;
     };
 
-    const isGraphQL = isGraphQLError(err);
-    const cleanMessage = isGraphQL ? err.message.replace('[GraphQL] ', '') : err.message;
-    Log.error(cleanMessage);
+    let baseMessage: string = '';
+    if (err instanceof EasCommandError) {
+      Log.error(err.message);
+      baseMessage = this.baseErrorMessage;
+    } else {
+      const isGraphQL = isGraphQLError(err);
+      const cleanMessage = isGraphQL ? err.message.replace('[GraphQL] ', '') : err.message;
+      Log.error(cleanMessage);
+      baseMessage = isGraphQL ? this.baseGraphQLErrorMessage : this.baseErrorMessage;
+    }
     Log.debug(err);
-    throw new Error(isGraphQL ? this.baseGraphQLErrorMessage : this.baseErrorMessage);
+    throw new Error(baseMessage);
   }
 }
