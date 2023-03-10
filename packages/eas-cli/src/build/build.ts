@@ -183,7 +183,7 @@ function handleBuildRequestError(error: any, platform: Platform): never {
   Log.debug(JSON.stringify(error.graphQLErrors, null, 2));
 
   const graphQLErrorCode: string = error?.graphQLErrors?.[0]?.extensions?.errorCode;
-  if (Object.keys(SERVER_SIDE_DEFINED_ERRORS).includes(graphQLErrorCode)) {
+  if (graphQLErrorCode in SERVER_SIDE_DEFINED_ERRORS) {
     const ErrorClass: typeof Error = SERVER_SIDE_DEFINED_ERRORS[graphQLErrorCode];
     throw new ErrorClass(error?.graphQLErrors?.[0]?.message);
   } else if (graphQLErrorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE') {
