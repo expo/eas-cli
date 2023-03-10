@@ -1,4 +1,5 @@
 import { Command } from '@oclif/core';
+import { CombinedError } from '@urql/core';
 import nullthrows from 'nullthrows';
 
 import {
@@ -184,19 +185,20 @@ export default abstract class EasCommand extends Command {
   }
 
   protected override catch(err: Error): Promise<any> {
-    const isGraphQLError = (err: any): boolean => {
-      return err?.graphQLErrors;
-    };
-
     let baseMessage: string = '';
     if (err instanceof EasCommandError) {
       Log.error(err.message);
       baseMessage = this.baseErrorMessage;
     } else {
-      const isGraphQL = isGraphQLError(err);
-      const cleanMessage = isGraphQL ? err.message.replace('[GraphQL] ', '') : err.message;
+      const cleanMessage =
+        err instanceof CombinedError && err?.graphQLErrors
+          ? err.message.replace('[GraphQL] ', '')
+          : err.message;
       Log.error(cleanMessage);
-      baseMessage = isGraphQL ? this.baseGraphQLErrorMessage : this.baseErrorMessage;
+      baseMessage =
+        err instanceof CombinedError && err?.graphQLErrors
+          ? this.baseGraphQLErrorMessage
+          : this.baseErrorMessage;
     }
     Log.debug(err);
     throw new Error(baseMessage);
