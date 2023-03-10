@@ -2,6 +2,7 @@ import { AnalyticsWithOrchestration, createAnalyticsAsync } from '../../analytic
 import Log from '../../log';
 import SessionManager from '../../user/SessionManager';
 import EasCommand from '../EasCommand';
+import {CombinedError} from "@urql/core";
 
 jest.mock('../../user/User');
 jest.mock('../../user/SessionManager');
@@ -120,7 +121,8 @@ describe(EasCommand.name, () => {
         const logSpy = jest.spyOn(Log, 'error');
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
         runAsyncMock.mockImplementation(() => {
-          throw new Error('[GraphQL] Unexpected GraphQL error message');
+          const graphQLErrors = ['Unexpected GraphQL error message'];
+          throw new CombinedError({ graphQLErrors });
         });
         try {
           await TestEasCommand.run();
