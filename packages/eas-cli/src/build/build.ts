@@ -36,6 +36,16 @@ import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
 import { getVcsClient } from '../vcs';
 import { BuildContext } from './context';
+import {
+  EasBuildDownForMaintenanceError,
+  EasBuildFreeTierDisabledAndroidError,
+  EasBuildFreeTierDisabledError,
+  EasBuildFreeTierDisabledIOSError,
+  EasBuildTooManyPendingBuildsError,
+  GenericGraphQLError,
+  RequestValidationError,
+  TurtleDeprecatedJobFormatError,
+} from './errors';
 import { transformMetadata } from './graphql';
 import { LocalBuildMode, runLocalBuildAsync } from './local';
 import { collectMetadataAsync } from './metadata';
@@ -161,35 +171,33 @@ export async function prepareBuildRequestForPlatformAsync<
   };
 }
 
-const SERVER_SIDE_DEFINED_ERRORS = [
-  'TURTLE_DEPRECATED_JOB_FORMAT',
-  'EAS_BUILD_FREE_TIER_DISABLED',
-  'EAS_BUILD_FREE_TIER_DISABLED_IOS',
-  'EAS_BUILD_FREE_TIER_DISABLED_ANDROID',
-  'VALIDATION_ERROR',
-];
+const SERVER_SIDE_DEFINED_ERRORS: { [key: string]: any } = {
+  TURTLE_DEPRECATED_JOB_FORMAT: TurtleDeprecatedJobFormatError,
+  EAS_BUILD_FREE_TIER_DISABLED: EasBuildFreeTierDisabledError,
+  EAS_BUILD_FREE_TIER_DISABLED_IOS: EasBuildFreeTierDisabledIOSError,
+  EAS_BUILD_FREE_TIER_DISABLED_ANDROID: EasBuildFreeTierDisabledAndroidError,
+  VALIDATION_ERROR: RequestValidationError,
+};
 
 function handleBuildRequestError(error: any, platform: Platform): never {
   Log.debug(JSON.stringify(error.graphQLErrors, null, 2));
 
-  if (SERVER_SIDE_DEFINED_ERRORS.includes(error?.graphQLErrors?.[0]?.extensions?.errorCode)) {
-    throw new Error(error?.graphQLErrors?.[0]?.message);
-  } else if (
-    error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE'
-  ) {
-    throw new Error(
+  const graphQLErrorCode: string = error?.graphQLErrors?.[0]?.extensions?.errorCode;
+  if (Object.keys(SERVER_SIDE_DEFINED_ERRORS).includes(graphQLErrorCode)) {
+    const ErrorClass: typeof Error = SERVER_SIDE_DEFINED_ERRORS[graphQLErrorCode];
+    throw new ErrorClass(error?.graphQLErrors?.[0]?.message);
+  } else if (graphQLErrorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE') {
+    throw new EasBuildDownForMaintenanceError(
       `EAS Build is down for maintenance. Try again later. Check ${link(
         'https://status.expo.dev/'
       )} for updates.`
     );
-  } else if (
-    error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_TOO_MANY_PENDING_BUILDS'
-  ) {
-    throw new Error(
+  } else if (graphQLErrorCode === 'EAS_BUILD_TOO_MANY_PENDING_BUILDS') {
+    throw new EasBuildTooManyPendingBuildsError(
       `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
     );
   } else if (error?.graphQLErrors) {
-    throw new Error(
+    throw new GenericGraphQLError(
       'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.'
     );
   }
