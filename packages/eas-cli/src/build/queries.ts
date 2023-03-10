@@ -43,7 +43,7 @@ export async function listAndRenderBuildsOnAppAsync(
       offset: paginatedQueryOptions.offset,
       queryToPerform: (limit, offset) =>
         BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
-          appId: 111 as unknown as string,
+          appId: projectId,
           limit,
           offset,
           filter,
