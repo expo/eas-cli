@@ -23,7 +23,7 @@ const iosResourceClassToBuildResourceClassMapping: Record<ResourceClass, BuildRe
   [ResourceClass.LARGE]: BuildResourceClass.IosLarge,
   [ResourceClass.M1_EXPERIMENTAL]: BuildResourceClass.IosMMedium,
   [ResourceClass.M1_MEDIUM]: BuildResourceClass.IosMMedium,
-  [ResourceClass.M1_LARGE]: BuildResourceClass.IosM1Large,
+  [ResourceClass.M1_LARGE]: BuildResourceClass.IosMLarge,
   [ResourceClass.INTEL_MEDIUM]: BuildResourceClass.IosIntelMedium,
   [ResourceClass.MEDIUM]: BuildResourceClass.IosMedium,
   [ResourceClass.M_MEDIUM]: BuildResourceClass.IosMMedium,
@@ -87,18 +87,18 @@ async function resolveIosResourceClassAsync(
   const resourceClass =
     selectedResourceClass ?? (await resolveIosDefaultRequestedResourceClassAsync(exp, projectDir));
 
-  if (resourceClass === ResourceClass.M1_EXPERIMENTAL) {
+  if ([ResourceClass.M1_EXPERIMENTAL, ResourceClass.M1_MEDIUM].includes(resourceClass)) {
     Log.warn(
-      `Resource class ${chalk.bold('m1-experimental')} is deprecated. Use ${chalk.bold(
+      `Resource class ${chalk.bold(resourceClass)} is deprecated. Use ${chalk.bold(
         'm-medium'
       )} instead.`
     );
   }
 
-  if (resourceClass === ResourceClass.M1_MEDIUM) {
+  if (resourceClass === ResourceClass.M1_LARGE) {
     Log.warn(
-      `Resource class ${chalk.bold('m1-medium')} is deprecated. Use ${chalk.bold(
-        'm-medium'
+      `Resource class ${chalk.bold('m1-large')} is deprecated. Use ${chalk.bold(
+        'm-large'
       )} instead.`
     );
   }
