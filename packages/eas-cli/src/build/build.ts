@@ -10,6 +10,7 @@ import { BuildEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
 import { getExpoWebsiteBaseUrl } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { EasCommandError } from '../commandUtils/errors';
 import {
   AppPlatform,
   BuildFragment,
@@ -42,7 +43,6 @@ import {
   EasBuildFreeTierDisabledError,
   EasBuildFreeTierDisabledIOSError,
   EasBuildTooManyPendingBuildsError,
-  EasCommandError,
   RequestValidationError,
   TurtleDeprecatedJobFormatError,
 } from './errors';

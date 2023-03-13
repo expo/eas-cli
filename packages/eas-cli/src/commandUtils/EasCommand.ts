@@ -7,7 +7,6 @@ import {
   CommandEvent,
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
-import { EasCommandError } from '../build/errors';
 import Log from '../log';
 import SessionManager from '../user/SessionManager';
 import AnalyticsContextField from './context/AnalyticsContextField';
@@ -19,6 +18,7 @@ import { OptionalProjectConfigContextField } from './context/OptionalProjectConf
 import ProjectConfigContextField from './context/ProjectConfigContextField';
 import ProjectDirContextField from './context/ProjectDirContextField';
 import SessionManagementContextField from './context/SessionManagementContextField';
+import { EasCommandError } from './errors';
 
 type ContextInput<
   T extends {

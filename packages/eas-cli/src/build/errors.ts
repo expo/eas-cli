@@ -1,8 +1,4 @@
-export class EasCommandError extends Error {
-  constructor(message?: string) {
-    super(message ?? 'Unknown EAS error occurred.');
-  }
-}
+import { EasCommandError } from '../commandUtils/errors';
 
 export class TurtleDeprecatedJobFormatError extends EasCommandError {
   constructor(message?: string) {
