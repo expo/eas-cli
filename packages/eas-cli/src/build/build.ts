@@ -615,7 +615,7 @@ async function updateIosBuildProfilesToUseM1WorkersAsync(projectDir: string): Pr
     for (const profileName of profileNames) {
       easJsonRawObject.build[profileName].ios = {
         ...easJsonRawObject.build[profileName].ios,
-        resourceClass: ResourceClass.M1_MEDIUM,
+        resourceClass: ResourceClass.M_MEDIUM,
       };
     }
     return easJsonRawObject;
