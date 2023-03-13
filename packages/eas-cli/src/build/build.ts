@@ -43,7 +43,6 @@ import {
   EasBuildFreeTierDisabledIOSError,
   EasBuildTooManyPendingBuildsError,
   EasCommandError,
-  GenericGraphQLError,
   RequestValidationError,
   TurtleDeprecatedJobFormatError,
 } from './errors';
@@ -198,7 +197,7 @@ function handleBuildRequestError(error: any, platform: Platform): never {
       `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
     );
   } else if (error?.graphQLErrors) {
-    throw new GenericGraphQLError(
+    throw new Error(
       'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.'
     );
   }

@@ -45,9 +45,3 @@ export class EasBuildTooManyPendingBuildsError extends EasCommandError {
     super(message ?? 'EAS Build has too many pending builds at the moment.');
   }
 }
-
-export class GenericGraphQLError extends EasCommandError {
-  constructor(message?: string) {
-    super(message ?? 'GraphQL query failed.');
-  }
-}
