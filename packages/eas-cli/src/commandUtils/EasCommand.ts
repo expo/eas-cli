@@ -36,6 +36,8 @@ type ContextOutput<
   [P in keyof T]: T[P];
 };
 
+const BASE_GRAPHQL_ERROR_MESSAGE: string = 'GraphQL request failed.';
+
 export default abstract class EasCommand extends Command {
   protected static readonly ContextOptions = {
     /**
@@ -119,7 +121,6 @@ export default abstract class EasCommand extends Command {
   private analyticsInternal?: AnalyticsWithOrchestration;
 
   protected baseErrorMessage?: string;
-  protected baseGraphQLErrorMessage: string = 'GraphQL request failed.';
 
   /**
    * Execute the context in the contextDefinition to satisfy command prerequisites.
@@ -189,9 +190,9 @@ export default abstract class EasCommand extends Command {
     if (err instanceof EasCommandError) {
       Log.error(err.message);
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
-      const cleanMessage = err.message.replace('[GraphQL] ', '')
+      const cleanMessage = err.message.replace('[GraphQL] ', '');
       Log.error(cleanMessage);
-      baseMessage = this.baseGraphQLErrorMessage
+      baseMessage = BASE_GRAPHQL_ERROR_MESSAGE;
     } else {
       Log.error(err.message);
     }
