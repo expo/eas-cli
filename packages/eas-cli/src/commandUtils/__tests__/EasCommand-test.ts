@@ -42,7 +42,7 @@ beforeEach(() => {
 const createTestEasCommand = (baseErrorMessage?: string): typeof EasCommand => {
   class TestEasCommand extends EasCommand {
     async runAsync(): Promise<void> {}
-    protected override baseErrorMessage = baseErrorMessage ?? '';
+    protected override baseErrorMessage = baseErrorMessage;
   }
 
   TestEasCommand.id = 'TestEasCommand'; // normally oclif will assign ids, but b/c this is located outside the commands folder it will not
