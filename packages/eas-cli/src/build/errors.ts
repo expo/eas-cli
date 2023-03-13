@@ -1,43 +1,15 @@
 import { EasCommandError } from '../commandUtils/errors';
 
-export class TurtleDeprecatedJobFormatError extends EasCommandError {
-  constructor(message?: string) {
-    super(message ?? 'Deprecated job format.');
-  }
-}
+export class TurtleDeprecatedJobFormatError extends EasCommandError {}
 
-export class EasBuildFreeTierDisabledError extends EasCommandError {
-  constructor(message?: string) {
-    super(message ?? 'EAS Build free tier is disabled.');
-  }
-}
+export class EasBuildFreeTierDisabledError extends EasCommandError {}
 
-export class EasBuildFreeTierDisabledIOSError extends EasCommandError {
-  constructor(message?: string) {
-    super(message ?? 'EAS Build free tier is disabled for iOS.');
-  }
-}
+export class EasBuildFreeTierDisabledIOSError extends EasCommandError {}
 
-export class EasBuildFreeTierDisabledAndroidError extends EasCommandError {
-  constructor(message?: string) {
-    super(message ?? 'EAS Build free tier is disabled for Android.');
-  }
-}
+export class EasBuildFreeTierDisabledAndroidError extends EasCommandError {}
 
-export class RequestValidationError extends EasCommandError {
-  constructor(message?: string) {
-    super(message ?? 'Request validation error.');
-  }
-}
+export class RequestValidationError extends EasCommandError {}
 
-export class EasBuildDownForMaintenanceError extends EasCommandError {
-  constructor(message?: string) {
-    super(message ?? 'EAS Build is currently down for maintenance.');
-  }
-}
+export class EasBuildDownForMaintenanceError extends EasCommandError {}
 
-export class EasBuildTooManyPendingBuildsError extends EasCommandError {
-  constructor(message?: string) {
-    super(message ?? 'EAS Build has too many pending builds at the moment.');
-  }
-}
+export class EasBuildTooManyPendingBuildsError extends EasCommandError {}
