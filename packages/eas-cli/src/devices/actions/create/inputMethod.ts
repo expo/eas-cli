@@ -47,6 +47,13 @@ async function collectDataAndRegisterDeviceAsync(
   const { udid, deviceClass, name } = await collectDeviceDataAsync(appleTeam);
 
   const spinner = ora(`Registering Apple device on Expo`).start();
+  console.log({
+    appleTeamId: appleTeam.id,
+    identifier: udid,
+    name,
+    deviceClass: deviceClass ?? undefined,
+    accountId,
+  });
   try {
     await AppleDeviceMutation.createAppleDeviceAsync(
       graphqlClient,
