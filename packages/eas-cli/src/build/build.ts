@@ -628,3 +628,7 @@ async function updateIosBuildProfilesToUseM1WorkersAsync(projectDir: string): Pr
   await easJsonAccessor.writeAsync();
   Log.withTick('Updated eas.json. Your next builds will run on M1 workers.');
 }
+
+export const testExports = {
+  handleBuildRequestError,
+};
