@@ -166,6 +166,21 @@ describe(EasCommand.name, () => {
         }
       });
 
+      it('re-throws the error with default base message if new one not provided - command id is capitalized if needed', async () => {
+        const TestEasCommand = createTestEasCommand();
+        TestEasCommand.id = 'testEasCommand';
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        runAsyncMock.mockImplementation(() => {
+          throw new Error('Error message');
+        });
+        try {
+          await TestEasCommand.run();
+        } catch (caughtError) {
+          expect(caughtError).toBeInstanceOf(Error);
+          expect((caughtError as Error).message).toEqual('TestEasCommand command failed.');
+        }
+      });
+
       it('re-throws the error with a different default base message in case of graphQLError', async () => {
         const TestEasCommand = createTestEasCommand();
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
