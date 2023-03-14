@@ -354,7 +354,7 @@
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "medium", "m1-medium", "intel-medium"]
+              "enum": ["default", "medium", "intel-medium", "m-medium"]
             },
             {
               "type": "string"

@@ -9,15 +9,21 @@ export enum ResourceClass {
   DEFAULT = 'default',
   LARGE = 'large',
   /**
-   * @deprecated use M1_MEDIUM instead
-   * @experimental
-   * This resource class is not yet ready to be used in production. For testing purposes only. Might be deprecated / deleted at any time.
+   * @deprecated use M_MEDIUM instead
    */
   M1_EXPERIMENTAL = 'm1-experimental',
+  /**
+   * @deprecated use M_MEDIUM instead
+   */
   M1_MEDIUM = 'm1-medium',
+  /**
+   * @deprecated use M_LARGE instead
+   */
   M1_LARGE = 'm1-large',
   INTEL_MEDIUM = 'intel-medium',
   MEDIUM = 'medium',
+  M_MEDIUM = 'm-medium',
+  M_LARGE = 'm-large',
 }
 
 export type DistributionType = 'store' | 'internal';

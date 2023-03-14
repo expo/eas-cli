@@ -14,6 +14,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Unify how the command errors are displayed. ([#1738](https://github.com/expo/eas-cli/pull/1738) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
+## [3.8.0](https://github.com/expo/eas-cli/releases/tag/v3.8.0) - 2023-03-13
+
+### 🎉 New features
+
+- Add new `m-medium` and `m-large` resource classes. ([#1739](https://github.com/expo/eas-cli/pull/1739) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [3.7.2](https://github.com/expo/eas-cli/releases/tag/v3.7.2) - 2023-02-24
 
 ### 🐛 Bug fixes
