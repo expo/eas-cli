@@ -120,8 +120,6 @@ export default abstract class EasCommand extends Command {
    */
   private analyticsInternal?: AnalyticsWithOrchestration;
 
-  protected baseErrorMessage?: string;
-
   /**
    * Execute the context in the contextDefinition to satisfy command prerequisites.
    */
@@ -186,7 +184,7 @@ export default abstract class EasCommand extends Command {
   }
 
   protected override catch(err: Error): Promise<any> {
-    let baseMessage = this.baseErrorMessage ?? `${this.id} command failed.`;
+    let baseMessage = `${this.id} command failed.`;
     if (err instanceof EasCommandError) {
       Log.error(err.message);
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
