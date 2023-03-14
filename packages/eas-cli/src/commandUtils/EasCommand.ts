@@ -184,8 +184,7 @@ export default abstract class EasCommand extends Command {
   }
 
   protected override catch(err: Error): Promise<any> {
-    const commandId = (this.id as string).charAt(0).toLowerCase() + (this.id as string).slice(1);
-    let baseMessage = `${commandId} command failed.`;
+    let baseMessage = `${this.id} command failed.`;
     if (err instanceof EasCommandError) {
       Log.error(err.message);
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
