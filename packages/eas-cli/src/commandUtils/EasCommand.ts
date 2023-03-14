@@ -1,4 +1,5 @@
 import { Command } from '@oclif/core';
+import { CombinedError } from '@urql/core';
 import nullthrows from 'nullthrows';
 
 import {
@@ -6,6 +7,7 @@ import {
   CommandEvent,
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
+import Log from '../log';
 import SessionManager from '../user/SessionManager';
 import AnalyticsContextField from './context/AnalyticsContextField';
 import ContextField from './context/ContextField';
@@ -16,6 +18,7 @@ import { OptionalProjectConfigContextField } from './context/OptionalProjectConf
 import ProjectConfigContextField from './context/ProjectConfigContextField';
 import ProjectDirContextField from './context/ProjectDirContextField';
 import SessionManagementContextField from './context/SessionManagementContextField';
+import { EasCommandError } from './errors';
 
 type ContextInput<
   T extends {
@@ -32,6 +35,8 @@ type ContextOutput<
 > = {
   [P in keyof T]: T[P];
 };
+
+const BASE_GRAPHQL_ERROR_MESSAGE: string = 'GraphQL request failed.';
 
 export default abstract class EasCommand extends Command {
   protected static readonly ContextOptions = {
@@ -104,6 +109,20 @@ export default abstract class EasCommand extends Command {
   static contextDefinition: ContextInput = {};
 
   /**
+   * The user session manager. Responsible for coordinating all user session related state.
+   * If needed in a subclass, use the SessionManager ContextOption.
+   */
+  private sessionManagerInternal?: SessionManager;
+
+  /**
+   * The analytics manager. Used for logging analytics.
+   * It is set up here to ensure a consistent setup.
+   */
+  private analyticsInternal?: AnalyticsWithOrchestration;
+
+  protected baseErrorMessage?: string;
+
+  /**
    * Execute the context in the contextDefinition to satisfy command prerequisites.
    */
   protected async getContextAsync<
@@ -132,20 +151,10 @@ export default abstract class EasCommand extends Command {
     return Object.fromEntries(contextValuePairs);
   }
 
-  /**
-   * The user session manager. Responsible for coordinating all user session related state.
-   * If needed in a subclass, use the SessionManager ContextOption.
-   */
-  private sessionManagerInternal?: SessionManager;
   private get sessionManager(): SessionManager {
     return nullthrows(this.sessionManagerInternal);
   }
 
-  /**
-   * The analytics manager. Used for logging analytics.
-   * It is set up here to ensure a consistent set up.
-   */
-  private analyticsInternal?: AnalyticsWithOrchestration;
   private get analytics(): AnalyticsWithOrchestration {
     return nullthrows(this.analyticsInternal);
   }
@@ -174,5 +183,20 @@ export default abstract class EasCommand extends Command {
   override async finally(err: Error): Promise<any> {
     await this.analytics.flushAsync();
     return super.finally(err);
+  }
+
+  protected override catch(err: Error): Promise<any> {
+    let baseMessage = this.baseErrorMessage ?? `${this.id} command failed.`;
+    if (err instanceof EasCommandError) {
+      Log.error(err.message);
+    } else if (err instanceof CombinedError && err?.graphQLErrors) {
+      const cleanMessage = err.message.replace('[GraphQL] ', '');
+      Log.error(cleanMessage);
+      baseMessage = BASE_GRAPHQL_ERROR_MESSAGE;
+    } else {
+      Log.error(err.message);
+    }
+    Log.debug(err);
+    throw new Error(baseMessage);
   }
 }
