@@ -179,7 +179,7 @@ const SERVER_SIDE_DEFINED_ERRORS: Record<string, typeof EasCommandError> = {
   VALIDATION_ERROR: RequestValidationError,
 };
 
-function handleBuildRequestError(error: any, platform: Platform): never {
+export function handleBuildRequestError(error: any, platform: Platform): never {
   Log.debug(JSON.stringify(error.graphQLErrors, null, 2));
 
   const graphQLErrorCode: string = error?.graphQLErrors?.[0]?.extensions?.errorCode;
@@ -628,7 +628,3 @@ async function updateIosBuildProfilesToUseM1WorkersAsync(projectDir: string): Pr
   await easJsonAccessor.writeAsync();
   Log.withTick('Updated eas.json. Your next builds will run on M1 workers.');
 }
-
-export const testExports = {
-  handleBuildRequestError,
-};

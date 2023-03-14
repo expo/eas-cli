@@ -5,7 +5,7 @@ import { GraphQLError } from 'graphql/error';
 import { EasCommandError } from '../../commandUtils/errors';
 import Build from '../../commands/build';
 import Log, { link } from '../../log';
-import { testExports } from '../build';
+import { handleBuildRequestError } from '../build';
 import {
   EasBuildDownForMaintenanceError,
   EasBuildFreeTierDisabledAndroidError,
@@ -15,7 +15,6 @@ import {
   RequestValidationError,
   TurtleDeprecatedJobFormatError,
 } from '../errors';
-const { handleBuildRequestError } = testExports;
 
 beforeEach(() => {
   jest.resetAllMocks();
