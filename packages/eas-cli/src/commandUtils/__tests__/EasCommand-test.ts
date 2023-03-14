@@ -39,13 +39,12 @@ beforeEach(() => {
   jest.mocked(createAnalyticsAsync).mockResolvedValue(analytics);
 });
 
-const createTestEasCommand = (baseErrorMessage?: string): typeof EasCommand => {
+const createTestEasCommand = (): typeof EasCommand => {
   class TestEasCommand extends EasCommand {
     async runAsync(): Promise<void> {}
-    protected override baseErrorMessage = baseErrorMessage;
   }
 
-  TestEasCommand.id = 'TestEasCommand'; // normally oclif will assign ids, but b/c this is located outside the commands folder it will not
+  TestEasCommand.id = 'testEasCommand'; // normally oclif will assign ids, but b/c this is located outside the commands folder it will not
   return TestEasCommand;
 };
 
@@ -138,21 +137,7 @@ describe(EasCommand.name, () => {
         expect(logDebugSpy).toBeCalledWith(error);
       });
 
-      it('re-throws the error with new message if provided', async () => {
-        const TestEasCommand = createTestEasCommand('New base error message');
-        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
-        runAsyncMock.mockImplementation(() => {
-          throw new Error('Error message');
-        });
-        try {
-          await TestEasCommand.run();
-        } catch (caughtError) {
-          expect(caughtError).toBeInstanceOf(Error);
-          expect((caughtError as Error).message).toEqual('New base error message');
-        }
-      });
-
-      it('re-throws the error with default base message if new one not provided', async () => {
+      it('re-throws the error with default base message', async () => {
         const TestEasCommand = createTestEasCommand();
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
         runAsyncMock.mockImplementation(() => {
@@ -162,13 +147,13 @@ describe(EasCommand.name, () => {
           await TestEasCommand.run();
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
-          expect((caughtError as Error).message).toEqual('TestEasCommand command failed.');
+          expect((caughtError as Error).message).toEqual('testEasCommand command failed.');
         }
       });
 
-      it('re-throws the error with default base message if new one not provided - command id is capitalized if needed', async () => {
+      it('re-throws the error with default base message, command id is decapitalized if needed', async () => {
         const TestEasCommand = createTestEasCommand();
-        TestEasCommand.id = 'testEasCommand';
+        TestEasCommand.id = 'TestEasCommand';
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
         runAsyncMock.mockImplementation(() => {
           throw new Error('Error message');
@@ -177,7 +162,7 @@ describe(EasCommand.name, () => {
           await TestEasCommand.run();
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
-          expect((caughtError as Error).message).toEqual('TestEasCommand command failed.');
+          expect((caughtError as Error).message).toEqual('testEasCommand command failed.');
         }
       });
 
