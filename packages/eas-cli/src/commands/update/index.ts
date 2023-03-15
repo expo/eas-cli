@@ -211,7 +211,7 @@ export default class UpdatePublish extends EasCommand {
       projectId,
     });
 
-    const { exp } = await getDynamicProjectConfigAsync({});
+    const { exp } = await getDynamicProjectConfigAsync({ isPublicConfig: true });
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 
     let realizedPlatforms: PublishPlatform[] = [];

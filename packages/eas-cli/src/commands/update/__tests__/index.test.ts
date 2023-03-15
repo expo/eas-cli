@@ -1,4 +1,11 @@
-import { AppJSONConfig, PackageJSONConfig, Platform, getConfig } from '@expo/config';
+import {
+  AppJSONConfig,
+  ExpoConfig,
+  GetConfigOptions,
+  PackageJSONConfig,
+  Platform,
+  getConfig,
+} from '@expo/config';
 import { Updates } from '@expo/config-plugins';
 import { vol } from 'memfs';
 import path from 'path';
@@ -58,7 +65,10 @@ jest.mock('../../../project/publish', () => ({
 }));
 
 describe(UpdatePublish.name, () => {
-  afterEach(() => vol.reset());
+  afterEach(() => {
+    vol.reset();
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockClear();
+  });
 
   // Deprecated and split to a new command: update:republish
   it('errors with --republish', async () => {
@@ -136,14 +146,59 @@ describe(UpdatePublish.name, () => {
 
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
   });
+
+  it('creates a new update with the public expo config', async () => {
+    const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
+
+    // Add configuration to the project that should not be included in the update
+    const { appJson } = mockTestProject({
+      expoConfig: {
+        hooks: {
+          postPublish: [
+            {
+              file: 'custom-hook.js',
+              config: { some: 'config' },
+            },
+          ],
+        },
+      },
+    });
+
+    const { platforms, runtimeVersion } = mockTestExport({ platforms: ['ios'] });
+
+    // Mock an existing branch, so we don't create a new one
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branchId: 'branch123',
+      createdBranch: false,
+    });
+
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockResolvedValue(platforms.map(platform => ({ ...updateStub, platform, runtimeVersion })));
+
+    await new UpdatePublish(flags, commandOptions).run();
+
+    // Pull the publish data from the mocked publish function
+    const publishData = jest.mocked(PublishMutation.publishUpdateGroupAsync).mock.calls[0][1][0];
+    // Pull the Expo config from the publish data
+    const expoConfig = publishData.updateInfoGroup.ios!.extra.expoClient;
+
+    // Ensure the basic properties are present
+    expect(expoConfig).toHaveProperty('name', appJson.expo.name);
+    expect(expoConfig).toHaveProperty('slug', appJson.expo.slug);
+    // Ensure non-public config is not present
+    expect(expoConfig).not.toHaveProperty('hooks');
+  });
 });
 
 /** Create a new in-memory project, copied from src/commands/update/__tests__/republish.test.ts */
 function mockTestProject({
   configuredProjectId = '1234',
+  expoConfig = {},
 }: {
   configuredProjectId?: string;
-} = {}): { projectId: string } {
+  expoConfig?: Partial<ExpoConfig>;
+} = {}): { projectId: string; appJson: AppJSONConfig } {
   const packageJSON: PackageJSONConfig = {
     name: 'testing123',
     version: '0.1.0',
@@ -163,6 +218,7 @@ function mockTestProject({
           projectId: configuredProjectId,
         },
       },
+      ...expoConfig,
     },
   };
 
@@ -180,11 +236,27 @@ function mockTestProject({
   jest.mocked(getConfig).mockReturnValue(mockManifest as any);
   jest
     .spyOn(DynamicProjectConfigContextField.prototype, 'getValueAsync')
-    .mockResolvedValue(async () => ({
-      exp: mockManifest.exp,
-      projectDir: projectRoot,
-      projectId: configuredProjectId,
-    }));
+    .mockResolvedValue(async (options?: GetConfigOptions) => {
+      let exp = { ...mockManifest.exp };
+
+      // Fake a limited public config
+      if (options?.isPublicConfig) {
+        exp = {
+          name: mockManifest.exp.name,
+          version: mockManifest.exp.version,
+          slug: mockManifest.exp.slug,
+          sdkVersion: mockManifest.exp.sdkVersion,
+          owner: mockManifest.exp.owner,
+          extra: mockManifest.exp.extra,
+        };
+      }
+
+      return {
+        exp,
+        projectDir: projectRoot,
+        projectId: configuredProjectId,
+      };
+    });
 
   jest.spyOn(LoggedInContextField.prototype, 'getValueAsync').mockResolvedValue({
     actor: jester,
@@ -199,7 +271,7 @@ function mockTestProject({
     ownerAccount: jester.accounts[0],
   });
 
-  return { projectId: configuredProjectId };
+  return { projectId: configuredProjectId, appJson: appJSON };
 }
 
 /** Create a new in-memory export of the project */
