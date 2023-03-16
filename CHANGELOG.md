@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Ensure public config is used as update. ([#1745](https://github.com/expo/eas-cli/pull/1745) by [@byCedric](https://github.com/byCedric))
+
 ### 🧹 Chores
 
 - Unify how the command errors are displayed. ([#1738](https://github.com/expo/eas-cli/pull/1738) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
