@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [3.8.1](https://github.com/expo/eas-cli/releases/tag/v3.8.1) - 2023-03-16
+
+### 🐛 Bug fixes
+
 - Ensure public config is used as update. ([#1745](https://github.com/expo/eas-cli/pull/1745) by [@byCedric](https://github.com/byCedric))
 
 ### 🧹 Chores
