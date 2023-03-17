@@ -27,6 +27,7 @@ const updateStub: UpdateFragment = {
   platform: 'ios',
   gitCommitHash: 'commit',
   manifestFragment: JSON.stringify({ fake: 'manifest' }),
+  isRollBackToEmbedded: false,
   manifestPermalink: 'https://expo.dev/fake/manifest/link',
   codeSigningInfo: null,
   createdAt: '2022-01-01T12:00:00Z',

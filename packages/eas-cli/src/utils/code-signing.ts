@@ -101,7 +101,7 @@ export async function getKeyAndCertificateFromPathsAsync({
   };
 }
 
-export async function getManifestBodyAsync(res: Response): Promise<string | null> {
+async function getMultipartBodyPartAsync(res: Response, partName: string): Promise<string | null> {
   const contentType = res.headers.get('content-type');
   if (!contentType) {
     throw new Error('The multipart manifest response is missing the content-type header');
@@ -111,11 +111,19 @@ export async function getManifestBodyAsync(res: Response): Promise<string | null
     contentType,
     Buffer.from(bodyBuffer)
   );
-  const manifestPart = multipartParts.find(part => isMultipartPartWithName(part, 'manifest'));
+  const manifestPart = multipartParts.find(part => isMultipartPartWithName(part, partName));
   return manifestPart?.body ?? null;
 }
 
-export function signManifestBody(body: string, codeSigningInfo: CodeSigningInfo): string {
+export async function getManifestBodyAsync(res: Response): Promise<string | null> {
+  return await getMultipartBodyPartAsync(res, 'manifest');
+}
+
+export async function getDirectiveBodyAsync(res: Response): Promise<string | null> {
+  return await getMultipartBodyPartAsync(res, 'directive');
+}
+
+export function signBody(body: string, codeSigningInfo: CodeSigningInfo): string {
   return signBufferRSASHA256AndVerify(
     codeSigningInfo.privateKey,
     codeSigningInfo.certificate,
@@ -179,5 +187,26 @@ export function checkManifestBodyAgainstUpdateInfoGroup(
       );
     }
     assertAssetParity(correspondingManifestResponseBodyAssetJSON, nullthrows(partialManifestAsset));
+  }
+}
+
+function areSetsEqual<T>(a: Set<T>, b: Set<T>): boolean {
+  return a.size === b.size && [...a].every(value => b.has(value));
+}
+
+export function checkDirectiveBodyAgainstUpdateInfoGroup(directiveResponseBody: string): void {
+  const directiveResponseBodyJSON = JSON.parse(directiveResponseBody);
+
+  if (
+    !areSetsEqual(
+      new Set(Object.keys(directiveResponseBodyJSON)),
+      new Set(['extra', 'type', 'parameters'])
+    )
+  ) {
+    throw new Error('Code signing directive integrity error: Unexpected keys');
+  }
+
+  if (directiveResponseBodyJSON.type !== 'rollBackToEmbedded') {
+    throw new Error('Code signing directive integrity error: Incorrect directive type');
   }
 }
