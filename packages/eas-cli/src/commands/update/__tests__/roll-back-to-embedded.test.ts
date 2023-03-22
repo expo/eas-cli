@@ -73,7 +73,7 @@ describe(UpdateRollBackToEmbedded.name, () => {
     mockTestProject();
 
     await expect(new UpdateRollBackToEmbedded(flags, commandOptions).run()).rejects.toThrow(
-      'Cannot specify both --channel and --branch. Specify either --channel, --branch, or --auto'
+      'Cannot specify both --channel and --branch. Specify either --channel, --branch, or --auto.'
     );
   });
 

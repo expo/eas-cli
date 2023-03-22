@@ -487,7 +487,7 @@ export async function getBranchNameForCommandAsync({
 }): Promise<string> {
   if (channelNameArg && branchNameArg) {
     throw new Error(
-      'Cannot specify both --channel and --branch. Specify either --channel, --branch, or --auto'
+      'Cannot specify both --channel and --branch. Specify either --channel, --branch, or --auto.'
     );
   }
 
@@ -502,7 +502,7 @@ export async function getBranchNameForCommandAsync({
   if (autoFlag) {
     return await getDefaultBranchNameAsync();
   } else if (nonInteractive) {
-    throw new Error('Must supply --channel, --branch or --auto when in non-interactive mode');
+    throw new Error('Must supply --channel, --branch or --auto when in non-interactive mode.');
   } else {
     let branchName: string;
 
@@ -520,13 +520,14 @@ export async function getBranchNameForCommandAsync({
       branchName = branch.name;
     } catch {
       // unable to select a branch (network error or no branches for project)
-      ({ name: branchName } = await promptAsync({
+      const { name } = await promptAsync({
         type: 'text',
         name: 'name',
         message: 'No branches found. Provide a branch name:',
         initial: await getDefaultBranchNameAsync(),
         validate: value => (value ? true : 'Branch name may not be empty.'),
-      }));
+      });
+      branchName = name;
     }
 
     assert(branchName, 'Branch name must be specified.');
@@ -559,13 +560,14 @@ export async function getUpdateMessageForCommandAsync({
     if (jsonFlag) {
       throw new Error(validationMessage);
     }
-    ({ updateMessage } = await promptAsync({
+    const { updateMessageLocal } = await promptAsync({
       type: 'text',
-      name: 'updateMessage',
+      name: 'updateMessageLocal',
       message: `Provide an roll back message:`,
       initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
       validate: (value: any) => (value ? true : validationMessage),
-    }));
+    });
+    updateMessage = updateMessageLocal;
   }
 
   assert(updateMessage, 'Update message must be specified.');
@@ -578,7 +580,7 @@ export async function getUpdateMessageForCommandAsync({
   return updateMessage;
 }
 
-export const defaultPublishPlatforms: Partial<Platform>[] = ['android', 'ios'];
+export const defaultPublishPlatforms: Platform[] = ['android', 'ios'];
 
 export function getRequestedPlatform(
   platform: ExpoCLIExportPlatformFlag

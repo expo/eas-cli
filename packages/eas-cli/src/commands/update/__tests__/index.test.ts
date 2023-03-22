@@ -92,7 +92,7 @@ describe(UpdatePublish.name, () => {
     mockTestProject();
 
     await expect(new UpdatePublish(flags, commandOptions).run()).rejects.toThrow(
-      'Cannot specify both --channel and --branch. Specify either --channel, --branch, or --auto'
+      'Cannot specify both --channel and --branch. Specify either --channel, --branch, or --auto.'
     );
   });
 

@@ -7,6 +7,7 @@ import { ensureBranchExistsAsync } from '../../branch/queries';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import { ensureChannelExistsAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -32,6 +33,7 @@ import {
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
 import { getUpdateGroupJsonInfo } from '../../update/utils';
 import {
+  CodeSigningInfo,
   checkDirectiveBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
   getDirectiveBodyAsync,
@@ -106,7 +108,6 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(UpdateRollBackToEmbedded);
-    const flags = this.sanitizeFlags(rawFlags);
     const paginatedQueryOptions = getPaginatedQueryOptions(rawFlags);
     const {
       auto: autoFlag,
@@ -126,7 +127,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       nonInteractive,
     });
 
-    if (flags.json) {
+    if (jsonFlag) {
       enableJsonOutput();
     }
 
@@ -171,10 +172,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     });
 
     const realizedPlatforms: PublishPlatform[] =
-      platformFlag === 'all' ? ['ios', 'android'] : [platformFlag];
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
-    const runtimeToPlatformMapping =
-      getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);
+      platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
 
     const { branchId, createdBranch } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
@@ -195,73 +193,21 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
 
-    const rollbackInfoGroups = Object.fromEntries(
-      realizedPlatforms.map(platform => [platform, true])
-    );
+    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
 
-    // Sort the updates into different groups based on their platform specific runtime versions
-    const updateGroups: PublishUpdateGroupInput[] = runtimeToPlatformMapping.map(
-      ({ runtimeVersion, platforms }) => {
-        const localRollbackInfoGroup = Object.fromEntries(
-          platforms.map(platform => [platform, rollbackInfoGroups[platform]])
-        );
-
-        return {
-          branchId,
-          rollBackToEmbeddedInfoGroup: localRollbackInfoGroup,
-          runtimeVersion,
-          message: updateMessage,
-          gitCommitHash,
-          isGitWorkingTreeDirty,
-          awaitingCodeSigningInfo: !!codeSigningInfo,
-        };
-      }
-    );
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();
     try {
-      newUpdates = await PublishMutation.publishUpdateGroupAsync(graphqlClient, updateGroups);
-
-      if (codeSigningInfo) {
-        Log.log('🔒 Signing roll back');
-
-        const updatesTemp = [...newUpdates];
-        const updateGroupsAndTheirUpdates = updateGroups.map(updateGroup => {
-          const newUpdates = updatesTemp.splice(
-            0,
-            Object.keys(nullthrows(updateGroup.rollBackToEmbeddedInfoGroup)).length
-          );
-          return {
-            updateGroup,
-            newUpdates,
-          };
-        });
-
-        await Promise.all(
-          updateGroupsAndTheirUpdates.map(async ({ newUpdates }) => {
-            await Promise.all(
-              newUpdates.map(async newUpdate => {
-                const response = await fetch(newUpdate.manifestPermalink, {
-                  method: 'GET',
-                  headers: { accept: 'multipart/mixed' },
-                });
-                const directiveBody = nullthrows(await getDirectiveBodyAsync(response));
-
-                checkDirectiveBodyAgainstUpdateInfoGroup(directiveBody);
-
-                const directiveSignature = signBody(directiveBody, codeSigningInfo);
-
-                await PublishMutation.setCodeSigningInfoAsync(graphqlClient, newUpdate.id, {
-                  alg: codeSigningInfo.codeSigningMetadata.alg,
-                  keyid: codeSigningInfo.codeSigningMetadata.keyid,
-                  sig: directiveSignature,
-                });
-              })
-            );
-          })
-        );
-      }
-
+      newUpdates = await this.publishRollbacksAsync({
+        graphqlClient,
+        isGitWorkingTreeDirty,
+        gitCommitHash,
+        updateMessage,
+        branchId,
+        codeSigningInfo,
+        runtimeVersions,
+        realizedPlatforms,
+      });
       publishSpinner.succeed('Published!');
     } catch (e) {
       publishSpinner.fail('Failed to publish updates');
@@ -326,6 +272,95 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
         Log.addNewLineIfNone();
       }
     }
+  }
+
+  private async publishRollbacksAsync({
+    graphqlClient,
+    isGitWorkingTreeDirty,
+    gitCommitHash,
+    updateMessage,
+    branchId,
+    codeSigningInfo,
+    runtimeVersions,
+    realizedPlatforms,
+  }: {
+    graphqlClient: ExpoGraphqlClient;
+    isGitWorkingTreeDirty: boolean | undefined;
+    gitCommitHash: string | undefined;
+    updateMessage: string;
+    branchId: string;
+    codeSigningInfo: CodeSigningInfo | undefined;
+    runtimeVersions: { platform: string; runtimeVersion: string }[];
+    realizedPlatforms: PublishPlatform[];
+  }): Promise<UpdatePublishMutation['updateBranch']['publishUpdateGroups']> {
+    const runtimeToPlatformMapping =
+      getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);
+    const rollbackInfoGroups = Object.fromEntries(
+      realizedPlatforms.map(platform => [platform, true])
+    );
+
+    // Sort the updates into different groups based on their platform specific runtime versions
+    const updateGroups: PublishUpdateGroupInput[] = runtimeToPlatformMapping.map(
+      ({ runtimeVersion, platforms }) => {
+        const localRollbackInfoGroup = Object.fromEntries(
+          platforms.map(platform => [platform, rollbackInfoGroups[platform]])
+        );
+
+        return {
+          branchId,
+          rollBackToEmbeddedInfoGroup: localRollbackInfoGroup,
+          runtimeVersion,
+          message: updateMessage,
+          gitCommitHash,
+          isGitWorkingTreeDirty,
+          awaitingCodeSigningInfo: !!codeSigningInfo,
+        };
+      }
+    );
+
+    const newUpdates = await PublishMutation.publishUpdateGroupAsync(graphqlClient, updateGroups);
+
+    if (codeSigningInfo) {
+      Log.log('🔒 Signing roll back');
+
+      const updatesTemp = [...newUpdates];
+      const updateGroupsAndTheirUpdates = updateGroups.map(updateGroup => {
+        const newUpdates = updatesTemp.splice(
+          0,
+          Object.keys(nullthrows(updateGroup.rollBackToEmbeddedInfoGroup)).length
+        );
+        return {
+          updateGroup,
+          newUpdates,
+        };
+      });
+
+      await Promise.all(
+        updateGroupsAndTheirUpdates.map(async ({ newUpdates }) => {
+          await Promise.all(
+            newUpdates.map(async newUpdate => {
+              const response = await fetch(newUpdate.manifestPermalink, {
+                method: 'GET',
+                headers: { accept: 'multipart/mixed' },
+              });
+              const directiveBody = nullthrows(await getDirectiveBodyAsync(response));
+
+              checkDirectiveBodyAgainstUpdateInfoGroup(directiveBody);
+
+              const directiveSignature = signBody(directiveBody, codeSigningInfo);
+
+              await PublishMutation.setCodeSigningInfoAsync(graphqlClient, newUpdate.id, {
+                alg: codeSigningInfo.codeSigningMetadata.alg,
+                keyid: codeSigningInfo.codeSigningMetadata.keyid,
+                sig: directiveSignature,
+              });
+            })
+          );
+        })
+      );
+    }
+
+    return newUpdates;
   }
 
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {

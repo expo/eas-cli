@@ -16,8 +16,9 @@ import nullthrows from 'nullthrows';
 
 import { Response } from '../fetch';
 import { PartialManifest, PartialManifestAsset } from '../graphql/generated';
+import areSetsEqual from './expodash/areSetsEqual';
 
-type CodeSigningInfo = {
+export type CodeSigningInfo = {
   privateKey: PKI.rsa.PrivateKey;
   certificate: PKI.Certificate;
   codeSigningMetadata: { alg: string; keyid: string };
@@ -188,10 +189,6 @@ export function checkManifestBodyAgainstUpdateInfoGroup(
     }
     assertAssetParity(correspondingManifestResponseBodyAssetJSON, nullthrows(partialManifestAsset));
   }
-}
-
-function areSetsEqual<T>(a: Set<T>, b: Set<T>): boolean {
-  return a.size === b.size && [...a].every(value => b.has(value));
 }
 
 export function checkDirectiveBodyAgainstUpdateInfoGroup(directiveResponseBody: string): void {
