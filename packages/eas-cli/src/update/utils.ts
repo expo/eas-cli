@@ -48,6 +48,8 @@ export type FormattedUpdateGroupDescription = {
   group: string;
   platforms: string;
   runtimeVersion: string;
+  codeSigningKey: string | undefined;
+  isRollBackToEmbedded: boolean;
 };
 
 export type FormattedBranchDescription = {
@@ -74,6 +76,8 @@ export function formatUpdateGroup(update: FormattedUpdateGroupDescription): stri
     { label: 'Platforms', value: update.platforms },
     { label: 'Runtime Version', value: update.runtimeVersion },
     { label: 'Message', value: update.message },
+    { label: 'Code Signing Key', value: update.codeSigningKey ?? 'N/A' },
+    { label: 'Is Roll Back to Embedded', value: update.isRollBackToEmbedded ? 'Yes' : 'No' },
     { label: 'Group ID', value: update.group },
   ]);
 }
@@ -203,6 +207,7 @@ export function getUpdateGroupJsonInfo(updateGroups: UpdateFragment[]): UpdateJs
     runtimeVersion: update.runtimeVersion,
     platform: update.platform,
     manifestPermalink: update.manifestPermalink,
+    isRollBackToEmbedded: update.isRollBackToEmbedded,
     gitCommitHash: update.gitCommitHash,
   }));
 }
@@ -213,6 +218,8 @@ export function getUpdateGroupDescriptions(
   return updateGroups.map(updateGroup => ({
     message: formatUpdateMessage(updateGroup[0]),
     runtimeVersion: updateGroup[0].runtimeVersion,
+    isRollBackToEmbedded: updateGroup[0].isRollBackToEmbedded,
+    codeSigningKey: updateGroup[0].codeSigningInfo?.keyid,
     group: updateGroup[0].group,
     platforms: formatPlatformForUpdateGroup(updateGroup),
   }));
@@ -225,6 +232,8 @@ export function getUpdateGroupDescriptionsWithBranch(
     branch: updateGroup[0].branch.name,
     message: formatUpdateMessage(updateGroup[0]),
     runtimeVersion: updateGroup[0].runtimeVersion,
+    isRollBackToEmbedded: updateGroup[0].isRollBackToEmbedded,
+    codeSigningKey: updateGroup[0].codeSigningInfo?.keyid,
     group: updateGroup[0].group,
     platforms: formatPlatformForUpdateGroup(updateGroup),
   }));
@@ -241,6 +250,8 @@ export function getBranchDescription(branch: UpdateBranchFragment): FormattedBra
     update: {
       message: formatUpdateMessage(latestUpdate),
       runtimeVersion: latestUpdate.runtimeVersion,
+      isRollBackToEmbedded: latestUpdate.isRollBackToEmbedded,
+      codeSigningKey: latestUpdate.codeSigningInfo?.keyid,
       group: latestUpdate.group,
       platforms: getPlatformsForGroup({
         group: latestUpdate.group,
