@@ -1,22 +1,36 @@
 import { ExpoConfig, Platform } from '@expo/config';
+import { Updates } from '@expo/config-plugins';
+import { Platform as EASBuildJobPlatform, Workflow } from '@expo/eas-build-job';
 import JsonFile from '@expo/json-file';
+import assert from 'assert';
+import chalk from 'chalk';
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import Joi from 'joi';
 import mime from 'mime';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
+import { selectBranchOnAppAsync } from '../branch/queries';
+import { getDefaultBranchNameAsync } from '../branch/utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
-import Log from '../log';
+import Log, { learnMore } from '../log';
+import { RequestedPlatform, requestedPlatformDisplayNames } from '../platform';
+import { promptAsync } from '../prompts';
+import { getBranchNameFromChannelNameAsync } from '../update/getBranchNameFromChannelNameAsync';
+import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../update/utils';
 import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
 import { expoCommandAsync, shouldUseVersionedExpoCLI } from '../utils/expoCli';
 import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
 import uniqBy from '../utils/expodash/uniqBy';
+import { getVcsClient } from '../vcs';
+import { resolveWorkflowAsync } from './workflow';
 
 export type ExpoCLIExportPlatformFlag = Platform | 'all';
 
@@ -452,4 +466,189 @@ export function isUploadedAssetCountAboveWarningThreshold(
 ): boolean {
   const warningThreshold = Math.floor(assetLimitPerUpdateGroup * 0.75);
   return uploadedAssetCount > warningThreshold;
+}
+
+export async function getBranchNameForCommandAsync({
+  graphqlClient,
+  projectId,
+  channelNameArg,
+  branchNameArg,
+  autoFlag,
+  nonInteractive,
+  paginatedQueryOptions,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  projectId: string;
+  channelNameArg: string | undefined;
+  branchNameArg: string | undefined;
+  autoFlag: boolean;
+  nonInteractive: boolean;
+  paginatedQueryOptions: PaginatedQueryOptions;
+}): Promise<string> {
+  if (channelNameArg && branchNameArg) {
+    throw new Error(
+      'Cannot specify both --channel and --branch. Specify either --channel, --branch, or --auto.'
+    );
+  }
+
+  if (channelNameArg) {
+    return await getBranchNameFromChannelNameAsync(graphqlClient, projectId, channelNameArg);
+  }
+
+  if (branchNameArg) {
+    return branchNameArg;
+  }
+
+  if (autoFlag) {
+    return await getDefaultBranchNameAsync();
+  } else if (nonInteractive) {
+    throw new Error('Must supply --channel, --branch or --auto when in non-interactive mode.');
+  } else {
+    let branchName: string;
+
+    try {
+      const branch = await selectBranchOnAppAsync(graphqlClient, {
+        projectId,
+        promptTitle: `Which branch would you like to roll back to embedded on?`,
+        displayTextForListItem: updateBranch => ({
+          title: `${updateBranch.name} ${chalk.grey(
+            `- current update: ${formatUpdateMessage(updateBranch.updates[0])}`
+          )}`,
+        }),
+        paginatedQueryOptions,
+      });
+      branchName = branch.name;
+    } catch {
+      // unable to select a branch (network error or no branches for project)
+      const { name } = await promptAsync({
+        type: 'text',
+        name: 'name',
+        message: 'No branches found. Provide a branch name:',
+        initial: await getDefaultBranchNameAsync(),
+        validate: value => (value ? true : 'Branch name may not be empty.'),
+      });
+      branchName = name;
+    }
+
+    assert(branchName, 'Branch name must be specified.');
+    return branchName;
+  }
+}
+
+export async function getUpdateMessageForCommandAsync({
+  updateMessageArg,
+  autoFlag,
+  nonInteractive,
+  jsonFlag,
+}: {
+  updateMessageArg: string | undefined;
+  autoFlag: boolean;
+  nonInteractive: boolean;
+  jsonFlag: boolean;
+}): Promise<string> {
+  let updateMessage = updateMessageArg;
+  if (!updateMessageArg && autoFlag) {
+    updateMessage = (await getVcsClient().getLastCommitMessageAsync())?.trim();
+  }
+
+  if (!updateMessage) {
+    if (nonInteractive) {
+      throw new Error('Must supply --message or use --auto when in non-interactive mode');
+    }
+
+    const validationMessage = 'publish message may not be empty.';
+    if (jsonFlag) {
+      throw new Error(validationMessage);
+    }
+    const { updateMessageLocal } = await promptAsync({
+      type: 'text',
+      name: 'updateMessageLocal',
+      message: `Provide an roll back message:`,
+      initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
+      validate: (value: any) => (value ? true : validationMessage),
+    });
+    updateMessage = updateMessageLocal;
+  }
+
+  assert(updateMessage, 'Update message must be specified.');
+
+  const truncatedMessage = truncateUpdateMessage(updateMessage, 1024);
+  if (truncatedMessage !== updateMessage) {
+    Log.warn('Update message exceeds the allowed 1024 character limit. Truncating message...');
+  }
+
+  return updateMessage;
+}
+
+export const defaultPublishPlatforms: Platform[] = ['android', 'ios'];
+
+export function getRequestedPlatform(
+  platform: ExpoCLIExportPlatformFlag
+): RequestedPlatform | null {
+  switch (platform) {
+    case 'android':
+      return RequestedPlatform.Android;
+    case 'ios':
+      return RequestedPlatform.Ios;
+    case 'web':
+      return null;
+    case 'all':
+      return RequestedPlatform.All;
+    default:
+      throw new Error(`Unsupported platform: ${platform}`);
+  }
+}
+
+/** Get runtime versions grouped by platform. Runtime version is always `null` on web where the platform is always backwards compatible. */
+export async function getRuntimeVersionObjectAsync(
+  exp: ExpoConfig,
+  platforms: Platform[],
+  projectDir: string
+): Promise<{ platform: string; runtimeVersion: string }[]> {
+  for (const platform of platforms) {
+    if (platform === 'web') {
+      continue;
+    }
+    const isPolicy = typeof (exp[platform]?.runtimeVersion ?? exp.runtimeVersion) === 'object';
+    if (isPolicy) {
+      const isManaged =
+        (await resolveWorkflowAsync(projectDir, platform as EASBuildJobPlatform)) ===
+        Workflow.MANAGED;
+      if (!isManaged) {
+        throw new Error(
+          'Runtime version policies are only supported in the managed workflow. In the bare workflow, runtime version needs to be set manually.'
+        );
+      }
+    }
+  }
+
+  return [...new Set(platforms)].map(platform => {
+    if (platform === 'web') {
+      return { platform: 'web', runtimeVersion: 'UNVERSIONED' };
+    }
+    return {
+      platform,
+      runtimeVersion: nullthrows(
+        Updates.getRuntimeVersion(exp, platform),
+        `Unable to determine runtime version for ${
+          requestedPlatformDisplayNames[platform]
+        }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
+      ),
+    };
+  });
+}
+
+export function getRuntimeToPlatformMappingFromRuntimeVersions(
+  runtimeVersions: { platform: string; runtimeVersion: string }[]
+): { runtimeVersion: string; platforms: string[] }[] {
+  const runtimeToPlatformMapping: { runtimeVersion: string; platforms: string[] }[] = [];
+  for (const runtime of runtimeVersions) {
+    const platforms = runtimeVersions
+      .filter(({ runtimeVersion }) => runtimeVersion === runtime.runtimeVersion)
+      .map(({ platform }) => platform);
+    if (!runtimeToPlatformMapping.find(item => item.runtimeVersion === runtime.runtimeVersion)) {
+      runtimeToPlatformMapping.push({ runtimeVersion: runtime.runtimeVersion, platforms });
+    }
+  }
+  return runtimeToPlatformMapping;
 }

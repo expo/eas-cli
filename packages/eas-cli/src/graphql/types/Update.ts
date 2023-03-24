@@ -9,6 +9,7 @@ export const UpdateFragmentNode = gql`
     runtimeVersion
     platform
     manifestFragment
+    isRollBackToEmbedded
     manifestPermalink
     gitCommitHash
     actor {
