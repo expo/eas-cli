@@ -68,6 +68,7 @@ type UpdateFlags = {
 };
 
 export default class UpdateRollBackToEmbedded extends EasCommand {
+  static override hidden = true; // until we launch
   static override description = 'roll back to the embedded update';
 
   static override flags = {
