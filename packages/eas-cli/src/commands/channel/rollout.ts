@@ -1,6 +1,8 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
+import { selectBranchOnAppAsync } from '../../branch/queries';
+import { selectChannelOnAppAsync } from '../../channel/queries';
 import { BranchMapping, getBranchMapping } from '../../channel/utils';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -132,13 +134,11 @@ async function startRolloutAsync(
     );
   }
 
-  const logMessage = `️Started a rollout of branch ${chalk.bold(
+  const logMessage = `Started a rollout of branch ${chalk.bold(branchName)} on channel ${chalk.bold(
+    channelName!
+  )}! ${chalk.bold(percent)}% of users will be directed to branch ${chalk.bold(
     branchName
-  )} onto channel ${chalk.bold(channelName!)}! ${chalk.bold(
-    percent
-  )}% of users will be directed to branch ${chalk.bold(branchName)}, ${chalk.bold(
-    100 - percent
-  )}% to branch ${chalk.bold(oldBranch.name)}.`;
+  )}, ${chalk.bold(100 - percent)}% to branch ${chalk.bold(oldBranch.name)}.`;
 
   return { newChannelInfo, logMessage };
 }
@@ -190,7 +190,7 @@ async function editRolloutAsync(
     branchMapping: JSON.stringify(newBranchMapping),
   });
 
-  const logMessage = `️Rollout of branch ${chalk.bold(newBranch.name)} onto channel ${chalk.bold(
+  const logMessage = `Rollout of branch ${chalk.bold(newBranch.name)} on channel ${chalk.bold(
     channelName!
   )} updated from ${chalk.bold(currentPercent)}% to ${chalk.bold(percent)}%. ${chalk.bold(
     percent
@@ -284,7 +284,7 @@ async function endRolloutAsync(
     channelId: channel.id,
     branchMapping: JSON.stringify(newBranchMapping),
   });
-  const logMessage = `️Rollout on channel ${chalk.bold(
+  const logMessage = `Rollout on channel ${chalk.bold(
     channelName
   )} ended. All traffic is now sent to branch ${chalk.bold(
     endOnNewBranch ? newBranch.name : oldBranch.name
@@ -294,14 +294,12 @@ async function endRolloutAsync(
 }
 
 export default class ChannelRollout extends EasCommand {
-  static override hidden = true;
-  static override description = 'Rollout a new branch out to a channel incrementally.';
+  static override description = 'Roll a new branch out on a channel incrementally.';
 
   static override args = [
     {
       name: 'channel',
-      required: true,
-      description: 'rollout that the channel is on',
+      description: 'channel on which the rollout should be done',
     },
   ];
 
@@ -311,7 +309,7 @@ export default class ChannelRollout extends EasCommand {
       required: false,
     }),
     percent: Flags.integer({
-      description: 'percent of traffic to redirect to the new branch',
+      description: 'percent of users to send to the new branch',
       required: false,
     }),
     end: Flags.boolean({
@@ -328,7 +326,7 @@ export default class ChannelRollout extends EasCommand {
 
   async runAsync(): Promise<void> {
     const {
-      args: { channel: channelName },
+      args: { channel: channelNameArg },
       flags: {
         json: jsonFlag,
         end: endFlag,
@@ -349,9 +347,23 @@ export default class ChannelRollout extends EasCommand {
 
     const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
+    let channelName: string = channelNameArg;
+    if (!channelName) {
+      const { name } = await selectChannelOnAppAsync(graphqlClient, {
+        projectId,
+        selectionPromptTitle: 'Select a channel on which to perform a rollout',
+        paginatedQueryOptions: {
+          json: jsonFlag,
+          nonInteractive,
+          offset: 0,
+        },
+      });
+      channelName = name;
+    }
+
     const channel = await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
       appId: projectId,
-      channelName: channelName!,
+      channelName,
     });
     if (!channel) {
       throw new Error(
@@ -396,7 +408,15 @@ export default class ChannelRollout extends EasCommand {
     if (!isRollout) {
       rolloutMutationResult = await startRolloutAsync(graphqlClient, {
         channelName,
-        branchName: branchName ?? (await promptForBranchNameAsync(channelName, nonInteractive)),
+        branchName:
+          branchName ??
+          (await promptForBranchNameAsync({
+            graphqlClient,
+            projectId,
+            channelName,
+            nonInteractive,
+            json: jsonFlag,
+          })),
         percent,
         nonInteractive,
         projectId,
@@ -433,18 +453,36 @@ export default class ChannelRollout extends EasCommand {
   }
 }
 
-async function promptForBranchNameAsync(
-  channelName: string,
-  nonInteractive: boolean
-): Promise<string> {
+async function promptForBranchNameAsync({
+  graphqlClient,
+  projectId,
+  channelName,
+  nonInteractive,
+  json,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  projectId: string;
+  channelName: string;
+  nonInteractive: boolean;
+  json: boolean;
+}): Promise<string> {
   if (nonInteractive) {
     throw new Error('Must supply branch flag in non-interactive mode');
   }
-  const { name } = await promptAsync({
-    type: 'text',
-    name: 'name',
-    message: `Select a branch to rollout onto ${channelName}`,
-    validate: value => (value ? true : 'A branch must be specified.'),
+
+  const { name: branchName } = await selectBranchOnAppAsync(graphqlClient, {
+    projectId,
+    promptTitle: `Which branch would you like roll out on ${channelName}?`,
+    displayTextForListItem: updateBranch => ({
+      title: updateBranch.name,
+    }),
+    // discard limit and offset because this query is not their intended target
+    paginatedQueryOptions: {
+      json,
+      nonInteractive,
+      offset: 0,
+    },
   });
-  return name;
+
+  return branchName;
 }
