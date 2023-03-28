@@ -5,9 +5,11 @@ set -eo pipefail
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )"
 LOCAL_TS_PATH="$ROOT_DIR/packages/eas-cli/src/build/local.ts"
 
+LOCAL_BUILD_PLUGIN_NPM_TAG="eas-cli"
+
 echo "Checking if eas-cli-local-build-plugin upgrade is available"
 
-plugin_version_latest=$(npm info eas-cli-local-build-plugin@latest version)
+plugin_version_latest=$(npm info eas-cli-local-build-plugin@$LOCAL_BUILD_PLUGIN_NPM_TAG version)
 plugin_version_current=$(grep 'const PLUGIN_PACKAGE_VERSION' $LOCAL_TS_PATH | cut -d"'" -f2)
 
 if [[ "$plugin_version_latest" == "$plugin_version_current" ]]; then
