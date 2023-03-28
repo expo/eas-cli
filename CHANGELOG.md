@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Use the `eas-cli` npm tag for checking for the local build plugin updates. ([#1759](https://github.com/expo/eas-cli/pull/1759) by [@dsokal](https://github.com/dsokal))
+
 ## [3.8.1](https://github.com/expo/eas-cli/releases/tag/v3.8.1) - 2023-03-16
 
 ### 🐛 Bug fixes
