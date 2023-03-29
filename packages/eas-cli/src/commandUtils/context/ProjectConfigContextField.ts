@@ -2,7 +2,10 @@ import { ExpoConfig } from '@expo/config-types';
 
 import { getExpoConfig } from '../../project/expoConfig';
 import ContextField, { ContextOptions } from './ContextField';
-import { applyCliConfigAsync, findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
+import {
+  applyCliConfigAsync,
+  findProjectDirAndVerifyProjectSetupAsync,
+} from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
 
 export default class ProjectConfigContextField extends ContextField<{
