@@ -1,8 +1,13 @@
 import ContextField from './ContextField';
-import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
+import {
+  applyCliConfigAsync,
+  findProjectDirAndVerifyProjectSetupAsync,
+} from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
 
 export default class ProjectDirContextField extends ContextField<string> {
   async getValueAsync(): Promise<string> {
-    return await findProjectDirAndVerifyProjectSetupAsync();
+    const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
+    await applyCliConfigAsync(projectDir);
+    return projectDir;
   }
 }
