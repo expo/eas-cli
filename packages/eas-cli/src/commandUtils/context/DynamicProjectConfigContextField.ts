@@ -16,8 +16,8 @@ export class DynamicProjectConfigContextField extends ContextField<DynamicConfig
     nonInteractive,
     sessionManager,
   }: ContextOptions): Promise<DynamicConfigContextFn> {
+    const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
     return async (options?: ExpoConfigOptions) => {
-      const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
       const expBefore = getExpoConfig(projectDir, options);
       const projectId = await getProjectIdAsync(sessionManager, expBefore, {
         nonInteractive,

@@ -2,10 +2,7 @@ import { ExpoConfig } from '@expo/config-types';
 
 import { getExpoConfig } from '../../project/expoConfig';
 import ContextField, { ContextOptions } from './ContextField';
-import {
-  applyCliConfigAsync,
-  findProjectDirAndVerifyProjectSetupAsync,
-} from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
+import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
 
 export default class ProjectConfigContextField extends ContextField<{
@@ -19,7 +16,6 @@ export default class ProjectConfigContextField extends ContextField<{
     projectDir: string;
   }> {
     const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
-    await applyCliConfigAsync(projectDir);
     const expBefore = getExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(sessionManager, expBefore, {
       nonInteractive,

@@ -11,7 +11,7 @@ import { easCliVersion } from '../../../utils/easCli';
 import { getVcsClient, setVcsClient } from '../../../vcs';
 import GitClient from '../../../vcs/clients/git';
 
-export async function applyCliConfigAsync(projectDir: string): Promise<void> {
+async function applyCliConfigAsync(projectDir: string): Promise<void> {
   const easJsonAccessor = new EasJsonAccessor(projectDir);
   const config = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
   if (config?.version && !semver.satisfies(easCliVersion, config.version)) {
@@ -112,6 +112,7 @@ export async function findProjectRootAsync({
  */
 export async function findProjectDirAndVerifyProjectSetupAsync(): Promise<string> {
   const projectDir = await findProjectRootAsync();
+  await applyCliConfigAsync(projectDir);
   await ensureEasCliIsNotInDependenciesAsync(projectDir);
   return projectDir;
 }
