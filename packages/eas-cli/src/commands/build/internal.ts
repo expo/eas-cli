@@ -6,6 +6,8 @@ import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand from '../../commandUtils/EasCommand';
 import { RequestedPlatform } from '../../platform';
 import { enableJsonOutput } from '../../utils/json';
+import { setVcsClient } from '../../vcs';
+import GitNoCommitClient from '../../vcs/clients/gitNoCommit';
 
 /**
  * This command will be run on the EAS Build workers, when building
@@ -50,6 +52,8 @@ export default class BuildInternal extends EasCommand {
     } = await this.getContextAsync(BuildInternal, {
       nonInteractive: true,
     });
+
+    setVcsClient(new GitNoCommitClient());
 
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 
