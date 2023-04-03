@@ -954,8 +954,10 @@ export type App = Project & {
   buildOrBuildJobs: Array<BuildOrBuildJob>;
   /** (EAS Build) Builds associated with this app */
   builds: Array<Build>;
+  buildsPaginated: AppBuildsConnection;
   /** Classic update release channel names that have at least one build */
   buildsReleaseChannels: Array<Scalars['String']>;
+  channelsPaginated: AppChannelsConnection;
   deployment?: Maybe<Deployment>;
   /** Deployments associated with this app */
   deployments: DeploymentsConnection;
@@ -1011,6 +1013,7 @@ export type App = Project & {
   slug: Scalars['String'];
   /** EAS Submissions associated with this app */
   submissions: Array<Submission>;
+  submissionsPaginated: AppSubmissionsConnection;
   /** Coalesced project activity for an app using pagination */
   timelineActivity: TimelineActivityConnection;
   /** @deprecated 'likes' have been deprecated. */
@@ -1091,6 +1094,25 @@ export type AppBuildsArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
+export type AppBuildsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  filter?: InputMaybe<BuildFilterInput>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppChannelsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
 export type AppDeploymentArgs = {
   channel: Scalars['String'];
   runtimeVersion: Scalars['String'];
@@ -1144,6 +1166,15 @@ export type AppSubmissionsArgs = {
   filter: SubmissionFilter;
   limit: Scalars['Int'];
   offset: Scalars['Int'];
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppSubmissionsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
 };
 
 
@@ -1221,6 +1252,30 @@ export type AppBranchEdge = {
 export type AppBranchesConnection = {
   __typename?: 'AppBranchesConnection';
   edges: Array<AppBranchEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AppBuildEdge = {
+  __typename?: 'AppBuildEdge';
+  cursor: Scalars['String'];
+  node: BuildOrBuildJob;
+};
+
+export type AppBuildsConnection = {
+  __typename?: 'AppBuildsConnection';
+  edges: Array<AppBuildEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AppChannelEdge = {
+  __typename?: 'AppChannelEdge';
+  cursor: Scalars['String'];
+  node: UpdateChannel;
+};
+
+export type AppChannelsConnection = {
+  __typename?: 'AppChannelsConnection';
+  edges: Array<AppChannelEdge>;
   pageInfo: PageInfo;
 };
 
@@ -1413,6 +1468,18 @@ export enum AppStoreConnectUserRole {
   Unknown = 'UNKNOWN'
 }
 
+export type AppSubmissionEdge = {
+  __typename?: 'AppSubmissionEdge';
+  cursor: Scalars['String'];
+  node: Submission;
+};
+
+export type AppSubmissionsConnection = {
+  __typename?: 'AppSubmissionsConnection';
+  edges: Array<AppSubmissionEdge>;
+  pageInfo: PageInfo;
+};
+
 export type AppUpdateEdge = {
   __typename?: 'AppUpdateEdge';
   cursor: Scalars['String'];
@@ -1532,6 +1599,8 @@ export type AppleDeviceMutation = {
   createAppleDevice: AppleDevice;
   /** Delete an Apple Device */
   deleteAppleDevice: DeleteAppleDeviceResult;
+  /** Update an Apple Device */
+  updateAppleDevice: AppleDevice;
 };
 
 
@@ -1542,6 +1611,12 @@ export type AppleDeviceMutationCreateAppleDeviceArgs = {
 
 
 export type AppleDeviceMutationDeleteAppleDeviceArgs = {
+  id: Scalars['ID'];
+};
+
+
+export type AppleDeviceMutationUpdateAppleDeviceArgs = {
+  appleDeviceUpdateInput: AppleDeviceUpdateInput;
   id: Scalars['ID'];
 };
 
@@ -1572,6 +1647,10 @@ export type AppleDeviceRegistrationRequestQuery = {
 
 export type AppleDeviceRegistrationRequestQueryByIdArgs = {
   id: Scalars['ID'];
+};
+
+export type AppleDeviceUpdateInput = {
+  name?: InputMaybe<Scalars['String']>;
 };
 
 export type AppleDistributionCertificate = {
@@ -1845,11 +1924,6 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   __typename?: 'Build';
   activityTimestamp: Scalars['DateTime'];
   actor?: Maybe<Actor>;
-  /**
-   * The actual resource class of the builder assigned to the build job
-   * @deprecated Use resourceClassDisplayName instead
-   */
-  actualResourceClass?: Maybe<BuildResourceClass>;
   appBuildVersion?: Maybe<Scalars['String']>;
   appVersion?: Maybe<Scalars['String']>;
   artifacts?: Maybe<BuildArtifacts>;
@@ -1959,6 +2033,12 @@ export type BuildFilter = {
   runtimeVersion?: InputMaybe<Scalars['String']>;
   sdkVersion?: InputMaybe<Scalars['String']>;
   status?: InputMaybe<BuildStatus>;
+};
+
+export type BuildFilterInput = {
+  channel?: InputMaybe<Scalars['String']>;
+  platforms?: InputMaybe<Array<AppPlatform>>;
+  releaseChannel?: InputMaybe<Scalars['String']>;
 };
 
 export enum BuildIosEnterpriseProvisioning {
@@ -2174,7 +2254,9 @@ export type BuildOrBuildJobQueryByIdArgs = {
 };
 
 export type BuildParamsInput = {
+  reactNativeVersion?: InputMaybe<Scalars['String']>;
   resourceClass: BuildResourceClass;
+  sdkVersion?: InputMaybe<Scalars['String']>;
 };
 
 export enum BuildPriority {
@@ -2261,8 +2343,6 @@ export enum BuildResourceClass {
   /** @deprecated Use IOS_M_MEDIUM instead */
   IosM1Large = 'IOS_M1_LARGE',
   IosM1Medium = 'IOS_M1_MEDIUM',
-  IosM2Medium = 'IOS_M2_MEDIUM',
-  IosM2ProMedium = 'IOS_M2_PRO_MEDIUM',
   IosMedium = 'IOS_MEDIUM',
   IosMLarge = 'IOS_M_LARGE',
   IosMMedium = 'IOS_M_MEDIUM',
@@ -2464,6 +2544,11 @@ export type DeleteAppleProvisioningProfileResult = {
   id: Scalars['ID'];
 };
 
+export type DeleteDiscordUserResult = {
+  __typename?: 'DeleteDiscordUserResult';
+  id: Scalars['ID'];
+};
+
 export type DeleteEnvironmentSecretResult = {
   __typename?: 'DeleteEnvironmentSecretResult';
   id: Scalars['ID'];
@@ -2556,6 +2641,32 @@ export type DeploymentsConnection = {
   __typename?: 'DeploymentsConnection';
   edges: Array<DeploymentEdge>;
   pageInfo: PageInfo;
+};
+
+export type DiscordUser = {
+  __typename?: 'DiscordUser';
+  discordIdentifier: Scalars['String'];
+  id: Scalars['ID'];
+  metadata?: Maybe<DiscordUserMetadata>;
+  userActor: UserActor;
+};
+
+export type DiscordUserMetadata = {
+  __typename?: 'DiscordUserMetadata';
+  discordAvatarUrl: Scalars['String'];
+  discordDiscriminator: Scalars['String'];
+  discordUsername: Scalars['String'];
+};
+
+export type DiscordUserMutation = {
+  __typename?: 'DiscordUserMutation';
+  /** Delete a Discord User by ID */
+  deleteDiscordUser: DeleteDiscordUserResult;
+};
+
+
+export type DiscordUserMutationDeleteDiscordUserArgs = {
+  id: Scalars['ID'];
 };
 
 export enum DistributionType {
@@ -2806,6 +2917,7 @@ export type GitHubRepository = {
   app: App;
   githubAppInstallation: GitHubAppInstallation;
   githubRepositoryIdentifier: Scalars['Int'];
+  githubRepositoryUrl?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   metadata?: Maybe<GitHubRepositoryMetadata>;
   nodeIdentifier: Scalars['String'];
@@ -3738,6 +3850,8 @@ export type RootMutation = {
   build: BuildMutation;
   /** Mutations that modify an BuildJob */
   buildJob: BuildJobMutation;
+  /** Mutations for Discord users */
+  discordUser: DiscordUserMutation;
   /** Mutations that modify an EmailSubscription */
   emailSubscription: EmailSubscriptionMutation;
   /** Mutations that create and delete EnvironmentSecrets */
@@ -4642,6 +4756,8 @@ export type User = Actor & UserActor & {
   apps: Array<App>;
   bestContactEmail?: Maybe<Scalars['String']>;
   created: Scalars['DateTime'];
+  /** Discord account linked to a user */
+  discordUser?: Maybe<DiscordUser>;
   displayName: Scalars['String'];
   email?: Maybe<Scalars['String']>;
   emailVerified: Scalars['Boolean'];
