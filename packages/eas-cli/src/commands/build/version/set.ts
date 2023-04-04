@@ -54,7 +54,7 @@ export default class BuildVersionSetView extends EasCommand {
     });
 
     const platform = await selectPlatformAsync(flags.platform);
-    const easJsonAccessor = new EasJsonAccessor(projectDir);
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
     await ensureVersionSourceIsRemoteAsync(easJsonAccessor);
     const profile = await EasJsonUtils.getBuildProfileAsync(
       easJsonAccessor,

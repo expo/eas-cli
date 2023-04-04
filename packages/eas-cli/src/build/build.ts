@@ -612,7 +612,7 @@ function formatAccountSubscriptionsUrl(accountName: string): string {
 }
 
 async function updateIosBuildProfilesToUseM1WorkersAsync(projectDir: string): Promise<void> {
-  const easJsonAccessor = new EasJsonAccessor(projectDir);
+  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   await easJsonAccessor.readRawJsonAsync();
 
   const profileNames = await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor);
