@@ -46,18 +46,25 @@ export class EasJsonAccessor {
   private easJsonRawObject: any | undefined;
   private easJsonPatched: boolean = false;
 
-  private constructor() {}
-
-  public static fromProjectPath(projectDir: string): EasJsonAccessor {
-    const accessor = new EasJsonAccessor();
-    accessor.easJsonPath = EasJsonAccessor.formatEasJsonPath(projectDir);
-    return accessor;
+  private constructor({ projectDir }: { projectDir: string });
+  private constructor({ easJsonRawContents }: { easJsonRawContents: string });
+  private constructor({
+    projectDir,
+    easJsonRawContents,
+  }: {
+    projectDir?: string;
+    easJsonRawContents?: string;
+  }) {
+    this.easJsonPath = projectDir && EasJsonAccessor.formatEasJsonPath(projectDir);
+    this.easJsonRawContents = easJsonRawContents;
   }
 
-  public static fromRawString(rawEasJson: string): EasJsonAccessor {
-    const accessor = new EasJsonAccessor();
-    accessor.easJsonRawContents = rawEasJson;
-    return accessor;
+  public static fromProjectPath(projectDir: string): EasJsonAccessor {
+    return new EasJsonAccessor({ projectDir });
+  }
+
+  public static fromRawString(easJsonRawContents: string): EasJsonAccessor {
+    return new EasJsonAccessor({ easJsonRawContents });
   }
 
   public static formatEasJsonPath(projectDir: string): string {
