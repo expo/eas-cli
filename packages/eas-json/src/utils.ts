@@ -23,6 +23,29 @@ export class EasJsonUtils {
     return resolveBuildProfile({ easJson, platform, profileName });
   }
 
+  public static getBuildProfileDepreactionWarnings(
+    buildProfile: BuildProfile,
+    profileName?: string
+  ): { message: string[]; docsUrl?: string }[] {
+    const warnings: { message: string[]; docsUrl?: string }[] = [];
+
+    if (buildProfile.cache?.cacheDefaultPaths !== undefined) {
+      warnings.push({
+        message: [
+          `The "build.${
+            profileName ?? 'production'
+          }.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.`,
+          `You can use "build.${
+            profileName ?? 'production'
+          }.cache.cachePaths" to manually select which paths you want to cache.`,
+        ],
+        docsUrl: 'https://docs.expo.dev/build-reference/caching/#ios-dependencies',
+      });
+    }
+
+    return warnings;
+  }
+
   public static async getCliConfigAsync(accessor: EasJsonAccessor): Promise<EasJson['cli'] | null> {
     try {
       const easJson = await accessor.readAsync();

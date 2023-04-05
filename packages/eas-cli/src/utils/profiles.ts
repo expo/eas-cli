@@ -7,6 +7,8 @@ import {
   SubmitProfile,
 } from '@expo/eas-json';
 
+import Log, { learnMore } from '../log';
+
 type EasProfile<T extends ProfileType> = T extends 'build'
   ? BuildProfile<Platform>
   : SubmitProfile<Platform>;
@@ -57,11 +59,27 @@ async function readProfileAsync<T extends ProfileType>({
   profileName?: string;
 }): Promise<EasProfile<T>> {
   if (type === 'build') {
-    return (await EasJsonUtils.getBuildProfileAsync(
+    const buildProfile = await EasJsonUtils.getBuildProfileAsync(
       easJsonAccessor,
       platform,
       profileName
-    )) as EasProfile<T>;
+    );
+
+    const deprecationWarnings = EasJsonUtils.getBuildProfileDepreactionWarnings(buildProfile);
+    if (deprecationWarnings.length > 0) {
+      Log.newLine();
+      Log.warn('Detected deprecated fields in eas.json:');
+      for (const warning of deprecationWarnings) {
+        const warnlog: string = warning.message.map(line => `\t${line}`).join('\n');
+        Log.warn(warnlog);
+        if (warning.docsUrl) {
+          Log.warn(`\t${learnMore(warning.docsUrl)}`);
+        }
+        Log.newLine();
+      }
+    }
+
+    return buildProfile as EasProfile<T>;
   } else {
     return (await EasJsonUtils.getSubmitProfileAsync(
       easJsonAccessor,
