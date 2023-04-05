@@ -2,7 +2,7 @@ import { ExpoConfig } from '@expo/config-types';
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import { boolish } from 'getenv';
-import resolveFrom from 'resolve-from';
+import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
 import semver from 'semver';
 
 import Log from '../log';
@@ -63,7 +63,8 @@ export async function expoCommandAsync(
   args: string[],
   { silent = false }: { silent?: boolean } = {}
 ): Promise<void> {
-  const expoCliPath = resolveFrom(projectDir, 'expo/bin/cli.js');
+  const expoCliPath =
+    silentResolveFrom(projectDir, 'expo/bin/cli') || resolveFrom(projectDir, 'expo/bin/cli.js');
   const spawnPromise = spawnAsync(expoCliPath, args, {
     stdio: ['inherit', 'pipe', 'pipe'], // inherit stdin so user can install a missing expo-cli from inside this command
   });
