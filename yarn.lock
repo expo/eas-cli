@@ -1390,10 +1390,10 @@
     slugify "^1.3.4"
     sucrase "^3.20.0"
 
-"@expo/eas-build-job@0.2.106":
-  version "0.2.106"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-0.2.106.tgz#a10f791986bfa9777a13b2b0e9c820673e9e38ba"
-  integrity sha512-V7ihSFNFaATM31P1b/tGrGG7sjuXBT5ZAzKnybTWr5Xl1ODOdEpSC1c9bzs9SUr2iWUFVsxyd2/7+f2+7r/l4A==
+"@expo/eas-build-job@1.0.6":
+  version "1.0.6"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.6.tgz#78f2cdb6eca23f67c5bdd889df145e65b236539a"
+  integrity sha512-wbawjQe7wcTcS8DJkW47eDR01UmIPb+HRm5Sh53l9DFjyf0ZTTilwF0rKnVGH1bDhfqF/e+m3yLTZf0KJ876dA==
   dependencies:
     joi "^17.7.0"
     semver "^7.3.8"
