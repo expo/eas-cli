@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Update expoCommandAsync to support the new cli bin path. ([#1772](https://github.com/expo/eas-cli/pull/1772) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+
 ### 🧹 Chores
 
 - Use the `eas-cli` npm tag for checking for the local build plugin updates. ([#1759](https://github.com/expo/eas-cli/pull/1759) by [@dsokal](https://github.com/dsokal))
