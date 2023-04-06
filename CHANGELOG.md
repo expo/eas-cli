@@ -27,7 +27,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - Use the `eas-cli` npm tag for checking for the local build plugin updates. ([#1759](https://github.com/expo/eas-cli/pull/1759) by [@dsokal](https://github.com/dsokal))
 - Ignore `requireCommit` option in `eas build:internal`. ([#1760](https://github.com/expo/eas-cli/pull/1760) by [@wkozyra95](https://github.com/wkozyra95))
 - Support parsing eas.json from a string. ([#1766](https://github.com/expo/eas-cli/pull/1766) by [@wkozyra95](https://github.com/wkozyra95))
-- Don't use defaults for cache.cacheDefaultPaths build profile field. ([#1769](https://github.com/expo/eas-cli/pull/1769) by [@szdziedzic](https://github.com/szdziedzic))
 - Don't use defaults for the `cache.cacheDefaultPaths` build profile field. ([#1769](https://github.com/expo/eas-cli/pull/1769) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [3.8.1](https://github.com/expo/eas-cli/releases/tag/v3.8.1) - 2023-03-16
