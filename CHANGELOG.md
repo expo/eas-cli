@@ -12,7 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Update expoCommandAsync to support the new cli bin path. ([#1772](https://github.com/expo/eas-cli/pull/1772) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+- Update `expoCommandAsync` to support the new Expo CLI bin path. ([#1772](https://github.com/expo/eas-cli/pull/1772) by [@gabrieldonadel](https://github.com/gabrieldonadel))
 
 ### 🧹 Chores
 

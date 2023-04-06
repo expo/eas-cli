@@ -64,7 +64,7 @@ export async function expoCommandAsync(
   { silent = false }: { silent?: boolean } = {}
 ): Promise<void> {
   const expoCliPath =
-    silentResolveFrom(projectDir, 'expo/bin/cli') || resolveFrom(projectDir, 'expo/bin/cli.js');
+    silentResolveFrom(projectDir, 'expo/bin/cli') ?? resolveFrom(projectDir, 'expo/bin/cli.js');
   const spawnPromise = spawnAsync(expoCliPath, args, {
     stdio: ['inherit', 'pipe', 'pipe'], // inherit stdin so user can install a missing expo-cli from inside this command
   });
