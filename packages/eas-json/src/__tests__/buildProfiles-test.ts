@@ -256,7 +256,6 @@ test('valid profile extending other profile with platform specific caching', asy
         },
         android: {
           cache: {
-            cacheDefaultPaths: false,
             customPaths: ['somefakepath'],
           },
         },
@@ -287,7 +286,6 @@ test('valid profile extending other profile with platform specific caching', asy
     distribution: 'internal',
     credentialsSource: 'remote',
     cache: {
-      cacheDefaultPaths: false,
       customPaths: ['somefakepath'],
     },
   });

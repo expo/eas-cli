@@ -35,9 +35,6 @@ export class EasJsonUtils {
           `The "build.${
             profileName ?? 'production'
           }.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.`,
-          `You can use "build.${
-            profileName ?? 'production'
-          }.cache.cachePaths" to manually select which paths you want to cache.`,
         ],
         docsUrl: 'https://docs.expo.dev/build-reference/caching/#ios-dependencies',
       });
