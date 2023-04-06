@@ -128,7 +128,7 @@ export default class IosCredentialsProvider {
   private async disablePushNotificationsSetupInEasJsonAsync(
     ctx: CredentialsContext
   ): Promise<void> {
-    const easJsonAccessor = new EasJsonAccessor(ctx.projectDir);
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath(ctx.projectDir);
     await easJsonAccessor.readRawJsonAsync();
     easJsonAccessor.patch(easJsonRawObject => {
       easJsonRawObject.cli = {

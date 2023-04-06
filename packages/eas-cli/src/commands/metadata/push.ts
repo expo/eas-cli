@@ -44,7 +44,7 @@ export default class MetadataPush extends EasCommand {
 
     const submitProfiles = await getProfilesAsync({
       type: 'submit',
-      easJsonAccessor: new EasJsonAccessor(projectDir),
+      easJsonAccessor: EasJsonAccessor.fromProjectPath(projectDir),
       platforms: [Platform.IOS],
       profileName: flags.profile,
     });

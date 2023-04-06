@@ -273,7 +273,7 @@ export async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: stri
   }
 
   try {
-    const easJsonAccessor = new EasJsonAccessor(projectDir);
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
     await easJsonAccessor.readRawJsonAsync();
 
     easJsonAccessor.patch(easJsonRawObject => {

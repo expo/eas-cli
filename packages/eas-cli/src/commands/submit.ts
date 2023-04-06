@@ -115,7 +115,7 @@ export default class Submit extends EasCommand {
     const platforms = toPlatforms(flagsWithPlatform.requestedPlatform);
     const submissionProfiles = await getProfilesAsync({
       type: 'submit',
-      easJsonAccessor: new EasJsonAccessor(projectDir),
+      easJsonAccessor: EasJsonAccessor.fromProjectPath(projectDir),
       platforms,
       profileName: flagsWithPlatform.profile,
     });

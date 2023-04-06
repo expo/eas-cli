@@ -99,7 +99,7 @@ export async function runBuildAndSubmitAsync(
     projectDir,
     nonInteractive: flags.nonInteractive,
   });
-  const easJsonAccessor = new EasJsonAccessor(projectDir);
+  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   const easJsonCliConfig: EasJson['cli'] =
     (await EasJsonUtils.getCliConfigAsync(easJsonAccessor)) ?? {};
 

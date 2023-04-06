@@ -29,7 +29,7 @@ describe(getProfilesAsync, () => {
   });
 
   it('defaults to production profile', async () => {
-    const easJsonAccessor = new EasJsonAccessor('/fake');
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath('/fake');
     const result = await getProfilesAsync({
       easJsonAccessor,
       platforms: [Platform.ANDROID, Platform.IOS],
@@ -51,7 +51,7 @@ describe(getProfilesAsync, () => {
 
     await expect(
       getProfilesAsync({
-        easJsonAccessor: new EasJsonAccessor('/fake'),
+        easJsonAccessor: EasJsonAccessor.fromProjectPath('/fake'),
         platforms: [Platform.ANDROID],
         profileName: undefined,
         type: 'build',
@@ -60,7 +60,7 @@ describe(getProfilesAsync, () => {
   });
 
   it('gets a specific profile', async () => {
-    const easJsonAccessor = new EasJsonAccessor('/fake');
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath('/fake');
     const result = await getProfilesAsync({
       easJsonAccessor,
       platforms: [Platform.ANDROID, Platform.IOS],
@@ -85,7 +85,7 @@ describe(getProfilesAsync, () => {
 
     await expect(
       getProfilesAsync({
-        easJsonAccessor: new EasJsonAccessor('/fake'),
+        easJsonAccessor: EasJsonAccessor.fromProjectPath('/fake'),
         platforms: [Platform.ANDROID, Platform.IOS],
         profileName: undefined,
         type: 'build',

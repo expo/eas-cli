@@ -45,7 +45,7 @@ export default class Config extends EasCommand {
       nonInteractive: false,
     });
 
-    const accessor = new EasJsonAccessor(projectDir);
+    const accessor = EasJsonAccessor.fromProjectPath(projectDir);
     const profileName =
       maybeProfile ??
       (await selectAsync(
