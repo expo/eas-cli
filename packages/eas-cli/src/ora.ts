@@ -1,3 +1,4 @@
+import { boolish } from 'getenv';
 // eslint-disable-next-line
 import oraReal, { Options, Ora } from 'ora';
 
@@ -14,6 +15,8 @@ const warnReal = console.warn;
 // eslint-disable-next-line no-console
 const errorReal = console.error;
 
+const isCi = boolish('CI', false);
+
 /**
  * A custom ora spinner that sends the stream to stdout in CI, or non-TTY, instead of stderr (the default).
  *
@@ -22,7 +25,7 @@ const errorReal = console.error;
  */
 export function ora(options?: Options | string): Ora {
   const inputOptions = typeof options === 'string' ? { text: options } : options ?? {};
-  const disabled = Log.isDebug || !process.stdin.isTTY;
+  const disabled = Log.isDebug || !process.stdin.isTTY || isCi;
   const spinner = oraReal({
     // Ensure our non-interactive mode emulates CI mode.
     isEnabled: !disabled,
