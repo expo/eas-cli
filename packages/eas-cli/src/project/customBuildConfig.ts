@@ -1,5 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
+import { errors, readAndValidateBuildConfigAsync } from '@expo/steps';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
@@ -12,12 +13,32 @@ export async function validateCustomBuildConfigAsync(
     return;
   }
 
-  const relativeBuildConfigPath = getCustomBuildConfigPath(profile.config);
-  const buildConfigPath = path.join(projectDir, relativeBuildConfigPath);
-  if (!(await fs.pathExists(buildConfigPath))) {
+  const relativeConfigPath = getCustomBuildConfigPath(profile.config);
+  const configPath = path.join(projectDir, relativeConfigPath);
+  if (!(await fs.pathExists(configPath))) {
     throw new Error(
-      `Custom build configuration file ${chalk.bold(relativeBuildConfigPath)} does not exist.`
+      `Custom build configuration file ${chalk.bold(relativeConfigPath)} does not exist.`
     );
+  }
+
+  try {
+    await readAndValidateBuildConfigAsync(configPath, { skipNamespacedFunctionsCheck: true });
+  } catch (err) {
+    if (err instanceof errors.BuildConfigYAMLError) {
+      throw new Error(
+        `Custom build configuration file ${chalk.bold(
+          relativeConfigPath
+        )} contains invalid YAML.\n\n${err.message}`
+      );
+    } else if (err instanceof errors.BuildConfigError) {
+      throw new Error(
+        `Custom build configuration file ${chalk.bold(
+          relativeConfigPath
+        )} contains invalid configuration. Please check the docs!\n${err.message}`
+      );
+    } else {
+      throw err;
+    }
   }
 }
 
