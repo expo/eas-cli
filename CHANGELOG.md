@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [3.9.0](https://github.com/expo/eas-cli/releases/tag/v3.9.0) - 2023-04-06
+
+### 🎉 New features
+
 - Add support for roll back to embedded updates. ([#1754](https://github.com/expo/eas-cli/pull/1754), [#1755](https://github.com/expo/eas-cli/pull/1755) by [@wschurman](https://github.com/wschurman))
 
 ### 🐛 Bug fixes
