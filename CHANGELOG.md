@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Don't use defaults for the `cache.cacheDefaultPaths` build profile field. ([#1769](https://github.com/expo/eas-cli/pull/1769) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [3.9.0](https://github.com/expo/eas-cli/releases/tag/v3.9.0) - 2023-04-06
 
 ### 🎉 New features

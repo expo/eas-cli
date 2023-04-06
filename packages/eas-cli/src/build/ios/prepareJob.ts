@@ -28,7 +28,6 @@ interface JobData {
 const cacheDefaults = {
   disabled: false,
   customPaths: [],
-  cacheDefaultPaths: true,
 };
 
 export async function prepareJobAsync(

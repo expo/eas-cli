@@ -74,11 +74,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "cacheDefaultPaths": {
-          "type": "boolean",
-          "description": "Specifies whether to cache the recommended set of files, currently only Podfile.lock is cached by default for iOS build and nothing is cached for Android.",
-          "default": true
         }
       }
     },
