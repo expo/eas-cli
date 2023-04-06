@@ -65,19 +65,7 @@ async function readProfileAsync<T extends ProfileType>({
       profileName
     );
 
-    const deprecationWarnings = EasJsonUtils.getBuildProfileDepreactionWarnings(buildProfile);
-    if (deprecationWarnings.length > 0) {
-      Log.newLine();
-      Log.warn('Detected deprecated fields in eas.json:');
-      for (const warning of deprecationWarnings) {
-        const warnlog: string = warning.message.map(line => `\t${line}`).join('\n');
-        Log.warn(warnlog);
-        if (warning.docsUrl) {
-          Log.warn(`\t${learnMore(warning.docsUrl)}`);
-        }
-        Log.newLine();
-      }
-    }
+    maybePrintBuildProfileDeprecationWarnings(buildProfile, profileName);
 
     return buildProfile as EasProfile<T>;
   } else {
@@ -86,5 +74,27 @@ async function readProfileAsync<T extends ProfileType>({
       platform,
       profileName
     )) as EasProfile<T>;
+  }
+}
+
+function maybePrintBuildProfileDeprecationWarnings(
+  buildProfile: BuildProfile<Platform>,
+  profileName?: string
+): void {
+  const deprecationWarnings = EasJsonUtils.getBuildProfileDepreactionWarnings(
+    buildProfile,
+    profileName
+  );
+  if (deprecationWarnings.length > 0) {
+    Log.newLine();
+    Log.warn('Detected deprecated fields in eas.json:');
+    for (const warning of deprecationWarnings) {
+      const warnlog: string = warning.message.map(line => `\t${line}`).join('\n');
+      Log.warn(warnlog);
+      if (warning.docsUrl) {
+        Log.warn(`\t${learnMore(warning.docsUrl)}`);
+      }
+      Log.newLine();
+    }
   }
 }
