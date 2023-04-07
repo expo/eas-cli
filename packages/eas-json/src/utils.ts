@@ -8,6 +8,11 @@ import { resolveSubmitProfile } from './submit/resolver';
 import { SubmitProfile } from './submit/types';
 import { EasJson } from './types';
 
+interface EasJsonDeprecationWarning {
+  message: string[];
+  docsUrl?: string;
+}
+
 export class EasJsonUtils {
   public static async getBuildProfileNamesAsync(accessor: EasJsonAccessor): Promise<string[]> {
     const easJson = await accessor.readAsync();
@@ -23,11 +28,11 @@ export class EasJsonUtils {
     return resolveBuildProfile({ easJson, platform, profileName });
   }
 
-  public static getBuildProfileDepreactionWarnings(
+  public static getBuildProfileDeprecationWarnings(
     buildProfile: BuildProfile,
     profileName?: string
-  ): { message: string[]; docsUrl?: string }[] {
-    const warnings: { message: string[]; docsUrl?: string }[] = [];
+  ): EasJsonDeprecationWarning[] {
+    const warnings: EasJsonDeprecationWarning[] = [];
 
     if (buildProfile.cache?.cacheDefaultPaths !== undefined) {
       warnings.push({

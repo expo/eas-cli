@@ -77,24 +77,31 @@ async function readProfileAsync<T extends ProfileType>({
   }
 }
 
+let hasPrintedDeprecationWarnings = false;
+
 function maybePrintBuildProfileDeprecationWarnings(
   buildProfile: BuildProfile<Platform>,
   profileName?: string
 ): void {
-  const deprecationWarnings = EasJsonUtils.getBuildProfileDepreactionWarnings(
+  if (hasPrintedDeprecationWarnings) {
+    return;
+  }
+  const deprecationWarnings = EasJsonUtils.getBuildProfileDeprecationWarnings(
     buildProfile,
     profileName
   );
-  if (deprecationWarnings.length > 0) {
-    Log.newLine();
-    Log.warn('Detected deprecated fields in eas.json:');
-    for (const warning of deprecationWarnings) {
-      const warnlog: string = warning.message.map(line => `\t${line}`).join('\n');
-      Log.warn(warnlog);
-      if (warning.docsUrl) {
-        Log.warn(`\t${learnMore(warning.docsUrl)}`);
-      }
-      Log.newLine();
-    }
+  if (deprecationWarnings.length === 0) {
+    return;
   }
+  Log.newLine();
+  Log.warn('Detected deprecated fields in eas.json:');
+  for (const warning of deprecationWarnings) {
+    const warnlog: string = warning.message.map(line => `\t${line}`).join('\n');
+    Log.warn(warnlog);
+    if (warning.docsUrl) {
+      Log.warn(`\t${learnMore(warning.docsUrl)}`);
+    }
+    Log.newLine();
+  }
+  hasPrintedDeprecationWarnings = true;
 }
