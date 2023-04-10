@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [3.9.1](https://github.com/expo/eas-cli/releases/tag/v3.9.1) - 2023-04-10
+
+### 🐛 Bug fixes
+
 - Update apple utilities to work around the maintenance error. ([#1780](https://github.com/expo/eas-cli/pull/1780) by [@byCedric](https://github.com/byCedric))
 
 ### 🧹 Chores
