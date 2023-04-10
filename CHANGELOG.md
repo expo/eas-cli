@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Update apple utilities to work around the maintenance error
+
 ### 🧹 Chores
 
 - Don't use defaults for the `cache.cacheDefaultPaths` build profile field. ([#1769](https://github.com/expo/eas-cli/pull/1769) by [@szdziedzic](https://github.com/szdziedzic))
