@@ -10,7 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Update apple utilities to work around the maintenance error
+- Update apple utilities to work around the maintenance error ([#1780](https://github.com/expo/eas-cli/pull/1780) by [@byCedric](https://github.com/byCedric))
 
 ### 🧹 Chores
 
