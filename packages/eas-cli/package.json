@@ -1,14 +1,14 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "3.9.0",
+  "version": "3.9.1",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
   },
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@expo/apple-utils": "1.1.0",
+    "@expo/apple-utils": "1.2.0",
     "@expo/code-signing-certificates": "0.0.5",
     "@expo/config": "7.0.3",
     "@expo/config-plugins": "5.0.4",
