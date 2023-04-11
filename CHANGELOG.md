@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fixes the rollout percentages when ending a rollout. ([#1781](https://github.com/expo/eas-cli/pull/1781) by [@jonsamp](https://github.com/jonsamp))
+
 ### 🧹 Chores
 
 ## [3.9.1](https://github.com/expo/eas-cli/releases/tag/v3.9.1) - 2023-04-10
