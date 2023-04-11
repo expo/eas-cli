@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fixes the rollout percentages when ending a rollout. ([#1781](https://github.com/expo/eas-cli/pull/1781) by [@jonsamp](https://github.com/jonsamp))
+
 ### 🧹 Chores
 
 - Print deprecation warnings for deprecated `eas.json` fields. ([#1768](https://github.com/expo/eas-cli/pull/1768) by [@szdziedzic](https://github.com/szdziedzic))
