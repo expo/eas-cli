@@ -256,11 +256,11 @@ async function endRolloutAsync(
       'Ending the rollout will send all traffic to a single branch. Which one should that be?',
       [
         {
-          title: `${newBranch.name} ${chalk.grey(`- current percent: ${100 - currentPercent}%`)}`,
+          title: `${newBranch.name} ${chalk.grey(`- current percent: ${currentPercent}%`)}`,
           value: true,
         },
         {
-          title: `${oldBranch.name} ${chalk.grey(`- current percent: ${currentPercent}%`)}`,
+          title: `${oldBranch.name} ${chalk.grey(`- current percent: ${100 - currentPercent}%`)}`,
           value: false,
         },
       ]

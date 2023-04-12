@@ -8,6 +8,11 @@ import { resolveSubmitProfile } from './submit/resolver';
 import { SubmitProfile } from './submit/types';
 import { EasJson } from './types';
 
+interface EasJsonDeprecationWarning {
+  message: string[];
+  docsUrl?: string;
+}
+
 export class EasJsonUtils {
   public static async getBuildProfileNamesAsync(accessor: EasJsonAccessor): Promise<string[]> {
     const easJson = await accessor.readAsync();
@@ -21,6 +26,26 @@ export class EasJsonUtils {
   ): Promise<BuildProfile<T>> {
     const easJson = await accessor.readAsync();
     return resolveBuildProfile({ easJson, platform, profileName });
+  }
+
+  public static getBuildProfileDeprecationWarnings(
+    buildProfile: BuildProfile,
+    profileName?: string
+  ): EasJsonDeprecationWarning[] {
+    const warnings: EasJsonDeprecationWarning[] = [];
+
+    if (buildProfile.cache?.cacheDefaultPaths !== undefined) {
+      warnings.push({
+        message: [
+          `The "build.${
+            profileName ?? 'production'
+          }.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.`,
+        ],
+        docsUrl: 'https://docs.expo.dev/build-reference/caching/#ios-dependencies',
+      });
+    }
+
+    return warnings;
   }
 
   public static async getCliConfigAsync(accessor: EasJsonAccessor): Promise<EasJson['cli'] | null> {

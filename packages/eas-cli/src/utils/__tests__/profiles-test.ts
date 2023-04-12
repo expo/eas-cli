@@ -11,6 +11,7 @@ jest.mock('@expo/eas-json', () => {
   const EasJsonUtilsMock = {
     getBuildProfileAsync: jest.fn(),
     getBuildProfileNamesAsync: jest.fn(),
+    getBuildProfileDeprecationWarnings: jest.fn(() => []),
   };
   return {
     ...actual,
