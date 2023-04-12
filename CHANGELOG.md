@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Show output of `expo install expo-updates`. ([#1782](https://github.com/expo/eas-cli/pull/1782) by [@wkozyra95](https://github.com/wkozyra95))
 - Print deprecation warnings for deprecated `eas.json` fields. ([#1768](https://github.com/expo/eas-cli/pull/1768) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [3.9.1](https://github.com/expo/eas-cli/releases/tag/v3.9.1) - 2023-04-10
