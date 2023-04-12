@@ -37,7 +37,7 @@ body:
       required: true
     attributes:
       label: Environment
-      description: Run `npx expo-env-info` and `expo doctor`, and paste the output here.
+      description: Run `npx expo-env-info` and `npx expo-doctor`, and paste the output here.
   - type: textarea
     validations:
       required: false

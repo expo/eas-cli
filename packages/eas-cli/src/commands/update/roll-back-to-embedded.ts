@@ -7,42 +7,36 @@ import { ensureBranchExistsAsync } from '../../branch/queries';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import { ensureChannelExistsAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
   PublishUpdateGroupInput,
   StatuspageServiceName,
-  UpdateInfoGroup,
   UpdatePublishMutation,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
-import Log, { learnMore, link } from '../../log';
+import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
   ExpoCLIExportPlatformFlag,
-  buildBundlesAsync,
-  buildUnsortedUpdateInfoGroupAsync,
-  collectAssetsAsync,
   defaultPublishPlatforms,
-  filterExportedPlatformsByFlag,
   getBranchNameForCommandAsync,
   getRequestedPlatform,
   getRuntimeToPlatformMappingFromRuntimeVersions,
   getRuntimeVersionObjectAsync,
   getUpdateMessageForCommandAsync,
-  isUploadedAssetCountAboveWarningThreshold,
-  resolveInputDirectoryAsync,
-  uploadAssetsAsync,
 } from '../../project/publish';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
 import { getUpdateGroupJsonInfo } from '../../update/utils';
 import {
-  checkManifestBodyAgainstUpdateInfoGroup,
+  CodeSigningInfo,
+  checkDirectiveBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
-  getManifestBodyAsync,
+  getDirectiveBodyAsync,
   signBody,
 } from '../../utils/code-signing';
 import uniqBy from '../../utils/expodash/uniqBy';
@@ -57,15 +51,9 @@ type RawUpdateFlags = {
   channel?: string;
   message?: string;
   platform: string;
-  'input-dir': string;
-  'skip-bundler': boolean;
   'private-key-path'?: string;
   'non-interactive': boolean;
   json: boolean;
-  /** @deprecated see UpdateRepublish command */
-  group?: string;
-  /** @deprecated see UpdateRepublish command */
-  republish?: boolean;
 };
 
 type UpdateFlags = {
@@ -74,53 +62,31 @@ type UpdateFlags = {
   branchName?: string;
   channelName?: string;
   updateMessage?: string;
-  inputDir: string;
-  skipBundler: boolean;
   privateKeyPath?: string;
   json: boolean;
   nonInteractive: boolean;
 };
 
-export default class UpdatePublish extends EasCommand {
-  static override description = 'publish an update group';
+export default class UpdateRollBackToEmbedded extends EasCommand {
+  static override hidden = true; // until we launch
+  static override description = 'roll back to the embedded update';
 
   static override flags = {
     branch: Flags.string({
-      description: 'Branch to publish the update group on',
+      description: 'Branch to publish the rollback to embedded update group on',
       required: false,
     }),
     channel: Flags.string({
-      description: 'Channel that the published update should affect',
+      description: 'Channel that the published rollback to embedded update should affect',
       required: false,
     }),
     message: Flags.string({
-      description: 'A short message describing the update',
+      description: 'A short message describing the rollback to embedded update',
       required: false,
-    }),
-    republish: Flags.boolean({
-      description: 'Republish an update group (deprecated, see republish command)',
-      exclusive: ['input-dir', 'skip-bundler'],
-    }),
-    group: Flags.string({
-      description: 'Update group to republish (deprecated, see republish command)',
-      exclusive: ['input-dir', 'skip-bundler'],
-    }),
-    'input-dir': Flags.string({
-      description: 'Location of the bundle',
-      default: 'dist',
-      required: false,
-    }),
-    'skip-bundler': Flags.boolean({
-      description: `Skip running Expo CLI to bundle the app before publishing`,
-      default: false,
     }),
     platform: Flags.enum({
       char: 'p',
-      options: [
-        // TODO: Add web when it's fully supported
-        ...defaultPublishPlatforms,
-        'all',
-      ],
+      options: [...defaultPublishPlatforms, 'all'],
       default: 'all',
       required: false,
     }),
@@ -142,15 +108,13 @@ export default class UpdatePublish extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = await this.parse(UpdatePublish);
+    const { flags: rawFlags } = await this.parse(UpdateRollBackToEmbedded);
     const paginatedQueryOptions = getPaginatedQueryOptions(rawFlags);
     const {
       auto: autoFlag,
       platform: platformFlag,
       channelName: channelNameArg,
       updateMessage: updateMessageArg,
-      inputDir,
-      skipBundler,
       privateKeyPath,
       json: jsonFlag,
       nonInteractive,
@@ -160,7 +124,7 @@ export default class UpdatePublish extends EasCommand {
     const {
       getDynamicProjectConfigAsync,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(UpdatePublish, {
+    } = await this.getContextAsync(UpdateRollBackToEmbedded, {
       nonInteractive,
     });
 
@@ -208,80 +172,8 @@ export default class UpdatePublish extends EasCommand {
       jsonFlag,
     });
 
-    // build bundle and upload assets for a new publish
-    if (!skipBundler) {
-      const bundleSpinner = ora().start('Exporting...');
-      try {
-        await buildBundlesAsync({ projectDir, inputDir, exp, platformFlag });
-        bundleSpinner.succeed('Exported bundle(s)');
-      } catch (e) {
-        bundleSpinner.fail('Export failed');
-        throw e;
-      }
-    }
-
-    // After possibly bundling, assert that the input directory can be found.
-    const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
-
-    const assetSpinner = ora().start('Uploading...');
-    let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
-    let uploadedAssetCount = 0;
-    let assetLimitPerUpdateGroup = 0;
-    let realizedPlatforms: PublishPlatform[] = [];
-
-    try {
-      const collectedAssets = await collectAssetsAsync(distRoot);
-      const assets = filterExportedPlatformsByFlag(collectedAssets, platformFlag);
-      realizedPlatforms = Object.keys(assets) as PublishPlatform[];
-
-      const uploadResults = await uploadAssetsAsync(
-        graphqlClient,
-        assets,
-        projectId,
-        (totalAssets, missingAssets) => {
-          assetSpinner.text = `Uploading (${totalAssets - missingAssets}/${totalAssets})`;
-        }
-      );
-
-      uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
-      assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
-      unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
-
-      // NOTE(cedric): we assume that bundles are always uploaded, and always are part of
-      // `uploadedAssetCount`, perferably we don't assume. For that, we need to refactor the
-      // `uploadAssetsAsync` and be able to determine asset type from the uploaded assets.
-      const uploadedBundleCount = uploadResults.launchAssetCount;
-      const uploadedNormalAssetCount = Math.max(0, uploadedAssetCount - uploadedBundleCount);
-      const reusedNormalAssetCount = uploadResults.uniqueAssetCount - uploadedNormalAssetCount;
-
-      assetSpinner.stop();
-      Log.withTick(
-        `Uploaded ${uploadedBundleCount} app ${uploadedBundleCount === 1 ? 'bundle' : 'bundles'}`
-      );
-      if (uploadedNormalAssetCount === 0) {
-        Log.withTick(`Uploading assets skipped - no new assets found`);
-      } else {
-        let message = `Uploaded ${uploadedNormalAssetCount} ${
-          uploadedNormalAssetCount === 1 ? 'asset' : 'assets'
-        }`;
-        if (reusedNormalAssetCount > 0) {
-          message += ` (reused ${reusedNormalAssetCount} ${
-            reusedNormalAssetCount === 1 ? 'asset' : 'assets'
-          })`;
-        }
-        Log.withTick(message);
-      }
-      for (const uploadedAssetPath of uploadResults.uniqueUploadedAssetPaths) {
-        Log.debug(chalk.dim(`- ${uploadedAssetPath}`));
-      }
-    } catch (e) {
-      assetSpinner.fail('Failed to upload');
-      throw e;
-    }
-
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
-    const runtimeToPlatformMapping =
-      getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);
+    const realizedPlatforms: PublishPlatform[] =
+      platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
 
     const { branchId, createdBranch } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
@@ -302,79 +194,21 @@ export default class UpdatePublish extends EasCommand {
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
 
-    // Sort the updates into different groups based on their platform specific runtime versions
-    const updateGroups: PublishUpdateGroupInput[] = runtimeToPlatformMapping.map(
-      ({ runtimeVersion, platforms }) => {
-        const localUpdateInfoGroup = Object.fromEntries(
-          platforms.map(platform => [
-            platform,
-            unsortedUpdateInfoGroups[platform as keyof UpdateInfoGroup],
-          ])
-        );
+    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
 
-        return {
-          branchId,
-          updateInfoGroup: localUpdateInfoGroup,
-          runtimeVersion,
-          message: updateMessage,
-          gitCommitHash,
-          isGitWorkingTreeDirty,
-          awaitingCodeSigningInfo: !!codeSigningInfo,
-        };
-      }
-    );
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();
     try {
-      newUpdates = await PublishMutation.publishUpdateGroupAsync(graphqlClient, updateGroups);
-
-      if (codeSigningInfo) {
-        Log.log('🔒 Signing updates');
-
-        const updatesTemp = [...newUpdates];
-        const updateGroupsAndTheirUpdates = updateGroups.map(updateGroup => {
-          const newUpdates = updatesTemp.splice(
-            0,
-            Object.keys(nullthrows(updateGroup.updateInfoGroup)).length
-          );
-          return {
-            updateGroup,
-            newUpdates,
-          };
-        });
-
-        await Promise.all(
-          updateGroupsAndTheirUpdates.map(async ({ updateGroup, newUpdates }) => {
-            await Promise.all(
-              newUpdates.map(async newUpdate => {
-                const response = await fetch(newUpdate.manifestPermalink, {
-                  method: 'GET',
-                  headers: { accept: 'multipart/mixed' },
-                });
-                const manifestBody = nullthrows(await getManifestBodyAsync(response));
-
-                checkManifestBodyAgainstUpdateInfoGroup(
-                  manifestBody,
-                  nullthrows(
-                    nullthrows(updateGroup.updateInfoGroup)[
-                      newUpdate.platform as keyof UpdateInfoGroup
-                    ]
-                  )
-                );
-
-                const manifestSignature = signBody(manifestBody, codeSigningInfo);
-
-                await PublishMutation.setCodeSigningInfoAsync(graphqlClient, newUpdate.id, {
-                  alg: codeSigningInfo.codeSigningMetadata.alg,
-                  keyid: codeSigningInfo.codeSigningMetadata.keyid,
-                  sig: manifestSignature,
-                });
-              })
-            );
-          })
-        );
-      }
-
+      newUpdates = await this.publishRollbacksAsync({
+        graphqlClient,
+        isGitWorkingTreeDirty,
+        gitCommitHash,
+        updateMessage,
+        branchId,
+        codeSigningInfo,
+        runtimeVersions,
+        realizedPlatforms,
+      });
       publishSpinner.succeed('Published!');
     } catch (e) {
       publishSpinner.fail('Failed to publish updates');
@@ -437,20 +271,97 @@ export default class UpdatePublish extends EasCommand {
           ])
         );
         Log.addNewLineIfNone();
-        if (
-          isUploadedAssetCountAboveWarningThreshold(uploadedAssetCount, assetLimitPerUpdateGroup)
-        ) {
-          Log.warn(
-            `This update group contains ${uploadedAssetCount} assets and is nearing the server cap of ${assetLimitPerUpdateGroup}.\n` +
-              `${learnMore('https://docs.expo.dev/eas-update/optimize-assets/', {
-                learnMoreMessage: 'Consider optimizing your usage of assets',
-                dim: false,
-              })}.`
-          );
-          Log.addNewLineIfNone();
-        }
       }
     }
+  }
+
+  private async publishRollbacksAsync({
+    graphqlClient,
+    isGitWorkingTreeDirty,
+    gitCommitHash,
+    updateMessage,
+    branchId,
+    codeSigningInfo,
+    runtimeVersions,
+    realizedPlatforms,
+  }: {
+    graphqlClient: ExpoGraphqlClient;
+    isGitWorkingTreeDirty: boolean | undefined;
+    gitCommitHash: string | undefined;
+    updateMessage: string;
+    branchId: string;
+    codeSigningInfo: CodeSigningInfo | undefined;
+    runtimeVersions: { platform: string; runtimeVersion: string }[];
+    realizedPlatforms: PublishPlatform[];
+  }): Promise<UpdatePublishMutation['updateBranch']['publishUpdateGroups']> {
+    const runtimeToPlatformMapping =
+      getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);
+    const rollbackInfoGroups = Object.fromEntries(
+      realizedPlatforms.map(platform => [platform, true])
+    );
+
+    // Sort the updates into different groups based on their platform specific runtime versions
+    const updateGroups: PublishUpdateGroupInput[] = runtimeToPlatformMapping.map(
+      ({ runtimeVersion, platforms }) => {
+        const localRollbackInfoGroup = Object.fromEntries(
+          platforms.map(platform => [platform, rollbackInfoGroups[platform]])
+        );
+
+        return {
+          branchId,
+          rollBackToEmbeddedInfoGroup: localRollbackInfoGroup,
+          runtimeVersion,
+          message: updateMessage,
+          gitCommitHash,
+          isGitWorkingTreeDirty,
+          awaitingCodeSigningInfo: !!codeSigningInfo,
+        };
+      }
+    );
+
+    const newUpdates = await PublishMutation.publishUpdateGroupAsync(graphqlClient, updateGroups);
+
+    if (codeSigningInfo) {
+      Log.log('🔒 Signing roll back');
+
+      const updatesTemp = [...newUpdates];
+      const updateGroupsAndTheirUpdates = updateGroups.map(updateGroup => {
+        const newUpdates = updatesTemp.splice(
+          0,
+          Object.keys(nullthrows(updateGroup.rollBackToEmbeddedInfoGroup)).length
+        );
+        return {
+          updateGroup,
+          newUpdates,
+        };
+      });
+
+      await Promise.all(
+        updateGroupsAndTheirUpdates.map(async ({ newUpdates }) => {
+          await Promise.all(
+            newUpdates.map(async newUpdate => {
+              const response = await fetch(newUpdate.manifestPermalink, {
+                method: 'GET',
+                headers: { accept: 'multipart/mixed' },
+              });
+              const directiveBody = nullthrows(await getDirectiveBodyAsync(response));
+
+              checkDirectiveBodyAgainstUpdateInfoGroup(directiveBody);
+
+              const directiveSignature = signBody(directiveBody, codeSigningInfo);
+
+              await PublishMutation.setCodeSigningInfoAsync(graphqlClient, newUpdate.id, {
+                alg: codeSigningInfo.codeSigningMetadata.alg,
+                keyid: codeSigningInfo.codeSigningMetadata.keyid,
+                sig: directiveSignature,
+              });
+            })
+          );
+        })
+      );
+    }
+
+    return newUpdates;
   }
 
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
@@ -464,30 +375,11 @@ export default class UpdatePublish extends EasCommand {
       );
     }
 
-    if (flags.group || flags.republish) {
-      // Pick the first flag set that is defined, in this specific order
-      const args = [
-        ['--group', flags.group],
-        ['--branch', flags.branch],
-      ].filter(([_, value]) => value)[0];
-
-      Log.newLine();
-      Log.warn(
-        'The --group and --republish flags are deprecated, use the republish command instead:'
-      );
-      Log.warn(`  ${chalk.bold([`eas update:republish`, ...(args ?? [])].join(' '))}`);
-      Log.newLine();
-
-      Errors.error('--group and --republish flags are deprecated', { exit: 1 });
-    }
-
     return {
       auto,
       branchName,
       channelName,
       updateMessage,
-      inputDir: flags['input-dir'],
-      skipBundler: flags['skip-bundler'],
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
       nonInteractive,

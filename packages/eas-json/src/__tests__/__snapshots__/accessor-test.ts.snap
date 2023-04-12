@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`EasJsonAccessor patching JSON file 1`] = `
+exports[`fromProjectPath patching JSON file 1`] = `
 "{
   "build": {
     "production": {
@@ -14,7 +14,7 @@ exports[`EasJsonAccessor patching JSON file 1`] = `
 "
 `;
 
-exports[`EasJsonAccessor patching JSON5 file (preserves comments) 1`] = `
+exports[`fromProjectPath patching JSON5 file (preserves comments) 1`] = `
 "{
   "build": {
     "production": {

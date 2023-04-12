@@ -3,7 +3,6 @@ import {
   ExpoConfig,
   GetConfigOptions,
   PackageJSONConfig,
-  Platform,
   getConfig,
 } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
@@ -12,7 +11,6 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import { instance, mock } from 'ts-mockito';
 
-import UpdatePublish from '..';
 import { ensureBranchExistsAsync } from '../../../branch/queries';
 import { DynamicProjectConfigContextField } from '../../../commandUtils/context/DynamicProjectConfigContextField';
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
@@ -23,8 +21,8 @@ import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
-import { collectAssetsAsync, uploadAssetsAsync } from '../../../project/publish';
 import { getBranchNameFromChannelNameAsync } from '../../../update/getBranchNameFromChannelNameAsync';
+import UpdateRollBackToEmbedded from '../roll-back-to-embedded';
 
 const projectRoot = '/test-project';
 const commandOptions = { root: projectRoot } as any;
@@ -66,41 +64,26 @@ jest.mock('../../../project/publish', () => ({
   uploadAssetsAsync: jest.fn(),
 }));
 
-describe(UpdatePublish.name, () => {
-  afterEach(() => {
-    vol.reset();
-    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockClear();
-  });
-
-  // Deprecated and split to a new command: update:republish
-  it('errors with --republish', async () => {
-    await expect(new UpdatePublish(['--republish'], commandOptions).run()).rejects.toThrow(
-      '--group and --republish flags are deprecated'
-    );
-  });
-
-  // Deprecated and split to a new command: update:republish
-  it('errors with --group', async () => {
-    await expect(new UpdatePublish(['--group=abc123'], commandOptions).run()).rejects.toThrow(
-      '--group and --republish flags are deprecated'
-    );
-  });
+describe(UpdateRollBackToEmbedded.name, () => {
+  afterEach(() => vol.reset());
 
   it('errors with both --channel and --branch', async () => {
     const flags = ['--channel=channel123', '--branch=branch123'];
 
     mockTestProject();
 
-    await expect(new UpdatePublish(flags, commandOptions).run()).rejects.toThrow(
+    await expect(new UpdateRollBackToEmbedded(flags, commandOptions).run()).rejects.toThrow(
       'Cannot specify both --channel and --branch. Specify either --channel, --branch, or --auto.'
     );
   });
 
-  it('creates a new update with --non-interactive, --branch, and --message', async () => {
+  it('creates a roll back to embedded with --non-interactive, --branch, and --message', async () => {
     const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
 
     mockTestProject();
-    const { platforms, runtimeVersion } = mockTestExport();
+    const platforms = ['android', 'ios'];
+    const runtimeVersion = 'exposdk:47.0.0';
+    jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
 
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
       branchId: 'branch123',
@@ -111,16 +94,18 @@ describe(UpdatePublish.name, () => {
       .mocked(PublishMutation.publishUpdateGroupAsync)
       .mockResolvedValue(platforms.map(platform => ({ ...updateStub, platform, runtimeVersion })));
 
-    await new UpdatePublish(flags, commandOptions).run();
+    await new UpdateRollBackToEmbedded(flags, commandOptions).run();
 
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
   });
 
-  it('creates a new update with --non-interactive, --channel, and --message', async () => {
+  it('creates a roll back to embedded with --non-interactive, --channel, and --message', async () => {
     const flags = ['--non-interactive', '--channel=channel123', '--message=abc'];
 
     const { projectId } = mockTestProject();
-    const { platforms, runtimeVersion } = mockTestExport();
+    const platforms = ['android', 'ios'];
+    const runtimeVersion = 'exposdk:47.0.0';
+    jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
 
     jest.mocked(getBranchNameFromChannelNameAsync).mockResolvedValue('branchFromChannel');
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
@@ -136,7 +121,7 @@ describe(UpdatePublish.name, () => {
       }))
     );
 
-    await new UpdatePublish(flags, commandOptions).run();
+    await new UpdateRollBackToEmbedded(flags, commandOptions).run();
 
     expect(ensureBranchExistsAsync).toHaveBeenCalledWith(
       expect.any(Object), // graphql client
@@ -149,11 +134,11 @@ describe(UpdatePublish.name, () => {
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
   });
 
-  it('creates a new update with the public expo config', async () => {
+  it('creates a roll back to embedded with the public expo config', async () => {
     const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
 
     // Add configuration to the project that should not be included in the update
-    const { appJson } = mockTestProject({
+    mockTestProject({
       expoConfig: {
         hooks: {
           postPublish: [
@@ -166,7 +151,9 @@ describe(UpdatePublish.name, () => {
       },
     });
 
-    const { platforms, runtimeVersion } = mockTestExport({ platforms: ['ios'] });
+    const platforms = ['ios'];
+    const runtimeVersion = 'exposdk:47.0.0';
+    jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
 
     // Mock an existing branch, so we don't create a new one
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
@@ -178,22 +165,15 @@ describe(UpdatePublish.name, () => {
       .mocked(PublishMutation.publishUpdateGroupAsync)
       .mockResolvedValue(platforms.map(platform => ({ ...updateStub, platform, runtimeVersion })));
 
-    await new UpdatePublish(flags, commandOptions).run();
+    await new UpdateRollBackToEmbedded(flags, commandOptions).run();
 
     // Pull the publish data from the mocked publish function
     const publishData = jest.mocked(PublishMutation.publishUpdateGroupAsync).mock.calls[0][1][0];
-    // Pull the Expo config from the publish data
-    const expoConfig = nullthrows(publishData.updateInfoGroup).ios!.extra.expoClient;
-
-    // Ensure the basic properties are present
-    expect(expoConfig).toHaveProperty('name', appJson.expo.name);
-    expect(expoConfig).toHaveProperty('slug', appJson.expo.slug);
-    // Ensure non-public config is not present
-    expect(expoConfig).not.toHaveProperty('hooks');
+    expect(nullthrows(publishData.rollBackToEmbeddedInfoGroup).ios).toBe(true);
   });
 });
 
-/** Create a new in-memory project, copied from src/commands/update/__tests__/republish.test.ts */
+/** Create a new in-memory project, based on src/commands/project/__tests__/init.test.ts */
 function mockTestProject({
   configuredProjectId = '1234',
   expoConfig = {},
@@ -274,57 +254,4 @@ function mockTestProject({
   });
 
   return { projectId: configuredProjectId, appJson: appJSON };
-}
-
-/** Create a new in-memory export of the project */
-function mockTestExport({
-  exportDir = 'dist',
-  platforms = ['android', 'ios'],
-  runtimeVersion = 'exposdk:47.0.0',
-}: {
-  exportDir?: string;
-  platforms?: Platform[];
-  runtimeVersion?: string;
-} = {}): {
-  inputDir: string;
-  platforms: Platform[];
-  runtimeVersion: string;
-} {
-  /* eslint-disable node/no-sync */
-  vol.mkdirpSync(path.join(projectRoot, exportDir, 'bundles'));
-  for (const platform of platforms) {
-    vol.writeFileSync(
-      path.join(projectRoot, exportDir, 'bundles', `${platform}-fake.js`),
-      `console.log("fake bundle for ${platform}");`
-    );
-  }
-
-  jest.mocked(collectAssetsAsync).mockResolvedValue(
-    Object.fromEntries(
-      platforms.map(platform => [
-        platform,
-        {
-          assets: [],
-          launchAsset: {
-            contentType: 'application/javascript',
-            path: path.join(projectRoot, exportDir, 'bundles', `${platform}-fake.js`),
-          },
-        },
-      ])
-    )
-  );
-
-  jest.mocked(uploadAssetsAsync).mockResolvedValue({
-    // platforms are mocked all containing only the launch asset
-    assetCount: platforms.length,
-    uniqueAssetCount: platforms.length,
-    uniqueUploadedAssetCount: platforms.length,
-    assetLimitPerUpdateGroup: 9001,
-    launchAssetCount: 2,
-    uniqueUploadedAssetPaths: [],
-  });
-
-  jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
-
-  return { inputDir: exportDir, platforms, runtimeVersion };
 }

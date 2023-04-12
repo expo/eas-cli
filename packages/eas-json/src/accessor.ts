@@ -38,7 +38,7 @@ const customErrorMessageHandlers: ((err: ValidationError) => void)[] = [
 ];
 
 export class EasJsonAccessor {
-  private easJsonPath: string;
+  private easJsonPath: string | undefined;
 
   private isJson5 = false;
   private easJson: EasJson | undefined;
@@ -46,8 +46,25 @@ export class EasJsonAccessor {
   private easJsonRawObject: any | undefined;
   private easJsonPatched: boolean = false;
 
-  constructor(projectDir: string) {
-    this.easJsonPath = EasJsonAccessor.formatEasJsonPath(projectDir);
+  private constructor({ projectDir }: { projectDir: string });
+  private constructor({ easJsonRawContents }: { easJsonRawContents: string });
+  private constructor({
+    projectDir,
+    easJsonRawContents,
+  }: {
+    projectDir?: string;
+    easJsonRawContents?: string;
+  }) {
+    this.easJsonPath = projectDir && EasJsonAccessor.formatEasJsonPath(projectDir);
+    this.easJsonRawContents = easJsonRawContents;
+  }
+
+  public static fromProjectPath(projectDir: string): EasJsonAccessor {
+    return new EasJsonAccessor({ projectDir });
+  }
+
+  public static fromRawString(easJsonRawContents: string): EasJsonAccessor {
+    return new EasJsonAccessor({ easJsonRawContents });
   }
 
   public static formatEasJsonPath(projectDir: string): string {
@@ -81,6 +98,9 @@ export class EasJsonAccessor {
   }
 
   public async writeAsync(): Promise<void> {
+    if (!this.easJsonPath) {
+      throw new Error('Updates are not supported for EasJsonAccessor created from string.');
+    }
     if (!this.easJsonPatched) {
       return;
     }
@@ -89,6 +109,9 @@ export class EasJsonAccessor {
   }
 
   public patch(fn: (easJsonRawObject: any) => any): void {
+    if (!this.easJsonPath) {
+      throw new Error('Updates are not supported for EasJsonAccessor created from string.');
+    }
     assert(
       this.easJsonRawContents && this.easJsonRawObject,
       'call readAsync/readRawJsonAsync first'
@@ -104,16 +127,24 @@ export class EasJsonAccessor {
   }
 
   public async readRawJsonAsync(): Promise<any> {
-    if (!(await fs.pathExists(this.easJsonPath))) {
-      throw new MissingEasJsonError(
-        `${chalk.bold('eas.json')} could not be found at ${
-          this.easJsonPath
-        }. Learn more at https://expo.fyi/eas-json`
-      );
+    if (this.easJsonPath) {
+      if (!(await fs.pathExists(this.easJsonPath))) {
+        throw new MissingEasJsonError(
+          `${chalk.bold('eas.json')} could not be found at ${
+            this.easJsonPath
+          }. Learn more at https://expo.fyi/eas-json`
+        );
+      }
+      this.easJsonRawContents = await fs.readFile(this.easJsonPath, 'utf-8');
     }
+    return this.parseRawJson();
+  }
 
-    this.easJsonRawContents = await fs.readFile(this.easJsonPath, 'utf-8');
-
+  private parseRawJson(): any {
+    assert(
+      this.easJsonRawContents !== undefined,
+      'easJsonRawContents needs to be set before calling parseRawJson'
+    );
     if (this.easJsonRawContents.trim().length === 0) {
       throw new InvalidEasJsonError(`${chalk.bold('eas.json')} is empty.`);
     }

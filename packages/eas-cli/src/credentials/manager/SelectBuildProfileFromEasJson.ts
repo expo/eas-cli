@@ -8,7 +8,7 @@ export class SelectBuildProfileFromEasJson<T extends Platform> {
   private easJsonAccessor: EasJsonAccessor;
 
   constructor(projectDir: string, private platform: T) {
-    this.easJsonAccessor = new EasJsonAccessor(projectDir);
+    this.easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   }
 
   async runAsync(): Promise<BuildProfile<T>> {

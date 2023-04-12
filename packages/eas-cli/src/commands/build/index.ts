@@ -251,7 +251,7 @@ export async function handleDeprecatedEasJsonAsync(
   if (!(await fs.pathExists(EasJsonAccessor.formatEasJsonPath(projectDir)))) {
     return;
   }
-  const easJsonAccessor = new EasJsonAccessor(projectDir);
+  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   const profileNames = await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor);
   const platformAndProfileNames: [Platform, string][] = profileNames.flatMap(profileName => [
     [Platform.ANDROID, profileName],

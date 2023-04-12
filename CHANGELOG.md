@@ -10,7 +10,49 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fixes the rollout percentages when ending a rollout. ([#1781](https://github.com/expo/eas-cli/pull/1781) by [@jonsamp](https://github.com/jonsamp))
+
 ### 🧹 Chores
+
+- Show output of `expo install expo-updates`. ([#1782](https://github.com/expo/eas-cli/pull/1782) by [@wkozyra95](https://github.com/wkozyra95))
+- Print deprecation warnings for deprecated `eas.json` fields. ([#1768](https://github.com/expo/eas-cli/pull/1768) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [3.9.1](https://github.com/expo/eas-cli/releases/tag/v3.9.1) - 2023-04-10
+
+### 🐛 Bug fixes
+
+- Update apple utilities to work around the maintenance error. ([#1780](https://github.com/expo/eas-cli/pull/1780) by [@byCedric](https://github.com/byCedric))
+
+### 🧹 Chores
+
+- Don't use defaults for the `cache.cacheDefaultPaths` build profile field. ([#1769](https://github.com/expo/eas-cli/pull/1769) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [3.9.0](https://github.com/expo/eas-cli/releases/tag/v3.9.0) - 2023-04-06
+
+### 🎉 New features
+
+- Add support for roll back to embedded updates. ([#1754](https://github.com/expo/eas-cli/pull/1754), [#1755](https://github.com/expo/eas-cli/pull/1755) by [@wschurman](https://github.com/wschurman))
+
+### 🐛 Bug fixes
+
+- Update `expoCommandAsync` to support the new Expo CLI bin path. ([#1772](https://github.com/expo/eas-cli/pull/1772) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+
+### 🧹 Chores
+
+- Use the `eas-cli` npm tag for checking for the local build plugin updates. ([#1759](https://github.com/expo/eas-cli/pull/1759) by [@dsokal](https://github.com/dsokal))
+- Ignore `requireCommit` option in `eas build:internal`. ([#1760](https://github.com/expo/eas-cli/pull/1760) by [@wkozyra95](https://github.com/wkozyra95))
+- Support parsing eas.json from a string. ([#1766](https://github.com/expo/eas-cli/pull/1766) by [@wkozyra95](https://github.com/wkozyra95))
+
+## [3.8.1](https://github.com/expo/eas-cli/releases/tag/v3.8.1) - 2023-03-16
+
+### 🐛 Bug fixes
+
+- Ensure public config is used as update. ([#1745](https://github.com/expo/eas-cli/pull/1745) by [@byCedric](https://github.com/byCedric))
+
+### 🧹 Chores
+
+- Unify how the command errors are displayed. ([#1738](https://github.com/expo/eas-cli/pull/1738) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Unify the case of base error messages for command failures. ([#1744](https://github.com/expo/eas-cli/pull/1744) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ## [3.8.0](https://github.com/expo/eas-cli/releases/tag/v3.8.0) - 2023-03-13
 

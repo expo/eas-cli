@@ -12,7 +12,7 @@ import { getVcsClient, setVcsClient } from '../../../vcs';
 import GitClient from '../../../vcs/clients/git';
 
 async function applyCliConfigAsync(projectDir: string): Promise<void> {
-  const easJsonAccessor = new EasJsonAccessor(projectDir);
+  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   const config = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
   if (config?.version && !semver.satisfies(easCliVersion, config.version)) {
     throw new Error(

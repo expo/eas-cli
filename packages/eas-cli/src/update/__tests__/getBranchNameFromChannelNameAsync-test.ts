@@ -124,6 +124,7 @@ function mockUpdateBranches(branchNames: string[]): UpdateBranch[] {
           runtime: {} as Runtime, // Temporary fix to resolve type errors
           platform: 'ios',
           manifestFragment: '...',
+          isRollBackToEmbedded: false,
           activityTimestamp: '2022-12-07T02:24:43.487Z',
           branchId: '',
           awaitingCodeSigningInfo: false,

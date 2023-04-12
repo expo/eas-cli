@@ -273,7 +273,7 @@ export async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: stri
   }
 
   try {
-    const easJsonAccessor = new EasJsonAccessor(projectDir);
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
     await easJsonAccessor.readRawJsonAsync();
 
     easJsonAccessor.patch(easJsonRawObject => {
@@ -343,7 +343,7 @@ export async function ensureEASUpdateIsConfiguredAsync(
     expWithoutUpdates.sdkVersion
   );
   if (!hasExpoUpdates) {
-    await installExpoUpdatesAsync(projectDir, { silent: !Log.isDebug });
+    await installExpoUpdatesAsync(projectDir, { silent: false });
     Log.withTick('Installed expo updates');
   }
 

@@ -19,7 +19,7 @@ test('minimal allowed eas.json for both platforms', async () => {
     },
   });
 
-  const accessor = new EasJsonAccessor('/project');
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
   const iosProfile = await EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'production');
   const androidProfile = await EasJsonUtils.getSubmitProfileAsync(
     accessor,
@@ -50,7 +50,7 @@ test('android config with all required values', async () => {
     },
   });
 
-  const accessor = new EasJsonAccessor('/project');
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
   const androidProfile = await EasJsonUtils.getSubmitProfileAsync(
     accessor,
     Platform.ANDROID,
@@ -80,7 +80,7 @@ test('android config with serviceAccountKeyPath set to env var', async () => {
 
   try {
     process.env.GOOGLE_SERVICE_ACCOUNT = './path.json';
-    const accessor = new EasJsonAccessor('/project');
+    const accessor = EasJsonAccessor.fromProjectPath('/project');
     const androidProfile = await EasJsonUtils.getSubmitProfileAsync(
       accessor,
       Platform.ANDROID,
@@ -114,7 +114,7 @@ test('ios config with all required values', async () => {
     },
   });
 
-  const accessor = new EasJsonAccessor('/project');
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
   const iosProfile = await EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'production');
 
   expect(iosProfile).toEqual({
@@ -148,7 +148,7 @@ test('ios config with ascApiKey fields set to env var', async () => {
     process.env.ASC_API_KEY_PATH = './path-ABCD.p8';
     process.env.ASC_API_KEY_ISSUER_ID = 'abc-123-def-456';
     process.env.ASC_API_KEY_ID = 'ABCD';
-    const accessor = new EasJsonAccessor('/project');
+    const accessor = EasJsonAccessor.fromProjectPath('/project');
     const iosProfile = await EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
 
     expect(iosProfile).toEqual({
@@ -189,7 +189,7 @@ test('valid profile extending other profile', async () => {
     },
   });
 
-  const accessor = new EasJsonAccessor('/project');
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
   const baseProfile = await EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'base');
   const extendedProfile = await EasJsonUtils.getSubmitProfileAsync(
     accessor,
@@ -233,7 +233,7 @@ test('get profile names', async () => {
     },
   });
 
-  const accessor = new EasJsonAccessor('/project');
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
   const allProfileNames = await EasJsonUtils.getSubmitProfileNamesAsync(accessor);
   expect(allProfileNames.sort()).toEqual(['production', 'blah'].sort());
 });

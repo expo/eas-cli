@@ -10,6 +10,7 @@ import { BuildEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
 import { getExpoWebsiteBaseUrl } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { EasCommandError } from '../commandUtils/errors';
 import {
   AppPlatform,
   BuildFragment,
@@ -36,6 +37,15 @@ import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
 import { getVcsClient } from '../vcs';
 import { BuildContext } from './context';
+import {
+  EasBuildDownForMaintenanceError,
+  EasBuildFreeTierDisabledAndroidError,
+  EasBuildFreeTierDisabledError,
+  EasBuildFreeTierDisabledIOSError,
+  EasBuildTooManyPendingBuildsError,
+  RequestValidationError,
+  TurtleDeprecatedJobFormatError,
+} from './errors';
 import { transformMetadata } from './graphql';
 import { LocalBuildMode, runLocalBuildAsync } from './local';
 import { collectMetadataAsync } from './metadata';
@@ -161,38 +171,33 @@ export async function prepareBuildRequestForPlatformAsync<
   };
 }
 
-const SERVER_SIDE_DEFINED_ERRORS = [
-  'TURTLE_DEPRECATED_JOB_FORMAT',
-  'EAS_BUILD_FREE_TIER_DISABLED',
-  'EAS_BUILD_FREE_TIER_DISABLED_IOS',
-  'EAS_BUILD_FREE_TIER_DISABLED_ANDROID',
-  'VALIDATION_ERROR',
-];
+const SERVER_SIDE_DEFINED_ERRORS: Record<string, typeof EasCommandError> = {
+  TURTLE_DEPRECATED_JOB_FORMAT: TurtleDeprecatedJobFormatError,
+  EAS_BUILD_FREE_TIER_DISABLED: EasBuildFreeTierDisabledError,
+  EAS_BUILD_FREE_TIER_DISABLED_IOS: EasBuildFreeTierDisabledIOSError,
+  EAS_BUILD_FREE_TIER_DISABLED_ANDROID: EasBuildFreeTierDisabledAndroidError,
+  VALIDATION_ERROR: RequestValidationError,
+};
 
-function handleBuildRequestError(error: any, platform: Platform): never {
+export function handleBuildRequestError(error: any, platform: Platform): never {
   Log.debug(JSON.stringify(error.graphQLErrors, null, 2));
 
-  if (SERVER_SIDE_DEFINED_ERRORS.includes(error?.graphQLErrors?.[0]?.extensions?.errorCode)) {
-    Log.error(error?.graphQLErrors?.[0]?.message);
-    throw new Error('Build request failed.');
-  } else if (
-    error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE'
-  ) {
-    Log.error(
+  const graphQLErrorCode: string = error?.graphQLErrors?.[0]?.extensions?.errorCode;
+  if (graphQLErrorCode in SERVER_SIDE_DEFINED_ERRORS) {
+    const ErrorClass: typeof EasCommandError = SERVER_SIDE_DEFINED_ERRORS[graphQLErrorCode];
+    throw new ErrorClass(error?.graphQLErrors?.[0]?.message);
+  } else if (graphQLErrorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE') {
+    throw new EasBuildDownForMaintenanceError(
       `EAS Build is down for maintenance. Try again later. Check ${link(
         'https://status.expo.dev/'
       )} for updates.`
     );
-    throw new Error('Build request failed.');
-  } else if (
-    error?.graphQLErrors?.[0]?.extensions?.errorCode === 'EAS_BUILD_TOO_MANY_PENDING_BUILDS'
-  ) {
-    Log.error(
+  } else if (graphQLErrorCode === 'EAS_BUILD_TOO_MANY_PENDING_BUILDS') {
+    throw new EasBuildTooManyPendingBuildsError(
       `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
     );
-    throw new Error('Build request failed.');
   } else if (error?.graphQLErrors) {
-    Log.error(
+    throw new Error(
       'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.'
     );
   }
@@ -607,7 +612,7 @@ function formatAccountSubscriptionsUrl(accountName: string): string {
 }
 
 async function updateIosBuildProfilesToUseM1WorkersAsync(projectDir: string): Promise<void> {
-  const easJsonAccessor = new EasJsonAccessor(projectDir);
+  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   await easJsonAccessor.readRawJsonAsync();
 
   const profileNames = await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor);
