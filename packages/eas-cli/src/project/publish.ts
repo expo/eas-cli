@@ -563,7 +563,7 @@ export async function getUpdateMessageForCommandAsync({
     const { updateMessageLocal } = await promptAsync({
       type: 'text',
       name: 'updateMessageLocal',
-      message: `Provide an roll back message:`,
+      message: `Provide an update message:`,
       initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
       validate: (value: any) => (value ? true : validationMessage),
     });
