@@ -1,5 +1,5 @@
 overwrite: true
-schema: 'http://127.0.0.1:3000/graphql'
+schema: 'https://staging-api.expo.dev/graphql'
 documents:
   - 'src/graphql/**/!(*.d).{ts,tsx}'
   - 'src/credentials/ios/api/graphql/**/!(*.d).{ts,tsx}'
