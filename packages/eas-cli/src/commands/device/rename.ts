@@ -50,7 +50,7 @@ export default class DeviceRename extends EasCommand {
       nonInteractive: paginatedQueryOptions.nonInteractive,
     });
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
-    //let appleTeamName;
+    let appleTeamName;
 
     if (paginatedQueryOptions.json) {
       enableJsonOutput();
@@ -65,7 +65,7 @@ export default class DeviceRename extends EasCommand {
         paginatedQueryOptions,
       });
       appleTeamIdentifier = appleTeam.appleTeamIdentifier;
-      //appleTeamName = appleTeam.appleTeamName;
+      appleTeamName = appleTeam.appleTeamName;
     }
 
     assert(appleTeamIdentifier, 'No team identifier is specified');
@@ -81,15 +81,9 @@ export default class DeviceRename extends EasCommand {
 
     const newDeviceName = name ? name : await this.promptForNewDeviceNameAsync(chosenDevice.name);
 
-    //this.logChosenDevice(chosenDevice, appleTeamName, appleTeamIdentifier, paginatedQueryOptions);
+    this.logChosenDevice(chosenDevice, appleTeamName, appleTeamIdentifier, paginatedQueryOptions);
 
-    await this.renameDeviceOnExpoAsync(
-      graphqlClient,
-      chosenDevice,
-      newDeviceName!,
-      appleTeam!.id,
-      account.id
-    );
+    await this.renameDeviceOnExpoAsync(graphqlClient, chosenDevice, newDeviceName!);
 
     await this.renameDeviceOnAppleAsync(chosenDevice, appleTeamIdentifier, newDeviceName!);
   }
@@ -109,23 +103,13 @@ export default class DeviceRename extends EasCommand {
   async renameDeviceOnExpoAsync(
     graphqlClient: ExpoGraphqlClient,
     chosenDevice: AppleDevice | AppleDeviceQueryResult,
-    newDeviceName: string,
-    appleTeamId: string,
-    accountId: string
+    newDeviceName: string
   ): Promise<void> {
     const removalSpinner = ora(`Renaming Apple device on Expo`).start();
     try {
-      await AppleDeviceMutation.deleteAppleDeviceAsync(graphqlClient, chosenDevice.id);
-      await AppleDeviceMutation.createAppleDeviceAsync(
-        graphqlClient,
-        {
-          appleTeamId,
-          identifier: chosenDevice.identifier,
-          name: newDeviceName,
-          deviceClass: chosenDevice.deviceClass ?? undefined,
-        },
-        accountId
-      );
+      await AppleDeviceMutation.updateAppleDeviceAsync(graphqlClient, chosenDevice.id, {
+        name: newDeviceName,
+      });
       removalSpinner.succeed('Renamed Apple device from Expo');
     } catch (err) {
       removalSpinner.fail();

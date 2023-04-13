@@ -80,7 +80,7 @@ export const AppleDeviceMutation = {
           gql`
             mutation UpdateAppleDeviceMutation(
               $id: ID!
-              $appleDeviceInput: AppleDeviceUpdateInput!
+              $appleDeviceUpdateInput: AppleDeviceUpdateInput!
             ) {
               appleDevice {
                 updateAppleDevice(id: $id, appleDeviceUpdateInput: $appleDeviceUpdateInput) {
@@ -98,6 +98,6 @@ export const AppleDeviceMutation = {
         )
         .toPromise()
     );
-    return data.id;
+    return data.appleDevice.updateAppleDevice;
   },
 };
