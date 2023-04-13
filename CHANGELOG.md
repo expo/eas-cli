@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fixes the rollout percentages when ending a rollout. ([#1781](https://github.com/expo/eas-cli/pull/1781) by [@jonsamp](https://github.com/jonsamp))
+- Print meaningful error message if `extra.eas.projectId` is not a string. ([#1788](https://github.com/expo/eas-cli/pull/1788) by [@dsokal](https://github.com/dsokal))
 
 ### 🧹 Chores
 
