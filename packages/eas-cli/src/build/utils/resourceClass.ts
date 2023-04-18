@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import semver from 'semver';
 
 import { BuildResourceClass } from '../../graphql/generated';
-import Log, { learnMore } from '../../log';
+import Log, { link } from '../../log';
 import { getReactNativeVersionAsync } from '../metadata';
 
 type AndroidResourceClass = Exclude<
@@ -50,7 +50,7 @@ export async function resolveBuildResourceClassAsync<T extends Platform>(
 
   if (profileResourceClass && resourceClassFlag && resourceClassFlag !== profileResourceClass) {
     Log.warn(
-      `Build profile specifies the "${profileResourceClass}" resource class but you passed "${resourceClassFlag}" to --resource-class.\nUsing the  "${resourceClassFlag}" as the override.`
+      `Build profile specifies the "${profileResourceClass}" resource class but you passed "${resourceClassFlag}" to --resource-class.\nUsing "${resourceClassFlag}" as the override.`
     );
   }
 
@@ -92,7 +92,7 @@ async function resolveIosResourceClassAsync(
 
   if (resourceClassFlag === ResourceClass.LARGE) {
     throw new Error(
-      `The experimental "large" resource class for Intel iOS workers is no longer available. Define the avaliable resource class, which you want to use for your builds in eas.json. ${learnMore(
+      `Experimental "large" resource class for Intel iOS workers is no longer available. If you want to use a non-default resource class, check the available resource classes at ${link(
         'https://docs.expo.dev/build-reference/eas-json/'
       )}`
     );
