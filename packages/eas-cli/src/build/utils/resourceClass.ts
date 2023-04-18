@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import semver from 'semver';
 
 import { BuildResourceClass } from '../../graphql/generated';
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { getReactNativeVersionAsync } from '../metadata';
 
 type AndroidResourceClass = Exclude<
@@ -57,7 +57,7 @@ export async function resolveBuildResourceClassAsync<T extends Platform>(
   const selectedResourceClass = resourceClassFlag ?? profileResourceClass;
 
   return platform === Platform.IOS
-    ? await resolveIosResourceClassAsync(exp, projectDir, resourceClassFlag ?? profileResourceClass)
+    ? await resolveIosResourceClassAsync(exp, projectDir, resourceClassFlag, profileResourceClass)
     : resolveAndroidResourceClass(selectedResourceClass);
 }
 
@@ -82,10 +82,21 @@ function resolveAndroidResourceClass(selectedResourceClass?: ResourceClass): Bui
 async function resolveIosResourceClassAsync(
   exp: ExpoConfig,
   projectDir: string,
-  selectedResourceClass?: ResourceClass
+  resourceClassFlag?: ResourceClass,
+  profileResourceClass?: ResourceClass
 ): Promise<BuildResourceClass> {
   const resourceClass =
-    selectedResourceClass ?? (await resolveIosDefaultRequestedResourceClassAsync(exp, projectDir));
+    resourceClassFlag ??
+    profileResourceClass ??
+    (await resolveIosDefaultRequestedResourceClassAsync(exp, projectDir));
+
+  if (resourceClassFlag === ResourceClass.LARGE) {
+    throw new Error(
+      `The experimental "large" resource class for Intel iOS workers is no longer available. Define the avaliable resource class, which you want to use for your builds in eas.json. ${learnMore(
+        'https://docs.expo.dev/build-reference/eas-json/'
+      )}`
+    );
+  }
 
   if ([ResourceClass.M1_EXPERIMENTAL, ResourceClass.M1_MEDIUM].includes(resourceClass)) {
     Log.warn(
