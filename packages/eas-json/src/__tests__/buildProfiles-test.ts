@@ -256,6 +256,65 @@ test('valid profile extending other profile with platform specific caching', asy
         },
         android: {
           cache: {
+            paths: ['somefakepath'],
+          },
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const baseProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'base');
+  const extendedAndroidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'extension'
+  );
+  const extendedIosProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.IOS,
+    'extension'
+  );
+  expect(baseProfile).toEqual({
+    distribution: 'store',
+    credentialsSource: 'remote',
+    cache: {
+      disabled: true,
+    },
+  });
+  expect(extendedAndroidProfile).toEqual({
+    distribution: 'internal',
+    credentialsSource: 'remote',
+    cache: {
+      paths: ['somefakepath'],
+    },
+  });
+  expect(extendedIosProfile).toEqual({
+    distribution: 'internal',
+    credentialsSource: 'remote',
+
+    cache: {
+      key: 'extend-key',
+    },
+  });
+});
+
+test('valid profile extending other profile with platform specific caching - backwards compatible with customPaths', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      base: {
+        cache: {
+          disabled: true,
+        },
+      },
+      extension: {
+        extends: 'base',
+        distribution: 'internal',
+        cache: {
+          key: 'extend-key',
+        },
+        android: {
+          cache: {
             customPaths: ['somefakepath'],
           },
         },

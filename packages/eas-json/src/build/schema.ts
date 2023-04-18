@@ -23,6 +23,7 @@ const CacheSchema = Joi.object({
   key: Joi.string().max(128),
   cacheDefaultPaths: Joi.boolean(),
   customPaths: Joi.array().items(Joi.string()),
+  paths: Joi.array().items(Joi.string()),
 });
 
 const CommonBuildProfileSchema = Joi.object({
