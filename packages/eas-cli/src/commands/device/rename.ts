@@ -110,7 +110,7 @@ export default class DeviceRename extends EasCommand {
       await AppleDeviceMutation.updateAppleDeviceAsync(graphqlClient, chosenDevice.id, {
         name: newDeviceName,
       });
-      removalSpinner.succeed('Renamed Apple device from Expo');
+      removalSpinner.succeed('Renamed Apple device on Expo');
     } catch (err) {
       removalSpinner.fail();
       throw err;
