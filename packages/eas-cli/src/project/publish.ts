@@ -509,7 +509,7 @@ export async function getBranchNameForCommandAsync({
     try {
       const branch = await selectBranchOnAppAsync(graphqlClient, {
         projectId,
-        promptTitle: `Which branch would you like to roll back to embedded on?`,
+        promptTitle: `Which branch would you like to use?`,
         displayTextForListItem: updateBranch => ({
           title: `${updateBranch.name} ${chalk.grey(
             `- current update: ${formatUpdateMessage(updateBranch.updates[0])}`
