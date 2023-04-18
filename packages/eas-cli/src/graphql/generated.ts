@@ -1009,6 +1009,8 @@ export type App = Project & {
   isLikedByMe: Scalars['Boolean'];
   /** @deprecated No longer supported */
   lastPublishedTime: Scalars['DateTime'];
+  /** Time of the last user activity (update, branch, submission). */
+  latestActivity: Scalars['DateTime'];
   latestAppVersionByPlatformAndApplicationIdentifier?: Maybe<AppVersion>;
   latestReleaseForReleaseChannel?: Maybe<AppRelease>;
   /** ID of latest classic update release */
@@ -2106,9 +2108,7 @@ export enum BuildJobLogsFormat {
 
 export type BuildJobMutation = {
   __typename?: 'BuildJobMutation';
-  cancel: BuildJob;
   del?: Maybe<BuildJob>;
-  restart: BuildJob;
 };
 
 export type BuildJobQuery = {
@@ -2423,27 +2423,6 @@ export type Charge = {
   wasRefunded: Scalars['Boolean'];
 };
 
-/** Represents a client build request */
-export type ClientBuild = {
-  __typename?: 'ClientBuild';
-  buildJobId?: Maybe<Scalars['String']>;
-  id: Scalars['ID'];
-  manifestPlistUrl?: Maybe<Scalars['String']>;
-  status?: Maybe<Scalars['String']>;
-  userFacingErrorMessage?: Maybe<Scalars['String']>;
-  userId?: Maybe<Scalars['String']>;
-};
-
-export type ClientBuildQuery = {
-  __typename?: 'ClientBuildQuery';
-  byId: ClientBuild;
-};
-
-
-export type ClientBuildQueryByIdArgs = {
-  requestId: Scalars['ID'];
-};
-
 export type CodeSigningInfo = {
   __typename?: 'CodeSigningInfo';
   alg: Scalars['String'];
@@ -2581,6 +2560,11 @@ export type DeleteDiscordUserResult = {
 
 export type DeleteEnvironmentSecretResult = {
   __typename?: 'DeleteEnvironmentSecretResult';
+  id: Scalars['ID'];
+};
+
+export type DeleteGitHubUserResult = {
+  __typename?: 'DeleteGitHubUserResult';
   id: Scalars['ID'];
 };
 
@@ -3077,6 +3061,33 @@ export type GitHubRepositorySettingsMutationDeleteGitHubRepositorySettingsArgs =
 export type GitHubRepositorySettingsMutationUpdateGitHubRepositorySettingsArgs = {
   githubRepositorySettingsData: UpdateGitHubRepositorySettingsInput;
   githubRepositorySettingsId: Scalars['ID'];
+};
+
+export type GitHubUser = {
+  __typename?: 'GitHubUser';
+  githubUserIdentifier: Scalars['String'];
+  id: Scalars['ID'];
+  metadata?: Maybe<GitHubUserMetadata>;
+  userActor: UserActor;
+};
+
+export type GitHubUserMetadata = {
+  __typename?: 'GitHubUserMetadata';
+  avatarUrl: Scalars['String'];
+  login: Scalars['String'];
+  name?: Maybe<Scalars['String']>;
+  url: Scalars['String'];
+};
+
+export type GitHubUserMutation = {
+  __typename?: 'GitHubUserMutation';
+  /** Delete a GitHub User by ID */
+  deleteGitHubUser: DeleteGitHubUserResult;
+};
+
+
+export type GitHubUserMutationDeleteGitHubUserArgs = {
+  id: Scalars['ID'];
 };
 
 export type GoogleServiceAccountKey = {
@@ -3950,6 +3961,8 @@ export type RootMutation = {
   githubRepository: GitHubRepositoryMutation;
   /** Mutations for GitHub repository settings */
   githubRepositorySettings: GitHubRepositorySettingsMutation;
+  /** Mutations for GitHub users */
+  githubUser: GitHubUserMutation;
   /** Mutations that modify a Google Service Account Key */
   googleServiceAccountKey: GoogleServiceAccountKeyMutation;
   /** Mutations that modify the build credentials for an iOS app */
@@ -4030,7 +4043,6 @@ export type RootQuery = {
   /** Top-level query object for querying BuildPublicData publicly. */
   buildPublicData: BuildPublicDataQuery;
   builds: BuildQuery;
-  clientBuilds: ClientBuildQuery;
   /** Top-level query object for querying Experimentation configuration. */
   experimentation: ExperimentationQuery;
   /** Top-level query object for querying GitHub App information and resources it has access to. */
@@ -4142,6 +4154,8 @@ export type SsoUser = Actor & UserActor & {
   featureGates: Scalars['JSONObject'];
   firstName?: Maybe<Scalars['String']>;
   fullName?: Maybe<Scalars['String']>;
+  /** GitHub account linked to a user */
+  githubUser?: Maybe<GitHubUser>;
   githubUsername?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   industry?: Maybe<Scalars['String']>;
@@ -4874,6 +4888,8 @@ export type User = Actor & UserActor & {
   featureGates: Scalars['JSONObject'];
   firstName?: Maybe<Scalars['String']>;
   fullName?: Maybe<Scalars['String']>;
+  /** GitHub account linked to a user */
+  githubUser?: Maybe<GitHubUser>;
   githubUsername?: Maybe<Scalars['String']>;
   /** Whether this user has any pending user invitations. Only resolves for the viewer. */
   hasPendingUserInvitations: Scalars['Boolean'];
@@ -4964,6 +4980,8 @@ export type UserActor = {
   featureGates: Scalars['JSONObject'];
   firstName?: Maybe<Scalars['String']>;
   fullName?: Maybe<Scalars['String']>;
+  /** GitHub account linked to a user */
+  githubUser?: Maybe<GitHubUser>;
   githubUsername?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   industry?: Maybe<Scalars['String']>;
