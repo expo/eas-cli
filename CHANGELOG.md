@@ -10,7 +10,20 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [3.9.3](https://github.com/expo/eas-cli/releases/tag/v3.9.3) - 2023-04-18
+
+### 🐛 Bug fixes
+
+- Fix prompts in `eas update`. ([#1797](https://github.com/expo/eas-cli/pull/1797) by [@wschurman](https://github.com/wschurman))
+
+## [3.9.2](https://github.com/expo/eas-cli/releases/tag/v3.9.2) - 2023-04-13
+
+### 🐛 Bug fixes
+
 - Fixes the rollout percentages when ending a rollout. ([#1781](https://github.com/expo/eas-cli/pull/1781) by [@jonsamp](https://github.com/jonsamp))
+- Print meaningful error message if `extra.eas.projectId` is not a string. ([#1788](https://github.com/expo/eas-cli/pull/1788) by [@dsokal](https://github.com/dsokal))
 
 ### 🧹 Chores
 

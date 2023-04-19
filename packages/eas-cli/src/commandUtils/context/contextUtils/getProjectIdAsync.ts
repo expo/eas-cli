@@ -89,6 +89,12 @@ export async function getProjectIdAsync(
 
   const localProjectId = exp.extra?.eas?.projectId;
   if (localProjectId) {
+    if (typeof localProjectId !== 'string') {
+      throw new Error(
+        `Project config: "extra.eas.projectId" must be a string, found ${typeof localProjectId}. If you're not sure how to set it up on your own, remove the property entirely and it will be automatically configured on the next EAS CLI run.`
+      );
+    }
+
     // check that the local project ID matches account and slug
     const appForProjectId = await AppQuery.byIdAsync(graphqlClient, localProjectId);
     if (exp.owner && exp.owner !== appForProjectId.ownerAccount.name) {

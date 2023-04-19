@@ -252,4 +252,26 @@ describe(getProjectIdAsync, () => {
       getProjectIdAsync(sessionManager, { name: 'test', slug: 'test' }, { nonInteractive: false })
     ).rejects.toThrow();
   });
+
+  it('throws if extra.eas.projectId is not a string', async () => {
+    jest.mocked(getConfig).mockReturnValue({
+      exp: { name: 'test', slug: 'test', extra: { eas: { projectId: 1234 } } },
+    } as any);
+    jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+      id: '1234',
+      fullName: '@notnotbrent/test',
+      slug: 'test',
+      ownerAccount: { name: 'notnotbrent' } as any,
+    });
+
+    await expect(
+      getProjectIdAsync(
+        sessionManager,
+        { name: 'test', slug: 'wat', extra: { eas: { projectId: 1234 } } },
+        { nonInteractive: false }
+      )
+    ).rejects.toThrow(
+      `Project config: "extra.eas.projectId" must be a string, found number. If you're not sure how to set it up on your own, remove the property entirely and it will be automatically configured on the next EAS CLI run.`
+    );
+  });
 });

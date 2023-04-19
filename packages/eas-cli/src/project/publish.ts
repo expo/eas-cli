@@ -509,7 +509,7 @@ export async function getBranchNameForCommandAsync({
     try {
       const branch = await selectBranchOnAppAsync(graphqlClient, {
         projectId,
-        promptTitle: `Which branch would you like to roll back to embedded on?`,
+        promptTitle: `Which branch would you like to use?`,
         displayTextForListItem: updateBranch => ({
           title: `${updateBranch.name} ${chalk.grey(
             `- current update: ${formatUpdateMessage(updateBranch.updates[0])}`
@@ -563,7 +563,7 @@ export async function getUpdateMessageForCommandAsync({
     const { updateMessageLocal } = await promptAsync({
       type: 'text',
       name: 'updateMessageLocal',
-      message: `Provide an roll back message:`,
+      message: `Provide an update message:`,
       initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
       validate: (value: any) => (value ? true : validationMessage),
     });
