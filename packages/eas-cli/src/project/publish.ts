@@ -577,7 +577,7 @@ export async function getUpdateMessageForCommandAsync({
     Log.warn('Update message exceeds the allowed 1024 character limit. Truncating message...');
   }
 
-  return updateMessage;
+  return truncatedMessage;
 }
 
 export const defaultPublishPlatforms: Platform[] = ['android', 'ios'];
