@@ -24,8 +24,23 @@ describe('prepareJobAsync called', () => {
     expect(result?.cache).toBeDefined();
     expect(result.cache.paths).toBeDefined();
     expect(result.cache.paths).toEqual([]);
-    expect(result.cache.customPaths).toBeDefined();
-    expect(result.cache.customPaths).toEqual([]);
+    expect(result.cache.customPaths).toBeUndefined();
+  });
+  it('uses default paths when settings provided without either paths or customPaths', async () => {
+    const ctxMock = getBuildContextMock();
+    ctxMock.buildProfile = {
+      // @ts-ignore
+      cache: {
+        disabled: false,
+      },
+      credentialsSource: CredentialsSource.LOCAL,
+      distribution: 'internal',
+    };
+    const result = await prepareJobAsync(ctxMock, jobData);
+    expect(result?.cache).toBeDefined();
+    expect(result.cache.paths).toBeDefined();
+    expect(result.cache.paths).toEqual([]);
+    expect(result.cache.customPaths).toBeUndefined();
   });
   it('uses paths when paths provided', async () => {
     const ctxMock = getBuildContextMock();
@@ -41,10 +56,9 @@ describe('prepareJobAsync called', () => {
     expect(result?.cache).toBeDefined();
     expect(result.cache.paths).toBeDefined();
     expect(result.cache.paths).toEqual(['index.ts']);
-    expect(result.cache.customPaths).toBeDefined();
-    expect(result.cache.customPaths).toEqual([]);
+    expect(result.cache.customPaths).toBeUndefined();
   });
-  it('uses deprecated customPaths when customPaths provided', async () => {
+  it('uses deprecated customPaths as paths when customPaths provided', async () => {
     const ctxMock = getBuildContextMock();
     ctxMock.buildProfile = {
       // @ts-ignore
@@ -58,8 +72,7 @@ describe('prepareJobAsync called', () => {
     const result = await prepareJobAsync(ctxMock, jobData);
     expect(result?.cache).toBeDefined();
     expect(result.cache.paths).toBeDefined();
-    expect(result.cache.paths).toEqual([]);
-    expect(result.cache.customPaths).toBeDefined();
-    expect(result.cache.customPaths).toEqual(['index.ts']);
+    expect(result.cache.paths).toEqual(['index.ts']);
+    expect(result.cache.customPaths).toBeUndefined();
   });
 });

@@ -7,6 +7,7 @@ import {
   Platform,
   sanitizeJob,
 } from '@expo/eas-build-job';
+import { Cache } from '@expo/eas-build-job/dist/common';
 import { BuildProfile } from '@expo/eas-json';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -65,11 +66,7 @@ export async function prepareJobAsync(
       expoCli: buildProfile.expoCli,
       env: buildProfile.env,
     },
-    cache: {
-      ...cacheDefaults,
-      ...buildProfile.cache,
-      clear: ctx.clearCache,
-    },
+    cache: getCacheSettings(buildProfile, ctx),
     secrets: {
       buildCredentials,
     },
@@ -125,4 +122,22 @@ function prepareTargetCredentials(targetCredentials: TargetCredentials): Ios.Tar
       password: targetCredentials.distributionCertificate.certificatePassword,
     },
   };
+}
+
+function getCacheSettings(
+  buildProfile: BuildProfile<Platform.IOS>,
+  ctx: BuildContext<Platform.IOS>
+): Cache {
+  const cacheSettings = {
+    ...cacheDefaults,
+    ...buildProfile.cache,
+    clear: ctx.clearCache,
+  };
+  if (cacheSettings.customPaths) {
+    if (cacheSettings.customPaths.length > 0) {
+      cacheSettings.paths.push(...cacheSettings.customPaths);
+    }
+    delete cacheSettings.customPaths;
+  }
+  return cacheSettings;
 }
