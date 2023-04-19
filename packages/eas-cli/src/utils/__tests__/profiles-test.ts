@@ -5,7 +5,11 @@ import chalk from 'chalk';
 
 import Log from '../../log';
 import { selectAsync } from '../../prompts';
-import { getProfilesAsync, maybePrintBuildProfileDeprecationWarnings } from '../profiles';
+import {
+  clearHasPrintedDeprecationWarnings,
+  getProfilesAsync,
+  maybePrintBuildProfileDeprecationWarnings,
+} from '../profiles';
 
 jest.mock('../../prompts');
 jest.mock('@expo/eas-json', () => {
@@ -105,8 +109,9 @@ describe(getProfilesAsync, () => {
 });
 describe(maybePrintBuildProfileDeprecationWarnings, () => {
   afterEach(() => {
-    newLineSpy.mockReset();
-    warnSpy.mockReset();
+    clearHasPrintedDeprecationWarnings();
+    newLineSpy.mockClear();
+    warnSpy.mockClear();
   });
 
   describe('no deprecation warnings', () => {
@@ -142,44 +147,44 @@ describe(maybePrintBuildProfileDeprecationWarnings, () => {
       expect(warnCalls[2][0]).toEqual(`\t${chalk.dim(dimmedText)}`);
     });
   });
-  // describe('multiple deprecation warnings', () => {
-  //   it('prints the warnings', async () => {
-  //     getBuildProfileDeprecationWarnings.mockImplementation(() => [
-  //       {
-  //         message: [
-  //           'The "build.production.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.production.cache.paths" instead.',
-  //         ],
-  //         docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
-  //       },
-  //       {
-  //         message: [
-  //           'The "build.production.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.',
-  //         ],
-  //         docsUrl: 'https://docs.expo.dev/build-reference/caching/#ios-dependencies',
-  //       },
-  //       {
-  //         message: ['Other message'],
-  //       },
-  //     ]);
-  //     const buildProfile = {} as AndroidBuildProfile;
-  //     maybePrintBuildProfileDeprecationWarnings(buildProfile);
-  //     expect(newLineSpy).toHaveBeenCalledTimes(4);
-  //     expect(warnSpy).toHaveBeenCalledTimes(6);
-  //     const warnCalls = warnSpy.mock.calls;
-  //     expect(warnCalls[0][0]).toEqual('Detected deprecated fields in eas.json:');
-  //     expect(warnCalls[1][0]).toEqual(
-  //       '\tThe "build.production.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.production.cache.paths" instead.'
-  //     );
-  //     let underlinedText = 'https://docs.expo.dev/build-reference/eas-json/#cache';
-  //     let dimmedText = `Learn more: ${chalk.underline(underlinedText)}`;
-  //     expect(warnCalls[2][0]).toEqual(`\t${chalk.dim(dimmedText)}`);
-  //     expect(warnCalls[3][0]).toEqual(
-  //       '\tThe "build.production.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.'
-  //     );
-  //     underlinedText = 'https://docs.expo.dev/build-reference/caching/#ios-dependencies';
-  //     dimmedText = `Learn more: ${chalk.underline(underlinedText)}`;
-  //     expect(warnCalls[4][0]).toEqual(`\t${chalk.dim(dimmedText)}`);
-  //     expect(warnCalls[5][0]).toEqual('\tOther message');
-  //   });
-  // });
+  describe('multiple deprecation warnings', () => {
+    it('prints the warnings', async () => {
+      getBuildProfileDeprecationWarnings.mockImplementation(() => [
+        {
+          message: [
+            'The "build.production.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.production.cache.paths" instead.',
+          ],
+          docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
+        },
+        {
+          message: [
+            'The "build.production.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.',
+          ],
+          docsUrl: 'https://docs.expo.dev/build-reference/caching/#ios-dependencies',
+        },
+        {
+          message: ['Other message'],
+        },
+      ]);
+      const buildProfile = {} as AndroidBuildProfile;
+      maybePrintBuildProfileDeprecationWarnings(buildProfile);
+      expect(newLineSpy).toHaveBeenCalledTimes(4);
+      expect(warnSpy).toHaveBeenCalledTimes(6);
+      const warnCalls = warnSpy.mock.calls;
+      expect(warnCalls[0][0]).toEqual('Detected deprecated fields in eas.json:');
+      expect(warnCalls[1][0]).toEqual(
+        '\tThe "build.production.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.production.cache.paths" instead.'
+      );
+      let underlinedText = 'https://docs.expo.dev/build-reference/eas-json/#cache';
+      let dimmedText = `Learn more: ${chalk.underline(underlinedText)}`;
+      expect(warnCalls[2][0]).toEqual(`\t${chalk.dim(dimmedText)}`);
+      expect(warnCalls[3][0]).toEqual(
+        '\tThe "build.production.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.'
+      );
+      underlinedText = 'https://docs.expo.dev/build-reference/caching/#ios-dependencies';
+      dimmedText = `Learn more: ${chalk.underline(underlinedText)}`;
+      expect(warnCalls[4][0]).toEqual(`\t${chalk.dim(dimmedText)}`);
+      expect(warnCalls[5][0]).toEqual('\tOther message');
+    });
+  });
 });

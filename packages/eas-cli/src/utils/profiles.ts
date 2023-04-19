@@ -79,6 +79,10 @@ async function readProfileAsync<T extends ProfileType>({
 
 let hasPrintedDeprecationWarnings = false;
 
+export function clearHasPrintedDeprecationWarnings(): void {
+  hasPrintedDeprecationWarnings = false;
+}
+
 export function maybePrintBuildProfileDeprecationWarnings(
   buildProfile: BuildProfile<Platform>,
   profileName?: string
