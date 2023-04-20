@@ -1,6 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { ArchiveSource, ArchiveSourceType, Workflow } from '@expo/eas-build-job/dist/common';
-import { CredentialsSource } from '@expo/eas-json';
+import { CredentialsSource, errors } from '@expo/eas-json';
+import chalk from 'chalk';
 import { mock } from 'ts-mockito';
 
 import { BuildContext } from '../../context';
@@ -74,5 +75,30 @@ describe('prepareJobAsync called', () => {
     expect(result.cache.paths).toBeDefined();
     expect(result.cache.paths).toEqual(['index.ts']);
     expect(result.cache.customPaths).toBeUndefined();
+  });
+  it('throws an error when both paths and customPaths are provided', async () => {
+    const ctxMock = getBuildContextMock();
+    ctxMock.buildProfile = {
+      cache: {
+        disabled: false,
+        paths: ['index.ts'],
+        customPaths: ['index2.ts'],
+      },
+      credentialsSource: CredentialsSource.LOCAL,
+      distribution: 'internal',
+    };
+    let result;
+    try {
+      result = await prepareJobAsync(ctxMock, jobData);
+      fail();
+    } catch (error: any) {
+      expect(error).toBeInstanceOf(errors.InvalidEasJsonError);
+      expect(error.message).toEqual(
+        `Found invalid cache settings in ${chalk.bold('eas.json')}. Cannot use both ${chalk.bold(
+          'paths'
+        )} and ${chalk.bold('customPaths')} at the same time`
+      );
+    }
+    expect(result).toBeUndefined();
   });
 });

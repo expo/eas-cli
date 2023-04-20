@@ -7,8 +7,7 @@ import {
   Platform,
   sanitizeJob,
 } from '@expo/eas-build-job';
-import { Cache } from '@expo/eas-build-job/dist/common';
-import { BuildProfile } from '@expo/eas-json';
+import { BuildProfile, EasJsonUtils } from '@expo/eas-json';
 import path from 'path';
 import slash from 'slash';
 
@@ -22,11 +21,6 @@ interface JobData {
   projectArchive: ArchiveSource;
   credentials?: AndroidCredentials;
 }
-
-const cacheDefaults = {
-  disabled: false,
-  paths: [],
-};
 
 export async function prepareJobAsync(
   ctx: BuildContext<Platform.ANDROID>,
@@ -72,7 +66,7 @@ export async function prepareJobAsync(
       expoCli: buildProfile.expoCli,
       env: buildProfile.env,
     },
-    cache: getCacheSettings(buildProfile, ctx),
+    cache: EasJsonUtils.getCacheSettings(buildProfile, ctx),
     secrets: {
       ...buildCredentials,
     },
@@ -102,22 +96,4 @@ export async function prepareJobAsync(
   };
 
   return sanitizeJob(job);
-}
-
-function getCacheSettings(
-  buildProfile: BuildProfile<Platform.ANDROID>,
-  ctx: BuildContext<Platform.ANDROID>
-): Cache {
-  const cacheSettings = {
-    ...cacheDefaults,
-    ...buildProfile.cache,
-    clear: ctx.clearCache,
-  };
-  if (cacheSettings.customPaths) {
-    if (cacheSettings.customPaths.length > 0) {
-      cacheSettings.paths.push(...cacheSettings.customPaths);
-    }
-    delete cacheSettings.customPaths;
-  }
-  return cacheSettings;
 }
