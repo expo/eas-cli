@@ -45,7 +45,7 @@ describe('getBuildProfileDeprecationWarnings', () => {
         expect(result).toEqual([
           {
             message: [
-              `The "build.dummy_profile_name.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.production.cache.paths" instead.`,
+              `The "build.dummy_profile_name.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.dummy_profile_name.cache.paths" instead.`,
             ],
             docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
           },
@@ -96,7 +96,7 @@ describe('getBuildProfileDeprecationWarnings', () => {
         expect(result).toEqual([
           {
             message: [
-              `The "build.dummy_profile_name.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.production.cache.paths" instead.`,
+              `The "build.dummy_profile_name.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.dummy_profile_name.cache.paths" instead.`,
             ],
             docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
           },

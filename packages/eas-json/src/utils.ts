@@ -57,7 +57,9 @@ export class EasJsonUtils {
         message: [
           `The "build.${
             profileName ?? 'production'
-          }.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.production.cache.paths" instead.`,
+          }.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.${
+            profileName ?? 'production'
+          }.cache.paths" instead.`,
         ],
         docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
       });
