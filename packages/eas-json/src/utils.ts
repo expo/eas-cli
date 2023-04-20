@@ -1,11 +1,9 @@
 import { Platform } from '@expo/eas-build-job';
-import { Cache } from '@expo/eas-build-job/dist/common';
-import chalk from 'chalk';
 
 import { EasJsonAccessor } from './accessor';
 import { resolveBuildProfile } from './build/resolver';
 import { BuildProfile } from './build/types';
-import { InvalidEasJsonError, MissingEasJsonError } from './errors';
+import { MissingEasJsonError } from './errors';
 import { resolveSubmitProfile } from './submit/resolver';
 import { SubmitProfile } from './submit/types';
 import { EasJson } from './types';
@@ -16,11 +14,6 @@ interface EasJsonDeprecationWarning {
 }
 
 export class EasJsonUtils {
-  private static cacheDefaults = {
-    disabled: false,
-    paths: [],
-  };
-
   public static async getBuildProfileNamesAsync(accessor: EasJsonAccessor): Promise<string[]> {
     const easJson = await accessor.readAsync();
     return Object.keys(easJson?.build ?? {});
@@ -92,37 +85,5 @@ export class EasJsonUtils {
   ): Promise<SubmitProfile<T>> {
     const easJson = await accessor.readAsync();
     return resolveSubmitProfile({ easJson, platform, profileName });
-  }
-
-  public static getCacheSettings<T extends Platform>(
-    buildProfile: BuildProfile<T>,
-    ctx: any
-  ): Cache {
-    if (
-      buildProfile?.cache?.paths &&
-      buildProfile.cache.paths.length > 0 &&
-      buildProfile?.cache?.customPaths &&
-      buildProfile.cache.customPaths.length > 0
-    ) {
-      throw new InvalidEasJsonError(
-        `Found invalid cache settings in ${chalk.bold('eas.json')}. Cannot use both ${chalk.bold(
-          'paths'
-        )} and ${chalk.bold('customPaths')} at the same time`
-      );
-    }
-
-    const cacheSettings = {
-      ...EasJsonUtils.cacheDefaults,
-      ...buildProfile.cache,
-      clear: ctx.clearCache,
-    };
-
-    if (cacheSettings.customPaths) {
-      if (cacheSettings.customPaths.length > 0) {
-        cacheSettings.paths = cacheSettings.customPaths;
-      }
-      delete cacheSettings.customPaths;
-    }
-    return cacheSettings;
   }
 }

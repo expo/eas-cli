@@ -7,7 +7,8 @@ import {
   Platform,
   sanitizeJob,
 } from '@expo/eas-build-job';
-import { BuildProfile, EasJsonUtils } from '@expo/eas-json';
+import { Cache } from '@expo/eas-build-job/dist/common';
+import { BuildProfile } from '@expo/eas-json';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import slash from 'slash';
@@ -24,6 +25,11 @@ interface JobData {
   credentials?: IosCredentials;
   buildScheme: string;
 }
+
+const cacheDefaults = {
+  disabled: false,
+  paths: [],
+};
 
 export async function prepareJobAsync(
   ctx: BuildContext<Platform.IOS>,
@@ -60,7 +66,7 @@ export async function prepareJobAsync(
       expoCli: buildProfile.expoCli,
       env: buildProfile.env,
     },
-    cache: EasJsonUtils.getCacheSettings(buildProfile, ctx),
+    cache: getCacheSettings(buildProfile, ctx),
     secrets: {
       buildCredentials,
     },
@@ -116,4 +122,22 @@ function prepareTargetCredentials(targetCredentials: TargetCredentials): Ios.Tar
       password: targetCredentials.distributionCertificate.certificatePassword,
     },
   };
+}
+
+function getCacheSettings(
+  buildProfile: BuildProfile<Platform.IOS>,
+  ctx: BuildContext<Platform.IOS>
+): Cache {
+  const cacheSettings = {
+    ...cacheDefaults,
+    ...buildProfile.cache,
+    clear: ctx.clearCache,
+  };
+  if (cacheSettings.customPaths) {
+    if (cacheSettings.customPaths.length > 0) {
+      cacheSettings.paths.push(...cacheSettings.customPaths);
+    }
+    delete cacheSettings.customPaths;
+  }
+  return cacheSettings;
 }
