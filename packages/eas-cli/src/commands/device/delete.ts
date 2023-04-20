@@ -112,11 +112,17 @@ export default class DeviceDelete extends EasCommand {
     const removeAppleSpinner = ora('Disabling device on Apple').start();
     try {
       const appleValidatedDevices = await Device.getAsync(context);
-      const appleValidatedDevice = appleValidatedDevices.find(d => d.id === device.id);
+      const appleValidatedDevice = appleValidatedDevices.find(
+        d => d.attributes.udid === device.identifier
+      );
       if (appleValidatedDevice) {
         await appleValidatedDevice.updateAsync({ status: DeviceStatus.DISABLED });
+        removeAppleSpinner.succeed('Disabled device on Apple');
+      } else {
+        removeAppleSpinner.warn(
+          'Device not found on Apple Developer Portal. Expo-registered devices will not appear there until they are chosen for an internal distribution build.'
+        );
       }
-      removeAppleSpinner.succeed('Disabled device on Apple');
     } catch (err) {
       removeAppleSpinner.fail();
       throw err;
