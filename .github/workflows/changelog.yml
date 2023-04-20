@@ -1,48 +1,37 @@
-on:
-  issue_comment:
-    types: [created]
+name: CHANGELOG.md PR check
 
-name: Changelog
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - labeled
+      - unlabeled
 
 jobs:
-  pr-commented:
+  pr-changelog-entry:
+    name: Check CHANGELOG.md updated
     runs-on: ubuntu-latest
-    if: ${{ github.event.issue.pull_request && github.event.issue.user.login == github.event.comment.user.login && startsWith(github.event.comment.body, '/changelog-entry ') }}
     steps:
       - uses: actions/checkout@v2
+      - name: Check if CHANGELOG.md was updated
+        id: changelog-updated
+        uses: tj-actions/changed-files@v35
         with:
-          token: ${{ secrets.EXPO_BOT_PAT }}
-      - uses: actions/setup-node@v2
+          files: CHANGELOG.md
+      - name: Fail if CHANGELOG.md was not updated and the "no changelog" label is absent
+        if: steps.changelog-updated.outputs.any_changed == 'false' && !contains(github.event.pull_request.labels.*.name, 'no changelog')
+        uses: actions/github-script@v6
         with:
-          node-version: 18
-      - name: Checkout Pull Request
-        run: hub pr checkout ${{ github.event.issue.number }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install dependencies
-        working-directory: ./scripts
-        run: yarn install --frozen-lockfile --check-files
-      - name: Add changelog entry
-        working-directory: ./scripts
-        run: |
-          PARAMS=${PR_COMMENT_BODY#/changelog-entry }
-          if [[ ! "$PARAMS" =~ " " ]]; then
-            echo "Invalid /changelog-entry command"
-            exit 1
-          fi
-          CATEGORY=$( cut -d ' ' -f 1 <<< "$PARAMS" | sed -e 's/^[[:space:]]*//' )
-          MESSAGE=$( cut -d ' ' -f 2- <<< "$PARAMS" | sed -e 's/^[[:space:]]*//' )
-          yarn changelog-entry "$CATEGORY" "$MESSAGE"
-        env:
-          GITHUB_PR_AUTHOR: ${{ github.event.issue.user.login }}
-          GITHUB_PR_NUMBER: ${{ github.event.issue.number }}
-          PR_COMMENT_BODY: ${{ github.event.comment.body }}
-      - name: Commit and push
-        run: |
-          # use the last commit author name and email
-          git config --global user.name "$(git --no-pager log --format=format:'%an' -n 1)"
-          git config --global user.email "$(git --no-pager log --format=format:'%ae' -n 1)"
-
-          git add CHANGELOG.md
-          git commit -m "update CHANGELOG.md"
-          git push
+          script: |
+            core.setFailed('Please add a changelog entry!')
+      - uses: mshick/add-pr-comment@v2.1.0
+        if: always()
+        with:
+          message-id: changelog-entry-check
+          refresh-message-position: true
+          message: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog') && '⏩ The changelog entry check has been skipped since the "no changelog" label is present.' || '✅ Thank you for adding the changelog entry!' }}
+          message-failure: |
+            ❌ It looks like a changelog entry is missing for this PR. You have two options: you can add it manually, or you can use the changelog bot to do it for you.
+            🤖 To use the bot, simply comment on this PR with the command `/changelog-entry [breaking-change|new-feature|bug-fix|chore] [message]`.
+            ⏩ If this PR doesn't require a changelog entry, such as if it's an internal change that doesn't affect the user experience, you can add the "no changelog" label to the PR.

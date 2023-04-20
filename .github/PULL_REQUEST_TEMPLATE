@@ -1,8 +1,5 @@
-<!-- Thanks for contributing to _EAS CLI_! Before you submit your pull request, please make sure to check the following boxes by putting an x in the [ ] (don't: [x ], [ x], do: [x]) -->
-
-# Checklist
-
-- [ ] I've added an entry to [CHANGELOG.md](https://github.com/expo/eas-cli/blob/main/CHANGELOG.md#main) if necessary. You can comment this pull request with `/changelog-entry [breaking-change|new-feature|bug-fix|chore] [message]` and CHANGELOG.md will be updated automatically.
+<!-- If this PR requires a changelog entry, add it by commenting the PR with the command `/changelog-entry [breaking-change|new-feature|bug-fix|chore] [message]`. -->
+<!-- You can skip the changelog check by labeling the PR with "no changelog". -->
 
 # Why
 

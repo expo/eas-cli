@@ -1,4 +1,5 @@
 name: Run tests
+
 on:
   push:
     branches: [main]
@@ -34,11 +35,12 @@ jobs:
       - run: yarn lint --max-warnings=0
       - run: yarn install --frozen-lockfile --check-files
         working-directory: ./scripts
-      - run: yarn lint-changelog
       - uses: codecov/codecov-action@v1
         if: ${{ matrix.coverage }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+      - run: yarn lint-changelog
+
   notify-slack:
     runs-on: ubuntu-latest
     needs: test
