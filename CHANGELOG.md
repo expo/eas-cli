@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix `device:delete` not disabling on Apple. ([#1803](https://github.com/expo/eas-cli/pull/1803) by [@keith-kurak](https://github.com/keith-kurak))
+- Fix message truncation for updates. ([#1801](https://github.com/expo/eas-cli/pull/1801) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
 
