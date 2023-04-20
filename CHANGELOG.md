@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix `device:delete` not disabling on Apple. ([#1803](https://github.com/expo/eas-cli/pull/1803) by [@keith-kurak](https://github.com/keith-kurak))
+
 ### 🧹 Chores
 
 - Throw an error if somebody tries to start iOS build with the `large` resource class selected using the deprecated `--resource-class` flag. ([#1795](https://github.com/expo/eas-cli/pull/1795) by [@szdziedzic](https://github.com/szdziedzic))
