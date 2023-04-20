@@ -95,7 +95,7 @@ export default class DeviceRename extends EasCommand {
       type: 'text',
       name: 'name',
       message: 'New device name:',
-      initial: initial ? initial! : undefined,
+      initial: initial ?? undefined,
     });
     return name;
   }
