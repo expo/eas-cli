@@ -129,11 +129,17 @@ export default class DeviceRename extends EasCommand {
     const removeAppleSpinner = ora('Renaming device on Apple').start();
     try {
       const appleValidatedDevices = await Device.getAsync(context);
-      const appleValidatedDevice = appleValidatedDevices.find(d => d.id === device.id);
+      const appleValidatedDevice = appleValidatedDevices.find(
+        d => d.attributes.udid === device.identifier
+      );
       if (appleValidatedDevice) {
         await appleValidatedDevice.updateAsync({ name: newDeviceName });
+        removeAppleSpinner.succeed('Renamed device on Apple');
+      } else {
+        removeAppleSpinner.warn(
+          'Device not found on Apple Developer Portal. Expo-registered devices will not appear there until they are chosen for an internal distribution EAS build.'
+        );
       }
-      removeAppleSpinner.succeed('Renamed device on Apple');
     } catch (err) {
       removeAppleSpinner.fail();
       throw err;
