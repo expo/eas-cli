@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Throw an error if somebody tries to start iOS build with the `large` resource class selected using the deprecated `--resource-class` flag. ([#1795](https://github.com/expo/eas-cli/pull/1795) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [3.9.3](https://github.com/expo/eas-cli/releases/tag/v3.9.3) - 2023-04-18
 
 ### 🐛 Bug fixes
