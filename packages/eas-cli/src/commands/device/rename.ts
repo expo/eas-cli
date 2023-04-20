@@ -137,7 +137,7 @@ export default class DeviceRename extends EasCommand {
         removeAppleSpinner.succeed('Renamed device on Apple');
       } else {
         removeAppleSpinner.warn(
-          'Device not found on Apple Developer Portal. Expo-registered devices will not appear there until they are chosen for an internal distribution EAS build.'
+          'Device not found on Apple Developer Portal. Expo-registered devices will not appear there until they are chosen for an internal distribution build.'
         );
       }
     } catch (err) {
