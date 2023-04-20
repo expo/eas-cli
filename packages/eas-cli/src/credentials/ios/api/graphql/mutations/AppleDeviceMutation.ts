@@ -6,8 +6,10 @@ import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleDeviceFragment,
   AppleDeviceInput,
+  AppleDeviceUpdateInput,
   CreateAppleDeviceMutation,
   DeleteAppleDeviceResult,
+  UpdateAppleDeviceMutation,
 } from '../../../../../graphql/generated';
 import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
 
@@ -66,5 +68,36 @@ export const AppleDeviceMutation = {
         .toPromise()
     );
     return data.id;
+  },
+  async updateAppleDeviceAsync(
+    graphqlClient: ExpoGraphqlClient,
+    id: string,
+    appleDeviceUpdateInput: AppleDeviceUpdateInput
+  ): Promise<AppleDeviceFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<UpdateAppleDeviceMutation>(
+          gql`
+            mutation UpdateAppleDeviceMutation(
+              $id: ID!
+              $appleDeviceUpdateInput: AppleDeviceUpdateInput!
+            ) {
+              appleDevice {
+                updateAppleDevice(id: $id, appleDeviceUpdateInput: $appleDeviceUpdateInput) {
+                  id
+                  ...AppleDeviceFragment
+                }
+              }
+            }
+            ${print(AppleDeviceFragmentNode)}
+          `,
+          {
+            id,
+            appleDeviceUpdateInput,
+          }
+        )
+        .toPromise()
+    );
+    return data.appleDevice.updateAppleDevice;
   },
 };
