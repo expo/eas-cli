@@ -94,7 +94,7 @@ export default class DeviceRename extends EasCommand {
     const { name } = await promptAsync({
       type: 'text',
       name: 'name',
-      message: 'New Device name:',
+      message: 'New device name:',
       initial: initial ? initial! : undefined,
     });
     return name;
