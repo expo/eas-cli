@@ -44,6 +44,8 @@ describe(getProfilesAsync, () => {
 
   it('defaults to production profile', async () => {
     const easJsonAccessor = EasJsonAccessor.fromProjectPath('/fake');
+    const readRawEasJsonMock = jest.spyOn(easJsonAccessor, 'readRawJsonAsync');
+    readRawEasJsonMock.mockImplementation(async () => {});
     const result = await getProfilesAsync({
       easJsonAccessor,
       platforms: [Platform.ANDROID, Platform.IOS],
@@ -75,6 +77,8 @@ describe(getProfilesAsync, () => {
 
   it('gets a specific profile', async () => {
     const easJsonAccessor = EasJsonAccessor.fromProjectPath('/fake');
+    const readRawEasJsonMock = jest.spyOn(easJsonAccessor, 'readRawJsonAsync');
+    readRawEasJsonMock.mockImplementation(async () => {});
     const result = await getProfilesAsync({
       easJsonAccessor,
       platforms: [Platform.ANDROID, Platform.IOS],

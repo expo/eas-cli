@@ -65,7 +65,8 @@ async function readProfileAsync<T extends ProfileType>({
       profileName
     );
 
-    maybePrintBuildProfileDeprecationWarnings(buildProfile, profileName);
+    const rawEasJson = await easJsonAccessor.readRawJsonAsync();
+    maybePrintBuildProfileDeprecationWarnings(buildProfile, profileName, rawEasJson);
 
     return buildProfile as EasProfile<T>;
   } else {
@@ -85,14 +86,16 @@ export function clearHasPrintedDeprecationWarnings(): void {
 
 export function maybePrintBuildProfileDeprecationWarnings(
   buildProfile: BuildProfile<Platform>,
-  profileName?: string
+  profileName?: string,
+  rawEasJson?: any
 ): void {
   if (hasPrintedDeprecationWarnings) {
     return;
   }
   const deprecationWarnings = EasJsonUtils.getBuildProfileDeprecationWarnings(
     buildProfile,
-    profileName
+    profileName,
+    rawEasJson
   );
   if (deprecationWarnings.length === 0) {
     return;

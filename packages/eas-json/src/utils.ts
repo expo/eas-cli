@@ -30,29 +30,28 @@ export class EasJsonUtils {
 
   public static getBuildProfileDeprecationWarnings(
     buildProfile: BuildProfile,
-    profileName?: string
+    profileName?: string,
+    rawEasJson?: any
   ): EasJsonDeprecationWarning[] {
     const warnings: EasJsonDeprecationWarning[] = [];
+    const finalProfileName = profileName ?? 'production';
 
     if (buildProfile.cache?.cacheDefaultPaths !== undefined) {
       warnings.push({
         message: [
-          `The "build.${
-            profileName ?? 'production'
-          }.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.`,
+          `The "build.${finalProfileName}.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.`,
         ],
         docsUrl: 'https://docs.expo.dev/build-reference/caching/#ios-dependencies',
       });
     }
 
-    if (buildProfile.cache?.customPaths !== undefined) {
+    if (
+      buildProfile.cache?.customPaths !== undefined ||
+      rawEasJson?.build?.[finalProfileName]?.cache?.customPaths !== undefined
+    ) {
       warnings.push({
         message: [
-          `The "build.${
-            profileName ?? 'production'
-          }.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.${
-            profileName ?? 'production'
-          }.cache.paths" instead.`,
+          `The "build.${finalProfileName}.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.${finalProfileName}.cache.paths" instead.`,
         ],
         docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
       });
