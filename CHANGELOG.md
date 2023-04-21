@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [3.10.0](https://github.com/expo/eas-cli/releases/tag/v3.10.0) - 2023-04-21
+
+### 🎉 New features
+
 - Added eas device:rename command. ([#1787](https://github.com/expo/eas-cli/pull/1787) by [@keith-kurak](https://github.com/keith-kurak))
 
 ### 🐛 Bug fixes
