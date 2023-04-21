@@ -1,4 +1,4 @@
-import { Device, DeviceStatus } from '@expo/apple-utils';
+import { Device } from '@expo/apple-utils';
 import { Flags } from '@oclif/core';
 import assert from 'assert';
 
@@ -17,19 +17,20 @@ import {
   selectAppleTeamOnAccountAsync,
 } from '../../devices/queries';
 import formatDevice from '../../devices/utils/formatDevice';
-import { AppleDevice, Maybe } from '../../graphql/generated';
+import { AppleDevice, AppleTeamFragment, Maybe } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
-import { toggleConfirmAsync } from '../../prompts';
+import { promptAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-export default class DeviceDelete extends EasCommand {
-  static override description = 'remove a registered device from your account';
+export default class DeviceRename extends EasCommand {
+  static override description = 'rename a registered device';
 
   static override flags = {
     'apple-team-id': Flags.string({ description: 'The Apple team ID on which to find the device' }),
-    udid: Flags.string({ description: 'The Apple device ID to disable' }),
+    udid: Flags.string({ description: 'The Apple device ID to rename' }),
+    name: Flags.string({ description: 'The new name for the device' }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -39,13 +40,13 @@ export default class DeviceDelete extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(DeviceDelete);
+    const { flags } = await this.parse(DeviceRename);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
-    let { 'apple-team-id': appleTeamIdentifier, udid } = flags;
+    let { 'apple-team-id': appleTeamIdentifier, udid, name } = flags;
     const {
       projectConfig: { projectId },
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(DeviceDelete, {
+    } = await this.getContextAsync(DeviceRename, {
       nonInteractive: paginatedQueryOptions.nonInteractive,
     });
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
@@ -55,8 +56,10 @@ export default class DeviceDelete extends EasCommand {
       enableJsonOutput();
     }
 
+    let appleTeam: AppleTeamFragment;
+
     if (!appleTeamIdentifier) {
-      const appleTeam = await selectAppleTeamOnAccountAsync(graphqlClient, {
+      appleTeam = await selectAppleTeamOnAccountAsync(graphqlClient, {
         accountName: account.name,
         selectionPromptTitle: `What Apple team would you like to list devices for?`,
         paginatedQueryOptions,
@@ -72,52 +75,66 @@ export default class DeviceDelete extends EasCommand {
       : await selectAppleDeviceOnAppleTeamAsync(graphqlClient, {
           accountName: account.name,
           appleTeamIdentifier,
-          selectionPromptTitle: `Which device would you like to disable?`,
+          selectionPromptTitle: `Which device would you like to rename?`,
           paginatedQueryOptions,
         });
 
+    const newDeviceName = name ? name : await this.promptForNewDeviceNameAsync(chosenDevice.name);
+
     this.logChosenDevice(chosenDevice, appleTeamName, appleTeamIdentifier, paginatedQueryOptions);
 
-    if (!(await this.shouldRemoveDeviceFromExpoAsync(paginatedQueryOptions))) {
-      return;
-    }
+    await this.renameDeviceOnExpoAsync(graphqlClient, chosenDevice, newDeviceName!);
 
-    await this.removeDeviceFromExpoAsync(graphqlClient, chosenDevice);
-
-    if (await this.shouldDisableDeviceOnAppleAsync(paginatedQueryOptions)) {
-      await this.disableDeviceOnAppleAsync(chosenDevice, appleTeamIdentifier);
-    }
+    await this.renameDeviceOnAppleAsync(chosenDevice, appleTeamIdentifier, newDeviceName!);
   }
 
-  async shouldDisableDeviceOnAppleAsync({
-    nonInteractive,
-  }: PaginatedQueryOptions): Promise<boolean> {
-    if (!nonInteractive) {
-      Log.newLine();
-      return await toggleConfirmAsync({
-        message: 'Do you want to disable this device on your Apple account as well?',
+  async promptForNewDeviceNameAsync(
+    initial: Maybe<string> | undefined
+  ): Promise<string | undefined> {
+    const { name } = await promptAsync({
+      type: 'text',
+      name: 'name',
+      message: 'New device name:',
+      initial: initial ?? undefined,
+    });
+    return name;
+  }
+
+  async renameDeviceOnExpoAsync(
+    graphqlClient: ExpoGraphqlClient,
+    chosenDevice: AppleDevice | AppleDeviceQueryResult,
+    newDeviceName: string
+  ): Promise<void> {
+    const removalSpinner = ora(`Renaming Apple device on Expo`).start();
+    try {
+      await AppleDeviceMutation.updateAppleDeviceAsync(graphqlClient, chosenDevice.id, {
+        name: newDeviceName,
       });
+      removalSpinner.succeed('Renamed Apple device on Expo');
+    } catch (err) {
+      removalSpinner.fail();
+      throw err;
     }
-    return true;
   }
 
-  async disableDeviceOnAppleAsync(
+  async renameDeviceOnAppleAsync(
     device: AppleDevice | AppleDeviceQueryResult,
-    appleTeamIdentifier: string
+    appleTeamIdentifier: string,
+    newDeviceName: string
   ): Promise<void> {
     const ctx = await authenticateAsync({ teamId: appleTeamIdentifier });
     const context = getRequestContext(ctx);
 
     Log.addNewLineIfNone();
-    const removeAppleSpinner = ora('Disabling device on Apple').start();
+    const removeAppleSpinner = ora('Renaming device on Apple').start();
     try {
       const appleValidatedDevices = await Device.getAsync(context);
       const appleValidatedDevice = appleValidatedDevices.find(
         d => d.attributes.udid === device.identifier
       );
       if (appleValidatedDevice) {
-        await appleValidatedDevice.updateAsync({ status: DeviceStatus.DISABLED });
-        removeAppleSpinner.succeed('Disabled device on Apple');
+        await appleValidatedDevice.updateAsync({ name: newDeviceName });
+        removeAppleSpinner.succeed('Renamed device on Apple');
       } else {
         removeAppleSpinner.warn(
           'Device not found on Apple Developer Portal. Expo-registered devices will not appear there until they are chosen for an internal distribution build.'
@@ -125,34 +142,6 @@ export default class DeviceDelete extends EasCommand {
       }
     } catch (err) {
       removeAppleSpinner.fail();
-      throw err;
-    }
-  }
-
-  async shouldRemoveDeviceFromExpoAsync({
-    nonInteractive,
-  }: PaginatedQueryOptions): Promise<boolean> {
-    if (!nonInteractive) {
-      Log.warn(`You are about to remove the Apple device listed above from your Expo account.`);
-      Log.newLine();
-
-      return await toggleConfirmAsync({
-        message: 'Are you sure you wish to proceed?',
-      });
-    }
-    return true;
-  }
-
-  async removeDeviceFromExpoAsync(
-    graphqlClient: ExpoGraphqlClient,
-    chosenDevice: AppleDevice | AppleDeviceQueryResult
-  ): Promise<void> {
-    const removalSpinner = ora(`Removing Apple device on Expo`).start();
-    try {
-      await AppleDeviceMutation.deleteAppleDeviceAsync(graphqlClient, chosenDevice.id);
-      removalSpinner.succeed('Removed Apple device from Expo');
-    } catch (err) {
-      removalSpinner.fail();
       throw err;
     }
   }

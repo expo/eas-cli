@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import semver from 'semver';
 
 import { BuildResourceClass } from '../../graphql/generated';
-import Log from '../../log';
+import Log, { link } from '../../log';
 import { getReactNativeVersionAsync } from '../metadata';
 
 type AndroidResourceClass = Exclude<
@@ -50,14 +50,14 @@ export async function resolveBuildResourceClassAsync<T extends Platform>(
 
   if (profileResourceClass && resourceClassFlag && resourceClassFlag !== profileResourceClass) {
     Log.warn(
-      `Build profile specifies the "${profileResourceClass}" resource class but you passed "${resourceClassFlag}" to --resource-class.\nUsing the  "${resourceClassFlag}" as the override.`
+      `Build profile specifies the "${profileResourceClass}" resource class but you passed "${resourceClassFlag}" to --resource-class.\nUsing "${resourceClassFlag}" as the override.`
     );
   }
 
   const selectedResourceClass = resourceClassFlag ?? profileResourceClass;
 
   return platform === Platform.IOS
-    ? await resolveIosResourceClassAsync(exp, projectDir, resourceClassFlag ?? profileResourceClass)
+    ? await resolveIosResourceClassAsync(exp, projectDir, resourceClassFlag, profileResourceClass)
     : resolveAndroidResourceClass(selectedResourceClass);
 }
 
@@ -82,10 +82,21 @@ function resolveAndroidResourceClass(selectedResourceClass?: ResourceClass): Bui
 async function resolveIosResourceClassAsync(
   exp: ExpoConfig,
   projectDir: string,
-  selectedResourceClass?: ResourceClass
+  resourceClassFlag?: ResourceClass,
+  profileResourceClass?: ResourceClass
 ): Promise<BuildResourceClass> {
   const resourceClass =
-    selectedResourceClass ?? (await resolveIosDefaultRequestedResourceClassAsync(exp, projectDir));
+    resourceClassFlag ??
+    profileResourceClass ??
+    (await resolveIosDefaultRequestedResourceClassAsync(exp, projectDir));
+
+  if (resourceClassFlag === ResourceClass.LARGE) {
+    throw new Error(
+      `Experimental "large" resource class for Intel iOS workers is no longer available. Remove the specified resource class to use the default, or learn more about all available resource classes: ${link(
+        'https://docs.expo.dev/build-reference/eas-json/'
+      )}`
+    );
+  }
 
   if ([ResourceClass.M1_EXPERIMENTAL, ResourceClass.M1_MEDIUM].includes(resourceClass)) {
     Log.warn(

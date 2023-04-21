@@ -12,6 +12,21 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [3.10.0](https://github.com/expo/eas-cli/releases/tag/v3.10.0) - 2023-04-21
+
+### 🎉 New features
+
+- Added eas device:rename command. ([#1787](https://github.com/expo/eas-cli/pull/1787) by [@keith-kurak](https://github.com/keith-kurak))
+
+### 🐛 Bug fixes
+
+- Fix `device:delete` not disabling on Apple. ([#1803](https://github.com/expo/eas-cli/pull/1803) by [@keith-kurak](https://github.com/keith-kurak))
+- Fix message truncation for updates. ([#1801](https://github.com/expo/eas-cli/pull/1801) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Throw an error if somebody tries to start iOS build with the `large` resource class selected using the deprecated `--resource-class` flag. ([#1795](https://github.com/expo/eas-cli/pull/1795) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [3.9.3](https://github.com/expo/eas-cli/releases/tag/v3.9.3) - 2023-04-18
 
 ### 🐛 Bug fixes

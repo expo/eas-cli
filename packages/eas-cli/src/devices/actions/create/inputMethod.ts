@@ -81,7 +81,9 @@ async function collectDeviceDataAsync(
   Log.newLine();
   Log.log(
     `We are going to register the following device in our database.
-This will ${chalk.bold('not')} register the device on the Apple Developer Portal yet.`
+This device will ${chalk.bold(
+      'not'
+    )} be registered on the Apple Developer Portal until it is chosen for an internal distribution build.`
   );
   Log.newLine();
   Log.log(formatNewDevice({ ...deviceData, identifier: deviceData.udid }, appleTeam));

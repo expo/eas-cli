@@ -87,6 +87,7 @@ export type Account = {
   appleTeams: Array<AppleTeam>;
   /** Apps associated with this account */
   apps: Array<App>;
+  appsPaginated: AccountAppsConnection;
   /** @deprecated Build packs are no longer supported */
   availableBuilds?: Maybe<Scalars['Int']>;
   /** Billing information. Only visible to members with the ADMIN or OWNER role. */
@@ -215,6 +216,18 @@ export type AccountAppsArgs = {
  * An account is a container owning projects, credentials, billing and other organization
  * data and settings. Actors may own and be members of accounts.
  */
+export type AccountAppsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
 export type AccountBillingPeriodArgs = {
   date: Scalars['DateTime'];
 };
@@ -284,6 +297,18 @@ export type AccountTimelineActivityArgs = {
   last?: InputMaybe<Scalars['Int']>;
 };
 
+export type AccountAppsConnection = {
+  __typename?: 'AccountAppsConnection';
+  edges: Array<AccountAppsEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AccountAppsEdge = {
+  __typename?: 'AccountAppsEdge';
+  cursor: Scalars['String'];
+  node: App;
+};
+
 export type AccountDataInput = {
   name: Scalars['String'];
 };
@@ -295,6 +320,8 @@ export type AccountMutation = {
    * @deprecated Build packs are no longer supported
    */
   buyProduct?: Maybe<Account>;
+  /** Cancels all subscriptions immediately */
+  cancelAllSubscriptionsImmediately: Account;
   /** Cancel scheduled subscription change */
   cancelScheduledSubscriptionChange: Account;
   /** Cancels the active subscription */
@@ -326,6 +353,11 @@ export type AccountMutationBuyProductArgs = {
   autoRenew?: InputMaybe<Scalars['Boolean']>;
   paymentSource?: InputMaybe<Scalars['ID']>;
   productId: Scalars['ID'];
+};
+
+
+export type AccountMutationCancelAllSubscriptionsImmediatelyArgs = {
+  accountID: Scalars['ID'];
 };
 
 
@@ -502,6 +534,7 @@ export type AccountSsoConfigurationPublicDataQueryPublicDataByAccountNameArgs = 
 
 export type AccountUsageEasBuildMetadata = {
   __typename?: 'AccountUsageEASBuildMetadata';
+  billingResourceClass: EasBuildBillingResourceClass;
   platform: AppPlatform;
 };
 
@@ -976,6 +1009,8 @@ export type App = Project & {
   isLikedByMe: Scalars['Boolean'];
   /** @deprecated No longer supported */
   lastPublishedTime: Scalars['DateTime'];
+  /** Time of the last user activity (update, branch, submission). */
+  latestActivity: Scalars['DateTime'];
   latestAppVersionByPlatformAndApplicationIdentifier?: Maybe<AppVersion>;
   latestReleaseForReleaseChannel?: Maybe<AppRelease>;
   /** ID of latest classic update release */
@@ -1002,6 +1037,7 @@ export type App = Project & {
   releaseChannels: Array<Scalars['String']>;
   /** @deprecated Legacy access tokens are deprecated */
   requiresAccessTokenForPushSecurity: Scalars['Boolean'];
+  scopeKey: Scalars['String'];
   /** SDK version of the latest classic update publish, 0.0.0 otherwise */
   sdkVersion: Scalars['String'];
   slug: Scalars['String'];
@@ -1593,6 +1629,8 @@ export type AppleDeviceMutation = {
   createAppleDevice: AppleDevice;
   /** Delete an Apple Device */
   deleteAppleDevice: DeleteAppleDeviceResult;
+  /** Update an Apple Device */
+  updateAppleDevice: AppleDevice;
 };
 
 
@@ -1603,6 +1641,12 @@ export type AppleDeviceMutationCreateAppleDeviceArgs = {
 
 
 export type AppleDeviceMutationDeleteAppleDeviceArgs = {
+  id: Scalars['ID'];
+};
+
+
+export type AppleDeviceMutationUpdateAppleDeviceArgs = {
+  appleDeviceUpdateInput: AppleDeviceUpdateInput;
   id: Scalars['ID'];
 };
 
@@ -1633,6 +1677,10 @@ export type AppleDeviceRegistrationRequestQuery = {
 
 export type AppleDeviceRegistrationRequestQueryByIdArgs = {
   id: Scalars['ID'];
+};
+
+export type AppleDeviceUpdateInput = {
+  name?: InputMaybe<Scalars['String']>;
 };
 
 export type AppleDistributionCertificate = {
@@ -1924,6 +1972,8 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   expirationDate?: Maybe<Scalars['DateTime']>;
   gitCommitHash?: Maybe<Scalars['String']>;
   gitCommitMessage?: Maybe<Scalars['String']>;
+  gitRef?: Maybe<Scalars['String']>;
+  githubRepositoryOwnerAndName?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   /** Queue position is 1-indexed */
   initialQueuePosition?: Maybe<Scalars['Int']>;
@@ -1942,6 +1992,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   platform: AppPlatform;
   priority: BuildPriority;
   project: Project;
+  projectRootDirectory?: Maybe<Scalars['String']>;
   provisioningStartedAt?: Maybe<Scalars['DateTime']>;
   /** Queue position is 1-indexed */
   queuePosition?: Maybe<Scalars['Int']>;
@@ -1984,7 +2035,6 @@ export type BuildArtifacts = {
 };
 
 export type BuildCacheInput = {
-  cacheDefaultPaths?: InputMaybe<Scalars['Boolean']>;
   clear?: InputMaybe<Scalars['Boolean']>;
   customPaths?: InputMaybe<Array<InputMaybe<Scalars['String']>>>;
   disabled?: InputMaybe<Scalars['Boolean']>;
@@ -2058,9 +2108,7 @@ export enum BuildJobLogsFormat {
 
 export type BuildJobMutation = {
   __typename?: 'BuildJobMutation';
-  cancel: BuildJob;
   del?: Maybe<BuildJob>;
-  restart: BuildJob;
 };
 
 export type BuildJobQuery = {
@@ -2375,27 +2423,6 @@ export type Charge = {
   wasRefunded: Scalars['Boolean'];
 };
 
-/** Represents a client build request */
-export type ClientBuild = {
-  __typename?: 'ClientBuild';
-  buildJobId?: Maybe<Scalars['String']>;
-  id: Scalars['ID'];
-  manifestPlistUrl?: Maybe<Scalars['String']>;
-  status?: Maybe<Scalars['String']>;
-  userFacingErrorMessage?: Maybe<Scalars['String']>;
-  userId?: Maybe<Scalars['String']>;
-};
-
-export type ClientBuildQuery = {
-  __typename?: 'ClientBuildQuery';
-  byId: ClientBuild;
-};
-
-
-export type ClientBuildQueryByIdArgs = {
-  requestId: Scalars['ID'];
-};
-
 export type CodeSigningInfo = {
   __typename?: 'CodeSigningInfo';
   alg: Scalars['String'];
@@ -2536,6 +2563,11 @@ export type DeleteEnvironmentSecretResult = {
   id: Scalars['ID'];
 };
 
+export type DeleteGitHubUserResult = {
+  __typename?: 'DeleteGitHubUserResult';
+  id: Scalars['ID'];
+};
+
 export type DeleteGoogleServiceAccountKeyResult = {
   __typename?: 'DeleteGoogleServiceAccountKeyResult';
   id: Scalars['ID'];
@@ -2655,6 +2687,11 @@ export enum DistributionType {
   Internal = 'INTERNAL',
   Simulator = 'SIMULATOR',
   Store = 'STORE'
+}
+
+export enum EasBuildBillingResourceClass {
+  Large = 'LARGE',
+  Medium = 'MEDIUM'
 }
 
 export type EasBuildDeprecationInfo = {
@@ -2897,6 +2934,17 @@ export enum GitHubAppInstallationStatus {
   Suspended = 'SUSPENDED'
 }
 
+export type GitHubAppMutation = {
+  __typename?: 'GitHubAppMutation';
+  /** Create a GitHub build for an app */
+  createGitHubBuild: Scalars['Boolean'];
+};
+
+
+export type GitHubAppMutationCreateGitHubBuildArgs = {
+  buildInput: GitHubBuildInput;
+};
+
 export type GitHubAppQuery = {
   __typename?: 'GitHubAppQuery';
   appIdentifier: Scalars['String'];
@@ -2916,6 +2964,14 @@ export type GitHubAppQueryInstallationArgs = {
 export type GitHubAppQuerySearchRepositoriesArgs = {
   githubAppInstallationId: Scalars['ID'];
   query: Scalars['String'];
+};
+
+export type GitHubBuildInput = {
+  appId: Scalars['ID'];
+  baseDirectory?: InputMaybe<Scalars['String']>;
+  buildProfile: Scalars['String'];
+  gitRef: Scalars['String'];
+  platform: AppPlatform;
 };
 
 export type GitHubRepository = {
@@ -3005,6 +3061,33 @@ export type GitHubRepositorySettingsMutationDeleteGitHubRepositorySettingsArgs =
 export type GitHubRepositorySettingsMutationUpdateGitHubRepositorySettingsArgs = {
   githubRepositorySettingsData: UpdateGitHubRepositorySettingsInput;
   githubRepositorySettingsId: Scalars['ID'];
+};
+
+export type GitHubUser = {
+  __typename?: 'GitHubUser';
+  githubUserIdentifier: Scalars['String'];
+  id: Scalars['ID'];
+  metadata?: Maybe<GitHubUserMetadata>;
+  userActor: UserActor;
+};
+
+export type GitHubUserMetadata = {
+  __typename?: 'GitHubUserMetadata';
+  avatarUrl: Scalars['String'];
+  login: Scalars['String'];
+  name?: Maybe<Scalars['String']>;
+  url: Scalars['String'];
+};
+
+export type GitHubUserMutation = {
+  __typename?: 'GitHubUserMutation';
+  /** Delete a GitHub User by ID */
+  deleteGitHubUser: DeleteGitHubUserResult;
+};
+
+
+export type GitHubUserMutationDeleteGitHubUserArgs = {
+  id: Scalars['ID'];
 };
 
 export type GoogleServiceAccountKey = {
@@ -3443,8 +3526,10 @@ export type MeMutation = {
   unpublishApp: App;
   /** Update an App that the current user owns */
   updateApp: App;
-  /** Update the current user's data */
+  /** Update the current regular user's data */
   updateProfile: User;
+  /** Update the current SSO user's data */
+  updateSSOProfile: SsoUser;
 };
 
 
@@ -3529,6 +3614,11 @@ export type MeMutationUpdateAppArgs = {
 
 export type MeMutationUpdateProfileArgs = {
   userData: UserDataInput;
+};
+
+
+export type MeMutationUpdateSsoProfileArgs = {
+  userData: SsoUserDataInput;
 };
 
 export type MeteredBillingStatus = {
@@ -3863,12 +3953,16 @@ export type RootMutation = {
   emailSubscription: EmailSubscriptionMutation;
   /** Mutations that create and delete EnvironmentSecrets */
   environmentSecret: EnvironmentSecretMutation;
+  /** Mutations that utilize services facilitated by the GitHub App */
+  githubApp: GitHubAppMutation;
   /** Mutations for GitHub App installations */
   githubAppInstallation: GitHubAppInstallationMutation;
   /** Mutations for GitHub repositories */
   githubRepository: GitHubRepositoryMutation;
   /** Mutations for GitHub repository settings */
   githubRepositorySettings: GitHubRepositorySettingsMutation;
+  /** Mutations for GitHub users */
+  githubUser: GitHubUserMutation;
   /** Mutations that modify a Google Service Account Key */
   googleServiceAccountKey: GoogleServiceAccountKeyMutation;
   /** Mutations that modify the build credentials for an iOS app */
@@ -3949,7 +4043,6 @@ export type RootQuery = {
   /** Top-level query object for querying BuildPublicData publicly. */
   buildPublicData: BuildPublicDataQuery;
   builds: BuildQuery;
-  clientBuilds: ClientBuildQuery;
   /** Top-level query object for querying Experimentation configuration. */
   experimentation: ExperimentationQuery;
   /** Top-level query object for querying GitHub App information and resources it has access to. */
@@ -4051,6 +4144,8 @@ export type SsoUser = Actor & UserActor & {
   apps: Array<App>;
   bestContactEmail?: Maybe<Scalars['String']>;
   created: Scalars['DateTime'];
+  /** Discord account linked to a user */
+  discordUser?: Maybe<DiscordUser>;
   displayName: Scalars['String'];
   /**
    * Server feature gate values for this actor, optionally filtering by desired gates.
@@ -4059,6 +4154,8 @@ export type SsoUser = Actor & UserActor & {
   featureGates: Scalars['JSONObject'];
   firstName?: Maybe<Scalars['String']>;
   fullName?: Maybe<Scalars['String']>;
+  /** GitHub account linked to a user */
+  githubUser?: Maybe<GitHubUser>;
   githubUsername?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   industry?: Maybe<Scalars['String']>;
@@ -4108,6 +4205,15 @@ export type SsoUserNotificationSubscriptionsArgs = {
 export type SsoUserSnacksArgs = {
   limit: Scalars['Int'];
   offset: Scalars['Int'];
+};
+
+export type SsoUserDataInput = {
+  firstName?: InputMaybe<Scalars['String']>;
+  githubUsername?: InputMaybe<Scalars['String']>;
+  industry?: InputMaybe<Scalars['String']>;
+  lastName?: InputMaybe<Scalars['String']>;
+  location?: InputMaybe<Scalars['String']>;
+  twitterUsername?: InputMaybe<Scalars['String']>;
 };
 
 export type SsoUserQuery = {
@@ -4782,6 +4888,8 @@ export type User = Actor & UserActor & {
   featureGates: Scalars['JSONObject'];
   firstName?: Maybe<Scalars['String']>;
   fullName?: Maybe<Scalars['String']>;
+  /** GitHub account linked to a user */
+  githubUser?: Maybe<GitHubUser>;
   githubUsername?: Maybe<Scalars['String']>;
   /** Whether this user has any pending user invitations. Only resolves for the viewer. */
   hasPendingUserInvitations: Scalars['Boolean'];
@@ -4858,6 +4966,8 @@ export type UserActor = {
   apps: Array<App>;
   bestContactEmail?: Maybe<Scalars['String']>;
   created: Scalars['DateTime'];
+  /** Discord account linked to a user */
+  discordUser?: Maybe<DiscordUser>;
   /**
    * Best-effort human readable name for this human actor for use in user interfaces during action attribution.
    * For example, when displaying a sentence indicating that actor X created a build or published an update.
@@ -4870,6 +4980,8 @@ export type UserActor = {
   featureGates: Scalars['JSONObject'];
   firstName?: Maybe<Scalars['String']>;
   fullName?: Maybe<Scalars['String']>;
+  /** GitHub account linked to a user */
+  githubUser?: Maybe<GitHubUser>;
   githubUsername?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   industry?: Maybe<Scalars['String']>;
@@ -5393,6 +5505,14 @@ export type DeleteAppleDeviceMutationVariables = Exact<{
 
 
 export type DeleteAppleDeviceMutation = { __typename?: 'RootMutation', appleDevice: { __typename?: 'AppleDeviceMutation', deleteAppleDevice: { __typename?: 'DeleteAppleDeviceResult', id: string } } };
+
+export type UpdateAppleDeviceMutationVariables = Exact<{
+  id: Scalars['ID'];
+  appleDeviceUpdateInput: AppleDeviceUpdateInput;
+}>;
+
+
+export type UpdateAppleDeviceMutation = { __typename?: 'RootMutation', appleDevice: { __typename?: 'AppleDeviceMutation', updateAppleDevice: { __typename?: 'AppleDevice', id: string, identifier: string, name?: string | null, model?: string | null, deviceClass?: AppleDeviceClass | null } } };
 
 export type CreateAppleDeviceRegistrationRequestMutationVariables = Exact<{
   appleTeamId: Scalars['ID'];
