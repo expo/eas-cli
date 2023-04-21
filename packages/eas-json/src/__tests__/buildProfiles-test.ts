@@ -682,7 +682,7 @@ test('invalid build profile with caching with both paths and customPaths - error
     expect(error.message).toEqual(
       `${chalk.bold(
         'eas.json'
-      )} is not valid.\n- Cannot provide both "customPaths" and "paths" - use "paths"`
+      )} is not valid.\n- Cannot provide both "cache.customPaths" and "cache.paths" - use "paths"`
     );
   }
   expect(iosProfile).toBeUndefined();
@@ -699,7 +699,7 @@ test('invalid build profile with caching with both paths and customPaths - error
     expect(error.message).toEqual(
       `${chalk.bold(
         'eas.json'
-      )} is not valid.\n- Cannot provide both "customPaths" and "paths" - use "paths"`
+      )} is not valid.\n- Cannot provide both "cache.customPaths" and "cache.paths" - use "paths"`
     );
   }
   expect(androidProfile).toBeUndefined();
