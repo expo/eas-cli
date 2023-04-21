@@ -24,7 +24,10 @@ const CacheSchema = Joi.object({
   cacheDefaultPaths: Joi.boolean(),
   customPaths: Joi.array().items(Joi.string()),
   paths: Joi.array().items(Joi.string()),
-});
+}).rename('customPaths', 'paths')
+  .messages({
+    'object.rename.override': 'Cannot provide both "customPaths" and "paths" - use "paths"'
+  });
 
 const CommonBuildProfileSchema = Joi.object({
   // builder

@@ -1,4 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
+import chalk from 'chalk';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 
@@ -345,7 +346,7 @@ test('valid profile extending other profile with platform specific caching - bac
     distribution: 'internal',
     credentialsSource: 'remote',
     cache: {
-      customPaths: ['somefakepath'],
+      paths: ['somefakepath'],
     },
   });
   expect(extendedIosProfile).toEqual({
@@ -542,4 +543,164 @@ test('build profiles with both platform build config', async () => {
     distribution: 'store',
     credentialsSource: 'remote',
   });
+});
+
+test('valid build profile with caching without paths', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        cache: {
+          disabled: false,
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'production'
+  );
+
+  expect(androidProfile).toEqual({
+    distribution: 'store',
+    credentialsSource: 'remote',
+    cache: {
+      disabled: false,
+    },
+  });
+
+  expect(iosProfile).toEqual({
+    distribution: 'store',
+    credentialsSource: 'remote',
+    cache: {
+      disabled: false,
+    },
+  });
+});
+
+test('valid build profile with caching with paths', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        cache: {
+          disabled: false,
+          paths: ['index.ts'],
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'production'
+  );
+
+  expect(androidProfile).toEqual({
+    distribution: 'store',
+    credentialsSource: 'remote',
+    cache: {
+      disabled: false,
+      paths: ['index.ts'],
+    },
+  });
+
+  expect(iosProfile).toEqual({
+    distribution: 'store',
+    credentialsSource: 'remote',
+    cache: {
+      disabled: false,
+      paths: ['index.ts'],
+    },
+  });
+});
+
+test('valid build profile with caching with customPaths - moved into paths and customPaths removed', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        cache: {
+          disabled: false,
+          customPaths: ['index.ts'],
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'production'
+  );
+
+  expect(androidProfile).toEqual({
+    distribution: 'store',
+    credentialsSource: 'remote',
+    cache: {
+      disabled: false,
+      paths: ['index.ts'],
+    },
+  });
+
+  expect(iosProfile).toEqual({
+    distribution: 'store',
+    credentialsSource: 'remote',
+    cache: {
+      disabled: false,
+      paths: ['index.ts'],
+    },
+  });
+});
+
+test('invalid build profile with caching with both paths and customPaths - error thrown', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        cache: {
+          disabled: false,
+          customPaths: ['index.ts'],
+          paths: ['index2.ts'],
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  let iosProfile;
+  try {
+    iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production');
+    fail();
+  } catch (error: any) {
+    expect(error).toBeInstanceOf(InvalidEasJsonError);
+    expect(error.message).toEqual(
+      `${chalk.bold(
+        'eas.json'
+      )} is not valid.\n- Cannot provide both "customPaths" and "paths" - use "paths"`
+    );
+  }
+  expect(iosProfile).toBeUndefined();
+  let androidProfile;
+  try {
+    androidProfile = await EasJsonUtils.getBuildProfileAsync(
+      accessor,
+      Platform.ANDROID,
+      'production'
+    );
+    fail();
+  } catch (error: any) {
+    expect(error).toBeInstanceOf(InvalidEasJsonError);
+    expect(error.message).toEqual(
+      `${chalk.bold(
+        'eas.json'
+      )} is not valid.\n- Cannot provide both "customPaths" and "paths" - use "paths"`
+    );
+  }
+  expect(androidProfile).toBeUndefined();
 });
