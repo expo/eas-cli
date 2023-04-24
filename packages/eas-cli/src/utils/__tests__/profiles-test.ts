@@ -7,7 +7,7 @@ import { selectAsync } from '../../prompts';
 import {
   clearHasPrintedDeprecationWarnings,
   getProfilesAsync,
-  maybePrintBuildProfileDeprecationWarnings,
+  maybePrintBuildProfileDeprecationWarningsAsync,
 } from '../profiles';
 
 jest.mock('../../prompts');
@@ -17,7 +17,7 @@ jest.mock('@expo/eas-json', () => {
   const EasJsonUtilsMock = {
     getBuildProfileAsync: jest.fn(),
     getBuildProfileNamesAsync: jest.fn(),
-    getBuildProfileDeprecationWarnings: jest.fn(() => []),
+    getBuildProfileDeprecationWarningsAsync: jest.fn(() => []),
   };
   return {
     ...actual,
@@ -27,9 +27,9 @@ jest.mock('@expo/eas-json', () => {
 
 const getBuildProfileAsync = jest.spyOn(EasJsonUtils, 'getBuildProfileAsync');
 const getBuildProfileNamesAsync = jest.spyOn(EasJsonUtils, 'getBuildProfileNamesAsync');
-const getBuildProfileDeprecationWarnings = jest.spyOn(
+const getBuildProfileDeprecationWarningsAsync = jest.spyOn(
   EasJsonUtils,
-  'getBuildProfileDeprecationWarnings'
+  'getBuildProfileDeprecationWarningsAsync'
 );
 const newLineSpy = jest.spyOn(Log, 'newLine');
 const warnSpy = jest.spyOn(Log, 'warn');
@@ -44,7 +44,9 @@ describe(getProfilesAsync, () => {
   it('defaults to production profile', async () => {
     const easJsonAccessor = EasJsonAccessor.fromProjectPath('/fake');
     const readRawEasJsonMock = jest.spyOn(easJsonAccessor, 'readRawJsonAsync');
-    readRawEasJsonMock.mockImplementation(async () => {});
+    readRawEasJsonMock.mockImplementation(async () => {
+      return {};
+    });
     const result = await getProfilesAsync({
       easJsonAccessor,
       platforms: [Platform.ANDROID, Platform.IOS],
@@ -77,7 +79,9 @@ describe(getProfilesAsync, () => {
   it('gets a specific profile', async () => {
     const easJsonAccessor = EasJsonAccessor.fromProjectPath('/fake');
     const readRawEasJsonMock = jest.spyOn(easJsonAccessor, 'readRawJsonAsync');
-    readRawEasJsonMock.mockImplementation(async () => {});
+    readRawEasJsonMock.mockImplementation(async () => {
+      return {};
+    });
     const result = await getProfilesAsync({
       easJsonAccessor,
       platforms: [Platform.ANDROID, Platform.IOS],
@@ -110,25 +114,30 @@ describe(getProfilesAsync, () => {
     ).rejects.toThrowError(/eas.json is not valid/);
   });
 });
-describe(maybePrintBuildProfileDeprecationWarnings, () => {
+describe(maybePrintBuildProfileDeprecationWarningsAsync, () => {
   afterEach(() => {
     clearHasPrintedDeprecationWarnings();
     newLineSpy.mockClear();
     warnSpy.mockClear();
   });
+  const easJsonAccessor = EasJsonAccessor.fromProjectPath('/fake');
+  const readRawEasJsonMock = jest.spyOn(easJsonAccessor, 'readRawJsonAsync');
+  readRawEasJsonMock.mockImplementation(async () => {
+    return {};
+  });
 
   describe('no deprecation warnings', () => {
     it('does not print any warnings', async () => {
-      getBuildProfileDeprecationWarnings.mockImplementation(() => []);
+      getBuildProfileDeprecationWarningsAsync.mockImplementation(async () => []);
       const buildProfile = {} as BuildProfile<Platform.ANDROID>;
-      maybePrintBuildProfileDeprecationWarnings(buildProfile);
+      await maybePrintBuildProfileDeprecationWarningsAsync(buildProfile, easJsonAccessor);
       expect(newLineSpy).not.toHaveBeenCalled();
       expect(warnSpy).not.toHaveBeenCalled();
     });
   });
   describe('one deprecation warning', () => {
     it('prints the warning', async () => {
-      getBuildProfileDeprecationWarnings.mockImplementation(() => [
+      getBuildProfileDeprecationWarningsAsync.mockImplementation(async () => [
         {
           message: [
             'The "build.production.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.production.cache.paths" instead.',
@@ -137,7 +146,7 @@ describe(maybePrintBuildProfileDeprecationWarnings, () => {
         },
       ]);
       const buildProfile = {} as BuildProfile<Platform.ANDROID>;
-      maybePrintBuildProfileDeprecationWarnings(buildProfile);
+      await maybePrintBuildProfileDeprecationWarningsAsync(buildProfile, easJsonAccessor);
       expect(newLineSpy).toHaveBeenCalledTimes(2);
       expect(warnSpy).toHaveBeenCalledTimes(3);
       const warnCalls = warnSpy.mock.calls;
@@ -152,7 +161,7 @@ describe(maybePrintBuildProfileDeprecationWarnings, () => {
   });
   describe('multiple deprecation warnings', () => {
     it('prints the warnings', async () => {
-      getBuildProfileDeprecationWarnings.mockImplementation(() => [
+      getBuildProfileDeprecationWarningsAsync.mockImplementation(async () => [
         {
           message: [
             'The "build.production.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.production.cache.paths" instead.',
@@ -170,7 +179,7 @@ describe(maybePrintBuildProfileDeprecationWarnings, () => {
         },
       ]);
       const buildProfile = {} as BuildProfile<Platform.ANDROID>;
-      maybePrintBuildProfileDeprecationWarnings(buildProfile);
+      await maybePrintBuildProfileDeprecationWarningsAsync(buildProfile, easJsonAccessor);
       expect(newLineSpy).toHaveBeenCalledTimes(4);
       expect(warnSpy).toHaveBeenCalledTimes(6);
       const warnCalls = warnSpy.mock.calls;

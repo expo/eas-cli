@@ -1,13 +1,22 @@
+import { EasJsonAccessor } from '../accessor';
 import { AndroidBuildProfile, IosBuildProfile } from '../build/types';
 import { EasJsonUtils } from '../utils';
 
-describe('getBuildProfileDeprecationWarnings', () => {
+describe('getBuildProfileDeprecationWarningsAsync', () => {
+  const easJsonAccessor = EasJsonAccessor.fromProjectPath('/fake');
+  const readRawEasJsonMock = jest.spyOn(easJsonAccessor, 'readRawJsonAsync');
   describe('android', () => {
     type BuildProfileType = AndroidBuildProfile;
     describe('no cache settings', () => {
       const buildProfile = {} as BuildProfileType;
       it('does not return deprecation warnings', async () => {
-        const result = EasJsonUtils.getBuildProfileDeprecationWarnings(buildProfile);
+        readRawEasJsonMock.mockImplementation(async () => {
+          return {};
+        });
+        const result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
+          buildProfile,
+          easJsonAccessor
+        );
         expect(result).toEqual([]);
       });
     });
@@ -18,18 +27,51 @@ describe('getBuildProfileDeprecationWarnings', () => {
         },
       } as BuildProfileType;
       it('does not return deprecation warnings', async () => {
-        const result = EasJsonUtils.getBuildProfileDeprecationWarnings(buildProfile);
+        readRawEasJsonMock.mockImplementation(async () => {
+          return {
+            build: {
+              production: {
+                cache: {
+                  paths: ['path1', 'path2'],
+                },
+              },
+            },
+          };
+        });
+        const result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
+          buildProfile,
+          easJsonAccessor
+        );
         expect(result).toEqual([]);
       });
     });
     describe('cache settings with customPaths', () => {
       const buildProfile = {
         cache: {
-          customPaths: ['path1', 'path2'],
+          paths: ['path1', 'path2'],
         },
       } as BuildProfileType;
       it('returns deprecation warning', async () => {
-        let result = EasJsonUtils.getBuildProfileDeprecationWarnings(buildProfile);
+        readRawEasJsonMock.mockImplementation(async () => {
+          return {
+            build: {
+              production: {
+                cache: {
+                  customPaths: ['path1', 'path2'],
+                },
+              },
+              dummy_profile_name: {
+                cache: {
+                  customPaths: ['path1', 'path2'],
+                },
+              },
+            },
+          };
+        });
+        let result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
+          buildProfile,
+          easJsonAccessor
+        );
         expect(result).toEqual([
           {
             message: [
@@ -38,8 +80,9 @@ describe('getBuildProfileDeprecationWarnings', () => {
             docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
           },
         ]);
-        result = EasJsonUtils.getBuildProfileDeprecationWarnings(
+        result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
           buildProfile,
+          easJsonAccessor,
           'dummy_profile_name'
         );
         expect(result).toEqual([
@@ -58,7 +101,13 @@ describe('getBuildProfileDeprecationWarnings', () => {
     describe('no cache settings', () => {
       const buildProfile = {} as BuildProfileType;
       it('does not return deprecation warnings', async () => {
-        const result = EasJsonUtils.getBuildProfileDeprecationWarnings(buildProfile);
+        readRawEasJsonMock.mockImplementation(async () => {
+          return {};
+        });
+        const result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
+          buildProfile,
+          easJsonAccessor
+        );
         expect(result).toEqual([]);
       });
     });
@@ -69,18 +118,51 @@ describe('getBuildProfileDeprecationWarnings', () => {
         },
       } as BuildProfileType;
       it('does not return deprecation warnings', async () => {
-        const result = EasJsonUtils.getBuildProfileDeprecationWarnings(buildProfile);
+        readRawEasJsonMock.mockImplementation(async () => {
+          return {
+            build: {
+              production: {
+                cache: {
+                  paths: ['path1', 'path2'],
+                },
+              },
+            },
+          };
+        });
+        const result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
+          buildProfile,
+          easJsonAccessor
+        );
         expect(result).toEqual([]);
       });
     });
     describe('cache settings with customPaths', () => {
       const buildProfile = {
         cache: {
-          customPaths: ['path1', 'path2'],
+          paths: ['path1', 'path2'],
         },
       } as BuildProfileType;
       it('returns deprecation warning', async () => {
-        let result = EasJsonUtils.getBuildProfileDeprecationWarnings(buildProfile);
+        readRawEasJsonMock.mockImplementation(async () => {
+          return {
+            build: {
+              production: {
+                cache: {
+                  customPaths: ['path1', 'path2'],
+                },
+              },
+              dummy_profile_name: {
+                cache: {
+                  customPaths: ['path1', 'path2'],
+                },
+              },
+            },
+          };
+        });
+        let result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
+          buildProfile,
+          easJsonAccessor
+        );
         expect(result).toEqual([
           {
             message: [
@@ -89,8 +171,9 @@ describe('getBuildProfileDeprecationWarnings', () => {
             docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
           },
         ]);
-        result = EasJsonUtils.getBuildProfileDeprecationWarnings(
+        result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
           buildProfile,
+          easJsonAccessor,
           'dummy_profile_name'
         );
         expect(result).toEqual([

@@ -28,12 +28,13 @@ export class EasJsonUtils {
     return resolveBuildProfile({ easJson, platform, profileName });
   }
 
-  public static getBuildProfileDeprecationWarnings(
+  public static async getBuildProfileDeprecationWarningsAsync(
     buildProfile: BuildProfile,
-    profileName?: string,
-    rawEasJson?: any
-  ): EasJsonDeprecationWarning[] {
+    easJsonAccessor: EasJsonAccessor,
+    profileName?: string
+  ): Promise<EasJsonDeprecationWarning[]> {
     const warnings: EasJsonDeprecationWarning[] = [];
+    const rawEasJson = await easJsonAccessor.readRawJsonAsync();
     const finalProfileName = profileName ?? 'production';
 
     if (buildProfile.cache?.cacheDefaultPaths !== undefined) {
@@ -45,10 +46,7 @@ export class EasJsonUtils {
       });
     }
 
-    if (
-      buildProfile.cache?.customPaths !== undefined ||
-      rawEasJson?.build?.[finalProfileName]?.cache?.customPaths !== undefined
-    ) {
+    if (rawEasJson.build?.[finalProfileName]?.cache?.customPaths !== undefined) {
       warnings.push({
         message: [
           `The "build.${finalProfileName}.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.${finalProfileName}.cache.paths" instead.`,
