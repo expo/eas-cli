@@ -29,11 +29,16 @@ export class EasJsonUtils {
   }
 
   public static async getBuildProfileDeprecationWarningsAsync(
-    buildProfile: BuildProfile,
     easJsonAccessor: EasJsonAccessor,
+    platform: Platform,
     profileName: string
   ): Promise<EasJsonDeprecationWarning[]> {
     const warnings: EasJsonDeprecationWarning[] = [];
+    const buildProfile = await EasJsonUtils.getBuildProfileAsync(
+      easJsonAccessor,
+      platform,
+      profileName
+    );
     const rawEasJson = await easJsonAccessor.readRawJsonAsync();
 
     if (buildProfile.cache?.cacheDefaultPaths !== undefined) {

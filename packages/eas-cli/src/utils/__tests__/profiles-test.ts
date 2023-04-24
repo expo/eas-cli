@@ -125,12 +125,18 @@ describe(maybePrintBuildProfileDeprecationWarningsAsync, () => {
   readRawEasJsonMock.mockImplementation(async () => {
     return {};
   });
+  getBuildProfileAsync.mockImplementation(async () => {
+    return {} as BuildProfile<Platform.ANDROID>;
+  });
 
   describe('no deprecation warnings', () => {
     it('does not print any warnings', async () => {
       getBuildProfileDeprecationWarningsAsync.mockImplementation(async () => []);
-      const buildProfile = {} as BuildProfile<Platform.ANDROID>;
-      await maybePrintBuildProfileDeprecationWarningsAsync(buildProfile, easJsonAccessor);
+      await maybePrintBuildProfileDeprecationWarningsAsync(
+        easJsonAccessor,
+        Platform.ANDROID,
+        'production'
+      );
       expect(newLineSpy).not.toHaveBeenCalled();
       expect(warnSpy).not.toHaveBeenCalled();
     });
@@ -145,8 +151,11 @@ describe(maybePrintBuildProfileDeprecationWarningsAsync, () => {
           docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
         },
       ]);
-      const buildProfile = {} as BuildProfile<Platform.ANDROID>;
-      await maybePrintBuildProfileDeprecationWarningsAsync(buildProfile, easJsonAccessor);
+      await maybePrintBuildProfileDeprecationWarningsAsync(
+        easJsonAccessor,
+        Platform.ANDROID,
+        'production'
+      );
       expect(newLineSpy).toHaveBeenCalledTimes(2);
       expect(warnSpy).toHaveBeenCalledTimes(3);
       const warnCalls = warnSpy.mock.calls;
@@ -178,8 +187,11 @@ describe(maybePrintBuildProfileDeprecationWarningsAsync, () => {
           message: ['Other message'],
         },
       ]);
-      const buildProfile = {} as BuildProfile<Platform.ANDROID>;
-      await maybePrintBuildProfileDeprecationWarningsAsync(buildProfile, easJsonAccessor);
+      await maybePrintBuildProfileDeprecationWarningsAsync(
+        easJsonAccessor,
+        Platform.ANDROID,
+        'production'
+      );
       expect(newLineSpy).toHaveBeenCalledTimes(4);
       expect(warnSpy).toHaveBeenCalledTimes(6);
       const warnCalls = warnSpy.mock.calls;

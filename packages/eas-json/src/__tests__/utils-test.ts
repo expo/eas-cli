@@ -1,6 +1,21 @@
+import { Platform } from '@expo/eas-build-job';
+
 import { EasJsonAccessor } from '../accessor';
 import { AndroidBuildProfile, IosBuildProfile } from '../build/types';
 import { EasJsonUtils } from '../utils';
+
+jest.mock('@expo/eas-json', () => {
+  const actual = jest.requireActual('@expo/eas-json');
+
+  const EasJsonUtilsMock = {
+    getBuildProfileAsync: jest.fn(),
+  };
+  return {
+    ...actual,
+    EasJsonUtils: EasJsonUtilsMock,
+  };
+});
+const getBuildProfileAsync = jest.spyOn(EasJsonUtils, 'getBuildProfileAsync');
 
 describe('getBuildProfileDeprecationWarningsAsync', () => {
   const easJsonAccessor = EasJsonAccessor.fromProjectPath('/fake');
@@ -8,26 +23,30 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
   describe('android', () => {
     type BuildProfileType = AndroidBuildProfile;
     describe('no cache settings', () => {
-      const buildProfile = {} as BuildProfileType;
       it('does not return deprecation warnings', async () => {
+        getBuildProfileAsync.mockImplementation(async () => {
+          return {} as BuildProfileType;
+        });
         readRawEasJsonMock.mockImplementation(async () => {
           return {};
         });
         const result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
-          buildProfile,
           easJsonAccessor,
+          Platform.ANDROID,
           'production'
         );
         expect(result).toEqual([]);
       });
     });
     describe('cache settings with paths', () => {
-      const buildProfile = {
-        cache: {
-          paths: ['path1', 'path2'],
-        },
-      } as BuildProfileType;
       it('does not return deprecation warnings', async () => {
+        getBuildProfileAsync.mockImplementation(async () => {
+          return {
+            cache: {
+              paths: ['path1', 'path2'],
+            },
+          } as BuildProfileType;
+        });
         readRawEasJsonMock.mockImplementation(async () => {
           return {
             build: {
@@ -40,20 +59,22 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
           };
         });
         const result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
-          buildProfile,
           easJsonAccessor,
+          Platform.ANDROID,
           'production'
         );
         expect(result).toEqual([]);
       });
     });
     describe('cache settings with customPaths', () => {
-      const buildProfile = {
-        cache: {
-          paths: ['path1', 'path2'],
-        },
-      } as BuildProfileType;
       it('returns deprecation warning', async () => {
+        getBuildProfileAsync.mockImplementation(async () => {
+          return {
+            cache: {
+              paths: ['path1', 'path2'],
+            },
+          } as BuildProfileType;
+        });
         readRawEasJsonMock.mockImplementation(async () => {
           return {
             build: {
@@ -71,8 +92,8 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
           };
         });
         let result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
-          buildProfile,
           easJsonAccessor,
+          Platform.ANDROID,
           'production'
         );
         expect(result).toEqual([
@@ -84,8 +105,8 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
           },
         ]);
         result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
-          buildProfile,
           easJsonAccessor,
+          Platform.ANDROID,
           'dummy_profile_name'
         );
         expect(result).toEqual([
@@ -102,26 +123,30 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
   describe('ios', () => {
     type BuildProfileType = IosBuildProfile;
     describe('no cache settings', () => {
-      const buildProfile = {} as BuildProfileType;
       it('does not return deprecation warnings', async () => {
+        getBuildProfileAsync.mockImplementation(async () => {
+          return {} as BuildProfileType;
+        });
         readRawEasJsonMock.mockImplementation(async () => {
           return {};
         });
         const result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
-          buildProfile,
           easJsonAccessor,
+          Platform.IOS,
           'production'
         );
         expect(result).toEqual([]);
       });
     });
     describe('cache settings with paths', () => {
-      const buildProfile = {
-        cache: {
-          paths: ['path1', 'path2'],
-        },
-      } as BuildProfileType;
       it('does not return deprecation warnings', async () => {
+        getBuildProfileAsync.mockImplementation(async () => {
+          return {
+            cache: {
+              paths: ['path1', 'path2'],
+            },
+          } as BuildProfileType;
+        });
         readRawEasJsonMock.mockImplementation(async () => {
           return {
             build: {
@@ -134,20 +159,22 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
           };
         });
         const result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
-          buildProfile,
           easJsonAccessor,
+          Platform.IOS,
           'production'
         );
         expect(result).toEqual([]);
       });
     });
     describe('cache settings with customPaths', () => {
-      const buildProfile = {
-        cache: {
-          paths: ['path1', 'path2'],
-        },
-      } as BuildProfileType;
       it('returns deprecation warning', async () => {
+        getBuildProfileAsync.mockImplementation(async () => {
+          return {
+            cache: {
+              paths: ['path1', 'path2'],
+            },
+          } as BuildProfileType;
+        });
         readRawEasJsonMock.mockImplementation(async () => {
           return {
             build: {
@@ -165,8 +192,8 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
           };
         });
         let result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
-          buildProfile,
           easJsonAccessor,
+          Platform.IOS,
           'production'
         );
         expect(result).toEqual([
@@ -178,8 +205,8 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
           },
         ]);
         result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
-          buildProfile,
           easJsonAccessor,
+          Platform.IOS,
           'dummy_profile_name'
         );
         expect(result).toEqual([
@@ -193,12 +220,14 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
       });
     });
     describe('cache settings with customPaths in extended profile', () => {
-      const buildProfile = {
-        cache: {
-          paths: ['path1', 'path2'],
-        },
-      } as BuildProfileType;
       it('returns deprecation warning', async () => {
+        getBuildProfileAsync.mockImplementation(async () => {
+          return {
+            cache: {
+              paths: ['path1', 'path2'],
+            },
+          } as BuildProfileType;
+        });
         readRawEasJsonMock.mockImplementation(async () => {
           return {
             build: {
@@ -214,8 +243,8 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
           };
         });
         const result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
-          buildProfile,
           easJsonAccessor,
+          Platform.IOS,
           'dummy_profile_name'
         );
         expect(result).toEqual([
