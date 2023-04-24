@@ -46,15 +46,34 @@ export class EasJsonUtils {
       });
     }
 
-    if (rawEasJson.build?.[finalProfileName]?.cache?.customPaths !== undefined) {
+    warnings.push(...EasJsonUtils.getCustomPathsDeprecationWarnings(rawEasJson, finalProfileName));
+
+    return warnings;
+  }
+
+  private static getCustomPathsDeprecationWarnings(
+    rawEasJson: any,
+    buildProfileName: string,
+    extendedBuildProfileName?: string
+  ): EasJsonDeprecationWarning[] {
+    const warnings = [];
+    const profileName = extendedBuildProfileName ? extendedBuildProfileName : buildProfileName;
+    if (rawEasJson.build?.[profileName]?.cache?.customPaths !== undefined) {
       warnings.push({
         message: [
-          `The "build.${finalProfileName}.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.${finalProfileName}.cache.paths" instead.`,
+          `The "build.${buildProfileName}.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.${buildProfileName}.cache.paths" instead.`,
         ],
         docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
       });
+    } else if (rawEasJson.build?.[profileName]?.extends !== undefined) {
+      warnings.push(
+        ...EasJsonUtils.getCustomPathsDeprecationWarnings(
+          rawEasJson,
+          buildProfileName,
+          rawEasJson.build?.[profileName].extends
+        )
+      );
     }
-
     return warnings;
   }
 
