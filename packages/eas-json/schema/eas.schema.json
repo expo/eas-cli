@@ -334,6 +334,7 @@
               "enum": [
                 "default",
                 "latest",
+                "macos-ventura-13.3-xcode-14.3",
                 "macos-monterey-12.6-xcode-14.2",
                 "macos-monterey-12.6-xcode-14.1",
                 "macos-monterey-12.6-xcode-14.0",
@@ -344,8 +345,8 @@
                 "macos-big-sur-11.4-xcode-12.5"
               ],
               "markdownEnumDescriptions": [
-                "`macos-monterey-12.6-xcode-14.1`",
-                "`macos-monterey-12.6-xcode-14.2`"
+                "`macos-monterey-12.6-xcode-14.2` for `m-medium` resource class, `macos-monterey-12.6-xcode-14.1` for `intel-medium` resource class",
+                "`macos-ventura-13.3-xcode-14.3` for `m-medium` resource class, `macos-monterey-12.6-xcode-14.2` for `intel-medium` resource class"
               ]
             },
             {
