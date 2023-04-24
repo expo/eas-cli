@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import fetch, { RequestInit, Response } from '../fetch';
 import { AppPlatform } from '../graphql/generated';
 import Log from '../log';
+import { promptAsync } from '../prompts';
 import { formatBytes } from './files';
 import { getTmpDirectory } from './paths';
 import { ProgressHandler, createProgressTracker } from './progress';
@@ -162,16 +163,35 @@ export async function extractAppFromLocalArchiveAsync(
 }
 
 async function getAppPathAsync(outputDir: string, applicationExtension: string): Promise<string> {
-  const appFileName = await glob(`*.${applicationExtension}`, {
+  const appFilePath = await glob(`./**/*.${applicationExtension}`, {
     cwd: outputDir,
     onlyFiles: false,
   });
 
-  if (appFileName.length === 0) {
+  if (appFilePath.length === 0) {
     throw Error('Something went wrong while extracting the app from app archive');
   }
 
-  return path.join(outputDir, appFileName[0]);
+  if (appFilePath.length === 1) {
+    return path.join(outputDir, appFilePath[0]);
+  }
+
+  Log.newLine();
+  Log.log('Detected multiple apps in the app archive:');
+  Log.newLine();
+  const { selectedFile } = await promptAsync({
+    type: 'select',
+    message: 'Select the app to use',
+    name: 'selectedFile',
+    choices: [
+      ...appFilePath.map(filePath => ({
+        title: filePath,
+        value: filePath,
+      })),
+    ],
+  });
+
+  return path.join(outputDir, selectedFile);
 }
 
 async function tarExtractAsync(input: string, output: string): Promise<void> {
