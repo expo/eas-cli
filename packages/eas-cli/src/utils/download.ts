@@ -163,17 +163,17 @@ export async function extractAppFromLocalArchiveAsync(
 }
 
 async function getAppPathAsync(outputDir: string, applicationExtension: string): Promise<string> {
-  const appFilePath = await glob(`./**/*.${applicationExtension}`, {
+  const appFilePaths = await glob(`./**/*.${applicationExtension}`, {
     cwd: outputDir,
     onlyFiles: false,
   });
 
-  if (appFilePath.length === 0) {
+  if (appFilePaths.length === 0) {
     throw Error('Something went wrong while extracting the app from app archive');
   }
 
-  if (appFilePath.length === 1) {
-    return path.join(outputDir, appFilePath[0]);
+  if (appFilePaths.length === 1) {
+    return path.join(outputDir, appFilePaths[0]);
   }
 
   Log.newLine();
@@ -184,7 +184,7 @@ async function getAppPathAsync(outputDir: string, applicationExtension: string):
     message: 'Select the app to use',
     name: 'selectedFile',
     choices: [
-      ...appFilePath.map(filePath => ({
+      ...appFilePaths.map(filePath => ({
         title: filePath,
         value: filePath,
       })),
