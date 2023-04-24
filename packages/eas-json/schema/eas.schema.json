@@ -346,7 +346,8 @@
               ],
               "markdownEnumDescriptions": [
                 "`macos-monterey-12.6-xcode-14.2` for `m-medium` resource class, `macos-monterey-12.6-xcode-14.1` for `intel-medium` resource class",
-                "`macos-ventura-13.3-xcode-14.3` for `m-medium` resource class, `macos-monterey-12.6-xcode-14.2` for `intel-medium` resource class"
+                "`macos-ventura-13.3-xcode-14.3` for `m-medium` resource class, `macos-monterey-12.6-xcode-14.2` for `intel-medium` resource class",
+                "only available for `m-medium` resource class"
               ]
             },
             {
