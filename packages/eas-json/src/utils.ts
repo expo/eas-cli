@@ -31,22 +31,21 @@ export class EasJsonUtils {
   public static async getBuildProfileDeprecationWarningsAsync(
     buildProfile: BuildProfile,
     easJsonAccessor: EasJsonAccessor,
-    profileName?: string
+    profileName: string
   ): Promise<EasJsonDeprecationWarning[]> {
     const warnings: EasJsonDeprecationWarning[] = [];
     const rawEasJson = await easJsonAccessor.readRawJsonAsync();
-    const finalProfileName = profileName ?? 'production';
 
     if (buildProfile.cache?.cacheDefaultPaths !== undefined) {
       warnings.push({
         message: [
-          `The "build.${finalProfileName}.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.`,
+          `The "build.${profileName}.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.`,
         ],
         docsUrl: 'https://docs.expo.dev/build-reference/caching/#ios-dependencies',
       });
     }
 
-    warnings.push(...EasJsonUtils.getCustomPathsDeprecationWarnings(rawEasJson, finalProfileName));
+    warnings.push(...EasJsonUtils.getCustomPathsDeprecationWarnings(rawEasJson, profileName));
 
     return warnings;
   }

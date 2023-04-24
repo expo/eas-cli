@@ -101,7 +101,7 @@ export async function maybePrintBuildProfileDeprecationWarningsAsync(
   const deprecationWarnings = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
     buildProfile,
     easJsonAccessor,
-    profileName
+    profileName ?? 'production'
   );
   if (deprecationWarnings.length === 0) {
     return;

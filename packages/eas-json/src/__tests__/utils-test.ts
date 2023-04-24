@@ -15,7 +15,8 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
         });
         const result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
           buildProfile,
-          easJsonAccessor
+          easJsonAccessor,
+          'production'
         );
         expect(result).toEqual([]);
       });
@@ -40,7 +41,8 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
         });
         const result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
           buildProfile,
-          easJsonAccessor
+          easJsonAccessor,
+          'production'
         );
         expect(result).toEqual([]);
       });
@@ -70,7 +72,8 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
         });
         let result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
           buildProfile,
-          easJsonAccessor
+          easJsonAccessor,
+          'production'
         );
         expect(result).toEqual([
           {
@@ -106,7 +109,8 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
         });
         const result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
           buildProfile,
-          easJsonAccessor
+          easJsonAccessor,
+          'production'
         );
         expect(result).toEqual([]);
       });
@@ -131,7 +135,8 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
         });
         const result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
           buildProfile,
-          easJsonAccessor
+          easJsonAccessor,
+          'production'
         );
         expect(result).toEqual([]);
       });
@@ -161,7 +166,8 @@ describe('getBuildProfileDeprecationWarningsAsync', () => {
         });
         let result = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
           buildProfile,
-          easJsonAccessor
+          easJsonAccessor,
+          'production'
         );
         expect(result).toEqual([
           {
