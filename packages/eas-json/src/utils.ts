@@ -65,6 +65,7 @@ export class EasJsonUtils {
         ],
         docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
       });
+    }
     if (rawEasJson.build?.[profileName]?.extends !== undefined) {
       warnings.push(
         ...EasJsonUtils.getCustomPathsDeprecationWarnings(
