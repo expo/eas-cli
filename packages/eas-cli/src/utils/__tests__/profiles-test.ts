@@ -1,6 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { EasJsonAccessor, EasJsonUtils, errors } from '@expo/eas-json';
-import { AndroidBuildProfile } from '@expo/eas-json/build/build/types';
+import { BuildProfile, EasJsonAccessor, EasJsonUtils, errors } from '@expo/eas-json';
 import chalk from 'chalk';
 
 import Log from '../../log';
@@ -121,7 +120,7 @@ describe(maybePrintBuildProfileDeprecationWarnings, () => {
   describe('no deprecation warnings', () => {
     it('does not print any warnings', async () => {
       getBuildProfileDeprecationWarnings.mockImplementation(() => []);
-      const buildProfile = {} as AndroidBuildProfile;
+      const buildProfile = {} as BuildProfile<Platform.ANDROID>;
       maybePrintBuildProfileDeprecationWarnings(buildProfile);
       expect(newLineSpy).not.toHaveBeenCalled();
       expect(warnSpy).not.toHaveBeenCalled();
@@ -137,7 +136,7 @@ describe(maybePrintBuildProfileDeprecationWarnings, () => {
           docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
         },
       ]);
-      const buildProfile = {} as AndroidBuildProfile;
+      const buildProfile = {} as BuildProfile<Platform.ANDROID>;
       maybePrintBuildProfileDeprecationWarnings(buildProfile);
       expect(newLineSpy).toHaveBeenCalledTimes(2);
       expect(warnSpy).toHaveBeenCalledTimes(3);
@@ -170,7 +169,7 @@ describe(maybePrintBuildProfileDeprecationWarnings, () => {
           message: ['Other message'],
         },
       ]);
-      const buildProfile = {} as AndroidBuildProfile;
+      const buildProfile = {} as BuildProfile<Platform.ANDROID>;
       maybePrintBuildProfileDeprecationWarnings(buildProfile);
       expect(newLineSpy).toHaveBeenCalledTimes(4);
       expect(warnSpy).toHaveBeenCalledTimes(6);
