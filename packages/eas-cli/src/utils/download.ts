@@ -169,7 +169,7 @@ async function getAppPathAsync(outputDir: string, applicationExtension: string):
   });
 
   if (appFilePaths.length === 0) {
-    throw Error('Something went wrong while extracting the app from app archive');
+    throw Error('Did not find any installable apps inside archive');
   }
 
   if (appFilePaths.length === 1) {
