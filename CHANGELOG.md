@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [3.10.1](https://github.com/expo/eas-cli/releases/tag/v3.10.1) - 2023-04-25
+
+### 🧹 Chores
+
 - Add `cache.paths` field and deprecate `cache.customPaths`. ([#1794](https://github.com/expo/eas-cli/pull/1794) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ## [3.10.0](https://github.com/expo/eas-cli/releases/tag/v3.10.0) - 2023-04-21
