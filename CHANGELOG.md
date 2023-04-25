@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Add info about Xcode 14.3 image to `eas.schema.json`. ([#1808](https://github.com/expo/eas-cli/pull/1808) by [@szdziedzic](https://github.com/szdziedzic))
+- Allow users to select an app to run using the `build:run` command if multiple apps are found in the tarball. ([#1807](https://github.com/expo/eas-cli/pull/1807) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [3.10.1](https://github.com/expo/eas-cli/releases/tag/v3.10.1) - 2023-04-25
 
