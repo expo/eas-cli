@@ -26,6 +26,8 @@ jobs:
       - run: yarn typecheck
       - run: yarn test
         if: ${{ !matrix.coverage }}
+        env:
+          FORCE_COLOR: 1
       - run: yarn test --coverage
         if: ${{ matrix.coverage }}
         env:
