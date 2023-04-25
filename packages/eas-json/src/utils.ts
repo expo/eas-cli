@@ -57,15 +57,13 @@ export class EasJsonUtils {
 
   private static getCustomPathsDeprecationWarnings(
     rawEasJson: any,
-    buildProfileName: string,
-    extendedBuildProfileName?: string
+    profileName: string
   ): EasJsonDeprecationWarning[] {
     const warnings: EasJsonDeprecationWarning[] = [];
-    const profileName = extendedBuildProfileName ? extendedBuildProfileName : buildProfileName;
     if (rawEasJson.build?.[profileName]?.cache?.customPaths !== undefined) {
       warnings.push({
         message: [
-          `The "build.${buildProfileName}.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.${buildProfileName}.cache.paths" instead.`,
+          `The "build.${profileName}.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.${profileName}.cache.paths" instead.`,
         ],
         docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
       });
@@ -74,7 +72,6 @@ export class EasJsonUtils {
       warnings.push(
         ...EasJsonUtils.getCustomPathsDeprecationWarnings(
           rawEasJson,
-          buildProfileName,
           rawEasJson.build?.[profileName].extends
         )
       );
