@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import fetch, { RequestInit, Response } from '../fetch';
 import { AppPlatform } from '../graphql/generated';
 import Log from '../log';
+import { promptAsync } from '../prompts';
 import { formatBytes } from './files';
 import { getTmpDirectory } from './paths';
 import { ProgressHandler, createProgressTracker } from './progress';
@@ -162,16 +163,35 @@ export async function extractAppFromLocalArchiveAsync(
 }
 
 async function getAppPathAsync(outputDir: string, applicationExtension: string): Promise<string> {
-  const appFileName = await glob(`*.${applicationExtension}`, {
+  const appFilePaths = await glob(`./**/*.${applicationExtension}`, {
     cwd: outputDir,
     onlyFiles: false,
   });
 
-  if (appFileName.length === 0) {
-    throw Error('Something went wrong while extracting the app from app archive');
+  if (appFilePaths.length === 0) {
+    throw Error('Did not find any installable apps inside tarball.');
   }
 
-  return path.join(outputDir, appFileName[0]);
+  if (appFilePaths.length === 1) {
+    return path.join(outputDir, appFilePaths[0]);
+  }
+
+  Log.newLine();
+  Log.log('Detected multiple apps in the tarball:');
+  Log.newLine();
+  const { selectedFile } = await promptAsync({
+    type: 'select',
+    message: 'Select the app to run:',
+    name: 'selectedFile',
+    choices: [
+      ...appFilePaths.map(filePath => ({
+        title: filePath,
+        value: filePath,
+      })),
+    ],
+  });
+
+  return path.join(outputDir, selectedFile);
 }
 
 async function tarExtractAsync(input: string, output: string): Promise<void> {
