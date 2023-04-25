@@ -169,7 +169,7 @@ async function getAppPathAsync(outputDir: string, applicationExtension: string):
   });
 
   if (appFilePaths.length === 0) {
-    throw Error('Did not find any installable apps inside tarball');
+    throw Error('Did not find any installable apps inside tarball.');
   }
 
   if (appFilePaths.length === 1) {
