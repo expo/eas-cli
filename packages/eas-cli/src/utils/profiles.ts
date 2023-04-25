@@ -79,10 +79,10 @@ async function readProfileAsync<T extends ProfileType>({
 
 let hasPrintedDeprecationWarnings = false;
 
+/**
+ * Only for testing purposes
+ */
 export function clearHasPrintedDeprecationWarnings(): void {
-  /**
-   * Only for testing purposes
-   */
   hasPrintedDeprecationWarnings = false;
 }
 
