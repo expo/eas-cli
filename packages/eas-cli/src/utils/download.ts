@@ -169,7 +169,7 @@ async function getAppPathAsync(outputDir: string, applicationExtension: string):
   });
 
   if (appFilePaths.length === 0) {
-    throw Error('Did not find any installable apps inside archive');
+    throw Error('Did not find any installable apps inside tarball');
   }
 
   if (appFilePaths.length === 1) {
@@ -177,11 +177,11 @@ async function getAppPathAsync(outputDir: string, applicationExtension: string):
   }
 
   Log.newLine();
-  Log.log('Detected multiple apps in the app archive:');
+  Log.log('Detected multiple apps in the tarball:');
   Log.newLine();
   const { selectedFile } = await promptAsync({
     type: 'select',
-    message: 'Select the app to use',
+    message: 'Select the app to run:',
     name: 'selectedFile',
     choices: [
       ...appFilePaths.map(filePath => ({
