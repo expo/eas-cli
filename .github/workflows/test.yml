@@ -27,6 +27,8 @@ jobs:
       - run: yarn test
         if: ${{ !matrix.coverage }}
         env:
+          # Forces chalk to behave the same in CI as in other environments
+          # Necessary for snapshot tests
           FORCE_COLOR: 1
       - run: yarn test --coverage
         if: ${{ matrix.coverage }}
