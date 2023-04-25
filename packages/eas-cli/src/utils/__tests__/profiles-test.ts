@@ -1,6 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJsonAccessor, EasJsonUtils, errors } from '@expo/eas-json';
-import chalk from 'chalk';
 
 import Log from '../../log';
 import { selectAsync } from '../../prompts';
@@ -159,13 +158,7 @@ describe(maybePrintBuildProfileDeprecationWarningsAsync, () => {
       expect(newLineSpy).toHaveBeenCalledTimes(2);
       expect(warnSpy).toHaveBeenCalledTimes(3);
       const warnCalls = warnSpy.mock.calls;
-      expect(warnCalls[0][0]).toEqual('Detected deprecated fields in eas.json:');
-      expect(warnCalls[1][0]).toEqual(
-        '\tThe "build.production.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.production.cache.paths" instead.'
-      );
-      const underlinedText = 'https://docs.expo.dev/build-reference/eas-json/#cache';
-      const dimmedText = `Learn more: ${chalk.underline(underlinedText)}`;
-      expect(warnCalls[2][0]).toEqual(`\t${chalk.dim(dimmedText)}`);
+      expect(warnCalls).toMatchSnapshot();
     });
   });
   describe('multiple deprecation warnings', () => {
@@ -195,20 +188,7 @@ describe(maybePrintBuildProfileDeprecationWarningsAsync, () => {
       expect(newLineSpy).toHaveBeenCalledTimes(4);
       expect(warnSpy).toHaveBeenCalledTimes(6);
       const warnCalls = warnSpy.mock.calls;
-      expect(warnCalls[0][0]).toEqual('Detected deprecated fields in eas.json:');
-      expect(warnCalls[1][0]).toEqual(
-        '\tThe "build.production.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.production.cache.paths" instead.'
-      );
-      let underlinedText = 'https://docs.expo.dev/build-reference/eas-json/#cache';
-      let dimmedText = `Learn more: ${chalk.underline(underlinedText)}`;
-      expect(warnCalls[2][0]).toEqual(`\t${chalk.dim(dimmedText)}`);
-      expect(warnCalls[3][0]).toEqual(
-        '\tThe "build.production.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.'
-      );
-      underlinedText = 'https://docs.expo.dev/build-reference/caching/#ios-dependencies';
-      dimmedText = `Learn more: ${chalk.underline(underlinedText)}`;
-      expect(warnCalls[4][0]).toEqual(`\t${chalk.dim(dimmedText)}`);
-      expect(warnCalls[5][0]).toEqual('\tOther message');
+      expect(warnCalls).toMatchSnapshot();
     });
   });
 });
