@@ -52,7 +52,7 @@ export async function resolveBuildResourceClassAsync<T extends Platform>(
   const selectedResourceClass = resourceClassFlag ?? profileResourceClass;
 
   return platform === Platform.IOS
-    ? await resolveIosResourceClassAsync(resourceClassFlag, profileResourceClass)
+    ? resolveIosResourceClass(resourceClassFlag, profileResourceClass)
     : resolveAndroidResourceClass(selectedResourceClass);
 }
 
@@ -74,10 +74,10 @@ function resolveAndroidResourceClass(selectedResourceClass?: ResourceClass): Bui
   return androidResourceClassToBuildResourceClassMapping[resourceClass as AndroidResourceClass];
 }
 
-async function resolveIosResourceClassAsync(
+function resolveIosResourceClass(
   resourceClassFlag?: ResourceClass,
   profileResourceClass?: ResourceClass
-): Promise<BuildResourceClass> {
+): BuildResourceClass {
   const resourceClass = resourceClassFlag ?? profileResourceClass ?? ResourceClass.DEFAULT;
 
   if (resourceClassFlag === ResourceClass.LARGE) {
