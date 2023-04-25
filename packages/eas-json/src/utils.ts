@@ -60,7 +60,7 @@ export class EasJsonUtils {
     buildProfileName: string,
     extendedBuildProfileName?: string
   ): EasJsonDeprecationWarning[] {
-    const warnings = [];
+    const warnings: EasJsonDeprecationWarning[] = [];
     const profileName = extendedBuildProfileName ? extendedBuildProfileName : buildProfileName;
     if (rawEasJson.build?.[profileName]?.cache?.customPaths !== undefined) {
       warnings.push({
