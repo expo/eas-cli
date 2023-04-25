@@ -80,9 +80,14 @@ interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
 
 export type BuildRequestSender = () => Promise<BuildFragment | undefined>;
 
-function resolveBuildParamsInput<T extends Platform>(ctx: BuildContext<T>): BuildParamsInput {
+function resolveBuildParamsInput<T extends Platform>(
+  ctx: BuildContext<T>,
+  metadata: Metadata
+): BuildParamsInput {
   return {
     resourceClass: ctx.resourceClass,
+    sdkVersion: metadata.sdkVersion,
+    reactNativeVersion: metadata.reactNativeVersion,
   };
 }
 
@@ -142,7 +147,7 @@ export async function prepareBuildRequestForPlatformAsync<
   assert(projectArchive);
 
   const metadata = await collectMetadataAsync(ctx);
-  const buildParams = resolveBuildParamsInput(ctx);
+  const buildParams = resolveBuildParamsInput(ctx, metadata);
   const job = await builder.prepareJobAsync(ctx, {
     projectArchive,
     credentials: credentialsResult?.credentials,

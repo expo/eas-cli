@@ -1,12 +1,9 @@
-import { ExpoConfig } from '@expo/config-types';
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, ResourceClass } from '@expo/eas-json';
 import chalk from 'chalk';
-import semver from 'semver';
 
 import { BuildResourceClass } from '../../graphql/generated';
 import Log, { link } from '../../log';
-import { getReactNativeVersionAsync } from '../metadata';
 
 type AndroidResourceClass = Exclude<
   ResourceClass,
@@ -42,8 +39,6 @@ const androidResourceClassToBuildResourceClassMapping: Record<
 export async function resolveBuildResourceClassAsync<T extends Platform>(
   profile: BuildProfile<T>,
   platform: Platform,
-  projectDir: string,
-  exp: ExpoConfig,
   resourceClassFlag?: ResourceClass
 ): Promise<BuildResourceClass> {
   const profileResourceClass = profile.resourceClass;
@@ -57,7 +52,7 @@ export async function resolveBuildResourceClassAsync<T extends Platform>(
   const selectedResourceClass = resourceClassFlag ?? profileResourceClass;
 
   return platform === Platform.IOS
-    ? await resolveIosResourceClassAsync(exp, projectDir, resourceClassFlag, profileResourceClass)
+    ? resolveIosResourceClass(resourceClassFlag, profileResourceClass)
     : resolveAndroidResourceClass(selectedResourceClass);
 }
 
@@ -79,16 +74,11 @@ function resolveAndroidResourceClass(selectedResourceClass?: ResourceClass): Bui
   return androidResourceClassToBuildResourceClassMapping[resourceClass as AndroidResourceClass];
 }
 
-async function resolveIosResourceClassAsync(
-  exp: ExpoConfig,
-  projectDir: string,
+function resolveIosResourceClass(
   resourceClassFlag?: ResourceClass,
   profileResourceClass?: ResourceClass
-): Promise<BuildResourceClass> {
-  const resourceClass =
-    resourceClassFlag ??
-    profileResourceClass ??
-    (await resolveIosDefaultRequestedResourceClassAsync(exp, projectDir));
+): BuildResourceClass {
+  const resourceClass = resourceClassFlag ?? profileResourceClass ?? ResourceClass.DEFAULT;
 
   if (resourceClassFlag === ResourceClass.LARGE) {
     throw new Error(
@@ -115,20 +105,4 @@ async function resolveIosResourceClassAsync(
   }
 
   return iosResourceClassToBuildResourceClassMapping[resourceClass];
-}
-
-async function resolveIosDefaultRequestedResourceClassAsync(
-  exp: ExpoConfig,
-  projectDir: string
-): Promise<ResourceClass> {
-  const { sdkVersion } = exp;
-  const reactNativeVersion = await getReactNativeVersionAsync(projectDir);
-  if (
-    (sdkVersion && semver.satisfies(sdkVersion, '>=48')) ||
-    (reactNativeVersion && semver.satisfies(reactNativeVersion, '>=0.71.0'))
-  ) {
-    return ResourceClass.M_MEDIUM;
-  } else {
-    return ResourceClass.DEFAULT;
-  }
 }
