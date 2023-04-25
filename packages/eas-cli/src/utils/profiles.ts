@@ -65,7 +65,7 @@ async function readProfileAsync<T extends ProfileType>({
       profileName
     );
 
-    maybePrintBuildProfileDeprecationWarnings(buildProfile, profileName);
+    await maybePrintBuildProfileDeprecationWarningsAsync(easJsonAccessor, platform, profileName);
 
     return buildProfile as EasProfile<T>;
   } else {
@@ -79,16 +79,25 @@ async function readProfileAsync<T extends ProfileType>({
 
 let hasPrintedDeprecationWarnings = false;
 
-function maybePrintBuildProfileDeprecationWarnings(
-  buildProfile: BuildProfile<Platform>,
+/**
+ * Only for testing purposes
+ */
+export function clearHasPrintedDeprecationWarnings(): void {
+  hasPrintedDeprecationWarnings = false;
+}
+
+export async function maybePrintBuildProfileDeprecationWarningsAsync(
+  easJsonAccessor: EasJsonAccessor,
+  platform: Platform,
   profileName?: string
-): void {
+): Promise<void> {
   if (hasPrintedDeprecationWarnings) {
     return;
   }
-  const deprecationWarnings = EasJsonUtils.getBuildProfileDeprecationWarnings(
-    buildProfile,
-    profileName
+  const deprecationWarnings = await EasJsonUtils.getBuildProfileDeprecationWarningsAsync(
+    easJsonAccessor,
+    platform,
+    profileName ?? 'production'
   );
   if (deprecationWarnings.length === 0) {
     return;

@@ -68,6 +68,16 @@
         },
         "customPaths": {
           "type": "array",
+          "description": "[DEPRECATED] Use `paths` instead. List of the paths that will be saved after a successful build and restored at the beginning of the next one.",
+          "markdownDescription": "[DEPRECATED] Use `paths` instead. List of the paths that will be saved after a successful build and restored at the beginning of the next one. Both absolute and relative paths are supported, where relative paths are resolved from the directory with `eas.json`.",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          },
+          "deprecated": true
+        },
+        "paths": {
+          "type": "array",
           "description": "List of the paths that will be saved after a successful build and restored at the beginning of the next one.",
           "markdownDescription": "List of the paths that will be saved after a successful build and restored at the beginning of the next one. Both absolute and relative paths are supported, where relative paths are resolved from the directory with `eas.json`.",
           "uniqueItems": true,

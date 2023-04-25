@@ -28,23 +28,54 @@ export class EasJsonUtils {
     return resolveBuildProfile({ easJson, platform, profileName });
   }
 
-  public static getBuildProfileDeprecationWarnings(
-    buildProfile: BuildProfile,
-    profileName?: string
-  ): EasJsonDeprecationWarning[] {
+  public static async getBuildProfileDeprecationWarningsAsync(
+    easJsonAccessor: EasJsonAccessor,
+    platform: Platform,
+    profileName: string
+  ): Promise<EasJsonDeprecationWarning[]> {
     const warnings: EasJsonDeprecationWarning[] = [];
+    const buildProfile = await EasJsonUtils.getBuildProfileAsync(
+      easJsonAccessor,
+      platform,
+      profileName
+    );
+    const rawEasJson = await easJsonAccessor.readRawJsonAsync();
 
     if (buildProfile.cache?.cacheDefaultPaths !== undefined) {
       warnings.push({
         message: [
-          `The "build.${
-            profileName ?? 'production'
-          }.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.`,
+          `The "build.${profileName}.cache.cacheDefaultPaths" field in eas.json is deprecated and will be removed in the future.`,
         ],
         docsUrl: 'https://docs.expo.dev/build-reference/caching/#ios-dependencies',
       });
     }
 
+    warnings.push(...EasJsonUtils.getCustomPathsDeprecationWarnings(rawEasJson, profileName));
+
+    return warnings;
+  }
+
+  private static getCustomPathsDeprecationWarnings(
+    rawEasJson: any,
+    profileName: string
+  ): EasJsonDeprecationWarning[] {
+    const warnings: EasJsonDeprecationWarning[] = [];
+    if (rawEasJson.build?.[profileName]?.cache?.customPaths !== undefined) {
+      warnings.push({
+        message: [
+          `The "build.${profileName}.cache.customPaths" field in eas.json is deprecated and will be removed in the future. Please use "build.${profileName}.cache.paths" instead.`,
+        ],
+        docsUrl: 'https://docs.expo.dev/build-reference/eas-json/#cache',
+      });
+    }
+    if (rawEasJson.build?.[profileName]?.extends !== undefined) {
+      warnings.push(
+        ...EasJsonUtils.getCustomPathsDeprecationWarnings(
+          rawEasJson,
+          rawEasJson.build?.[profileName].extends
+        )
+      );
+    }
     return warnings;
   }
 
