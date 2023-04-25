@@ -87,6 +87,7 @@ export type Account = {
   appleTeams: Array<AppleTeam>;
   /** Apps associated with this account */
   apps: Array<App>;
+  /** Paginated list of apps associated with this account. By default sorted by name. Use filter to adjust the sorting order. */
   appsPaginated: AccountAppsConnection;
   /** @deprecated Build packs are no longer supported */
   availableBuilds?: Maybe<Scalars['Int']>;
@@ -219,6 +220,7 @@ export type AccountAppsArgs = {
 export type AccountAppsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']>;
   before?: InputMaybe<Scalars['String']>;
+  filter?: InputMaybe<AccountAppsFilterInput>;
   first?: InputMaybe<Scalars['Int']>;
   last?: InputMaybe<Scalars['Int']>;
 };
@@ -308,6 +310,19 @@ export type AccountAppsEdge = {
   cursor: Scalars['String'];
   node: App;
 };
+
+export type AccountAppsFilterInput = {
+  sortByField: AccountAppsSortByField;
+};
+
+export enum AccountAppsSortByField {
+  LatestActivityTime = 'LATEST_ACTIVITY_TIME',
+  /**
+   * Name prefers the display name but falls back to full_name with @account/
+   * part stripped.
+   */
+  Name = 'NAME'
+}
 
 export type AccountDataInput = {
   name: Scalars['String'];
@@ -2036,9 +2051,9 @@ export type BuildArtifacts = {
 
 export type BuildCacheInput = {
   clear?: InputMaybe<Scalars['Boolean']>;
-  customPaths?: InputMaybe<Array<InputMaybe<Scalars['String']>>>;
   disabled?: InputMaybe<Scalars['Boolean']>;
   key?: InputMaybe<Scalars['String']>;
+  paths?: InputMaybe<Array<Scalars['String']>>;
 };
 
 export enum BuildCredentialsSource {
