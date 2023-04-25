@@ -26,17 +26,12 @@ jobs:
       - run: yarn typecheck
       - run: yarn test
         if: ${{ !matrix.coverage }}
-        env:
-          # Forces chalk to behave the same in CI as in other environments
-          # Necessary for snapshot tests
-          FORCE_COLOR: 1
       - run: yarn test --coverage
         if: ${{ matrix.coverage }}
         env:
           # Oclif seems to cause OOM errors when testing with coverage enabled.
           # Remove this whenever we solved those OOM errors.
           NODE_OPTIONS: --max-old-space-size=4096
-          FORCE_COLOR: 1
       - run: yarn lint --max-warnings=0
       - run: yarn install --frozen-lockfile --check-files
         working-directory: ./scripts
