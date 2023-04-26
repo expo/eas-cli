@@ -1,6 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { CombinedError } from '@urql/core';
 import { GraphQLError } from 'graphql/error';
+import { v4 as uuidv4 } from 'uuid';
 
 import { EasCommandError } from '../../commandUtils/errors';
 import Build from '../../commands/build';
@@ -42,9 +43,11 @@ const EXPECTED_MAX_BUILD_COUNT_MESSAGE_IOS = `You have already reached the maxim
 const EXPECTED_GENERIC_MESSAGE =
   'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.';
 
+const mockRequestId = uuidv4();
 const getGraphQLError = (message: string, errorCode: string): GraphQLError => {
   return new GraphQLError(message, null, null, null, null, null, {
     errorCode,
+    requestId: mockRequestId,
   });
 };
 
@@ -304,31 +307,102 @@ describe(Build.name, () => {
     });
 
     describe('error is unexpected graphQL-related error', () => {
-      describe('throws base Error class with custom message', () => {
-        it('does it with Android', async () => {
+      describe('with Android', () => {
+        it('throws base Error class with custom message', async () => {
           const platform = Platform.ANDROID;
           const graphQLError = getGraphQLError('Error 1', 'UNKNOWN_GRAPHQL_ERROR');
           const graphQLErrors = [graphQLError];
           const error = new CombinedError({ graphQLErrors });
+          const expectedMessage =
+            EXPECTED_GENERIC_MESSAGE +
+            `\nRequest ID: ${mockRequestId}` +
+            `\nOriginal error: Error 1`;
 
           try {
             handleBuildRequestError(error, platform);
           } catch (caughtError) {
-            assertReThrownError(caughtError as Error, Error, EXPECTED_GENERIC_MESSAGE);
+            assertReThrownError(caughtError as Error, Error, expectedMessage);
           }
         });
+        describe('without request ID', () => {
+          it('throws base Error class with custom message without request ID line', async () => {
+            const platform = Platform.ANDROID;
+            const graphQLError = getGraphQLError('Error 1', 'UNKNOWN_GRAPHQL_ERROR');
+            delete graphQLError.extensions.requestId;
+            const graphQLErrors = [graphQLError];
+            const error = new CombinedError({ graphQLErrors });
+            const expectedMessage = EXPECTED_GENERIC_MESSAGE + `\nOriginal error: Error 1`;
 
-        it('does it with iOS', async () => {
+            try {
+              handleBuildRequestError(error, platform);
+            } catch (caughtError) {
+              assertReThrownError(caughtError as Error, Error, expectedMessage);
+            }
+          });
+        });
+        describe('without original error message', () => {
+          it('throws base Error class with custom message without original error line', async () => {
+            const platform = Platform.ANDROID;
+            const graphQLError = getGraphQLError('', 'UNKNOWN_GRAPHQL_ERROR');
+            const graphQLErrors = [graphQLError];
+            const error = new CombinedError({ graphQLErrors });
+            const expectedMessage = EXPECTED_GENERIC_MESSAGE + `\nRequest ID: ${mockRequestId}`;
+
+            try {
+              handleBuildRequestError(error, platform);
+            } catch (caughtError) {
+              assertReThrownError(caughtError as Error, Error, expectedMessage);
+            }
+          });
+        });
+      });
+      describe('with iOS', () => {
+        it('throws base Error class with custom message', async () => {
           const platform = Platform.IOS;
           const graphQLError = getGraphQLError('Error 1', 'UNKNOWN_GRAPHQL_ERROR');
           const graphQLErrors = [graphQLError];
           const error = new CombinedError({ graphQLErrors });
+          const expectedMessage =
+            EXPECTED_GENERIC_MESSAGE +
+            `\nRequest ID: ${mockRequestId}` +
+            `\nOriginal error: Error 1`;
 
           try {
             handleBuildRequestError(error, platform);
           } catch (caughtError) {
-            assertReThrownError(caughtError as Error, Error, EXPECTED_GENERIC_MESSAGE);
+            assertReThrownError(caughtError as Error, Error, expectedMessage);
           }
+        });
+        describe('without request ID', () => {
+          it('throws base Error class with custom message without request ID line', async () => {
+            const platform = Platform.IOS;
+            const graphQLError = getGraphQLError('Error 1', 'UNKNOWN_GRAPHQL_ERROR');
+            delete graphQLError.extensions.requestId;
+            const graphQLErrors = [graphQLError];
+            const error = new CombinedError({ graphQLErrors });
+            const expectedMessage = EXPECTED_GENERIC_MESSAGE + `\nOriginal error: Error 1`;
+
+            try {
+              handleBuildRequestError(error, platform);
+            } catch (caughtError) {
+              assertReThrownError(caughtError as Error, Error, expectedMessage);
+            }
+          });
+        });
+        describe('without original error message', () => {
+          it('throws base Error class with custom message without original error line', async () => {
+            const platform = Platform.IOS;
+            const graphQLError = getGraphQLError('', 'UNKNOWN_GRAPHQL_ERROR');
+            const graphQLErrors = [graphQLError];
+            const error = new CombinedError({ graphQLErrors });
+            const expectedMessage = EXPECTED_GENERIC_MESSAGE + `\nRequest ID: ${mockRequestId}`;
+
+            try {
+              handleBuildRequestError(error, platform);
+            } catch (caughtError) {
+              assertReThrownError(caughtError as Error, Error, expectedMessage);
+            }
+          });
         });
       });
     });

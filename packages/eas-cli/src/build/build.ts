@@ -202,8 +202,16 @@ export function handleBuildRequestError(error: any, platform: Platform): never {
       `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
     );
   } else if (error?.graphQLErrors) {
+    const requestIdLine = error?.graphQLErrors?.[0]?.extensions?.requestId
+      ? `\nRequest ID: ${error.graphQLErrors[0].extensions.requestId}`
+      : '';
+    const originalMessageLine = error?.graphQLErrors?.[0]?.message
+      ? `\nOriginal error: ${error.graphQLErrors[0].message}`
+      : '';
     throw new Error(
-      'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.'
+      'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.' +
+        requestIdLine +
+        originalMessageLine
     );
   }
   throw error;
