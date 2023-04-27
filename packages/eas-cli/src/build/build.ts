@@ -188,24 +188,23 @@ export function handleBuildRequestError(error: any, platform: Platform): never {
   Log.debug(JSON.stringify(error.graphQLErrors, null, 2));
 
   const graphQLErrorCode: string = error?.graphQLErrors?.[0]?.extensions?.errorCode;
-  const requestIdLine = error?.graphQLErrors?.[0]?.extensions?.requestId
-    ? `\nRequest ID: ${error.graphQLErrors[0].extensions.requestId}`
-    : '';
   if (graphQLErrorCode in SERVER_SIDE_DEFINED_ERRORS) {
     const ErrorClass: typeof EasCommandError = SERVER_SIDE_DEFINED_ERRORS[graphQLErrorCode];
-    throw new ErrorClass(error?.graphQLErrors?.[0]?.message + requestIdLine);
+    throw new ErrorClass(error?.graphQLErrors?.[0]?.message);
   } else if (graphQLErrorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE') {
     throw new EasBuildDownForMaintenanceError(
       `EAS Build is down for maintenance. Try again later. Check ${link(
         'https://status.expo.dev/'
-      )} for updates.` + requestIdLine
+      )} for updates.`
     );
   } else if (graphQLErrorCode === 'EAS_BUILD_TOO_MANY_PENDING_BUILDS') {
     throw new EasBuildTooManyPendingBuildsError(
-      `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.` +
-        requestIdLine
+      `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
     );
   } else if (error?.graphQLErrors) {
+    const requestIdLine = error?.graphQLErrors?.[0]?.extensions?.requestId
+      ? `\nRequest ID: ${error.graphQLErrors[0].extensions.requestId}`
+      : '';
     throw new Error(
       'Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.' +
         requestIdLine
