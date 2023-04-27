@@ -117,9 +117,9 @@ describe(Build.name, () => {
     });
 
     describe('error is server-side defined error', () => {
-      describe('throws correct EasCommandError subclass', () => {
-        describe('for TURTLE_DEPRECATED_JOB_FORMAT', () => {
-          it('does it with Android', async () => {
+      describe('for TURTLE_DEPRECATED_JOB_FORMAT', () => {
+        describe('with Android', () => {
+          it('throws correct EasCommandError subclass', async () => {
             const platform = Platform.ANDROID;
             const graphQLError = getGraphQLError('Error 1', 'TURTLE_DEPRECATED_JOB_FORMAT');
             const graphQLErrors = [graphQLError];
@@ -128,11 +128,35 @@ describe(Build.name, () => {
             try {
               handleBuildRequestError(error, platform);
             } catch (caughtError) {
-              assertReThrownError(caughtError as Error, TurtleDeprecatedJobFormatError);
+              assertReThrownError(
+                caughtError as Error,
+                TurtleDeprecatedJobFormatError,
+                `Error 1\nRequest ID: ${mockRequestId}`
+              );
             }
           });
+          describe('without request ID', () => {
+            it('throws correct EasCommandError subclass with shorter message', async () => {
+              const platform = Platform.ANDROID;
+              const graphQLError = getGraphQLError('Error 1', 'TURTLE_DEPRECATED_JOB_FORMAT');
+              delete graphQLError.extensions.requestId;
+              const graphQLErrors = [graphQLError];
+              const error = new CombinedError({ graphQLErrors });
 
-          it('does it with iOS', async () => {
+              try {
+                handleBuildRequestError(error, platform);
+              } catch (caughtError) {
+                assertReThrownError(
+                  caughtError as Error,
+                  TurtleDeprecatedJobFormatError,
+                  'Error 1'
+                );
+              }
+            });
+          });
+        });
+        describe('with iOS', () => {
+          it('throws correct EasCommandError subclass', async () => {
             const platform = Platform.IOS;
             const graphQLError = getGraphQLError('Error 1', 'TURTLE_DEPRECATED_JOB_FORMAT');
             const graphQLErrors = [graphQLError];
@@ -141,13 +165,38 @@ describe(Build.name, () => {
             try {
               handleBuildRequestError(error, platform);
             } catch (caughtError) {
-              assertReThrownError(caughtError as Error, TurtleDeprecatedJobFormatError);
+              assertReThrownError(
+                caughtError as Error,
+                TurtleDeprecatedJobFormatError,
+                `Error 1\nRequest ID: ${mockRequestId}`
+              );
             }
           });
-        });
+          describe('without request ID', () => {
+            it('throws correct EasCommandError subclass with shorter message', async () => {
+              const platform = Platform.IOS;
+              const graphQLError = getGraphQLError('Error 1', 'TURTLE_DEPRECATED_JOB_FORMAT');
+              delete graphQLError.extensions.requestId;
+              const graphQLErrors = [graphQLError];
+              const error = new CombinedError({ graphQLErrors });
 
-        describe('for EAS_BUILD_FREE_TIER_DISABLED', () => {
-          it('does it with Android', async () => {
+              try {
+                handleBuildRequestError(error, platform);
+              } catch (caughtError) {
+                assertReThrownError(
+                  caughtError as Error,
+                  TurtleDeprecatedJobFormatError,
+                  'Error 1'
+                );
+              }
+            });
+          });
+        });
+      });
+
+      describe('for EAS_BUILD_FREE_TIER_DISABLED', () => {
+        describe('with Android', () => {
+          it('throws correct EasCommandError subclass', async () => {
             const platform = Platform.ANDROID;
             const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_DISABLED');
             const graphQLErrors = [graphQLError];
@@ -156,11 +205,31 @@ describe(Build.name, () => {
             try {
               handleBuildRequestError(error, platform);
             } catch (caughtError) {
-              assertReThrownError(caughtError as Error, EasBuildFreeTierDisabledError);
+              assertReThrownError(
+                caughtError as Error,
+                EasBuildFreeTierDisabledError,
+                `Error 1\nRequest ID: ${mockRequestId}`
+              );
             }
           });
+          describe('without request ID', () => {
+            it('throws correct EasCommandError subclass with shorter message', async () => {
+              const platform = Platform.ANDROID;
+              const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_DISABLED');
+              delete graphQLError.extensions.requestId;
+              const graphQLErrors = [graphQLError];
+              const error = new CombinedError({ graphQLErrors });
 
-          it('does it with iOS', async () => {
+              try {
+                handleBuildRequestError(error, platform);
+              } catch (caughtError) {
+                assertReThrownError(caughtError as Error, EasBuildFreeTierDisabledError, 'Error 1');
+              }
+            });
+          });
+        });
+        describe('with iOS', () => {
+          it('throws correct EasCommandError subclass', async () => {
             const platform = Platform.IOS;
             const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_DISABLED');
             const graphQLErrors = [graphQLError];
@@ -169,12 +238,32 @@ describe(Build.name, () => {
             try {
               handleBuildRequestError(error, platform);
             } catch (caughtError) {
-              assertReThrownError(caughtError as Error, EasBuildFreeTierDisabledError);
+              assertReThrownError(
+                caughtError as Error,
+                EasBuildFreeTierDisabledError,
+                `Error 1\nRequest ID: ${mockRequestId}`
+              );
             }
           });
-        });
+          describe('without request ID', () => {
+            it('throws correct EasCommandError subclass with shorter message', async () => {
+              const platform = Platform.IOS;
+              const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_DISABLED');
+              delete graphQLError.extensions.requestId;
+              const graphQLErrors = [graphQLError];
+              const error = new CombinedError({ graphQLErrors });
 
-        it('does it for EAS_BUILD_FREE_TIER_DISABLED_IOS', async () => {
+              try {
+                handleBuildRequestError(error, platform);
+              } catch (caughtError) {
+                assertReThrownError(caughtError as Error, EasBuildFreeTierDisabledError, 'Error 1');
+              }
+            });
+          });
+        });
+      });
+      describe('for EAS_BUILD_FREE_TIER_DISABLED_IOS', () => {
+        it('throws correct EasCommandError subclass', async () => {
           const platform = Platform.IOS;
           const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_DISABLED_IOS');
           const graphQLErrors = [graphQLError];
@@ -183,11 +272,35 @@ describe(Build.name, () => {
           try {
             handleBuildRequestError(error, platform);
           } catch (caughtError) {
-            assertReThrownError(caughtError as Error, EasBuildFreeTierDisabledIOSError);
+            assertReThrownError(
+              caughtError as Error,
+              EasBuildFreeTierDisabledIOSError,
+              `Error 1\nRequest ID: ${mockRequestId}`
+            );
           }
         });
+        describe('without request ID', () => {
+          it('throws correct EasCommandError subclass with shorter message', async () => {
+            const platform = Platform.IOS;
+            const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_DISABLED_IOS');
+            delete graphQLError.extensions.requestId;
+            const graphQLErrors = [graphQLError];
+            const error = new CombinedError({ graphQLErrors });
 
-        it('does it for EAS_BUILD_FREE_TIER_DISABLED_ANDROID', async () => {
+            try {
+              handleBuildRequestError(error, platform);
+            } catch (caughtError) {
+              assertReThrownError(
+                caughtError as Error,
+                EasBuildFreeTierDisabledIOSError,
+                'Error 1'
+              );
+            }
+          });
+        });
+      });
+      describe('for EAS_BUILD_FREE_TIER_DISABLED_ANDROID', () => {
+        it('throws correct EasCommandError subclass', async () => {
           const platform = Platform.ANDROID;
           const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_DISABLED_ANDROID');
           const graphQLErrors = [graphQLError];
@@ -196,12 +309,37 @@ describe(Build.name, () => {
           try {
             handleBuildRequestError(error, platform);
           } catch (caughtError) {
-            assertReThrownError(caughtError as Error, EasBuildFreeTierDisabledAndroidError);
+            assertReThrownError(
+              caughtError as Error,
+              EasBuildFreeTierDisabledAndroidError,
+              `Error 1\nRequest ID: ${mockRequestId}`
+            );
           }
         });
+        describe('without request ID', () => {
+          it('throws correct EasCommandError subclass with shorter message', async () => {
+            const platform = Platform.ANDROID;
+            const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_DISABLED_ANDROID');
+            delete graphQLError.extensions.requestId;
+            const graphQLErrors = [graphQLError];
+            const error = new CombinedError({ graphQLErrors });
 
-        describe('for VALIDATION_ERROR', () => {
-          it('does it with Android', async () => {
+            try {
+              handleBuildRequestError(error, platform);
+            } catch (caughtError) {
+              assertReThrownError(
+                caughtError as Error,
+                EasBuildFreeTierDisabledAndroidError,
+                'Error 1'
+              );
+            }
+          });
+        });
+      });
+
+      describe('for VALIDATION_ERROR', () => {
+        describe('with Android', () => {
+          it('throws correct EasCommandError subclass', async () => {
             const platform = Platform.ANDROID;
             const graphQLError = getGraphQLError('Error 1', 'VALIDATION_ERROR');
             const graphQLErrors = [graphQLError];
@@ -210,11 +348,31 @@ describe(Build.name, () => {
             try {
               handleBuildRequestError(error, platform);
             } catch (caughtError) {
-              assertReThrownError(caughtError as Error, RequestValidationError);
+              assertReThrownError(
+                caughtError as Error,
+                RequestValidationError,
+                `Error 1\nRequest ID: ${mockRequestId}`
+              );
             }
           });
+          describe('without request ID', () => {
+            it('throws correct EasCommandError subclass with shorter message', async () => {
+              const platform = Platform.ANDROID;
+              const graphQLError = getGraphQLError('Error 1', 'VALIDATION_ERROR');
+              delete graphQLError.extensions.requestId;
+              const graphQLErrors = [graphQLError];
+              const error = new CombinedError({ graphQLErrors });
 
-          it('does it with iOS', async () => {
+              try {
+                handleBuildRequestError(error, platform);
+              } catch (caughtError) {
+                assertReThrownError(caughtError as Error, RequestValidationError, 'Error 1');
+              }
+            });
+          });
+        });
+        describe('with iOS', () => {
+          it('throws correct EasCommandError subclass', async () => {
             const platform = Platform.IOS;
             const graphQLError = getGraphQLError('Error 1', 'VALIDATION_ERROR');
             const graphQLErrors = [graphQLError];
@@ -223,17 +381,36 @@ describe(Build.name, () => {
             try {
               handleBuildRequestError(error, platform);
             } catch (caughtError) {
-              assertReThrownError(caughtError as Error, RequestValidationError);
+              assertReThrownError(
+                caughtError as Error,
+                RequestValidationError,
+                `Error 1\nRequest ID: ${mockRequestId}`
+              );
             }
+          });
+          describe('without request ID', () => {
+            it('throws correct EasCommandError subclass with shorter message', async () => {
+              const platform = Platform.IOS;
+              const graphQLError = getGraphQLError('Error 1', 'VALIDATION_ERROR');
+              delete graphQLError.extensions.requestId;
+              const graphQLErrors = [graphQLError];
+              const error = new CombinedError({ graphQLErrors });
+
+              try {
+                handleBuildRequestError(error, platform);
+              } catch (caughtError) {
+                assertReThrownError(caughtError as Error, RequestValidationError, 'Error 1');
+              }
+            });
           });
         });
       });
     });
 
     describe('error is other expected graphQL-related error', () => {
-      describe('throws correct EasCommandError subclass', () => {
-        describe('for EAS_BUILD_DOWN_FOR_MAINTENANCE', () => {
-          it('does it with Android', async () => {
+      describe('for EAS_BUILD_DOWN_FOR_MAINTENANCE', () => {
+        describe('with Android', () => {
+          it('throws correct EasCommandError subclass', async () => {
             const platform = Platform.ANDROID;
             const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_DOWN_FOR_MAINTENANCE');
             const graphQLErrors = [graphQLError];
@@ -245,31 +422,72 @@ describe(Build.name, () => {
               assertReThrownError(
                 caughtError as Error,
                 EasBuildDownForMaintenanceError,
-                EXPECTED_EAS_BUILD_DOWN_MESSAGE
+                EXPECTED_EAS_BUILD_DOWN_MESSAGE + `\nRequest ID: ${mockRequestId}`
               );
             }
           });
+          describe('without request ID', () => {
+            it('throws correct EasCommandError subclass with shorter message', async () => {
+              const platform = Platform.ANDROID;
+              const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_DOWN_FOR_MAINTENANCE');
+              delete graphQLError.extensions.requestId;
+              const graphQLErrors = [graphQLError];
+              const error = new CombinedError({ graphQLErrors });
 
-          it('does it with iOS', async () => {
-            const platform = Platform.IOS;
-            const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_DOWN_FOR_MAINTENANCE');
-            const graphQLErrors = [graphQLError];
-            const error = new CombinedError({ graphQLErrors });
-
-            try {
-              handleBuildRequestError(error, platform);
-            } catch (caughtError) {
-              assertReThrownError(
-                caughtError as Error,
-                EasBuildDownForMaintenanceError,
-                EXPECTED_EAS_BUILD_DOWN_MESSAGE
-              );
-            }
+              try {
+                handleBuildRequestError(error, platform);
+              } catch (caughtError) {
+                assertReThrownError(
+                  caughtError as Error,
+                  EasBuildDownForMaintenanceError,
+                  EXPECTED_EAS_BUILD_DOWN_MESSAGE
+                );
+              }
+            });
           });
         });
+        describe('with iOS', () => {
+          it('throws correct EasCommandError subclass', async () => {
+            const platform = Platform.IOS;
+            const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_DOWN_FOR_MAINTENANCE');
+            const graphQLErrors = [graphQLError];
+            const error = new CombinedError({ graphQLErrors });
 
-        describe('for EAS_BUILD_TOO_MANY_PENDING_BUILDS', () => {
-          it('does it with Android', async () => {
+            try {
+              handleBuildRequestError(error, platform);
+            } catch (caughtError) {
+              assertReThrownError(
+                caughtError as Error,
+                EasBuildDownForMaintenanceError,
+                EXPECTED_EAS_BUILD_DOWN_MESSAGE + `\nRequest ID: ${mockRequestId}`
+              );
+            }
+          });
+          describe('without request ID', () => {
+            it('throws correct EasCommandError subclass with shorter message', async () => {
+              const platform = Platform.IOS;
+              const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_DOWN_FOR_MAINTENANCE');
+              delete graphQLError.extensions.requestId;
+              const graphQLErrors = [graphQLError];
+              const error = new CombinedError({ graphQLErrors });
+
+              try {
+                handleBuildRequestError(error, platform);
+              } catch (caughtError) {
+                assertReThrownError(
+                  caughtError as Error,
+                  EasBuildDownForMaintenanceError,
+                  EXPECTED_EAS_BUILD_DOWN_MESSAGE
+                );
+              }
+            });
+          });
+        });
+      });
+
+      describe('for EAS_BUILD_TOO_MANY_PENDING_BUILDS', () => {
+        describe('with Android', () => {
+          it('throws correct EasCommandError subclass', async () => {
             const platform = Platform.ANDROID;
             const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_TOO_MANY_PENDING_BUILDS');
             const graphQLErrors = [graphQLError];
@@ -281,12 +499,32 @@ describe(Build.name, () => {
               assertReThrownError(
                 caughtError as Error,
                 EasBuildTooManyPendingBuildsError,
-                EXPECTED_MAX_BUILD_COUNT_MESSAGE_ANDROID
+                EXPECTED_MAX_BUILD_COUNT_MESSAGE_ANDROID + `\nRequest ID: ${mockRequestId}`
               );
             }
           });
+          describe('without request ID', () => {
+            it('throws correct EasCommandError subclass with shorter message', async () => {
+              const platform = Platform.ANDROID;
+              const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_TOO_MANY_PENDING_BUILDS');
+              delete graphQLError.extensions.requestId;
+              const graphQLErrors = [graphQLError];
+              const error = new CombinedError({ graphQLErrors });
 
-          it('does it with iOS', async () => {
+              try {
+                handleBuildRequestError(error, platform);
+              } catch (caughtError) {
+                assertReThrownError(
+                  caughtError as Error,
+                  EasBuildTooManyPendingBuildsError,
+                  EXPECTED_MAX_BUILD_COUNT_MESSAGE_ANDROID
+                );
+              }
+            });
+          });
+        });
+        describe('with iOS', () => {
+          it('throws correct EasCommandError subclass', async () => {
             const platform = Platform.IOS;
             const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_TOO_MANY_PENDING_BUILDS');
             const graphQLErrors = [graphQLError];
@@ -298,9 +536,28 @@ describe(Build.name, () => {
               assertReThrownError(
                 caughtError as Error,
                 EasBuildTooManyPendingBuildsError,
-                EXPECTED_MAX_BUILD_COUNT_MESSAGE_IOS
+                EXPECTED_MAX_BUILD_COUNT_MESSAGE_IOS + `\nRequest ID: ${mockRequestId}`
               );
             }
+          });
+          describe('without request ID', () => {
+            it('throws correct EasCommandError subclass with shorter message', async () => {
+              const platform = Platform.IOS;
+              const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_TOO_MANY_PENDING_BUILDS');
+              delete graphQLError.extensions.requestId;
+              const graphQLErrors = [graphQLError];
+              const error = new CombinedError({ graphQLErrors });
+
+              try {
+                handleBuildRequestError(error, platform);
+              } catch (caughtError) {
+                assertReThrownError(
+                  caughtError as Error,
+                  EasBuildTooManyPendingBuildsError,
+                  EXPECTED_MAX_BUILD_COUNT_MESSAGE_IOS
+                );
+              }
+            });
           });
         });
       });
@@ -370,8 +627,8 @@ describe(Build.name, () => {
     });
 
     describe('error is unexpected non-graphQL-related error', () => {
-      describe('throws base Error class with propagated message', () => {
-        it('does it with Android', async () => {
+      describe('with Android', () => {
+        it('throws base Error class with propagated message', async () => {
           const platform = Platform.ANDROID;
           const error = new Error('Non-graphQL-related error');
 
@@ -381,8 +638,9 @@ describe(Build.name, () => {
             expect(caughtError).toStrictEqual(error);
           }
         });
-
-        it('does it with iOS', async () => {
+      });
+      describe('with iOS', () => {
+        it('throws base Error class with propagated message', async () => {
           const platform = Platform.IOS;
           const error = new Error('Non-graphQL-related error');
 

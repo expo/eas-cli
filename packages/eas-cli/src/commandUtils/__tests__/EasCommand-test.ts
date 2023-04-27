@@ -1,4 +1,6 @@
 import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql/error';
+import { v4 as uuidv4 } from 'uuid';
 
 import { AnalyticsWithOrchestration, createAnalyticsAsync } from '../../analytics/AnalyticsManager';
 import Log from '../../log';
@@ -17,6 +19,7 @@ jest.mock('../../analytics/AnalyticsManager', () => {
 jest.mock('../../log');
 
 let originalProcessArgv: string[];
+const mockRequestId = uuidv4();
 
 beforeAll(() => {
   originalProcessArgv = process.argv;
@@ -134,6 +137,38 @@ describe(EasCommand.name, () => {
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith('Unexpected GraphQL error message');
+        expect(logDebugSpy).toBeCalledWith(error);
+      });
+
+      it('logs the cleaned message with request ID if present', async () => {
+        const TestEasCommand = createTestEasCommand();
+        const logErrorSpy = jest.spyOn(Log, 'error');
+        const logDebugSpy = jest.spyOn(Log, 'debug');
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        const graphQLError = new GraphQLError(
+          'Unexpected GraphQL error message',
+          null,
+          null,
+          null,
+          null,
+          null,
+          {
+            errorCode: 'UNKNOWN_GRAPHQL_ERROR',
+            requestId: mockRequestId,
+          }
+        );
+        const graphQLErrors = [graphQLError];
+        const error = new CombinedError({ graphQLErrors });
+        runAsyncMock.mockImplementation(() => {
+          throw error;
+        });
+        try {
+          await TestEasCommand.run();
+        } catch {}
+
+        expect(logErrorSpy).toBeCalledWith(
+          `Unexpected GraphQL error message\nRequest ID: ${mockRequestId}`
+        );
         expect(logDebugSpy).toBeCalledWith(error);
       });
 

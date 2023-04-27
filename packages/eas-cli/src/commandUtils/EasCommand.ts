@@ -188,7 +188,10 @@ export default abstract class EasCommand extends Command {
     if (err instanceof EasCommandError) {
       Log.error(err.message);
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
-      const cleanMessage = err.message.replace('[GraphQL] ', '');
+      let cleanMessage = err.message.replace('[GraphQL] ', '');
+      cleanMessage += err?.graphQLErrors?.[0]?.extensions?.requestId
+        ? `\nRequest ID: ${err.graphQLErrors[0].extensions.requestId}`
+        : '';
       Log.error(cleanMessage);
       baseMessage = BASE_GRAPHQL_ERROR_MESSAGE;
     } else {
