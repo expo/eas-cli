@@ -17,7 +17,7 @@ import {
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import { getProfilesAsync } from '../../../utils/profiles';
 
-export default class BuildVersionSyncView extends EasCommand {
+export default class BuildVersionGetView extends EasCommand {
   public static override description = 'Return version stored on EAS servers';
 
   public static override flags = {
@@ -41,7 +41,7 @@ export default class BuildVersionSyncView extends EasCommand {
   };
 
   public async runAsync(): Promise<void> {
-    const { flags } = await this.parse(BuildVersionSyncView);
+    const { flags } = await this.parse(BuildVersionGetView);
     if (flags.json) {
       enableJsonOutput();
     }
@@ -49,7 +49,7 @@ export default class BuildVersionSyncView extends EasCommand {
       loggedIn: { graphqlClient },
       getDynamicProjectConfigAsync,
       projectDir,
-    } = await this.getContextAsync(BuildVersionSyncView, {
+    } = await this.getContextAsync(BuildVersionGetView, {
       nonInteractive: true,
     });
 
