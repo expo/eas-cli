@@ -8,11 +8,19 @@ import { confirmAsync } from '../prompts';
 import { ProfileData } from '../utils/profiles';
 
 export async function ensureVersionSourceIsRemoteAsync(
-  easJsonAccessor: EasJsonAccessor
+  easJsonAccessor: EasJsonAccessor,
+  nonInteractive: boolean
 ): Promise<void> {
   const easJsonCliConfig = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     return;
+  }
+  if (nonInteractive) {
+    throw new Error(
+      `This project is not configured for using remote version source. Add ${chalk.bold(
+        '{"cli": { "appVersionSource": "remote" }}'
+      )} in eas.json or re-run this command without "--non-interactive" flag.`
+    );
   }
 
   Log.log(

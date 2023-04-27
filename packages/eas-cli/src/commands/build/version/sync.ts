@@ -72,7 +72,7 @@ export default class BuildVersionSyncView extends EasCommand {
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    await ensureVersionSourceIsRemoteAsync(easJsonAccessor);
+    await ensureVersionSourceIsRemoteAsync(easJsonAccessor, false);
 
     const platforms = toPlatforms(requestedPlatform);
     const buildProfiles = await getProfilesAsync({
