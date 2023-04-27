@@ -313,10 +313,7 @@ describe(Build.name, () => {
           const graphQLError = getGraphQLError('Error 1', 'UNKNOWN_GRAPHQL_ERROR');
           const graphQLErrors = [graphQLError];
           const error = new CombinedError({ graphQLErrors });
-          const expectedMessage =
-            EXPECTED_GENERIC_MESSAGE +
-            `\nRequest ID: ${mockRequestId}` +
-            `\nOriginal error: Error 1`;
+          const expectedMessage = EXPECTED_GENERIC_MESSAGE + `\nRequest ID: ${mockRequestId}`;
 
           try {
             handleBuildRequestError(error, platform);
@@ -331,27 +328,11 @@ describe(Build.name, () => {
             delete graphQLError.extensions.requestId;
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
-            const expectedMessage = EXPECTED_GENERIC_MESSAGE + `\nOriginal error: Error 1`;
 
             try {
               handleBuildRequestError(error, platform);
             } catch (caughtError) {
-              assertReThrownError(caughtError as Error, Error, expectedMessage);
-            }
-          });
-        });
-        describe('without original error message', () => {
-          it('throws base Error class with custom message without original error line', async () => {
-            const platform = Platform.ANDROID;
-            const graphQLError = getGraphQLError('', 'UNKNOWN_GRAPHQL_ERROR');
-            const graphQLErrors = [graphQLError];
-            const error = new CombinedError({ graphQLErrors });
-            const expectedMessage = EXPECTED_GENERIC_MESSAGE + `\nRequest ID: ${mockRequestId}`;
-
-            try {
-              handleBuildRequestError(error, platform);
-            } catch (caughtError) {
-              assertReThrownError(caughtError as Error, Error, expectedMessage);
+              assertReThrownError(caughtError as Error, Error, EXPECTED_GENERIC_MESSAGE);
             }
           });
         });
@@ -362,10 +343,7 @@ describe(Build.name, () => {
           const graphQLError = getGraphQLError('Error 1', 'UNKNOWN_GRAPHQL_ERROR');
           const graphQLErrors = [graphQLError];
           const error = new CombinedError({ graphQLErrors });
-          const expectedMessage =
-            EXPECTED_GENERIC_MESSAGE +
-            `\nRequest ID: ${mockRequestId}` +
-            `\nOriginal error: Error 1`;
+          const expectedMessage = EXPECTED_GENERIC_MESSAGE + `\nRequest ID: ${mockRequestId}`;
 
           try {
             handleBuildRequestError(error, platform);
@@ -380,27 +358,11 @@ describe(Build.name, () => {
             delete graphQLError.extensions.requestId;
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
-            const expectedMessage = EXPECTED_GENERIC_MESSAGE + `\nOriginal error: Error 1`;
 
             try {
               handleBuildRequestError(error, platform);
             } catch (caughtError) {
-              assertReThrownError(caughtError as Error, Error, expectedMessage);
-            }
-          });
-        });
-        describe('without original error message', () => {
-          it('throws base Error class with custom message without original error line', async () => {
-            const platform = Platform.IOS;
-            const graphQLError = getGraphQLError('', 'UNKNOWN_GRAPHQL_ERROR');
-            const graphQLErrors = [graphQLError];
-            const error = new CombinedError({ graphQLErrors });
-            const expectedMessage = EXPECTED_GENERIC_MESSAGE + `\nRequest ID: ${mockRequestId}`;
-
-            try {
-              handleBuildRequestError(error, platform);
-            } catch (caughtError) {
-              assertReThrownError(caughtError as Error, Error, expectedMessage);
+              assertReThrownError(caughtError as Error, Error, EXPECTED_GENERIC_MESSAGE);
             }
           });
         });
