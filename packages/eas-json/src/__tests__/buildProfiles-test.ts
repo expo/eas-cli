@@ -467,13 +467,28 @@ test('iOS-specific resourceClass', async () => {
   ).resolves.not.toThrow();
 });
 
-test('iOS-specific resourceClass', async () => {
+test('iOS-specific `large` resourceClass', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
       production: {
         ios: {
           resourceClass: 'large',
         },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  await expect(
+    EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production')
+  ).resolves.not.toThrow();
+});
+
+test('`large` resourceClass in build profile root', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        resourceClass: 'large',
       },
     },
   });
