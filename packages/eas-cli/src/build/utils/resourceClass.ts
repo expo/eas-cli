@@ -96,10 +96,10 @@ function resolveIosResourceClass(
     );
   }
 
-  if (resourceClass === ResourceClass.M1_LARGE) {
+  if ([ResourceClass.M_LARGE, ResourceClass.M1_LARGE].includes(resourceClass)) {
     Log.warn(
-      `Resource class ${chalk.bold('m1-large')} is deprecated. Use ${chalk.bold(
-        'm-large'
+      `Resource class ${chalk.bold(resourceClass)} is deprecated. Use ${chalk.bold(
+        'large'
       )} instead.`
     );
   }
