@@ -187,7 +187,7 @@
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "medium"]
+              "enum": ["default", "medium", "large"]
             },
             {
               "type": "string"
@@ -361,7 +361,7 @@
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "medium", "intel-medium", "m-medium"]
+              "enum": ["default", "medium", "large", "intel-medium", "m-medium"]
             },
             {
               "type": "string"

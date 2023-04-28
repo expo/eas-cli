@@ -23,6 +23,9 @@ export enum ResourceClass {
   INTEL_MEDIUM = 'intel-medium',
   MEDIUM = 'medium',
   M_MEDIUM = 'm-medium',
+  /**
+   * @deprecated use LARGE instead
+   */
   M_LARGE = 'm-large',
 }
 
