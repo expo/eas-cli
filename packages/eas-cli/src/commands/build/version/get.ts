@@ -18,7 +18,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import { getProfilesAsync } from '../../../utils/profiles';
 
 export default class BuildVersionGetView extends EasCommand {
-  public static override description = 'Return version stored on EAS servers';
+  public static override description = 'get the latest version from EAS servers';
 
   public static override flags = {
     platform: Flags.enum({
@@ -54,11 +54,13 @@ export default class BuildVersionGetView extends EasCommand {
     });
 
     if (!flags.platform && flags['non-interactive']) {
-      throw new Error('"--platform" param is required in a non-interactive mode.');
+      throw new Error('"--platform" flag is required in non-interactive mode.');
     }
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    await ensureVersionSourceIsRemoteAsync(easJsonAccessor, flags['non-interactive']);
+    await ensureVersionSourceIsRemoteAsync(easJsonAccessor, {
+      nonInteractive: flags['non-interactive'],
+    });
 
     const platforms = toPlatforms(requestedPlatform);
     const buildProfiles = await getProfilesAsync({
@@ -68,29 +70,29 @@ export default class BuildVersionGetView extends EasCommand {
       profileName: flags.profile ?? undefined,
     });
     const results: { [key in Platform]?: string } = {};
-    for (const profileInfo of buildProfiles) {
+    for (const { profile, platform } of buildProfiles) {
       const { exp, projectId } = await getDynamicProjectConfigAsync({
-        env: profileInfo.profile.env,
+        env: profile.env,
       });
 
-      validateAppConfigForRemoteVersionSource(exp, profileInfo.platform);
+      validateAppConfigForRemoteVersionSource(exp, platform);
 
       const applicationIdentifier = await getApplicationIdentifierAsync({
         graphqlClient,
         projectDir,
         projectId,
         exp,
-        buildProfile: profileInfo.profile,
-        platform: profileInfo.platform,
+        buildProfile: profile,
+        platform,
       });
       const remoteVersions = await AppVersionQuery.latestVersionAsync(
         graphqlClient,
         projectId,
-        toAppPlatform(profileInfo.platform),
+        toAppPlatform(platform),
         applicationIdentifier
       );
       if (remoteVersions?.buildVersion) {
-        results[profileInfo.platform] = remoteVersions?.buildVersion;
+        results[platform] = remoteVersions?.buildVersion;
       }
     }
     if (flags.json) {

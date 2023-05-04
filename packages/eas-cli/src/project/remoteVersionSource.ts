@@ -9,7 +9,7 @@ import { ProfileData } from '../utils/profiles';
 
 export async function ensureVersionSourceIsRemoteAsync(
   easJsonAccessor: EasJsonAccessor,
-  nonInteractive: boolean
+  { nonInteractive }: { nonInteractive: boolean }
 ): Promise<void> {
   const easJsonCliConfig = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
