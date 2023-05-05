@@ -3,12 +3,13 @@ import semver from 'semver';
 
 import { ResourceClass } from './types';
 
-const AllowedCommonResourceClasses: ResourceClass[] = [ResourceClass.DEFAULT, ResourceClass.MEDIUM];
-
-const AllowedAndroidResourceClasses: ResourceClass[] = [
-  ...AllowedCommonResourceClasses,
+const AllowedCommonResourceClasses: ResourceClass[] = [
+  ResourceClass.DEFAULT,
+  ResourceClass.MEDIUM,
   ResourceClass.LARGE,
 ];
+
+const AllowedAndroidResourceClasses: ResourceClass[] = AllowedCommonResourceClasses;
 
 const AllowedIosResourceClasses: ResourceClass[] = [
   ...AllowedCommonResourceClasses,
