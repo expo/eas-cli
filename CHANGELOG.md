@@ -8,10 +8,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [3.11.0](https://github.com/expo/eas-cli/releases/tag/v3.11.0) - 2023-05-05
+
+### 🎉 New features
+
 - Add account list to `eas whoami`/`eas account:view`. ([#1814](https://github.com/expo/eas-cli/pull/1814) by [@wschurman](https://github.com/wschurman))
 - Add `large` resource class for iOS as allowed value in `eas.json`. ([#1817](https://github.com/expo/eas-cli/pull/1817) by [@szdziedzic](https://github.com/szdziedzic))
-
-### 🐛 Bug fixes
 
 ### 🧹 Chores
 
