@@ -22,7 +22,7 @@ import {
 import { promptAsync } from '../../../prompts';
 
 export default class BuildVersionSetView extends EasCommand {
-  static override description = 'Update version of an app.';
+  static override description = 'update version of an app';
 
   static override flags = {
     platform: Flags.enum({
@@ -55,7 +55,7 @@ export default class BuildVersionSetView extends EasCommand {
 
     const platform = await selectPlatformAsync(flags.platform);
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    await ensureVersionSourceIsRemoteAsync(easJsonAccessor);
+    await ensureVersionSourceIsRemoteAsync(easJsonAccessor, { nonInteractive: false });
     const profile = await EasJsonUtils.getBuildProfileAsync(
       easJsonAccessor,
       platform,

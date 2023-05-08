@@ -39,7 +39,7 @@ interface SyncContext<T extends Platform> {
 
 export default class BuildVersionSyncView extends EasCommand {
   public static override description =
-    'Update a version in native code with a value stored on EAS servers';
+    'update a version in native code with a value stored on EAS servers';
 
   public static override flags = {
     platform: Flags.enum({
@@ -72,7 +72,7 @@ export default class BuildVersionSyncView extends EasCommand {
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    await ensureVersionSourceIsRemoteAsync(easJsonAccessor);
+    await ensureVersionSourceIsRemoteAsync(easJsonAccessor, { nonInteractive: false });
 
     const platforms = toPlatforms(requestedPlatform);
     const buildProfiles = await getProfilesAsync({
