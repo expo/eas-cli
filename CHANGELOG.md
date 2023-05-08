@@ -8,9 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add `build:version:get` command. ([#1815](https://github.com/expo/eas-cli/pull/1815) by [@wkozyra95](https://github.com/wkozyra95))
-
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [3.12.0](https://github.com/expo/eas-cli/releases/tag/v3.12.0) - 2023-05-08
+
+### 🎉 New features
+
+- Add `build:version:get` command. ([#1815](https://github.com/expo/eas-cli/pull/1815) by [@wkozyra95](https://github.com/wkozyra95))
 
 ### 🧹 Chores
 
