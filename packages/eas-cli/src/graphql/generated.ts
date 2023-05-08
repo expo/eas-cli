@@ -5937,6 +5937,14 @@ export type LatestAppVersionQueryVariables = Exact<{
 
 export type LatestAppVersionQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, latestAppVersionByPlatformAndApplicationIdentifier?: { __typename?: 'AppVersion', id: string, storeVersion: string, buildVersion: string } | null } } };
 
+export type BillingUpdateByAccountQueryVariables = Exact<{
+  accountId: Scalars['String'];
+  date: Scalars['DateTime'];
+}>;
+
+
+export type BillingUpdateByAccountQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, billing?: { __typename?: 'Billing', id: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null, meteredBillingStatus: { __typename?: 'MeteredBillingStatus', EAS_UPDATE: boolean } } | null } | null, usageMetrics: { __typename?: 'AccountUsageMetrics', byBillingPeriod: { __typename?: 'UsageMetricTotal', id: string, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number }> } } } } };
+
 export type ViewBranchQueryVariables = Exact<{
   appId: Scalars['String'];
   name: Scalars['String'];
@@ -6100,6 +6108,8 @@ export type WebhookByIdQueryVariables = Exact<{
 export type WebhookByIdQuery = { __typename?: 'RootQuery', webhook: { __typename?: 'WebhookQuery', byId: { __typename?: 'Webhook', id: string, event: WebhookType, url: string, createdAt: any, updatedAt: any } } };
 
 export type AccountFragment = { __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> };
+
+export type AccountUpdatesUsageFragment = { __typename?: 'Account', id: string, billing?: { __typename?: 'Billing', id: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null, meteredBillingStatus: { __typename?: 'MeteredBillingStatus', EAS_UPDATE: boolean } } | null } | null, usageMetrics: { __typename?: 'AccountUsageMetrics', byBillingPeriod: { __typename?: 'UsageMetricTotal', id: string, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number }> } } };
 
 export type AppFragment = { __typename?: 'App', id: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role?: Role | null, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> } };
 

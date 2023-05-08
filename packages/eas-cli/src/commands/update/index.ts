@@ -39,6 +39,7 @@ import {
 } from '../../project/publish';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
 import { getUpdateGroupJsonInfo } from '../../update/utils';
+import { maybeWarnAboutEasPlanOverageAsync } from '../../utils/billing';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -176,6 +177,7 @@ export default class UpdatePublish extends EasCommand {
       isPublicConfig: true,
     });
 
+    await maybeWarnAboutEasPlanOverageAsync(graphqlClient, projectId);
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
     await ensureEASUpdateIsConfiguredAsync(graphqlClient, {
