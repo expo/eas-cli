@@ -9,6 +9,7 @@ import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/An
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
+import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
 import { Actor } from '../user/User';
@@ -34,6 +35,7 @@ export async function createBuildContextAsync<T extends Platform>({
   graphqlClient,
   analytics,
   getDynamicProjectConfigAsync,
+  customBuildConfigMetadata,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -50,6 +52,7 @@ export async function createBuildContextAsync<T extends Platform>({
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
   getDynamicProjectConfigAsync: DynamicConfigContextFn;
+  customBuildConfigMetadata?: CustomBuildConfigMetadata;
 }): Promise<BuildContext<T>> {
   const { exp, projectId } = await getDynamicProjectConfigAsync({ env: buildProfile.env });
   const projectName = exp.slug;
@@ -116,6 +119,7 @@ export async function createBuildContextAsync<T extends Platform>({
     workflow,
     message,
     runFromCI,
+    customBuildConfigMetadata,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;

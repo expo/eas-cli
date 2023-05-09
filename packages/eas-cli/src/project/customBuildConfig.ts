@@ -5,12 +5,16 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
+export interface CustomBuildConfigMetadata {
+  workflowName?: string;
+}
+
 export async function validateCustomBuildConfigAsync(
   projectDir: string,
   profile: BuildProfile<Platform>
-): Promise<void> {
+): Promise<CustomBuildConfigMetadata | undefined> {
   if (!profile.config) {
-    return;
+    return undefined;
   }
 
   const relativeConfigPath = getCustomBuildConfigPath(profile.config);
@@ -22,7 +26,12 @@ export async function validateCustomBuildConfigAsync(
   }
 
   try {
-    await readAndValidateBuildConfigAsync(configPath, { skipNamespacedFunctionsCheck: true });
+    const config = await readAndValidateBuildConfigAsync(configPath, {
+      skipNamespacedFunctionsCheck: true,
+    });
+    return {
+      workflowName: config.build.name,
+    };
   } catch (err) {
     if (err instanceof errors.BuildConfigYAMLError) {
       throw new Error(

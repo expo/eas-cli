@@ -31,7 +31,10 @@ import {
   appPlatformEmojis,
   toPlatforms,
 } from '../platform';
-import { validateCustomBuildConfigAsync } from '../project/customBuildConfig';
+import {
+  CustomBuildConfigMetadata,
+  validateCustomBuildConfigAsync,
+} from '../project/customBuildConfig';
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
 import { validateAppVersionRuntimePolicySupportAsync } from '../project/projectUtils';
@@ -117,9 +120,14 @@ export async function runBuildAndSubmitAsync(
     buildProfiles,
   });
 
+  const customBuildConfigMetadataByPlatform: { [p in AppPlatform]?: CustomBuildConfigMetadata } =
+    {};
   for (const buildProfile of buildProfiles) {
     validateBuildProfileVersionSettings(buildProfile, easJsonCliConfig);
-    await validateCustomBuildConfigAsync(projectDir, buildProfile.profile);
+    const maybeMetadata = await validateCustomBuildConfigAsync(projectDir, buildProfile.profile);
+    if (maybeMetadata) {
+      customBuildConfigMetadataByPlatform[toAppPlatform(buildProfile.platform)] = maybeMetadata;
+    }
   }
 
   const startedBuilds: {
@@ -129,6 +137,7 @@ export async function runBuildAndSubmitAsync(
   const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
 
   for (const buildProfile of buildProfiles) {
+    const platform = toAppPlatform(buildProfile.platform);
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
       flags,
@@ -139,11 +148,12 @@ export async function runBuildAndSubmitAsync(
       graphqlClient,
       analytics,
       getDynamicProjectConfigAsync,
+      customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
     }
-    buildCtxByPlatform[toAppPlatform(buildProfile.platform)] = buildCtx;
+    buildCtxByPlatform[platform] = buildCtx;
   }
 
   if (flags.localBuildOptions.localBuildMode) {
@@ -246,6 +256,7 @@ async function prepareAndStartBuildAsync({
   graphqlClient,
   analytics,
   getDynamicProjectConfigAsync,
+  customBuildConfigMetadata,
 }: {
   projectDir: string;
   flags: BuildFlags;
@@ -256,6 +267,7 @@ async function prepareAndStartBuildAsync({
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
   getDynamicProjectConfigAsync: DynamicConfigContextFn;
+  customBuildConfigMetadata?: CustomBuildConfigMetadata;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -273,6 +285,7 @@ async function prepareAndStartBuildAsync({
     graphqlClient,
     analytics,
     getDynamicProjectConfigAsync,
+    customBuildConfigMetadata,
   });
 
   if (moreBuilds) {
