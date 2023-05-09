@@ -20,7 +20,7 @@ import ProjectDirContextField from './context/ProjectDirContextField';
 import SessionManagementContextField from './context/SessionManagementContextField';
 import { EasCommandError } from './errors';
 
-type ContextInput<
+export type ContextInput<
   T extends {
     [name: string]: any;
   } = object
@@ -28,7 +28,7 @@ type ContextInput<
   [P in keyof T]: ContextField<T[P]>;
 };
 
-type ContextOutput<
+export type ContextOutput<
   T extends {
     [name: string]: any;
   } = object
