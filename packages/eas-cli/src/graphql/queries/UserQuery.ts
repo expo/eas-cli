@@ -28,6 +28,10 @@ export const UserQuery = {
                 }
                 ... on SSOUser {
                   username
+                  primaryAccount {
+                    id
+                    ...AccountFragment
+                  }
                 }
                 accounts {
                   id

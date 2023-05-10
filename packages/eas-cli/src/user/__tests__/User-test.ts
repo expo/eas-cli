@@ -21,6 +21,26 @@ const userStub: Actor = {
   featureGates: {},
 };
 
+const ssoUserStub: Actor = {
+  __typename: 'SSOUser',
+  id: 'ssoUserId',
+  username: 'ssoUsername',
+  primaryAccount: {
+    id: 'account_id_888',
+    name: 'ssoUsername',
+    users: [{ role: Role.Owner, actor: { id: 'ssoUserId' } }],
+  },
+  accounts: [
+    {
+      id: 'account_id_888',
+      name: 'ssoUsername',
+      users: [{ role: Role.Owner, actor: { id: 'ssoUserId' } }],
+    },
+  ],
+  isExpoAdmin: false,
+  featureGates: {},
+};
+
 const robotStub: Actor = {
   __typename: 'Robot',
   id: 'userId',
@@ -35,8 +55,12 @@ describe('getActorDisplayName', () => {
     expect(getActorDisplayName()).toBe('unknown');
   });
 
-  it('returns username for user actors', () => {
+  it('returns username for regular user actors', () => {
     expect(getActorDisplayName(userStub)).toBe(userStub.username);
+  });
+
+  it('returns username for SSO user actors', () => {
+    expect(getActorDisplayName(ssoUserStub)).toBe(`${ssoUserStub.username}`);
   });
 
   it('returns firstName with robot prefix for robot actors', () => {

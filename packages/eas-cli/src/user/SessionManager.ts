@@ -11,8 +11,9 @@ import { createGraphqlClient } from '../commandUtils/context/contextUtils/create
 import { CurrentUserQuery } from '../graphql/generated';
 import { UserQuery } from '../graphql/queries/UserQuery';
 import Log, { learnMore } from '../log';
-import { promptAsync, selectAsync } from '../prompts';
+import { confirmAsync, promptAsync, selectAsync } from '../prompts';
 import { getStateJsonPath } from '../utils/paths';
+import { fetchSessionSecretAndSsoUserAsync } from './fetchSessionSecretAndSsoUser';
 import { fetchSessionSecretAndUserAsync } from './fetchSessionSecretAndUser';
 
 type UserSettingsData = {
@@ -144,13 +145,15 @@ export default class SessionManager {
    *
    * @deprecated Should not be used outside of context functions, except in the AccountLogin command.
    */
-  public async showLoginPromptAsync({
-    nonInteractive = false,
-    printNewLine = false,
-  } = {}): Promise<void> {
+  public async showLoginPromptAsync(
+    { nonInteractive = false, printNewLine = false } = {},
+    sso?: boolean | undefined
+  ): Promise<void> {
     if (nonInteractive) {
       Errors.error(
-        `Either log in with ${chalk.bold('eas login')} or set the ${chalk.bold(
+        `Either log in with ${chalk.bold('eas login')} or ${chalk.bold(
+          'eas login --sso | -s'
+        )} or set the ${chalk.bold(
           'EXPO_TOKEN'
         )} environment variable if you're using EAS CLI on CI (${learnMore(
           'https://docs.expo.dev/accounts/programmatic-access/',
@@ -163,6 +166,19 @@ export default class SessionManager {
     }
 
     Log.log('Log in to EAS');
+
+    // Prompt if sso has not been set (only login will have already set this value)
+    let useSso = sso;
+    if (useSso === undefined) {
+      useSso = await confirmAsync({
+        message: `Do you want to log in with SSO?`,
+      });
+    }
+
+    if (useSso) {
+      await this.ssoLoginAsync();
+      return;
+    }
 
     const { username, password } = await promptAsync([
       {
@@ -192,6 +208,16 @@ export default class SessionManager {
         throw e;
       }
     }
+  }
+
+  private async ssoLoginAsync(): Promise<void> {
+    const { sessionSecret, id, username } = await fetchSessionSecretAndSsoUserAsync();
+    await this.setSessionAsync({
+      sessionSecret,
+      userId: id,
+      username,
+      currentConnection: 'Username-Password-Authentication',
+    });
   }
 
   private async loginAsync(input: {
