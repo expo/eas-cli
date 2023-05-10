@@ -58,6 +58,7 @@ export async function collectMetadataAsync<T extends Platform>(
     runWithNoWaitFlag: ctx.noWait,
     runFromCI: ctx.runFromCI,
     buildMode: ctx.buildProfile.config ? BuildMode.CUSTOM : BuildMode.BUILD,
+    customWorkflowName: ctx.customBuildConfigMetadata?.workflowName,
   };
   return sanitizeMetadata(metadata);
 }

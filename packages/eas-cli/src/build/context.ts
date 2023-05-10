@@ -8,6 +8,7 @@ import { CredentialsContext } from '../credentials/context';
 import { Target } from '../credentials/ios/types';
 import { BuildResourceClass } from '../graphql/generated';
 import { GradleBuildContext } from '../project/android/gradle';
+import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { XcodeBuildContext } from '../project/ios/scheme';
 import { Actor } from '../user/User';
 import { LocalBuildOptions } from './local';
@@ -51,6 +52,7 @@ export interface BuildContext<T extends Platform> {
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
   workflow: Workflow;
+  customBuildConfigMetadata?: CustomBuildConfigMetadata;
   android: T extends Platform.ANDROID ? AndroidBuildContext : undefined;
   ios: T extends Platform.IOS ? IosBuildContext : undefined;
 }
