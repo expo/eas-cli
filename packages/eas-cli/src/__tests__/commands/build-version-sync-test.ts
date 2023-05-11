@@ -178,7 +178,7 @@ describe(BuildVersionSyncView, () => {
     });
   });
 
-  test('syncing version when appVersionSource is set to local and users refuse auto configuration', async () => {
+  test('syncing version aborts when appVersionSource is set to local and users refuse auto configuration', async () => {
     const ctx = mockCommandContext(BuildVersionSyncView, {});
     jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());

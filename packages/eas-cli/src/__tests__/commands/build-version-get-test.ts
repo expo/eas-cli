@@ -53,10 +53,7 @@ describe(BuildVersionGetView, () => {
     const ctx = mockCommandContext(BuildVersionGetView, {
       easJson: withRemoteVersionSource(getMockEasJson()),
     });
-    jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => ({
-      buildVersion: '100',
-      storeVersion: '1.0.0',
-    }));
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
 
     const cmd = mockTestCommand(BuildVersionGetView, ['--platform=android'], ctx);
     await cmd.run();
@@ -66,7 +63,7 @@ describe(BuildVersionGetView, () => {
       'ANDROID',
       'eas.test.com'
     );
-    expect(Log.log).toHaveBeenCalledWith(`Android versionCode - ${chalk.bold('100')}`);
+    expect(Log.log).toHaveBeenCalledWith(`No remote versions are configured for this project.`);
     expect(enableJsonOutput).not.toHaveBeenCalled();
     expect(printJsonOnlyOutput).not.toHaveBeenCalled();
   });
