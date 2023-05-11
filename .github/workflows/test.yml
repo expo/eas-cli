@@ -31,7 +31,7 @@ jobs:
         env:
           # Oclif seems to cause OOM errors when testing with coverage enabled.
           # Remove this whenever we solved those OOM errors.
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --max-old-space-size=6096
       - run: yarn lint --max-warnings=0
       - run: yarn install --frozen-lockfile --check-files
         working-directory: ./scripts
