@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+- Change red apple icon to green apple icon on successful build.  ([#1828](https://github.com/expo/eas-cli/pull/1828) by ([@dchhetri](https://github.com/dchhetri))
 
 ## [3.12.0](https://github.com/expo/eas-cli/releases/tag/v3.12.0) - 2023-05-08
 
