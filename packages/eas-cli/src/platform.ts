@@ -9,7 +9,7 @@ export const appPlatformDisplayNames: Record<AppPlatform, string> = {
 };
 
 export const appPlatformEmojis = {
-  [AppPlatform.Ios]: '🍎',
+  [AppPlatform.Ios]: '🍏',
   [AppPlatform.Android]: '🤖',
 };
 
