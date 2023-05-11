@@ -11,7 +11,8 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
-- Change red apple icon to green apple icon on successful build.  ([#1828](https://github.com/expo/eas-cli/pull/1828) by ([@dchhetri](https://github.com/dchhetri))
+
+- Change red apple icon to green apple icon on successful build. ([#1828](https://github.com/expo/eas-cli/pull/1828) by [@dchhetri](https://github.com/dchhetri))
 
 ## [3.12.0](https://github.com/expo/eas-cli/releases/tag/v3.12.0) - 2023-05-08
 
@@ -140,7 +141,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Support variant detection for package*UniversalApk Gradle Commands. ([#1708](https://github.com/expo/eas-cli/pull/1708) by [@frw](https://github.com/frw))
+- Support variant detection for package\*UniversalApk Gradle Commands. ([#1708](https://github.com/expo/eas-cli/pull/1708) by [@frw](https://github.com/frw))
 
 ## [3.6.1](https://github.com/expo/eas-cli/releases/tag/v3.6.1) - 2023-02-20
 
