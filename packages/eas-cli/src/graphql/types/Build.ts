@@ -55,6 +55,7 @@ export const BuildFragmentNode = gql`
     message
     completedAt
     resourceClass
+    expirationDate
   }
 `;
 

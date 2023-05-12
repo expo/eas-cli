@@ -13893,13 +13893,9 @@
             "description": "Retry time starts after completedAt",
             "args": [],
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Int",
-                "ofType": null
-              }
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -14076,6 +14072,31 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "retryDisabledReason",
+            "description": null,
+            "args": [
+              {
+                "name": "newMode",
+                "description": null,
+                "type": {
+                  "kind": "ENUM",
+                  "name": "BuildMode",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "ENUM",
+              "name": "BuildRetryDisabledReason",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -16598,6 +16619,47 @@
           },
           {
             "name": "LEGACY",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "BuildRetryDisabledReason",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "ALREADY_RETRIED",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "INVALID_STATUS",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "IS_GITHUB_BUILD",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "NOT_COMPLETED_YET",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "TOO_MUCH_TIME_ELAPSED",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
