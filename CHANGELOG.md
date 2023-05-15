@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [3.12.1](https://github.com/expo/eas-cli/releases/tag/v3.12.1) - 2023-05-15
+
+### 🐛 Bug fixes
+
 - Don't submit expired builds. ([#1837](https://github.com/expo/eas-cli/pull/1837) by [@dsokal](https://github.com/dsokal))
 
 ### 🧹 Chores
