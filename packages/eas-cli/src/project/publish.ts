@@ -180,11 +180,13 @@ export async function buildBundlesAsync({
   inputDir,
   exp,
   platformFlag,
+  clearCache,
 }: {
   projectDir: string;
   inputDir: string;
   exp: Pick<ExpoConfig, 'sdkVersion'>;
   platformFlag: ExpoCLIExportPlatformFlag;
+  clearCache?: boolean;
 }): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
   if (!packageJSON) {
@@ -200,6 +202,7 @@ export async function buildBundlesAsync({
       '--dump-assetmap',
       '--platform',
       platformFlag,
+      ...(clearCache ? ['--clear'] : []),
     ]);
   } else {
     // Legacy global Expo CLI
@@ -213,6 +216,7 @@ export async function buildBundlesAsync({
       '--dump-assetmap',
       '--platform',
       platformFlag,
+      ...(clearCache ? ['--clear'] : []),
     ]);
   }
 }

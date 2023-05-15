@@ -59,6 +59,7 @@ type RawUpdateFlags = {
   platform: string;
   'input-dir': string;
   'skip-bundler': boolean;
+  'clear-cache': boolean;
   'private-key-path'?: string;
   'non-interactive': boolean;
   json: boolean;
@@ -76,6 +77,7 @@ type UpdateFlags = {
   updateMessage?: string;
   inputDir: string;
   skipBundler: boolean;
+  clearCache: boolean;
   privateKeyPath?: string;
   json: boolean;
   nonInteractive: boolean;
@@ -112,6 +114,10 @@ export default class UpdatePublish extends EasCommand {
     }),
     'skip-bundler': Flags.boolean({
       description: `Skip running Expo CLI to bundle the app before publishing`,
+      default: false,
+    }),
+    'clear-cache': Flags.boolean({
+      description: `Clear the bundler cache before publishing`,
       default: false,
     }),
     platform: Flags.enum({
@@ -151,6 +157,7 @@ export default class UpdatePublish extends EasCommand {
       updateMessage: updateMessageArg,
       inputDir,
       skipBundler,
+      clearCache,
       privateKeyPath,
       json: jsonFlag,
       nonInteractive,
@@ -212,7 +219,7 @@ export default class UpdatePublish extends EasCommand {
     if (!skipBundler) {
       const bundleSpinner = ora().start('Exporting...');
       try {
-        await buildBundlesAsync({ projectDir, inputDir, exp, platformFlag });
+        await buildBundlesAsync({ projectDir, inputDir, exp, platformFlag, clearCache });
         bundleSpinner.succeed('Exported bundle(s)');
       } catch (e) {
         bundleSpinner.fail('Export failed');
@@ -488,6 +495,7 @@ export default class UpdatePublish extends EasCommand {
       updateMessage,
       inputDir: flags['input-dir'],
       skipBundler: flags['skip-bundler'],
+      clearCache: flags['clear-cache'],
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
       nonInteractive,
