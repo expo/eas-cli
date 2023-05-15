@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Don't submit expired builds. ([#1837](https://github.com/expo/eas-cli/pull/1837) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 - Change red apple icon to green apple icon on successful build. ([#1828](https://github.com/expo/eas-cli/pull/1828) by [@dchhetri](https://github.com/dchhetri))

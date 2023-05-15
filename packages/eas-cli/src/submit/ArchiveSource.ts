@@ -171,6 +171,19 @@ async function handleLatestSourceAsync(
       });
     }
 
+    if (new Date() >= new Date(latestBuild.expirationDate)) {
+      Log.error(
+        chalk.bold(
+          `The latest build is expired. Run ${chalk.bold(
+            'eas build --auto-submit'
+          )} or choose another build.`
+        )
+      );
+      return getArchiveAsync(ctx, {
+        sourceType: ArchiveSourceType.prompt,
+      });
+    }
+
     return {
       sourceType: ArchiveSourceType.build,
       build: latestBuild,
@@ -220,6 +233,13 @@ async function handleBuildIdSourceAsync(
         )
       );
 
+      return getArchiveAsync(ctx, {
+        sourceType: ArchiveSourceType.prompt,
+      });
+    }
+
+    if (new Date() >= new Date(build.expirationDate)) {
+      Log.error(chalk.bold(`The build with ID ${build.id} is expired. Choose another build.`));
       return getArchiveAsync(ctx, {
         sourceType: ArchiveSourceType.prompt,
       });

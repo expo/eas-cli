@@ -166,6 +166,27 @@ describe(getArchiveAsync, () => {
     expect(archive.sourceType).toBe(ArchiveSourceType.url);
   });
 
+  it('prompts again if build with provided ID is expired', async () => {
+    jest.mocked(BuildQuery.byIdAsync).mockResolvedValueOnce({
+      ...MOCK_BUILD_FRAGMENT,
+      expirationDate: new Date(Date.now() - 1000),
+    } as BuildFragment);
+    jest
+      .mocked(promptAsync)
+      .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
+      .mockResolvedValueOnce({ url: ARCHIVE_SOURCE.url });
+
+    const archive = await getArchiveAsync(
+      { ...SOURCE_STUB_INPUT, graphqlClient },
+      {
+        sourceType: ArchiveSourceType.buildId,
+        id: uuidv4(),
+      }
+    );
+
+    expect(archive.sourceType).toBe(ArchiveSourceType.url);
+  });
+
   it('handles latest build source', async () => {
     const projectId = uuidv4();
     jest
@@ -185,6 +206,27 @@ describe(getArchiveAsync, () => {
       projectId
     );
     expect(archive.sourceType).toBe(ArchiveSourceType.build);
+  });
+
+  it('prompts again if the latest build is expired', async () => {
+    jest
+      .mocked(getRecentBuildsForSubmissionAsync)
+      .mockResolvedValueOnce([
+        { ...MOCK_BUILD_FRAGMENT, expirationDate: new Date(Date.now() - 1000) } as BuildFragment,
+      ]);
+    jest
+      .mocked(promptAsync)
+      .mockResolvedValueOnce({ sourceType: ArchiveSourceType.url })
+      .mockResolvedValueOnce({ url: ARCHIVE_SOURCE.url });
+
+    const archive = await getArchiveAsync(
+      { ...SOURCE_STUB_INPUT, graphqlClient },
+      {
+        sourceType: ArchiveSourceType.latest,
+      }
+    );
+
+    expect(archive.sourceType).toBe(ArchiveSourceType.url);
   });
 
   it('prompts again if no builds exists when selected latest', async () => {
