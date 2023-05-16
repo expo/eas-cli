@@ -11,7 +11,7 @@
     "@expo/apple-utils": "1.2.0",
     "@expo/code-signing-certificates": "0.0.5",
     "@expo/config": "7.0.3",
-    "@expo/config-plugins": "5.0.4",
+    "@expo/config-plugins": "6.0.2",
     "@expo/config-types": "47.0.0",
     "@expo/eas-build-job": "1.0.12",
     "@expo/eas-json": "3.12.1",
