@@ -19,6 +19,7 @@ import { getVcsClient } from '../vcs';
 import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from './android/version';
 import { BuildContext } from './context';
 import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
+import { LocalBuildMode } from './local';
 
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>
@@ -47,7 +48,10 @@ export async function collectMetadataAsync<T extends Platform>(
     gitCommitMessage: truncateGitCommitMessage(
       (await vcsClient.getLastCommitMessageAsync()) ?? undefined
     ),
-    isGitWorkingTreeDirty: await vcsClient.hasUncommittedChangesAsync(),
+    isGitWorkingTreeDirty:
+      ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL
+        ? false
+        : await vcsClient.hasUncommittedChangesAsync(),
     username: getUsername(ctx.exp, ctx.user),
     message: ctx.message,
     ...(ctx.platform === Platform.IOS && {
