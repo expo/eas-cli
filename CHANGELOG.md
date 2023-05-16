@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix building iOS projects with framework targets. ([#1835](https://github.com/expo/eas-cli/pull/1835) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 ## [3.12.1](https://github.com/expo/eas-cli/releases/tag/v3.12.1) - 2023-05-15
