@@ -10,16 +10,19 @@ import {
   testAppQueryByIdResponse,
   testProjectId,
 } from '../../../credentials/__tests__/fixtures-constants';
+import { testCommonIosAppCredentialsFragment } from '../../../credentials/__tests__/fixtures-ios';
+import { SetUpAscApiKey } from '../../../credentials/ios/actions/SetUpAscApiKey';
 import { getCredentialsFromUserAsync } from '../../../credentials/utils/promptForCredentials';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { createTestProject } from '../../../project/__tests__/project-utils';
+import { getBundleIdentifierAsync } from '../../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../../prompts';
 import { SubmissionContext, createSubmissionContextAsync } from '../../context';
 import {
   AscApiKeySource,
   AscApiKeySourceType,
-  getAscApiKeyLocallyAsync,
   getAscApiKeyPathAsync,
+  getAscApiKeyResultAsync,
 } from '../AscApiKeySource';
 
 jest.mock('fs');
@@ -29,6 +32,7 @@ jest.mock('../../../user/User', () => ({
   getUserAsync: jest.fn(() => mockJester),
 }));
 jest.mock('../../../graphql/queries/AppQuery');
+jest.mock('../../../project/ios/bundleIdentifier');
 
 const testProject = createTestProject(testProjectId, mockJester.accounts[0].name, {
   android: {
@@ -179,14 +183,14 @@ describe(getAscApiKeyPathAsync, () => {
   });
 });
 
-describe(getAscApiKeyLocallyAsync, () => {
+describe(getAscApiKeyResultAsync, () => {
   it('returns a local Asc API Key file with a AscApiKeySourceType.path source', async () => {
     const ctx = await getIosSubmissionContextAsync();
     const source: AscApiKeySource = {
       sourceType: AscApiKeySourceType.path,
       path: { keyP8Path: '/asc-api-key.p8', keyId: 'test-key-id', issuerId: 'test-issuer-id' },
     };
-    const ascApiKeyResult = await getAscApiKeyLocallyAsync(ctx, source);
+    const ascApiKeyResult = await getAscApiKeyResultAsync(ctx, source);
     expect(ascApiKeyResult).toMatchObject({
       result: {
         keyP8: 'super secret',
@@ -213,7 +217,7 @@ describe(getAscApiKeyLocallyAsync, () => {
     const source: AscApiKeySource = {
       sourceType: AscApiKeySourceType.prompt,
     };
-    const serviceAccountResult = await getAscApiKeyLocallyAsync(ctx, source);
+    const serviceAccountResult = await getAscApiKeyResultAsync(ctx, source);
     expect(serviceAccountResult).toMatchObject({
       result: {
         keyP8: 'super secret',
@@ -224,6 +228,47 @@ describe(getAscApiKeyLocallyAsync, () => {
         source: 'local',
         path: '/asc-api-key.p8',
         keyId: 'test-key-id',
+      },
+    });
+  });
+
+  it('returns an Asc Api Key from server with a AscApiKeySourceType.credentialService source', async () => {
+    const graphqlClient = {} as any as ExpoGraphqlClient;
+    const analytics = instance(mock<Analytics>());
+    const ctx = await createSubmissionContextAsync({
+      platform: Platform.IOS,
+      projectDir: testProject.projectRoot,
+      archiveFlags: {
+        url: 'http://expo.dev/fake.apk',
+      },
+      profile: {
+        language: 'en-US',
+      },
+      nonInteractive: true,
+      actor: mockJester,
+      graphqlClient,
+      analytics,
+      exp: testProject.appJSON.expo,
+      projectId,
+    });
+    const source: AscApiKeySource = {
+      sourceType: AscApiKeySourceType.credentialsService,
+    };
+    jest
+      .spyOn(SetUpAscApiKey.prototype, 'runAsync')
+      .mockImplementation(async _ctx => testCommonIosAppCredentialsFragment);
+    jest.mocked(getBundleIdentifierAsync).mockImplementation(async () => 'com.hello.world');
+
+    const result = await getAscApiKeyResultAsync(ctx, source);
+    expect(result).toEqual({
+      result: {
+        ascApiKeyId: testCommonIosAppCredentialsFragment.appStoreConnectApiKeyForSubmissions?.id,
+      },
+      summary: {
+        keyId:
+          testCommonIosAppCredentialsFragment.appStoreConnectApiKeyForSubmissions?.keyIdentifier,
+        name: testCommonIosAppCredentialsFragment.appStoreConnectApiKeyForSubmissions?.name,
+        source: 'EAS servers',
       },
     });
   });
