@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Ignore dirty workingdir when building from GitHub. ([#1842](https://github.com/expo/eas-cli/pull/1842) by [@wkozyra95](https://github.com/wkozyra95))
+
 ## [3.12.1](https://github.com/expo/eas-cli/releases/tag/v3.12.1) - 2023-05-15
 
 ### 🐛 Bug fixes
