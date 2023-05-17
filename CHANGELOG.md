@@ -8,6 +8,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+- Short format for selecting devices prompt. ([#1840](https://github.com/expo/eas-cli/pull/1840) by [@khamilowicz](https://github.com/khamilowicz))
+
+## [3.13.0](https://github.com/expo/eas-cli/releases/tag/v3.13.0) - 2023-05-17
+
+### 🎉 New features
+
 - Add clear cache flag to eas update. ([#1839](https://github.com/expo/eas-cli/pull/1839) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🐛 Bug fixes
@@ -16,7 +26,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- Short format for selecting devices prompt. ([#1840](https://github.com/expo/eas-cli/pull/1840) by [@khamilowicz](https://github.com/khamilowicz))
 - Ignore dirty workingdir when building from GitHub. ([#1842](https://github.com/expo/eas-cli/pull/1842) by [@wkozyra95](https://github.com/wkozyra95))
 
 ## [3.12.1](https://github.com/expo/eas-cli/releases/tag/v3.12.1) - 2023-05-15
