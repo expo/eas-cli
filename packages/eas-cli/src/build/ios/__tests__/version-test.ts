@@ -292,6 +292,20 @@ describe(readShortVersionAsync, () => {
       });
       expect(buildNumber).toBe('1.0.0');
     });
+
+    it('fails when build number is invalid', async () => {
+      const exp = initBareWorkflowProject({
+        appVersion: '$(CURRENT_PROJECT_VERSION)',
+      });
+
+      await expect(
+        readShortVersionAsync('/app', exp, {
+          CURRENT_PROJECT_VERSION: '0.0.7.1.028',
+        })
+      ).rejects.toThrowError(
+        'CFBundleShortVersionString (version field in app.json/app.config.js) must be a period-separated list of three non-negative integers. Current value: 0.0.7.1.028'
+      );
+    });
   });
 
   describe('managed project', () => {

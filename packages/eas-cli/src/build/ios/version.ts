@@ -22,6 +22,8 @@ import { readPlistAsync, writePlistAsync } from '../../utils/plist';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
 import { bumpAppVersionAsync, ensureStaticConfigExists } from '../utils/version';
 
+const SHORT_VERSION_REGEX = /^\d+.\d+.\d+$/;
+
 export enum BumpStrategy {
   APP_VERSION,
   BUILD_NUMBER,
@@ -97,6 +99,14 @@ export async function bumpVersionInAppJsonAsync({
   }
 }
 
+function validateShortVersion(shortVersion: string | undefined): void {
+  if (shortVersion && !SHORT_VERSION_REGEX.test(shortVersion)) {
+    throw new Error(
+      `CFBundleShortVersionString (version field in app.json/app.config.js) must be a period-separated list of three non-negative integers. Current value: ${shortVersion}`
+    );
+  }
+}
+
 export async function readShortVersionAsync(
   projectDir: string,
   exp: ExpoConfig,
@@ -105,11 +115,15 @@ export async function readShortVersionAsync(
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir, buildSettings);
-    return (
+
+    const shortVersion =
       infoPlist.CFBundleShortVersionString &&
-      evaluateTemplateString(infoPlist.CFBundleShortVersionString, buildSettings)
-    );
+      evaluateTemplateString(infoPlist.CFBundleShortVersionString, buildSettings);
+
+    validateShortVersion(shortVersion);
+    return shortVersion;
   } else {
+    validateShortVersion(exp.version);
     return exp.version;
   }
 }
