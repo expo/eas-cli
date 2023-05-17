@@ -13,6 +13,7 @@ export async function chooseDevicesAsync(
   const { devices } = await promptAsync({
     type: 'multiselect',
     name: 'devices',
+    selectionFormat: '<num> devices selected',
     message: 'Select devices for the ad hoc build:',
     hint: '- Space to select. Return to submit',
     choices: allDevices.map(device => ({
