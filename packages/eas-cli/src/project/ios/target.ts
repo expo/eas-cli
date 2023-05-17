@@ -163,6 +163,9 @@ async function resolveBareProjectDependenciesAsync({
 
   if (target.dependencies && target.dependencies.length > 0) {
     for (const dependency of target.dependencies) {
+      if (!dependency.signable) {
+        continue;
+      }
       const dependencyBundleIdentifier = await getBundleIdentifierAsync(projectDir, exp, {
         targetName: dependency.name,
         buildConfiguration,

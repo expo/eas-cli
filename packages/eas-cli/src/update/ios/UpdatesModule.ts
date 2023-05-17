@@ -53,7 +53,7 @@ export async function readChannelSafelyAsync(projectDir: string): Promise<string
   try {
     const expoPlist = await readExpoPlistAsync(projectDir);
     const updatesRequestHeaders = expoPlist['EXUpdatesRequestHeaders'];
-    return updatesRequestHeaders['expo-channel-name'] ?? null;
+    return updatesRequestHeaders?.['expo-channel-name'] ?? null;
   } catch {
     return null;
   }

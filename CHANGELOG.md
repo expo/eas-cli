@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix building iOS projects with framework targets. ([#1835](https://github.com/expo/eas-cli/pull/1835) by [@dsokal](https://github.com/dsokal))
+
 ### 🧹 Chores
 
 - Ignore dirty workingdir when building from GitHub. ([#1842](https://github.com/expo/eas-cli/pull/1842) by [@wkozyra95](https://github.com/wkozyra95))
