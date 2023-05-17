@@ -77,7 +77,7 @@ describe(bumpVersionAsync, () => {
     );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.BUILD_NUMBER,
-      projectDir: '/repo',
+      projectDir: '/app',
       exp: fakeExp,
       targets: [
         {
@@ -88,9 +88,9 @@ describe(bumpVersionAsync, () => {
       ],
     });
 
-    const appJSON = await fs.readJSON('/repo/app.json');
+    const appJSON = await fs.readJSON('/app/app.json');
     const infoPlist = (await readPlistAsync(
-      '/repo/ios/myproject/Info.plist'
+      '/app/ios/myproject/Info.plist'
     )) as IOSConfig.InfoPlist;
     expect(fakeExp.version).toBe('1.0.0');
     expect(fakeExp.ios?.buildNumber).toBe('2');
@@ -113,7 +113,7 @@ describe(bumpVersionAsync, () => {
     );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.BUILD_NUMBER,
-      projectDir: '/repo',
+      projectDir: '/app',
       exp: fakeExp,
       targets: [
         {
@@ -124,9 +124,9 @@ describe(bumpVersionAsync, () => {
       ],
     });
 
-    const appJSON = await fs.readJSON('/repo/app.json');
+    const appJSON = await fs.readJSON('/app/app.json');
     const infoPlist = (await readPlistAsync(
-      '/repo/ios/myproject/Info2.plist'
+      '/app/ios/myproject/Info2.plist'
     )) as IOSConfig.InfoPlist;
     expect(fakeExp.version).toBe('1.0.0');
     expect(fakeExp.ios?.buildNumber).toBe('2');
@@ -148,7 +148,7 @@ describe(bumpVersionAsync, () => {
     );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.APP_VERSION,
-      projectDir: '/repo',
+      projectDir: '/app',
       exp: fakeExp,
       targets: [
         {
@@ -159,9 +159,9 @@ describe(bumpVersionAsync, () => {
       ],
     });
 
-    const appJSON = await fs.readJSON('/repo/app.json');
+    const appJSON = await fs.readJSON('/app/app.json');
     const infoPlist = (await readPlistAsync(
-      '/repo/ios/myproject/Info.plist'
+      '/app/ios/myproject/Info.plist'
     )) as IOSConfig.InfoPlist;
     expect(fakeExp.version).toBe('1.0.1');
     expect(fakeExp.ios?.buildNumber).toBe('1');
@@ -183,7 +183,7 @@ describe(bumpVersionAsync, () => {
     );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.NOOP,
-      projectDir: '/repo',
+      projectDir: '/app',
       exp: fakeExp,
       targets: [
         {
@@ -194,9 +194,9 @@ describe(bumpVersionAsync, () => {
       ],
     });
 
-    const appJSON = await fs.readJSON('/repo/app.json');
+    const appJSON = await fs.readJSON('/app/app.json');
     const infoPlist = (await readPlistAsync(
-      '/repo/ios/myproject/Info.plist'
+      '/app/ios/myproject/Info.plist'
     )) as IOSConfig.InfoPlist;
     expect(fakeExp.version).toBe('1.0.0');
     expect(fakeExp.ios?.buildNumber).toBe('1');
@@ -214,11 +214,11 @@ describe(bumpVersionInAppJsonAsync, () => {
 
     await bumpVersionInAppJsonAsync({
       bumpStrategy: BumpStrategy.BUILD_NUMBER,
-      projectDir: '/repo',
+      projectDir: '/app',
       exp: fakeExp,
     });
 
-    const appJSON = await fs.readJSON('/repo/app.json');
+    const appJSON = await fs.readJSON('/app/app.json');
     expect(fakeExp.version).toBe('1.0.0');
     expect(fakeExp.ios?.buildNumber).toBe('2');
     expect(appJSON.expo.version).toBe('1.0.0');
@@ -230,11 +230,11 @@ describe(bumpVersionInAppJsonAsync, () => {
 
     await bumpVersionInAppJsonAsync({
       bumpStrategy: BumpStrategy.APP_VERSION,
-      projectDir: '/repo',
+      projectDir: '/app',
       exp: fakeExp,
     });
 
-    const appJSON = await fs.readJSON('/repo/app.json');
+    const appJSON = await fs.readJSON('/app/app.json');
     expect(fakeExp.version).toBe('1.0.1');
     expect(fakeExp.ios?.buildNumber).toBe('1');
     expect(appJSON.expo.version).toBe('1.0.1');
@@ -246,11 +246,11 @@ describe(bumpVersionInAppJsonAsync, () => {
 
     await bumpVersionInAppJsonAsync({
       bumpStrategy: BumpStrategy.NOOP,
-      projectDir: '/repo',
+      projectDir: '/app',
       exp: fakeExp,
     });
 
-    const appJSON = await fs.readJSON('/repo/app.json');
+    const appJSON = await fs.readJSON('/app/app.json');
     expect(fakeExp.version).toBe('1.0.0');
     expect(fakeExp.ios?.buildNumber).toBe('1');
     expect(appJSON.expo.version).toBe('1.0.0');
@@ -262,7 +262,7 @@ describe(readBuildNumberAsync, () => {
   describe('bare project', () => {
     it('reads the build number from native code', async () => {
       const exp = initBareWorkflowProject();
-      const buildNumber = await readBuildNumberAsync('/repo', exp, {});
+      const buildNumber = await readBuildNumberAsync('/app', exp, {});
       expect(buildNumber).toBe('1');
     });
   });
@@ -270,7 +270,7 @@ describe(readBuildNumberAsync, () => {
   describe('managed project', () => {
     it('reads the build number from expo config', async () => {
       const exp = initManagedProject();
-      const buildNumber = await readBuildNumberAsync('/repo', exp, {});
+      const buildNumber = await readBuildNumberAsync('/app', exp, {});
       expect(buildNumber).toBe('1');
     });
   });
@@ -280,14 +280,14 @@ describe(readShortVersionAsync, () => {
   describe('bare project', () => {
     it('reads the short version from native code', async () => {
       const exp = initBareWorkflowProject();
-      const appVersion = await readShortVersionAsync('/repo', exp, {});
+      const appVersion = await readShortVersionAsync('/app', exp, {});
       expect(appVersion).toBe('1.0.0');
     });
     it('evaluates interpolated build number', async () => {
       const exp = initBareWorkflowProject({
         appVersion: '$(CURRENT_PROJECT_VERSION)',
       });
-      const buildNumber = await readShortVersionAsync('/repo', exp, {
+      const buildNumber = await readShortVersionAsync('/app', exp, {
         CURRENT_PROJECT_VERSION: '1.0.0',
       });
       expect(buildNumber).toBe('1.0.0');
@@ -297,7 +297,7 @@ describe(readShortVersionAsync, () => {
   describe('managed project', () => {
     it('reads the version from app config', async () => {
       const exp = initBareWorkflowProject();
-      const appVersion = await readShortVersionAsync('/repo', exp, {});
+      const appVersion = await readShortVersionAsync('/app', exp, {});
       expect(appVersion).toBe('1.0.0');
     });
   });
@@ -309,66 +309,75 @@ describe(getInfoPlistPath, () => {
       {
         './ios/testapp/Info.plist': '',
       },
-      '/repo'
+      '/app'
     );
-    const plistPath = getInfoPlistPath('/repo', {});
-    expect(plistPath).toBe('/repo/ios/testapp/Info.plist');
+    const plistPath = getInfoPlistPath('/app', {});
+    expect(plistPath).toBe('/app/ios/testapp/Info.plist');
   });
   it('returns INFOPLIST_FILE if specified', () => {
     vol.fromJSON(
       {
         './ios/testapp/Info.plist': '',
       },
-      '/repo'
+      '/app'
     );
-    const plistPath = getInfoPlistPath('/repo', { INFOPLIST_FILE: './qwert/NotInfo.plist' });
-    expect(plistPath).toBe('/repo/ios/qwert/NotInfo.plist');
+    const plistPath = getInfoPlistPath('/app', { INFOPLIST_FILE: './qwert/NotInfo.plist' });
+    expect(plistPath).toBe('/app/ios/qwert/NotInfo.plist');
   });
   it('evaluates SRCROOT in Info.plist', () => {
     vol.fromJSON(
       {
         './ios/testapp/Info.plist': '',
       },
-      '/repo'
+      '/app'
     );
-    const plistPath = getInfoPlistPath('/repo', {
+    const plistPath = getInfoPlistPath('/app', {
       INFOPLIST_FILE: '$(SRCROOT)/qwert/NotInfo.plist',
     });
-    expect(plistPath).toBe('/repo/ios/qwert/NotInfo.plist');
+    expect(plistPath).toBe('/app/ios/qwert/NotInfo.plist');
   });
   it('evaluates BuildSettings in Info.plist', () => {
     vol.fromJSON(
       {
         './ios/testapp/Info.plist': '',
       },
-      '/repo'
+      '/app'
     );
-    const plistPath = getInfoPlistPath('/repo', {
+    const plistPath = getInfoPlistPath('/app', {
       INFOPLIST_FILE: '$(SRCROOT)/qwert/$(TARGET_NAME).plist',
       TARGET_NAME: 'NotInfo',
     });
-    expect(plistPath).toBe('/repo/ios/qwert/NotInfo.plist');
+    expect(plistPath).toBe('/app/ios/qwert/NotInfo.plist');
   });
 });
 
 function initBareWorkflowProject({
   appVersion = '1.0.0',
   buildNumber = '1',
+  expoConfig = {},
   infoPlistName = 'Info.plist',
-}: { appVersion?: string; buildNumber?: string; infoPlistName?: string } = {}): ExpoConfig {
+}: {
+  appVersion?: string;
+  buildNumber?: string;
+  infoPlistName?: string;
+  expoConfig?: { version?: string; ios?: object };
+} = {}): ExpoConfig {
   const fakeExp: ExpoConfig = {
     name: 'myproject',
     slug: 'myproject',
     version: '1.0.0',
     ios: {
       buildNumber: '1',
+      ...expoConfig.ios,
     },
+    ...expoConfig,
   };
   vol.fromJSON(
     {
       './app.json': JSON.stringify({
         expo: fakeExp,
       }),
+      './ios/myproject.xcodeproj/project.pbxproj': '',
       [`./ios/myproject/${infoPlistName}`]: `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -380,7 +389,7 @@ function initBareWorkflowProject({
 </dict>
 </plist>`,
     },
-    '/repo'
+    '/app'
   );
 
   return fakeExp;
@@ -402,7 +411,7 @@ function initManagedProject(): ExpoConfig {
         expo: fakeExp,
       }),
     },
-    '/repo'
+    '/app'
   );
 
   return fakeExp;
