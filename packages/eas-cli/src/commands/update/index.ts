@@ -23,6 +23,7 @@ import { RequestedPlatform } from '../../platform';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
   ExpoCLIExportPlatformFlag,
+  RawAsset,
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
@@ -45,6 +46,7 @@ import {
   getManifestBodyAsync,
   signBody,
 } from '../../utils/code-signing';
+import areSetsEqual from '../../utils/expodash/areSetsEqual';
 import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -238,14 +240,58 @@ export default class UpdatePublish extends EasCommand {
       const assets = filterExportedPlatformsByFlag(collectedAssets, platformFlag);
       realizedPlatforms = Object.keys(assets) as PublishPlatform[];
 
-      const uploadResults = await uploadAssetsAsync(
-        graphqlClient,
-        assets,
-        projectId,
-        (totalAssets, missingAssets) => {
-          assetSpinner.text = `Uploading (${totalAssets - missingAssets}/${totalAssets})`;
-        }
-      );
+      // Timeout mechanism:
+      // - Start with 60 second timeout. 60 seconds is chosen because the cloud function that processes
+      //   uploaded assets has a timeout of 60 seconds.
+      // - Each time one or more assets reports as ready, reset the timeout to 60 seconds.
+      // - Start upload. Internally, uploadAssetsAsync uploads them all and then checks for successful
+      //   processing every (5 + n) seconds with a linear backoff of n + 1 second.
+      // - At the same time as upload is started, start timeout checker which checks every 1 second to see
+      //   if timeout has been reached. When timeout expires, send a cancellation signal to currently running
+      //   upload function call to instruct it to stop uploading or checking for successful processing.
+      let lastUploadedStorageKeys = new Set<string>();
+      let lastAssetUploadResults: {
+        asset: RawAsset & { storageKey: string };
+        finished: boolean;
+      }[] = [];
+      let timeAtWhichToTimeout = Date.now() + 60 * 1000; // sixty seconds from now
+      const cancelationToken = { isCanceledOrFinished: false };
+
+      const uploadResults = await Promise.race([
+        uploadAssetsAsync(
+          graphqlClient,
+          assets,
+          projectId,
+          cancelationToken,
+          assetUploadResults => {
+            const currentUploadedStorageKeys = new Set(
+              assetUploadResults.filter(r => r.finished).map(r => r.asset.storageKey)
+            );
+            if (!areSetsEqual(currentUploadedStorageKeys, lastUploadedStorageKeys)) {
+              timeAtWhichToTimeout = Date.now() + 60 * 1000; // reset timeout to sixty seconds from now
+              lastUploadedStorageKeys = currentUploadedStorageKeys;
+              lastAssetUploadResults = assetUploadResults;
+            }
+
+            const totalAssets = assetUploadResults.length;
+            const missingAssetCount = assetUploadResults.filter(a => !a.finished).length;
+            assetSpinner.text = `Uploading (${totalAssets - missingAssetCount}/${totalAssets})`;
+          }
+        ),
+        (async () => {
+          while (Date.now() < timeAtWhichToTimeout) {
+            if (cancelationToken.isCanceledOrFinished) {
+              break;
+            }
+            await new Promise(res => setTimeout(res, 1000)); // wait 1 second
+          }
+          cancelationToken.isCanceledOrFinished = true;
+          const timedOutAssets = lastAssetUploadResults
+            .filter(r => !r.finished)
+            .map(r => `\n- ${r.asset.originalPath ?? r.asset.path}`);
+          throw new Error(`Asset processing timed out for assets: ${timedOutAssets}`);
+        })(),
+      ]);
 
       uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
       assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;

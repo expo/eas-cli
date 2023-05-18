@@ -34,6 +34,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add clear cache flag to eas update. ([#1839](https://github.com/expo/eas-cli/pull/1839) by [@quinlanj](https://github.com/quinlanj))
+- Print EAS Update assets that timed out during upload or processing. ([#1849](https://github.com/expo/eas-cli/pull/1849) by [@wschurman](https://github.com/wschurman))
 
 ### 🐛 Bug fixes
 
