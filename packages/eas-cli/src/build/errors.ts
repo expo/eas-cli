@@ -8,6 +8,8 @@ export class EasBuildFreeTierDisabledIOSError extends EasCommandError {}
 
 export class EasBuildFreeTierDisabledAndroidError extends EasCommandError {}
 
+export class EasBuildResourceClassNotAvailableInFreeTierError extends EasCommandError {}
+
 export class RequestValidationError extends EasCommandError {}
 
 export class EasBuildDownForMaintenanceError extends EasCommandError {}

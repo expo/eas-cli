@@ -12,6 +12,7 @@ import {
   EasBuildFreeTierDisabledAndroidError,
   EasBuildFreeTierDisabledError,
   EasBuildFreeTierDisabledIOSError,
+  EasBuildResourceClassNotAvailableInFreeTierError,
   EasBuildTooManyPendingBuildsError,
   RequestValidationError,
   TurtleDeprecatedJobFormatError,
@@ -131,6 +132,26 @@ describe(Build.name, () => {
               assertReThrownError(caughtError as Error, TurtleDeprecatedJobFormatError, 'Error 1');
             }
           });
+
+          it('throws correct EasBuildResourceClassNotAvailableInFreeTierError', async () => {
+            const platform = Platform.ANDROID;
+            const graphQLError = getGraphQLError(
+              'Error 1',
+              'EAS_BUILD_RESOURCE_CLASS_NOT_AVAILABLE_IN_FREE_TIER'
+            );
+            const graphQLErrors = [graphQLError];
+            const error = new CombinedError({ graphQLErrors });
+
+            try {
+              handleBuildRequestError(error, platform);
+            } catch (caughtError) {
+              assertReThrownError(
+                caughtError as Error,
+                EasBuildResourceClassNotAvailableInFreeTierError,
+                'Error 1'
+              );
+            }
+          });
         });
         describe('with iOS', () => {
           it('throws correct EasCommandError subclass', async () => {
@@ -143,6 +164,26 @@ describe(Build.name, () => {
               handleBuildRequestError(error, platform);
             } catch (caughtError) {
               assertReThrownError(caughtError as Error, TurtleDeprecatedJobFormatError, 'Error 1');
+            }
+          });
+
+          it('throws correct EasBuildResourceClassNotAvailableInFreeTierError', async () => {
+            const platform = Platform.IOS;
+            const graphQLError = getGraphQLError(
+              'Error 1',
+              'EAS_BUILD_RESOURCE_CLASS_NOT_AVAILABLE_IN_FREE_TIER'
+            );
+            const graphQLErrors = [graphQLError];
+            const error = new CombinedError({ graphQLErrors });
+
+            try {
+              handleBuildRequestError(error, platform);
+            } catch (caughtError) {
+              assertReThrownError(
+                caughtError as Error,
+                EasBuildResourceClassNotAvailableInFreeTierError,
+                'Error 1'
+              );
             }
           });
         });
