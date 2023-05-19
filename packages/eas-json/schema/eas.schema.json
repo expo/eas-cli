@@ -187,12 +187,7 @@
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "medium", "large"],
-              "markdownEnumDescriptions": [
-                "Maps to `\"default\"` for both Android and iOS",
-                "Maps to `\"medium\"` for both Android and iOS",
-                "Maps to `\"large\"` for both Android and iOS. Not available on free plan."
-              ]
+              "enum": ["default", "medium", "large"]
             },
             {
               "type": "string"
@@ -246,17 +241,12 @@
           ]
         },
         "resourceClass": {
-          "description": "The Android-specific resource class that will be used to run this build. Learn more: https://docs.expo.dev/build-reference/infrastructure/#android-build-server-configurations",
-          "markdownDescription": "The Android-specific resource class that will be used to run this build. [Learn more](https://docs.expo.dev/build-reference/infrastructure/#android-build-server-configurations)",
+          "description": "The Android-specific resource class that will be used to run this build. Learn more: https://docs.expo.dev/build-reference/infrastructure/",
+          "markdownDescription": "The Android-specific resource class that will be used to run this build. [Learn more](https://docs.expo.dev/build-reference/infrastructure/)",
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "medium", "large"],
-              "markdownEnumDescriptions": [
-                "Maps to \"medium\"",
-                "[Learn more](https://docs.expo.dev/build-reference/infrastructure/#android-build-server-configurations)",
-                "[Learn more](https://docs.expo.dev/build-reference/infrastructure/#android-build-server-configurations). Not available on free plan."
-              ]
+              "enum": ["default", "medium", "large"]
             },
             {
               "type": "string"
@@ -366,17 +356,12 @@
           ]
         },
         "resourceClass": {
-          "description": "The iOS-specific resource class that will be used to run this build. Learn more: https://docs.expo.dev/build-reference/infrastructure/#ios-build-server-configurations",
-          "markdownDescription": "The iOS-specific resource class that will be used to run this build. [Learn more](https://docs.expo.dev/build-reference/infrastructure/#ios-build-server-configurations)",
+          "description": "The iOS-specific resource class that will be used to run this build. Learn more: https://docs.expo.dev/build-reference/infrastructure/",
+          "markdownDescription": "The iOS-specific resource class that will be used to run this build. [Learn more](https://docs.expo.dev/build-reference/infrastructure/)",
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "medium", "large", "intel-medium", "m-medium"],
-              "markdownEnumDescriptions": [
-                "Maps to \"medium\"",
-                "[Learn more](https://docs.expo.dev/build-reference/infrastructure/#ios-build-server-configurations)",
-                "[Learn more](https://docs.expo.dev/build-reference/infrastructure/#ios-build-server-configurations). Not available on free plan."
-              ]
+              "enum": ["default", "medium", "large", "intel-medium", "m-medium"]
             },
             {
               "type": "string"
