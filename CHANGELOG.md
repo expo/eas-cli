@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Load iOS entitlements from prebuild config when `./ios` is gitignored. ([#1852](https://github.com/expo/eas-cli/pull/1852) by [@byCedric](https://github.com/byCedric))
+
 ### 🧹 Chores
 
 - Short format for selecting devices prompt. ([#1840](https://github.com/expo/eas-cli/pull/1840) by [@khamilowicz](https://github.com/khamilowicz))
