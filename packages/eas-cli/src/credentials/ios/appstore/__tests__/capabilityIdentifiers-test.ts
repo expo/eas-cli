@@ -169,4 +169,8 @@ describe(syncCapabilityIdentifiersForEntitlementsAsync, () => {
       })
     ).rejects.toThrow(/is not available. Enter a different string/);
   });
+
+  it(`ignores capabilities from "/ios" folder when gitignored`, async () => {
+    //
+  });
 });

@@ -11,7 +11,7 @@ import { resolveWorkflowAsync } from '../workflow';
 import { getBundleIdentifierAsync } from './bundleIdentifier';
 import {
   getManagedApplicationTargetEntitlementsAsync,
-  getNativeTargetEntitlementsAsync,
+  getNativeTargetEntitlementsUnlessGitIgnoredAsync,
 } from './entitlements';
 import { XcodeBuildContext } from './scheme';
 
@@ -89,6 +89,7 @@ export async function resolveBareProjectTargetsAsync({
   exp,
   projectDir,
   xcodeBuildContext,
+  env,
 }: ResolveTargetOptions): Promise<Target[]> {
   const { buildScheme, buildConfiguration } = xcodeBuildContext;
   const result: Target[] = [];
@@ -102,9 +103,12 @@ export async function resolveBareProjectTargetsAsync({
     targetName: applicationTarget.name,
     buildConfiguration,
   });
-  const entitlements = await getNativeTargetEntitlementsAsync(projectDir, {
-    targetName: applicationTarget.name,
-    buildConfiguration,
+  const entitlements = await getNativeTargetEntitlementsUnlessGitIgnoredAsync(projectDir, {
+    env: env ?? {},
+    target: {
+      targetName: applicationTarget.name,
+      buildConfiguration,
+    },
   });
   result.push({
     targetName: applicationTarget.name,
@@ -151,6 +155,7 @@ async function resolveBareProjectDependenciesAsync({
   target,
   bundleIdentifier,
   pbxProject,
+  env,
 }: {
   exp: ExpoConfig;
   projectDir: string;
@@ -158,6 +163,7 @@ async function resolveBareProjectDependenciesAsync({
   target: IOSConfig.Target.Target;
   bundleIdentifier: string;
   pbxProject: XcodeProject;
+  env?: ResolveTargetOptions['env'];
 }): Promise<Target[]> {
   const result: Target[] = [];
 
@@ -170,9 +176,12 @@ async function resolveBareProjectDependenciesAsync({
         targetName: dependency.name,
         buildConfiguration,
       });
-      const entitlements = await getNativeTargetEntitlementsAsync(projectDir, {
-        targetName: target.name,
-        buildConfiguration,
+      const entitlements = await getNativeTargetEntitlementsUnlessGitIgnoredAsync(projectDir, {
+        env: env ?? {},
+        target: {
+          targetName: target.name,
+          buildConfiguration,
+        },
       });
       result.push({
         targetName: dependency.name,
@@ -193,6 +202,7 @@ async function resolveBareProjectDependenciesAsync({
         target: dependency,
         bundleIdentifier: dependencyBundleIdentifier,
         pbxProject,
+        env,
       });
       if (dependencyDependencies.length > 0) {
         result.push(...dependencyDependencies);
