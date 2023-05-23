@@ -31,8 +31,8 @@ const robotStub: Actor = {
 };
 
 describe('getActorDisplayName', () => {
-  it('returns anonymous for unauthenticated users', () => {
-    expect(getActorDisplayName()).toBe('anonymous');
+  it('returns unknown for users that are null (deleted) or not recorded', () => {
+    expect(getActorDisplayName()).toBe('unknown');
   });
 
   it('returns username for user actors', () => {

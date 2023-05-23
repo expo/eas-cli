@@ -15,7 +15,7 @@ export const UpdateFragmentNode = gql`
     actor {
       __typename
       id
-      ... on User {
+      ... on UserActor {
         username
       }
       ... on Robot {
