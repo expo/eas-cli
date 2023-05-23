@@ -27,6 +27,7 @@ export default class BuildList extends EasCommand {
         BuildStatus.NEW,
         BuildStatus.IN_QUEUE,
         BuildStatus.IN_PROGRESS,
+        BuildStatus.PENDING_CANCEL,
         BuildStatus.ERRORED,
         BuildStatus.FINISHED,
         BuildStatus.CANCELED,
@@ -123,6 +124,8 @@ const toGraphQLBuildStatus = (buildStatus?: BuildStatus): GraphQLBuildStatus | u
     return GraphQLBuildStatus.InQueue;
   } else if (buildStatus === BuildStatus.IN_PROGRESS) {
     return GraphQLBuildStatus.InProgress;
+  } else if (buildStatus === BuildStatus.PENDING_CANCEL) {
+    return GraphQLBuildStatus.PendingCancel;
   } else if (buildStatus === BuildStatus.ERRORED) {
     return GraphQLBuildStatus.Errored;
   } else if (buildStatus === BuildStatus.FINISHED) {

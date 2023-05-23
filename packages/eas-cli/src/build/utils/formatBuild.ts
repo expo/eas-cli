@@ -27,6 +27,7 @@ export function formatGraphQLBuild(build: BuildFragment): string {
             return chalk.blue('in queue');
           case GraphQLBuildStatus.InProgress:
             return chalk.blue('in progress');
+          case GraphQLBuildStatus.PendingCancel:
           case GraphQLBuildStatus.Canceled:
             return chalk.gray('canceled');
           case GraphQLBuildStatus.Finished:
@@ -90,6 +91,7 @@ export function formatGraphQLBuild(build: BuildFragment): string {
           case GraphQLBuildStatus.InQueue:
           case GraphQLBuildStatus.InProgress:
             return '<in progress>';
+          case GraphQLBuildStatus.PendingCancel:
           case GraphQLBuildStatus.Canceled:
           case GraphQLBuildStatus.Errored:
             return null;
