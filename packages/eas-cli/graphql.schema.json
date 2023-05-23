@@ -13500,6 +13500,22 @@
             "deprecationReason": null
           },
           {
+            "name": "app",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "App",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "appBuildVersion",
             "description": null,
             "args": [],
@@ -16707,6 +16723,12 @@
           },
           {
             "name": "NEW",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "PENDING_CANCEL",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -25363,6 +25385,12 @@
             "deprecationReason": null
           },
           {
+            "name": "BUILD_PLAN_CREDIT_THRESHOLD_EXCEEDED",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "SUBMISSION_COMPLETE",
             "description": null,
             "isDeprecated": false,
@@ -32321,6 +32349,22 @@
             "deprecationReason": null
           },
           {
+            "name": "app",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "App",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "awaitingCodeSigningInfo",
             "description": null,
             "args": [],
@@ -33556,6 +33600,26 @@
           },
           {
             "name": "runtimeVersions",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "sdkVersions",
             "description": null,
             "type": {
               "kind": "LIST",
