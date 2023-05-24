@@ -33,7 +33,7 @@ export default class BuildConfigure extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildConfigure);
     const {
-      projectConfig: { exp, projectId, projectDir },
+      privateProjectConfig: { exp, projectId, projectDir },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildConfigure, {
       nonInteractive: false,

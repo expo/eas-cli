@@ -29,7 +29,7 @@ export default class BuildList extends EasCommand {
     const { flags } = await this.parse(BuildList);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildList, {
       nonInteractive: paginatedQueryOptions.nonInteractive,

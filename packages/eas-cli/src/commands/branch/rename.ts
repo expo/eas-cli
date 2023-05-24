@@ -72,7 +72,7 @@ export default class BranchRename extends EasCommand {
       flags: { json: jsonFlag, from: currentName, to: newName, 'non-interactive': nonInteractive },
     } = await this.parse(BranchRename);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchRename, {
       nonInteractive,

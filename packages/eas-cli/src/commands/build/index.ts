@@ -118,7 +118,7 @@ export default class Build extends EasCommand {
 
     const {
       loggedIn: { actor, graphqlClient },
-      getDynamicProjectConfigAsync,
+      getDynamicPrivateProjectConfigAsync,
       projectDir,
       analytics,
     } = await this.getContextAsync(Build, {
@@ -144,7 +144,7 @@ export default class Build extends EasCommand {
       projectDir,
       flagsWithPlatform,
       actor,
-      getDynamicProjectConfigAsync
+      getDynamicPrivateProjectConfigAsync
     );
   }
 

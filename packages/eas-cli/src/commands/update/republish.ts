@@ -94,7 +94,7 @@ export default class UpdateRepublish extends EasCommand {
     const flags = this.sanitizeFlags(rawFlags);
 
     const {
-      projectConfig: { exp, projectId },
+      privateProjectConfig: { exp, projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(UpdateRepublish, {
       nonInteractive: flags.nonInteractive,

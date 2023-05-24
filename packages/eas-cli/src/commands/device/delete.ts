@@ -43,7 +43,7 @@ export default class DeviceDelete extends EasCommand {
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     let { 'apple-team-id': appleTeamIdentifier, udid } = flags;
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(DeviceDelete, {
       nonInteractive: paginatedQueryOptions.nonInteractive,

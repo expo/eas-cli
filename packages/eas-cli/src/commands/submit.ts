@@ -100,7 +100,7 @@ export default class Submit extends EasCommand {
     const { flags: rawFlags } = await this.parse(Submit);
     const {
       loggedIn: { actor, graphqlClient },
-      projectConfig: { exp, projectId, projectDir },
+      privateProjectConfig: { exp, projectId, projectDir },
       analytics,
     } = await this.getContextAsync(Submit, {
       nonInteractive: false,

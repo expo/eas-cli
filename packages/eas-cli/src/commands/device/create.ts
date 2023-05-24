@@ -15,7 +15,7 @@ export default class DeviceCreate extends EasCommand {
     // this command is interactive by design
     const {
       loggedIn: { actor, graphqlClient },
-      projectConfig,
+      privateProjectConfig,
     } = await this.getContextAsync(DeviceCreate, {
       nonInteractive: false,
     });
@@ -24,7 +24,7 @@ export default class DeviceCreate extends EasCommand {
       appStore: new AppStoreApi(),
       user: actor,
       graphqlClient,
-      projectId: projectConfig?.projectId,
+      projectId: privateProjectConfig?.projectId,
     });
     const manager = new DeviceManager(ctx);
     await manager.createAsync();

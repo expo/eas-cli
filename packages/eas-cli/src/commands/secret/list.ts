@@ -19,7 +19,7 @@ export default class EnvironmentSecretList extends EasCommand {
 
   async runAsync(): Promise<void> {
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentSecretList, {
       nonInteractive: true,

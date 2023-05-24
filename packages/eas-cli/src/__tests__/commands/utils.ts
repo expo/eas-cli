@@ -66,7 +66,8 @@ export function mockCommandContext<
     easJson?: EasJson;
     exp?: ExpoConfig;
     projectId?: string;
-    getDynamicProjectConfigAsync?: DynamicConfigContextFn;
+    getDynamicPrivateProjectConfigAsync?: DynamicConfigContextFn;
+    getDynamicPublicProjectConfigAsync?: DynamicConfigContextFn;
   }
 ): ContextOutput<C> {
   const projectDir = path.join('/test', uuidv4());
@@ -96,8 +97,16 @@ export function mockCommandContext<
         projectDir,
       };
     }
-    if (contextKey === 'getDynamicProjectConfigAsync') {
-      result.getDynamicProjectConfigAsync = () => ({
+    if (contextKey === 'getDynamicPrivateProjectConfigAsync') {
+      result.getDynamicPrivateProjectConfigAsync = () => ({
+        exp: overrides.exp ?? getMockExpoConfig(),
+        projectId: overrides.projectId ?? mockProjectId,
+        projectDir,
+      });
+    }
+
+    if (contextKey === 'getDynamicPublicProjectConfigAsync') {
+      result.getDynamicPublicProjectConfigAsync = () => ({
         exp: overrides.exp ?? getMockExpoConfig(),
         projectId: overrides.projectId ?? mockProjectId,
         projectDir,

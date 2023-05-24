@@ -64,7 +64,7 @@ export default class BuildVersionSyncView extends EasCommand {
     const { flags } = await this.parse(BuildVersionSyncView);
     const {
       loggedIn: { graphqlClient },
-      getDynamicProjectConfigAsync,
+      getDynamicPrivateProjectConfigAsync,
       projectDir,
     } = await this.getContextAsync(BuildVersionSyncView, {
       nonInteractive: true,
@@ -82,7 +82,7 @@ export default class BuildVersionSyncView extends EasCommand {
       profileName: flags.profile ?? undefined,
     });
     for (const profileInfo of buildProfiles) {
-      const { exp, projectId } = await getDynamicProjectConfigAsync({
+      const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
         env: profileInfo.profile.env,
       });
 

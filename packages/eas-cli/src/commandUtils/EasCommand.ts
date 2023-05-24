@@ -11,11 +11,14 @@ import Log from '../log';
 import SessionManager from '../user/SessionManager';
 import AnalyticsContextField from './context/AnalyticsContextField';
 import ContextField from './context/ContextField';
-import { DynamicProjectConfigContextField } from './context/DynamicProjectConfigContextField';
+import {
+  DynamicPrivateProjectConfigContextField,
+  DynamicPublicProjectConfigContextField,
+} from './context/DynamicProjectConfigContextField';
 import LoggedInContextField from './context/LoggedInContextField';
 import MaybeLoggedInContextField from './context/MaybeLoggedInContextField';
-import { OptionalProjectConfigContextField } from './context/OptionalProjectConfigContextField';
-import ProjectConfigContextField from './context/ProjectConfigContextField';
+import { OptionalPrivateProjectConfigContextField } from './context/OptionalProjectConfigContextField';
+import { PrivateProjectConfigContextField } from './context/ProjectConfigContextField';
 import ProjectDirContextField from './context/ProjectDirContextField';
 import SessionManagementContextField from './context/SessionManagementContextField';
 import { EasCommandError } from './errors';
@@ -65,7 +68,7 @@ export default abstract class EasCommand extends Command {
      * run within a project directory, null otherwise.
      */
     OptionalProjectConfig: {
-      projectConfig: new OptionalProjectConfigContextField(),
+      privateProjectConfig: new OptionalPrivateProjectConfigContextField(),
     },
     /**
      * Require this command to be run in a project directory. Return the project directory in the context.
@@ -78,7 +81,9 @@ export default abstract class EasCommand extends Command {
      */
     DynamicProjectConfig: {
       // eslint-disable-next-line async-protect/async-suffix
-      getDynamicProjectConfigAsync: new DynamicProjectConfigContextField(),
+      getDynamicPublicProjectConfigAsync: new DynamicPublicProjectConfigContextField(),
+      // eslint-disable-next-line async-protect/async-suffix
+      getDynamicPrivateProjectConfigAsync: new DynamicPrivateProjectConfigContextField(),
     },
     /**
      * Require the project to be identified and registered on server. Returns the project config in the context.
@@ -87,7 +92,7 @@ export default abstract class EasCommand extends Command {
      */
     ProjectConfig: {
       loggedIn: new LoggedInContextField(),
-      projectConfig: new ProjectConfigContextField(),
+      privateProjectConfig: new PrivateProjectConfigContextField(),
     },
     /**
      * Analytics manager. Returns the analytics manager in the context for use by the command.

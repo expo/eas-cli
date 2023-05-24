@@ -11,7 +11,7 @@ export interface Action<T = void> {
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
   projectInfo: CredentialsContextProjectInfo | null;
-  getDynamicProjectConfigAsync: DynamicConfigContextFn;
+  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   runAsync(ctx: CredentialsContext): Promise<T>;
 }
 

@@ -75,7 +75,7 @@ export default class ChannelEdit extends EasCommand {
       flags: { branch: branchFlag, json, 'non-interactive': nonInteractive },
     } = await this.parse(ChannelEdit);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelEdit, {
       nonInteractive,

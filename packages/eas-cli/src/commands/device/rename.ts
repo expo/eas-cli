@@ -44,7 +44,7 @@ export default class DeviceRename extends EasCommand {
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     let { 'apple-team-id': appleTeamIdentifier, udid, name } = flags;
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(DeviceRename, {
       nonInteractive: paginatedQueryOptions.nonInteractive,

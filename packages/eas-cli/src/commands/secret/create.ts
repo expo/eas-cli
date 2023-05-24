@@ -66,7 +66,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
       },
     } = await this.parse(EnvironmentSecretCreate);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentSecretCreate, {
       nonInteractive,

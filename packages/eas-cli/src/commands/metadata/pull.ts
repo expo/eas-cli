@@ -35,7 +35,7 @@ export default class MetadataPull extends EasCommand {
     const { flags } = await this.parse(MetadataPull);
     const {
       loggedIn: { actor, graphqlClient },
-      projectConfig: { exp, projectId, projectDir },
+      privateProjectConfig: { exp, projectId, projectDir },
       analytics,
     } = await this.getContextAsync(MetadataPull, {
       nonInteractive: false,
