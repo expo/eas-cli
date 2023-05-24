@@ -1019,6 +1019,8 @@ export type App = Project & {
   /** @deprecated No longer supported */
   iconUrl?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  /** App query field for querying EAS Insights about this app */
+  insights: AppInsights;
   /** iOS app credentials for the project */
   iosAppCredentials: Array<IosAppCredentials>;
   /** Whether the latest classic update publish is using a deprecated SDK version */
@@ -1350,6 +1352,28 @@ export type AppInput = {
   appInfo?: InputMaybe<AppInfoInput>;
   privacy: AppPrivacy;
   projectName: Scalars['String'];
+};
+
+export type AppInsights = {
+  __typename?: 'AppInsights';
+  totalUniqueUsers?: Maybe<Scalars['Int']>;
+  uniqueUsersByAppVersionOverTime: UniqueUsersOverTimeData;
+  uniqueUsersByPlatformOverTime: UniqueUsersOverTimeData;
+};
+
+
+export type AppInsightsTotalUniqueUsersArgs = {
+  timespan: InsightsTimespan;
+};
+
+
+export type AppInsightsUniqueUsersByAppVersionOverTimeArgs = {
+  timespan: InsightsTimespan;
+};
+
+
+export type AppInsightsUniqueUsersByPlatformOverTimeArgs = {
+  timespan: InsightsTimespan;
 };
 
 export type AppMutation = {
@@ -1972,6 +1996,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   __typename?: 'Build';
   activityTimestamp: Scalars['DateTime'];
   actor?: Maybe<Actor>;
+  app: App;
   appBuildVersion?: Maybe<Scalars['String']>;
   appVersion?: Maybe<Scalars['String']>;
   artifacts?: Maybe<BuildArtifacts>;
@@ -2420,7 +2445,8 @@ export enum BuildStatus {
   Finished = 'FINISHED',
   InProgress = 'IN_PROGRESS',
   InQueue = 'IN_QUEUE',
-  New = 'NEW'
+  New = 'NEW',
+  PendingCancel = 'PENDING_CANCEL'
 }
 
 export enum BuildTrigger {
@@ -3162,6 +3188,11 @@ export type GoogleServiceAccountKeyMutationDeleteGoogleServiceAccountKeyArgs = {
   id: Scalars['ID'];
 };
 
+export type InsightsTimespan = {
+  end: Scalars['DateTime'];
+  start: Scalars['DateTime'];
+};
+
 export type Invoice = {
   __typename?: 'Invoice';
   /** The total amount due for the invoice, in cents */
@@ -3514,6 +3545,19 @@ export type LeaveAccountResult = {
   success: Scalars['Boolean'];
 };
 
+export type LineChartData = {
+  __typename?: 'LineChartData';
+  datasets: Array<LineDataset>;
+  labels: Array<Scalars['String']>;
+};
+
+export type LineDataset = {
+  __typename?: 'LineDataset';
+  data: Array<Maybe<Scalars['Int']>>;
+  id: Scalars['ID'];
+  label: Scalars['String'];
+};
+
 export enum MailchimpAudience {
   ExpoDevelopers = 'EXPO_DEVELOPERS'
 }
@@ -3666,6 +3710,7 @@ export type MeteredBillingStatus = {
 
 export enum NotificationEvent {
   BuildComplete = 'BUILD_COMPLETE',
+  BuildPlanCreditThresholdExceeded = 'BUILD_PLAN_CREDIT_THRESHOLD_EXCEEDED',
   SubmissionComplete = 'SUBMISSION_COMPLETE'
 }
 
@@ -4666,6 +4711,11 @@ export type TimelineActivityFilterInput = {
   types?: InputMaybe<Array<ActivityTimelineProjectActivityType>>;
 };
 
+export type UniqueUsersOverTimeData = {
+  __typename?: 'UniqueUsersOverTimeData';
+  data: LineChartData;
+};
+
 export type UnsubscribeFromNotificationResult = {
   __typename?: 'UnsubscribeFromNotificationResult';
   notificationSubscription: NotificationSubscription;
@@ -4675,6 +4725,7 @@ export type Update = ActivityTimelineProjectActivity & {
   __typename?: 'Update';
   activityTimestamp: Scalars['DateTime'];
   actor?: Maybe<Actor>;
+  app: App;
   awaitingCodeSigningInfo: Scalars['Boolean'];
   branch: UpdateBranch;
   branchId: Scalars['ID'];
