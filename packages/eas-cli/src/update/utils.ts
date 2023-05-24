@@ -5,8 +5,8 @@ import dateFormat from 'dateformat';
 
 import { getEASUpdateURL } from '../api';
 import {
-  Maybe,
   Robot,
+  SsoUser,
   Update,
   UpdateBranchFragment,
   UpdateFragment,
@@ -21,7 +21,11 @@ import formatFields from '../utils/formatFields';
 import { ProfileData } from '../utils/profiles';
 
 export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
-  actor?: Maybe<Pick<User, 'username' | 'id'> | Pick<Robot, 'firstName' | 'id'>>;
+  actor?:
+    | Pick<Robot, '__typename' | 'firstName'>
+    | Pick<User, '__typename' | 'username'>
+    | Pick<SsoUser, '__typename' | 'username'>
+    | null;
 };
 
 export type UpdateJsonInfo = { branch: string } & Pick<
@@ -140,9 +144,7 @@ export function formatUpdateMessage(update: FormatUpdateParameter): string {
     return 'N/A';
   }
   const message = update.message ? `"${truncateString(update.message)}" ` : '';
-  return `${message}(${format(update.createdAt, 'en_US')} by ${getActorDisplayName(
-    update.actor as any
-  )})`;
+  return `${message}(${format(update.createdAt, 'en_US')} by ${getActorDisplayName(update.actor)})`;
 }
 
 export function ensureValidVersions(exp: ExpoConfig, platform: RequestedPlatform): void {
@@ -179,17 +181,19 @@ export function formatUpdateTitle(update: UpdateFragment): string {
 
   let actorName: string;
   switch (actor?.__typename) {
-    case 'User': {
-      actorName = (actor as Pick<User, 'username' | 'id'>).username;
+    case 'User':
+    case 'SSOUser': {
+      actorName = actor.username;
       break;
     }
     case 'Robot': {
-      const { firstName, id } = actor as Pick<Robot, 'firstName' | 'id'>;
+      const { firstName, id } = actor;
       actorName = firstName ?? `robot: ${id.slice(0, 4)}...`;
       break;
     }
-    default:
+    case undefined: {
       actorName = 'unknown';
+    }
   }
   return `[${dateFormat(
     createdAt,
