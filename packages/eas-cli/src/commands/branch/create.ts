@@ -35,7 +35,7 @@ export default class BranchCreate extends EasCommand {
       flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(BranchCreate);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchCreate, {
       nonInteractive,

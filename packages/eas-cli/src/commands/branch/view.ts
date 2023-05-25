@@ -38,7 +38,7 @@ export default class BranchView extends EasCommand {
     } = await this.parse(BranchView);
     const { 'non-interactive': nonInteractive } = flags;
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchView, {
       nonInteractive,

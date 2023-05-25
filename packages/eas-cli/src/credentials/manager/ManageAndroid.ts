@@ -54,7 +54,7 @@ export class ManageAndroid {
       : null;
     let projectInfo: CredentialsContextProjectInfo | null = null;
     if (hasProjectContext) {
-      const { exp, projectId } = await this.callingAction.getDynamicProjectConfigAsync({
+      const { exp, projectId } = await this.callingAction.getDynamicPrivateProjectConfigAsync({
         env: buildProfile?.env,
       });
       projectInfo = { exp, projectId };

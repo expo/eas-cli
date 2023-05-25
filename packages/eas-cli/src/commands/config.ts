@@ -41,7 +41,7 @@ export default class Config extends EasCommand {
       enableJsonOutput();
     }
     const { platform: maybePlatform, profile: maybeProfile } = flags;
-    const { getDynamicProjectConfigAsync, projectDir } = await this.getContextAsync(Config, {
+    const { getDynamicPublicProjectConfigAsync, projectDir } = await this.getContextAsync(Config, {
       nonInteractive: false,
     });
 
@@ -82,9 +82,8 @@ export default class Config extends EasCommand {
         Log.log(JSON.stringify(profile, null, 2));
       }
     } else {
-      const { exp: appConfig } = await getDynamicProjectConfigAsync({
+      const { exp: appConfig } = await getDynamicPublicProjectConfigAsync({
         env: profile.env,
-        isPublicConfig: true,
       });
 
       if (flags.json) {

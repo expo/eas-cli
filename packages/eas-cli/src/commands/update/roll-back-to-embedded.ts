@@ -122,7 +122,8 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     } = this.sanitizeFlags(rawFlags);
 
     const {
-      getDynamicProjectConfigAsync,
+      getDynamicPublicProjectConfigAsync,
+      getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(UpdateRollBackToEmbedded, {
       nonInteractive,
@@ -136,9 +137,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       exp: expPossiblyWithoutEasUpdateConfigured,
       projectId,
       projectDir,
-    } = await getDynamicProjectConfigAsync({
-      isPublicConfig: true,
-    });
+    } = await getDynamicPublicProjectConfigAsync();
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
@@ -149,10 +148,8 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       projectId,
     });
 
-    const { exp } = await getDynamicProjectConfigAsync({ isPublicConfig: true });
-    const { exp: expPrivate } = await getDynamicProjectConfigAsync({
-      isPublicConfig: false,
-    });
+    const { exp } = await getDynamicPublicProjectConfigAsync();
+    const { exp: expPrivate } = await getDynamicPrivateProjectConfigAsync();
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 
     const branchName = await getBranchNameForCommandAsync({

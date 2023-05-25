@@ -31,7 +31,7 @@ export default class EnvironmentSecretDelete extends EasCommand {
       flags: { id, 'non-interactive': nonInteractive },
     } = await this.parse(EnvironmentSecretDelete);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentSecretDelete, {
       nonInteractive,

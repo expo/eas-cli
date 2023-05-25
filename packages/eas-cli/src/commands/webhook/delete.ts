@@ -39,7 +39,7 @@ export default class WebhookDelete extends EasCommand {
       flags: { 'non-interactive': nonInteractive },
     } = await this.parse(WebhookDelete);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(WebhookDelete, {
       nonInteractive,

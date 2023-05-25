@@ -41,7 +41,7 @@ export default class UpdateList extends EasCommand {
     const { flags } = await this.parse(UpdateList);
     const { branch: branchFlag, all, json: jsonFlag, 'non-interactive': nonInteractive } = flags;
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(UpdateList, {
       nonInteractive,

@@ -36,7 +36,7 @@ export default class WebhookList extends EasCommand {
     }
 
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(WebhookList, {
       nonInteractive: true,

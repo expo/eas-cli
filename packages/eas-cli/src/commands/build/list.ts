@@ -68,7 +68,7 @@ export default class BuildList extends EasCommand {
       'non-interactive': nonInteractive,
     } = flags;
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildList, {
       nonInteractive,

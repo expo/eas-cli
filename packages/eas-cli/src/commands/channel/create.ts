@@ -38,7 +38,7 @@ export default class ChannelCreate extends EasCommand {
       flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(ChannelCreate);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelCreate, {
       nonInteractive,

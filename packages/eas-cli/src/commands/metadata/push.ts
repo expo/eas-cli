@@ -33,7 +33,7 @@ export default class MetadataPush extends EasCommand {
     const { flags } = await this.parse(MetadataPush);
     const {
       loggedIn: { actor, graphqlClient },
-      projectConfig: { exp, projectId, projectDir },
+      privateProjectConfig: { exp, projectId, projectDir },
       analytics,
     } = await this.getContextAsync(MetadataPush, {
       nonInteractive: false,

@@ -41,7 +41,7 @@ export default class ChannelDelete extends EasCommand {
       flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(ChannelDelete);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelDelete, {
       nonInteractive,

@@ -28,7 +28,7 @@ export default class BuildView extends EasCommand {
       flags,
     } = await this.parse(BuildView);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildView, {
       nonInteractive: true,

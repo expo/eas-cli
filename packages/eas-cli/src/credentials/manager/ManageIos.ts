@@ -64,7 +64,7 @@ export class ManageIos {
 
     let projectInfo: CredentialsContextProjectInfo | null = null;
     if (this.callingAction.projectInfo) {
-      const { exp, projectId } = await this.callingAction.getDynamicProjectConfigAsync({
+      const { exp, projectId } = await this.callingAction.getDynamicPrivateProjectConfigAsync({
         env: buildProfile?.env,
       });
       projectInfo = { exp, projectId };

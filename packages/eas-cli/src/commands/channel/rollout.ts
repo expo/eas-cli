@@ -336,7 +336,7 @@ export default class ChannelRollout extends EasCommand {
       },
     } = await this.parse(ChannelRollout);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelRollout, {
       nonInteractive,

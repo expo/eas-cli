@@ -73,7 +73,7 @@ export default class BuildInspect extends EasCommand {
     const { flags } = await this.parse(BuildInspect);
     const {
       loggedIn: { actor, graphqlClient },
-      getDynamicProjectConfigAsync,
+      getDynamicPrivateProjectConfigAsync,
       projectDir,
       analytics,
     } = await this.getContextAsync(BuildInspect, {
@@ -120,7 +120,7 @@ export default class BuildInspect extends EasCommand {
             },
           },
           actor,
-          getDynamicProjectConfigAsync
+          getDynamicPrivateProjectConfigAsync
         );
         if (!flags.verbose) {
           Log.log(chalk.green('Build successful'));
