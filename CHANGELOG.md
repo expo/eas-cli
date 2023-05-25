@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Short format for selecting devices prompt. ([#1840](https://github.com/expo/eas-cli/pull/1840) by [@khamilowicz](https://github.com/khamilowicz))
 - Improve typescript types for user display. ([#1851](https://github.com/expo/eas-cli/pull/1851) by [@wschurman](https://github.com/wschurman))
+- Add support for pending-cancel build status. ([#1855](https://github.com/expo/eas-cli/pull/1855) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ## [3.13.0](https://github.com/expo/eas-cli/releases/tag/v3.13.0) - 2023-05-17
 
