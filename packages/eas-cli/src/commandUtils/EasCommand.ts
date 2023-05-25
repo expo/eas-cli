@@ -17,8 +17,8 @@ import {
 } from './context/DynamicProjectConfigContextField';
 import LoggedInContextField from './context/LoggedInContextField';
 import MaybeLoggedInContextField from './context/MaybeLoggedInContextField';
-import { OptionalPrivateProjectConfigContextField } from './context/OptionalProjectConfigContextField';
-import { PrivateProjectConfigContextField } from './context/ProjectConfigContextField';
+import { OptionalPrivateProjectConfigContextField } from './context/OptionalPrivateProjectConfigContextField';
+import { PrivateProjectConfigContextField } from './context/PrivateProjectConfigContextField';
 import ProjectDirContextField from './context/ProjectDirContextField';
 import SessionManagementContextField from './context/SessionManagementContextField';
 import { EasCommandError } from './errors';

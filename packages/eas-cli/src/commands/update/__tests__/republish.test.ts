@@ -3,7 +3,7 @@ import { vol } from 'memfs';
 import { instance, mock } from 'ts-mockito';
 
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
-import { PrivateProjectConfigContextField } from '../../../commandUtils/context/ProjectConfigContextField';
+import { PrivateProjectConfigContextField } from '../../../commandUtils/context/PrivateProjectConfigContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
 import FeatureGating from '../../../commandUtils/gating/FeatureGating';
