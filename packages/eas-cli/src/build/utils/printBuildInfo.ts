@@ -80,7 +80,7 @@ function printBuildResult(build: BuildFragment): void {
     }
     return;
   }
-  if (build.status === BuildStatus.Canceled || build.status === BuildStatus.PendingCancel) {
+  if ([BuildStatus.Canceled, BuildStatus.PendingCancel].includes(build.status)) {
     Log.addNewLineIfNone();
     Log.error(
       `${appPlatformEmojis[build.platform]} ${
