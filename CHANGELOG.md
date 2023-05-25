@@ -12,9 +12,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add support for pending-cancel build status. ([#1855](https://github.com/expo/eas-cli/pull/1855) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
+## [3.13.1](https://github.com/expo/eas-cli/releases/tag/v3.13.1) - 2023-05-24
+
+### 🧹 Chores
+
 - Short format for selecting devices prompt. ([#1840](https://github.com/expo/eas-cli/pull/1840) by [@khamilowicz](https://github.com/khamilowicz))
 - Improve typescript types for user display. ([#1851](https://github.com/expo/eas-cli/pull/1851) by [@wschurman](https://github.com/wschurman))
-- Add support for pending-cancel build status. ([#1855](https://github.com/expo/eas-cli/pull/1855) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Add error for `large` resource class not available on the free plan to server-side defined errors. ([#1848](https://github.com/expo/eas-cli/pull/1848) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [3.13.0](https://github.com/expo/eas-cli/releases/tag/v3.13.0) - 2023-05-17
 
