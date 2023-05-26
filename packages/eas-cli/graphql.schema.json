@@ -4882,6 +4882,39 @@
             "deprecationReason": null
           },
           {
+            "name": "deleteAndroidAppCredentials",
+            "description": "Delete a set of credentials for an Android app",
+            "args": [
+              {
+                "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "DeleteAndroidAppCredentialsResult",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "setFcm",
             "description": "Set the FCM push key to be used in an Android app",
             "args": [
@@ -17981,6 +18014,33 @@
       },
       {
         "kind": "OBJECT",
+        "name": "DeleteAndroidAppCredentialsResult",
+        "description": null,
+        "fields": [
+          {
+            "name": "id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "DeleteAndroidKeystoreResult",
         "description": null,
         "fields": [
@@ -23494,50 +23554,6 @@
         "possibleTypes": null
       },
       {
-        "kind": "OBJECT",
-        "name": "IosAppCredentialsQuery",
-        "description": null,
-        "fields": [
-          {
-            "name": "byId",
-            "description": null,
-            "args": [
-              {
-                "name": "iosAppCredentialsId",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "IosAppCredentials",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
         "kind": "ENUM",
         "name": "IosBuildType",
         "description": "@deprecated Use developmentClient option instead.",
@@ -28769,22 +28785,6 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "InvoiceQuery",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "iosAppCredentials",
-            "description": "Top-level query object for querying IosAppCredentials.",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "IosAppCredentialsQuery",
                 "ofType": null
               }
             },

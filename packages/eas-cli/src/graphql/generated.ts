@@ -759,6 +759,8 @@ export type AndroidAppCredentialsMutation = {
   __typename?: 'AndroidAppCredentialsMutation';
   /** Create a set of credentials for an Android app */
   createAndroidAppCredentials: AndroidAppCredentials;
+  /** Delete a set of credentials for an Android app */
+  deleteAndroidAppCredentials: DeleteAndroidAppCredentialsResult;
   /** Set the FCM push key to be used in an Android app */
   setFcm: AndroidAppCredentials;
   /** Set the Google Service Account Key to be used for submitting an Android app */
@@ -770,6 +772,11 @@ export type AndroidAppCredentialsMutationCreateAndroidAppCredentialsArgs = {
   androidAppCredentialsInput: AndroidAppCredentialsInput;
   appId: Scalars['ID'];
   applicationIdentifier: Scalars['String'];
+};
+
+
+export type AndroidAppCredentialsMutationDeleteAndroidAppCredentialsArgs = {
+  id: Scalars['ID'];
 };
 
 
@@ -2594,6 +2601,11 @@ export type DeleteAccountSsoConfigurationResult = {
   id: Scalars['ID'];
 };
 
+export type DeleteAndroidAppCredentialsResult = {
+  __typename?: 'DeleteAndroidAppCredentialsResult';
+  id: Scalars['ID'];
+};
+
 export type DeleteAndroidKeystoreResult = {
   __typename?: 'DeleteAndroidKeystoreResult';
   id: Scalars['ID'];
@@ -3390,16 +3402,6 @@ export type IosAppCredentialsMutationSetPushKeyArgs = {
   pushKeyId: Scalars['ID'];
 };
 
-export type IosAppCredentialsQuery = {
-  __typename?: 'IosAppCredentialsQuery';
-  byId: IosAppCredentials;
-};
-
-
-export type IosAppCredentialsQueryByIdArgs = {
-  iosAppCredentialsId: Scalars['ID'];
-};
-
 /** @deprecated Use developmentClient option instead. */
 export enum IosBuildType {
   DevelopmentClient = 'DEVELOPMENT_CLIENT',
@@ -4131,8 +4133,6 @@ export type RootQuery = {
   githubApp: GitHubAppQuery;
   /** Top-level query object for querying Stripe Invoices. */
   invoice: InvoiceQuery;
-  /** Top-level query object for querying IosAppCredentials. */
-  iosAppCredentials: IosAppCredentialsQuery;
   /**
    * If authenticated as a typical end user, this is the appropriate top-level
    * query object
