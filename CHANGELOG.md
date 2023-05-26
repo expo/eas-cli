@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [3.13.2](https://github.com/expo/eas-cli/releases/tag/v3.13.2) - 2023-05-26
+
+### 🧹 Chores
+
 - Refactor getExpoConfig to remove dangerous default. ([#1857](https://github.com/expo/eas-cli/pull/1857) by [@wschurman](https://github.com/wschurman))
 - Add support for pending-cancel build status. ([#1855](https://github.com/expo/eas-cli/pull/1855) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
