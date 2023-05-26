@@ -1,11 +1,4 @@
-import {
-  AppJSONConfig,
-  ExpoConfig,
-  GetConfigOptions,
-  PackageJSONConfig,
-  Platform,
-  getConfig,
-} from '@expo/config';
+import { AppJSONConfig, ExpoConfig, PackageJSONConfig, Platform, getConfig } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
 import { vol } from 'memfs';
 import nullthrows from 'nullthrows';
@@ -14,7 +7,10 @@ import { instance, mock } from 'ts-mockito';
 
 import UpdatePublish from '..';
 import { ensureBranchExistsAsync } from '../../../branch/queries';
-import { DynamicProjectConfigContextField } from '../../../commandUtils/context/DynamicProjectConfigContextField';
+import {
+  DynamicPrivateProjectConfigContextField,
+  DynamicPublicProjectConfigContextField,
+} from '../../../commandUtils/context/DynamicProjectConfigContextField';
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
@@ -237,22 +233,26 @@ function mockTestProject({
 
   jest.mocked(getConfig).mockReturnValue(mockManifest as any);
   jest
-    .spyOn(DynamicProjectConfigContextField.prototype, 'getValueAsync')
-    .mockResolvedValue(async (options?: GetConfigOptions) => {
-      let exp = { ...mockManifest.exp };
-
-      // Fake a limited public config
-      if (options?.isPublicConfig) {
-        exp = {
-          name: mockManifest.exp.name,
-          version: mockManifest.exp.version,
-          slug: mockManifest.exp.slug,
-          sdkVersion: mockManifest.exp.sdkVersion,
-          owner: mockManifest.exp.owner,
-          extra: mockManifest.exp.extra,
-        };
-      }
-
+    .spyOn(DynamicPrivateProjectConfigContextField.prototype, 'getValueAsync')
+    .mockResolvedValue(async () => {
+      const exp = { ...mockManifest.exp };
+      return {
+        exp,
+        projectDir: projectRoot,
+        projectId: configuredProjectId,
+      };
+    });
+  jest
+    .spyOn(DynamicPublicProjectConfigContextField.prototype, 'getValueAsync')
+    .mockResolvedValue(async () => {
+      const exp = {
+        name: mockManifest.exp.name,
+        version: mockManifest.exp.version,
+        slug: mockManifest.exp.slug,
+        sdkVersion: mockManifest.exp.sdkVersion,
+        owner: mockManifest.exp.owner,
+        extra: mockManifest.exp.extra,
+      };
       return {
         exp,
         projectDir: projectRoot,

@@ -20,7 +20,7 @@ export default class BranchList extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BranchList);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchList, {
       nonInteractive: flags['non-interactive'],

@@ -32,7 +32,7 @@ If you are not sure what is the UDID of the device you are looking for, run:
       throw new Error('Device UDID is missing');
     }
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(DeviceView, {
       nonInteractive: true,

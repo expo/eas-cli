@@ -13,7 +13,7 @@ export class SelectPlatform {
     public readonly graphqlClient: ExpoGraphqlClient,
     public readonly analytics: Analytics,
     public readonly projectInfo: CredentialsContextProjectInfo | null,
-    public readonly getDynamicProjectConfigAsync: DynamicConfigContextFn,
+    public readonly getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn,
     private readonly flagPlatform?: string
   ) {}
 

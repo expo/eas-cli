@@ -147,7 +147,7 @@ export default class BuildCancel extends EasCommand {
       flags: { 'non-interactive': nonInteractive },
     } = await this.parse(BuildCancel);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildCancel, {
       nonInteractive,

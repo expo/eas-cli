@@ -3,7 +3,7 @@ import { vol } from 'memfs';
 import { instance, mock } from 'ts-mockito';
 
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
-import ProjectConfigContextField from '../../../commandUtils/context/ProjectConfigContextField';
+import { PrivateProjectConfigContextField } from '../../../commandUtils/context/PrivateProjectConfigContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
 import FeatureGating from '../../../commandUtils/gating/FeatureGating';
@@ -324,7 +324,7 @@ function mockTestProject({
   const graphqlClient = instance(mock<ExpoGraphqlClient>({}));
 
   jest.mocked(getConfig).mockReturnValue(mockManifest as any);
-  jest.spyOn(ProjectConfigContextField.prototype, 'getValueAsync').mockResolvedValue({
+  jest.spyOn(PrivateProjectConfigContextField.prototype, 'getValueAsync').mockResolvedValue({
     exp: mockManifest.exp,
     projectDir: projectRoot,
     projectId: configuredProjectId,

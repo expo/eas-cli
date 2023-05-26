@@ -6,7 +6,7 @@ import chalk from 'chalk';
 import { Analytics } from '../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../log';
-import { getExpoConfig } from '../project/expoConfig';
+import { getPrivateExpoConfig } from '../project/expoConfig';
 import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
 import * as AndroidGraphqlClient from './android/api/GraphqlClient';
@@ -56,18 +56,6 @@ export class CredentialsContext {
     this.projectInfo = options.projectInfo;
   }
 
-  static getExpoConfigInProject(
-    projectDir: string,
-    { env }: { env?: Env } = {}
-  ): ExpoConfig | null {
-    try {
-      return getExpoConfig(projectDir, { env });
-    } catch {
-      // ignore error, context might be created outside of expo project
-      return null;
-    }
-  }
-
   get hasProjectContext(): boolean {
     return !!this.projectInfo;
   }
@@ -87,7 +75,7 @@ export class CredentialsContext {
       return;
     }
     // trigger getConfig error
-    getExpoConfig(this.options.projectDir);
+    getPrivateExpoConfig(this.options.projectDir);
   }
 
   async bestEffortAppStoreAuthenticateAsync(): Promise<void> {

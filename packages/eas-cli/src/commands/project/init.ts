@@ -13,7 +13,7 @@ import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
-import { getExpoConfig } from '../../project/expoConfig';
+import { getPrivateExpoConfig } from '../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { toAppPrivacy } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
@@ -98,7 +98,7 @@ export default class ProjectInit extends EasCommand {
     projectDir: string,
     { force, nonInteractive }: InitializeMethodOptions
   ): Promise<void> {
-    const exp = getExpoConfig(projectDir);
+    const exp = getPrivateExpoConfig(projectDir);
     const appForProjectId = await AppQuery.byIdAsync(graphqlClient, projectId);
     const correctOwner = appForProjectId.ownerAccount.name;
     const correctSlug = appForProjectId.slug;
@@ -153,7 +153,7 @@ export default class ProjectInit extends EasCommand {
     projectDir: string,
     { force, nonInteractive }: InitializeMethodOptions
   ): Promise<void> {
-    const exp = getExpoConfig(projectDir);
+    const exp = getPrivateExpoConfig(projectDir);
     const existingProjectId = exp.extra?.eas?.projectId;
 
     if (projectId === existingProjectId) {
@@ -209,7 +209,7 @@ export default class ProjectInit extends EasCommand {
     actor: Actor,
     projectDir: string
   ): Promise<string> {
-    const exp = getExpoConfig(projectDir);
+    const exp = getPrivateExpoConfig(projectDir);
     const existingProjectId = exp.extra?.eas?.projectId;
 
     if (existingProjectId) {

@@ -32,7 +32,7 @@ export default class UpdateConfigure extends EasCommand {
     const { flags } = await this.parse(UpdateConfigure);
     const platform = flags.platform as RequestedPlatform;
     const {
-      projectConfig: { projectId, exp, projectDir },
+      privateProjectConfig: { projectId, exp, projectDir },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(UpdateConfigure, {
       nonInteractive: flags['non-interactive'],

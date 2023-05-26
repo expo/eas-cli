@@ -81,7 +81,7 @@ export default class Run extends EasCommand {
     const queryOptions = getPaginatedQueryOptions(flags);
     const {
       loggedIn: { graphqlClient },
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
     } = await this.getContextAsync(Run, {
       nonInteractive: false,
     });

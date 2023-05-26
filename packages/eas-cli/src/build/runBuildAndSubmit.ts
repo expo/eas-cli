@@ -93,7 +93,7 @@ export async function runBuildAndSubmitAsync(
   projectDir: string,
   flags: BuildFlags,
   actor: Actor,
-  getDynamicProjectConfigAsync: DynamicConfigContextFn
+  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn
 ): Promise<void> {
   await getVcsClient().ensureRepoExistsAsync();
   await ensureRepoIsCleanAsync(flags.nonInteractive);
@@ -147,7 +147,7 @@ export async function runBuildAndSubmitAsync(
       actor,
       graphqlClient,
       analytics,
-      getDynamicProjectConfigAsync,
+      getDynamicPrivateProjectConfigAsync,
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
     });
     if (maybeBuild) {
@@ -257,7 +257,7 @@ async function prepareAndStartBuildAsync({
   actor,
   graphqlClient,
   analytics,
-  getDynamicProjectConfigAsync,
+  getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
 }: {
   projectDir: string;
@@ -268,7 +268,7 @@ async function prepareAndStartBuildAsync({
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
-  getDynamicProjectConfigAsync: DynamicConfigContextFn;
+  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
@@ -286,7 +286,7 @@ async function prepareAndStartBuildAsync({
     actor,
     graphqlClient,
     analytics,
-    getDynamicProjectConfigAsync,
+    getDynamicPrivateProjectConfigAsync,
     customBuildConfigMetadata,
   });
 

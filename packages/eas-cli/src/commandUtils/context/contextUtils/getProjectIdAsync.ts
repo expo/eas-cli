@@ -6,7 +6,7 @@ import chalk from 'chalk';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
-import { getExpoConfig } from '../../../project/expoConfig';
+import { getPrivateExpoConfig } from '../../../project/expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { toAppPrivacy } from '../../../project/projectUtils';
 import SessionManager from '../../../user/SessionManager';
@@ -24,7 +24,7 @@ export async function saveProjectIdToAppConfigAsync(
   projectId: string,
   options: { env?: Env } = {}
 ): Promise<void> {
-  const exp = getExpoConfig(projectDir, options);
+  const exp = getPrivateExpoConfig(projectDir, options);
   const result = await modifyConfigAsync(
     projectDir,
     {

@@ -43,7 +43,7 @@ export default class ProjectInfo extends EasCommand {
 
   async runAsync(): Promise<void> {
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ProjectInfo, {
       nonInteractive: true,

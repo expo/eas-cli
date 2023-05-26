@@ -51,7 +51,7 @@ export default class EnvironmentSecretPush extends EasCommand {
       flags: { scope, force, 'env-file': maybeEnvFilePath, 'non-interactive': nonInteractive },
     } = await this.parse(EnvironmentSecretPush);
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentSecretPush, {
       nonInteractive,

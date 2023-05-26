@@ -16,7 +16,7 @@ export default class Open extends EasCommand {
   async runAsync(): Promise<void> {
     // this command is interactive by nature (only really run by humans in a terminal)
     const {
-      projectConfig: { projectId, exp },
+      privateProjectConfig: { projectId, exp },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(Open, {
       nonInteractive: false,

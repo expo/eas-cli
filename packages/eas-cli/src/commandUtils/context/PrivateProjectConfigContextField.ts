@@ -1,11 +1,11 @@
 import { ExpoConfig } from '@expo/config-types';
 
-import { getExpoConfig } from '../../project/expoConfig';
+import { getPrivateExpoConfig } from '../../project/expoConfig';
 import ContextField, { ContextOptions } from './ContextField';
 import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
 
-export default class ProjectConfigContextField extends ContextField<{
+export class PrivateProjectConfigContextField extends ContextField<{
   projectId: string;
   exp: ExpoConfig;
   projectDir: string;
@@ -16,11 +16,11 @@ export default class ProjectConfigContextField extends ContextField<{
     projectDir: string;
   }> {
     const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
-    const expBefore = getExpoConfig(projectDir);
+    const expBefore = getPrivateExpoConfig(projectDir);
     const projectId = await getProjectIdAsync(sessionManager, expBefore, {
       nonInteractive,
     });
-    const exp = getExpoConfig(projectDir);
+    const exp = getPrivateExpoConfig(projectDir);
 
     return {
       projectId,

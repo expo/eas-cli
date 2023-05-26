@@ -34,7 +34,7 @@ export async function createBuildContextAsync<T extends Platform>({
   actor,
   graphqlClient,
   analytics,
-  getDynamicProjectConfigAsync,
+  getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
 }: {
   buildProfileName: string;
@@ -51,10 +51,10 @@ export async function createBuildContextAsync<T extends Platform>({
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
-  getDynamicProjectConfigAsync: DynamicConfigContextFn;
+  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
 }): Promise<BuildContext<T>> {
-  const { exp, projectId } = await getDynamicProjectConfigAsync({ env: buildProfile.env });
+  const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: buildProfile.env });
   const projectName = exp.slug;
   const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
   const workflow = await resolveWorkflowAsync(projectDir, platform);

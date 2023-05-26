@@ -108,7 +108,7 @@ export default class BranchDelete extends EasCommand {
     }
 
     const {
-      projectConfig: { projectId },
+      privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchDelete, { nonInteractive });
     const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);

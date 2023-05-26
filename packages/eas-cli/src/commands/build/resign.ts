@@ -101,7 +101,7 @@ export default class BuildResign extends EasCommand {
 
     const {
       loggedIn: { actor, graphqlClient },
-      getDynamicProjectConfigAsync,
+      getDynamicPrivateProjectConfigAsync,
       projectDir,
       analytics,
     } = await this.getContextAsync(BuildResign, {
@@ -130,7 +130,7 @@ export default class BuildResign extends EasCommand {
       platform,
       flags.profile ?? 'production'
     );
-    const { exp, projectId } = await getDynamicProjectConfigAsync({ env: buildProfile.env });
+    const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: buildProfile.env });
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
     const build = await this.ensureBuildSelectedAsync(
       { graphqlClient, projectId, platform, nonInteractive, limit, offset },
