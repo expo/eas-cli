@@ -495,6 +495,7 @@ async function handleSingleBuildProgressAsync(
       }
       break;
     }
+    case BuildStatus.PendingCancel:
     case BuildStatus.Canceled:
       spinner.fail('Build canceled');
       return { refetch: false };
@@ -525,6 +526,7 @@ const statusToDisplayName: Record<BuildStatus, string> = {
   [BuildStatus.New]: 'waiting to enter the queue (concurrency limit reached)',
   [BuildStatus.InQueue]: 'in queue',
   [BuildStatus.InProgress]: 'in progress',
+  [BuildStatus.PendingCancel]: 'canceled',
   [BuildStatus.Canceled]: 'canceled',
   [BuildStatus.Finished]: 'finished',
   [BuildStatus.Errored]: 'failed',
@@ -543,7 +545,12 @@ async function handleMultipleBuildsProgressAsync(
     builds.filter(build => build.status === BuildStatus.Finished).length === buildCount;
   const allSettled =
     builds.filter(build =>
-      [BuildStatus.Finished, BuildStatus.Errored, BuildStatus.Canceled].includes(build.status)
+      [
+        BuildStatus.Finished,
+        BuildStatus.Errored,
+        BuildStatus.Canceled,
+        BuildStatus.PendingCancel,
+      ].includes(build.status)
     ).length === buildCount;
 
   if (allSettled) {

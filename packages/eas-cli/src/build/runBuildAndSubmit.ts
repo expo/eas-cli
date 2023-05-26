@@ -218,7 +218,9 @@ export async function runBuildAndSubmitAsync(
   }
 
   const haveAllBuildsFailedOrCanceled = builds.every(
-    build => build?.status && [BuildStatus.Errored, BuildStatus.Canceled].includes(build?.status)
+    build =>
+      build?.status &&
+      [BuildStatus.Errored, BuildStatus.Canceled, BuildStatus.PendingCancel].includes(build?.status)
   );
 
   await maybeDownloadAndRunSimulatorBuildsAsync(builds, flags);

@@ -174,7 +174,7 @@ export default class BuildCancel extends EasCommand {
     const spinner = ora().start('Canceling the build…');
     try {
       const { status } = await cancelBuildAsync(graphqlClient, buildId);
-      if (status === BuildStatus.Canceled) {
+      if ([BuildStatus.Canceled, BuildStatus.PendingCancel].includes(status)) {
         spinner.succeed('Build canceled');
       } else {
         spinner.text = 'Build is already completed';
