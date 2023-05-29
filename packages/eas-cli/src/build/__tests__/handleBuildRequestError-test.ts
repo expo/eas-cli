@@ -416,7 +416,7 @@ describe(Build.name, () => {
           const graphQLError = getGraphQLError('Error 1', 'UNKNOWN_GRAPHQL_ERROR');
           const graphQLErrors = [graphQLError];
           const error = new CombinedError({ graphQLErrors });
-          const expectedMessage = EXPECTED_GENERIC_MESSAGE + `\nRequest ID: ${mockRequestId}`;
+          const expectedMessage = `${EXPECTED_GENERIC_MESSAGE}\nRequest ID: ${mockRequestId}\nError message: Error 1`;
 
           const handleBuildRequestErrorThrownError = getError<Error>(() => {
             handleBuildRequestError(error, platform);
@@ -431,16 +431,13 @@ describe(Build.name, () => {
             delete graphQLError.extensions.requestId;
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
+            const expectedMessage = `${EXPECTED_GENERIC_MESSAGE}\nError message: Error 1`;
 
             const handleBuildRequestErrorThrownError = getError<Error>(() => {
               handleBuildRequestError(error, platform);
             });
 
-            assertReThrownError(
-              handleBuildRequestErrorThrownError,
-              Error,
-              EXPECTED_GENERIC_MESSAGE
-            );
+            assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
           });
         });
       });
@@ -450,7 +447,7 @@ describe(Build.name, () => {
           const graphQLError = getGraphQLError('Error 1', 'UNKNOWN_GRAPHQL_ERROR');
           const graphQLErrors = [graphQLError];
           const error = new CombinedError({ graphQLErrors });
-          const expectedMessage = EXPECTED_GENERIC_MESSAGE + `\nRequest ID: ${mockRequestId}`;
+          const expectedMessage = `${EXPECTED_GENERIC_MESSAGE}\nRequest ID: ${mockRequestId}\nError message: Error 1`;
 
           const handleBuildRequestErrorThrownError = getError<Error>(() => {
             handleBuildRequestError(error, platform);
@@ -465,16 +462,13 @@ describe(Build.name, () => {
             delete graphQLError.extensions.requestId;
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
+            const expectedMessage = `${EXPECTED_GENERIC_MESSAGE}\nError message: Error 1`;
 
             const handleBuildRequestErrorThrownError = getError<Error>(() => {
               handleBuildRequestError(error, platform);
             });
 
-            assertReThrownError(
-              handleBuildRequestErrorThrownError,
-              Error,
-              EXPECTED_GENERIC_MESSAGE
-            );
+            assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
           });
         });
       });
