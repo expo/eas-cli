@@ -571,7 +571,13 @@ describe(uploadAssetsAsync, () => {
 
     mockdate.set(0);
     await expect(
-      uploadAssetsAsync(graphqlClient, assetsForUpdateInfoGroup, testProjectId)
+      uploadAssetsAsync(
+        graphqlClient,
+        assetsForUpdateInfoGroup,
+        testProjectId,
+        { isCanceledOrFinished: false },
+        () => {}
+      )
     ).resolves.toEqual({
       assetCount: 6,
       launchAssetCount: 2,
@@ -609,7 +615,15 @@ describe(uploadAssetsAsync, () => {
 
     mockdate.set(0);
     await expect(
-      uploadAssetsAsync(graphqlClient, assetsForUpdateInfoGroup, testProjectId)
+      uploadAssetsAsync(
+        graphqlClient,
+        assetsForUpdateInfoGroup,
+        testProjectId,
+        {
+          isCanceledOrFinished: false,
+        },
+        () => {}
+      )
     ).resolves.toEqual({
       assetCount: 6,
       launchAssetCount: 2,
@@ -645,20 +659,16 @@ describe(uploadAssetsAsync, () => {
         }, // ios.code
       ];
     });
-    const updateSpinnerFn = jest.fn((_totalAssets, _missingAssets) => {});
+    const onAssetUploadResultsChangedFn = jest.fn(_assetUploadResults => {});
 
     mockdate.set(0);
     await uploadAssetsAsync(
       graphqlClient,
       assetsForUpdateInfoGroup,
       testProjectId,
-      updateSpinnerFn
+      { isCanceledOrFinished: false },
+      onAssetUploadResultsChangedFn
     );
-    const calls = updateSpinnerFn.mock.calls;
-    expect(calls).toEqual([
-      [3, 3],
-      [3, 2],
-      [3, 0],
-    ]);
+    expect(onAssetUploadResultsChangedFn).toHaveBeenCalledTimes(3);
   });
 });

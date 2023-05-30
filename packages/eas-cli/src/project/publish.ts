@@ -385,7 +385,10 @@ export async function uploadAssetsAsync(
   graphqlClient: ExpoGraphqlClient,
   assetsForUpdateInfoGroup: CollectedAssets,
   projectId: string,
-  updateSpinnerText?: (totalAssets: number, missingAssets: number) => void
+  cancelationToken: { isCanceledOrFinished: boolean },
+  onAssetUploadResultsChanged: (
+    assetUploadResults: { asset: RawAsset & { storageKey: string }; finished: boolean }[]
+  ) => void
 ): Promise<AssetUploadResult> {
   let assets: RawAsset[] = [];
   let platform: keyof CollectedAssets;
@@ -413,12 +416,15 @@ export async function uploadAssetsAsync(
     }
   >(assetsWithStorageKey, asset => asset.storageKey);
 
-  const totalAssets = uniqueAssets.length;
-
-  updateSpinnerText?.(totalAssets, totalAssets);
+  onAssetUploadResultsChanged?.(uniqueAssets.map(asset => ({ asset, finished: false })));
   let missingAssets = await filterOutAssetsThatAlreadyExistAsync(graphqlClient, uniqueAssets);
+  let missingAssetStorageKeys = new Set(missingAssets.map(a => a.storageKey));
   const uniqueUploadedAssetCount = missingAssets.length;
   const uniqueUploadedAssetPaths = missingAssets.map(asset => asset.originalPath).filter(truthy);
+
+  if (cancelationToken.isCanceledOrFinished) {
+    throw Error('Canceled upload');
+  }
 
   const missingAssetChunks = chunk(missingAssets, 100);
   const specifications: string[] = [];
@@ -430,7 +436,9 @@ export async function uploadAssetsAsync(
     specifications.push(...chunkSpecifications);
   }
 
-  updateSpinnerText?.(totalAssets, missingAssets.length);
+  onAssetUploadResultsChanged?.(
+    uniqueAssets.map(asset => ({ asset, finished: !missingAssetStorageKeys.has(asset.storageKey) }))
+  );
 
   const assetUploadPromiseLimit = promiseLimit(15);
 
@@ -438,6 +446,9 @@ export async function uploadAssetsAsync(
     PublishQuery.getAssetLimitPerUpdateGroupAsync(graphqlClient, projectId),
     missingAssets.map((missingAsset, i) => {
       assetUploadPromiseLimit(async () => {
+        if (cancelationToken.isCanceledOrFinished) {
+          throw Error('Canceled upload');
+        }
         const presignedPost: PresignedPost = JSON.parse(specifications[i]);
         await uploadWithPresignedPostWithRetryAsync(missingAsset.path, presignedPost);
       });
@@ -446,14 +457,27 @@ export async function uploadAssetsAsync(
 
   let timeout = 1;
   while (missingAssets.length > 0) {
+    if (cancelationToken.isCanceledOrFinished) {
+      throw Error('Canceled upload');
+    }
+
     const timeoutPromise = new Promise(resolve =>
       setTimeout(resolve, Math.min(timeout * 1000, 5000))
     ); // linear backoff
     missingAssets = await filterOutAssetsThatAlreadyExistAsync(graphqlClient, missingAssets);
+    missingAssetStorageKeys = new Set(missingAssets.map(a => a.storageKey));
     await timeoutPromise; // await after filterOutAssetsThatAlreadyExistAsync for easy mocking with jest.runAllTimers
     timeout += 1;
-    updateSpinnerText?.(totalAssets, missingAssets.length);
+    onAssetUploadResultsChanged?.(
+      uniqueAssets.map(asset => ({
+        asset,
+        finished: !missingAssetStorageKeys.has(asset.storageKey),
+      }))
+    );
   }
+
+  cancelationToken.isCanceledOrFinished = true;
+
   return {
     assetCount: assets.length,
     launchAssetCount: launchAssets.length,
