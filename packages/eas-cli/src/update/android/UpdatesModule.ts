@@ -18,8 +18,6 @@ export async function syncUpdatesConfigurationAsync(
   ensureValidVersions(exp, RequestedPlatform.Android);
   const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
 
-  AndroidConfig.Updates.withUpdates(exp, { expoUsername: null });
-
   // sync AndroidManifest.xml
   const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
   const androidManifest = await getAndroidManifestAsync(projectDir);
