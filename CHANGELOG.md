@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Show original GraphQL error message in case of an unexpected error. ([#1862](https://github.com/expo/eas-cli/pull/1862) by [@dsokal](https://github.com/dsokal))
+- Fix updates synchronization of native files to include strings.xml for bare projects. ([#1865](https://github.com/expo/eas-cli/pull/1865) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
 
