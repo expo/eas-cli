@@ -514,6 +514,20 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     getOptions: getDefinedOptions,
   },
   {
+    name: 'Apple Pay Later Merchandising',
+    entitlement: 'com.apple.developer.pay-later-merchandising',
+    capability: CapabilityType.APPLE_PAY_LATER_MERCHANDISING,
+    validateOptions: createValidateStringArrayOptions(['payinfour-merchandising']),
+    getOptions: getDefinedOptions,
+  },
+  {
+    name: 'Sensitive Content Analysis',
+    entitlement: 'com.apple.developer.sensitivecontentanalysis.client',
+    capability: CapabilityType.SENSITIVE_CONTENT_ANALYSIS,
+    validateOptions: createValidateStringArrayOptions(['analysis']),
+    getOptions: getDefinedOptions,
+  },
+  {
     // Not in Xcode
     // https://developer-mdn.apple.com/documentation/devicecheck/preparing_to_use_the_app_attest_service
     // https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_devicecheck_appattest-environment
@@ -698,6 +712,36 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     validateOptions: validateBooleanOptions,
     getOptions: getBooleanOptions,
   },
+  {
+    entitlement: 'com.apple.developer.shared-with-you.collaboration',
+    name: 'Messages Collaboration',
+    capability: CapabilityType.MESSAGES_COLLABORATION,
+    validateOptions: validateBooleanOptions,
+    getOptions: getBooleanOptions,
+  },
+  {
+    entitlement: 'com.apple.developer.submerged-shallow-depth-and-pressure',
+    name: 'Shallow Depth and Pressure',
+    capability: CapabilityType.SHALLOW_DEPTH_PRESSURE,
+    validateOptions: validateBooleanOptions,
+    getOptions: getBooleanOptions,
+  },
+  {
+    entitlement: 'com.apple.developer.proximity-reader.identity.display',
+    name: 'Tap to Present ID on iPhone (Display Only)',
+    capability: CapabilityType.TAP_TO_DISPLAY_ID,
+    validateOptions: validateBooleanOptions,
+    getOptions: getBooleanOptions,
+  },
+  {
+    entitlement: 'com.apple.developer.matter.allow-setup-payload',
+    name: 'Matter Allow Setup Payload',
+    capability: CapabilityType.MATTER_ALLOW_SETUP_PAYLOAD,
+    validateOptions: validateBooleanOptions,
+    getOptions: getBooleanOptions,
+  },
+
+  // VMNET
 
   // These don't appear to have entitlements, so it's unclear how we can automatically enable / disable them at this time.
   // TODO: Maybe add a warning about manually enabling features?
