@@ -243,20 +243,18 @@ export async function createProvisioningProfileAsync(
 export async function revokeProvisioningProfileAsync(
   authCtx: AuthCtx,
   bundleIdentifier: string,
-  applePlatform: ApplePlatform,
-  profileClass: ProfileClass = ProfileClass.General
+  profileId: string
 ): Promise<void> {
   const spinner = ora(`Revoking Apple provisioning profile`).start();
   try {
     const context = getRequestContext(authCtx);
 
     const profiles = await getProfilesForBundleIdAsync(context, bundleIdentifier);
-    const profileType = resolveProfileType(applePlatform, profileClass, authCtx.team.inHouse);
-    await Promise.all(
-      profiles
-        .filter(profile => profile.attributes.profileType === profileType)
-        .map(profile => Profile.deleteAsync(context, { id: profile.id }))
-    );
+    const profile = profiles.find(profile => profile.id === profileId);
+    // TODO: See if we can just deleteAsync
+    if (profile) {
+      await Profile.deleteAsync(context, { id: profile.id });
+    }
     spinner.succeed('Revoked Apple provisioning profile');
   } catch (error) {
     spinner.fail('Failed to revoke Apple provisioning profile');

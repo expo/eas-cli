@@ -14,6 +14,7 @@ import {
 } from '../../__tests__/fixtures-ios';
 import IosCredentialsProvider from '../IosCredentialsProvider';
 import { getAppLookupParamsFromContextAsync } from '../actions/BuildCredentialsUtils';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
 
 jest.mock('fs');
 jest.mock('../validators/validateProvisioningProfile', () => ({
@@ -76,7 +77,7 @@ describe(IosCredentialsProvider, () => {
           distribution: 'store',
         });
         await expect(provider.getCredentialsAsync(CredentialsSource.REMOTE)).rejects.toThrowError(
-          /Credentials are not set up/
+          MissingCredentialsNonInteractiveError
         );
       });
 

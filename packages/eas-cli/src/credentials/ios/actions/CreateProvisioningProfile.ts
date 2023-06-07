@@ -23,6 +23,7 @@ export class CreateProvisioningProfile {
   ) {}
 
   async runAsync(ctx: CredentialsContext): Promise<AppleProvisioningProfileMutationResult> {
+    // TODO: Remove this
     if (ctx.nonInteractive) {
       throw new MissingCredentialsNonInteractiveError(
         'Creating Provisioning Profiles is only supported in interactive mode.'

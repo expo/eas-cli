@@ -2,11 +2,13 @@ import assert from 'assert';
 import chalk from 'chalk';
 import dateformat from 'dateformat';
 
+import { formatAppleTeam } from './AppleTeamFormatting';
 import { AccountFragment, AppleDistributionCertificateFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { fromNow } from '../../../utils/date';
 import { CredentialsContext } from '../../context';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import {
@@ -17,7 +19,6 @@ import { filterRevokedDistributionCertsFromEasServers } from '../appstore/Creden
 import { AppleTooManyCertsError } from '../appstore/distributionCertificate';
 import { distributionCertificateSchema } from '../credentials';
 import { validateDistributionCertificateAsync } from '../validators/validateDistributionCertificate';
-import { formatAppleTeam } from './AppleTeamFormatting';
 
 export function formatDistributionCertificate(
   distributionCertificate: AppleDistributionCertificateFragment,
@@ -212,7 +213,7 @@ async function generateDistributionCertificateAsync(
       Log.warn(APPLE_DIST_CERTS_TOO_MANY_GENERATED_ERROR);
 
       if (ctx.nonInteractive) {
-        throw new Error(
+        throw new MissingCredentialsNonInteractiveError(
           "Start the CLI without the '--non-interactive' flag to revoke existing certificates."
         );
       }

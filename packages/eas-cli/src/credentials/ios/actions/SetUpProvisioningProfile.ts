@@ -1,20 +1,6 @@
 import nullthrows from 'nullthrows';
 
 import {
-  AppleDistributionCertificateFragment,
-  AppleProvisioningProfileFragment,
-  IosAppBuildCredentialsFragment,
-  IosDistributionType,
-} from '../../../graphql/generated';
-import { getApplePlatformFromTarget } from '../../../project/ios/target';
-import { confirmAsync } from '../../../prompts';
-import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
-import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
-import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
-import { Target } from '../types';
-import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
-import {
   assignBuildCredentialsAsync,
   getBuildCredentialsAsync,
   getProvisioningProfileAsync,
@@ -23,6 +9,20 @@ import { ConfigureProvisioningProfile } from './ConfigureProvisioningProfile';
 import { CreateProvisioningProfile } from './CreateProvisioningProfile';
 import { formatProvisioningProfileFromApple } from './ProvisioningProfileUtils';
 import { SetUpDistributionCertificate } from './SetUpDistributionCertificate';
+import {
+  AppleDistributionCertificateFragment,
+  AppleProvisioningProfileFragment,
+  AppleTeamFragment,
+  IosAppBuildCredentialsFragment,
+  IosDistributionType,
+} from '../../../graphql/generated';
+import { getApplePlatformFromTarget } from '../../../project/ios/target';
+import { confirmAsync } from '../../../prompts';
+import { CredentialsContext } from '../../context';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
+import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
+import { Target } from '../types';
+import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 
 /**
  * Sets up either APP_STORE or ENTERPRISE provisioning profiles
@@ -47,6 +47,7 @@ export class SetUpProvisioningProfile {
     const buildCredentials = await this.createAndAssignProfileAsync(ctx, distCert);
     // delete 'currentProfile' since its no longer valid
     await ctx.ios.deleteProvisioningProfilesAsync(ctx.graphqlClient, [currentProfile.id]);
+    await ctx.appStore.revokeProvisioningProfileAsync(this.app.bundleIdentifier, currentProfile.id);
     return buildCredentials;
   }
 
@@ -59,12 +60,17 @@ export class SetUpProvisioningProfile {
       this.target,
       distCert
     ).runAsync(ctx);
+    const appleTeam: AppleTeamFragment = nullthrows(
+      distCert.appleTeam ?? provisioningProfile.appleTeam ?? null
+    );
+
     return await assignBuildCredentialsAsync(
       ctx,
       this.app,
       this.distributionType,
       distCert,
-      provisioningProfile
+      provisioningProfile,
+      appleTeam ?? undefined
     );
   }
 
@@ -102,11 +108,6 @@ export class SetUpProvisioningProfile {
     if (areBuildCredentialsSetup) {
       return nullthrows(await getBuildCredentialsAsync(ctx, this.app, this.distributionType));
     }
-    if (ctx.nonInteractive) {
-      throw new MissingCredentialsNonInteractiveError(
-        'Provisioning profile is not configured correctly. Run this command again in interactive mode.'
-      );
-    }
 
     const currentProfile = await getProvisioningProfileAsync(ctx, this.app, this.distributionType);
     if (!currentProfile) {
@@ -114,7 +115,8 @@ export class SetUpProvisioningProfile {
     }
 
     // See if the profile we have exists on the Apple Servers
-    const applePlatform = await getApplePlatformFromTarget(this.target);
+    const applePlatform = getApplePlatformFromTarget(this.target);
+    // TODO: Could it ask for login in non-interactive mode?
     const existingProfiles = await ctx.appStore.listProvisioningProfilesAsync(
       this.app.bundleIdentifier,
       applePlatform
@@ -124,6 +126,11 @@ export class SetUpProvisioningProfile {
       currentProfile
     );
     if (!currentProfileFromServer) {
+      return await this.assignNewAndDeleteOldProfileAsync(ctx, distCert, currentProfile);
+    }
+
+    // TODO: Should we instead reuse original profile?
+    if (ctx.nonInteractive) {
       return await this.assignNewAndDeleteOldProfileAsync(ctx, distCert, currentProfile);
     }
 

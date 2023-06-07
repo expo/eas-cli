@@ -160,11 +160,10 @@ export default class AppStoreApi {
 
   public async revokeProvisioningProfileAsync(
     bundleIdentifier: string,
-    applePlatform: ApplePlatform,
-    profileClass?: ProfileClass
+    profileId: string
   ): Promise<void> {
     const ctx = await this.ensureAuthenticatedAsync();
-    return await revokeProvisioningProfileAsync(ctx, bundleIdentifier, applePlatform, profileClass);
+    return await revokeProvisioningProfileAsync(ctx, bundleIdentifier, profileId);
   }
 
   public async createOrReuseAdhocProvisioningProfileAsync(
