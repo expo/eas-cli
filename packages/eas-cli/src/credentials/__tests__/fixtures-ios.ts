@@ -18,12 +18,14 @@ import * as IosGraphqlClient from '../ios/api/GraphqlClient';
 import {
   AscApiKey,
   DistributionCertificate,
+  DistributionCertificateStoreInfo,
   ProvisioningProfile,
 } from '../ios/appstore/Credentials.types';
 import { Target } from '../ios/types';
 import { testProvisioningProfileBase64 } from './fixtures-base64-data';
 
 const now = new Date();
+const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
 export const testAscApiKey: AscApiKey = {
   keyId: 'test-keyIdentifier',
@@ -114,7 +116,7 @@ export const testDistCertFragmentNoDependencies: AppleDistributionCertificateFra
   certificatePassword: 'test-password',
   serialNumber: 'test-serial',
   developerPortalIdentifier: 'test-developer-identifier',
-  validityNotAfter: now,
+  validityNotAfter: tomorrow,
   validityNotBefore: now,
   updatedAt: now,
   appleTeam: { ...testAppleTeamFragment },
@@ -127,7 +129,7 @@ export const testDistCertFragmentOneDependency: AppleDistributionCertificateFrag
   certificatePassword: 'test-password',
   serialNumber: 'test-serial',
   developerPortalIdentifier: 'test-developer-identifier',
-  validityNotAfter: now,
+  validityNotAfter: tomorrow,
   validityNotBefore: now,
   updatedAt: now,
   appleTeam: { ...testAppleTeamFragment },
@@ -200,4 +202,15 @@ export const testDistCert: DistributionCertificate = {
   certPassword: 'test-password',
   distCertSerialNumber: 'test-serial',
   teamId: 'test-team-id',
+};
+
+export const testDistCertFromApple: DistributionCertificateStoreInfo = {
+  created: testDistCertFragmentNoDependencies.validityNotBefore,
+  expires: testDistCertFragmentNoDependencies.validityNotAfter,
+  id: testDistCertFragmentNoDependencies.id,
+  name: 'test-dist-cert-id-1-name',
+  ownerId: 'test-team-id',
+  ownerName: 'test-team-name',
+  serialNumber: testDistCertFragmentNoDependencies.serialNumber,
+  status: 'Issued',
 };

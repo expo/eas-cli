@@ -48,16 +48,14 @@ export class SetUpDistributionCertificate {
   }
 
   private async runNonInteractiveAsync(
-    _ctx: CredentialsContext,
+    ctx: CredentialsContext,
     currentCertificate: AppleDistributionCertificateFragment | null
   ): Promise<AppleDistributionCertificateFragment> {
-    // TODO: implement validation
-    Log.addNewLineIfNone();
-    Log.warn('Distribution Certificate is not validated for non-interactive builds.');
-    if (!currentCertificate) {
-      throw new MissingCredentialsNonInteractiveError();
+    if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {
+      assert(currentCertificate, 'currentCertificate is defined here');
+      return currentCertificate;
     }
-    return currentCertificate;
+    return await this.createNewDistCertAsync(ctx);
   }
 
   private async runInteractiveAsync(
