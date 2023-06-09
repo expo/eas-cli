@@ -1982,6 +1982,43 @@ export enum AuthProtocolType {
   Oidc = 'OIDC'
 }
 
+export type BackgroundJobReceipt = {
+  __typename?: 'BackgroundJobReceipt';
+  account: Account;
+  createdAt: Scalars['DateTime'];
+  errorCode?: Maybe<Scalars['String']>;
+  errorMessage?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  resultId?: Maybe<Scalars['ID']>;
+  resultType: BackgroundJobResultType;
+  state: BackgroundJobState;
+  tries: Scalars['Int'];
+  updatedAt: Scalars['DateTime'];
+  willRetry: Scalars['Boolean'];
+};
+
+export type BackgroundJobReceiptQuery = {
+  __typename?: 'BackgroundJobReceiptQuery';
+  /** Look up background job receipt by ID */
+  byId: BackgroundJobReceipt;
+};
+
+
+export type BackgroundJobReceiptQueryByIdArgs = {
+  id: Scalars['ID'];
+};
+
+export enum BackgroundJobResultType {
+  GithubBuild = 'GITHUB_BUILD'
+}
+
+export enum BackgroundJobState {
+  Failure = 'FAILURE',
+  InProgress = 'IN_PROGRESS',
+  Queued = 'QUEUED',
+  Success = 'SUCCESS'
+}
+
 export type Billing = {
   __typename?: 'Billing';
   /** History of invoices */
@@ -3017,8 +3054,8 @@ export enum GitHubAppInstallationStatus {
 
 export type GitHubAppMutation = {
   __typename?: 'GitHubAppMutation';
-  /** Create a GitHub build for an app */
-  createGitHubBuild: Scalars['Boolean'];
+  /** Create a GitHub build for an app. Returns the ID of the background job receipt. Use BackgroundJobReceiptQuery to get the status of the job. */
+  createGitHubBuild: BackgroundJobReceipt;
 };
 
 
@@ -4128,6 +4165,7 @@ export type RootQuery = {
   /** Top-level query object for querying Apple Teams. */
   appleTeam: AppleTeamQuery;
   asset: AssetQuery;
+  backgroundJobReceipt: BackgroundJobReceiptQuery;
   buildJobs: BuildJobQuery;
   buildOrBuildJob: BuildOrBuildJobQuery;
   /** Top-level query object for querying BuildPublicData publicly. */
@@ -4755,6 +4793,7 @@ export type Update = ActivityTimelineProjectActivity & {
 
 export type UpdateBranch = {
   __typename?: 'UpdateBranch';
+  app: App;
   appId: Scalars['ID'];
   createdAt: Scalars['DateTime'];
   id: Scalars['ID'];
@@ -4816,6 +4855,7 @@ export type UpdateBranchMutationPublishUpdateGroupsArgs = {
 
 export type UpdateChannel = {
   __typename?: 'UpdateChannel';
+  app: App;
   appId: Scalars['ID'];
   branchMapping: Scalars['String'];
   createdAt: Scalars['DateTime'];

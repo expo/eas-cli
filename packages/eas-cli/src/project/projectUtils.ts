@@ -16,6 +16,8 @@ export function getUsername(exp: ExpoConfig, user: Actor): string | undefined {
   switch (user.__typename) {
     case 'User':
       return user.username;
+    case 'SSOUser':
+      return user.username;
     case 'Robot':
       // owner field is necessary to run `expo prebuild`
       if (!exp.owner) {
@@ -25,8 +27,6 @@ export function getUsername(exp: ExpoConfig, user: Actor): string | undefined {
       }
       // robot users don't have usernames
       return undefined;
-    case 'SSOUser':
-      throw new Error('SSO users are not supported yet.');
   }
 }
 

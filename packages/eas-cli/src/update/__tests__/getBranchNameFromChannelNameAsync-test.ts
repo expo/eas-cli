@@ -94,6 +94,7 @@ function mockUpdateChannel({
 }): UpdateChannel {
   return {
     id: 'a2a1fa12-9d6a-433a-a432-49c64ef8439f',
+    app: {} as App,
     name: channelName ?? 'default-channel-name',
     createdAt: '2022-12-07T02:24:29.786Z',
     appId: '123',
@@ -109,6 +110,7 @@ function mockUpdateBranches(branchNames: string[]): UpdateBranch[] {
   return branchNames.map(branchName => ({
     id: 'f9dc4dbb-663f-4a19-8cf2-a783b484d2db',
     name: branchName ?? 'default-branch-name',
+    app: {} as App,
     appId: '123',
     createdAt: '2022-12-07T02:24:29.786Z',
     updatedAt: '2022-12-07T02:24:29.786Z',
@@ -140,6 +142,7 @@ function mockUpdateBranches(branchNames: string[]): UpdateBranch[] {
           branch: {
             id: 'f9dc4dbb-663f-4a19-8cf2-a783b484d2db',
             name: 'production3',
+            app: {} as App,
             appId: '123',
             createdAt: '2022-12-07T02:24:29.786Z',
             updatedAt: '2022-12-07T02:24:29.786Z',

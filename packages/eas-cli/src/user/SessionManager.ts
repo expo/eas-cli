@@ -11,7 +11,7 @@ import { createGraphqlClient } from '../commandUtils/context/contextUtils/create
 import { CurrentUserQuery } from '../graphql/generated';
 import { UserQuery } from '../graphql/queries/UserQuery';
 import Log, { learnMore } from '../log';
-import { confirmAsync, promptAsync, selectAsync } from '../prompts';
+import { promptAsync, selectAsync } from '../prompts';
 import { getStateJsonPath } from '../utils/paths';
 import { fetchSessionSecretAndSsoUserAsync } from './fetchSessionSecretAndSsoUser';
 import { fetchSessionSecretAndUserAsync } from './fetchSessionSecretAndUser';
@@ -26,7 +26,7 @@ type SessionData = {
   // These fields are potentially used by Expo CLI.
   userId: string;
   username: string;
-  currentConnection: 'Username-Password-Authentication';
+  currentConnection: 'Username-Password-Authentication' | 'Browser-Flow-Authentication';
 };
 
 export enum UserSecondFactorDeviceMethod {
@@ -122,7 +122,7 @@ export default class SessionManager {
 
     if (!actor) {
       Log.warn('An Expo user account is required to proceed.');
-      await this.showLoginPromptAsync({ nonInteractive, printNewLine: true });
+      await this.showLoginPromptAsync({ nonInteractive, printNewLine: true, sso: undefined });
       actor = await this.getUserAsync();
     }
 
@@ -145,10 +145,11 @@ export default class SessionManager {
    *
    * @deprecated Should not be used outside of context functions, except in the AccountLogin command.
    */
-  public async showLoginPromptAsync(
-    { nonInteractive = false, printNewLine = false } = {},
-    sso?: boolean | undefined
-  ): Promise<void> {
+  public async showLoginPromptAsync({
+    nonInteractive = false,
+    printNewLine = false,
+    sso = false,
+  } = {}): Promise<void> {
     if (nonInteractive) {
       Errors.error(
         `Either log in with ${chalk.bold('eas login')} or ${chalk.bold(
@@ -165,20 +166,13 @@ export default class SessionManager {
       Log.newLine();
     }
 
-    Log.log('Log in to EAS');
-
-    // Prompt if sso has not been set (only login will have already set this value)
-    let useSso = sso;
-    if (useSso === undefined) {
-      useSso = await confirmAsync({
-        message: `Do you want to log in with SSO?`,
-      });
-    }
-
-    if (useSso) {
+    if (sso === true) {
       await this.ssoLoginAsync();
       return;
     }
+
+    Log.log('Use ctrl-c to exit and then run eas login for other login options');
+    Log.log('Log in to EAS with email or username');
 
     const { username, password } = await promptAsync([
       {
@@ -216,7 +210,7 @@ export default class SessionManager {
       sessionSecret,
       userId: id,
       username,
-      currentConnection: 'Username-Password-Authentication',
+      currentConnection: 'Browser-Flow-Authentication',
     });
   }
 

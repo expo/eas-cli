@@ -5,13 +5,13 @@ import querystring from 'querystring';
 
 import Log from '../log';
 
-export default (options: {
+export async function initiateAuthFlowAsync(options: {
   expoWebsiteUrl: string;
   serverPort: number;
-}): { executeAuthFlow: () => Promise<string> } => {
+}): Promise<string> {
   const { expoWebsiteUrl, serverPort } = options;
   if (!expoWebsiteUrl || !serverPort) {
-    throw new Error('Expo website URL and localserver port are required.');
+    throw new Error('Expo website URL and local server port are required.');
   }
   const scheme = 'http';
   const hostname = 'localhost';
@@ -35,13 +35,13 @@ export default (options: {
         (request: http.IncomingMessage, response: http.ServerResponse) => {
           try {
             if (!(request.method === 'GET' && request.url?.includes('/auth/callback'))) {
-              throw new Error('Unexpected SSO login response');
+              throw new Error('Unexpected SSO login response.');
             }
             const url = new URL(request.url, `http:${request.headers.host}`);
             const sessionSecret = url.searchParams.get('session_secret');
 
             if (!sessionSecret) {
-              throw new Error('Login in the website failed unexpectedly.');
+              throw new Error('Request missing session_secret search parameter.');
             }
             resolve(sessionSecret);
             response.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -76,7 +76,5 @@ export default (options: {
     });
   };
 
-  return {
-    executeAuthFlow,
-  };
-};
+  return await executeAuthFlow();
+}

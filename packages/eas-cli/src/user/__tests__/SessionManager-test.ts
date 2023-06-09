@@ -6,7 +6,7 @@ import { ApiV2Error } from '../../ApiV2Error';
 import { AnalyticsWithOrchestration } from '../../analytics/AnalyticsManager';
 import { ApiV2Client } from '../../api';
 import Log from '../../log';
-import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
+import { promptAsync, selectAsync } from '../../prompts';
 import { getStateJsonPath } from '../../utils/paths';
 import SessionManager, { UserSecondFactorDeviceMethod } from '../SessionManager';
 import { fetchSessionSecretAndSsoUserAsync } from '../fetchSessionSecretAndSsoUser';
@@ -171,7 +171,7 @@ describe(SessionManager, () => {
             "sessionSecret": "SESSION_SECRET",
             "userId": "USER_ID",
             "username": "USERNAME",
-            "currentConnection": "Username-Password-Authentication"
+            "currentConnection": "Browser-Flow-Authentication"
           }
         }
         "
@@ -256,8 +256,7 @@ describe(SessionManager, () => {
       );
     });
 
-    it('does not prompt whether to use SSO when called from login', async () => {
-      jest.mocked(confirmAsync).mockImplementation();
+    it('calls regular login if the sso flag is false', async () => {
       jest
         .mocked(promptAsync)
         .mockImplementationOnce(async () => ({ username: 'USERNAME', password: 'PASSWORD' }))
@@ -268,18 +267,11 @@ describe(SessionManager, () => {
       const sessionManager = new SessionManager(analytics);
 
       // Regular login
-      await sessionManager.showLoginPromptAsync({}, false);
-      expect(confirmAsync).not.toHaveBeenCalled();
+      await sessionManager.showLoginPromptAsync({ sso: false });
       expect(fetchSessionSecretAndUserAsync).toHaveBeenCalled();
-
-      // SSO login
-      await sessionManager.showLoginPromptAsync({}, true);
-      expect(confirmAsync).not.toHaveBeenCalled();
-      expect(fetchSessionSecretAndSsoUserAsync).toHaveBeenCalled();
     });
 
-    it('prompts whether to use SSO when the sso flag has not been set with negative confirmation', async () => {
-      jest.mocked(confirmAsync).mockResolvedValue(false);
+    it('calls regular login if the sso flag is undefined', async () => {
       jest
         .mocked(promptAsync)
         .mockImplementationOnce(async () => ({ username: 'USERNAME', password: 'PASSWORD' }))
@@ -288,19 +280,22 @@ describe(SessionManager, () => {
         });
 
       const sessionManager = new SessionManager(analytics);
-      await sessionManager.showLoginPromptAsync({});
-      expect(confirmAsync).toHaveBeenCalled();
+
+      // Regular login
+      await sessionManager.showLoginPromptAsync({ sso: undefined });
       expect(fetchSessionSecretAndUserAsync).toHaveBeenCalled();
-      expect(fetchSessionSecretAndSsoUserAsync).not.toHaveBeenCalled();
     });
 
-    it('prompts whether to use SSO when the sso flag has not been set, with positive confirmation', async () => {
-      jest.mocked(confirmAsync).mockResolvedValue(true);
+    it('calls SSO login if the sso flag is true', async () => {
+      // jest
+      //   .mocked(promptAsync)
+      //   .mockImplementationOnce(async () => ({ username: 'USERNAME', password: 'PASSWORD' }));
 
       const sessionManager = new SessionManager(analytics);
-      await sessionManager.showLoginPromptAsync({});
 
-      expect(fetchSessionSecretAndUserAsync).not.toHaveBeenCalled();
+      // SSO login
+      await sessionManager.showLoginPromptAsync({ sso: true });
+      expect(promptAsync).not.toHaveBeenCalled();
       expect(fetchSessionSecretAndSsoUserAsync).toHaveBeenCalled();
     });
   });

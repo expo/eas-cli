@@ -16,7 +16,7 @@ export const UserQuery = {
               meActor {
                 __typename
                 id
-                ... on User {
+                ... on UserActor {
                   username
                   primaryAccount {
                     id
@@ -25,13 +25,6 @@ export const UserQuery = {
                 }
                 ... on Robot {
                   firstName
-                }
-                ... on SSOUser {
-                  username
-                  primaryAccount {
-                    id
-                    ...AccountFragment
-                  }
                 }
                 accounts {
                   id
@@ -45,7 +38,7 @@ export const UserQuery = {
           `,
           {},
           {
-            additionalTypenames: ['User'],
+            additionalTypenames: ['User', 'SSOUser'],
           }
         )
         .toPromise()

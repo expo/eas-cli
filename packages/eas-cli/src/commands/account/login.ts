@@ -26,7 +26,7 @@ export default class AccountLogin extends EasCommand {
     } = await this.parse(AccountLogin);
 
     const { sessionManager } = await this.getContextAsync(AccountLogin, { nonInteractive: false });
-    await sessionManager.showLoginPromptAsync({}, sso);
+    await sessionManager.showLoginPromptAsync({ sso });
     Log.log('Logged in');
   }
 }

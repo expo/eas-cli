@@ -160,12 +160,12 @@ export async function getProjectIdAsync(
     switch (user.__typename) {
       case 'User':
         return user.username;
+      case 'SSOUser':
+        return user.username;
       case 'Robot':
         throw new Error(
           'The "owner" manifest property is required when using robot users. See: https://docs.expo.dev/versions/latest/config/app/#owner'
         );
-      case 'SSOUser':
-        throw new Error('SSO users are not supported yet.');
     }
   };
 
