@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Update `eas build:configure` command to show the link of `eas.json` when generated. ([#1878](https://github.com/expo/eas-cli/pull/1878) by [@amandeepmittal](https://github.com/amandeepmittal))
+
 ## [3.13.3](https://github.com/expo/eas-cli/releases/tag/v3.13.3) - 2023-06-05
 
 ### 🐛 Bug fixes
