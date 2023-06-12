@@ -3,7 +3,7 @@ import { EasJson, EasJsonAccessor } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
-import Log from '../log';
+import Log, { learnMore } from '../log';
 import { resolveWorkflowAsync } from '../project/workflow';
 import { easCliVersion } from '../utils/easCli';
 import { getVcsClient } from '../vcs';
@@ -102,5 +102,10 @@ async function createEasJsonAsync(projectDir: string): Promise<void> {
 
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
   await getVcsClient().trackFileAsync(easJsonPath);
-  Log.withTick(`Generated ${chalk.bold('eas.json')}`);
+  Log.withTick(
+    `Generated ${chalk.bold('eas.json')} ${learnMore(
+      'https://docs.expo.dev/build-reference/eas-json/',
+      { learnMoreMessage: '(learn more)' }
+    )}`
+  );
 }
