@@ -103,6 +103,8 @@ async function createEasJsonAsync(projectDir: string): Promise<void> {
   await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
   await getVcsClient().trackFileAsync(easJsonPath);
   Log.withTick(
-    `Generated ${chalk.bold('eas.json')}. ${learnMore('https://docs.expo.dev/build-reference/eas-json/')}`
+    `Generated ${chalk.bold('eas.json')}. ${learnMore(
+      'https://docs.expo.dev/build-reference/eas-json/'
+    )}`
   );
 }
