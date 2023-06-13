@@ -88,7 +88,6 @@
     "@graphql-codegen/introspection": "2.2.3",
     "@graphql-codegen/typescript": "2.8.7",
     "@graphql-codegen/typescript-operations": "2.5.12",
-    "@types/bunyan": "1.8.8",
     "@types/cli-progress": "3.11.0",
     "@types/dateformat": "3.0.1",
     "@types/envinfo": "7.8.1",
