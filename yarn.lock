@@ -1459,11 +1459,12 @@
     json5 "^2.2.2"
     write-file-atomic "^2.3.0"
 
-"@expo/logger@1.0.19":
-  version "1.0.19"
-  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.19.tgz#f6066fe124822665e9e4cda1aed380f419ab341b"
-  integrity sha512-i997kA/gwNLernDSLxucnQTFX00rp2gBn/86QAqVI7N9YSfwBjPR2TiOyNWjS6YNhP/oO6WoSn73qXGiB4+xRA==
+"@expo/logger@1.0.21":
+  version "1.0.21"
+  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.21.tgz#9271b52b8e27159cbbe3385b9a01fca3317b37c2"
+  integrity sha512-Vz+LHDGWUfowAwL10nBKqxrMYvO4qdZ8hLKcqUYc5mXBt+jmv7RP+8fcsMIejJEMWmYC2meO5eeCMLKKhEIgMA==
   dependencies:
+    "@types/bunyan" "^1.8.8"
     bunyan "^1.8.15"
 
 "@expo/multipart-body-parser@1.1.0":
@@ -1605,12 +1606,12 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.20":
-  version "1.0.20"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.20.tgz#98d9d43013e6fd55516193d2a5caf8a09a157db7"
-  integrity sha512-K5lyILOQDYTTRQTYkGyk4lKWzjNWsSAEfS2tErGbcAPGG4ykx9XJa/Xd5Go/Uj/qaTN+Bsym7fyapySlwNXaBw==
+"@expo/steps@1.0.21":
+  version "1.0.21"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.21.tgz#606f1b6eefed4d6a86cf98d6286101c4a75f12c7"
+  integrity sha512-fojpxwPO4xrCqanZzKZZJTQUSxaX4YrfV2jEfoiBvt9EZqLMcYkJgOCowzgJqz4cXFG4f0yFb9mqvMg+6a4JxA==
   dependencies:
-    "@expo/logger" "1.0.19"
+    "@expo/logger" "1.0.21"
     "@expo/spawn-async" "^1.7.0"
     arg "^5.0.2"
     joi "^17.7.0"
@@ -4154,7 +4155,7 @@
     "@types/connect" "*"
     "@types/node" "*"
 
-"@types/bunyan@1.8.8":
+"@types/bunyan@^1.8.8":
   version "1.8.8"
   resolved "https://registry.yarnpkg.com/@types/bunyan/-/bunyan-1.8.8.tgz#8d6d33f090f37c07e2a80af30ae728450a101008"
   integrity sha512-Cblq+Yydg3u+sGiz2mjHjC5MPmdjY+No4qvHrF+BUhblsmSfMvsHLbOG62tPbonsqBj6sbWv1LHcsoe5Jw+/Ow==
