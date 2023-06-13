@@ -12,6 +12,7 @@ import {
   testCommonIosAppCredentialsFragment,
   testTargets,
 } from '../../__tests__/fixtures-ios';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
 import IosCredentialsProvider from '../IosCredentialsProvider';
 import { getAppLookupParamsFromContextAsync } from '../actions/BuildCredentialsUtils';
 
@@ -46,7 +47,12 @@ describe(IosCredentialsProvider, () => {
       it('throws an error if credentials do not exist', async () => {
         const ctx = createCtxMock({
           nonInteractive: true,
-          appStore: getAppstoreMock(),
+          appStore: {
+            ...getAppstoreMock(),
+            ensureAuthenticatedAsync: jest.fn(async () => {
+              throw new MissingCredentialsNonInteractiveError();
+            }),
+          },
           projectDir: '/app',
           ios: {
             ...getNewIosApiMock(),

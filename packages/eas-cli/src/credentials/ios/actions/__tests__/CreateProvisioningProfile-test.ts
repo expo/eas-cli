@@ -48,9 +48,45 @@ describe('CreateProvisioningProfile', () => {
     // expect provisioning profile to be created on apple portal
     expect(jest.mocked(ctx.appStore.createProvisioningProfileAsync).mock.calls.length).toBe(1);
   });
-  it('errors in Non Interactive Mode', async () => {
+
+  it('creates a Provisioning Profile in Non Interactive Mode', async () => {
     const ctx = createCtxMock({
       nonInteractive: true,
+      appStore: {
+        ...getAppstoreMock(),
+        nonInteractive: true,
+        ensureAuthenticatedAsync: jest.fn(() => testAuthCtx),
+        authCtx: testAuthCtx,
+        createProvisioningProfileAsync: jest.fn(() => testProvisioningProfile),
+      },
+    });
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
+    const createProvProfAction = new CreateProvisioningProfile(
+      appLookupParams,
+      testTarget,
+      testDistCertFragmentNoDependencies
+    );
+    await createProvProfAction.runAsync(ctx);
+
+    // expect provisioning profile to be created on expo servers
+    expect(jest.mocked(ctx.ios.createProvisioningProfileAsync).mock.calls.length).toBe(1);
+    // expect provisioning profile to be created on apple portal
+    expect(jest.mocked(ctx.appStore.createProvisioningProfileAsync).mock.calls.length).toBe(1);
+  });
+
+  it('errors in Non Interactive Mode if not authenticated', async () => {
+    const ctx = createCtxMock({
+      nonInteractive: true,
+      appStore: {
+        ...getAppstoreMock(),
+        nonInteractive: true,
+        ensureAuthenticatedAsync: async () => {
+          throw new MissingCredentialsNonInteractiveError();
+        },
+      },
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(
       ctx,

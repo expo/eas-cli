@@ -163,7 +163,7 @@ describe('SetUpDistributionCertificate', () => {
     expect(jest.mocked(ctx.appStore.createDistributionCertificateAsync).mock.calls.length).toBe(1);
   });
 
-  it.only('does not create one if not authenticated with App Store', async () => {
+  it('does not create one if not authenticated with App Store', async () => {
     const now = new Date();
     const anHourAgo = new Date(now.getTime() - 60 * 60);
     const expiredCertificate = {
@@ -174,7 +174,9 @@ describe('SetUpDistributionCertificate', () => {
       nonInteractive: true,
       appStore: {
         ...getAppstoreMock(),
-        ensureAuthenticatedAsync: jest.fn(() => null),
+        ensureAuthenticatedAsync: jest.fn(async () => {
+          throw new MissingCredentialsNonInteractiveError();
+        }),
         authCtx: null,
       },
       ios: {

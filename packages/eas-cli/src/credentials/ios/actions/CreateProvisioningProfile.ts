@@ -4,7 +4,6 @@ import nullthrows from 'nullthrows';
 import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
@@ -23,11 +22,6 @@ export class CreateProvisioningProfile {
   ) {}
 
   async runAsync(ctx: CredentialsContext): Promise<AppleProvisioningProfileMutationResult> {
-    if (ctx.nonInteractive) {
-      throw new MissingCredentialsNonInteractiveError(
-        'Creating Provisioning Profiles is only supported in interactive mode.'
-      );
-    }
     const appleAuthCtx = await ctx.appStore.ensureAuthenticatedAsync();
     const provisioningProfile = await this.provideOrGenerateAsync(ctx, appleAuthCtx);
     const appleTeam = nullthrows(await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app));
@@ -53,11 +47,13 @@ export class CreateProvisioningProfile {
     ctx: CredentialsContext,
     appleAuthCtx: AuthCtx
   ): Promise<ProvisioningProfile> {
-    const userProvided = await askForUserProvidedAsync(provisioningProfileSchema);
-    if (userProvided) {
-      // userProvided profiles don't come with ProvisioningProfileId's (only accessible from Apple Portal API)
-      Log.warn('Provisioning profile: Unable to validate specified profile.');
-      return userProvided;
+    if (!ctx.nonInteractive) {
+      const userProvided = await askForUserProvidedAsync(provisioningProfileSchema);
+      if (userProvided) {
+        // userProvided profiles don't come with ProvisioningProfileId's (only accessible from Apple Portal API)
+        Log.warn('Provisioning profile: Unable to validate specified profile.');
+        return userProvided;
+      }
     }
     assert(
       this.distributionCertificate.certificateP12,
