@@ -13,15 +13,17 @@ export default class DeviceCreate extends EasCommand {
 
   async runAsync(): Promise<void> {
     // this command is interactive by design
+    const nonInteractive = false;
+
     const {
       loggedIn: { actor, graphqlClient },
       privateProjectConfig,
     } = await this.getContextAsync(DeviceCreate, {
-      nonInteractive: false,
+      nonInteractive,
     });
 
     const ctx = await createContextAsync({
-      appStore: new AppStoreApi(),
+      appStore: new AppStoreApi({ nonInteractive }),
       user: actor,
       graphqlClient,
       projectId: privateProjectConfig?.projectId,

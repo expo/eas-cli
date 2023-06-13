@@ -11,6 +11,7 @@ import chalk from 'chalk';
 
 import Log from '../../../log';
 import { toggleConfirmAsync } from '../../../prompts';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { MinimalAscApiKey } from '../credentials';
 import {
   ApiKeyAuthCtx,
@@ -40,9 +41,20 @@ export type Options = {
    * Can be used to restore the Apple auth state via apple-utils.
    */
   cookies?: Session.AuthState['cookies'];
-  /** Indicates how Apple network requests will be made. */
-  mode?: AuthenticationMode;
-};
+} & (
+  | {
+      /** Indicates how Apple network requests will be authenticated. */
+      mode?: AuthenticationMode;
+      /** Interactive mode is supported by both authentication modes. */
+      nonInteractive?: false;
+    }
+  | {
+      /** Indicates how Apple network requests will be authenticated. */
+      mode: AuthenticationMode.API_KEY;
+      /** Non-interactive mode requires API key authentication mode.  */
+      nonInteractive: true;
+    }
+);
 
 export function isUserAuthCtx(authCtx: AuthCtx | undefined): authCtx is UserAuthCtx {
   return !!authCtx && typeof (authCtx as UserAuthCtx).appleId === 'string';
@@ -154,14 +166,18 @@ async function loginWithUserCredentialsAsync({
 export async function authenticateAsync(options: Options = {}): Promise<AuthCtx> {
   if (options.mode === AuthenticationMode.API_KEY) {
     return await authenticateWithApiKeyAsync(options);
-  } else {
-    return await authenticateAsUserAsync(options);
   }
+
+  if (options.nonInteractive) {
+    throw new MissingCredentialsNonInteractiveError();
+  }
+
+  return await authenticateAsUserAsync(options);
 }
 
 async function authenticateWithApiKeyAsync(options: Options = {}): Promise<ApiKeyAuthCtx> {
   // Resolve the user credentials, optimizing for password-less login.
-  const ascApiKey = await resolveAscApiKeyAsync(options.ascApiKey);
+  const ascApiKey = await resolveAscApiKeyAsync(options);
   const team = await resolveAppleTeamAsync(options);
   const jwtDurationSeconds = 1200; // 20 minutes
   return {

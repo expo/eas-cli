@@ -2,6 +2,7 @@ import { ProfileType } from '@expo/app-store';
 
 import { Analytics } from '../../../analytics/AnalyticsManager';
 import Log from '../../../log';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
 import {
   AscApiKey,
   AscApiKeyInfo,
@@ -50,9 +51,15 @@ import { hasAscEnvVars } from './resolveCredentials';
 export default class AppStoreApi {
   public authCtx?: AuthCtx;
   public defaultAuthenticationMode: AuthenticationMode;
+  public readonly nonInteractive: boolean;
 
-  constructor() {
-    this.defaultAuthenticationMode = hasAscEnvVars()
+  constructor({ nonInteractive }: { nonInteractive: boolean }) {
+    this.nonInteractive = nonInteractive;
+    // If user has provided ASC ENV vars they most probably want to use
+    // this authentication method. If we're in non-interactive mode,
+    // we can't use user authentication method because it requires user input.
+    const shouldUseApiKeyAuthentication = hasAscEnvVars() || this.nonInteractive;
+    this.defaultAuthenticationMode = shouldUseApiKeyAuthentication
       ? AuthenticationMode.API_KEY
       : AuthenticationMode.USER;
   }
@@ -62,6 +69,10 @@ export default class AppStoreApi {
       // already authenticated, but with the wrong type
       Log.log(`Only user authentication is supported. Reauthenticating as user...`);
       this.authCtx = undefined;
+    }
+
+    if ((options?.nonInteractive ?? false) || this.nonInteractive) {
+      throw new MissingCredentialsNonInteractiveError();
     }
 
     const updatedAuthCtx = await this.ensureAuthenticatedAsync({

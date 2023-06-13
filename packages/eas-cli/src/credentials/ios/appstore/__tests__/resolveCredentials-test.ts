@@ -24,7 +24,7 @@ describe(resolveAscApiKeyAsync, () => {
     process.env.EXPO_ASC_API_KEY_PATH = 'not supposed to be here';
     process.env.EXPO_ASC_KEY_ID = 'not supposed to be here';
     process.env.EXPO_ASC_ISSUER_ID = 'not supposed to be here';
-    const ascApiKey = await resolveAscApiKeyAsync(testAscApiKey);
+    const ascApiKey = await resolveAscApiKeyAsync({ ascApiKey: testAscApiKey });
     expect(ascApiKey).toMatchObject(testAscApiKey);
   });
   it(`uses environment variables if no option overrides are provided`, async () => {

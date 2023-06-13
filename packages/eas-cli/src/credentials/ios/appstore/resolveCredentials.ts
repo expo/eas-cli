@@ -5,6 +5,7 @@ import wrapAnsi from 'wrap-ansi';
 
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
+import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { MinimalAscApiKey } from '../credentials';
 import { AppleTeamType, Team } from './authenticateTypes';
 import * as Keychain from './keychain';
@@ -36,11 +37,14 @@ export function hasAscEnvVars(): boolean {
 }
 
 export async function resolveAscApiKeyAsync(
-  ascApiKey?: MinimalAscApiKey
+  options: {
+    ascApiKey?: MinimalAscApiKey;
+    nonInteractive?: boolean;
+  } = {}
 ): Promise<MinimalAscApiKey> {
-  const passedKeyP8 = await getAscKeyP8FromEnvironmentOrOptionsAsync(ascApiKey);
-  const passedKeyId = await getAscKeyIdFromEnvironmentOrOptionsAsync(ascApiKey);
-  const passedIssuerId = await getAscIssuerIdFromEnvironmentOrOptionsAsync(ascApiKey);
+  const passedKeyP8 = await getAscKeyP8FromEnvironmentOrOptionsAsync(options);
+  const passedKeyId = await getAscKeyIdFromEnvironmentOrOptionsAsync(options);
+  const passedIssuerId = await getAscIssuerIdFromEnvironmentOrOptionsAsync(options);
 
   return {
     keyP8: passedKeyP8,
@@ -49,13 +53,21 @@ export async function resolveAscApiKeyAsync(
   };
 }
 
-async function getAscKeyP8FromEnvironmentOrOptionsAsync(
-  ascApiKey?: MinimalAscApiKey
-): Promise<string> {
+async function getAscKeyP8FromEnvironmentOrOptionsAsync({
+  ascApiKey,
+  nonInteractive,
+}: {
+  ascApiKey?: MinimalAscApiKey;
+  nonInteractive?: boolean;
+} = {}): Promise<string> {
   if (ascApiKey?.keyP8) {
     return ascApiKey?.keyP8;
   } else if (process.env.EXPO_ASC_API_KEY_PATH) {
     return await fs.readFile(process.env.EXPO_ASC_API_KEY_PATH, 'utf-8');
+  }
+
+  if (nonInteractive) {
+    throw new MissingCredentialsNonInteractiveError();
   }
 
   const { ascApiKeyPath } = await promptAsync({
@@ -67,13 +79,21 @@ async function getAscKeyP8FromEnvironmentOrOptionsAsync(
   return await fs.readFile(ascApiKeyPath, 'utf-8');
 }
 
-async function getAscKeyIdFromEnvironmentOrOptionsAsync(
-  ascApiKey?: MinimalAscApiKey
-): Promise<string> {
+async function getAscKeyIdFromEnvironmentOrOptionsAsync({
+  ascApiKey,
+  nonInteractive,
+}: {
+  ascApiKey?: MinimalAscApiKey;
+  nonInteractive?: boolean;
+} = {}): Promise<string> {
   if (ascApiKey?.keyId) {
     return ascApiKey?.keyId;
   } else if (process.env.EXPO_ASC_KEY_ID) {
     return process.env.EXPO_ASC_KEY_ID;
+  }
+
+  if (nonInteractive) {
+    throw new MissingCredentialsNonInteractiveError();
   }
 
   const { ascApiKeyId } = await promptAsync({
@@ -85,13 +105,21 @@ async function getAscKeyIdFromEnvironmentOrOptionsAsync(
   return ascApiKeyId;
 }
 
-async function getAscIssuerIdFromEnvironmentOrOptionsAsync(
-  ascApiKey?: MinimalAscApiKey
-): Promise<string> {
+async function getAscIssuerIdFromEnvironmentOrOptionsAsync({
+  ascApiKey,
+  nonInteractive,
+}: {
+  ascApiKey?: MinimalAscApiKey;
+  nonInteractive?: boolean;
+} = {}): Promise<string> {
   if (ascApiKey?.issuerId) {
     return ascApiKey?.issuerId;
   } else if (process.env.EXPO_ASC_ISSUER_ID) {
     return process.env.EXPO_ASC_ISSUER_ID;
+  }
+
+  if (nonInteractive) {
+    throw new MissingCredentialsNonInteractiveError();
   }
 
   const { ascIssuerId } = await promptAsync({
@@ -127,11 +155,16 @@ function resolveAppleTeamTypeFromEnvironment(): AppleTeamType | undefined {
 
 async function getAppleTeamIdFromEnvironmentOrOptionsAsync(options: {
   teamId?: string;
+  nonInteractive?: boolean;
 }): Promise<string> {
   if (options.teamId) {
     return options.teamId;
   } else if (process.env.EXPO_APPLE_TEAM_ID) {
     return process.env.EXPO_APPLE_TEAM_ID;
+  }
+
+  if (options.nonInteractive) {
+    throw new MissingCredentialsNonInteractiveError();
   }
 
   const { appleTeamId } = await promptAsync({
@@ -145,6 +178,7 @@ async function getAppleTeamIdFromEnvironmentOrOptionsAsync(options: {
 
 async function getAppleTeamTypeFromEnvironmentOrOptionsAsync(options: {
   teamType?: AppleTeamType;
+  nonInteractive?: boolean;
 }): Promise<string> {
   if (options.teamType) {
     return options.teamType;
@@ -153,6 +187,10 @@ async function getAppleTeamTypeFromEnvironmentOrOptionsAsync(options: {
   const appleTeamTypeFromEnvironment = resolveAppleTeamTypeFromEnvironment();
   if (appleTeamTypeFromEnvironment) {
     return appleTeamTypeFromEnvironment;
+  }
+
+  if (options.nonInteractive) {
+    throw new MissingCredentialsNonInteractiveError();
   }
 
   const { appleTeamType } = await promptAsync({
@@ -173,6 +211,7 @@ export async function resolveAppleTeamAsync(
     teamId?: string;
     teamName?: string;
     teamType?: AppleTeamType;
+    nonInteractive?: boolean;
   } = {}
 ): Promise<Team> {
   const passedTeamType = await getAppleTeamTypeFromEnvironmentOrOptionsAsync(options);

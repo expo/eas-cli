@@ -21,7 +21,7 @@ export type CredentialsContextProjectInfo = {
 
 export class CredentialsContext {
   public readonly android = AndroidGraphqlClient;
-  public readonly appStore = new AppStoreApi();
+  public readonly appStore: AppStoreApi;
   public readonly ios = IosGraphqlClient;
   public readonly nonInteractive: boolean;
   public readonly projectDir: string;
@@ -34,19 +34,17 @@ export class CredentialsContext {
 
   private projectInfo: CredentialsContextProjectInfo | null;
 
-  constructor(
-    private options: {
-      // if null, this implies not running in a project context
-      projectInfo: CredentialsContextProjectInfo | null;
-      easJsonCliConfig?: EasJson['cli'];
-      nonInteractive: boolean;
-      projectDir: string;
-      user: Actor;
-      graphqlClient: ExpoGraphqlClient;
-      analytics: Analytics;
-      env?: Env;
-    }
-  ) {
+  constructor(options: {
+    // if null, this implies not running in a project context
+    projectInfo: CredentialsContextProjectInfo | null;
+    easJsonCliConfig?: EasJson['cli'];
+    nonInteractive: boolean;
+    projectDir: string;
+    user: Actor;
+    graphqlClient: ExpoGraphqlClient;
+    analytics: Analytics;
+    env?: Env;
+  }) {
     this.easJsonCliConfig = options.easJsonCliConfig;
     this.projectDir = options.projectDir;
     this.user = options.user;
@@ -54,6 +52,7 @@ export class CredentialsContext {
     this.analytics = options.analytics;
     this.nonInteractive = options.nonInteractive ?? false;
     this.projectInfo = options.projectInfo;
+    this.appStore = new AppStoreApi({ nonInteractive: this.nonInteractive });
   }
 
   get hasProjectContext(): boolean {
@@ -75,7 +74,7 @@ export class CredentialsContext {
       return;
     }
     // trigger getConfig error
-    getPrivateExpoConfig(this.options.projectDir);
+    getPrivateExpoConfig(this.projectDir);
   }
 
   async bestEffortAppStoreAuthenticateAsync(): Promise<void> {
