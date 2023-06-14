@@ -109,7 +109,7 @@ export function getEASUpdateURL(projectId: string): string {
 export async function getSsoLocalServerPortAsync(): Promise<number> {
   let startPort: number;
   if (process.env.SSO_LOCAL_SERVER_PORT) {
-    startPort = parseInt(process.env.SSO_LOCAL_SERVER_PORT, 10);
+    startPort = Number(process.env.SSO_LOCAL_SERVER_PORT);
   } else {
     startPort = 19300;
   }
