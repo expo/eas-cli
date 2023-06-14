@@ -287,10 +287,6 @@ describe(SessionManager, () => {
     });
 
     it('calls SSO login if the sso flag is true', async () => {
-      // jest
-      //   .mocked(promptAsync)
-      //   .mockImplementationOnce(async () => ({ username: 'USERNAME', password: 'PASSWORD' }));
-
       const sessionManager = new SessionManager(analytics);
 
       // SSO login

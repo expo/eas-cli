@@ -122,7 +122,7 @@ export default class SessionManager {
 
     if (!actor) {
       Log.warn('An Expo user account is required to proceed.');
-      await this.showLoginPromptAsync({ nonInteractive, printNewLine: true, sso: undefined });
+      await this.showLoginPromptAsync({ nonInteractive, printNewLine: true });
       actor = await this.getUserAsync();
     }
 
@@ -152,9 +152,7 @@ export default class SessionManager {
   } = {}): Promise<void> {
     if (nonInteractive) {
       Errors.error(
-        `Either log in with ${chalk.bold('eas login')} or ${chalk.bold(
-          'eas login --sso | -s'
-        )} or set the ${chalk.bold(
+        `Either log in with ${chalk.bold('eas login')} or set the ${chalk.bold(
           'EXPO_TOKEN'
         )} environment variable if you're using EAS CLI on CI (${learnMore(
           'https://docs.expo.dev/accounts/programmatic-access/',
@@ -166,12 +164,12 @@ export default class SessionManager {
       Log.newLine();
     }
 
-    if (sso === true) {
+    if (sso) {
       await this.ssoLoginAsync();
       return;
     }
 
-    Log.log('Use ctrl-c to exit and then run eas login for other login options');
+    Log.log(`For other login options, ctrl-c to exit and then run ${chalk.bold('eas login')}`);
     Log.log('Log in to EAS with email or username');
 
     const { username, password } = await promptAsync([

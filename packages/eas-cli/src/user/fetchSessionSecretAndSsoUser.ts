@@ -1,5 +1,5 @@
 import { getExpoWebsiteBaseUrl, getSsoLocalServerPortAsync } from '../api';
-import { initiateAuthFlowAsync } from './expoSsoLauncher';
+import { getSessionUsingBrowserAuthFlowAsync } from './expoSsoLauncher';
 import { fetchUserAsync } from './fetchUser';
 
 export async function fetchSessionSecretAndSsoUserAsync(): Promise<{
@@ -11,7 +11,7 @@ export async function fetchSessionSecretAndSsoUserAsync(): Promise<{
     expoWebsiteUrl: getExpoWebsiteBaseUrl(),
     serverPort: await getSsoLocalServerPortAsync(),
   };
-  const sessionSecret = await initiateAuthFlowAsync(config);
+  const sessionSecret = await getSessionUsingBrowserAuthFlowAsync(config);
 
   const userData = await fetchUserAsync({ sessionSecret });
 

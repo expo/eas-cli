@@ -7,7 +7,7 @@ export async function fetchUserAsync({
 }: {
   sessionSecret: string;
 }): Promise<{ id: string; username: string }> {
-  const graphqlClient = createGraphqlClient({ accessToken: null, sessionSecret: null });
+  const graphqlClient = createGraphqlClient({ accessToken: null, sessionSecret });
   const result = await graphqlClient
     .query(
       gql`
@@ -20,11 +20,6 @@ export async function fetchUserAsync({
       `,
       {},
       {
-        fetchOptions: {
-          headers: {
-            'expo-session': sessionSecret,
-          },
-        },
         additionalTypenames: [] /* UserQuery has immutable fields */,
       }
     )

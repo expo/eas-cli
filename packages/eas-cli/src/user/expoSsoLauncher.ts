@@ -5,7 +5,7 @@ import querystring from 'querystring';
 
 import Log from '../log';
 
-export async function initiateAuthFlowAsync(options: {
+export async function getSessionUsingBrowserAuthFlowAsync(options: {
   expoWebsiteUrl: string;
   serverPort: number;
 }): Promise<string> {
@@ -45,7 +45,7 @@ export async function initiateAuthFlowAsync(options: {
             }
             resolve(sessionSecret);
             response.writeHead(200, { 'Content-Type': 'text/plain' });
-            response.write(`Thank you, website login has completed. You can now close this tab.`);
+            response.write(`Website login has completed. You can now close this tab.`);
             response.end();
           } catch (error) {
             reject(error);
@@ -60,7 +60,7 @@ export async function initiateAuthFlowAsync(options: {
       );
 
       server.listen(serverPort, hostname, () => {
-        Log.log('Waiting for website login...');
+        Log.log('Waiting for browser login...');
       });
 
       server.on('connection', connection => {
