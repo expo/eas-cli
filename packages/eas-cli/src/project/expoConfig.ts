@@ -74,7 +74,7 @@ export function ensureExpoConfigExists(projectDir: string): void {
 
 async function ensureStaticExpoConfigIsValidAsync(projectDir: string): Promise<void> {
   const paths = getConfigFilePaths(projectDir);
-  if (paths?.staticConfigPath?.endsWith('app.json')) {
+  if (paths?.staticConfigPath?.endsWith('app.json') && !paths?.dynamicConfigPath) {
     const staticConfig = await JsonFile.readAsync(paths.staticConfigPath);
 
     // Add the "expo" key if it doesn't exist on app.json yet, such as in
