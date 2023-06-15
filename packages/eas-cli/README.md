@@ -124,16 +124,13 @@ log in with your Expo account
 
 ```
 USAGE
-  $ eas account:login [--sso]
-
-FLAGS
-  -s, --sso  Log in with SSO
+  $ eas account:login
 
 DESCRIPTION
   log in with your Expo account
 
 ALIASES
-  $ eas login [-s]
+  $ eas login
 ```
 
 _See code: [src/commands/account/login.ts](https://github.com/expo/eas-cli/blob/v3.13.3/packages/eas-cli/src/commands/account/login.ts)_
