@@ -70,7 +70,7 @@ export async function expoCommandAsync(
   } catch (e: any) {
     if (e.code === 'MODULE_NOT_FOUND') {
       throw new Error(
-        `The \`expo\` package was not found. Please follow the installation directions at ${link(
+        `The \`expo\` package was not found. Follow the installation directions at ${link(
           'https://docs.expo.dev/bare/installing-expo-modules/'
         )}`
       );
