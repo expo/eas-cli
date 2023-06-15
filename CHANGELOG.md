@@ -9,7 +9,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Added new bundle identifier capabilities and entitlements from WWDC23. ([#1870](https://github.com/expo/eas-cli/pull/1870) by [@EvanBacon](https://github.com/EvanBacon))
-- Add support for SSO user login. ([#1875](https://github.com/expo/eas-cli/pull/1875) by [@lzkb](https://github.com/lzkb))
 
 ### 🐛 Bug fixes
 
