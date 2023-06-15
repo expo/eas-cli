@@ -465,7 +465,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
     );
   }
   Log.warn(
-    'Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but expo-updates is not installed.'
+    `Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but expo-updates is not installed.`
   );
   const installExpoUpdates = await confirmAsync({
     message: `Would you like to install expo-updates?`,
