@@ -1,3 +1,4 @@
+import { ExpoConfig } from '@expo/config-types';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import {
   AppVersionSource,
@@ -37,7 +38,12 @@ import {
 } from '../project/customBuildConfig';
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
-import { validateAppVersionRuntimePolicySupportAsync } from '../project/projectUtils';
+import {
+  installExpoUpdatesAsync,
+  isExpoUpdatesInstalledAsDevDependency,
+  isExpoUpdatesInstalledOrAvailable,
+  validateAppVersionRuntimePolicySupportAsync,
+} from '../project/projectUtils';
 import {
   validateAppConfigForRemoteVersionSource,
   validateBuildProfileVersionSettings,
@@ -122,14 +128,6 @@ export async function runBuildAndSubmitAsync(
 
   const customBuildConfigMetadataByPlatform: { [p in AppPlatform]?: CustomBuildConfigMetadata } =
     {};
-  for (const buildProfile of buildProfiles) {
-    validateBuildProfileVersionSettings(buildProfile, easJsonCliConfig);
-    const maybeMetadata = await validateCustomBuildConfigAsync(projectDir, buildProfile.profile);
-    if (maybeMetadata) {
-      customBuildConfigMetadataByPlatform[toAppPlatform(buildProfile.platform)] = maybeMetadata;
-    }
-  }
-
   const startedBuilds: {
     build: BuildWithSubmissionsFragment | BuildFragment;
     buildProfile: ProfileData<'build'>;
@@ -137,6 +135,24 @@ export async function runBuildAndSubmitAsync(
   const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
 
   for (const buildProfile of buildProfiles) {
+    const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
+      env: buildProfile.profile.env,
+    });
+
+    validateBuildProfileVersionSettings(buildProfile, easJsonCliConfig);
+    const maybeMetadata = await validateCustomBuildConfigAsync(projectDir, buildProfile.profile);
+    if (maybeMetadata) {
+      customBuildConfigMetadataByPlatform[toAppPlatform(buildProfile.platform)] = maybeMetadata;
+    }
+    if (buildProfile.profile.channel) {
+      await validateExpoUpdatesInstalledAsProjectDependencyAsync({
+        projectDir,
+        sdkVersion: exp.sdkVersion,
+        nonInteractive: flags.nonInteractive,
+        buildProfile,
+      });
+    }
+
     const platform = toAppPlatform(buildProfile.platform);
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
@@ -149,6 +165,8 @@ export async function runBuildAndSubmitAsync(
       analytics,
       getDynamicPrivateProjectConfigAsync,
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
+      exp,
+      projectId,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -257,8 +275,9 @@ async function prepareAndStartBuildAsync({
   actor,
   graphqlClient,
   analytics,
-  getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
+  exp,
+  projectId,
 }: {
   projectDir: string;
   flags: BuildFlags;
@@ -270,6 +289,8 @@ async function prepareAndStartBuildAsync({
   analytics: Analytics;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
+  exp: ExpoConfig;
+  projectId: string;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -286,8 +307,9 @@ async function prepareAndStartBuildAsync({
     actor,
     graphqlClient,
     analytics,
-    getDynamicPrivateProjectConfigAsync,
     customBuildConfigMetadata,
+    exp,
+    projectId,
   });
 
   if (moreBuilds) {
@@ -424,4 +446,44 @@ async function maybeDownloadAndRunSimulatorBuildsAsync(
       }
     }
   }
+}
+
+async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
+  projectDir,
+  buildProfile,
+  nonInteractive,
+  sdkVersion,
+}: {
+  projectDir: string;
+  buildProfile: ProfileData<'build'>;
+  nonInteractive: boolean;
+  sdkVersion?: string;
+}): Promise<void> {
+  if (isExpoUpdatesInstalledOrAvailable(projectDir, sdkVersion)) {
+    return;
+  }
+
+  if (isExpoUpdatesInstalledAsDevDependency(projectDir)) {
+    throw new Error(
+      `Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but expo-updates is installed as dev dependency. Please remove expo-updates from your dev dependencies and add it as dependency to your project.`
+    );
+  }
+  if (nonInteractive) {
+    throw new Error(
+      `Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but expo-updates is not installed. Please install expo-updates to use channels for your builds. Run "npx expo install expo-updates" to install expo-updates package.`
+    );
+  }
+  Log.warn(
+    'Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but expo-updates is not installed.'
+  );
+  const installExpoUpdates = await confirmAsync({
+    message: `Would you like to install expo-updates?`,
+  });
+  if (!installExpoUpdates) {
+    throw new Error(
+      `Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but expo-updates is not installed. Please install expo-updates to use channels for your builds. Run "npx expo install expo-updates" to install expo-updates package.`
+    );
+  }
+  await installExpoUpdatesAsync(projectDir, { silent: false });
+  Log.withTick('Installed expo updates');
 }
