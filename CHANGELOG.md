@@ -15,6 +15,8 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Eas update: Error gracefully if no git repo. ([#1884](https://github.com/expo/eas-cli/pull/1884) by [@quinlanj](https://github.com/quinlanj))
+- Error gracefully if expo pkg not installed. ([#1883](https://github.com/expo/eas-cli/pull/1883) by [@quinlanj](https://github.com/quinlanj))
+- Update `eas build:configure` command to show the link of `eas.json` when generated. ([#1878](https://github.com/expo/eas-cli/pull/1878) by [@amandeepmittal](https://github.com/amandeepmittal))
 
 ## [3.13.3](https://github.com/expo/eas-cli/releases/tag/v3.13.3) - 2023-06-05
 
