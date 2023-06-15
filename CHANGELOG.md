@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Eas update: Error gracefully if no git repo. ([#1884](https://github.com/expo/eas-cli/pull/1884) by [@quinlanj](https://github.com/quinlanj))
+
 ## [3.13.3](https://github.com/expo/eas-cli/releases/tag/v3.13.3) - 2023-06-05
 
 ### 🐛 Bug fixes
