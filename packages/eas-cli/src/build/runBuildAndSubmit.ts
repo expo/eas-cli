@@ -291,8 +291,8 @@ async function prepareAndStartBuildAsync({
     actor,
     graphqlClient,
     analytics,
-    customBuildConfigMetadata,
     getDynamicPrivateProjectConfigAsync,
+    customBuildConfigMetadata,
   });
 
   if (moreBuilds) {
