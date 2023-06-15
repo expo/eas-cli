@@ -1,4 +1,3 @@
-import { ExpoConfig } from '@expo/config-types';
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJson, ResourceClass } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
@@ -7,6 +6,7 @@ import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/AnalyticsManager';
+import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
 import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
@@ -34,9 +34,8 @@ export async function createBuildContextAsync<T extends Platform>({
   actor,
   graphqlClient,
   analytics,
+  getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
-  exp,
-  projectId,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -52,10 +51,10 @@ export async function createBuildContextAsync<T extends Platform>({
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
+  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
-  exp: ExpoConfig;
-  projectId: string;
 }): Promise<BuildContext<T>> {
+  const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: buildProfile.env });
   const projectName = exp.slug;
   const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
   const workflow = await resolveWorkflowAsync(projectDir, platform);

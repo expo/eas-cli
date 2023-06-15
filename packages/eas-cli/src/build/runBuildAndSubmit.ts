@@ -1,4 +1,3 @@
-import { ExpoConfig } from '@expo/config-types';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import {
   AppVersionSource,
@@ -128,6 +127,14 @@ export async function runBuildAndSubmitAsync(
 
   const customBuildConfigMetadataByPlatform: { [p in AppPlatform]?: CustomBuildConfigMetadata } =
     {};
+  for (const buildProfile of buildProfiles) {
+    validateBuildProfileVersionSettings(buildProfile, easJsonCliConfig);
+    const maybeMetadata = await validateCustomBuildConfigAsync(projectDir, buildProfile.profile);
+    if (maybeMetadata) {
+      customBuildConfigMetadataByPlatform[toAppPlatform(buildProfile.platform)] = maybeMetadata;
+    }
+  }
+
   const startedBuilds: {
     build: BuildWithSubmissionsFragment | BuildFragment;
     buildProfile: ProfileData<'build'>;
@@ -135,24 +142,6 @@ export async function runBuildAndSubmitAsync(
   const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
 
   for (const buildProfile of buildProfiles) {
-    const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
-      env: buildProfile.profile.env,
-    });
-
-    validateBuildProfileVersionSettings(buildProfile, easJsonCliConfig);
-    const maybeMetadata = await validateCustomBuildConfigAsync(projectDir, buildProfile.profile);
-    if (maybeMetadata) {
-      customBuildConfigMetadataByPlatform[toAppPlatform(buildProfile.platform)] = maybeMetadata;
-    }
-    if (buildProfile.profile.channel) {
-      await validateExpoUpdatesInstalledAsProjectDependencyAsync({
-        projectDir,
-        sdkVersion: exp.sdkVersion,
-        nonInteractive: flags.nonInteractive,
-        buildProfile,
-      });
-    }
-
     const platform = toAppPlatform(buildProfile.platform);
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
@@ -165,8 +154,6 @@ export async function runBuildAndSubmitAsync(
       analytics,
       getDynamicPrivateProjectConfigAsync,
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
-      exp,
-      projectId,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -275,9 +262,8 @@ async function prepareAndStartBuildAsync({
   actor,
   graphqlClient,
   analytics,
+  getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
-  exp,
-  projectId,
 }: {
   projectDir: string;
   flags: BuildFlags;
@@ -289,8 +275,6 @@ async function prepareAndStartBuildAsync({
   analytics: Analytics;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
-  exp: ExpoConfig;
-  projectId: string;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -308,8 +292,7 @@ async function prepareAndStartBuildAsync({
     graphqlClient,
     analytics,
     customBuildConfigMetadata,
-    exp,
-    projectId,
+    getDynamicPrivateProjectConfigAsync,
   });
 
   if (moreBuilds) {
@@ -328,6 +311,14 @@ async function prepareAndStartBuildAsync({
     buildCtx.projectId,
     flags.nonInteractive
   );
+  if (buildProfile.profile.channel) {
+    await validateExpoUpdatesInstalledAsProjectDependencyAsync({
+      projectDir,
+      sdkVersion: buildCtx.exp.sdkVersion,
+      nonInteractive: flags.nonInteractive,
+      buildProfile,
+    });
+  }
 
   await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
