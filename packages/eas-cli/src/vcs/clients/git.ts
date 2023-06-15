@@ -53,7 +53,7 @@ export default class GitClient extends Client {
     }
 
     Log.warn("It looks like you haven't initialized the git repository yet.");
-    Log.warn('EAS Build requires you to use a git repository for your project.');
+    Log.warn('EAS requires you to use a git repository for your project.');
 
     const cwd = process.cwd();
     const repoRoot = PackageManagerUtils.findWorkspaceRoot(cwd) ?? cwd;
