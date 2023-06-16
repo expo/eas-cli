@@ -5,6 +5,7 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
+  AndroidAppBuildCredentials,
   AndroidAppBuildCredentialsFragment,
   AndroidAppBuildCredentialsInput,
   CreateAndroidAppBuildCredentialsMutation,
@@ -54,6 +55,37 @@ export const AndroidAppBuildCredentialsMutation = {
       'GraphQL: `createAndroidAppBuildCredentials` not defined in server response'
     );
     return data.androidAppBuildCredentials.createAndroidAppBuildCredentials;
+  },
+  async setDefaultAndroidAppBuildCredentialsAsync(
+    graphqlClient: ExpoGraphqlClient,
+    androidAppBuildCredentialsId: string
+  ): Promise<AndroidAppBuildCredentialsFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<AndroidAppBuildCredentials>(
+          gql`
+            mutation AndroidAppBuildCredentialsMutation(
+              $androidAppBuildCredentialsId: ID!
+              $isDefault: Boolean!
+            ) {
+              androidAppBuildCredentials {
+                setDefault(id: $androidAppBuildCredentialsId, isDefault: $isDefault) {
+                  id
+                  ...AndroidAppBuildCredentialsFragment
+                }
+              }
+            }
+            ${print(AndroidAppBuildCredentialsFragmentNode)}
+          `,
+          {
+            androidAppBuildCredentialsId,
+            isDefault: true,
+          }
+        )
+        .toPromise()
+    );
+    assert(data, `GraphQL: 'setDefault' not defined in server response ${JSON.stringify(data)}}`);
+    return data;
   },
   async setKeystoreAsync(
     graphqlClient: ExpoGraphqlClient,

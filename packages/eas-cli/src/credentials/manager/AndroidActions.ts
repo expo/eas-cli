@@ -53,6 +53,11 @@ export const buildCredentialsActions: ActionInfo[] = [
     scope: Scope.Project,
   },
   {
+    value: AndroidActionType.SetDefaultKeystore,
+    title: 'Change default keystore',
+    scope: Scope.Project,
+  },
+  {
     value: AndroidActionType.DownloadKeystore,
     title: 'Download existing keystore',
     scope: Scope.Project,

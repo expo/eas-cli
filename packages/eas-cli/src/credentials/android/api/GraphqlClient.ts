@@ -146,6 +146,16 @@ export async function updateAndroidAppBuildCredentialsAsync(
   );
 }
 
+export async function setDefaultAndroidAppBuildCredentialsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  buildCredentials: AndroidAppBuildCredentialsFragment
+): Promise<AndroidAppBuildCredentialsFragment> {
+  return await AndroidAppBuildCredentialsMutation.setDefaultAndroidAppBuildCredentialsAsync(
+    graphqlClient,
+    buildCredentials.id
+  );
+}
+
 export async function createAndroidAppBuildCredentialsAsync(
   graphqlClient: ExpoGraphqlClient,
   appLookupParams: AppLookupParams,
@@ -164,14 +174,6 @@ export async function createAndroidAppBuildCredentialsAsync(
       graphqlClient,
       appLookupParams
     );
-  const buildCredentialsList = androidAppCredentials.androidAppBuildCredentialsList;
-  const existingDefaultBuildCredentials =
-    buildCredentialsList.find(buildCredentials => buildCredentials.isDefault) ?? null;
-  if (existingDefaultBuildCredentials && isDefault) {
-    throw new Error(
-      'Cannot create new default Android Build Credentials. A set of default credentials exists already.'
-    );
-  }
 
   return await AndroidAppBuildCredentialsMutation.createAndroidAppBuildCredentialsAsync(
     graphqlClient,
