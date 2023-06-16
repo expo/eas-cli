@@ -25,7 +25,6 @@ interface ExpoConfigOptionsInternal extends ExpoConfigOptions {
 export async function createOrModifyExpoConfigAsync(
   projectDir: string,
   exp: Partial<ExpoConfig>,
-  // options is the same type as the third argument to modifyConfigAsync
   readOptions?: { skipSDKVersionRequirement?: boolean }
 ): ReturnType<typeof modifyConfigAsync> {
   ensureExpoConfigExists(projectDir);
