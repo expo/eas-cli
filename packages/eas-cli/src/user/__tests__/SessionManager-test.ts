@@ -9,6 +9,7 @@ import Log from '../../log';
 import { promptAsync, selectAsync } from '../../prompts';
 import { getStateJsonPath } from '../../utils/paths';
 import SessionManager, { UserSecondFactorDeviceMethod } from '../SessionManager';
+import { fetchSessionSecretAndSsoUserAsync } from '../fetchSessionSecretAndSsoUser';
 import { fetchSessionSecretAndUserAsync } from '../fetchSessionSecretAndUser';
 
 jest.mock('../../prompts');
@@ -24,6 +25,7 @@ jest.mock('../../graphql/queries/UserQuery', () => ({
   },
 }));
 jest.mock('../fetchSessionSecretAndUser');
+jest.mock('../fetchSessionSecretAndSsoUser');
 jest.mock('../../api');
 
 const authStub: any = {
@@ -154,6 +156,29 @@ describe(SessionManager, () => {
     });
   });
 
+  describe('ssoLoginAsync', () => {
+    it('saves user data to ~/.expo/state.json', async () => {
+      jest.mocked(fetchSessionSecretAndSsoUserAsync).mockResolvedValue({
+        sessionSecret: 'SESSION_SECRET',
+        id: 'USER_ID',
+        username: 'USERNAME',
+      });
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager['ssoLoginAsync']();
+      expect(await fs.readFile(getStateJsonPath(), 'utf8')).toMatchInlineSnapshot(`
+        "{
+          "auth": {
+            "sessionSecret": "SESSION_SECRET",
+            "userId": "USER_ID",
+            "username": "USERNAME",
+            "currentConnection": "Browser-Flow-Authentication"
+          }
+        }
+        "
+      `);
+    });
+  });
+
   describe('logoutAsync', () => {
     it('removes the session secret', async () => {
       jest.mocked(fetchSessionSecretAndUserAsync).mockResolvedValue({
@@ -229,6 +254,45 @@ describe(SessionManager, () => {
           smsAutomaticallySent: true,
         }
       );
+    });
+
+    it('calls regular login if the sso flag is false', async () => {
+      jest
+        .mocked(promptAsync)
+        .mockImplementationOnce(async () => ({ username: 'USERNAME', password: 'PASSWORD' }))
+        .mockImplementation(() => {
+          throw new Error("shouldn't happen");
+        });
+
+      const sessionManager = new SessionManager(analytics);
+
+      // Regular login
+      await sessionManager.showLoginPromptAsync({ sso: false });
+      expect(fetchSessionSecretAndUserAsync).toHaveBeenCalled();
+    });
+
+    it('calls regular login if the sso flag is undefined', async () => {
+      jest
+        .mocked(promptAsync)
+        .mockImplementationOnce(async () => ({ username: 'USERNAME', password: 'PASSWORD' }))
+        .mockImplementation(() => {
+          throw new Error("shouldn't happen");
+        });
+
+      const sessionManager = new SessionManager(analytics);
+
+      // Regular login
+      await sessionManager.showLoginPromptAsync({ sso: undefined });
+      expect(fetchSessionSecretAndUserAsync).toHaveBeenCalled();
+    });
+
+    it('calls SSO login if the sso flag is true', async () => {
+      const sessionManager = new SessionManager(analytics);
+
+      // SSO login
+      await sessionManager.showLoginPromptAsync({ sso: true });
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(fetchSessionSecretAndSsoUserAsync).toHaveBeenCalled();
     });
   });
 

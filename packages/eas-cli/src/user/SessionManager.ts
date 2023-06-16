@@ -13,6 +13,7 @@ import { UserQuery } from '../graphql/queries/UserQuery';
 import Log, { learnMore } from '../log';
 import { promptAsync, selectAsync } from '../prompts';
 import { getStateJsonPath } from '../utils/paths';
+import { fetchSessionSecretAndSsoUserAsync } from './fetchSessionSecretAndSsoUser';
 import { fetchSessionSecretAndUserAsync } from './fetchSessionSecretAndUser';
 
 type UserSettingsData = {
@@ -25,7 +26,7 @@ type SessionData = {
   // These fields are potentially used by Expo CLI.
   userId: string;
   username: string;
-  currentConnection: 'Username-Password-Authentication';
+  currentConnection: 'Username-Password-Authentication' | 'Browser-Flow-Authentication';
 };
 
 export enum UserSecondFactorDeviceMethod {
@@ -147,6 +148,7 @@ export default class SessionManager {
   public async showLoginPromptAsync({
     nonInteractive = false,
     printNewLine = false,
+    sso = false,
   } = {}): Promise<void> {
     if (nonInteractive) {
       Errors.error(
@@ -162,7 +164,16 @@ export default class SessionManager {
       Log.newLine();
     }
 
-    Log.log('Log in to EAS');
+    if (sso) {
+      await this.ssoLoginAsync();
+      return;
+    }
+
+    Log.log(
+      `Log in to EAS with email or username (exit and run ${chalk.bold(
+        'eas login'
+      )} for other options)`
+    );
 
     const { username, password } = await promptAsync([
       {
@@ -192,6 +203,16 @@ export default class SessionManager {
         throw e;
       }
     }
+  }
+
+  private async ssoLoginAsync(): Promise<void> {
+    const { sessionSecret, id, username } = await fetchSessionSecretAndSsoUserAsync();
+    await this.setSessionAsync({
+      sessionSecret,
+      userId: id,
+      username,
+      currentConnection: 'Browser-Flow-Authentication',
+    });
   }
 
   private async loginAsync(input: {
