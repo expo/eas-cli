@@ -342,7 +342,7 @@ export async function ensureEASUpdateIsConfiguredAsync(
   );
   if (!hasExpoUpdates) {
     await installExpoUpdatesAsync(projectDir, { silent: false });
-    Log.withTick('Installed expo updates');
+    Log.withTick('Installed expo-updates');
   }
 
   // Bail out if using a platform that doesn't require runtime versions

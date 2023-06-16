@@ -471,7 +471,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
     });
     if (installExpoUpdates) {
       await installExpoUpdatesAsync(projectDir, { silent: false });
-      Log.withTick('Installed expo updates');
+      Log.withTick('Installed expo-updates');
     }
   }
 }
