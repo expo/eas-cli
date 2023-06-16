@@ -203,6 +203,8 @@ export default abstract class EasCommand extends Command {
       Log.error(err.message);
     }
     Log.debug(err);
-    throw new Error(baseMessage);
+    const sanitizedError = new Error(baseMessage);
+    sanitizedError.stack = err.stack;
+    throw sanitizedError;
   }
 }

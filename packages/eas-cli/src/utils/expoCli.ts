@@ -5,7 +5,7 @@ import { boolish } from 'getenv';
 import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
 import semver from 'semver';
 
-import Log from '../log';
+import Log, { link } from '../log';
 import { memoize } from './expodash/memoize';
 
 // Aggressively returns `true` (UNVERSIONED, invalid SDK version format) to push users towards the versioned CLI.
@@ -63,8 +63,21 @@ export async function expoCommandAsync(
   args: string[],
   { silent = false }: { silent?: boolean } = {}
 ): Promise<void> {
-  const expoCliPath =
-    silentResolveFrom(projectDir, 'expo/bin/cli') ?? resolveFrom(projectDir, 'expo/bin/cli.js');
+  let expoCliPath;
+  try {
+    expoCliPath =
+      silentResolveFrom(projectDir, 'expo/bin/cli') ?? resolveFrom(projectDir, 'expo/bin/cli.js');
+  } catch (e: any) {
+    if (e.code === 'MODULE_NOT_FOUND') {
+      throw new Error(
+        `The \`expo\` package was not found. Follow the installation directions at ${link(
+          'https://docs.expo.dev/bare/installing-expo-modules/'
+        )}`
+      );
+    }
+    throw e;
+  }
+
   const spawnPromise = spawnAsync(expoCliPath, args, {
     stdio: ['inherit', 'pipe', 'pipe'], // inherit stdin so user can install a missing expo-cli from inside this command
   });
