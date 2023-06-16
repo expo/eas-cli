@@ -455,26 +455,23 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
   }
 
   if (isExpoUpdatesInstalledAsDevDependency(projectDir)) {
-    throw new Error(
+    Log.warn(
       `Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but expo-updates is installed as dev dependency. Please remove expo-updates from your dev dependencies and add it as dependency to your project.`
     );
-  }
-  if (nonInteractive) {
-    throw new Error(
+  } else if (nonInteractive) {
+    Log.warn(
       `Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but expo-updates is not installed. Please install expo-updates to use channels for your builds. Run "npx expo install expo-updates" to install expo-updates package.`
     );
-  }
-  Log.warn(
-    `Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but expo-updates is not installed.`
-  );
-  const installExpoUpdates = await confirmAsync({
-    message: `Would you like to install expo-updates?`,
-  });
-  if (!installExpoUpdates) {
-    throw new Error(
-      `Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but expo-updates is not installed. Please install expo-updates to use channels for your builds. Run "npx expo install expo-updates" to install expo-updates package.`
+  } else {
+    Log.warn(
+      `Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but expo-updates is not installed.`
     );
+    const installExpoUpdates = await confirmAsync({
+      message: `Would you like to install expo-updates?`,
+    });
+    if (installExpoUpdates) {
+      await installExpoUpdatesAsync(projectDir, { silent: false });
+      Log.withTick('Installed expo updates');
+    }
   }
-  await installExpoUpdatesAsync(projectDir, { silent: false });
-  Log.withTick('Installed expo updates');
 }
