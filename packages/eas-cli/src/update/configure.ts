@@ -12,6 +12,7 @@ import { RequestedPlatform, appPlatformDisplayNames } from '../platform';
 import { createOrModifyExpoConfigAsync } from '../project/expoConfig';
 import {
   installExpoUpdatesAsync,
+  isExpoUpdatesInstalledAsDevDependency,
   isExpoUpdatesInstalledOrAvailable,
 } from '../project/projectUtils';
 import { resolveWorkflowPerPlatformAsync } from '../project/workflow';
@@ -340,9 +341,14 @@ export async function ensureEASUpdateIsConfiguredAsync(
     projectDir,
     expWithoutUpdates.sdkVersion
   );
-  if (!hasExpoUpdates) {
+  const hasExpoUpdatesInDevDependencies = isExpoUpdatesInstalledAsDevDependency(projectDir);
+  if (!hasExpoUpdates && !hasExpoUpdatesInDevDependencies) {
     await installExpoUpdatesAsync(projectDir, { silent: false });
     Log.withTick('Installed expo-updates');
+  } else if (hasExpoUpdatesInDevDependencies) {
+    Log.warn(
+      `The "expo-updates" package is installed as a dev dependency. This is not recommended. Move "expo-updates" to your dependencies.`
+    );
   }
 
   // Bail out if using a platform that doesn't require runtime versions
