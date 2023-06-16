@@ -1,4 +1,4 @@
-import { getProjectConfigDescription, modifyConfigAsync } from '@expo/config';
+import { getProjectConfigDescription } from '@expo/config';
 import { ExpoConfig } from '@expo/config-types';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
@@ -13,7 +13,7 @@ import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
-import { getPrivateExpoConfig } from '../../project/expoConfig';
+import { createOrModifyExpoConfigAsync, getPrivateExpoConfig } from '../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { toAppPrivacy } from '../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../prompts';
@@ -60,7 +60,7 @@ export default class ProjectInit extends EasCommand {
     projectDir: string,
     modifications: Partial<ExpoConfig>
   ): Promise<void> {
-    const result = await modifyConfigAsync(projectDir, modifications);
+    const result = await createOrModifyExpoConfigAsync(projectDir, modifications);
     switch (result.type) {
       case 'success':
         break;

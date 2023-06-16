@@ -1,4 +1,4 @@
-import { getProjectConfigDescription, modifyConfigAsync } from '@expo/config';
+import { getProjectConfigDescription } from '@expo/config';
 import { ExpoConfig } from '@expo/config-types';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
@@ -6,7 +6,7 @@ import chalk from 'chalk';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
-import { getPrivateExpoConfig } from '../../../project/expoConfig';
+import { createOrModifyExpoConfigAsync, getPrivateExpoConfig } from '../../../project/expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { toAppPrivacy } from '../../../project/projectUtils';
 import SessionManager from '../../../user/SessionManager';
@@ -25,7 +25,7 @@ export async function saveProjectIdToAppConfigAsync(
   options: { env?: Env } = {}
 ): Promise<void> {
   const exp = getPrivateExpoConfig(projectDir, options);
-  const result = await modifyConfigAsync(
+  const result = await createOrModifyExpoConfigAsync(
     projectDir,
     {
       extra: { ...exp.extra, eas: { ...exp.extra?.eas, projectId } },

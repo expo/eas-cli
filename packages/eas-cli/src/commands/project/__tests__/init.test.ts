@@ -1,4 +1,4 @@
-import { AppJSONConfig, PackageJSONConfig, getConfig, modifyConfigAsync } from '@expo/config';
+import { AppJSONConfig, PackageJSONConfig, getConfig } from '@expo/config';
 import chalk from 'chalk';
 import { vol } from 'memfs';
 import { instance, mock } from 'ts-mockito';
@@ -12,12 +12,17 @@ import FeatureGating from '../../../commandUtils/gating/FeatureGating';
 import { jester, jester2 } from '../../../credentials/__tests__/fixtures-constants';
 import { AppMutation } from '../../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
+import { createOrModifyExpoConfigAsync } from '../../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import ProjectInit from '../init';
 
 jest.mock('fs');
 jest.mock('@expo/config');
+jest.mock('../../../project/expoConfig', () => ({
+  ...jest.requireActual('../../../project/expoConfig'),
+  createOrModifyExpoConfigAsync: jest.fn(),
+}));
 jest.mock('../../../prompts');
 jest.mock('../../../user/actions');
 jest.mock('../../../graphql/mutations/AppMutation');
@@ -143,13 +148,16 @@ describe(ProjectInit.name, () => {
       });
 
       describe('force', () => {
-        it('does not prompt to overwrite when different', async () => {
+        beforeEach(() => {
           jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
             id: '1234',
             slug: 'testing-123',
             fullName: '@jester/testing-123',
             ownerAccount: jester.accounts[0],
           });
+        });
+
+        it('does not prompt to overwrite when different', async () => {
           await new ProjectInit(['--id', '12345', '--force'], {
             root: '/test-project',
           } as any).run();
@@ -183,7 +191,7 @@ describe(ProjectInit.name, () => {
           });
 
           await new ProjectInit(['--id', '1234'], commandOptions).run();
-          expect(modifyConfigAsync).not.toHaveBeenCalled();
+          expect(createOrModifyExpoConfigAsync).not.toHaveBeenCalled();
         });
 
         it('prompts to configure if not consistent', async () => {
@@ -195,14 +203,20 @@ describe(ProjectInit.name, () => {
           });
 
           jest.mocked(confirmAsync).mockResolvedValue(true);
-          jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+          jest
+            .mocked(createOrModifyExpoConfigAsync)
+            .mockResolvedValue({ type: 'success', config: {} as any });
 
           await new ProjectInit(['--id', '1234'], commandOptions).run();
 
           expect(confirmAsync).toHaveBeenCalled();
-          expect(modifyConfigAsync).toHaveBeenCalledTimes(2);
-          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { owner: 'jester2' });
-          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { slug: 'testing-124' });
+          expect(createOrModifyExpoConfigAsync).toHaveBeenCalledTimes(2);
+          expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith('/test-project', {
+            owner: 'jester2',
+          });
+          expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith('/test-project', {
+            slug: 'testing-124',
+          });
         });
 
         it('overrides if force flag is present and it is not consistent', async () => {
@@ -213,14 +227,20 @@ describe(ProjectInit.name, () => {
             ownerAccount: jester2.accounts[0],
           });
 
-          jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+          jest
+            .mocked(createOrModifyExpoConfigAsync)
+            .mockResolvedValue({ type: 'success', config: {} as any });
 
           await new ProjectInit(['--id', '1234', '--force'], commandOptions).run();
 
           expect(confirmAsync).not.toHaveBeenCalled();
-          expect(modifyConfigAsync).toHaveBeenCalledTimes(2);
-          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { owner: 'jester2' });
-          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { slug: 'testing-124' });
+          expect(createOrModifyExpoConfigAsync).toHaveBeenCalledTimes(2);
+          expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith('/test-project', {
+            owner: 'jester2',
+          });
+          expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith('/test-project', {
+            slug: 'testing-124',
+          });
         });
 
         it('throws if non-interactive is present and it is not consistent', async () => {
@@ -231,7 +251,9 @@ describe(ProjectInit.name, () => {
             ownerAccount: jester2.accounts[0],
           });
 
-          jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+          jest
+            .mocked(createOrModifyExpoConfigAsync)
+            .mockResolvedValue({ type: 'success', config: {} as any });
 
           await expect(
             new ProjectInit(['--id', '1234', '--non-interactive'], commandOptions).run()
@@ -240,7 +262,7 @@ describe(ProjectInit.name, () => {
           );
 
           expect(confirmAsync).not.toHaveBeenCalled();
-          expect(modifyConfigAsync).not.toHaveBeenCalled();
+          expect(createOrModifyExpoConfigAsync).not.toHaveBeenCalled();
         });
       });
     });
@@ -271,7 +293,7 @@ describe(ProjectInit.name, () => {
           });
 
           await new ProjectInit(['--id', '1234'], commandOptions).run();
-          expect(modifyConfigAsync).not.toHaveBeenCalled();
+          expect(createOrModifyExpoConfigAsync).not.toHaveBeenCalled();
         });
 
         it('prompts to configure if not consistent', async () => {
@@ -285,14 +307,20 @@ describe(ProjectInit.name, () => {
           });
 
           jest.mocked(confirmAsync).mockResolvedValue(true);
-          jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+          jest
+            .mocked(createOrModifyExpoConfigAsync)
+            .mockResolvedValue({ type: 'success', config: {} as any });
 
           await new ProjectInit(['--id', '1234'], commandOptions).run();
 
           expect(confirmAsync).toHaveBeenCalled();
-          expect(modifyConfigAsync).toHaveBeenCalledTimes(2);
-          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { owner: 'jester2' });
-          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { slug: 'testing-124' });
+          expect(createOrModifyExpoConfigAsync).toHaveBeenCalledTimes(2);
+          expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith('/test-project', {
+            owner: 'jester2',
+          });
+          expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith('/test-project', {
+            slug: 'testing-124',
+          });
         });
 
         it('overrides if force flag is present and it is not consistent', async () => {
@@ -305,14 +333,20 @@ describe(ProjectInit.name, () => {
             ownerAccount: jester2.accounts[0],
           });
 
-          jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+          jest
+            .mocked(createOrModifyExpoConfigAsync)
+            .mockResolvedValue({ type: 'success', config: {} as any });
 
           await new ProjectInit(['--id', '1234', '--force'], commandOptions).run();
 
           expect(confirmAsync).not.toHaveBeenCalled();
-          expect(modifyConfigAsync).toHaveBeenCalledTimes(2);
-          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { owner: 'jester2' });
-          expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { slug: 'testing-124' });
+          expect(createOrModifyExpoConfigAsync).toHaveBeenCalledTimes(2);
+          expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith('/test-project', {
+            owner: 'jester2',
+          });
+          expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith('/test-project', {
+            slug: 'testing-124',
+          });
         });
 
         it('throws if non-interactive is present and it is not consistent', async () => {
@@ -325,7 +359,9 @@ describe(ProjectInit.name, () => {
             ownerAccount: jester2.accounts[0],
           });
 
-          jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+          jest
+            .mocked(createOrModifyExpoConfigAsync)
+            .mockResolvedValue({ type: 'success', config: {} as any });
 
           await expect(
             new ProjectInit(['--id', '1234', '--non-interactive'], commandOptions).run()
@@ -334,7 +370,7 @@ describe(ProjectInit.name, () => {
           );
 
           expect(confirmAsync).not.toHaveBeenCalled();
-          expect(modifyConfigAsync).not.toHaveBeenCalled();
+          expect(createOrModifyExpoConfigAsync).not.toHaveBeenCalled();
         });
       });
     });
@@ -367,14 +403,20 @@ describe(ProjectInit.name, () => {
         });
 
         jest.mocked(confirmAsync).mockResolvedValue(true);
-        jest.mocked(modifyConfigAsync).mockResolvedValue({ type: 'success', config: {} as any });
+        jest
+          .mocked(createOrModifyExpoConfigAsync)
+          .mockResolvedValue({ type: 'success', config: {} as any });
 
         await new ProjectInit([], commandOptions).run();
 
         expect(confirmAsync).toHaveBeenCalled();
-        expect(modifyConfigAsync).toHaveBeenCalledTimes(2);
-        expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { owner: 'jester2' });
-        expect(modifyConfigAsync).toHaveBeenCalledWith('/test-project', { slug: 'testing-124' });
+        expect(createOrModifyExpoConfigAsync).toHaveBeenCalledTimes(2);
+        expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith('/test-project', {
+          owner: 'jester2',
+        });
+        expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith('/test-project', {
+          slug: 'testing-124',
+        });
       });
     });
 
