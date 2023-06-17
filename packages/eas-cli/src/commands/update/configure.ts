@@ -1,9 +1,10 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
+import { easJsonExistsAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
-import Log, { learnMore, link } from '../../log';
+import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
 import {
   ensureEASUpdateIsConfiguredAsync,
@@ -57,7 +58,10 @@ export default class UpdateConfigure extends EasCommand {
     Log.addNewLineIfNone();
     Log.log(`🎉 Your app is configured with EAS Update!`);
     Log.newLine();
-    Log.log(`- Run ${chalk.bold('eas build:configure')} to complete your installation`);
+    const easJsonExists = await easJsonExistsAsync(projectDir);
+    if (!easJsonExists) {
+      Log.log(`- Run ${chalk.bold('eas build:configure')} to complete your installation`);
+    }
     Log.log(
       `- ${learnMore('https://docs.expo.dev/eas-update/introduction/', {
         learnMoreMessage: 'Learn more about other capabilities of EAS Update',
