@@ -2,13 +2,12 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import { getEASUpdateURL } from '../../api';
 import { cleanUpOldEasBuildGradleScriptAsync } from '../../build/android/syncProjectConfiguration';
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
-import { isExpoUpdatesInstalled } from '../../project/projectUtils';
+import { isExpoUpdatesInstalled, isUsingEASUpdate } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
@@ -59,10 +58,13 @@ export default class BuildConfigure extends EasCommand {
 
     // ensure eas.json exists
     Log.newLine();
-    await ensureProjectConfiguredAsync({
+    const didCreateEasJson = await ensureProjectConfiguredAsync({
       projectDir,
       nonInteractive: false,
     });
+    if (didCreateEasJson && isUsingEASUpdate(exp, projectId)) {
+      await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
+    }
 
     // configure expo-updates
     if (expoUpdatesIsInstalled) {
@@ -78,11 +80,6 @@ export default class BuildConfigure extends EasCommand {
         if (workflow === Workflow.GENERIC) {
           await syncIosUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
         }
-      }
-
-      // configure for EAS Update
-      if (exp.updates?.url === getEASUpdateURL(projectId)) {
-        await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
       }
     }
 

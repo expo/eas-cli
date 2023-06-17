@@ -5,6 +5,7 @@ import path from 'path';
 import resolveFrom from 'resolve-from';
 import semver from 'semver';
 
+import { getEASUpdateURL } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AccountFragment, AppPrivacy } from '../graphql/generated';
 import { AppQuery } from '../graphql/queries/AppQuery';
@@ -76,6 +77,10 @@ export function isExpoUpdatesInstalledOrAvailable(
   }
 
   return isExpoUpdatesInstalled(projectDir);
+}
+
+export function isUsingEASUpdate(exp: ExpoConfig, projectId: string): boolean {
+  return exp.updates?.url === getEASUpdateURL(projectId);
 }
 
 export async function validateAppVersionRuntimePolicySupportAsync(
