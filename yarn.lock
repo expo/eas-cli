@@ -1606,10 +1606,10 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.21":
-  version "1.0.21"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.21.tgz#606f1b6eefed4d6a86cf98d6286101c4a75f12c7"
-  integrity sha512-fojpxwPO4xrCqanZzKZZJTQUSxaX4YrfV2jEfoiBvt9EZqLMcYkJgOCowzgJqz4cXFG4f0yFb9mqvMg+6a4JxA==
+"@expo/steps@1.0.23":
+  version "1.0.23"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.23.tgz#a996244be55ae939636a00fdc27c9922bb4f0c42"
+  integrity sha512-H6rW49Dje0O/EDamhpbiYwpVltWM+057Exd7RFz8pzmPnkIAYHMXOErIftl3P79LM+ydWe5WWLX92cYU5uCFgA==
   dependencies:
     "@expo/logger" "1.0.21"
     "@expo/spawn-async" "^1.7.0"
@@ -7479,6 +7479,11 @@ forwarded@0.2.0:
   version "0.2.0"
   resolved "https://registry.yarnpkg.com/forwarded/-/forwarded-0.2.0.tgz#2269936428aad4c15c7ebe9779a84bf0b2a81811"
   integrity sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==
+
+freeport-async@2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/freeport-async/-/freeport-async-2.0.0.tgz#6adf2ec0c629d11abff92836acd04b399135bab4"
+  integrity sha512-K7od3Uw45AJg00XUmy15+Hae2hOcgKcmN3/EF6Y7i01O0gaqiRx8sUSpsb9+BRNL8RPBrhzPsVfy8q9ADlJuWQ==
 
 fresh@0.5.2:
   version "0.5.2"

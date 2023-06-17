@@ -1,4 +1,3 @@
-import { modifyConfigAsync } from '@expo/config';
 import { ExpoConfig } from '@expo/config-types';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { EasJsonAccessor } from '@expo/eas-json';
@@ -10,6 +9,7 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import { AppPlatform } from '../graphql/generated';
 import Log, { learnMore } from '../log';
 import { RequestedPlatform, appPlatformDisplayNames } from '../platform';
+import { createOrModifyExpoConfigAsync } from '../project/expoConfig';
 import {
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledOrAvailable,
@@ -128,7 +128,7 @@ async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
   }
 
   const mergedExp = mergeExpoConfig(exp, modifyConfig);
-  const result = await modifyConfigAsync(projectDir, mergedExp);
+  const result = await createOrModifyExpoConfigAsync(projectDir, mergedExp);
 
   switch (result.type) {
     case 'success':

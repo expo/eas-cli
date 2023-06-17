@@ -3,7 +3,7 @@ import { CurrentUserQuery, Robot, SsoUser, User } from '../graphql/generated';
 export type Actor = NonNullable<CurrentUserQuery['meActor']>;
 
 /**
- * Resolve the name of the actor, either normal user or robot user.
+ * Resolve the name of the actor, either normal user, sso user or robot user.
  * This should be used whenever the "current user" needs to be displayed.
  * The display name CANNOT be used as project owner.
  */

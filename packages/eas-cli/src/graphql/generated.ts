@@ -1164,6 +1164,7 @@ export type AppBuildsPaginatedArgs = {
 export type AppChannelsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']>;
   before?: InputMaybe<Scalars['String']>;
+  filter?: InputMaybe<ChannelFilterInput>;
   first?: InputMaybe<Scalars['Int']>;
   last?: InputMaybe<Scalars['Int']>;
 };
@@ -1363,6 +1364,7 @@ export type AppInput = {
 
 export type AppInsights = {
   __typename?: 'AppInsights';
+  hasEventsFromExpoInsightsClientModule: Scalars['Boolean'];
   totalUniqueUsers?: Maybe<Scalars['Int']>;
   uniqueUsersByAppVersionOverTime: UniqueUsersOverTimeData;
   uniqueUsersByPlatformOverTime: UniqueUsersOverTimeData;
@@ -1980,6 +1982,43 @@ export enum AuthProtocolType {
   Oidc = 'OIDC'
 }
 
+export type BackgroundJobReceipt = {
+  __typename?: 'BackgroundJobReceipt';
+  account: Account;
+  createdAt: Scalars['DateTime'];
+  errorCode?: Maybe<Scalars['String']>;
+  errorMessage?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  resultId?: Maybe<Scalars['ID']>;
+  resultType: BackgroundJobResultType;
+  state: BackgroundJobState;
+  tries: Scalars['Int'];
+  updatedAt: Scalars['DateTime'];
+  willRetry: Scalars['Boolean'];
+};
+
+export type BackgroundJobReceiptQuery = {
+  __typename?: 'BackgroundJobReceiptQuery';
+  /** Look up background job receipt by ID */
+  byId: BackgroundJobReceipt;
+};
+
+
+export type BackgroundJobReceiptQueryByIdArgs = {
+  id: Scalars['ID'];
+};
+
+export enum BackgroundJobResultType {
+  GithubBuild = 'GITHUB_BUILD'
+}
+
+export enum BackgroundJobState {
+  Failure = 'FAILURE',
+  InProgress = 'IN_PROGRESS',
+  Queued = 'QUEUED',
+  Success = 'SUCCESS'
+}
+
 export type Billing = {
   __typename?: 'Billing';
   /** History of invoices */
@@ -2478,6 +2517,10 @@ export type Card = {
   expMonth?: Maybe<Scalars['Int']>;
   expYear?: Maybe<Scalars['Int']>;
   last4?: Maybe<Scalars['String']>;
+};
+
+export type ChannelFilterInput = {
+  searchTerm?: InputMaybe<Scalars['String']>;
 };
 
 export type Charge = {
@@ -3011,8 +3054,8 @@ export enum GitHubAppInstallationStatus {
 
 export type GitHubAppMutation = {
   __typename?: 'GitHubAppMutation';
-  /** Create a GitHub build for an app */
-  createGitHubBuild: Scalars['Boolean'];
+  /** Create a GitHub build for an app. Returns the ID of the background job receipt. Use BackgroundJobReceiptQuery to get the status of the job. */
+  createGitHubBuild: BackgroundJobReceipt;
 };
 
 
@@ -4122,6 +4165,7 @@ export type RootQuery = {
   /** Top-level query object for querying Apple Teams. */
   appleTeam: AppleTeamQuery;
   asset: AssetQuery;
+  backgroundJobReceipt: BackgroundJobReceiptQuery;
   buildJobs: BuildJobQuery;
   buildOrBuildJob: BuildOrBuildJobQuery;
   /** Top-level query object for querying BuildPublicData publicly. */
@@ -4221,6 +4265,7 @@ export type SsoUser = Actor & UserActor & {
   /** Coalesced project activity for all apps belonging to all accounts this user belongs to. Only resolves for the viewer. */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   appCount: Scalars['Int'];
+  /** @deprecated No longer supported */
   appetizeCode?: Maybe<Scalars['String']>;
   /** Apps this user has published. If this user is the viewer, this field returns the apps the user has access to. */
   apps: Array<App>;
@@ -4238,11 +4283,14 @@ export type SsoUser = Actor & UserActor & {
   fullName?: Maybe<Scalars['String']>;
   /** GitHub account linked to a user */
   githubUser?: Maybe<GitHubUser>;
+  /** @deprecated No longer supported */
   githubUsername?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  /** @deprecated No longer supported */
   industry?: Maybe<Scalars['String']>;
   isExpoAdmin: Scalars['Boolean'];
   lastName?: Maybe<Scalars['String']>;
+  /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']>;
   notificationSubscriptions: Array<NotificationSubscription>;
   /** Associated accounts */
@@ -4250,6 +4298,7 @@ export type SsoUser = Actor & UserActor & {
   profilePhoto: Scalars['String'];
   /** Snacks associated with this account */
   snacks: Array<Snack>;
+  /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
 };
@@ -4291,11 +4340,7 @@ export type SsoUserSnacksArgs = {
 
 export type SsoUserDataInput = {
   firstName?: InputMaybe<Scalars['String']>;
-  githubUsername?: InputMaybe<Scalars['String']>;
-  industry?: InputMaybe<Scalars['String']>;
   lastName?: InputMaybe<Scalars['String']>;
-  location?: InputMaybe<Scalars['String']>;
-  twitterUsername?: InputMaybe<Scalars['String']>;
 };
 
 export type SsoUserQuery = {
@@ -4748,6 +4793,7 @@ export type Update = ActivityTimelineProjectActivity & {
 
 export type UpdateBranch = {
   __typename?: 'UpdateBranch';
+  app: App;
   appId: Scalars['ID'];
   createdAt: Scalars['DateTime'];
   id: Scalars['ID'];
@@ -4809,6 +4855,7 @@ export type UpdateBranchMutationPublishUpdateGroupsArgs = {
 
 export type UpdateChannel = {
   __typename?: 'UpdateChannel';
+  app: App;
   appId: Scalars['ID'];
   branchMapping: Scalars['String'];
   createdAt: Scalars['DateTime'];
@@ -4960,6 +5007,7 @@ export type User = Actor & UserActor & {
   /** Coalesced project activity for all apps belonging to all accounts this user belongs to. Only resolves for the viewer. */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   appCount: Scalars['Int'];
+  /** @deprecated No longer supported */
   appetizeCode?: Maybe<Scalars['String']>;
   /** Apps this user has published */
   apps: Array<App>;
@@ -4979,16 +5027,19 @@ export type User = Actor & UserActor & {
   fullName?: Maybe<Scalars['String']>;
   /** GitHub account linked to a user */
   githubUser?: Maybe<GitHubUser>;
+  /** @deprecated No longer supported */
   githubUsername?: Maybe<Scalars['String']>;
   /** Whether this user has any pending user invitations. Only resolves for the viewer. */
   hasPendingUserInvitations: Scalars['Boolean'];
   id: Scalars['ID'];
+  /** @deprecated No longer supported */
   industry?: Maybe<Scalars['String']>;
   isExpoAdmin: Scalars['Boolean'];
-  /** @deprecated This field no longer exists */
+  /** @deprecated No longer supported */
   isLegacy: Scalars['Boolean'];
   isSecondFactorAuthenticationEnabled: Scalars['Boolean'];
   lastName?: Maybe<Scalars['String']>;
+  /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']>;
   notificationSubscriptions: Array<NotificationSubscription>;
   /** Pending UserInvitations for this user. Only resolves for the viewer. */
@@ -5000,6 +5051,7 @@ export type User = Actor & UserActor & {
   secondFactorDevices: Array<UserSecondFactorDevice>;
   /** Snacks associated with this account */
   snacks: Array<Snack>;
+  /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
 };
@@ -5050,6 +5102,7 @@ export type UserActor = {
    */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   appCount: Scalars['Int'];
+  /** @deprecated No longer supported */
   appetizeCode?: Maybe<Scalars['String']>;
   /** Apps this user has published */
   apps: Array<App>;
@@ -5071,11 +5124,14 @@ export type UserActor = {
   fullName?: Maybe<Scalars['String']>;
   /** GitHub account linked to a user */
   githubUser?: Maybe<GitHubUser>;
+  /** @deprecated No longer supported */
   githubUsername?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  /** @deprecated No longer supported */
   industry?: Maybe<Scalars['String']>;
   isExpoAdmin: Scalars['Boolean'];
   lastName?: Maybe<Scalars['String']>;
+  /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']>;
   notificationSubscriptions: Array<NotificationSubscription>;
   /** Associated accounts */
@@ -5083,6 +5139,7 @@ export type UserActor = {
   profilePhoto: Scalars['String'];
   /** Snacks associated with this user's personal account */
   snacks: Array<Snack>;
+  /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
 };
@@ -5141,17 +5198,12 @@ export type UserActorQueryByUsernameArgs = {
 };
 
 export type UserDataInput = {
-  appetizeCode?: InputMaybe<Scalars['String']>;
   email?: InputMaybe<Scalars['String']>;
   firstName?: InputMaybe<Scalars['String']>;
   fullName?: InputMaybe<Scalars['String']>;
-  githubUsername?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
-  industry?: InputMaybe<Scalars['String']>;
   lastName?: InputMaybe<Scalars['String']>;
-  location?: InputMaybe<Scalars['String']>;
   profilePhoto?: InputMaybe<Scalars['String']>;
-  twitterUsername?: InputMaybe<Scalars['String']>;
   username?: InputMaybe<Scalars['String']>;
 };
 
@@ -6156,7 +6208,7 @@ export type ViewUpdateGroupsOnAppQuery = { __typename?: 'RootQuery', app: { __ty
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?: { __typename: 'Robot', firstName?: string | null, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'SSOUser', username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'User', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | null };
+export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?: { __typename: 'Robot', firstName?: string | null, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'SSOUser', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'User', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, accounts: Array<{ __typename?: 'Account', id: string, name: string, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | null };
 
 export type WebhooksByAppIdQueryVariables = Exact<{
   appId: Scalars['String'];

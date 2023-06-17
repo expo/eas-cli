@@ -1,7 +1,5 @@
-import gql from 'graphql-tag';
-
 import { ApiV2Client } from '../api';
-import { createGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { fetchUserAsync } from './fetchUser';
 
 export async function fetchSessionSecretAndUserAsync({
   username,
@@ -21,32 +19,10 @@ export async function fetchSessionSecretAndUserAsync({
     body: { username, password, otp },
   });
   const { sessionSecret } = body.data;
-  const graphqlClient = createGraphqlClient({ accessToken: null, sessionSecret: null });
-  const result = await graphqlClient
-    .query(
-      gql`
-        query UserQuery {
-          viewer {
-            id
-            username
-          }
-        }
-      `,
-      {},
-      {
-        fetchOptions: {
-          headers: {
-            'expo-session': sessionSecret,
-          },
-        },
-        additionalTypenames: [] /* UserQuery has immutable fields */,
-      }
-    )
-    .toPromise();
-  const { data } = result;
+  const userData = await fetchUserAsync({ sessionSecret });
   return {
     sessionSecret,
-    id: data.viewer.id,
-    username: data.viewer.username,
+    id: userData.id,
+    username: userData.username,
   };
 }

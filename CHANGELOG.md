@@ -7,7 +7,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🛠 Breaking changes
 
 ### 🎉 New features
-
+- Added support for SSO users. ([#1875](https://github.com/expo/eas-cli/pull/1875) by [@lzkb](https://github.com/lzkb))
 - Added new bundle identifier capabilities and entitlements from WWDC23. ([#1870](https://github.com/expo/eas-cli/pull/1870) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🐛 Bug fixes
@@ -15,6 +15,11 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Build:configure -- add channels to eas.json if using eas updates. ([#1887](https://github.com/expo/eas-cli/pull/1887) by [@quinlanj](https://github.com/quinlanj))
+- Eas update: Error gracefully if no git repo. ([#1884](https://github.com/expo/eas-cli/pull/1884) by [@quinlanj](https://github.com/quinlanj))
+- Error gracefully if expo pkg not installed. ([#1883](https://github.com/expo/eas-cli/pull/1883) by [@quinlanj](https://github.com/quinlanj))
+- Update `eas build:configure` command to show the link of `eas.json` when generated. ([#1878](https://github.com/expo/eas-cli/pull/1878) by [@amandeepmittal](https://github.com/amandeepmittal))
+- Create app.json or add the "expo" key if either are missing, before modifying or reading the file. ([#1881](https://github.com/expo/eas-cli/pull/1881) by [@brentvatne](https://github.com/brentvatne))
+- Include the original stack in re-thrown errors thrown from EAS CLI commands. ([#1882](https://github.com/expo/eas-cli/pull/1882) by [@brentvatne](https://github.com/brentvatne))
 
 ## [3.13.3](https://github.com/expo/eas-cli/releases/tag/v3.13.3) - 2023-06-05
 
