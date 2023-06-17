@@ -265,9 +265,7 @@ export async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: stri
     Log.warn(
       `EAS Build is not configured. If you'd like to use EAS Build with EAS Update, run ${chalk.bold(
         'eas build:configure'
-      )}, then re-run ${chalk.bold('eas update:configure')} to configure ${chalk.bold(
-        'eas.json'
-      )} with EAS Update.`
+      )}.`
     );
     return;
   }

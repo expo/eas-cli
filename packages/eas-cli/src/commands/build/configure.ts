@@ -7,10 +7,11 @@ import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
-import { isExpoUpdatesInstalled } from '../../project/projectUtils';
+import { isExpoUpdatesInstalled, isUsingEASUpdate } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
+import { ensureEASUpdateIsConfiguredInEasJsonAsync } from '../../update/configure';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
 import { getVcsClient } from '../../vcs';
 
@@ -57,10 +58,13 @@ export default class BuildConfigure extends EasCommand {
 
     // ensure eas.json exists
     Log.newLine();
-    await ensureProjectConfiguredAsync({
+    const didCreateEasJson = await ensureProjectConfiguredAsync({
       projectDir,
       nonInteractive: false,
     });
+    if (didCreateEasJson && isUsingEASUpdate(exp, projectId)) {
+      await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
+    }
 
     // configure expo-updates
     if (expoUpdatesIsInstalled) {

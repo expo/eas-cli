@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Build:configure -- add channels to eas.json if using eas updates. ([#1887](https://github.com/expo/eas-cli/pull/1887) by [@quinlanj](https://github.com/quinlanj))
 - Eas update: Error gracefully if no git repo. ([#1884](https://github.com/expo/eas-cli/pull/1884) by [@quinlanj](https://github.com/quinlanj))
 - Error gracefully if expo pkg not installed. ([#1883](https://github.com/expo/eas-cli/pull/1883) by [@quinlanj](https://github.com/quinlanj))
 - Update `eas build:configure` command to show the link of `eas.json` when generated. ([#1878](https://github.com/expo/eas-cli/pull/1878) by [@amandeepmittal](https://github.com/amandeepmittal))
