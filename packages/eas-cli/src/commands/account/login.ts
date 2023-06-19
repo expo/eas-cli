@@ -13,6 +13,7 @@ export default class AccountLogin extends EasCommand {
       description: 'Login with SSO',
       char: 's',
       default: false,
+      hidden: true,
     }),
   };
 

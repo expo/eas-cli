@@ -906,10 +906,7 @@ log in with your Expo account
 
 ```
 USAGE
-  $ eas login [--sso]
-
-FLAGS
-  -s, --sso  Log in with SSO
+  $ eas login
 
 DESCRIPTION
   log in with your Expo account
