@@ -14,6 +14,10 @@ interface ConfigureParams {
   nonInteractive: boolean;
 }
 
+export async function easJsonExistsAsync(projectDir: string): Promise<boolean> {
+  return await fs.pathExists(EasJsonAccessor.formatEasJsonPath(projectDir));
+}
+
 /**
  * Creates eas.json if it does not exist.
  *
@@ -24,7 +28,7 @@ interface ConfigureParams {
 export async function ensureProjectConfiguredAsync(
   configureParams: ConfigureParams
 ): Promise<boolean> {
-  if (await fs.pathExists(EasJsonAccessor.formatEasJsonPath(configureParams.projectDir))) {
+  if (await easJsonExistsAsync(configureParams.projectDir)) {
     return false;
   }
 
