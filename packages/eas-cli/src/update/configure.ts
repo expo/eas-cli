@@ -347,7 +347,7 @@ export async function ensureEASUpdateIsConfiguredAsync(
     Log.withTick('Installed expo-updates');
   } else if (hasExpoUpdatesInDevDependencies) {
     Log.warn(
-      `The "expo-updates" package is installed as a dev dependency. This is not recommended. Move "expo-updates" to your dependencies.`
+      `The "expo-updates" package is installed as a dev dependency. This is not recommended. Move "expo-updates" to your main dependencies.`
     );
   }
 
