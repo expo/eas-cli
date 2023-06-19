@@ -456,18 +456,18 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
 
   if (isExpoUpdatesInstalledAsDevDependency(projectDir)) {
     Log.warn(
-      `Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but "expo-updates" package is installed as dev dependency. Remove "expo-updates" from your dev dependencies and add it as dependency to your project to use channels for your builds.`
+      `The build profile "${buildProfile.profileName}" uses the channel "${buildProfile.profile.channel}", but you've added "expo-updates" as a dev dependency. To make channels work for your builds, move "expo-updates" from dev dependencies to the main dependencies in your project.`
     );
   } else if (nonInteractive) {
     Log.warn(
-      `Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but "expo-updates" package is not installed. Install "expo-updates" package to use channels for your builds. Run "npx expo install expo-updates" to install expo-updates package.`
+      `The build profile "${buildProfile.profileName}" has specified the channel "${buildProfile.profile.channel}", but the "expo-updates" package hasn't been installed. To use channels for your builds, install the "expo-updates" package by running "npx expo install expo-updates".`
     );
   } else {
     Log.warn(
-      `Channel "${buildProfile.profile.channel}" is specified for build profile "${buildProfile.profileName}" but "expo-updates" package is not installed. Install "expo-updates" package to use channels for your builds.`
+      `The build profile "${buildProfile.profileName}" specifies the channel "${buildProfile.profile.channel}", but the "expo-updates" package is missing. To use channels in your builds, install the "expo-updates" package.`
     );
     const installExpoUpdates = await confirmAsync({
-      message: `Would you like to install "expo-updates" package?`,
+      message: `Would you like to install the "expo-updates" package?`,
     });
     if (installExpoUpdates) {
       await installExpoUpdatesAsync(projectDir, { silent: false });
