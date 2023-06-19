@@ -14,7 +14,6 @@ import {
 } from '../android/actions/BuildCredentialsUtils';
 import { CreateFcm } from '../android/actions/CreateFcm';
 import { CreateGoogleServiceAccountKey } from '../android/actions/CreateGoogleServiceAccountKey';
-import { CreateKeystore } from '../android/actions/CreateKeystore';
 import { DownloadKeystore } from '../android/actions/DownloadKeystore';
 import { RemoveFcm } from '../android/actions/RemoveFcm';
 import { SelectAndRemoveGoogleServiceAccountKey } from '../android/actions/RemoveGoogleServiceAccountKey';
@@ -36,13 +35,11 @@ import {
   gsaKeyActions,
   highLevelActions,
 } from './AndroidActions';
+import { CreateAndroidBuildCredentials } from './CreateAndroidBuildCredentials';
 import { Action, PressAnyKeyToContinue } from './HelperActions';
-import {
-  SelectAndroidBuildCredentials,
-  SelectAndroidBuildCredentialsResultType,
-  SelectExistingAndroidBuildCredentials,
-} from './SelectAndroidBuildCredentials';
+import { SelectExistingAndroidBuildCredentials } from './SelectAndroidBuildCredentials';
 import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
+import { SetDefaultAndroidKeystore } from './SetDefaultAndroidKeystore';
 
 export class ManageAndroid {
   constructor(private callingAction: Action, private projectDir: string) {}
@@ -163,31 +160,9 @@ export class ManageAndroid {
     );
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, gradleContext);
     if (action === AndroidActionType.CreateKeystore) {
-      const selectBuildCredentialsResult = await new SelectAndroidBuildCredentials(
-        appLookupParams
-      ).runAsync(ctx);
-      const keystore = await new CreateKeystore(appLookupParams.account).runAsync(ctx);
-      if (
-        selectBuildCredentialsResult.resultType ===
-        SelectAndroidBuildCredentialsResultType.CREATE_REQUEST
-      ) {
-        await ctx.android.createAndroidAppBuildCredentialsAsync(
-          ctx.graphqlClient,
-          appLookupParams,
-          {
-            ...selectBuildCredentialsResult.result,
-            androidKeystoreId: keystore.id,
-          }
-        );
-      } else {
-        await ctx.android.updateAndroidAppBuildCredentialsAsync(
-          ctx.graphqlClient,
-          selectBuildCredentialsResult.result,
-          {
-            androidKeystoreId: keystore.id,
-          }
-        );
-      }
+      await new CreateAndroidBuildCredentials(appLookupParams).runAsync(ctx);
+    } else if (action === AndroidActionType.SetDefaultKeystore) {
+      await new SetDefaultAndroidKeystore(appLookupParams).runAsync(ctx);
     } else if (action === AndroidActionType.DownloadKeystore) {
       const buildCredentials = await new SelectExistingAndroidBuildCredentials(
         appLookupParams

@@ -18,6 +18,7 @@ export enum AndroidActionType {
   GoBackToCaller,
   GoBackToHighLevelActions,
   CreateKeystore,
+  SetDefaultKeystore,
   DownloadKeystore,
   RemoveKeystore,
   CreateFcm,
