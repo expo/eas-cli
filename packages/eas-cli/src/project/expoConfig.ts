@@ -2,6 +2,7 @@ import { ExpoConfig, getConfig, getConfigFilePaths, modifyConfigAsync } from '@e
 import { Env } from '@expo/eas-build-job';
 import JsonFile from '@expo/json-file';
 import fs from 'fs-extra';
+import Joi from 'joi';
 import path from 'path';
 
 export type PublicExpoConfig = Omit<
@@ -51,11 +52,31 @@ function getExpoConfigInternal(
       skipSDKVersionRequirement: true,
       ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
     });
+
+    const { error } = MinimalAppConfigSchema.validate(exp, {
+      allowUnknown: true,
+      abortEarly: true,
+    });
+    if (error) {
+      throw new Error(`Invalid app config.\n${error.message}`);
+    }
     return exp;
   } finally {
     process.env = originalProcessEnv;
   }
 }
+
+const MinimalAppConfigSchema = Joi.object({
+  slug: Joi.string().required(),
+  name: Joi.string().required(),
+  version: Joi.string(),
+  android: Joi.object({
+    versionCode: Joi.number().integer(),
+  }),
+  ios: Joi.object({
+    buildNumber: Joi.string(),
+  }),
+});
 
 export function getPrivateExpoConfig(projectDir: string, opts: ExpoConfigOptions = {}): ExpoConfig {
   ensureExpoConfigExists(projectDir);
