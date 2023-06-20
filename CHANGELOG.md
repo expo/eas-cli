@@ -25,6 +25,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Include the original stack in re-thrown errors thrown from EAS CLI commands. ([#1882](https://github.com/expo/eas-cli/pull/1882) by [@brentvatne](https://github.com/brentvatne))
 - Make `update:configure` less verbose. ([#1888](https://github.com/expo/eas-cli/pull/1888) by [@quinlanj](https://github.com/quinlanj))
 - Improve validation for values from app config. ([#1893](https://github.com/expo/eas-cli/pull/1893) by [@wkozyra95](https://github.com/wkozyra95))
+- Improve `expo-updates` validation for builds with `channel` property set. ([#1885](https://github.com/expo/eas-cli/pull/1885) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [3.13.3](https://github.com/expo/eas-cli/releases/tag/v3.13.3) - 2023-06-05
 
