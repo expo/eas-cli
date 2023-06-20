@@ -67,6 +67,11 @@ export function isExpoUpdatesInstalled(projectDir: string): boolean {
   return !!(packageJson.dependencies && 'expo-updates' in packageJson.dependencies);
 }
 
+export function isExpoUpdatesInstalledAsDevDependency(projectDir: string): boolean {
+  const packageJson = getPackageJson(projectDir);
+  return !!(packageJson.devDependencies && 'expo-updates' in packageJson.devDependencies);
+}
+
 export function isExpoUpdatesInstalledOrAvailable(
   projectDir: string,
   sdkVersion?: string

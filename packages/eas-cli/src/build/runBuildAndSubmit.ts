@@ -37,7 +37,12 @@ import {
 } from '../project/customBuildConfig';
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
-import { validateAppVersionRuntimePolicySupportAsync } from '../project/projectUtils';
+import {
+  installExpoUpdatesAsync,
+  isExpoUpdatesInstalledAsDevDependency,
+  isExpoUpdatesInstalledOrAvailable,
+  validateAppVersionRuntimePolicySupportAsync,
+} from '../project/projectUtils';
 import {
   validateAppConfigForRemoteVersionSource,
   validateBuildProfileVersionSettings,
@@ -306,6 +311,14 @@ async function prepareAndStartBuildAsync({
     buildCtx.projectId,
     flags.nonInteractive
   );
+  if (buildProfile.profile.channel) {
+    await validateExpoUpdatesInstalledAsProjectDependencyAsync({
+      projectDir,
+      sdkVersion: buildCtx.exp.sdkVersion,
+      nonInteractive: flags.nonInteractive,
+      buildProfile,
+    });
+  }
 
   await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
@@ -422,6 +435,43 @@ async function maybeDownloadAndRunSimulatorBuildsAsync(
           await downloadAndRunAsync(simBuild);
         }
       }
+    }
+  }
+}
+
+async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
+  projectDir,
+  buildProfile,
+  nonInteractive,
+  sdkVersion,
+}: {
+  projectDir: string;
+  buildProfile: ProfileData<'build'>;
+  nonInteractive: boolean;
+  sdkVersion?: string;
+}): Promise<void> {
+  if (isExpoUpdatesInstalledOrAvailable(projectDir, sdkVersion)) {
+    return;
+  }
+
+  if (isExpoUpdatesInstalledAsDevDependency(projectDir)) {
+    Log.warn(
+      `The build profile "${buildProfile.profileName}" uses the channel "${buildProfile.profile.channel}", but you've added "expo-updates" as a dev dependency. To make channels work for your builds, move "expo-updates" from dev dependencies to the main dependencies in your project.`
+    );
+  } else if (nonInteractive) {
+    Log.warn(
+      `The build profile "${buildProfile.profileName}" has specified the channel "${buildProfile.profile.channel}", but the "expo-updates" package hasn't been installed. To use channels for your builds, install the "expo-updates" package by running "npx expo install expo-updates".`
+    );
+  } else {
+    Log.warn(
+      `The build profile "${buildProfile.profileName}" specifies the channel "${buildProfile.profile.channel}", but the "expo-updates" package is missing. To use channels in your builds, install the "expo-updates" package.`
+    );
+    const installExpoUpdates = await confirmAsync({
+      message: `Would you like to install the "expo-updates" package?`,
+    });
+    if (installExpoUpdates) {
+      await installExpoUpdatesAsync(projectDir, { silent: false });
+      Log.withTick('Installed expo-updates');
     }
   }
 }
