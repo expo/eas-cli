@@ -8,11 +8,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [3.14.0](https://github.com/expo/eas-cli/releases/tag/v3.14.0) - 2023-06-20
+
+### 🎉 New features
+
 - Added support for SSO users. ([#1875](https://github.com/expo/eas-cli/pull/1875) by [@lzkb](https://github.com/lzkb))
 - Added new bundle identifier capabilities and entitlements from WWDC23. ([#1870](https://github.com/expo/eas-cli/pull/1870) by [@EvanBacon](https://github.com/EvanBacon))
 - Selecting default keystore via CLI. ([#1889](https://github.com/expo/eas-cli/pull/1889) by [@khamilowicz](https://github.com/khamilowicz))
-
-### 🐛 Bug fixes
 
 ### 🧹 Chores
 
