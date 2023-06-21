@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Better runtimeVersion output. ([#1894](https://github.com/expo/eas-cli/pull/1894) by [@quinlanj](https://github.com/quinlanj))
+
 ## [3.14.0](https://github.com/expo/eas-cli/releases/tag/v3.14.0) - 2023-06-20
 
 ### 🎉 New features
