@@ -169,22 +169,29 @@ function logEasUpdatesAutoConfig({
     );
   }
 
-  if (modifyConfig.android?.runtimeVersion ?? modifyConfig.runtimeVersion) {
+  const androidRuntime = modifyConfig.android?.runtimeVersion ?? modifyConfig.runtimeVersion;
+  const iosRuntime = modifyConfig.ios?.runtimeVersion ?? modifyConfig.runtimeVersion;
+  if (androidRuntime && iosRuntime && androidRuntime === iosRuntime) {
     Log.withTick(
-      `Configured runtimeVersion for ${
-        appPlatformDisplayNames[AppPlatform.Android]
-      } with "${JSON.stringify(
-        modifyConfig.android?.runtimeVersion ?? modifyConfig.runtimeVersion
-      )}"`
-    );
-  }
-
-  if (modifyConfig.ios?.runtimeVersion ?? modifyConfig.runtimeVersion) {
-    Log.withTick(
-      `Configured runtimeVersion for ${
+      `Configured runtimeVersion for ${appPlatformDisplayNames[AppPlatform.Android]} and ${
         appPlatformDisplayNames[AppPlatform.Ios]
-      } with "${JSON.stringify(modifyConfig.ios?.runtimeVersion ?? modifyConfig.runtimeVersion)}"`
+      } with "${modifyConfig.android?.runtimeVersion ?? modifyConfig.runtimeVersion}"`
     );
+  } else {
+    if (androidRuntime) {
+      Log.withTick(
+        `Configured runtimeVersion for ${appPlatformDisplayNames[AppPlatform.Android]} with "${
+          modifyConfig.android?.runtimeVersion ?? modifyConfig.runtimeVersion
+        }"`
+      );
+    }
+    if (iosRuntime) {
+      Log.withTick(
+        `Configured runtimeVersion for ${appPlatformDisplayNames[AppPlatform.Ios]} with "${
+          modifyConfig.ios?.runtimeVersion ?? modifyConfig.runtimeVersion
+        }"`
+      );
+    }
   }
 }
 
