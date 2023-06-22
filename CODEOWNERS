@@ -1,10 +1,10 @@
-* @szdziedzic @wkozyra95
+* @szdziedzic @khamilowicz
 
-packages/eas-cli/src/build @szdziedzic @wkozyra95
-packages/eas-cli/src/commands/build @szdziedzic @wkozyra95
+packages/eas-cli/src/build @szdziedzic @khamilowicz
+packages/eas-cli/src/commands/build @szdziedzic @khamilowicz
 
-packages/eas-cli/src/submit @szdziedzic
-packages/eas-cli/src/commands/submit.ts @szdziedzic
+packages/eas-cli/src/submit @szdziedzic @khamilowicz
+packages/eas-cli/src/commands/submit.ts @szdziedzic @khamilowicz
 
 packages/eas-cli/src/update @EvanBacon @byCedric @wschurman
 packages/eas-cli/src/commands/update @EvanBacon @byCedric @wschurman
@@ -13,4 +13,4 @@ packages/eas-cli/schema @bycedric
 packages/eas-cli/src/metadata @bycedric
 packages/eas-cli/src/commands/metadata @bycedric
 
-packages/eas-json @szdziedzic @wkozyra95
+packages/eas-json @szdziedzic @khamilowicz
