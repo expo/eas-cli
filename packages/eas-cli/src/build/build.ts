@@ -269,6 +269,12 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         properties: ctx.analyticsEventProperties,
       }
     );
+  } catch (err: any) {
+    let errMessage = 'Failed to upload the project tarball to EAS Build';
+    if (err.message) {
+      errMessage += `\n\nReason: ${err.message}`;
+    }
+    throw new EasCommandError(errMessage);
   } finally {
     if (projectTarballPath) {
       await fs.remove(projectTarballPath);
