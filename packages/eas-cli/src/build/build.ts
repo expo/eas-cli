@@ -42,6 +42,7 @@ import {
   EasBuildFreeTierDisabledAndroidError,
   EasBuildFreeTierDisabledError,
   EasBuildFreeTierDisabledIOSError,
+  EasBuildProjectArchiveUploadError,
   EasBuildResourceClassNotAvailableInFreeTierError,
   EasBuildTooManyPendingBuildsError,
   RequestValidationError,
@@ -274,7 +275,7 @@ async function uploadProjectAsync<TPlatform extends Platform>(
     if (err.message) {
       errMessage += `\n\nReason: ${err.message}`;
     }
-    throw new EasCommandError(errMessage);
+    throw new EasBuildProjectArchiveUploadError(errMessage);
   } finally {
     if (projectTarballPath) {
       await fs.remove(projectTarballPath);

@@ -15,3 +15,5 @@ export class RequestValidationError extends EasCommandError {}
 export class EasBuildDownForMaintenanceError extends EasCommandError {}
 
 export class EasBuildTooManyPendingBuildsError extends EasCommandError {}
+
+export class EasBuildProjectArchiveUploadError extends EasCommandError {}
