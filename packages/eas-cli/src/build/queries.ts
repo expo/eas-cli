@@ -132,6 +132,7 @@ function createBuildToPartialChoiceMaker(
         name: build.platform === AppPlatform.Ios ? 'Build number' : 'Version code',
         value: build.appBuildVersion ? chalk.bold(build.appBuildVersion) : null,
       },
+      { name: 'Profile', value: build.buildProfile ? chalk.bold(build.buildProfile) : null },
     ];
 
     const filteredDescriptionArray: string[] = descriptionItems

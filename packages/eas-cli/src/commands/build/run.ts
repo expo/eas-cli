@@ -210,8 +210,9 @@ async function maybeGetBuildAsync(
       },
       paginatedQueryOptions,
       selectPromptDisabledFunction: build => !isRunnableOnSimulatorOrEmulator(build),
-      selectPromptWarningMessage:
-        'Artifacts for this build have expired and are no longer available, or this is not a simulator/emulator build.',
+      selectPromptWarningMessage: `Artifacts for this build have expired and are no longer available, or this is not ${
+        flags.selectedPlatform === AppPlatform.Ios ? 'a simulator' : 'an emulator'
+      } build.`,
     });
     return validateChosenBuild(build, flags.selectedPlatform);
   } else if (flags.runArchiveFlags.latest) {
