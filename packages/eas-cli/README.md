@@ -1247,7 +1247,7 @@ FLAGS
   --channel=<value>                 Channel name to select an update to republish from
   --group=<value>                   Update group ID to republish
   --json                            Enable JSON output, non-JSON messages will be printed to stderr.
-  -m, --message=<value>                 Short message describing the republished update
+  -m, --message=<value>             Short message describing the republished update
   --non-interactive                 Run the command in non-interactive mode.
 
 DESCRIPTION
