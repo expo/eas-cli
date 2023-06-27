@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Show build profile when selecting a build for eas build:run. ([#1901](https://github.com/expo/eas-cli/pull/1901) by [@keith-kurak](https://github.com/keith-kurak))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
