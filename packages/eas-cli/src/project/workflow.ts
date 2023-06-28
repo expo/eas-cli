@@ -44,3 +44,15 @@ export async function resolveWorkflowPerPlatformAsync(
   ]);
   return { android, ios };
 }
+
+export async function hasIgnoredIosProjectAsync(projectDir: string): Promise<boolean> {
+  const vcsClient = getVcsClient();
+  const vcsRootPath = path.normalize(await vcsClient.getRootPathAsync());
+
+  try {
+    const pbxProjectPath = IOSConfig.Paths.getPBXProjectPath(projectDir);
+    return await vcsClient.isFileIgnoredAsync(path.relative(vcsRootPath, pbxProjectPath));
+  } finally {
+    return false;
+  }
+}
