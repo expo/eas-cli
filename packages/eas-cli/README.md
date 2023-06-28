@@ -1157,7 +1157,7 @@ FLAGS
   --group=<value>                   Update group to republish (deprecated, see republish command)
   --input-dir=<value>               [default: dist] Location of the bundle
   --json                            Enable JSON output, non-JSON messages will be printed to stderr.
-  -m, --message=<value>             A short message describing the update
+  --message=<value>                 A short message describing the update
   --non-interactive                 Run the command in non-interactive mode.
   --private-key-path=<value>        File containing the PEM-encoded private key corresponding to the certificate in
                                     expo-updates' configuration. Defaults to a file named "private-key.pem" in the
