@@ -98,6 +98,7 @@ export default class UpdatePublish extends EasCommand {
       required: false,
     }),
     message: Flags.string({
+      char: 'm',
       description: 'A short message describing the update',
       required: false,
     }),
