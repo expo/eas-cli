@@ -72,6 +72,7 @@ export default class UpdateRepublish extends EasCommand {
       exclusive: ['branch', 'channel'],
     }),
     message: Flags.string({
+      char: 'm',
       description: 'Short message describing the republished update',
       required: false,
     }),
