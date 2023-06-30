@@ -151,6 +151,11 @@ export default class UpdatePublish extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    // No other EAS CLI commands use the local env, but the publish command does
+    // because it runs on the user's machine! In the future, we may make this
+    // configurable through a flag, such as `eas update --env local` (vs remote)
+    process.env.EXPO_NO_DOTENV = '0';
+
     const { flags: rawFlags } = await this.parse(UpdatePublish);
     const paginatedQueryOptions = getPaginatedQueryOptions(rawFlags);
     const {
