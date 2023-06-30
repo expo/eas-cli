@@ -84,6 +84,17 @@ export function isExpoUpdatesInstalledOrAvailable(
   return isExpoUpdatesInstalled(projectDir);
 }
 
+/**
+ * Projects on SDK 49+ are required to set `updates.useClassicUpdates` to `true` to use Classic Updates.
+ */
+export function isDefinitelyUsingClassicUpdates(exp: ExpoConfig): boolean {
+  return !!exp.updates?.useClassicUpdates;
+}
+
+export function isUsingClassicUpdates(exp: ExpoConfig, projectId: string): boolean {
+  return exp.updates?.url === getEASUpdateURL(projectId);
+}
+
 export function isUsingEASUpdate(exp: ExpoConfig, projectId: string): boolean {
   return exp.updates?.url === getEASUpdateURL(projectId);
 }
