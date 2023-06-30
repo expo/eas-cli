@@ -85,7 +85,7 @@ export function isExpoUpdatesInstalledOrAvailable(
 }
 
 /**
- * Projects on SDK 49+ are required to set `updates.useClassicUpdates` to `true` to use Classic Updates.
+ * Projects on SDK 49 are required to set `updates.useClassicUpdates` to `true` to use Classic Updates.
  */
 export function isDefinitelyUsingClassicUpdates(exp: ExpoConfig): boolean {
   return !!exp.updates?.useClassicUpdates;
