@@ -324,7 +324,8 @@ export async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: stri
 /**
  * Make sure EAS Update is fully configured in the current project.
  * This goes over a checklist and performs the following checks or changes:
- *   - Enure the `expo-updates` package is currently installed.
+ *   - Ensure `updates.useClassicUpdates` (SDK 49) is not set in the app config
+ *   - Ensure the `expo-updates` package is currently installed.
  *   - Ensure `app.json` is configured for EAS Updates
  *     - Sets `runtimeVersion` if not set
  *     - Sets `updates.url` if not set
@@ -333,7 +334,7 @@ export async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: stri
 export async function ensureEASUpdateIsConfiguredAsync(
   graphqlClient: ExpoGraphqlClient,
   {
-    exp: expWithoutUpdates,
+    exp: expMaybeWithoutUpdates,
     projectId,
     projectDir,
     platform,
@@ -344,9 +345,15 @@ export async function ensureEASUpdateIsConfiguredAsync(
     platform: RequestedPlatform | null;
   }
 ): Promise<void> {
+  if (expMaybeWithoutUpdates.updates?.useClassicUpdates) {
+    throw new Error(
+      `Your app config sets "updates.useClassicUpdates" but EAS Update does not support classic updates. Remove "useClassicUpdates" from your app config and run this command again.`
+    );
+  }
+
   const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
     projectDir,
-    expWithoutUpdates.sdkVersion
+    expMaybeWithoutUpdates.sdkVersion
   );
   const hasExpoUpdatesInDevDependencies = isExpoUpdatesInstalledAsDevDependency(projectDir);
   if (!hasExpoUpdates && !hasExpoUpdatesInDevDependencies) {
@@ -367,7 +374,7 @@ export async function ensureEASUpdateIsConfiguredAsync(
   const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
   const { projectChanged, exp: expWithUpdates } =
     await ensureEASUpdatesIsConfiguredInExpoConfigAsync({
-      exp: expWithoutUpdates,
+      exp: expMaybeWithoutUpdates,
       projectDir,
       projectId,
       platform,

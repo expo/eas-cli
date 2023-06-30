@@ -63,6 +63,11 @@ export default class BuildConfigure extends EasCommand {
       nonInteractive: false,
     });
     if (didCreateEasJson && isUsingEASUpdate(exp, projectId)) {
+      if (exp.updates?.useClassicUpdates) {
+        throw new Error(
+          `Your app config sets "updates.useClassicUpdates" but is configured to use EAS Update in "updates.url". EAS Update does not support classic updates. Remove "useClassicUpdates" from your app config if you intend to use EAS Update and run this command again.`
+        );
+      }
       await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
     }
 
