@@ -155,6 +155,7 @@ export default class UpdatePublish extends EasCommand {
     // because it runs on the user's machine! In the future, we may make this
     // configurable through a flag, such as `eas update --env local` (vs remote)
     process.env.EXPO_NO_DOTENV = '0';
+    Log.debug('Set EXPO_NO_DOTENV=0 to enable @expo/env');
 
     const { flags: rawFlags } = await this.parse(UpdatePublish);
     const paginatedQueryOptions = getPaginatedQueryOptions(rawFlags);

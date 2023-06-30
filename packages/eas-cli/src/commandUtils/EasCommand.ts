@@ -136,11 +136,6 @@ export default abstract class EasCommand extends Command {
     commandClass: { contextDefinition: ContextInput<C> },
     { nonInteractive }: { nonInteractive: boolean }
   ): Promise<ContextOutput<C>> {
-    // EAS CLI should never use @expo/env to load environment variables, it has its
-    // own mechanism for doing so. The only exception is when publishing an update,
-    // where we currently depend on the local environment.
-    process.env.EXPO_NO_DOTENV = '1';
-
     const contextDefinition = commandClass.contextDefinition;
 
     // do these serially so that they don't do things like ask for login twice in parallel
@@ -171,6 +166,12 @@ export default abstract class EasCommand extends Command {
 
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
+    // EAS CLI should never use @expo/env to load environment variables, it has its
+    // own mechanism for doing so. The only exception is when publishing an update,
+    // where we currently depend on the local environment.
+    process.env.EXPO_NO_DOTENV = '0';
+    Log.debug('Set EXPO_NO_DOTENV=1 to disable @expo/env');
+
     this.analyticsInternal = await createAnalyticsAsync();
     this.sessionManagerInternal = new SessionManager(this.analytics);
 
