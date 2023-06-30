@@ -9,9 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Show build profile when selecting a build for eas build:run. ([#1901](https://github.com/expo/eas-cli/pull/1901) by [@keith-kurak](https://github.com/keith-kurak))
-
 - Adds -m alias to --message in update/republish and removed README comment. ([#1905](https://github.com/expo/eas-cli/pull/1905) by [@pusongqi](https://github.com/pusongqi))
-
 
 ### 🐛 Bug fixes
 
@@ -19,6 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Better runtimeVersion output. ([#1894](https://github.com/expo/eas-cli/pull/1894) by [@quinlanj](https://github.com/quinlanj))
 - Print better error message when uploading project archive tarball fails. ([#1897](https://github.com/expo/eas-cli/pull/1897) by [@szdziedzic](https://github.com/szdziedzic))
+- Set useClassicUpdates to false on `eas update` and `eas update:configure`. ([#1914](https://github.com/expo/eas-cli/pull/1914) by [@quinlanj](https://github.com/quinlanj))
 
 ## [3.14.0](https://github.com/expo/eas-cli/releases/tag/v3.14.0) - 2023-06-20
 
