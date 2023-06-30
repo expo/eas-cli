@@ -91,10 +91,6 @@ export function isDefinitelyUsingClassicUpdates(exp: ExpoConfig): boolean {
   return !!exp.updates?.useClassicUpdates;
 }
 
-export function isUsingClassicUpdates(exp: ExpoConfig, projectId: string): boolean {
-  return exp.updates?.url === getEASUpdateURL(projectId);
-}
-
 export function isUsingEASUpdate(exp: ExpoConfig, projectId: string): boolean {
   return exp.updates?.url === getEASUpdateURL(projectId);
 }
