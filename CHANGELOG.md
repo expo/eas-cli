@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Bump Expo package dependencies. ([#1911](https://github.com/expo/eas-cli/pull/1911) by [@brentvatne](https://github.com/brentvatne))
+- Better bare workflow runtimeVersion error. ([#1910](https://github.com/expo/eas-cli/pull/1910) by [@quinlanj](https://github.com/quinlanj))
 
 ## [3.15.0](https://github.com/expo/eas-cli/releases/tag/v3.15.0) - 2023-06-30
 
