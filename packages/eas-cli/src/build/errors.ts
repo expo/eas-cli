@@ -17,3 +17,7 @@ export class EasBuildDownForMaintenanceError extends EasCommandError {}
 export class EasBuildTooManyPendingBuildsError extends EasCommandError {}
 
 export class EasBuildProjectArchiveUploadError extends EasCommandError {}
+
+export class EasBuildFreeTierLimitExceededError extends EasCommandError {}
+
+export class EasBuildFreeTierIOSLimitExceededError extends EasCommandError {}

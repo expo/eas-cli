@@ -42,6 +42,8 @@ import {
   EasBuildFreeTierDisabledAndroidError,
   EasBuildFreeTierDisabledError,
   EasBuildFreeTierDisabledIOSError,
+  EasBuildFreeTierIOSLimitExceededError,
+  EasBuildFreeTierLimitExceededError,
   EasBuildProjectArchiveUploadError,
   EasBuildResourceClassNotAvailableInFreeTierError,
   EasBuildTooManyPendingBuildsError,
@@ -186,6 +188,8 @@ const SERVER_SIDE_DEFINED_ERRORS: Record<string, typeof EasCommandError> = {
   EAS_BUILD_RESOURCE_CLASS_NOT_AVAILABLE_IN_FREE_TIER:
     EasBuildResourceClassNotAvailableInFreeTierError,
   VALIDATION_ERROR: RequestValidationError,
+  EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED_ERROR: EasBuildFreeTierLimitExceededError,
+  EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED_ERROR: EasBuildFreeTierIOSLimitExceededError,
 };
 
 export function handleBuildRequestError(error: any, platform: Platform): never {
