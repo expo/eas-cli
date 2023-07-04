@@ -92,20 +92,6 @@ describe(UpdatePublish.name, () => {
     );
   });
 
-  it.only('errors with "useClassicUpdates" set', async () => {
-    const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
-
-    mockTestProject({ expoConfig: { updates: { useClassicUpdates: true } } });
-    mockTestExport();
-
-    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
-      branchId: 'branch123',
-      createdBranch: false,
-    });
-
-    await expect(new UpdatePublish(flags, commandOptions).run()).rejects.toThrow('xxx.');
-  });
-
   it('creates a new update with --non-interactive, --branch, and --message', async () => {
     const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
 

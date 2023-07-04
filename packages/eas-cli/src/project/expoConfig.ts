@@ -3,6 +3,7 @@ import { Env } from '@expo/eas-build-job';
 import JsonFile from '@expo/json-file';
 import fs from 'fs-extra';
 import Joi from 'joi';
+import nullthrows from 'nullthrows';
 import path from 'path';
 
 export type PublicExpoConfig = Omit<
@@ -93,17 +94,22 @@ export function ensureExpoConfigExists(projectDir: string): void {
 }
 
 async function ensureStaticExpoConfigIsValidAsync(projectDir: string): Promise<void> {
-  const paths = getConfigFilePaths(projectDir);
-  if (paths?.staticConfigPath?.endsWith('app.json') && !paths?.dynamicConfigPath) {
-    const staticConfig = await JsonFile.readAsync(paths.staticConfigPath);
+  if (isUsingStaticExpoConfig(projectDir)) {
+    const staticConfigPath = nullthrows(getConfigFilePaths(projectDir).staticConfigPath);
+    const staticConfig = await JsonFile.readAsync(staticConfigPath);
 
     // Add the "expo" key if it doesn't exist on app.json yet, such as in
     // projects initialized with RNC CLI
     if (!staticConfig?.expo) {
       staticConfig.expo = {};
-      await JsonFile.writeAsync(paths.staticConfigPath, staticConfig);
+      await JsonFile.writeAsync(staticConfigPath, staticConfig);
     }
   }
+}
+
+export function isUsingStaticExpoConfig(projectDir: string): boolean {
+  const paths = getConfigFilePaths(projectDir);
+  return !!(paths.staticConfigPath?.endsWith('app.json') && !paths.dynamicConfigPath);
 }
 
 export function getPublicExpoConfig(

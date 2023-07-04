@@ -11,7 +11,10 @@ import { isExpoUpdatesInstalled, isUsingEASUpdate } from '../../project/projectU
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
-import { ensureEASUpdateIsConfiguredInEasJsonAsync } from '../../update/configure';
+import {
+  ensureEASUpdateIsConfiguredInEasJsonAsync,
+  ensureUseClassicUpdatesIsRemovedAsync,
+} from '../../update/configure';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
 import { getVcsClient } from '../../vcs';
 
@@ -64,10 +67,11 @@ export default class BuildConfigure extends EasCommand {
     });
     if (didCreateEasJson && isUsingEASUpdate(exp, projectId)) {
       if (exp.updates?.useClassicUpdates) {
-        throw new Error(
-          `Your app config sets "updates.useClassicUpdates" but is configured to use EAS Update in "updates.url". EAS Update does not support classic updates. Remove "useClassicUpdates" from your app config if you intend to use EAS Update and run this command again.`
-        );
+        // NOTE: this method modifies the Expo config; be sure to use this function's return value
+        // if the config object is used later in the future
+        await ensureUseClassicUpdatesIsRemovedAsync({ exp, projectDir });
       }
+
       await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
     }
 

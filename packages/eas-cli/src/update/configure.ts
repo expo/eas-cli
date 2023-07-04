@@ -9,13 +9,14 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import { AppPlatform } from '../graphql/generated';
 import Log, { learnMore } from '../log';
 import { RequestedPlatform, appPlatformDisplayNames } from '../platform';
-import { createOrModifyExpoConfigAsync } from '../project/expoConfig';
+import { createOrModifyExpoConfigAsync, isUsingStaticExpoConfig } from '../project/expoConfig';
 import {
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledAsDevDependency,
   isExpoUpdatesInstalledOrAvailable,
 } from '../project/projectUtils';
 import { resolveWorkflowPerPlatformAsync } from '../project/workflow';
+import { confirmAsync } from '../prompts';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from './android/UpdatesModule';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from './ios/UpdatesModule';
 
@@ -345,10 +346,12 @@ export async function ensureEASUpdateIsConfiguredAsync(
     platform: RequestedPlatform | null;
   }
 ): Promise<void> {
+  // EAS Update and SDK 49's "useClassicUpdates" option are mutually exclusive
   if (expMaybeWithoutUpdates.updates?.useClassicUpdates) {
-    throw new Error(
-      `Your app config sets "updates.useClassicUpdates" but EAS Update does not support classic updates. Remove "useClassicUpdates" from your app config and run this command again.`
-    );
+    expMaybeWithoutUpdates = await ensureUseClassicUpdatesIsRemovedAsync({
+      exp: expMaybeWithoutUpdates,
+      projectDir,
+    });
   }
 
   const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
@@ -398,4 +401,50 @@ export async function ensureEASUpdateIsConfiguredAsync(
     );
     Log.newLine();
   }
+}
+
+export async function ensureUseClassicUpdatesIsRemovedAsync({
+  exp: expMaybeWithoutUpdates,
+  projectDir,
+}: {
+  exp: ExpoConfig;
+  projectDir: string;
+}): Promise<ExpoConfig> {
+  if (!isUsingStaticExpoConfig(projectDir)) {
+    throw new Error(
+      `Your app config sets "updates.useClassicUpdates" but EAS Update does not support classic updates. Remove "useClassicUpdates" from your app config and run this command again.`
+    );
+  }
+
+  const shouldEditConfig = await confirmAsync({
+    message: `Your app config sets "updates.useClassicUpdates" but EAS Update does not support classic updates. Remove "updates.useClassicUpdates" from your app config?`,
+  });
+  if (!shouldEditConfig) {
+    throw new Error(
+      `Manually remove "updates.useClassicUpdates" from your app config and run this command again.`
+    );
+  }
+
+  const editedExpoConfig = mergeExpoConfig(expMaybeWithoutUpdates, {
+    updates: { useClassicUpdates: undefined },
+  }) as ExpoConfig;
+  const result = await createOrModifyExpoConfigAsync(projectDir, editedExpoConfig);
+
+  switch (result.type) {
+    case 'success':
+      Log.withTick(`Removed "updates.useClassicUpdates"`);
+      expMaybeWithoutUpdates = editedExpoConfig;
+      break;
+
+    case 'warn':
+    case 'fail':
+      throw new Error(result.message);
+
+    default:
+      throw new Error(
+        `Unexpected result type "${result.type}" received when modifying the project config.`
+      );
+  }
+
+  return editedExpoConfig;
 }

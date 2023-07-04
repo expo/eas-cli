@@ -41,7 +41,7 @@ export default class UpdateConfigure extends EasCommand {
     });
 
     Log.log(
-      '💡 The following process will configure your project to run EAS Update. These changes only apply to your local project files and you can safely revert them at any time.'
+      '💡 The following process will configure your project to use EAS Update. These changes only apply to your local project files and you can safely revert them at any time.'
     );
 
     await getVcsClient().ensureRepoExistsAsync();
@@ -56,7 +56,7 @@ export default class UpdateConfigure extends EasCommand {
     await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
 
     Log.addNewLineIfNone();
-    Log.log(`🎉 Your app is configured with EAS Update!`);
+    Log.log(`🎉 Your app is configured to use EAS Update!`);
     Log.newLine();
     const easJsonExists = await easJsonExistsAsync(projectDir);
     if (!easJsonExists) {

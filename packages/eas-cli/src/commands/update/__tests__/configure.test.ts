@@ -5,7 +5,7 @@ import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/cr
 import { ensureEASUpdateIsConfiguredAsync } from '../../../update/configure';
 
 describe(ensureEASUpdateIsConfiguredAsync, () => {
-  it('errors with "useClassicUpdates" set', async () => {
+  it('errors with "useClassicUpdates" set and no app.json', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>({}));
     const exp: ExpoConfig = {
       name: 'test',
