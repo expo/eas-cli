@@ -24,7 +24,7 @@ import {
 } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { toAppPlatform, toPlatform } from '../graphql/types/AppPlatform';
-import Log from '../log';
+import Log, { learnMore } from '../log';
 import {
   RequestedPlatform,
   appPlatformDisplayNames,
@@ -118,6 +118,13 @@ export async function runBuildAndSubmitAsync(
     platforms,
     profileName: flags.profile ?? undefined,
   });
+  Log.log(
+    `Loaded "env" configuration for the "${buildProfiles[0].profileName}" profile: ${
+      buildProfiles[0].profile.env
+        ? Object.keys(buildProfiles[0].profile.env).join(', ')
+        : 'no environment variables specified'
+    }. ${learnMore('https://docs.expo.dev/build-reference/variables/')}`
+  );
 
   await ensureExpoDevClientInstalledForDevClientBuildsAsync({
     projectDir,

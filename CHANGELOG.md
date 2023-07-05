@@ -8,12 +8,21 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Show build profile when selecting a build for eas build:run. ([#1901](https://github.com/expo/eas-cli/pull/1901) by [@keith-kurak](https://github.com/keith-kurak))
-- Adds -m alias to --message in update/republish and removed README comment. ([#1905](https://github.com/expo/eas-cli/pull/1905) by [@pusongqi](https://github.com/pusongqi))
-
 ### 🐛 Bug fixes
 
 - Ensure useClassicUpdates is not set when using EAS Update commands. ([#1915](https://github.com/expo/eas-cli/pull/1915) by [@ide](https://github.com/ide))
+
+### 🧹 Chores
+
+- Bump Expo package dependencies. ([#1911](https://github.com/expo/eas-cli/pull/1911) by [@brentvatne](https://github.com/brentvatne))
+- Better bare workflow runtimeVersion error. ([#1910](https://github.com/expo/eas-cli/pull/1910) by [@quinlanj](https://github.com/quinlanj))
+
+## [3.15.0](https://github.com/expo/eas-cli/releases/tag/v3.15.0) - 2023-06-30
+
+### 🎉 New features
+
+- Show build profile when selecting a build for eas build:run. ([#1901](https://github.com/expo/eas-cli/pull/1901) by [@keith-kurak](https://github.com/keith-kurak))
+- Adds -m alias to --message in update/republish and removed README comment. ([#1905](https://github.com/expo/eas-cli/pull/1905) by [@pusongqi](https://github.com/pusongqi))
 
 ### 🧹 Chores
 

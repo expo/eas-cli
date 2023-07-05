@@ -644,7 +644,9 @@ export async function getRuntimeVersionObjectAsync(
         Workflow.MANAGED;
       if (!isManaged) {
         throw new Error(
-          'Runtime version policies are only supported in the managed workflow. In the bare workflow, runtime version needs to be set manually.'
+          `You're currently using the bare workflow, where runtime version policies are not supported. You must set your runtime version manually. For example, define your runtime version as "1.0.0", not {"policy": "appVersion"} in your app config. ${learnMore(
+            'https://docs.expo.dev/eas-update/runtime-versions'
+          )}`
         );
       }
     }
