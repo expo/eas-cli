@@ -1,4 +1,4 @@
-import { getConfig, modifyConfigAsync } from '@expo/config';
+import { getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
 import { vol } from 'memfs';
 import { anything, instance, mock, when } from 'ts-mockito';
 
@@ -26,6 +26,10 @@ describe(getProjectIdAsync, () => {
   let sessionManager: SessionManager;
 
   beforeEach(() => {
+    jest
+      .mocked(getConfigFilePaths)
+      .mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
+
     const sessionManagerMock = mock<SessionManager>();
     when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
       actor: {
