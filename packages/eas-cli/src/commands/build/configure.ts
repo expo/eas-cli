@@ -11,7 +11,10 @@ import { isExpoUpdatesInstalled, isUsingEASUpdate } from '../../project/projectU
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
-import { ensureEASUpdateIsConfiguredInEasJsonAsync } from '../../update/configure';
+import {
+  ensureEASUpdateIsConfiguredInEasJsonAsync,
+  ensureUseClassicUpdatesIsRemovedAsync,
+} from '../../update/configure';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
 import { getVcsClient } from '../../vcs';
 
@@ -63,6 +66,12 @@ export default class BuildConfigure extends EasCommand {
       nonInteractive: false,
     });
     if (didCreateEasJson && isUsingEASUpdate(exp, projectId)) {
+      if (exp.updates?.useClassicUpdates) {
+        // NOTE: this method modifies the Expo config; be sure to use this function's return value
+        // if the config object is used later in the future
+        await ensureUseClassicUpdatesIsRemovedAsync({ exp, projectDir });
+      }
+
       await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
     }
 
