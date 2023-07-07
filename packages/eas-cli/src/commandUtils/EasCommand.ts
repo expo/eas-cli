@@ -1,5 +1,6 @@
 import { Command } from '@oclif/core';
 import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql/error';
 import nullthrows from 'nullthrows';
 
 import {
@@ -193,10 +194,15 @@ export default abstract class EasCommand extends Command {
     if (err instanceof EasCommandError) {
       Log.error(err.message);
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
-      let cleanMessage = err.message.replace('[GraphQL] ', '');
-      cleanMessage += err?.graphQLErrors?.[0]?.extensions?.requestId
-        ? `\nRequest ID: ${err.graphQLErrors[0].extensions.requestId}`
-        : '';
+      const cleanMessage = err?.graphQLErrors
+        .map((graphQLError: GraphQLError) => {
+          const messageLine = graphQLError.message.replace('[GraphQL] ', '');
+          const requestIdLine = graphQLError.extensions?.requestId
+            ? `\nRequest ID: ${err.graphQLErrors[0].extensions.requestId}`
+            : '';
+          return `${messageLine}${requestIdLine}`;
+        })
+        .join('\n');
       Log.error(cleanMessage);
       baseMessage = BASE_GRAPHQL_ERROR_MESSAGE;
     } else {

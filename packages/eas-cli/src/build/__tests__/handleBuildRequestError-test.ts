@@ -424,6 +424,29 @@ describe(Build.name, () => {
 
           assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
         });
+        it('throws base Error class with message including all error messages if combined error has multiple GraphQL errors', async () => {
+          const platform = Platform.ANDROID;
+          const graphQLErrors = [
+            getGraphQLError('Error 1', 'UNKNOWN_GRAPHQL_ERROR'),
+            getGraphQLError('Error 2', 'OTHER_GRAPHQL_ERROR'),
+            getGraphQLError('Error 3', 'YET_ANOTHER_GRAPHQL_ERROR'),
+          ];
+          const error = new CombinedError({ graphQLErrors });
+          const expectedMessage =
+            `${EXPECTED_GENERIC_MESSAGE}\n` +
+            `Request ID: ${mockRequestId}\n` +
+            'Error message: Error 1\n' +
+            `Request ID: ${mockRequestId}\n` +
+            'Error message: Error 2\n' +
+            `Request ID: ${mockRequestId}\n` +
+            'Error message: Error 3';
+
+          const handleBuildRequestErrorThrownError = getError<Error>(() => {
+            handleBuildRequestError(error, platform);
+          });
+
+          assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
+        });
         describe('without request ID', () => {
           it('throws base Error class with custom message without request ID line', async () => {
             const platform = Platform.ANDROID;
@@ -448,6 +471,29 @@ describe(Build.name, () => {
           const graphQLErrors = [graphQLError];
           const error = new CombinedError({ graphQLErrors });
           const expectedMessage = `${EXPECTED_GENERIC_MESSAGE}\nRequest ID: ${mockRequestId}\nError message: Error 1`;
+
+          const handleBuildRequestErrorThrownError = getError<Error>(() => {
+            handleBuildRequestError(error, platform);
+          });
+
+          assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
+        });
+        it('throws base Error class with message including all error messages if combined error has multiple GraphQL errors', async () => {
+          const platform = Platform.IOS;
+          const graphQLErrors = [
+            getGraphQLError('Error 1', 'UNKNOWN_GRAPHQL_ERROR'),
+            getGraphQLError('Error 2', 'OTHER_GRAPHQL_ERROR'),
+            getGraphQLError('Error 3', 'YET_ANOTHER_GRAPHQL_ERROR'),
+          ];
+          const error = new CombinedError({ graphQLErrors });
+          const expectedMessage =
+            `${EXPECTED_GENERIC_MESSAGE}\n` +
+            `Request ID: ${mockRequestId}\n` +
+            'Error message: Error 1\n' +
+            `Request ID: ${mockRequestId}\n` +
+            'Error message: Error 2\n' +
+            `Request ID: ${mockRequestId}\n` +
+            'Error message: Error 3';
 
           const handleBuildRequestErrorThrownError = getError<Error>(() => {
             handleBuildRequestError(error, platform);

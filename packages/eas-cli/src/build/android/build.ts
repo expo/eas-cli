@@ -113,8 +113,9 @@ export async function prepareAndroidBuildAsync(
     ): Promise<BuildResult> => {
       const graphqlMetadata = transformMetadata(metadata);
       const graphqlJob = transformJob(job);
+      console.log(appId);
       return await BuildMutation.createAndroidBuildAsync(ctx.graphqlClient, {
-        appId,
+        appId: 2 as unknown as string,
         job: graphqlJob,
         metadata: graphqlMetadata,
         buildParams,
