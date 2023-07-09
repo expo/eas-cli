@@ -155,6 +155,14 @@ async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
   }
 }
 
+function printRuntimeVersion(runtimeVersion: NonNullable<ExpoConfig['runtimeVersion']>): string {
+  if (typeof runtimeVersion === 'object') {
+    return JSON.stringify(runtimeVersion);
+  } else {
+    return runtimeVersion;
+  }
+}
+
 function logEasUpdatesAutoConfig({
   modifyConfig,
   exp,
@@ -176,21 +184,21 @@ function logEasUpdatesAutoConfig({
     Log.withTick(
       `Configured runtimeVersion for ${appPlatformDisplayNames[AppPlatform.Android]} and ${
         appPlatformDisplayNames[AppPlatform.Ios]
-      } with "${modifyConfig.android?.runtimeVersion ?? modifyConfig.runtimeVersion}"`
+      } with "${printRuntimeVersion(androidRuntime)}"`
     );
   } else {
     if (androidRuntime) {
       Log.withTick(
-        `Configured runtimeVersion for ${appPlatformDisplayNames[AppPlatform.Android]} with "${
-          modifyConfig.android?.runtimeVersion ?? modifyConfig.runtimeVersion
-        }"`
+        `Configured runtimeVersion for ${
+          appPlatformDisplayNames[AppPlatform.Android]
+        } with "${printRuntimeVersion(androidRuntime)}"`
       );
     }
     if (iosRuntime) {
       Log.withTick(
-        `Configured runtimeVersion for ${appPlatformDisplayNames[AppPlatform.Ios]} with "${
-          modifyConfig.ios?.runtimeVersion ?? modifyConfig.runtimeVersion
-        }"`
+        `Configured runtimeVersion for ${
+          appPlatformDisplayNames[AppPlatform.Ios]
+        } with "${printRuntimeVersion(iosRuntime)}"`
       );
     }
   }
