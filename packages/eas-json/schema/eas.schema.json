@@ -334,7 +334,6 @@
               "enum": [
                 "default",
                 "latest",
-                "macos-ventura-13.4-xcode-14.3.1",
                 "macos-ventura-13.3-xcode-14.3",
                 "macos-monterey-12.6-xcode-14.2",
                 "macos-monterey-12.6-xcode-14.1",
@@ -346,9 +345,8 @@
                 "macos-big-sur-11.4-xcode-12.5"
               ],
               "markdownEnumDescriptions": [
-                "`macos-ventura-13.3-xcode-14.3` for Apple silicon builders, `macos-monterey-12.6-xcode-14.1` for Intel builders",
-                "`macos-ventura-13.4-xcode-14.3.1` for Apple silicon builders, `macos-monterey-12.6-xcode-14.2` for Intel builders",
-                "only available for Apple silicon builders",
+                "`macos-monterey-12.6-xcode-14.2` for Apple silicon builders, `macos-monterey-12.6-xcode-14.1` for Intel builders",
+                "`macos-ventura-13.3-xcode-14.3` for Apple silicon builders, `macos-monterey-12.6-xcode-14.2` for Intel builders",
                 "only available for Apple silicon builders"
               ]
             },
