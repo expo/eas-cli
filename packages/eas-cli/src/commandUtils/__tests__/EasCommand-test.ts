@@ -172,6 +172,44 @@ describe(EasCommand.name, () => {
         expect(logDebugSpy).toBeCalledWith(error);
       });
 
+      it('logs the cleaned messages with request IDs if multiple GraphQL errors present', async () => {
+        const TestEasCommand = createTestEasCommand();
+        const logErrorSpy = jest.spyOn(Log, 'error');
+        const logDebugSpy = jest.spyOn(Log, 'debug');
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        const graphQLErrors = [
+          new GraphQLError('Unexpected GraphQL error message', null, null, null, null, null, {
+            errorCode: 'UNKNOWN_GRAPHQL_ERROR',
+            requestId: mockRequestId,
+          }),
+          new GraphQLError('Other GraphQL error message', null, null, null, null, null, {
+            errorCode: 'OTHER_GRAPHQL_ERROR',
+            requestId: mockRequestId,
+          }),
+          new GraphQLError('Yet another GraphQL error message', null, null, null, null, null, {
+            errorCode: 'YET_ANOTHER_GRAPHQL_ERROR',
+            requestId: mockRequestId,
+          }),
+        ];
+        const error = new CombinedError({ graphQLErrors });
+        runAsyncMock.mockImplementation(() => {
+          throw error;
+        });
+        try {
+          await TestEasCommand.run();
+        } catch {}
+
+        expect(logErrorSpy).toBeCalledWith(
+          'Unexpected GraphQL error message\n' +
+            `Request ID: ${mockRequestId}\n` +
+            'Other GraphQL error message\n' +
+            `Request ID: ${mockRequestId}\n` +
+            'Yet another GraphQL error message\n' +
+            `Request ID: ${mockRequestId}`
+        );
+        expect(logDebugSpy).toBeCalledWith(error);
+      });
+
       it('re-throws the error with default base message', async () => {
         const TestEasCommand = createTestEasCommand();
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
@@ -186,11 +224,39 @@ describe(EasCommand.name, () => {
         }
       });
 
-      it('re-throws the error with a different default base message in case of graphQLError', async () => {
+      it('re-throws the error with a different default base message in case of CombinedError', async () => {
         const TestEasCommand = createTestEasCommand();
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
         runAsyncMock.mockImplementation(() => {
           const graphQLErrors = ['Unexpected GraphQL error message'];
+          throw new CombinedError({ graphQLErrors });
+        });
+        try {
+          await TestEasCommand.run();
+        } catch (caughtError) {
+          expect(caughtError).toBeInstanceOf(Error);
+          expect((caughtError as Error).message).toEqual('GraphQL request failed.');
+        }
+      });
+
+      it('re-throws the error with a different default base message in case of CombinedError with multiple GraphQLErrors', async () => {
+        const TestEasCommand = createTestEasCommand();
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        runAsyncMock.mockImplementation(() => {
+          const graphQLErrors = [
+            new GraphQLError('Unexpected GraphQL error message', null, null, null, null, null, {
+              errorCode: 'UNEXPECTED_GRAPHQL_ERROR',
+              requestId: mockRequestId,
+            }),
+            new GraphQLError('Other GraphQL error message', null, null, null, null, null, {
+              errorCode: 'OTHER_GRAPHQL_ERROR',
+              requestId: mockRequestId,
+            }),
+            new GraphQLError('Yet another GraphQL error message', null, null, null, null, null, {
+              errorCode: 'YET_ANOTHER_GRAPHQL_ERROR',
+              requestId: mockRequestId,
+            }),
+          ];
           throw new CombinedError({ graphQLErrors });
         });
         try {

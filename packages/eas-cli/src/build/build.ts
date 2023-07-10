@@ -4,6 +4,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 import cliProgress from 'cli-progress';
 import fs from 'fs-extra';
+import { GraphQLError } from 'graphql/error';
 import nullthrows from 'nullthrows';
 
 import { BuildEvent } from '../analytics/AnalyticsManager';
@@ -42,6 +43,8 @@ import {
   EasBuildFreeTierDisabledAndroidError,
   EasBuildFreeTierDisabledError,
   EasBuildFreeTierDisabledIOSError,
+  EasBuildFreeTierIosLimitExceededError,
+  EasBuildFreeTierLimitExceededError,
   EasBuildProjectArchiveUploadError,
   EasBuildResourceClassNotAvailableInFreeTierError,
   EasBuildTooManyPendingBuildsError,
@@ -183,6 +186,8 @@ const SERVER_SIDE_DEFINED_ERRORS: Record<string, typeof EasCommandError> = {
   EAS_BUILD_FREE_TIER_DISABLED: EasBuildFreeTierDisabledError,
   EAS_BUILD_FREE_TIER_DISABLED_IOS: EasBuildFreeTierDisabledIOSError,
   EAS_BUILD_FREE_TIER_DISABLED_ANDROID: EasBuildFreeTierDisabledAndroidError,
+  EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED: EasBuildFreeTierLimitExceededError,
+  EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED: EasBuildFreeTierIosLimitExceededError,
   EAS_BUILD_RESOURCE_CLASS_NOT_AVAILABLE_IN_FREE_TIER:
     EasBuildResourceClassNotAvailableInFreeTierError,
   VALIDATION_ERROR: RequestValidationError,
@@ -206,15 +211,19 @@ export function handleBuildRequestError(error: any, platform: Platform): never {
       `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
     );
   } else if (error?.graphQLErrors) {
-    const graphQLError = error.graphQLErrors[0];
-    const requestIdLine = graphQLError?.extensions?.requestId
-      ? `\nRequest ID: ${graphQLError.extensions.requestId}`
-      : '';
-    const originalErrorMessage = graphQLError?.message
-      ? `\nError message: ${graphQLError.message}`
-      : '';
+    const errorMessage = error.graphQLErrors
+      .map((graphQLError: GraphQLError) => {
+        const requestIdLine = graphQLError?.extensions?.requestId
+          ? `\nRequest ID: ${graphQLError.extensions.requestId}`
+          : '';
+        const errorMessageLine = graphQLError?.message
+          ? `\nError message: ${graphQLError.message}`
+          : '';
+        return `${requestIdLine}${errorMessageLine}`;
+      })
+      .join('');
     throw new Error(
-      `Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.${requestIdLine}${originalErrorMessage}`
+      `Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.${errorMessage}`
     );
   }
   throw error;

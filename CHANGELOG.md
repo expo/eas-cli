@@ -11,12 +11,14 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Ensure useClassicUpdates is not set when using EAS Update commands. ([#1915](https://github.com/expo/eas-cli/pull/1915) by [@ide](https://github.com/ide))
+- Handle multiple GraphQLErrors when receiving a CombinedError. ([#1924](https://github.com/expo/eas-cli/pull/1924) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ### 🧹 Chores
 
 - Bump Expo package dependencies. ([#1911](https://github.com/expo/eas-cli/pull/1911) by [@brentvatne](https://github.com/brentvatne))
 - Better bare workflow runtimeVersion error. ([#1910](https://github.com/expo/eas-cli/pull/1910) by [@quinlanj](https://github.com/quinlanj))
 - Fix runtime version print logs. ([#1925](https://github.com/expo/eas-cli/pull/1925) by [@quinlanj](https://github.com/quinlanj))
+- Add info about new `macos-ventura-13.4-xcode-14.3.1` image to `eas.schema.json`. ([#1920](https://github.com/expo/eas-cli/pull/1920) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [3.15.0](https://github.com/expo/eas-cli/releases/tag/v3.15.0) - 2023-06-30
 
@@ -29,6 +31,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Better runtimeVersion output. ([#1894](https://github.com/expo/eas-cli/pull/1894) by [@quinlanj](https://github.com/quinlanj))
 - Print better error message when uploading project archive tarball fails. ([#1897](https://github.com/expo/eas-cli/pull/1897) by [@szdziedzic](https://github.com/szdziedzic))
+- Adds support for 2 new server-side errors related to build limits. ([#1921](https://github.com/expo/eas-cli/pull/1921) by [@sundeeppeswani](https://github.com/sundeeppeswani))
 
 ## [3.14.0](https://github.com/expo/eas-cli/releases/tag/v3.14.0) - 2023-06-20
 
