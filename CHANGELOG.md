@@ -30,6 +30,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Better runtimeVersion output. ([#1894](https://github.com/expo/eas-cli/pull/1894) by [@quinlanj](https://github.com/quinlanj))
 - Print better error message when uploading project archive tarball fails. ([#1897](https://github.com/expo/eas-cli/pull/1897) by [@szdziedzic](https://github.com/szdziedzic))
+- Adds support for 2 new server-side errors related to build limits. ([#1921](https://github.com/expo/eas-cli/pull/1921) by [@sundeeppeswani](https://github.com/sundeeppeswani))
 
 ## [3.14.0](https://github.com/expo/eas-cli/releases/tag/v3.14.0) - 2023-06-20
 

@@ -6,7 +6,16 @@ export async function withErrorHandlingAsync<T>(promise: Promise<OperationResult
   const { data, error } = await promise;
 
   if (error) {
-    if (error.graphQLErrors.some(e => e?.extensions?.isTransient)) {
+    if (
+      error.graphQLErrors.some(
+        e =>
+          e?.extensions?.isTransient &&
+          ![
+            'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED',
+            'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED',
+          ].includes(e?.extensions?.errorCode as string)
+      )
+    ) {
       Log.error(`We've encountered a transient error. Try again shortly.`);
     }
     throw error;

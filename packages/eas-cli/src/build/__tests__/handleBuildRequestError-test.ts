@@ -13,6 +13,8 @@ import {
   EasBuildFreeTierDisabledAndroidError,
   EasBuildFreeTierDisabledError,
   EasBuildFreeTierDisabledIOSError,
+  EasBuildFreeTierIosLimitExceededError,
+  EasBuildFreeTierLimitExceededError,
   EasBuildResourceClassNotAvailableInFreeTierError,
   EasBuildTooManyPendingBuildsError,
   RequestValidationError,
@@ -276,6 +278,45 @@ describe(Build.name, () => {
           assertReThrownError(
             handleBuildRequestErrorThrownError,
             EasBuildFreeTierDisabledAndroidError,
+            'Error 1'
+          );
+        });
+      });
+      describe('for EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED', () => {
+        it('throws correct EasCommandError subclass', async () => {
+          const platform = Platform.ANDROID;
+          const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED');
+          const graphQLErrors = [graphQLError];
+          const error = new CombinedError({ graphQLErrors });
+
+          const handleBuildRequestErrorThrownError = getError<EasBuildFreeTierLimitExceededError>(
+            () => {
+              handleBuildRequestError(error, platform);
+            }
+          );
+
+          assertReThrownError(
+            handleBuildRequestErrorThrownError,
+            EasBuildFreeTierLimitExceededError,
+            'Error 1'
+          );
+        });
+      });
+      describe('for EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED', () => {
+        it('throws correct EasCommandError subclass', async () => {
+          const platform = Platform.ANDROID;
+          const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED');
+          const graphQLErrors = [graphQLError];
+          const error = new CombinedError({ graphQLErrors });
+
+          const handleBuildRequestErrorThrownError =
+            getError<EasBuildFreeTierIosLimitExceededError>(() => {
+              handleBuildRequestError(error, platform);
+            });
+
+          assertReThrownError(
+            handleBuildRequestErrorThrownError,
+            EasBuildFreeTierIosLimitExceededError,
             'Error 1'
           );
         });
