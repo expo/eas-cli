@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [3.15.1](https://github.com/expo/eas-cli/releases/tag/v3.15.1) - 2023-07-11
+
+### 🐛 Bug fixes
+
 - Ensure useClassicUpdates is not set when using EAS Update commands. ([#1915](https://github.com/expo/eas-cli/pull/1915) by [@ide](https://github.com/ide))
 - Handle multiple GraphQLErrors when receiving a CombinedError. ([#1924](https://github.com/expo/eas-cli/pull/1924) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
