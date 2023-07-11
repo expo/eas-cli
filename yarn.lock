@@ -1571,15 +1571,16 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.23":
-  version "1.0.23"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.23.tgz#a996244be55ae939636a00fdc27c9922bb4f0c42"
-  integrity sha512-H6rW49Dje0O/EDamhpbiYwpVltWM+057Exd7RFz8pzmPnkIAYHMXOErIftl3P79LM+ydWe5WWLX92cYU5uCFgA==
+"@expo/steps@1.0.25":
+  version "1.0.25"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.25.tgz#04f8c18bb12f2445cdca443b48497d3c2be3e133"
+  integrity sha512-MBtJ/3+T5qvXxmnOVlfapKlKQsxPUyKoEUaA6lLbpmm8yCcXJEblnmQP/2ZokAG78IWjsYl5E02Ei/AnrIxB9g==
   dependencies:
     "@expo/logger" "1.0.21"
     "@expo/spawn-async" "^1.7.0"
     arg "^5.0.2"
     joi "^17.7.0"
+    lodash.get "^4.4.2"
     this-file "^2.0.3"
     uuid "^9.0.0"
     yaml "^2.2.1"
@@ -9731,7 +9732,7 @@ lodash.flatten@^4.4.0:
   resolved "https://registry.yarnpkg.com/lodash.flatten/-/lodash.flatten-4.4.0.tgz#f31c22225a9632d2bbf8e4addbef240aa765a61f"
   integrity sha1-8xwiIlqWMtK7+OSt2+8kCqdlph8=
 
-lodash.get@^4:
+lodash.get@^4, lodash.get@^4.4.2:
   version "4.4.2"
   resolved "https://registry.yarnpkg.com/lodash.get/-/lodash.get-4.4.2.tgz#2d177f652fa31e939b4438d5341499dfa3825e99"
   integrity sha1-LRd/ZS+jHpObRDjVNBSZ36OCXpk=
