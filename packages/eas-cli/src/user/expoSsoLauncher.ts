@@ -5,6 +5,36 @@ import querystring from 'querystring';
 
 import Log from '../log';
 
+const successBody = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Expo SSO Login</title>
+  <meta charset="utf-8">
+  <style type="text/css">
+    html {
+      margin: 0;
+      padding: 0
+    }
+
+    body {
+      background-color: #fff;
+      font-family: Tahoma,Verdana;
+      font-size: 16px;
+      color: #000;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: .5rem;
+      margin: 1em;
+      overflow-wrap: break-word
+    }
+  </style>
+</head>
+<body>
+  SSO login complete. You may now close this tab and return to the command prompt.
+</body>
+</html>`;
+
 export async function getSessionUsingBrowserAuthFlowAsync(options: {
   expoWebsiteUrl: string;
   serverPort: number;
@@ -44,8 +74,8 @@ export async function getSessionUsingBrowserAuthFlowAsync(options: {
               throw new Error('Request missing session_secret search parameter.');
             }
             resolve(sessionSecret);
-            response.writeHead(200, { 'Content-Type': 'text/plain' });
-            response.write(`Website login has completed. You can now close this tab.`);
+            response.writeHead(200, { 'Content-Type': 'text/html' });
+            response.write(successBody);
             response.end();
           } catch (error) {
             reject(error);
