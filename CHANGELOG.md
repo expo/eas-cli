@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Add styling to SSO auth redirect completion page. ([#1929](https://github.com/expo/eas-cli/pull/1929) by [@wschurman](https://github.com/wschurman))
 - Ignore entitlements from native template when `/ios` is gitignored. ([#1906](https://github.com/expo/eas-cli/pull/1906) by [@byCedric](https://github.com/byCedric))
+- Use node server default port selection for SSO login server. ([#1930](https://github.com/expo/eas-cli/pull/1930) by [@wschurman](https://github.com/wschurman))
 
 ### 🐛 Bug fixes
 
