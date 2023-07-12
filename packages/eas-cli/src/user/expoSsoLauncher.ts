@@ -1,3 +1,4 @@
+import assert from 'assert';
 import openBrowserAsync from 'better-opn';
 import http from 'http';
 import { Socket } from 'node:net';
@@ -35,22 +36,22 @@ const successBody = `
 </body>
 </html>`;
 
-export async function getSessionUsingBrowserAuthFlowAsync(options: {
+export async function getSessionUsingBrowserAuthFlowAsync({
+  expoWebsiteUrl,
+}: {
   expoWebsiteUrl: string;
-  serverPort: number;
 }): Promise<string> {
-  const { expoWebsiteUrl, serverPort } = options;
-  if (!expoWebsiteUrl || !serverPort) {
+  if (!expoWebsiteUrl) {
     throw new Error('Expo website URL and local server port are required.');
   }
+
   const scheme = 'http';
   const hostname = 'localhost';
   const path = '/auth/callback';
-  const redirectUri = `${scheme}://${hostname}:${serverPort}${path}`;
 
-  const buildExpoSsoLoginUrl = (): string => {
+  const buildExpoSsoLoginUrl = (port: number): string => {
     const data = {
-      app_redirect_uri: redirectUri,
+      app_redirect_uri: `${scheme}://${hostname}:${port}${path}`,
     };
     const params = querystring.stringify(data);
     return `${expoWebsiteUrl}/sso-login?${params}`;
@@ -89,8 +90,17 @@ export async function getSessionUsingBrowserAuthFlowAsync(options: {
         }
       );
 
-      server.listen(serverPort, hostname, () => {
+      server.listen(0, hostname, () => {
         Log.log('Waiting for browser login...');
+
+        const address = server.address();
+        assert(
+          address !== null && typeof address === 'object',
+          'Server address and port should be set after listening has begun'
+        );
+        const port = address.port;
+        const authorizeUrl = buildExpoSsoLoginUrl(port);
+        openBrowserAsync(authorizeUrl);
       });
 
       server.on('connection', connection => {
@@ -100,9 +110,6 @@ export async function getSessionUsingBrowserAuthFlowAsync(options: {
           connections.delete(connection);
         });
       });
-
-      const authorizeUrl = buildExpoSsoLoginUrl();
-      openBrowserAsync(authorizeUrl);
     });
   };
 

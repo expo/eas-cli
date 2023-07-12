@@ -47,7 +47,6 @@
     "fast-glob": "3.2.12",
     "figures": "3.2.0",
     "form-data": "4.0.0",
-    "freeport-async": "2.0.0",
     "fs-extra": "10.1.0",
     "getenv": "1.0.0",
     "gradle-to-js": "2.0.1",
