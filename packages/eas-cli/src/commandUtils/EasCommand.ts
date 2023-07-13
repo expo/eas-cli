@@ -200,7 +200,14 @@ export default abstract class EasCommand extends Command {
           const requestIdLine = graphQLError.extensions?.requestId
             ? `\nRequest ID: ${err.graphQLErrors[0].extensions.requestId}`
             : '';
-          return `${messageLine}${requestIdLine}`;
+
+          const defaultMsg = `${messageLine}${requestIdLine}`;
+
+          if (err?.graphQLErrors?.[0]?.extensions?.errorCode === 'UNAUTHORIZED_ERROR') {
+            return `You don't have the required permissions to perform this operation.\n\n${defaultMsg}`;
+          }
+
+          return defaultMsg;
         })
         .join('\n');
       Log.error(cleanMessage);
