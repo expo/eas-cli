@@ -255,6 +255,10 @@ async function uploadProjectAsync<TPlatform extends Platform>(
           );
         }
 
+        if (projectTarball.size > 2 * 1024 * 1024 * 1024) {
+          throw new Error('Project archive is too big. Maximum allowed size is 2GB.');
+        }
+
         projectTarballPath = projectTarball.path;
 
         const bucketKey = await uploadFileAtPathToGCSAsync(
