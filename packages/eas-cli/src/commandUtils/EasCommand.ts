@@ -203,7 +203,7 @@ export default abstract class EasCommand extends Command {
 
           const defaultMsg = `${messageLine}${requestIdLine}`;
 
-          if (err?.graphQLErrors?.[0]?.extensions?.errorCode === 'UNAUTHORIZED_ERROR') {
+          if (graphQLError.extensions?.errorCode === 'UNAUTHORIZED_ERROR') {
             return `You don't have the required permissions to perform this operation.\n\n${defaultMsg}`;
           }
 
