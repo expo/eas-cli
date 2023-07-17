@@ -255,7 +255,7 @@ async function uploadProjectAsync<TPlatform extends Platform>(
           );
         }
 
-        if (projectTarball.size > 1024 * 1024 * 1024) {
+        if (projectTarball.size > 2 * 1024 * 1024 * 1024) {
           throw new Error('Project archive is too big. Maximum allowed size is 1GB.');
         }
 
