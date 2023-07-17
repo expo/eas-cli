@@ -12,7 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- Limit project file upload size to 1GB. ([#1928](https://github.com/expo/eas-cli/pull/1928) by [@khamilowicz](https://github.com/khamilowicz))
+- Limit project file upload size to 2GB. ([#1928](https://github.com/expo/eas-cli/pull/1928) by [@khamilowicz](https://github.com/khamilowicz))
 
 ## [3.15.1](https://github.com/expo/eas-cli/releases/tag/v3.15.1) - 2023-07-11
 
