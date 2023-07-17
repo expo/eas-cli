@@ -16,6 +16,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Print friendly error msg in case account doesn't have required permission. ([#1867](https://github.com/expo/eas-cli/pull/1867) by [@firasrg](https://github.com/firasrg))
+
 ## [3.15.1](https://github.com/expo/eas-cli/releases/tag/v3.15.1) - 2023-07-11
 
 ### 🐛 Bug fixes
@@ -29,7 +31,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - Better bare workflow runtimeVersion error. ([#1910](https://github.com/expo/eas-cli/pull/1910) by [@quinlanj](https://github.com/quinlanj))
 - Fix runtime version print logs. ([#1925](https://github.com/expo/eas-cli/pull/1925) by [@quinlanj](https://github.com/quinlanj))
 - Add info about new `macos-ventura-13.4-xcode-14.3.1` image to `eas.schema.json`. ([#1920](https://github.com/expo/eas-cli/pull/1920) by [@szdziedzic](https://github.com/szdziedzic))
-- Print friendly error msg in case account doesn't have required permission. ([#1867](https://github.com/expo/eas-cli/pull/1867) by [@firasrg](https://github.com/firasrg))
 
 ## [3.15.0](https://github.com/expo/eas-cli/releases/tag/v3.15.0) - 2023-06-30
 
