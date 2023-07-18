@@ -1,10 +1,13 @@
-import capitalize from '../capitalize';
+import capitalizeFirstLetter from '../capitalize';
 
-describe(capitalize, () => {
+describe(capitalizeFirstLetter, () => {
   it('capitalizes the string', () => {
-    expect(capitalize('dominik')).toBe('Dominik');
+    expect(capitalizeFirstLetter('dominik')).toBe('Dominik');
   });
   it('works with an empty string', () => {
-    expect(capitalize('')).toBe('');
+    expect(capitalizeFirstLetter('')).toBe('');
+  });
+  it('does not change the case of other letters', () => {
+    expect(capitalizeFirstLetter('inProgress')).toBe('InProgress');
   });
 });
