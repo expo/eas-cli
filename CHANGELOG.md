@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix incorrect handling of valid `inProgress` Android submission release status. ([#1934](https://github.com/expo/eas-cli/pull/1934) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 - Limit project file upload size to 2GB. ([#1928](https://github.com/expo/eas-cli/pull/1928) by [@khamilowicz](https://github.com/khamilowicz))
