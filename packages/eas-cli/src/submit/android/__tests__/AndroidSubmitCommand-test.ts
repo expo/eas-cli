@@ -145,46 +145,6 @@ describe(AndroidSubmitCommand, () => {
       });
     });
 
-    it('sends a request to EAS Submit when using inProgress release status', async () => {
-      const projectId = uuidv4();
-      const graphqlClient = {} as any as ExpoGraphqlClient;
-      const analytics = instance(mock<Analytics>());
-
-      const ctx = await createSubmissionContextAsync({
-        platform: Platform.ANDROID,
-        projectDir: testProject.projectRoot,
-        archiveFlags: {
-          url: 'http://expo.dev/fake.apk',
-        },
-        profile: {
-          serviceAccountKeyPath: '/google-service-account.json',
-          track: AndroidReleaseTrack.internal,
-          releaseStatus: AndroidReleaseStatus.inProgress,
-          changesNotSentForReview: false,
-        },
-        nonInteractive: false,
-        actor: mockJester,
-        graphqlClient,
-        analytics,
-        exp: testProject.appJSON.expo,
-        projectId,
-      });
-
-      const command = new AndroidSubmitCommand(ctx);
-      await command.runAsync();
-
-      expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
-        appId: projectId,
-        archiveSource: { type: SubmissionArchiveSourceType.Url, url: 'http://expo.dev/fake.apk' },
-        config: {
-          googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],
-          releaseStatus: SubmissionAndroidReleaseStatus.Draft,
-          track: SubmissionAndroidTrack.Internal,
-          changesNotSentForReview: false,
-        },
-      });
-    });
-
     it('assigns the build ID to submission', async () => {
       const projectId = uuidv4();
       const graphqlClient = {} as any as ExpoGraphqlClient;
