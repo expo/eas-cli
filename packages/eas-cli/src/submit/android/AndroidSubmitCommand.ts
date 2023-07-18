@@ -12,7 +12,7 @@ import {
   AmbiguousApplicationIdError,
   getApplicationIdAsync,
 } from '../../project/android/applicationId';
-import capitalize from '../../utils/expodash/capitalize';
+import capitalizeFirstLetter from '../../utils/expodash/capitalize';
 import { ArchiveSource } from '../ArchiveSource';
 import { resolveArchiveSource } from '../commons';
 import { SubmissionContext } from '../context';
@@ -73,7 +73,7 @@ export default class AndroidSubmitCommand {
     if (!track) {
       return result(SubmissionAndroidTrack.Internal);
     }
-    const capitalizedTrack = capitalize(track);
+    const capitalizedTrack = capitalizeFirstLetter(track);
     if (capitalizedTrack in SubmissionAndroidTrack) {
       return result(
         SubmissionAndroidTrack[capitalizedTrack as keyof typeof SubmissionAndroidTrack]
@@ -94,7 +94,7 @@ export default class AndroidSubmitCommand {
     if (!releaseStatus) {
       return result(SubmissionAndroidReleaseStatus.Completed);
     }
-    const capitalizedReleaseStatus = capitalize(releaseStatus);
+    const capitalizedReleaseStatus = capitalizeFirstLetter(releaseStatus);
     if (capitalizedReleaseStatus in SubmissionAndroidReleaseStatus) {
       return result(
         SubmissionAndroidReleaseStatus[
