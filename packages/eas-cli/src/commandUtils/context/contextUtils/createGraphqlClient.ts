@@ -5,10 +5,12 @@ import {
   OperationResult,
   OperationResultSource,
   TypedDocumentNode,
-  cacheExchange,
   createClient as createUrqlClient,
+  cacheExchange as defaultCacheExchange,
   fetchExchange,
 } from '@urql/core';
+import { cacheExchange as graphqlCacheExchange } from '@urql/exchange-graphcache';
+import { relayPagination } from '@urql/exchange-graphcache/extras';
 import { retryExchange } from '@urql/exchange-retry';
 import { DocumentNode } from 'graphql';
 import fetch from 'node-fetch';
@@ -24,14 +26,25 @@ export interface ExpoGraphqlClient extends Client {
   ): OperationResultSource<OperationResult<Data, Variables>>;
 }
 
-export function createGraphqlClient(authInfo: {
-  accessToken: string | null;
-  sessionSecret: string | null;
-}): ExpoGraphqlClient {
+// TODO: plumb this down, maybe use a feature gate for this?
+export function createGraphqlClient(
+  authInfo: {
+    accessToken: string | null;
+    sessionSecret: string | null;
+  },
+  _options: { useGraphqlCachePolicy?: boolean } = {}
+): ExpoGraphqlClient {
   return createUrqlClient({
     url: getExpoApiBaseUrl() + '/graphql',
     exchanges: [
-      cacheExchange,
+      //options.useGraphqlCachePolicy ? graphqlCacheExchange() : defaultCacheExchange,
+      graphqlCacheExchange({
+        resolvers: {
+          App: {
+            updateChannels: relayPagination(),
+          },
+        },
+      }),
       retryExchange({
         maxDelayMs: 4000,
         retryIf: (err, operation) => {

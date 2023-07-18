@@ -108,4 +108,39 @@ export const ChannelQuery = {
 
     return updateChannels;
   },
+  async viewUpdateChannelsPaginatedOnAppAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, limit, offset }: ViewUpdateChannelsOnAppQueryVariables
+  ): Promise<UpdateChannelObject[]> {
+    const response = await withErrorHandlingAsync(
+      graphqlClient
+        .query<ViewUpdateChannelsOnAppQuery, ViewUpdateChannelsOnAppQueryVariables>(
+          gql`
+            query ViewUpdateChannelsOnApp($appId: String!, $offset: Int!, $limit: Int!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  updateChannels(offset: $offset, limit: $limit) {
+                    id
+                    name
+                    branchMapping
+                  }
+                }
+              }
+            }
+            ${print(UpdateFragmentNode)}
+          `,
+          { appId, offset, limit },
+          { additionalTypenames: ['UpdateChannel', 'UpdateBranch', 'Update'] }
+        )
+        .toPromise()
+    );
+    const { updateChannels } = response.app.byId;
+
+    if (!updateChannels) {
+      throw new Error(`Could not find channels on project with id ${appId}`);
+    }
+
+    return updateChannels;
+  },
 };
