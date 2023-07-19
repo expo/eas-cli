@@ -25,7 +25,11 @@ import { promptAsync } from '../prompts';
 import { getBranchNameFromChannelNameAsync } from '../update/getBranchNameFromChannelNameAsync';
 import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../update/utils';
 import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
-import { expoCommandAsync, shouldUseVersionedExpoCLI } from '../utils/expoCli';
+import {
+  expoCommandAsync,
+  shouldUseVersionedExpoCLI,
+  shouldUseVersionedExpoCLIWithExplicitPlatforms,
+} from '../utils/expoCli';
 import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
 import uniqBy from '../utils/expodash/uniqBy';
@@ -184,7 +188,7 @@ export async function buildBundlesAsync({
 }: {
   projectDir: string;
   inputDir: string;
-  exp: Pick<ExpoConfig, 'sdkVersion'>;
+  exp: Pick<ExpoConfig, 'sdkVersion' | 'web'>;
   platformFlag: ExpoCLIExportPlatformFlag;
   clearCache?: boolean;
 }): Promise<void> {
@@ -193,24 +197,9 @@ export async function buildBundlesAsync({
     throw new Error('Could not locate package.json');
   }
 
-  const platformArgs =
-    platformFlag === 'all'
-      ? ['--platform', 'ios', '--platform', 'android']
-      : ['--platform', platformFlag];
-
-  if (shouldUseVersionedExpoCLI(projectDir, exp)) {
-    await expoCommandAsync(projectDir, [
-      'export',
-      '--output-dir',
-      inputDir,
-      '--dump-sourcemap',
-      '--dump-assetmap',
-      ...platformArgs,
-      ...(clearCache ? ['--clear'] : []),
-    ]);
-  } else {
-    // Legacy global Expo CLI
-    await expoCommandAsync(projectDir, [
+  // Legacy global Expo CLI
+  if (!shouldUseVersionedExpoCLI(projectDir, exp)) {
+    return await expoCommandAsync(projectDir, [
       'export',
       '--output-dir',
       inputDir,
@@ -218,10 +207,50 @@ export async function buildBundlesAsync({
       '--non-interactive',
       '--dump-sourcemap',
       '--dump-assetmap',
+      ...platformFlag,
+      ...(clearCache ? ['--clear'] : []),
+    ]);
+  }
+
+  // Versioned Expo CLI, with multiple platform flag support
+  if (shouldUseVersionedExpoCLIWithExplicitPlatforms(projectDir)) {
+    // When creating EAS updates, we don't want to build a web bundle
+    const platformArgs =
+      platformFlag === 'all'
+        ? ['--platform', 'ios', '--platform', 'android']
+        : ['--platform', platformFlag];
+
+    return await expoCommandAsync(projectDir, [
+      'export',
+      '--output-dir',
+      inputDir,
+      '--dump-sourcemap',
+      '--dump-assetmap',
       ...platformArgs,
       ...(clearCache ? ['--clear'] : []),
     ]);
   }
+
+  // Versioned Expo CLI, without multiple platform flag support
+  // Warn users about potential export issues when using Metro web
+  // See: https://github.com/expo/expo/pull/23621
+  if (exp.web?.bundler === 'metro') {
+    Log.warn('Exporting bundle for all platforms, including Metro web.');
+    Log.warn(
+      'If your app is incompatible with web, remove the "expo.web.bundler" property from your app manifest, or upgrade to the latest Expo SDK.'
+    );
+  }
+
+  return await expoCommandAsync(projectDir, [
+    'export',
+    '--output-dir',
+    inputDir,
+    '--dump-sourcemap',
+    '--dump-assetmap',
+    '--platform',
+    platformFlag,
+    ...(clearCache ? ['--clear'] : []),
+  ]);
 }
 
 export async function resolveInputDirectoryAsync(
