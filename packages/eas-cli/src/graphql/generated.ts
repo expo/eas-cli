@@ -112,6 +112,8 @@ export type Account = {
   googleServiceAccountKeys: Array<GoogleServiceAccountKey>;
   id: Scalars['ID'];
   isCurrent: Scalars['Boolean'];
+  /** Whether this account has SSO enabled. Can be queried by all members. */
+  isSSOEnabled: Scalars['Boolean'];
   name: Scalars['String'];
   /** Offers set on this account */
   offers?: Maybe<Array<Offer>>;
@@ -972,6 +974,7 @@ export type AndroidSubmissionConfig = {
   /** @deprecated archiveType is deprecated and will be null */
   archiveType?: Maybe<SubmissionAndroidArchiveType>;
   releaseStatus?: Maybe<SubmissionAndroidReleaseStatus>;
+  rollout?: Maybe<Scalars['Float']>;
   track: SubmissionAndroidTrack;
 };
 
@@ -982,6 +985,7 @@ export type AndroidSubmissionConfigInput = {
   googleServiceAccountKeyId?: InputMaybe<Scalars['String']>;
   googleServiceAccountKeyJson?: InputMaybe<Scalars['String']>;
   releaseStatus?: InputMaybe<SubmissionAndroidReleaseStatus>;
+  rollout?: InputMaybe<Scalars['Float']>;
   track: SubmissionAndroidTrack;
 };
 
@@ -2009,7 +2013,8 @@ export type BackgroundJobReceiptQueryByIdArgs = {
 };
 
 export enum BackgroundJobResultType {
-  GithubBuild = 'GITHUB_BUILD'
+  GithubBuild = 'GITHUB_BUILD',
+  Void = 'VOID'
 }
 
 export enum BackgroundJobState {
@@ -2072,6 +2077,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   initiatingUser?: Maybe<User>;
   iosEnterpriseProvisioning?: Maybe<BuildIosEnterpriseProvisioning>;
   isGitWorkingTreeDirty?: Maybe<Scalars['Boolean']>;
+  isWaived: Scalars['Boolean'];
   logFiles: Array<Scalars['String']>;
   maxBuildTimeSeconds: Scalars['Int'];
   /** Retry time starts after completedAt */
@@ -2701,6 +2707,11 @@ export type DeleteIosAppCredentialsResult = {
 
 export type DeleteRobotResult = {
   __typename?: 'DeleteRobotResult';
+  id: Scalars['ID'];
+};
+
+export type DeleteSsoUserResult = {
+  __typename?: 'DeleteSSOUserResult';
   id: Scalars['ID'];
 };
 
@@ -3628,6 +3639,8 @@ export type MeMutation = {
   createAccount: Account;
   /** Delete an Account created via createAccount */
   deleteAccount: DeleteAccountResult;
+  /** Delete a SSO user. Actor must be an owner on the SSO user's SSO account. */
+  deleteSSOUser: DeleteSsoUserResult;
   /** Delete a second factor device */
   deleteSecondFactorDevice: SecondFactorBooleanResult;
   /** Delete a Snack that the current user owns */
@@ -3677,6 +3690,11 @@ export type MeMutationCreateAccountArgs = {
 
 export type MeMutationDeleteAccountArgs = {
   accountId: Scalars['ID'];
+};
+
+
+export type MeMutationDeleteSsoUserArgs = {
+  ssoUserId: Scalars['ID'];
 };
 
 
@@ -3755,6 +3773,7 @@ export type MeteredBillingStatus = {
 
 export enum NotificationEvent {
   BuildComplete = 'BUILD_COMPLETE',
+  BuildLimitThresholdExceeded = 'BUILD_LIMIT_THRESHOLD_EXCEEDED',
   BuildPlanCreditThresholdExceeded = 'BUILD_PLAN_CREDIT_THRESHOLD_EXCEEDED',
   SubmissionComplete = 'SUBMISSION_COMPLETE'
 }
@@ -5016,7 +5035,7 @@ export type User = Actor & UserActor & {
   /** Discord account linked to a user */
   discordUser?: Maybe<DiscordUser>;
   displayName: Scalars['String'];
-  email?: Maybe<Scalars['String']>;
+  email: Scalars['String'];
   emailVerified: Scalars['Boolean'];
   /**
    * Server feature gate values for this actor, optionally filtering by desired gates.
@@ -5514,6 +5533,14 @@ export type CreateAndroidAppBuildCredentialsMutationVariables = Exact<{
 
 
 export type CreateAndroidAppBuildCredentialsMutation = { __typename?: 'RootMutation', androidAppBuildCredentials: { __typename?: 'AndroidAppBuildCredentialsMutation', createAndroidAppBuildCredentials: { __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null, md5CertificateFingerprint?: string | null, sha1CertificateFingerprint?: string | null, sha256CertificateFingerprint?: string | null, createdAt: any, updatedAt: any } | null } } };
+
+export type SetDefaultAndroidAppBuildCredentialsMutationVariables = Exact<{
+  androidAppBuildCredentialsId: Scalars['ID'];
+  isDefault: Scalars['Boolean'];
+}>;
+
+
+export type SetDefaultAndroidAppBuildCredentialsMutation = { __typename?: 'RootMutation', androidAppBuildCredentials: { __typename?: 'AndroidAppBuildCredentialsMutation', setDefault: { __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null, md5CertificateFingerprint?: string | null, sha1CertificateFingerprint?: string | null, sha256CertificateFingerprint?: string | null, createdAt: any, updatedAt: any } | null } } };
 
 export type SetKeystoreMutationVariables = Exact<{
   androidAppBuildCredentialsId: Scalars['ID'];

@@ -27,7 +27,7 @@ import {
 export interface AndroidSubmissionOptions
   extends Pick<
     AndroidSubmissionConfigInput,
-    'track' | 'releaseStatus' | 'changesNotSentForReview'
+    'track' | 'releaseStatus' | 'changesNotSentForReview' | 'rollout'
   > {
   projectId: string;
   archiveSource: ArchiveSource;
@@ -111,11 +111,12 @@ export default class AndroidSubmitter extends BaseSubmitter<
     options: AndroidSubmissionOptions,
     { serviceAccountKeyResult }: ResolvedSourceOptions
   ): AndroidSubmissionConfigInput {
-    const { track, releaseStatus, changesNotSentForReview } = options;
+    const { track, releaseStatus, changesNotSentForReview, rollout } = options;
     return {
       track,
       changesNotSentForReview,
       releaseStatus,
+      rollout,
       ...serviceAccountKeyResult.result,
     };
   }
@@ -124,7 +125,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
     options: AndroidSubmissionOptions,
     { archive, serviceAccountKeyResult }: ResolvedSourceOptions
   ): SummaryData {
-    const { projectId, track, releaseStatus, changesNotSentForReview } = options;
+    const { projectId, track, releaseStatus, changesNotSentForReview, rollout } = options;
 
     // structuring order affects table rows order
     return {
@@ -133,6 +134,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
       changesNotSentForReview: changesNotSentForReview ?? undefined,
       releaseStatus: releaseStatus ?? undefined,
       formattedServiceAccount: formatServiceAccountSummary(serviceAccountKeyResult),
+      rollout: rollout ?? undefined,
       ...formatArchiveSourceSummary(archive),
     };
   }
@@ -143,6 +145,7 @@ type SummaryData = {
   formattedServiceAccount: string;
   projectId: string;
   releaseStatus?: SubmissionAndroidReleaseStatus;
+  rollout?: number;
   track: SubmissionAndroidTrack;
 } & ArchiveSourceSummaryFields;
 
@@ -154,6 +157,7 @@ const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
   formattedServiceAccount: 'Google Service Account Key',
   projectId: 'Project ID',
   releaseStatus: 'Release status',
+  rollout: 'Rollout',
   track: 'Release track',
 };
 

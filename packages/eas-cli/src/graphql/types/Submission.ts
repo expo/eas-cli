@@ -1,5 +1,6 @@
 import gql from 'graphql-tag';
 
+// TODO: add rollout here
 export const SubmissionFragmentNode = gql`
   fragment SubmissionFragment on Submission {
     id
