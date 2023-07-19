@@ -27,12 +27,18 @@ beforeEach(() => {
 
 const EXPECTED_STRINGIFIED_GRAPHQL_ERROR_JSON = `[
   {
+    "name": "GraphQLError",
+    "extensions": {},
     "message": "Error 1"
   },
   {
+    "name": "GraphQLError",
+    "extensions": {},
     "message": "Error 2"
   },
   {
+    "name": "GraphQLError",
+    "extensions": {},
     "message": "Error 3"
   }
 ]`;
