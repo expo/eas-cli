@@ -2,8 +2,14 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
+import {
+  BranchMapping,
+  BranchMappingObject,
+  assertNodeObject,
+  assertNumber,
+} from '../../channel/branch-mapping';
 import { selectChannelOnAppAsync } from '../../channel/queries';
-import { BranchMapping, getBranchMapping } from '../../channel/utils';
+import { getBranchMapping } from '../../channel/utils';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
@@ -53,7 +59,10 @@ function getRolloutInfo(channel: UpdateChannelByNameObject): {
     throw new Error(`Branch mapping rollout is missing a branch for channel "${channel.name}".`);
   }
 
-  const currentPercent = 100 * branchMapping.data[0].branchMappingLogic.operand;
+  const branchMappingNode = branchMapping.data[0]?.branchMappingLogic;
+  assertNodeObject(branchMappingNode);
+  assertNumber(branchMappingNode.operand);
+  const currentPercent = 100 * branchMappingNode.operand;
   return { newBranch, oldBranch, currentPercent };
 }
 
@@ -183,7 +192,7 @@ async function editRolloutAsync(
   }
 
   const newBranchMapping = { ...currentBranchMapping };
-  newBranchMapping.data[0].branchMappingLogic.operand = percent / 100;
+  (newBranchMapping.data[0].branchMappingLogic as BranchMappingObject).operand = percent / 100;
 
   const newChannelInfo = await updateChannelBranchMappingAsync(graphqlClient, {
     channelId: channel.id,
