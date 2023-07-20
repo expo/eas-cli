@@ -22,13 +22,14 @@ export async function runCurrentMachineMethodAsync(
   appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
 ): Promise<void> {
   Log.newLine();
-  Log.log(chalk.green('Checking if current machine is an Apple Silicon one.'));
+  Log.log(chalk.white('Checking if current machine is an Apple Silicon one.'));
   if (!isMachineAppleSilicon()) {
     const message =
       "Current machine is not of Apple Silicon type - provisioning UDID can't be added automatically.";
     Log.error(message);
     throw new DeviceCreateError(message);
   }
+  Log.log(chalk.green('Check successful.'));
 
   await collectDataAndRegisterDeviceAsync(graphqlClient, { accountId, appleTeam });
 }
@@ -76,8 +77,9 @@ async function collectDeviceDataAsync(
   appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName'>,
   initialValues: Partial<DeviceData> = {}
 ): Promise<DeviceData | null> {
+  Log.log(chalk.white('Fetching the provisioning UDID.'));
   const [udid, defaultMachineName] = await fetchCurrentMachineUDIDAsync();
-  Log.log(udid);
+  Log.log(chalk.green(`Fetched the provisioning UDID - ${udid}`));
   const name = await promptForNameAsync(defaultMachineName ?? initialValues.name);
   const deviceClass = await promptForDeviceClassAsync(initialValues.deviceClass);
   const deviceData: DeviceData = {
