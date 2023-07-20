@@ -34,10 +34,11 @@
   "repository": "expo/eas-cli",
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
+    "build-ci": "tsc --project tsconfig.build-ci.json",
     "watch": "yarn build --watch --preserveWatchOutput",
-    "typecheck": "tsc",
+    "typecheck": "tsc --project tsconfig.build-ci.json",
     "prepack": "yarn rebuild",
-    "rebuild": "rimraf build && yarn build",
+    "rebuild": "rimraf build && yarn build-ci",
     "test": "jest",
     "clean": "rimraf build node_modules yarn-error.log"
   },

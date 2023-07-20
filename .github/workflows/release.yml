@@ -29,7 +29,7 @@ jobs:
         with:
           node-version: 18
       - run: yarn install --frozen-lockfile --check-files
-      - run: yarn build
+      - run: yarn build-ci
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
         run: |
@@ -70,7 +70,7 @@ jobs:
         with:
           node-version: 18
       - run: yarn install --frozen-lockfile --check-files
-      - run: yarn build
+      - run: yarn build-ci
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
         run: |
@@ -99,7 +99,7 @@ jobs:
           node-version: 18
       - run: yarn install --frozen-lockfile --check-files
       - run: sudo apt-get install nsis
-      - run: yarn build
+      - run: yarn build-ci
       - run: |
           yarn pretarball-ci
           yarn oclif pack:win
@@ -142,7 +142,7 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile --check-files
       - name: Build
-        run: yarn build
+        run: yarn build-ci
       - name: Publish packages to npm
         run: yarn lerna publish from-package --yes --no-verify-access
         env:
