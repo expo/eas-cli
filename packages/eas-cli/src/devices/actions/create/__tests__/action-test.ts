@@ -5,6 +5,7 @@ import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils
 import AppStoreApi from '../../../../credentials/ios/appstore/AppStoreApi';
 import { AccountFragment, Role } from '../../../../graphql/generated';
 import DeviceCreateAction, { RegistrationMethod } from '../action';
+import { runCurrentMachineMethodAsync } from '../currentMachineMethod';
 import { runDeveloperPortalMethodAsync } from '../developerPortalMethod';
 import { runInputMethodAsync } from '../inputMethod';
 import { runRegistrationUrlMethodAsync } from '../registrationUrlMethod';
@@ -13,6 +14,7 @@ jest.mock('prompts');
 jest.mock('../developerPortalMethod');
 jest.mock('../inputMethod');
 jest.mock('../registrationUrlMethod');
+jest.mock('../currentMachineMethod');
 
 beforeEach(() => {
   const promptsMock = jest.mocked(prompts);
@@ -22,6 +24,7 @@ beforeEach(() => {
   });
   jest.mocked(runRegistrationUrlMethodAsync).mockClear();
   jest.mocked(runInputMethodAsync).mockClear();
+  jest.mocked(runCurrentMachineMethodAsync).mockClear();
 });
 
 describe(DeviceCreateAction, () => {
@@ -117,6 +120,37 @@ describe(DeviceCreateAction, () => {
       await action.runAsync();
 
       expect(runDeveloperPortalMethodAsync).toBeCalled();
+    });
+
+    it('calls runCurrentMachineMethodAsync if user chooses the current machine method', async () => {
+      jest.mocked(prompts).mockImplementationOnce(async () => ({
+        method: RegistrationMethod.CURRENT_MACHINE,
+      }));
+      const appStoreApiMock = mock<AppStoreApi>();
+      const appStoreApi = instance(appStoreApiMock);
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+
+      const account: AccountFragment = {
+        id: 'account_id',
+        name: 'foobar',
+        users: [
+          {
+            role: Role.Owner,
+            actor: {
+              id: 'user_id',
+            },
+          },
+        ],
+      };
+      const appleTeam = {
+        id: 'apple-team-id',
+        appleTeamIdentifier: 'ABC123Y',
+        appleTeamName: 'John Doe (Individual)',
+      };
+      const action = new DeviceCreateAction(graphqlClient, appStoreApi, account, appleTeam);
+      await action.runAsync();
+
+      expect(runCurrentMachineMethodAsync).toBeCalled();
     });
   });
 });
