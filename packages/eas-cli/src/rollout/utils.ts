@@ -66,14 +66,10 @@ function isRtvConstrainedRollout(branchMapping: BranchMapping): boolean {
   if (branchMapping.data.length !== 2) {
     return false;
   }
-  const hasAlwaysTrueNode = branchMapping.data.some(wrappedNode =>
-    isAlwaysTrue(wrappedNode.branchMappingLogic)
-  );
-  const hasRtvRolloutNode = branchMapping.data.some(wrappedNode =>
-    isRtvConstrainedRolloutNode(wrappedNode.branchMappingLogic)
-  );
+  const hasRtvRolloutNode = isRtvConstrainedRolloutNode(branchMapping.data[0].branchMappingLogic);
+  const defaultsToAlwaysTrueNode = isAlwaysTrue(branchMapping.data[1].branchMappingLogic);
 
-  return hasAlwaysTrueNode && hasRtvRolloutNode;
+  return hasRtvRolloutNode && defaultsToAlwaysTrueNode;
 }
 
 function isRtvConstrainedRolloutNode(node: BranchMappingNode): boolean {
@@ -94,13 +90,9 @@ function isUnconstrainedRollout(branchMapping: BranchMapping): boolean {
   if (branchMapping.data.length !== 2) {
     return false;
   }
-  const hasAlwaysTrueNode = branchMapping.data.some(wrappedNode =>
-    isAlwaysTrue(wrappedNode.branchMappingLogic)
-  );
-  const hasRolloutNode = branchMapping.data.some(wrappedNode =>
-    isRolloutNode(wrappedNode.branchMappingLogic)
-  );
-  return hasAlwaysTrueNode && hasRolloutNode;
+  const hasRolloutNode = isRolloutNode(branchMapping.data[0].branchMappingLogic);
+  const defaultsToAlwaysTrueNode = isAlwaysTrue(branchMapping.data[1].branchMappingLogic);
+  return hasRolloutNode && defaultsToAlwaysTrueNode;
 }
 
 function isRuntimeVersionNode(node: BranchMappingNode): boolean {
