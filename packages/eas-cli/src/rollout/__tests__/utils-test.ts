@@ -168,5 +168,33 @@ describe(isRollout, () => {
       ],
     };
     expect(isRollout(customMapping4)).toBe(false);
+
+    const customMapping5 = {
+      version: 0,
+      data: [
+        {
+          branchId: uuidv4(),
+          branchMappingLogic: andStatement([
+            {
+              operand: '1.0.0',
+              clientKey: 'runtimeVersion',
+              branchMappingOperator: equalsOperator(),
+            },
+            {
+              operand: 10 / 100,
+              clientKey: 'rolloutToken',
+              branchMappingOperator: hashLtOperator(),
+            },
+            {
+              operand: '2.0.0',
+              clientKey: 'runtimeVersion',
+              branchMappingOperator: equalsOperator(),
+            },
+          ]),
+        },
+        { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
+      ],
+    };
+    expect(isRollout(customMapping5)).toBe(false);
   });
 });
