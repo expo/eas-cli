@@ -7,42 +7,103 @@ import {
   isStatement,
 } from '../channel/branch-mapping';
 
-// a rollout made from the cli
+/**
+ * Detect if a branch mapping is a rollout.
+ * 
+ * Types of rollout:
+ * 1. Legacy unconstrained rollout:
+ * Maps to a rollout branch via a rollout token
+ * Falls back to a default branch
+ * 
+ * Example:
+ * {
+    version: 0,
+    data: [
+      {
+        branchId: uuidv4(),
+        branchMappingLogic: {
+          operand: 10 / 100,
+          clientKey: 'rolloutToken',
+          branchMappingOperator: hashLtOperator(),
+        },
+      },
+      { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
+    ],
+  }
+  *
+  * 2. RTV constrained rollout:
+  * Maps to a rollout branch via a rollout token, constrained by runtime version
+  * Falls back to a default branch
+  * 
+  * Example:
+  * {
+    version: 0,
+    data: [
+      {
+        branchId: uuidv4(),
+        branchMappingLogic: andStatement([
+          {
+            operand: '1.0.0',
+            clientKey: 'runtimeVersion',
+            branchMappingOperator: equalsOperator(),
+          },
+          {
+            operand: 10 / 100,
+            clientKey: 'rolloutToken',
+            branchMappingOperator: hashLtOperator(),
+          },
+        ]),
+      },
+      { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
+    ],
+  } 
+ */
 export function isRollout(branchMapping: BranchMapping): boolean {
+  return isUnconstrainedRollout(branchMapping) || isRtvConstrainedRollout(branchMapping);
+}
+
+function isRtvConstrainedRollout(branchMapping: BranchMapping): boolean {
   if (branchMapping.data.length !== 2) {
     return false;
   }
   const hasAlwaysTrueNode = branchMapping.data.some(wrappedNode =>
     isAlwaysTrue(wrappedNode.branchMappingLogic)
   );
-  if (!hasAlwaysTrueNode) {
+  const hasRtvRolloutNode = branchMapping.data.some(wrappedNode =>
+    isRtvConstrainedRolloutNode(wrappedNode.branchMappingLogic)
+  );
+
+  return hasAlwaysTrueNode && hasRtvRolloutNode;
+}
+
+function isRtvConstrainedRolloutNode(node: BranchMappingNode): boolean {
+  if (!isStatement(node) || !isAndStatement(node)) {
     return false;
   }
 
-  // Legacy rollout
+  const statementNodes = getNodesFromStatement(node);
+  if (statementNodes.length !== 2) {
+    return false;
+  }
+  const hasRuntimeVersionNode = statementNodes.some(isRuntimeVersionNode);
+  const hasRolloutNode = statementNodes.some(isRolloutNode);
+  return hasRuntimeVersionNode && hasRolloutNode;
+}
+
+function isUnconstrainedRollout(branchMapping: BranchMapping): boolean {
+  if (branchMapping.data.length !== 2) {
+    return false;
+  }
+  const hasAlwaysTrueNode = branchMapping.data.some(wrappedNode =>
+    isAlwaysTrue(wrappedNode.branchMappingLogic)
+  );
   const hasRolloutNode = branchMapping.data.some(wrappedNode =>
     isRolloutNode(wrappedNode.branchMappingLogic)
   );
-  if (hasAlwaysTrueNode && hasRolloutNode) {
-    return true;
-  }
-
-  const statementNode = branchMapping.data
-    .map(wrappedNode => wrappedNode.branchMappingLogic)
-    .find(isStatement);
-  if (!statementNode) {
-    return false;
-  }
-  if (!isAndStatement(statementNode)) {
-    return false;
-  }
-  const statementNodes = getNodesFromStatement(statementNode);
-  const hasRuntimeVersionNode = statementNodes.some(isRuntimeVersionNode);
-  const hasRolloutNode2 = statementNodes.some(isRolloutNode);
-  return hasRuntimeVersionNode && hasRolloutNode2;
+  return hasAlwaysTrueNode && hasRolloutNode;
 }
 
-export function isRuntimeVersionNode(node: BranchMappingNode): boolean {
+function isRuntimeVersionNode(node: BranchMappingNode): boolean {
   if (typeof node === 'string') {
     return false;
   }
@@ -52,7 +113,7 @@ export function isRuntimeVersionNode(node: BranchMappingNode): boolean {
   return node.clientKey === 'runtimeVersion' && node.branchMappingOperator === '==';
 }
 
-export function isRolloutNode(node: BranchMappingNode): boolean {
+function isRolloutNode(node: BranchMappingNode): boolean {
   if (typeof node === 'string') {
     return false;
   }
