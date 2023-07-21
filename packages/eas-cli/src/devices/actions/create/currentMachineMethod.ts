@@ -24,10 +24,9 @@ export async function runCurrentMachineMethodAsync(
   Log.newLine();
   Log.log(chalk.white('Checking if current machine is an Apple Silicon one.'));
   if (!isMachineAppleSilicon()) {
-    const message =
-      "Current machine is not of Apple Silicon type - provisioning UDID can't be added automatically.";
-    Log.error(message);
-    throw new DeviceCreateError(message);
+    throw new DeviceCreateError(
+      "Current machine is not of Apple Silicon type - provisioning UDID can't be added automatically."
+    );
   }
   Log.log(chalk.green('Check successful.'));
 
