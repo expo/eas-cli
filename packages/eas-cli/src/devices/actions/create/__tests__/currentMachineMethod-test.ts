@@ -19,6 +19,24 @@ jest.mock('os', () => {
     arch: jest.fn(),
   };
 });
+jest.mock('@expo/spawn-async', () => {
+  return {
+    __esModule: true,
+    ...jest.requireActual('@expo/spawn-async'),
+    default: jest.fn(async () => {
+      return {
+        stdout: JSON.stringify({
+          SPHardwareDataType: [
+            {
+              provisioning_UDID: 'fake_udid',
+              machine_name: 'fake_machine_name',
+            },
+          ],
+        }),
+      };
+    }),
+  };
+});
 
 beforeEach(() => {
   jest.mocked(prompts).mockReset();
