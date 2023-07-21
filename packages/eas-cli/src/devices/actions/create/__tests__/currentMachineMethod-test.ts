@@ -8,8 +8,6 @@ import { AppleDeviceClass, AppleTeam } from '../../../../graphql/generated';
 import { DeviceCreateError } from '../../../utils/errors';
 import { runCurrentMachineMethodAsync } from '../currentMachineMethod';
 
-jest.setTimeout(60000);
-
 jest.mock('../../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation');
 jest.mock('../../../../ora');
 jest.mock('os', () => {
