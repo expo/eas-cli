@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -12,6 +13,7 @@ import {
 } from '../graphql/generated';
 import { BranchQuery, UpdateBranchOnChannelObject } from '../graphql/queries/BranchQuery';
 import { ChannelQuery, UpdateChannelObject } from '../graphql/queries/ChannelQuery';
+import { UpdateChannelBasicInfoFragmentNode } from '../graphql/types/UpdateChannelBasicInfo';
 import Log from '../log';
 import formatFields from '../utils/formatFields';
 import { printJsonOnlyOutput } from '../utils/json';
@@ -227,11 +229,11 @@ export async function createChannelOnAppAsync(
             updateChannel {
               createUpdateChannelForApp(appId: $appId, name: $name, branchMapping: $branchMapping) {
                 id
-                name
-                branchMapping
+                ...UpdateChannelBasicInfoFragment
               }
             }
           }
+          ${print(UpdateChannelBasicInfoFragmentNode)}
         `,
         {
           appId,
