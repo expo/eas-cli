@@ -363,7 +363,7 @@
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "medium", "large", "intel-medium", "m-medium"]
+              "enum": ["default", "medium", "large", "m-medium"]
             },
             {
               "type": "string"

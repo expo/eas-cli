@@ -16,6 +16,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Added branch mapping utility functions. ([#1944](https://github.com/expo/eas-cli/pull/1944) by [@quinlanj](https://github.com/quinlanj))
 - Amend branch mapping utility functions. ([#1945](https://github.com/expo/eas-cli/pull/1945) by [@quinlanj](https://github.com/quinlanj))
+- Handle error thrown when `intel-medium` resource class is not available as server-side defined error. ([#1947](https://github.com/expo/eas-cli/pull/1947) by [@szdziedzic](https://github.com/szdziedzic))
+- Remove `intel-medium` from `eas.schema.json`, so it's not suggested as a valid value by our VSCode plugin. ([#1947](https://github.com/expo/eas-cli/pull/1947) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [3.16.0](https://github.com/expo/eas-cli/releases/tag/v3.16.0) - 2023-07-18
 

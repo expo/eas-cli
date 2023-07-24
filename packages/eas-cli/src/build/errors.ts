@@ -14,6 +14,8 @@ export class EasBuildFreeTierIosLimitExceededError extends EasCommandError {}
 
 export class EasBuildResourceClassNotAvailableInFreeTierError extends EasCommandError {}
 
+export class EasBuildLegacyResourceClassNotAvailableError extends EasCommandError {}
+
 export class RequestValidationError extends EasCommandError {}
 
 export class EasBuildDownForMaintenanceError extends EasCommandError {}
