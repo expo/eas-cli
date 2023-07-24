@@ -3110,7 +3110,7 @@ export type GitHubRepository = {
   githubRepositoryIdentifier: Scalars['Int'];
   githubRepositoryUrl?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
-  metadata?: Maybe<GitHubRepositoryMetadata>;
+  metadata: GitHubRepositoryMetadata;
   nodeIdentifier: Scalars['String'];
 };
 
@@ -3123,7 +3123,6 @@ export type GitHubRepositoryMetadata = {
   githubRepoUrl: Scalars['String'];
   lastPushed: Scalars['DateTime'];
   lastUpdated: Scalars['DateTime'];
-  openGraphImageUrl?: Maybe<Scalars['String']>;
   private: Scalars['Boolean'];
 };
 
@@ -4224,6 +4223,8 @@ export type RootQuery = {
   user: UserQuery;
   /** Top-level query object for querying UserActors. */
   userActor: UserActorQuery;
+  /** Top-level query object for querying UserActorPublicData publicly. */
+  userActorPublicData: UserActorPublicDataQuery;
   /** @deprecated Use 'byId' field under 'user'. */
   userByUserId?: Maybe<User>;
   /** @deprecated Use 'byUsername' field under 'user'. */
@@ -5196,6 +5197,46 @@ export type UserActorNotificationSubscriptionsArgs = {
 export type UserActorSnacksArgs = {
   limit: Scalars['Int'];
   offset: Scalars['Int'];
+};
+
+/** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
+export type UserActorPublicData = {
+  __typename?: 'UserActorPublicData';
+  /** Apps this user has published */
+  apps: Array<App>;
+  firstName?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  lastName?: Maybe<Scalars['String']>;
+  profilePhoto: Scalars['String'];
+  /** Snacks associated with this user's personal account */
+  snacks: Array<Snack>;
+  username: Scalars['String'];
+};
+
+
+/** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
+export type UserActorPublicDataAppsArgs = {
+  includeUnpublished?: InputMaybe<Scalars['Boolean']>;
+  limit: Scalars['Int'];
+  offset: Scalars['Int'];
+};
+
+
+/** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
+export type UserActorPublicDataSnacksArgs = {
+  limit: Scalars['Int'];
+  offset: Scalars['Int'];
+};
+
+export type UserActorPublicDataQuery = {
+  __typename?: 'UserActorPublicDataQuery';
+  /** Get UserActorPublicData by username */
+  byUsername: UserActorPublicData;
+};
+
+
+export type UserActorPublicDataQueryByUsernameArgs = {
+  username: Scalars['String'];
 };
 
 export type UserActorQuery = {
