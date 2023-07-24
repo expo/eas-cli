@@ -8,9 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add `rollout` option for configuring Android submissions. ([#1938](https://github.com/expo/eas-cli/pull/1938) by [@szdziedzic](https://github.com/szdziedzic))
-
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [3.17.0](https://github.com/expo/eas-cli/releases/tag/v3.17.0) - 2023-07-24
+
+### 🎉 New features
+
+- Add `rollout` option for configuring Android submissions. ([#1938](https://github.com/expo/eas-cli/pull/1938) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 
