@@ -1,6 +1,5 @@
 import gql from 'graphql-tag';
 
-// TODO: add rollout here
 export const SubmissionFragmentNode = gql`
   fragment SubmissionFragment on Submission {
     id
@@ -19,6 +18,7 @@ export const SubmissionFragmentNode = gql`
       applicationIdentifier
       track
       releaseStatus
+      rollout
     }
     iosConfig {
       ascAppIdentifier
