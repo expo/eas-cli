@@ -60,23 +60,6 @@ describe(isRollout, () => {
     const customMapping1 = {
       version: 0,
       data: [
-        { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
-        {
-          branchId: uuidv4(),
-          branchMappingLogic: {
-            operand: 10 / 100,
-            clientKey: 'rolloutToken',
-            branchMappingOperator: hashLtOperator(),
-          },
-        },
-      ],
-    };
-    expect(isRollout(customMapping1)).toBe(true);
-
-    const customMapping2 = {
-      version: 0,
-      data: [
-        { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
         {
           branchId: uuidv4(),
           branchMappingLogic: andStatement([
@@ -92,9 +75,10 @@ describe(isRollout, () => {
             },
           ]),
         },
+        { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
       ],
     };
-    expect(isRollout(customMapping2)).toBe(true);
+    expect(isRollout(customMapping1)).toBe(true);
   });
   it('correctly classifies branchMappings that arent rollouts', () => {
     expect(isRollout(standardBranchMapping)).toBe(false);
@@ -196,5 +180,21 @@ describe(isRollout, () => {
       ],
     };
     expect(isRollout(customMapping5)).toBe(false);
+
+    const customMapping6 = {
+      version: 0,
+      data: [
+        { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
+        {
+          branchId: uuidv4(),
+          branchMappingLogic: {
+            operand: 10 / 100,
+            clientKey: 'rolloutToken',
+            branchMappingOperator: hashLtOperator(),
+          },
+        },
+      ],
+    };
+    expect(isRollout(customMapping6)).toBe(false);
   });
 });
