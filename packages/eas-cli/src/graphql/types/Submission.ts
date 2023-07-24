@@ -18,6 +18,7 @@ export const SubmissionFragmentNode = gql`
       applicationIdentifier
       track
       releaseStatus
+      rollout
     }
     iosConfig {
       ascAppIdentifier

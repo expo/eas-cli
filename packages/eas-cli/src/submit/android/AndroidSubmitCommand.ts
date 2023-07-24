@@ -33,9 +33,12 @@ export default class AndroidSubmitCommand {
     const track = this.resolveTrack();
     const releaseStatus = this.resolveReleaseStatus();
     const archiveSource = this.resolveArchiveSource();
+    const rollout = this.resolveRollout();
     const serviceAccountSource = await this.resolveServiceAccountSourceAsync();
 
-    const errored = [track, releaseStatus, archiveSource, serviceAccountSource].filter(r => !r.ok);
+    const errored = [track, releaseStatus, archiveSource, serviceAccountSource, rollout].filter(
+      r => !r.ok
+    );
     if (errored.length > 0) {
       const message = errored.map(err => err.reason?.message).join('\n');
       Log.error(message);
@@ -46,6 +49,7 @@ export default class AndroidSubmitCommand {
       projectId: this.ctx.projectId,
       track: track.enforceValue(),
       releaseStatus: releaseStatus.enforceValue(),
+      rollout: rollout.enforceValue(),
       archiveSource: archiveSource.enforceValue(),
       serviceAccountSource: serviceAccountSource.enforceValue(),
       changesNotSentForReview: this.ctx.profile.changesNotSentForReview,
@@ -110,6 +114,12 @@ export default class AndroidSubmitCommand {
         )
       );
     }
+  }
+
+  private resolveRollout(): Result<number | undefined> {
+    const { rollout } = this.ctx.profile;
+
+    return result(rollout);
   }
 
   private resolveArchiveSource(): Result<ArchiveSource> {
