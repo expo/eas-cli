@@ -13,14 +13,14 @@ import {
   UpdateChannelBranchMappingMutationVariables,
 } from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
-import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
+import { ChannelQuery, UpdateChannelBasicInfo } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export async function updateChannelBranchMappingAsync(
   graphqlClient: ExpoGraphqlClient,
   { channelId, branchMapping }: UpdateChannelBranchMappingMutationVariables
-): Promise<UpdateChannelBranchMappingMutation['updateChannel']['editUpdateChannel']> {
+): Promise<UpdateChannelBasicInfo> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .mutation<UpdateChannelBranchMappingMutation, UpdateChannelBranchMappingMutationVariables>(

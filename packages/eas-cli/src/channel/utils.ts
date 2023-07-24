@@ -1,7 +1,7 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { UpdateChannelObject } from '../graphql/queries/ChannelQuery';
+import { UpdateBranchObject, UpdateChannelObject } from '../graphql/queries/ChannelQuery';
 import Log from '../log';
 import {
   FormattedBranchDescription,
@@ -108,4 +108,26 @@ export function logChannelDetails(channel: UpdateChannelObject): void {
         .join(`\n\n${chalk.dim('———')}\n\n`)
     );
   }
+}
+
+function getUpdateBranchNullable(
+  channel: UpdateChannelObject,
+  branchId: string
+): UpdateBranchObject | null {
+  const updateBranches = channel.updateBranches;
+  const updateBranch = updateBranches.find(branch => branch.id === branchId);
+  return updateBranch ?? null;
+}
+
+export function getUpdateBranch(
+  channel: UpdateChannelObject,
+  branchId: string
+): UpdateBranchObject {
+  const updateBranch = getUpdateBranchNullable(channel, branchId);
+  if (!updateBranch) {
+    throw new Error(
+      `Could not find branch with id "${branchId}" in branch-mapping of channel "${channel.name}"`
+    );
+  }
+  return updateBranch;
 }

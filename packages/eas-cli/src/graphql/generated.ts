@@ -468,20 +468,14 @@ export type AccountQueryByNameArgs = {
 /** Auth configuration data for an SSO account. */
 export type AccountSsoConfiguration = {
   __typename?: 'AccountSSOConfiguration';
-  authEndpoint?: Maybe<Scalars['String']>;
   authProtocol: AuthProtocolType;
   authProviderIdentifier: Scalars['String'];
   clientIdentifier: Scalars['String'];
   clientSecret: Scalars['String'];
   createdAt: Scalars['DateTime'];
-  endSessionEndpoint?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   issuer: Scalars['String'];
-  jwksEndpoint?: Maybe<Scalars['String']>;
-  revokeEndpoint?: Maybe<Scalars['String']>;
-  tokenEndpoint?: Maybe<Scalars['String']>;
   updatedAt: Scalars['DateTime'];
-  userInfoEndpoint?: Maybe<Scalars['String']>;
 };
 
 export type AccountSsoConfigurationData = {
@@ -528,17 +522,11 @@ export type AccountSsoConfigurationMutationUpdateAccountSsoConfigurationArgs = {
 /** Public auth configuration data for an SSO account. */
 export type AccountSsoConfigurationPublicData = {
   __typename?: 'AccountSSOConfigurationPublicData';
-  authEndpoint?: Maybe<Scalars['String']>;
   authProtocol: AuthProtocolType;
   authProviderIdentifier: Scalars['String'];
-  clientIdentifier: Scalars['String'];
-  endSessionEndpoint?: Maybe<Scalars['String']>;
+  authorizationUrl: Scalars['String'];
   id: Scalars['ID'];
   issuer: Scalars['String'];
-  jwksEndpoint?: Maybe<Scalars['String']>;
-  revokeEndpoint?: Maybe<Scalars['String']>;
-  tokenEndpoint?: Maybe<Scalars['String']>;
-  userInfoEndpoint?: Maybe<Scalars['String']>;
 };
 
 export type AccountSsoConfigurationPublicDataQuery = {
@@ -6197,7 +6185,16 @@ export type ViewUpdateChannelsOnAppQueryVariables = Exact<{
 }>;
 
 
-export type ViewUpdateChannelsOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannels: Array<{ __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null }>> }> }> } } };
+export type ViewUpdateChannelsOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannels: Array<{ __typename?: 'UpdateChannel', id: string, name: string, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null }>> }> }> } } };
+
+export type ViewUpdateChannelsPaginatedOnAppQueryVariables = Exact<{
+  appId: Scalars['String'];
+  first?: InputMaybe<Scalars['Int']>;
+  after?: InputMaybe<Scalars['String']>;
+}>;
+
+
+export type ViewUpdateChannelsPaginatedOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, channelsPaginated: { __typename?: 'AppChannelsConnection', edges: Array<{ __typename?: 'AppChannelEdge', node: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String'];
