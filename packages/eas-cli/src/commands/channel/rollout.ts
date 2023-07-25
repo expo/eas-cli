@@ -15,7 +15,7 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { UpdateBranch } from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
-import { ChannelQuery, UpdateChannelByNameObject } from '../../graphql/queries/ChannelQuery';
+import { ChannelQuery, UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync, selectAsync } from '../../prompts';
@@ -45,7 +45,7 @@ async function promptForRolloutPercentAsync({
   return rolloutPercent;
 }
 
-function getRolloutInfo(channel: UpdateChannelByNameObject): {
+function getRolloutInfo(channel: UpdateChannelObject): {
   newBranch: Pick<UpdateBranch, 'name' | 'id'>;
   oldBranch: Pick<UpdateBranch, 'name' | 'id'>;
   currentPercent: number;
@@ -84,7 +84,7 @@ async function startRolloutAsync(
     projectId: string;
     displayName: string;
     currentBranchMapping: BranchMapping;
-    channel: UpdateChannelByNameObject;
+    channel: UpdateChannelObject;
     nonInteractive: boolean;
   }
 ): Promise<{
@@ -165,7 +165,7 @@ async function editRolloutAsync(
     percent?: number;
     nonInteractive: boolean;
     currentBranchMapping: BranchMapping;
-    channel: UpdateChannelByNameObject;
+    channel: UpdateChannelObject;
   }
 ): Promise<{
   newChannelInfo: {
@@ -223,7 +223,7 @@ async function endRolloutAsync(
     branchName?: string;
     nonInteractive: boolean;
     projectId: string;
-    channel: UpdateChannelByNameObject;
+    channel: UpdateChannelObject;
   }
 ): Promise<{
   newChannelInfo: {
