@@ -5,8 +5,6 @@ import { ChannelNotFoundError } from '../../channel/errors';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
-  PageInfo,
-  UpdateChannelBasicInfoFragment,
   ViewUpdateChannelOnAppQuery,
   ViewUpdateChannelOnAppQueryVariables,
   ViewUpdateChannelsOnAppQuery,
@@ -14,7 +12,7 @@ import {
   ViewUpdateChannelsPaginatedOnAppQuery,
   ViewUpdateChannelsPaginatedOnAppQueryVariables,
 } from '../generated';
-import { UpdateBranchWithCurrentGroupFragmentNode } from '../types/UpdateBranchWithCurrentUpdate';
+import { UpdateFragmentNode } from '../types/Update';
 import { UpdateChannelBasicInfoFragmentNode } from '../types/UpdateChannelBasicInfo';
 
 type ViewUpdateChannelsOnAppObject = NonNullable<
@@ -28,16 +26,22 @@ type UpdateChannelByNameObject = NonNullable<
 // these types should have the same fields
 export type UpdateChannelObject = ViewUpdateChannelsOnAppObject & UpdateChannelByNameObject;
 
+export type UpdateBranchObject = UpdateChannelObject['updateBranches'][number];
+
 export const ChannelQuery = {
   async viewUpdateChannelAsync(
     graphqlClient: ExpoGraphqlClient,
-    { appId, channelName }: ViewUpdateChannelOnAppQueryVariables
+    { appId, channelName, filter }: ViewUpdateChannelOnAppQueryVariables
   ): Promise<UpdateChannelByNameObject> {
     const response = await withErrorHandlingAsync(
       graphqlClient
         .query<ViewUpdateChannelOnAppQuery, ViewUpdateChannelOnAppQueryVariables>(
           gql`
-            query ViewUpdateChannelOnApp($appId: String!, $channelName: String!) {
+            query ViewUpdateChannelOnApp(
+              $appId: String!
+              $channelName: String!
+              $filter: UpdatesFilter
+            ) {
               app {
                 byId(appId: $appId) {
                   id
@@ -48,15 +52,19 @@ export const ChannelQuery = {
                     branchMapping
                     updateBranches(offset: 0, limit: 5) {
                       id
-                      ...UpdateBranchWithCurrentGroupFragment
+                      name
+                      updateGroups(offset: 0, limit: 1, filter: $filter) {
+                        id
+                        ...UpdateFragment
+                      }
                     }
                   }
                 }
               }
             }
-            ${print(UpdateBranchWithCurrentGroupFragmentNode)}
+            ${print(UpdateFragmentNode)}
           `,
-          { appId, channelName },
+          { appId, channelName, filter },
           { additionalTypenames: ['UpdateChannel', 'UpdateBranch', 'Update'] }
         )
         .toPromise()
@@ -88,13 +96,17 @@ export const ChannelQuery = {
                     branchMapping
                     updateBranches(offset: 0, limit: 5) {
                       id
-                      ...UpdateBranchWithCurrentGroupFragment
+                      name
+                      updateGroups(offset: 0, limit: 1) {
+                        id
+                        ...UpdateFragment
+                      }
                     }
                   }
                 }
               }
             }
-            ${print(UpdateBranchWithCurrentGroupFragmentNode)}
+            ${print(UpdateFragmentNode)}
           `,
           { appId, offset, limit },
           { additionalTypenames: ['UpdateChannel', 'UpdateBranch', 'Update'] }
@@ -112,7 +124,7 @@ export const ChannelQuery = {
   async viewUpdateChannelsBasicInfoPaginatedOnAppAsync(
     graphqlClient: ExpoGraphqlClient,
     { appId, first, after }: ViewUpdateChannelsPaginatedOnAppQueryVariables
-  ): Promise<[UpdateChannelBasicInfoFragment[], PageInfo]> {
+  ): Promise<ViewUpdateChannelsPaginatedOnAppQuery['app']['byId']['channelsPaginated']> {
     const response = await withErrorHandlingAsync(
       graphqlClient
         .query<
@@ -153,7 +165,6 @@ export const ChannelQuery = {
     if (!channelsPaginated) {
       throw new Error(`Could not find channels on project with id ${appId}`);
     }
-
-    return [channelsPaginated.edges.map(edge => edge.node) ?? [], channelsPaginated.pageInfo];
+    return channelsPaginated;
   },
 };
