@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Unify channel graphql query types. ([#1949](https://github.com/expo/eas-cli/pull/1949) by [@quinlanj](https://github.com/quinlanj))
+
 ## [3.17.0](https://github.com/expo/eas-cli/releases/tag/v3.17.0) - 2023-07-24
 
 ### 🎉 New features
