@@ -1,8 +1,7 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { UpdateBranchWithCurrentGroupFragment } from '../graphql/generated';
-import { UpdateChannelObject } from '../graphql/queries/ChannelQuery';
+import { UpdateBranchObject, UpdateChannelObject } from '../graphql/queries/ChannelQuery';
 import Log from '../log';
 import {
   FormattedBranchDescription,
@@ -114,7 +113,7 @@ export function logChannelDetails(channel: UpdateChannelObject): void {
 function getUpdateBranchNullable(
   channel: UpdateChannelObject,
   branchId: string
-): UpdateBranchWithCurrentGroupFragment | null {
+): UpdateBranchObject | null {
   const updateBranches = channel.updateBranches;
   const updateBranch = updateBranches.find(branch => branch.id === branchId);
   return updateBranch ?? null;
@@ -123,7 +122,7 @@ function getUpdateBranchNullable(
 export function getUpdateBranch(
   channel: UpdateChannelObject,
   branchId: string
-): UpdateBranchWithCurrentGroupFragment {
+): UpdateBranchObject {
   const updateBranch = getUpdateBranchNullable(channel, branchId);
   if (!updateBranch) {
     throw new Error(

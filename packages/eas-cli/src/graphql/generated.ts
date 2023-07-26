@@ -2236,6 +2236,17 @@ export enum BuildJobStatus {
   Started = 'STARTED'
 }
 
+export type BuildLimitThresholdExceededMetadata = {
+  __typename?: 'BuildLimitThresholdExceededMetadata';
+  account: Account;
+  thresholdsExceeded: Array<NotificationThresholdExceeded>;
+};
+
+export enum BuildLimitThresholdExceededMetadataType {
+  Ios = 'IOS',
+  Total = 'TOTAL'
+}
+
 export type BuildLogs = {
   __typename?: 'BuildLogs';
   format?: Maybe<BuildJobLogsFormat>;
@@ -2379,6 +2390,14 @@ export type BuildParamsInput = {
   reactNativeVersion?: InputMaybe<Scalars['String']>;
   resourceClass: BuildResourceClass;
   sdkVersion?: InputMaybe<Scalars['String']>;
+};
+
+export type BuildPlanCreditThresholdExceededMetadata = {
+  __typename?: 'BuildPlanCreditThresholdExceededMetadata';
+  account: Account;
+  buildCreditUsage: Scalars['Int'];
+  planLimit: Scalars['Int'];
+  threshold: Scalars['Int'];
 };
 
 export enum BuildPriority {
@@ -3758,12 +3777,25 @@ export type MeteredBillingStatus = {
   EAS_UPDATE: Scalars['Boolean'];
 };
 
+export type Notification = {
+  __typename?: 'Notification';
+  createdAt: Scalars['DateTime'];
+  event: NotificationEvent;
+  id: Scalars['ID'];
+  metadata?: Maybe<NotificationMetadata>;
+  type: NotificationType;
+  updatedAt: Scalars['DateTime'];
+};
+
 export enum NotificationEvent {
   BuildComplete = 'BUILD_COMPLETE',
   BuildLimitThresholdExceeded = 'BUILD_LIMIT_THRESHOLD_EXCEEDED',
   BuildPlanCreditThresholdExceeded = 'BUILD_PLAN_CREDIT_THRESHOLD_EXCEEDED',
-  SubmissionComplete = 'SUBMISSION_COMPLETE'
+  SubmissionComplete = 'SUBMISSION_COMPLETE',
+  Test = 'TEST'
 }
+
+export type NotificationMetadata = BuildLimitThresholdExceededMetadata | BuildPlanCreditThresholdExceededMetadata | TestNotificationMetadata;
 
 export type NotificationSubscription = {
   __typename?: 'NotificationSubscription';
@@ -3805,8 +3837,17 @@ export type NotificationSubscriptionMutationUnsubscribeArgs = {
   id: Scalars['ID'];
 };
 
+export type NotificationThresholdExceeded = {
+  __typename?: 'NotificationThresholdExceeded';
+  count: Scalars['Int'];
+  limit: Scalars['Int'];
+  threshold: Scalars['Int'];
+  type: BuildLimitThresholdExceededMetadataType;
+};
+
 export enum NotificationType {
-  Email = 'EMAIL'
+  Email = 'EMAIL',
+  Web = 'WEB'
 }
 
 export type Offer = {
@@ -4309,6 +4350,8 @@ export type SsoUser = Actor & UserActor & {
   /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
+  /** Web notifications linked to a user */
+  webNotifications: Array<Notification>;
 };
 
 
@@ -4745,6 +4788,11 @@ export type SubscriptionDetailsPlanEnablementArgs = {
   serviceMetric: EasServiceMetric;
 };
 
+export type TestNotificationMetadata = {
+  __typename?: 'TestNotificationMetadata';
+  message: Scalars['String'];
+};
+
 export type TimelineActivityConnection = {
   __typename?: 'TimelineActivityConnection';
   edges: Array<TimelineActivityEdge>;
@@ -5062,6 +5110,7 @@ export type User = Actor & UserActor & {
   /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
+  webNotifications: Array<Notification>;
 };
 
 
@@ -5150,6 +5199,8 @@ export type UserActor = {
   /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
+  /** Web notifications linked to a user */
+  webNotifications: Array<Notification>;
 };
 
 
@@ -6173,6 +6224,7 @@ export type ViewBuildsOnAppQuery = { __typename?: 'RootQuery', app: { __typename
 export type ViewUpdateChannelOnAppQueryVariables = Exact<{
   appId: Scalars['String'];
   channelName: Scalars['String'];
+  filter?: InputMaybe<UpdatesFilter>;
 }>;
 
 
@@ -6307,8 +6359,6 @@ export type SubmissionFragment = { __typename?: 'Submission', id: string, status
 export type UpdateFragment = { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null };
 
 export type UpdateBranchFragment = { __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null }> };
-
-export type UpdateBranchWithCurrentGroupFragment = { __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null }>> };
 
 export type UpdateChannelBasicInfoFragment = { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string };
 

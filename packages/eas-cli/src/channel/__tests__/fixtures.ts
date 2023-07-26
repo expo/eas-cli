@@ -1,7 +1,6 @@
-import { UpdateBranchWithCurrentGroupFragment } from '../../graphql/generated';
-import { UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
+import { UpdateBranchObject, UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
 
-export const testUpdateBranch1: UpdateBranchWithCurrentGroupFragment = {
+export const testUpdateBranch1: UpdateBranchObject = {
   id: '754bf17f-efc0-46ab-8a59-a03f20e53e9b',
   name: 'wrong-channel',
   updateGroups: [
@@ -61,7 +60,7 @@ export const testUpdateBranch1: UpdateBranchWithCurrentGroupFragment = {
   __typename: 'UpdateBranch',
 };
 
-const testUpdateBranch2: UpdateBranchWithCurrentGroupFragment = {
+const testUpdateBranch2: UpdateBranchObject = {
   id: '6941a8dd-5c0a-48bc-8876-f49c88ed419f',
   name: 'production',
   updateGroups: [
