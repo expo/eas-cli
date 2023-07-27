@@ -804,6 +804,7 @@ export type AndroidBuilderEnvironmentInput = {
   image?: InputMaybe<Scalars['String']>;
   ndk?: InputMaybe<Scalars['String']>;
   node?: InputMaybe<Scalars['String']>;
+  pnpm?: InputMaybe<Scalars['String']>;
   yarn?: InputMaybe<Scalars['String']>;
 };
 
@@ -3459,6 +3460,7 @@ export type IosBuilderEnvironmentInput = {
   fastlane?: InputMaybe<Scalars['String']>;
   image?: InputMaybe<Scalars['String']>;
   node?: InputMaybe<Scalars['String']>;
+  pnpm?: InputMaybe<Scalars['String']>;
   yarn?: InputMaybe<Scalars['String']>;
 };
 
@@ -3751,6 +3753,17 @@ export type MeteredBillingStatus = {
   __typename?: 'MeteredBillingStatus';
   EAS_BUILD: Scalars['Boolean'];
   EAS_UPDATE: Scalars['Boolean'];
+};
+
+export type Notification = {
+  __typename?: 'Notification';
+  createdAt: Scalars['DateTime'];
+  event: NotificationEvent;
+  id: Scalars['ID'];
+  isRead: Scalars['Boolean'];
+  metadata?: Maybe<NotificationMetadata>;
+  type: NotificationType;
+  updatedAt: Scalars['DateTime'];
 };
 
 export enum NotificationEvent {

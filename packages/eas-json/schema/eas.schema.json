@@ -163,6 +163,11 @@
           "description": "The version of Yarn to use for the build. See: https://www.npmjs.com/package/yarn",
           "markdownDescription": "The exact version of [Yarn](https://www.npmjs.com/package/yarn) to use for the build."
         },
+        "pnpm": {
+          "type": "string",
+          "description": "The version of pnpm to use for the build. See: https://www.npmjs.com/package/pnpm",
+          "markdownDescription": "The exact version of [pnpm](https://www.npmjs.com/package/pnpm) to use for the build."
+        },
         "expoCli": {
           "type": "string",
           "description": "The version of `expo-cli` used to `prebuild` your app.",
