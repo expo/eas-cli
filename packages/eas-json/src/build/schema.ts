@@ -25,9 +25,11 @@ const CacheSchema = Joi.object({
   cacheDefaultPaths: Joi.boolean(),
   customPaths: Joi.array().items(Joi.string()),
   paths: Joi.array().items(Joi.string()),
-}).rename('customPaths', 'paths')
+})
+  .rename('customPaths', 'paths')
   .messages({
-    'object.rename.override': 'Cannot provide both "cache.customPaths" and "cache.paths" - use "cache.paths"'
+    'object.rename.override':
+      'Cannot provide both "cache.customPaths" and "cache.paths" - use "cache.paths"',
   });
 
 const CommonBuildProfileSchema = Joi.object({
@@ -37,6 +39,7 @@ const CommonBuildProfileSchema = Joi.object({
   // build environment
   env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)),
   node: Joi.string().empty(null).custom(semverCheck),
+  pnpm: Joi.string().empty(null).custom(semverCheck),
   yarn: Joi.string().empty(null).custom(semverCheck),
   expoCli: Joi.string().empty(null).custom(semverCheck),
 

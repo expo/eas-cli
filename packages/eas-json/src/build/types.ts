@@ -44,6 +44,7 @@ export interface CommonBuildProfile {
   // build environment
   env?: Record<string, string>;
   node?: string;
+  pnpm?: string;
   yarn?: string;
   expoCli?: string;
 
