@@ -1479,6 +1479,23 @@
     split "^1.0.1"
     sudo-prompt "9.1.1"
 
+"@expo/package-manager@^1.0.2":
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/@expo/package-manager/-/package-manager-1.0.2.tgz#6c5fd0ee9b3d28c5523b2484c62c6c7b0c8dbf89"
+  integrity sha512-dlUp6o8qs1mi3/+l3y7cY3oMoqQVVzvH18cUTi6+t4ob8XwTpaeP2SwOP+obwZN29dMg9YzZAv4eQz+mshAbQA==
+  dependencies:
+    "@expo/json-file" "^8.2.37"
+    "@expo/spawn-async" "^1.5.0"
+    ansi-regex "^5.0.0"
+    chalk "^4.0.0"
+    find-up "^5.0.0"
+    find-yarn-workspace-root "~2.0.0"
+    js-yaml "^3.13.1"
+    micromatch "^4.0.2"
+    npm-package-arg "^7.0.0"
+    split "^1.0.1"
+    sudo-prompt "9.1.1"
+
 "@expo/pkcs12@0.0.8":
   version "0.0.8"
   resolved "https://registry.yarnpkg.com/@expo/pkcs12/-/pkcs12-0.0.8.tgz#40ddde3007d90d4fd58779670f1aabfa82ce2950"
@@ -1576,15 +1593,18 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.25":
-  version "1.0.25"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.25.tgz#04f8c18bb12f2445cdca443b48497d3c2be3e133"
-  integrity sha512-MBtJ/3+T5qvXxmnOVlfapKlKQsxPUyKoEUaA6lLbpmm8yCcXJEblnmQP/2ZokAG78IWjsYl5E02Ei/AnrIxB9g==
+"@expo/steps@1.0.28":
+  version "1.0.28"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.28.tgz#fa44032e58f216239442ec66edef31cde31a7aed"
+  integrity sha512-HyYzc9b6oftTGLoH73RD2ZK/h0dbC0aSezazcf1yvvhfHJpVQrpI0wZ3DHXEJocVSNGykH+RUHmoORVknkFJFA==
   dependencies:
     "@expo/logger" "1.0.21"
+    "@expo/package-manager" "^1.0.2"
     "@expo/spawn-async" "^1.7.0"
     arg "^5.0.2"
+    fs-extra "^11.1.1"
     joi "^17.7.0"
+    lodash.clonedeep "^4.5.0"
     lodash.get "^4.4.2"
     this-file "^2.0.3"
     uuid "^9.0.0"
@@ -7495,6 +7515,15 @@ fs-extra@^11.1.0:
     jsonfile "^6.0.1"
     universalify "^2.0.0"
 
+fs-extra@^11.1.1:
+  version "11.1.1"
+  resolved "https://registry.yarnpkg.com/fs-extra/-/fs-extra-11.1.1.tgz#da69f7c39f3b002378b0954bb6ae7efdc0876e2d"
+  integrity sha512-MGIE4HOvQCeUCzmlHs0vXpih4ysz4wg9qiSAu6cd42lVwPbTM1TjV7RusoyQqMmk/95gdQZX72u+YW+c3eEpFQ==
+  dependencies:
+    graceful-fs "^4.2.0"
+    jsonfile "^6.0.1"
+    universalify "^2.0.0"
+
 fs-extra@^8.1:
   version "8.1.0"
   resolved "https://registry.yarnpkg.com/fs-extra/-/fs-extra-8.1.0.tgz#49d43c45a88cd9677668cb7be1b46efdb8d2e1c0"
@@ -9727,6 +9756,11 @@ locate-path@^6.0.0:
   integrity sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==
   dependencies:
     p-locate "^5.0.0"
+
+lodash.clonedeep@^4.5.0:
+  version "4.5.0"
+  resolved "https://registry.yarnpkg.com/lodash.clonedeep/-/lodash.clonedeep-4.5.0.tgz#e23f3f9c4f8fbdde872529c1071857a086e5ccef"
+  integrity sha512-H5ZhCF25riFd9uB5UCkVKo61m3S/xZk1x4wA6yp/L3RFP6Z/eHH1ymQcGLo7J3GMPfm0V/7m1tryHuGVxpqEBQ==
 
 lodash.flatten@^4.4.0:
   version "4.4.0"
