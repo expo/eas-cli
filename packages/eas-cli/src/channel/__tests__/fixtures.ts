@@ -1,3 +1,7 @@
+import {
+  UpdateChannelBasicInfoFragment,
+  ViewUpdateChannelsPaginatedOnAppQuery,
+} from '../../graphql/generated';
 import { UpdateBranchObject, UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
 
 export const testUpdateBranch1: UpdateBranchObject = {
@@ -128,3 +132,53 @@ export const testChannelObject: UpdateChannelObject = {
   updateBranches: [testUpdateBranch1, testUpdateBranch2],
   __typename: 'UpdateChannel',
 };
+
+export const testBasicChannelInfo: UpdateChannelBasicInfoFragment = {
+  id: '9309afc2-9752-40db-8ef7-4abc10744c61',
+  name: 'production',
+  branchMapping:
+    '{"data":[{"branchId":"754bf17f-efc0-46ab-8a59-a03f20e53e9b","branchMappingLogic":{"operand":0.1,"clientKey":"rolloutToken","branchMappingOperator":"hash_lt"}},{"branchId":"6941a8dd-5c0a-48bc-8876-f49c88ed419f","branchMappingLogic":"true"}],"version":0}',
+  __typename: 'UpdateChannel',
+};
+
+export const testBasicChannelInfo2: UpdateChannelBasicInfoFragment = {
+  id: '9d5c7bf0-d52d-474c-9140-c1bad7f0de9d',
+  name: 'staging',
+  branchMapping:
+    '{"data":[{"branchId":"d7d68e32-d9c9-4a8d-8d1b-21e53100a5e8","branchMappingLogic":{"operand":0.1,"clientKey":"rolloutToken","branchMappingOperator":"hash_lt"}},{"branchId":"f9f708c2-0c91-4360-b2a4-0b61834aef4a","branchMappingLogic":"true"}],"version":0}',
+  __typename: 'UpdateChannel',
+};
+
+export const paginatedChannels: ViewUpdateChannelsPaginatedOnAppQuery['app']['byId']['channelsPaginated'] =
+  {
+    edges: [
+      {
+        node: {
+          id: '9d5c7bf0-d52d-474c-9140-c1bad7f0de9d',
+          name: 'staging',
+          branchMapping:
+            '{"data":[{"branchId":"d7d68e32-d9c9-4a8d-8d1b-21e53100a5e8","branchMappingLogic":{"operand":0.1,"clientKey":"rolloutToken","branchMappingOperator":"hash_lt"}},{"branchId":"f9f708c2-0c91-4360-b2a4-0b61834aef4a","branchMappingLogic":"true"}],"version":0}',
+          __typename: 'UpdateChannel',
+        },
+        __typename: 'AppChannelEdge',
+      },
+      {
+        node: {
+          id: '95630b3c-5b91-48cb-bd31-a84315a13246',
+          name: 'gh/quinlanj/3/orig',
+          branchMapping:
+            '{"data":[{"branchId":"d7d68e32-d9c9-4a8d-8d1b-21e53100a5e8","branchMappingLogic":"true"}],"version":0}',
+          __typename: 'UpdateChannel',
+        },
+        __typename: 'AppChannelEdge',
+      },
+    ],
+    pageInfo: {
+      hasNextPage: false,
+      hasPreviousPage: false,
+      startCursor: 'IjlkNWM3YmYwLWQ1MmQtNDc0Yy05MTQwLWMxYmFkN2YwZGU5ZCI',
+      endCursor: 'ImE4Y2M5ZWVmLTFkZjMtNDNmZi05YTZkLTRmYTZjMTFlYmEwYiI',
+      __typename: 'PageInfo',
+    },
+    __typename: 'AppChannelsConnection',
+  };

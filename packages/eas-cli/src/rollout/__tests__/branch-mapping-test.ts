@@ -21,48 +21,11 @@ import {
   isLegacyRolloutInfo,
   isRollout,
 } from '../branch-mapping';
-
-const rolloutBranchMapping = {
-  version: 0,
-  data: [
-    {
-      branchId: uuidv4(),
-      branchMappingLogic: andStatement([
-        {
-          operand: '1.0.0',
-          clientKey: 'runtimeVersion',
-          branchMappingOperator: equalsOperator(),
-        },
-        {
-          operand: 10 / 100,
-          clientKey: 'rolloutToken',
-          branchMappingOperator: hashLtOperator(),
-        },
-      ]),
-    },
-    { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
-  ],
-};
-
-const rolloutBranchMappingLegacy = {
-  version: 0,
-  data: [
-    {
-      branchId: uuidv4(),
-      branchMappingLogic: {
-        operand: 10 / 100,
-        clientKey: 'rolloutToken',
-        branchMappingOperator: hashLtOperator(),
-      },
-    },
-    { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
-  ],
-};
-
-const standardBranchMapping = {
-  version: 0,
-  data: [{ branchId: uuidv4(), branchMappingLogic: alwaysTrue() }],
-};
+import {
+  rolloutBranchMapping,
+  rolloutBranchMappingLegacy,
+  standardBranchMapping,
+} from './fixtures';
 
 describe(isLegacyRolloutInfo, () => {
   it('classifies rollouts properly', () => {
