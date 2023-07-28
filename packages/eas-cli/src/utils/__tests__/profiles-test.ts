@@ -1,5 +1,8 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJsonAccessor, EasJsonUtils, errors } from '@expo/eas-json';
+import fs from 'fs-extra';
+import { vol } from 'memfs';
+import os from 'os';
 
 import Log from '../../log';
 import { selectAsync } from '../../prompts';
@@ -9,6 +12,7 @@ import {
   maybePrintBuildProfileDeprecationWarningsAsync,
 } from '../profiles';
 
+jest.mock('fs');
 jest.mock('../../prompts');
 jest.mock('@expo/eas-json', () => {
   const actual = jest.requireActual('@expo/eas-json');
@@ -32,6 +36,7 @@ const getBuildProfileDeprecationWarningsAsync = jest.spyOn(
 );
 const newLineSpy = jest.spyOn(Log, 'newLine');
 const warnSpy = jest.spyOn(Log, 'warn');
+const projectDir = '/app';
 
 describe(getProfilesAsync, () => {
   afterEach(() => {
@@ -51,6 +56,7 @@ describe(getProfilesAsync, () => {
       platforms: [Platform.ANDROID, Platform.IOS],
       profileName: undefined,
       type: 'build',
+      projectDir,
     });
 
     expect(result[0].profileName).toBe('production');
@@ -71,6 +77,7 @@ describe(getProfilesAsync, () => {
         platforms: [Platform.ANDROID],
         profileName: undefined,
         type: 'build',
+        projectDir,
       })
     ).rejects.toThrowError(errors.MissingProfileError);
   });
@@ -86,6 +93,7 @@ describe(getProfilesAsync, () => {
       platforms: [Platform.ANDROID, Platform.IOS],
       profileName: 'custom-profile',
       type: 'build',
+      projectDir,
     });
 
     expect(result[0].profileName).toBe('custom-profile');
@@ -96,6 +104,52 @@ describe(getProfilesAsync, () => {
       'custom-profile'
     );
     expect(getBuildProfileAsync).toBeCalledWith(easJsonAccessor, Platform.IOS, 'custom-profile');
+  });
+
+  describe('node version', () => {
+    const nodeVersion = '14.17.1';
+
+    it('is read from profile', async () => {
+      const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+      getBuildProfileAsync.mockImplementation(async () => {
+        return { node: nodeVersion } as BuildProfile<Platform.ANDROID>;
+      });
+      const result = await getProfilesAsync({
+        easJsonAccessor,
+        platforms: [Platform.ANDROID],
+        profileName: 'custom-profile',
+        type: 'build',
+        projectDir,
+      });
+
+      expect(result[0].profile.node).toBe(nodeVersion);
+    });
+
+    describe('with .nvmrc', () => {
+      beforeEach(async () => {
+        vol.reset();
+        await fs.mkdirp(os.tmpdir());
+
+        vol.fromJSON({ '.nvmrc': nodeVersion }, projectDir);
+      });
+
+      it('is read from .nvmrc', async () => {
+        const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+        getBuildProfileAsync.mockImplementation(async () => {
+          return {} as BuildProfile<Platform.ANDROID>;
+        });
+
+        const result = await getProfilesAsync({
+          easJsonAccessor,
+          platforms: [Platform.ANDROID],
+          profileName: 'custom-profile',
+          type: 'build',
+          projectDir,
+        });
+
+        expect(result[0].profile.node).toBe(nodeVersion);
+      });
+    });
   });
 
   it('throws validation error if eas.json is invalid', async () => {
@@ -109,6 +163,7 @@ describe(getProfilesAsync, () => {
         platforms: [Platform.ANDROID, Platform.IOS],
         profileName: undefined,
         type: 'build',
+        projectDir,
       })
     ).rejects.toThrowError(/eas.json is not valid/);
   });
