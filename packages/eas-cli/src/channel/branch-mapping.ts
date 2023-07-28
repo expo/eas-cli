@@ -35,6 +35,26 @@ export type BranchMapping = {
   }[];
 };
 
+export function getAlwaysTrueBranchMapping(branchId: string): BranchMapping {
+  return {
+    version: 0,
+    data: [
+      {
+        branchId,
+        branchMappingLogic: 'true',
+      },
+    ],
+  };
+}
+
+export function getBranchMapping(branchMappingString: string): BranchMapping {
+  try {
+    return JSON.parse(branchMappingString);
+  } catch {
+    throw new Error(`Could not parse branchMapping string into a JSON: "${branchMappingString}"`);
+  }
+}
+
 export function getNodesFromStatement(statement: BranchMappingStatement): BranchMappingNode[] {
   return statement.slice(1) as BranchMappingNode[];
 }
@@ -73,6 +93,13 @@ export function hashLtOperator(): BranchMappingOperator {
   return 'hash_lt';
 }
 
+export function assertStatement(node: BranchMappingNode): asserts node is BranchMappingStatement {
+  assert(
+    isStatement(node),
+    'Branch mapping node must be a statement. Received: ' + JSON.stringify(node)
+  );
+}
+
 export function assertNodeObject(node: BranchMappingNode): asserts node is BranchMappingObject {
   assert(
     isNodeObject(node),
@@ -82,4 +109,8 @@ export function assertNodeObject(node: BranchMappingNode): asserts node is Branc
 
 export function assertNumber(operand: string | number | string[]): asserts operand is number {
   assert(typeof operand === 'number', 'Expected a number. Received: ' + JSON.stringify(operand));
+}
+
+export function assertString(operand: string | number | string[]): asserts operand is string {
+  assert(typeof operand === 'string', 'Expected a string. Received: ' + JSON.stringify(operand));
 }

@@ -60,7 +60,7 @@ export const testUpdateBranch1: UpdateBranchObject = {
   __typename: 'UpdateBranch',
 };
 
-const testUpdateBranch2: UpdateBranchObject = {
+export const testUpdateBranch2: UpdateBranchObject = {
   id: '6941a8dd-5c0a-48bc-8876-f49c88ed419f',
   name: 'production',
   updateGroups: [
