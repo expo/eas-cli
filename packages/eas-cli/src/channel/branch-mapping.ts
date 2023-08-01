@@ -1,5 +1,7 @@
 import assert from 'assert';
 
+import { UpdateChannelBasicInfoFragment } from '../graphql/generated';
+
 // TODO(quin): move this into a common package with www
 export type BranchMappingOperator =
   | '=='
@@ -35,7 +37,17 @@ export type BranchMapping = {
   }[];
 };
 
-export function getAlwaysTrueBranchMapping(branchId: string): BranchMapping {
+export type AlwaysTrueBranchMapping = {
+  version: number;
+  data: [
+    {
+      branchId: string;
+      branchMappingLogic: BranchMappingAlwaysTrue;
+    }
+  ];
+};
+
+export function getAlwaysTrueBranchMapping(branchId: string): AlwaysTrueBranchMapping {
   return {
     version: 0,
     data: [
@@ -45,6 +57,36 @@ export function getAlwaysTrueBranchMapping(branchId: string): BranchMapping {
       },
     ],
   };
+}
+
+export function hasStandardBranchMap(channelInfo: UpdateChannelBasicInfoFragment): boolean {
+  const branchMapping = getBranchMapping(channelInfo.branchMapping);
+  return isAlwaysTrueBranchMapping(branchMapping);
+}
+
+export function getStandardBranchId(channelInfo: UpdateChannelBasicInfoFragment): string {
+  const branchMapping = getBranchMapping(channelInfo.branchMapping);
+  assertAlwaysTrueBranchMapping(branchMapping);
+  return getBranchIdFromStandardMapping(branchMapping);
+}
+
+function isAlwaysTrueBranchMapping(
+  branchMapping: BranchMapping
+): branchMapping is AlwaysTrueBranchMapping {
+  const numBranches = branchMapping.data.length;
+  if (numBranches !== 1) {
+    return false;
+  }
+  const branchMappingLogic = branchMapping.data[0].branchMappingLogic;
+  return isAlwaysTrue(branchMappingLogic);
+}
+
+function getBranchIdFromStandardMapping(branchMapping: AlwaysTrueBranchMapping): string {
+  return branchMapping.data[0].branchId;
+}
+
+export function getBranchIds(branchMapping: BranchMapping): string[] {
+  return branchMapping.data.map(data => data.branchId);
 }
 
 export function getBranchMapping(branchMappingString: string): BranchMapping {
@@ -113,4 +155,13 @@ export function assertNumber(operand: string | number | string[]): asserts opera
 
 export function assertString(operand: string | number | string[]): asserts operand is string {
   assert(typeof operand === 'string', 'Expected a string. Received: ' + JSON.stringify(operand));
+}
+
+function assertAlwaysTrueBranchMapping(
+  branchMapping: BranchMapping
+): asserts branchMapping is AlwaysTrueBranchMapping {
+  assert(
+    isAlwaysTrueBranchMapping(branchMapping),
+    'Expected standard branch mapping. Received: ' + JSON.stringify(branchMapping)
+  );
 }

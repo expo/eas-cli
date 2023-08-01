@@ -20,6 +20,7 @@ import {
   isConstrainedRolloutInfo,
   isLegacyRolloutInfo,
   isRollout,
+  isRolloutBranchMapping,
 } from '../branch-mapping';
 import {
   rolloutBranchMapping,
@@ -78,9 +79,6 @@ describe(getRollout, () => {
 });
 
 describe(getRolloutInfoFromBranchMapping, () => {
-  it('doesnt get the mapping if it isnt a rollout', () => {
-    expect(() => getRolloutInfoFromBranchMapping(standardBranchMapping)).toThrowError();
-  });
   it('gets a constrained rollout', () => {
     const rollout = getRolloutInfoFromBranchMapping(rolloutBranchMapping);
     expect(rollout.percentRolledOut).toEqual(10);
@@ -98,13 +96,14 @@ describe(getRolloutInfoFromBranchMapping, () => {
 });
 
 describe(editRolloutBranchMapping, () => {
-  it('doesnt edit the branch mapping if it isnt a rollout', () => {
-    expect(() => editRolloutBranchMapping(standardBranchMapping, 50)).toThrowError();
-  });
   it('doesnt edit the branch mapping if the input is out of range', () => {
-    expect(() => editRolloutBranchMapping(standardBranchMapping, -1)).toThrowError();
-    expect(() => editRolloutBranchMapping(standardBranchMapping, 101)).toThrowError();
-    expect(() => editRolloutBranchMapping(standardBranchMapping, 0.1)).toThrowError();
+    expect(() => editRolloutBranchMapping(rolloutBranchMapping, -1)).toThrowError();
+    expect(() => editRolloutBranchMapping(rolloutBranchMapping, 101)).toThrowError();
+    expect(() => editRolloutBranchMapping(rolloutBranchMapping, 0.1)).toThrowError();
+  });
+  it('returns a new instance of a branch mapping', () => {
+    const editedBranchMapping = editRolloutBranchMapping(rolloutBranchMapping, 50);
+    expect(rolloutBranchMapping).not.toBe(editedBranchMapping);
   });
   it('edits the branch mapping for a constrained rollout', () => {
     const editedBranchMapping = editRolloutBranchMapping(rolloutBranchMapping, 50);
@@ -120,10 +119,10 @@ describe(editRolloutBranchMapping, () => {
   });
 });
 
-describe(isRollout, () => {
+describe(isRolloutBranchMapping, () => {
   it('detects a rollout made by the cli', () => {
-    expect(isRollout(rolloutBranchMappingLegacy)).toBe(true);
-    expect(isRollout(rolloutBranchMapping)).toBe(true);
+    expect(isRolloutBranchMapping(rolloutBranchMappingLegacy)).toBe(true);
+    expect(isRolloutBranchMapping(rolloutBranchMapping)).toBe(true);
   });
   it('detects custom mappings equivalent to rollouts made by the cli', () => {
     const customMapping1 = {
@@ -147,10 +146,10 @@ describe(isRollout, () => {
         { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
       ],
     };
-    expect(isRollout(customMapping1)).toBe(true);
+    expect(isRolloutBranchMapping(customMapping1)).toBe(true);
   });
   it('correctly classifies branchMappings that arent rollouts', () => {
-    expect(isRollout(standardBranchMapping)).toBe(false);
+    expect(isRolloutBranchMapping(standardBranchMapping)).toBe(false);
 
     const customMapping1 = {
       version: 0,
@@ -166,7 +165,7 @@ describe(isRollout, () => {
         { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
       ],
     };
-    expect(isRollout(customMapping1)).toBe(false);
+    expect(isRolloutBranchMapping(customMapping1)).toBe(false);
 
     const customMapping2 = {
       version: 0,
@@ -189,7 +188,7 @@ describe(isRollout, () => {
         { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
       ],
     };
-    expect(isRollout(customMapping2)).toBe(false);
+    expect(isRolloutBranchMapping(customMapping2)).toBe(false);
 
     const customMapping3 = {
       version: 0,
@@ -205,7 +204,7 @@ describe(isRollout, () => {
         { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
       ],
     };
-    expect(isRollout(customMapping3)).toBe(false);
+    expect(isRolloutBranchMapping(customMapping3)).toBe(false);
 
     const customMapping4 = {
       version: 0,
@@ -220,7 +219,7 @@ describe(isRollout, () => {
         },
       ],
     };
-    expect(isRollout(customMapping4)).toBe(false);
+    expect(isRolloutBranchMapping(customMapping4)).toBe(false);
 
     const customMapping5 = {
       version: 0,
@@ -248,7 +247,7 @@ describe(isRollout, () => {
         { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
       ],
     };
-    expect(isRollout(customMapping5)).toBe(false);
+    expect(isRolloutBranchMapping(customMapping5)).toBe(false);
 
     const customMapping6 = {
       version: 0,
@@ -264,6 +263,6 @@ describe(isRollout, () => {
         },
       ],
     };
-    expect(isRollout(customMapping6)).toBe(false);
+    expect(isRolloutBranchMapping(customMapping6)).toBe(false);
   });
 });

@@ -5,8 +5,11 @@ import { BranchNotFoundError } from '../../branch/utils';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  BranchesBasicPaginatedOnAppQuery,
+  BranchesBasicPaginatedOnAppQueryVariables,
   BranchesByAppQuery,
   BranchesByAppQueryVariables,
+  UpdateBranchBasicInfoFragment,
   UpdateBranchFragment,
   ViewBranchQuery,
   ViewBranchQueryVariables,
@@ -15,6 +18,7 @@ import {
 } from '../generated';
 import { UpdateFragmentNode } from '../types/Update';
 import { UpdateBranchFragmentNode } from '../types/UpdateBranch';
+import { UpdateBranchBasicInfoFragmentNode } from '../types/UpdateBranchBasicInfo';
 
 export type UpdateBranchOnChannelObject = NonNullable<
   ViewBranchesOnUpdateChannelQuery['app']['byId']['updateChannelByName']
@@ -24,7 +28,7 @@ export const BranchQuery = {
   async getBranchByNameAsync(
     graphqlClient: ExpoGraphqlClient,
     { appId, name }: ViewBranchQueryVariables
-  ): Promise<NonNullable<ViewBranchQuery['app']['byId']['updateBranchByName']>> {
+  ): Promise<UpdateBranchBasicInfoFragment> {
     const response = await withErrorHandlingAsync<ViewBranchQuery>(
       graphqlClient
         .query<ViewBranchQuery, ViewBranchQueryVariables>(
@@ -35,11 +39,12 @@ export const BranchQuery = {
                   id
                   updateBranchByName(name: $name) {
                     id
-                    name
+                    ...UpdateBranchBasicInfoFragment
                   }
                 }
               }
             }
+            ${print(UpdateBranchBasicInfoFragmentNode)}
           `,
           {
             appId,
@@ -87,6 +92,50 @@ export const BranchQuery = {
     );
 
     return data?.app?.byId.updateBranches ?? [];
+  },
+  async listBranchesBasicInfoPaginatedOnAppAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, first, after }: BranchesBasicPaginatedOnAppQueryVariables
+  ): Promise<BranchesBasicPaginatedOnAppQuery['app']['byId']['branchesPaginated']> {
+    const response = await withErrorHandlingAsync(
+      graphqlClient
+        .query<BranchesBasicPaginatedOnAppQuery, BranchesBasicPaginatedOnAppQueryVariables>(
+          gql`
+            query BranchesBasicPaginatedOnApp($appId: String!, $first: Int, $after: String) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  branchesPaginated(first: $first, after: $after) {
+                    edges {
+                      node {
+                        id
+                        ...UpdateBranchBasicInfoFragment
+                      }
+                      cursor
+                    }
+                    pageInfo {
+                      hasNextPage
+                      hasPreviousPage
+                      startCursor
+                      endCursor
+                    }
+                  }
+                }
+              }
+            }
+            ${print(UpdateBranchBasicInfoFragmentNode)}
+          `,
+          { appId, first, after },
+          { additionalTypenames: ['UpdateBranch'] }
+        )
+        .toPromise()
+    );
+    const { branchesPaginated } = response.app.byId;
+
+    if (!branchesPaginated) {
+      throw new Error(`Could not find channels on project with id ${appId}`);
+    }
+    return branchesPaginated;
   },
   async listBranchesOnChannelAsync(
     graphqlClient: ExpoGraphqlClient,

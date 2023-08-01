@@ -5,6 +5,8 @@ import { ChannelNotFoundError } from '../../channel/errors';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  UpdateBranchBasicInfoFragment,
+  UpdateFragment,
   ViewUpdateChannelOnAppQuery,
   ViewUpdateChannelOnAppQueryVariables,
   ViewUpdateChannelsOnAppQuery,
@@ -27,6 +29,16 @@ type UpdateChannelByNameObject = NonNullable<
 export type UpdateChannelObject = ViewUpdateChannelsOnAppObject & UpdateChannelByNameObject;
 
 export type UpdateBranchObject = UpdateChannelObject['updateBranches'][number];
+
+export function composeUpdateBranchObject(
+  branchInfo: UpdateBranchBasicInfoFragment,
+  updateGroups: UpdateFragment[][]
+): UpdateBranchObject {
+  return {
+    ...branchInfo,
+    updateGroups,
+  };
+}
 
 export const ChannelQuery = {
   async viewUpdateChannelAsync(
@@ -142,6 +154,7 @@ export const ChannelQuery = {
                         id
                         ...UpdateChannelBasicInfoFragment
                       }
+                      cursor
                     }
                     pageInfo {
                       hasNextPage

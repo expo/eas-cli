@@ -2,7 +2,9 @@ import assert from 'assert';
 
 import {
   BranchMapping,
+  BranchMappingAlwaysTrue,
   BranchMappingNode,
+  alwaysTrue,
   assertNodeObject,
   assertNumber,
   assertStatement,
@@ -38,6 +40,52 @@ type LegacyRolloutInfo = {
   defaultBranchId: string;
 };
 
+export type RolloutBranchMapping = LegacyRolloutBranchMapping | ConstrainedRolloutBranchMapping;
+
+type RolloutNode = {
+  clientKey: 'rolloutToken';
+  branchMappingOperator: 'hash_lt';
+  operand: number;
+};
+
+type RuntimeVersionNode = {
+  clientKey: 'runtimeVersion';
+  branchMappingOperator: '==';
+  operand: string;
+};
+
+type RtvConstrainedRolloutNode =
+  | ['and', RolloutNode, RuntimeVersionNode]
+  | ['and', RuntimeVersionNode, RolloutNode];
+
+export type LegacyRolloutBranchMapping = {
+  version: number;
+  data: [
+    {
+      branchId: string;
+      branchMappingLogic: RolloutNode;
+    },
+    {
+      branchId: string;
+      branchMappingLogic: BranchMappingAlwaysTrue;
+    }
+  ];
+};
+
+export type ConstrainedRolloutBranchMapping = {
+  version: number;
+  data: [
+    {
+      branchId: string;
+      branchMappingLogic: RtvConstrainedRolloutNode;
+    },
+    {
+      branchId: string;
+      branchMappingLogic: BranchMappingAlwaysTrue;
+    }
+  ];
+};
+
 export function isLegacyRolloutInfo(rollout: RolloutInfo): rollout is LegacyRolloutInfo {
   return !isConstrainedRolloutInfo(rollout);
 }
@@ -51,13 +99,11 @@ export function isConstrainedRollout(rollout: Rollout): rollout is ConstrainedRo
 }
 
 export function getRolloutInfo(basicChannelInfo: UpdateChannelBasicInfoFragment): RolloutInfo {
-  const branchMapping = getBranchMapping(basicChannelInfo.branchMapping);
-  assertRollout(branchMapping);
-  return getRolloutInfoFromBranchMapping(branchMapping);
+  const rolloutBranchMapping = getRolloutBranchMapping(basicChannelInfo.branchMapping);
+  return getRolloutInfoFromBranchMapping(rolloutBranchMapping);
 }
 
-export function getRolloutInfoFromBranchMapping(branchMapping: BranchMapping): RolloutInfo {
-  assertRollout(branchMapping);
+export function getRolloutInfoFromBranchMapping(branchMapping: RolloutBranchMapping): RolloutInfo {
   const rolledOutBranchId = branchMapping.data[0].branchId;
   const defaultBranchId = branchMapping.data[1].branchId;
 
@@ -97,19 +143,42 @@ export function getRolloutInfoFromBranchMapping(branchMapping: BranchMapping): R
 }
 
 export function getRollout(channel: UpdateChannelObject): Rollout {
-  const branchMapping = getBranchMapping(channel.branchMapping);
-  assertRollout(branchMapping);
-  const rolledOutBranchId = branchMapping.data[0].branchId;
+  const rolloutBranchMapping = getRolloutBranchMapping(channel.branchMapping);
+  const rolledOutBranchId = rolloutBranchMapping.data[0].branchId;
   const rolledOutBranch = getUpdateBranch(channel, rolledOutBranchId);
-  const defaultBranchId = branchMapping.data[1].branchId;
+  const defaultBranchId = rolloutBranchMapping.data[1].branchId;
   const defaultBranch = getUpdateBranch(channel, defaultBranchId);
-
   const rolloutInfo = getRolloutInfo(channel);
+  return composeRollout(rolloutInfo, defaultBranch, rolledOutBranch);
+}
+
+export function composeRollout(
+  rolloutInfo: RolloutInfo,
+  defaultBranch: UpdateBranchObject,
+  rolledOutBranch: UpdateBranchObject
+): Rollout {
+  assert(
+    rolloutInfo.defaultBranchId === defaultBranch.id,
+    'Default branch must match. Received: ' + JSON.stringify(rolloutInfo) + ' ' + defaultBranch.id
+  );
+  assert(
+    rolloutInfo.rolledOutBranchId === rolledOutBranch.id,
+    'Rolled out branch must match. Received: ' +
+      JSON.stringify(rolloutInfo) +
+      ' ' +
+      rolledOutBranch.id
+  );
   return {
     ...rolloutInfo,
     rolledOutBranch,
     defaultBranch,
   };
+}
+
+export function getRolloutBranchMapping(branchMappingString: string): RolloutBranchMapping {
+  const branchMapping = getBranchMapping(branchMappingString);
+  assertRolloutBranchMapping(branchMapping);
+  return branchMapping;
 }
 
 /**
@@ -163,19 +232,58 @@ export function getRollout(channel: UpdateChannelObject): Rollout {
     ],
   } 
  */
-export function isRollout(branchMapping: BranchMapping): boolean {
+export function isRolloutBranchMapping(
+  branchMapping: BranchMapping
+): branchMapping is RolloutBranchMapping {
   return isUnconstrainedRollout(branchMapping) || isRtvConstrainedRollout(branchMapping);
 }
 
+export function isRollout(channelInfo: UpdateChannelBasicInfoFragment): boolean {
+  const branchMapping = getBranchMapping(channelInfo.branchMapping);
+  return isRolloutBranchMapping(branchMapping);
+}
+
+export function createRolloutBranchMapping({
+  defaultBranchId,
+  rolloutBranchId,
+  percent,
+  runtimeVersion,
+}: {
+  defaultBranchId: string;
+  rolloutBranchId: string;
+  percent: number;
+  runtimeVersion: string;
+}): ConstrainedRolloutBranchMapping {
+  assertPercent(percent);
+  return {
+    version: 0,
+    data: [
+      {
+        branchId: rolloutBranchId,
+        branchMappingLogic: [
+          'and',
+          {
+            operand: runtimeVersion,
+            clientKey: 'runtimeVersion',
+            branchMappingOperator: '==',
+          },
+          {
+            operand: percent / 100,
+            clientKey: 'rolloutToken',
+            branchMappingOperator: 'hash_lt',
+          },
+        ],
+      },
+      { branchId: defaultBranchId, branchMappingLogic: alwaysTrue() },
+    ],
+  };
+}
+
 export function editRolloutBranchMapping(
-  branchMapping: BranchMapping,
+  branchMapping: RolloutBranchMapping,
   percent: number
-): BranchMapping {
-  assert(
-    Number.isInteger(percent) && percent >= 0 && percent <= 100,
-    'The rollout percentage must be an integer between 0 and 100 inclusive.'
-  );
-  assertRollout(branchMapping);
+): RolloutBranchMapping {
+  assertPercent(percent);
   if (isRtvConstrainedRollout(branchMapping)) {
     return editRtvConstrainedRollout(branchMapping, percent);
   } else {
@@ -183,45 +291,42 @@ export function editRolloutBranchMapping(
   }
 }
 
-function editRtvConstrainedRollout(branchMapping: BranchMapping, percent: number): BranchMapping {
+function editRtvConstrainedRollout(
+  branchMapping: ConstrainedRolloutBranchMapping,
+  percent: number
+): ConstrainedRolloutBranchMapping {
   const newBranchMapping = { ...branchMapping };
   const statementNode = newBranchMapping.data[0].branchMappingLogic;
-  assertStatement(statementNode);
   const nodesFromStatement = getNodesFromStatement(statementNode);
 
   const rolloutNode = nodesFromStatement.find(isRolloutNode);
   assert(rolloutNode, 'Rollout node must be defined.');
-  assertNodeObject(rolloutNode);
   rolloutNode.operand = percent / 100;
   return newBranchMapping;
 }
 
-function editLegacyRollout(branchMapping: BranchMapping, percent: number): BranchMapping {
+function editLegacyRollout(
+  branchMapping: LegacyRolloutBranchMapping,
+  percent: number
+): LegacyRolloutBranchMapping {
   const newBranchMapping = { ...branchMapping };
   const rolloutNode = newBranchMapping.data[0].branchMappingLogic;
-  assertNodeObject(rolloutNode);
   rolloutNode.operand = percent / 100;
   return newBranchMapping;
 }
 
-function assertRollout(branchMapping: BranchMapping): asserts branchMapping is BranchMapping {
-  assert(
-    isRollout(branchMapping),
-    'Branch mapping node must be a rollout. Received: ' + JSON.stringify(branchMapping)
-  );
-}
-
-function isRtvConstrainedRollout(branchMapping: BranchMapping): boolean {
+function isRtvConstrainedRollout(
+  branchMapping: BranchMapping
+): branchMapping is ConstrainedRolloutBranchMapping {
   if (branchMapping.data.length !== 2) {
     return false;
   }
   const hasRtvRolloutNode = isRtvConstrainedRolloutNode(branchMapping.data[0].branchMappingLogic);
   const defaultsToAlwaysTrueNode = isAlwaysTrue(branchMapping.data[1].branchMappingLogic);
-
   return hasRtvRolloutNode && defaultsToAlwaysTrueNode;
 }
 
-function isRtvConstrainedRolloutNode(node: BranchMappingNode): boolean {
+function isRtvConstrainedRolloutNode(node: BranchMappingNode): node is RtvConstrainedRolloutNode {
   if (!isStatement(node) || !isAndStatement(node)) {
     return false;
   }
@@ -235,7 +340,9 @@ function isRtvConstrainedRolloutNode(node: BranchMappingNode): boolean {
   return hasRuntimeVersionNode && hasRolloutNode;
 }
 
-function isUnconstrainedRollout(branchMapping: BranchMapping): boolean {
+function isUnconstrainedRollout(
+  branchMapping: BranchMapping
+): branchMapping is LegacyRolloutBranchMapping {
   if (branchMapping.data.length !== 2) {
     return false;
   }
@@ -244,7 +351,7 @@ function isUnconstrainedRollout(branchMapping: BranchMapping): boolean {
   return hasRolloutNode && defaultsToAlwaysTrueNode;
 }
 
-function isRuntimeVersionNode(node: BranchMappingNode): boolean {
+function isRuntimeVersionNode(node: BranchMappingNode): node is RuntimeVersionNode {
   if (typeof node === 'string') {
     return false;
   }
@@ -254,7 +361,7 @@ function isRuntimeVersionNode(node: BranchMappingNode): boolean {
   return node.clientKey === 'runtimeVersion' && node.branchMappingOperator === '==';
 }
 
-function isRolloutNode(node: BranchMappingNode): boolean {
+function isRolloutNode(node: BranchMappingNode): node is RolloutNode {
   if (typeof node === 'string') {
     return false;
   }
@@ -262,4 +369,20 @@ function isRolloutNode(node: BranchMappingNode): boolean {
     return false;
   }
   return node.clientKey === 'rolloutToken' && node.branchMappingOperator === 'hash_lt';
+}
+
+export function assertRolloutBranchMapping(
+  branchMapping: BranchMapping
+): asserts branchMapping is RolloutBranchMapping {
+  assert(
+    isRolloutBranchMapping(branchMapping),
+    'Branch mapping node must be a rollout. Received: ' + JSON.stringify(branchMapping)
+  );
+}
+
+function assertPercent(percent: number): void {
+  assert(
+    Number.isInteger(percent) && percent >= 0 && percent <= 100,
+    `The percentage must be an integer between 0 and 100 inclusive. Received: ${percent}`
+  );
 }
