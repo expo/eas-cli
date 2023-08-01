@@ -70,7 +70,7 @@ export function getStandardBranchId(channelInfo: UpdateChannelBasicInfoFragment)
   return getBranchIdFromStandardMapping(branchMapping);
 }
 
-function isAlwaysTrueBranchMapping(
+export function isAlwaysTrueBranchMapping(
   branchMapping: BranchMapping
 ): branchMapping is AlwaysTrueBranchMapping {
   const numBranches = branchMapping.data.length;
@@ -136,32 +136,45 @@ export function hashLtOperator(): BranchMappingOperator {
 }
 
 export function assertStatement(node: BranchMappingNode): asserts node is BranchMappingStatement {
-  assert(
-    isStatement(node),
-    'Branch mapping node must be a statement. Received: ' + JSON.stringify(node)
-  );
+  if (!isStatement(node)) {
+    throw new BranchMappingValidationError(
+      'Branch mapping node must be a statement. Received: ' + JSON.stringify(node)
+    );
+  }
 }
 
 export function assertNodeObject(node: BranchMappingNode): asserts node is BranchMappingObject {
-  assert(
-    isNodeObject(node),
-    'Branch mapping node must be an object. Received: ' + JSON.stringify(node)
-  );
+  if (!isNodeObject(node)) {
+    throw new BranchMappingValidationError(
+      'Branch mapping node must be an object. Received: ' + JSON.stringify(node)
+    );
+  }
 }
 
 export function assertNumber(operand: string | number | string[]): asserts operand is number {
-  assert(typeof operand === 'number', 'Expected a number. Received: ' + JSON.stringify(operand));
+  if (typeof operand !== 'number') {
+    throw new BranchMappingValidationError(
+      'Expected a number. Received: ' + JSON.stringify(operand)
+    );
+  }
 }
 
 export function assertString(operand: string | number | string[]): asserts operand is string {
-  assert(typeof operand === 'string', 'Expected a string. Received: ' + JSON.stringify(operand));
+  if (typeof operand !== 'string') {
+    throw new BranchMappingValidationError(
+      'Expected a string. Received: ' + JSON.stringify(operand)
+    );
+  }
 }
 
 function assertAlwaysTrueBranchMapping(
   branchMapping: BranchMapping
 ): asserts branchMapping is AlwaysTrueBranchMapping {
-  assert(
-    isAlwaysTrueBranchMapping(branchMapping),
-    'Expected standard branch mapping. Received: ' + JSON.stringify(branchMapping)
-  );
+  if (!isAlwaysTrueBranchMapping(branchMapping)) {
+    throw new BranchMappingValidationError(
+      'Expected standard branch mapping. Received: ' + JSON.stringify(branchMapping)
+    );
+  }
 }
+
+export class BranchMappingValidationError extends Error {}

@@ -4,6 +4,7 @@ import {
   BranchMapping,
   BranchMappingAlwaysTrue,
   BranchMappingNode,
+  BranchMappingValidationError,
   alwaysTrue,
   assertNodeObject,
   assertNumber,
@@ -157,17 +158,18 @@ export function composeRollout(
   defaultBranch: UpdateBranchObject,
   rolledOutBranch: UpdateBranchObject
 ): Rollout {
-  assert(
-    rolloutInfo.defaultBranchId === defaultBranch.id,
-    'Default branch must match. Received: ' + JSON.stringify(rolloutInfo) + ' ' + defaultBranch.id
-  );
-  assert(
-    rolloutInfo.rolledOutBranchId === rolledOutBranch.id,
-    'Rolled out branch must match. Received: ' +
-      JSON.stringify(rolloutInfo) +
-      ' ' +
-      rolledOutBranch.id
-  );
+  if (rolloutInfo.defaultBranchId !== defaultBranch.id) {
+    throw new BranchMappingValidationError(
+      `Default branch id must match. Received: ${JSON.stringify(rolloutInfo)} ${defaultBranch.id}`
+    );
+  }
+  if (rolloutInfo.rolledOutBranchId !== rolledOutBranch.id) {
+    throw new BranchMappingValidationError(
+      `Rolled out branch id must match. Received: ${JSON.stringify(rolloutInfo)} ${
+        rolledOutBranch.id
+      }`
+    );
+  }
   return {
     ...rolloutInfo,
     rolledOutBranch,
@@ -374,15 +376,18 @@ function isRolloutNode(node: BranchMappingNode): node is RolloutNode {
 export function assertRolloutBranchMapping(
   branchMapping: BranchMapping
 ): asserts branchMapping is RolloutBranchMapping {
-  assert(
-    isRolloutBranchMapping(branchMapping),
-    'Branch mapping node must be a rollout. Received: ' + JSON.stringify(branchMapping)
-  );
+  if (!isRolloutBranchMapping(branchMapping)) {
+    throw new BranchMappingValidationError(
+      'Branch mapping node must be a rollout. Received: ' + JSON.stringify(branchMapping)
+    );
+  }
 }
 
 function assertPercent(percent: number): void {
-  assert(
-    Number.isInteger(percent) && percent >= 0 && percent <= 100,
-    `The percentage must be an integer between 0 and 100 inclusive. Received: ${percent}`
-  );
+  const isPercent = Number.isInteger(percent) && percent >= 0 && percent <= 100;
+  if (!isPercent) {
+    throw new BranchMappingValidationError(
+      `The percentage must be an integer between 0 and 100 inclusive. Received: ${percent}`
+    );
+  }
 }

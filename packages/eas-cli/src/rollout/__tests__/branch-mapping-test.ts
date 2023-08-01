@@ -7,14 +7,19 @@ import {
 } from '../../channel/__tests__/fixtures';
 import {
   BranchMappingOperator,
+  BranchMappingValidationError,
   alwaysTrue,
   andStatement,
   equalsOperator,
   hashLtOperator,
 } from '../../channel/branch-mapping';
 import {
+  assertRolloutBranchMapping,
+  composeRollout,
+  createRolloutBranchMapping,
   editRolloutBranchMapping,
   getRollout,
+  getRolloutInfo,
   getRolloutInfoFromBranchMapping,
   isConstrainedRollout,
   isConstrainedRolloutInfo,
@@ -26,6 +31,73 @@ import {
   rolloutBranchMappingLegacy,
   standardBranchMapping,
 } from './fixtures';
+
+describe(composeRollout, () => {
+  it('composes a rollout', () => {
+    const rollout = getRollout(testChannelObject);
+    const rolloutInfo = getRolloutInfo(testChannelObject);
+    const composedRollout = composeRollout(rolloutInfo, testUpdateBranch2, testUpdateBranch1);
+    expect(composedRollout).toEqual(rollout);
+  });
+  it('throws if the branches to not match the rollout info', () => {
+    const rolloutInfo = getRolloutInfo(testChannelObject);
+    expect(() => composeRollout(rolloutInfo, testUpdateBranch1, testUpdateBranch2)).toThrowError(
+      BranchMappingValidationError
+    );
+  });
+});
+
+describe(createRolloutBranchMapping, () => {
+  it('creates a rollout branch mapping', () => {
+    const branchMapping = createRolloutBranchMapping({
+      defaultBranchId: 'default-branch-id',
+      rolloutBranchId: 'rollout-branch-id',
+      percent: 10,
+      runtimeVersion: '1.0.0',
+    });
+    expect(isRolloutBranchMapping(branchMapping)).toBe(true);
+  });
+  it('throws if an invalid number is passed in', () => {
+    expect(() =>
+      createRolloutBranchMapping({
+        defaultBranchId: 'default-branch-id',
+        rolloutBranchId: 'rollout-branch-id',
+        percent: 0.1,
+        runtimeVersion: '1.0.0',
+      })
+    ).toThrowError(BranchMappingValidationError);
+    expect(() =>
+      createRolloutBranchMapping({
+        defaultBranchId: 'default-branch-id',
+        rolloutBranchId: 'rollout-branch-id',
+        percent: -1,
+        runtimeVersion: '1.0.0',
+      })
+    ).toThrowError(BranchMappingValidationError);
+    expect(() =>
+      createRolloutBranchMapping({
+        defaultBranchId: 'default-branch-id',
+        rolloutBranchId: 'rollout-branch-id',
+        percent: 1000,
+        runtimeVersion: '1.0.0',
+      })
+    ).toThrowError(BranchMappingValidationError);
+  });
+});
+
+describe(assertRolloutBranchMapping, () => {
+  it('asserts a rollout branch mapping', () => {
+    expect(() => assertRolloutBranchMapping(standardBranchMapping)).toThrowError(
+      BranchMappingValidationError
+    );
+    expect(() => assertRolloutBranchMapping(rolloutBranchMapping)).not.toThrowError(
+      BranchMappingValidationError
+    );
+    expect(() => assertRolloutBranchMapping(rolloutBranchMappingLegacy)).not.toThrowError(
+      BranchMappingValidationError
+    );
+  });
+});
 
 describe(isLegacyRolloutInfo, () => {
   it('classifies rollouts properly', () => {

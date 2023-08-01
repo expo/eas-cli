@@ -1,7 +1,7 @@
 import { createCtxMock } from '../../../eas-update/__tests__/fixtures';
 import { NonInteractiveError } from '../../../eas-update/utils';
 import { promptAsync } from '../../../prompts';
-import { testBasicChannelInfo, testBasicChannelInfo2 } from '../../__tests__/fixtures';
+import { testBasicChannelInfo } from '../../__tests__/fixtures';
 import { SelectChannel } from '../SelectChannel';
 
 jest.mock('../../../prompts');
