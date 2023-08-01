@@ -7,14 +7,11 @@ import { withErrorHandlingAsync } from '../graphql/client';
 import {
   CreateUpdateBranchForAppMutation,
   CreateUpdateBranchForAppMutationVariables,
-  PageInfo,
   UpdateBranch,
-  UpdateBranchBasicInfoFragment,
   UpdateBranchFragment,
 } from '../graphql/generated';
 import { BranchQuery } from '../graphql/queries/BranchQuery';
 import Log from '../log';
-import { ora } from '../ora';
 import { formatBranch, getBranchDescription } from '../update/utils';
 import { printJsonOnlyOutput } from '../utils/json';
 import {
@@ -22,7 +19,6 @@ import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
-import { Connection, QueryParams, getPaginatedDatasetAsync } from '../utils/relay';
 import { BranchNotFoundError } from './utils';
 
 export const BRANCHES_LIMIT = 50;
@@ -185,47 +181,4 @@ export async function ensureBranchExistsAsync(
       throw error;
     }
   }
-}
-
-export async function getBranchesDatasetAsync(
-  graphqlClient: ExpoGraphqlClient,
-  {
-    appId,
-    filterPredicate,
-    batchSize = 100,
-  }: {
-    appId: string;
-    filterPredicate?: (branchInfo: UpdateBranchBasicInfoFragment) => boolean;
-    batchSize?: number;
-  }
-): Promise<UpdateBranchBasicInfoFragment[]> {
-  const queryAsync = async ({
-    first,
-    after,
-  }: QueryParams): Promise<Connection<UpdateBranchBasicInfoFragment>> =>
-    await BranchQuery.listBranchesBasicInfoPaginatedOnAppAsync(graphqlClient, {
-      appId,
-      first,
-      after,
-    });
-
-  const assetSpinner = ora().start('Fetching branches...');
-  const afterEachQuery = (
-    totalNodesFetched: number,
-    _dataset: UpdateBranchBasicInfoFragment[],
-    _batch: UpdateBranchBasicInfoFragment[],
-    pageInfo: PageInfo
-  ): void => {
-    if (pageInfo.hasNextPage) {
-      assetSpinner.text = `Fetched ${totalNodesFetched} branches`;
-    }
-  };
-  const dataset = await getPaginatedDatasetAsync({
-    queryAsync,
-    afterEachQuery,
-    filterPredicate,
-    batchSize,
-  });
-  assetSpinner.succeed(`Fetched all branches`);
-  return dataset;
 }
