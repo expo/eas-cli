@@ -95,17 +95,23 @@ export const BranchQuery = {
   },
   async listBranchesBasicInfoPaginatedOnAppAsync(
     graphqlClient: ExpoGraphqlClient,
-    { appId, first, after }: BranchesBasicPaginatedOnAppQueryVariables
+    { appId, first, after, last, before }: BranchesBasicPaginatedOnAppQueryVariables
   ): Promise<BranchesBasicPaginatedOnAppQuery['app']['byId']['branchesPaginated']> {
     const response = await withErrorHandlingAsync(
       graphqlClient
         .query<BranchesBasicPaginatedOnAppQuery, BranchesBasicPaginatedOnAppQueryVariables>(
           gql`
-            query BranchesBasicPaginatedOnApp($appId: String!, $first: Int, $after: String) {
+            query BranchesBasicPaginatedOnApp(
+              $appId: String!
+              $first: Int
+              $after: String
+              $last: Int
+              $before: String
+            ) {
               app {
                 byId(appId: $appId) {
                   id
-                  branchesPaginated(first: $first, after: $after) {
+                  branchesPaginated(first: $first, after: $after, before: $before, last: $last) {
                     edges {
                       node {
                         id
@@ -125,7 +131,7 @@ export const BranchQuery = {
             }
             ${print(UpdateBranchBasicInfoFragmentNode)}
           `,
-          { appId, first, after },
+          { appId, first, after, last, before },
           { additionalTypenames: ['UpdateBranch'] }
         )
         .toPromise()

@@ -8,7 +8,7 @@ export type Connection<T> = {
   pageInfo: PageInfo;
 };
 
-type Edge<T> = {
+export type Edge<T> = {
   cursor: string;
   node: T;
 };
@@ -89,22 +89,44 @@ export async function getPaginatedDatasetAsync<T>({
  * @param afterEachQuery Optional. A callback function to be called after each query.
  * @param internalBatchSize Optional. The batch size of queryAsync. Defaults to 100.
  * @param maxNodesFetched Optional. The maximum number of nodes to fetch. Defaults to 10_000.
+ * @param beforeEachQuery Optional. A callback function to be called before each query
+ * @args externalQueryParams The query params for the pagination.
+ * @args totalNodesFetched The total number of nodes fetched so far.
+ * @args dataset The dataset so far.
+ * @param afterEachQuery Optional. A callback function to be called after each query.
+ * @args externalQueryParams The query params for the pagination.
+ * @args totalNodesFetched The total number of nodes fetched so far.
+ * @args dataset The dataset so far.
+ * @args willFetchAgain If the query will fetch again to get a complete page.
  *
  * @throws {Error} - If an error occurs during execution of the query or pagination.
  */
 export class FilterPagination {
-  async getPageAsync<T>({
+  static async getPageAsync<T>({
     queryParams,
     queryAsync,
     filterPredicate,
     internalBatchSize = 100,
     maxNodesFetched = 10_000,
+    beforeEachQuery,
+    afterEachQuery,
   }: {
     queryParams: QueryParams;
     queryAsync: (queryParams: QueryParams) => Promise<Connection<T>>;
     filterPredicate: (node: T) => boolean;
     internalBatchSize?: number;
     maxNodesFetched?: number;
+    beforeEachQuery?: (
+      externalQueryParams: QueryParams,
+      totalNodesFetched: number,
+      dataset: Edge<T>[]
+    ) => void;
+    afterEachQuery?: (
+      externalQueryParams: QueryParams,
+      totalNodesFetched: number,
+      dataset: Edge<T>[],
+      willFetchAgain: boolean
+    ) => void;
   }): Promise<Connection<T>> {
     if (this.isFirstAfter(queryParams)) {
       return await this.getFirstItemsAsync(queryParams, {
@@ -112,6 +134,8 @@ export class FilterPagination {
         filterPredicate,
         internalBatchSize,
         maxNodesFetched,
+        beforeEachQuery,
+        afterEachQuery,
       });
     } else if (this.isLastBefore(queryParams)) {
       return await this.getLastItemsAsync(queryParams, {
@@ -119,12 +143,14 @@ export class FilterPagination {
         filterPredicate,
         internalBatchSize,
         maxNodesFetched,
+        beforeEachQuery,
+        afterEachQuery,
       });
     }
     throw new Error('Invalid query params');
   }
 
-  isFirstAfter(connectionArgs: {
+  static isFirstAfter(connectionArgs: {
     first?: number;
     after?: string;
     last?: number;
@@ -136,7 +162,7 @@ export class FilterPagination {
     return 'first' in connectionArgs;
   }
 
-  isLastBefore(connectionArgs: {
+  static isLastBefore(connectionArgs: {
     first?: number;
     after?: string;
     last?: number;
@@ -148,18 +174,31 @@ export class FilterPagination {
     return 'last' in connectionArgs;
   }
 
-  async getFirstItemsAsync<T>(
+  static async getFirstItemsAsync<T>(
     { first, after }: { first: number; after?: string },
     {
       internalBatchSize,
       maxNodesFetched,
       filterPredicate,
       queryAsync,
+      beforeEachQuery,
+      afterEachQuery,
     }: {
       internalBatchSize?: number;
       maxNodesFetched: number;
       filterPredicate: (node: T) => boolean;
       queryAsync: (queryParams: QueryParams) => Promise<Connection<T>>;
+      beforeEachQuery?: (
+        externalQueryParams: QueryParams,
+        totalNodesFetched: number,
+        dataset: Edge<T>[]
+      ) => void;
+      afterEachQuery?: (
+        externalQueryParams: QueryParams,
+        totalNodesFetched: number,
+        dataset: Edge<T>[],
+        willFetchAgain: boolean
+      ) => void;
     }
   ): Promise<Connection<T>> {
     const limit = first + 1;
@@ -168,6 +207,9 @@ export class FilterPagination {
     let afterInternal: string | undefined = after;
     let totalNodesFetched = 0;
     while (hasMore && dataset.length < limit) {
+      if (beforeEachQuery) {
+        beforeEachQuery({ first, after }, totalNodesFetched, dataset);
+      }
       const result = await queryAsync({ first: internalBatchSize, after: afterInternal });
       const { edges: batchEdges, pageInfo } = result;
       const batch = batchEdges.filter(edge => filterPredicate(edge.node));
@@ -176,6 +218,14 @@ export class FilterPagination {
       hasMore = pageInfo.hasNextPage;
       afterInternal = pageInfo.endCursor ?? undefined;
       totalNodesFetched += batchEdges.length;
+      if (afterEachQuery) {
+        afterEachQuery(
+          { first, after },
+          totalNodesFetched,
+          dataset,
+          hasMore && dataset.length < limit
+        );
+      }
       if (totalNodesFetched >= maxNodesFetched) {
         throw new Error(`Max nodes of ${maxNodesFetched} fetched`);
       }
@@ -192,18 +242,31 @@ export class FilterPagination {
     };
   }
 
-  async getLastItemsAsync<T>(
+  static async getLastItemsAsync<T>(
     { last, before }: { last: number; before?: string },
     {
       internalBatchSize,
       maxNodesFetched,
       filterPredicate,
       queryAsync,
+      beforeEachQuery,
+      afterEachQuery,
     }: {
       internalBatchSize?: number;
       maxNodesFetched: number;
       filterPredicate: (node: T) => boolean;
       queryAsync: (queryParams: QueryParams) => Promise<Connection<T>>;
+      beforeEachQuery?: (
+        externalQueryParams: QueryParams,
+        totalNodesFetched: number,
+        dataset: Edge<T>[]
+      ) => void;
+      afterEachQuery?: (
+        externalQueryParams: QueryParams,
+        totalNodesFetched: number,
+        dataset: Edge<T>[],
+        willFetchAgain: boolean
+      ) => void;
     }
   ): Promise<Connection<T>> {
     const limit = last + 1;
@@ -212,6 +275,9 @@ export class FilterPagination {
     let beforeInternal: string | undefined = before;
     let totalNodesFetched = 0;
     while (hasMore && dataset.length < limit) {
+      if (beforeEachQuery) {
+        beforeEachQuery({ last, before }, totalNodesFetched, dataset);
+      }
       const result = await queryAsync({ last: internalBatchSize, before: beforeInternal });
       const { edges: batchEdges, pageInfo } = result;
       const batch = batchEdges.filter(edge => filterPredicate(edge.node));
@@ -222,6 +288,14 @@ export class FilterPagination {
       hasMore = pageInfo.hasPreviousPage;
       beforeInternal = pageInfo.startCursor ?? undefined;
       totalNodesFetched += batchEdges.length;
+      if (afterEachQuery) {
+        afterEachQuery(
+          { last, before },
+          totalNodesFetched,
+          dataset,
+          hasMore && dataset.length < limit
+        );
+      }
       if (totalNodesFetched >= maxNodesFetched) {
         throw new Error(`Max nodes of ${maxNodesFetched} fetched`);
       }
@@ -290,7 +364,22 @@ async function selectPaginatedInternalAsync<T>({
   assert(limit, 'queryParams must have either first or last');
   const connection = await queryAsync(queryParams);
   const { edges, pageInfo } = connection;
-  const { endCursor, hasNextPage, startCursor, hasPreviousPage } = pageInfo;
+  /*
+   * The Relay spec has a weird definition on hasNextPage and hasPreviousPage:
+   * 'If the client is paginating with last/before, then the server must return true if prior edges
+   * exist, otherwise false. If the client is paginating with first/after, then the client may
+   * return true if edges prior to after exist, if it can do so efficiently, otherwise may return false.'
+   *
+   * This means if we are paginating with first/after, we can't rely on pageInfo.hasPreviousPage and vice versa.
+   */
+  const {
+    endCursor,
+    hasNextPage: serverResponseHasNextPage,
+    startCursor,
+    hasPreviousPage: serverResponseHasPreviousPage,
+  } = pageInfo;
+  const hasPreviousPage = serverResponseHasPreviousPage || queryParams.after;
+  const hasNextPage = serverResponseHasNextPage || queryParams.before;
   const nodes = edges.map(edge => edge.node);
   const options: { value: symbol | T; title: string }[] = [];
   if (hasPreviousPage) {

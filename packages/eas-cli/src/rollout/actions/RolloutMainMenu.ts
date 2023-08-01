@@ -1,11 +1,13 @@
 import assert from 'assert';
 
 import { SelectChannel } from '../../channel/actions/SelectChannel';
+import { SelectChannelNew } from '../../channel/actions/SelectChannelNew';
 import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
 import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
+import { isRollout } from '../branch-mapping';
 import {
   CreateRollout,
   NonInteractiveOptions as CreateRolloutNonInteractiveOptions,
@@ -14,6 +16,7 @@ import { NonInteractiveOptions as EditRolloutNonInteractiveOptions } from './Edi
 import { NonInteractiveOptions as EndRolloutNonInteractiveOptions } from './EndRollout';
 import { ManageRollout, ManageRolloutActions } from './ManageRollout';
 import { SelectRollout } from './SelectRollout';
+import { SelectRolloutNew } from './SelectRolloutNew';
 
 export enum MainMenuActions {
   CREATE_NEW = 'Create a new rollout',
@@ -54,7 +57,7 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
       case MainMenuActions.CREATE_NEW: {
         const channelInfo = channelName
           ? await this.resolveChannelNameAsync(ctx, channelName)
-          : await this.selectChannelAsync(ctx);
+          : await this.selectChannelAsync(ctx, channelInfo => !isRollout(channelInfo));
         await new CreateRollout(channelInfo, this.options).runAsync(ctx);
         return null;
       }
@@ -82,13 +85,16 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
   }
 
   async selectRolloutAsync(ctx: EASUpdateContext): Promise<UpdateChannelBasicInfoFragment | null> {
-    const selectRollout = new SelectRollout();
+    const selectRollout = new SelectRolloutNew();
     const channelInfo = await selectRollout.runAsync(ctx);
     return channelInfo;
   }
 
-  async selectChannelAsync(ctx: EASUpdateContext): Promise<UpdateChannelBasicInfoFragment> {
-    const selectChannelAction = new SelectChannel();
+  async selectChannelAsync(
+    ctx: EASUpdateContext,
+    filterPredicate?: (channelInfo: UpdateChannelBasicInfoFragment) => boolean
+  ): Promise<UpdateChannelBasicInfoFragment> {
+    const selectChannelAction = new SelectChannelNew({ filterPredicate });
     const channelInfo = await selectChannelAction.runAsync(ctx);
     if (!channelInfo) {
       throw new Error(`You dont have any channels. Create one with <TODO>`);

@@ -1366,16 +1366,19 @@ export type AppInsights = {
 
 export type AppInsightsTotalUniqueUsersArgs = {
   timespan: InsightsTimespan;
+  useDeprecatedBackend?: InputMaybe<Scalars['Boolean']>;
 };
 
 
 export type AppInsightsUniqueUsersByAppVersionOverTimeArgs = {
   timespan: InsightsTimespan;
+  useDeprecatedBackend?: InputMaybe<Scalars['Boolean']>;
 };
 
 
 export type AppInsightsUniqueUsersByPlatformOverTimeArgs = {
   timespan: InsightsTimespan;
+  useDeprecatedBackend?: InputMaybe<Scalars['Boolean']>;
 };
 
 export type AppMutation = {
@@ -4306,14 +4309,15 @@ export type RootQuery = {
   meUserActor?: Maybe<UserActor>;
   project: ProjectQuery;
   snack: SnackQuery;
-  /** Top-level query object for querying SSO Users. */
-  ssoUser: SsoUserQuery;
   /** Top-level query object for querying Expo status page services. */
   statuspageService: StatuspageServiceQuery;
   submissions: SubmissionQuery;
   /** fetch all updates in a group */
   updatesByGroup: Array<Update>;
-  /** Top-level query object for querying Users. */
+  /**
+   * Top-level query object for querying Users.
+   * @deprecated Public user queries are no longer supported
+   */
   user: UserQuery;
   /** Top-level query object for querying UserActors. */
   userActor: UserActorQuery;
@@ -4474,24 +4478,6 @@ export type SsoUserSnacksArgs = {
 export type SsoUserDataInput = {
   firstName?: InputMaybe<Scalars['String']>;
   lastName?: InputMaybe<Scalars['String']>;
-};
-
-export type SsoUserQuery = {
-  __typename?: 'SSOUserQuery';
-  /** Query an SSOUser by ID */
-  byId: SsoUser;
-  /** Query an SSOUser by username */
-  byUsername: SsoUser;
-};
-
-
-export type SsoUserQueryByIdArgs = {
-  userId: Scalars['ID'];
-};
-
-
-export type SsoUserQueryByUsernameArgs = {
-  username: Scalars['String'];
 };
 
 export type SecondFactorBooleanResult = {
@@ -5521,9 +5507,15 @@ export type UserPermission = {
 
 export type UserQuery = {
   __typename?: 'UserQuery';
-  /** Query a User by ID */
+  /**
+   * Query a User by ID
+   * @deprecated Public user queries are no longer supported
+   */
   byId: User;
-  /** Query a User by username */
+  /**
+   * Query a User by username
+   * @deprecated Public user queries are no longer supported
+   */
   byUsername: User;
 };
 
@@ -6293,6 +6285,8 @@ export type BranchesBasicPaginatedOnAppQueryVariables = Exact<{
   appId: Scalars['String'];
   first?: InputMaybe<Scalars['Int']>;
   after?: InputMaybe<Scalars['String']>;
+  last?: InputMaybe<Scalars['Int']>;
+  before?: InputMaybe<Scalars['String']>;
 }>;
 
 
@@ -6354,6 +6348,8 @@ export type ViewUpdateChannelsPaginatedOnAppQueryVariables = Exact<{
   appId: Scalars['String'];
   first?: InputMaybe<Scalars['Int']>;
   after?: InputMaybe<Scalars['String']>;
+  last?: InputMaybe<Scalars['Int']>;
+  before?: InputMaybe<Scalars['String']>;
 }>;
 
 

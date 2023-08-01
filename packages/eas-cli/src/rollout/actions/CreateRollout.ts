@@ -1,6 +1,7 @@
 import assert from 'assert';
 
 import { SelectBranch } from '../../branch/actions/SelectBranch';
+import { SelectBranchNew } from '../../branch/actions/SelectBranchNew';
 import { getStandardBranchId, hasStandardBranchMap } from '../../channel/branch-mapping';
 import { getUpdateBranch } from '../../channel/utils';
 import { updateChannelBranchMappingAsync } from '../../commands/channel/edit';
@@ -115,6 +116,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     Log.log(
       formatBranchWithUpdateGroup(defaultUpdateGroup, defaultBranch, 100 - rollout.percentRolledOut)
     );
+    Log.addNewLineIfNone();
     Log.log(
       formatBranchWithUpdateGroup(
         rolledOutBranchUpdateGroup,
@@ -202,7 +204,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
   }
 
   async selectBranchAsync(ctx: EASUpdateContext): Promise<UpdateBranchBasicInfoFragment> {
-    const selectBranchAction = new SelectBranch({ printedType: 'branch to rollout' });
+    const selectBranchAction = new SelectBranchNew({ printedType: 'branch to rollout' });
     const branchInfo = await selectBranchAction.runAsync(ctx);
     if (!branchInfo) {
       throw new Error(`You dont have any branches. Create one with 'eas branch:create'`);

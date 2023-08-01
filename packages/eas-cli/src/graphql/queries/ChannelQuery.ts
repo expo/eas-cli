@@ -135,7 +135,7 @@ export const ChannelQuery = {
   },
   async viewUpdateChannelsBasicInfoPaginatedOnAppAsync(
     graphqlClient: ExpoGraphqlClient,
-    { appId, first, after }: ViewUpdateChannelsPaginatedOnAppQueryVariables
+    { appId, first, after, last, before }: ViewUpdateChannelsPaginatedOnAppQueryVariables
   ): Promise<ViewUpdateChannelsPaginatedOnAppQuery['app']['byId']['channelsPaginated']> {
     const response = await withErrorHandlingAsync(
       graphqlClient
@@ -144,11 +144,17 @@ export const ChannelQuery = {
           ViewUpdateChannelsPaginatedOnAppQueryVariables
         >(
           gql`
-            query ViewUpdateChannelsPaginatedOnApp($appId: String!, $first: Int, $after: String) {
+            query ViewUpdateChannelsPaginatedOnApp(
+              $appId: String!
+              $first: Int
+              $after: String
+              $last: Int
+              $before: String
+            ) {
               app {
                 byId(appId: $appId) {
                   id
-                  channelsPaginated(first: $first, after: $after) {
+                  channelsPaginated(first: $first, after: $after, before: $before, last: $last) {
                     edges {
                       node {
                         id
@@ -168,7 +174,7 @@ export const ChannelQuery = {
             }
             ${print(UpdateChannelBasicInfoFragmentNode)}
           `,
-          { appId, first, after },
+          { appId, first, after, last, before },
           { additionalTypenames: ['UpdateChannel', 'UpdateBranch', 'Update'] }
         )
         .toPromise()
