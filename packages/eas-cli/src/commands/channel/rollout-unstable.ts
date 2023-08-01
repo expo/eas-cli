@@ -15,7 +15,6 @@ import {
   RolloutActions,
   RolloutMainMenu,
 } from '../../rollout/actions/RolloutMainMenu';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { confirmAsync } from '../../prompts';
 
 enum ActionRawFlagValue {

@@ -115,6 +115,7 @@ function mockUpdateBranches(branchNames: string[]): UpdateBranch[] {
     createdAt: '2022-12-07T02:24:29.786Z',
     updatedAt: '2022-12-07T02:24:29.786Z',
     updates: [],
+    runtimes: { edges: [], pageInfo: { hasNextPage: false, hasPreviousPage: false } },
     updateGroups: [
       [
         {
@@ -148,6 +149,7 @@ function mockUpdateBranches(branchNames: string[]): UpdateBranch[] {
             updatedAt: '2022-12-07T02:24:29.786Z',
             updateGroups: [],
             updates: [],
+            runtimes: { edges: [], pageInfo: { hasNextPage: false, hasPreviousPage: false } },
             __typename: 'UpdateBranch' as const,
           },
           codeSigningInfo: null,

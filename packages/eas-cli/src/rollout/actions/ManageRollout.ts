@@ -40,7 +40,7 @@ export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
     const channelObject = await this.getChannelObjectAsync(ctx);
     printRollout(channelObject);
 
-    const action = this.options.action ?? (await this.selectActionAsync(ctx));
+    const action = this.options.action ?? (await this.selectActionAsync());
     switch (action as ManageRolloutActions) {
       case ManageRolloutActions.EDIT:
         return new EditRollout(this.channelInfo, this.options);
@@ -52,7 +52,7 @@ export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
     }
   }
 
-  async selectActionAsync(ctx: EASUpdateContext): Promise<ManageRolloutActions> {
+  async selectActionAsync(): Promise<ManageRolloutActions> {
     const manageOptions = [ManageRolloutActions.EDIT, ManageRolloutActions.END];
     if (this.options.callingAction) {
       manageOptions.push(ManageRolloutActions.GO_BACK);
