@@ -96,7 +96,7 @@ export default class ChannelRolloutUnstable extends EasCommand {
     });
     if (argsAndFlags.json) {
       // TODO(quin): implement json output
-      throw new Error('not implemented');
+      throw new Error('json support not implemented');
     }
 
     const app = { projectId, exp };
