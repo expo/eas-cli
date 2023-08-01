@@ -82,13 +82,12 @@ describe('getPaginatedDatasetAsync', () => {
   });
 
   it('should stop fetching when maxNodesFetched limit is reached', async () => {
-    const dataset = await getPaginatedDatasetAsync({
-      queryAsync: mockQueryAsync,
-      batchSize: 2,
-      maxNodesFetched: 2,
-    });
-
-    expect(dataset).toHaveLength(2);
-    expect(mockQueryAsync).toHaveBeenCalledTimes(1);
+    await expect(
+      getPaginatedDatasetAsync({
+        queryAsync: mockQueryAsync,
+        batchSize: 2,
+        maxNodesFetched: 2,
+      })
+    ).rejects.toThrowError();
   });
 });
