@@ -19,7 +19,6 @@ import {
   isConstrainedRollout,
   isConstrainedRolloutInfo,
   isLegacyRolloutInfo,
-  isRollout,
   isRolloutBranchMapping,
 } from '../branch-mapping';
 import {

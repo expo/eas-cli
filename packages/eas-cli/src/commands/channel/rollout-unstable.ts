@@ -2,6 +2,7 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { confirmAsync } from '../../prompts';
 import { NonInteractiveOptions as CreateRolloutNonInteractiveOptions } from '../../rollout/actions/CreateRollout';
 import { NonInteractiveOptions as EditRolloutNonInteractiveOptions } from '../../rollout/actions/EditRollout';
 import {
@@ -15,7 +16,6 @@ import {
   RolloutActions,
   RolloutMainMenu,
 } from '../../rollout/actions/RolloutMainMenu';
-import { confirmAsync } from '../../prompts';
 
 enum ActionRawFlagValue {
   CREATE = 'create',
