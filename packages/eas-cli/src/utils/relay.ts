@@ -173,8 +173,8 @@ export class FilterPagination {
       pageInfo: {
         hasNextPage: dataset.length > first,
         hasPreviousPage: false, // cannot be computed efficiently
-        startCursor: edges.at(0)?.cursor ?? null,
-        endCursor: edges.at(-1)?.cursor ?? null,
+        startCursor: edges[0]?.cursor ?? null,
+        endCursor: edges[edges.length - 1]?.cursor ?? null,
       },
     };
   }
@@ -244,8 +244,8 @@ export class FilterPagination {
       pageInfo: {
         hasNextPage: false, // cannot be computed efficiently,
         hasPreviousPage: dataset.length > last,
-        startCursor: edges.at(0)?.cursor ?? null,
-        endCursor: edges.at(-1)?.cursor ?? null,
+        startCursor: edges[0]?.cursor ?? null,
+        endCursor: edges[edges.length - 1]?.cursor ?? null,
       },
     };
   }
