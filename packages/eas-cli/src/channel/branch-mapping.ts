@@ -1,5 +1,3 @@
-import assert from 'assert';
-
 import { UpdateChannelBasicInfoFragment } from '../graphql/generated';
 
 // TODO(quin): move this into a common package with www

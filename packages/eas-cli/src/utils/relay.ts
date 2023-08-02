@@ -92,12 +92,7 @@ export class FilterPagination {
     throw new Error('Invalid query params');
   }
 
-  static isFirstAfter(connectionArgs: {
-    first?: number;
-    after?: string;
-    last?: number;
-    before?: string;
-  }): connectionArgs is {
+  static isFirstAfter(connectionArgs: QueryParams): connectionArgs is {
     first: number;
     after?: string;
   } {
@@ -283,11 +278,11 @@ export async function selectPaginatedAsync<T>({
   });
 }
 
-const PREV_PAGE_OPTION = {
+export const PREV_PAGE_OPTION = {
   value: Symbol('PREV_PAGE'),
   title: '⬆️ Previous page',
 };
-const NEXT_PAGE_OPTION = {
+export const NEXT_PAGE_OPTION = {
   value: Symbol('NEXT_PAGE'),
   title: '⬇️ Next page',
 };
