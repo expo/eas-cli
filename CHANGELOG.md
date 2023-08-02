@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix republishing with code signing. ([#1973](https://github.com/expo/eas-cli/pull/1973) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 - Make new rollouts version available for internal dogfooding. ([#1966](https://github.com/expo/eas-cli/pull/1966) by [@quinlanj](https://github.com/quinlanj))
