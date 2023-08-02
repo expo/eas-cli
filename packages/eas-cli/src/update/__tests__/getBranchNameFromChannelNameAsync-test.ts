@@ -1,7 +1,13 @@
 import { instance, mock } from 'ts-mockito';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { App, Runtime, UpdateBranch, UpdateChannel } from '../../graphql/generated';
+import {
+  App,
+  Runtime,
+  RuntimesConnection,
+  UpdateBranch,
+  UpdateChannel,
+} from '../../graphql/generated';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import { getBranchNameFromChannelNameAsync } from '../getBranchNameFromChannelNameAsync';
 
@@ -148,6 +154,7 @@ function mockUpdateBranches(branchNames: string[]): UpdateBranch[] {
             updatedAt: '2022-12-07T02:24:29.786Z',
             updateGroups: [],
             updates: [],
+            runtimes: {} as RuntimesConnection,
             __typename: 'UpdateBranch' as const,
           },
           codeSigningInfo: null,
@@ -156,6 +163,7 @@ function mockUpdateBranches(branchNames: string[]): UpdateBranch[] {
         },
       ],
     ],
+    runtimes: {} as RuntimesConnection,
     __typename: 'UpdateBranch' as const,
   }));
 }
