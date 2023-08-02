@@ -25,6 +25,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - More branch mapping utility. ([#1957](https://github.com/expo/eas-cli/pull/1957) by [@quinlanj](https://github.com/quinlanj))
 - Utility classes to select existing rollouts and channels. ([#1958](https://github.com/expo/eas-cli/pull/1958) by [@quinlanj](https://github.com/quinlanj))
+- Change default runtime version policy for EAS Update to appVersion. ([#1968](https://github.com/expo/eas-cli/pull/1968) by [@quinlanj](https://github.com/quinlanj))
 
 ## [3.17.1](https://github.com/expo/eas-cli/releases/tag/v3.17.1) - 2023-07-27
 
