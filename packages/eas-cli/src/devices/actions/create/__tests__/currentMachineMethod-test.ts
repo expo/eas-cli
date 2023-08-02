@@ -45,12 +45,32 @@ beforeEach(() => {
 });
 
 describe(runCurrentMachineMethodAsync, () => {
+  it('allows registering the default Mac device class', async () => {
+    jest.mocked(os.cpus).mockImplementation(() => [{ model: 'Apple M1' } as os.CpuInfo]);
+    jest.mocked(os.arch).mockImplementation(() => 'arm64');
+    mockDeviceData('my Mac', AppleDeviceClass.Mac);
+    jest.mocked(prompts).mockImplementationOnce(async () => ({ value: true }));
+
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
+    const accountId = 'account-id';
+    // @ts-expect-error appleTeam is missing properties of AppleTeam GraphQL type
+    const appleTeam: AppleTeam = {
+      id: 'apple-team-id',
+      appleTeamIdentifier: 'ABC123XY',
+      appleTeamName: 'John Doe (Individual)',
+    };
+
+    await runCurrentMachineMethodAsync(graphqlClient, accountId, appleTeam);
+
+    expect(AppleDeviceMutation.createAppleDeviceAsync).toHaveBeenCalledTimes(1);
+  });
+
   it('proceeds with registration if user approves', async () => {
     jest.mocked(os.cpus).mockImplementation(() => [{ model: 'Apple M1' } as os.CpuInfo]);
     jest.mocked(os.arch).mockImplementation(() => 'arm64');
-    mockDeviceData('my iPhone', AppleDeviceClass.Iphone);
+    mockDeviceData('my Mac', AppleDeviceClass.Mac);
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: true }));
-    mockDeviceData('my iPad', AppleDeviceClass.Ipad);
+    mockDeviceData('my iPhone', AppleDeviceClass.Iphone);
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: false }));
 
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
@@ -70,9 +90,9 @@ describe(runCurrentMachineMethodAsync, () => {
   it('exits registration if user cancels', async () => {
     jest.mocked(os.cpus).mockImplementation(() => [{ model: 'Apple M1' } as os.CpuInfo]);
     jest.mocked(os.arch).mockImplementation(() => 'arm64');
-    mockDeviceData('my iPhone', AppleDeviceClass.Iphone);
+    mockDeviceData('my Mac', AppleDeviceClass.Mac);
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: false }));
-    mockDeviceData('my iPad', AppleDeviceClass.Ipad);
+    mockDeviceData('my iPhone', AppleDeviceClass.Iphone);
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: true }));
 
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
@@ -94,9 +114,9 @@ describe(runCurrentMachineMethodAsync, () => {
       .mocked(os.cpus)
       .mockImplementation(() => [{ model: 'Intel(R) Core(TM) i5' } as os.CpuInfo]);
     jest.mocked(os.arch).mockImplementation(() => 'x64');
-    mockDeviceData('my iPhone', AppleDeviceClass.Iphone);
+    mockDeviceData('my Mac', AppleDeviceClass.Mac);
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: true }));
-    mockDeviceData('my iPad', AppleDeviceClass.Ipad);
+    mockDeviceData('my iPhone', AppleDeviceClass.Iphone);
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: false }));
 
     const graphqlClient = instance(mock<ExpoGraphqlClient>());

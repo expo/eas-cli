@@ -4,7 +4,7 @@ import os from 'os';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
-import { AppleTeam } from '../../../graphql/generated';
+import { AppleDeviceClass, AppleTeam } from '../../../graphql/generated';
 import Log from '../../../log';
 import { ora } from '../../../ora';
 import { confirmAsync } from '../../../prompts';
@@ -80,7 +80,7 @@ async function collectDeviceDataAsync(
   const [udid, defaultMachineName] = await fetchCurrentMachineUDIDAsync();
   Log.log(chalk.green(`Fetched the provisioning UDID - ${udid}`));
   const name = await promptForNameAsync(defaultMachineName ?? initialValues.name);
-  const deviceClass = await promptForDeviceClassAsync(initialValues.deviceClass);
+  const deviceClass = await promptForDeviceClassAsync(AppleDeviceClass.Mac);
   const deviceData: DeviceData = {
     udid,
     name,

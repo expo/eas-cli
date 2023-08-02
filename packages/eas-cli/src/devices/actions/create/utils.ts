@@ -18,6 +18,7 @@ export async function promptForDeviceClassAsync(
   const choices = [
     { title: 'iPhone', value: AppleDeviceClass.Iphone },
     { title: 'iPad', value: AppleDeviceClass.Ipad },
+    { title: 'Mac', value: AppleDeviceClass.Mac },
     { title: 'Not sure (leave empty)', value: null },
   ];
   const values = choices.map(({ value }) => value);
