@@ -21,6 +21,10 @@ This is the log of notable changes to EAS CLI and related packages.
 - .nvmrc support for setting node version. ([#1954](https://github.com/expo/eas-cli/pull/1954) by [@khamilowicz](https://github.com/khamilowicz))
 - Provide credentials for custom Android builds. ([#1969](https://github.com/expo/eas-cli/pull/1969) by [@szdziedzic](https://github.com/szdziedzic))
 
+### 🐛 Bug fixes
+
+- Pass correct group into `update:republish`. ([#1971](https://github.com/expo/eas-cli/pull/1971) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🧹 Chores
 
 - More branch mapping utility. ([#1957](https://github.com/expo/eas-cli/pull/1957) by [@quinlanj](https://github.com/quinlanj))

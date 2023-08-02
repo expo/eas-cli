@@ -166,15 +166,15 @@ async function getOrAskUpdatesAsync(
   flags: UpdateRepublishFlags
 ): Promise<UpdateToRepublish[]> {
   if (flags.groupId) {
-    const updateGroups = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, {
+    const updateGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, {
       groupId: flags.groupId,
     });
 
-    return updateGroups.map(group => ({
-      ...group,
-      groupId: group.group,
-      branchId: group.branch.id,
-      branchName: group.branch.name,
+    return updateGroup.map(update => ({
+      ...update,
+      groupId: update.group,
+      branchId: update.branch.id,
+      branchName: update.branch.name,
     }));
   }
 
@@ -211,17 +211,17 @@ async function askUpdatesFromBranchNameAsync(
     throw new Error('Must supply --group when in non-interactive mode');
   }
 
-  const updateGroups = await selectUpdateGroupOnBranchAsync(graphqlClient, {
+  const updateGroup = await selectUpdateGroupOnBranchAsync(graphqlClient, {
     projectId,
     branchName,
     paginatedQueryOptions: getPaginatedQueryOptions({ json, 'non-interactive': nonInteractive }),
   });
 
-  return updateGroups.map(group => ({
-    ...group,
-    groupId: group.id,
-    branchId: group.branch.id,
-    branchName: group.branch.name,
+  return updateGroup.map(update => ({
+    ...update,
+    groupId: update.group,
+    branchId: update.branch.id,
+    branchName: update.branch.name,
   }));
 }
 /** Ask the user which update needs to be republished by channel name, this requires interactive mode */

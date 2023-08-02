@@ -111,19 +111,20 @@ export async function republishAsync({
     updatesRepublished.map(update => [update.platform, update])
   );
 
+  const arbitraryRepublishedUpdate = updatesRepublished[0];
   const updateGroupUrl = getUpdateGroupUrl(
     (await getOwnerAccountForProjectIdAsync(graphqlClient, app.projectId)).name,
     app.exp.slug,
-    updatesRepublished[0].group
+    arbitraryRepublishedUpdate.group
   );
 
   Log.addNewLineIfNone();
   Log.log(
     formatFields([
       { label: 'Branch', value: targetBranchName },
-      { label: 'Runtime version', value: updatesRepublished[0].runtimeVersion },
+      { label: 'Runtime version', value: arbitraryRepublishedUpdate.runtimeVersion },
       { label: 'Platform', value: updatesRepublished.map(update => update.platform).join(', ') },
-      { label: 'Update Group ID', value: updatesRepublished[0].id },
+      { label: 'Update Group ID', value: arbitraryRepublishedUpdate.group },
       ...(updatesRepublishedByPlatform.android
         ? [{ label: 'Android update ID', value: updatesRepublishedByPlatform.android.id }]
         : []),
