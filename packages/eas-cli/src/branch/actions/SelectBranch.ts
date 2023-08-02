@@ -1,6 +1,6 @@
 import { EASUpdateAction, EASUpdateContext, NonInteractiveError } from '../../eas-update/utils';
-import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
-import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
+import { UpdateBranchBasicInfoFragment } from '../../graphql/generated';
+import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import {
   Connection,
   Edge,
@@ -10,12 +10,12 @@ import {
 } from '../../utils/relay';
 
 /**
- * Select a channel for the project.
+ * Select a branch for the project.
  *
  * @constructor
- * @param {function} options.filterPredicate - A predicate to filter the channels that are shown to the user. It takes a channelInfo object as a parameter and returns a boolean.
- * @param {string} options.printedType - The type of channel printed to the user. Defaults to 'channel'.
- * @param {number} options.pageSize - The number of channels to show per page. Defaults to 100.
+ * @param {function} options.filterPredicate - A predicate to filter the branches that are shown to the user. It takes a branchInfo object as a parameter and returns a boolean.
+ * @param {string} options.printedType - The type of branch printed to the user. Defaults to 'branch'.
+ * @param {number} options.pageSize - The number of branches to show per page. Defaults to 100.
  * @param {function} options.beforeEachFilterQuery Optional. If a filter predicate was specified, this callback function will be called before each query.
  * @args externalQueryParams The query params for the pagination.
  * @args totalNodesFetched The total number of nodes fetched so far.
@@ -26,21 +26,21 @@ import {
  * @args dataset The dataset so far.
  * @args willFetchAgain If the query will fetch again to get a complete page.
  */
-export class SelectChannel implements EASUpdateAction<UpdateChannelBasicInfoFragment | null> {
+export class SelectBranch implements EASUpdateAction<UpdateBranchBasicInfoFragment | null> {
   constructor(
     private options: {
-      filterPredicate?: (channelInfo: UpdateChannelBasicInfoFragment) => boolean;
+      filterPredicate?: (branchInfo: UpdateBranchBasicInfoFragment) => boolean;
       printedType?: string;
       pageSize?: number;
       beforeEachFilterQuery?: (
         externalQueryParams: QueryParams,
         totalNodesFetched: number,
-        dataset: Edge<UpdateChannelBasicInfoFragment>[]
+        dataset: Edge<UpdateBranchBasicInfoFragment>[]
       ) => void;
       afterEachFilterQuery?: (
         externalQueryParams: QueryParams,
         totalNodesFetched: number,
-        dataset: Edge<UpdateChannelBasicInfoFragment>[],
+        dataset: Edge<UpdateBranchBasicInfoFragment>[],
         willFetchAgain: boolean
       ) => void;
     } = {}
@@ -49,10 +49,10 @@ export class SelectChannel implements EASUpdateAction<UpdateChannelBasicInfoFrag
   async queryAsync(
     ctx: EASUpdateContext,
     queryParams: QueryParams
-  ): Promise<Connection<UpdateChannelBasicInfoFragment>> {
+  ): Promise<Connection<UpdateBranchBasicInfoFragment>> {
     const { graphqlClient, app } = ctx;
     const { projectId } = app;
-    return await ChannelQuery.viewUpdateChannelsBasicInfoPaginatedOnAppAsync(graphqlClient, {
+    return await BranchQuery.listBranchesBasicInfoPaginatedOnAppAsync(graphqlClient, {
       appId: projectId,
       ...queryParams,
     });
@@ -61,11 +61,11 @@ export class SelectChannel implements EASUpdateAction<UpdateChannelBasicInfoFrag
   async filterQueryAsync(
     ctx: EASUpdateContext,
     queryParams: QueryParams,
-    filterPredicate: (channelInfo: UpdateChannelBasicInfoFragment) => boolean
-  ): Promise<Connection<UpdateChannelBasicInfoFragment>> {
+    filterPredicate: (branchInfo: UpdateBranchBasicInfoFragment) => boolean
+  ): Promise<Connection<UpdateBranchBasicInfoFragment>> {
     const queryAsync = async (
       queryParams: QueryParams
-    ): Promise<Connection<UpdateChannelBasicInfoFragment>> =>
+    ): Promise<Connection<UpdateBranchBasicInfoFragment>> =>
       await this.queryAsync(ctx, queryParams);
     return await FilterPagination.getPageAsync({
       queryParams,
@@ -76,10 +76,10 @@ export class SelectChannel implements EASUpdateAction<UpdateChannelBasicInfoFrag
     });
   }
 
-  public async runAsync(ctx: EASUpdateContext): Promise<UpdateChannelBasicInfoFragment | null> {
+  public async runAsync(ctx: EASUpdateContext): Promise<UpdateBranchBasicInfoFragment | null> {
     const { nonInteractive } = ctx;
     const { filterPredicate } = this.options;
-    const printedType = this.options.printedType ?? 'channel';
+    const printedType = this.options.printedType ?? 'branch';
     const pageSize = this.options.pageSize ?? 100;
     if (nonInteractive) {
       throw new NonInteractiveError(
@@ -89,13 +89,13 @@ export class SelectChannel implements EASUpdateAction<UpdateChannelBasicInfoFrag
 
     const queryAsync = async (
       queryParams: QueryParams
-    ): Promise<Connection<UpdateChannelBasicInfoFragment>> =>
+    ): Promise<Connection<UpdateBranchBasicInfoFragment>> =>
       filterPredicate
         ? this.filterQueryAsync(ctx, queryParams, filterPredicate)
         : this.queryAsync(ctx, queryParams);
 
-    const getTitleAsync = async (channelInfo: UpdateChannelBasicInfoFragment): Promise<string> =>
-      channelInfo.name;
+    const getTitleAsync = async (branchInfo: UpdateBranchBasicInfoFragment): Promise<string> =>
+      branchInfo.name;
 
     return await selectPaginatedAsync({
       queryAsync,

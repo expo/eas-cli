@@ -1009,6 +1009,7 @@ export type App = Project & {
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
   fullName: Scalars['String'];
+  githubBuildTriggers: Array<GitHubBuildTrigger>;
   githubRepository?: Maybe<GitHubRepository>;
   githubRepositorySettings?: Maybe<GitHubRepositorySettings>;
   /** githubUrl field from most recent classic update manifest */
@@ -1365,16 +1366,19 @@ export type AppInsights = {
 
 export type AppInsightsTotalUniqueUsersArgs = {
   timespan: InsightsTimespan;
+  useDeprecatedBackend?: InputMaybe<Scalars['Boolean']>;
 };
 
 
 export type AppInsightsUniqueUsersByAppVersionOverTimeArgs = {
   timespan: InsightsTimespan;
+  useDeprecatedBackend?: InputMaybe<Scalars['Boolean']>;
 };
 
 
 export type AppInsightsUniqueUsersByPlatformOverTimeArgs = {
   timespan: InsightsTimespan;
+  useDeprecatedBackend?: InputMaybe<Scalars['Boolean']>;
 };
 
 export type AppMutation = {
@@ -2605,6 +2609,19 @@ export type CreateGitHubAppInstallationInput = {
   installationIdentifier: Scalars['Int'];
 };
 
+export type CreateGitHubBuildTriggerInput = {
+  appId: Scalars['ID'];
+  autoSubmit: Scalars['Boolean'];
+  buildProfile: Scalars['String'];
+  isActive: Scalars['Boolean'];
+  platform: AppPlatform;
+  /** A branch or tag name, or a wildcard pattern where the code change originates from. For example, `main` or `release/*`. */
+  sourcePattern: Scalars['String'];
+  /** A branch name or a wildcard pattern that the pull request targets. For example, `main` or `release/*`. */
+  targetPattern?: InputMaybe<Scalars['String']>;
+  type: GitHubBuildTriggerType;
+};
+
 export type CreateGitHubRepositoryInput = {
   appId: Scalars['ID'];
   githubAppInstallationId: Scalars['ID'];
@@ -3109,6 +3126,54 @@ export type GitHubBuildInput = {
   gitRef: Scalars['String'];
   platform: AppPlatform;
 };
+
+export type GitHubBuildTrigger = {
+  __typename?: 'GitHubBuildTrigger';
+  app: App;
+  autoSubmit: Scalars['Boolean'];
+  buildProfile: Scalars['String'];
+  createdAt: Scalars['DateTime'];
+  id: Scalars['ID'];
+  isActive: Scalars['Boolean'];
+  lastRunAt?: Maybe<Scalars['DateTime']>;
+  platform: AppPlatform;
+  sourcePattern: Scalars['String'];
+  targetPattern?: Maybe<Scalars['String']>;
+  type: GitHubBuildTriggerType;
+  updatedAt: Scalars['DateTime'];
+};
+
+export type GitHubBuildTriggerMutation = {
+  __typename?: 'GitHubBuildTriggerMutation';
+  /** Create GitHub build trigger for an App */
+  createGitHubBuildTrigger: GitHubBuildTrigger;
+  /** Delete GitHub build trigger by ID */
+  deleteGitHubBuildTrigger: GitHubBuildTrigger;
+  /** Update a GitHub build trigger by ID */
+  updateGitHubBuildTrigger: GitHubBuildTrigger;
+};
+
+
+export type GitHubBuildTriggerMutationCreateGitHubBuildTriggerArgs = {
+  githubBuildTriggerData: CreateGitHubBuildTriggerInput;
+};
+
+
+export type GitHubBuildTriggerMutationDeleteGitHubBuildTriggerArgs = {
+  githubBuildTriggerId: Scalars['ID'];
+};
+
+
+export type GitHubBuildTriggerMutationUpdateGitHubBuildTriggerArgs = {
+  githubBuildTriggerData: UpdateGitHubBuildTriggerInput;
+  githubBuildTriggerId: Scalars['ID'];
+};
+
+export enum GitHubBuildTriggerType {
+  PullRequestUpdated = 'PULL_REQUEST_UPDATED',
+  PushToBranch = 'PUSH_TO_BRANCH',
+  TagUpdated = 'TAG_UPDATED'
+}
 
 export type GitHubRepository = {
   __typename?: 'GitHubRepository';
@@ -3782,6 +3847,7 @@ export type Notification = {
   createdAt: Scalars['DateTime'];
   event: NotificationEvent;
   id: Scalars['ID'];
+  isRead: Scalars['Boolean'];
   metadata?: Maybe<NotificationMetadata>;
   type: NotificationType;
   updatedAt: Scalars['DateTime'];
@@ -4131,6 +4197,8 @@ export type RootMutation = {
   githubApp: GitHubAppMutation;
   /** Mutations for GitHub App installations */
   githubAppInstallation: GitHubAppInstallationMutation;
+  /** Mutations for GitHub build triggers */
+  githubBuildTrigger: GitHubBuildTriggerMutation;
   /** Mutations for GitHub repositories */
   githubRepository: GitHubRepositoryMutation;
   /** Mutations for GitHub repository settings */
@@ -4241,14 +4309,15 @@ export type RootQuery = {
   meUserActor?: Maybe<UserActor>;
   project: ProjectQuery;
   snack: SnackQuery;
-  /** Top-level query object for querying SSO Users. */
-  ssoUser: SsoUserQuery;
   /** Top-level query object for querying Expo status page services. */
   statuspageService: StatuspageServiceQuery;
   submissions: SubmissionQuery;
   /** fetch all updates in a group */
   updatesByGroup: Array<Update>;
-  /** Top-level query object for querying Users. */
+  /**
+   * Top-level query object for querying Users.
+   * @deprecated Public user queries are no longer supported
+   */
   user: UserQuery;
   /** Top-level query object for querying UserActors. */
   userActor: UserActorQuery;
@@ -4303,6 +4372,23 @@ export type Runtime = {
   firstBuildCreatedAt: Scalars['DateTime'];
   id: Scalars['ID'];
   version: Scalars['String'];
+};
+
+export type RuntimeEdge = {
+  __typename?: 'RuntimeEdge';
+  cursor: Scalars['String'];
+  node: Runtime;
+};
+
+export type RuntimeFilterInput = {
+  /** Only return runtimes shared with this branch */
+  branchId?: InputMaybe<Scalars['String']>;
+};
+
+export type RuntimesConnection = {
+  __typename?: 'RuntimesConnection';
+  edges: Array<RuntimeEdge>;
+  pageInfo: PageInfo;
 };
 
 /** Represents a human SSO (not robot) actor. */
@@ -4392,24 +4478,6 @@ export type SsoUserSnacksArgs = {
 export type SsoUserDataInput = {
   firstName?: InputMaybe<Scalars['String']>;
   lastName?: InputMaybe<Scalars['String']>;
-};
-
-export type SsoUserQuery = {
-  __typename?: 'SSOUserQuery';
-  /** Query an SSOUser by ID */
-  byId: SsoUser;
-  /** Query an SSOUser by username */
-  byUsername: SsoUser;
-};
-
-
-export type SsoUserQueryByIdArgs = {
-  userId: Scalars['ID'];
-};
-
-
-export type SsoUserQueryByUsernameArgs = {
-  username: Scalars['String'];
 };
 
 export type SecondFactorBooleanResult = {
@@ -4854,9 +4922,19 @@ export type UpdateBranch = {
   createdAt: Scalars['DateTime'];
   id: Scalars['ID'];
   name: Scalars['String'];
+  runtimes: RuntimesConnection;
   updateGroups: Array<Array<Update>>;
   updatedAt: Scalars['DateTime'];
   updates: Array<Update>;
+};
+
+
+export type UpdateBranchRuntimesArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  filter?: InputMaybe<RuntimeFilterInput>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
 };
 
 
@@ -4963,6 +5041,16 @@ export type UpdateChannelMutationDeleteUpdateChannelArgs = {
 export type UpdateChannelMutationEditUpdateChannelArgs = {
   branchMapping: Scalars['String'];
   channelId: Scalars['ID'];
+};
+
+export type UpdateGitHubBuildTriggerInput = {
+  autoSubmit: Scalars['Boolean'];
+  buildProfile: Scalars['String'];
+  isActive: Scalars['Boolean'];
+  platform: AppPlatform;
+  sourcePattern: Scalars['String'];
+  targetPattern?: InputMaybe<Scalars['String']>;
+  type: GitHubBuildTriggerType;
 };
 
 export type UpdateGitHubRepositorySettingsInput = {
@@ -5419,9 +5507,15 @@ export type UserPermission = {
 
 export type UserQuery = {
   __typename?: 'UserQuery';
-  /** Query a User by ID */
+  /**
+   * Query a User by ID
+   * @deprecated Public user queries are no longer supported
+   */
   byId: User;
-  /** Query a User by username */
+  /**
+   * Query a User by username
+   * @deprecated Public user queries are no longer supported
+   */
   byUsername: User;
 };
 
@@ -6187,6 +6281,17 @@ export type BranchesByAppQueryVariables = Exact<{
 
 export type BranchesByAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null }> }> } } };
 
+export type BranchesBasicPaginatedOnAppQueryVariables = Exact<{
+  appId: Scalars['String'];
+  first?: InputMaybe<Scalars['Int']>;
+  after?: InputMaybe<Scalars['String']>;
+  last?: InputMaybe<Scalars['Int']>;
+  before?: InputMaybe<Scalars['String']>;
+}>;
+
+
+export type BranchesBasicPaginatedOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, branchesPaginated: { __typename?: 'AppBranchesConnection', edges: Array<{ __typename?: 'AppBranchEdge', cursor: string, node: { __typename?: 'UpdateBranch', id: string, name: string } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
+
 export type ViewBranchesOnUpdateChannelQueryVariables = Exact<{
   appId: Scalars['String'];
   channelName: Scalars['String'];
@@ -6243,10 +6348,12 @@ export type ViewUpdateChannelsPaginatedOnAppQueryVariables = Exact<{
   appId: Scalars['String'];
   first?: InputMaybe<Scalars['Int']>;
   after?: InputMaybe<Scalars['String']>;
+  last?: InputMaybe<Scalars['Int']>;
+  before?: InputMaybe<Scalars['String']>;
 }>;
 
 
-export type ViewUpdateChannelsPaginatedOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, channelsPaginated: { __typename?: 'AppChannelsConnection', edges: Array<{ __typename?: 'AppChannelEdge', node: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
+export type ViewUpdateChannelsPaginatedOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, channelsPaginated: { __typename?: 'AppChannelsConnection', edges: Array<{ __typename?: 'AppChannelEdge', cursor: string, node: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String'];
@@ -6268,6 +6375,19 @@ export type GetAssetLimitPerUpdateGroupForAppQueryVariables = Exact<{
 
 
 export type GetAssetLimitPerUpdateGroupForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, assetLimitPerUpdateGroup: number } } };
+
+export type ViewRuntimesOnBranchQueryVariables = Exact<{
+  appId: Scalars['String'];
+  name: Scalars['String'];
+  first?: InputMaybe<Scalars['Int']>;
+  after?: InputMaybe<Scalars['String']>;
+  last?: InputMaybe<Scalars['Int']>;
+  before?: InputMaybe<Scalars['String']>;
+  filter?: InputMaybe<RuntimeFilterInput>;
+}>;
+
+
+export type ViewRuntimesOnBranchQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranchByName?: { __typename?: 'UpdateBranch', id: string, runtimes: { __typename?: 'RuntimesConnection', edges: Array<{ __typename?: 'RuntimeEdge', cursor: string, node: { __typename?: 'Runtime', id: string, version: string } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } | null } } };
 
 export type StatuspageServiceByServiceNamesQueryVariables = Exact<{
   serviceNames: Array<StatuspageServiceName> | StatuspageServiceName;
@@ -6352,6 +6472,8 @@ export type BuildWithSubmissionsFragment = { __typename?: 'Build', id: string, s
 
 export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any };
 
+export type RuntimeFragment = { __typename?: 'Runtime', id: string, version: string };
+
 export type StatuspageServiceFragment = { __typename?: 'StatuspageService', id: string, name: StatuspageServiceName, status: StatuspageServiceStatus, incidents: Array<{ __typename?: 'StatuspageIncident', id: string, status: StatuspageIncidentStatus, name: string, impact: StatuspageIncidentImpact, shortlink: string }> };
 
 export type SubmissionFragment = { __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logsUrl?: string | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: SubmissionAndroidTrack, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null };
@@ -6359,6 +6481,8 @@ export type SubmissionFragment = { __typename?: 'Submission', id: string, status
 export type UpdateFragment = { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null };
 
 export type UpdateBranchFragment = { __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null }> };
+
+export type UpdateBranchBasicInfoFragment = { __typename?: 'UpdateBranch', id: string, name: string };
 
 export type UpdateChannelBasicInfoFragment = { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string };
 

@@ -5,6 +5,8 @@ import { ChannelNotFoundError } from '../../channel/errors';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  UpdateBranchBasicInfoFragment,
+  UpdateFragment,
   ViewUpdateChannelOnAppQuery,
   ViewUpdateChannelOnAppQueryVariables,
   ViewUpdateChannelsOnAppQuery,
@@ -27,6 +29,16 @@ type UpdateChannelByNameObject = NonNullable<
 export type UpdateChannelObject = ViewUpdateChannelsOnAppObject & UpdateChannelByNameObject;
 
 export type UpdateBranchObject = UpdateChannelObject['updateBranches'][number];
+
+export function composeUpdateBranchObject(
+  branchInfo: UpdateBranchBasicInfoFragment,
+  updateGroups: UpdateFragment[][]
+): UpdateBranchObject {
+  return {
+    ...branchInfo,
+    updateGroups,
+  };
+}
 
 export const ChannelQuery = {
   async viewUpdateChannelAsync(
@@ -123,7 +135,7 @@ export const ChannelQuery = {
   },
   async viewUpdateChannelsBasicInfoPaginatedOnAppAsync(
     graphqlClient: ExpoGraphqlClient,
-    { appId, first, after }: ViewUpdateChannelsPaginatedOnAppQueryVariables
+    { appId, first, after, last, before }: ViewUpdateChannelsPaginatedOnAppQueryVariables
   ): Promise<ViewUpdateChannelsPaginatedOnAppQuery['app']['byId']['channelsPaginated']> {
     const response = await withErrorHandlingAsync(
       graphqlClient
@@ -132,16 +144,23 @@ export const ChannelQuery = {
           ViewUpdateChannelsPaginatedOnAppQueryVariables
         >(
           gql`
-            query ViewUpdateChannelsPaginatedOnApp($appId: String!, $first: Int, $after: String) {
+            query ViewUpdateChannelsPaginatedOnApp(
+              $appId: String!
+              $first: Int
+              $after: String
+              $last: Int
+              $before: String
+            ) {
               app {
                 byId(appId: $appId) {
                   id
-                  channelsPaginated(first: $first, after: $after) {
+                  channelsPaginated(first: $first, after: $after, before: $before, last: $last) {
                     edges {
                       node {
                         id
                         ...UpdateChannelBasicInfoFragment
                       }
+                      cursor
                     }
                     pageInfo {
                       hasNextPage
@@ -155,7 +174,7 @@ export const ChannelQuery = {
             }
             ${print(UpdateChannelBasicInfoFragmentNode)}
           `,
-          { appId, first, after },
+          { appId, first, after, last, before },
           { additionalTypenames: ['UpdateChannel', 'UpdateBranch', 'Update'] }
         )
         .toPromise()

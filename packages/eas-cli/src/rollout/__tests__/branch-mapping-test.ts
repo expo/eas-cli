@@ -7,25 +7,97 @@ import {
 } from '../../channel/__tests__/fixtures';
 import {
   BranchMappingOperator,
+  BranchMappingValidationError,
   alwaysTrue,
   andStatement,
   equalsOperator,
   hashLtOperator,
 } from '../../channel/branch-mapping';
 import {
+  assertRolloutBranchMapping,
+  composeRollout,
+  createRolloutBranchMapping,
   editRolloutBranchMapping,
   getRollout,
+  getRolloutInfo,
   getRolloutInfoFromBranchMapping,
   isConstrainedRollout,
   isConstrainedRolloutInfo,
   isLegacyRolloutInfo,
-  isRollout,
+  isRolloutBranchMapping,
 } from '../branch-mapping';
 import {
   rolloutBranchMapping,
   rolloutBranchMappingLegacy,
   standardBranchMapping,
 } from './fixtures';
+
+describe(composeRollout, () => {
+  it('composes a rollout', () => {
+    const rollout = getRollout(testChannelObject);
+    const rolloutInfo = getRolloutInfo(testChannelObject);
+    const composedRollout = composeRollout(rolloutInfo, testUpdateBranch2, testUpdateBranch1);
+    expect(composedRollout).toEqual(rollout);
+  });
+  it('throws if the branches to not match the rollout info', () => {
+    const rolloutInfo = getRolloutInfo(testChannelObject);
+    expect(() => composeRollout(rolloutInfo, testUpdateBranch1, testUpdateBranch2)).toThrowError(
+      BranchMappingValidationError
+    );
+  });
+});
+
+describe(createRolloutBranchMapping, () => {
+  it('creates a rollout branch mapping', () => {
+    const branchMapping = createRolloutBranchMapping({
+      defaultBranchId: 'default-branch-id',
+      rolloutBranchId: 'rollout-branch-id',
+      percent: 10,
+      runtimeVersion: '1.0.0',
+    });
+    expect(isRolloutBranchMapping(branchMapping)).toBe(true);
+  });
+  it('throws if an invalid number is passed in', () => {
+    expect(() =>
+      createRolloutBranchMapping({
+        defaultBranchId: 'default-branch-id',
+        rolloutBranchId: 'rollout-branch-id',
+        percent: 0.1,
+        runtimeVersion: '1.0.0',
+      })
+    ).toThrowError(BranchMappingValidationError);
+    expect(() =>
+      createRolloutBranchMapping({
+        defaultBranchId: 'default-branch-id',
+        rolloutBranchId: 'rollout-branch-id',
+        percent: -1,
+        runtimeVersion: '1.0.0',
+      })
+    ).toThrowError(BranchMappingValidationError);
+    expect(() =>
+      createRolloutBranchMapping({
+        defaultBranchId: 'default-branch-id',
+        rolloutBranchId: 'rollout-branch-id',
+        percent: 1000,
+        runtimeVersion: '1.0.0',
+      })
+    ).toThrowError(BranchMappingValidationError);
+  });
+});
+
+describe(assertRolloutBranchMapping, () => {
+  it('asserts a rollout branch mapping', () => {
+    expect(() => assertRolloutBranchMapping(standardBranchMapping)).toThrowError(
+      BranchMappingValidationError
+    );
+    expect(() => assertRolloutBranchMapping(rolloutBranchMapping)).not.toThrowError(
+      BranchMappingValidationError
+    );
+    expect(() => assertRolloutBranchMapping(rolloutBranchMappingLegacy)).not.toThrowError(
+      BranchMappingValidationError
+    );
+  });
+});
 
 describe(isLegacyRolloutInfo, () => {
   it('classifies rollouts properly', () => {
@@ -78,9 +150,6 @@ describe(getRollout, () => {
 });
 
 describe(getRolloutInfoFromBranchMapping, () => {
-  it('doesnt get the mapping if it isnt a rollout', () => {
-    expect(() => getRolloutInfoFromBranchMapping(standardBranchMapping)).toThrowError();
-  });
   it('gets a constrained rollout', () => {
     const rollout = getRolloutInfoFromBranchMapping(rolloutBranchMapping);
     expect(rollout.percentRolledOut).toEqual(10);
@@ -98,13 +167,14 @@ describe(getRolloutInfoFromBranchMapping, () => {
 });
 
 describe(editRolloutBranchMapping, () => {
-  it('doesnt edit the branch mapping if it isnt a rollout', () => {
-    expect(() => editRolloutBranchMapping(standardBranchMapping, 50)).toThrowError();
-  });
   it('doesnt edit the branch mapping if the input is out of range', () => {
-    expect(() => editRolloutBranchMapping(standardBranchMapping, -1)).toThrowError();
-    expect(() => editRolloutBranchMapping(standardBranchMapping, 101)).toThrowError();
-    expect(() => editRolloutBranchMapping(standardBranchMapping, 0.1)).toThrowError();
+    expect(() => editRolloutBranchMapping(rolloutBranchMapping, -1)).toThrowError();
+    expect(() => editRolloutBranchMapping(rolloutBranchMapping, 101)).toThrowError();
+    expect(() => editRolloutBranchMapping(rolloutBranchMapping, 0.1)).toThrowError();
+  });
+  it('returns a new instance of a branch mapping', () => {
+    const editedBranchMapping = editRolloutBranchMapping(rolloutBranchMapping, 50);
+    expect(rolloutBranchMapping).not.toBe(editedBranchMapping);
   });
   it('edits the branch mapping for a constrained rollout', () => {
     const editedBranchMapping = editRolloutBranchMapping(rolloutBranchMapping, 50);
@@ -120,10 +190,10 @@ describe(editRolloutBranchMapping, () => {
   });
 });
 
-describe(isRollout, () => {
+describe(isRolloutBranchMapping, () => {
   it('detects a rollout made by the cli', () => {
-    expect(isRollout(rolloutBranchMappingLegacy)).toBe(true);
-    expect(isRollout(rolloutBranchMapping)).toBe(true);
+    expect(isRolloutBranchMapping(rolloutBranchMappingLegacy)).toBe(true);
+    expect(isRolloutBranchMapping(rolloutBranchMapping)).toBe(true);
   });
   it('detects custom mappings equivalent to rollouts made by the cli', () => {
     const customMapping1 = {
@@ -147,10 +217,10 @@ describe(isRollout, () => {
         { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
       ],
     };
-    expect(isRollout(customMapping1)).toBe(true);
+    expect(isRolloutBranchMapping(customMapping1)).toBe(true);
   });
   it('correctly classifies branchMappings that arent rollouts', () => {
-    expect(isRollout(standardBranchMapping)).toBe(false);
+    expect(isRolloutBranchMapping(standardBranchMapping)).toBe(false);
 
     const customMapping1 = {
       version: 0,
@@ -166,7 +236,7 @@ describe(isRollout, () => {
         { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
       ],
     };
-    expect(isRollout(customMapping1)).toBe(false);
+    expect(isRolloutBranchMapping(customMapping1)).toBe(false);
 
     const customMapping2 = {
       version: 0,
@@ -189,7 +259,7 @@ describe(isRollout, () => {
         { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
       ],
     };
-    expect(isRollout(customMapping2)).toBe(false);
+    expect(isRolloutBranchMapping(customMapping2)).toBe(false);
 
     const customMapping3 = {
       version: 0,
@@ -205,7 +275,7 @@ describe(isRollout, () => {
         { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
       ],
     };
-    expect(isRollout(customMapping3)).toBe(false);
+    expect(isRolloutBranchMapping(customMapping3)).toBe(false);
 
     const customMapping4 = {
       version: 0,
@@ -220,7 +290,7 @@ describe(isRollout, () => {
         },
       ],
     };
-    expect(isRollout(customMapping4)).toBe(false);
+    expect(isRolloutBranchMapping(customMapping4)).toBe(false);
 
     const customMapping5 = {
       version: 0,
@@ -248,7 +318,7 @@ describe(isRollout, () => {
         { branchId: uuidv4(), branchMappingLogic: alwaysTrue() },
       ],
     };
-    expect(isRollout(customMapping5)).toBe(false);
+    expect(isRolloutBranchMapping(customMapping5)).toBe(false);
 
     const customMapping6 = {
       version: 0,
@@ -264,6 +334,6 @@ describe(isRollout, () => {
         },
       ],
     };
-    expect(isRollout(customMapping6)).toBe(false);
+    expect(isRolloutBranchMapping(customMapping6)).toBe(false);
   });
 });
