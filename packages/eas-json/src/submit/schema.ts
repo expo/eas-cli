@@ -12,6 +12,11 @@ export const AndroidSubmitProfileSchema = Joi.object({
     .default(AndroidReleaseStatus.completed),
   changesNotSentForReview: Joi.boolean().default(false),
   applicationId: Joi.string(),
+  rollout: Joi.number().min(0).max(1).when('releaseStatus', {
+    is: AndroidReleaseStatus.inProgress,
+    then: Joi.required(),
+    otherwise: Joi.forbidden(),
+  }),
 });
 
 export const IosSubmitProfileSchema = Joi.object({

@@ -8,14 +8,67 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- .nvmrc support for setting node version. ([#1954](https://github.com/expo/eas-cli/pull/1954) by [@khamilowicz](https://github.com/khamilowicz))
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+- More branch mapping utility. ([#1957](https://github.com/expo/eas-cli/pull/1957) by [@quinlanj](https://github.com/quinlanj))
+- Utility classes to select existing rollouts and channels. ([#1958](https://github.com/expo/eas-cli/pull/1958) by [@quinlanj](https://github.com/quinlanj))
+
+## [3.17.1](https://github.com/expo/eas-cli/releases/tag/v3.17.1) - 2023-07-27
+
+### 🧹 Chores
+
+- Unify channel graphql query types. ([#1949](https://github.com/expo/eas-cli/pull/1949) by [@quinlanj](https://github.com/quinlanj))
+- Revert UpdateBranchWithCurrentGroupFragment. ([#1952](https://github.com/expo/eas-cli/pull/1952) by [@quinlanj](https://github.com/quinlanj))
+- Fetch entire relay compliant dataset. ([#1953](https://github.com/expo/eas-cli/pull/1953) by [@quinlanj](https://github.com/quinlanj))
+
+## [3.17.0](https://github.com/expo/eas-cli/releases/tag/v3.17.0) - 2023-07-24
+
+### 🎉 New features
+
+- Add `rollout` option for configuring Android submissions. ([#1938](https://github.com/expo/eas-cli/pull/1938) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🧹 Chores
+
+- Added branch mapping utility functions. ([#1944](https://github.com/expo/eas-cli/pull/1944) by [@quinlanj](https://github.com/quinlanj))
+- Amend branch mapping utility functions. ([#1945](https://github.com/expo/eas-cli/pull/1945) by [@quinlanj](https://github.com/quinlanj))
+- Handle error thrown when `intel-medium` resource class is not available as server-side defined error. ([#1947](https://github.com/expo/eas-cli/pull/1947) by [@szdziedzic](https://github.com/szdziedzic))
+- Remove `intel-medium` from `eas.schema.json`, so it's not suggested as a valid value by our VSCode plugin. ([#1947](https://github.com/expo/eas-cli/pull/1947) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [3.16.0](https://github.com/expo/eas-cli/releases/tag/v3.16.0) - 2023-07-18
+
+### 🎉 New features
+
+- Add styling to SSO auth redirect completion page. ([#1929](https://github.com/expo/eas-cli/pull/1929) by [@wschurman](https://github.com/wschurman))
+- Ignore entitlements from native template when `/ios` is gitignored. ([#1906](https://github.com/expo/eas-cli/pull/1906) by [@byCedric](https://github.com/byCedric))
+- Use node server default port selection for SSO login server. ([#1930](https://github.com/expo/eas-cli/pull/1930) by [@wschurman](https://github.com/wschurman))
+
+### 🐛 Bug fixes
+
+- Fix incorrect handling of valid `inProgress` Android submission release status. ([#1934](https://github.com/expo/eas-cli/pull/1934) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🧹 Chores
+
+- Print friendly error msg in case account doesn't have required permission. ([#1867](https://github.com/expo/eas-cli/pull/1867) by [@firasrg](https://github.com/firasrg))
+- Limit project file upload size to 2GB. ([#1928](https://github.com/expo/eas-cli/pull/1928) by [@khamilowicz](https://github.com/khamilowicz))
+- Bump urql graphql client major version. ([#1936](https://github.com/expo/eas-cli/pull/1936) by [@quinlanj](https://github.com/quinlanj))
+
+## [3.15.1](https://github.com/expo/eas-cli/releases/tag/v3.15.1) - 2023-07-11
+
 ### 🐛 Bug fixes
 
 - Ensure useClassicUpdates is not set when using EAS Update commands. ([#1915](https://github.com/expo/eas-cli/pull/1915) by [@ide](https://github.com/ide))
+- Handle multiple GraphQLErrors when receiving a CombinedError. ([#1924](https://github.com/expo/eas-cli/pull/1924) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ### 🧹 Chores
 
 - Bump Expo package dependencies. ([#1911](https://github.com/expo/eas-cli/pull/1911) by [@brentvatne](https://github.com/brentvatne))
 - Better bare workflow runtimeVersion error. ([#1910](https://github.com/expo/eas-cli/pull/1910) by [@quinlanj](https://github.com/quinlanj))
+- Fix runtime version print logs. ([#1925](https://github.com/expo/eas-cli/pull/1925) by [@quinlanj](https://github.com/quinlanj))
+- Add info about new `macos-ventura-13.4-xcode-14.3.1` image to `eas.schema.json`. ([#1920](https://github.com/expo/eas-cli/pull/1920) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [3.15.0](https://github.com/expo/eas-cli/releases/tag/v3.15.0) - 2023-06-30
 
@@ -28,6 +81,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Better runtimeVersion output. ([#1894](https://github.com/expo/eas-cli/pull/1894) by [@quinlanj](https://github.com/quinlanj))
 - Print better error message when uploading project archive tarball fails. ([#1897](https://github.com/expo/eas-cli/pull/1897) by [@szdziedzic](https://github.com/szdziedzic))
+- Adds support for 2 new server-side errors related to build limits. ([#1921](https://github.com/expo/eas-cli/pull/1921) by [@sundeeppeswani](https://github.com/sundeeppeswani))
 
 ## [3.14.0](https://github.com/expo/eas-cli/releases/tag/v3.14.0) - 2023-06-20
 

@@ -3,11 +3,10 @@ import {
   Client,
   OperationContext,
   OperationResult,
-  PromisifiedSource,
+  OperationResultSource,
   TypedDocumentNode,
   cacheExchange,
   createClient as createUrqlClient,
-  dedupExchange,
   fetchExchange,
 } from '@urql/core';
 import { retryExchange } from '@urql/exchange-retry';
@@ -22,7 +21,7 @@ export interface ExpoGraphqlClient extends Client {
     query: DocumentNode | TypedDocumentNode<Data, Variables> | string,
     variables: Variables,
     context: Partial<OperationContext> & { additionalTypenames: string[] }
-  ): PromisifiedSource<OperationResult<Data, Variables>>;
+  ): OperationResultSource<OperationResult<Data, Variables>>;
 }
 
 export function createGraphqlClient(authInfo: {
@@ -32,7 +31,6 @@ export function createGraphqlClient(authInfo: {
   return createUrqlClient({
     url: getExpoApiBaseUrl() + '/graphql',
     exchanges: [
-      dedupExchange,
       cacheExchange,
       retryExchange({
         maxDelayMs: 4000,

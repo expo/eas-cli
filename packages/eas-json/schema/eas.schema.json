@@ -334,6 +334,7 @@
               "enum": [
                 "default",
                 "latest",
+                "macos-ventura-13.4-xcode-14.3.1",
                 "macos-ventura-13.3-xcode-14.3",
                 "macos-monterey-12.6-xcode-14.2",
                 "macos-monterey-12.6-xcode-14.1",
@@ -345,8 +346,9 @@
                 "macos-big-sur-11.4-xcode-12.5"
               ],
               "markdownEnumDescriptions": [
-                "`macos-monterey-12.6-xcode-14.2` for Apple silicon builders, `macos-monterey-12.6-xcode-14.1` for Intel builders",
-                "`macos-ventura-13.3-xcode-14.3` for Apple silicon builders, `macos-monterey-12.6-xcode-14.2` for Intel builders",
+                "`macos-ventura-13.3-xcode-14.3` for Apple silicon builders, `macos-monterey-12.6-xcode-14.1` for Intel builders",
+                "`macos-ventura-13.4-xcode-14.3.1` for Apple silicon builders, `macos-monterey-12.6-xcode-14.2` for Intel builders",
+                "only available for Apple silicon builders",
                 "only available for Apple silicon builders"
               ]
             },
@@ -361,7 +363,7 @@
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "medium", "large", "intel-medium", "m-medium"]
+              "enum": ["default", "medium", "large", "m-medium"]
             },
             {
               "type": "string"
@@ -461,6 +463,11 @@
             "The release's APKs will no longer be served to users. Users who already have these APKs are unaffected.",
             "The release will have no further changes. Its APKs are being served to all users, unless they are eligible to APKs of a more recent release."
           ]
+        },
+        "rollout": {
+          "type": "number",
+          "description": "The initial fraction of users who are eligible to receive the release. Should be a value from 0 (no users) to 1 (all users). Works only with 'inProgress' release status. Learn more: https://developers.google.com/android-publisher/api-ref/rest/v3/edits.tracks",
+          "markdownDescription": "The initial fraction of users who are eligible to receive the release. Should be a value from 0 (no users) to 1 (all users). Works only with `inProgress` release status. [Learn more](https://developers.google.com/android-publisher/api-ref/rest/v3/edits.tracks)"
         },
         "changesNotSentForReview": {
           "type": "boolean",

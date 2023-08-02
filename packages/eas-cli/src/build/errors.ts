@@ -8,7 +8,13 @@ export class EasBuildFreeTierDisabledIOSError extends EasCommandError {}
 
 export class EasBuildFreeTierDisabledAndroidError extends EasCommandError {}
 
+export class EasBuildFreeTierLimitExceededError extends EasCommandError {}
+
+export class EasBuildFreeTierIosLimitExceededError extends EasCommandError {}
+
 export class EasBuildResourceClassNotAvailableInFreeTierError extends EasCommandError {}
+
+export class EasBuildLegacyResourceClassNotAvailableError extends EasCommandError {}
 
 export class RequestValidationError extends EasCommandError {}
 

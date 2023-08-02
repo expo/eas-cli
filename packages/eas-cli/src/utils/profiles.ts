@@ -6,6 +6,9 @@ import {
   ProfileType,
   SubmitProfile,
 } from '@expo/eas-json';
+import fs from 'fs-extra';
+import path from 'path';
+import semver from 'semver';
 
 import Log, { learnMore } from '../log';
 
@@ -24,19 +27,23 @@ export async function getProfilesAsync<T extends ProfileType>({
   platforms,
   profileName,
   type,
+  projectDir,
 }: {
   easJsonAccessor: EasJsonAccessor;
   platforms: Platform[];
   profileName?: string;
+  projectDir: string;
   type: T;
 }): Promise<ProfileData<T>[]> {
   const results = platforms.map(async function (platform) {
-    const profile = await readProfileAsync({
+    const profile = await readProfileWithOverridesAsync({
       easJsonAccessor,
       platform,
       type,
       profileName,
+      projectDir,
     });
+
     return {
       profile,
       profileName: profileName ?? 'production',
@@ -47,16 +54,53 @@ export async function getProfilesAsync<T extends ProfileType>({
   return await Promise.all(results);
 }
 
-async function readProfileAsync<T extends ProfileType>({
+async function setNodeVersionFromFileAsync(
+  projectDir: string,
+  profile: BuildProfile<Platform>
+): Promise<void> {
+  if (profile?.node) {
+    return;
+  }
+  const nodeVersion = await getNodeVersionFromFileAsync(projectDir);
+  if (nodeVersion) {
+    Log.log(
+      `The EAS build profile does not specify a Node.js version. Using the version specified in .nvmrc: ${nodeVersion} `
+    );
+
+    profile.node = nodeVersion;
+  }
+}
+
+async function getNodeVersionFromFileAsync(projectDir: string): Promise<string | undefined> {
+  const nvmrcPath = path.join(projectDir, '.nvmrc');
+  if (!(await fs.pathExists(nvmrcPath))) {
+    return;
+  }
+
+  let nodeVersion: string;
+  try {
+    nodeVersion = (await fs.readFile(nvmrcPath, 'utf8')).toString().trim();
+  } catch {
+    return undefined;
+  }
+  if (!semver.valid(nodeVersion)) {
+    throw new Error(`Invalid node version in .nvmrc: ${nodeVersion}`);
+  }
+  return nodeVersion;
+}
+
+async function readProfileWithOverridesAsync<T extends ProfileType>({
   easJsonAccessor,
   platform,
   type,
   profileName,
+  projectDir,
 }: {
   easJsonAccessor: EasJsonAccessor;
   platform: Platform;
   type: T;
   profileName?: string;
+  projectDir: string;
 }): Promise<EasProfile<T>> {
   if (type === 'build') {
     const buildProfile = await EasJsonUtils.getBuildProfileAsync(
@@ -66,6 +110,7 @@ async function readProfileAsync<T extends ProfileType>({
     );
 
     await maybePrintBuildProfileDeprecationWarningsAsync(easJsonAccessor, platform, profileName);
+    await setNodeVersionFromFileAsync(projectDir, buildProfile);
 
     return buildProfile as EasProfile<T>;
   } else {

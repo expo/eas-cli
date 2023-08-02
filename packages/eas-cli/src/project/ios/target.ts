@@ -38,7 +38,7 @@ const AppExtensionsConfigSchema = Joi.array().items(
   })
 );
 
-export async function resolveMangedProjectTargetsAsync({
+export async function resolveManagedProjectTargetsAsync({
   exp,
   projectDir,
   xcodeBuildContext,
@@ -138,7 +138,7 @@ export async function resolveTargetsAsync(opts: ResolveTargetOptions): Promise<T
   if (workflow === Workflow.GENERIC) {
     return await resolveBareProjectTargetsAsync(opts);
   } else if (workflow === Workflow.MANAGED) {
-    return await resolveMangedProjectTargetsAsync(opts);
+    return await resolveManagedProjectTargetsAsync(opts);
   } else {
     throw new Error(`Unknown workflow: ${workflow}`);
   }

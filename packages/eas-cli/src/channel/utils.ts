@@ -1,25 +1,14 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { UpdateChannelObject } from '../graphql/queries/ChannelQuery';
+import { UpdateBranchObject, UpdateChannelObject } from '../graphql/queries/ChannelQuery';
 import Log from '../log';
 import {
   FormattedBranchDescription,
   formatBranch,
   getUpdateGroupDescriptionsWithBranch,
 } from '../update/utils';
-
-export type BranchMapping = {
-  version: number;
-  data: {
-    branchId: string;
-    branchMappingLogic: {
-      operand: number;
-      clientKey: string;
-      branchMappingOperator: string;
-    } & string;
-  }[];
-};
+import { BranchMapping, assertNodeObject, assertNumber, isNodeObject } from './branch-mapping';
 
 /**
  * Get the branch mapping and determine whether it is a rollout.
@@ -46,8 +35,12 @@ export function getBranchMapping(branchMappingString?: string): {
   }
 
   const isRollout = branchMapping.data.length === 2;
-  const rolloutPercent = branchMapping.data[0]?.branchMappingLogic.operand;
-
+  const branchMappingNode = branchMapping.data[0]?.branchMappingLogic;
+  let rolloutPercent: number | undefined;
+  if (isNodeObject(branchMappingNode)) {
+    assertNumber(branchMappingNode.operand);
+    rolloutPercent = branchMappingNode.operand;
+  }
   switch (branchMapping.data.length) {
     case 0:
       break;
@@ -57,10 +50,11 @@ export function getBranchMapping(branchMappingString?: string): {
       }
       break;
     case 2:
-      if (branchMapping.data[0].branchMappingLogic.clientKey !== 'rolloutToken') {
+      assertNodeObject(branchMappingNode);
+      if (branchMappingNode.clientKey !== 'rolloutToken') {
         throw new Error('Client key of initial branch mapping must be "rolloutToken"');
       }
-      if (branchMapping.data[0].branchMappingLogic.branchMappingOperator !== 'hash_lt') {
+      if (branchMappingNode.branchMappingOperator !== 'hash_lt') {
         throw new Error('Branch mapping operator of initial branch mapping must be "hash_lt"');
       }
       if (rolloutPercent == null) {
@@ -114,4 +108,26 @@ export function logChannelDetails(channel: UpdateChannelObject): void {
         .join(`\n\n${chalk.dim('———')}\n\n`)
     );
   }
+}
+
+function getUpdateBranchNullable(
+  channel: UpdateChannelObject,
+  branchId: string
+): UpdateBranchObject | null {
+  const updateBranches = channel.updateBranches;
+  const updateBranch = updateBranches.find(branch => branch.id === branchId);
+  return updateBranch ?? null;
+}
+
+export function getUpdateBranch(
+  channel: UpdateChannelObject,
+  branchId: string
+): UpdateBranchObject {
+  const updateBranch = getUpdateBranchNullable(channel, branchId);
+  if (!updateBranch) {
+    throw new Error(
+      `Could not find branch with id "${branchId}" in branch-mapping of channel "${channel.name}"`
+    );
+  }
+  return updateBranch;
 }

@@ -5,10 +5,10 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
-  AndroidAppBuildCredentials,
   AndroidAppBuildCredentialsFragment,
   AndroidAppBuildCredentialsInput,
   CreateAndroidAppBuildCredentialsMutation,
+  SetDefaultAndroidAppBuildCredentialsMutation,
   SetKeystoreMutation,
 } from '../../../../../graphql/generated';
 import { AndroidAppBuildCredentialsFragmentNode } from '../../../../../graphql/types/credentials/AndroidAppBuildCredentials';
@@ -62,9 +62,9 @@ export const AndroidAppBuildCredentialsMutation = {
   ): Promise<AndroidAppBuildCredentialsFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<AndroidAppBuildCredentials>(
+        .mutation<SetDefaultAndroidAppBuildCredentialsMutation>(
           gql`
-            mutation AndroidAppBuildCredentialsMutation(
+            mutation SetDefaultAndroidAppBuildCredentialsMutation(
               $androidAppBuildCredentialsId: ID!
               $isDefault: Boolean!
             ) {
@@ -85,7 +85,7 @@ export const AndroidAppBuildCredentialsMutation = {
         .toPromise()
     );
     assert(data, `GraphQL: 'setDefault' not defined in server response ${JSON.stringify(data)}}`);
-    return data;
+    return data.androidAppBuildCredentials.setDefault;
   },
   async setKeystoreAsync(
     graphqlClient: ExpoGraphqlClient,

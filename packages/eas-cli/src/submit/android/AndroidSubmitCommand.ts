@@ -12,7 +12,7 @@ import {
   AmbiguousApplicationIdError,
   getApplicationIdAsync,
 } from '../../project/android/applicationId';
-import capitalize from '../../utils/expodash/capitalize';
+import capitalizeFirstLetter from '../../utils/expodash/capitalize';
 import { ArchiveSource } from '../ArchiveSource';
 import { resolveArchiveSource } from '../commons';
 import { SubmissionContext } from '../context';
@@ -33,9 +33,12 @@ export default class AndroidSubmitCommand {
     const track = this.resolveTrack();
     const releaseStatus = this.resolveReleaseStatus();
     const archiveSource = this.resolveArchiveSource();
+    const rollout = this.resolveRollout();
     const serviceAccountSource = await this.resolveServiceAccountSourceAsync();
 
-    const errored = [track, releaseStatus, archiveSource, serviceAccountSource].filter(r => !r.ok);
+    const errored = [track, releaseStatus, archiveSource, serviceAccountSource, rollout].filter(
+      r => !r.ok
+    );
     if (errored.length > 0) {
       const message = errored.map(err => err.reason?.message).join('\n');
       Log.error(message);
@@ -46,6 +49,7 @@ export default class AndroidSubmitCommand {
       projectId: this.ctx.projectId,
       track: track.enforceValue(),
       releaseStatus: releaseStatus.enforceValue(),
+      rollout: rollout.enforceValue(),
       archiveSource: archiveSource.enforceValue(),
       serviceAccountSource: serviceAccountSource.enforceValue(),
       changesNotSentForReview: this.ctx.profile.changesNotSentForReview,
@@ -73,7 +77,7 @@ export default class AndroidSubmitCommand {
     if (!track) {
       return result(SubmissionAndroidTrack.Internal);
     }
-    const capitalizedTrack = capitalize(track);
+    const capitalizedTrack = capitalizeFirstLetter(track);
     if (capitalizedTrack in SubmissionAndroidTrack) {
       return result(
         SubmissionAndroidTrack[capitalizedTrack as keyof typeof SubmissionAndroidTrack]
@@ -94,7 +98,7 @@ export default class AndroidSubmitCommand {
     if (!releaseStatus) {
       return result(SubmissionAndroidReleaseStatus.Completed);
     }
-    const capitalizedReleaseStatus = capitalize(releaseStatus);
+    const capitalizedReleaseStatus = capitalizeFirstLetter(releaseStatus);
     if (capitalizedReleaseStatus in SubmissionAndroidReleaseStatus) {
       return result(
         SubmissionAndroidReleaseStatus[
@@ -110,6 +114,12 @@ export default class AndroidSubmitCommand {
         )
       );
     }
+  }
+
+  private resolveRollout(): Result<number | undefined> {
+    const { rollout } = this.ctx.profile;
+
+    return result(rollout);
   }
 
   private resolveArchiveSource(): Result<ArchiveSource> {

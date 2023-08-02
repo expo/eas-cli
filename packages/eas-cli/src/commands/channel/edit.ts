@@ -1,5 +1,6 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
@@ -9,18 +10,20 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { withErrorHandlingAsync } from '../../graphql/client';
 import {
+  UpdateChannelBasicInfoFragment,
   UpdateChannelBranchMappingMutation,
   UpdateChannelBranchMappingMutationVariables,
 } from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
+import { UpdateChannelBasicInfoFragmentNode } from '../../graphql/types/UpdateChannelBasicInfo';
 import Log from '../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export async function updateChannelBranchMappingAsync(
   graphqlClient: ExpoGraphqlClient,
   { channelId, branchMapping }: UpdateChannelBranchMappingMutationVariables
-): Promise<UpdateChannelBranchMappingMutation['updateChannel']['editUpdateChannel']> {
+): Promise<UpdateChannelBasicInfoFragment> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .mutation<UpdateChannelBranchMappingMutation, UpdateChannelBranchMappingMutationVariables>(
@@ -29,11 +32,11 @@ export async function updateChannelBranchMappingAsync(
             updateChannel {
               editUpdateChannel(channelId: $channelId, branchMapping: $branchMapping) {
                 id
-                name
-                branchMapping
+                ...UpdateChannelBasicInfoFragment
               }
             }
           }
+          ${print(UpdateChannelBasicInfoFragmentNode)}
         `,
         { channelId, branchMapping }
       )

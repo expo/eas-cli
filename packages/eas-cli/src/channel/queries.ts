@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -7,18 +8,23 @@ import { withErrorHandlingAsync } from '../graphql/client';
 import {
   CreateUpdateChannelOnAppMutation,
   CreateUpdateChannelOnAppMutationVariables,
+  PageInfo,
+  UpdateChannelBasicInfoFragment,
   ViewBranchesOnUpdateChannelQueryVariables,
   ViewUpdateChannelsOnAppQueryVariables,
 } from '../graphql/generated';
 import { BranchQuery, UpdateBranchOnChannelObject } from '../graphql/queries/BranchQuery';
 import { ChannelQuery, UpdateChannelObject } from '../graphql/queries/ChannelQuery';
+import { UpdateChannelBasicInfoFragmentNode } from '../graphql/types/UpdateChannelBasicInfo';
 import Log from '../log';
+import { ora } from '../ora';
 import formatFields from '../utils/formatFields';
 import { printJsonOnlyOutput } from '../utils/json';
 import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
+import { Connection, QueryParams, getPaginatedDatasetAsync } from '../utils/relay';
 import { logChannelDetails } from './utils';
 
 export const CHANNELS_LIMIT = 25;
@@ -227,11 +233,11 @@ export async function createChannelOnAppAsync(
             updateChannel {
               createUpdateChannelForApp(appId: $appId, name: $name, branchMapping: $branchMapping) {
                 id
-                name
-                branchMapping
+                ...UpdateChannelBasicInfoFragment
               }
             }
           }
+          ${print(UpdateChannelBasicInfoFragmentNode)}
         `,
         {
           appId,
@@ -261,4 +267,47 @@ export async function ensureChannelExistsAsync(
       throw e;
     }
   }
+}
+
+export async function getChannelsDatasetAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    appId,
+    filterPredicate,
+    batchSize = 100,
+  }: {
+    appId: string;
+    filterPredicate?: (channelInfo: UpdateChannelBasicInfoFragment) => boolean;
+    batchSize?: number;
+  }
+): Promise<UpdateChannelBasicInfoFragment[]> {
+  const queryAsync = async ({
+    first,
+    after,
+  }: QueryParams): Promise<Connection<UpdateChannelBasicInfoFragment>> =>
+    await ChannelQuery.viewUpdateChannelsBasicInfoPaginatedOnAppAsync(graphqlClient, {
+      appId,
+      first,
+      after,
+    });
+
+  const assetSpinner = ora().start('Fetching channels...');
+  const afterEachQuery = (
+    totalNodesFetched: number,
+    _dataset: UpdateChannelBasicInfoFragment[],
+    _batch: UpdateChannelBasicInfoFragment[],
+    pageInfo: PageInfo
+  ): void => {
+    if (pageInfo.hasNextPage) {
+      assetSpinner.text = `Fetched ${totalNodesFetched} channels`;
+    }
+  };
+  const dataset = await getPaginatedDatasetAsync({
+    queryAsync,
+    afterEachQuery,
+    filterPredicate,
+    batchSize,
+  });
+  assetSpinner.succeed(`Fetched all channels`);
+  return dataset;
 }

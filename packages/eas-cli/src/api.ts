@@ -2,7 +2,6 @@ import { JSONValue } from '@expo/json-file';
 
 import { ApiV2Error } from './ApiV2Error';
 import fetch, { RequestError, RequestInit } from './fetch';
-import { getFreePortAsync } from './utils/port';
 
 interface RequestOptions {
   body: JSONValue;
@@ -104,15 +103,4 @@ export function getEASUpdateURL(projectId: string): string {
   } else {
     return new URL(projectId, `https://u.expo.dev`).href;
   }
-}
-
-export async function getSsoLocalServerPortAsync(): Promise<number> {
-  let startPort: number;
-  if (process.env.SSO_LOCAL_SERVER_PORT) {
-    startPort = Number(process.env.SSO_LOCAL_SERVER_PORT);
-  } else {
-    startPort = 19300;
-  }
-  const port = await getFreePortAsync(startPort);
-  return port;
 }

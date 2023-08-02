@@ -20,6 +20,7 @@ export interface AndroidSubmitProfile {
   releaseStatus: AndroidReleaseStatus;
   changesNotSentForReview: boolean;
   applicationId?: string;
+  rollout?: number;
 }
 
 export const AndroidSubmitProfileFieldsToEvaluate: (keyof AndroidSubmitProfile)[] = [
