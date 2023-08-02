@@ -77,7 +77,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     const defaultBranchId = getStandardBranchId(this.channelInfo);
     const branchInfoToRollout = branchNameToRollout
       ? await this.resolveBranchNameAsync(ctx, branchNameToRollout)
-      : await this.selectBranchAsync(ctx);
+      : await this.selectBranchAsync(ctx, defaultBranchId);
     if (branchInfoToRollout.id === defaultBranchId) {
       throw new Error(
         `Channel ${this.channelInfo.name} is already mapped to branch ${branchInfoToRollout.name}.`
@@ -202,8 +202,16 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     return await selectRuntimeAction.runAsync(ctx);
   }
 
-  async selectBranchAsync(ctx: EASUpdateContext): Promise<UpdateBranchBasicInfoFragment> {
-    const selectBranchAction = new SelectBranch({ printedType: 'branch to rollout' });
+  async selectBranchAsync(
+    ctx: EASUpdateContext,
+    defaultBranchId: string
+  ): Promise<UpdateBranchBasicInfoFragment> {
+    const selectBranchAction = new SelectBranch({
+      printedType: 'branch to rollout',
+      // we don't want to show the default branch as an option
+      filterPredicate: (branchInfo: UpdateBranchBasicInfoFragment) =>
+        branchInfo.id !== defaultBranchId,
+    });
     const branchInfo = await selectBranchAction.runAsync(ctx);
     if (!branchInfo) {
       throw new Error(`You dont have any branches. Create one with 'eas branch:create'`);

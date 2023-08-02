@@ -2,7 +2,7 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { confirmAsync } from '../../prompts';
+import Log from '../../log';
 import { NonInteractiveOptions as CreateRolloutNonInteractiveOptions } from '../../rollout/actions/CreateRollout';
 import { NonInteractiveOptions as EditRolloutNonInteractiveOptions } from '../../rollout/actions/EditRollout';
 import {
@@ -42,7 +42,8 @@ type ChannelRolloutArgsAndFlags = {
   Partial<EndRolloutNonInteractiveOptions> &
   Partial<CreateRolloutNonInteractiveOptions>;
 
-export default class ChannelRolloutUnstable extends EasCommand {
+export default class ChannelRolloutPreview extends EasCommand {
+  static override hidden = true;
   static override description = 'Roll a new branch out on a channel incrementally.';
 
   static override args = [
@@ -85,17 +86,17 @@ export default class ChannelRolloutUnstable extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { args, flags } = await this.parse(ChannelRolloutUnstable);
+    const { args, flags } = await this.parse(ChannelRolloutPreview);
     const argsAndFlags = this.sanitizeArgsAndFlags({ ...flags, ...args });
     const {
       privateProjectConfig: { exp, projectId },
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(ChannelRolloutUnstable, {
+    } = await this.getContextAsync(ChannelRolloutPreview, {
       nonInteractive: argsAndFlags.nonInteractive,
     });
     if (argsAndFlags.json) {
       // TODO(quin): implement json output
-      throw new Error('json support not implemented');
+      throw new Error('Developer Preview doesnt support JSON output yet');
     }
 
     const app = { projectId, exp };
@@ -108,17 +109,16 @@ export default class ChannelRolloutUnstable extends EasCommand {
     if (argsAndFlags.nonInteractive) {
       await new NonInteractiveRollout(argsAndFlags).runAsync(ctx);
     } else {
-      const didConfirm = await confirmAsync({
-        message: `🚨 This command is unstable and not suitable for production. OK?`,
-      });
-      if (!didConfirm) {
-        throw new Error('Aborted');
-      }
+      Log.addNewLineIfNone();
+      Log.warn(
+        `✨ This command is in Developer Preview and has not been released to production yet`
+      );
+      Log.addNewLineIfNone();
       await new RolloutMainMenu(argsAndFlags).runAsync(ctx);
     }
   }
 
-  getAction(action: ActionRawFlagValue): RolloutActions {
+  private getAction(action: ActionRawFlagValue): RolloutActions {
     switch (action) {
       case ActionRawFlagValue.CREATE:
         return MainMenuActions.CREATE_NEW;
@@ -129,7 +129,9 @@ export default class ChannelRolloutUnstable extends EasCommand {
     }
   }
 
-  sanitizeArgsAndFlags(rawFlags: ChannelRolloutRawArgsAndFlags): ChannelRolloutArgsAndFlags {
+  private sanitizeArgsAndFlags(
+    rawFlags: ChannelRolloutRawArgsAndFlags
+  ): ChannelRolloutArgsAndFlags {
     const action = rawFlags.action;
     return {
       channelName: rawFlags.channel,

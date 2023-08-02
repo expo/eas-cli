@@ -3,12 +3,12 @@ import chalk from 'chalk';
 
 import { getAlwaysTrueBranchMapping } from '../../channel/branch-mapping';
 import { updateChannelBranchMappingAsync } from '../../commands/channel/edit';
-import { republishAsync } from '../../commands/update/republish';
 import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
 import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
 import { ChannelQuery, UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
+import { republishAsync } from '../../update/republish';
 import formatFields from '../../utils/formatFields';
 import {
   Rollout,
