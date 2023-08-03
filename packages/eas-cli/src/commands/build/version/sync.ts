@@ -80,7 +80,6 @@ export default class BuildVersionSyncView extends EasCommand {
       easJsonAccessor,
       platforms,
       profileName: flags.profile ?? undefined,
-      projectDir,
     });
     for (const profileInfo of buildProfiles) {
       const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
