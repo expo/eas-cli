@@ -1,11 +1,23 @@
 import { rolloutBranchMapping, standardBranchMapping } from '../../rollout/__tests__/fixtures';
 import {
   BranchMappingValidationError,
+  assertVersion,
   getAlwaysTrueBranchMapping,
+  getBranchMapping,
   getStandardBranchId,
   isAlwaysTrueBranchMapping,
 } from '../branch-mapping';
 import { testChannelObject } from './fixtures';
+
+describe(assertVersion, () => {
+  it('throws if the branch mapping is not the correct version', () => {
+    expect(() => assertVersion(testChannelObject, 5)).toThrowError(BranchMappingValidationError);
+  });
+  it('asserts the correct version', () => {
+    assertVersion(testChannelObject, 0);
+    expect(getBranchMapping(testChannelObject.branchMapping).version).toBe(0);
+  });
+});
 
 describe(isAlwaysTrueBranchMapping, () => {
   it('detects always true branch mappings', () => {
