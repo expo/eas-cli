@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Revert adding `.nvmrc` support for setting node version. ([#1976](https://github.com/expo/eas-cli/pull/1976) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 ## [3.18.1](https://github.com/expo/eas-cli/releases/tag/v3.18.1) - 2023-08-03
