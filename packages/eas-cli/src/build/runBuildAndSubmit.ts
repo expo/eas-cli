@@ -117,7 +117,6 @@ export async function runBuildAndSubmitAsync(
     easJsonAccessor,
     platforms,
     profileName: flags.profile ?? undefined,
-    projectDir,
   });
   Log.log(
     `Loaded "env" configuration for the "${buildProfiles[0].profileName}" profile: ${
@@ -184,7 +183,6 @@ export async function runBuildAndSubmitAsync(
       platforms,
       profileName: flags.submitProfile,
       type: 'submit',
-      projectDir,
     });
     for (const startedBuild of startedBuilds) {
       const submitProfile = nullthrows(

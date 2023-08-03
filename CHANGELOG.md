@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Revert adding `.nvmrc` support for setting node version. ([#1976](https://github.com/expo/eas-cli/pull/1976) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 - Use just a comma instead of `, ` when concatenating `keywords` in `eas metadata`. ([#1967](https://github.com/expo/eas-cli/pull/1967) by [@szdziedzic](https://github.com/szdziedzic))
