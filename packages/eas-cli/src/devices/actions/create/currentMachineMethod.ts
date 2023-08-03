@@ -9,12 +9,7 @@ import Log from '../../../log';
 import { ora } from '../../../ora';
 import { confirmAsync } from '../../../prompts';
 import { DeviceCreateError } from '../../utils/errors';
-import {
-  DeviceData,
-  printDeviceData,
-  promptForDeviceClassAsync,
-  promptForNameAsync,
-} from './utils';
+import { DeviceData, printDeviceData, promptForNameAsync } from './utils';
 
 export async function runCurrentMachineMethodAsync(
   graphqlClient: ExpoGraphqlClient,
