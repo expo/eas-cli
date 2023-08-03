@@ -11,7 +11,11 @@ import {
   EditRollout,
   NonInteractiveOptions as EditRolloutNonInteractiveOptions,
 } from './EditRollout';
-import { EndRollout, NonInteractiveOptions as EndRolloutNonInteractiveOptions } from './EndRollout';
+import {
+  EndRollout,
+  GeneralOptions as EndRolloutGeneralOptions,
+  NonInteractiveOptions as EndRolloutNonInteractiveOptions,
+} from './EndRollout';
 
 export enum ManageRolloutActions {
   EDIT = 'Edit',
@@ -29,7 +33,8 @@ export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
       callingAction?: EASUpdateAction;
       action?: ManageRolloutActions.EDIT | ManageRolloutActions.END;
     } & Partial<EditRolloutNonInteractiveOptions> &
-      Partial<EndRolloutNonInteractiveOptions> = {}
+      Partial<EndRolloutNonInteractiveOptions> &
+      EndRolloutGeneralOptions
   ) {}
 
   public async runAsync(ctx: EASUpdateContext): Promise<EASUpdateAction> {
