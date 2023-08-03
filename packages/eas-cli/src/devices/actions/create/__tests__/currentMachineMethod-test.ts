@@ -4,7 +4,7 @@ import { instance, mock } from 'ts-mockito';
 
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppleDeviceMutation } from '../../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
-import { AppleDeviceClass, AppleTeam } from '../../../../graphql/generated';
+import { AppleTeam } from '../../../../graphql/generated';
 import { DeviceCreateError } from '../../../utils/errors';
 import { runCurrentMachineMethodAsync } from '../currentMachineMethod';
 
