@@ -1,6 +1,7 @@
 import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
 import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
+import { CodeSigningInfo } from '../../utils/code-signing';
 import {
   CreateRollout,
   NonInteractiveOptions as CreateRolloutNonInteractiveOptions,
@@ -9,7 +10,11 @@ import {
   EditRollout,
   NonInteractiveOptions as EditRolloutNonInteractiveOptions,
 } from './EditRollout';
-import { EndRollout, NonInteractiveOptions as EndRolloutNonInteractiveOptions } from './EndRollout';
+import {
+  EndRollout,
+  GeneralOptions as EndRolloutGeneralOptions,
+  NonInteractiveOptions as EndRolloutNonInteractiveOptions,
+} from './EndRollout';
 import { ManageRolloutActions } from './ManageRollout';
 import { MainMenuActions, RolloutActions } from './RolloutMainMenu';
 
@@ -20,10 +25,12 @@ export class NonInteractiveRollout implements EASUpdateAction<void> {
   constructor(
     private options: {
       channelName?: string;
+      codeSigningInfo?: CodeSigningInfo;
       action?: RolloutActions;
     } & Partial<EditRolloutNonInteractiveOptions> &
       Partial<EndRolloutNonInteractiveOptions> &
-      Partial<CreateRolloutNonInteractiveOptions> = {}
+      EndRolloutGeneralOptions &
+      Partial<CreateRolloutNonInteractiveOptions>
   ) {}
 
   public async runAsync(ctx: EASUpdateContext): Promise<void> {
@@ -55,6 +62,7 @@ export class NonInteractiveRollout implements EASUpdateAction<void> {
     channelInfo: UpdateChannelBasicInfoFragment,
     options: Partial<EditRolloutNonInteractiveOptions> &
       Partial<EndRolloutNonInteractiveOptions> &
+      EndRolloutGeneralOptions &
       Partial<CreateRolloutNonInteractiveOptions>
   ): Promise<UpdateChannelBasicInfoFragment> {
     switch (action) {

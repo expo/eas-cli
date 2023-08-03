@@ -7,6 +7,7 @@ import { NonInteractiveOptions as CreateRolloutNonInteractiveOptions } from '../
 import { NonInteractiveOptions as EditRolloutNonInteractiveOptions } from '../../rollout/actions/EditRollout';
 import {
   EndOutcome,
+  GeneralOptions as EndRolloutGeneralOptions,
   NonInteractiveOptions as EndRolloutNonInteractiveOptions,
 } from '../../rollout/actions/EndRollout';
 import { ManageRolloutActions } from '../../rollout/actions/ManageRollout';
@@ -30,6 +31,7 @@ type ChannelRolloutRawArgsAndFlags = {
   'non-interactive': boolean;
   branch?: string;
   'runtime-version'?: string;
+  'private-key-path'?: string;
   json?: boolean;
 };
 
@@ -40,6 +42,7 @@ type ChannelRolloutArgsAndFlags = {
   json?: boolean;
 } & Partial<EditRolloutNonInteractiveOptions> &
   Partial<EndRolloutNonInteractiveOptions> &
+  EndRolloutGeneralOptions &
   Partial<CreateRolloutNonInteractiveOptions>;
 
 export default class ChannelRolloutPreview extends EasCommand {
@@ -113,6 +116,10 @@ export default class ChannelRolloutPreview extends EasCommand {
       description: 'Runtime version to target. Use with --action=create',
       required: false,
     }),
+    'private-key-path': Flags.string({
+      description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
+      required: false,
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -175,6 +182,7 @@ export default class ChannelRolloutPreview extends EasCommand {
       outcome: rawFlags.outcome,
       branchNameToRollout: rawFlags.branch,
       runtimeVersion: rawFlags['runtime-version'],
+      privateKeyPath: rawFlags['private-key-path'] ?? null,
       action: action ? this.getAction(action) : undefined,
       nonInteractive: rawFlags['non-interactive'],
       json: rawFlags.json,

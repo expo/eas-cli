@@ -9,6 +9,7 @@ import { ChannelQuery, UpdateChannelObject } from '../../graphql/queries/Channel
 import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { republishAsync } from '../../update/republish';
+import { getCodeSigningInfoAsync } from '../../utils/code-signing';
 import formatFields from '../../utils/formatFields';
 import {
   Rollout,
@@ -23,6 +24,10 @@ export enum EndOutcome {
   REPUBLISH_AND_ROUTE_BACK = 'republish-and-route-back',
   ROUTE_BACK = 'route-back',
 }
+
+export type GeneralOptions = {
+  privateKeyPath: string | null;
+};
 
 export type NonInteractiveOptions = {
   outcome: EndOutcome;
@@ -47,7 +52,7 @@ function assertNonInteractiveOptions(
 export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragment> {
   constructor(
     private channelInfo: UpdateChannelBasicInfoFragment,
-    private options: Partial<NonInteractiveOptions> = {}
+    private options: Partial<NonInteractiveOptions> & GeneralOptions
   ) {}
 
   public async runAsync(ctx: EASUpdateContext): Promise<UpdateChannelBasicInfoFragment> {
@@ -55,6 +60,7 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     if (nonInteractive) {
       assertNonInteractiveOptions(this.options);
     }
+
     const channelObject = await this.getChannelObjectAsync(ctx);
     const rollout = getRollout(channelObject);
     const { rolledOutBranch } = rollout;
@@ -150,6 +156,11 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     const { rolledOutBranch, defaultBranch } = rollout;
     const rolledOutUpdateGroup = rolledOutBranch.updateGroups[0];
     if (outcome === EndOutcome.REPUBLISH_AND_ROUTE_BACK) {
+      const codeSigningInfo = await getCodeSigningInfoAsync(
+        ctx.app.exp,
+        this.options.privateKeyPath ?? undefined
+      );
+
       const arbitraryUpdate = rolledOutUpdateGroup[0];
       const { message: oldUpdateMessage, group: oldGroupId } = arbitraryUpdate;
       const newUpdateMessage = `Republish "${oldUpdateMessage!}" - group: ${oldGroupId}`;
@@ -162,6 +173,7 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
           branchId: update.branch.id,
           branchName: update.branch.name,
         })),
+        codeSigningInfo,
         targetBranch: { branchId: defaultBranch.id, branchName: defaultBranch.name },
         updateMessage: newUpdateMessage,
       });
