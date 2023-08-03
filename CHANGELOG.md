@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [3.18.3](https://github.com/expo/eas-cli/releases/tag/v3.18.3) - 2023-08-03
+
+### 🐛 Bug fixes
+
 - Fix republishing with code signing. ([#1973](https://github.com/expo/eas-cli/pull/1973) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
