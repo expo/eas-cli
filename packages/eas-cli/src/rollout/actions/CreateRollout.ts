@@ -207,7 +207,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     defaultBranchId: string
   ): Promise<UpdateBranchBasicInfoFragment> {
     const selectBranchAction = new SelectBranch({
-      printedType: 'branch to rollout',
+      printedType: 'branch to roll out',
       // we don't want to show the default branch as an option
       filterPredicate: (branchInfo: UpdateBranchBasicInfoFragment) =>
         branchInfo.id !== defaultBranchId,

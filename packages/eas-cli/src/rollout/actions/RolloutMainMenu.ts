@@ -95,7 +95,7 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
     const selectChannelAction = new SelectChannel({ filterPredicate });
     const channelInfo = await selectChannelAction.runAsync(ctx);
     if (!channelInfo) {
-      throw new Error(`You dont have any channels. Create one with <TODO>`);
+      throw new Error(`You dont have any channels. Create one with \`eas channel:create\``);
     }
     return channelInfo;
   }
