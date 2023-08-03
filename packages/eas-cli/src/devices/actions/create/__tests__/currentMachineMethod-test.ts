@@ -47,7 +47,7 @@ beforeEach(() => {
 describe(runCurrentMachineMethodAsync, () => {
   it('allows registering the default Mac device class', async () => {
     jest.mocked(os.cpus).mockImplementation(() => [{ model: 'Apple M1' } as os.CpuInfo]);
-    mockDeviceData('my Mac', AppleDeviceClass.Mac);
+    mockDeviceData('my Mac');
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: true }));
 
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
@@ -64,11 +64,11 @@ describe(runCurrentMachineMethodAsync, () => {
     expect(AppleDeviceMutation.createAppleDeviceAsync).toHaveBeenCalledTimes(1);
   });
 
-  it('proceeds with registration if user approves', async () => {
+  it('proceeds with registration if user approves, only once', async () => {
     jest.mocked(os.cpus).mockImplementation(() => [{ model: 'Apple M1' } as os.CpuInfo]);
-    mockDeviceData('my Mac', AppleDeviceClass.Mac);
+    mockDeviceData('my Mac');
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: true }));
-    mockDeviceData('my iPhone', AppleDeviceClass.Iphone);
+    mockDeviceData('my other Mac');
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: false }));
 
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
@@ -87,9 +87,9 @@ describe(runCurrentMachineMethodAsync, () => {
 
   it('exits registration if user cancels', async () => {
     jest.mocked(os.cpus).mockImplementation(() => [{ model: 'Apple M1' } as os.CpuInfo]);
-    mockDeviceData('my Mac', AppleDeviceClass.Mac);
+    mockDeviceData('my Mac');
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: false }));
-    mockDeviceData('my iPhone', AppleDeviceClass.Iphone);
+    mockDeviceData('my other Mac');
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: true }));
 
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
@@ -110,9 +110,9 @@ describe(runCurrentMachineMethodAsync, () => {
     jest
       .mocked(os.cpus)
       .mockImplementation(() => [{ model: 'Intel(R) Core(TM) i5' } as os.CpuInfo]);
-    mockDeviceData('my Mac', AppleDeviceClass.Mac);
+    mockDeviceData('my old Mac');
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: true }));
-    mockDeviceData('my iPhone', AppleDeviceClass.Iphone);
+    mockDeviceData('my other Mac');
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: false }));
 
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
@@ -136,7 +136,6 @@ describe(runCurrentMachineMethodAsync, () => {
   });
 });
 
-function mockDeviceData(name: string, deviceClass: AppleDeviceClass): void {
+function mockDeviceData(name: string): void {
   jest.mocked(prompts).mockImplementationOnce(async () => ({ name }));
-  jest.mocked(prompts).mockImplementationOnce(async () => ({ deviceClass }));
 }

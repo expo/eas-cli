@@ -80,7 +80,7 @@ async function collectDeviceDataAsync(
   const [udid, defaultMachineName] = await fetchCurrentMachineUDIDAsync();
   Log.log(chalk.green(`Fetched the provisioning UDID - ${udid}`));
   const name = await promptForNameAsync(defaultMachineName ?? initialValues.name);
-  const deviceClass = await promptForDeviceClassAsync(AppleDeviceClass.Mac);
+  const deviceClass = AppleDeviceClass.Mac;
   const deviceData: DeviceData = {
     udid,
     name,
