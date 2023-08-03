@@ -10,10 +10,33 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix republishing with code signing. ([#1973](https://github.com/expo/eas-cli/pull/1973) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Add relationships flag to rollouts-preview. ([#1972](https://github.com/expo/eas-cli/pull/1972) by [@quinlanj](https://github.com/quinlanj))
+- Get channel:{view,list,edit} to play nice with rollouts. ([#1974](https://github.com/expo/eas-cli/pull/1974) by [@quinlanj](https://github.com/quinlanj))
+
+## [3.18.2](https://github.com/expo/eas-cli/releases/tag/v3.18.2) - 2023-08-03
+
+### 🐛 Bug fixes
+
+- Revert adding `.nvmrc` support for setting node version. ([#1976](https://github.com/expo/eas-cli/pull/1976) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🧹 Chores
+
+- Use just a comma instead of `, ` when concatenating `keywords` in `eas metadata`. ([#1967](https://github.com/expo/eas-cli/pull/1967) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [3.18.1](https://github.com/expo/eas-cli/releases/tag/v3.18.1) - 2023-08-03
+
+### 🐛 Bug fixes
+
+- Pass correct group into `update:republish`. ([#1971](https://github.com/expo/eas-cli/pull/1971) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🧹 Chores
 
 - Make new rollouts version available for internal dogfooding. ([#1966](https://github.com/expo/eas-cli/pull/1966) by [@quinlanj](https://github.com/quinlanj))
-- Get channel:{view,list,edit} to play nice with rollouts. ([#1974](https://github.com/expo/eas-cli/pull/1974) by [@quinlanj](https://github.com/quinlanj))
+- Change default runtime version policy for EAS Update to appVersion. ([#1968](https://github.com/expo/eas-cli/pull/1968) by [@quinlanj](https://github.com/quinlanj))
 
 ## [3.18.0](https://github.com/expo/eas-cli/releases/tag/v3.18.0) - 2023-08-02
 
@@ -22,15 +45,10 @@ This is the log of notable changes to EAS CLI and related packages.
 - .nvmrc support for setting node version. ([#1954](https://github.com/expo/eas-cli/pull/1954) by [@khamilowicz](https://github.com/khamilowicz))
 - Provide credentials for custom Android builds. ([#1969](https://github.com/expo/eas-cli/pull/1969) by [@szdziedzic](https://github.com/szdziedzic))
 
-### 🐛 Bug fixes
-
-- Pass correct group into `update:republish`. ([#1971](https://github.com/expo/eas-cli/pull/1971) by [@quinlanj](https://github.com/quinlanj))
-
 ### 🧹 Chores
 
 - More branch mapping utility. ([#1957](https://github.com/expo/eas-cli/pull/1957) by [@quinlanj](https://github.com/quinlanj))
 - Utility classes to select existing rollouts and channels. ([#1958](https://github.com/expo/eas-cli/pull/1958) by [@quinlanj](https://github.com/quinlanj))
-- Change default runtime version policy for EAS Update to appVersion. ([#1968](https://github.com/expo/eas-cli/pull/1968) by [@quinlanj](https://github.com/quinlanj))
 
 ## [3.17.1](https://github.com/expo/eas-cli/releases/tag/v3.17.1) - 2023-07-27
 

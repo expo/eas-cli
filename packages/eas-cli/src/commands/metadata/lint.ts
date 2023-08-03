@@ -47,7 +47,6 @@ export default class MetadataLint extends EasCommand {
       easJsonAccessor: EasJsonAccessor.fromProjectPath(projectDir),
       platforms: [Platform.IOS],
       profileName: flags.profile,
-      projectDir,
     });
 
     if (submitProfiles.length !== 1) {

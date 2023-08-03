@@ -12,6 +12,7 @@ import { getBranchNameFromChannelNameAsync } from '../../update/getBranchNameFro
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 import { UpdateToRepublish, republishAsync } from '../../update/republish';
 import { truncateString as truncateUpdateMessage } from '../../update/utils';
+import { getCodeSigningInfoAsync } from '../../utils/code-signing';
 import { enableJsonOutput } from '../../utils/json';
 
 const defaultRepublishPlatforms: Platform[] = ['android', 'ios'];
@@ -22,6 +23,7 @@ type UpdateRepublishRawFlags = {
   group?: string;
   message?: string;
   platform: string;
+  'private-key-path'?: string;
   'non-interactive': boolean;
   json?: boolean;
 };
@@ -32,6 +34,7 @@ type UpdateRepublishFlags = {
   groupId?: string;
   updateMessage?: string;
   platform: Platform[];
+  privateKeyPath?: string;
   nonInteractive: boolean;
   json: boolean;
 };
@@ -63,6 +66,10 @@ export default class UpdateRepublish extends EasCommand {
       default: 'all',
       required: false,
     }),
+    'private-key-path': Flags.string({
+      description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
+      required: false,
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -85,6 +92,8 @@ export default class UpdateRepublish extends EasCommand {
     if (flags.json) {
       enableJsonOutput();
     }
+
+    const codeSigningInfo = await getCodeSigningInfoAsync(exp, flags.privateKeyPath);
 
     const existingUpdates = await getOrAskUpdatesAsync(graphqlClient, projectId, flags);
     const updatesToPublish = existingUpdates.filter(update =>
@@ -127,15 +136,17 @@ export default class UpdateRepublish extends EasCommand {
       updatesToPublish,
       targetBranch: { branchId: arbitraryUpdate.branchId, branchName: arbitraryUpdate.branchName },
       updateMessage,
+      codeSigningInfo,
       json: flags.json,
     });
   }
 
-  sanitizeFlags(rawFlags: UpdateRepublishRawFlags): UpdateRepublishFlags {
+  private sanitizeFlags(rawFlags: UpdateRepublishRawFlags): UpdateRepublishFlags {
     const branchName = rawFlags.branch;
     const channelName = rawFlags.channel;
     const groupId = rawFlags.group;
     const nonInteractive = rawFlags['non-interactive'];
+    const privateKeyPath = rawFlags['private-key-path'];
 
     if (nonInteractive && !groupId) {
       throw new Error('Only --group can be used in non-interactive mode');
@@ -153,6 +164,7 @@ export default class UpdateRepublish extends EasCommand {
       groupId,
       platform,
       updateMessage: rawFlags.message,
+      privateKeyPath,
       json: rawFlags.json ?? false,
       nonInteractive,
     };

@@ -68,7 +68,6 @@ export default class BuildVersionGetView extends EasCommand {
       easJsonAccessor,
       platforms,
       profileName: flags.profile ?? undefined,
-      projectDir,
     });
     const results: { [key in Platform]?: string } = {};
     for (const { profile, platform } of buildProfiles) {

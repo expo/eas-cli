@@ -1,13 +1,21 @@
 import { ExpoConfig } from '@expo/config';
 import assert from 'assert';
+import nullthrows from 'nullthrows';
 
 import { getUpdateGroupUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { Update } from '../graphql/generated';
+import fetch from '../fetch';
+import { Update, UpdateInfoGroup } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import Log, { link } from '../log';
 import { ora } from '../ora';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
+import {
+  CodeSigningInfo,
+  checkManifestBodyAgainstUpdateInfoGroup,
+  getManifestBodyAsync,
+  signBody,
+} from '../utils/code-signing';
 import formatFields from '../utils/formatFields';
 import { printJsonOnlyOutput } from '../utils/json';
 
@@ -35,6 +43,7 @@ export async function republishAsync({
   updatesToPublish,
   targetBranch,
   updateMessage,
+  codeSigningInfo,
   json,
 }: {
   graphqlClient: ExpoGraphqlClient;
@@ -42,6 +51,7 @@ export async function republishAsync({
   updatesToPublish: UpdateToRepublish[];
   targetBranch: { branchName: string; branchId: string };
   updateMessage: string;
+  codeSigningInfo?: CodeSigningInfo;
   json?: boolean;
 }): Promise<void> {
   const { branchName: targetBranchName, branchId: targetBranchId } = targetBranch;
@@ -57,42 +67,73 @@ export async function republishAsync({
   assert(updatesToPublish.every(isSameGroup), 'All updates must belong to the same update group');
   const { runtimeVersion } = arbitraryUpdate;
 
-  // If codesigning was created for the original update, we need to add it to the republish
+  // If codesigning was created for the original update, we need to add it to the republish.
+  // If one wishes to not sign the republish or sign with a different key, a normal publish should
+  // be performed.
   const shouldRepublishWithCodesigning = updatesToPublish.some(update => update.codeSigningInfo);
   if (shouldRepublishWithCodesigning) {
-    Log.withTick(
-      `The republished update will be signed with the same codesigning as the original update.`
-    );
+    if (!codeSigningInfo) {
+      throw new Error(
+        'Must specify --private-key-path argument to sign republished update for code signing'
+      );
+    }
+
+    for (const update of updatesToPublish) {
+      if (
+        nullthrows(update.codeSigningInfo).alg !== codeSigningInfo.codeSigningMetadata.alg ||
+        nullthrows(update.codeSigningInfo).keyid !== codeSigningInfo.codeSigningMetadata.keyid
+      ) {
+        throw new Error(
+          'Republished updates must use the same code signing key and algorithm as original update'
+        );
+      }
+    }
+
+    Log.withTick(`The republished update will be signed`);
   }
 
   const publishIndicator = ora('Republishing...').start();
   let updatesRepublished: Awaited<ReturnType<typeof PublishMutation.publishUpdateGroupAsync>>;
 
   try {
+    const updateInfoGroup = Object.fromEntries(
+      updatesToPublish.map(update => [update.platform, JSON.parse(update.manifestFragment)])
+    );
+
     updatesRepublished = await PublishMutation.publishUpdateGroupAsync(graphqlClient, [
       {
         branchId: targetBranchId,
         runtimeVersion,
         message: updateMessage,
-        updateInfoGroup: Object.fromEntries(
-          updatesToPublish.map(update => [update.platform, JSON.parse(update.manifestFragment)])
-        ),
+        updateInfoGroup,
         gitCommitHash: updatesToPublish[0].gitCommitHash,
-        awaitingCodeSigningInfo: shouldRepublishWithCodesigning,
+        awaitingCodeSigningInfo: !!codeSigningInfo,
       },
     ]);
 
-    if (shouldRepublishWithCodesigning) {
-      const codeSigningByPlatform = Object.fromEntries(
-        updatesToPublish.map(update => [update.platform, update.codeSigningInfo])
-      );
+    if (codeSigningInfo) {
+      Log.log('🔒 Signing republished update');
 
       await Promise.all(
-        updatesRepublished.map(async update => {
-          const codeSigning = codeSigningByPlatform[update.platform];
-          if (codeSigning) {
-            await PublishMutation.setCodeSigningInfoAsync(graphqlClient, update.id, codeSigning);
-          }
+        updatesRepublished.map(async newUpdate => {
+          const response = await fetch(newUpdate.manifestPermalink, {
+            method: 'GET',
+            headers: { accept: 'multipart/mixed' },
+          });
+          const manifestBody = nullthrows(await getManifestBodyAsync(response));
+
+          checkManifestBodyAgainstUpdateInfoGroup(
+            manifestBody,
+            nullthrows(nullthrows(updateInfoGroup)[newUpdate.platform as keyof UpdateInfoGroup])
+          );
+
+          const manifestSignature = signBody(manifestBody, codeSigningInfo);
+
+          await PublishMutation.setCodeSigningInfoAsync(graphqlClient, newUpdate.id, {
+            alg: codeSigningInfo.codeSigningMetadata.alg,
+            keyid: codeSigningInfo.codeSigningMetadata.keyid,
+            sig: manifestSignature,
+          });
         })
       );
     }

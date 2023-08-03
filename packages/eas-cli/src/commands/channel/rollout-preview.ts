@@ -58,6 +58,42 @@ export default class ChannelRolloutPreview extends EasCommand {
       description: 'Rollout action to perform',
       options: Object.values(ActionRawFlagValue),
       required: false,
+      relationships: [
+        {
+          type: 'all',
+          flags: [
+            {
+              name: 'percent',
+              // eslint-disable-next-line async-protect/async-suffix
+              when: async flags => {
+                return (
+                  !!flags['non-interactive'] &&
+                  (flags['action'] === ActionRawFlagValue.CREATE ||
+                    flags['action'] === ActionRawFlagValue.EDIT)
+                );
+              },
+            },
+            {
+              name: 'outcome',
+              // eslint-disable-next-line async-protect/async-suffix
+              when: async flags =>
+                !!flags['non-interactive'] && flags['action'] === ActionRawFlagValue.END,
+            },
+            {
+              name: 'branch',
+              // eslint-disable-next-line async-protect/async-suffix
+              when: async flags =>
+                !!flags['non-interactive'] && flags['action'] === ActionRawFlagValue.CREATE,
+            },
+            {
+              name: 'runtime-version',
+              // eslint-disable-next-line async-protect/async-suffix
+              when: async flags =>
+                !!flags['non-interactive'] && flags['action'] === ActionRawFlagValue.CREATE,
+            },
+          ],
+        },
+      ],
     }),
     percent: Flags.integer({
       description:
