@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Make new rollouts version available for internal dogfooding. ([#1966](https://github.com/expo/eas-cli/pull/1966) by [@quinlanj](https://github.com/quinlanj))
+- Get channel:{view,list,edit} to play nice with rollouts. ([#1974](https://github.com/expo/eas-cli/pull/1974) by [@quinlanj](https://github.com/quinlanj))
 
 ## [3.18.0](https://github.com/expo/eas-cli/releases/tag/v3.18.0) - 2023-08-02
 
