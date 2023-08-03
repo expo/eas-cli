@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix republishing with code signing. ([#1973](https://github.com/expo/eas-cli/pull/1973) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 - Add relationships flag to rollouts-preview. ([#1972](https://github.com/expo/eas-cli/pull/1972) by [@quinlanj](https://github.com/quinlanj))
