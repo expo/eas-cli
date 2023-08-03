@@ -133,6 +133,19 @@ export function hashLtOperator(): BranchMappingOperator {
   return 'hash_lt';
 }
 
+function isVersion(branchMapping: BranchMapping, version: number): boolean {
+  return branchMapping.version === version;
+}
+
+export function assertVersion(channelInfo: UpdateChannelBasicInfoFragment, version: number): void {
+  const branchMapping = getBranchMapping(channelInfo.branchMapping);
+  if (!isVersion(branchMapping, version)) {
+    throw new BranchMappingValidationError(
+      `Expected branch mapping version ${version}. Received: ${JSON.stringify(branchMapping)}`
+    );
+  }
+}
+
 export function assertStatement(node: BranchMappingNode): asserts node is BranchMappingStatement {
   if (!isStatement(node)) {
     throw new BranchMappingValidationError(

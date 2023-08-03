@@ -1,13 +1,6 @@
 import assert from 'assert';
-import chalk from 'chalk';
 
 import { UpdateBranchObject, UpdateChannelObject } from '../graphql/queries/ChannelQuery';
-import Log from '../log';
-import {
-  FormattedBranchDescription,
-  formatBranch,
-  getUpdateGroupDescriptionsWithBranch,
-} from '../update/utils';
 import { BranchMapping, assertNodeObject, assertNumber, isNodeObject } from './branch-mapping';
 
 /**
@@ -69,45 +62,6 @@ export function getBranchMapping(branchMappingString?: string): {
   }
 
   return { branchMapping, isRollout, rolloutPercent };
-}
-
-export function logChannelDetails(channel: UpdateChannelObject): void {
-  const { branchMapping, isRollout, rolloutPercent } = getBranchMapping(channel.branchMapping);
-  if (branchMapping.data.length > 2) {
-    throw new Error('Branch Mapping data must have length less than or equal to 2.');
-  }
-
-  const rolloutBranchIds = branchMapping.data.map(data => data.branchId);
-  const branchDescription = channel.updateBranches.flatMap(branch => {
-    const updateGroupWithBranchDescriptions = getUpdateGroupDescriptionsWithBranch(
-      branch.updateGroups
-    );
-
-    const isRolloutBranch = isRollout && rolloutBranchIds.includes(branch.id);
-    const isBaseBranch = rolloutBranchIds.length > 0 && rolloutBranchIds[0] === branch.id;
-    let rolloutPercentNumber: number | undefined = undefined;
-    if (isRolloutBranch) {
-      rolloutPercentNumber = isBaseBranch ? rolloutPercent! * 100 : (1 - rolloutPercent!) * 100;
-    }
-
-    return updateGroupWithBranchDescriptions.map(
-      ({ branch, ...updateGroup }): FormattedBranchDescription => ({
-        branch,
-        branchRolloutPercentage: rolloutPercentNumber,
-        update: updateGroup,
-      })
-    );
-  });
-
-  if (branchDescription.length === 0) {
-    Log.log(chalk.dim('No branches are pointed to this channel.'));
-  } else {
-    Log.log(
-      branchDescription
-        .map(description => formatBranch(description))
-        .join(`\n\n${chalk.dim('———')}\n\n`)
-    );
-  }
 }
 
 function getUpdateBranchNullable(

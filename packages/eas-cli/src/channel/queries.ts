@@ -21,7 +21,7 @@ import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
-import { logChannelDetails } from './utils';
+import { logChannelDetails } from './print-utils';
 
 export const CHANNELS_LIMIT = 25;
 
