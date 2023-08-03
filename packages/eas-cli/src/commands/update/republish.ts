@@ -1,23 +1,18 @@
 import { Platform } from '@expo/config';
 import { Flags } from '@oclif/core';
 
-import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
-import { Update } from '../../graphql/generated';
-import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
-import Log, { link } from '../../log';
-import { ora } from '../../ora';
-import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
+import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { getBranchNameFromChannelNameAsync } from '../../update/getBranchNameFromChannelNameAsync';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
+import { UpdateToRepublish, republishAsync } from '../../update/republish';
 import { truncateString as truncateUpdateMessage } from '../../update/utils';
-import formatFields from '../../utils/formatFields';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { enableJsonOutput } from '../../utils/json';
 
 const defaultRepublishPlatforms: Platform[] = ['android', 'ios'];
 
@@ -40,20 +35,6 @@ type UpdateRepublishFlags = {
   nonInteractive: boolean;
   json: boolean;
 };
-
-type UpdateToRepublish = {
-  groupId: string;
-  branchId: string;
-  branchName: string;
-} & Pick<
-  Update,
-  | 'message'
-  | 'runtimeVersion'
-  | 'manifestFragment'
-  | 'platform'
-  | 'gitCommitHash'
-  | 'codeSigningInfo'
->;
 
 export default class UpdateRepublish extends EasCommand {
   static override description = 'roll back to an existing update';
@@ -138,89 +119,16 @@ export default class UpdateRepublish extends EasCommand {
       );
     }
 
-    // This command only republishes a single update group
-    // The update group properties are the same for all updates
-    const { branchId, branchName, runtimeVersion } = updatesToPublish[0];
-
     const updateMessage = await getOrAskUpdateMessageAsync(updatesToPublish, flags);
-
-    // If codesigning was created for the original update, we need to add it to the republish
-    const shouldRepublishWithCodesigning = updatesToPublish.some(update => update.codeSigningInfo);
-    if (shouldRepublishWithCodesigning) {
-      Log.withTick(
-        `The republished update will be signed with the same codesigning as the original update.`
-      );
-    }
-
-    const publishIndicator = ora('Republishing...').start();
-    let updatesRepublished: Awaited<ReturnType<typeof PublishMutation.publishUpdateGroupAsync>>;
-
-    try {
-      updatesRepublished = await PublishMutation.publishUpdateGroupAsync(graphqlClient, [
-        {
-          branchId,
-          runtimeVersion,
-          message: updateMessage,
-          updateInfoGroup: Object.fromEntries(
-            updatesToPublish.map(update => [update.platform, JSON.parse(update.manifestFragment)])
-          ),
-          gitCommitHash: updatesToPublish[0].gitCommitHash,
-          awaitingCodeSigningInfo: shouldRepublishWithCodesigning,
-        },
-      ]);
-
-      if (shouldRepublishWithCodesigning) {
-        const codeSigningByPlatform = Object.fromEntries(
-          updatesToPublish.map(update => [update.platform, update.codeSigningInfo])
-        );
-
-        await Promise.all(
-          updatesRepublished.map(async update => {
-            const codeSigning = codeSigningByPlatform[update.platform];
-            if (codeSigning) {
-              await PublishMutation.setCodeSigningInfoAsync(graphqlClient, update.id, codeSigning);
-            }
-          })
-        );
-      }
-
-      publishIndicator.succeed('Republished update');
-    } catch (error: any) {
-      publishIndicator.fail('Failed to republish update');
-      throw error;
-    }
-
-    if (flags.json) {
-      return printJsonOnlyOutput(updatesRepublished);
-    }
-
-    const updatesRepublishedByPlatform = Object.fromEntries(
-      updatesRepublished.map(update => [update.platform, update])
-    );
-
-    const updateGroupUrl = getUpdateGroupUrl(
-      (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name,
-      exp.slug,
-      updatesRepublished[0].group
-    );
-
-    Log.addNewLineIfNone();
-    Log.log(
-      formatFields([
-        { label: 'Branch', value: branchName },
-        { label: 'Runtime version', value: updatesRepublished[0].runtimeVersion },
-        { label: 'Platform', value: updatesRepublished.map(update => update.platform).join(', ') },
-        { label: 'Update Group ID', value: updatesRepublished[0].id },
-        ...(updatesRepublishedByPlatform.android
-          ? [{ label: 'Android update ID', value: updatesRepublishedByPlatform.android.id }]
-          : []),
-        ...(updatesRepublishedByPlatform.ios
-          ? [{ label: 'iOS update ID', value: updatesRepublishedByPlatform.ios.id }]
-          : []),
-        { label: 'Message', value: updateMessage },
-        { label: 'Website link', value: link(updateGroupUrl, { dim: false }) },
-      ])
-    );
+    const arbitraryUpdate = updatesToPublish[0];
+    await republishAsync({
+      graphqlClient,
+      app: { exp, projectId },
+      updatesToPublish,
+      targetBranch: { branchId: arbitraryUpdate.branchId, branchName: arbitraryUpdate.branchName },
+      updateMessage,
+      json: flags.json,
+    });
   }
 
   sanitizeFlags(rawFlags: UpdateRepublishRawFlags): UpdateRepublishFlags {
@@ -258,15 +166,15 @@ async function getOrAskUpdatesAsync(
   flags: UpdateRepublishFlags
 ): Promise<UpdateToRepublish[]> {
   if (flags.groupId) {
-    const updateGroups = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, {
+    const updateGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, {
       groupId: flags.groupId,
     });
 
-    return updateGroups.map(group => ({
-      ...group,
-      groupId: group.group,
-      branchId: group.branch.id,
-      branchName: group.branch.name,
+    return updateGroup.map(update => ({
+      ...update,
+      groupId: update.group,
+      branchId: update.branch.id,
+      branchName: update.branch.name,
     }));
   }
 
@@ -303,17 +211,17 @@ async function askUpdatesFromBranchNameAsync(
     throw new Error('Must supply --group when in non-interactive mode');
   }
 
-  const updateGroups = await selectUpdateGroupOnBranchAsync(graphqlClient, {
+  const updateGroup = await selectUpdateGroupOnBranchAsync(graphqlClient, {
     projectId,
     branchName,
     paginatedQueryOptions: getPaginatedQueryOptions({ json, 'non-interactive': nonInteractive }),
   });
 
-  return updateGroups.map(group => ({
-    ...group,
-    groupId: group.id,
-    branchId: group.branch.id,
-    branchName: group.branch.name,
+  return updateGroup.map(update => ({
+    ...update,
+    groupId: update.group,
+    branchId: update.branch.id,
+    branchName: update.branch.name,
   }));
 }
 /** Ask the user which update needs to be republished by channel name, this requires interactive mode */

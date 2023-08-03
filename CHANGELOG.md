@@ -8,14 +8,32 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [3.18.1](https://github.com/expo/eas-cli/releases/tag/v3.18.1) - 2023-08-03
+
+### 🧹 Chores
+
+- Make new rollouts version available for internal dogfooding. ([#1966](https://github.com/expo/eas-cli/pull/1966) by [@quinlanj](https://github.com/quinlanj))
+
+## [3.18.0](https://github.com/expo/eas-cli/releases/tag/v3.18.0) - 2023-08-02
+
+### 🎉 New features
+
 - .nvmrc support for setting node version. ([#1954](https://github.com/expo/eas-cli/pull/1954) by [@khamilowicz](https://github.com/khamilowicz))
+- Provide credentials for custom Android builds. ([#1969](https://github.com/expo/eas-cli/pull/1969) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
+
+- Pass correct group into `update:republish`. ([#1971](https://github.com/expo/eas-cli/pull/1971) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🧹 Chores
 
 - More branch mapping utility. ([#1957](https://github.com/expo/eas-cli/pull/1957) by [@quinlanj](https://github.com/quinlanj))
 - Utility classes to select existing rollouts and channels. ([#1958](https://github.com/expo/eas-cli/pull/1958) by [@quinlanj](https://github.com/quinlanj))
+- Change default runtime version policy for EAS Update to appVersion. ([#1968](https://github.com/expo/eas-cli/pull/1968) by [@quinlanj](https://github.com/quinlanj))
 
 ## [3.17.1](https://github.com/expo/eas-cli/releases/tag/v3.17.1) - 2023-07-27
 

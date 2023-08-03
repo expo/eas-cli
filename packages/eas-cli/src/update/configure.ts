@@ -3,6 +3,7 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { EasJsonAccessor } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
+import semver from 'semver';
 
 import { getEASUpdateURL } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -20,13 +21,22 @@ import { confirmAsync } from '../prompts';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from './android/UpdatesModule';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from './ios/UpdatesModule';
 
-export const DEFAULT_MANAGED_RUNTIME_VERSION = { policy: 'sdkVersion' } as const;
+export const DEFAULT_MANAGED_RUNTIME_VERSION_GTE_SDK_49 = { policy: 'appVersion' } as const;
+export const DEFAULT_MANAGED_RUNTIME_VERSION_LTE_SDK_48 = { policy: 'sdkVersion' } as const;
 export const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0' as const;
 
-function getDefaultRuntimeVersion(workflow: Workflow): NonNullable<ExpoConfig['runtimeVersion']> {
-  return workflow === Workflow.GENERIC
-    ? DEFAULT_BARE_RUNTIME_VERSION
-    : DEFAULT_MANAGED_RUNTIME_VERSION;
+export function getDefaultRuntimeVersion(
+  workflow: Workflow,
+  sdkVersion: string | undefined
+): NonNullable<ExpoConfig['runtimeVersion']> {
+  if (workflow === Workflow.GENERIC) {
+    return DEFAULT_BARE_RUNTIME_VERSION;
+  }
+  // Expo Go supports loading appVersion SDK 49 and above
+  const hasSupportedSdk = sdkVersion && semver.satisfies(sdkVersion, '>= 49.0.0');
+  return hasSupportedSdk
+    ? DEFAULT_MANAGED_RUNTIME_VERSION_GTE_SDK_49
+    : DEFAULT_MANAGED_RUNTIME_VERSION_LTE_SDK_48;
 }
 
 function isRuntimeEqual(
@@ -108,8 +118,10 @@ async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
     (['all', 'android'].includes(platform) && !androidRuntimeVersion) ||
     (['all', 'ios'].includes(platform) && !iosRuntimeVersion)
   ) {
-    androidRuntimeVersion = androidRuntimeVersion ?? getDefaultRuntimeVersion(workflows.android);
-    iosRuntimeVersion = iosRuntimeVersion ?? getDefaultRuntimeVersion(workflows.ios);
+    androidRuntimeVersion =
+      androidRuntimeVersion ?? getDefaultRuntimeVersion(workflows.android, exp.sdkVersion);
+    iosRuntimeVersion =
+      iosRuntimeVersion ?? getDefaultRuntimeVersion(workflows.ios, exp.sdkVersion);
 
     if (platform === 'all' && isRuntimeEqual(androidRuntimeVersion, iosRuntimeVersion)) {
       modifyConfig.runtimeVersion = androidRuntimeVersion;

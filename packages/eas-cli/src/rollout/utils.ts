@@ -1,18 +1,25 @@
 import chalk from 'chalk';
 
-import { UpdateChannelObject } from '../graphql/queries/ChannelQuery';
+import { RuntimeFragment, UpdateFragment } from '../graphql/generated';
+import { UpdateBranchObject, UpdateChannelObject } from '../graphql/queries/ChannelQuery';
 import Log from '../log';
+import { promptAsync } from '../prompts';
+import { FormattedUpdateGroupDescription, getUpdateGroupDescriptions } from '../update/utils';
 import formatFields from '../utils/formatFields';
-import { getRollout, isConstrainedRollout } from './branch-mapping';
+import { Rollout, getRollout, isConstrainedRollout } from './branch-mapping';
 
 export function printRollout(channel: UpdateChannelObject): void {
   const rollout = getRollout(channel);
+  displayRolloutDetails(channel.name, rollout);
+}
+
+export function displayRolloutDetails(channelName: string, rollout: Rollout): void {
   const rolledOutPercent = rollout.percentRolledOut;
-  Log.addNewLineIfNone();
-  Log.log(chalk.bold('Rollout:'));
+  Log.newLine();
+  Log.log(chalk.bold('🚀 Rollout:'));
   Log.log(
     formatFields([
-      { label: 'Channel', value: channel.name },
+      { label: 'Channel', value: channelName },
       ...(isConstrainedRollout(rollout)
         ? [{ label: 'Runtime Version', value: rollout.runtimeVersion }]
         : []),
@@ -27,24 +34,68 @@ export function printRollout(channel: UpdateChannelObject): void {
   Log.addNewLineIfNone();
 }
 
-export function printBranch(channel: UpdateChannelObject): void {
-  const rollout = getRollout(channel);
-  const rolledOutPercent = rollout.percentRolledOut;
-  Log.addNewLineIfNone();
-  Log.log(chalk.bold('Rollout:'));
-  Log.log(
-    formatFields([
-      { label: 'Channel', value: channel.name },
-      ...(isConstrainedRollout(rollout)
-        ? [{ label: 'Runtime Version', value: rollout.runtimeVersion }]
-        : []),
-      {
-        label: 'Branches',
-        value: `${rollout.rolledOutBranch.name} (${rolledOutPercent}%), ${
-          rollout.defaultBranch.name
-        } (${100 - rolledOutPercent}%)`,
-      },
-    ])
-  );
-  Log.addNewLineIfNone();
+export function formatBranchWithUpdateGroup(
+  maybeUpdateGroup: UpdateFragment[] | undefined | null,
+  branch: UpdateBranchObject,
+  percentRolledOut: number
+): string {
+  const lines: string[] = [];
+  lines.push(chalk.bold(`🍽️  Served by branch ${chalk.bold(branch.name)} (${percentRolledOut}%)`));
+  if (!maybeUpdateGroup) {
+    lines.push(`No updates for target runtime`);
+  } else {
+    const [updateGroupDescription] = getUpdateGroupDescriptions([maybeUpdateGroup]);
+    lines.push(...formatUpdateGroup(updateGroupDescription));
+  }
+  return lines.join('\n    ');
+}
+
+export function formatRuntimeWithUpdateGroup(
+  maybeUpdateGroup: UpdateFragment[] | undefined | null,
+  runtime: RuntimeFragment
+): string {
+  const lines: string[] = [];
+  lines.push(chalk.bold(`🍽️  Served by runtime ${chalk.bold(runtime.version)}:`));
+  if (!maybeUpdateGroup) {
+    lines.push(`No updates published for this runtime`);
+  } else {
+    const [updateGroupDescription] = getUpdateGroupDescriptions([maybeUpdateGroup]);
+    lines.push(...formatUpdateGroup(updateGroupDescription));
+  }
+  return lines.join('\n    ');
+}
+
+function formatUpdateGroup(updateGroup: FormattedUpdateGroupDescription): string[] {
+  const lines: string[] = [];
+  const formattedLines = formatFields([
+    { label: 'Message', value: updateGroup.message ?? 'N/A' },
+    { label: 'Runtime Version', value: updateGroup.runtimeVersion ?? 'N/A' },
+    { label: 'Platforms', value: updateGroup.platforms ?? 'N/A' },
+    { label: 'Group ID', value: updateGroup.group ?? 'N/A' },
+  ]).split('\n');
+  lines.push(...formattedLines);
+  return lines;
+}
+
+export async function promptForRolloutPercentAsync({
+  promptMessage,
+}: {
+  promptMessage: string;
+}): Promise<number> {
+  const { name: rolloutPercent } = await promptAsync({
+    type: 'text',
+    name: 'name',
+    format: value => {
+      return parseInt(value, 10);
+    },
+    message: promptMessage,
+    initial: 0,
+    validate: (rolloutPercent: string): true | string => {
+      const floatValue = parseFloat(rolloutPercent);
+      return Number.isInteger(floatValue) && floatValue >= 0 && floatValue <= 100
+        ? true
+        : 'The rollout percentage must be an integer between 0 and 100 inclusive.';
+    },
+  });
+  return rolloutPercent;
 }

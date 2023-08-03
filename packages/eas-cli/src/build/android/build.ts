@@ -124,8 +124,7 @@ export async function prepareAndroidBuildAsync(
 }
 
 function shouldProvideCredentials(ctx: BuildContext<Platform.ANDROID>): boolean {
-  const isCustomBuild = ctx.buildProfile.config !== undefined;
-  return !ctx.buildProfile.withoutCredentials && !isCustomBuild;
+  return !ctx.buildProfile.withoutCredentials;
 }
 
 async function ensureAndroidCredentialsAsync(
