@@ -34,7 +34,7 @@ export async function runCurrentMachineMethodAsync(
 }
 
 function isMachineAppleSilicon(): boolean {
-  return os.cpus()[0].model.includes('Apple M') || os.arch() === 'arm64';
+  return os.cpus()[0].model.includes('Apple M');
 }
 
 async function collectDataAndRegisterDeviceAsync(

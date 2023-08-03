@@ -47,7 +47,6 @@ beforeEach(() => {
 describe(runCurrentMachineMethodAsync, () => {
   it('allows registering the default Mac device class', async () => {
     jest.mocked(os.cpus).mockImplementation(() => [{ model: 'Apple M1' } as os.CpuInfo]);
-    jest.mocked(os.arch).mockImplementation(() => 'arm64');
     mockDeviceData('my Mac', AppleDeviceClass.Mac);
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: true }));
 
@@ -67,7 +66,6 @@ describe(runCurrentMachineMethodAsync, () => {
 
   it('proceeds with registration if user approves', async () => {
     jest.mocked(os.cpus).mockImplementation(() => [{ model: 'Apple M1' } as os.CpuInfo]);
-    jest.mocked(os.arch).mockImplementation(() => 'arm64');
     mockDeviceData('my Mac', AppleDeviceClass.Mac);
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: true }));
     mockDeviceData('my iPhone', AppleDeviceClass.Iphone);
@@ -89,7 +87,6 @@ describe(runCurrentMachineMethodAsync, () => {
 
   it('exits registration if user cancels', async () => {
     jest.mocked(os.cpus).mockImplementation(() => [{ model: 'Apple M1' } as os.CpuInfo]);
-    jest.mocked(os.arch).mockImplementation(() => 'arm64');
     mockDeviceData('my Mac', AppleDeviceClass.Mac);
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: false }));
     mockDeviceData('my iPhone', AppleDeviceClass.Iphone);
@@ -113,7 +110,6 @@ describe(runCurrentMachineMethodAsync, () => {
     jest
       .mocked(os.cpus)
       .mockImplementation(() => [{ model: 'Intel(R) Core(TM) i5' } as os.CpuInfo]);
-    jest.mocked(os.arch).mockImplementation(() => 'x64');
     mockDeviceData('my Mac', AppleDeviceClass.Mac);
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: true }));
     mockDeviceData('my iPhone', AppleDeviceClass.Iphone);
