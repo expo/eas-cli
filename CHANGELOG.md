@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Use just a comma instead of `, ` when concatenating `keywords` in `eas metadata`. ([#1967](https://github.com/expo/eas-cli/pull/1967) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [3.18.1](https://github.com/expo/eas-cli/releases/tag/v3.18.1) - 2023-08-03
 
 ### 🐛 Bug fixes
