@@ -29,7 +29,7 @@ export async function runCurrentMachineMethodAsync(
 }
 
 function isMachineAppleSilicon(): boolean {
-  return os.cpus()[0].model.includes('Apple M');
+  return os.cpus()[0].model.includes('Apple M') && process.platform === 'darwin';
 }
 
 async function collectDataAndRegisterDeviceAsync(
