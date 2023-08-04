@@ -44,11 +44,11 @@ export default class UpdateRepublish extends EasCommand {
 
   static override flags = {
     channel: Flags.string({
-      description: 'Channel name to select an update gto republish from',
+      description: 'Channel name to select an update group to republish from',
       exclusive: ['branch', 'group'],
     }),
     branch: Flags.string({
-      description: 'Branch name to select an update to republish from',
+      description: 'Branch name to select an update group to republish from',
       exclusive: ['channel', 'group'],
     }),
     group: Flags.string({
