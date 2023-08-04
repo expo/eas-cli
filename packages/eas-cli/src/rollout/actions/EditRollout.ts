@@ -51,7 +51,7 @@ export class EditRollout implements EASUpdateAction<UpdateChannelBasicInfoFragme
     const channelObject = await this.getChannelObjectAsync(ctx);
     const rollout = getRollout(channelObject);
     const { rolledOutBranch, defaultBranch } = rollout;
-    const promptMessage = `What percent of users should be directed to the ${rolledOutBranch.name} branch ?`;
+    const promptMessage = `What percent of users should be rolled out to the ${rolledOutBranch.name} branch ?`;
     const percent = this.options.percent ?? (await promptForRolloutPercentAsync({ promptMessage }));
 
     const oldBranchMapping = getRolloutBranchMapping(channelObject.branchMapping);
@@ -59,9 +59,11 @@ export class EditRollout implements EASUpdateAction<UpdateChannelBasicInfoFragme
 
     Log.newLine();
     Log.log(
-      `📝 The updated rollout will send ${chalk.bold(percent)}% of users to the ${chalk.bold(
+      `📝 ${chalk.bold(percent)}% of users will be rolled out to the ${chalk.bold(
         rolledOutBranch.name
-      )} branch and ${chalk.bold(100 - percent)}% to the ${chalk.bold(defaultBranch.name)} branch.`
+      )} branch and ${chalk.bold(100 - percent)}% sent to the ${chalk.bold(
+        defaultBranch.name
+      )} branch.`
     );
     const confirmEdit = await this.confirmEditAsync(ctx);
     if (!confirmEdit) {

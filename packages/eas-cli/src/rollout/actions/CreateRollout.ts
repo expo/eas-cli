@@ -88,7 +88,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
       this.options.runtimeVersion ??
       (await this.selectRuntimeVersionAsync(ctx, branchInfoToRollout, defaultBranchId));
     Log.newLine();
-    const promptMessage = `What percent of users should be sent to branch ${branchInfoToRollout.name}?`;
+    const promptMessage = `What percent of users should be rolled out to branch ${branchInfoToRollout.name}?`;
     const percent = this.options.percent ?? (await promptForRolloutPercentAsync({ promptMessage }));
     const rolloutBranchMapping = createRolloutBranchMapping({
       defaultBranchId,
