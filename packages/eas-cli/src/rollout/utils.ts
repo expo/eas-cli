@@ -21,7 +21,7 @@ export function displayRolloutDetails(channelName: string, rollout: Rollout): vo
     formatFields([
       { label: 'Channel', value: channelName },
       ...(isConstrainedRollout(rollout)
-        ? [{ label: 'Runtime Version', value: rollout.runtimeVersion }]
+        ? [{ label: 'Runtime version', value: rollout.runtimeVersion }]
         : []),
       {
         label: 'Branches',
@@ -40,7 +40,11 @@ export function formatBranchWithUpdateGroup(
   percentRolledOut: number
 ): string {
   const lines: string[] = [];
-  lines.push(chalk.bold(`🍽️  Served by branch ${chalk.bold(branch.name)} (${percentRolledOut}%)`));
+  lines.push(
+    chalk.bold(
+      `➡️ 📱 Latest update on the ${chalk.bold(branch.name)} branch (${percentRolledOut}%)`
+    )
+  );
   if (!maybeUpdateGroup) {
     lines.push(`No updates for target runtime`);
   } else {
@@ -52,10 +56,17 @@ export function formatBranchWithUpdateGroup(
 
 export function formatRuntimeWithUpdateGroup(
   maybeUpdateGroup: UpdateFragment[] | undefined | null,
-  runtime: RuntimeFragment
+  runtime: RuntimeFragment,
+  branchName: string
 ): string {
   const lines: string[] = [];
-  lines.push(chalk.bold(`🍽️  Served by runtime ${chalk.bold(runtime.version)}:`));
+  lines.push(
+    chalk.bold(
+      `➡️ 📱 Latest update on the ${chalk.bold(branchName)} branch served to runtime ${chalk.bold(
+        runtime.version
+      )}:`
+    )
+  );
   if (!maybeUpdateGroup) {
     lines.push(`No updates published for this runtime`);
   } else {
@@ -69,7 +80,7 @@ function formatUpdateGroup(updateGroup: FormattedUpdateGroupDescription): string
   const lines: string[] = [];
   const formattedLines = formatFields([
     { label: 'Message', value: updateGroup.message ?? 'N/A' },
-    { label: 'Runtime Version', value: updateGroup.runtimeVersion ?? 'N/A' },
+    { label: 'Runtime version', value: updateGroup.runtimeVersion ?? 'N/A' },
     { label: 'Platforms', value: updateGroup.platforms ?? 'N/A' },
     { label: 'Group ID', value: updateGroup.group ?? 'N/A' },
   ]).split('\n');

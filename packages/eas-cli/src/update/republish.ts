@@ -74,7 +74,7 @@ export async function republishAsync({
   if (shouldRepublishWithCodesigning) {
     if (!codeSigningInfo) {
       throw new Error(
-        'Must specify --private-key-path argument to sign republished update for code signing'
+        'Must specify --private-key-path argument to sign republished update group for code signing'
       );
     }
 
@@ -89,7 +89,7 @@ export async function republishAsync({
       }
     }
 
-    Log.withTick(`The republished update will be signed`);
+    Log.withTick(`The republished update group will be signed`);
   }
 
   const publishIndicator = ora('Republishing...').start();
@@ -112,7 +112,7 @@ export async function republishAsync({
     ]);
 
     if (codeSigningInfo) {
-      Log.log('🔒 Signing republished update');
+      Log.log('🔒 Signing republished update group');
 
       await Promise.all(
         updatesRepublished.map(async newUpdate => {
@@ -138,9 +138,9 @@ export async function republishAsync({
       );
     }
 
-    publishIndicator.succeed('Republished update');
+    publishIndicator.succeed('Republished update group');
   } catch (error: any) {
-    publishIndicator.fail('Failed to republish update');
+    publishIndicator.fail('Failed to republish update group');
     throw error;
   }
 
@@ -165,7 +165,7 @@ export async function republishAsync({
       { label: 'Branch', value: targetBranchName },
       { label: 'Runtime version', value: arbitraryRepublishedUpdate.runtimeVersion },
       { label: 'Platform', value: updatesRepublished.map(update => update.platform).join(', ') },
-      { label: 'Update Group ID', value: arbitraryRepublishedUpdate.group },
+      { label: 'Update group ID', value: arbitraryRepublishedUpdate.group },
       ...(updatesRepublishedByPlatform.android
         ? [{ label: 'Android update ID', value: updatesRepublishedByPlatform.android.id }]
         : []),

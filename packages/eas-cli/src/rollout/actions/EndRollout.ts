@@ -21,8 +21,8 @@ import {
 import { formatBranchWithUpdateGroup } from '../utils';
 
 export enum EndOutcome {
-  REPUBLISH_AND_ROUTE_BACK = 'republish-and-route-back',
-  ROUTE_BACK = 'route-back',
+  REPUBLISH_AND_SEND_BACK = 'republish-and-send-back',
+  SEND_BACK = 'send-back',
 }
 
 export type GeneralOptions = {
@@ -67,24 +67,17 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     const rolledOutUpdateGroup = rolledOutBranch.updateGroups[0];
     let outcome: EndOutcome;
     if (!rolledOutUpdateGroup) {
-      Log.log(`⚠️  There is no Update Group being served on ${rolledOutBranch.name}.`);
+      Log.log(`⚠️  There is no update group being served on ${rolledOutBranch.name}.`);
       assert(
-        this.options.outcome !== EndOutcome.REPUBLISH_AND_ROUTE_BACK,
-        'The only valid outcome for this rollout is to route back to the default branch. '
+        this.options.outcome !== EndOutcome.REPUBLISH_AND_SEND_BACK,
+        'The only valid outcome for this rollout is to send users back to the default branch. '
       );
-      outcome = EndOutcome.ROUTE_BACK;
+      outcome = EndOutcome.SEND_BACK;
     } else {
       outcome = this.options.outcome ?? (await this.selectOutcomeAsync(rollout));
     }
     const didConfirm = await this.confirmOutcomeAsync(ctx, outcome, rollout);
     if (!didConfirm) {
-      if (!rolledOutUpdateGroup) {
-        Log.log(
-          `If you wish to stop serving updates to your users, you can edit your rollout to 100% on ${chalk.bold(
-            rolledOutBranch.name
-          )} instead`
-        );
-      }
       throw new Error('Aborting...');
     }
     return await this.performOutcomeAsync(ctx, rollout, outcome);
@@ -116,11 +109,11 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     const defaultUpdateGroup = defaultBranch.updateGroups[0];
     const outcomes = [
       {
-        value: EndOutcome.REPUBLISH_AND_ROUTE_BACK,
+        value: EndOutcome.REPUBLISH_AND_SEND_BACK,
         title: formatBranchWithUpdateGroup(rolledOutUpdateGroup, rolledOutBranch, percentRolledOut),
       },
       {
-        value: EndOutcome.ROUTE_BACK,
+        value: EndOutcome.SEND_BACK,
         title: formatBranchWithUpdateGroup(
           defaultUpdateGroup,
           defaultBranch,
@@ -131,17 +124,17 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     const { outcome: selectedOutcome } = await promptAsync({
       type: 'select',
       name: 'outcome',
-      message: `Which Update Group would you like to serve?`,
+      message: `Which update group would you like to serve?`,
       choices: outcomes,
     });
     Log.newLine();
-    if (selectedOutcome === EndOutcome.REPUBLISH_AND_ROUTE_BACK) {
+    if (selectedOutcome === EndOutcome.REPUBLISH_AND_SEND_BACK) {
       Log.log(
-        `🍽️  The Update Group you chose is served by branch ${chalk.bold(rolledOutBranch.name)}`
+        `➡️ 📱 The update group you chose is served by branch ${chalk.bold(rolledOutBranch.name)}`
       );
     } else {
       Log.log(
-        `🍽️  The Update Group you chose is served by branch ${chalk.bold(defaultBranch.name)}`
+        `➡️ 📱 The update group you chose is served by branch ${chalk.bold(defaultBranch.name)}`
       );
     }
     return selectedOutcome;
@@ -155,12 +148,11 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     const { graphqlClient, app } = ctx;
     const { rolledOutBranch, defaultBranch } = rollout;
     const rolledOutUpdateGroup = rolledOutBranch.updateGroups[0];
-    if (outcome === EndOutcome.REPUBLISH_AND_ROUTE_BACK) {
+    if (outcome === EndOutcome.REPUBLISH_AND_SEND_BACK) {
       const codeSigningInfo = await getCodeSigningInfoAsync(
         ctx.app.exp,
         this.options.privateKeyPath ?? undefined
       );
-
       const arbitraryUpdate = rolledOutUpdateGroup[0];
       const { message: oldUpdateMessage, group: oldGroupId } = arbitraryUpdate;
       const newUpdateMessage = `Republish "${oldUpdateMessage!}" - group: ${oldGroupId}`;
@@ -184,7 +176,7 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
       branchMapping: JSON.stringify(alwaysTrueDefaultBranchMapping),
     });
     Log.addNewLineIfNone();
-    Log.log(`🚗 Routed all traffic back to branch ${chalk.bold(defaultBranch.name)}`);
+    Log.log(`⬅️ Sent all users back to branch ${chalk.bold(defaultBranch.name)}`);
     Log.log(`✅ Successfully ended rollout`);
     return newChannelInfo;
   }
@@ -200,21 +192,21 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     }
     const { rolledOutBranch, defaultBranch } = rollout;
     Log.newLine();
-    if (selectedOutcome === EndOutcome.REPUBLISH_AND_ROUTE_BACK) {
+    if (selectedOutcome === EndOutcome.REPUBLISH_AND_SEND_BACK) {
       Log.log(`Ending the rollout will do the following:`);
       const actions = formatFields([
         {
           label: '1.',
-          value: `🔁 Republish the Update Group from ${chalk.bold(
+          value: `🔁 Republish the update group from ${chalk.bold(
             rolledOutBranch.name
           )} onto ${chalk.bold(defaultBranch.name)}`,
         },
-        { label: '2.', value: `⬅️  Route all users back to ${chalk.bold(defaultBranch.name)}` },
+        { label: '2.', value: `⬅️  Send all users back to ${chalk.bold(defaultBranch.name)}` },
       ]);
       Log.log(actions);
     } else {
       Log.log(
-        `⬅️  Ending the rollout will route all users back to ${chalk.bold(defaultBranch.name)}`
+        `⬅️  Ending the rollout will send all users back to ${chalk.bold(defaultBranch.name)}`
       );
     }
     return await confirmAsync({

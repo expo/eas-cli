@@ -44,7 +44,7 @@ export default class UpdateRepublish extends EasCommand {
 
   static override flags = {
     channel: Flags.string({
-      description: 'Channel name to select an update to republish from',
+      description: 'Channel name to select an update gto republish from',
       exclusive: ['branch', 'group'],
     }),
     branch: Flags.string({
@@ -57,7 +57,7 @@ export default class UpdateRepublish extends EasCommand {
     }),
     message: Flags.string({
       char: 'm',
-      description: 'Short message describing the republished update',
+      description: 'Short message describing the republished update group',
       required: false,
     }),
     platform: Flags.enum({
@@ -114,15 +114,15 @@ export default class UpdateRepublish extends EasCommand {
     }
 
     if (rawFlags.platform === 'all') {
-      Log.withTick(`The republished update will appear only on: ${rawFlags.platform}`);
+      Log.withTick(`The republished update group will appear only on: ${rawFlags.platform}`);
     } else {
       const platformsFromUpdates = updatesToPublish.map(update => update.platform);
       if (platformsFromUpdates.length < defaultRepublishPlatforms.length) {
-        Log.warn(`You are republishing an update that wasn't published for all platforms.`);
+        Log.warn(`You are republishing an update group that wasn't published for all platforms.`);
       }
 
       Log.withTick(
-        `The republished update will appear on the same platforms it was originally published on: ${platformsFromUpdates.join(
+        `The republished update group will appear on the same platforms it was originally published on: ${platformsFromUpdates.join(
           ', '
         )}`
       );

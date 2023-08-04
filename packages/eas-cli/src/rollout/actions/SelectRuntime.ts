@@ -160,7 +160,7 @@ export class SelectRuntime implements EASUpdateAction<string> {
       updateGroups.length < 2,
       `Expected at most one update group. Received: ${JSON.stringify(updateGroups)}`
     );
-    return formatRuntimeWithUpdateGroup(updateGroups[0], runtime);
+    return formatRuntimeWithUpdateGroup(updateGroups[0], runtime, branchName);
   }
 
   async selectRuntimesAsync(
