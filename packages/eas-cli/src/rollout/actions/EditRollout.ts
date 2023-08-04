@@ -16,7 +16,6 @@ import {
   isRollout,
 } from '../branch-mapping';
 import { promptForRolloutPercentAsync } from '../utils';
-import { EndOutcome, EndRollout } from './EndRollout';
 
 export type NonInteractiveOptions = {
   percent: number;
