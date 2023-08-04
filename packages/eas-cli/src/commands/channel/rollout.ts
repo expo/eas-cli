@@ -185,7 +185,7 @@ async function editRolloutAsync(
     }
     const promptMessage = `Currently ${currentPercent}% of all users are rolled out to branch ${
       newBranch.name
-    } and ${100 - currentPercent}% of all users are sent to branch ${
+    } and ${100 - currentPercent}% of all users are put on branch ${
       oldBranch.name
     }. What percent of users should be directed to the branch ${newBranch.name}?`;
     percent = await promptForRolloutPercentAsync({ promptMessage });
