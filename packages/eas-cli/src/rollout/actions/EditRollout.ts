@@ -54,6 +54,12 @@ export class EditRollout implements EASUpdateAction<UpdateChannelBasicInfoFragme
     const promptMessage = `What percent of users should be rolled out to the ${rolledOutBranch.name} branch ?`;
     const percent = this.options.percent ?? (await promptForRolloutPercentAsync({ promptMessage }));
 
+    if (percent === 0 || percent === 100) {
+      Log.warn(
+        `Editing the percent to ${percent} will not end the rollout. You'll need to end the rollout from the main menu.`
+      );
+    }
+
     const oldBranchMapping = getRolloutBranchMapping(channelObject.branchMapping);
     const newBranchMapping = editRolloutBranchMapping(oldBranchMapping, percent);
 
