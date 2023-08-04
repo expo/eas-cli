@@ -183,9 +183,9 @@ async function editRolloutAsync(
         'A rollout is already in progress. If you wish to modify it you must use specify the new rollout percentage with the --percent flag.'
       );
     }
-    const promptMessage = `Currently ${currentPercent}% of all users are routed to branch ${
+    const promptMessage = `Currently ${currentPercent}% of all users are rolled out to branch ${
       newBranch.name
-    } and ${100 - currentPercent}% of all users are routed to branch ${
+    } and ${100 - currentPercent}% of all users remain on branch ${
       oldBranch.name
     }. What percent of users should be directed to the branch ${newBranch.name}?`;
     percent = await promptForRolloutPercentAsync({ promptMessage });
