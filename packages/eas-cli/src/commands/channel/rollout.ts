@@ -314,7 +314,7 @@ export default class ChannelRollout extends EasCommand {
 
   static override flags = {
     branch: Flags.string({
-      description: 'branch to rollout',
+      description: 'branch to roll out',
       required: false,
     }),
     percent: Flags.integer({

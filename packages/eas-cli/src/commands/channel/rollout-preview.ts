@@ -109,7 +109,7 @@ export default class ChannelRolloutPreview extends EasCommand {
       required: false,
     }),
     branch: Flags.string({
-      description: 'Branch to rollout. Use with --action=create',
+      description: 'Branch to roll out. Use with --action=create',
       required: false,
     }),
     'runtime-version': Flags.string({
