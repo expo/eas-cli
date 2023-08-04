@@ -55,13 +55,9 @@ export class EditRollout implements EASUpdateAction<UpdateChannelBasicInfoFragme
     const promptMessage = `What percent of users should be sent to the ${rolledOutBranch.name} branch ?`;
     const percent = this.options.percent ?? (await promptForRolloutPercentAsync({ promptMessage }));
 
-    if (percent === 0) {
+    if (percent === 0 || percent === 100) {
       Log.warn(
-        `Editing the percent to 0 will not end the rollout. You'll need to end the rollout from the main menu.`
-      );
-    } else if (percent === 100) {
-      Log.warn(
-        `Editing the percent to 100 will not end the rollout. You'll need to end the rollout from the main menu.`
+        `Editing the percent to ${percent} will not end the rollout. You'll need to end the rollout from the main menu.`
       );
     }
 
