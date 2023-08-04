@@ -61,7 +61,7 @@ export class EditRollout implements EASUpdateAction<UpdateChannelBasicInfoFragme
     Log.log(
       `📝 ${chalk.bold(percent)}% of users will be rolled out to the ${chalk.bold(
         rolledOutBranch.name
-      )} branch and ${chalk.bold(100 - percent)}% put on the ${chalk.bold(
+      )} branch and ${chalk.bold(100 - percent)}% will remain on the ${chalk.bold(
         defaultBranch.name
       )} branch.`
     );
