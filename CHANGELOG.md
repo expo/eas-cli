@@ -16,6 +16,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Fixing more grammar errors. ([#1980](https://github.com/expo/eas-cli/pull/1980) by [@quinlanj](https://github.com/quinlanj))
+
 ## [3.18.3](https://github.com/expo/eas-cli/releases/tag/v3.18.3) - 2023-08-03
 
 ### 🐛 Bug fixes
