@@ -11233,6 +11233,12 @@
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "MAC",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "possibleTypes": null
@@ -31123,7 +31129,7 @@
             "deprecationReason": null
           },
           {
-            "name": "webNotifications",
+            "name": "websiteNotifications",
             "description": "Web notifications linked to a user",
             "args": [],
             "type": {
@@ -36504,7 +36510,7 @@
             "deprecationReason": null
           },
           {
-            "name": "webNotifications",
+            "name": "websiteNotifications",
             "description": null,
             "args": [],
             "type": {
@@ -37131,7 +37137,7 @@
             "deprecationReason": null
           },
           {
-            "name": "webNotifications",
+            "name": "websiteNotifications",
             "description": "Web notifications linked to a user",
             "args": [],
             "type": {

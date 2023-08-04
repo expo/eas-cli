@@ -19,6 +19,7 @@ const DEVICE_IMPORT_CHUNK_SIZE = 10;
 const DEVICE_CLASS_TO_GRAPHQL_TYPE: Partial<Record<DeviceClass, AppleDeviceClass>> = {
   [DeviceClass.IPAD]: AppleDeviceClass.Ipad,
   [DeviceClass.IPHONE]: AppleDeviceClass.Iphone,
+  [DeviceClass.MAC]: AppleDeviceClass.Mac,
 };
 
 export async function runDeveloperPortalMethodAsync(
@@ -105,7 +106,7 @@ async function findUnregisteredPortalDevicesAsync(
   return portalDevices.filter(
     portalDevice =>
       !(portalDevice.attributes.udid in expoRegisteredDevicesByUdid) &&
-      [DeviceClass.IPAD, DeviceClass.IPHONE, DeviceClass.APPLE_TV].includes(
+      [DeviceClass.IPAD, DeviceClass.IPHONE, DeviceClass.APPLE_TV, DeviceClass.MAC].includes(
         portalDevice.attributes.deviceClass
       )
   );

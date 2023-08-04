@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Option to add current Apple Silicon device without the need to manually provide the provisioning UDID. ([#1943](https://github.com/expo/eas-cli/pull/1943) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
 ### 🐛 Bug fixes
 
 - Fix rollout-preview ending with republish with code signing. ([#1978](https://github.com/expo/eas-cli/pull/1978) by [@wschurman](https://github.com/wschurman))

@@ -1657,7 +1657,8 @@ export type AppleDevice = {
 
 export enum AppleDeviceClass {
   Ipad = 'IPAD',
-  Iphone = 'IPHONE'
+  Iphone = 'IPHONE',
+  Mac = 'MAC'
 }
 
 export type AppleDeviceInput = {
@@ -4437,7 +4438,7 @@ export type SsoUser = Actor & UserActor & {
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
   /** Web notifications linked to a user */
-  webNotifications: Array<Notification>;
+  websiteNotifications: Array<Notification>;
 };
 
 
@@ -5198,7 +5199,7 @@ export type User = Actor & UserActor & {
   /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
-  webNotifications: Array<Notification>;
+  websiteNotifications: Array<Notification>;
 };
 
 
@@ -5288,7 +5289,7 @@ export type UserActor = {
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
   /** Web notifications linked to a user */
-  webNotifications: Array<Notification>;
+  websiteNotifications: Array<Notification>;
 };
 
 
