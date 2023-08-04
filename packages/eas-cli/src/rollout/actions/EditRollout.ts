@@ -56,12 +56,9 @@ export class EditRollout implements EASUpdateAction<UpdateChannelBasicInfoFragme
     const percent = this.options.percent ?? (await promptForRolloutPercentAsync({ promptMessage }));
 
     if (percent === 0) {
-      Log.log(`📝 Editing the percent to 0 will end the rollout.`);
-      const endAction = await new EndRollout(this.channelInfo, {
-        outcome: EndOutcome.ROUTE_BACK,
-        privateKeyPath: null,
-      });
-      return await endAction.runAsync(ctx);
+      Log.warn(
+        `Editing the percent to 0 will not end the rollout. You'll need to end the rollout from the main menu.`
+      );
     } else if (percent === 100) {
       Log.warn(
         `Editing the percent to 100 will not end the rollout. You'll need to end the rollout from the main menu.`
