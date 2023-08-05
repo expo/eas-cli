@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Release redesigned `eas channel:rollout` into developer preview. The set of flag arguments are different, in addition to the workflow. ([#1986](https://github.com/expo/eas-cli/pull/1986) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🎉 New features
 
 - Option to add current Apple Silicon device without the need to manually provide the provisioning UDID. ([#1943](https://github.com/expo/eas-cli/pull/1943) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
