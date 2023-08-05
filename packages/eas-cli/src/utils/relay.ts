@@ -1,6 +1,7 @@
 import assert from 'assert';
 
 import { PageInfo } from '../graphql/generated';
+import Log from '../log';
 import { promptAsync } from '../prompts';
 
 export type Connection<T> = {
@@ -262,14 +263,6 @@ export async function selectPaginatedAsync<T>({
   getTitleAsync: (node: T) => Promise<string>;
   printedType: string;
 }): Promise<T | null> {
-  // Dont bother prompting if there are 0 or 1 items
-  const connectionPreflight = await queryAsync({ first: pageSize });
-  const { edges } = connectionPreflight;
-  if (edges.length === 0) {
-    return null;
-  } else if (edges.length === 1) {
-    return edges[0].node;
-  }
   return await selectPaginatedInternalAsync({
     queryAsync,
     getTitleAsync,
@@ -296,11 +289,14 @@ async function selectPaginatedInternalAsync<T>({
   queryAsync: (queryParams: QueryParams) => Promise<Connection<T>>;
   getTitleAsync: (node: T) => Promise<string>;
   printedType: string;
-}): Promise<T> {
+}): Promise<T | null> {
   const limit = queryParams.first ?? queryParams.last;
   assert(limit, 'queryParams must have either first or last');
   const connection = await queryAsync(queryParams);
   const { edges, pageInfo } = connection;
+  if (edges.length === 0) {
+    return null;
+  }
   /*
    * The Relay spec has a weird definition on hasNextPage and hasPreviousPage:
    * 'If the client is paginating with last/before, then the server must return true if prior edges
