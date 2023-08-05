@@ -126,7 +126,7 @@ export function getRolloutInfoFromBranchMapping(branchMapping: RolloutBranchMapp
     assertNumber(operand);
     return {
       rolledOutBranchId,
-      percentRolledOut: operand * 100,
+      percentRolledOut: Math.round(operand * 100),
       runtimeVersion,
       defaultBranchId,
     };
@@ -137,7 +137,7 @@ export function getRolloutInfoFromBranchMapping(branchMapping: RolloutBranchMapp
     assertNumber(operand);
     return {
       rolledOutBranchId,
-      percentRolledOut: operand * 100,
+      percentRolledOut: Math.round(operand * 100),
       defaultBranchId,
     };
   }
