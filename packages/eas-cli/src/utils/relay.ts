@@ -1,7 +1,6 @@
 import assert from 'assert';
 
 import { PageInfo } from '../graphql/generated';
-import Log from '../log';
 import { promptAsync } from '../prompts';
 
 export type Connection<T> = {
