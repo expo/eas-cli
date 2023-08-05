@@ -58,16 +58,17 @@ export class SelectRuntime implements EASUpdateAction<string | null> {
       anotherBranchIdToIntersectRuntimesBy: this.options.anotherBranchToIntersectRuntimesBy?.id,
     });
 
-    if (!newestRuntimeConnection) {
+    if (newestRuntimeConnection.edges.length === 0) {
       Log.addNewLineIfNone();
       this.warnNoRuntime();
       return null;
     }
 
-    const moreThanOneRuntime = newestRuntimeConnection.edges.length > 1;
-    Log.log(`✅ ${beginSentence(this.printedType)}${moreThanOneRuntime ? 's' : ''} detected`);
+    const onlyOneRuntime =
+      newestRuntimeConnection.edges.length === 1 && !newestRuntimeConnection.pageInfo.hasNextPage;
+    Log.log(`✅ ${beginSentence(this.printedType)}${onlyOneRuntime ? '' : 's'} detected`);
 
-    if (!moreThanOneRuntime) {
+    if (onlyOneRuntime) {
       const runtime = newestRuntimeConnection.edges[0].node;
       const formattedRuntimeWithGroup = await this.displayLatestUpdateGroupAsync({
         graphqlClient,
@@ -111,20 +112,15 @@ export class SelectRuntime implements EASUpdateAction<string | null> {
       branchName: string;
       anotherBranchIdToIntersectRuntimesBy?: string;
     }
-  ): Promise<Connection<RuntimeFragment> | null> {
-    const connection = await RuntimeQuery.getRuntimesOnBranchAsync(graphqlClient, {
+  ): Promise<Connection<RuntimeFragment>> {
+    return await RuntimeQuery.getRuntimesOnBranchAsync(graphqlClient, {
       appId,
       name: branchName,
-      first: 2,
+      first: 1,
       filter: {
         branchId: anotherBranchIdToIntersectRuntimesBy,
       },
     });
-    const { edges } = connection;
-    if (edges.length === 0) {
-      return null;
-    }
-    return connection;
   }
 
   async displayLatestUpdateGroupAsync({
