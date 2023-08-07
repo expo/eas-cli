@@ -1,3 +1,4 @@
+import { Updates } from '@expo/config-plugins';
 import assert from 'assert';
 
 import { SelectBranch } from '../../branch/actions/SelectBranch';
@@ -18,7 +19,8 @@ import {
 } from '../../graphql/queries/ChannelQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
-import { confirmAsync } from '../../prompts';
+import { confirmAsync, promptAsync } from '../../prompts';
+import { truthy } from '../../utils/expodash/filter';
 import {
   composeRollout,
   createRolloutBranchMapping,
@@ -196,10 +198,96 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
       channelName: this.channelInfo.name,
     });
     const defaultBranchRtvAgnostic = getUpdateBranch(channelObjectRtvAgnostic, defaultBranchId);
-    const selectRuntimeAction = new SelectRuntime(branchToRollout, {
+    const selectSharedRuntimeAction = new SelectRuntime(branchToRollout, {
       anotherBranchToIntersectRuntimesBy: defaultBranchRtvAgnostic,
     });
-    return await selectRuntimeAction.runAsync(ctx);
+    const sharedRuntime = await selectSharedRuntimeAction.runAsync(ctx);
+    if (sharedRuntime) {
+      return sharedRuntime;
+    }
+
+    return await this.selectRuntimeVersionFromAlternativeSourceAsync(
+      ctx,
+      branchToRollout,
+      defaultBranchRtvAgnostic
+    );
+  }
+
+  async selectRuntimeVersionFromAlternativeSourceAsync(
+    ctx: EASUpdateContext,
+    branchToRollout: UpdateBranchBasicInfoFragment,
+    defaultBranch: UpdateBranchBasicInfoFragment
+  ): Promise<string> {
+    const { runtimeSource: selectedRuntimeSource } = await promptAsync({
+      type: 'select',
+      name: 'runtimeSource',
+      message: `What would you like to do?`,
+      choices: [
+        {
+          value: 'DEFAULT_BRANCH_RUNTIME',
+          title: `Find a runtime supported on the ${defaultBranch.name} branch`,
+        },
+        {
+          value: 'ROLLED_OUT_BRANCH_RUNTIME',
+          title: `Find a runtime supported on the ${branchToRollout.name} branch`,
+        },
+        {
+          value: 'PROJECT_RUNTIME',
+          title: 'Use the runtime specified in your project config',
+        },
+      ],
+    });
+    if (selectedRuntimeSource === 'DEFAULT_BRANCH_RUNTIME') {
+      const selectDefaultBranchRuntimeAction = new SelectRuntime(defaultBranch);
+      const defaultBranchRuntime = await selectDefaultBranchRuntimeAction.runAsync(ctx);
+      if (defaultBranchRuntime) {
+        return defaultBranchRuntime;
+      }
+    } else if (selectedRuntimeSource === 'ROLLED_OUT_BRANCH_RUNTIME') {
+      const selectBranchToRolloutRuntimeAction = new SelectRuntime(branchToRollout);
+      const branchToRolloutRuntime = await selectBranchToRolloutRuntimeAction.runAsync(ctx);
+      if (branchToRolloutRuntime) {
+        return branchToRolloutRuntime;
+      }
+    } else if (selectedRuntimeSource === 'PROJECT_RUNTIME') {
+      return await this.selectRuntimeVersionFromProjectConfigAsync(ctx);
+    } else {
+      throw new Error(`Unexpected runtime source: ${selectedRuntimeSource}`);
+    }
+    return await this.selectRuntimeVersionFromAlternativeSourceAsync(
+      ctx,
+      branchToRollout,
+      defaultBranch
+    );
+  }
+
+  async selectRuntimeVersionFromProjectConfigAsync(ctx: EASUpdateContext): Promise<string> {
+    const platforms: ('ios' | 'android')[] = ['ios', 'android'];
+    const runtimes = platforms
+      .map(platform => Updates.getRuntimeVersion(ctx.app.exp, platform))
+      .filter(truthy);
+    const dedupedRuntimes = [...new Set(runtimes)];
+
+    if (dedupedRuntimes.length === 0) {
+      throw new Error(
+        `Your project config doesn't specify a runtime. Ensure your project is configured correctly for EAS Update by running \`eas update:configure\``
+      );
+    } else if (dedupedRuntimes.length === 1) {
+      const runtime = dedupedRuntimes[0];
+      Log.log(`🔧 Your project config currently supports runtime ${runtime}`);
+      return runtime;
+    }
+
+    const { runtime: selectedRuntime } = await promptAsync({
+      type: 'select',
+      name: 'runtime',
+      message: `Select a runtime supported by your project config`,
+      choices: runtimes.map((runtime, index) => ({
+        title: `${runtime} ${index === 0 ? '[iOS runtime]' : '[Android runtime]'}`,
+        value: runtime,
+      })),
+    });
+    return selectedRuntime;
   }
 
   async selectBranchAsync(
@@ -214,7 +302,10 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     });
     const branchInfo = await selectBranchAction.runAsync(ctx);
     if (!branchInfo) {
-      throw new Error(`You dont have any branches. Create one with 'eas branch:create'`);
+      // We know the user has at least one branch, since we have `defaultBranchId`
+      throw new Error(
+        `You don't have a second branch to roll out. Create it with 'eas branch:create'`
+      );
     }
     return branchInfo;
   }
