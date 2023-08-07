@@ -7,21 +7,14 @@ import { RuntimeFragment, UpdateBranchBasicInfoFragment } from '../../graphql/ge
 import { RuntimeQuery } from '../../graphql/queries/RuntimeQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore } from '../../log';
-import { confirmAsync, promptAsync } from '../../prompts';
+import { confirmAsync } from '../../prompts';
 import { Connection, QueryParams, selectPaginatedAsync } from '../../utils/relay';
 import { formatRuntimeWithUpdateGroup } from '../utils';
-
-function beginSentence(phrase: string): string {
-  if (typeof phrase !== 'string' || phrase.length === 0) {
-    return phrase; // Return the input without any modification if it's not a string or empty
-  }
-  return phrase.charAt(0).toUpperCase() + phrase.slice(1);
-}
 
 /**
  * Select a runtime from a branch
  */
-export class SelectRuntime implements EASUpdateAction<string> {
+export class SelectRuntime implements EASUpdateAction<string | null> {
   private printedType;
   constructor(
     private branchInfo: UpdateBranchBasicInfoFragment,
@@ -55,7 +48,7 @@ export class SelectRuntime implements EASUpdateAction<string> {
     )}`;
   }
 
-  public async runAsync(ctx: EASUpdateContext): Promise<string> {
+  public async runAsync(ctx: EASUpdateContext): Promise<string | null> {
     const { nonInteractive, graphqlClient, app } = ctx;
     const { projectId } = app;
     if (nonInteractive) {
@@ -68,16 +61,17 @@ export class SelectRuntime implements EASUpdateAction<string> {
       anotherBranchIdToIntersectRuntimesBy: this.options.anotherBranchToIntersectRuntimesBy?.id,
     });
 
-    if (!newestRuntimeConnection) {
+    if (newestRuntimeConnection.edges.length === 0) {
       Log.addNewLineIfNone();
       this.warnNoRuntime();
-      return await this.promptForRuntimeAsync();
+      return null;
     }
 
-    const moreThanOneRuntime = newestRuntimeConnection.edges.length > 1;
-    Log.log(`✅ ${beginSentence(this.printedType)}${moreThanOneRuntime ? 's' : ''} detected`);
+    const onlyOneRuntime =
+      newestRuntimeConnection.edges.length === 1 && !newestRuntimeConnection.pageInfo.hasNextPage;
+    Log.log(`✅ ${beginSentence(this.printedType)}${onlyOneRuntime ? '' : 's'} detected`);
 
-    if (!moreThanOneRuntime) {
+    if (onlyOneRuntime) {
       const runtime = newestRuntimeConnection.edges[0].node;
       const formattedRuntimeWithGroup = await this.displayLatestUpdateGroupAsync({
         graphqlClient,
@@ -96,15 +90,13 @@ export class SelectRuntime implements EASUpdateAction<string> {
       } else {
         Log.newLine();
         Log.warn(this.formatCantFindRuntime());
-        return await this.promptForRuntimeAsync();
+        return null;
       }
     }
 
     Log.log(this.formatCantFindRuntime());
     const selectedRuntime = await this.selectRuntimesAsync(graphqlClient, {
       appId: projectId,
-      branchName: this.branchInfo.name,
-      anotherBranchIdToIntersectRuntimesBy: this.options.anotherBranchToIntersectRuntimesBy?.id,
     });
     if (!selectedRuntime) {
       throw new Error(`No ${this.printedType} selected`);
@@ -123,8 +115,8 @@ export class SelectRuntime implements EASUpdateAction<string> {
       branchName: string;
       anotherBranchIdToIntersectRuntimesBy?: string;
     }
-  ): Promise<Connection<RuntimeFragment> | null> {
-    const connection = await RuntimeQuery.getRuntimesOnBranchAsync(graphqlClient, {
+  ): Promise<Connection<RuntimeFragment>> {
+    return await RuntimeQuery.getRuntimesOnBranchAsync(graphqlClient, {
       appId,
       name: branchName,
       first: 1,
@@ -132,11 +124,6 @@ export class SelectRuntime implements EASUpdateAction<string> {
         branchId: anotherBranchIdToIntersectRuntimesBy,
       },
     });
-    const { edges } = connection;
-    if (edges.length === 0) {
-      return null;
-    }
-    return connection;
   }
 
   async displayLatestUpdateGroupAsync({
@@ -170,26 +157,22 @@ export class SelectRuntime implements EASUpdateAction<string> {
     graphqlClient: ExpoGraphqlClient,
     {
       appId,
-      branchName,
-      anotherBranchIdToIntersectRuntimesBy,
       batchSize = 5,
     }: {
       appId: string;
-      branchName: string;
-      anotherBranchIdToIntersectRuntimesBy?: string;
       batchSize?: number;
     }
   ): Promise<RuntimeFragment | null> {
     const queryAsync = async (queryParams: QueryParams): Promise<Connection<RuntimeFragment>> => {
       return await RuntimeQuery.getRuntimesOnBranchAsync(graphqlClient, {
         appId,
-        name: branchName,
+        name: this.branchInfo.name,
         first: queryParams.first,
         after: queryParams.after,
         last: queryParams.last,
         before: queryParams.before,
         filter: {
-          branchId: anotherBranchIdToIntersectRuntimesBy,
+          branchId: this.options.anotherBranchToIntersectRuntimesBy?.id,
         },
       });
     };
@@ -197,7 +180,7 @@ export class SelectRuntime implements EASUpdateAction<string> {
       return await this.displayLatestUpdateGroupAsync({
         graphqlClient,
         appId,
-        branchName,
+        branchName: this.branchInfo.name,
         runtime,
       });
     };
@@ -208,15 +191,11 @@ export class SelectRuntime implements EASUpdateAction<string> {
       pageSize: batchSize,
     });
   }
+}
 
-  async promptForRuntimeAsync(): Promise<string> {
-    Log.log(`You can input a runtime manually then publish an update later.`);
-    const { runtimeVersion } = await promptAsync({
-      type: 'text',
-      name: 'runtimeVersion',
-      message: 'Input a runtime version:',
-      initial: '1.0.0',
-    });
-    return runtimeVersion;
+function beginSentence(phrase: string): string {
+  if (typeof phrase !== 'string' || phrase.length === 0) {
+    return phrase; // Return the input without any modification if it's not a string or empty
   }
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1);
 }

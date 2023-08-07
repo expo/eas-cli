@@ -67,7 +67,7 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     const rolledOutUpdateGroup = rolledOutBranch.updateGroups[0];
     let outcome: EndOutcome;
     if (!rolledOutUpdateGroup) {
-      Log.log(`⚠️  There is no update group being served on ${rolledOutBranch.name}.`);
+      Log.log(`⚠️  There is no update group being served on the ${rolledOutBranch.name} branch.`);
       assert(
         this.options.outcome !== EndOutcome.REPUBLISH_AND_REVERT,
         `The only valid outcome for this rollout is to revert users back to the ${rollout.defaultBranch.name} branch. `

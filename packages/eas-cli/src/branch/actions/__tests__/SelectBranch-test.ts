@@ -25,7 +25,7 @@ describe(SelectBranch, () => {
     const branch = await selectBranch.runAsync(ctx);
     expect(branch).toBeNull();
   });
-  it('returns the branch without prompting if project only one branch', async () => {
+  it('still prompts if project has only one branch', async () => {
     const ctx = createCtxMock();
     jest.mocked(BranchQuery.listBranchesBasicInfoPaginatedOnAppAsync).mockResolvedValue({
       edges: [{ node: testBasicBranchInfo, cursor: 'cursor' }],
@@ -34,9 +34,13 @@ describe(SelectBranch, () => {
         hasNextPage: false,
       },
     });
+    jest.mocked(promptAsync).mockImplementation(async () => ({
+      item: testBasicBranchInfo,
+    }));
     const selectBranch = new SelectBranch();
     const branch = await selectBranch.runAsync(ctx);
     expect(branch).toBe(testBasicBranchInfo);
+    expect(promptAsync).toHaveBeenCalledTimes(1);
   });
   it('returns the selected branch', async () => {
     jest.mocked(BranchQuery.listBranchesBasicInfoPaginatedOnAppAsync).mockResolvedValue({

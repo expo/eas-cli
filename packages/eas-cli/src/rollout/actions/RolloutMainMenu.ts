@@ -59,7 +59,7 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
       case MainMenuActions.CREATE_NEW: {
         const channelInfo = channelName
           ? await this.resolveChannelNameAsync(ctx, channelName)
-          : await this.selectChannelAsync(ctx, channelInfo => !isRollout(channelInfo));
+          : await this.selectChannelToRolloutAsync(ctx);
         await new CreateRollout(channelInfo, this.options).runAsync(ctx);
         return null;
       }
@@ -92,14 +92,22 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
     return channelInfo;
   }
 
-  async selectChannelAsync(
-    ctx: EASUpdateContext,
-    filterPredicate?: (channelInfo: UpdateChannelBasicInfoFragment) => boolean
+  async selectChannelToRolloutAsync(
+    ctx: EASUpdateContext
   ): Promise<UpdateChannelBasicInfoFragment> {
-    const selectChannelAction = new SelectChannel({ filterPredicate });
+    let hasSomeChannel = false;
+    const selectChannelAction = new SelectChannel({
+      filterPredicate: (channelInfo: UpdateChannelBasicInfoFragment) => {
+        hasSomeChannel = true;
+        return !isRollout(channelInfo);
+      },
+    });
     const channelInfo = await selectChannelAction.runAsync(ctx);
     if (!channelInfo) {
-      throw new Error(`You dont have any channels. Create one with \`eas channel:create\``);
+      const error = hasSomeChannel
+        ? new Error('All your channels are already part of a rollout.')
+        : new Error(`You dont have any channels. Create one with \`eas channel:create\``);
+      throw error;
     }
     return channelInfo;
   }
