@@ -6,6 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [4.0.0](https://github.com/expo/eas-cli/releases/tag/v4.0.0) - 2023-08-07
+
+### 🛠 Breaking changes
+
 - Release redesigned `eas channel:rollout` into developer preview. The set of flag arguments are different, in addition to the workflow. ([#1986](https://github.com/expo/eas-cli/pull/1986) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🎉 New features
