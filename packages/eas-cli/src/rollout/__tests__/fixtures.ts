@@ -68,3 +68,8 @@ export const standardBranchMapping: BranchMapping = {
   version: 0,
   data: [{ branchId: uuidv4(), branchMappingLogic: alwaysTrue() }],
 };
+
+export const emptyBranchMapping: BranchMapping = {
+  version: 0,
+  data: [],
+};

@@ -1,4 +1,8 @@
-import { rolloutBranchMapping, standardBranchMapping } from '../../rollout/__tests__/fixtures';
+import {
+  emptyBranchMapping,
+  rolloutBranchMapping,
+  standardBranchMapping,
+} from '../../rollout/__tests__/fixtures';
 import {
   BranchMappingValidationError,
   assertVersion,
@@ -6,6 +10,7 @@ import {
   getBranchMapping,
   getStandardBranchId,
   isAlwaysTrueBranchMapping,
+  isEmptyBranchMapping,
 } from '../branch-mapping';
 import { testChannelObject } from './fixtures';
 
@@ -19,10 +24,19 @@ describe(assertVersion, () => {
   });
 });
 
+describe(isEmptyBranchMapping, () => {
+  it('detects empty branch mappings', () => {
+    expect(isEmptyBranchMapping(emptyBranchMapping)).toBe(true);
+    expect(isEmptyBranchMapping(standardBranchMapping)).toBe(false);
+    expect(isEmptyBranchMapping(rolloutBranchMapping)).toBe(false);
+  });
+});
+
 describe(isAlwaysTrueBranchMapping, () => {
   it('detects always true branch mappings', () => {
     expect(isAlwaysTrueBranchMapping(standardBranchMapping)).toBe(true);
     expect(isAlwaysTrueBranchMapping(rolloutBranchMapping)).toBe(false);
+    expect(isAlwaysTrueBranchMapping(emptyBranchMapping)).toBe(false);
   });
 });
 

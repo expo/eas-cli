@@ -9,12 +9,12 @@ import {
   formatBranch,
   getUpdateGroupDescriptionsWithBranch,
 } from '../update/utils';
-import { assertVersion, hasStandardBranchMap } from './branch-mapping';
+import { assertVersion, hasEmptyBranchMap, hasStandardBranchMap } from './branch-mapping';
 
 export function logChannelDetails(channel: UpdateChannelObject): void {
   assertVersion(channel, 0);
   assert(
-    hasStandardBranchMap(channel) || isRollout(channel),
+    hasEmptyBranchMap(channel) || hasStandardBranchMap(channel) || isRollout(channel),
     'Only standard branch mappings and rollouts are supported.'
   );
 
