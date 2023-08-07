@@ -2,7 +2,11 @@ import { Updates } from '@expo/config-plugins';
 import assert from 'assert';
 
 import { SelectBranch } from '../../branch/actions/SelectBranch';
-import { getStandardBranchId, hasStandardBranchMap } from '../../channel/branch-mapping';
+import {
+  getStandardBranchId,
+  hasEmptyBranchMap,
+  hasStandardBranchMap,
+} from '../../channel/branch-mapping';
 import { getUpdateBranch } from '../../channel/utils';
 import { updateChannelBranchMappingAsync } from '../../commands/channel/edit';
 import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
@@ -70,6 +74,11 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     }
     if (isRollout(this.channelInfo)) {
       throw new Error(`A rollout is already in progress for channel ${this.channelInfo.name}`);
+    }
+    if (hasEmptyBranchMap(this.channelInfo)) {
+      throw new Error(
+        `Your channel needs to be linked to a branch before a rollout can be created. Do this by running 'eas channel:edit'`
+      );
     }
     if (!hasStandardBranchMap(this.channelInfo)) {
       throw new Error(

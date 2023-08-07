@@ -45,6 +45,11 @@ export type AlwaysTrueBranchMapping = {
   ];
 };
 
+export type EmptyBranchMapping = {
+  version: number;
+  data: [];
+};
+
 export function getAlwaysTrueBranchMapping(branchId: string): AlwaysTrueBranchMapping {
   return {
     version: 0,
@@ -57,6 +62,11 @@ export function getAlwaysTrueBranchMapping(branchId: string): AlwaysTrueBranchMa
   };
 }
 
+export function hasEmptyBranchMap(channelInfo: UpdateChannelBasicInfoFragment): boolean {
+  const branchMapping = getBranchMapping(channelInfo.branchMapping);
+  return isEmptyBranchMapping(branchMapping);
+}
+
 export function hasStandardBranchMap(channelInfo: UpdateChannelBasicInfoFragment): boolean {
   const branchMapping = getBranchMapping(channelInfo.branchMapping);
   return isAlwaysTrueBranchMapping(branchMapping);
@@ -66,6 +76,12 @@ export function getStandardBranchId(channelInfo: UpdateChannelBasicInfoFragment)
   const branchMapping = getBranchMapping(channelInfo.branchMapping);
   assertAlwaysTrueBranchMapping(branchMapping);
   return getBranchIdFromStandardMapping(branchMapping);
+}
+
+export function isEmptyBranchMapping(
+  branchMapping: BranchMapping
+): branchMapping is EmptyBranchMapping {
+  return branchMapping.data.length === 0;
 }
 
 export function isAlwaysTrueBranchMapping(
