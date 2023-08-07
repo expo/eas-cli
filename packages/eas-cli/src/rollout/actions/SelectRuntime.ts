@@ -40,8 +40,9 @@ export class SelectRuntime implements EASUpdateAction<string> {
       Log.warn(
         `⚠️  Branches ${this.branchInfo.name} and ${intersectBranchName} dont have any updates with the same runtime.`
       );
-      // TODO(quin): write a learn more
-      Log.warn(`Your updates could be misconfigured. ${learnMore('https://expo.fyi/todo')}`);
+      Log.warn(
+        `Your updates could be misconfigured. ${learnMore('https://expo.fyi/eas-update-rollouts')}`
+      );
     } else {
       // no runtime on branch means no updates published on branch
       Log.warn(`⚠️  There are no updates published on branch ${this.branchInfo.name}.`);
@@ -49,7 +50,9 @@ export class SelectRuntime implements EASUpdateAction<string> {
   }
 
   formatCantFindRuntime(): string {
-    return `🕵️ Not finding the update you were looking for? ${learnMore('https://expo.fyi/todo')}`;
+    return `🕵️ Not finding the update you were looking for? ${learnMore(
+      'https://expo.fyi/eas-update-rollouts'
+    )}`;
   }
 
   public async runAsync(ctx: EASUpdateContext): Promise<string> {
