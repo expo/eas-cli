@@ -25,7 +25,7 @@ describe(SelectRollout, () => {
     const rollout = await selectRollout.runAsync(ctx);
     expect(rollout).toBeNull();
   });
-  it('returns the rollout without prompting if project only one rollout', async () => {
+  it('still prompts if project has only one rollout', async () => {
     const ctx = createCtxMock();
     jest.mocked(ChannelQuery.viewUpdateChannelsBasicInfoPaginatedOnAppAsync).mockResolvedValue({
       edges: [{ node: testBasicChannelInfo, cursor: 'cursor' }],
@@ -34,9 +34,13 @@ describe(SelectRollout, () => {
         hasNextPage: false,
       },
     });
+    jest.mocked(promptAsync).mockImplementation(async () => ({
+      item: testBasicChannelInfo,
+    }));
     const selectRollout = new SelectRollout();
     const rollout = await selectRollout.runAsync(ctx);
     expect(rollout).toBe(testBasicChannelInfo);
+    expect(promptAsync).toHaveBeenCalledTimes(1);
   });
   it('returns the selected rollout', async () => {
     jest.mocked(ChannelQuery.viewUpdateChannelsBasicInfoPaginatedOnAppAsync).mockResolvedValue({

@@ -25,7 +25,7 @@ describe(SelectChannel, () => {
     const channel = await selectChannel.runAsync(ctx);
     expect(channel).toBeNull();
   });
-  it('returns the channel without prompting if project only one channel', async () => {
+  it('still prompts if project has only one channel', async () => {
     const ctx = createCtxMock();
     jest.mocked(ChannelQuery.viewUpdateChannelsBasicInfoPaginatedOnAppAsync).mockResolvedValue({
       edges: [{ node: testBasicChannelInfo, cursor: 'cursor' }],
@@ -34,9 +34,13 @@ describe(SelectChannel, () => {
         hasNextPage: false,
       },
     });
+    jest.mocked(promptAsync).mockImplementation(async () => ({
+      item: testBasicChannelInfo,
+    }));
     const selectChannel = new SelectChannel();
     const channel = await selectChannel.runAsync(ctx);
     expect(channel).toBe(testBasicChannelInfo);
+    expect(promptAsync).toHaveBeenCalledTimes(1);
   });
   it('returns the selected channel', async () => {
     jest.mocked(ChannelQuery.viewUpdateChannelsBasicInfoPaginatedOnAppAsync).mockResolvedValue({

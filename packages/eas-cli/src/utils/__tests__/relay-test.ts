@@ -627,11 +627,15 @@ describe(selectPaginatedAsync, () => {
     expect(queryAsync).toHaveBeenCalledWith({ first: pageSize });
   });
 
-  test('returns the only item when there is only one', async () => {
+  test('still prompts if there is only one item avaiable', async () => {
     const node = { id: '1', name: 'Node 1' };
     queryAsync.mockResolvedValueOnce({
       edges: [{ node }],
+      pageInfo: { hasNextPage: false },
     });
+    jest.mocked(promptAsync).mockImplementation(async () => ({
+      item: node,
+    }));
 
     const result = await selectPaginatedAsync({
       queryAsync,
@@ -644,6 +648,7 @@ describe(selectPaginatedAsync, () => {
     expect(queryAsync).toHaveBeenCalledWith({
       first: pageSize,
     });
+    expect(promptAsync).toBeCalledTimes(1);
   });
 
   test('prompts for selection when there are multiple items', async () => {
@@ -676,15 +681,6 @@ describe(selectPaginatedAsync, () => {
     const node1 = { id: '1', name: 'Node 1' };
     const node2 = { id: '2', name: 'Node 2' };
     const node3 = { id: '3', name: 'Node 3' };
-
-    // for preflight
-    queryAsync.mockResolvedValueOnce({
-      edges: [{ node: node1 }, { node: node2 }],
-      pageInfo: {
-        endCursor: 'endCursor',
-        hasNextPage: true,
-      },
-    });
 
     queryAsync.mockResolvedValueOnce({
       edges: [{ node: node1 }, { node: node2 }],
@@ -738,15 +734,6 @@ describe(selectPaginatedAsync, () => {
     const node1 = { id: '1', name: 'Node 1' };
     const node2 = { id: '2', name: 'Node 2' };
     const node3 = { id: '3', name: 'Node 3' };
-
-    // for preflight
-    queryAsync.mockResolvedValueOnce({
-      edges: [{ node: node1 }, { node: node2 }],
-      pageInfo: {
-        endCursor: 'endCursor',
-        hasNextPage: true,
-      },
-    });
 
     queryAsync.mockResolvedValueOnce({
       edges: [{ node: node1 }, { node: node2 }],
