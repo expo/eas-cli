@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix rollout-preview ending with republish with code signing. ([#1978](https://github.com/expo/eas-cli/pull/1978) by [@wschurman](https://github.com/wschurman))
+- Rollouts: fix fp precision. ([#1985](https://github.com/expo/eas-cli/pull/1985) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🧹 Chores
 
