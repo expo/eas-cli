@@ -19,6 +19,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Fixing more grammar errors. ([#1980](https://github.com/expo/eas-cli/pull/1980) by [@quinlanj](https://github.com/quinlanj))
 - Handle rollout edit edge case. ([#1981](https://github.com/expo/eas-cli/pull/1981) by [@quinlanj](https://github.com/quinlanj))
+- Linked expo.fyi rollout article. ([#1991](https://github.com/expo/eas-cli/pull/1991) by [@quinlanj](https://github.com/quinlanj))
 - Rollout ux improvements. ([#1984](https://github.com/expo/eas-cli/pull/1984) by [@quinlanj](https://github.com/quinlanj))
 
 ## [3.18.3](https://github.com/expo/eas-cli/releases/tag/v3.18.3) - 2023-08-03
