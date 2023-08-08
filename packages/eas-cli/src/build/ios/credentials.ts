@@ -55,6 +55,5 @@ export async function ensureIosCredentialsForBuildResignAsync(
 }
 
 function shouldProvideCredentials(buildCtx: BuildContext<Platform.IOS>): boolean {
-  const isCustomBuild = buildCtx.buildProfile.config !== undefined;
-  return !buildCtx.buildProfile.simulator && !isCustomBuild;
+  return !buildCtx.buildProfile.simulator;
 }
