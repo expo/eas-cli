@@ -16,19 +16,23 @@ import {
   isAndStatement,
   isStatement,
 } from '../channel/branch-mapping';
-import { getUpdateBranch } from '../channel/utils';
-import { UpdateChannelBasicInfoFragment } from '../graphql/generated';
-import { UpdateBranchObject, UpdateChannelObject } from '../graphql/queries/ChannelQuery';
+import { UpdateChannelInfoWithBranches, getUpdateBranch } from '../channel/utils';
+import {
+  UpdateBranchBasicInfoFragment,
+  UpdateChannelBasicInfoFragment,
+} from '../graphql/generated';
 
-export type Rollout = LegacyRollout | ConstrainedRollout;
+export type Rollout<Branch extends UpdateBranchBasicInfoFragment> =
+  | LegacyRollout<Branch>
+  | ConstrainedRollout<Branch>;
 export type RolloutInfo = LegacyRolloutInfo | ConstrainedRolloutInfo;
-type ConstrainedRollout = LegacyRollout & {
+type ConstrainedRollout<Branch extends UpdateBranchBasicInfoFragment> = LegacyRollout<Branch> & {
   runtimeVersion: string;
 };
 
-type LegacyRollout = {
-  rolledOutBranch: UpdateBranchObject;
-  defaultBranch: UpdateBranchObject;
+type LegacyRollout<Branch extends UpdateBranchBasicInfoFragment> = {
+  rolledOutBranch: Branch;
+  defaultBranch: Branch;
 } & LegacyRolloutInfo;
 
 type ConstrainedRolloutInfo = LegacyRolloutInfo & {
@@ -95,7 +99,9 @@ export function isConstrainedRolloutInfo(rollout: RolloutInfo): rollout is Const
   return 'runtimeVersion' in rollout;
 }
 
-export function isConstrainedRollout(rollout: Rollout): rollout is ConstrainedRollout {
+export function isConstrainedRollout<Branch extends UpdateBranchBasicInfoFragment>(
+  rollout: Rollout<Branch>
+): rollout is ConstrainedRollout<Branch> {
   return isConstrainedRolloutInfo(rollout);
 }
 
@@ -143,21 +149,23 @@ export function getRolloutInfoFromBranchMapping(branchMapping: RolloutBranchMapp
   }
 }
 
-export function getRollout(channel: UpdateChannelObject): Rollout {
+export function getRollout<Branch extends UpdateBranchBasicInfoFragment>(
+  channel: UpdateChannelInfoWithBranches<Branch>
+): Rollout<Branch> {
   const rolloutBranchMapping = getRolloutBranchMapping(channel.branchMapping);
   const rolledOutBranchId = rolloutBranchMapping.data[0].branchId;
   const rolledOutBranch = getUpdateBranch(channel, rolledOutBranchId);
   const defaultBranchId = rolloutBranchMapping.data[1].branchId;
   const defaultBranch = getUpdateBranch(channel, defaultBranchId);
   const rolloutInfo = getRolloutInfo(channel);
-  return composeRollout(rolloutInfo, defaultBranch, rolledOutBranch);
+  return composeRollout<Branch>(rolloutInfo, defaultBranch, rolledOutBranch);
 }
 
-export function composeRollout(
+export function composeRollout<Branch extends UpdateBranchBasicInfoFragment>(
   rolloutInfo: RolloutInfo,
-  defaultBranch: UpdateBranchObject,
-  rolledOutBranch: UpdateBranchObject
-): Rollout {
+  defaultBranch: Branch,
+  rolledOutBranch: Branch
+): Rollout<Branch> {
   if (rolloutInfo.defaultBranchId !== defaultBranch.id) {
     throw new BranchMappingValidationError(
       `Default branch id must match. Received: ${JSON.stringify(rolloutInfo)} ${defaultBranch.id}`

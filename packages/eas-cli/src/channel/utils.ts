@@ -1,18 +1,26 @@
-import { UpdateBranchObject, UpdateChannelObject } from '../graphql/queries/ChannelQuery';
+import {
+  UpdateBranchBasicInfoFragment,
+  UpdateChannelBasicInfoFragment,
+} from '../graphql/generated';
 
-function getUpdateBranchNullable(
-  channel: UpdateChannelObject,
+export type UpdateChannelInfoWithBranches<Branch extends UpdateBranchBasicInfoFragment> =
+  UpdateChannelBasicInfoFragment & {
+    updateBranches: Branch[];
+  };
+
+function getUpdateBranchNullable<Branch extends UpdateBranchBasicInfoFragment>(
+  channel: UpdateChannelInfoWithBranches<Branch>,
   branchId: string
-): UpdateBranchObject | null {
+): Branch | null {
   const updateBranches = channel.updateBranches;
   const updateBranch = updateBranches.find(branch => branch.id === branchId);
   return updateBranch ?? null;
 }
 
-export function getUpdateBranch(
-  channel: UpdateChannelObject,
+export function getUpdateBranch<Branch extends UpdateBranchBasicInfoFragment>(
+  channel: UpdateChannelInfoWithBranches<Branch>,
   branchId: string
-): UpdateBranchObject {
+): Branch {
   const updateBranch = getUpdateBranchNullable(channel, branchId);
   if (!updateBranch) {
     throw new Error(
