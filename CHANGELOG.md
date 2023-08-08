@@ -8,12 +8,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Pass credentials to custom iOS builds. ([#1989](https://github.com/expo/eas-cli/pull/1989) by [@szdziedzic](https://github.com/szdziedzic))
-- Add the `withoutCredentials` option as a common build profile field in `eas.json`. ([#1994](https://github.com/expo/eas-cli/pull/1994) by [@szdziedzic](https://github.com/szdziedzic))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [4.1.0](https://github.com/expo/eas-cli/releases/tag/v4.1.0) - 2023-08-08
+
+### 🎉 New features
+
+- Pass credentials to custom iOS builds. ([#1989](https://github.com/expo/eas-cli/pull/1989) by [@szdziedzic](https://github.com/szdziedzic))
+- Add the `withoutCredentials` option as a common build profile field in `eas.json`. ([#1994](https://github.com/expo/eas-cli/pull/1994) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [4.0.1](https://github.com/expo/eas-cli/releases/tag/v4.0.1) - 2023-08-08
 
