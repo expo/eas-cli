@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix `eas channel:*` to work with empty branch mappings. ([#1992](https://github.com/expo/eas-cli/pull/1992) by [@quinlanj](https://github.com/quinlanj))
-
 ### 🧹 Chores
+
+## [4.0.1](https://github.com/expo/eas-cli/releases/tag/v4.0.1) - 2023-08-08
+
+### 🐛 Bug fixes
+
+- Fix `eas channel:*` to work with empty branch mappings. ([#1992](https://github.com/expo/eas-cli/pull/1992) by [@quinlanj](https://github.com/quinlanj))
 
 ## [4.0.0](https://github.com/expo/eas-cli/releases/tag/v4.0.0) - 2023-08-07
 
