@@ -25,9 +25,11 @@ const CacheSchema = Joi.object({
   cacheDefaultPaths: Joi.boolean(),
   customPaths: Joi.array().items(Joi.string()),
   paths: Joi.array().items(Joi.string()),
-}).rename('customPaths', 'paths')
+})
+  .rename('customPaths', 'paths')
   .messages({
-    'object.rename.override': 'Cannot provide both "cache.customPaths" and "cache.paths" - use "cache.paths"'
+    'object.rename.override':
+      'Cannot provide both "cache.customPaths" and "cache.paths" - use "cache.paths"',
   });
 
 const CommonBuildProfileSchema = Joi.object({
@@ -63,6 +65,9 @@ const CommonBuildProfileSchema = Joi.object({
 
   // custom build configuration
   config: Joi.string(),
+
+  // credentials
+  withoutCredentials: Joi.boolean(),
 });
 
 const PlatformBuildProfileSchema = CommonBuildProfileSchema.concat(
@@ -83,9 +88,6 @@ const AndroidBuildProfileSchema = PlatformBuildProfileSchema.concat(
 
     // build environment
     ndk: Joi.string().empty(null).custom(semverCheck),
-
-    // credentials
-    withoutCredentials: Joi.boolean(),
 
     // build configuration
     gradleCommand: Joi.string(),

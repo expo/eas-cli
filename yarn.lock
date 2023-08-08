@@ -1576,10 +1576,10 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.31":
-  version "1.0.31"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.31.tgz#61e0456e54bc63bd714aa40b9be27503c032caf0"
-  integrity sha512-TPuaihUQ9MfVmgG5OzFdMKXcBAgv1dfLZWGpk/k5hWBjPZAoe01UXbw8GCt6F09tS2Z256d2G/kOTJzISLNcjQ==
+"@expo/steps@1.0.34":
+  version "1.0.34"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.34.tgz#ba2f27a9d3e163b2d0fe6ef7775b237f7d18a286"
+  integrity sha512-jQoxeMWWl2mUwLGyiUD38z/FNao2jbDP8Tjvkr/YAfIOHaro36E3Vmn1YsKTYmtc41TGcFdCzqly95faRNrhvQ==
   dependencies:
     "@expo/logger" "1.0.30"
     "@expo/spawn-async" "^1.7.2"

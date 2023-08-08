@@ -100,6 +100,105 @@ test('valid eas.json for development client builds', async () => {
   });
 });
 
+test('valid eas.json with top level withoutCredentials property', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {},
+      debug: {
+        developmentClient: true,
+        withoutCredentials: true,
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'debug');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'debug'
+  );
+  expect(androidProfile).toEqual({
+    credentialsSource: 'remote',
+    distribution: 'store',
+    developmentClient: true,
+    withoutCredentials: true,
+  });
+
+  expect(iosProfile).toEqual({
+    credentialsSource: 'remote',
+    distribution: 'store',
+    developmentClient: true,
+    withoutCredentials: true,
+  });
+});
+
+test('valid eas.json with iOS withoutCredentials property', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {},
+      debug: {
+        developmentClient: true,
+        ios: { withoutCredentials: true },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'debug');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'debug'
+  );
+  expect(androidProfile).toEqual({
+    credentialsSource: 'remote',
+    distribution: 'store',
+    developmentClient: true,
+  });
+
+  expect(iosProfile).toEqual({
+    credentialsSource: 'remote',
+    distribution: 'store',
+    developmentClient: true,
+    withoutCredentials: true,
+  });
+});
+
+test('valid eas.json with top level and platform-sepcific withoutCredentials property', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {},
+      debug: {
+        developmentClient: true,
+        withoutCredentials: true,
+        ios: { withoutCredentials: false },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'debug');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'debug'
+  );
+  expect(androidProfile).toEqual({
+    credentialsSource: 'remote',
+    distribution: 'store',
+    developmentClient: true,
+    withoutCredentials: true,
+  });
+
+  expect(iosProfile).toEqual({
+    credentialsSource: 'remote',
+    distribution: 'store',
+    developmentClient: true,
+    withoutCredentials: false,
+  });
+});
+
 test(`valid eas.json with autoIncrement flag at build profile root`, async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
