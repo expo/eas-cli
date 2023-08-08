@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Make branch mapping utility files have no dependencies. ([#1993](https://github.com/expo/eas-cli/pull/1993) by [@quinlanj](https://github.com/quinlanj))
+
 ## [4.0.0](https://github.com/expo/eas-cli/releases/tag/v4.0.0) - 2023-08-07
 
 ### 🛠 Breaking changes
