@@ -1,14 +1,18 @@
-import {
-  UpdateBranchBasicInfoFragment,
-  UpdateChannelBasicInfoFragment,
-} from '../graphql/generated';
+export type ChannelBasicInfo = {
+  id: string;
+  name: string;
+  branchMapping: string;
+};
+export type BranchBasicInfo = {
+  id: string;
+  name: string;
+};
 
-export type UpdateChannelInfoWithBranches<Branch extends UpdateBranchBasicInfoFragment> =
-  UpdateChannelBasicInfoFragment & {
-    updateBranches: Branch[];
-  };
+export type UpdateChannelInfoWithBranches<Branch extends BranchBasicInfo> = ChannelBasicInfo & {
+  updateBranches: Branch[];
+};
 
-function getUpdateBranchNullable<Branch extends UpdateBranchBasicInfoFragment>(
+function getUpdateBranchNullable<Branch extends BranchBasicInfo>(
   channel: UpdateChannelInfoWithBranches<Branch>,
   branchId: string
 ): Branch | null {
@@ -17,7 +21,7 @@ function getUpdateBranchNullable<Branch extends UpdateBranchBasicInfoFragment>(
   return updateBranch ?? null;
 }
 
-export function getUpdateBranch<Branch extends UpdateBranchBasicInfoFragment>(
+export function getUpdateBranch<Branch extends BranchBasicInfo>(
   channel: UpdateChannelInfoWithBranches<Branch>,
   branchId: string
 ): Branch {

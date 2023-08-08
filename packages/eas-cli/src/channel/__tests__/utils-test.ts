@@ -1,11 +1,11 @@
 import { getUpdateBranch } from '../utils';
-import { testChannelObject, testUpdateBranch1 } from './fixtures';
+import { channelInfoWithBranches, testBasicBranchInfo1 } from './branch-mapping-fixtures';
 
 describe(getUpdateBranch, () => {
   it('gets the update branch', () => {
-    expect(getUpdateBranch(testChannelObject, '754bf17f-efc0-46ab-8a59-a03f20e53e9b')).toBe(
-      testUpdateBranch1
+    expect(getUpdateBranch(channelInfoWithBranches, '754bf17f-efc0-46ab-8a59-a03f20e53e9b')).toBe(
+      testBasicBranchInfo1
     );
-    expect(() => getUpdateBranch(testChannelObject, 'not-a-branch-ID')).toThrow();
+    expect(() => getUpdateBranch(channelInfoWithBranches, 'not-a-branch-ID')).toThrow();
   });
 });

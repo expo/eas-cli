@@ -1,10 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
 
 import {
-  testChannelObject,
-  testUpdateBranch1,
-  testUpdateBranch2,
-} from '../../channel/__tests__/fixtures';
+  channelInfoWithBranches,
+  testBasicBranchInfo1,
+  testBasicBranchInfo2,
+  testChannelBasicInfo,
+} from '../../channel/__tests__/branch-mapping-fixtures';
 import {
   BranchMappingOperator,
   BranchMappingValidationError,
@@ -34,16 +35,16 @@ import {
 
 describe(composeRollout, () => {
   it('composes a rollout', () => {
-    const rollout = getRollout(testChannelObject);
-    const rolloutInfo = getRolloutInfo(testChannelObject);
-    const composedRollout = composeRollout(rolloutInfo, testUpdateBranch2, testUpdateBranch1);
+    const rollout = getRollout(channelInfoWithBranches);
+    const rolloutInfo = getRolloutInfo(testChannelBasicInfo);
+    const composedRollout = composeRollout(rolloutInfo, testBasicBranchInfo2, testBasicBranchInfo1);
     expect(composedRollout).toEqual(rollout);
   });
   it('throws if the branches to not match the rollout info', () => {
-    const rolloutInfo = getRolloutInfo(testChannelObject);
-    expect(() => composeRollout(rolloutInfo, testUpdateBranch1, testUpdateBranch2)).toThrowError(
-      BranchMappingValidationError
-    );
+    const rolloutInfo = getRolloutInfo(testChannelBasicInfo);
+    expect(() =>
+      composeRollout(rolloutInfo, testBasicBranchInfo1, testBasicBranchInfo2)
+    ).toThrowError(BranchMappingValidationError);
   });
 });
 
@@ -119,33 +120,33 @@ describe(isConstrainedRollout, () => {
 
 describe(getRollout, () => {
   it('doesnt get the mapping if it isnt a rollout', () => {
-    const notRollout = { ...testChannelObject };
+    const notRollout = { ...channelInfoWithBranches };
     notRollout.branchMapping = JSON.stringify(standardBranchMapping);
     expect(() => getRollout(notRollout)).toThrowError();
   });
   it('gets a constrained rollout', () => {
-    const constrainedRollout = { ...testChannelObject };
+    const constrainedRollout = { ...channelInfoWithBranches };
     const rolloutBranchMappingWithCorrectBranch = { ...rolloutBranchMapping };
-    rolloutBranchMappingWithCorrectBranch.data[0].branchId = testUpdateBranch1.id;
-    rolloutBranchMappingWithCorrectBranch.data[1].branchId = testUpdateBranch2.id;
+    rolloutBranchMappingWithCorrectBranch.data[0].branchId = testBasicBranchInfo1.id;
+    rolloutBranchMappingWithCorrectBranch.data[1].branchId = testBasicBranchInfo2.id;
     constrainedRollout.branchMapping = JSON.stringify(rolloutBranchMapping);
 
     const rollout = getRollout(constrainedRollout);
     expect(rollout.percentRolledOut).toEqual(10);
     expect(isConstrainedRolloutInfo(rollout)).toBe(true);
-    expect(rollout.defaultBranch).toEqual(testUpdateBranch2);
-    expect(rollout.rolledOutBranch).toEqual(testUpdateBranch1);
-    expect(rollout.defaultBranchId).toEqual(testUpdateBranch2.id);
-    expect(rollout.rolledOutBranchId).toEqual(testUpdateBranch1.id);
+    expect(rollout.defaultBranch).toEqual(testBasicBranchInfo2);
+    expect(rollout.rolledOutBranch).toEqual(testBasicBranchInfo1);
+    expect(rollout.defaultBranchId).toEqual(testBasicBranchInfo2.id);
+    expect(rollout.rolledOutBranchId).toEqual(testBasicBranchInfo1.id);
   });
   it('gets a legacy rollout', () => {
-    const rollout = getRollout(testChannelObject);
+    const rollout = getRollout(channelInfoWithBranches);
     expect(rollout.percentRolledOut).toEqual(15);
     expect(isLegacyRolloutInfo(rollout)).toBe(true);
-    expect(rollout.defaultBranch).toEqual(testUpdateBranch2);
-    expect(rollout.rolledOutBranch).toEqual(testUpdateBranch1);
-    expect(rollout.defaultBranchId).toEqual(testUpdateBranch2.id);
-    expect(rollout.rolledOutBranchId).toEqual(testUpdateBranch1.id);
+    expect(rollout.defaultBranch).toEqual(testBasicBranchInfo2);
+    expect(rollout.rolledOutBranch).toEqual(testBasicBranchInfo1);
+    expect(rollout.defaultBranchId).toEqual(testBasicBranchInfo2.id);
+    expect(rollout.rolledOutBranchId).toEqual(testBasicBranchInfo1.id);
   });
 });
 

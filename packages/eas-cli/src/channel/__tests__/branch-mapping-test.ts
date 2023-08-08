@@ -12,15 +12,15 @@ import {
   isAlwaysTrueBranchMapping,
   isEmptyBranchMapping,
 } from '../branch-mapping';
-import { testChannelObject } from './fixtures';
+import { testChannelBasicInfo } from './branch-mapping-fixtures';
 
 describe(assertVersion, () => {
   it('throws if the branch mapping is not the correct version', () => {
-    expect(() => assertVersion(testChannelObject, 5)).toThrowError(BranchMappingValidationError);
+    expect(() => assertVersion(testChannelBasicInfo, 5)).toThrowError(BranchMappingValidationError);
   });
   it('asserts the correct version', () => {
-    assertVersion(testChannelObject, 0);
-    expect(getBranchMapping(testChannelObject.branchMapping).version).toBe(0);
+    assertVersion(testChannelBasicInfo, 0);
+    expect(getBranchMapping(testChannelBasicInfo.branchMapping).version).toBe(0);
   });
 });
 
@@ -49,10 +49,12 @@ describe(getAlwaysTrueBranchMapping, () => {
 
 describe(getStandardBranchId, () => {
   it('throws if the branch mapping is not a standard mapping', () => {
-    expect(() => getStandardBranchId(testChannelObject)).toThrowError(BranchMappingValidationError);
+    expect(() => getStandardBranchId(testChannelBasicInfo)).toThrowError(
+      BranchMappingValidationError
+    );
   });
   it('gets a standard branch id', () => {
-    const channelObjectWithStandardMapping = { ...testChannelObject };
+    const channelObjectWithStandardMapping = { ...testChannelBasicInfo };
     channelObjectWithStandardMapping.branchMapping = JSON.stringify(standardBranchMapping);
     expect(getStandardBranchId(channelObjectWithStandardMapping)).toBe(
       standardBranchMapping.data[0].branchId

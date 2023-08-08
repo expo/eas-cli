@@ -1,5 +1,3 @@
-import assert from 'assert';
-
 import {
   BranchMapping,
   BranchMappingAlwaysTrue,
@@ -16,21 +14,22 @@ import {
   isAndStatement,
   isStatement,
 } from '../channel/branch-mapping';
-import { UpdateChannelInfoWithBranches, getUpdateBranch } from '../channel/utils';
 import {
-  UpdateBranchBasicInfoFragment,
-  UpdateChannelBasicInfoFragment,
-} from '../graphql/generated';
+  BranchBasicInfo,
+  ChannelBasicInfo,
+  UpdateChannelInfoWithBranches,
+  getUpdateBranch,
+} from '../channel/utils';
 
-export type Rollout<Branch extends UpdateBranchBasicInfoFragment> =
+export type Rollout<Branch extends BranchBasicInfo> =
   | LegacyRollout<Branch>
   | ConstrainedRollout<Branch>;
 export type RolloutInfo = LegacyRolloutInfo | ConstrainedRolloutInfo;
-type ConstrainedRollout<Branch extends UpdateBranchBasicInfoFragment> = LegacyRollout<Branch> & {
+type ConstrainedRollout<Branch extends BranchBasicInfo> = LegacyRollout<Branch> & {
   runtimeVersion: string;
 };
 
-type LegacyRollout<Branch extends UpdateBranchBasicInfoFragment> = {
+type LegacyRollout<Branch extends BranchBasicInfo> = {
   rolledOutBranch: Branch;
   defaultBranch: Branch;
 } & LegacyRolloutInfo;
@@ -99,13 +98,13 @@ export function isConstrainedRolloutInfo(rollout: RolloutInfo): rollout is Const
   return 'runtimeVersion' in rollout;
 }
 
-export function isConstrainedRollout<Branch extends UpdateBranchBasicInfoFragment>(
+export function isConstrainedRollout<Branch extends BranchBasicInfo>(
   rollout: Rollout<Branch>
 ): rollout is ConstrainedRollout<Branch> {
   return isConstrainedRolloutInfo(rollout);
 }
 
-export function getRolloutInfo(basicChannelInfo: UpdateChannelBasicInfoFragment): RolloutInfo {
+export function getRolloutInfo(basicChannelInfo: ChannelBasicInfo): RolloutInfo {
   const rolloutBranchMapping = getRolloutBranchMapping(basicChannelInfo.branchMapping);
   return getRolloutInfoFromBranchMapping(rolloutBranchMapping);
 }
@@ -120,13 +119,18 @@ export function getRolloutInfoFromBranchMapping(branchMapping: RolloutBranchMapp
     const nodesFromStatement = getNodesFromStatement(statementNode);
 
     const runtimeVersionNode = nodesFromStatement.find(isRuntimeVersionNode);
-    assert(runtimeVersionNode, 'Runtime version node must be defined.');
+    if (!runtimeVersionNode) {
+      throw new BranchMappingValidationError('Runtime version node must be defined.');
+    }
+
     assertNodeObject(runtimeVersionNode);
     const runtimeVersion = runtimeVersionNode.operand;
     assertString(runtimeVersion);
 
     const rolloutNode = nodesFromStatement.find(isRolloutNode);
-    assert(rolloutNode, 'Rollout node must be defined.');
+    if (!rolloutNode) {
+      throw new BranchMappingValidationError('Rollout node must be defined.');
+    }
     assertNodeObject(rolloutNode);
     const operand = rolloutNode.operand;
     assertNumber(operand);
@@ -149,7 +153,7 @@ export function getRolloutInfoFromBranchMapping(branchMapping: RolloutBranchMapp
   }
 }
 
-export function getRollout<Branch extends UpdateBranchBasicInfoFragment>(
+export function getRollout<Branch extends BranchBasicInfo>(
   channel: UpdateChannelInfoWithBranches<Branch>
 ): Rollout<Branch> {
   const rolloutBranchMapping = getRolloutBranchMapping(channel.branchMapping);
@@ -161,7 +165,7 @@ export function getRollout<Branch extends UpdateBranchBasicInfoFragment>(
   return composeRollout<Branch>(rolloutInfo, defaultBranch, rolledOutBranch);
 }
 
-export function composeRollout<Branch extends UpdateBranchBasicInfoFragment>(
+export function composeRollout<Branch extends BranchBasicInfo>(
   rolloutInfo: RolloutInfo,
   defaultBranch: Branch,
   rolledOutBranch: Branch
@@ -248,7 +252,7 @@ export function isRolloutBranchMapping(
   return isUnconstrainedRollout(branchMapping) || isRtvConstrainedRollout(branchMapping);
 }
 
-export function isRollout(channelInfo: UpdateChannelBasicInfoFragment): boolean {
+export function isRollout(channelInfo: ChannelBasicInfo): boolean {
   const branchMapping = getBranchMapping(channelInfo.branchMapping);
   return isRolloutBranchMapping(branchMapping);
 }
@@ -310,7 +314,9 @@ function editRtvConstrainedRollout(
   const nodesFromStatement = getNodesFromStatement(statementNode);
 
   const rolloutNode = nodesFromStatement.find(isRolloutNode);
-  assert(rolloutNode, 'Rollout node must be defined.');
+  if (!rolloutNode) {
+    throw new BranchMappingValidationError('Rollout node must be defined.');
+  }
   rolloutNode.operand = percent / 100;
   return newBranchMapping;
 }
