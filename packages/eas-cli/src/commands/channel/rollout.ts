@@ -153,7 +153,7 @@ export default class ChannelRollout extends EasCommand {
     } else {
       Log.addNewLineIfNone();
       Log.warn(
-        `✨ This command is in Developer Preview and has not been released to production yet`
+        `✨ This command is in Developer Preview and has not been released to production yet. Website support is coming soon.`
       );
       Log.addNewLineIfNone();
       await new RolloutMainMenu(argsAndFlags).runAsync(ctx);

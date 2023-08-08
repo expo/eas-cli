@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Logger to say website support is coming soon for rollouts. ([#1997](https://github.com/expo/eas-cli/pull/1997) by [@quinlanj](https://github.com/quinlanj))
+
 ## [4.1.0](https://github.com/expo/eas-cli/releases/tag/v4.1.0) - 2023-08-08
 
 ### 🎉 New features
