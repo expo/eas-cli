@@ -91,6 +91,12 @@
       "type": "object",
       "description": "The build profile configuration.",
       "properties": {
+        "withoutCredentials": {
+          "type": "boolean",
+          "description": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when working with custom builds.",
+          "markdownDescription": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when working with custom builds.",
+          "default": false
+        },
         "extends": {
           "type": "string",
           "description": "The name of the build profile that the current one should inherit values from. This value can't be specified per platform."
@@ -208,8 +214,8 @@
       "properties": {
         "withoutCredentials": {
           "type": "boolean",
-          "description": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when you want to build debug binaries and the debug keystore is checked in to the repository.",
-          "markdownDescription": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when you want to build debug binaries and the debug keystore is checked in to the repository.",
+          "description": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when you want to build debug binaries and the debug keystore is checked in to the repository or working with custom builds.",
+          "markdownDescription": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when you want to build debug binaries and the debug keystore is checked in to the repository or working with custom builds.",
           "default": false
         },
         "image": {
@@ -301,6 +307,12 @@
       "type": "object",
       "description": "The iOS-specific build profile configuration.",
       "properties": {
+        "withoutCredentials": {
+          "type": "boolean",
+          "description": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when working with custom builds.",
+          "markdownDescription": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when working with custom builds.",
+          "default": false
+        },
         "simulator": {
           "type": "boolean",
           "description": "If set to true, creates build for simulator.",
