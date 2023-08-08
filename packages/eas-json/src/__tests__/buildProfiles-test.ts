@@ -188,6 +188,7 @@ test('valid eas.json with top level and platform-sepcific withoutCredentials pro
     credentialsSource: 'remote',
     distribution: 'store',
     developmentClient: true,
+    withoutCredentials: true,
   });
 
   expect(iosProfile).toEqual({
