@@ -1,4 +1,4 @@
-import { UpdateChannelBasicInfoFragment } from '../graphql/generated';
+import { ChannelBasicInfo } from './utils';
 
 // TODO(quin): move this into a common package with www
 export type BranchMappingOperator =
@@ -62,17 +62,17 @@ export function getAlwaysTrueBranchMapping(branchId: string): AlwaysTrueBranchMa
   };
 }
 
-export function hasEmptyBranchMap(channelInfo: UpdateChannelBasicInfoFragment): boolean {
+export function hasEmptyBranchMap(channelInfo: ChannelBasicInfo): boolean {
   const branchMapping = getBranchMapping(channelInfo.branchMapping);
   return isEmptyBranchMapping(branchMapping);
 }
 
-export function hasStandardBranchMap(channelInfo: UpdateChannelBasicInfoFragment): boolean {
+export function hasStandardBranchMap(channelInfo: ChannelBasicInfo): boolean {
   const branchMapping = getBranchMapping(channelInfo.branchMapping);
   return isAlwaysTrueBranchMapping(branchMapping);
 }
 
-export function getStandardBranchId(channelInfo: UpdateChannelBasicInfoFragment): string {
+export function getStandardBranchId(channelInfo: ChannelBasicInfo): string {
   const branchMapping = getBranchMapping(channelInfo.branchMapping);
   assertAlwaysTrueBranchMapping(branchMapping);
   return getBranchIdFromStandardMapping(branchMapping);
@@ -153,7 +153,7 @@ function isVersion(branchMapping: BranchMapping, version: number): boolean {
   return branchMapping.version === version;
 }
 
-export function assertVersion(channelInfo: UpdateChannelBasicInfoFragment, version: number): void {
+export function assertVersion(channelInfo: ChannelBasicInfo, version: number): void {
   const branchMapping = getBranchMapping(channelInfo.branchMapping);
   if (!isVersion(branchMapping, version)) {
     throw new BranchMappingValidationError(

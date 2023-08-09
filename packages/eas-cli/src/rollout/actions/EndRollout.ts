@@ -5,7 +5,11 @@ import { getAlwaysTrueBranchMapping } from '../../channel/branch-mapping';
 import { updateChannelBranchMappingAsync } from '../../commands/channel/edit';
 import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
 import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
-import { ChannelQuery, UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
+import {
+  ChannelQuery,
+  UpdateBranchObject,
+  UpdateChannelObject,
+} from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { republishAsync } from '../../update/republish';
@@ -103,7 +107,7 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     });
   }
 
-  async selectOutcomeAsync(rollout: Rollout): Promise<EndOutcome> {
+  async selectOutcomeAsync(rollout: Rollout<UpdateBranchObject>): Promise<EndOutcome> {
     const { rolledOutBranch, percentRolledOut, defaultBranch } = rollout;
     const rolledOutUpdateGroup = rolledOutBranch.updateGroups[0];
     const defaultUpdateGroup = defaultBranch.updateGroups[0];
@@ -142,7 +146,7 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
 
   async performOutcomeAsync(
     ctx: EASUpdateContext,
-    rollout: Rollout,
+    rollout: Rollout<UpdateBranchObject>,
     outcome: EndOutcome
   ): Promise<UpdateChannelBasicInfoFragment> {
     const { graphqlClient, app } = ctx;
@@ -184,7 +188,7 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
   async confirmOutcomeAsync(
     ctx: EASUpdateContext,
     selectedOutcome: EndOutcome,
-    rollout: Rollout
+    rollout: Rollout<UpdateBranchObject>
   ): Promise<boolean> {
     const { nonInteractive } = ctx;
     if (nonInteractive) {

@@ -1,6 +1,10 @@
 import chalk from 'chalk';
 
-import { RuntimeFragment, UpdateFragment } from '../graphql/generated';
+import {
+  RuntimeFragment,
+  UpdateBranchBasicInfoFragment,
+  UpdateFragment,
+} from '../graphql/generated';
 import { UpdateBranchObject, UpdateChannelObject } from '../graphql/queries/ChannelQuery';
 import Log from '../log';
 import { promptAsync } from '../prompts';
@@ -13,7 +17,10 @@ export function printRollout(channel: UpdateChannelObject): void {
   displayRolloutDetails(channel.name, rollout);
 }
 
-export function displayRolloutDetails(channelName: string, rollout: Rollout): void {
+export function displayRolloutDetails(
+  channelName: string,
+  rollout: Rollout<UpdateBranchBasicInfoFragment>
+): void {
   const rolledOutPercent = rollout.percentRolledOut;
   Log.newLine();
   Log.log(chalk.bold('🚀 Rollout:'));
