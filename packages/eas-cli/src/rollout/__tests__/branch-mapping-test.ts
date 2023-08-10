@@ -26,12 +26,24 @@ import {
   isConstrainedRolloutInfo,
   isLegacyRolloutInfo,
   isRolloutBranchMapping,
+  targetsRollout,
 } from '../branch-mapping';
 import {
   rolloutBranchMapping,
   rolloutBranchMappingLegacy,
   standardBranchMapping,
 } from './fixtures';
+
+describe(targetsRollout, () => {
+  it('detects whether a runtime targets a constrained rollout', () => {
+    expect(targetsRollout(rolloutBranchMapping, '1.0.0')).toBe(true);
+    expect(targetsRollout(rolloutBranchMapping, '2.0.0')).toBe(false);
+  });
+  it('should always return true if the rollout is unconstrained', () => {
+    expect(targetsRollout(rolloutBranchMappingLegacy, '1.0.0')).toBe(true);
+    expect(targetsRollout(rolloutBranchMappingLegacy, '2.0.0')).toBe(true);
+  });
+});
 
 describe(composeRollout, () => {
   it('composes a rollout', () => {

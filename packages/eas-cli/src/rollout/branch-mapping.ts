@@ -257,6 +257,17 @@ export function isRollout(channelInfo: ChannelBasicInfo): boolean {
   return isRolloutBranchMapping(branchMapping);
 }
 
+export function targetsRollout(
+  branchMapping: RolloutBranchMapping,
+  runtimeVersion: string
+): boolean {
+  const rolloutInfo = getRolloutInfoFromBranchMapping(branchMapping);
+  if (!isConstrainedRolloutInfo(rolloutInfo)) {
+    return true;
+  }
+  return rolloutInfo.runtimeVersion === runtimeVersion;
+}
+
 export function createRolloutBranchMapping({
   defaultBranchId,
   rolloutBranchId,
