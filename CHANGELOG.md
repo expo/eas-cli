@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Only export at most ios and android dist for EAS updates. ([#2002](https://github.com/expo/eas-cli/pull/2002) by [@wschurman](https://github.com/wschurman))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes
