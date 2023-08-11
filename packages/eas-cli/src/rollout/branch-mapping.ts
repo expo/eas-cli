@@ -257,7 +257,7 @@ export function isRollout(channelInfo: ChannelBasicInfo): boolean {
   return isRolloutBranchMapping(branchMapping);
 }
 
-export function targetsRollout(
+export function doesTargetRollout(
   branchMapping: RolloutBranchMapping,
   runtimeVersion: string
 ): boolean {

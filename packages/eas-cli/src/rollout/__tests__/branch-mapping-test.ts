@@ -18,6 +18,7 @@ import {
   assertRolloutBranchMapping,
   composeRollout,
   createRolloutBranchMapping,
+  doesTargetRollout,
   editRolloutBranchMapping,
   getRollout,
   getRolloutInfo,
@@ -26,7 +27,6 @@ import {
   isConstrainedRolloutInfo,
   isLegacyRolloutInfo,
   isRolloutBranchMapping,
-  targetsRollout,
 } from '../branch-mapping';
 import {
   rolloutBranchMapping,
@@ -34,14 +34,14 @@ import {
   standardBranchMapping,
 } from './fixtures';
 
-describe(targetsRollout, () => {
+describe(doesTargetRollout, () => {
   it('detects whether a runtime targets a constrained rollout', () => {
-    expect(targetsRollout(rolloutBranchMapping, '1.0.0')).toBe(true);
-    expect(targetsRollout(rolloutBranchMapping, '2.0.0')).toBe(false);
+    expect(doesTargetRollout(rolloutBranchMapping, '1.0.0')).toBe(true);
+    expect(doesTargetRollout(rolloutBranchMapping, '2.0.0')).toBe(false);
   });
   it('should always return true if the rollout is unconstrained', () => {
-    expect(targetsRollout(rolloutBranchMappingLegacy, '1.0.0')).toBe(true);
-    expect(targetsRollout(rolloutBranchMappingLegacy, '2.0.0')).toBe(true);
+    expect(doesTargetRollout(rolloutBranchMappingLegacy, '1.0.0')).toBe(true);
+    expect(doesTargetRollout(rolloutBranchMappingLegacy, '2.0.0')).toBe(true);
   });
 });
 
