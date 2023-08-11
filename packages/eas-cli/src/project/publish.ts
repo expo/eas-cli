@@ -193,6 +193,9 @@ export async function buildBundlesAsync({
     throw new Error('Could not locate package.json');
   }
 
+  const platformArgs =
+    platformFlag === 'all' ? ['--platform', 'ios', '--platform', 'android'] : [platformFlag];
+
   if (shouldUseVersionedExpoCLI(projectDir, exp)) {
     await expoCommandAsync(projectDir, [
       'export',
@@ -200,8 +203,7 @@ export async function buildBundlesAsync({
       inputDir,
       '--dump-sourcemap',
       '--dump-assetmap',
-      '--platform',
-      platformFlag,
+      ...platformArgs,
       ...(clearCache ? ['--clear'] : []),
     ]);
   } else {
@@ -214,8 +216,7 @@ export async function buildBundlesAsync({
       '--non-interactive',
       '--dump-sourcemap',
       '--dump-assetmap',
-      '--platform',
-      platformFlag,
+      ...platformArgs,
       ...(clearCache ? ['--clear'] : []),
     ]);
   }
