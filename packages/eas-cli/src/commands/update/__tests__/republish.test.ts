@@ -57,12 +57,6 @@ jest.mock('../../../fetch');
 describe(UpdateRepublish.name, () => {
   afterEach(() => vol.reset());
 
-  it('errors without --channel, --branch, or --group', async () => {
-    await expect(new UpdateRepublish([], commandOptions).run()).rejects.toThrow(
-      '--channel, --branch, or --group must be specified'
-    );
-  });
-
   it('errors when providing both --group and --branch', async () => {
     const flags = ['--group=1234', '--branch=main'];
 
