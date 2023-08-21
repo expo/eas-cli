@@ -96,6 +96,12 @@
       "type": "object",
       "description": "The build profile configuration.",
       "properties": {
+        "withoutCredentials": {
+          "type": "boolean",
+          "description": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when working with custom builds.",
+          "markdownDescription": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when working with custom builds.",
+          "default": false
+        },
         "extends": {
           "type": "string",
           "description": "The name of the build profile that the current one should inherit values from. This value can't be specified per platform."
@@ -233,8 +239,8 @@
       "properties": {
         "withoutCredentials": {
           "type": "boolean",
-          "description": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when you want to build debug binaries and the debug keystore is checked in to the repository.",
-          "markdownDescription": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when you want to build debug binaries and the debug keystore is checked in to the repository.",
+          "description": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when you want to build debug binaries and the debug keystore is checked in to the repository or working with custom builds.",
+          "markdownDescription": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when you want to build debug binaries and the debug keystore is checked in to the repository or working with custom builds.",
           "default": false
         },
         "image": {
@@ -338,6 +344,12 @@
       "type": "object",
       "description": "The iOS-specific build profile configuration.",
       "properties": {
+        "withoutCredentials": {
+          "type": "boolean",
+          "description": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when working with custom builds.",
+          "markdownDescription": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when working with custom builds.",
+          "default": false
+        },
         "simulator": {
           "type": "boolean",
           "description": "If set to true, creates build for simulator.",
@@ -408,12 +420,7 @@
           "default": "default",
           "anyOf": [
             {
-              "enum": [
-                "default",
-                "medium",
-                "large",
-                "m-medium"
-              ]
+              "enum": ["default", "medium", "large", "m-medium"]
             },
             {
               "type": "string"
@@ -523,6 +530,11 @@
             "The release's APKs will no longer be served to users. Users who already have these APKs are unaffected.",
             "The release will have no further changes. Its APKs are being served to all users, unless they are eligible to APKs of a more recent release."
           ]
+        },
+        "rollout": {
+          "type": "number",
+          "description": "The initial fraction of users who are eligible to receive the release. Should be a value from 0 (no users) to 1 (all users). Works only with 'inProgress' release status. Learn more: https://developers.google.com/android-publisher/api-ref/rest/v3/edits.tracks",
+          "markdownDescription": "The initial fraction of users who are eligible to receive the release. Should be a value from 0 (no users) to 1 (all users). Works only with `inProgress` release status. [Learn more](https://developers.google.com/android-publisher/api-ref/rest/v3/edits.tracks)"
         },
         "changesNotSentForReview": {
           "type": "boolean",

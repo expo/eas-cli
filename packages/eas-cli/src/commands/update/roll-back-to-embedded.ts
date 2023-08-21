@@ -86,7 +86,11 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     }),
     platform: Flags.enum({
       char: 'p',
-      options: [...defaultPublishPlatforms, 'all'],
+      options: [
+        // TODO: Add web when it's fully supported
+        ...defaultPublishPlatforms,
+        'all',
+      ],
       default: 'all',
       required: false,
     }),

@@ -12,10 +12,10 @@ import { Actor } from '../user/User';
 import DeviceCreateAction from './actions/create/action';
 import { DeviceManagerContext } from './context';
 
-const CREATE_COMMAND_DESCRIPTION = `This command lets you register your Apple devices (iPhones and iPads) for internal distribution of your app.
+const CREATE_COMMAND_DESCRIPTION = `This command lets you register your Apple devices (iPhones, iPads and Macs) for internal distribution of your app.
 Internal distribution means that you won't need to upload your app archive to App Store / Testflight.
-Your app archive (.ipa) will be installable on your equipment as long as you sign your application with an adhoc provisiong profile.
-The provisioning profile needs to contain the UDIDs (unique identifiers) of your iPhones and iPads.
+Your app archive (.ipa) will be installable on your equipment as long as you sign your application with an adhoc provisioning profile.
+The provisioning profile needs to contain the UDIDs (unique identifiers) of your iPhones, iPads and Macs.
 
 First of all, choose the Expo account under which you want to register your devices.
 Later, authenticate with Apple and choose your desired Apple Team (if your Apple ID has access to multiple teams).`;

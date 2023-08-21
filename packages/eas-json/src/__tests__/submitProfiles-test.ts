@@ -3,6 +3,8 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 
 import { EasJsonAccessor } from '../accessor';
+import { InvalidEasJsonError } from '../errors';
+import { AndroidReleaseStatus } from '../submit/types';
 import { EasJsonUtils } from '../utils';
 
 jest.mock('fs');
@@ -236,4 +238,158 @@ test('get profile names', async () => {
   const accessor = EasJsonAccessor.fromProjectPath('/project');
   const allProfileNames = await EasJsonUtils.getSubmitProfileNamesAsync(accessor);
   expect(allProfileNames.sort()).toEqual(['production', 'blah'].sort());
+});
+
+test.each([
+  AndroidReleaseStatus.completed,
+  AndroidReleaseStatus.draft,
+  AndroidReleaseStatus.halted,
+])('android config with releaseStatus %s is valid when rollout is not set', async releaseStatus => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      production: {
+        android: {
+          serviceAccountKeyPath: './path.json',
+          track: 'beta',
+          releaseStatus,
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const androidProfile = await EasJsonUtils.getSubmitProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'production'
+  );
+
+  expect(androidProfile).toEqual({
+    serviceAccountKeyPath: './path.json',
+    track: 'beta',
+    releaseStatus,
+    changesNotSentForReview: false,
+  });
+});
+
+test.each([
+  AndroidReleaseStatus.completed,
+  AndroidReleaseStatus.draft,
+  AndroidReleaseStatus.halted,
+])('android config with releaseStatus %s is invalid when rollout is set', async releaseStatus => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      production: {
+        android: {
+          serviceAccountKeyPath: './path.json',
+          track: 'beta',
+          releaseStatus,
+          rollout: 0.5,
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.ANDROID, 'production');
+  await expect(promise).rejects.toThrowError(InvalidEasJsonError);
+});
+
+test(`android config with releaseStatus ${AndroidReleaseStatus.inProgress} is invalid when rollout is not set`, async () => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      production: {
+        android: {
+          serviceAccountKeyPath: './path.json',
+          track: 'beta',
+          releaseStatus: AndroidReleaseStatus.inProgress,
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.ANDROID, 'production');
+  await expect(promise).rejects.toThrowError(InvalidEasJsonError);
+  await expect(promise).rejects.toThrowError(/"submit\.production\.android\.rollout" is required/);
+});
+
+test(`android config with releaseStatus ${AndroidReleaseStatus.inProgress} is valid when rollout is set`, async () => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      production: {
+        android: {
+          serviceAccountKeyPath: './path.json',
+          track: 'beta',
+          releaseStatus: AndroidReleaseStatus.inProgress,
+          rollout: 0.5,
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const androidProfile = await EasJsonUtils.getSubmitProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'production'
+  );
+
+  expect(androidProfile).toEqual({
+    serviceAccountKeyPath: './path.json',
+    track: 'beta',
+    releaseStatus: AndroidReleaseStatus.inProgress,
+    changesNotSentForReview: false,
+    rollout: 0.5,
+  });
+});
+
+test.each([0, 1, 0.2, 0.75, 0.22])('rollout value %s is valid', async rollout => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      production: {
+        android: {
+          serviceAccountKeyPath: './path.json',
+          track: 'beta',
+          releaseStatus: AndroidReleaseStatus.inProgress,
+          rollout,
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const androidProfile = await EasJsonUtils.getSubmitProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'production'
+  );
+
+  expect(androidProfile).toEqual({
+    serviceAccountKeyPath: './path.json',
+    track: 'beta',
+    releaseStatus: AndroidReleaseStatus.inProgress,
+    changesNotSentForReview: false,
+    rollout,
+  });
+});
+
+test.each([-5, 12, 1.2, 1.01, 99])('rollout value %s is invalid', async rollout => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      production: {
+        android: {
+          serviceAccountKeyPath: './path.json',
+          track: 'beta',
+          releaseStatus: AndroidReleaseStatus.inProgress,
+          rollout,
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.ANDROID, 'production');
+
+  await expect(promise).rejects.toThrowError(InvalidEasJsonError);
 });

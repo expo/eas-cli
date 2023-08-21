@@ -71,6 +71,9 @@ export interface CommonBuildProfile {
 
   // custom build configuration
   config?: string;
+
+  // credentials
+  withoutCredentials?: boolean;
 }
 
 interface PlatformBuildProfile extends Omit<CommonBuildProfile, 'autoIncrement'> {
@@ -86,9 +89,6 @@ export interface AndroidBuildProfile extends PlatformBuildProfile {
   // build environment
   image?: Android.BuilderEnvironment['image'];
   ndk?: string;
-
-  // credentials
-  withoutCredentials?: boolean;
 
   // build configuration
   gradleCommand?: string;

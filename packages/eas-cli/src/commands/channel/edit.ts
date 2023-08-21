@@ -1,26 +1,31 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
+import { hasEmptyBranchMap, hasStandardBranchMap } from '../../channel/branch-mapping';
 import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { withErrorHandlingAsync } from '../../graphql/client';
 import {
+  UpdateChannelBasicInfoFragment,
   UpdateChannelBranchMappingMutation,
   UpdateChannelBranchMappingMutationVariables,
 } from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
+import { UpdateChannelBasicInfoFragmentNode } from '../../graphql/types/UpdateChannelBasicInfo';
 import Log from '../../log';
+import { isRollout } from '../../rollout/branch-mapping';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export async function updateChannelBranchMappingAsync(
   graphqlClient: ExpoGraphqlClient,
   { channelId, branchMapping }: UpdateChannelBranchMappingMutationVariables
-): Promise<UpdateChannelBranchMappingMutation['updateChannel']['editUpdateChannel']> {
+): Promise<UpdateChannelBasicInfoFragment> {
   const data = await withErrorHandlingAsync(
     graphqlClient
       .mutation<UpdateChannelBranchMappingMutation, UpdateChannelBranchMappingMutationVariables>(
@@ -29,11 +34,11 @@ export async function updateChannelBranchMappingAsync(
             updateChannel {
               editUpdateChannel(channelId: $channelId, branchMapping: $branchMapping) {
                 id
-                name
-                branchMapping
+                ...UpdateChannelBasicInfoFragment
               }
             }
           }
+          ${print(UpdateChannelBasicInfoFragmentNode)}
         `,
         { channelId, branchMapping }
       )
@@ -95,8 +100,10 @@ export default class ChannelEdit extends EasCommand {
           paginatedQueryOptions: { json, nonInteractive, offset: 0 },
         });
 
-    if (existingChannel.updateBranches.length > 1) {
+    if (isRollout(existingChannel)) {
       throw new Error('There is a rollout in progress. Manage it with "channel:rollout" instead.');
+    } else if (!hasStandardBranchMap(existingChannel) && !hasEmptyBranchMap(existingChannel)) {
+      throw new Error('Only standard branch mappings can be edited with this command.');
     }
 
     const branch = branchFlag

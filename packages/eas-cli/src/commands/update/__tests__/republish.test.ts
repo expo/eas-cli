@@ -1,5 +1,5 @@
-import { AppJSONConfig, PackageJSONConfig, getConfig } from '@expo/config';
-import { vol } from 'memfs';
+import { AppJSONConfig, ExpoConfig, PackageJSONConfig, getConfig } from '@expo/config';
+import { DirectoryJSON, vol } from 'memfs';
 import { instance, mock } from 'ts-mockito';
 
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
@@ -8,12 +8,17 @@ import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/cr
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
 import FeatureGating from '../../../commandUtils/gating/FeatureGating';
 import { jester } from '../../../credentials/__tests__/fixtures-constants';
-import { CodeSigningInfo, UpdateFragment } from '../../../graphql/generated';
+import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { UpdateQuery } from '../../../graphql/queries/UpdateQuery';
 import { getBranchNameFromChannelNameAsync } from '../../../update/getBranchNameFromChannelNameAsync';
 import { selectUpdateGroupOnBranchAsync } from '../../../update/queries';
+import {
+  getCodeSigningInfoAsync,
+  getManifestBodyAsync,
+  signBody,
+} from '../../../utils/code-signing';
 import UpdateRepublish from '../republish';
 
 const projectRoot = '/test-project';
@@ -33,12 +38,6 @@ const updateStub: UpdateFragment = {
   createdAt: '2022-01-01T12:00:00Z',
 };
 
-const codeSigningStub: CodeSigningInfo = {
-  keyid: 'keyid',
-  alg: 'alg',
-  sig: 'sig',
-};
-
 jest.mock('fs');
 jest.mock('@expo/config');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
@@ -52,15 +51,11 @@ jest.mock('../../../ora', () => ({
     start: () => ({ succeed: () => {}, fail: () => {} }),
   }),
 }));
+jest.mock('../../../utils/code-signing');
+jest.mock('../../../fetch');
 
 describe(UpdateRepublish.name, () => {
   afterEach(() => vol.reset());
-
-  it('errors without --channel, --branch, or --group', async () => {
-    await expect(new UpdateRepublish([], commandOptions).run()).rejects.toThrow(
-      '--channel, --branch, or --group must be specified'
-    );
-  });
 
   it('errors when providing both --group and --branch', async () => {
     const flags = ['--group=1234', '--branch=main'];
@@ -156,18 +151,45 @@ describe(UpdateRepublish.name, () => {
   });
 
   it('re-creates update using codesigning with --group and --message', async () => {
-    const flags = ['--group=1234', '--message=test-republish'];
+    const flags = [
+      '--group=1234',
+      '--message=test-republish',
+      `--private-key-path=./keys/test-private-key.pem`,
+    ];
     const codeSigning = {
-      alg: 'alg',
+      alg: 'rsa-v1_5-sha256',
       keyid: 'keyid',
       sig: 'sig',
     };
 
-    mockTestProject();
+    mockTestProject({
+      extraManifest: {
+        updates: {
+          codeSigningCertificate: './keys/test-certificate.pem',
+          codeSigningMetadata: {
+            alg: 'rsa-v1_5-sha256',
+            keyid: 'keyid',
+          },
+        },
+      },
+      extraVol: {
+        './keys/test-private-key.pem': 'testpemprivate',
+        './keys/test-certificate.pem': 'testpemcertificate',
+      },
+    });
+
+    jest.mocked(getCodeSigningInfoAsync).mockResolvedValue({
+      privateKey: '' as any,
+      certificate: '' as any,
+      codeSigningMetadata: { alg: 'rsa-v1_5-sha256', keyid: 'keyid' },
+    });
+    jest.mocked(getManifestBodyAsync).mockResolvedValue('test');
+    jest.mocked(signBody).mockReturnValue('sig');
+
     // Mock queries to retrieve the update and code signing info
     jest
       .mocked(UpdateQuery.viewUpdateGroupAsync)
-      .mockResolvedValue([{ ...updateStub, codeSigningInfo: codeSigningStub }]);
+      .mockResolvedValue([{ ...updateStub, codeSigningInfo: codeSigning }]);
     // Mock mutations to store the new update
     jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue([
       {
@@ -287,8 +309,12 @@ describe(UpdateRepublish.name, () => {
 /** Create a new in-memory project, based on src/commands/project/__tests__/init.test.ts */
 function mockTestProject({
   configuredProjectId = '1234',
+  extraManifest,
+  extraVol,
 }: {
   configuredProjectId?: string;
+  extraManifest?: Partial<ExpoConfig>;
+  extraVol?: DirectoryJSON;
 } = {}): void {
   const packageJSON: PackageJSONConfig = {
     name: 'testing123',
@@ -309,6 +335,7 @@ function mockTestProject({
           projectId: configuredProjectId,
         },
       },
+      ...extraManifest,
     },
   };
 
@@ -316,6 +343,7 @@ function mockTestProject({
     {
       'package.json': JSON.stringify(packageJSON),
       'app.json': JSON.stringify(appJSON),
+      ...extraVol,
     },
     projectRoot
   );

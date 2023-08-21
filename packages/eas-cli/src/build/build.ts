@@ -45,6 +45,7 @@ import {
   EasBuildFreeTierDisabledIOSError,
   EasBuildFreeTierIosLimitExceededError,
   EasBuildFreeTierLimitExceededError,
+  EasBuildLegacyResourceClassNotAvailableError,
   EasBuildProjectArchiveUploadError,
   EasBuildResourceClassNotAvailableInFreeTierError,
   EasBuildTooManyPendingBuildsError,
@@ -190,6 +191,7 @@ const SERVER_SIDE_DEFINED_ERRORS: Record<string, typeof EasCommandError> = {
   EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED: EasBuildFreeTierIosLimitExceededError,
   EAS_BUILD_RESOURCE_CLASS_NOT_AVAILABLE_IN_FREE_TIER:
     EasBuildResourceClassNotAvailableInFreeTierError,
+  EAS_BUILD_LEGACY_RESOURCE_CLASS_NOT_AVAILABLE: EasBuildLegacyResourceClassNotAvailableError,
   VALIDATION_ERROR: RequestValidationError,
 };
 

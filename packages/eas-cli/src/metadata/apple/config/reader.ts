@@ -180,7 +180,7 @@ export class AppleConfigReader {
     return {
       locale,
       description: info.description,
-      keywords: info.keywords?.join(', '),
+      keywords: info.keywords?.join(','),
       // TODO: maybe move this to task logic, it's more an exception than data handling
       whatsNew: context.versionIsFirst ? undefined : info.releaseNotes || DEFAULT_WHATSNEW,
       marketingUrl: info.marketingUrl,

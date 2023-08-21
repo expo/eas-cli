@@ -66,6 +66,9 @@ const CommonBuildProfileSchema = Joi.object({
 
   // custom build configuration
   config: Joi.string(),
+
+  // credentials
+  withoutCredentials: Joi.boolean(),
 });
 
 const PlatformBuildProfileSchema = CommonBuildProfileSchema.concat(
@@ -86,9 +89,6 @@ const AndroidBuildProfileSchema = PlatformBuildProfileSchema.concat(
 
     // build environment
     ndk: Joi.string().empty(null).custom(semverCheck),
-
-    // credentials
-    withoutCredentials: Joi.boolean(),
 
     // build configuration
     gradleCommand: Joi.string(),

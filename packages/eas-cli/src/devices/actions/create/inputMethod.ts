@@ -2,18 +2,17 @@ import chalk from 'chalk';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
-import { AppleDeviceClass, AppleTeam } from '../../../graphql/generated';
+import { AppleTeam } from '../../../graphql/generated';
 import Log from '../../../log';
 import { ora } from '../../../ora';
-import { confirmAsync, promptAsync } from '../../../prompts';
-import { isValidUDID, normalizeUDID } from '../../udids';
-import { formatNewDevice } from '../../utils/formatDevice';
-
-interface DeviceData {
-  udid: string;
-  name?: string;
-  deviceClass: AppleDeviceClass | null;
-}
+import { confirmAsync } from '../../../prompts';
+import {
+  DeviceData,
+  printDeviceData,
+  promptForDeviceClassAsync,
+  promptForNameAsync,
+  promptForUDIDAsync,
+} from './utils';
 
 export async function runInputMethodAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -78,16 +77,7 @@ async function collectDeviceDataAsync(
     deviceClass,
   };
 
-  Log.newLine();
-  Log.log(
-    `We are going to register the following device in our database.
-This device will ${chalk.bold(
-      'not'
-    )} be registered on the Apple Developer Portal until it is chosen for an internal distribution build.`
-  );
-  Log.newLine();
-  Log.log(formatNewDevice({ ...deviceData, identifier: deviceData.udid }, appleTeam));
-  Log.newLine();
+  printDeviceData(deviceData, appleTeam);
 
   const registrationConfirmed = await confirmAsync({
     message: 'Is this what you want to register?',
@@ -99,57 +89,4 @@ This device will ${chalk.bold(
   } else {
     return deviceData;
   }
-}
-
-export async function promptForUDIDAsync(initial?: string): Promise<string> {
-  const { udid } = await promptAsync({
-    type: 'text',
-    name: 'udid',
-    message: 'UDID:',
-    initial,
-    validate: (rawVal: string) => {
-      const val = normalizeUDID(rawVal);
-      if (!val || val === '') {
-        return 'UDID cannot be empty';
-      } else if (val.length !== 25 && val.length !== 40) {
-        return 'UDID should be a 25 or 40-character string';
-      } else if (!isValidUDID(val)) {
-        return 'UDID is invalid';
-      } else {
-        return true;
-      }
-    },
-    format: (val: string) => normalizeUDID(val),
-  });
-  return udid;
-}
-
-async function promptForNameAsync(initial?: string): Promise<string | undefined> {
-  const { name } = await promptAsync({
-    type: 'text',
-    name: 'name',
-    message: 'Device name (optional):',
-    initial,
-  });
-  return name;
-}
-
-async function promptForDeviceClassAsync(
-  initial?: AppleDeviceClass | null
-): Promise<AppleDeviceClass | null> {
-  const choices = [
-    { title: 'iPhone', value: AppleDeviceClass.Iphone },
-    { title: 'iPad', value: AppleDeviceClass.Ipad },
-    { title: 'Not sure (leave empty)', value: null },
-  ];
-  const values = choices.map(({ value }) => value);
-
-  const { deviceClass } = await promptAsync({
-    type: 'select',
-    name: 'deviceClass',
-    message: 'Device class (optional):',
-    choices,
-    initial: initial !== undefined && values.indexOf(initial),
-  });
-  return deviceClass;
 }
