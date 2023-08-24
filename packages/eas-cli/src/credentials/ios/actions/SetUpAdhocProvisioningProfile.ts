@@ -177,7 +177,23 @@ export class SetUpAdhocProvisioningProfile {
       );
     }
 
-    // 6. Create (or update) app build credentials
+    // 6. Compare selected devices with the ones actually provisioned
+    const diffList = differenceBy(
+      chosenDevices,
+      appleProvisioningProfile.appleDevices,
+      'identifier'
+    );
+    if (diffList && diffList.length > 0) {
+      Log.warn(`Failed to provision ${diffList.length} of the selected devices:`);
+      for (const missingDevice of diffList) {
+        Log.warn(`- ${formatDeviceLabel(missingDevice)}`);
+      }
+      Log.log(
+        'Most commonly devices fail to to be provisioned while they are still being processed by Apple, which can take up to 24-72 hours. Check your Apple Developer Portal page at https://developer.apple.com/account/resources/devices/list, the devices in "Processing" status cannot be provisioned yet'
+      );
+    }
+
+    // 7. Create (or update) app build credentials
     assert(appleProvisioningProfile);
     return await assignBuildCredentialsAsync(
       ctx,
