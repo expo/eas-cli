@@ -78,7 +78,7 @@ describe('runWithDistributionCertificateAsync', () => {
         expect(LogWarnSpy).toHaveBeenCalledWith('- id3 (Mac) (Device 3)');
         expect(LogLogSpy).toHaveBeenCalledTimes(1);
         expect(LogLogSpy).toHaveBeenCalledWith(
-          'Most commonly devices fail to to be provisioned while they are still being processed by Apple, which can take up to 24-72 hours. Check your Apple Developer Portal > Certificates, Identifiers & Profiles > Devices page, the devices in "Processing" status cannot be provisioned yet'
+          'Most commonly devices fail to to be provisioned while they are still being processed by Apple, which can take up to 24-72 hours. Check your Apple Developer Portal page at https://developer.apple.com/account/resources/devices/list, the devices in "Processing" status cannot be provisioned yet'
         );
       });
     });
