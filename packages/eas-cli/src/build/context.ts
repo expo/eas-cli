@@ -55,4 +55,5 @@ export interface BuildContext<T extends Platform> {
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   android: T extends Platform.ANDROID ? AndroidBuildContext : undefined;
   ios: T extends Platform.IOS ? IosBuildContext : undefined;
+  developmentClient: boolean;
 }
