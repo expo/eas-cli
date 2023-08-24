@@ -6,13 +6,21 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Only export at most ios and android dist for EAS updates. ([#2002](https://github.com/expo/eas-cli/pull/2002) by [@wschurman](https://github.com/wschurman))
+
 ### 🎉 New features
 
+- Add rollback disambiguation command. ([#2004](https://github.com/expo/eas-cli/pull/2004) by [@wschurman](https://github.com/wschurman))
 - Detect devices that fail to be provisioned, list them to the user and show the explanation message with the link to the devices page to check actual status. ([#2011](https://github.com/expo/eas-cli/pull/2011) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ### 🐛 Bug fixes
 
+- Support republishing roll back to embedded updates. ([#2006](https://github.com/expo/eas-cli/pull/2006) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
+
+- More branch map utility functions. ([#2001](https://github.com/expo/eas-cli/pull/2001) by [@quinlanj](https://github.com/quinlanj))
+- More branch mapping utils. ([#2003](https://github.com/expo/eas-cli/pull/2003) by [@quinlanj](https://github.com/quinlanj))
 
 ## [4.1.2](https://github.com/expo/eas-cli/releases/tag/v4.1.2) - 2023-08-10
 

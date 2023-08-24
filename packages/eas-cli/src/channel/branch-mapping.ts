@@ -50,6 +50,13 @@ export type EmptyBranchMapping = {
   data: [];
 };
 
+export function getEmptyBranchMapping(): EmptyBranchMapping {
+  return {
+    version: 0,
+    data: [],
+  };
+}
+
 export function getAlwaysTrueBranchMapping(branchId: string): AlwaysTrueBranchMapping {
   return {
     version: 0,
