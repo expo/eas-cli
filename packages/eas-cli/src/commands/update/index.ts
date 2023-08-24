@@ -35,6 +35,7 @@ import {
   getRuntimeVersionObjectAsync,
   getUpdateMessageForCommandAsync,
   isUploadedAssetCountAboveWarningThreshold,
+  platformDisplayNames,
   resolveInputDirectoryAsync,
   uploadAssetsAsync,
 } from '../../project/publish';
@@ -325,6 +326,21 @@ export default class UpdatePublish extends EasCommand {
       for (const uploadedAssetPath of uploadResults.uniqueUploadedAssetPaths) {
         Log.debug(chalk.dim(`- ${uploadedAssetPath}`));
       }
+
+      const platformString = (Object.keys(assets) as PublishPlatform[])
+        .map(platform => {
+          const collectedAssetForPlatform = nullthrows(assets[platform]);
+          const totalAssetsForPlatform = collectedAssetForPlatform.assets.length + 1; // launch asset
+          const assetString = totalAssetsForPlatform === 1 ? 'asset' : 'assets';
+          return `${totalAssetsForPlatform} ${platformDisplayNames[platform]} ${assetString}`;
+        })
+        .join(', ');
+      Log.withInfo(
+        `${platformString} (maximum: ${assetLimitPerUpdateGroup} total per update). ${learnMore(
+          'https://expo.fyi/eas-update-asset-limits',
+          { learnMoreMessage: 'Learn more about asset limits.' }
+        )}`
+      );
     } catch (e) {
       assetSpinner.fail('Failed to upload');
       throw e;

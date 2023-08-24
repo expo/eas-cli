@@ -683,3 +683,9 @@ export function getRuntimeToPlatformMappingFromRuntimeVersions(
   }
   return runtimeToPlatformMapping;
 }
+
+export const platformDisplayNames: Record<Platform, string> = {
+  android: 'Android',
+  ios: 'iOS',
+  web: 'Web',
+};

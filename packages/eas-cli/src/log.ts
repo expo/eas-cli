@@ -57,6 +57,10 @@ export default class Log {
     Log.consoleLog(chalk.green(figures.tick), ...args);
   }
 
+  public static withInfo(...args: any[]): void {
+    Log.consoleLog(chalk.green(figures.info), ...args);
+  }
+
   private static consoleLog(...args: any[]): void {
     Log.updateIsLastLineNewLine(args);
     // eslint-disable-next-line no-console
