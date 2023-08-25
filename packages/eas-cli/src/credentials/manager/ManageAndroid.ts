@@ -4,6 +4,7 @@ import assert from 'assert';
 
 import Log, { learnMore } from '../../log';
 import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
+import { getProjectConfigDescription } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { AssignFcm } from '../android/actions/AssignFcm';
 import { AssignGoogleServiceAccountKey } from '../android/actions/AssignGoogleServiceAccountKey';
@@ -131,6 +132,18 @@ export class ManageAndroid {
 
         await this.runProjectSpecificActionAsync(ctx, chosenAction, gradleContext);
       } catch (err) {
+        if (
+          err instanceof Error &&
+          err.message ===
+            `Specify "android.package" in ${getProjectConfigDescription(
+              ctx.projectDir
+            )} and run this command again.`
+        ) {
+          err.message += `\n${learnMore(
+            'https://docs.expo.dev/workflow/configuration/'
+          )} about configuration with app.json/app.config.js`;
+          throw err; // breaks out of the loop to avoid failing again after continuation
+        }
         Log.error(err);
         if (process.env.DEBUG) {
           throw err; // breaks out of the loop so we can get stack trace
