@@ -118,6 +118,7 @@ export default class Submit extends EasCommand {
       easJsonAccessor: EasJsonAccessor.fromProjectPath(projectDir),
       platforms,
       profileName: flagsWithPlatform.profile,
+      projectDir,
     });
 
     const submissions: SubmissionFragment[] = [];
