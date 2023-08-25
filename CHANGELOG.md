@@ -25,6 +25,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - More branch map utility functions. ([#2001](https://github.com/expo/eas-cli/pull/2001) by [@quinlanj](https://github.com/quinlanj))
 - More branch mapping utils. ([#2003](https://github.com/expo/eas-cli/pull/2003) by [@quinlanj](https://github.com/quinlanj))
+- Create a linked channel on build if not exists. ([#2017](https://github.com/expo/eas-cli/pull/2017) by [@quinlanj](https://github.com/quinlanj))
 - Add `developmentClient` to metadata. ([#2015](https://github.com/expo/eas-cli/pull/2015) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [4.1.2](https://github.com/expo/eas-cli/releases/tag/v4.1.2) - 2023-08-10

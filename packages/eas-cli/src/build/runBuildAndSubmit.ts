@@ -14,6 +14,7 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { Analytics } from '../analytics/AnalyticsManager';
+import { createAndLinkChannelAsync, doesChannelExistAsync } from '../channel/queries';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -41,6 +42,7 @@ import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConf
 import {
   isExpoUpdatesInstalledAsDevDependency,
   isExpoUpdatesInstalledOrAvailable,
+  isUsingEASUpdate,
   validateAppVersionRuntimePolicySupportAsync,
 } from '../project/projectUtils';
 import {
@@ -331,6 +333,18 @@ async function prepareAndStartBuildAsync({
       nonInteractive: flags.nonInteractive,
       buildProfile,
     });
+    if (isUsingEASUpdate(buildCtx.exp, buildCtx.projectId)) {
+      const doesChannelExist = await doesChannelExistAsync(graphqlClient, {
+        appId: buildCtx.projectId,
+        channelName: buildProfile.profile.channel,
+      });
+      if (!doesChannelExist) {
+        await createAndLinkChannelAsync(graphqlClient, {
+          appId: buildCtx.projectId,
+          channelName: buildProfile.profile.channel,
+        });
+      }
+    }
   }
 
   await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
