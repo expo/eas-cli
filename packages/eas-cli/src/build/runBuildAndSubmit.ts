@@ -1,3 +1,4 @@
+import { ExpoConfig } from '@expo/config-types';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import {
   AppVersionSource,
@@ -39,7 +40,6 @@ import {
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
 import {
-  installExpoUpdatesAsync,
   isExpoUpdatesInstalledAsDevDependency,
   isExpoUpdatesInstalledOrAvailable,
   isUsingEASUpdate,
@@ -59,6 +59,7 @@ import {
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
+import { ensureEASUpdateIsConfiguredAsync } from '../update/configure';
 import { validateBuildProfileConfigMatchesProjectConfigAsync } from '../update/utils';
 import { Actor } from '../user/User';
 import { downloadAndMaybeExtractAppAsync } from '../utils/download';
@@ -119,6 +120,7 @@ export async function runBuildAndSubmitAsync(
     easJsonAccessor,
     platforms,
     profileName: flags.profile ?? undefined,
+    projectDir,
   });
   Log.log(
     `Loaded "env" configuration for the "${buildProfiles[0].profileName}" profile: ${
@@ -185,6 +187,7 @@ export async function runBuildAndSubmitAsync(
       platforms,
       profileName: flags.submitProfile,
       type: 'submit',
+      projectDir,
     });
     for (const startedBuild of startedBuilds) {
       const submitProfile = nullthrows(
@@ -322,6 +325,9 @@ async function prepareAndStartBuildAsync({
   );
   if (buildProfile.profile.channel) {
     await validateExpoUpdatesInstalledAsProjectDependencyAsync({
+      graphqlClient,
+      exp: buildCtx.exp,
+      projectId: buildCtx.projectId,
       projectDir,
       sdkVersion: buildCtx.exp.sdkVersion,
       nonInteractive: flags.nonInteractive,
@@ -461,11 +467,17 @@ async function maybeDownloadAndRunSimulatorBuildsAsync(
 }
 
 async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
+  exp,
+  graphqlClient,
+  projectId,
   projectDir,
   buildProfile,
   nonInteractive,
   sdkVersion,
 }: {
+  graphqlClient: ExpoGraphqlClient;
+  exp: ExpoConfig;
+  projectId: string;
   projectDir: string;
   buildProfile: ProfileData<'build'>;
   nonInteractive: boolean;
@@ -481,18 +493,24 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
     );
   } else if (nonInteractive) {
     Log.warn(
-      `The build profile "${buildProfile.profileName}" has specified the channel "${buildProfile.profile.channel}", but the "expo-updates" package hasn't been installed. To use channels for your builds, install the "expo-updates" package by running "npx expo install expo-updates".`
+      `The build profile "${buildProfile.profileName}" has specified the channel "${buildProfile.profile.channel}", but the "expo-updates" package hasn't been installed. To use channels for your builds, install the "expo-updates" package by running "npx expo install expo-updates" followed by "eas update:configure".`
     );
   } else {
     Log.warn(
-      `The build profile "${buildProfile.profileName}" specifies the channel "${buildProfile.profile.channel}", but the "expo-updates" package is missing. To use channels in your builds, install the "expo-updates" package.`
+      `The build profile "${buildProfile.profileName}" specifies the channel "${buildProfile.profile.channel}", but the "expo-updates" package is missing. To use channels in your builds, install the "expo-updates" package and run "eas update:configure".`
     );
     const installExpoUpdates = await confirmAsync({
-      message: `Would you like to install the "expo-updates" package?`,
+      message: `Would you like to install the "expo-updates" package and configure EAS Update now?`,
     });
     if (installExpoUpdates) {
-      await installExpoUpdatesAsync(projectDir, { silent: false });
-      Log.withTick('Installed expo-updates');
+      await ensureEASUpdateIsConfiguredAsync(graphqlClient, {
+        exp,
+        projectId,
+        projectDir,
+        platform: RequestedPlatform.All,
+      });
+      Log.withTick('Installed expo-updates and configured EAS Update.');
+      throw new Error('Command must be re-run to pick up new updates configuration.');
     }
   }
 }

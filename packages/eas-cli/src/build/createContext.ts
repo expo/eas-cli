@@ -60,6 +60,12 @@ export async function createBuildContextAsync<T extends Platform>({
   const workflow = await resolveWorkflowAsync(projectDir, platform);
   const accountId = account.id;
   const runFromCI = getenv.boolish('CI', false);
+  const developmentClient =
+    buildProfile.developmentClient ??
+    (platform === Platform.ANDROID
+      ? (buildProfile as BuildProfile<Platform.ANDROID>)?.gradleCommand === ':app:assembleDebug'
+      : (buildProfile as BuildProfile<Platform.IOS>)?.buildConfiguration === 'Debug') ??
+    false;
 
   const credentialsCtx = new CredentialsContext({
     projectInfo: { exp, projectId },
@@ -120,6 +126,7 @@ export async function createBuildContextAsync<T extends Platform>({
     message,
     runFromCI,
     customBuildConfigMetadata,
+    developmentClient,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;
