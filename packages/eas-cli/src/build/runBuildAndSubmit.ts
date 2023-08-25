@@ -13,10 +13,9 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { Analytics } from '../analytics/AnalyticsManager';
-import { doesChannelExistAsync } from '../channel/queries';
+import { createAndLinkChannelAsync, doesChannelExistAsync } from '../channel/queries';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { createAndLinkChannelAsync } from '../commands/channel/create';
 import {
   AppPlatform,
   BuildFragment,
