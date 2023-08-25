@@ -21,6 +21,7 @@ import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
+import { ChannelNotFoundError } from './errors';
 import { logChannelDetails } from './print-utils';
 
 export const CHANNELS_LIMIT = 25;
@@ -263,4 +264,22 @@ export async function ensureChannelExistsAsync(
       throw e;
     }
   }
+}
+
+export async function doesChannelExistAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { appId, channelName }: { appId: string; channelName: string }
+): Promise<boolean> {
+  try {
+    await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
+      appId,
+      channelName,
+    });
+  } catch (err) {
+    if (err instanceof ChannelNotFoundError) {
+      return false;
+    }
+    throw err;
+  }
+  return true;
 }
