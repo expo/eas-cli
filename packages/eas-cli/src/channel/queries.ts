@@ -294,7 +294,7 @@ export async function doesChannelExistAsync(
  *
  * @param appId the app ID, also known as the project ID
  * @param channelName the name of the channel to create
- * @param shouldPrintJson set to true to print only the JSON output
+ * @param shouldPrintJson print only the JSON output
  */
 export async function createAndLinkChannelAsync(
   graphqlClient: ExpoGraphqlClient,
