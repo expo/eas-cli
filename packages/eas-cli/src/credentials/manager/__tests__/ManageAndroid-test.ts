@@ -9,6 +9,7 @@ import { pressAnyKeyToContinueAsync } from '../../../prompts';
 import { Actor } from '../../../user/User';
 import { getAppLookupParamsFromContextAsync } from '../../android/actions/BuildCredentialsUtils';
 import { CredentialsContextProjectInfo } from '../../context';
+import { AndroidPackageNotDefinedError } from '../../errors';
 import { Action } from '../HelperActions';
 import { ManageAndroid } from '../ManageAndroid';
 
@@ -43,7 +44,9 @@ describe('runAsync', () => {
         .mockResolvedValue({} as BuildProfile<Platform.ANDROID>);
       jest.mocked(getProjectConfigDescription).mockReturnValue('app.json');
       jest.mocked(getAppLookupParamsFromContextAsync).mockImplementation(() => {
-        throw new Error('Specify "android.package" in app.json and run this command again.');
+        throw new AndroidPackageNotDefinedError(
+          'Specify "android.package" in app.json and run this command again.'
+        );
       });
       const pressAnyKeyToContinueAsyncMock = jest.mocked(pressAnyKeyToContinueAsync);
       Array.from(Array(100)).map((_, i) => {
@@ -54,7 +57,7 @@ describe('runAsync', () => {
         // fail after 102nd time
         fail('test should not reach this place - if it does, the error repeats indefinitely');
       });
-      const reThrownError = new Error(
+      const reThrownError = new AndroidPackageNotDefinedError(
         'Specify "android.package" in app.json and run this command again.\n' +
           `${learnMore(
             'https://docs.expo.dev/workflow/configuration/'

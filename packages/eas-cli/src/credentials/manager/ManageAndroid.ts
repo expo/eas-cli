@@ -4,7 +4,6 @@ import assert from 'assert';
 
 import Log, { learnMore } from '../../log';
 import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
-import { getProjectConfigDescription } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { AssignFcm } from '../android/actions/AssignFcm';
 import { AssignGoogleServiceAccountKey } from '../android/actions/AssignGoogleServiceAccountKey';
@@ -28,6 +27,7 @@ import {
   displayEmptyAndroidCredentials,
 } from '../android/utils/printCredentials';
 import { CredentialsContext, CredentialsContextProjectInfo } from '../context';
+import { AndroidPackageNotDefinedError } from '../errors';
 import { ActionInfo, AndroidActionType, Scope } from './Actions';
 import {
   buildCredentialsActions,
@@ -132,13 +132,7 @@ export class ManageAndroid {
 
         await this.runProjectSpecificActionAsync(ctx, chosenAction, gradleContext);
       } catch (err) {
-        if (
-          err instanceof Error &&
-          err.message ===
-            `Specify "android.package" in ${getProjectConfigDescription(
-              ctx.projectDir
-            )} and run this command again.`
-        ) {
+        if (err instanceof AndroidPackageNotDefinedError) {
           err.message += `\n${learnMore(
             'https://docs.expo.dev/workflow/configuration/'
           )} about configuration with app.json/app.config.js`;
