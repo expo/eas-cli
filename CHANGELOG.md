@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Pass `platform` argument to expo-cli correctly when using the `eas update` command. ([#2028](https://github.com/expo/eas-cli/pull/2028) by [@szdziedzic](https://github.com/szdziedzic))
-
 ### 🧹 Chores
+
+## [5.0.1](https://github.com/expo/eas-cli/releases/tag/v5.0.1) - 2023-08-28
+
+### 🐛 Bug fixes
+
+- Pass `platform` argument to expo-cli correctly when using the `eas update` command. ([#2028](https://github.com/expo/eas-cli/pull/2028) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [5.0.0](https://github.com/expo/eas-cli/releases/tag/v5.0.0) - 2023-08-28
 
