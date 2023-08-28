@@ -201,8 +201,14 @@ async function getSuggestedBundleIdentifierAsync(
   } else {
     // the only callsite is heavily interactive
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
+    let possibleId: string;
     // It's common to use dashes in your node project name, strip them from the suggested package name.
-    const possibleId = `com.${account.name}.${exp.slug}`.split('-').join('');
+    if (account.name) {
+      possibleId = `com.${account.name}.${exp.slug}`.split('-').join('');
+    } else {
+      possibleId = `com.${exp.slug}`.split('-').join('');
+    }
+
     if (isBundleIdentifierValid(possibleId)) {
       return possibleId;
     }
