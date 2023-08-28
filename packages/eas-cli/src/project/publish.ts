@@ -194,9 +194,7 @@ export async function buildBundlesAsync({
   }
 
   const platformArgs =
-    platformFlag === 'all'
-      ? ['--platform', 'ios', '--platform', 'android']
-      : ['--platform', platformFlag];
+    platformFlag === 'all' ? ['--platform', 'ios', '--platform', 'android'] : [platformFlag];
 
   if (shouldUseVersionedExpoCLI(projectDir, exp)) {
     await expoCommandAsync(projectDir, [
