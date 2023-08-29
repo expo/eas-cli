@@ -207,7 +207,7 @@ export async function buildBundlesAsync({
       '--non-interactive',
       '--dump-sourcemap',
       '--dump-assetmap',
-      ...platformFlag,
+      `--platform=${platformFlag}`,
       ...(clearCache ? ['--clear'] : []),
     ]);
   }
@@ -247,8 +247,7 @@ export async function buildBundlesAsync({
     inputDir,
     '--dump-sourcemap',
     '--dump-assetmap',
-    '--platform',
-    platformFlag,
+    `--platform=${platformFlag}`,
     ...(clearCache ? ['--clear'] : []),
   ]);
 }
