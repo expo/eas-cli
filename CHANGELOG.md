@@ -41,6 +41,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Support republishing roll back to embedded updates. ([#2006](https://github.com/expo/eas-cli/pull/2006) by [@wschurman](https://github.com/wschurman))
 - Configure updates as well when somebody tries to run a build with channel set. ([#2016](https://github.com/expo/eas-cli/pull/2016) by [@wschurman](https://github.com/wschurman))
+- Fix printing bug: branch with no update. ([#2023](https://github.com/expo/eas-cli/pull/2023) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🧹 Chores
 
