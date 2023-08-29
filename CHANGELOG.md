@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Add proper expo cli `--platform` flag handling when exporting updates. ([#1939](https://github.com/expo/eas-cli/pull/1939) by [@byCedric](https://github.com/byCedric))
-
 ### 🧹 Chores
+
+## [5.0.2](https://github.com/expo/eas-cli/releases/tag/v5.0.2) - 2023-08-29
+
+### 🐛 Bug fixes
+
+- Add proper expo cli `--platform` flag handling when exporting updates. ([#1939](https://github.com/expo/eas-cli/pull/1939) by [@byCedric](https://github.com/byCedric))
 
 ## [5.0.1](https://github.com/expo/eas-cli/releases/tag/v5.0.1) - 2023-08-28
 
