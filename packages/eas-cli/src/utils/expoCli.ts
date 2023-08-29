@@ -69,8 +69,7 @@ export function shouldUseVersionedExpoCLIWithExplicitPlatformsExpensive(
     return false;
   }
 
-  // TODO(cedric): update the version to the patched `@expo/cli` version(s) once it's released
-  return gteSdkVersion(require(expoCliPath).version, '0.10.10');
+  return gteSdkVersion(require(expoCliPath).version, '0.10.11');
 }
 
 export const shouldUseVersionedExpoCLI = memoize(shouldUseVersionedExpoCLIExpensive);
