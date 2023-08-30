@@ -11,6 +11,7 @@ import {
 } from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
+import { AndroidPackageNotDefinedError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 
 /**
@@ -111,7 +112,7 @@ export async function getAppLookupParamsFromContextAsync(
     gradleContext
   );
   if (!androidApplicationIdentifier) {
-    throw new Error(
+    throw new AndroidPackageNotDefinedError(
       `android.package needs to be defined in your ${getProjectConfigDescription(
         ctx.projectDir
       )} file`

@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Make app config error not repeat indefinitely. ([#2020](https://github.com/expo/eas-cli/pull/2020) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
 ### 🧹 Chores
 
 ## [5.0.2](https://github.com/expo/eas-cli/releases/tag/v5.0.2) - 2023-08-29
