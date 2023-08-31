@@ -33,6 +33,7 @@ interface RawRunFlags {
   platform?: string;
   limit?: number;
   offset?: number;
+  profile?: string;
 }
 
 interface RunCommandFlags {
@@ -40,6 +41,7 @@ interface RunCommandFlags {
   runArchiveFlags: RunArchiveFlags;
   limit?: number;
   offset?: number;
+  profile?: string;
 }
 
 export default class Run extends EasCommand {
@@ -65,6 +67,12 @@ export default class Run extends EasCommand {
     platform: Flags.enum({
       char: 'p',
       options: ['android', 'ios'],
+    }),
+    profile: Flags.string({
+      char: 'e',
+      description:
+        'Name of the build profile used to create the build to run. When specified, only builds created with the specified build profile will be queried.',
+      helpValue: 'PROFILE_NAME',
     }),
     ...EasPaginatedQueryFlags,
   };
@@ -98,7 +106,7 @@ export default class Run extends EasCommand {
   }
 
   private async sanitizeFlagsAsync(flags: RawRunFlags): Promise<RunCommandFlags> {
-    const { platform, limit, offset, ...runArchiveFlags } = flags;
+    const { platform, limit, offset, profile, ...runArchiveFlags } = flags;
 
     const selectedPlatform = await resolvePlatformAsync(platform);
 
@@ -122,11 +130,16 @@ export default class Run extends EasCommand {
       });
     }
 
+    if (profile && (runArchiveFlags.id || runArchiveFlags.path || runArchiveFlags.url)) {
+      Log.warn('The --profile flag is ignored when using --id, --path, or --url flags.');
+    }
+
     return {
       selectedPlatform,
       runArchiveFlags,
       limit,
       offset,
+      profile,
     };
   }
 }
@@ -208,6 +221,7 @@ async function maybeGetBuildAsync(
         platform: flags.selectedPlatform,
         distribution: distributionType,
         status: BuildStatus.Finished,
+        buildProfile: flags.profile,
       },
       paginatedQueryOptions,
       selectPromptDisabledFunction: build => !isRunnableOnSimulatorOrEmulator(build),
@@ -223,6 +237,7 @@ async function maybeGetBuildAsync(
         platform: flags.selectedPlatform,
         distribution: distributionType,
         status: BuildStatus.Finished,
+        buildProfile: flags.profile,
       },
     });
 
