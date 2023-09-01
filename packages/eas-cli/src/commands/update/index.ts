@@ -360,9 +360,10 @@ export default class UpdatePublish extends EasCommand {
         branchId,
         channelName: branchName,
       });
+      Log.withTick(
+        `Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`
+      );
     }
-
-    Log.withTick(`Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`);
 
     const vcsClient = getVcsClient();
 

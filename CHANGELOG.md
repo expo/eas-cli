@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Update: only print channel-branch pairing if we created a channel. ([#2036](https://github.com/expo/eas-cli/pull/2036) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🧹 Chores
 
 ## [5.1.0](https://github.com/expo/eas-cli/releases/tag/v5.1.0) - 2023-09-01
