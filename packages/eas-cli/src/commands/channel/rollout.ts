@@ -17,6 +17,7 @@ import {
   RolloutActions,
   RolloutMainMenu,
 } from '../../rollout/actions/RolloutMainMenu';
+import { enableJsonOutput } from '../../utils/json';
 
 enum ActionRawFlagValue {
   CREATE = 'create',
@@ -137,8 +138,7 @@ export default class ChannelRollout extends EasCommand {
       nonInteractive: argsAndFlags.nonInteractive,
     });
     if (argsAndFlags.json) {
-      // TODO(quin): implement json output
-      throw new Error('Developer Preview doesnt support JSON output yet');
+      enableJsonOutput();
     }
 
     const app = { projectId, exp };
