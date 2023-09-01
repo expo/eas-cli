@@ -23,6 +23,7 @@ enum ActionRawFlagValue {
   CREATE = 'create',
   EDIT = 'edit',
   END = 'end',
+  VIEW = 'view',
 }
 type ChannelRolloutRawArgsAndFlags = {
   channel?: string;
@@ -168,6 +169,8 @@ export default class ChannelRollout extends EasCommand {
         return ManageRolloutActions.EDIT;
       case ActionRawFlagValue.END:
         return ManageRolloutActions.END;
+      case ActionRawFlagValue.VIEW:
+        return ManageRolloutActions.VIEW;
     }
   }
 

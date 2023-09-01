@@ -5,8 +5,16 @@ import {
   UpdateBranchObject,
   UpdateChannelObject,
 } from '../../graphql/queries/ChannelQuery';
+<<<<<<< HEAD
+||||||| parent of aa3f3b80 ([eas-cli] rollouts: non-interactive view)
+import { CodeSigningInfo } from '../../utils/code-signing';
+=======
+import Log from '../../log';
+import { CodeSigningInfo } from '../../utils/code-signing';
+>>>>>>> aa3f3b80 ([eas-cli] rollouts: non-interactive view)
 import { printJsonOnlyOutput } from '../../utils/json';
 import { getRollout, getRolloutInfo, isConstrainedRolloutInfo, isRollout } from '../branch-mapping';
+import { printRollout } from '../utils';
 import {
   CreateRollout,
   NonInteractiveOptions as CreateRolloutNonInteractiveOptions,
@@ -75,7 +83,7 @@ export class NonInteractiveRollout implements EASUpdateAction<void> {
     if (!action) {
       throw new Error(`--action is required in non-interactive mode.`);
     }
-    const updatedChannelInfo = await this.runActionAsync(ctx, action, channelObject, this.options);
+    const updatedChannelInfo = await this.runActionAsync(ctx, action, channelObject);
     const updatedChannelObject = await this.getChannelObjectAsync(ctx, {
       channelName,
       runtimeVersion: this.getRuntimeVersion(updatedChannelInfo),
@@ -92,20 +100,26 @@ export class NonInteractiveRollout implements EASUpdateAction<void> {
   async runActionAsync(
     ctx: EASUpdateContext,
     action: RolloutActions,
-    channelInfo: UpdateChannelBasicInfoFragment,
-    options: Partial<EditRolloutNonInteractiveOptions> &
-      Partial<EndRolloutNonInteractiveOptions> &
-      EndRolloutGeneralOptions &
-      Partial<CreateRolloutNonInteractiveOptions>
+    channelObject: UpdateChannelObject
   ): Promise<UpdateChannelBasicInfoFragment> {
     switch (action) {
       case MainMenuActions.CREATE_NEW:
-        return await new CreateRollout(channelInfo, options).runAsync(ctx);
+        return await new CreateRollout(channelObject, this.options).runAsync(ctx);
       case ManageRolloutActions.EDIT:
-        return await new EditRollout(channelInfo, options).runAsync(ctx);
+        return await new EditRollout(channelObject, this.options).runAsync(ctx);
       case ManageRolloutActions.END:
-        return await new EndRollout(channelInfo, options).runAsync(ctx);
+        return await new EndRollout(channelObject, this.options).runAsync(ctx);
+      case ManageRolloutActions.VIEW:
+        return this.viewRollout(channelObject);
     }
+  }
+
+  viewRollout(channelObject: UpdateChannelObject): UpdateChannelObject {
+    if (!this.options.json) {
+      printRollout(channelObject);
+      Log.warn('For formatted output, add the --json flag to your command.');
+    }
+    return channelObject;
   }
 
   async getJsonAsync({
