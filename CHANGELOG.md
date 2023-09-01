@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add rollback disambiguation command. ([#2004](https://github.com/expo/eas-cli/pull/2004) by [@wschurman](https://github.com/wschurman))
+- Support `pnpm` option in eas.json. ([#1988](https://github.com/expo/eas-cli/pull/1988) by [@khamilowicz](https://github.com/khamilowicz))
 
 ### 🐛 Bug fixes
 
