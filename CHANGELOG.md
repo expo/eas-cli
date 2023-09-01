@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Make app config error not repeat indefinitely. ([#2020](https://github.com/expo/eas-cli/pull/2020) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Update: only print channel-branch pairing if we created a channel. ([#2036](https://github.com/expo/eas-cli/pull/2036) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🧹 Chores
 
