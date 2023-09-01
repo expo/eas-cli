@@ -154,11 +154,6 @@
           "description": "Optional override of the prebuild command used by EAS. Learn more: https://docs.expo.dev/workflow/expo-cli/#expo-prebuild",
           "markdownDescription": "Optional override of the prebuild command used by EAS.\n\nFor example, you can specify `prebuild --template example-template` to use a custom template.\n>`--platform` and `--non-interactive` will be added automatically by the build engine, so you do not need to specify them manually.\n\n[Learn more](https://docs.expo.dev/workflow/expo-cli/#expo-prebuild)"
         },
-        "pnpm": {
-          "type": "string",
-          "description": "The version of pnpm to use for the build. See: https://www.npmjs.com/package/pnpm",
-          "markdownDescription": "The exact version of [pnpm](https://www.npmjs.com/package/pnpm) to use for the build."
-        },
         "node": {
           "type": "string",
           "description": "The version of Node.js to use for the build. See: https://nodejs.org/en/about/releases/",
