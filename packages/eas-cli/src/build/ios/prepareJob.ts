@@ -58,6 +58,7 @@ export async function prepareJobAsync(
     builderEnvironment: {
       image: buildProfile.image,
       node: buildProfile.node,
+      pnpm: buildProfile.pnpm,
       yarn: buildProfile.yarn,
       bundler: buildProfile.bundler,
       cocoapods: buildProfile.cocoapods,

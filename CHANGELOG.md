@@ -7,6 +7,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🛠 Breaking changes
 
 ### 🎉 New features
+- Support `pnpm` option in eas.json. ([#1988](https://github.com/expo/eas-cli/pull/1988) by [@khamilowicz](https://github.com/khamilowicz))
 
 ### 🐛 Bug fixes
 

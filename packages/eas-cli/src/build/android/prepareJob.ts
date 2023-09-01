@@ -66,6 +66,7 @@ export async function prepareJobAsync(
     builderEnvironment: {
       image: buildProfile.image,
       node: buildProfile.node,
+      pnpm: buildProfile.pnpm,
       yarn: buildProfile.yarn,
       ndk: buildProfile.ndk,
       expoCli: buildProfile.expoCli,
