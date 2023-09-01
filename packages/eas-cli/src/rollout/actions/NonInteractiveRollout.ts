@@ -1,7 +1,6 @@
 import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
 import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
-import { CodeSigningInfo } from '../../utils/code-signing';
 import {
   CreateRollout,
   NonInteractiveOptions as CreateRolloutNonInteractiveOptions,
@@ -25,7 +24,6 @@ export class NonInteractiveRollout implements EASUpdateAction<void> {
   constructor(
     private options: {
       channelName?: string;
-      codeSigningInfo?: CodeSigningInfo;
       action?: RolloutActions;
     } & Partial<EditRolloutNonInteractiveOptions> &
       Partial<EndRolloutNonInteractiveOptions> &
