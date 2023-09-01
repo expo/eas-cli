@@ -1,7 +1,7 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "4.1.2",
+  "version": "5.0.2",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
@@ -13,8 +13,8 @@
     "@expo/config": "8.1.2",
     "@expo/config-plugins": "7.2.4",
     "@expo/config-types": "49.0.0",
-    "@expo/eas-build-job": "1.0.30",
-    "@expo/eas-json": "4.1.0",
+    "@expo/eas-build-job": "1.0.39",
+    "@expo/eas-json": "5.0.0",
     "@expo/json-file": "8.2.37",
     "@expo/multipart-body-parser": "1.1.0",
     "@expo/osascript": "2.0.33",
@@ -73,7 +73,7 @@
     "prompts": "2.4.2",
     "qrcode-terminal": "0.12.0",
     "resolve-from": "5.0.0",
-    "semver": "7.3.8",
+    "semver": "7.5.2",
     "slash": "3.0.0",
     "tar": "6.1.13",
     "terminal-link": "2.1.1",
