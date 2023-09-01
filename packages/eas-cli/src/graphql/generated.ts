@@ -794,6 +794,7 @@ export type AndroidBuilderEnvironmentInput = {
   image?: InputMaybe<Scalars['String']>;
   ndk?: InputMaybe<Scalars['String']>;
   node?: InputMaybe<Scalars['String']>;
+  pnpm?: InputMaybe<Scalars['String']>;
   yarn?: InputMaybe<Scalars['String']>;
 };
 
@@ -3542,6 +3543,7 @@ export type IosBuilderEnvironmentInput = {
   fastlane?: InputMaybe<Scalars['String']>;
   image?: InputMaybe<Scalars['String']>;
   node?: InputMaybe<Scalars['String']>;
+  pnpm?: InputMaybe<Scalars['String']>;
   yarn?: InputMaybe<Scalars['String']>;
 };
 

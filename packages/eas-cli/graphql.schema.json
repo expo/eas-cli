@@ -4986,6 +4986,18 @@
             "deprecationReason": null
           },
           {
+            "name": "pnpm",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "yarn",
             "description": null,
             "type": {
@@ -24615,6 +24627,18 @@
           },
           {
             "name": "node",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "pnpm",
             "description": null,
             "type": {
               "kind": "SCALAR",

@@ -10,10 +10,19 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Make app config error not repeat indefinitely. ([#2020](https://github.com/expo/eas-cli/pull/2020) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 - Update: only print channel-branch pairing if we created a channel. ([#2036](https://github.com/expo/eas-cli/pull/2036) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🧹 Chores
+
+## [5.1.0](https://github.com/expo/eas-cli/releases/tag/v5.1.0) - 2023-09-01
+
+### 🎉 New features
+
+- Support `pnpm` option in eas.json. ([#1988](https://github.com/expo/eas-cli/pull/1988) by [@khamilowicz](https://github.com/khamilowicz))
+
+### 🐛 Bug fixes
+
+- Make app config error not repeat indefinitely. ([#2020](https://github.com/expo/eas-cli/pull/2020) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ## [5.0.2](https://github.com/expo/eas-cli/releases/tag/v5.0.2) - 2023-08-29
 
