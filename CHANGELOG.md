@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Added rollout tests. ([#2042](https://github.com/expo/eas-cli/pull/2042) by [@quinlanj](https://github.com/quinlanj))
+
 ## [5.1.0](https://github.com/expo/eas-cli/releases/tag/v5.1.0) - 2023-09-01
 
 ### 🎉 New features
