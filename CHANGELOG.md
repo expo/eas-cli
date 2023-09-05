@@ -19,6 +19,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Added rollout tests. ([#2042](https://github.com/expo/eas-cli/pull/2042) by [@quinlanj](https://github.com/quinlanj))
 - Remove unreachable codesigning option. ([#2041](https://github.com/expo/eas-cli/pull/2041) by [@quinlanj](https://github.com/quinlanj))
 - Fix generated graphql tsc errors. ([#2039](https://github.com/expo/eas-cli/pull/2039) by [@quinlanj](https://github.com/quinlanj))
+- Rollouts: view action for CI. ([#2040](https://github.com/expo/eas-cli/pull/2040) by [@quinlanj](https://github.com/quinlanj))
 
 ## [5.1.0](https://github.com/expo/eas-cli/releases/tag/v5.1.0) - 2023-09-01
 

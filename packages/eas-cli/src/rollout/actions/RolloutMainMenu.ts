@@ -27,7 +27,8 @@ export enum MainMenuActions {
 export type RolloutActions =
   | MainMenuActions.CREATE_NEW
   | ManageRolloutActions.EDIT
-  | ManageRolloutActions.END;
+  | ManageRolloutActions.END
+  | ManageRolloutActions.VIEW;
 
 /**
  * Manage a rollout for the project.
@@ -126,7 +127,11 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
   toMainMenuAction(action: RolloutActions): MainMenuActions {
     if (action === MainMenuActions.CREATE_NEW) {
       return MainMenuActions.CREATE_NEW;
-    } else if (action === ManageRolloutActions.EDIT || action === ManageRolloutActions.END) {
+    } else if (
+      action === ManageRolloutActions.EDIT ||
+      action === ManageRolloutActions.END ||
+      action === ManageRolloutActions.VIEW
+    ) {
       return MainMenuActions.MANAGE_EXISTING;
     } else {
       throw new Error(`Action not supported yet: ` + action);
