@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [5.2.0](https://github.com/expo/eas-cli/releases/tag/v5.2.0) - 2023-09-05
+
+### 🎉 New features
+
 - Rollouts: json output for ci. ([#2037](https://github.com/expo/eas-cli/pull/2037) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🐛 Bug fixes
