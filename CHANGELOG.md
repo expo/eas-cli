@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Added rollout tests. ([#2042](https://github.com/expo/eas-cli/pull/2042) by [@quinlanj](https://github.com/quinlanj))
 - Remove unreachable codesigning option. ([#2041](https://github.com/expo/eas-cli/pull/2041) by [@quinlanj](https://github.com/quinlanj))
 - Fix generated graphql tsc errors. ([#2039](https://github.com/expo/eas-cli/pull/2039) by [@quinlanj](https://github.com/quinlanj))
 
