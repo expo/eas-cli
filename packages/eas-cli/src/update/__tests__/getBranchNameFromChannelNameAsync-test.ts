@@ -1,7 +1,7 @@
 import { instance, mock } from 'ts-mockito';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { App, Runtime, UpdateBranch, UpdateChannel } from '../../graphql/generated';
+import { App, Runtime, UpdateBranch, UpdateChannel, UpdateInsights } from '../../graphql/generated';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import { getBranchNameFromChannelNameAsync } from '../getBranchNameFromChannelNameAsync';
 
@@ -125,6 +125,7 @@ function mockUpdateBranches(branchNames: string[]): UpdateBranch[] {
           createdAt: '2022-12-07T02:24:43.487Z',
           runtimeVersion: '1.0.0',
           runtime: {} as Runtime, // Temporary fix to resolve type errors
+          insights: {} as UpdateInsights, // Temporary fix to resolve type errors
           platform: 'ios',
           manifestFragment: '...',
           isRollBackToEmbedded: false,
