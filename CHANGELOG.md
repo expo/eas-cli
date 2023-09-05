@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Rollouts: json output for ci. ([#2037](https://github.com/expo/eas-cli/pull/2037) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🐛 Bug fixes
 
 - Update: only print channel-branch pairing if we created a channel. ([#2036](https://github.com/expo/eas-cli/pull/2036) by [@quinlanj](https://github.com/quinlanj))

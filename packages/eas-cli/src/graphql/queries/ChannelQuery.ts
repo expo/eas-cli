@@ -60,6 +60,7 @@ export const ChannelQuery = {
                   updateChannelByName(name: $channelName) {
                     id
                     name
+                    updatedAt
                     createdAt
                     branchMapping
                     updateBranches(offset: 0, limit: 5) {
@@ -104,6 +105,7 @@ export const ChannelQuery = {
                   updateChannels(offset: $offset, limit: $limit) {
                     id
                     name
+                    updatedAt
                     createdAt
                     branchMapping
                     updateBranches(offset: 0, limit: 5) {
