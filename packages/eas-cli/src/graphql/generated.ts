@@ -479,17 +479,11 @@ export type AccountSsoConfiguration = {
 };
 
 export type AccountSsoConfigurationData = {
-  authEndpoint?: InputMaybe<Scalars['String']>;
   authProtocol: AuthProtocolType;
   authProviderIdentifier: Scalars['String'];
   clientIdentifier: Scalars['String'];
   clientSecret: Scalars['String'];
-  endSessionEndpoint?: InputMaybe<Scalars['String']>;
   issuer: Scalars['String'];
-  jwksEndpoint?: InputMaybe<Scalars['String']>;
-  revokeEndpoint?: InputMaybe<Scalars['String']>;
-  tokenEndpoint?: InputMaybe<Scalars['String']>;
-  userInfoEndpoint?: InputMaybe<Scalars['String']>;
 };
 
 export type AccountSsoConfigurationMutation = {
@@ -602,6 +596,8 @@ export type Actor = {
    * For example, when displaying a sentence indicating that actor X created a build or published an update.
    */
   displayName: Scalars['String'];
+  /** Experiments associated with this actor */
+  experiments: Array<ActorExperiment>;
   /**
    * Server feature gate values for this actor, optionally filtering by desired gates.
    * Only resolves for the viewer.
@@ -618,9 +614,33 @@ export type ActorFeatureGatesArgs = {
   filter?: InputMaybe<Array<Scalars['String']>>;
 };
 
+export type ActorExperiment = {
+  __typename?: 'ActorExperiment';
+  createdAt: Scalars['DateTime'];
+  enabled: Scalars['Boolean'];
+  experiment: Experiment;
+  id: Scalars['ID'];
+  updatedAt: Scalars['DateTime'];
+};
+
+export type ActorExperimentMutation = {
+  __typename?: 'ActorExperimentMutation';
+  /** Create or update the value of a User Experiment */
+  createOrUpdateActorExperiment: ActorExperiment;
+};
+
+
+export type ActorExperimentMutationCreateOrUpdateActorExperimentArgs = {
+  enabled: Scalars['Boolean'];
+  experiment: Experiment;
+};
+
 export type ActorQuery = {
   __typename?: 'ActorQuery';
-  /** Query an Actor by ID */
+  /**
+   * Query an Actor by ID
+   * @deprecated Public actor queries are no longer supported
+   */
   byId: Actor;
 };
 
@@ -1024,6 +1044,7 @@ export type App = Project & {
   insights: AppInsights;
   /** iOS app credentials for the project */
   iosAppCredentials: Array<IosAppCredentials>;
+  isDeleting: Scalars['Boolean'];
   /** Whether the latest classic update publish is using a deprecated SDK version */
   isDeprecated: Scalars['Boolean'];
   /** @deprecated 'likes' have been deprecated. */
@@ -1058,6 +1079,8 @@ export type App = Project & {
   releaseChannels: Array<Scalars['String']>;
   /** @deprecated Legacy access tokens are deprecated */
   requiresAccessTokenForPushSecurity: Scalars['Boolean'];
+  /** Runtimes associated with this app */
+  runtimes: RuntimesConnection;
   scopeKey: Scalars['String'];
   /** SDK version of the latest classic update publish, 0.0.0 otherwise */
   sdkVersion: Scalars['String'];
@@ -1175,6 +1198,7 @@ export type AppDeploymentArgs = {
 export type AppDeploymentsArgs = {
   after?: InputMaybe<Scalars['String']>;
   before?: InputMaybe<Scalars['String']>;
+  filter?: InputMaybe<DeploymentFilterInput>;
   first?: InputMaybe<Scalars['Int']>;
   last?: InputMaybe<Scalars['Int']>;
 };
@@ -1210,6 +1234,15 @@ export type AppLatestReleaseForReleaseChannelArgs = {
 export type AppLikedByArgs = {
   limit?: InputMaybe<Scalars['Int']>;
   offset?: InputMaybe<Scalars['Int']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppRuntimesArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
 };
 
 
@@ -2054,6 +2087,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   completedAt?: Maybe<Scalars['DateTime']>;
   createdAt: Scalars['DateTime'];
   customWorkflowName?: Maybe<Scalars['String']>;
+  developmentClient?: Maybe<Scalars['Boolean']>;
   distribution?: Maybe<DistributionType>;
   enqueuedAt?: Maybe<Scalars['DateTime']>;
   error?: Maybe<BuildError>;
@@ -2270,6 +2304,7 @@ export type BuildMetadataInput = {
   cliVersion?: InputMaybe<Scalars['String']>;
   credentialsSource?: InputMaybe<BuildCredentialsSource>;
   customWorkflowName?: InputMaybe<Scalars['String']>;
+  developmentClient?: InputMaybe<Scalars['Boolean']>;
   distribution?: InputMaybe<DistributionType>;
   gitCommitHash?: InputMaybe<Scalars['String']>;
   gitCommitMessage?: InputMaybe<Scalars['String']>;
@@ -2772,8 +2807,10 @@ export type Deployment = {
   builds: DeploymentBuildsConnection;
   channel: UpdateChannel;
   id: Scalars['ID'];
-  /** @deprecated Not required for the new Deployment UI */
-  latestUpdate?: Maybe<Update>;
+  /** Deployment query field */
+  insights: DeploymentInsights;
+  /** Ordered the same way as 'updateBranches' in UpdateChannel */
+  latestUpdatesPerBranch: Array<LatestUpdateOnBranch>;
   runtime: Runtime;
 };
 
@@ -2784,6 +2821,13 @@ export type DeploymentBuildsArgs = {
   before?: InputMaybe<Scalars['String']>;
   first?: InputMaybe<Scalars['Int']>;
   last?: InputMaybe<Scalars['Int']>;
+};
+
+
+/** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
+export type DeploymentLatestUpdatesPerBranchArgs = {
+  limit: Scalars['Int'];
+  offset: Scalars['Int'];
 };
 
 export type DeploymentBuildEdge = {
@@ -2803,6 +2847,40 @@ export type DeploymentEdge = {
   __typename?: 'DeploymentEdge';
   cursor: Scalars['String'];
   node: Deployment;
+};
+
+export type DeploymentFilterInput = {
+  channel?: InputMaybe<Scalars['String']>;
+  runtimeVersion?: InputMaybe<Scalars['String']>;
+};
+
+export type DeploymentInsights = {
+  __typename?: 'DeploymentInsights';
+  embeddedUpdateTotalUniqueUsers: Scalars['Int'];
+  embeddedUpdateUniqueUsersOverTime: UniqueUsersOverTimeData;
+  id: Scalars['ID'];
+  mostPopularUpdates: Array<Update>;
+  uniqueUsersOverTime: UniqueUsersOverTimeData;
+};
+
+
+export type DeploymentInsightsEmbeddedUpdateTotalUniqueUsersArgs = {
+  timespan: InsightsTimespan;
+};
+
+
+export type DeploymentInsightsEmbeddedUpdateUniqueUsersOverTimeArgs = {
+  timespan: InsightsTimespan;
+};
+
+
+export type DeploymentInsightsMostPopularUpdatesArgs = {
+  timespan: InsightsTimespan;
+};
+
+
+export type DeploymentInsightsUniqueUsersOverTimeArgs = {
+  timespan: InsightsTimespan;
 };
 
 /** Represents the connection over the deployments edge of an App */
@@ -2972,6 +3050,10 @@ export type EstimatedUsage = {
   serviceMetric: EasServiceMetric;
   value: Scalars['Float'];
 };
+
+export enum Experiment {
+  Orbit = 'ORBIT'
+}
 
 export type ExperimentationQuery = {
   __typename?: 'ExperimentationQuery';
@@ -3670,6 +3752,12 @@ export type KeystoreGenerationUrlMutation = {
   createKeystoreGenerationUrl: KeystoreGenerationUrl;
 };
 
+export type LatestUpdateOnBranch = {
+  __typename?: 'LatestUpdateOnBranch';
+  branchId: Scalars['String'];
+  update?: Maybe<Update>;
+};
+
 export type LeaveAccountResult = {
   __typename?: 'LeaveAccountResult';
   success: Scalars['Boolean'];
@@ -3847,6 +3935,7 @@ export type MeteredBillingStatus = {
 
 export type Notification = {
   __typename?: 'Notification';
+  accountName: Scalars['String'];
   createdAt: Scalars['DateTime'];
   event: NotificationEvent;
   id: Scalars['ID'];
@@ -3854,6 +3943,7 @@ export type Notification = {
   metadata?: Maybe<NotificationMetadata>;
   type: NotificationType;
   updatedAt: Scalars['DateTime'];
+  websiteMessage: Scalars['String'];
 };
 
 export enum NotificationEvent {
@@ -4086,6 +4176,8 @@ export type Robot = Actor & {
   accounts: Array<Account>;
   created: Scalars['DateTime'];
   displayName: Scalars['String'];
+  /** Experiments associated with this actor */
+  experiments: Array<ActorExperiment>;
   /**
    * Server feature gate values for this actor, optionally filtering by desired gates.
    * Only resolves for the viewer.
@@ -4157,6 +4249,8 @@ export type RootMutation = {
   account: AccountMutation;
   /** Mutations that create, update, and delete an AccountSSOConfiguration */
   accountSSOConfiguration: AccountSsoConfigurationMutation;
+  /** Mutations for Actor experiments */
+  actorExperiment: ActorExperimentMutation;
   /** Mutations that modify the build credentials for an Android app */
   androidAppBuildCredentials: AndroidAppBuildCredentialsMutation;
   /** Mutations that modify the credentials for an Android app */
@@ -4232,6 +4326,8 @@ export type RootMutation = {
   userInvitation: UserInvitationMutation;
   /** Mutations that create, delete, update Webhooks */
   webhook: WebhookMutation;
+  /** Mutations that modify a websiteNotification */
+  websiteNotifications: WebsiteNotificationMutation;
 };
 
 
@@ -4265,7 +4361,10 @@ export type RootQuery = {
   account: AccountQuery;
   /** Top-level query object for querying AccountSSOConfigurationPublicData */
   accountSSOConfigurationPublicData: AccountSsoConfigurationPublicDataQuery;
-  /** Top-level query object for querying Actors. */
+  /**
+   * Top-level query object for querying Actors.
+   * @deprecated Public actor queries are no longer supported
+   */
   actor: ActorQuery;
   /**
    * Public apps in the app directory
@@ -4322,7 +4421,10 @@ export type RootQuery = {
    * @deprecated Public user queries are no longer supported
    */
   user: UserQuery;
-  /** Top-level query object for querying UserActors. */
+  /**
+   * Top-level query object for querying UserActors.
+   * @deprecated Public user queries are no longer supported
+   */
   userActor: UserActorQuery;
   /** Top-level query object for querying UserActorPublicData publicly. */
   userActorPublicData: UserActorPublicDataQuery;
@@ -4388,6 +4490,7 @@ export type RuntimeFilterInput = {
   branchId?: InputMaybe<Scalars['String']>;
 };
 
+/** Represents the connection over the runtime edge of an App */
 export type RuntimesConnection = {
   __typename?: 'RuntimesConnection';
   edges: Array<RuntimeEdge>;
@@ -4412,6 +4515,8 @@ export type SsoUser = Actor & UserActor & {
   /** Discord account linked to a user */
   discordUser?: Maybe<DiscordUser>;
   displayName: Scalars['String'];
+  /** Experiments associated with this actor */
+  experiments: Array<ActorExperiment>;
   /**
    * Server feature gate values for this actor, optionally filtering by desired gates.
    * Only resolves for the viewer.
@@ -4439,8 +4544,9 @@ export type SsoUser = Actor & UserActor & {
   /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
-  /** Web notifications linked to a user */
+  /** @deprecated No longer supported */
   websiteNotifications: Array<Notification>;
+  websiteNotificationsPaginated: WebsiteNotificationsConnection;
 };
 
 
@@ -4476,6 +4582,15 @@ export type SsoUserNotificationSubscriptionsArgs = {
 export type SsoUserSnacksArgs = {
   limit: Scalars['Int'];
   offset: Scalars['Int'];
+};
+
+
+/** Represents a human SSO (not robot) actor. */
+export type SsoUserWebsiteNotificationsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
 };
 
 export type SsoUserDataInput = {
@@ -4672,7 +4787,9 @@ export type StatuspageService = {
 export enum StatuspageServiceName {
   EasBuild = 'EAS_BUILD',
   EasSubmit = 'EAS_SUBMIT',
-  EasUpdate = 'EAS_UPDATE'
+  EasUpdate = 'EAS_UPDATE',
+  GithubApiRequests = 'GITHUB_API_REQUESTS',
+  GithubWebhooks = 'GITHUB_WEBHOOKS'
 }
 
 export type StatuspageServiceQuery = {
@@ -4906,6 +5023,8 @@ export type Update = ActivityTimelineProjectActivity & {
   gitCommitHash?: Maybe<Scalars['String']>;
   group: Scalars['String'];
   id: Scalars['ID'];
+  /** Update query field */
+  insights: UpdateInsights;
   isGitWorkingTreeDirty: Scalars['Boolean'];
   isRollBackToEmbedded: Scalars['Boolean'];
   manifestFragment: Scalars['String'];
@@ -5066,6 +5185,17 @@ export type UpdateInfoGroup = {
   web?: InputMaybe<PartialManifest>;
 };
 
+export type UpdateInsights = {
+  __typename?: 'UpdateInsights';
+  id: Scalars['ID'];
+  totalUniqueUsers: Scalars['Int'];
+};
+
+
+export type UpdateInsightsTotalUniqueUsersArgs = {
+  timespan: InsightsTimespan;
+};
+
 export type UpdateMutation = {
   __typename?: 'UpdateMutation';
   /** Delete an EAS update group */
@@ -5165,6 +5295,8 @@ export type User = Actor & UserActor & {
   displayName: Scalars['String'];
   email: Scalars['String'];
   emailVerified: Scalars['Boolean'];
+  /** Experiments associated with this actor */
+  experiments: Array<ActorExperiment>;
   /**
    * Server feature gate values for this actor, optionally filtering by desired gates.
    * Only resolves for the viewer.
@@ -5201,7 +5333,9 @@ export type User = Actor & UserActor & {
   /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
+  /** @deprecated No longer supported */
   websiteNotifications: Array<Notification>;
+  websiteNotificationsPaginated: WebsiteNotificationsConnection;
 };
 
 
@@ -5239,6 +5373,15 @@ export type UserSnacksArgs = {
   offset: Scalars['Int'];
 };
 
+
+/** Represents a human (not robot) actor. */
+export type UserWebsiteNotificationsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
+};
+
 /** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
 export type UserActor = {
   /** Access Tokens belonging to this user actor */
@@ -5263,6 +5406,8 @@ export type UserActor = {
    * For example, when displaying a sentence indicating that actor X created a build or published an update.
    */
   displayName: Scalars['String'];
+  /** Experiments associated with this actor */
+  experiments: Array<ActorExperiment>;
   /**
    * Server feature gate values for this user actor, optionally filtering by desired gates.
    * Only resolves for the viewer.
@@ -5290,8 +5435,9 @@ export type UserActor = {
   /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
-  /** Web notifications linked to a user */
+  /** @deprecated No longer supported */
   websiteNotifications: Array<Notification>;
+  websiteNotificationsPaginated: WebsiteNotificationsConnection;
 };
 
 
@@ -5327,6 +5473,15 @@ export type UserActorNotificationSubscriptionsArgs = {
 export type UserActorSnacksArgs = {
   limit: Scalars['Int'];
   offset: Scalars['Int'];
+};
+
+
+/** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
+export type UserActorWebsiteNotificationsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']>;
+  before?: InputMaybe<Scalars['String']>;
+  first?: InputMaybe<Scalars['Int']>;
+  last?: InputMaybe<Scalars['Int']>;
 };
 
 /** A human user (type User or SSOUser) that can login to the Expo website, use Expo services, and be a member of accounts. */
@@ -5371,9 +5526,15 @@ export type UserActorPublicDataQueryByUsernameArgs = {
 
 export type UserActorQuery = {
   __typename?: 'UserActorQuery';
-  /** Query a UserActor by ID */
+  /**
+   * Query a UserActor by ID
+   * @deprecated Public user actor queries are no longer supported
+   */
   byId: UserActor;
-  /** Query a UserActor by username */
+  /**
+   * Query a UserActor by username
+   * @deprecated Public user actor queries are no longer supported
+   */
   byUsername: UserActor;
 };
 
@@ -5546,6 +5707,11 @@ export type UserSecondFactorDevice = {
   user: User;
 };
 
+export type WebNotificationUpdateReadStateInput = {
+  id: Scalars['ID'];
+  isRead: Scalars['Boolean'];
+};
+
 export type Webhook = {
   __typename?: 'Webhook';
   appId: Scalars['ID'];
@@ -5607,6 +5773,29 @@ export enum WebhookType {
   Build = 'BUILD',
   Submit = 'SUBMIT'
 }
+
+export type WebsiteNotificationEdge = {
+  __typename?: 'WebsiteNotificationEdge';
+  cursor: Scalars['String'];
+  node: Notification;
+};
+
+export type WebsiteNotificationMutation = {
+  __typename?: 'WebsiteNotificationMutation';
+  updateAllWebsiteNotificationReadStateAsRead: Scalars['Boolean'];
+  updateNotificationReadState: Notification;
+};
+
+
+export type WebsiteNotificationMutationUpdateNotificationReadStateArgs = {
+  input: WebNotificationUpdateReadStateInput;
+};
+
+export type WebsiteNotificationsConnection = {
+  __typename?: 'WebsiteNotificationsConnection';
+  edges: Array<WebsiteNotificationEdge>;
+  pageInfo: PageInfo;
+};
 
 export type DeleteAndroidAppBuildCredentialsResult = {
   __typename?: 'deleteAndroidAppBuildCredentialsResult';
