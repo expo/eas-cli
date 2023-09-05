@@ -5,13 +5,7 @@ import {
   UpdateBranchObject,
   UpdateChannelObject,
 } from '../../graphql/queries/ChannelQuery';
-<<<<<<< HEAD
-||||||| parent of aa3f3b80 ([eas-cli] rollouts: non-interactive view)
-import { CodeSigningInfo } from '../../utils/code-signing';
-=======
 import Log from '../../log';
-import { CodeSigningInfo } from '../../utils/code-signing';
->>>>>>> aa3f3b80 ([eas-cli] rollouts: non-interactive view)
 import { printJsonOnlyOutput } from '../../utils/json';
 import { getRollout, getRolloutInfo, isConstrainedRolloutInfo, isRollout } from '../branch-mapping';
 import { printRollout } from '../utils';
