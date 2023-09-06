@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Rollouts: more robust printing function. ([#2047](https://github.com/expo/eas-cli/pull/2047) by [@quinlanj](https://github.com/quinlanj))
+
 ## [5.2.0](https://github.com/expo/eas-cli/releases/tag/v5.2.0) - 2023-09-05
 
 ### 🎉 New features
