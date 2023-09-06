@@ -10,9 +10,13 @@ import Log from '../log';
 import { promptAsync } from '../prompts';
 import { FormattedUpdateGroupDescription, getUpdateGroupDescriptions } from '../update/utils';
 import formatFields from '../utils/formatFields';
-import { Rollout, getRollout, isConstrainedRollout } from './branch-mapping';
+import { Rollout, getRollout, isConstrainedRollout, isRollout } from './branch-mapping';
 
 export function printRollout(channel: UpdateChannelObject): void {
+  if (!isRollout(channel)) {
+    Log.log(`Channel ${chalk.bold(channel.name)} doesn't have a rollout.`);
+    return;
+  }
   const rollout = getRollout(channel);
   displayRolloutDetails(channel.name, rollout);
 }
