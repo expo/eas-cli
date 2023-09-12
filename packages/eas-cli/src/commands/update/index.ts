@@ -137,7 +137,7 @@ export default class UpdatePublish extends EasCommand {
       required: false,
     }),
     dev: Flags.boolean({
-      description: 'Publish an unminified dev bundle without stripping __DEV__ global',
+      description: 'Publish a development bundle',
       default: false,
     }),
     auto: Flags.boolean({
