@@ -83,9 +83,6 @@ async function getNodeVersionFromFileAsync(projectDir: string): Promise<string |
   } catch {
     return undefined;
   }
-  if (!semver.valid(semver.coerce(nodeVersion))) {
-    throw new Error(`Invalid node version in .nvmrc: ${nodeVersion}`);
-  }
   return nodeVersion;
 }
 
