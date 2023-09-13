@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Update: expose expo cli `--dev` flag as an argument. ([#2050](https://github.com/expo/eas-cli/pull/2050) by [@nderscore](https://github.com/nderscore))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
