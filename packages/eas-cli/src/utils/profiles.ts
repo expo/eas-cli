@@ -8,7 +8,6 @@ import {
 } from '@expo/eas-json';
 import fs from 'fs-extra';
 import path from 'path';
-import semver from 'semver';
 
 import Log, { learnMore } from '../log';
 
