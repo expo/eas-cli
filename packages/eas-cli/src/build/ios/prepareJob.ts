@@ -59,6 +59,7 @@ export async function prepareJobAsync(
       image: buildProfile.image,
       node: buildProfile.node,
       pnpm: buildProfile.pnpm,
+      bun: buildProfile.bun,
       yarn: buildProfile.yarn,
       bundler: buildProfile.bundler,
       cocoapods: buildProfile.cocoapods,
