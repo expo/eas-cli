@@ -169,6 +169,11 @@
           "description": "The version of pnpm to use for the build. See: https://www.npmjs.com/package/pnpm",
           "markdownDescription": "The exact version of [pnpm](https://www.npmjs.com/package/pnpm) to use for the build."
         },
+        "bun": {
+          "type": "string",
+          "description": "The version of Bun to use for the build. See: https://bun.sh/",
+          "markdownDescription": "The exact version of [Bun](https://bun.sh/) to use for the build."
+        },
         "expoCli": {
           "type": "string",
           "description": "The version of `expo-cli` used to `prebuild` your app.",
@@ -415,7 +420,12 @@
           "default": "default",
           "anyOf": [
             {
-              "enum": ["default", "medium", "large", "m-medium"]
+              "enum": [
+                "default",
+                "medium",
+                "large",
+                "m-medium"
+              ]
             },
             {
               "type": "string"
