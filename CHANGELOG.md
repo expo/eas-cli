@@ -9,7 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Update: expose expo cli `--dev` flag as an argument. ([#2050](https://github.com/expo/eas-cli/pull/2050) by [@nderscore](https://github.com/nderscore))
-- Support `bun` option in eas.json. ([#2053](https://github.com/expo/eas-cli/pull/2053) by [@kadikraman](https://github.com/kadikraman))
+- Support `bun` option in eas.json. ([#2055](https://github.com/expo/eas-cli/pull/2055) by [@kadikraman](https://github.com/kadikraman))
 
 ### 🐛 Bug fixes
 
