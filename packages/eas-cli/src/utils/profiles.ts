@@ -8,7 +8,6 @@ import {
 } from '@expo/eas-json';
 import fs from 'fs-extra';
 import path from 'path';
-import semver from 'semver';
 
 import Log, { learnMore } from '../log';
 
@@ -82,9 +81,6 @@ async function getNodeVersionFromFileAsync(projectDir: string): Promise<string |
     nodeVersion = (await fs.readFile(nvmrcPath, 'utf8')).toString().trim();
   } catch {
     return undefined;
-  }
-  if (!semver.valid(semver.coerce(nodeVersion))) {
-    throw new Error(`Invalid node version in .nvmrc: ${nodeVersion}`);
   }
   return nodeVersion;
 }

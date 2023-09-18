@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Support node aliases in .nvmrc. ([#2052](https://github.com/expo/eas-cli/pull/2052) by [@khamilowicz](https://github.com/khamilowicz))
+
 ### 🧹 Chores
 
 - Rollouts: more robust printing function. ([#2047](https://github.com/expo/eas-cli/pull/2047) by [@quinlanj](https://github.com/quinlanj))
