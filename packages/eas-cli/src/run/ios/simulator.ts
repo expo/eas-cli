@@ -10,7 +10,7 @@ interface IosSimulator {
   runtime: string;
   osVersion: string;
   windowName: string;
-  osType: 'iOS';
+  osType: 'iOS' | 'tvOS';
   state: 'Booted' | 'Shutdown';
   isAvailable: boolean;
   name: string;
@@ -33,7 +33,7 @@ export async function selectSimulatorAsync(): Promise<IosSimulator> {
     message: `Select a simulator to run your app on`,
     name: 'selectedSimulator',
     choices: simulators.map(simulator => ({
-      title: `iOS ${simulator.osVersion} ${simulator.name}`,
+      title: `${simulator.osType} ${simulator.osVersion} ${simulator.name}`,
       value: simulator,
     })),
   });
@@ -69,7 +69,7 @@ export async function getAvaliableIosSimulatorsListAsync(query?: string): Promis
     // Create an array [tvOS, 13, 4]
     const [osType, ...osVersionComponents] = runtimeSuffix.split('-');
 
-    if (osType === 'iOS') {
+    if (osType === 'iOS' || osType === 'tvOS') {
       // Join the end components [13, 4] -> '13.4'
       const osVersion = osVersionComponents.join('.');
       const sims = info.devices[runtime];
@@ -80,7 +80,7 @@ export async function getAvaliableIosSimulatorsListAsync(query?: string): Promis
             runtime,
             osVersion,
             windowName: `${device.name} (${osVersion})`,
-            osType: 'iOS' as const,
+            osType,
             state: device.state as 'Booted' | 'Shutdown',
             lastBootedAt: device.lastBootedAt ? new Date(device.lastBootedAt) : undefined,
           });
