@@ -1,3 +1,5 @@
+import { format } from '@expo/timeago.js';
+
 import { getAlwaysTrueBranchMapping, getEmptyBranchMapping } from '../branch-mapping';
 import { getDescriptionByBranchId } from '../print-utils';
 import { testChannelObject, testUpdateBranch1, testUpdateBranch2 } from './fixtures';
@@ -13,11 +15,12 @@ describe(getDescriptionByBranchId, () => {
         codeSigningKey: undefined,
         group: '16ca6dba-e63b-48b0-baa3-15a894ee9434',
         isRollBackToEmbedded: false,
-        message: '"fix bug" (1 month ago by quintest113)',
+        message: `"fix bug" (${format('2023-07-17T22:48:59.278Z', 'en_US')} by quintest113)`,
         platforms: 'android, ios',
         runtimeVersion: 'exposdk:48.0.0',
       },
     });
+
     expect(descriptionByBranchId[testUpdateBranch2.id]).toEqual({
       branch: 'production',
       branchRolloutPercentage: 85,
@@ -25,7 +28,7 @@ describe(getDescriptionByBranchId, () => {
         codeSigningKey: undefined,
         group: 'e40ad156-e9af-4cc2-8e9d-c7b5c328db48',
         isRollBackToEmbedded: false,
-        message: '"fix bug" (2 months ago by quintest113)',
+        message: `"fix bug" (${format('2023-06-23T23:37:10.004Z', 'en_US')} by quintest113)`,
         platforms: 'android, ios',
         runtimeVersion: 'exposdk:48.0.0',
       },
