@@ -50,7 +50,7 @@
     "fs-extra": "10.1.0",
     "getenv": "1.0.0",
     "gradle-to-js": "2.0.1",
-    "graphql": "16.6.0",
+    "graphql": "16.8.1",
     "graphql-tag": "2.12.6",
     "https-proxy-agent": "5.0.1",
     "ignore": "5.2.4",
