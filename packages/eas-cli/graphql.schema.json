@@ -5029,6 +5029,18 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "bun",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "env",
             "description": null,
             "type": {
@@ -25316,6 +25328,18 @@
         "description": null,
         "fields": null,
         "inputFields": [
+          {
+            "name": "bun",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "bundler",
             "description": null,

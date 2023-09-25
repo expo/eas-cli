@@ -809,6 +809,7 @@ export enum AndroidBuildType {
 }
 
 export type AndroidBuilderEnvironmentInput = {
+  bun?: InputMaybe<Scalars['String']>;
   env?: InputMaybe<Scalars['JSONObject']>;
   expoCli?: InputMaybe<Scalars['String']>;
   image?: InputMaybe<Scalars['String']>;
@@ -3663,6 +3664,7 @@ export enum IosBuildType {
 }
 
 export type IosBuilderEnvironmentInput = {
+  bun?: InputMaybe<Scalars['String']>;
   bundler?: InputMaybe<Scalars['String']>;
   cocoapods?: InputMaybe<Scalars['String']>;
   env?: InputMaybe<Scalars['JSONObject']>;
