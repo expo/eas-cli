@@ -809,6 +809,7 @@ export enum AndroidBuildType {
 }
 
 export type AndroidBuilderEnvironmentInput = {
+  bun?: InputMaybe<Scalars['String']>;
   env?: InputMaybe<Scalars['JSONObject']>;
   expoCli?: InputMaybe<Scalars['String']>;
   image?: InputMaybe<Scalars['String']>;
@@ -2179,6 +2180,7 @@ export enum BuildCredentialsSource {
 
 export type BuildError = {
   __typename?: 'BuildError';
+  buildPhase?: Maybe<BuildPhase>;
   docsUrl?: Maybe<Scalars['String']>;
   errorCode: Scalars['String'];
   message: Scalars['String'];
@@ -2432,6 +2434,50 @@ export type BuildParamsInput = {
   resourceClass: BuildResourceClass;
   sdkVersion?: InputMaybe<Scalars['String']>;
 };
+
+export enum BuildPhase {
+  BuilderInfo = 'BUILDER_INFO',
+  CleanUpCredentials = 'CLEAN_UP_CREDENTIALS',
+  CompleteBuild = 'COMPLETE_BUILD',
+  ConfigureExpoUpdates = 'CONFIGURE_EXPO_UPDATES',
+  ConfigureXcodeProject = 'CONFIGURE_XCODE_PROJECT',
+  Custom = 'CUSTOM',
+  DownloadApplicationArchive = 'DOWNLOAD_APPLICATION_ARCHIVE',
+  EasBuildInternal = 'EAS_BUILD_INTERNAL',
+  FailBuild = 'FAIL_BUILD',
+  FixGradlew = 'FIX_GRADLEW',
+  InstallCustomTools = 'INSTALL_CUSTOM_TOOLS',
+  InstallDependencies = 'INSTALL_DEPENDENCIES',
+  InstallPods = 'INSTALL_PODS',
+  OnBuildCancelHook = 'ON_BUILD_CANCEL_HOOK',
+  OnBuildCompleteHook = 'ON_BUILD_COMPLETE_HOOK',
+  OnBuildErrorHook = 'ON_BUILD_ERROR_HOOK',
+  OnBuildSuccessHook = 'ON_BUILD_SUCCESS_HOOK',
+  ParseCustomWorkflowConfig = 'PARSE_CUSTOM_WORKFLOW_CONFIG',
+  PostInstallHook = 'POST_INSTALL_HOOK',
+  Prebuild = 'PREBUILD',
+  PrepareArtifacts = 'PREPARE_ARTIFACTS',
+  PrepareCredentials = 'PREPARE_CREDENTIALS',
+  PrepareProject = 'PREPARE_PROJECT',
+  PreInstallHook = 'PRE_INSTALL_HOOK',
+  PreUploadArtifactsHook = 'PRE_UPLOAD_ARTIFACTS_HOOK',
+  Queue = 'QUEUE',
+  ReadAppConfig = 'READ_APP_CONFIG',
+  ReadPackageJson = 'READ_PACKAGE_JSON',
+  RestoreCache = 'RESTORE_CACHE',
+  RunExpoDoctor = 'RUN_EXPO_DOCTOR',
+  RunFastlane = 'RUN_FASTLANE',
+  RunGradlew = 'RUN_GRADLEW',
+  SaveCache = 'SAVE_CACHE',
+  SetUpBuildEnvironment = 'SET_UP_BUILD_ENVIRONMENT',
+  SpinUpBuilder = 'SPIN_UP_BUILDER',
+  StartBuild = 'START_BUILD',
+  Unknown = 'UNKNOWN',
+  UploadApplicationArchive = 'UPLOAD_APPLICATION_ARCHIVE',
+  /** @deprecated No longer supported */
+  UploadArtifacts = 'UPLOAD_ARTIFACTS',
+  UploadBuildArtifacts = 'UPLOAD_BUILD_ARTIFACTS'
+}
 
 export type BuildPlanCreditThresholdExceededMetadata = {
   __typename?: 'BuildPlanCreditThresholdExceededMetadata';
@@ -3618,6 +3664,7 @@ export enum IosBuildType {
 }
 
 export type IosBuilderEnvironmentInput = {
+  bun?: InputMaybe<Scalars['String']>;
   bundler?: InputMaybe<Scalars['String']>;
   cocoapods?: InputMaybe<Scalars['String']>;
   env?: InputMaybe<Scalars['JSONObject']>;
@@ -4322,6 +4369,8 @@ export type RootMutation = {
   updateBranch: UpdateBranchMutation;
   updateChannel: UpdateChannelMutation;
   uploadSession: UploadSession;
+  /** Mutations that create, update, and delete pinned apps */
+  userAppPins: UserAppPinMutation;
   /** Mutations that create, delete, and accept UserInvitations */
   userInvitation: UserInvitationMutation;
   /** Mutations that create, delete, update Webhooks */
@@ -4536,6 +4585,7 @@ export type SsoUser = Actor & UserActor & {
   /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']>;
   notificationSubscriptions: Array<NotificationSubscription>;
+  pinnedApps: Array<App>;
   /** Associated accounts */
   primaryAccount: Account;
   profilePhoto: Scalars['String'];
@@ -4544,8 +4594,6 @@ export type SsoUser = Actor & UserActor & {
   /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
-  /** @deprecated No longer supported */
-  websiteNotifications: Array<Notification>;
   websiteNotificationsPaginated: WebsiteNotificationsConnection;
 };
 
@@ -5323,6 +5371,7 @@ export type User = Actor & UserActor & {
   notificationSubscriptions: Array<NotificationSubscription>;
   /** Pending UserInvitations for this user. Only resolves for the viewer. */
   pendingUserInvitations: Array<UserInvitation>;
+  pinnedApps: Array<App>;
   /** Associated accounts */
   primaryAccount: Account;
   profilePhoto: Scalars['String'];
@@ -5333,8 +5382,6 @@ export type User = Actor & UserActor & {
   /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
-  /** @deprecated No longer supported */
-  websiteNotifications: Array<Notification>;
   websiteNotificationsPaginated: WebsiteNotificationsConnection;
 };
 
@@ -5427,6 +5474,7 @@ export type UserActor = {
   /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']>;
   notificationSubscriptions: Array<NotificationSubscription>;
+  pinnedApps: Array<App>;
   /** Associated accounts */
   primaryAccount: Account;
   profilePhoto: Scalars['String'];
@@ -5435,8 +5483,6 @@ export type UserActor = {
   /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']>;
   username: Scalars['String'];
-  /** @deprecated No longer supported */
-  websiteNotifications: Array<Notification>;
   websiteNotificationsPaginated: WebsiteNotificationsConnection;
 };
 
@@ -5546,6 +5592,22 @@ export type UserActorQueryByIdArgs = {
 
 export type UserActorQueryByUsernameArgs = {
   username: Scalars['String'];
+};
+
+export type UserAppPinMutation = {
+  __typename?: 'UserAppPinMutation';
+  pinApp: Scalars['ID'];
+  unpinApp?: Maybe<Scalars['ID']>;
+};
+
+
+export type UserAppPinMutationPinAppArgs = {
+  appId: Scalars['ID'];
+};
+
+
+export type UserAppPinMutationUnpinAppArgs = {
+  appId: Scalars['ID'];
 };
 
 export type UserDataInput = {

@@ -40,6 +40,7 @@ const CommonBuildProfileSchema = Joi.object({
   env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)),
   node: Joi.string().empty(null).custom(semverCheck),
   pnpm: Joi.string().empty(null).custom(semverCheck),
+  bun: Joi.string().empty(null).custom(semverCheck),
   yarn: Joi.string().empty(null).custom(semverCheck),
   expoCli: Joi.string().empty(null).custom(semverCheck),
 
