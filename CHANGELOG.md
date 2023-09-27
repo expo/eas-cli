@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Update EAS Build images description in our VSCode plugin. Add new `macos-ventura-13.6-xcode-15.0` image. ([#2068](https://github.com/expo/eas-cli/pull/2068) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [5.3.0](https://github.com/expo/eas-cli/releases/tag/v5.3.0) - 2023-09-25
 
 ### 🎉 New features
