@@ -1403,10 +1403,10 @@
     joi "^17.9.2"
     semver "^7.5.4"
 
-"@expo/eas-build-job@1.0.43":
-  version "1.0.43"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.43.tgz#e331b5039372c31b15aedbadc229efee3dcaefba"
-  integrity sha512-LMOoDIEax31uGBGux6/ocbCjUbWK3cUHuCxrsYlU+bvba4pGifegYWt2YQ/HC2477paq+K69IGjOUCHvNWG6Yg==
+"@expo/eas-build-job@1.0.45":
+  version "1.0.45"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.45.tgz#8a49cf6afb5abe46e3b2fb0476e4f8a7acb285a6"
+  integrity sha512-cPs4U6ROaiwW9ppWg4iy50fKBZ9pN6nLT2KdoEuui9jYFsVFxM8W8akIFDnmawJBuHY7OA7JhVsCbs+1TrLu7w==
   dependencies:
     joi "^17.9.2"
     semver "^7.5.4"
