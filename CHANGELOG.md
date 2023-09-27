@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add `requiredPackageManager` to metadata. ([#2015](https://github.com/expo/eas-cli/pull/2056) by [@kadikraman](https://github.com/kadikraman))
+
 ## [5.3.0](https://github.com/expo/eas-cli/releases/tag/v5.3.0) - 2023-09-25
 
 ### 🎉 New features

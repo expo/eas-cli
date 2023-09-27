@@ -1,6 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile, EasJson } from '@expo/eas-json';
+import { NodePackageManager } from '@expo/package-manager';
 
 import { Analytics, AnalyticsEventProperties } from '../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -56,4 +57,5 @@ export interface BuildContext<T extends Platform> {
   android: T extends Platform.ANDROID ? AndroidBuildContext : undefined;
   ios: T extends Platform.IOS ? IosBuildContext : undefined;
   developmentClient: boolean;
+  requiredPackageManager: NodePackageManager['name'] | null;
 }

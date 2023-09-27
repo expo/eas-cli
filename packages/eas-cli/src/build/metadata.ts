@@ -64,6 +64,8 @@ export async function collectMetadataAsync<T extends Platform>(
     buildMode: ctx.buildProfile.config ? BuildMode.CUSTOM : BuildMode.BUILD,
     customWorkflowName: ctx.customBuildConfigMetadata?.workflowName,
     developmentClient: ctx.developmentClient,
+    // @ts-expect-error TODO needs @expo/eas-build-job to be relesed
+    requiredPackageManager: ctx.requiredPackageManager,
   };
   return sanitizeMetadata(metadata);
 }
