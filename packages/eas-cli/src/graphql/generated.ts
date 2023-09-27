@@ -2123,6 +2123,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   queuePosition?: Maybe<Scalars['Int']>;
   reactNativeVersion?: Maybe<Scalars['String']>;
   releaseChannel?: Maybe<Scalars['String']>;
+  requiredPackageManager?: Maybe<Scalars['String']>;
   /**
    * The builder resource class requested by the developer
    * @deprecated Use resourceClassDisplayName instead
@@ -2315,6 +2316,7 @@ export type BuildMetadataInput = {
   message?: InputMaybe<Scalars['String']>;
   reactNativeVersion?: InputMaybe<Scalars['String']>;
   releaseChannel?: InputMaybe<Scalars['String']>;
+  requiredPackageManager?: InputMaybe<Scalars['String']>;
   runFromCI?: InputMaybe<Scalars['Boolean']>;
   runWithNoWaitFlag?: InputMaybe<Scalars['Boolean']>;
   runtimeVersion?: InputMaybe<Scalars['String']>;
