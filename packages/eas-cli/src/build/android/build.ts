@@ -39,10 +39,13 @@ export async function createAndroidContextAsync(
 ): Promise<AndroidBuildContext> {
   const { buildProfile } = ctx;
 
-  if (buildProfile.distribution === 'internal' && buildProfile.gradleCommand?.match(/bundle/)) {
+  if (
+    (buildProfile.distribution === 'internal' || buildProfile.distribution === 'development') &&
+    buildProfile.gradleCommand?.match(/bundle/)
+  ) {
     Log.addNewLineIfNone();
     Log.warn(
-      `You're building your Android app for internal distribution. However, we've detected that the Gradle command you defined (${chalk.underline(
+      `You're building your Android app for internal or development distribution. However, we've detected that the Gradle command you defined (${chalk.underline(
         buildProfile.gradleCommand
       )}) includes string 'bundle'.
 This means that it will most likely produce an AAB and you will not be able to install it on your Android devices straight from the Expo website.`

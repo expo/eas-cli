@@ -17,7 +17,11 @@ import { getAppFromContextAsync } from './actions/BuildCredentialsUtils';
 import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials';
 import { SetUpPushKey } from './actions/SetUpPushKey';
 import { App, IosCredentials, Target } from './types';
-import { isAdHocProfile, isEnterpriseUniversalProfile } from './utils/provisioningProfile';
+import {
+  isAdHocProfile,
+  isDevelopmentProfile,
+  isEnterpriseUniversalProfile,
+} from './utils/provisioningProfile';
 
 interface Options {
   app: App;
@@ -144,6 +148,18 @@ export default class IosCredentialsProvider {
   private assertProvisioningProfileType(provisioningProfile: string, targetName?: string): void {
     const isAdHoc = isAdHocProfile(provisioningProfile);
     const isEnterprise = isEnterpriseUniversalProfile(provisioningProfile);
+    const isDevelopment = isDevelopmentProfile(provisioningProfile);
+
+    if (this.options.distribution === 'development') {
+      if (!isDevelopment) {
+        throw new Error(
+          `You must use a development provisioning profile${
+            targetName ? ` (target '${targetName})'` : ''
+          } for development distribution.`
+        );
+      }
+    }
+
     if (this.options.distribution === 'internal') {
       if (this.options.enterpriseProvisioning === 'universal' && !isEnterprise) {
         throw new Error(

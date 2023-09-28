@@ -90,7 +90,10 @@ function printBuildResult(build: BuildFragment): void {
     return;
   }
 
-  if (build.distribution === DistributionType.Internal) {
+  if (
+    build.distribution === DistributionType.Internal ||
+    build.distribution === DistributionType.Development
+  ) {
     Log.addNewLineIfNone();
     const logsUrl = getBuildLogsUrl(build);
     // It's tricky to install the .apk file directly on Android so let's fallback

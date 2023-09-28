@@ -9,6 +9,7 @@ export enum BuildStatus {
 }
 
 export enum BuildDistributionType {
+  DEVELOPMENT = 'development',
   STORE = 'store',
   INTERNAL = 'internal',
   SIMULATOR = 'simulator',
