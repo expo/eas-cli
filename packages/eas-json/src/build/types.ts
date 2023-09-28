@@ -29,7 +29,7 @@ export enum ResourceClass {
   M_LARGE = 'm-large',
 }
 
-export type DistributionType = 'store' | 'internal';
+export type DistributionType = 'store' | 'internal' | 'development';
 
 export type IosEnterpriseProvisioning = 'adhoc' | 'universal';
 
