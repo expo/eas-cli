@@ -736,7 +736,7 @@ export const CapabilityMapping: CapabilityClassifier[] = [
   {
     entitlement: 'com.apple.developer.proximity-reader.payment.acceptance',
     name: 'Tap to Pay on iPhone',
-    capability: 'TAP_TO_PAY_ON_IPHONE' as CapabilityType,
+    capability: CapabilityType.TAP_TO_PAY_ON_IPHONE,
     validateOptions: validateBooleanOptions,
     getOptions: getBooleanOptions,
   },
