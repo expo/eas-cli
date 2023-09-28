@@ -44,6 +44,7 @@ import {
   useExistingProvisioningProfileAsync,
 } from './provisioningProfile';
 import { createOrReuseAdhocProvisioningProfileAsync } from './provisioningProfileAdhoc';
+import { createOrReuseDevelopmentProvisioningProfileAsync } from './provisioningProfileDevelopment';
 import { createPushKeyAsync, listPushKeysAsync, revokePushKeyAsync } from './pushKey';
 import { hasAscEnvVars } from './resolveCredentials';
 
@@ -175,6 +176,22 @@ export default class AppStoreApi {
   ): Promise<ProvisioningProfile> {
     const ctx = await this.ensureAuthenticatedAsync();
     return await createOrReuseAdhocProvisioningProfileAsync(
+      ctx,
+      udids,
+      bundleIdentifier,
+      distCertSerialNumber,
+      profileType
+    );
+  }
+
+  public async createOrReuseDevelopmentProvisioningProfileAsync(
+    udids: string[],
+    bundleIdentifier: string,
+    distCertSerialNumber: string,
+    profileType: ProfileType
+  ): Promise<ProvisioningProfile> {
+    const ctx = await this.ensureAuthenticatedAsync();
+    return await createOrReuseDevelopmentProvisioningProfileAsync(
       ctx,
       udids,
       bundleIdentifier,
