@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add support for the Tap to Pay on iPhone iOS entitlement. ([#2069](https://github.com/expo/eas-cli/pull/2069) by [@fobos531](https://github.com/fobos531))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
