@@ -26,10 +26,7 @@ export async function collectMetadataAsync<T extends Platform>(
 ): Promise<Metadata> {
   const vcsClient = getVcsClient();
   const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
-  const distribution =
-    ('simulator' in ctx.buildProfile && ctx.buildProfile.simulator
-      ? 'simulator'
-      : ctx.buildProfile.distribution) ?? 'store';
+  const distribution = ctx.buildProfile.distribution ?? 'store';
   const metadata: Metadata = {
     trackingContext: ctx.analyticsEventProperties,
     ...(await maybeResolveVersionsAsync(ctx)),
@@ -64,6 +61,7 @@ export async function collectMetadataAsync<T extends Platform>(
     buildMode: ctx.buildProfile.config ? BuildMode.CUSTOM : BuildMode.BUILD,
     customWorkflowName: ctx.customBuildConfigMetadata?.workflowName,
     developmentClient: ctx.developmentClient,
+    simulator: 'simulator' in ctx.buildProfile && ctx.buildProfile.simulator,
   };
   return sanitizeMetadata(metadata);
 }
