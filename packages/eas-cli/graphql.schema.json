@@ -9437,18 +9437,6 @@
                 "defaultValue": null,
                 "isDeprecated": false,
                 "deprecationReason": null
-              },
-              {
-                "name": "useDeprecatedBackend",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
               }
             ],
             "type": {
@@ -9474,18 +9462,6 @@
                     "name": "InsightsTimespan",
                     "ofType": null
                   }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "useDeprecatedBackend",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
                 },
                 "defaultValue": null,
                 "isDeprecated": false,
@@ -9519,18 +9495,6 @@
                     "name": "InsightsTimespan",
                     "ofType": null
                   }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "useDeprecatedBackend",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
                 },
                 "defaultValue": null,
                 "isDeprecated": false,

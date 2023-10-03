@@ -1401,19 +1401,16 @@ export type AppInsights = {
 
 export type AppInsightsTotalUniqueUsersArgs = {
   timespan: InsightsTimespan;
-  useDeprecatedBackend?: InputMaybe<Scalars['Boolean']>;
 };
 
 
 export type AppInsightsUniqueUsersByAppVersionOverTimeArgs = {
   timespan: InsightsTimespan;
-  useDeprecatedBackend?: InputMaybe<Scalars['Boolean']>;
 };
 
 
 export type AppInsightsUniqueUsersByPlatformOverTimeArgs = {
   timespan: InsightsTimespan;
-  useDeprecatedBackend?: InputMaybe<Scalars['Boolean']>;
 };
 
 export type AppMutation = {
