@@ -14,6 +14,18 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Add `requiredPackageManager` to metadata. ([#2067](https://github.com/expo/eas-cli/pull/2067) by [@kadikraman](https://github.com/kadikraman))
 
+## [5.4.0](https://github.com/expo/eas-cli/releases/tag/v5.4.0) - 2023-09-28
+
+### 🎉 New features
+
+- Add support for the Tap to Pay on iPhone iOS entitlement. ([#2069](https://github.com/expo/eas-cli/pull/2069) by [@fobos531](https://github.com/fobos531))
+
+## [5.3.1](https://github.com/expo/eas-cli/releases/tag/v5.3.1) - 2023-09-28
+
+### 🧹 Chores
+
+- Update EAS Build images description in our VSCode plugin. Add new `macos-ventura-13.6-xcode-15.0` image. ([#2068](https://github.com/expo/eas-cli/pull/2068) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [5.3.0](https://github.com/expo/eas-cli/releases/tag/v5.3.0) - 2023-09-25
 
 ### 🎉 New features

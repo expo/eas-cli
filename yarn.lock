@@ -1329,10 +1329,10 @@
     minimatch "^3.1.2"
     strip-json-comments "^3.1.1"
 
-"@expo/apple-utils@1.3.1":
-  version "1.3.1"
-  resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-1.3.1.tgz#99a2627c167af138722af9806a09a35f87115a39"
-  integrity sha512-ADPHXIpTWlt9tIg9yhwyuxQ6UMICWMfHgoCE1v8zzyYsa3BcKvawgkAGApYNxp2IYUKiNMqRYzViEKgq+Svk3w==
+"@expo/apple-utils@1.3.2":
+  version "1.3.2"
+  resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-1.3.2.tgz#c2c80e03bb4c310e183b109ea37bbc88cef59313"
+  integrity sha512-8utf2r+ka9uI1qhazBEbLzjPX0CIBvvpBHy0o4XFoLUiZDvBqGBEctduvJc49hvu/16hxVtNqGXs1U97OVKe4g==
 
 "@expo/bunyan@^4.0.0":
   version "4.0.0"
@@ -1403,10 +1403,10 @@
     joi "^17.9.2"
     semver "^7.5.4"
 
-"@expo/eas-build-job@1.0.45":
-  version "1.0.45"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.45.tgz#8a49cf6afb5abe46e3b2fb0476e4f8a7acb285a6"
-  integrity sha512-cPs4U6ROaiwW9ppWg4iy50fKBZ9pN6nLT2KdoEuui9jYFsVFxM8W8akIFDnmawJBuHY7OA7JhVsCbs+1TrLu7w==
+"@expo/eas-build-job@1.0.46":
+  version "1.0.46"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.46.tgz#e99c0c9f2065cfb91b9a382dedb2e14892e47076"
+  integrity sha512-f1KE3t8uvMKPSVVphXlJ70/zn5wMFB47yYM3orVZiirq2pd/0UfWYF5YiNktgEyGglxqmq3gNV06H9pEDTUJew==
   dependencies:
     joi "^17.9.2"
     semver "^7.5.4"
