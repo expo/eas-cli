@@ -1,6 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJson, ResourceClass } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
+import { resolvePackageManager } from '@expo/package-manager';
 import getenv from 'getenv';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
@@ -67,6 +68,8 @@ export async function createBuildContextAsync<T extends Platform>({
       : (buildProfile as BuildProfile<Platform.IOS>)?.buildConfiguration === 'Debug') ??
     false;
 
+  const requiredPackageManager = resolvePackageManager(projectDir);
+
   const credentialsCtx = new CredentialsContext({
     projectInfo: { exp, projectId },
     nonInteractive,
@@ -127,6 +130,7 @@ export async function createBuildContextAsync<T extends Platform>({
     runFromCI,
     customBuildConfigMetadata,
     developmentClient,
+    requiredPackageManager,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;
