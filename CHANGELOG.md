@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add account type to the items in the prompt to select project owner.
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
