@@ -8,6 +8,7 @@ import { getProjectDashboardUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../../commandUtils/context/contextUtils/getProjectIdAsync';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { AppPrivacy, Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -34,13 +35,8 @@ export default class ProjectInit extends EasCommand {
     }),
     force: Flags.boolean({
       description: 'Whether to overwrite any existing project ID',
-      dependsOn: ['id'],
     }),
-    // this is the same as EASNonInteractiveFlag but with the dependsOn
-    'non-interactive': Flags.boolean({
-      description: 'Run the command in non-interactive mode.',
-      dependsOn: ['id'],
-    }),
+    ...EASNonInteractiveFlag,
   };
 
   static override contextDefinition = {
