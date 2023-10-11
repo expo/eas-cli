@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add account type to the items in the prompt to select project owner. ([#2083](https://github.com/expo/eas-cli/pull/2083) by [@alanjhughes](https://github.com/alanjhughes))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

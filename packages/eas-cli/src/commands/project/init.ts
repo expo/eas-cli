@@ -16,7 +16,7 @@ import { ora } from '../../ora';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfig } from '../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { toAppPrivacy } from '../../project/projectUtils';
-import { confirmAsync, promptAsync } from '../../prompts';
+import { Choice, confirmAsync, promptAsync } from '../../prompts';
 import { Actor } from '../../user/User';
 
 type InitializeMethodOptions = {
@@ -234,21 +234,11 @@ export default class ProjectInit extends EasCommand {
       if (allAccounts.length === 1) {
         accountName = allAccounts[0].name;
       } else {
-        // if regular user, put primary account first
-        const sortedAccounts =
-          actor.__typename === 'Robot'
-            ? allAccounts
-            : [...allAccounts].sort((a, _b) =>
-                actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
-              );
+        const choices = ProjectInit.getAccountChoices(
+          actor,
+          accountNamesWhereUserHasSufficientPermissionsToCreateApp
+        );
 
-        const choices = sortedAccounts.map(account => ({
-          title: account.name,
-          value: account,
-          description: !accountNamesWhereUserHasSufficientPermissionsToCreateApp.has(account.name)
-            ? '(Viewer Role)'
-            : undefined,
-        }));
         accountName = (
           await promptAsync({
             type: 'select',
@@ -319,6 +309,71 @@ export default class ProjectInit extends EasCommand {
 
     await ProjectInit.saveProjectIdAndLogSuccessAsync(projectDir, createdProjectId);
     return createdProjectId;
+  }
+
+  private static getAccountChoices(
+    actor: Actor,
+    namesWithSufficientPermissions: Set<string>
+  ): Choice[] {
+    const allAccounts = actor.accounts;
+
+    const sortedAccounts =
+      actor.__typename === 'Robot'
+        ? allAccounts
+        : [...allAccounts].sort((a, _b) =>
+            actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
+          );
+
+    if (actor.__typename !== 'Robot') {
+      const personalAccount = allAccounts?.find(
+        account => account?.ownerUserActor?.id === actor.id
+      );
+
+      const personalAccountChoice = personalAccount
+        ? {
+            title: personalAccount.name,
+            value: personalAccount,
+            description: !namesWithSufficientPermissions.has(personalAccount.name)
+              ? '(Personal) (Viewer Role)'
+              : '(Personal)',
+          }
+        : undefined;
+
+      const userAccounts = allAccounts
+        ?.filter(account => account.ownerUserActor && account.name !== actor.username)
+        .map(account => ({
+          title: account.name,
+          value: account,
+          description: !namesWithSufficientPermissions.has(account.name)
+            ? '(Team) (Viewer Role)'
+            : '(Team)',
+        }));
+
+      const organizationAccounts = allAccounts
+        ?.filter(account => account.name !== actor.username && !account.ownerUserActor)
+        .map(account => ({
+          title: account.name,
+          value: account,
+          description: !namesWithSufficientPermissions.has(account.name)
+            ? '(Organization) (Viewer Role)'
+            : '(Organization)',
+        }));
+
+      let choices: Choice[] = [];
+      if (personalAccountChoice) {
+        choices = [personalAccountChoice];
+      }
+
+      return [...choices, ...userAccounts, ...organizationAccounts].sort((a, _b) =>
+        actor.__typename === 'User' ? (a.value.name === actor.username ? -1 : 1) : 0
+      );
+    }
+
+    return sortedAccounts.map(account => ({
+      title: account.name,
+      value: account,
+      description: !namesWithSufficientPermissions.has(account.name) ? '(Viewer Role)' : undefined,
+    }));
   }
 
   async runAsync(): Promise<void> {
