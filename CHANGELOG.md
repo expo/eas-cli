@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- EAS Update: Increase asset upload timeout to 90s and reset on upload retry for slow connections. ([#2085](https://github.com/expo/eas-cli/pull/2085) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 - Add `requiredPackageManager` to metadata. ([#2067](https://github.com/expo/eas-cli/pull/2067) by [@kadikraman](https://github.com/kadikraman))
