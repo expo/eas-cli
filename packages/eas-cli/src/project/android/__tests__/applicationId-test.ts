@@ -8,7 +8,6 @@ import { jester, jester as mockJester } from '../../../credentials/__tests__/fix
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { promptAsync } from '../../../prompts';
 import { getVcsClient } from '../../../vcs';
-import { Client } from '../../../vcs/vcs';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   getApplicationIdAsync,
