@@ -14,6 +14,7 @@ export default class VcsRepoExistsContextField extends ContextField<{
     try {
       await client.ensureRepoExistsAsync();
       exists = true;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_error) {
       exists = false;
     }
