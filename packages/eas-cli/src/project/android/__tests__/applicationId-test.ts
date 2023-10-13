@@ -19,7 +19,6 @@ jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 
 const vcsClient = getVcsClient();
-// const vcsClient = mock<Client>({});
 
 beforeEach(async () => {
   vol.reset();
@@ -47,8 +46,6 @@ describe(getApplicationIdAsync, () => {
         },
         '/app'
       );
-
-      // const vcsClient = mock<Client>({});
 
       const applicationId = await getApplicationIdAsync('/app', {} as any, vcsClient, {
         moduleName: 'app',
