@@ -13,6 +13,7 @@ import { SubmissionArchiveSourceType } from '../../../graphql/generated';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
+import { getVcsClient } from '../../../vcs';
 import { createSubmissionContextAsync } from '../../context';
 import IosSubmitCommand from '../IosSubmitCommand';
 
@@ -30,6 +31,8 @@ jest.mock('../../../user/actions', () => ({
   ensureLoggedInAsync: jest.fn(() => mockJester),
 }));
 jest.mock('../../../project/projectUtils');
+
+const vcsClient = getVcsClient();
 
 describe(IosSubmitCommand, () => {
   const testProject = createTestProject(testProjectId, mockJester.accounts[0].name, {});
@@ -74,6 +77,7 @@ describe(IosSubmitCommand, () => {
         analytics,
         exp: testProject.appJSON.expo,
         projectId,
+        vcsClient,
       });
       const command = new IosSubmitCommand(ctx);
       await expect(command.runAsync()).rejects.toThrowError();
@@ -105,6 +109,7 @@ describe(IosSubmitCommand, () => {
         analytics,
         exp: testProject.appJSON.expo,
         projectId,
+        vcsClient,
       });
       const command = new IosSubmitCommand(ctx);
       await command.runAsync();

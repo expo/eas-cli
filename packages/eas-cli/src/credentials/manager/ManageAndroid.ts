@@ -5,6 +5,7 @@ import assert from 'assert';
 import Log, { learnMore } from '../../log';
 import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
 import { promptAsync } from '../../prompts';
+import { getVcsClient } from '../../vcs';
 import { AssignFcm } from '../android/actions/AssignFcm';
 import { AssignGoogleServiceAccountKey } from '../android/actions/AssignGoogleServiceAccountKey';
 import {
@@ -65,6 +66,7 @@ export class ManageAndroid {
       analytics: this.callingAction.analytics,
       env: buildProfile?.env,
       nonInteractive: false,
+      vcsClient: getVcsClient(),
     });
 
     let gradleContext;
@@ -153,7 +155,7 @@ export class ManageAndroid {
     buildProfile: BuildProfile<Platform.ANDROID>
   ): Promise<GradleBuildContext | undefined> {
     assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
-    return await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
+    return await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile, ctx.vcsClient);
   }
 
   private async runProjectSpecificActionAsync(

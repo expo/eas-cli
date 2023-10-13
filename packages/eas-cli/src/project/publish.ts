@@ -34,6 +34,7 @@ import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
 import uniqBy from '../utils/expodash/uniqBy';
 import { getVcsClient } from '../vcs';
+import { Client } from '../vcs/vcs';
 import { resolveWorkflowAsync } from './workflow';
 
 export type ExpoCLIExportPlatformFlag = Platform | 'all';
@@ -667,7 +668,8 @@ export function getRequestedPlatform(
 export async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
   platforms: Platform[],
-  projectDir: string
+  projectDir: string,
+  vcsClient: Client
 ): Promise<{ platform: string; runtimeVersion: string }[]> {
   for (const platform of platforms) {
     if (platform === 'web') {
@@ -676,7 +678,7 @@ export async function getRuntimeVersionObjectAsync(
     const isPolicy = typeof (exp[platform]?.runtimeVersion ?? exp.runtimeVersion) === 'object';
     if (isPolicy) {
       const isManaged =
-        (await resolveWorkflowAsync(projectDir, platform as EASBuildJobPlatform)) ===
+        (await resolveWorkflowAsync(projectDir, platform as EASBuildJobPlatform, vcsClient)) ===
         Workflow.MANAGED;
       if (!isManaged) {
         throw new Error(

@@ -73,6 +73,7 @@ export default class Run extends EasCommand {
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {

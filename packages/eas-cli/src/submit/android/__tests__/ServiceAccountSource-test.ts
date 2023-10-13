@@ -15,6 +15,7 @@ import { SetUpGoogleServiceAccountKey } from '../../../credentials/android/actio
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
+import { getVcsClient } from '../../../vcs';
 import { createSubmissionContextAsync } from '../../context';
 import {
   ServiceAccountSource,
@@ -43,6 +44,8 @@ const mockDetectableServiceAccountJson = JSON.stringify({
   private_key: 'super secret',
   client_email: 'beep-boop@iam.gserviceaccount.com',
 });
+
+const vcsClient = getVcsClient();
 
 beforeAll(() => {
   vol.fromJSON({
@@ -158,6 +161,7 @@ describe(getServiceAccountKeyResultAsync, () => {
       analytics,
       exp: testProject.appJSON.expo,
       projectId,
+      vcsClient,
     });
     const source: ServiceAccountSource = {
       sourceType: ServiceAccountSourceType.path,
@@ -199,6 +203,7 @@ describe(getServiceAccountKeyResultAsync, () => {
       analytics,
       exp: testProject.appJSON.expo,
       projectId,
+      vcsClient,
     });
     const source: ServiceAccountSource = {
       sourceType: ServiceAccountSourceType.prompt,
@@ -236,6 +241,7 @@ describe(getServiceAccountKeyResultAsync, () => {
       analytics,
       exp: testProject.appJSON.expo,
       projectId,
+      vcsClient,
     });
     const serviceAccountResult = await getServiceAccountKeyResultAsync(ctx, {
       sourceType: ServiceAccountSourceType.credentialsService,

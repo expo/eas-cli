@@ -18,6 +18,7 @@ import {
 } from '../project/projectUtils';
 import { resolveWorkflowPerPlatformAsync } from '../project/workflow';
 import { confirmAsync } from '../prompts';
+import { Client } from '../vcs/vcs';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from './android/UpdatesModule';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from './ios/UpdatesModule';
 
@@ -360,11 +361,13 @@ export async function ensureEASUpdateIsConfiguredAsync(
     exp: expMaybeWithoutUpdates,
     projectId,
     projectDir,
+    vcsClient,
     platform,
   }: {
     exp: ExpoConfig;
     projectId: string;
     projectDir: string;
+    vcsClient: Client;
     platform: RequestedPlatform | null;
   }
 ): Promise<void> {
@@ -396,7 +399,7 @@ export async function ensureEASUpdateIsConfiguredAsync(
     return;
   }
 
-  const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
+  const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
   const { projectChanged, exp: expWithUpdates } =
     await ensureEASUpdatesIsConfiguredInExpoConfigAsync({
       exp: expMaybeWithoutUpdates,

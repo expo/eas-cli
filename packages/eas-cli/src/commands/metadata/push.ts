@@ -25,6 +25,7 @@ export default class MetadataPush extends EasCommand {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.Analytics,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -35,12 +36,13 @@ export default class MetadataPush extends EasCommand {
       loggedIn: { actor, graphqlClient },
       privateProjectConfig: { exp, projectId, projectDir },
       analytics,
+      vcsClient,
     } = await this.getContextAsync(MetadataPush, {
       nonInteractive: false,
     });
 
     // this command is interactive (all nonInteractive flags passed to utility functions are false)
-    await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false });
+    await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false, vcsClient });
 
     const submitProfiles = await getProfilesAsync({
       type: 'submit',
@@ -62,6 +64,7 @@ export default class MetadataPush extends EasCommand {
       graphqlClient,
       analytics,
       nonInteractive: false,
+      vcsClient,
     });
 
     try {

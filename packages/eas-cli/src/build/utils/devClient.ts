@@ -11,14 +11,17 @@ import { confirmAsync } from '../../prompts';
 import { expoCommandAsync } from '../../utils/expoCli';
 import { ProfileData } from '../../utils/profiles';
 import { getVcsClient } from '../../vcs';
+import { Client } from '../../vcs/vcs';
 import { reviewAndCommitChangesAsync } from './repository';
 
 export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
   projectDir,
+  vcsClient,
   nonInteractive = false,
   buildProfiles = [],
 }: {
   projectDir: string;
+  vcsClient: Client;
   nonInteractive?: boolean;
   buildProfiles?: ProfileData<'build'>[];
 }): Promise<void> {
@@ -41,7 +44,7 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
   );
 
   const workflowPerPlatformList = await Promise.all(
-    platformsToCheck.map(platform => resolveWorkflowAsync(projectDir, platform))
+    platformsToCheck.map(platform => resolveWorkflowAsync(projectDir, platform, vcsClient))
   );
 
   Log.newLine();

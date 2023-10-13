@@ -88,6 +88,7 @@ export default class BuildResign extends EasCommand {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Analytics,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -104,6 +105,7 @@ export default class BuildResign extends EasCommand {
       getDynamicPrivateProjectConfigAsync,
       projectDir,
       analytics,
+      vcsClient,
     } = await this.getContextAsync(BuildResign, {
       nonInteractive: flags.nonInteractive,
     });
@@ -145,6 +147,7 @@ export default class BuildResign extends EasCommand {
       analytics,
       env: buildProfile.env,
       easJsonCliConfig,
+      vcsClient,
     });
     if (buildProfile.credentialsSource !== CredentialsSource.LOCAL && !nonInteractive) {
       await credentialsCtx.appStore.ensureAuthenticatedAsync();
@@ -154,6 +157,7 @@ export default class BuildResign extends EasCommand {
         projectDir,
         nonInteractive,
         exp,
+        vcsClient,
       },
       buildProfile
     );
@@ -162,6 +166,7 @@ export default class BuildResign extends EasCommand {
       exp,
       xcodeBuildContext,
       env: buildProfile.env,
+      vcsClient,
     });
     const credentialsResult = await ensureIosCredentialsForBuildResignAsync(
       credentialsCtx,

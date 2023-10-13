@@ -15,6 +15,8 @@ import {
 import Log from '../../../../log';
 import { getApplePlatformFromTarget } from '../../../../project/ios/target';
 import { Actor } from '../../../../user/User';
+import { getVcsClient } from '../../../../vcs';
+import { Client } from '../../../../vcs/vcs';
 import { CredentialsContext, CredentialsContextProjectInfo } from '../../../context';
 import { ProvisioningProfile } from '../../appstore/Credentials.types';
 import { ApplePlatform } from '../../appstore/constants';
@@ -33,6 +35,8 @@ jest.mock('../DeviceUtils', () => {
   };
 });
 jest.mock('../../../../project/ios/target');
+
+const vcsClient = getVcsClient();
 
 describe(doUDIDsMatch, () => {
   it('return false if UDIDs do not match', () => {
@@ -108,18 +112,17 @@ describe('runWithDistributionCertificateAsync', () => {
 
 function setUpTest(): { ctx: CredentialsContext; distCert: AppleDistributionCertificateFragment } {
   const ctx = jest.mocked(
-    new CredentialsContext(
-      {} as {
-        projectInfo: CredentialsContextProjectInfo | null;
-        easJsonCliConfig?: EasJson['cli'];
-        nonInteractive: boolean;
-        projectDir: string;
-        user: Actor;
-        graphqlClient: ExpoGraphqlClient;
-        analytics: Analytics;
-        env?: Env;
-      }
-    )
+    new CredentialsContext({ vcsClient } as {
+      projectInfo: CredentialsContextProjectInfo | null;
+      easJsonCliConfig?: EasJson['cli'];
+      nonInteractive: boolean;
+      projectDir: string;
+      user: Actor;
+      graphqlClient: ExpoGraphqlClient;
+      analytics: Analytics;
+      env?: Env;
+      vcsClient: Client;
+    })
   );
   Object.defineProperty(ctx, 'ios', { value: jest.mock('../../../ios/api/GraphqlClient') });
   ctx.ios.getDevicesForAppleTeamAsync = jest

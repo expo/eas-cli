@@ -6,6 +6,7 @@ import assert from 'assert';
 import { CredentialsContext } from '../credentials/context';
 import { getRequestContext } from '../credentials/ios/appstore/authenticate';
 import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
+import { Client } from '../vcs/vcs';
 
 export type MetadataAppStoreAuthentication = {
   /** The root entity of the App store */
@@ -21,13 +22,14 @@ export type MetadataAppStoreAuthentication = {
 async function resolveAppStoreBundleIdentifierAsync(
   projectDir: string,
   profile: SubmitProfile,
-  exp: ExpoConfig
+  exp: ExpoConfig,
+  vcsClient: Client
 ): Promise<string> {
   if ('bundleIdentifier' in profile) {
-    return profile.bundleIdentifier ?? (await getBundleIdentifierAsync(projectDir, exp));
+    return profile.bundleIdentifier ?? (await getBundleIdentifierAsync(projectDir, exp, vcsClient));
   }
 
-  return await getBundleIdentifierAsync(projectDir, exp);
+  return await getBundleIdentifierAsync(projectDir, exp, vcsClient);
 }
 
 /**
@@ -45,7 +47,12 @@ export async function getAppStoreAuthAsync({
   exp: ExpoConfig;
   credentialsCtx: CredentialsContext;
 }): Promise<MetadataAppStoreAuthentication> {
-  const bundleId = await resolveAppStoreBundleIdentifierAsync(projectDir, profile, exp);
+  const bundleId = await resolveAppStoreBundleIdentifierAsync(
+    projectDir,
+    profile,
+    exp,
+    credentialsCtx.vcsClient
+  );
 
   const authCtx = await credentialsCtx.appStore.ensureAuthenticatedAsync();
   assert(authCtx.authState, 'Failed to authenticate with App Store Connect');

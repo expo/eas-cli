@@ -36,7 +36,6 @@ import { formatBytes } from '../utils/files';
 import { printJsonOnlyOutput } from '../utils/json';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
-import { getVcsClient } from '../vcs';
 import { BuildContext } from './context';
 import {
   EasBuildDownForMaintenanceError,
@@ -125,7 +124,7 @@ export async function prepareBuildRequestForPlatformAsync<
     }
   );
 
-  if (await getVcsClient().isCommitRequiredAsync()) {
+  if (await ctx.vcsClient.isCommitRequiredAsync()) {
     Log.addNewLineIfNone();
     await reviewAndCommitChangesAsync(
       `[EAS Build] Run EAS Build for ${requestedPlatformDisplayNames[ctx.platform as Platform]}`,

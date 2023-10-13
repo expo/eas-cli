@@ -15,6 +15,7 @@ export default class Credentials extends EasCommand {
     ...this.ContextOptions.OptionalProjectConfig,
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.Analytics,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {

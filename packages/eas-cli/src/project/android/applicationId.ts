@@ -15,6 +15,7 @@ import {
   getProjectConfigDescription,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { Client } from '../../vcs/vcs';
 import { resolveWorkflowAsync } from '../workflow';
 import { GradleBuildContext } from './gradle';
 import * as gradleUtils from './gradleUtils';
@@ -26,17 +27,19 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync({
   projectDir,
   projectId,
   exp,
+  vcsClient,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
+  vcsClient: Client;
 }): Promise<string> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
 
   try {
-    return await getApplicationIdAsync(projectDir, exp, {
+    return await getApplicationIdAsync(projectDir, exp, vcsClient, {
       moduleName: gradleUtils.DEFAULT_MODULE_NAME,
     });
   } catch {
@@ -95,9 +98,10 @@ export async function getApplicationIdFromBareAsync(
 export async function getApplicationIdAsync(
   projectDir: string,
   exp: ExpoConfig,
+  vcsClient: Client,
   gradleContext?: GradleBuildContext
 ): Promise<string> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   if (workflow === Workflow.GENERIC) {
     warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
 

@@ -15,6 +15,7 @@ import { resolveTargetsAsync } from '../../project/ios/target';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, promptAsync, selectAsync } from '../../prompts';
 import { ensureActorHasPrimaryAccount } from '../../user/actions';
+import { getVcsClient } from '../../vcs';
 import { CredentialsContext, CredentialsContextProjectInfo } from '../context';
 import {
   AppStoreApiKeyPurpose,
@@ -78,6 +79,7 @@ export class ManageIos {
       analytics: this.callingAction.analytics,
       env: buildProfile?.env,
       nonInteractive: false,
+      vcsClient: getVcsClient(),
     });
     const buildCredentialsActions = getBuildCredentialsActions(ctx);
     const pushKeyActions = getPushKeyActions(ctx);
@@ -194,6 +196,7 @@ export class ManageIos {
         projectDir: ctx.projectDir,
         nonInteractive: ctx.nonInteractive,
         exp: ctx.exp,
+        vcsClient: ctx.vcsClient,
       },
       buildProfile
     );
@@ -202,6 +205,7 @@ export class ManageIos {
       projectDir: ctx.projectDir,
       xcodeBuildContext,
       env: buildProfile.env,
+      vcsClient: ctx.vcsClient,
     });
     return {
       app,

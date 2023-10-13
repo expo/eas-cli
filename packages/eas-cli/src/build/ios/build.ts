@@ -39,6 +39,7 @@ export async function createIosContextAsync(
       projectDir: ctx.projectDir,
       nonInteractive: ctx.nonInteractive,
       exp: ctx.exp,
+      vcsClient: ctx.vcsClient,
     },
     buildProfile
   );
@@ -47,6 +48,7 @@ export async function createIosContextAsync(
     exp: ctx.exp,
     xcodeBuildContext,
     env: buildProfile.env,
+    vcsClient: ctx.vcsClient,
   });
   const applicationTarget = findApplicationTarget(targets);
   const buildNumberOverride =
@@ -57,6 +59,7 @@ export async function createIosContextAsync(
           exp: ctx.exp,
           applicationTarget,
           buildProfile,
+          vcsClient: ctx.vcsClient,
         })
       : undefined;
   return {
@@ -86,6 +89,7 @@ export async function prepareIosBuildAsync(
             ? false
             : ctx.buildProfile.autoIncrement,
         projectId: ctx.projectId,
+        vcsClient: ctx.vcsClient,
       });
     },
     prepareJobAsync: async (
