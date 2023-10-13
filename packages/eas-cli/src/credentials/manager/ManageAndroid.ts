@@ -5,7 +5,6 @@ import assert from 'assert';
 import Log, { learnMore } from '../../log';
 import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
 import { promptAsync } from '../../prompts';
-import { getVcsClient } from '../../vcs';
 import { AssignFcm } from '../android/actions/AssignFcm';
 import { AssignGoogleServiceAccountKey } from '../android/actions/AssignGoogleServiceAccountKey';
 import {
@@ -66,7 +65,7 @@ export class ManageAndroid {
       analytics: this.callingAction.analytics,
       env: buildProfile?.env,
       nonInteractive: false,
-      vcsClient: getVcsClient(),
+      vcsClient: this.callingAction.vcsClient,
     });
 
     let gradleContext;

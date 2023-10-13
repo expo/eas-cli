@@ -91,7 +91,13 @@ export default class BuildConfigure extends EasCommand {
       if ([RequestedPlatform.Ios, RequestedPlatform.All].includes(platform)) {
         const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
         if (workflow === Workflow.GENERIC) {
-          await syncIosUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
+          await syncIosUpdatesConfigurationAsync(
+            graphqlClient,
+            vcsClient,
+            projectDir,
+            exp,
+            projectId
+          );
         }
       }
     }

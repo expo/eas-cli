@@ -261,6 +261,7 @@ function warnEASUpdatesManualConfig({
  */
 async function ensureEASUpdateIsConfiguredNativelyAsync(
   graphqlClient: ExpoGraphqlClient,
+  vcsClient: Client,
   {
     exp,
     projectId,
@@ -281,7 +282,7 @@ async function ensureEASUpdateIsConfiguredNativelyAsync(
   }
 
   if (['all', 'ios'].includes(platform) && workflows.ios === Workflow.GENERIC) {
-    await syncIosUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
+    await syncIosUpdatesConfigurationAsync(graphqlClient, vcsClient, projectDir, exp, projectId);
     Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
   }
 }
@@ -410,7 +411,7 @@ export async function ensureEASUpdateIsConfiguredAsync(
     });
 
   if (projectChanged || !hasExpoUpdates) {
-    await ensureEASUpdateIsConfiguredNativelyAsync(graphqlClient, {
+    await ensureEASUpdateIsConfiguredNativelyAsync(graphqlClient, vcsClient, {
       exp: expWithUpdates,
       projectDir,
       projectId,

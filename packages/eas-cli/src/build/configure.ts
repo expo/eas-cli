@@ -42,13 +42,13 @@ async function configureAsync({
   nonInteractive,
   vcsClient,
 }: ConfigureParams): Promise<void> {
-  await maybeBailOnRepoStatusAsync();
+  await maybeBailOnRepoStatusAsync(vcsClient);
 
   await createEasJsonAsync(projectDir, vcsClient);
 
   if (await vcsClient.isCommitRequiredAsync()) {
     Log.newLine();
-    await reviewAndCommitChangesAsync('Configure EAS Build', {
+    await reviewAndCommitChangesAsync(vcsClient, 'Configure EAS Build', {
       nonInteractive,
     });
   }

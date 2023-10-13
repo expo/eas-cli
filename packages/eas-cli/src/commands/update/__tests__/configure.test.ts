@@ -3,13 +3,12 @@ import { instance, mock } from 'ts-mockito';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { ensureEASUpdateIsConfiguredAsync } from '../../../update/configure';
-import { getVcsClient } from '../../../vcs';
-
-const vcsClient = getVcsClient();
+import { Client } from '../../../vcs/vcs';
 
 describe(ensureEASUpdateIsConfiguredAsync, () => {
   it('errors with "useClassicUpdates" set and no app.json', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>({}));
+    const vcsClient = instance(mock<Client>({}));
     const exp: ExpoConfig = {
       name: 'test',
       slug: 'test',

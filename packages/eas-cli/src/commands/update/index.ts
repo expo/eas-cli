@@ -210,6 +210,7 @@ export default class UpdatePublish extends EasCommand {
 
     const branchName = await getBranchNameForCommandAsync({
       graphqlClient,
+      vcsClient,
       projectId,
       channelNameArg,
       branchNameArg,
@@ -218,7 +219,7 @@ export default class UpdatePublish extends EasCommand {
       paginatedQueryOptions,
     });
 
-    const updateMessage = await getUpdateMessageForCommandAsync({
+    const updateMessage = await getUpdateMessageForCommandAsync(vcsClient, {
       updateMessageArg,
       autoFlag,
       nonInteractive,

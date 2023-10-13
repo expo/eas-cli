@@ -127,6 +127,7 @@ export async function prepareBuildRequestForPlatformAsync<
   if (await ctx.vcsClient.isCommitRequiredAsync()) {
     Log.addNewLineIfNone();
     await reviewAndCommitChangesAsync(
+      ctx.vcsClient,
       `[EAS Build] Run EAS Build for ${requestedPlatformDisplayNames[ctx.platform as Platform]}`,
       { nonInteractive: ctx.nonInteractive }
     );
@@ -136,7 +137,7 @@ export async function prepareBuildRequestForPlatformAsync<
   if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
     projectArchive = {
       type: ArchiveSourceType.PATH,
-      path: (await makeProjectTarballAsync()).path,
+      path: (await makeProjectTarballAsync(ctx.vcsClient)).path,
     };
   } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
     projectArchive = {
@@ -244,7 +245,7 @@ async function uploadProjectAsync<TPlatform extends Platform>(
             'https://expo.fyi/eas-build-archive'
           )}`
         );
-        const projectTarball = await makeProjectTarballAsync();
+        const projectTarball = await makeProjectTarballAsync(ctx.vcsClient);
 
         if (projectTarball.size > 1024 * 1024 * 100) {
           Log.warn(

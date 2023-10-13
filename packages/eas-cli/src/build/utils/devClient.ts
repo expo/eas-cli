@@ -10,7 +10,6 @@ import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync } from '../../prompts';
 import { expoCommandAsync } from '../../utils/expoCli';
 import { ProfileData } from '../../utils/profiles';
-import { getVcsClient } from '../../vcs';
 import { Client } from '../../vcs/vcs';
 import { reviewAndCommitChangesAsync } from './repository';
 
@@ -65,7 +64,7 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
       instructions: 'The command will abort unless you agree.',
     });
     if (install) {
-      await installExpoDevClientAsync(projectDir, { nonInteractive });
+      await installExpoDevClientAsync(projectDir, vcsClient, { nonInteractive });
     } else {
       Errors.error(`Install ${chalk.bold('expo-dev-client')} manually and come back later.`, {
         exit: 1,
@@ -103,6 +102,7 @@ async function isExpoDevClientInstalledAsync(projectDir: string): Promise<boolea
 
 async function installExpoDevClientAsync(
   projectDir: string,
+  vcsClient: Client,
   { nonInteractive }: { nonInteractive: boolean }
 ): Promise<void> {
   Log.newLine();
@@ -110,8 +110,8 @@ async function installExpoDevClientAsync(
   Log.newLine();
   await expoCommandAsync(projectDir, ['install', 'expo-dev-client']);
   Log.newLine();
-  if (await getVcsClient().isCommitRequiredAsync()) {
-    await reviewAndCommitChangesAsync('Install expo-dev-client', {
+  if (await vcsClient.isCommitRequiredAsync()) {
+    await reviewAndCommitChangesAsync(vcsClient, 'Install expo-dev-client', {
       nonInteractive,
     });
   }

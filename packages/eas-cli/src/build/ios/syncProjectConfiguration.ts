@@ -33,7 +33,7 @@ export async function syncProjectConfigurationAsync(
 
   if (workflow === Workflow.GENERIC) {
     if (isExpoUpdatesInstalled(projectDir)) {
-      await syncUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
+      await syncUpdatesConfigurationAsync(graphqlClient, vcsClient, projectDir, exp, projectId);
     }
     await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy, targets });
   } else {

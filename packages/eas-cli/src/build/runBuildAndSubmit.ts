@@ -105,7 +105,7 @@ export async function runBuildAndSubmitAsync(
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn
 ): Promise<void> {
   await vcsClient.ensureRepoExistsAsync();
-  await ensureRepoIsCleanAsync(flags.nonInteractive);
+  await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
 
   await ensureProjectConfiguredAsync({
     projectDir,

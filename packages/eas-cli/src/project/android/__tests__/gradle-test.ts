@@ -117,7 +117,7 @@ describe(resolveGradleBuildContextAsync, () => {
 
   describe('managed projects', () => {
     it('resolves to { moduleName: app } for managed projects', async () => {
-      const gradleContext = await resolveGradleBuildContextAsync('/app', {} as any, vcsClient);
+      const gradleContext = await resolveGradleBuildContextAsync('/app', {} as any, {} as any);
       expect(gradleContext).toEqual({ moduleName: 'app' });
     });
   });
