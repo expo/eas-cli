@@ -15,6 +15,5 @@ export const AppleDeviceFragmentNode = gql`
     name
     model
     deviceClass
-    createdAt
   }
 `;
