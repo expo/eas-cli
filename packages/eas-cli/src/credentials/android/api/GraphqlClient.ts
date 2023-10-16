@@ -260,7 +260,6 @@ export async function createKeystoreAsync(
       keystorePassword: keystore.keystorePassword,
       keyAlias: keystore.keyAlias,
       keyPassword: keystore.keyPassword,
-      type: keystore.type,
     },
     account.id
   );
