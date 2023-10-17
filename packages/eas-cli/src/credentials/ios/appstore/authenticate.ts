@@ -8,6 +8,7 @@ import {
 } from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
+import { int } from 'getenv';
 
 import Log from '../../../log';
 import { toggleConfirmAsync } from '../../../prompts';
@@ -189,6 +190,9 @@ async function authenticateAsUserAsync(options: Options = {}): Promise<AuthCtx> 
       {
         cookies: options.cookies,
         teamId: options.teamId ?? process.env.EXPO_APPLE_TEAM_ID,
+        providerId: process.env.EXPO_APPLE_PROVIDER_ID
+          ? int(process.env.EXPO_APPLE_PROVIDER_ID)
+          : undefined,
       },
       {
         // TODO: Provide a way to disable this for users who want to mix and match teams / providers.
