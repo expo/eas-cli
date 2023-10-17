@@ -188,7 +188,7 @@ async function authenticateAsUserAsync(options: Options = {}): Promise<AuthCtx> 
     const authState = await loginAsync(
       {
         cookies: options.cookies,
-        teamId: options.teamId,
+        teamId: options.teamId ?? process.env.EXPO_APPLE_TEAM_ID,
       },
       {
         // TODO: Provide a way to disable this for users who want to mix and match teams / providers.
