@@ -204,8 +204,6 @@ export default class BuildResign extends EasCommand {
     const buildResult = await waitForBuildEndAsync(graphqlClient, {
       buildIds: [newBuild.id],
       accountName: account.name,
-      nonInteractive,
-      projectDir,
     });
     if (!flags.json) {
       printBuildResults(buildResult);

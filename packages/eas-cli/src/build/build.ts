@@ -333,12 +333,7 @@ export type MaybeBuildFragment = BuildFragment | null;
 
 export async function waitForBuildEndAsync(
   graphqlClient: ExpoGraphqlClient,
-  {
-    buildIds,
-    accountName,
-    projectDir,
-    nonInteractive,
-  }: { buildIds: string[]; accountName: string; projectDir: string; nonInteractive: boolean },
+  { buildIds, accountName }: { buildIds: string[]; accountName: string },
   { intervalSec = 10 } = {}
 ): Promise<MaybeBuildFragment[]> {
   let spinner;
@@ -355,10 +350,7 @@ export async function waitForBuildEndAsync(
     const builds = await getBuildsSafelyAsync(graphqlClient, buildIds);
     const { refetch } =
       builds.length === 1
-        ? await handleSingleBuildProgressAsync(
-            { build: builds[0], accountName, projectDir, nonInteractive },
-            { spinner }
-          )
+        ? await handleSingleBuildProgressAsync({ build: builds[0], accountName }, { spinner })
         : await handleMultipleBuildsProgressAsync({ builds }, { spinner, originalSpinnerText });
     if (!refetch) {
       return builds;
@@ -396,13 +388,9 @@ async function handleSingleBuildProgressAsync(
   {
     build,
     accountName,
-    projectDir,
-    nonInteractive,
   }: {
     build: MaybeBuildFragment;
     accountName: string;
-    projectDir: string;
-    nonInteractive: boolean;
   },
   { spinner }: { spinner: Ora }
 ): Promise<BuildProgressResult> {
