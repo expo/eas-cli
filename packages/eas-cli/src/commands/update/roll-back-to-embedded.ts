@@ -20,7 +20,10 @@ import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
-import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
+import {
+  enforceRollBackToEmbeddedUpdateSupportAsync,
+  getOwnerAccountForProjectIdAsync,
+} from '../../project/projectUtils';
 import {
   ExpoCLIExportPlatformFlag,
   defaultPublishPlatforms,
@@ -67,7 +70,6 @@ type UpdateFlags = {
 };
 
 export default class UpdateRollBackToEmbedded extends EasCommand {
-  static override hidden = true; // until we launch
   static override description = 'roll back to the embedded update';
 
   static override flags = {
@@ -153,6 +155,9 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       projectId,
       vcsClient,
     });
+
+    // check that the expo-updates package version supports roll back to embedded
+    await enforceRollBackToEmbeddedUpdateSupportAsync(projectDir);
 
     const { exp } = await getDynamicPublicProjectConfigAsync();
     const { exp: expPrivate } = await getDynamicPrivateProjectConfigAsync();
