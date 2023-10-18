@@ -109,6 +109,23 @@ export async function validateAppVersionRuntimePolicySupportAsync(
   );
 }
 
+export async function enforceRollBackToEmbeddedUpdateSupportAsync(
+  projectDir: string
+): Promise<void> {
+  const maybePackageJson = resolveFrom.silent(projectDir, 'expo-updates/package.json');
+
+  if (maybePackageJson) {
+    const { version } = await fs.readJson(maybePackageJson);
+    if (semver.gte(version, '0.19.0')) {
+      return;
+    }
+  }
+
+  throw new Error(
+    'The expo-updates package must have a version >= 0.19.0 to use roll back to embedded, which corresponds to Expo SDK 50 or greater.'
+  );
+}
+
 export async function installExpoUpdatesAsync(
   projectDir: string,
   options?: { silent: boolean }
