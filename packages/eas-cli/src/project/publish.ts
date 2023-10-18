@@ -424,7 +424,8 @@ export async function uploadAssetsAsync(
   cancelationToken: { isCanceledOrFinished: boolean },
   onAssetUploadResultsChanged: (
     assetUploadResults: { asset: RawAsset & { storageKey: string }; finished: boolean }[]
-  ) => void
+  ) => void,
+  onAssetUploadBegin: () => void
 ): Promise<AssetUploadResult> {
   let assets: RawAsset[] = [];
   let platform: keyof CollectedAssets;
@@ -486,7 +487,11 @@ export async function uploadAssetsAsync(
           throw Error('Canceled upload');
         }
         const presignedPost: PresignedPost = JSON.parse(specifications[i]);
-        await uploadWithPresignedPostWithRetryAsync(missingAsset.path, presignedPost);
+        await uploadWithPresignedPostWithRetryAsync(
+          missingAsset.path,
+          presignedPost,
+          onAssetUploadBegin
+        );
       });
     }),
   ]);
