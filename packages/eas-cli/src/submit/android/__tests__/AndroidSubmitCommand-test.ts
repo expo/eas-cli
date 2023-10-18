@@ -20,6 +20,7 @@ import {
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
+import { getVcsClient } from '../../../vcs';
 import { createSubmissionContextAsync } from '../../context';
 import { getRecentBuildsForSubmissionAsync } from '../../utils/builds';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
@@ -34,6 +35,8 @@ jest.mock('../../../credentials/android/api/graphql/queries/AndroidAppCredential
 }));
 jest.mock('../../utils/builds');
 jest.mock('../../../project/projectUtils');
+
+const vcsClient = getVcsClient();
 
 describe(AndroidSubmitCommand, () => {
   const testProject = createTestProject(testProjectId, mockJester.accounts[0].name, {
@@ -96,6 +99,7 @@ describe(AndroidSubmitCommand, () => {
         analytics,
         exp: testProject.appJSON.expo,
         projectId,
+        vcsClient,
       });
       const command = new AndroidSubmitCommand(ctx);
       await expect(command.runAsync()).rejects.toThrowError(
@@ -128,6 +132,7 @@ describe(AndroidSubmitCommand, () => {
         analytics,
         exp: testProject.appJSON.expo,
         projectId,
+        vcsClient,
       });
 
       const command = new AndroidSubmitCommand(ctx);
@@ -168,6 +173,7 @@ describe(AndroidSubmitCommand, () => {
         analytics,
         exp: testProject.appJSON.expo,
         projectId,
+        vcsClient,
       });
 
       const command = new AndroidSubmitCommand(ctx);
@@ -211,6 +217,7 @@ describe(AndroidSubmitCommand, () => {
         analytics,
         exp: testProject.appJSON.expo,
         projectId,
+        vcsClient,
       });
       const command = new AndroidSubmitCommand(ctx);
       await command.runAsync();

@@ -37,7 +37,7 @@ export async function ensureAppStoreConnectAppExistsAsync(
     bundleIdentifier:
       ctx.applicationIdentifierOverride ??
       ctx.profile.bundleIdentifier ??
-      (await getBundleIdentifierAsync(ctx.projectDir, exp)),
+      (await getBundleIdentifierAsync(ctx.projectDir, exp, ctx.vcsClient)),
     appName: appName ?? exp.name ?? (await promptForAppNameAsync()),
     language: sanitizeLanguage(language),
   };

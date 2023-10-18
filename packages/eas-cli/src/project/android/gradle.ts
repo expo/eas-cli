@@ -3,6 +3,7 @@ import { BuildProfile } from '@expo/eas-json';
 
 import Log from '../../log';
 import { resolveWorkflowAsync } from '../../project/workflow';
+import { Client } from '../../vcs/vcs';
 import * as gradleUtils from './gradleUtils';
 
 export interface GradleBuildContext {
@@ -12,9 +13,10 @@ export interface GradleBuildContext {
 
 export async function resolveGradleBuildContextAsync(
   projectDir: string,
-  buildProfile: BuildProfile<Platform.ANDROID>
+  buildProfile: BuildProfile<Platform.ANDROID>,
+  vcsClient: Client
 ): Promise<GradleBuildContext | undefined> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   if (workflow === Workflow.GENERIC) {
     try {
       if (buildProfile.gradleCommand) {

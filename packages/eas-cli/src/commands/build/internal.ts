@@ -37,6 +37,7 @@ export default class BuildInternal extends EasCommand {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Analytics,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -49,6 +50,7 @@ export default class BuildInternal extends EasCommand {
       getDynamicPrivateProjectConfigAsync,
       projectDir,
       analytics,
+      vcsClient,
     } = await this.getContextAsync(BuildInternal, {
       nonInteractive: true,
     });
@@ -60,6 +62,7 @@ export default class BuildInternal extends EasCommand {
     await runBuildAndSubmitAsync(
       graphqlClient,
       analytics,
+      vcsClient,
       projectDir,
       {
         requestedPlatform: flags.platform as RequestedPlatform,

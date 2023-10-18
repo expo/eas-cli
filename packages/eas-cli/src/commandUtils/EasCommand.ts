@@ -22,6 +22,7 @@ import { OptionalPrivateProjectConfigContextField } from './context/OptionalPriv
 import { PrivateProjectConfigContextField } from './context/PrivateProjectConfigContextField';
 import ProjectDirContextField from './context/ProjectDirContextField';
 import SessionManagementContextField from './context/SessionManagementContextField';
+import VcsClientContextField from './context/VcsClientContextField';
 import { EasCommandError } from './errors';
 
 export type ContextInput<
@@ -100,6 +101,9 @@ export default abstract class EasCommand extends Command {
      */
     Analytics: {
       analytics: new AnalyticsContextField(),
+    },
+    Vcs: {
+      vcsClient: new VcsClientContextField(),
     },
   };
 

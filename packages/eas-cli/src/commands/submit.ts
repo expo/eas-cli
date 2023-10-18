@@ -94,6 +94,7 @@ export default class Submit extends EasCommand {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Analytics,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -102,6 +103,7 @@ export default class Submit extends EasCommand {
       loggedIn: { actor, graphqlClient },
       privateProjectConfig: { exp, projectId, projectDir },
       analytics,
+      vcsClient,
     } = await this.getContextAsync(Submit, {
       nonInteractive: false,
     });
@@ -135,6 +137,7 @@ export default class Submit extends EasCommand {
         analytics,
         exp,
         projectId,
+        vcsClient,
       });
 
       if (submissionProfiles.length > 1) {

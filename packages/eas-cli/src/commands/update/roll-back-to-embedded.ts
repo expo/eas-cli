@@ -43,7 +43,6 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
-import { getVcsClient } from '../../vcs';
 
 type RawUpdateFlags = {
   auto: boolean;
@@ -109,6 +108,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -129,6 +129,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       getDynamicPublicProjectConfigAsync,
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
+      vcsClient,
     } = await this.getContextAsync(UpdateRollBackToEmbedded, {
       nonInteractive,
     });
@@ -150,6 +151,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       platform: getRequestedPlatform(platformFlag),
       projectDir,
       projectId,
+      vcsClient,
     });
 
     const { exp } = await getDynamicPublicProjectConfigAsync();
@@ -158,6 +160,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
 
     const branchName = await getBranchNameForCommandAsync({
       graphqlClient,
+      vcsClient,
       projectId,
       channelNameArg,
       branchNameArg,
@@ -166,7 +169,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       paginatedQueryOptions,
     });
 
-    const updateMessage = await getUpdateMessageForCommandAsync({
+    const updateMessage = await getUpdateMessageForCommandAsync(vcsClient, {
       updateMessageArg,
       autoFlag,
       nonInteractive,
@@ -190,12 +193,15 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
 
     Log.withTick(`Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`);
 
-    const vcsClient = getVcsClient();
-
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
+    const runtimeVersions = await getRuntimeVersionObjectAsync(
+      exp,
+      realizedPlatforms,
+      projectDir,
+      vcsClient
+    );
 
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();

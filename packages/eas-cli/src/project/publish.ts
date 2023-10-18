@@ -33,7 +33,7 @@ import {
 import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
 import uniqBy from '../utils/expodash/uniqBy';
-import { getVcsClient } from '../vcs';
+import { Client } from '../vcs/vcs';
 import { resolveWorkflowAsync } from './workflow';
 
 export type ExpoCLIExportPlatformFlag = Platform | 'all';
@@ -545,6 +545,7 @@ export async function getBranchNameForCommandAsync({
   autoFlag,
   nonInteractive,
   paginatedQueryOptions,
+  vcsClient,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
@@ -553,6 +554,7 @@ export async function getBranchNameForCommandAsync({
   autoFlag: boolean;
   nonInteractive: boolean;
   paginatedQueryOptions: PaginatedQueryOptions;
+  vcsClient: Client;
 }): Promise<string> {
   if (channelNameArg && branchNameArg) {
     throw new Error(
@@ -569,7 +571,7 @@ export async function getBranchNameForCommandAsync({
   }
 
   if (autoFlag) {
-    return await getDefaultBranchNameAsync();
+    return await getDefaultBranchNameAsync(vcsClient);
   } else if (nonInteractive) {
     throw new Error('Must supply --channel, --branch or --auto when in non-interactive mode.');
   } else {
@@ -593,7 +595,7 @@ export async function getBranchNameForCommandAsync({
         type: 'text',
         name: 'name',
         message: 'No branches found. Provide a branch name:',
-        initial: await getDefaultBranchNameAsync(),
+        initial: await getDefaultBranchNameAsync(vcsClient),
         validate: value => (value ? true : 'Branch name may not be empty.'),
       });
       branchName = name;
@@ -604,20 +606,23 @@ export async function getBranchNameForCommandAsync({
   }
 }
 
-export async function getUpdateMessageForCommandAsync({
-  updateMessageArg,
-  autoFlag,
-  nonInteractive,
-  jsonFlag,
-}: {
-  updateMessageArg: string | undefined;
-  autoFlag: boolean;
-  nonInteractive: boolean;
-  jsonFlag: boolean;
-}): Promise<string> {
+export async function getUpdateMessageForCommandAsync(
+  vcsClient: Client,
+  {
+    updateMessageArg,
+    autoFlag,
+    nonInteractive,
+    jsonFlag,
+  }: {
+    updateMessageArg: string | undefined;
+    autoFlag: boolean;
+    nonInteractive: boolean;
+    jsonFlag: boolean;
+  }
+): Promise<string> {
   let updateMessage = updateMessageArg;
   if (!updateMessageArg && autoFlag) {
-    updateMessage = (await getVcsClient().getLastCommitMessageAsync())?.trim();
+    updateMessage = (await vcsClient.getLastCommitMessageAsync())?.trim();
   }
 
   if (!updateMessage) {
@@ -633,7 +638,7 @@ export async function getUpdateMessageForCommandAsync({
       type: 'text',
       name: 'updateMessageLocal',
       message: `Provide an update message:`,
-      initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
+      initial: (await vcsClient.getLastCommitMessageAsync())?.trim(),
       validate: (value: any) => (value ? true : validationMessage),
     });
     updateMessage = updateMessageLocal;
@@ -672,7 +677,8 @@ export function getRequestedPlatform(
 export async function getRuntimeVersionObjectAsync(
   exp: ExpoConfig,
   platforms: Platform[],
-  projectDir: string
+  projectDir: string,
+  vcsClient: Client
 ): Promise<{ platform: string; runtimeVersion: string }[]> {
   for (const platform of platforms) {
     if (platform === 'web') {
@@ -681,7 +687,7 @@ export async function getRuntimeVersionObjectAsync(
     const isPolicy = typeof (exp[platform]?.runtimeVersion ?? exp.runtimeVersion) === 'object';
     if (isPolicy) {
       const isManaged =
-        (await resolveWorkflowAsync(projectDir, platform as EASBuildJobPlatform)) ===
+        (await resolveWorkflowAsync(projectDir, platform as EASBuildJobPlatform, vcsClient)) ===
         Workflow.MANAGED;
       if (!isManaged) {
         throw new Error(

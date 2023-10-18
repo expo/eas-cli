@@ -12,6 +12,7 @@ import { GradleBuildContext } from '../project/android/gradle';
 import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { XcodeBuildContext } from '../project/ios/scheme';
 import { Actor } from '../user/User';
+import { Client } from '../vcs/vcs';
 import { LocalBuildOptions } from './local';
 
 export type CommonContext<T extends Platform> = Omit<BuildContext<T>, 'android' | 'ios'>;
@@ -58,4 +59,5 @@ export interface BuildContext<T extends Platform> {
   ios: T extends Platform.IOS ? IosBuildContext : undefined;
   developmentClient: boolean;
   requiredPackageManager: NodePackageManager['name'] | null;
+  vcsClient: Client;
 }

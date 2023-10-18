@@ -58,7 +58,9 @@ export default class AndroidSubmitCommand {
 
   private async maybeGetAndroidPackageFromCurrentProjectAsync(): Promise<Result<string | null>> {
     try {
-      return result(await getApplicationIdAsync(this.ctx.projectDir, this.ctx.exp));
+      return result(
+        await getApplicationIdAsync(this.ctx.projectDir, this.ctx.exp, this.ctx.vcsClient)
+      );
     } catch (error: any) {
       if (error instanceof AmbiguousApplicationIdError) {
         Log.warn(

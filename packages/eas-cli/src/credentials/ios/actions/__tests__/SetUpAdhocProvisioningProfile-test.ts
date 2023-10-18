@@ -15,6 +15,7 @@ import {
 import Log from '../../../../log';
 import { getApplePlatformFromTarget } from '../../../../project/ios/target';
 import { Actor } from '../../../../user/User';
+import { Client } from '../../../../vcs/vcs';
 import { CredentialsContext, CredentialsContextProjectInfo } from '../../../context';
 import { ProvisioningProfile } from '../../appstore/Credentials.types';
 import { ApplePlatform } from '../../appstore/constants';
@@ -118,6 +119,7 @@ function setUpTest(): { ctx: CredentialsContext; distCert: AppleDistributionCert
         graphqlClient: ExpoGraphqlClient;
         analytics: Analytics;
         env?: Env;
+        vcsClient: Client;
       }
     )
   );

@@ -18,6 +18,7 @@ import {
 } from '../project/projectUtils';
 import { resolveWorkflowPerPlatformAsync } from '../project/workflow';
 import { confirmAsync } from '../prompts';
+import { Client } from '../vcs/vcs';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from './android/UpdatesModule';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from './ios/UpdatesModule';
 
@@ -260,6 +261,7 @@ function warnEASUpdatesManualConfig({
  */
 async function ensureEASUpdateIsConfiguredNativelyAsync(
   graphqlClient: ExpoGraphqlClient,
+  vcsClient: Client,
   {
     exp,
     projectId,
@@ -280,7 +282,7 @@ async function ensureEASUpdateIsConfiguredNativelyAsync(
   }
 
   if (['all', 'ios'].includes(platform) && workflows.ios === Workflow.GENERIC) {
-    await syncIosUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
+    await syncIosUpdatesConfigurationAsync(graphqlClient, vcsClient, projectDir, exp, projectId);
     Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
   }
 }
@@ -360,11 +362,13 @@ export async function ensureEASUpdateIsConfiguredAsync(
     exp: expMaybeWithoutUpdates,
     projectId,
     projectDir,
+    vcsClient,
     platform,
   }: {
     exp: ExpoConfig;
     projectId: string;
     projectDir: string;
+    vcsClient: Client;
     platform: RequestedPlatform | null;
   }
 ): Promise<void> {
@@ -396,7 +400,7 @@ export async function ensureEASUpdateIsConfiguredAsync(
     return;
   }
 
-  const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
+  const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
   const { projectChanged, exp: expWithUpdates } =
     await ensureEASUpdatesIsConfiguredInExpoConfigAsync({
       exp: expMaybeWithoutUpdates,
@@ -407,7 +411,7 @@ export async function ensureEASUpdateIsConfiguredAsync(
     });
 
   if (projectChanged || !hasExpoUpdates) {
-    await ensureEASUpdateIsConfiguredNativelyAsync(graphqlClient, {
+    await ensureEASUpdateIsConfiguredNativelyAsync(graphqlClient, vcsClient, {
       exp: expWithUpdates,
       projectDir,
       projectId,

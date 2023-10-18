@@ -3,6 +3,7 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { Client } from '../vcs/vcs';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   getApplicationIdAsync,
@@ -23,6 +24,7 @@ export async function getApplicationIdentifierAsync({
   exp,
   buildProfile,
   platform,
+  vcsClient,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
@@ -30,10 +32,11 @@ export async function getApplicationIdentifierAsync({
   exp: ExpoConfig;
   buildProfile: BuildProfile;
   platform: Platform;
+  vcsClient: Client;
 }): Promise<string> {
   if (platform === Platform.ANDROID) {
     const profile = buildProfile as BuildProfile<Platform.ANDROID>;
-    const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
+    const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
 
     if (workflow === Workflow.MANAGED) {
       return await ensureApplicationIdIsDefinedForManagedProjectAsync({
@@ -41,13 +44,14 @@ export async function getApplicationIdentifierAsync({
         projectDir,
         projectId,
         exp,
+        vcsClient,
       });
     }
 
-    const gradleContext = await resolveGradleBuildContextAsync(projectDir, profile);
-    return await getApplicationIdAsync(projectDir, exp, gradleContext);
+    const gradleContext = await resolveGradleBuildContextAsync(projectDir, profile, vcsClient);
+    return await getApplicationIdAsync(projectDir, exp, vcsClient, gradleContext);
   } else {
-    const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+    const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
     const profile = buildProfile as BuildProfile<Platform.IOS>;
     if (workflow === Workflow.MANAGED) {
       return await ensureBundleIdentifierIsDefinedForManagedProjectAsync({
@@ -55,11 +59,12 @@ export async function getApplicationIdentifierAsync({
         projectDir,
         projectId,
         exp,
+        vcsClient,
       });
     }
 
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(
-      { exp, projectDir, nonInteractive: false },
+      { exp, projectDir, nonInteractive: false, vcsClient },
       profile
     );
     const targets = await resolveTargetsAsync({
@@ -67,9 +72,10 @@ export async function getApplicationIdentifierAsync({
       exp,
       xcodeBuildContext,
       env: profile.env,
+      vcsClient,
     });
     const applicationTarget = findApplicationTarget(targets);
-    return await getBundleIdentifierAsync(projectDir, exp, {
+    return await getBundleIdentifierAsync(projectDir, exp, vcsClient, {
       targetName: applicationTarget.targetName,
       buildConfiguration: applicationTarget.buildConfiguration,
     });
