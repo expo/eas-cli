@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Add `requiredPackageManager` to metadata. ([#2067](https://github.com/expo/eas-cli/pull/2067) by [@kadikraman](https://github.com/kadikraman))
+- Display Apple device creation date when listing devices. ([#2092](https://github.com/expo/eas-cli/pull/2092) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ## [5.4.0](https://github.com/expo/eas-cli/releases/tag/v5.4.0) - 2023-09-28
 
