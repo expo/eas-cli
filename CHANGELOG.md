@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Add `requiredPackageManager` to metadata. ([#2067](https://github.com/expo/eas-cli/pull/2067) by [@kadikraman](https://github.com/kadikraman))
+- Move `getVcsClient` and `ensureRepoExistsAsync` into command context. ([#2086](https://github.com/expo/eas-cli/pull/2086) by [@Josh-McFarlin](https://github.com/Josh-McFarlin)). ([#2086](https://github.com/expo/eas-cli/pull/2086) by [@Josh-McFarlin](https://github.com/Josh-McFarlin))
 
 ## [5.4.0](https://github.com/expo/eas-cli/releases/tag/v5.4.0) - 2023-09-28
 
