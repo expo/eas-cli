@@ -5,16 +5,18 @@ import EasCommand from '../commandUtils/EasCommand';
 import Log from '../log';
 import { resolveWorkflowAsync } from '../project/workflow';
 import { easCliVersion } from '../utils/easCli';
+import { Client } from '../vcs/vcs';
 
 export default class Diagnostics extends EasCommand {
   static override description = 'display environment info';
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
-    const { projectDir } = await this.getContextAsync(Diagnostics, {
+    const { projectDir, vcsClient } = await this.getContextAsync(Diagnostics, {
       nonInteractive: true,
     });
 
@@ -43,13 +45,13 @@ export default class Diagnostics extends EasCommand {
     );
 
     Log.log(info.trimEnd());
-    await this.printWorkflowAsync(projectDir);
+    await this.printWorkflowAsync(projectDir, vcsClient);
     Log.newLine();
   }
 
-  private async printWorkflowAsync(projectDir: string): Promise<void> {
-    const androidWorkflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
-    const iosWorkflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  private async printWorkflowAsync(projectDir: string, vcsClient: Client): Promise<void> {
+    const androidWorkflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
+    const iosWorkflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
 
     if (androidWorkflow === iosWorkflow) {
       Log.log(`    Project workflow: ${androidWorkflow}`);

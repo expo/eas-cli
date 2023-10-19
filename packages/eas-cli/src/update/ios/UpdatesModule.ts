@@ -5,11 +5,12 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { RequestedPlatform } from '../../platform';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { readPlistAsync, writePlistAsync } from '../../utils/plist';
-import { getVcsClient } from '../../vcs';
+import { Client } from '../../vcs/vcs';
 import { ensureValidVersions } from '../utils';
 
 export async function syncUpdatesConfigurationAsync(
   graphqlClient: ExpoGraphqlClient,
+  vcsClient: Client,
   projectDir: string,
   exp: ExpoConfig,
   projectId: string
@@ -23,7 +24,7 @@ export async function syncUpdatesConfigurationAsync(
     expoPlist,
     accountName
   );
-  await writeExpoPlistAsync(projectDir, updatedExpoPlist);
+  await writeExpoPlistAsync(vcsClient, projectDir, updatedExpoPlist);
 }
 
 async function readExpoPlistAsync(projectDir: string): Promise<IOSConfig.ExpoPlist> {
@@ -32,12 +33,13 @@ async function readExpoPlistAsync(projectDir: string): Promise<IOSConfig.ExpoPli
 }
 
 async function writeExpoPlistAsync(
+  vcsClient: Client,
   projectDir: string,
   expoPlist: IOSConfig.ExpoPlist
 ): Promise<void> {
   const expoPlistPath = IOSConfig.Paths.getExpoPlistPath(projectDir);
   await writePlistAsync(expoPlistPath, expoPlist);
-  await getVcsClient().trackFileAsync(expoPlistPath);
+  await vcsClient.trackFileAsync(expoPlistPath);
 }
 
 export async function readReleaseChannelSafelyAsync(projectDir: string): Promise<string | null> {

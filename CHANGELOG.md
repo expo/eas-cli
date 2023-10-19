@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Add account type to the items in the prompt to select project owner. ([#2083](https://github.com/expo/eas-cli/pull/2083) by [@alanjhughes](https://github.com/alanjhughes))
 - Add `EXPO_APPLE_TEAM_ID` and `EXPO_APPLE_PROVIDER_ID` support. ([#2091](https://github.com/expo/eas-cli/pull/2091) by [@EvanBacon](https://github.com/EvanBacon))
+- Gate roll back to embedded to expo-updates >= 0.19.0. ([#2094](https://github.com/expo/eas-cli/pull/2094) by [@wschurman](https://github.com/wschurman))
 
 ### 🐛 Bug fixes
 
@@ -18,6 +19,8 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Add `requiredPackageManager` to metadata. ([#2067](https://github.com/expo/eas-cli/pull/2067) by [@kadikraman](https://github.com/kadikraman))
+- Move `getVcsClient` into command context. ([#2086](https://github.com/expo/eas-cli/pull/2086) by [@Josh-McFarlin](https://github.com/Josh-McFarlin))
+- Display Apple device creation date when listing devices. ([#2092](https://github.com/expo/eas-cli/pull/2092) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ## [5.4.0](https://github.com/expo/eas-cli/releases/tag/v5.4.0) - 2023-09-28
 

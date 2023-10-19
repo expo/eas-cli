@@ -7,6 +7,7 @@ import { learnMore } from '../../../log';
 import { getProjectConfigDescription } from '../../../project/projectUtils';
 import { pressAnyKeyToContinueAsync } from '../../../prompts';
 import { Actor } from '../../../user/User';
+import { Client } from '../../../vcs/vcs';
 import { getAppLookupParamsFromContextAsync } from '../../android/actions/BuildCredentialsUtils';
 import { CredentialsContextProjectInfo } from '../../context';
 import { AndroidPackageNotDefinedError } from '../../errors';
@@ -30,6 +31,7 @@ describe('runAsync', () => {
         actor: {} as Actor,
         graphqlClient: {} as ExpoGraphqlClient,
         analytics: {} as Analytics,
+        vcsClient: {} as Client,
         getDynamicPrivateProjectConfigAsync: jest
           .fn()
           .mockResolvedValue({ exp: {}, projectId: '' }),

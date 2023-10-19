@@ -9,6 +9,7 @@ import Log from '../log';
 import { getPrivateExpoConfig } from '../project/expoConfig';
 import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
+import { Client } from '../vcs/vcs';
 import * as AndroidGraphqlClient from './android/api/GraphqlClient';
 import * as IosGraphqlClient from './ios/api/GraphqlClient';
 import AppStoreApi from './ios/appstore/AppStoreApi';
@@ -28,6 +29,7 @@ export class CredentialsContext {
   public readonly user: Actor;
   public readonly graphqlClient: ExpoGraphqlClient;
   public readonly analytics: Analytics;
+  public readonly vcsClient: Client;
   public readonly easJsonCliConfig?: EasJson['cli'];
 
   private shouldAskAuthenticateAppStore: boolean = true;
@@ -44,6 +46,7 @@ export class CredentialsContext {
       user: Actor;
       graphqlClient: ExpoGraphqlClient;
       analytics: Analytics;
+      vcsClient: Client;
       env?: Env;
     }
   ) {
@@ -52,6 +55,7 @@ export class CredentialsContext {
     this.user = options.user;
     this.graphqlClient = options.graphqlClient;
     this.analytics = options.analytics;
+    this.vcsClient = options.vcsClient;
     this.nonInteractive = options.nonInteractive ?? false;
     this.projectInfo = options.projectInfo;
   }

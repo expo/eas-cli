@@ -66,7 +66,7 @@ import { downloadAndMaybeExtractAppAsync } from '../utils/download';
 import { truthy } from '../utils/expodash/filter';
 import { printJsonOnlyOutput } from '../utils/json';
 import { ProfileData, getProfilesAsync } from '../utils/profiles';
-import { getVcsClient } from '../vcs';
+import { Client } from '../vcs/vcs';
 import { prepareAndroidBuildAsync } from './android/build';
 import { BuildRequestSender, MaybeBuildFragment, waitForBuildEndAsync } from './build';
 import { ensureProjectConfiguredAsync } from './configure';
@@ -98,17 +98,19 @@ export interface BuildFlags {
 export async function runBuildAndSubmitAsync(
   graphqlClient: ExpoGraphqlClient,
   analytics: Analytics,
+  vcsClient: Client,
   projectDir: string,
   flags: BuildFlags,
   actor: Actor,
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn
 ): Promise<void> {
-  await getVcsClient().ensureRepoExistsAsync();
-  await ensureRepoIsCleanAsync(flags.nonInteractive);
+  await vcsClient.ensureRepoExistsAsync();
+  await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
 
   await ensureProjectConfiguredAsync({
     projectDir,
     nonInteractive: flags.nonInteractive,
+    vcsClient,
   });
   const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   const easJsonCliConfig: EasJson['cli'] =
@@ -134,6 +136,7 @@ export async function runBuildAndSubmitAsync(
     projectDir,
     nonInteractive: flags.nonInteractive,
     buildProfiles,
+    vcsClient,
   });
 
   const customBuildConfigMetadataByPlatform: { [p in AppPlatform]?: CustomBuildConfigMetadata } =
@@ -163,6 +166,7 @@ export async function runBuildAndSubmitAsync(
       actor,
       graphqlClient,
       analytics,
+      vcsClient,
       getDynamicPrivateProjectConfigAsync,
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
     });
@@ -274,6 +278,7 @@ async function prepareAndStartBuildAsync({
   actor,
   graphqlClient,
   analytics,
+  vcsClient,
   getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
 }: {
@@ -285,6 +290,7 @@ async function prepareAndStartBuildAsync({
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
+  vcsClient: Client;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
@@ -303,6 +309,7 @@ async function prepareAndStartBuildAsync({
     actor,
     graphqlClient,
     analytics,
+    vcsClient,
     getDynamicPrivateProjectConfigAsync,
     customBuildConfigMetadata,
   });
@@ -329,6 +336,7 @@ async function prepareAndStartBuildAsync({
       exp: buildCtx.exp,
       projectId: buildCtx.projectId,
       projectDir,
+      vcsClient: buildCtx.vcsClient,
       sdkVersion: buildCtx.exp.sdkVersion,
       nonInteractive: flags.nonInteractive,
       buildProfile,
@@ -411,6 +419,7 @@ async function prepareAndStartSubmissionAsync({
     analytics: buildCtx.analytics,
     projectId: buildCtx.projectId,
     exp: buildCtx.exp,
+    vcsClient: buildCtx.vcsClient,
   });
 
   if (moreBuilds) {
@@ -471,6 +480,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
   graphqlClient,
   projectId,
   projectDir,
+  vcsClient,
   buildProfile,
   nonInteractive,
   sdkVersion,
@@ -479,6 +489,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
   exp: ExpoConfig;
   projectId: string;
   projectDir: string;
+  vcsClient: Client;
   buildProfile: ProfileData<'build'>;
   nonInteractive: boolean;
   sdkVersion?: string;
@@ -508,6 +519,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
         projectId,
         projectDir,
         platform: RequestedPlatform.All,
+        vcsClient,
       });
       Log.withTick('Installed expo-updates and configured EAS Update.');
       throw new Error('Command must be re-run to pick up new updates configuration.');

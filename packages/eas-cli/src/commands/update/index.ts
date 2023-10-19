@@ -52,7 +52,6 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
-import { getVcsClient } from '../../vcs';
 
 type RawUpdateFlags = {
   auto: boolean;
@@ -155,6 +154,7 @@ export default class UpdatePublish extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -179,6 +179,7 @@ export default class UpdatePublish extends EasCommand {
       getDynamicPublicProjectConfigAsync,
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
+      vcsClient,
     } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
     });
@@ -200,6 +201,7 @@ export default class UpdatePublish extends EasCommand {
       platform: getRequestedPlatform(platformFlag),
       projectDir,
       projectId,
+      vcsClient,
     });
 
     const { exp } = await getDynamicPublicProjectConfigAsync();
@@ -208,6 +210,7 @@ export default class UpdatePublish extends EasCommand {
 
     const branchName = await getBranchNameForCommandAsync({
       graphqlClient,
+      vcsClient,
       projectId,
       channelNameArg,
       branchNameArg,
@@ -216,7 +219,7 @@ export default class UpdatePublish extends EasCommand {
       paginatedQueryOptions,
     });
 
-    const updateMessage = await getUpdateMessageForCommandAsync({
+    const updateMessage = await getUpdateMessageForCommandAsync(vcsClient, {
       updateMessageArg,
       autoFlag,
       nonInteractive,
@@ -359,7 +362,12 @@ export default class UpdatePublish extends EasCommand {
       throw e;
     }
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
+    const runtimeVersions = await getRuntimeVersionObjectAsync(
+      exp,
+      realizedPlatforms,
+      projectDir,
+      vcsClient
+    );
     const runtimeToPlatformMapping =
       getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);
 
@@ -377,8 +385,6 @@ export default class UpdatePublish extends EasCommand {
         `Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`
       );
     }
-
-    const vcsClient = getVcsClient();
 
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();

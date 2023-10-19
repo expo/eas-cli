@@ -7,6 +7,7 @@ import chalk from 'chalk';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import sortBy from '../../utils/expodash/sortBy';
+import { Client } from '../../vcs/vcs';
 import { resolveWorkflowAsync } from '../workflow';
 
 export interface XcodeBuildContext {
@@ -19,10 +20,11 @@ export async function resolveXcodeBuildContextAsync(
     exp,
     projectDir,
     nonInteractive,
-  }: { exp: ExpoConfig; projectDir: string; nonInteractive: boolean },
+    vcsClient,
+  }: { exp: ExpoConfig; projectDir: string; nonInteractive: boolean; vcsClient: Client },
   buildProfile: BuildProfile<Platform.IOS>
 ): Promise<XcodeBuildContext> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   if (workflow === Workflow.GENERIC) {
     const buildScheme =
       buildProfile.scheme ??

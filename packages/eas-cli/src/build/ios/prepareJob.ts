@@ -16,7 +16,6 @@ import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
 import { IosJobSecretsInput } from '../../graphql/generated';
 import { getCustomBuildConfigPath } from '../../project/customBuildConfig';
 import { getUsername } from '../../project/projectUtils';
-import { getVcsClient } from '../../vcs';
 import { BuildContext } from '../context';
 
 interface JobData {
@@ -37,7 +36,7 @@ export async function prepareJobAsync(
   const username = getUsername(ctx.exp, ctx.user);
   const buildProfile: BuildProfile<Platform.IOS> = ctx.buildProfile;
   const projectRootDirectory =
-    slash(path.relative(await getVcsClient().getRootPathAsync(), ctx.projectDir)) || '.';
+    slash(path.relative(await ctx.vcsClient.getRootPathAsync(), ctx.projectDir)) || '.';
   const buildCredentials: Ios.BuildSecrets['buildCredentials'] = {};
   if (jobData.credentials) {
     const targetNames = Object.keys(jobData.credentials);

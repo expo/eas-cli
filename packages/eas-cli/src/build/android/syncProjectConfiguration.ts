@@ -11,6 +11,7 @@ import Log from '../../log';
 import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { syncUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
+import { Client } from '../../vcs/vcs';
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 
 export async function syncProjectConfigurationAsync(
@@ -20,14 +21,16 @@ export async function syncProjectConfigurationAsync(
     exp,
     localAutoIncrement,
     projectId,
+    vcsClient,
   }: {
     projectDir: string;
     exp: ExpoConfig;
     localAutoIncrement?: AndroidVersionAutoIncrement;
     projectId: string;
+    vcsClient: Client;
   }
 ): Promise<void> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   const versionBumpStrategy = resolveVersionBumpStrategy(localAutoIncrement ?? false);
 
   if (workflow === Workflow.GENERIC) {
