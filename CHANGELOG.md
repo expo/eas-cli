@@ -21,6 +21,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Move `getVcsClient` into command context. ([#2086](https://github.com/expo/eas-cli/pull/2086) by [@Josh-McFarlin](https://github.com/Josh-McFarlin))
 - Display Apple device creation date when listing devices. ([#2092](https://github.com/expo/eas-cli/pull/2092) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 - Clean up Intel resource classes code after their deletion. ([#2093](https://github.com/expo/eas-cli/pull/2093) by [@szdziedzic](https://github.com/szdziedzic))
+- Update images descriptions in `eas.schema.json` and add info about the new JDK 17 image. ([#2099](https://github.com/expo/eas-cli/pull/2099) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [5.4.0](https://github.com/expo/eas-cli/releases/tag/v5.4.0) - 2023-09-28
 
