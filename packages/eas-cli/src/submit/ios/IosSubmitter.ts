@@ -47,19 +47,14 @@ export default class IosSubmitter extends BaseSubmitter<
   ResolvedSourceOptions,
   IosSubmissionOptions
 > {
-  constructor(ctx: SubmissionContext<Platform.IOS>, options: IosSubmissionOptions) {
+  constructor(
+    ctx: SubmissionContext<Platform.IOS>,
+    options: IosSubmissionOptions,
+    archive: ResolvedArchiveSource
+  ) {
     const sourceOptionsResolver = {
       // eslint-disable-next-line async-protect/async-suffix
-      archive: async () =>
-        await getArchiveAsync(
-          {
-            graphqlClient: ctx.graphqlClient,
-            platform: Platform.IOS,
-            projectId: ctx.projectId,
-            nonInteractive: ctx.nonInteractive,
-          },
-          this.options.archiveSource
-        ),
+      archive: async () => archive,
       // eslint-disable-next-line async-protect/async-suffix
       credentials: async () => {
         const maybeAppSpecificPassword = this.options.appSpecificPasswordSource
