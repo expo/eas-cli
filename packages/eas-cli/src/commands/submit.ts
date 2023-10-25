@@ -138,6 +138,7 @@ export default class Submit extends EasCommand {
         exp,
         projectId,
         vcsClient,
+        specifiedProfile: flagsWithPlatform.profile,
       });
 
       if (submissionProfiles.length > 1) {

@@ -42,7 +42,7 @@ export default class IosSubmitCommand {
     const archiveProfile =
       archive.sourceType === ArchiveSourceType.build ? archive.build.buildProfile : undefined;
 
-    if (archiveProfile) {
+    if (archiveProfile && !this.ctx.specifiedProfile) {
       this.ctx = await refreshContextSubmitProfileAsync(this.ctx, archiveProfile);
     }
     const options = await this.resolveSubmissionOptionsAsync(archiveSourceValue);

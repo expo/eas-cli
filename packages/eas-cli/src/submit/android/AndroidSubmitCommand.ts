@@ -43,7 +43,7 @@ export default class AndroidSubmitCommand {
     const archiveProfile =
       archive.sourceType === ArchiveSourceType.build ? archive.build.buildProfile : undefined;
 
-    if (archiveProfile) {
+    if (archiveProfile && !this.ctx.specifiedProfile) {
       this.ctx = await refreshContextSubmitProfileAsync(this.ctx, archiveProfile);
     }
     const submissionOptions = await this.getAndroidSubmissionOptionsAsync(archiveSourceValue);
