@@ -57,7 +57,7 @@ export async function refreshContextSubmitProfileAsync<T extends Platform>(
   } catch (err) {
     if (err instanceof MissingProfileError) {
       Log.log(
-        `Selected build uses "${archiveProfile}" build profile but a submit profile with the same name is missing in eas.json. Using provided or default ("production") profile`
+        `Selected build uses "${archiveProfile}" build profile but a submit profile with the same name is missing in eas.json. Using default ("production") profile`
       );
     } else {
       throw err;
