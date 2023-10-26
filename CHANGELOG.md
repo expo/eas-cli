@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Use corresponding submit profile when selecting build from EAS. ([#2101](https://github.com/expo/eas-cli/pull/2101) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

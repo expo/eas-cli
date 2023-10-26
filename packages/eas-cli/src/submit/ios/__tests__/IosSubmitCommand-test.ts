@@ -9,12 +9,19 @@ import {
   jester as mockJester,
   testProjectId,
 } from '../../../credentials/__tests__/fixtures-constants';
-import { SubmissionArchiveSourceType } from '../../../graphql/generated';
+import { BuildFragment, SubmissionArchiveSourceType } from '../../../graphql/generated';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
 import { getVcsClient } from '../../../vcs';
-import { createSubmissionContextAsync } from '../../context';
+import {
+  ArchiveResolverContext,
+  ArchiveSource,
+  ArchiveSourceType,
+  getArchiveAsync,
+} from '../../ArchiveSource';
+import { refreshContextSubmitProfileAsync } from '../../commons';
+import { SubmissionContext, createSubmissionContextAsync } from '../../context';
 import IosSubmitCommand from '../IosSubmitCommand';
 
 jest.mock('fs');
@@ -31,6 +38,20 @@ jest.mock('../../../user/actions', () => ({
   ensureLoggedInAsync: jest.fn(() => mockJester),
 }));
 jest.mock('../../../project/projectUtils');
+jest.mock('../../ArchiveSource', () => {
+  return {
+    __esModule__: true,
+    ...jest.requireActual('../../ArchiveSource'),
+    getArchiveAsync: jest.fn(),
+  };
+});
+jest.mock('../../commons', () => {
+  return {
+    __esModule__: true,
+    ...jest.requireActual('../../commons'),
+    refreshContextSubmitProfileAsync: jest.fn(),
+  };
+});
 
 const vcsClient = getVcsClient();
 
@@ -53,6 +74,7 @@ describe(IosSubmitCommand, () => {
   });
 
   beforeEach(() => {
+    jest.clearAllMocks();
     jest.mocked(getOwnerAccountForProjectIdAsync).mockResolvedValue(mockJester.accounts[0]);
   });
 
@@ -61,6 +83,9 @@ describe(IosSubmitCommand, () => {
       const projectId = uuidv4();
       const graphqlClient = {} as any as ExpoGraphqlClient;
       const analytics = instance(mock<Analytics>());
+      jest
+        .mocked(getArchiveAsync)
+        .mockImplementation(jest.requireActual('../../ArchiveSource').getArchiveAsync);
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.IOS,
@@ -89,6 +114,9 @@ describe(IosSubmitCommand, () => {
       const projectId = uuidv4();
       const graphqlClient = {} as any as ExpoGraphqlClient;
       const analytics = instance(mock<Analytics>());
+      jest
+        .mocked(getArchiveAsync)
+        .mockImplementation(jest.requireActual('../../ArchiveSource').getArchiveAsync);
 
       process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
 
@@ -125,6 +153,190 @@ describe(IosSubmitCommand, () => {
       });
 
       delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;
+    });
+    describe('build selected from EAS', () => {
+      it('sends a request to EAS Submit with profile data matching selected build profile', async () => {
+        const projectId = uuidv4();
+        const graphqlClient = {} as any as ExpoGraphqlClient;
+        const analytics = instance(mock<Analytics>());
+        const selectedBuild = {
+          id: uuidv4(),
+          buildProfile: 'otherProfile',
+        } as any as BuildFragment;
+        jest
+          .mocked(getArchiveAsync)
+          .mockImplementation(async (_ctx: ArchiveResolverContext, _source: ArchiveSource) => {
+            return {
+              sourceType: ArchiveSourceType.build,
+              build: selectedBuild,
+            };
+          });
+        jest
+          .mocked(refreshContextSubmitProfileAsync)
+          .mockImplementation(async (ctx: SubmissionContext<Platform>, _archiveProfile: string) => {
+            ctx.profile = {
+              language: 'en-US',
+              appleId: 'other-test@example.com',
+              ascAppId: '87654321',
+            };
+            return ctx;
+          });
+
+        process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
+
+        const ctx = await createSubmissionContextAsync({
+          platform: Platform.IOS,
+          projectDir: testProject.projectRoot,
+          archiveFlags: {},
+          profile: {
+            language: 'en-US',
+            appleId: 'test@example.com',
+            ascAppId: '12345678',
+          },
+          nonInteractive: false,
+          actor: mockJester,
+          graphqlClient,
+          analytics,
+          exp: testProject.appJSON.expo,
+          projectId,
+          vcsClient,
+        });
+        const command = new IosSubmitCommand(ctx);
+        await command.runAsync();
+
+        expect(SubmissionMutation.createIosSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
+          appId: projectId,
+          submittedBuildId: selectedBuild.id,
+          config: {
+            appleIdUsername: 'other-test@example.com',
+            appleAppSpecificPassword: 'supersecret',
+            ascAppIdentifier: '87654321',
+          },
+          archiveSource: undefined,
+        });
+
+        delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;
+      });
+      it('sends a request to EAS Submit with default profile data when submit profile matching selected build profile does not exist', async () => {
+        const projectId = uuidv4();
+        const graphqlClient = {} as any as ExpoGraphqlClient;
+        const analytics = instance(mock<Analytics>());
+        const selectedBuild = {
+          id: uuidv4(),
+          buildProfile: 'otherProfile',
+        } as any as BuildFragment;
+        jest
+          .mocked(getArchiveAsync)
+          .mockImplementation(async (_ctx: ArchiveResolverContext, _source: ArchiveSource) => {
+            return {
+              sourceType: ArchiveSourceType.build,
+              build: selectedBuild,
+            };
+          });
+        jest
+          .mocked(refreshContextSubmitProfileAsync)
+          .mockImplementation(async (ctx: SubmissionContext<Platform>, _archiveProfile: string) => {
+            return ctx;
+          });
+
+        process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
+
+        const ctx = await createSubmissionContextAsync({
+          platform: Platform.IOS,
+          projectDir: testProject.projectRoot,
+          archiveFlags: {},
+          profile: {
+            language: 'en-US',
+            appleId: 'test@example.com',
+            ascAppId: '12345678',
+          },
+          nonInteractive: false,
+          actor: mockJester,
+          graphqlClient,
+          analytics,
+          exp: testProject.appJSON.expo,
+          projectId,
+          vcsClient,
+        });
+        const command = new IosSubmitCommand(ctx);
+        await command.runAsync();
+
+        expect(SubmissionMutation.createIosSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
+          appId: projectId,
+          submittedBuildId: selectedBuild.id,
+          config: {
+            appleIdUsername: 'test@example.com',
+            appleAppSpecificPassword: 'supersecret',
+            ascAppIdentifier: '12345678',
+          },
+          archiveSource: undefined,
+        });
+
+        delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;
+      });
+      it('sends a request to EAS Submit with specified profile data even when submit profile matching selected build profile exists', async () => {
+        const projectId = uuidv4();
+        const graphqlClient = {} as any as ExpoGraphqlClient;
+        const analytics = instance(mock<Analytics>());
+        const selectedBuild = {
+          id: uuidv4(),
+          buildProfile: 'otherProfile',
+        } as any as BuildFragment;
+        jest
+          .mocked(getArchiveAsync)
+          .mockImplementation(async (_ctx: ArchiveResolverContext, _source: ArchiveSource) => {
+            return {
+              sourceType: ArchiveSourceType.build,
+              build: selectedBuild,
+            };
+          });
+        jest
+          .mocked(refreshContextSubmitProfileAsync)
+          .mockImplementation(async (ctx: SubmissionContext<Platform>, _archiveProfile: string) => {
+            ctx.profile = {
+              language: 'en-US',
+              appleId: 'other-test@example.com',
+              ascAppId: '87654321',
+            };
+            return ctx;
+          });
+
+        process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
+
+        const ctx = await createSubmissionContextAsync({
+          platform: Platform.IOS,
+          projectDir: testProject.projectRoot,
+          archiveFlags: {},
+          profile: {
+            language: 'en-US',
+            appleId: 'test@example.com',
+            ascAppId: '12345678',
+          },
+          nonInteractive: false,
+          actor: mockJester,
+          graphqlClient,
+          analytics,
+          exp: testProject.appJSON.expo,
+          projectId,
+          vcsClient,
+          specifiedProfile: 'specificProfile',
+        });
+        const command = new IosSubmitCommand(ctx);
+        await command.runAsync();
+
+        expect(SubmissionMutation.createIosSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
+          appId: projectId,
+          submittedBuildId: selectedBuild.id,
+          config: {
+            appleIdUsername: 'test@example.com',
+            appleAppSpecificPassword: 'supersecret',
+            ascAppIdentifier: '12345678',
+          },
+          archiveSource: undefined,
+        });
+
+        delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;
+      });
     });
   });
 });

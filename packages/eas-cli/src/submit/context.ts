@@ -31,6 +31,7 @@ export interface SubmissionContext<T extends Platform> {
   analytics: Analytics;
   vcsClient: Client;
   applicationIdentifierOverride?: string;
+  specifiedProfile?: string;
 }
 
 export interface SubmitArchiveFlags {
@@ -55,6 +56,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   exp: ExpoConfig;
   projectId: string;
   vcsClient: Client;
+  specifiedProfile?: string;
 }): Promise<SubmissionContext<T>> {
   const {
     applicationIdentifier,
