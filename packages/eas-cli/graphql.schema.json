@@ -15332,6 +15332,38 @@
             "deprecationReason": null
           },
           {
+            "name": "developmentClient",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "distributions",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "DistributionType",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "platforms",
             "description": null,
             "type": {
@@ -17702,13 +17734,13 @@
             "name": "IOS_INTEL_LARGE",
             "description": null,
             "isDeprecated": true,
-            "deprecationReason": "Use IOS_INTEL_MEDIUM instead"
+            "deprecationReason": "No longer available. Use IOS_M_LARGE instead."
           },
           {
             "name": "IOS_INTEL_MEDIUM",
             "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "No longer available. Use IOS_M_MEDIUM instead."
           },
           {
             "name": "IOS_LARGE",
@@ -17725,8 +17757,8 @@
           {
             "name": "IOS_M1_MEDIUM",
             "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Use IOS_M_MEDIUM instead"
           },
           {
             "name": "IOS_MEDIUM",
@@ -22250,7 +22282,7 @@
           },
           {
             "name": "searchRepositories",
-            "description": null,
+            "description": "@deprecated",
             "args": [
               {
                 "name": "githubAppInstallationId",
@@ -23625,6 +23657,18 @@
                 "name": "DeleteGitHubUserResult",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "generateGitHubUserAccessToken",
+            "description": "Generate a GitHub User Access Token",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
