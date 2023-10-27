@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Added `buildArtifactsUrl` to `eas-cli build:view --json` output. ([#2102](https://github.com/expo/eas-cli/pull/2102) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 ## [5.5.0](https://github.com/expo/eas-cli/releases/tag/v5.5.0) - 2023-10-25
