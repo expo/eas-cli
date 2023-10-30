@@ -2107,6 +2107,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   /** @deprecated User type is deprecated */
   initiatingUser?: Maybe<User>;
   iosEnterpriseProvisioning?: Maybe<BuildIosEnterpriseProvisioning>;
+  isForSimulator: Scalars['Boolean'];
   isGitWorkingTreeDirty?: Maybe<Scalars['Boolean']>;
   isWaived: Scalars['Boolean'];
   logFiles: Array<Scalars['String']>;
