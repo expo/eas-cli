@@ -17,6 +17,7 @@ export const BuildFragmentNode = gql`
       buildUrl
       xcodeBuildLogsUrl
       applicationArchiveUrl
+      buildArtifactsUrl
     }
     initiatingActor {
       __typename

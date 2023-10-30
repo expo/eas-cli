@@ -78,7 +78,7 @@ async function maybeGetIosBundleIdentifierAsync(
   ctx: SubmissionContext<Platform.IOS>
 ): Promise<string | null> {
   try {
-    return await getBundleIdentifierAsync(ctx.projectDir, ctx.exp);
+    return await getBundleIdentifierAsync(ctx.projectDir, ctx.exp, ctx.vcsClient);
   } catch (error: any) {
     if (error instanceof AmbiguousBundleIdentifierError) {
       Log.warn(

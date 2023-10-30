@@ -8,6 +8,7 @@ import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/cr
 import { jester, jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { promptAsync } from '../../../prompts';
+import { getVcsClient } from '../../../vcs';
 import {
   ensureBundleIdentifierIsDefinedForManagedProjectAsync,
   getBundleIdentifierAsync,
@@ -18,6 +19,8 @@ jest.mock('fs');
 jest.mock('../../../prompts');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
+
+const vcsClient = getVcsClient();
 
 beforeEach(async () => {
   vol.reset();
@@ -44,7 +47,7 @@ describe(getBundleIdentifierAsync, () => {
         '/app'
       );
 
-      const bundleIdentifier = await getBundleIdentifierAsync('/app', {} as any);
+      const bundleIdentifier = await getBundleIdentifierAsync('/app', {} as any, vcsClient);
       expect(bundleIdentifier).toBe('org.name.testproject');
     });
 
@@ -59,7 +62,7 @@ describe(getBundleIdentifierAsync, () => {
         '/app'
       );
 
-      await expect(getBundleIdentifierAsync('/app', {} as any)).rejects.toThrowError(
+      await expect(getBundleIdentifierAsync('/app', {} as any, vcsClient)).rejects.toThrowError(
         /Could not read bundle identifier/
       );
     });
@@ -67,21 +70,25 @@ describe(getBundleIdentifierAsync, () => {
 
   describe('managed projects', () => {
     it('reads bundleIdentifier from app config', async () => {
-      const applicationId = await getBundleIdentifierAsync('/app', {
-        ios: { bundleIdentifier: 'com.expo.notdominik' },
-      } as any);
+      const applicationId = await getBundleIdentifierAsync(
+        '/app',
+        {
+          ios: { bundleIdentifier: 'com.expo.notdominik' },
+        } as any,
+        vcsClient
+      );
       expect(applicationId).toBe('com.expo.notdominik');
     });
 
     it('throws an error if bundleIdentifier is not defined in app config', async () => {
-      await expect(getBundleIdentifierAsync('/app', {} as any)).rejects.toThrowError(
+      await expect(getBundleIdentifierAsync('/app', {} as any, vcsClient)).rejects.toThrowError(
         /Specify "ios.bundleIdentifier"/
       );
     });
 
     it('throws an error if bundleIdentifier in app config is invalid', async () => {
       await expect(
-        getBundleIdentifierAsync('/app', { ios: { bundleIdentifier: '' } } as any)
+        getBundleIdentifierAsync('/app', { ios: { bundleIdentifier: '' } } as any, vcsClient)
       ).rejects.toThrowError(/Specify "ios.bundleIdentifier"/);
     });
   });
@@ -103,6 +110,7 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
           projectDir: '/app',
           projectId: '1234',
           exp: {} as any,
+          vcsClient,
         })
       ).rejects.toThrowError(/we can't update this file programmatically/);
     });
@@ -132,6 +140,7 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
           projectDir: '/app',
           projectId: '1234',
           exp: {} as any,
+          vcsClient,
         })
       ).resolves.toBe('com.expo.notdominik');
       expect(promptAsync).toHaveBeenCalled();
@@ -162,6 +171,7 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
           projectDir: '/app',
           projectId: '1234',
           exp: {} as any,
+          vcsClient,
         })
       ).resolves.toBe('com.expo.notdominik');
       const appJson = JSON.parse(await fs.readFile('/app/app.json', 'utf-8'));

@@ -175,7 +175,7 @@ jobs:
         working-directory: ./scripts
         run: yarn --silent release-changelog $EAS_CLI_VERSION > /tmp/current-changelog
       - name: Publish release
-        run: hub release edit v$EAS_CLI_VERSION --draft=false -F /tmp/current-changelog
+        run: gh release edit v$EAS_CLI_VERSION --draft=false -F /tmp/current-changelog
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Commit and push

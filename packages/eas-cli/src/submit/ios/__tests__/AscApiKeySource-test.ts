@@ -17,6 +17,7 @@ import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getBundleIdentifierAsync } from '../../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../../prompts';
+import { getVcsClient } from '../../../vcs';
 import { SubmissionContext, createSubmissionContextAsync } from '../../context';
 import {
   AscApiKeySource,
@@ -41,6 +42,8 @@ const testProject = createTestProject(testProjectId, mockJester.accounts[0].name
 });
 const projectId = uuidv4();
 
+const vcsClient = getVcsClient();
+
 async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platform.IOS>> {
   const graphqlClient = instance(mock<ExpoGraphqlClient>());
   const analytics = instance(mock<Analytics>());
@@ -59,6 +62,7 @@ async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platfor
     analytics,
     exp: testProject.appJSON.expo,
     projectId,
+    vcsClient,
   });
 }
 
@@ -250,6 +254,7 @@ describe(getAscApiKeyResultAsync, () => {
       analytics,
       exp: testProject.appJSON.expo,
       projectId,
+      vcsClient,
     });
     const source: AscApiKeySource = {
       sourceType: AscApiKeySourceType.credentialsService,

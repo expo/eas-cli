@@ -59,13 +59,22 @@ This means that it will most likely produce an AAB and you will not be able to i
   await checkGoogleServicesFileAsync(ctx);
   await validatePNGsForManagedProjectAsync(ctx);
 
-  const gradleContext = await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
+  const gradleContext = await resolveGradleBuildContextAsync(
+    ctx.projectDir,
+    buildProfile,
+    ctx.vcsClient
+  );
 
   if (ctx.workflow === Workflow.MANAGED) {
     await ensureApplicationIdIsDefinedForManagedProjectAsync(ctx);
   }
 
-  const applicationId = await getApplicationIdAsync(ctx.projectDir, ctx.exp, gradleContext);
+  const applicationId = await getApplicationIdAsync(
+    ctx.projectDir,
+    ctx.exp,
+    ctx.vcsClient,
+    gradleContext
+  );
   const versionCodeOverride =
     ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
       ? await resolveRemoteVersionCodeAsync(ctx.graphqlClient, {
@@ -74,6 +83,7 @@ This means that it will most likely produce an AAB and you will not be able to i
           exp: ctx.exp,
           applicationId,
           buildProfile,
+          vcsClient: ctx.vcsClient,
         })
       : undefined;
 
@@ -97,6 +107,7 @@ export async function prepareAndroidBuildAsync(
             ? false
             : ctx.buildProfile.autoIncrement,
         projectId: ctx.projectId,
+        vcsClient: ctx.vcsClient,
       });
     },
     prepareJobAsync: async (
@@ -136,6 +147,7 @@ async function ensureAndroidCredentialsAsync(
   const androidApplicationIdentifier = await getApplicationIdAsync(
     ctx.projectDir,
     ctx.exp,
+    ctx.vcsClient,
     ctx.android.gradleContext
   );
   const provider = new AndroidCredentialsProvider(ctx.credentialsCtx, {

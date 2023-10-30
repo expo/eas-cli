@@ -7,6 +7,7 @@ import type { XCBuildConfiguration } from 'xcode';
 
 import { ApplePlatform } from '../../credentials/ios/appstore/constants';
 import { Target } from '../../credentials/ios/types';
+import { Client } from '../../vcs/vcs';
 import { resolveWorkflowAsync } from '../workflow';
 import { getBundleIdentifierAsync } from './bundleIdentifier';
 import {
@@ -27,6 +28,7 @@ interface ResolveTargetOptions {
   exp: ExpoConfig;
   env?: Record<string, string>;
   xcodeBuildContext: XcodeBuildContext;
+  vcsClient: Client;
 }
 
 const AppExtensionsConfigSchema = Joi.array().items(
@@ -43,16 +45,23 @@ export async function resolveManagedProjectTargetsAsync({
   projectDir,
   xcodeBuildContext,
   env,
+  vcsClient,
 }: ResolveTargetOptions): Promise<Target[]> {
   const { buildScheme, buildConfiguration } = xcodeBuildContext;
   const applicationTargetName = buildScheme;
-  const applicationTargetBundleIdentifier = await getBundleIdentifierAsync(projectDir, exp, {
-    targetName: applicationTargetName,
-    buildConfiguration,
-  });
+  const applicationTargetBundleIdentifier = await getBundleIdentifierAsync(
+    projectDir,
+    exp,
+    vcsClient,
+    {
+      targetName: applicationTargetName,
+      buildConfiguration,
+    }
+  );
   const applicationTargetEntitlements = await getManagedApplicationTargetEntitlementsAsync(
     projectDir,
-    env ?? {}
+    env ?? {},
+    vcsClient
   );
   const appExtensions: UserDefinedTarget[] =
     exp.extra?.eas?.build?.experimental?.ios?.appExtensions ?? [];
@@ -89,6 +98,7 @@ export async function resolveBareProjectTargetsAsync({
   exp,
   projectDir,
   xcodeBuildContext,
+  vcsClient,
 }: ResolveTargetOptions): Promise<Target[]> {
   const { buildScheme, buildConfiguration } = xcodeBuildContext;
   const result: Target[] = [];
@@ -98,7 +108,7 @@ export async function resolveBareProjectTargetsAsync({
     projectDir,
     buildScheme
   );
-  const bundleIdentifier = await getBundleIdentifierAsync(projectDir, exp, {
+  const bundleIdentifier = await getBundleIdentifierAsync(projectDir, exp, vcsClient, {
     targetName: applicationTarget.name,
     buildConfiguration,
   });
@@ -125,6 +135,7 @@ export async function resolveBareProjectTargetsAsync({
     target: applicationTarget,
     bundleIdentifier,
     pbxProject,
+    vcsClient,
   });
   if (dependencies.length > 0) {
     result.push(...dependencies);
@@ -134,7 +145,7 @@ export async function resolveBareProjectTargetsAsync({
 }
 
 export async function resolveTargetsAsync(opts: ResolveTargetOptions): Promise<Target[]> {
-  const workflow = await resolveWorkflowAsync(opts.projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(opts.projectDir, Platform.IOS, opts.vcsClient);
   if (workflow === Workflow.GENERIC) {
     return await resolveBareProjectTargetsAsync(opts);
   } else if (workflow === Workflow.MANAGED) {
@@ -151,6 +162,7 @@ async function resolveBareProjectDependenciesAsync({
   target,
   bundleIdentifier,
   pbxProject,
+  vcsClient,
 }: {
   exp: ExpoConfig;
   projectDir: string;
@@ -158,6 +170,7 @@ async function resolveBareProjectDependenciesAsync({
   target: IOSConfig.Target.Target;
   bundleIdentifier: string;
   pbxProject: XcodeProject;
+  vcsClient: Client;
 }): Promise<Target[]> {
   const result: Target[] = [];
 
@@ -166,10 +179,15 @@ async function resolveBareProjectDependenciesAsync({
       if (!dependency.signable) {
         continue;
       }
-      const dependencyBundleIdentifier = await getBundleIdentifierAsync(projectDir, exp, {
-        targetName: dependency.name,
-        buildConfiguration,
-      });
+      const dependencyBundleIdentifier = await getBundleIdentifierAsync(
+        projectDir,
+        exp,
+        vcsClient,
+        {
+          targetName: dependency.name,
+          buildConfiguration,
+        }
+      );
       const entitlements = await getNativeTargetEntitlementsAsync(projectDir, {
         targetName: target.name,
         buildConfiguration,
@@ -193,6 +211,7 @@ async function resolveBareProjectDependenciesAsync({
         target: dependency,
         bundleIdentifier: dependencyBundleIdentifier,
         pbxProject,
+        vcsClient,
       });
       if (dependencyDependencies.length > 0) {
         result.push(...dependencyDependencies);

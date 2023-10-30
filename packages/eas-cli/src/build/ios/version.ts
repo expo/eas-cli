@@ -19,6 +19,7 @@ import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import uniqBy from '../../utils/expodash/uniqBy';
 import { readPlistAsync, writePlistAsync } from '../../utils/plist';
+import { Client } from '../../vcs/vcs';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
 import { bumpAppVersionAsync, ensureStaticConfigExists } from '../utils/version';
 
@@ -110,9 +111,10 @@ function validateShortVersion(shortVersion: string | undefined): void {
 export async function readShortVersionAsync(
   projectDir: string,
   exp: ExpoConfig,
-  buildSettings: XCBuildConfiguration['buildSettings']
+  buildSettings: XCBuildConfiguration['buildSettings'],
+  vcsClient: Client
 ): Promise<string | undefined> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir, buildSettings);
 
@@ -131,9 +133,10 @@ export async function readShortVersionAsync(
 export async function readBuildNumberAsync(
   projectDir: string,
   exp: ExpoConfig,
-  buildSettings: XCBuildConfiguration['buildSettings']
+  buildSettings: XCBuildConfiguration['buildSettings'],
+  vcsClient: Client
 ): Promise<string | undefined> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir, buildSettings);
     return (
@@ -147,7 +150,8 @@ export async function readBuildNumberAsync(
 export async function maybeResolveVersionsAsync(
   projectDir: string,
   exp: ExpoConfig,
-  targets: Target[]
+  targets: Target[],
+  vcsClient: Client
 ): Promise<{ appVersion?: string; appBuildVersion?: string }> {
   const applicationTarget = findApplicationTarget(targets);
   try {
@@ -155,12 +159,14 @@ export async function maybeResolveVersionsAsync(
       appBuildVersion: await readBuildNumberAsync(
         projectDir,
         exp,
-        applicationTarget.buildSettings ?? {}
+        applicationTarget.buildSettings ?? {},
+        vcsClient
       ),
       appVersion: await readShortVersionAsync(
         projectDir,
         exp,
-        applicationTarget.buildSettings ?? {}
+        applicationTarget.buildSettings ?? {},
+        vcsClient
       ),
     };
   } catch (err: any) {
@@ -278,12 +284,14 @@ export async function resolveRemoteBuildNumberAsync(
     exp,
     applicationTarget,
     buildProfile,
+    vcsClient,
   }: {
     projectDir: string;
     projectId: string;
     exp: ExpoConfig;
     applicationTarget: Target;
     buildProfile: BuildProfile<Platform.IOS>;
+    vcsClient: Client;
   }
 ): Promise<string> {
   const remoteVersions = await AppVersionQuery.latestVersionAsync(
@@ -296,12 +304,14 @@ export async function resolveRemoteBuildNumberAsync(
   const localBuildNumber = await readBuildNumberAsync(
     projectDir,
     exp,
-    applicationTarget.buildSettings ?? {}
+    applicationTarget.buildSettings ?? {},
+    vcsClient
   );
   const localShortVersion = await readShortVersionAsync(
     projectDir,
     exp,
-    applicationTarget.buildSettings ?? {}
+    applicationTarget.buildSettings ?? {},
+    vcsClient
   );
   let currentBuildVersion: string;
   if (remoteVersions?.buildVersion) {

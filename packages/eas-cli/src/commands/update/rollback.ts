@@ -8,8 +8,6 @@ import UpdateRollBackToEmbedded from './roll-back-to-embedded';
 export default class UpdateRollback extends EasCommand {
   static override description = 'roll back to an embedded update or an existing update';
 
-  static override hidden = true;
-
   static override flags = {
     'private-key-path': Flags.string({
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,

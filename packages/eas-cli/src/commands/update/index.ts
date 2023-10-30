@@ -52,7 +52,6 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
-import { getVcsClient } from '../../vcs';
 
 type RawUpdateFlags = {
   auto: boolean;
@@ -155,6 +154,7 @@ export default class UpdatePublish extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -179,6 +179,7 @@ export default class UpdatePublish extends EasCommand {
       getDynamicPublicProjectConfigAsync,
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
+      vcsClient,
     } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
     });
@@ -200,6 +201,7 @@ export default class UpdatePublish extends EasCommand {
       platform: getRequestedPlatform(platformFlag),
       projectDir,
       projectId,
+      vcsClient,
     });
 
     const { exp } = await getDynamicPublicProjectConfigAsync();
@@ -208,6 +210,7 @@ export default class UpdatePublish extends EasCommand {
 
     const branchName = await getBranchNameForCommandAsync({
       graphqlClient,
+      vcsClient,
       projectId,
       channelNameArg,
       branchNameArg,
@@ -216,7 +219,7 @@ export default class UpdatePublish extends EasCommand {
       paginatedQueryOptions,
     });
 
-    const updateMessage = await getUpdateMessageForCommandAsync({
+    const updateMessage = await getUpdateMessageForCommandAsync(vcsClient, {
       updateMessageArg,
       autoFlag,
       nonInteractive,
@@ -250,20 +253,22 @@ export default class UpdatePublish extends EasCommand {
       realizedPlatforms = Object.keys(assets) as PublishPlatform[];
 
       // Timeout mechanism:
-      // - Start with 60 second timeout. 60 seconds is chosen because the cloud function that processes
-      //   uploaded assets has a timeout of 60 seconds.
-      // - Each time one or more assets reports as ready, reset the timeout to 60 seconds.
-      // - Start upload. Internally, uploadAssetsAsync uploads them all and then checks for successful
+      // - Start with NO_ACTIVITY_TIMEOUT. 90 seconds is chosen because the cloud function that processes
+      //   uploaded assets has a timeout of 60 seconds and uploading can take some time on a slow connection.
+      // - Each time one or more assets reports as ready, reset the timeout.
+      // - Each time an asset upload begins, reset the timeout. This includes retries.
+      // - Start upload. Internally, uploadAssetsAsync uploads them all first and then checks for successful
       //   processing every (5 + n) seconds with a linear backoff of n + 1 second.
       // - At the same time as upload is started, start timeout checker which checks every 1 second to see
       //   if timeout has been reached. When timeout expires, send a cancellation signal to currently running
       //   upload function call to instruct it to stop uploading or checking for successful processing.
+      const NO_ACTIVITY_TIMEOUT = 90 * 1000; // 90 seconds
       let lastUploadedStorageKeys = new Set<string>();
       let lastAssetUploadResults: {
         asset: RawAsset & { storageKey: string };
         finished: boolean;
       }[] = [];
-      let timeAtWhichToTimeout = Date.now() + 60 * 1000; // sixty seconds from now
+      let timeAtWhichToTimeout = Date.now() + NO_ACTIVITY_TIMEOUT;
       const cancelationToken = { isCanceledOrFinished: false };
 
       const uploadResults = await Promise.race([
@@ -277,7 +282,7 @@ export default class UpdatePublish extends EasCommand {
               assetUploadResults.filter(r => r.finished).map(r => r.asset.storageKey)
             );
             if (!areSetsEqual(currentUploadedStorageKeys, lastUploadedStorageKeys)) {
-              timeAtWhichToTimeout = Date.now() + 60 * 1000; // reset timeout to sixty seconds from now
+              timeAtWhichToTimeout = Date.now() + NO_ACTIVITY_TIMEOUT; // reset timeout to NO_ACTIVITY_TIMEOUT
               lastUploadedStorageKeys = currentUploadedStorageKeys;
               lastAssetUploadResults = assetUploadResults;
             }
@@ -285,6 +290,10 @@ export default class UpdatePublish extends EasCommand {
             const totalAssets = assetUploadResults.length;
             const missingAssetCount = assetUploadResults.filter(a => !a.finished).length;
             assetSpinner.text = `Uploading (${totalAssets - missingAssetCount}/${totalAssets})`;
+          },
+          () => {
+            // when an upload is retried, reset the timeout as we know this will now need more time
+            timeAtWhichToTimeout = Date.now() + NO_ACTIVITY_TIMEOUT; // reset timeout to NO_ACTIVITY_TIMEOUT
           }
         ),
         (async () => {
@@ -353,7 +362,12 @@ export default class UpdatePublish extends EasCommand {
       throw e;
     }
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
+    const runtimeVersions = await getRuntimeVersionObjectAsync(
+      exp,
+      realizedPlatforms,
+      projectDir,
+      vcsClient
+    );
     const runtimeToPlatformMapping =
       getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);
 
@@ -371,8 +385,6 @@ export default class UpdatePublish extends EasCommand {
         `Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`
       );
     }
-
-    const vcsClient = getVcsClient();
 
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();

@@ -1,7 +1,7 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "5.4.0",
+  "version": "5.6.0",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
@@ -14,11 +14,11 @@
     "@expo/config-plugins": "7.2.4",
     "@expo/config-types": "49.0.0",
     "@expo/eas-build-job": "1.0.46",
-    "@expo/eas-json": "5.3.1",
+    "@expo/eas-json": "5.5.0",
     "@expo/json-file": "8.2.37",
     "@expo/multipart-body-parser": "1.1.0",
     "@expo/osascript": "2.0.33",
-    "@expo/package-manager": "0.0.57",
+    "@expo/package-manager": "1.1.1",
     "@expo/pkcs12": "0.0.8",
     "@expo/plist": "0.0.20",
     "@expo/plugin-help": "5.1.22",
@@ -50,7 +50,7 @@
     "fs-extra": "10.1.0",
     "getenv": "1.0.0",
     "gradle-to-js": "2.0.1",
-    "graphql": "16.6.0",
+    "graphql": "16.8.1",
     "graphql-tag": "2.12.6",
     "https-proxy-agent": "5.0.1",
     "ignore": "5.2.4",

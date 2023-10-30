@@ -43,6 +43,10 @@ jest.mock('@expo/config');
 jest.mock('@expo/config-plugins');
 jest.mock('../../../branch/queries');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
+jest.mock('../../../project/projectUtils', () => ({
+  ...jest.requireActual('../../../project/projectUtils'),
+  enforceRollBackToEmbeddedUpdateSupportAsync: jest.fn(),
+}));
 jest.mock('../../../update/configure');
 jest.mock('../../../update/getBranchNameFromChannelNameAsync');
 jest.mock('../../../graphql/mutations/PublishMutation');

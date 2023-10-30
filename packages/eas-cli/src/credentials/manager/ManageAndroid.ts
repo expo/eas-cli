@@ -65,6 +65,7 @@ export class ManageAndroid {
       analytics: this.callingAction.analytics,
       env: buildProfile?.env,
       nonInteractive: false,
+      vcsClient: this.callingAction.vcsClient,
     });
 
     let gradleContext;
@@ -153,7 +154,7 @@ export class ManageAndroid {
     buildProfile: BuildProfile<Platform.ANDROID>
   ): Promise<GradleBuildContext | undefined> {
     assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
-    return await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
+    return await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile, ctx.vcsClient);
   }
 
   private async runProjectSpecificActionAsync(

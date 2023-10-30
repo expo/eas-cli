@@ -10,7 +10,6 @@ import {
   ensureEASUpdateIsConfiguredAsync,
   ensureEASUpdateIsConfiguredInEasJsonAsync,
 } from '../../update/configure';
-import { getVcsClient } from '../../vcs';
 
 export default class UpdateConfigure extends EasCommand {
   static override description = 'configure the project to support EAS Update';
@@ -28,6 +27,7 @@ export default class UpdateConfigure extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -36,6 +36,7 @@ export default class UpdateConfigure extends EasCommand {
     const {
       privateProjectConfig: { projectId, exp, projectDir },
       loggedIn: { graphqlClient },
+      vcsClient,
     } = await this.getContextAsync(UpdateConfigure, {
       nonInteractive: flags['non-interactive'],
     });
@@ -44,13 +45,14 @@ export default class UpdateConfigure extends EasCommand {
       '💡 The following process will configure your project to use EAS Update. These changes only apply to your local project files and you can safely revert them at any time.'
     );
 
-    await getVcsClient().ensureRepoExistsAsync();
+    await vcsClient.ensureRepoExistsAsync();
 
     await ensureEASUpdateIsConfiguredAsync(graphqlClient, {
       exp,
       projectId,
       projectDir,
       platform,
+      vcsClient,
     });
 
     await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);

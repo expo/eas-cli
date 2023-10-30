@@ -576,6 +576,7 @@ describe(uploadAssetsAsync, () => {
         assetsForUpdateInfoGroup,
         testProjectId,
         { isCanceledOrFinished: false },
+        () => {},
         () => {}
       )
     ).resolves.toEqual({
@@ -622,6 +623,7 @@ describe(uploadAssetsAsync, () => {
         {
           isCanceledOrFinished: false,
         },
+        () => {},
         () => {}
       )
     ).resolves.toEqual({
@@ -667,7 +669,8 @@ describe(uploadAssetsAsync, () => {
       assetsForUpdateInfoGroup,
       testProjectId,
       { isCanceledOrFinished: false },
-      onAssetUploadResultsChangedFn
+      onAssetUploadResultsChangedFn,
+      () => {}
     );
     expect(onAssetUploadResultsChangedFn).toHaveBeenCalledTimes(3);
   });
