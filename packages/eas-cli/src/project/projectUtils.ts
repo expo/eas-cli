@@ -9,7 +9,7 @@ import { getEASUpdateURL } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AccountFragment, AppPrivacy } from '../graphql/generated';
 import { AppQuery } from '../graphql/queries/AppQuery';
-import Log from '../log';
+import Log, { learnMore } from '../log';
 import { Actor } from '../user/User';
 import { expoCommandAsync } from '../utils/expoCli';
 
@@ -122,7 +122,9 @@ export async function enforceRollBackToEmbeddedUpdateSupportAsync(
   }
 
   throw new Error(
-    'The expo-updates package must have a version >= 0.19.0 to use roll back to embedded, which corresponds to Expo SDK 50 or greater.'
+    `The expo-updates package must have a version >= 0.19.0 to use roll back to embedded, which corresponds to Expo SDK 50 or greater. ${learnMore(
+      'https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/'
+    )}`
   );
 }
 
