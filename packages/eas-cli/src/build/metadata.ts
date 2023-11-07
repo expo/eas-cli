@@ -63,6 +63,7 @@ export async function collectMetadataAsync<T extends Platform>(
     customWorkflowName: ctx.customBuildConfigMetadata?.workflowName,
     developmentClient: ctx.developmentClient,
     requiredPackageManager: ctx.requiredPackageManager ?? undefined,
+    selectedImage: ctx.buildProfile.image,
   };
   return sanitizeMetadata(metadata);
 }
