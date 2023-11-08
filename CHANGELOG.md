@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Add link to SDK upgrade page for SDK-gated command error. ([#2106](https://github.com/expo/eas-cli/pull/2106) by [@wschurman](https://github.com/wschurman))
+- Add `selectedImage` and `customNodeVersion` information to build metadata. ([#2113](https://github.com/expo/eas-cli/pull/2113) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [5.6.0](https://github.com/expo/eas-cli/releases/tag/v5.6.0) - 2023-10-27
 

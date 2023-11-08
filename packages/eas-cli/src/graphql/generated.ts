@@ -2089,6 +2089,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   childBuild?: Maybe<Build>;
   completedAt?: Maybe<Scalars['DateTime']>;
   createdAt: Scalars['DateTime'];
+  customNodeVersion?: Maybe<Scalars['String']>;
   customWorkflowName?: Maybe<Scalars['String']>;
   developmentClient?: Maybe<Scalars['Boolean']>;
   distribution?: Maybe<DistributionType>;
@@ -2137,6 +2138,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   runFromCI?: Maybe<Scalars['Boolean']>;
   runtimeVersion?: Maybe<Scalars['String']>;
   sdkVersion?: Maybe<Scalars['String']>;
+  selectedImage?: Maybe<Scalars['String']>;
   status: BuildStatus;
   submissions: Array<Submission>;
   updatedAt: Scalars['DateTime'];
@@ -2153,6 +2155,74 @@ export type BuildCanRetryArgs = {
 /** Represents an EAS Build */
 export type BuildRetryDisabledReasonArgs = {
   newMode?: InputMaybe<BuildMode>;
+};
+
+export type BuildAnnotation = {
+  __typename?: 'BuildAnnotation';
+  buildPhase: Scalars['String'];
+  exampleBuildLog?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  internalNotes?: Maybe<Scalars['String']>;
+  message: Scalars['String'];
+  regexString: Scalars['String'];
+  title: Scalars['String'];
+};
+
+export type BuildAnnotationDataInput = {
+  buildPhase: Scalars['String'];
+  exampleBuildLog?: InputMaybe<Scalars['String']>;
+  internalNotes?: InputMaybe<Scalars['String']>;
+  message: Scalars['String'];
+  regexString: Scalars['String'];
+  title: Scalars['String'];
+};
+
+export type BuildAnnotationFiltersInput = {
+  buildPhases: Array<Scalars['String']>;
+};
+
+export type BuildAnnotationMutation = {
+  __typename?: 'BuildAnnotationMutation';
+  /** Create a Build Annotation */
+  createBuildAnnotation: BuildAnnotation;
+  /** Delete a Build Annotation */
+  deleteBuildAnnotation: DeleteBuildAnnotationResult;
+  /** Update a Build Annotation */
+  updateBuildAnnotation: BuildAnnotation;
+};
+
+
+export type BuildAnnotationMutationCreateBuildAnnotationArgs = {
+  buildAnnotationData: BuildAnnotationDataInput;
+};
+
+
+export type BuildAnnotationMutationDeleteBuildAnnotationArgs = {
+  buildAnnotationId: Scalars['ID'];
+};
+
+
+export type BuildAnnotationMutationUpdateBuildAnnotationArgs = {
+  buildAnnotationData: BuildAnnotationDataInput;
+  buildAnnotationId: Scalars['ID'];
+};
+
+export type BuildAnnotationsQuery = {
+  __typename?: 'BuildAnnotationsQuery';
+  /** View build annotations */
+  all: Array<BuildAnnotation>;
+  /** Find a build annotation by ID */
+  byId: BuildAnnotation;
+};
+
+
+export type BuildAnnotationsQueryAllArgs = {
+  filters?: InputMaybe<BuildAnnotationFiltersInput>;
+};
+
+
+export type BuildAnnotationsQueryByIdArgs = {
+  buildAnnotationId: Scalars['ID'];
 };
 
 export type BuildArtifact = {
@@ -2310,6 +2380,7 @@ export type BuildMetadataInput = {
   channel?: InputMaybe<Scalars['String']>;
   cliVersion?: InputMaybe<Scalars['String']>;
   credentialsSource?: InputMaybe<BuildCredentialsSource>;
+  customNodeVersion?: InputMaybe<Scalars['String']>;
   customWorkflowName?: InputMaybe<Scalars['String']>;
   developmentClient?: InputMaybe<Scalars['Boolean']>;
   distribution?: InputMaybe<DistributionType>;
@@ -2325,6 +2396,7 @@ export type BuildMetadataInput = {
   runWithNoWaitFlag?: InputMaybe<Scalars['Boolean']>;
   runtimeVersion?: InputMaybe<Scalars['String']>;
   sdkVersion?: InputMaybe<Scalars['String']>;
+  selectedImage?: InputMaybe<Scalars['String']>;
   trackingContext?: InputMaybe<Scalars['JSONObject']>;
   username?: InputMaybe<Scalars['String']>;
   workflow?: InputMaybe<BuildWorkflow>;
@@ -2788,6 +2860,11 @@ export type DeleteAppleDistributionCertificateResult = {
 export type DeleteAppleProvisioningProfileResult = {
   __typename?: 'DeleteAppleProvisioningProfileResult';
   id: Scalars['ID'];
+};
+
+export type DeleteBuildAnnotationResult = {
+  __typename?: 'DeleteBuildAnnotationResult';
+  buildAnnotationId: Scalars['ID'];
 };
 
 export type DeleteDiscordUserResult = {
@@ -3849,7 +3926,8 @@ export enum MailchimpAudience {
 
 export enum MailchimpTag {
   DevClientUsers = 'DEV_CLIENT_USERS',
-  EasMasterList = 'EAS_MASTER_LIST'
+  EasMasterList = 'EAS_MASTER_LIST',
+  NewsletterSignupList = 'NEWSLETTER_SIGNUP_LIST'
 }
 
 export type MailchimpTagPayload = {
@@ -4349,6 +4427,8 @@ export type RootMutation = {
   asset: AssetMutation;
   /** Mutations that modify an EAS Build */
   build: BuildMutation;
+  /** Mutations that create, update, and delete Build Annotations */
+  buildAnnotation: BuildAnnotationMutation;
   /** Mutations that modify an BuildJob */
   buildJob: BuildJobMutation;
   /** Mutations for Discord users */
@@ -4452,6 +4532,8 @@ export type RootQuery = {
   appleTeam: AppleTeamQuery;
   asset: AssetQuery;
   backgroundJobReceipt: BackgroundJobReceiptQuery;
+  /** Top-level query object for querying annotations. */
+  buildAnnotations: BuildAnnotationsQuery;
   buildJobs: BuildJobQuery;
   buildOrBuildJob: BuildOrBuildJobQuery;
   /** Top-level query object for querying BuildPublicData publicly. */
