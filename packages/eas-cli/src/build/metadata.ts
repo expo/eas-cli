@@ -64,6 +64,7 @@ export async function collectMetadataAsync<T extends Platform>(
     developmentClient: ctx.developmentClient,
     requiredPackageManager: ctx.requiredPackageManager ?? undefined,
     selectedImage: ctx.buildProfile.image,
+    customNodeVersion: ctx.buildProfile.node,
   };
   return sanitizeMetadata(metadata);
 }
