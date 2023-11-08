@@ -8,9 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add `EXPO_APPLE_TEAM_ID` and `EXPO_APPLE_PROVIDER_ID` support. ([#2091](https://github.com/expo/eas-cli/pull/2091) by [@EvanBacon](https://github.com/EvanBacon))
-
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [5.7.0](https://github.com/expo/eas-cli/releases/tag/v5.7.0) - 2023-11-08
+
+### 🎉 New features
+
+- Add `EXPO_APPLE_TEAM_ID` and `EXPO_APPLE_PROVIDER_ID` support. ([#2091](https://github.com/expo/eas-cli/pull/2091) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🧹 Chores
 
