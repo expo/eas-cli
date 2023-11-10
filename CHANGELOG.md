@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Update `@expo/package-manager` to `1.1.2` to change package manager resolution order. ([#2118](https://github.com/expo/eas-cli/pull/2118) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [5.7.0](https://github.com/expo/eas-cli/releases/tag/v5.7.0) - 2023-11-08
 
 ### 🎉 New features
