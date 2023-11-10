@@ -1304,10 +1304,10 @@
     "@expo/spawn-async" "^1.5.0"
     exec-async "^2.2.0"
 
-"@expo/package-manager@1.1.1":
-  version "1.1.1"
-  resolved "https://registry.yarnpkg.com/@expo/package-manager/-/package-manager-1.1.1.tgz#065326c5684c2acfbfdc290d93eabb7a36225507"
-  integrity sha512-NxtfIA25iEiNwMT+s8PEmdKzjyfWd2qkCLJkf6jKZGaH9c06YXyOAi2jvCyM8XuSzJz4pcEH8kz1HkJAInjB7Q==
+"@expo/package-manager@1.1.2":
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@expo/package-manager/-/package-manager-1.1.2.tgz#e58c9bed4cbb829ebf2cbb80b8542600a6609bd1"
+  integrity sha512-JI9XzrxB0QVXysyuJ996FPCJGDCYRkbUvgG4QmMTTMFA1T+mv8YzazC3T9C1pHQUAAveVCre1+Pqv0nZXN24Xg==
   dependencies:
     "@expo/json-file" "^8.2.37"
     "@expo/spawn-async" "^1.5.0"
