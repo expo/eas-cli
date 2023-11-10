@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fixed provisioning of new devices into an existing profile. ([#2119](https://github.com/expo/eas-cli/pull/2119) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
 ### 🧹 Chores
 
 ## [5.7.0](https://github.com/expo/eas-cli/releases/tag/v5.7.0) - 2023-11-08
