@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fixed provisioning of new devices into an existing profile. ([#2119](https://github.com/expo/eas-cli/pull/2119) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
 ### 🧹 Chores
 
 - Update `@expo/package-manager` to `1.1.2` to change package manager resolution order. ([#2118](https://github.com/expo/eas-cli/pull/2118) by [@szdziedzic](https://github.com/szdziedzic))
