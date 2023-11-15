@@ -8,11 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add `--profile` flag to `eas build:run` command. ([#2035](https://github.com/expo/eas-cli/pull/2035) by [@szdziedzic](https://github.com/szdziedzic))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [5.9.0](https://github.com/expo/eas-cli/releases/tag/v5.9.0) - 2023-11-15
+
+### 🎉 New features
+
+- Add `--profile` flag to `eas build:run` command. ([#2035](https://github.com/expo/eas-cli/pull/2035) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [5.8.0](https://github.com/expo/eas-cli/releases/tag/v5.8.0) - 2023-11-13
 
