@@ -143,7 +143,11 @@ export async function runBuildAndSubmitAsync(
     {};
   for (const buildProfile of buildProfiles) {
     validateBuildProfileVersionSettings(buildProfile, easJsonCliConfig);
-    const maybeMetadata = await validateCustomBuildConfigAsync(projectDir, buildProfile.profile);
+    const maybeMetadata = await validateCustomBuildConfigAsync({
+      projectDir,
+      profile: buildProfile.profile,
+      vcsClient,
+    });
     if (maybeMetadata) {
       customBuildConfigMetadataByPlatform[toAppPlatform(buildProfile.platform)] = maybeMetadata;
     }
