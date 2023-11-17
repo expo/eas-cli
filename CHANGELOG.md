@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Don't ask a user to install the dev client if running in non-interactive mode. ([#2124](https://github.com/expo/eas-cli/pull/2124) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 ## [5.9.0](https://github.com/expo/eas-cli/releases/tag/v5.9.0) - 2023-11-15
