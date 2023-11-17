@@ -6,7 +6,6 @@ import nullthrows from 'nullthrows';
 import DeviceCreateAction, { RegistrationMethod } from '../../../devices/actions/create/action';
 import {
   AppleAppIdentifierFragment,
-  AppleDevice,
   AppleDeviceFragment,
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
@@ -147,15 +146,14 @@ export class SetUpAdhocProvisioningProfile {
       app,
       appleTeam
     );
-    let appleProvisioningProfile: AppleProvisioningProfileFragment | null = null;
+    let appleProvisioningProfile: AppleProvisioningProfileFragment | null;
     if (currentBuildCredentials?.provisioningProfile) {
       appleProvisioningProfile = await this.reuseCurrentProvisioningProfileAsync(
         currentBuildCredentials.provisioningProfile,
         provisioningProfileStoreInfo,
         ctx,
         app,
-        appleAppIdentifier,
-        chosenDevices
+        appleAppIdentifier
       );
     } else {
       appleProvisioningProfile = await ctx.ios.createProvisioningProfileAsync(
@@ -202,8 +200,7 @@ export class SetUpAdhocProvisioningProfile {
     provisioningProfileStoreInfo: ProvisioningProfile,
     ctx: CredentialsContext,
     app: AppLookupParams,
-    appleAppIdentifier: AppleAppIdentifierFragment,
-    chosenDevices: AppleDevice[]
+    appleAppIdentifier: AppleAppIdentifierFragment
   ): Promise<AppleProvisioningProfileFragment> {
     if (
       currentProvisioningProfile.developerPortalIdentifier !==
@@ -222,10 +219,8 @@ export class SetUpAdhocProvisioningProfile {
           developerPortalIdentifier: provisioningProfileStoreInfo.provisioningProfileId,
         }
       );
-    } else if (
-      differenceBy(chosenDevices, currentProvisioningProfile.appleDevices, 'identifier').length > 0
-    ) {
-      // If IDs match, but the devices lists don't, the profile needs to be updated first
+    } else {
+      // If not, the profile needs to be updated first
       return await ctx.ios.updateProvisioningProfileAsync(
         ctx.graphqlClient,
         currentProvisioningProfile.id,
@@ -234,9 +229,6 @@ export class SetUpAdhocProvisioningProfile {
           developerPortalIdentifier: provisioningProfileStoreInfo.provisioningProfileId,
         }
       );
-    } else {
-      // Otherwise the current profile can be reused
-      return currentProvisioningProfile;
     }
   }
 
