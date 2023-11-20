@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Don't ask a user to install the dev client if running in non-interactive mode. ([#2124](https://github.com/expo/eas-cli/pull/2124) by [@szdziedzic](https://github.com/szdziedzic))
+- Always refresh existing provisioning profile before use. ([#2125](https://github.com/expo/eas-cli/pull/2125) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ### 🧹 Chores
 

@@ -126,6 +126,11 @@ describe('runWithDistributionCertificateAsync', () => {
             developerPortalIdentifier: 'provisioningProfileId',
           },
         } as IosAppBuildCredentialsFragment);
+        ctx.ios.updateProvisioningProfileAsync = jest.fn().mockResolvedValue({
+          appleTeam: {},
+          appleDevices: [{ identifier: 'id1' }, { identifier: 'id2' }, { identifier: 'id3' }],
+          developerPortalIdentifier: 'provisioningProfileId',
+        });
         const LogWarnSpy = jest.spyOn(Log, 'warn');
         const LogLogSpy = jest.spyOn(Log, 'log');
         const result = await setUpAdhocProvisioningProfile.runWithDistributionCertificateAsync(
