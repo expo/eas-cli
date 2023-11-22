@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Throw error if custom build config is gitignored. ([#2123](https://github.com/expo/eas-cli/pull/2123) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [5.9.1](https://github.com/expo/eas-cli/releases/tag/v5.9.1) - 2023-11-20
 
 ### 🐛 Bug fixes
