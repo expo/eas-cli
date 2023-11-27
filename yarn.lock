@@ -1279,10 +1279,10 @@
     json5 "^2.2.2"
     write-file-atomic "^2.3.0"
 
-"@expo/logger@1.0.30":
-  version "1.0.30"
-  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.30.tgz#f964cc7b73cbb0c05de44c874a9451f5cfd2ec2d"
-  integrity sha512-8wEUDZNLAv+Wi4jvo0kFErQ7nc4ZFfArq5GDeSCoIrRfdKK8baot7YJoJVsmpQ9/JXnTEAgwGDP3vYaR5wzcyg==
+"@expo/logger@1.0.37":
+  version "1.0.37"
+  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.37.tgz#79b2336d4e9ed70bd19a53168eb91d6a899f11d8"
+  integrity sha512-Xx3pt7FCsUkjsnu3lJoGp/LXYqoa5TyYx1/lgvfz4NSRgUT+5f6LNiYIowUjXab80PbW3gA/KqHYY9V7iZm8aQ==
   dependencies:
     "@types/bunyan" "^1.8.8"
     bunyan "^1.8.15"
@@ -1418,12 +1418,12 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.34":
-  version "1.0.34"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.34.tgz#ba2f27a9d3e163b2d0fe6ef7775b237f7d18a286"
-  integrity sha512-jQoxeMWWl2mUwLGyiUD38z/FNao2jbDP8Tjvkr/YAfIOHaro36E3Vmn1YsKTYmtc41TGcFdCzqly95faRNrhvQ==
+"@expo/steps@1.0.51":
+  version "1.0.51"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.51.tgz#79aad4eb556e38a9f1c21703ebbea3af4f068807"
+  integrity sha512-S+2ESok2+kMjqWqJIK6p7Uk3aXf0hEbl7x10n1QBQdFzpkQmcNmpyNguOiFYyaj9dRleG2aPbwCv942m37VQWw==
   dependencies:
-    "@expo/logger" "1.0.30"
+    "@expo/logger" "1.0.37"
     "@expo/spawn-async" "^1.7.2"
     arg "^5.0.2"
     fs-extra "^11.1.1"
