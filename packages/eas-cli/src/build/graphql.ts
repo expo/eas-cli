@@ -6,6 +6,7 @@ import {
   Metadata,
   Workflow,
 } from '@expo/eas-build-job';
+import assert from 'assert';
 
 import {
   BuildCredentialsSource,
@@ -91,16 +92,16 @@ export function transformIosEnterpriseProvisioning(
   }
 }
 
+const buildModeToGraphQLBuildMode: Record<BuildMode, GraphQLBuildMode> = {
+  [BuildMode.BUILD]: GraphQLBuildMode.Build,
+  [BuildMode.CUSTOM]: GraphQLBuildMode.Custom,
+  [BuildMode.RESIGN]: GraphQLBuildMode.Resign,
+};
+
 export function transformBuildMode(buildMode: BuildMode): GraphQLBuildMode {
-  if (buildMode === 'build') {
-    return GraphQLBuildMode.Build;
-  } else if (buildMode === 'resign') {
-    return GraphQLBuildMode.Resign;
-  } else if (buildMode === 'custom') {
-    return GraphQLBuildMode.Custom;
-  } else {
-    throw new Error(`Unsupported build mode: ${buildMode}`);
-  }
+  const graphQLBuildMode = buildModeToGraphQLBuildMode[buildMode];
+  assert(graphQLBuildMode, `Unsupported build mode: ${buildMode}`);
+  return graphQLBuildMode;
 }
 
 export function transformBuildTrigger(buildTrigger: BuildTrigger): GraphQLBuildTrigger {
