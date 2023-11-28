@@ -1,6 +1,7 @@
 import {
   ArchiveSource,
   ArchiveSourceType,
+  BuildMode,
   BuildTrigger,
   Metadata,
   Workflow,
@@ -10,9 +11,9 @@ import {
   BuildCredentialsSource,
   BuildIosEnterpriseProvisioning,
   BuildMetadataInput,
-  BuildMode,
   BuildWorkflow,
   DistributionType,
+  BuildMode as GraphQLBuildMode,
   BuildTrigger as GraphQLBuildTrigger,
   ProjectArchiveSourceInput,
   ProjectArchiveSourceType,
@@ -42,7 +43,6 @@ export function transformProjectArchive(archiveSource: ArchiveSource): ProjectAr
 export function transformMetadata(metadata: Metadata): BuildMetadataInput {
   return {
     ...metadata,
-    buildMode: metadata.buildMode && transformBuildMode(metadata.buildMode),
     credentialsSource:
       metadata.credentialsSource && transformCredentialsSource(metadata.credentialsSource),
     distribution: metadata.distribution && transformDistribution(metadata.distribution),
@@ -91,14 +91,13 @@ export function transformIosEnterpriseProvisioning(
   }
 }
 
-// TODO: check what in metadata
-export function transformBuildMode(buildMode: string): BuildMode {
+export function transformBuildMode(buildMode: BuildMode): GraphQLBuildMode {
   if (buildMode === 'build') {
-    return BuildMode.Build;
+    return GraphQLBuildMode.Build;
   } else if (buildMode === 'resign') {
-    return BuildMode.Resign;
+    return GraphQLBuildMode.Resign;
   } else if (buildMode === 'custom') {
-    return BuildMode.Custom;
+    return GraphQLBuildMode.Custom;
   } else {
     throw new Error(`Unsupported build mode: ${buildMode}`);
   }
