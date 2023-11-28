@@ -1260,6 +1260,14 @@
     joi "^17.9.2"
     semver "^7.5.4"
 
+"@expo/eas-build-job@1.0.50":
+  version "1.0.50"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.50.tgz#fed1a7f73a7436ed3179f1d957beb641a2832d33"
+  integrity sha512-mG+U5hag4OLVI51Crbc1lxIeWgMBv9ZUm1eL/AkoA04NJFtVpwTCVqdpMsRWsXLFM8Poy/ktN9UOma06eXHWHQ==
+  dependencies:
+    joi "^17.9.2"
+    semver "^7.5.4"
+
 "@expo/image-utils@0.3.22":
   version "0.3.22"
   resolved "https://registry.yarnpkg.com/@expo/image-utils/-/image-utils-0.3.22.tgz#3a45fb2e268d20fcc761c87bca3aca7fd8e24260"
