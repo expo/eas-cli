@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Throw error if custom build config is gitignored. ([#2123](https://github.com/expo/eas-cli/pull/2123) by [@szdziedzic](https://github.com/szdziedzic))
 - Update `@expo/steps` library to `1.0.51`. ([#2130](https://github.com/expo/eas-cli/pull/2130) by [@szdziedzic](https://github.com/szdziedzic))
+- Update `eas.schema.json` to include changes after some of our images were migrated to Ubuntu 20 from Ubuntu 18. ([#2137](https://github.com/expo/eas-cli/pull/2137) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [5.9.1](https://github.com/expo/eas-cli/releases/tag/v5.9.1) - 2023-11-20
 
