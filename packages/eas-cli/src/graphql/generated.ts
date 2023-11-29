@@ -2152,6 +2152,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   platform: AppPlatform;
   priority: BuildPriority;
   project: Project;
+  projectMetadataFileUrl?: Maybe<Scalars['String']['output']>;
   projectRootDirectory?: Maybe<Scalars['String']['output']>;
   provisioningStartedAt?: Maybe<Scalars['DateTime']['output']>;
   /** Queue position is 1-indexed */
@@ -4285,6 +4286,7 @@ export type Project = {
 export type ProjectArchiveSourceInput = {
   bucketKey?: InputMaybe<Scalars['String']['input']>;
   gitRef?: InputMaybe<Scalars['String']['input']>;
+  metadataLocation?: InputMaybe<Scalars['String']['input']>;
   repositoryUrl?: InputMaybe<Scalars['String']['input']>;
   type: ProjectArchiveSourceType;
   url?: InputMaybe<Scalars['String']['input']>;
@@ -5435,6 +5437,7 @@ export type UploadSessionCreateUploadSessionArgs = {
 };
 
 export enum UploadSessionType {
+  EasBuildGcsProjectMetadata = 'EAS_BUILD_GCS_PROJECT_METADATA',
   EasBuildGcsProjectSources = 'EAS_BUILD_GCS_PROJECT_SOURCES',
   /** @deprecated Use EAS_BUILD_GCS_PROJECT_SOURCES instead. */
   EasBuildProjectSources = 'EAS_BUILD_PROJECT_SOURCES',
