@@ -25,7 +25,7 @@ export default class BuildVersionSetView extends EasCommand {
   static override description = 'update version of an app';
 
   static override flags = {
-    platform: Flags.enum({
+    platform: Flags.string({
       char: 'p',
       options: ['android', 'ios'],
     }),

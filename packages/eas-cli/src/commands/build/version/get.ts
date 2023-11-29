@@ -21,7 +21,7 @@ export default class BuildVersionGetView extends EasCommand {
   public static override description = 'get the latest version from EAS servers';
 
   public static override flags = {
-    platform: Flags.enum({
+    platform: Flags.string({
       char: 'p',
       options: ['android', 'ios', 'all'],
     }),
