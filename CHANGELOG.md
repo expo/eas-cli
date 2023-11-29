@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Generate metadata file for project archive ([#2149](https://github.com/expo/eas-cli/pull/2149) by [@khamilowicz](https://github.com/khamilowicz))
+
 - Add `eas credentials:configure-build` subcommand.
   ([#2282](https://github.com/expo/eas-cli/pull/2282) by [@fiberjw](https://github.com/fiberjw))
 

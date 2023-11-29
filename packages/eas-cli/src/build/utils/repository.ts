@@ -94,6 +94,50 @@ export async function commitPromptAsync(
   });
 }
 
+export async function makeProjectMetadataFileAsync(
+  archivePath: string
+): Promise<{ path: string; size: number }> {
+  const spinner = ora('Creating project metadata file');
+  const timerLabel = 'makeProjectMetadataFileAsync';
+  const timer = setTimeout(
+    () => {
+      spinner.start();
+    },
+    Log.isDebug ? 1 : 1000
+  );
+  startTimer(timerLabel);
+
+  const metadataLocation = path.join(getTmpDirectory(), `${uuidv4()}-eas-build-metadata.json`);
+  const archiveContent: string[] = [];
+
+  try {
+    await tar.list({
+      file: archivePath,
+      onentry: (entry: tar.ReadEntry) => {
+        if (entry.type === 'File' && !entry.path.includes('.git')) {
+          archiveContent.push(entry.path);
+        }
+      },
+    });
+
+    await fs.writeJSON(metadataLocation, {
+      archiveContent,
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    if (spinner.isSpinning) {
+      spinner.fail();
+    }
+    throw e;
+  }
+
+  const duration = endTimer(timerLabel);
+  const prettyTime = formatMilliseconds(duration);
+  spinner.succeed(`Created project metadata file ${chalk.dim(prettyTime)}`);
+
+  return { path: metadataLocation, size: await fs.stat(metadataLocation).then(stat => stat.size) };
+}
+
 export async function makeProjectTarballAsync(
   vcsClient: Client
 ): Promise<{ path: string; size: number }> {
