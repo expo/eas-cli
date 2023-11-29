@@ -15,3 +15,9 @@ export class UnsupportedCredentialsChoiceError extends Error {
     super(message);
   }
 }
+
+export class AndroidPackageNotDefinedError extends Error {
+  constructor(message?: string) {
+    super(message ?? 'android.package needs to be defined in your app.json/app.config.js file');
+  }
+}

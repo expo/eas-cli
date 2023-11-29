@@ -6,7 +6,7 @@ import { MinimalAscApiKey } from '../../credentials/ios/credentials';
 import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
 import formatFields from '../../utils/formatFields';
-import { ArchiveSource, ResolvedArchiveSource, getArchiveAsync } from '../ArchiveSource';
+import { ArchiveSource, ResolvedArchiveSource } from '../ArchiveSource';
 import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
 import { SubmissionContext } from '../context';
 import {
@@ -47,19 +47,14 @@ export default class IosSubmitter extends BaseSubmitter<
   ResolvedSourceOptions,
   IosSubmissionOptions
 > {
-  constructor(ctx: SubmissionContext<Platform.IOS>, options: IosSubmissionOptions) {
+  constructor(
+    ctx: SubmissionContext<Platform.IOS>,
+    options: IosSubmissionOptions,
+    archive: ResolvedArchiveSource
+  ) {
     const sourceOptionsResolver = {
       // eslint-disable-next-line async-protect/async-suffix
-      archive: async () =>
-        await getArchiveAsync(
-          {
-            graphqlClient: ctx.graphqlClient,
-            platform: Platform.IOS,
-            projectId: ctx.projectId,
-            nonInteractive: ctx.nonInteractive,
-          },
-          this.options.archiveSource
-        ),
+      archive: async () => archive,
       // eslint-disable-next-line async-protect/async-suffix
       credentials: async () => {
         const maybeAppSpecificPassword = this.options.appSpecificPasswordSource

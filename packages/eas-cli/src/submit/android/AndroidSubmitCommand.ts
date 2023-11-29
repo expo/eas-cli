@@ -13,8 +13,8 @@ import {
   getApplicationIdAsync,
 } from '../../project/android/applicationId';
 import capitalizeFirstLetter from '../../utils/expodash/capitalize';
-import { ArchiveSource } from '../ArchiveSource';
-import { resolveArchiveSource } from '../commons';
+import { ArchiveSource, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
+import { refreshContextSubmitProfileAsync, resolveArchiveSource } from '../commons';
 import { SubmissionContext } from '../context';
 import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
 import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
@@ -24,21 +24,42 @@ export default class AndroidSubmitCommand {
 
   async runAsync(): Promise<SubmissionFragment> {
     Log.addNewLineIfNone();
-    const submissionOptions = await this.getAndroidSubmissionOptionsAsync();
-    const submitter = new AndroidSubmitter(this.ctx, submissionOptions);
+    const archiveSource = this.resolveArchiveSource();
+    if (!archiveSource.ok) {
+      Log.error(archiveSource.reason?.message);
+      throw new Error('Submission failed');
+    }
+
+    const archiveSourceValue = archiveSource.enforceValue();
+    const archive = await getArchiveAsync(
+      {
+        graphqlClient: this.ctx.graphqlClient,
+        platform: Platform.ANDROID,
+        projectId: this.ctx.projectId,
+        nonInteractive: this.ctx.nonInteractive,
+      },
+      archiveSourceValue
+    );
+    const archiveProfile =
+      archive.sourceType === ArchiveSourceType.build ? archive.build.buildProfile : undefined;
+
+    if (archiveProfile && !this.ctx.specifiedProfile) {
+      this.ctx = await refreshContextSubmitProfileAsync(this.ctx, archiveProfile);
+    }
+    const submissionOptions = await this.getAndroidSubmissionOptionsAsync(archiveSourceValue);
+    const submitter = new AndroidSubmitter(this.ctx, submissionOptions, archive);
     return await submitter.submitAsync();
   }
 
-  private async getAndroidSubmissionOptionsAsync(): Promise<AndroidSubmissionOptions> {
+  private async getAndroidSubmissionOptionsAsync(
+    archiveSource: ArchiveSource
+  ): Promise<AndroidSubmissionOptions> {
     const track = this.resolveTrack();
     const releaseStatus = this.resolveReleaseStatus();
-    const archiveSource = this.resolveArchiveSource();
     const rollout = this.resolveRollout();
     const serviceAccountSource = await this.resolveServiceAccountSourceAsync();
 
-    const errored = [track, releaseStatus, archiveSource, serviceAccountSource, rollout].filter(
-      r => !r.ok
-    );
+    const errored = [track, releaseStatus, serviceAccountSource, rollout].filter(r => !r.ok);
     if (errored.length > 0) {
       const message = errored.map(err => err.reason?.message).join('\n');
       Log.error(message);
@@ -50,7 +71,7 @@ export default class AndroidSubmitCommand {
       track: track.enforceValue(),
       releaseStatus: releaseStatus.enforceValue(),
       rollout: rollout.enforceValue(),
-      archiveSource: archiveSource.enforceValue(),
+      archiveSource,
       serviceAccountSource: serviceAccountSource.enforceValue(),
       changesNotSentForReview: this.ctx.profile.changesNotSentForReview,
     };
@@ -58,7 +79,9 @@ export default class AndroidSubmitCommand {
 
   private async maybeGetAndroidPackageFromCurrentProjectAsync(): Promise<Result<string | null>> {
     try {
-      return result(await getApplicationIdAsync(this.ctx.projectDir, this.ctx.exp));
+      return result(
+        await getApplicationIdAsync(this.ctx.projectDir, this.ctx.exp, this.ctx.vcsClient)
+      );
     } catch (error: any) {
       if (error instanceof AmbiguousApplicationIdError) {
         Log.warn(

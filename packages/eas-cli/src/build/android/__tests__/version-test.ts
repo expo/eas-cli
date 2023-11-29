@@ -8,6 +8,7 @@ import os from 'os';
 import path from 'path';
 
 import { getAppBuildGradleAsync, resolveConfigValue } from '../../../project/android/gradleUtils';
+import { getVcsClient } from '../../../vcs';
 import {
   BumpStrategy,
   bumpVersionAsync,
@@ -17,6 +18,8 @@ import {
 
 const fsReal = jest.requireActual('fs').promises as typeof fs;
 jest.mock('fs');
+
+const vcsClient = getVcsClient();
 
 afterAll(async () => {
   // do not remove the following line
@@ -191,7 +194,8 @@ describe(maybeResolveVersionsAsync, () => {
       const { appVersion, appBuildVersion } = await maybeResolveVersionsAsync(
         '/app',
         exp,
-        {} as BuildProfile<Platform.ANDROID>
+        {} as BuildProfile<Platform.ANDROID>,
+        vcsClient
       );
       expect(appVersion).toBe('3.0.0');
       expect(appBuildVersion).toBe('123');
@@ -203,7 +207,8 @@ describe(maybeResolveVersionsAsync, () => {
       const { appVersion, appBuildVersion } = await maybeResolveVersionsAsync(
         '/app',
         exp,
-        {} as BuildProfile<Platform.ANDROID>
+        {} as BuildProfile<Platform.ANDROID>,
+        vcsClient
       );
       expect(appVersion).toBe('5.0.0');
       expect(appBuildVersion).toBe('126');

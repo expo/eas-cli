@@ -15,7 +15,6 @@ import {
   readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync,
 } from '../update/ios/UpdatesModule';
 import { easCliVersion } from '../utils/easCli';
-import { getVcsClient } from '../vcs';
 import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from './android/version';
 import { BuildContext } from './context';
 import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
@@ -24,7 +23,6 @@ import { LocalBuildMode } from './local';
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<Metadata> {
-  const vcsClient = getVcsClient();
   const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
   const distribution =
     ('simulator' in ctx.buildProfile && ctx.buildProfile.simulator
@@ -44,14 +42,14 @@ export async function collectMetadataAsync<T extends Platform>(
     appName: ctx.exp.name,
     appIdentifier: resolveAppIdentifier(ctx),
     buildProfile: ctx.buildProfileName,
-    gitCommitHash: await vcsClient.getCommitHashAsync(),
+    gitCommitHash: await ctx.vcsClient.getCommitHashAsync(),
     gitCommitMessage: truncateGitCommitMessage(
-      (await vcsClient.getLastCommitMessageAsync()) ?? undefined
+      (await ctx.vcsClient.getLastCommitMessageAsync()) ?? undefined
     ),
     isGitWorkingTreeDirty:
       ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL
         ? false
-        : await vcsClient.hasUncommittedChangesAsync(),
+        : await ctx.vcsClient.hasUncommittedChangesAsync(),
     username: getUsername(ctx.exp, ctx.user),
     message: ctx.message,
     ...(ctx.platform === Platform.IOS && {
@@ -63,6 +61,10 @@ export async function collectMetadataAsync<T extends Platform>(
     runFromCI: ctx.runFromCI,
     buildMode: ctx.buildProfile.config ? BuildMode.CUSTOM : BuildMode.BUILD,
     customWorkflowName: ctx.customBuildConfigMetadata?.workflowName,
+    developmentClient: ctx.developmentClient,
+    requiredPackageManager: ctx.requiredPackageManager ?? undefined,
+    selectedImage: ctx.buildProfile.image,
+    customNodeVersion: ctx.buildProfile.node,
   };
   return sanitizeMetadata(metadata);
 }
@@ -75,7 +77,8 @@ async function maybeResolveVersionsAsync<T extends Platform>(
     const resolvedVersion = await maybeResolveIosVersionsAsync(
       ctx.projectDir,
       ctx.exp,
-      iosContext.ios.targets
+      iosContext.ios.targets,
+      ctx.vcsClient
     );
     if (iosContext.ios.buildNumberOverride) {
       return {
@@ -89,7 +92,8 @@ async function maybeResolveVersionsAsync<T extends Platform>(
     const resolvedVersion = await maybeResolveAndroidVersionsAsync(
       ctx.projectDir,
       ctx.exp,
-      androidCtx.buildProfile
+      androidCtx.buildProfile,
+      ctx.vcsClient
     );
     if (androidCtx.android.versionCodeOverride) {
       return {

@@ -7,6 +7,7 @@ import { Target } from '../../credentials/ios/types';
 import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { syncUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
+import { Client } from '../../vcs/vcs';
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 
 export async function syncProjectConfigurationAsync(
@@ -17,20 +18,22 @@ export async function syncProjectConfigurationAsync(
     targets,
     localAutoIncrement,
     projectId,
+    vcsClient,
   }: {
     projectDir: string;
     exp: ExpoConfig;
     targets: Target[];
     localAutoIncrement?: IosVersionAutoIncrement;
     projectId: string;
+    vcsClient: Client;
   }
 ): Promise<void> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   const versionBumpStrategy = resolveVersionBumpStrategy(localAutoIncrement ?? false);
 
   if (workflow === Workflow.GENERIC) {
     if (isExpoUpdatesInstalled(projectDir)) {
-      await syncUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
+      await syncUpdatesConfigurationAsync(graphqlClient, vcsClient, projectDir, exp, projectId);
     }
     await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy, targets });
   } else {

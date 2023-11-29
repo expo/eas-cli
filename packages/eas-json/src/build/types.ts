@@ -11,16 +11,7 @@ export enum ResourceClass {
   /**
    * @deprecated use M_MEDIUM instead
    */
-  M1_EXPERIMENTAL = 'm1-experimental',
-  /**
-   * @deprecated use M_MEDIUM instead
-   */
   M1_MEDIUM = 'm1-medium',
-  /**
-   * @deprecated use M_LARGE instead
-   */
-  M1_LARGE = 'm1-large',
-  INTEL_MEDIUM = 'intel-medium',
   MEDIUM = 'medium',
   M_MEDIUM = 'm-medium',
   /**
@@ -44,6 +35,8 @@ export interface CommonBuildProfile {
   // build environment
   env?: Record<string, string>;
   node?: string;
+  pnpm?: string;
+  bun?: string;
   yarn?: string;
   expoCli?: string;
 

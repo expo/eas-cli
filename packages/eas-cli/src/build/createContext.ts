@@ -1,6 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJson, ResourceClass } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
+import { resolvePackageManager } from '@expo/package-manager';
 import getenv from 'getenv';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,6 +14,7 @@ import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
 import { Actor } from '../user/User';
+import { Client } from '../vcs/vcs';
 import { createAndroidContextAsync } from './android/build';
 import { BuildContext, CommonContext } from './context';
 import { createIosContextAsync } from './ios/build';
@@ -34,6 +36,7 @@ export async function createBuildContextAsync<T extends Platform>({
   actor,
   graphqlClient,
   analytics,
+  vcsClient,
   getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
 }: {
@@ -51,15 +54,24 @@ export async function createBuildContextAsync<T extends Platform>({
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
+  vcsClient: Client;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
 }): Promise<BuildContext<T>> {
   const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: buildProfile.env });
   const projectName = exp.slug;
   const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
-  const workflow = await resolveWorkflowAsync(projectDir, platform);
+  const workflow = await resolveWorkflowAsync(projectDir, platform, vcsClient);
   const accountId = account.id;
   const runFromCI = getenv.boolish('CI', false);
+  const developmentClient =
+    buildProfile.developmentClient ??
+    (platform === Platform.ANDROID
+      ? (buildProfile as BuildProfile<Platform.ANDROID>)?.gradleCommand === ':app:assembleDebug'
+      : (buildProfile as BuildProfile<Platform.IOS>)?.buildConfiguration === 'Debug') ??
+    false;
+
+  const requiredPackageManager = resolvePackageManager(projectDir);
 
   const credentialsCtx = new CredentialsContext({
     projectInfo: { exp, projectId },
@@ -70,6 +82,7 @@ export async function createBuildContextAsync<T extends Platform>({
     analytics,
     env: buildProfile.env,
     easJsonCliConfig,
+    vcsClient,
   });
 
   const devClientProperties = getDevClientEventProperties({
@@ -116,10 +129,13 @@ export async function createBuildContextAsync<T extends Platform>({
     user: actor,
     graphqlClient,
     analytics,
+    vcsClient,
     workflow,
     message,
     runFromCI,
     customBuildConfigMetadata,
+    developmentClient,
+    requiredPackageManager,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;

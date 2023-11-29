@@ -9,7 +9,7 @@ import { getEASUpdateURL } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AccountFragment, AppPrivacy } from '../graphql/generated';
 import { AppQuery } from '../graphql/queries/AppQuery';
-import Log from '../log';
+import Log, { learnMore } from '../log';
 import { Actor } from '../user/User';
 import { expoCommandAsync } from '../utils/expoCli';
 
@@ -106,6 +106,25 @@ export async function validateAppVersionRuntimePolicySupportAsync(
 
   Log.warn(
     `You need to be on SDK 46 or higher, and use expo-updates >= 0.14.4 to use appVersion runtime policy.`
+  );
+}
+
+export async function enforceRollBackToEmbeddedUpdateSupportAsync(
+  projectDir: string
+): Promise<void> {
+  const maybePackageJson = resolveFrom.silent(projectDir, 'expo-updates/package.json');
+
+  if (maybePackageJson) {
+    const { version } = await fs.readJson(maybePackageJson);
+    if (semver.gte(version, '0.19.0')) {
+      return;
+    }
+  }
+
+  throw new Error(
+    `The expo-updates package must have a version >= 0.19.0 to use roll back to embedded, which corresponds to Expo SDK 50 or greater. ${learnMore(
+      'https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/'
+    )}`
   );
 }
 

@@ -38,6 +38,7 @@ export default class BuildVersionGetView extends EasCommand {
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.Vcs,
   };
 
   public async runAsync(): Promise<void> {
@@ -49,6 +50,7 @@ export default class BuildVersionGetView extends EasCommand {
       loggedIn: { graphqlClient },
       getDynamicPrivateProjectConfigAsync,
       projectDir,
+      vcsClient,
     } = await this.getContextAsync(BuildVersionGetView, {
       nonInteractive: true,
     });
@@ -68,6 +70,7 @@ export default class BuildVersionGetView extends EasCommand {
       easJsonAccessor,
       platforms,
       profileName: flags.profile ?? undefined,
+      projectDir,
     });
     const results: { [key in Platform]?: string } = {};
     for (const { profile, platform } of buildProfiles) {
@@ -84,6 +87,7 @@ export default class BuildVersionGetView extends EasCommand {
         exp,
         buildProfile: profile,
         platform,
+        vcsClient,
       });
       const remoteVersions = await AppVersionQuery.latestVersionAsync(
         graphqlClient,

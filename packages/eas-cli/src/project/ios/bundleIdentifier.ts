@@ -9,6 +9,7 @@ import { readAppJson } from '../../build/utils/appJson';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
+import { Client } from '../../vcs/vcs';
 import { getOwnerAccountForProjectIdAsync, getProjectConfigDescription } from '../projectUtils';
 import { resolveWorkflowAsync } from '../workflow';
 
@@ -19,17 +20,19 @@ export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync({
   projectDir,
   projectId,
   exp,
+  vcsClient,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
+  vcsClient: Client;
 }): Promise<string> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
 
   try {
-    return await getBundleIdentifierAsync(projectDir, exp);
+    return await getBundleIdentifierAsync(projectDir, exp, vcsClient);
   } catch {
     return await configureBundleIdentifierAsync({
       graphqlClient,
@@ -49,9 +52,10 @@ export class AmbiguousBundleIdentifierError extends Error {
 export async function getBundleIdentifierAsync(
   projectDir: string,
   exp: ExpoConfig,
+  vcsClient: Client,
   xcodeContext?: { targetName?: string; buildConfiguration?: string }
 ): Promise<string> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   if (workflow === Workflow.GENERIC) {
     warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
 
@@ -201,8 +205,14 @@ async function getSuggestedBundleIdentifierAsync(
   } else {
     // the only callsite is heavily interactive
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
+    let possibleId: string;
     // It's common to use dashes in your node project name, strip them from the suggested package name.
-    const possibleId = `com.${account.name}.${exp.slug}`.split('-').join('');
+    if (account.name) {
+      possibleId = `com.${account.name}.${exp.slug}`.split('-').join('');
+    } else {
+      possibleId = `com.${exp.slug}`.split('-').join('');
+    }
+
     if (isBundleIdentifierValid(possibleId)) {
       return possibleId;
     }

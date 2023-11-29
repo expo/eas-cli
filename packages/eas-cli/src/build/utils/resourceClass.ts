@@ -7,21 +7,13 @@ import Log, { link } from '../../log';
 
 type AndroidResourceClass = Exclude<
   ResourceClass,
-  | ResourceClass.M1_EXPERIMENTAL
-  | ResourceClass.M1_MEDIUM
-  | ResourceClass.M1_LARGE
-  | ResourceClass.INTEL_MEDIUM
-  | ResourceClass.M_MEDIUM
-  | ResourceClass.M_LARGE
+  ResourceClass.M1_MEDIUM | ResourceClass.M_MEDIUM | ResourceClass.M_LARGE
 >;
 
 const iosResourceClassToBuildResourceClassMapping: Record<ResourceClass, BuildResourceClass> = {
   [ResourceClass.DEFAULT]: BuildResourceClass.IosDefault,
   [ResourceClass.LARGE]: BuildResourceClass.IosLarge,
-  [ResourceClass.M1_EXPERIMENTAL]: BuildResourceClass.IosMMedium,
   [ResourceClass.M1_MEDIUM]: BuildResourceClass.IosMMedium,
-  [ResourceClass.M1_LARGE]: BuildResourceClass.IosMLarge,
-  [ResourceClass.INTEL_MEDIUM]: BuildResourceClass.IosIntelMedium,
   [ResourceClass.MEDIUM]: BuildResourceClass.IosMedium,
   [ResourceClass.M_MEDIUM]: BuildResourceClass.IosMMedium,
   [ResourceClass.M_LARGE]: BuildResourceClass.IosMLarge,
@@ -57,15 +49,7 @@ export async function resolveBuildResourceClassAsync<T extends Platform>(
 }
 
 function resolveAndroidResourceClass(selectedResourceClass?: ResourceClass): BuildResourceClass {
-  if (
-    selectedResourceClass &&
-    [
-      ResourceClass.M1_EXPERIMENTAL,
-      ResourceClass.M1_MEDIUM,
-      ResourceClass.M1_LARGE,
-      ResourceClass.INTEL_MEDIUM,
-    ].includes(selectedResourceClass)
-  ) {
+  if (selectedResourceClass && ResourceClass.M1_MEDIUM === selectedResourceClass) {
     throw new Error(`Resource class ${selectedResourceClass} is only available for iOS builds`);
   }
 
@@ -88,7 +72,7 @@ function resolveIosResourceClass(
     );
   }
 
-  if ([ResourceClass.M1_EXPERIMENTAL, ResourceClass.M1_MEDIUM].includes(resourceClass)) {
+  if (ResourceClass.M1_MEDIUM === resourceClass) {
     Log.warn(
       `Resource class ${chalk.bold(resourceClass)} is deprecated. Use ${chalk.bold(
         'm-medium'
@@ -96,7 +80,7 @@ function resolveIosResourceClass(
     );
   }
 
-  if ([ResourceClass.M_LARGE, ResourceClass.M1_LARGE].includes(resourceClass)) {
+  if (ResourceClass.M_LARGE === resourceClass) {
     Log.warn(
       `Resource class ${chalk.bold(resourceClass)} is deprecated. Use ${chalk.bold(
         'large'

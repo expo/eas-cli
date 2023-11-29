@@ -1,9 +1,8 @@
-import { getVcsClient } from '../vcs';
+import { Client } from '../vcs/vcs';
 
-export async function getDefaultBranchNameAsync(): Promise<string> {
+export async function getDefaultBranchNameAsync(vcsClient: Client): Promise<string> {
   return (
-    (await getVcsClient().getBranchNameAsync()) ||
-    `branch-${Math.random().toString(36).substring(2, 4)}`
+    (await vcsClient.getBranchNameAsync()) || `branch-${Math.random().toString(36).substring(2, 4)}`
   );
 }
 

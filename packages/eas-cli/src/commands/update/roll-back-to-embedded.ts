@@ -20,7 +20,10 @@ import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
-import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
+import {
+  enforceRollBackToEmbeddedUpdateSupportAsync,
+  getOwnerAccountForProjectIdAsync,
+} from '../../project/projectUtils';
 import {
   ExpoCLIExportPlatformFlag,
   defaultPublishPlatforms,
@@ -43,7 +46,6 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
-import { getVcsClient } from '../../vcs';
 
 type RawUpdateFlags = {
   auto: boolean;
@@ -68,7 +70,6 @@ type UpdateFlags = {
 };
 
 export default class UpdateRollBackToEmbedded extends EasCommand {
-  static override hidden = true; // until we launch
   static override description = 'roll back to the embedded update';
 
   static override flags = {
@@ -86,7 +87,11 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     }),
     platform: Flags.enum({
       char: 'p',
-      options: [...defaultPublishPlatforms, 'all'],
+      options: [
+        // TODO: Add web when it's fully supported
+        ...defaultPublishPlatforms,
+        'all',
+      ],
       default: 'all',
       required: false,
     }),
@@ -105,6 +110,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -125,6 +131,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       getDynamicPublicProjectConfigAsync,
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
+      vcsClient,
     } = await this.getContextAsync(UpdateRollBackToEmbedded, {
       nonInteractive,
     });
@@ -146,7 +153,11 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       platform: getRequestedPlatform(platformFlag),
       projectDir,
       projectId,
+      vcsClient,
     });
+
+    // check that the expo-updates package version supports roll back to embedded
+    await enforceRollBackToEmbeddedUpdateSupportAsync(projectDir);
 
     const { exp } = await getDynamicPublicProjectConfigAsync();
     const { exp: expPrivate } = await getDynamicPrivateProjectConfigAsync();
@@ -154,6 +165,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
 
     const branchName = await getBranchNameForCommandAsync({
       graphqlClient,
+      vcsClient,
       projectId,
       channelNameArg,
       branchNameArg,
@@ -162,7 +174,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       paginatedQueryOptions,
     });
 
-    const updateMessage = await getUpdateMessageForCommandAsync({
+    const updateMessage = await getUpdateMessageForCommandAsync(vcsClient, {
       updateMessageArg,
       autoFlag,
       nonInteractive,
@@ -186,12 +198,15 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
 
     Log.withTick(`Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`);
 
-    const vcsClient = getVcsClient();
-
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
+    const runtimeVersions = await getRuntimeVersionObjectAsync(
+      exp,
+      realizedPlatforms,
+      projectDir,
+      vcsClient
+    );
 
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();

@@ -78,6 +78,7 @@ export class ManageIos {
       analytics: this.callingAction.analytics,
       env: buildProfile?.env,
       nonInteractive: false,
+      vcsClient: this.callingAction.vcsClient,
     });
     const buildCredentialsActions = getBuildCredentialsActions(ctx);
     const pushKeyActions = getPushKeyActions(ctx);
@@ -194,6 +195,7 @@ export class ManageIos {
         projectDir: ctx.projectDir,
         nonInteractive: ctx.nonInteractive,
         exp: ctx.exp,
+        vcsClient: ctx.vcsClient,
       },
       buildProfile
     );
@@ -202,6 +204,7 @@ export class ManageIos {
       projectDir: ctx.projectDir,
       xcodeBuildContext,
       env: buildProfile.env,
+      vcsClient: ctx.vcsClient,
     });
     return {
       app,

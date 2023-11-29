@@ -1,3 +1,4 @@
+import { ExpoConfig } from '@expo/config-types';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import {
   AppVersionSource,
@@ -13,6 +14,7 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { Analytics } from '../analytics/AnalyticsManager';
+import { createAndLinkChannelAsync, doesChannelExistAsync } from '../channel/queries';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -38,9 +40,9 @@ import {
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
 import {
-  installExpoUpdatesAsync,
   isExpoUpdatesInstalledAsDevDependency,
   isExpoUpdatesInstalledOrAvailable,
+  isUsingEASUpdate,
   validateAppVersionRuntimePolicySupportAsync,
 } from '../project/projectUtils';
 import {
@@ -57,13 +59,14 @@ import {
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
+import { ensureEASUpdateIsConfiguredAsync } from '../update/configure';
 import { validateBuildProfileConfigMatchesProjectConfigAsync } from '../update/utils';
 import { Actor } from '../user/User';
 import { downloadAndMaybeExtractAppAsync } from '../utils/download';
 import { truthy } from '../utils/expodash/filter';
 import { printJsonOnlyOutput } from '../utils/json';
 import { ProfileData, getProfilesAsync } from '../utils/profiles';
-import { getVcsClient } from '../vcs';
+import { Client } from '../vcs/vcs';
 import { prepareAndroidBuildAsync } from './android/build';
 import { BuildRequestSender, MaybeBuildFragment, waitForBuildEndAsync } from './build';
 import { ensureProjectConfiguredAsync } from './configure';
@@ -95,17 +98,19 @@ export interface BuildFlags {
 export async function runBuildAndSubmitAsync(
   graphqlClient: ExpoGraphqlClient,
   analytics: Analytics,
+  vcsClient: Client,
   projectDir: string,
   flags: BuildFlags,
   actor: Actor,
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn
 ): Promise<void> {
-  await getVcsClient().ensureRepoExistsAsync();
-  await ensureRepoIsCleanAsync(flags.nonInteractive);
+  await vcsClient.ensureRepoExistsAsync();
+  await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
 
   await ensureProjectConfiguredAsync({
     projectDir,
     nonInteractive: flags.nonInteractive,
+    vcsClient,
   });
   const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   const easJsonCliConfig: EasJson['cli'] =
@@ -117,6 +122,7 @@ export async function runBuildAndSubmitAsync(
     easJsonAccessor,
     platforms,
     profileName: flags.profile ?? undefined,
+    projectDir,
   });
   Log.log(
     `Loaded "env" configuration for the "${buildProfiles[0].profileName}" profile: ${
@@ -130,13 +136,18 @@ export async function runBuildAndSubmitAsync(
     projectDir,
     nonInteractive: flags.nonInteractive,
     buildProfiles,
+    vcsClient,
   });
 
   const customBuildConfigMetadataByPlatform: { [p in AppPlatform]?: CustomBuildConfigMetadata } =
     {};
   for (const buildProfile of buildProfiles) {
     validateBuildProfileVersionSettings(buildProfile, easJsonCliConfig);
-    const maybeMetadata = await validateCustomBuildConfigAsync(projectDir, buildProfile.profile);
+    const maybeMetadata = await validateCustomBuildConfigAsync({
+      projectDir,
+      profile: buildProfile.profile,
+      vcsClient,
+    });
     if (maybeMetadata) {
       customBuildConfigMetadataByPlatform[toAppPlatform(buildProfile.platform)] = maybeMetadata;
     }
@@ -159,6 +170,7 @@ export async function runBuildAndSubmitAsync(
       actor,
       graphqlClient,
       analytics,
+      vcsClient,
       getDynamicPrivateProjectConfigAsync,
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
     });
@@ -183,6 +195,7 @@ export async function runBuildAndSubmitAsync(
       platforms,
       profileName: flags.submitProfile,
       type: 'submit',
+      projectDir,
     });
     for (const startedBuild of startedBuilds) {
       const submitProfile = nullthrows(
@@ -222,8 +235,6 @@ export async function runBuildAndSubmitAsync(
   const builds = await waitForBuildEndAsync(graphqlClient, {
     buildIds: startedBuilds.map(({ build }) => build.id),
     accountName,
-    projectDir,
-    nonInteractive: flags.nonInteractive,
   });
   if (!flags.json) {
     printBuildResults(builds);
@@ -269,6 +280,7 @@ async function prepareAndStartBuildAsync({
   actor,
   graphqlClient,
   analytics,
+  vcsClient,
   getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
 }: {
@@ -280,6 +292,7 @@ async function prepareAndStartBuildAsync({
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
+  vcsClient: Client;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
@@ -298,6 +311,7 @@ async function prepareAndStartBuildAsync({
     actor,
     graphqlClient,
     analytics,
+    vcsClient,
     getDynamicPrivateProjectConfigAsync,
     customBuildConfigMetadata,
   });
@@ -320,11 +334,27 @@ async function prepareAndStartBuildAsync({
   );
   if (buildProfile.profile.channel) {
     await validateExpoUpdatesInstalledAsProjectDependencyAsync({
+      graphqlClient,
+      exp: buildCtx.exp,
+      projectId: buildCtx.projectId,
       projectDir,
+      vcsClient: buildCtx.vcsClient,
       sdkVersion: buildCtx.exp.sdkVersion,
       nonInteractive: flags.nonInteractive,
       buildProfile,
     });
+    if (isUsingEASUpdate(buildCtx.exp, buildCtx.projectId)) {
+      const doesChannelExist = await doesChannelExistAsync(graphqlClient, {
+        appId: buildCtx.projectId,
+        channelName: buildProfile.profile.channel,
+      });
+      if (!doesChannelExist) {
+        await createAndLinkChannelAsync(graphqlClient, {
+          appId: buildCtx.projectId,
+          channelName: buildProfile.profile.channel,
+        });
+      }
+    }
   }
 
   await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
@@ -391,6 +421,7 @@ async function prepareAndStartSubmissionAsync({
     analytics: buildCtx.analytics,
     projectId: buildCtx.projectId,
     exp: buildCtx.exp,
+    vcsClient: buildCtx.vcsClient,
   });
 
   if (moreBuilds) {
@@ -447,12 +478,20 @@ async function maybeDownloadAndRunSimulatorBuildsAsync(
 }
 
 async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
+  exp,
+  graphqlClient,
+  projectId,
   projectDir,
+  vcsClient,
   buildProfile,
   nonInteractive,
   sdkVersion,
 }: {
+  graphqlClient: ExpoGraphqlClient;
+  exp: ExpoConfig;
+  projectId: string;
   projectDir: string;
+  vcsClient: Client;
   buildProfile: ProfileData<'build'>;
   nonInteractive: boolean;
   sdkVersion?: string;
@@ -467,18 +506,25 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
     );
   } else if (nonInteractive) {
     Log.warn(
-      `The build profile "${buildProfile.profileName}" has specified the channel "${buildProfile.profile.channel}", but the "expo-updates" package hasn't been installed. To use channels for your builds, install the "expo-updates" package by running "npx expo install expo-updates".`
+      `The build profile "${buildProfile.profileName}" has specified the channel "${buildProfile.profile.channel}", but the "expo-updates" package hasn't been installed. To use channels for your builds, install the "expo-updates" package by running "npx expo install expo-updates" followed by "eas update:configure".`
     );
   } else {
     Log.warn(
-      `The build profile "${buildProfile.profileName}" specifies the channel "${buildProfile.profile.channel}", but the "expo-updates" package is missing. To use channels in your builds, install the "expo-updates" package.`
+      `The build profile "${buildProfile.profileName}" specifies the channel "${buildProfile.profile.channel}", but the "expo-updates" package is missing. To use channels in your builds, install the "expo-updates" package and run "eas update:configure".`
     );
     const installExpoUpdates = await confirmAsync({
-      message: `Would you like to install the "expo-updates" package?`,
+      message: `Would you like to install the "expo-updates" package and configure EAS Update now?`,
     });
     if (installExpoUpdates) {
-      await installExpoUpdatesAsync(projectDir, { silent: false });
-      Log.withTick('Installed expo-updates');
+      await ensureEASUpdateIsConfiguredAsync(graphqlClient, {
+        exp,
+        projectId,
+        projectDir,
+        platform: RequestedPlatform.All,
+        vcsClient,
+      });
+      Log.withTick('Installed expo-updates and configured EAS Update.');
+      throw new Error('Command must be re-run to pick up new updates configuration.');
     }
   }
 }

@@ -14,7 +14,6 @@ import slash from 'slash';
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
 import { getCustomBuildConfigPath } from '../../project/customBuildConfig';
 import { getUsername } from '../../project/projectUtils';
-import { getVcsClient } from '../../vcs';
 import { BuildContext } from '../context';
 
 interface JobData {
@@ -34,7 +33,7 @@ export async function prepareJobAsync(
   const username = getUsername(ctx.exp, ctx.user);
   const buildProfile: BuildProfile<Platform.ANDROID> = ctx.buildProfile;
   const projectRootDirectory =
-    slash(path.relative(await getVcsClient().getRootPathAsync(), ctx.projectDir)) || '.';
+    slash(path.relative(await ctx.vcsClient.getRootPathAsync(), ctx.projectDir)) || '.';
   const { credentials } = jobData;
   const buildCredentials = credentials
     ? {
@@ -66,6 +65,8 @@ export async function prepareJobAsync(
     builderEnvironment: {
       image: buildProfile.image,
       node: buildProfile.node,
+      pnpm: buildProfile.pnpm,
+      bun: buildProfile.bun,
       yarn: buildProfile.yarn,
       ndk: buildProfile.ndk,
       expoCli: buildProfile.expoCli,

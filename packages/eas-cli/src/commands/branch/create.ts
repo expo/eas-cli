@@ -27,6 +27,7 @@ export default class BranchCreate extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -37,6 +38,7 @@ export default class BranchCreate extends EasCommand {
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
+      vcsClient,
     } = await this.getContextAsync(BranchCreate, {
       nonInteractive,
     });
@@ -56,7 +58,7 @@ export default class BranchCreate extends EasCommand {
         type: 'text',
         name: 'name',
         message: 'Provide a branch name:',
-        initial: await getDefaultBranchNameAsync(),
+        initial: await getDefaultBranchNameAsync(vcsClient),
         validate: value => (value ? true : validationMessage),
       }));
     }

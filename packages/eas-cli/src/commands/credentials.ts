@@ -15,6 +15,7 @@ export default class Credentials extends EasCommand {
     ...this.ContextOptions.OptionalProjectConfig,
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.Analytics,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -24,6 +25,7 @@ export default class Credentials extends EasCommand {
       privateProjectConfig,
       getDynamicPrivateProjectConfigAsync,
       analytics,
+      vcsClient,
     } = await this.getContextAsync(Credentials, {
       nonInteractive: false,
     });
@@ -31,6 +33,7 @@ export default class Credentials extends EasCommand {
     await new SelectPlatform(
       actor,
       graphqlClient,
+      vcsClient,
       analytics,
       privateProjectConfig ?? null,
       getDynamicPrivateProjectConfigAsync,

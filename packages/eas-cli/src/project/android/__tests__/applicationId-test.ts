@@ -7,6 +7,7 @@ import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/cr
 import { jester, jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { promptAsync } from '../../../prompts';
+import { getVcsClient } from '../../../vcs';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   getApplicationIdAsync,
@@ -16,6 +17,8 @@ jest.mock('fs');
 jest.mock('../../../prompts');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
+
+const vcsClient = getVcsClient();
 
 beforeEach(async () => {
   vol.reset();
@@ -44,7 +47,9 @@ describe(getApplicationIdAsync, () => {
         '/app'
       );
 
-      const applicationId = await getApplicationIdAsync('/app', {} as any, { moduleName: 'app' });
+      const applicationId = await getApplicationIdAsync('/app', {} as any, vcsClient, {
+        moduleName: 'app',
+      });
       expect(applicationId).toBe('com.expo.notdominik');
     });
 
@@ -56,9 +61,9 @@ describe(getApplicationIdAsync, () => {
         },
         '/app'
       );
-      await expect(getApplicationIdAsync('/app', {} as any, undefined)).rejects.toThrowError(
-        /Failed to find 'build.gradle' /
-      );
+      await expect(
+        getApplicationIdAsync('/app', {} as any, vcsClient, undefined)
+      ).rejects.toThrowError(/Failed to find 'build.gradle' /);
     });
 
     it('throws an error if the project does not have applicationId defined in build.gradle', async () => {
@@ -71,7 +76,7 @@ describe(getApplicationIdAsync, () => {
       );
 
       await expect(
-        getApplicationIdAsync('/app', {} as any, { moduleName: 'app' })
+        getApplicationIdAsync('/app', {} as any, vcsClient, { moduleName: 'app' })
       ).rejects.toThrowError(/Could not read applicationId/);
     });
   });
@@ -83,6 +88,7 @@ describe(getApplicationIdAsync, () => {
         {
           android: { package: 'com.expo.notdominik' },
         } as any,
+        vcsClient,
         { moduleName: 'app' }
       );
       expect(applicationId).toBe('com.expo.notdominik');
@@ -90,15 +96,20 @@ describe(getApplicationIdAsync, () => {
 
     it('throws an error if Android package is not defined in app config', async () => {
       await expect(
-        getApplicationIdAsync('/app', {} as any, { moduleName: 'app' })
+        getApplicationIdAsync('/app', {} as any, vcsClient, { moduleName: 'app' })
       ).rejects.toThrowError(/Specify "android.package"/);
     });
 
     it('throws an error if Android package in app config is invalid', async () => {
       await expect(
-        getApplicationIdAsync('/app', { android: { package: '1com.expo.notdominik' } } as any, {
-          moduleName: 'app',
-        })
+        getApplicationIdAsync(
+          '/app',
+          { android: { package: '1com.expo.notdominik' } } as any,
+          vcsClient,
+          {
+            moduleName: 'app',
+          }
+        )
       ).rejects.toThrowError(/Specify "android.package"/);
     });
   });
@@ -121,6 +132,7 @@ describe(ensureApplicationIdIsDefinedForManagedProjectAsync, () => {
           projectDir: '/app',
           projectId: '',
           exp: {} as any,
+          vcsClient,
         })
       ).rejects.toThrowError(/we can't update this file programmatically/);
     });
@@ -150,6 +162,7 @@ describe(ensureApplicationIdIsDefinedForManagedProjectAsync, () => {
           projectDir: '/app',
           projectId: '',
           exp: {} as any,
+          vcsClient,
         })
       ).resolves.toBe('com.expo.notdominik');
       expect(promptAsync).toHaveBeenCalled();
@@ -182,6 +195,7 @@ describe(ensureApplicationIdIsDefinedForManagedProjectAsync, () => {
           projectDir: '/app',
           projectId: '',
           exp: {} as any,
+          vcsClient,
         })
       ).resolves.toBe('com.expo.notdominik');
       const appJson = JSON.parse(await fs.readFile('/app/app.json', 'utf-8'));

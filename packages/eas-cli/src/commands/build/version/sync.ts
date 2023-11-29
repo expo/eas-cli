@@ -28,6 +28,7 @@ import {
 } from '../../../project/remoteVersionSource';
 import { resolveWorkflowAsync } from '../../../project/workflow';
 import { getProfilesAsync } from '../../../utils/profiles';
+import { Client } from '../../../vcs/vcs';
 
 interface SyncContext<T extends Platform> {
   projectDir: string;
@@ -35,6 +36,7 @@ interface SyncContext<T extends Platform> {
   workflow: Workflow;
   profile: BuildProfile<T>;
   buildVersion: string;
+  vcsClient: Client;
 }
 
 export default class BuildVersionSyncView extends EasCommand {
@@ -58,6 +60,7 @@ export default class BuildVersionSyncView extends EasCommand {
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.Vcs,
   };
 
   public async runAsync(): Promise<void> {
@@ -66,6 +69,7 @@ export default class BuildVersionSyncView extends EasCommand {
       loggedIn: { graphqlClient },
       getDynamicPrivateProjectConfigAsync,
       projectDir,
+      vcsClient,
     } = await this.getContextAsync(BuildVersionSyncView, {
       nonInteractive: true,
     });
@@ -80,6 +84,7 @@ export default class BuildVersionSyncView extends EasCommand {
       easJsonAccessor,
       platforms,
       profileName: flags.profile ?? undefined,
+      projectDir,
     });
     for (const profileInfo of buildProfiles) {
       const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
@@ -96,6 +101,7 @@ export default class BuildVersionSyncView extends EasCommand {
         exp,
         buildProfile: profileInfo.profile,
         platform: profileInfo.platform,
+        vcsClient,
       });
       const remoteVersions = await AppVersionQuery.latestVersionAsync(
         graphqlClient,
@@ -103,7 +109,7 @@ export default class BuildVersionSyncView extends EasCommand {
         toAppPlatform(profileInfo.platform),
         applicationIdentifier
       );
-      const workflow = await resolveWorkflowAsync(projectDir, profileInfo.platform);
+      const workflow = await resolveWorkflowAsync(projectDir, profileInfo.platform, vcsClient);
       if (!remoteVersions?.buildVersion) {
         Log.warn(
           `Skipping versions sync for ${platformDisplayName}. There are no versions configured on Expo servers, use "eas build:version:set" or run a build to initialize it.`
@@ -127,6 +133,7 @@ export default class BuildVersionSyncView extends EasCommand {
           profile: profileInfo.profile as BuildProfile<Platform.ANDROID>,
           workflow,
           buildVersion: remoteVersions.buildVersion,
+          vcsClient,
         });
       } else {
         this.syncIosAsync({
@@ -135,6 +142,7 @@ export default class BuildVersionSyncView extends EasCommand {
           profile: profileInfo.profile as BuildProfile<Platform.IOS>,
           workflow,
           buildVersion: remoteVersions.buildVersion,
+          vcsClient,
         });
       }
       Log.withTick(
@@ -151,9 +159,10 @@ export default class BuildVersionSyncView extends EasCommand {
     exp,
     profile,
     buildVersion,
+    vcsClient,
   }: SyncContext<Platform.IOS>): Promise<void> {
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(
-      { exp, projectDir, nonInteractive: false },
+      { exp, projectDir, nonInteractive: false, vcsClient },
       profile
     );
     const targets = await resolveTargetsAsync({
@@ -161,6 +170,7 @@ export default class BuildVersionSyncView extends EasCommand {
       exp,
       xcodeBuildContext,
       env: profile.env,
+      vcsClient,
     });
 
     if (!isValidBuildNumber(buildVersion)) {

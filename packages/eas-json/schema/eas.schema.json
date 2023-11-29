@@ -153,6 +153,16 @@
           "description": "The version of Yarn to use for the build. See: https://www.npmjs.com/package/yarn",
           "markdownDescription": "The exact version of [Yarn](https://www.npmjs.com/package/yarn) to use for the build."
         },
+        "pnpm": {
+          "type": "string",
+          "description": "The version of pnpm to use for the build. See: https://www.npmjs.com/package/pnpm",
+          "markdownDescription": "The exact version of [pnpm](https://www.npmjs.com/package/pnpm) to use for the build."
+        },
+        "bun": {
+          "type": "string",
+          "description": "The version of Bun to use for the build. See: https://bun.sh/",
+          "markdownDescription": "The exact version of [Bun](https://bun.sh/) to use for the build."
+        },
         "expoCli": {
           "type": "string",
           "description": "The version of `expo-cli` used to `prebuild` your app.",
@@ -228,17 +238,18 @@
                 "default",
                 "latest",
                 "stable",
+                "ubuntu-22.04-jdk-17-ndk-r21e",
                 "ubuntu-22.04-jdk-11-ndk-r21e",
                 "ubuntu-22.04-jdk-8-ndk-r21e",
                 "ubuntu-20.04-jdk-11-ndk-r21e",
                 "ubuntu-20.04-jdk-8-ndk-r21e",
-                "ubuntu-18.04-jdk-11-ndk-r19c",
-                "ubuntu-18.04-jdk-8-ndk-r19c"
+                "ubuntu-20.04-jdk-11-ndk-r19c",
+                "ubuntu-20.04-jdk-8-ndk-r19c"
               ],
               "markdownEnumDescriptions": [
-                "- React Native `>=0.68.0` - `ubuntu-20.04-jdk-11-ndk-r21e`\n- React Native `<0.68.0` - `ubuntu-18.04-jdk-8-ndk-r19c`",
-                "`ubuntu-22.04-jdk-11-ndk-r21e`",
-                "`ubuntu-20.04-jdk-11-ndk-r21e`"
+                "- React Native `>=0.68.0` - `ubuntu-22.04-jdk-11-ndk-r21e`\n- React Native `<0.68.0` - `ubuntu-20.04-jdk-8-ndk-r19c`",
+                "`ubuntu-22.04-jdk-17-ndk-r21e`",
+                "`ubuntu-22.04-jdk-11-ndk-r21e`"
               ]
             },
             {
@@ -346,26 +357,32 @@
               "enum": [
                 "default",
                 "latest",
+                "macos-ventura-13.6-xcode-15.0",
                 "macos-ventura-13.4-xcode-14.3.1",
                 "macos-ventura-13.3-xcode-14.3",
                 "macos-monterey-12.6-xcode-14.2",
                 "macos-monterey-12.6-xcode-14.1",
-                "macos-monterey-12.6-xcode-14.0",
-                "macos-monterey-12.4-xcode-13.4",
-                "macos-monterey-12.3-xcode-13.3",
-                "macos-monterey-12.1-xcode-13.2",
-                "macos-big-sur-11.4-xcode-13.0",
-                "macos-big-sur-11.4-xcode-12.5"
+                "macos-monterey-12.6-xcode-14.0"
               ],
               "markdownEnumDescriptions": [
-                "`macos-ventura-13.3-xcode-14.3` for Apple silicon builders, `macos-monterey-12.6-xcode-14.1` for Intel builders",
-                "`macos-ventura-13.4-xcode-14.3.1` for Apple silicon builders, `macos-monterey-12.6-xcode-14.2` for Intel builders",
+                "`macos-ventura-13.4-xcode-14.3.1`",
+                "`macos-ventura-13.6-xcode-15.0`",
                 "only available for Apple silicon builders",
                 "only available for Apple silicon builders"
               ]
             },
             {
-              "type": "string"
+              "deprecated": true,
+              "enum": [
+                "macos-monterey-12.4-xcode-13.4",
+                "macos-monterey-12.3-xcode-13.3",
+                "macos-monterey-12.1-xcode-13.2"
+              ],
+              "markdownEnumDescriptions": [
+                "This image is deprecated, please use one of the more recent images instead.",
+                "This image is deprecated, please use one of the more recent images instead.",
+                "This image is deprecated, please use one of the more recent images instead."
+              ]
             }
           ]
         },

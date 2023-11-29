@@ -27,6 +27,7 @@ import {
   displayEmptyAndroidCredentials,
 } from '../android/utils/printCredentials';
 import { CredentialsContext, CredentialsContextProjectInfo } from '../context';
+import { AndroidPackageNotDefinedError } from '../errors';
 import { ActionInfo, AndroidActionType, Scope } from './Actions';
 import {
   buildCredentialsActions,
@@ -64,6 +65,7 @@ export class ManageAndroid {
       analytics: this.callingAction.analytics,
       env: buildProfile?.env,
       nonInteractive: false,
+      vcsClient: this.callingAction.vcsClient,
     });
 
     let gradleContext;
@@ -131,6 +133,12 @@ export class ManageAndroid {
 
         await this.runProjectSpecificActionAsync(ctx, chosenAction, gradleContext);
       } catch (err) {
+        if (err instanceof AndroidPackageNotDefinedError) {
+          err.message += `\n${learnMore(
+            'https://docs.expo.dev/workflow/configuration/'
+          )} about configuration with app.json/app.config.js`;
+          throw err; // breaks out of the loop to avoid failing again after continuation
+        }
         Log.error(err);
         if (process.env.DEBUG) {
           throw err; // breaks out of the loop so we can get stack trace
@@ -146,7 +154,7 @@ export class ManageAndroid {
     buildProfile: BuildProfile<Platform.ANDROID>
   ): Promise<GradleBuildContext | undefined> {
     assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
-    return await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
+    return await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile, ctx.vcsClient);
   }
 
   private async runProjectSpecificActionAsync(

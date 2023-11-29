@@ -35,6 +35,7 @@ import {
   getRuntimeVersionObjectAsync,
   getUpdateMessageForCommandAsync,
   isUploadedAssetCountAboveWarningThreshold,
+  platformDisplayNames,
   resolveInputDirectoryAsync,
   uploadAssetsAsync,
 } from '../../project/publish';
@@ -51,10 +52,10 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
-import { getVcsClient } from '../../vcs';
 
 type RawUpdateFlags = {
   auto: boolean;
+  dev: boolean;
   branch?: string;
   channel?: string;
   message?: string;
@@ -73,6 +74,7 @@ type RawUpdateFlags = {
 
 type UpdateFlags = {
   auto: boolean;
+  dev: boolean;
   platform: ExpoCLIExportPlatformFlag;
   branchName?: string;
   channelName?: string;
@@ -133,6 +135,10 @@ export default class UpdatePublish extends EasCommand {
       default: 'all',
       required: false,
     }),
+    dev: Flags.boolean({
+      description: 'Publish a development bundle',
+      default: false,
+    }),
     auto: Flags.boolean({
       description:
         'Use the current git branch and commit message for the EAS branch and update message',
@@ -148,6 +154,7 @@ export default class UpdatePublish extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -157,6 +164,7 @@ export default class UpdatePublish extends EasCommand {
       auto: autoFlag,
       platform: platformFlag,
       channelName: channelNameArg,
+      dev,
       updateMessage: updateMessageArg,
       inputDir,
       skipBundler,
@@ -171,6 +179,7 @@ export default class UpdatePublish extends EasCommand {
       getDynamicPublicProjectConfigAsync,
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
+      vcsClient,
     } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
     });
@@ -192,6 +201,7 @@ export default class UpdatePublish extends EasCommand {
       platform: getRequestedPlatform(platformFlag),
       projectDir,
       projectId,
+      vcsClient,
     });
 
     const { exp } = await getDynamicPublicProjectConfigAsync();
@@ -200,6 +210,7 @@ export default class UpdatePublish extends EasCommand {
 
     const branchName = await getBranchNameForCommandAsync({
       graphqlClient,
+      vcsClient,
       projectId,
       channelNameArg,
       branchNameArg,
@@ -208,7 +219,7 @@ export default class UpdatePublish extends EasCommand {
       paginatedQueryOptions,
     });
 
-    const updateMessage = await getUpdateMessageForCommandAsync({
+    const updateMessage = await getUpdateMessageForCommandAsync(vcsClient, {
       updateMessageArg,
       autoFlag,
       nonInteractive,
@@ -219,7 +230,7 @@ export default class UpdatePublish extends EasCommand {
     if (!skipBundler) {
       const bundleSpinner = ora().start('Exporting...');
       try {
-        await buildBundlesAsync({ projectDir, inputDir, exp, platformFlag, clearCache });
+        await buildBundlesAsync({ projectDir, inputDir, dev, exp, platformFlag, clearCache });
         bundleSpinner.succeed('Exported bundle(s)');
       } catch (e) {
         bundleSpinner.fail('Export failed');
@@ -242,20 +253,22 @@ export default class UpdatePublish extends EasCommand {
       realizedPlatforms = Object.keys(assets) as PublishPlatform[];
 
       // Timeout mechanism:
-      // - Start with 60 second timeout. 60 seconds is chosen because the cloud function that processes
-      //   uploaded assets has a timeout of 60 seconds.
-      // - Each time one or more assets reports as ready, reset the timeout to 60 seconds.
-      // - Start upload. Internally, uploadAssetsAsync uploads them all and then checks for successful
+      // - Start with NO_ACTIVITY_TIMEOUT. 90 seconds is chosen because the cloud function that processes
+      //   uploaded assets has a timeout of 60 seconds and uploading can take some time on a slow connection.
+      // - Each time one or more assets reports as ready, reset the timeout.
+      // - Each time an asset upload begins, reset the timeout. This includes retries.
+      // - Start upload. Internally, uploadAssetsAsync uploads them all first and then checks for successful
       //   processing every (5 + n) seconds with a linear backoff of n + 1 second.
       // - At the same time as upload is started, start timeout checker which checks every 1 second to see
       //   if timeout has been reached. When timeout expires, send a cancellation signal to currently running
       //   upload function call to instruct it to stop uploading or checking for successful processing.
+      const NO_ACTIVITY_TIMEOUT = 90 * 1000; // 90 seconds
       let lastUploadedStorageKeys = new Set<string>();
       let lastAssetUploadResults: {
         asset: RawAsset & { storageKey: string };
         finished: boolean;
       }[] = [];
-      let timeAtWhichToTimeout = Date.now() + 60 * 1000; // sixty seconds from now
+      let timeAtWhichToTimeout = Date.now() + NO_ACTIVITY_TIMEOUT;
       const cancelationToken = { isCanceledOrFinished: false };
 
       const uploadResults = await Promise.race([
@@ -269,7 +282,7 @@ export default class UpdatePublish extends EasCommand {
               assetUploadResults.filter(r => r.finished).map(r => r.asset.storageKey)
             );
             if (!areSetsEqual(currentUploadedStorageKeys, lastUploadedStorageKeys)) {
-              timeAtWhichToTimeout = Date.now() + 60 * 1000; // reset timeout to sixty seconds from now
+              timeAtWhichToTimeout = Date.now() + NO_ACTIVITY_TIMEOUT; // reset timeout to NO_ACTIVITY_TIMEOUT
               lastUploadedStorageKeys = currentUploadedStorageKeys;
               lastAssetUploadResults = assetUploadResults;
             }
@@ -277,6 +290,10 @@ export default class UpdatePublish extends EasCommand {
             const totalAssets = assetUploadResults.length;
             const missingAssetCount = assetUploadResults.filter(a => !a.finished).length;
             assetSpinner.text = `Uploading (${totalAssets - missingAssetCount}/${totalAssets})`;
+          },
+          () => {
+            // when an upload is retried, reset the timeout as we know this will now need more time
+            timeAtWhichToTimeout = Date.now() + NO_ACTIVITY_TIMEOUT; // reset timeout to NO_ACTIVITY_TIMEOUT
           }
         ),
         (async () => {
@@ -325,12 +342,32 @@ export default class UpdatePublish extends EasCommand {
       for (const uploadedAssetPath of uploadResults.uniqueUploadedAssetPaths) {
         Log.debug(chalk.dim(`- ${uploadedAssetPath}`));
       }
+
+      const platformString = (Object.keys(assets) as PublishPlatform[])
+        .map(platform => {
+          const collectedAssetForPlatform = nullthrows(assets[platform]);
+          const totalAssetsForPlatform = collectedAssetForPlatform.assets.length + 1; // launch asset
+          const assetString = totalAssetsForPlatform === 1 ? 'asset' : 'assets';
+          return `${totalAssetsForPlatform} ${platformDisplayNames[platform]} ${assetString}`;
+        })
+        .join(', ');
+      Log.withInfo(
+        `${platformString} (maximum: ${assetLimitPerUpdateGroup} total per update). ${learnMore(
+          'https://expo.fyi/eas-update-asset-limits',
+          { learnMoreMessage: 'Learn more about asset limits.' }
+        )}`
+      );
     } catch (e) {
       assetSpinner.fail('Failed to upload');
       throw e;
     }
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
+    const runtimeVersions = await getRuntimeVersionObjectAsync(
+      exp,
+      realizedPlatforms,
+      projectDir,
+      vcsClient
+    );
     const runtimeToPlatformMapping =
       getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);
 
@@ -344,11 +381,10 @@ export default class UpdatePublish extends EasCommand {
         branchId,
         channelName: branchName,
       });
+      Log.withTick(
+        `Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`
+      );
     }
-
-    Log.withTick(`Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`);
-
-    const vcsClient = getVcsClient();
 
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
@@ -507,7 +543,7 @@ export default class UpdatePublish extends EasCommand {
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
     const nonInteractive = flags['non-interactive'] ?? false;
 
-    const { auto, branch: branchName, channel: channelName, message: updateMessage } = flags;
+    const { auto, branch: branchName, channel: channelName, dev, message: updateMessage } = flags;
     if (nonInteractive && !auto && !(updateMessage && (branchName || channelName))) {
       Errors.error(
         '--branch and --message, or --channel and --message are required when updating in non-interactive mode unless --auto is specified',
@@ -536,6 +572,7 @@ export default class UpdatePublish extends EasCommand {
       auto,
       branchName,
       channelName,
+      dev,
       updateMessage,
       inputDir: flags['input-dir'],
       skipBundler: flags['skip-bundler'],

@@ -8,6 +8,7 @@ import {
   assertVersion,
   getAlwaysTrueBranchMapping,
   getBranchMapping,
+  getEmptyBranchMapping,
   getStandardBranchId,
   isAlwaysTrueBranchMapping,
   isEmptyBranchMapping,
@@ -21,6 +22,12 @@ describe(assertVersion, () => {
   it('asserts the correct version', () => {
     assertVersion(testChannelBasicInfo, 0);
     expect(getBranchMapping(testChannelBasicInfo.branchMapping).version).toBe(0);
+  });
+});
+
+describe(getEmptyBranchMapping, () => {
+  it('gets an empty branch mapping', () => {
+    expect(isEmptyBranchMapping(getEmptyBranchMapping())).toBe(true);
   });
 });
 

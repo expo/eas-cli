@@ -2,7 +2,6 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import Log from '../../log';
 import { NonInteractiveOptions as CreateRolloutNonInteractiveOptions } from '../../rollout/actions/CreateRollout';
 import { NonInteractiveOptions as EditRolloutNonInteractiveOptions } from '../../rollout/actions/EditRollout';
 import {
@@ -17,11 +16,13 @@ import {
   RolloutActions,
   RolloutMainMenu,
 } from '../../rollout/actions/RolloutMainMenu';
+import { enableJsonOutput } from '../../utils/json';
 
 enum ActionRawFlagValue {
   CREATE = 'create',
   EDIT = 'edit',
   END = 'end',
+  VIEW = 'view',
 }
 type ChannelRolloutRawArgsAndFlags = {
   channel?: string;
@@ -137,8 +138,7 @@ export default class ChannelRollout extends EasCommand {
       nonInteractive: argsAndFlags.nonInteractive,
     });
     if (argsAndFlags.json) {
-      // TODO(quin): implement json output
-      throw new Error('Developer Preview doesnt support JSON output yet');
+      enableJsonOutput();
     }
 
     const app = { projectId, exp };
@@ -151,11 +151,6 @@ export default class ChannelRollout extends EasCommand {
     if (argsAndFlags.nonInteractive) {
       await new NonInteractiveRollout(argsAndFlags).runAsync(ctx);
     } else {
-      Log.addNewLineIfNone();
-      Log.warn(
-        `✨ This command is in Developer Preview and has not been released to production yet. Website support is coming soon.`
-      );
-      Log.addNewLineIfNone();
       await new RolloutMainMenu(argsAndFlags).runAsync(ctx);
     }
   }
@@ -168,6 +163,8 @@ export default class ChannelRollout extends EasCommand {
         return ManageRolloutActions.EDIT;
       case ActionRawFlagValue.END:
         return ManageRolloutActions.END;
+      case ActionRawFlagValue.VIEW:
+        return ManageRolloutActions.VIEW;
     }
   }
 
