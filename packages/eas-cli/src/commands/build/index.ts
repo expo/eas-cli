@@ -39,7 +39,7 @@ export default class Build extends EasCommand {
   static override description = 'start a build';
 
   static override flags = {
-    platform: Flags.enum({
+    platform: Flags.string({
       char: 'p',
       options: ['android', 'ios', 'all'],
     }),
@@ -84,8 +84,11 @@ export default class Build extends EasCommand {
       helpValue: 'PROFILE_NAME',
       exclusive: ['auto-submit'],
     }),
-    'resource-class': Flags.enum({
+    'resource-class': Flags.custom<ResourceClass | undefined>({
       options: Object.values(ResourceClass),
+      // eslint-disable-next-line async-protect/async-suffix
+      parse: async (input: string | undefined) =>
+        Object.values(ResourceClass).find(resourceClass => resourceClass === input),
       hidden: true,
       deprecated: {
         message: chalk.yellow(
@@ -93,7 +96,7 @@ export default class Build extends EasCommand {
         ),
       },
       description: 'The instance type that will be used to run this build [experimental]',
-    }),
+    })(),
     message: Flags.string({
       char: 'm',
       description: 'A short message describing the build',
