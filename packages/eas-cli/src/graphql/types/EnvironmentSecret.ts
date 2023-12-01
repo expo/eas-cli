@@ -16,13 +16,6 @@ export enum SecretType {
   FILE = 'file',
 }
 
-export function maybeGetSecretType(secretTypeString: string | undefined): SecretType | undefined {
-  if (!secretTypeString) {
-    return undefined;
-  }
-  return Object.values(SecretType).find(secretType => secretType === secretTypeString);
-}
-
 export const SecretTypeToEnvironmentSecretType: Record<SecretType, EnvironmentSecretType> = {
   [SecretType.STRING]: EnvironmentSecretType.String,
   [SecretType.FILE]: EnvironmentSecretType.FileBase64,
