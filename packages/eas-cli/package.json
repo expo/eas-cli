@@ -30,7 +30,7 @@
     "@expo/steps": "1.0.51",
     "@expo/timeago.js": "1.0.0",
     "@oclif/core": "^1.26.2",
-    "@oclif/plugin-autocomplete": "^3.0.2",
+    "@oclif/plugin-autocomplete": "^2.3.10",
     "@segment/ajv-human-errors": "^2.1.2",
     "@urql/core": "4.0.11",
     "@urql/exchange-retry": "1.2.0",
