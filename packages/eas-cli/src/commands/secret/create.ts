@@ -10,10 +10,12 @@ import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSe
 import {
   EnvironmentSecretScope,
   EnvironmentSecretsQuery,
+  getEnvironmentSecretScope,
 } from '../../graphql/queries/EnvironmentSecretsQuery';
 import {
   SecretType,
   SecretTypeToEnvironmentSecretType,
+  maybeGetSecretType,
 } from '../../graphql/types/EnvironmentSecret';
 import Log from '../../log';
 import {
@@ -22,14 +24,35 @@ import {
 } from '../../project/projectUtils';
 import { promptAsync, selectAsync } from '../../prompts';
 
+interface RawSecretCreateFlags {
+  scope: string;
+  name?: string;
+  value?: string;
+  type?: string;
+  force: boolean;
+  'non-interactive'?: boolean;
+}
+
+interface SecretCreateCommandFlags {
+  scope: EnvironmentSecretScope;
+  name?: string;
+  value?: string;
+  type?: SecretType;
+  force: boolean;
+  'non-interactive': boolean;
+}
+
+const SCOPE_FLAG_OPTIONS = [EnvironmentSecretScope.ACCOUNT, EnvironmentSecretScope.PROJECT];
+const TYPE_FLAG_OPTIONS = [SecretType.STRING, SecretType.FILE];
+
 export default class EnvironmentSecretCreate extends EasCommand {
   static override description =
     'create an environment secret on the current project or owner account';
 
   static override flags = {
-    scope: Flags.enum({
+    scope: Flags.string({
       description: 'Scope for the secret',
-      options: [EnvironmentSecretScope.ACCOUNT, EnvironmentSecretScope.PROJECT],
+      options: SCOPE_FLAG_OPTIONS,
       default: EnvironmentSecretScope.PROJECT,
     }),
     name: Flags.string({
@@ -38,9 +61,9 @@ export default class EnvironmentSecretCreate extends EasCommand {
     value: Flags.string({
       description: 'Text value or path to a file to store in the secret',
     }),
-    type: Flags.enum({
+    type: Flags.string({
       description: 'The type of secret',
-      options: [SecretType.STRING, SecretType.FILE],
+      options: TYPE_FLAG_OPTIONS,
     }),
     force: Flags.boolean({
       description: 'Delete and recreate existing secrets',
@@ -55,16 +78,15 @@ export default class EnvironmentSecretCreate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    const { flags } = await this.parse(EnvironmentSecretCreate);
     let {
-      flags: {
-        name,
-        value: secretValue,
-        scope,
-        force,
-        type: secretType,
-        'non-interactive': nonInteractive,
-      },
-    } = await this.parse(EnvironmentSecretCreate);
+      name,
+      value: secretValue,
+      scope,
+      force,
+      type: secretType,
+      'non-interactive': nonInteractive,
+    } = await this.sanitizeFlagsAsync(flags);
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
@@ -264,5 +286,14 @@ export default class EnvironmentSecretCreate extends EasCommand {
         );
       }
     }
+  }
+
+  private async sanitizeFlagsAsync(flags: RawSecretCreateFlags): Promise<SecretCreateCommandFlags> {
+    return {
+      ...flags,
+      scope: getEnvironmentSecretScope(flags.scope),
+      type: maybeGetSecretType(flags.type),
+      'non-interactive': flags['non-interactive'] ?? false,
+    };
   }
 }

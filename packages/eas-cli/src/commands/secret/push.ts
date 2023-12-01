@@ -12,6 +12,7 @@ import { EnvironmentSecretMutation } from '../../graphql/mutations/EnvironmentSe
 import {
   EnvironmentSecretScope,
   EnvironmentSecretsQuery,
+  getEnvironmentSecretScope,
 } from '../../graphql/queries/EnvironmentSecretsQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
@@ -22,13 +23,29 @@ import {
 import { promptAsync } from '../../prompts';
 import intersection from '../../utils/expodash/intersection';
 
+interface RawSecretPushFlags {
+  scope: string;
+  'env-file'?: string;
+  force: boolean;
+  'non-interactive'?: boolean;
+}
+
+interface SecretPushCommandFlags {
+  scope: EnvironmentSecretScope;
+  'env-file'?: string;
+  force: boolean;
+  'non-interactive': boolean;
+}
+
+const SCOPE_FLAG_OPTIONS = [EnvironmentSecretScope.ACCOUNT, EnvironmentSecretScope.PROJECT];
+
 export default class EnvironmentSecretPush extends EasCommand {
   static override description = 'read environment secrets from env file and store on the server';
 
   static override flags = {
-    scope: Flags.enum({
+    scope: Flags.string({
       description: 'Scope for the secrets',
-      options: [EnvironmentSecretScope.ACCOUNT, EnvironmentSecretScope.PROJECT],
+      options: SCOPE_FLAG_OPTIONS,
       default: EnvironmentSecretScope.PROJECT,
     }),
     'env-file': Flags.string({
@@ -47,9 +64,13 @@ export default class EnvironmentSecretPush extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    const { flags } = await this.parse(EnvironmentSecretPush);
     const {
-      flags: { scope, force, 'env-file': maybeEnvFilePath, 'non-interactive': nonInteractive },
-    } = await this.parse(EnvironmentSecretPush);
+      scope,
+      force,
+      'env-file': maybeEnvFilePath,
+      'non-interactive': nonInteractive,
+    } = await this.sanitizeFlagsAsync(flags);
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
@@ -93,6 +114,14 @@ export default class EnvironmentSecretPush extends EasCommand {
     for (const secretName of Object.keys(newSecrets)) {
       Log.log(`- ${secretName}`);
     }
+  }
+
+  private async sanitizeFlagsAsync(flags: RawSecretPushFlags): Promise<SecretPushCommandFlags> {
+    return {
+      ...flags,
+      scope: getEnvironmentSecretScope(flags.scope),
+      'non-interactive': flags['non-interactive'] ?? false,
+    };
   }
 }
 
