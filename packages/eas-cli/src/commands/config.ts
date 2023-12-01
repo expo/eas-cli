@@ -12,36 +12,11 @@ import { appPlatformEmojis } from '../platform';
 import { selectAsync } from '../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../utils/json';
 
-interface RawConfigFlags {
-  platform?: string;
-  profile?: string;
-  'eas-json-only'?: boolean;
-  json?: boolean;
-  'non-interactive'?: boolean;
-}
-
-interface ConfigCommandFlags {
-  platform?: Platform;
-  profile?: string;
-  'eas-json-only'?: boolean;
-  json?: boolean;
-  'non-interactive'?: boolean;
-}
-
-function maybeGetPlatform(platformString: string | undefined): Platform | undefined {
-  if (!platformString) {
-    return undefined;
-  }
-  return Object.values(Platform).find(platform => platform === platformString);
-}
-
-const PLATFORM_FLAG_OPTIONS = [Platform.ANDROID, Platform.IOS];
-
 export default class Config extends EasCommand {
   static override description = 'display project configuration (app.json + eas.json)';
 
   static override flags = {
-    platform: Flags.string({ char: 'p', options: PLATFORM_FLAG_OPTIONS }),
+    platform: Flags.enum<Platform>({ char: 'p', options: [Platform.ANDROID, Platform.IOS] }),
     profile: Flags.string({
       char: 'e',
       description:
@@ -61,8 +36,7 @@ export default class Config extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = await this.parse(Config);
-    const flags = await this.sanitizeFlagsAsync(rawFlags);
+    const { flags } = await this.parse(Config);
     if (flags.json) {
       enableJsonOutput();
     }
@@ -128,12 +102,5 @@ export default class Config extends EasCommand {
         Log.log(JSON.stringify(profile, null, 2));
       }
     }
-  }
-
-  private async sanitizeFlagsAsync(flags: RawConfigFlags): Promise<ConfigCommandFlags> {
-    return {
-      ...flags,
-      platform: maybeGetPlatform(flags.platform),
-    };
   }
 }

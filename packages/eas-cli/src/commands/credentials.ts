@@ -3,13 +3,11 @@ import { Flags } from '@oclif/core';
 import EasCommand from '../commandUtils/EasCommand';
 import { SelectPlatform } from '../credentials/manager/SelectPlatform';
 
-const PLATFORM_FLAG_OPTIONS = ['android', 'ios'];
-
 export default class Credentials extends EasCommand {
   static override description = 'manage credentials';
 
   static override flags = {
-    platform: Flags.string({ char: 'p', options: PLATFORM_FLAG_OPTIONS }),
+    platform: Flags.enum({ char: 'p', options: ['android', 'ios'] }),
   };
 
   static override contextDefinition = {
