@@ -87,6 +87,12 @@ type UpdateFlags = {
   nonInteractive: boolean;
 };
 
+const PLATFORM_FLAG_OPTIONS = [
+  // TODO: Add web when it's fully supported
+  ...defaultPublishPlatforms,
+  'all',
+];
+
 export default class UpdatePublish extends EasCommand {
   static override description = 'publish an update group';
 
@@ -125,13 +131,9 @@ export default class UpdatePublish extends EasCommand {
       description: `Clear the bundler cache before publishing`,
       default: false,
     }),
-    platform: Flags.enum({
+    platform: Flags.string({
       char: 'p',
-      options: [
-        // TODO: Add web when it's fully supported
-        ...defaultPublishPlatforms,
-        'all',
-      ],
+      options: PLATFORM_FLAG_OPTIONS,
       default: 'all',
       required: false,
     }),

@@ -41,6 +41,8 @@ type UpdateRepublishFlags = {
   json: boolean;
 };
 
+const PLATFORM_FLAG_OPTIONS = [...defaultRepublishPlatforms, 'all'];
+
 export default class UpdateRepublish extends EasCommand {
   static override description = 'roll back to an existing update';
 
@@ -62,9 +64,9 @@ export default class UpdateRepublish extends EasCommand {
       description: 'Short message describing the republished update group',
       required: false,
     }),
-    platform: Flags.enum({
+    platform: Flags.string({
       char: 'p',
-      options: [...defaultRepublishPlatforms, 'all'],
+      options: PLATFORM_FLAG_OPTIONS,
       default: 'all',
       required: false,
     }),

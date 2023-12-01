@@ -11,14 +11,16 @@ import {
   ensureEASUpdateIsConfiguredInEasJsonAsync,
 } from '../../update/configure';
 
+const PLATFORM_FLAG_OPTIONS = ['android', 'ios', 'all'];
+
 export default class UpdateConfigure extends EasCommand {
   static override description = 'configure the project to support EAS Update';
 
   static override flags = {
-    platform: Flags.enum({
+    platform: Flags.string({
       description: 'Platform to configure',
       char: 'p',
-      options: ['android', 'ios', 'all'],
+      options: PLATFORM_FLAG_OPTIONS,
       default: 'all',
     }),
     ...EASNonInteractiveFlag,
