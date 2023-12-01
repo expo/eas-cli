@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
@@ -130,7 +131,7 @@ async function ensureBuildExistsAsync(
 export default class BuildCancel extends EasCommand {
   static override description = 'cancel a build';
 
-  static override args = [{ name: 'BUILD_ID' }];
+  static override args = { BUILD_ID: Args.string() };
 
   static override flags = {
     ...EASNonInteractiveFlag,
@@ -160,7 +161,7 @@ export default class BuildCancel extends EasCommand {
       await ensureBuildExistsAsync(graphqlClient, buildIdFromArg);
     }
 
-    let buildId: string | null = buildIdFromArg;
+    let buildId: string | null | undefined = buildIdFromArg;
     if (!buildId) {
       if (nonInteractive) {
         throw new Error('BUILD_ID must not be empty in non-interactive mode');

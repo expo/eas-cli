@@ -19,7 +19,7 @@ export default class BuildInternal extends EasCommand {
   static override hidden = true;
 
   static override flags = {
-    platform: Flags.enum({
+    platform: Flags.string({
       char: 'p',
       options: ['android', 'ios'],
       required: true,

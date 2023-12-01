@@ -64,7 +64,7 @@ export default class Run extends EasCommand {
       description: 'ID of the simulator/emulator build to run',
       exclusive: ['latest, path, url'],
     }),
-    platform: Flags.enum({
+    platform: Flags.string({
       char: 'p',
       options: ['android', 'ios'],
     }),
