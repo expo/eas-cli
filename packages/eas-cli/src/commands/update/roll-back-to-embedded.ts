@@ -69,12 +69,6 @@ type UpdateFlags = {
   nonInteractive: boolean;
 };
 
-const PLATFORM_FLAG_OPTIONS = [
-  // TODO: Add web when it's fully supported
-  ...defaultPublishPlatforms,
-  'all',
-];
-
 export default class UpdateRollBackToEmbedded extends EasCommand {
   static override description = 'roll back to the embedded update';
 
@@ -91,9 +85,13 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       description: 'A short message describing the rollback to embedded update',
       required: false,
     }),
-    platform: Flags.string({
+    platform: Flags.enum({
       char: 'p',
-      options: PLATFORM_FLAG_OPTIONS,
+      options: [
+        // TODO: Add web when it's fully supported
+        ...defaultPublishPlatforms,
+        'all',
+      ],
       default: 'all',
       required: false,
     }),

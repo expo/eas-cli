@@ -1,4 +1,3 @@
-import { Args } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -15,12 +14,13 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 export default class UpdateView extends EasCommand {
   static override description = 'update group details';
 
-  static override args = {
-    groupId: Args.string({
+  static override args = [
+    {
+      name: 'groupId',
       required: true,
       description: 'The ID of an update group.',
-    }),
-  };
+    },
+  ];
 
   static override flags = {
     ...EasJsonOnlyFlag,
