@@ -44,7 +44,7 @@ export default class BuildVersionSyncView extends EasCommand {
     'update a version in native code with a value stored on EAS servers';
 
   public static override flags = {
-    platform: Flags.enum({
+    platform: Flags.string({
       char: 'p',
       options: ['android', 'ios', 'all'],
     }),
