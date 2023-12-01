@@ -1,3 +1,4 @@
+import { Errors } from '@oclif/core';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
@@ -9,6 +10,20 @@ import { EnvironmentSecretFragmentNode } from '../types/EnvironmentSecret';
 export enum EnvironmentSecretScope {
   ACCOUNT = 'account',
   PROJECT = 'project',
+}
+
+export function getEnvironmentSecretScope(
+  environmentSecretScopeString: string
+): EnvironmentSecretScope {
+  const parsedEnvironmentSecretScope = Object.values(EnvironmentSecretScope).find(
+    environmentSecretScope => environmentSecretScope === environmentSecretScopeString
+  );
+  if (!parsedEnvironmentSecretScope) {
+    Errors.error(`"${environmentSecretScopeString}" EnvironmentSecretScope does not exist`, {
+      exit: 1,
+    });
+  }
+  return parsedEnvironmentSecretScope;
 }
 
 export type EnvironmentSecretWithScope = EnvironmentSecretFragment & {
