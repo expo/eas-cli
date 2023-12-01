@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import gql from 'graphql-tag';
 
 import { selectChannelOnAppAsync } from '../../channel/queries';
@@ -19,13 +20,12 @@ export default class ChannelDelete extends EasCommand {
   static override hidden = true;
   static override description = 'Delete a channel';
 
-  static override args = [
-    {
-      name: 'name',
+  static override args = {
+    name: Args.string({
       required: false,
       description: 'Name of the channel to delete',
-    },
-  ];
+    }),
+  };
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,
   };

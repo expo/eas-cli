@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
@@ -8,6 +8,7 @@ import {
   EndOutcome,
   GeneralOptions as EndRolloutGeneralOptions,
   NonInteractiveOptions as EndRolloutNonInteractiveOptions,
+  maybeGetEndOutcome,
 } from '../../rollout/actions/EndRollout';
 import { ManageRolloutActions } from '../../rollout/actions/ManageRollout';
 import { NonInteractiveRollout } from '../../rollout/actions/NonInteractiveRollout';
@@ -26,9 +27,9 @@ enum ActionRawFlagValue {
 }
 type ChannelRolloutRawArgsAndFlags = {
   channel?: string;
-  action?: ActionRawFlagValue;
+  action?: string;
   percent?: number;
-  outcome?: EndOutcome;
+  outcome?: string;
   'non-interactive': boolean;
   branch?: string;
   'runtime-version'?: string;
@@ -49,15 +50,14 @@ type ChannelRolloutArgsAndFlags = {
 export default class ChannelRollout extends EasCommand {
   static override description = 'Roll a new branch out on a channel incrementally.';
 
-  static override args = [
-    {
-      name: 'channel',
+  static override args = {
+    channel: Args.string({
       description: 'channel on which the rollout should be done',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
-    action: Flags.enum({
+    action: Flags.string({
       description: 'Rollout action to perform',
       options: Object.values(ActionRawFlagValue),
       required: false,
@@ -103,7 +103,7 @@ export default class ChannelRollout extends EasCommand {
         'Percent of users to send to the new branch. Use with --action=edit or --action=create',
       required: false,
     }),
-    outcome: Flags.enum({
+    outcome: Flags.string({
       description: 'End outcome of rollout. Use with --action=end',
       options: Object.values(EndOutcome),
       required: false,
@@ -155,7 +155,7 @@ export default class ChannelRollout extends EasCommand {
     }
   }
 
-  private getAction(action: ActionRawFlagValue): RolloutActions {
+  private getAction(action: string): RolloutActions | undefined {
     switch (action) {
       case ActionRawFlagValue.CREATE:
         return MainMenuActions.CREATE_NEW;
@@ -166,6 +166,7 @@ export default class ChannelRollout extends EasCommand {
       case ActionRawFlagValue.VIEW:
         return ManageRolloutActions.VIEW;
     }
+    return undefined;
   }
 
   private sanitizeArgsAndFlags(
@@ -175,7 +176,7 @@ export default class ChannelRollout extends EasCommand {
     return {
       channelName: rawFlags.channel,
       percent: rawFlags.percent,
-      outcome: rawFlags.outcome,
+      outcome: maybeGetEndOutcome(rawFlags.outcome),
       branchNameToRollout: rawFlags.branch,
       runtimeVersion: rawFlags['runtime-version'],
       privateKeyPath: rawFlags['private-key-path'] ?? null,
