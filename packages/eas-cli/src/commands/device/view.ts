@@ -1,5 +1,3 @@
-import { Args } from '@oclif/core';
-
 import EasCommand from '../../commandUtils/EasCommand';
 import { AppleDeviceQuery } from '../../credentials/ios/api/graphql/queries/AppleDeviceQuery';
 import formatDevice from '../../devices/utils/formatDevice';
@@ -10,7 +8,7 @@ import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 export default class DeviceView extends EasCommand {
   static override description = 'view a device for your project';
 
-  static override args = { UDID: Args.string({ name: 'UDID' }) };
+  static override args = [{ name: 'UDID' }];
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
