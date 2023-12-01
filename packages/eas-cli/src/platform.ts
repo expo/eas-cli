@@ -1,5 +1,4 @@
 import { Platform } from '@expo/eas-build-job';
-import { Errors } from '@oclif/core';
 
 import { AppPlatform } from './graphql/generated';
 import { promptAsync } from './prompts';
@@ -19,27 +18,6 @@ export enum RequestedPlatform {
   Android = 'android',
   Ios = 'ios',
   All = 'all',
-}
-
-export function maybeGetRequestedPlatform(
-  requestedPlatformString: string | undefined
-): RequestedPlatform | undefined {
-  if (!requestedPlatformString) {
-    return undefined;
-  }
-  return Object.values(RequestedPlatform).find(
-    requestedPlatform => requestedPlatform === requestedPlatformString
-  );
-}
-
-export function getRequestedPlatform(requestedPlatformString: string): RequestedPlatform {
-  const parsedRequestedPlatform = Object.values(RequestedPlatform).find(
-    requestedPlatform => requestedPlatform === requestedPlatformString
-  );
-  if (!parsedRequestedPlatform) {
-    Errors.error(`"${requestedPlatformString}" RequestedPlatform does not exist`, { exit: 1 });
-  }
-  return parsedRequestedPlatform;
 }
 
 export const requestedPlatformDisplayNames: Record<RequestedPlatform, string> = {
