@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
@@ -83,13 +84,13 @@ export default class BranchDelete extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  static override args = [
-    {
+  static override args = {
+    name: Args.string({
       name: 'name',
       required: false,
       description: 'Name of the branch to delete',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,
