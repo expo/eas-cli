@@ -1,12 +1,7 @@
 import { Flags } from '@oclif/core';
 
 import { BUILDS_LIMIT, listAndRenderBuildsOnAppAsync } from '../../build/queries';
-import {
-  BuildDistributionType,
-  BuildStatus,
-  maybeGetBuildDistributionType,
-  maybeGetBuildStatus,
-} from '../../build/types';
+import { BuildDistributionType, BuildStatus } from '../../build/types';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
@@ -15,79 +10,35 @@ import {
   getPaginatedQueryOptions,
 } from '../../commandUtils/pagination';
 import { AppPlatform, BuildStatus as GraphQLBuildStatus } from '../../graphql/generated';
-import { RequestedPlatform, maybeGetRequestedPlatform } from '../../platform';
+import { RequestedPlatform } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { buildDistributionTypeToGraphQLDistributionType } from '../../utils/buildDistribution';
 import { enableJsonOutput } from '../../utils/json';
-
-interface RawBuildListFlags {
-  platform?: string;
-  status?: string;
-  distribution?: string;
-  channel?: string;
-  appVersion?: string;
-  appBuildVersion?: string;
-  sdkVersion?: string;
-  runtimeVersion?: string;
-  appIdentifier?: string;
-  buildProfile?: string;
-  gitCommitHash?: string;
-  offset?: number;
-  limit?: number;
-  json?: boolean;
-  'non-interactive'?: boolean;
-}
-
-interface BuildListCommandFlags {
-  platform?: RequestedPlatform;
-  status?: BuildStatus;
-  distribution?: BuildDistributionType;
-  channel?: string;
-  appVersion?: string;
-  appBuildVersion?: string;
-  sdkVersion?: string;
-  runtimeVersion?: string;
-  appIdentifier?: string;
-  buildProfile?: string;
-  gitCommitHash?: string;
-  offset?: number;
-  limit?: number;
-  json?: boolean;
-  'non-interactive': boolean;
-}
-
-const PLATFORM_FLAG_OPTIONS = [
-  RequestedPlatform.All,
-  RequestedPlatform.Android,
-  RequestedPlatform.Ios,
-];
-const STATUS_FLAG_OPTIONS = [
-  BuildStatus.NEW,
-  BuildStatus.IN_QUEUE,
-  BuildStatus.IN_PROGRESS,
-  BuildStatus.PENDING_CANCEL,
-  BuildStatus.ERRORED,
-  BuildStatus.FINISHED,
-  BuildStatus.CANCELED,
-];
-const DISTRIBUTION_FLAG_OPTIONS = [
-  BuildDistributionType.STORE,
-  BuildDistributionType.INTERNAL,
-  BuildDistributionType.SIMULATOR,
-];
 
 export default class BuildList extends EasCommand {
   static override description = 'list all builds for your project';
 
   static override flags = {
-    platform: Flags.string({
-      options: PLATFORM_FLAG_OPTIONS,
+    platform: Flags.enum({
+      options: [RequestedPlatform.All, RequestedPlatform.Android, RequestedPlatform.Ios],
     }),
-    status: Flags.string({
-      options: STATUS_FLAG_OPTIONS,
+    status: Flags.enum({
+      options: [
+        BuildStatus.NEW,
+        BuildStatus.IN_QUEUE,
+        BuildStatus.IN_PROGRESS,
+        BuildStatus.PENDING_CANCEL,
+        BuildStatus.ERRORED,
+        BuildStatus.FINISHED,
+        BuildStatus.CANCELED,
+      ],
     }),
-    distribution: Flags.string({
-      options: DISTRIBUTION_FLAG_OPTIONS,
+    distribution: Flags.enum({
+      options: [
+        BuildDistributionType.STORE,
+        BuildDistributionType.INTERNAL,
+        BuildDistributionType.SIMULATOR,
+      ],
     }),
     channel: Flags.string(),
     appVersion: Flags.string(),
@@ -109,8 +60,7 @@ export default class BuildList extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = await this.parse(BuildList);
-    const flags = await this.sanitizeFlagsAsync(rawFlags);
+    const { flags } = await this.parse(BuildList);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     const {
       json: jsonFlag,
@@ -153,16 +103,6 @@ export default class BuildList extends EasCommand {
       },
       paginatedQueryOptions,
     });
-  }
-
-  private async sanitizeFlagsAsync(flags: RawBuildListFlags): Promise<BuildListCommandFlags> {
-    return {
-      ...flags,
-      platform: maybeGetRequestedPlatform(flags.platform),
-      status: maybeGetBuildStatus(flags.status),
-      distribution: maybeGetBuildDistributionType(flags.distribution),
-      'non-interactive': flags['non-interactive'] ?? false,
-    };
   }
 }
 

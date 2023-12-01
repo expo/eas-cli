@@ -1,5 +1,3 @@
-import { Args } from '@oclif/core';
-
 import { formatGraphQLBuild } from '../../build/utils/formatBuild';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
@@ -13,7 +11,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 export default class BuildView extends EasCommand {
   static override description = 'view a build for your project';
 
-  static override args = { BUILD_ID: Args.string() };
+  static override args = [{ name: 'BUILD_ID' }];
 
   static override flags = {
     ...EasJsonOnlyFlag,

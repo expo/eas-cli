@@ -61,7 +61,7 @@ export default class BuildResign extends EasCommand {
   static override description = 're-sign a build archive';
 
   static override flags = {
-    platform: Flags.string({
+    platform: Flags.enum({
       char: 'p',
       options: ['android', 'ios'],
     }),

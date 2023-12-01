@@ -1,4 +1,4 @@
-import { Errors, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
@@ -9,26 +9,8 @@ import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { ora } from '../../ora';
-import { RequestedPlatform, getRequestedPlatform } from '../../platform';
+import { RequestedPlatform } from '../../platform';
 import { getTmpDirectory } from '../../utils/paths';
-
-interface RawInspectFlags {
-  platform: string;
-  profile?: string;
-  stage: string;
-  output: string;
-  force: boolean;
-  verbose: boolean;
-}
-
-interface InspectCommandFlags {
-  platform: RequestedPlatform;
-  profile?: string;
-  stage: InspectStage;
-  output: string;
-  force: boolean;
-  verbose: boolean;
-}
 
 enum InspectStage {
   ARCHIVE = 'archive',
@@ -36,32 +18,19 @@ enum InspectStage {
   POST_BUILD = 'post-build',
 }
 
-function getInspectStage(inspectStageString: string): InspectStage {
-  const parsedInspectStage = Object.values(InspectStage).find(
-    inspectStage => inspectStage === inspectStageString
-  );
-  if (!parsedInspectStage) {
-    Errors.error(`"${inspectStageString}" InspectStage does not exist`, { exit: 1 });
-  }
-  return parsedInspectStage;
-}
-
 const STAGE_DESCRIPTION = `Stage of the build you want to inspect.
     archive - builds the project archive that would be uploaded to EAS when building
     pre-build - prepares the project to be built with Gradle/Xcode. Does not run the native build.
     post-build - builds the native project and leaves the output directory for inspection`;
-
-const PLATFORM_FLAG_OPTIONS = [RequestedPlatform.Android, RequestedPlatform.Ios];
-const STAGE_FLAG_OPTIONS = [InspectStage.ARCHIVE, InspectStage.PRE_BUILD, InspectStage.POST_BUILD];
 
 export default class BuildInspect extends EasCommand {
   static override description =
     'inspect the state of the project at specific build stages, useful for troubleshooting';
 
   static override flags = {
-    platform: Flags.string({
+    platform: Flags.enum({
       char: 'p',
-      options: PLATFORM_FLAG_OPTIONS,
+      options: [RequestedPlatform.Android, RequestedPlatform.Ios],
       required: true,
     }),
     profile: Flags.string({
@@ -70,10 +39,10 @@ export default class BuildInspect extends EasCommand {
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
-    stage: Flags.string({
+    stage: Flags.enum({
       char: 's',
       description: STAGE_DESCRIPTION,
-      options: STAGE_FLAG_OPTIONS,
+      options: [InspectStage.ARCHIVE, InspectStage.PRE_BUILD, InspectStage.POST_BUILD],
       required: true,
     }),
     output: Flags.string({
@@ -101,8 +70,7 @@ export default class BuildInspect extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = await this.parse(BuildInspect);
-    const flags = await this.sanitizeFlagsAsync(rawFlags);
+    const { flags } = await this.parse(BuildInspect);
     const {
       loggedIn: { actor, graphqlClient },
       getDynamicPrivateProjectConfigAsync,
@@ -167,14 +135,6 @@ export default class BuildInspect extends EasCommand {
         await this.copyToOutputDirAsync(path.join(tmpWorkingdir, 'build'), outputDirectory);
       }
     }
-  }
-
-  private async sanitizeFlagsAsync(flags: RawInspectFlags): Promise<InspectCommandFlags> {
-    return {
-      ...flags,
-      platform: getRequestedPlatform(flags.platform),
-      stage: getInspectStage(flags.stage),
-    };
   }
 
   private async prepareOutputDirAsync(outputDir: string, force: boolean): Promise<void> {
