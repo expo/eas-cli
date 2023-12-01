@@ -1,4 +1,3 @@
-import { Args } from '@oclif/core';
 import assert from 'assert';
 
 import {
@@ -13,13 +12,13 @@ import { enableJsonOutput } from '../../utils/json';
 export default class ChannelView extends EasCommand {
   static override description = 'view a channel';
 
-  static override args = {
-    name: Args.string({
+  static override args = [
+    {
       name: 'name',
       required: false,
       description: 'Name of the channel to view',
-    }),
-  };
+    },
+  ];
 
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,

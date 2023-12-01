@@ -1,4 +1,4 @@
-import { Args, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
@@ -54,12 +54,13 @@ export async function updateChannelBranchMappingAsync(
 export default class ChannelEdit extends EasCommand {
   static override description = 'point a channel at a new branch';
 
-  static override args = {
-    name: Args.string({
+  static override args = [
+    {
+      name: 'name',
       required: false,
       description: 'Name of the channel to edit',
-    }),
-  };
+    },
+  ];
 
   static override flags = {
     branch: Flags.string({
