@@ -10,27 +10,14 @@ import { ora } from '../../ora';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { formatWebhook } from '../../webhooks/formatWebhook';
-import { maybeGetWebhookType } from './create';
-
-interface RawWebhookListFlags {
-  event?: string;
-  json?: boolean;
-}
-
-interface WebhookListCommandFlags {
-  event?: WebhookType;
-  json?: boolean;
-}
-
-const EVENT_FLAG_OPTIONS = [WebhookType.Build, WebhookType.Submit];
 
 export default class WebhookList extends EasCommand {
   static override description = 'list webhooks';
 
   static override flags = {
-    event: Flags.string({
+    event: Flags.enum({
       description: 'Event type that triggers the webhook',
-      options: EVENT_FLAG_OPTIONS,
+      options: [WebhookType.Build, WebhookType.Submit],
     }),
     ...EasJsonOnlyFlag,
   };
@@ -41,8 +28,9 @@ export default class WebhookList extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = await this.parse(WebhookList);
-    const { event, json } = await this.sanitizeFlagsAsync(rawFlags);
+    const {
+      flags: { event, json },
+    } = await this.parse(WebhookList);
     if (json) {
       enableJsonOutput();
     }
@@ -83,12 +71,5 @@ export default class WebhookList extends EasCommand {
       );
       throw err;
     }
-  }
-
-  private async sanitizeFlagsAsync(flags: RawWebhookListFlags): Promise<WebhookListCommandFlags> {
-    return {
-      ...flags,
-      event: maybeGetWebhookType(flags.event),
-    };
   }
 }

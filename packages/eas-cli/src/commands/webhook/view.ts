@@ -1,5 +1,3 @@
-import { Args } from '@oclif/core';
-
 import EasCommand from '../../commandUtils/EasCommand';
 import { WebhookQuery } from '../../graphql/queries/WebhookQuery';
 import Log from '../../log';
@@ -9,12 +7,13 @@ import { formatWebhook } from '../../webhooks/formatWebhook';
 export default class WebhookView extends EasCommand {
   static override description = 'view a webhook';
 
-  static override args = {
-    ID: Args.string({
+  static override args = [
+    {
+      name: 'ID',
       required: true,
       description: 'ID of the webhook to view',
-    }),
-  };
+    },
+  ];
 
   static override contextDefinition = {
     ...this.ContextOptions.LoggedIn,
