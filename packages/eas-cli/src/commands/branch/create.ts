@@ -1,4 +1,3 @@
-import { Args } from '@oclif/core';
 import chalk from 'chalk';
 
 import { createUpdateBranchOnAppAsync } from '../../branch/queries';
@@ -13,12 +12,13 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 export default class BranchCreate extends EasCommand {
   static override description = 'create a branch';
 
-  static override args = {
-    name: Args.string({
+  static override args = [
+    {
+      name: 'name',
       required: false,
       description: 'Name of the branch to create',
-    }),
-  };
+    },
+  ];
 
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,
@@ -49,7 +49,7 @@ export default class BranchCreate extends EasCommand {
 
     const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
-    while (!name) {
+    if (!name) {
       const validationMessage = 'Branch name may not be empty.';
       if (nonInteractive) {
         throw new Error(validationMessage);
