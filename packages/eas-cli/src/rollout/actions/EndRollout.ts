@@ -29,6 +29,13 @@ export enum EndOutcome {
   REVERT = 'revert',
 }
 
+export function maybeGetEndOutcome(endOutcomeString: string | undefined): EndOutcome | undefined {
+  if (!endOutcomeString) {
+    return undefined;
+  }
+  return Object.values(EndOutcome).find(endOutcome => endOutcome === endOutcomeString);
+}
+
 export type GeneralOptions = {
   privateKeyPath: string | null;
 };
