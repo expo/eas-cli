@@ -7,13 +7,38 @@ import { WebhookMutation } from '../../graphql/mutations/WebhookMutation';
 import { ora } from '../../ora';
 import { prepareInputParamsAsync } from '../../webhooks/input';
 
+interface RawWebhookCreateFlags {
+  event?: string;
+  url?: string;
+  secret?: string;
+  'non-interactive'?: boolean;
+}
+
+interface WebhookCreateCommandFlags {
+  event?: WebhookType;
+  url?: string;
+  secret?: string;
+  'non-interactive': boolean;
+}
+
+export function maybeGetWebhookType(
+  webhookTypeString: string | undefined
+): WebhookType | undefined {
+  if (!webhookTypeString) {
+    return undefined;
+  }
+  return Object.values(WebhookType).find(webhookType => webhookType === webhookTypeString);
+}
+
+const EVENT_FLAG_OPTIONS = [WebhookType.Build, WebhookType.Submit];
+
 export default class WebhookCreate extends EasCommand {
   static override description = 'create a webhook';
 
   static override flags = {
-    event: Flags.enum({
+    event: Flags.string({
       description: 'Event type that triggers the webhook',
-      options: [WebhookType.Build, WebhookType.Submit],
+      options: EVENT_FLAG_OPTIONS,
     }),
     url: Flags.string({
       description: 'Webhook URL',
@@ -31,7 +56,8 @@ export default class WebhookCreate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(WebhookCreate);
+    const { flags: rawFlags } = await this.parse(WebhookCreate);
+    const flags = await this.sanitizeFlagsAsync(rawFlags);
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
@@ -48,5 +74,15 @@ export default class WebhookCreate extends EasCommand {
       spinner.fail('Failed to create a webhook');
       throw err;
     }
+  }
+
+  private async sanitizeFlagsAsync(
+    flags: RawWebhookCreateFlags
+  ): Promise<WebhookCreateCommandFlags> {
+    return {
+      ...flags,
+      event: maybeGetWebhookType(flags.event),
+      'non-interactive': flags['non-interactive'] ?? false,
+    };
   }
 }
