@@ -1,3 +1,4 @@
+import { Config } from '@oclif/core';
 import { CombinedError } from '@urql/core';
 import { GraphQLError } from 'graphql/error';
 import { v4 as uuidv4 } from 'uuid';
@@ -42,14 +43,13 @@ beforeEach(() => {
   jest.mocked(createAnalyticsAsync).mockResolvedValue(analytics);
 });
 
-const createTestEasCommand = (): typeof EasCommand => {
-  class TestEasCommand extends EasCommand {
-    async runAsync(): Promise<void> {}
+class TestEasCommand extends EasCommand {
+  async runAsync(): Promise<void> {}
+  constructor() {
+    super([], {} as Config);
+    this.id = 'testEasCommand';
   }
-
-  TestEasCommand.id = 'testEasCommand'; // normally oclif will assign ids, but b/c this is located outside the commands folder it will not
-  return TestEasCommand;
-};
+}
 
 describe(EasCommand.name, () => {
   describe('without exceptions', () => {
@@ -61,30 +61,30 @@ describe(EasCommand.name, () => {
     // See https://github.com/oclif/command/blob/master/src/command.ts#L80
     // and look for "Config.load"
     it('ensures the user data is read', async () => {
-      const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      const testEasCommand = new TestEasCommand();
+      await testEasCommand.run();
 
       const sessionManagerSpy = jest.spyOn(SessionManager.prototype, 'getUserAsync');
       expect(sessionManagerSpy).toBeCalledTimes(1);
     }, 30_000);
 
     it('initializes analytics', async () => {
-      const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      const testEasCommand = new TestEasCommand();
+      await testEasCommand.run();
 
       expect(createAnalyticsAsync).toHaveBeenCalled();
     });
 
     it('flushes analytics', async () => {
-      const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      const testEasCommand = new TestEasCommand();
+      await testEasCommand.run();
 
       expect(analytics.flushAsync).toHaveBeenCalled();
     });
 
     it('logs events', async () => {
-      const TestEasCommand = createTestEasCommand();
-      await TestEasCommand.run();
+      const testEasCommand = new TestEasCommand();
+      await testEasCommand.run();
 
       expect(analytics.logEvent).toHaveBeenCalledWith('action', {
         action: `eas ${TestEasCommand.id}`,
@@ -94,9 +94,9 @@ describe(EasCommand.name, () => {
 
   describe('after exceptions', () => {
     it('flushes analytics', async () => {
-      const TestEasCommand = createTestEasCommand();
+      const testEasCommand = new TestEasCommand();
       try {
-        await TestEasCommand.run().then(() => {
+        await testEasCommand.run().then(() => {
           throw new Error('foo');
         });
       } catch {}
@@ -106,7 +106,7 @@ describe(EasCommand.name, () => {
 
     describe('catch', () => {
       it('logs the message', async () => {
-        const TestEasCommand = createTestEasCommand();
+        const testEasCommand = new TestEasCommand();
         const logErrorSpy = jest.spyOn(Log, 'error');
         const logDebugSpy = jest.spyOn(Log, 'debug');
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
@@ -115,7 +115,7 @@ describe(EasCommand.name, () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await testEasCommand.run();
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith('Unexpected, internal error message');
@@ -123,7 +123,7 @@ describe(EasCommand.name, () => {
       });
 
       it('logs the cleaned message if needed', async () => {
-        const TestEasCommand = createTestEasCommand();
+        const testEasCommand = new TestEasCommand();
         const logErrorSpy = jest.spyOn(Log, 'error');
         const logDebugSpy = jest.spyOn(Log, 'debug');
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
@@ -133,7 +133,7 @@ describe(EasCommand.name, () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await testEasCommand.run();
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith('Unexpected GraphQL error message');
@@ -141,7 +141,7 @@ describe(EasCommand.name, () => {
       });
 
       it('logs the cleaned message with request ID if present', async () => {
-        const TestEasCommand = createTestEasCommand();
+        const testEasCommand = new TestEasCommand();
         const logErrorSpy = jest.spyOn(Log, 'error');
         const logDebugSpy = jest.spyOn(Log, 'debug');
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
@@ -163,7 +163,7 @@ describe(EasCommand.name, () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await testEasCommand.run();
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith(
@@ -173,7 +173,7 @@ describe(EasCommand.name, () => {
       });
 
       it('logs the cleaned messages with request IDs if multiple GraphQL errors present', async () => {
-        const TestEasCommand = createTestEasCommand();
+        const testEasCommand = new TestEasCommand();
         const logErrorSpy = jest.spyOn(Log, 'error');
         const logDebugSpy = jest.spyOn(Log, 'debug');
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
@@ -196,7 +196,7 @@ describe(EasCommand.name, () => {
           throw error;
         });
         try {
-          await TestEasCommand.run();
+          await testEasCommand.run();
         } catch {}
 
         expect(logErrorSpy).toBeCalledWith(
@@ -211,13 +211,13 @@ describe(EasCommand.name, () => {
       });
 
       it('re-throws the error with default base message', async () => {
-        const TestEasCommand = createTestEasCommand();
+        const testEasCommand = new TestEasCommand();
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
         runAsyncMock.mockImplementation(() => {
           throw new Error('Error message');
         });
         try {
-          await TestEasCommand.run();
+          await testEasCommand.run();
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
           expect((caughtError as Error).message).toEqual('testEasCommand command failed.');
@@ -225,14 +225,14 @@ describe(EasCommand.name, () => {
       });
 
       it('re-throws the error with a different default base message in case of CombinedError', async () => {
-        const TestEasCommand = createTestEasCommand();
+        const testEasCommand = new TestEasCommand();
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
         runAsyncMock.mockImplementation(() => {
           const graphQLErrors = ['Unexpected GraphQL error message'];
           throw new CombinedError({ graphQLErrors });
         });
         try {
-          await TestEasCommand.run();
+          await testEasCommand.run();
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
           expect((caughtError as Error).message).toEqual('GraphQL request failed.');
@@ -240,7 +240,7 @@ describe(EasCommand.name, () => {
       });
 
       it('re-throws the error with a different default base message in case of CombinedError with multiple GraphQLErrors', async () => {
-        const TestEasCommand = createTestEasCommand();
+        const testEasCommand = new TestEasCommand();
         const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
         runAsyncMock.mockImplementation(() => {
           const graphQLErrors = [
@@ -260,7 +260,7 @@ describe(EasCommand.name, () => {
           throw new CombinedError({ graphQLErrors });
         });
         try {
-          await TestEasCommand.run();
+          await testEasCommand.run();
         } catch (caughtError) {
           expect(caughtError).toBeInstanceOf(Error);
           expect((caughtError as Error).message).toEqual('GraphQL request failed.');
