@@ -223,7 +223,7 @@ jobs:
           SLACK_USERNAME: 'EAS CLI CI'
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_FOOTER: ''
-  open-pr-in-turtle-v2:
+  open-pr-in-universe:
     name: Open a PR with `@expo/eas-json` bump in universe
     needs: publish-to-npm
     runs-on: ubuntu-latest
