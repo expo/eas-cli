@@ -13,6 +13,8 @@ jobs:
       matrix:
         node: ['14', '16', '18']
         include:
+          - node: '16'
+            lint-changelog: true
           - node: '18'
             coverage: true
     name: Test with Node ${{ matrix.node }}
@@ -42,6 +44,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
       - run: yarn lint-changelog
+        if: ${{ matrix.lint-changelog }}
 
   notify-slack:
     runs-on: ubuntu-latest
