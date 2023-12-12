@@ -334,7 +334,6 @@ async function prepareAndStartBuildAsync({
   );
   if (buildProfile.profile.channel) {
     await validateExpoUpdatesInstalledAsProjectDependencyAsync({
-      graphqlClient,
       exp: buildCtx.exp,
       projectId: buildCtx.projectId,
       projectDir,
@@ -479,7 +478,6 @@ async function maybeDownloadAndRunSimulatorBuildsAsync(
 
 async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
   exp,
-  graphqlClient,
   projectId,
   projectDir,
   vcsClient,
@@ -487,7 +485,6 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
   nonInteractive,
   sdkVersion,
 }: {
-  graphqlClient: ExpoGraphqlClient;
   exp: ExpoConfig;
   projectId: string;
   projectDir: string;
@@ -516,7 +513,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
       message: `Would you like to install the "expo-updates" package and configure EAS Update now?`,
     });
     if (installExpoUpdates) {
-      await ensureEASUpdateIsConfiguredAsync(graphqlClient, {
+      await ensureEASUpdateIsConfiguredAsync({
         exp,
         projectId,
         projectDir,

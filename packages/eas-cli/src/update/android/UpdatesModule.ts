@@ -1,31 +1,25 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidConfig, AndroidManifest, XML } from '@expo/config-plugins';
 
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { RequestedPlatform } from '../../platform';
-import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { ensureValidVersions } from '../utils';
 
 /**
  * Synchronize updates configuration to native files. This needs to do essentially the same thing as `withUpdates`
  */
 export async function syncUpdatesConfigurationAsync(
-  graphqlClient: ExpoGraphqlClient,
   projectDir: string,
-  exp: ExpoConfig,
-  projectId: string
+  exp: ExpoConfig
 ): Promise<void> {
   ensureValidVersions(exp, RequestedPlatform.Android);
-  const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
 
   // sync AndroidManifest.xml
   const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
   const androidManifest = await getAndroidManifestAsync(projectDir);
-  const updatedAndroidManifest = AndroidConfig.Updates.setUpdatesConfig(
+  const updatedAndroidManifest = await AndroidConfig.Updates.setUpdatesConfigAsync(
     projectDir,
     exp,
-    androidManifest,
-    accountName
+    androidManifest
   );
   await AndroidConfig.Manifest.writeAndroidManifestAsync(
     androidManifestPath,
@@ -37,10 +31,13 @@ export async function syncUpdatesConfigurationAsync(
   const stringsResourceXML = await AndroidConfig.Resources.readResourcesXMLAsync({
     path: stringsJSONPath,
   });
-  const updatedStringsResourceXML = AndroidConfig.Updates.applyRuntimeVersionFromConfig(
-    exp,
-    stringsResourceXML
-  );
+
+  const updatedStringsResourceXML =
+    await AndroidConfig.Updates.applyRuntimeVersionFromConfigForProjectRootAsync(
+      projectDir,
+      exp,
+      stringsResourceXML
+    );
   await XML.writeXMLAsync({ path: stringsJSONPath, xml: updatedStringsResourceXML });
 }
 

@@ -11,10 +11,7 @@ import { isExpoUpdatesInstalled, isUsingEASUpdate } from '../../project/projectU
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
-import {
-  ensureEASUpdateIsConfiguredInEasJsonAsync,
-  ensureUseClassicUpdatesIsRemovedAsync,
-} from '../../update/configure';
+import { ensureEASUpdateIsConfiguredInEasJsonAsync } from '../../update/configure';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
 
 export default class BuildConfigure extends EasCommand {
@@ -38,7 +35,6 @@ export default class BuildConfigure extends EasCommand {
     const { flags } = await this.parse(BuildConfigure);
     const {
       privateProjectConfig: { exp, projectId, projectDir },
-      loggedIn: { graphqlClient },
       vcsClient,
     } = await this.getContextAsync(BuildConfigure, {
       nonInteractive: false,
@@ -70,12 +66,6 @@ export default class BuildConfigure extends EasCommand {
       vcsClient,
     });
     if (didCreateEasJson && isUsingEASUpdate(exp, projectId)) {
-      if (exp.updates?.useClassicUpdates) {
-        // NOTE: this method modifies the Expo config; be sure to use this function's return value
-        // if the config object is used later in the future
-        await ensureUseClassicUpdatesIsRemovedAsync({ exp, projectDir });
-      }
-
       await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
     }
 
@@ -84,20 +74,14 @@ export default class BuildConfigure extends EasCommand {
       if ([RequestedPlatform.Android, RequestedPlatform.All].includes(platform)) {
         const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
         if (workflow === Workflow.GENERIC) {
-          await syncAndroidUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
+          await syncAndroidUpdatesConfigurationAsync(projectDir, exp);
         }
       }
 
       if ([RequestedPlatform.Ios, RequestedPlatform.All].includes(platform)) {
         const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
         if (workflow === Workflow.GENERIC) {
-          await syncIosUpdatesConfigurationAsync(
-            graphqlClient,
-            vcsClient,
-            projectDir,
-            exp,
-            projectId
-          );
+          await syncIosUpdatesConfigurationAsync(vcsClient, projectDir, exp);
         }
       }
     }

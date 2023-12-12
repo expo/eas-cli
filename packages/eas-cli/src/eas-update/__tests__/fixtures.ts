@@ -5,6 +5,6 @@ export function createCtxMock(options: { nonInteractive?: boolean } = {}): EASUp
   return {
     graphqlClient: jest.fn() as any,
     nonInteractive: options.nonInteractive ?? false,
-    app: { exp: testAppJson, projectId: 'test-project-id' },
+    app: { exp: testAppJson, projectId: 'test-project-id', projectDir: '/' },
   };
 }

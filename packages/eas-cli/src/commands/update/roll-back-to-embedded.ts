@@ -148,7 +148,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
-    await ensureEASUpdateIsConfiguredAsync(graphqlClient, {
+    await ensureEASUpdateIsConfiguredAsync({
       exp: expPossiblyWithoutEasUpdateConfigured,
       platform: getRequestedPlatform(platformFlag),
       projectDir,

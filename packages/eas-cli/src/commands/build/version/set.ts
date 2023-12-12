@@ -1,4 +1,4 @@
-import { getRuntimeVersionNullable } from '@expo/config-plugins/build/utils/Updates';
+import { getRuntimeVersionNullableAsync } from '@expo/config-plugins/build/utils/Updates';
 import { Platform } from '@expo/eas-build-job';
 import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
@@ -116,7 +116,8 @@ export default class BuildVersionSetView extends EasCommand {
       applicationIdentifier,
       storeVersion: exp.version ?? '1.0.0',
       buildVersion: String(version),
-      runtimeVersion: getRuntimeVersionNullable(exp, platform) ?? undefined,
+      runtimeVersion:
+        (await getRuntimeVersionNullableAsync(projectDir, exp, platform)) ?? undefined,
     });
   }
 }
