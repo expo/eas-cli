@@ -5,14 +5,21 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
+import { Client } from '../vcs/vcs';
+
 export interface CustomBuildConfigMetadata {
   workflowName?: string;
 }
 
-export async function validateCustomBuildConfigAsync(
-  projectDir: string,
-  profile: BuildProfile<Platform>
-): Promise<CustomBuildConfigMetadata | undefined> {
+export async function validateCustomBuildConfigAsync({
+  profile,
+  projectDir,
+  vcsClient,
+}: {
+  projectDir: string;
+  profile: BuildProfile<Platform>;
+  vcsClient: Client;
+}): Promise<CustomBuildConfigMetadata | undefined> {
   if (!profile.config) {
     return undefined;
   }
@@ -22,6 +29,13 @@ export async function validateCustomBuildConfigAsync(
   if (!(await fs.pathExists(configPath))) {
     throw new Error(
       `Custom build configuration file ${chalk.bold(relativeConfigPath)} does not exist.`
+    );
+  }
+  if (await vcsClient.isFileIgnoredAsync(relativeConfigPath)) {
+    throw new Error(
+      `Custom build configuration file ${chalk.bold(
+        relativeConfigPath
+      )} is ignored by your version control system. Remove it from the ignore list to successfully create custom build.`
     );
   }
 

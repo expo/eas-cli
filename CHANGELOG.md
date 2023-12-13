@@ -12,6 +12,50 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Throw error if custom build config is gitignored. ([#2123](https://github.com/expo/eas-cli/pull/2123) by [@szdziedzic](https://github.com/szdziedzic))
+- Update `@expo/steps` library to `1.0.51`. ([#2130](https://github.com/expo/eas-cli/pull/2130) by [@szdziedzic](https://github.com/szdziedzic))
+- Update `eas.schema.json` to include changes after some of our images were migrated from Ubuntu 18.04 to Ubuntu 20.04. ([#2137](https://github.com/expo/eas-cli/pull/2137) by [@szdziedzic](https://github.com/szdziedzic))
+- Update oclif dependencies. ([#2008](https://github.com/expo/eas-cli/pull/2008) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Upgrade `eas-build-job` and unify how we're handling `buildMode`. ([#2138](https://github.com/expo/eas-cli/pull/2138) by [@sjchmiela](https://github.com/sjchmiela))
+
+## [5.9.1](https://github.com/expo/eas-cli/releases/tag/v5.9.1) - 2023-11-20
+
+### 🐛 Bug fixes
+
+- Don't ask a user to install the dev client if running in non-interactive mode. ([#2124](https://github.com/expo/eas-cli/pull/2124) by [@szdziedzic](https://github.com/szdziedzic))
+- Always refresh existing provisioning profile before use. ([#2125](https://github.com/expo/eas-cli/pull/2125) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
+## [5.9.0](https://github.com/expo/eas-cli/releases/tag/v5.9.0) - 2023-11-15
+
+### 🎉 New features
+
+- Add `--profile` flag to `eas build:run` command. ([#2035](https://github.com/expo/eas-cli/pull/2035) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [5.8.0](https://github.com/expo/eas-cli/releases/tag/v5.8.0) - 2023-11-13
+
+### 🎉 New features
+
+- Move channel:rollout out of developer preview. ([#2114](https://github.com/expo/eas-cli/pull/2114) by [@quinlanj](https://github.com/quinlanj))
+
+### 🐛 Bug fixes
+
+- Fixed provisioning of new devices into an existing profile. ([#2119](https://github.com/expo/eas-cli/pull/2119) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
+### 🧹 Chores
+
+- Update `@expo/package-manager` to `1.1.2` to change package manager resolution order. ([#2118](https://github.com/expo/eas-cli/pull/2118) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [5.7.0](https://github.com/expo/eas-cli/releases/tag/v5.7.0) - 2023-11-08
+
+### 🎉 New features
+
+- Add `EXPO_APPLE_TEAM_ID` and `EXPO_APPLE_PROVIDER_ID` support. ([#2091](https://github.com/expo/eas-cli/pull/2091) by [@EvanBacon](https://github.com/EvanBacon))
+
+### 🧹 Chores
+
+- Add link to SDK upgrade page for SDK-gated command error. ([#2106](https://github.com/expo/eas-cli/pull/2106) by [@wschurman](https://github.com/wschurman))
+- Add `selectedImage` and `customNodeVersion` information to build metadata. ([#2113](https://github.com/expo/eas-cli/pull/2113) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [5.6.0](https://github.com/expo/eas-cli/releases/tag/v5.6.0) - 2023-10-27
 
 ### 🎉 New features

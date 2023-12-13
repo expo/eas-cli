@@ -5,6 +5,7 @@ import nullthrows from 'nullthrows';
 
 import DeviceCreateAction, { RegistrationMethod } from '../../../devices/actions/create/action';
 import {
+  AppleAppIdentifierFragment,
   AppleDeviceFragment,
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
@@ -19,6 +20,7 @@ import differenceBy from '../../../utils/expodash/differenceBy';
 import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
+import { ProvisioningProfile } from '../appstore/Credentials.types';
 import { ApplePlatform } from '../appstore/constants';
 import { Target } from '../types';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
@@ -144,27 +146,15 @@ export class SetUpAdhocProvisioningProfile {
       app,
       appleTeam
     );
-    let appleProvisioningProfile: AppleProvisioningProfileFragment | null = null;
+    let appleProvisioningProfile: AppleProvisioningProfileFragment | null;
     if (currentBuildCredentials?.provisioningProfile) {
-      if (
-        currentBuildCredentials.provisioningProfile.developerPortalIdentifier !==
-        provisioningProfileStoreInfo.provisioningProfileId
-      ) {
-        await ctx.ios.deleteProvisioningProfilesAsync(ctx.graphqlClient, [
-          currentBuildCredentials.provisioningProfile.id,
-        ]);
-        appleProvisioningProfile = await ctx.ios.createProvisioningProfileAsync(
-          ctx.graphqlClient,
-          app,
-          appleAppIdentifier,
-          {
-            appleProvisioningProfile: provisioningProfileStoreInfo.provisioningProfile,
-            developerPortalIdentifier: provisioningProfileStoreInfo.provisioningProfileId,
-          }
-        );
-      } else {
-        appleProvisioningProfile = currentBuildCredentials.provisioningProfile;
-      }
+      appleProvisioningProfile = await this.reuseCurrentProvisioningProfileAsync(
+        currentBuildCredentials.provisioningProfile,
+        provisioningProfileStoreInfo,
+        ctx,
+        app,
+        appleAppIdentifier
+      );
     } else {
       appleProvisioningProfile = await ctx.ios.createProvisioningProfileAsync(
         ctx.graphqlClient,
@@ -183,7 +173,7 @@ export class SetUpAdhocProvisioningProfile {
       appleProvisioningProfile.appleDevices,
       'identifier'
     );
-    if (diffList && diffList.length > 0) {
+    if (diffList.length > 0) {
       Log.warn(`Failed to provision ${diffList.length} of the selected devices:`);
       for (const missingDevice of diffList) {
         Log.warn(`- ${formatDeviceLabel(missingDevice)}`);
@@ -203,6 +193,43 @@ export class SetUpAdhocProvisioningProfile {
       appleProvisioningProfile,
       appleTeam
     );
+  }
+
+  private async reuseCurrentProvisioningProfileAsync(
+    currentProvisioningProfile: AppleProvisioningProfileFragment,
+    provisioningProfileStoreInfo: ProvisioningProfile,
+    ctx: CredentialsContext,
+    app: AppLookupParams,
+    appleAppIdentifier: AppleAppIdentifierFragment
+  ): Promise<AppleProvisioningProfileFragment> {
+    if (
+      currentProvisioningProfile.developerPortalIdentifier !==
+      provisioningProfileStoreInfo.provisioningProfileId
+    ) {
+      // If IDs don't match, the profile needs to be deleted and re-created
+      await ctx.ios.deleteProvisioningProfilesAsync(ctx.graphqlClient, [
+        currentProvisioningProfile.id,
+      ]);
+      return await ctx.ios.createProvisioningProfileAsync(
+        ctx.graphqlClient,
+        app,
+        appleAppIdentifier,
+        {
+          appleProvisioningProfile: provisioningProfileStoreInfo.provisioningProfile,
+          developerPortalIdentifier: provisioningProfileStoreInfo.provisioningProfileId,
+        }
+      );
+    } else {
+      // If not, the profile needs to be updated first
+      return await ctx.ios.updateProvisioningProfileAsync(
+        ctx.graphqlClient,
+        currentProvisioningProfile.id,
+        {
+          appleProvisioningProfile: provisioningProfileStoreInfo.provisioningProfile,
+          developerPortalIdentifier: provisioningProfileStoreInfo.provisioningProfileId,
+        }
+      );
+    }
   }
 
   private async areBuildCredentialsSetupAsync(ctx: CredentialsContext): Promise<boolean> {

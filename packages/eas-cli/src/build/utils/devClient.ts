@@ -57,6 +57,19 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
       'expo-dev-client'
     )} installed for your project.`
   );
+  if (nonInteractive) {
+    Log.error(`You'll need to install ${chalk.bold('expo-dev-client')} manually.`);
+    Log.error(
+      learnMore('https://docs.expo.dev/clients/installation/', {
+        learnMoreMessage: 'See installation instructions on how to do it.',
+        dim: false,
+      })
+    );
+    Errors.error(`Install ${chalk.bold('expo-dev-client')} manually and try again later.`, {
+      exit: 1,
+    });
+  }
+
   const areAllManaged = workflowPerPlatformList.every(i => i === Workflow.MANAGED);
   if (areAllManaged) {
     const install = await confirmAsync({

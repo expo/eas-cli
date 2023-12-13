@@ -1,18 +1,20 @@
 import {
   ArchiveSource,
   ArchiveSourceType,
+  BuildMode,
   BuildTrigger,
   Metadata,
   Workflow,
 } from '@expo/eas-build-job';
+import assert from 'assert';
 
 import {
   BuildCredentialsSource,
   BuildIosEnterpriseProvisioning,
   BuildMetadataInput,
-  BuildMode,
   BuildWorkflow,
   DistributionType,
+  BuildMode as GraphQLBuildMode,
   BuildTrigger as GraphQLBuildTrigger,
   ProjectArchiveSourceInput,
   ProjectArchiveSourceType,
@@ -42,7 +44,6 @@ export function transformProjectArchive(archiveSource: ArchiveSource): ProjectAr
 export function transformMetadata(metadata: Metadata): BuildMetadataInput {
   return {
     ...metadata,
-    buildMode: metadata.buildMode && transformBuildMode(metadata.buildMode),
     credentialsSource:
       metadata.credentialsSource && transformCredentialsSource(metadata.credentialsSource),
     distribution: metadata.distribution && transformDistribution(metadata.distribution),
@@ -91,17 +92,16 @@ export function transformIosEnterpriseProvisioning(
   }
 }
 
-// TODO: check what in metadata
-export function transformBuildMode(buildMode: string): BuildMode {
-  if (buildMode === 'build') {
-    return BuildMode.Build;
-  } else if (buildMode === 'resign') {
-    return BuildMode.Resign;
-  } else if (buildMode === 'custom') {
-    return BuildMode.Custom;
-  } else {
-    throw new Error(`Unsupported build mode: ${buildMode}`);
-  }
+const buildModeToGraphQLBuildMode: Record<BuildMode, GraphQLBuildMode> = {
+  [BuildMode.BUILD]: GraphQLBuildMode.Build,
+  [BuildMode.CUSTOM]: GraphQLBuildMode.Custom,
+  [BuildMode.RESIGN]: GraphQLBuildMode.Resign,
+};
+
+export function transformBuildMode(buildMode: BuildMode): GraphQLBuildMode {
+  const graphQLBuildMode = buildModeToGraphQLBuildMode[buildMode];
+  assert(graphQLBuildMode, `Unsupported build mode: ${buildMode}`);
+  return graphQLBuildMode;
 }
 
 export function transformBuildTrigger(buildTrigger: BuildTrigger): GraphQLBuildTrigger {
