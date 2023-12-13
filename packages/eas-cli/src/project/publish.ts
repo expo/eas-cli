@@ -631,32 +631,38 @@ export async function getUpdateMessageForCommandAsync(
     nonInteractive: boolean;
     jsonFlag: boolean;
   }
-): Promise<string> {
+): Promise<string | undefined> {
   let updateMessage = updateMessageArg;
   if (!updateMessageArg && autoFlag) {
     updateMessage = (await vcsClient.getLastCommitMessageAsync())?.trim();
   }
 
   if (!updateMessage) {
-    if (nonInteractive) {
-      throw new Error('Must supply --message or use --auto when in non-interactive mode');
+    if (nonInteractive || jsonFlag) {
+      if (vcsClient.canGetLastCommitMessage()) {
+        throw new Error(
+          'Must supply --message or use --auto when in non-interactive mode and VCS is available'
+        );
+      }
+      return undefined;
     }
 
-    const validationMessage = 'publish message may not be empty.';
-    if (jsonFlag) {
-      throw new Error(validationMessage);
-    }
     const { updateMessageLocal } = await promptAsync({
       type: 'text',
       name: 'updateMessageLocal',
       message: `Provide an update message:`,
       initial: (await vcsClient.getLastCommitMessageAsync())?.trim(),
-      validate: (value: any) => (value ? true : validationMessage),
     });
+    if (!updateMessageLocal) {
+      return undefined;
+    }
+
     updateMessage = updateMessageLocal;
   }
 
-  assert(updateMessage, 'Update message must be specified.');
+  if (!updateMessage) {
+    return undefined;
+  }
 
   const truncatedMessage = truncateUpdateMessage(updateMessage, 1024);
   if (truncatedMessage !== updateMessage) {

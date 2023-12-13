@@ -217,6 +217,10 @@ export default class GitClient extends Client {
       return false;
     }
   }
+
+  public override canGetLastCommitMessage(): boolean {
+    return true;
+  }
 }
 
 async function ensureGitConfiguredAsync({

@@ -16,4 +16,8 @@ export default class NoVcsClient extends Client {
     await ignore.initIgnoreAsync();
     return ignore.ignores(filePath);
   }
+
+  public override canGetLastCommitMessage(): boolean {
+    return true;
+  }
 }
