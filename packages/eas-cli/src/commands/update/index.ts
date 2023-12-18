@@ -40,7 +40,7 @@ import {
   uploadAssetsAsync,
 } from '../../project/publish';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
-import { getUpdateGroupJsonInfo } from '../../update/utils';
+import { getUpdatesJsonInfo } from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -469,7 +469,7 @@ export default class UpdatePublish extends EasCommand {
     }
 
     if (jsonFlag) {
-      printJsonOnlyOutput(getUpdateGroupJsonInfo(newUpdates));
+      printJsonOnlyOutput(getUpdatesJsonInfo(newUpdates));
     } else {
       if (new Set(newUpdates.map(update => update.group)).size > 1) {
         Log.addNewLineIfNone();
