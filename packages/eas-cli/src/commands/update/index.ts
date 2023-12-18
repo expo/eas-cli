@@ -35,6 +35,7 @@ import {
   getRuntimeVersionObjectAsync,
   getUpdateMessageForCommandAsync,
   isUploadedAssetCountAboveWarningThreshold,
+  patchEasMetadataAsync,
   platformDisplayNames,
   resolveInputDirectoryAsync,
   uploadAssetsAsync,
@@ -468,6 +469,9 @@ export default class UpdatePublish extends EasCommand {
       throw e;
     }
 
+    if (!skipBundler) {
+      await patchEasMetadataAsync(distRoot, getUpdatesJsonInfo(newUpdates));
+    }
     if (jsonFlag) {
       printJsonOnlyOutput(getUpdateJsonInfosForUpdates(newUpdates));
     } else {

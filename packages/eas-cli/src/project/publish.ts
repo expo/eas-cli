@@ -12,6 +12,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
+import { resolveWorkflowAsync } from './workflow';
 import { selectBranchOnAppAsync } from '../branch/queries';
 import { getDefaultBranchNameAsync } from '../branch/utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -23,7 +24,11 @@ import Log, { learnMore } from '../log';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../platform';
 import { promptAsync } from '../prompts';
 import { getBranchNameFromChannelNameAsync } from '../update/getBranchNameFromChannelNameAsync';
-import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../update/utils';
+import {
+  UpdateJsonInfo,
+  formatUpdateMessage,
+  truncateString as truncateUpdateMessage,
+} from '../update/utils';
 import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
 import {
   expoCommandAsync,
@@ -34,7 +39,6 @@ import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
 import uniqBy from '../utils/expodash/uniqBy';
 import { Client } from '../vcs/vcs';
-import { resolveWorkflowAsync } from './workflow';
 
 export type ExpoCLIExportPlatformFlag = Platform | 'all';
 
@@ -44,6 +48,7 @@ type Metadata = {
   fileMetadata: {
     [key in Platform]: { assets: { path: string; ext: string }[]; bundle: string };
   };
+  easMetadata: UpdateJsonInfo[];
 };
 export type RawAsset = {
   fileExtension?: string;
@@ -97,6 +102,7 @@ export const MetadataJoi = Joi.object({
     ios: fileMetadataJoi,
     web: fileMetadataJoi,
   }).required(),
+  easMetadata: Joi.array().optional(),
 }).required();
 
 export function guessContentTypeFromExtension(ext?: string): string {
@@ -292,6 +298,14 @@ export function loadMetadata(distRoot: string): Metadata {
   }
   Log.debug(`Loaded ${platforms.length} platform(s): ${platforms.join(', ')}`);
   return metadata;
+}
+
+export async function patchEasMetadataAsync(
+  distRoot: string,
+  metadata: UpdateJsonInfo[]
+): Promise<void> {
+  const metadataPath = path.join(distRoot, 'metadata.json');
+  await JsonFile.setAsync(metadataPath, 'easMetadata', metadata);
 }
 
 export function filterExportedPlatformsByFlag<T extends Partial<Record<Platform, any>>>(
