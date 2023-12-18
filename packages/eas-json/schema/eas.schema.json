@@ -366,7 +366,7 @@
                 "macos-monterey-12.6-xcode-14.0"
               ],
               "markdownEnumDescriptions": [
-                "`macos-ventura-13.6-xcode-15.0`",
+                "`macos-ventura-13.4-xcode-14.3.1`",
                 "`macos-ventura-13.6-xcode-15.1`"
               ]
             },
