@@ -7,7 +7,7 @@ import Log from '../../log';
 import {
   formatUpdateGroup,
   getUpdateGroupDescriptions,
-  getUpdatesJsonInfo,
+  getUpdateJsonInfosForUpdates,
 } from '../../update/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -47,7 +47,7 @@ export default class UpdateView extends EasCommand {
     const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, { groupId });
 
     if (jsonFlag) {
-      printJsonOnlyOutput(getUpdatesJsonInfo(updatesByGroup));
+      printJsonOnlyOutput(getUpdateJsonInfosForUpdates(updatesByGroup));
     } else {
       const [updateGroupDescription] = getUpdateGroupDescriptions([updatesByGroup]);
 

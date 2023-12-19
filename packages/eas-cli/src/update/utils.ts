@@ -201,7 +201,7 @@ export function formatUpdateTitle(update: UpdateFragment): string {
   )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
 }
 
-export function getUpdatesJsonInfo(updates: UpdateFragment[]): UpdateJsonInfo[] {
+export function getUpdateJsonInfosForUpdates(updates: UpdateFragment[]): UpdateJsonInfo[] {
   return updates.map(update => ({
     id: update.id,
     createdAt: update.createdAt,
