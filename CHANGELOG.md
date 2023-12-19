@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [5.9.3](https://github.com/expo/eas-cli/releases/tag/v5.9.3) - 2023-12-19
+
+### 🧹 Chores
+
 - Rename getUpdateGroupJsonInfo. ([#2157](https://github.com/expo/eas-cli/pull/2157) by [@quinlanj](https://github.com/quinlanj))
 - Add new Xcode 15.1 image to `eas.schema.json`. ([#2155](https://github.com/expo/eas-cli/pull/2155) by [@szdziedzic](https://github.com/szdziedzic))
 
