@@ -48,7 +48,6 @@ type Metadata = {
   fileMetadata: {
     [key in Platform]: { assets: { path: string; ext: string }[]; bundle: string };
   };
-  easMetadata: UpdateJsonInfo[];
 };
 export type RawAsset = {
   fileExtension?: string;
@@ -102,7 +101,6 @@ export const MetadataJoi = Joi.object({
     ios: fileMetadataJoi,
     web: fileMetadataJoi,
   }).required(),
-  easMetadata: Joi.array().optional(),
 }).required();
 
 export function guessContentTypeFromExtension(ext?: string): string {
@@ -300,12 +298,12 @@ export function loadMetadata(distRoot: string): Metadata {
   return metadata;
 }
 
-export async function patchEasMetadataAsync(
+export async function generateEasMetadataAsync(
   distRoot: string,
   metadata: UpdateJsonInfo[]
 ): Promise<void> {
-  const metadataPath = path.join(distRoot, 'metadata.json');
-  await JsonFile.setAsync(metadataPath, 'easMetadata', metadata);
+  const easMetadataPath = path.join(distRoot, 'eas-update-metadata.json');
+  await JsonFile.writeAsync(easMetadataPath, { updates: metadata });
 }
 
 export function filterExportedPlatformsByFlag<T extends Partial<Record<Platform, any>>>(

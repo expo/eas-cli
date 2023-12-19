@@ -29,13 +29,13 @@ import {
   collectAssetsAsync,
   defaultPublishPlatforms,
   filterExportedPlatformsByFlag,
+  generateEasMetadataAsync,
   getBranchNameForCommandAsync,
   getRequestedPlatform,
   getRuntimeToPlatformMappingFromRuntimeVersions,
   getRuntimeVersionObjectAsync,
   getUpdateMessageForCommandAsync,
   isUploadedAssetCountAboveWarningThreshold,
-  patchEasMetadataAsync,
   platformDisplayNames,
   resolveInputDirectoryAsync,
   uploadAssetsAsync,
@@ -470,7 +470,7 @@ export default class UpdatePublish extends EasCommand {
     }
 
     if (!skipBundler) {
-      await patchEasMetadataAsync(distRoot, getUpdatesJsonInfo(newUpdates));
+      await generateEasMetadataAsync(distRoot, getUpdateJsonInfosForUpdates(newUpdates));
     }
     if (jsonFlag) {
       printJsonOnlyOutput(getUpdateJsonInfosForUpdates(newUpdates));
