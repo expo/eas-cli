@@ -29,6 +29,7 @@ import {
   collectAssetsAsync,
   defaultPublishPlatforms,
   filterExportedPlatformsByFlag,
+  generateEasMetadataAsync,
   getBranchNameForCommandAsync,
   getRequestedPlatform,
   getRuntimeToPlatformMappingFromRuntimeVersions,
@@ -468,6 +469,9 @@ export default class UpdatePublish extends EasCommand {
       throw e;
     }
 
+    if (!skipBundler) {
+      await generateEasMetadataAsync(distRoot, getUpdateJsonInfosForUpdates(newUpdates));
+    }
     if (jsonFlag) {
       printJsonOnlyOutput(getUpdateJsonInfosForUpdates(newUpdates));
     } else {
