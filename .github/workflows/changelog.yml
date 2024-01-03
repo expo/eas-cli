@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Check if CHANGELOG.md was updated
         id: changelog-updated
-        uses: tj-actions/changed-files@v35
+        uses: tj-actions/changed-files@v41
         with:
           files: CHANGELOG.md
       - name: Fail if CHANGELOG.md was not updated and the "no changelog" label is absent
