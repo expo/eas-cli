@@ -515,7 +515,7 @@ export default class UpdatePublish extends EasCommand {
               ? [{ label: 'Android update ID', value: newAndroidUpdate.id }]
               : []),
             ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
-            { label: 'Message', value: updateMessage },
+            { label: 'Message', value: updateMessage ?? '' },
             ...(gitCommitHash
               ? [
                   {
