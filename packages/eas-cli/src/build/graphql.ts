@@ -21,12 +21,7 @@ import {
 } from '../graphql/generated';
 
 export function transformProjectArchive(archiveSource: ArchiveSource): ProjectArchiveSourceInput {
-  if (archiveSource.type === ArchiveSourceType.S3) {
-    return {
-      type: ProjectArchiveSourceType.S3,
-      bucketKey: archiveSource.bucketKey,
-    };
-  } else if (archiveSource.type === ArchiveSourceType.GCS) {
+  if (archiveSource.type === ArchiveSourceType.GCS) {
     return {
       type: ProjectArchiveSourceType.Gcs,
       bucketKey: archiveSource.bucketKey,
