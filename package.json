@@ -10,6 +10,7 @@
     "build-for-size-check": "yarn build && yarn workspace eas-cli pretarball-ci && CLI_SIZE_CHECK=1 yarn workspace eas-cli oclif pack:tarballs --no-xz --targets linux-x64",
     "typecheck": "lerna run typecheck",
     "start": "lerna run watch --stream --parallel",
+    "start-allow-unused": "lerna run watch-allow-unused --stream --parallel",
     "watch": "yarn start",
     "eas": "packages/eas-cli/bin/run",
     "lint": "eslint .",
