@@ -2,6 +2,9 @@ name: Size
 on:
   pull_request:
     types: [synchronize, opened]
+concurrency:
+  group: size-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   compare:
     runs-on: ubuntu-latest
