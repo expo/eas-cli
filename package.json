@@ -6,7 +6,6 @@
   ],
   "scripts": {
     "build": "lerna run build",
-    "build-ci": "lerna run build-ci",
     "build:tarballs:linux": "yarn build-for-size-check",
     "build-for-size-check": "yarn build && yarn workspace eas-cli pretarball-ci && CLI_SIZE_CHECK=1 yarn workspace eas-cli oclif pack:tarballs --no-xz --targets linux-x64",
     "typecheck": "lerna run typecheck",
