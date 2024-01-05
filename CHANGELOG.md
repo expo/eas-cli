@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Upgrade `@expo/eas-build-job` to `1.0.56`, thus removing support for S3 project archives. ([#2165](https://github.com/expo/eas-cli/pull/2165) by [@sjchmiela](https://github.com/sjchmiela))
+
 ## [5.9.3](https://github.com/expo/eas-cli/releases/tag/v5.9.3) - 2023-12-19
 
 ### 🧹 Chores
