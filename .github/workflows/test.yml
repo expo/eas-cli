@@ -6,6 +6,10 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest

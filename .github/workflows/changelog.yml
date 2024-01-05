@@ -8,6 +8,10 @@ on:
       - labeled
       - unlabeled
 
+concurrency:
+  group: changelog-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pr-changelog-entry:
     name: Check CHANGELOG.md updated
