@@ -18,6 +18,25 @@ If you're making changes to `packages/eas-json` or prefer/need to work with prod
 yarn start
 ```
 
+If it is easier for you to work with the code locally with compiler options set to:
+
+```json
+...
+"compilerOptions": {
+    ...
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    ...
+}
+...
+```
+
+you can consider using:
+
+```
+yarn start-allow-unused
+```
+
 ## Format
 
 - Be sure to update the [`CHANGELOG.md`](./CHANGELOG.md) with changes for every PR. There is a changelog bot that can generate the proper entry for you. The instructions on how to use it are in the PR description placeholder.
