@@ -26,6 +26,9 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: ${{ matrix.node }}
+      - run: cp yarn.lock yarn.lock.backup
+      - run: yarn install
+      - run: diff yarn.lock yarn.lock.backup
       - run: yarn install --frozen-lockfile --check-files
       - run: yarn typecheck
       - run: yarn test
