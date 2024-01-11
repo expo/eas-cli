@@ -26,7 +26,5 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: 20
-      - run: cp yarn.lock yarn.lock.bak
-      - run: yarn install --check-files
-      - run: diff -y --suppress-common-lines yarn.lock yarn.lock.bak
+      - run: yarn install --frozen-lockfile --check-files
       - run: yarn typecheck
