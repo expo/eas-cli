@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: ['14', '16', '18']
+        node: ['16', '18', '20']
         include:
-          - node: '18'
+          - node: '20'
             coverage: true
     name: Test with Node ${{ matrix.node }}
     steps:
