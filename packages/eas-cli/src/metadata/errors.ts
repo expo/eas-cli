@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
-import Log, { link } from '../log';
 import { Issue } from './config/issue';
+import Log, { link } from '../log';
 
 /**
  * Before syncing data to the ASC API, we need to validate the metadata config.
@@ -9,7 +9,10 @@ import { Issue } from './config/issue';
  * and should contain useful information for the user to solve before trying again.
  */
 export class MetadataValidationError extends Error {
-  public constructor(message?: string, public readonly errors: Issue[] = []) {
+  public constructor(
+    message?: string,
+    public readonly errors: Issue[] = []
+  ) {
     super(message ?? 'Store configuration validation failed');
   }
 }
@@ -21,7 +24,10 @@ export class MetadataValidationError extends Error {
  * It contains that list of encountered errors to present to the user.
  */
 export class MetadataUploadError extends Error {
-  public constructor(public readonly errors: Error[], public readonly executionId: string) {
+  public constructor(
+    public readonly errors: Error[],
+    public readonly executionId: string
+  ) {
     super(
       `Store configuration upload encountered ${
         errors.length === 1 ? 'an error' : `${errors.length} errors`
@@ -37,7 +43,10 @@ export class MetadataUploadError extends Error {
  * It contains that list of encountered errors to present to the user.
  */
 export class MetadataDownloadError extends Error {
-  public constructor(public readonly errors: Error[], public readonly executionId: string) {
+  public constructor(
+    public readonly errors: Error[],
+    public readonly executionId: string
+  ) {
     super(
       `Store configuration download encountered ${
         errors.length === 1 ? 'an error' : `${errors.length} errors`

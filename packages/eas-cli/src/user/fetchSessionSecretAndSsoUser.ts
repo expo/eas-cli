@@ -1,6 +1,6 @@
-import { getExpoWebsiteBaseUrl } from '../api';
 import { getSessionUsingBrowserAuthFlowAsync } from './expoSsoLauncher';
 import { fetchUserAsync } from './fetchUser';
+import { getExpoWebsiteBaseUrl } from '../api';
 
 export async function fetchSessionSecretAndSsoUserAsync(): Promise<{
   sessionSecret: string;

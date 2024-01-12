@@ -1,7 +1,7 @@
+import { AppStoreApiKeyPurpose, provideOrGenerateAscApiKeyAsync } from './AscApiKeyUtils';
 import { AccountFragment, AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
-import { AppStoreApiKeyPurpose, provideOrGenerateAscApiKeyAsync } from './AscApiKeyUtils';
 
 export class CreateAscApiKey {
   constructor(private account: AccountFragment) {}

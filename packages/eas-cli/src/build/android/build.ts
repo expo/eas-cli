@@ -3,6 +3,10 @@ import { AppVersionSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import { transformJob } from './graphql';
+import { prepareJobAsync } from './prepareJob';
+import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
+import { resolveRemoteVersionCodeAsync } from './version';
 import AndroidCredentialsProvider, {
   AndroidCredentials,
 } from '../../credentials/android/AndroidCredentialsProvider';
@@ -29,10 +33,6 @@ import {
   checkNodeEnvVariable,
   validatePNGsForManagedProjectAsync,
 } from '../validate';
-import { transformJob } from './graphql';
-import { prepareJobAsync } from './prepareJob';
-import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
-import { resolveRemoteVersionCodeAsync } from './version';
 
 export async function createAndroidContextAsync(
   ctx: CommonContext<Platform.ANDROID>

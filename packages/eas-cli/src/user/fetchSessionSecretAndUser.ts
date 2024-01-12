@@ -1,5 +1,5 @@
-import { ApiV2Client } from '../api';
 import { fetchUserAsync } from './fetchUser';
+import { ApiV2Client } from '../api';
 
 export async function fetchSessionSecretAndUserAsync({
   username,

@@ -2,6 +2,19 @@ import { Platform } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 import assert from 'assert';
 
+import { ActionInfo, AndroidActionType, Scope } from './Actions';
+import {
+  buildCredentialsActions,
+  credentialsJsonActions,
+  fcmActions,
+  gsaKeyActions,
+  highLevelActions,
+} from './AndroidActions';
+import { CreateAndroidBuildCredentials } from './CreateAndroidBuildCredentials';
+import { Action, PressAnyKeyToContinue } from './HelperActions';
+import { SelectExistingAndroidBuildCredentials } from './SelectAndroidBuildCredentials';
+import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
+import { SetDefaultAndroidKeystore } from './SetDefaultAndroidKeystore';
 import Log, { learnMore } from '../../log';
 import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
 import { promptAsync } from '../../prompts';
@@ -28,22 +41,12 @@ import {
 } from '../android/utils/printCredentials';
 import { CredentialsContext, CredentialsContextProjectInfo } from '../context';
 import { AndroidPackageNotDefinedError } from '../errors';
-import { ActionInfo, AndroidActionType, Scope } from './Actions';
-import {
-  buildCredentialsActions,
-  credentialsJsonActions,
-  fcmActions,
-  gsaKeyActions,
-  highLevelActions,
-} from './AndroidActions';
-import { CreateAndroidBuildCredentials } from './CreateAndroidBuildCredentials';
-import { Action, PressAnyKeyToContinue } from './HelperActions';
-import { SelectExistingAndroidBuildCredentials } from './SelectAndroidBuildCredentials';
-import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
-import { SetDefaultAndroidKeystore } from './SetDefaultAndroidKeystore';
 
 export class ManageAndroid {
-  constructor(private callingAction: Action, private projectDir: string) {}
+  constructor(
+    private callingAction: Action,
+    private projectDir: string
+  ) {}
 
   async runAsync(currentActions: ActionInfo[] = highLevelActions): Promise<void> {
     const hasProjectContext = !!this.callingAction.projectInfo;

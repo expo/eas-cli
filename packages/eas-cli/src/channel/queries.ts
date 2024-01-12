@@ -2,6 +2,9 @@ import chalk from 'chalk';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import { ChannelNotFoundError } from './errors';
+import { logChannelDetails } from './print-utils';
+import { ChannelBasicInfo } from './utils';
 import { createUpdateBranchOnAppAsync } from '../branch/queries';
 import { BranchNotFoundError } from '../branch/utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -24,9 +27,6 @@ import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
-import { ChannelNotFoundError } from './errors';
-import { logChannelDetails } from './print-utils';
-import { ChannelBasicInfo } from './utils';
 
 export const CHANNELS_LIMIT = 25;
 

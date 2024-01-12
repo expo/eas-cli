@@ -1,10 +1,6 @@
 import { ExpoConfig } from '@expo/config-types';
 import { SubmitProfile } from '@expo/eas-json';
 
-import { Analytics, MetadataEvent } from '../analytics/AnalyticsManager';
-import { CredentialsContext } from '../credentials/context';
-import Log from '../log';
-import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
 import { getAppStoreAuthAsync } from './auth';
@@ -12,6 +8,10 @@ import { createAppleReader, loadConfigAsync } from './config/resolve';
 import { MetadataConfig } from './config/schema';
 import { MetadataUploadError, MetadataValidationError, logMetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
+import { Analytics, MetadataEvent } from '../analytics/AnalyticsManager';
+import { CredentialsContext } from '../credentials/context';
+import Log from '../log';
+import { confirmAsync } from '../prompts';
 
 /**
  * Sync a local store configuration with the stores.

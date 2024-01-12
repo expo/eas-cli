@@ -1,4 +1,10 @@
 import {
+  testKeystore2Base64,
+  testKeystoreBase64,
+  testPKCS12KeystoreBase64,
+  testPKCS12KeystoreEmptyPasswordBase64,
+} from './fixtures-base64-data';
+import {
   AndroidAppBuildCredentialsFragment,
   AndroidFcmFragment,
   AndroidFcmVersion,
@@ -11,12 +17,6 @@ import {
 } from '../../graphql/generated';
 import * as AndroidGraphqlClient from '../android/api/GraphqlClient';
 import { Keystore } from '../android/credentials';
-import {
-  testKeystore2Base64,
-  testKeystoreBase64,
-  testPKCS12KeystoreBase64,
-  testPKCS12KeystoreEmptyPasswordBase64,
-} from './fixtures-base64-data';
 
 const now = new Date();
 

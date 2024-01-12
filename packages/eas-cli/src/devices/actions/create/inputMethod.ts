@@ -1,11 +1,5 @@
 import chalk from 'chalk';
 
-import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
-import { AppleTeam } from '../../../graphql/generated';
-import Log from '../../../log';
-import { ora } from '../../../ora';
-import { confirmAsync } from '../../../prompts';
 import {
   DeviceData,
   printDeviceData,
@@ -13,6 +7,12 @@ import {
   promptForNameAsync,
   promptForUDIDAsync,
 } from './utils';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
+import { AppleTeam } from '../../../graphql/generated';
+import Log from '../../../log';
+import { ora } from '../../../ora';
+import { confirmAsync } from '../../../prompts';
 
 export async function runInputMethodAsync(
   graphqlClient: ExpoGraphqlClient,

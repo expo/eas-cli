@@ -1,6 +1,9 @@
 import { DistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 import { JSONObject } from '@expo/json-file';
 
+import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
+import { SetUpInternalProvisioningProfile } from './SetUpInternalProvisioningProfile';
+import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
 import {
   IosDistributionType as GraphQLIosDistributionType,
   IosAppBuildCredentialsFragment,
@@ -9,9 +12,6 @@ import Log from '../../../log';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams as GraphQLAppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { Target } from '../types';
-import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
-import { SetUpInternalProvisioningProfile } from './SetUpInternalProvisioningProfile';
-import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
 
 interface Options {
   app: GraphQLAppLookupParams;

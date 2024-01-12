@@ -1,8 +1,8 @@
+import ContextField, { ContextOptions } from './ContextField';
+import { ExpoGraphqlClient, createGraphqlClient } from './contextUtils/createGraphqlClient';
 import { Actor } from '../../user/User';
 import FeatureGateEnvOverrides from '../gating/FeatureGateEnvOverrides';
 import FeatureGating from '../gating/FeatureGating';
-import ContextField, { ContextOptions } from './ContextField';
-import { ExpoGraphqlClient, createGraphqlClient } from './contextUtils/createGraphqlClient';
 
 export default class MaybeLoggedInContextField extends ContextField<{
   actor: Actor | null;

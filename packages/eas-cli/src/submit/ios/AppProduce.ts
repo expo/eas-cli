@@ -2,6 +2,7 @@ import { App, RequestContext, Session, User } from '@expo/apple-utils';
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import { sanitizeLanguage } from './utils/language';
 import { getRequestContext } from '../../credentials/ios/appstore/authenticate';
 import {
   ensureAppExistsAsync,
@@ -11,7 +12,6 @@ import Log from '../../log';
 import { getBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../prompts';
 import { SubmissionContext } from '../context';
-import { sanitizeLanguage } from './utils/language';
 
 interface CreateAppOptions {
   appleId?: string;

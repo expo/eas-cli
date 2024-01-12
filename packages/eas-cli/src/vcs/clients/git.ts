@@ -30,9 +30,9 @@ export default class GitClient extends Client {
       }
     } catch (error: any) {
       Log.error(
-        `${chalk.bold('git')} found, but ${chalk.bold('git --help')} exited with status ${
-          error?.status
-        }${error?.stderr ? `:` : '.'}`
+        `${chalk.bold('git')} found, but ${chalk.bold(
+          'git --help'
+        )} exited with status ${error?.status}${error?.stderr ? `:` : '.'}`
       );
 
       if (error?.stderr) {

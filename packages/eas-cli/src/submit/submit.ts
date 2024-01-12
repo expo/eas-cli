@@ -1,17 +1,17 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import AndroidSubmitCommand from './android/AndroidSubmitCommand';
+import { SubmissionContext } from './context';
+import IosSubmitCommand from './ios/IosSubmitCommand';
+import { displayLogsAsync } from './utils/logs';
+import { waitForSubmissionsEndAsync } from './utils/wait';
 import { SubmissionEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPlatform, SubmissionFragment, SubmissionStatus } from '../graphql/generated';
 import Log, { link } from '../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../platform';
-import AndroidSubmitCommand from './android/AndroidSubmitCommand';
-import { SubmissionContext } from './context';
-import IosSubmitCommand from './ios/IosSubmitCommand';
-import { displayLogsAsync } from './utils/logs';
-import { waitForSubmissionsEndAsync } from './utils/wait';
 
 export async function submitAsync<T extends Platform>(
   ctx: SubmissionContext<T>

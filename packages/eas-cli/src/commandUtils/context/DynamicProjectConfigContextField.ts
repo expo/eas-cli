@@ -1,13 +1,13 @@
 import { ExpoConfig } from '@expo/config-types';
 
+import ContextField, { ContextOptions } from './ContextField';
+import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
+import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
 import {
   ExpoConfigOptions,
   getPrivateExpoConfig,
   getPublicExpoConfig,
 } from '../../project/expoConfig';
-import ContextField, { ContextOptions } from './ContextField';
-import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
-import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
 
 export type DynamicConfigContextFn = (options?: ExpoConfigOptions) => Promise<{
   projectId: string;

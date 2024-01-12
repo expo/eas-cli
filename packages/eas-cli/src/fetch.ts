@@ -5,7 +5,10 @@ import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
 export * from 'node-fetch';
 
 export class RequestError extends Error {
-  constructor(message: string, public readonly response: Response) {
+  constructor(
+    message: string,
+    public readonly response: Response
+  ) {
     super(message);
   }
 }

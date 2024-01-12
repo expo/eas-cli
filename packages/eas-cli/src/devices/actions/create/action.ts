@@ -1,14 +1,14 @@
 import chalk from 'chalk';
 
+import { runCurrentMachineMethodAsync } from './currentMachineMethod';
+import { runDeveloperPortalMethodAsync } from './developerPortalMethod';
+import { runInputMethodAsync } from './inputMethod';
+import { runRegistrationUrlMethodAsync } from './registrationUrlMethod';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import AppStoreApi from '../../../credentials/ios/appstore/AppStoreApi';
 import { AccountFragment, AppleTeam } from '../../../graphql/generated';
 import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
-import { runCurrentMachineMethodAsync } from './currentMachineMethod';
-import { runDeveloperPortalMethodAsync } from './developerPortalMethod';
-import { runInputMethodAsync } from './inputMethod';
-import { runRegistrationUrlMethodAsync } from './registrationUrlMethod';
 
 export enum RegistrationMethod {
   WEBSITE,

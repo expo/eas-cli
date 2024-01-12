@@ -1,5 +1,5 @@
-import { getUpdateBranch } from '../utils';
 import { channelInfoWithBranches, testBasicBranchInfo1 } from './branch-mapping-fixtures';
+import { getUpdateBranch } from '../utils';
 
 describe(getUpdateBranch, () => {
   it('gets the update branch', () => {

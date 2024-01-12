@@ -1,6 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
 
 import {
+  rolloutBranchMapping,
+  rolloutBranchMappingLegacy,
+  standardBranchMapping,
+} from './fixtures';
+import {
   channelInfoWithBranches,
   testBasicBranchInfo1,
   testBasicBranchInfo2,
@@ -28,11 +33,6 @@ import {
   isLegacyRolloutInfo,
   isRolloutBranchMapping,
 } from '../branch-mapping';
-import {
-  rolloutBranchMapping,
-  rolloutBranchMappingLegacy,
-  standardBranchMapping,
-} from './fixtures';
 
 describe(doesTargetRollout, () => {
   it('detects whether a runtime targets a constrained rollout', () => {

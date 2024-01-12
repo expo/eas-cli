@@ -1,6 +1,6 @@
+import { promptAsync } from '../.././../prompts';
 import { AppleDevice, AppleDeviceFragment } from '../../../graphql/generated';
 import { APPLE_DEVICE_CLASS_LABELS } from '../../../graphql/types/credentials/AppleDevice';
-import { promptAsync } from '../.././../prompts';
 
 export async function chooseDevicesAsync(
   allDevices: AppleDeviceFragment[],

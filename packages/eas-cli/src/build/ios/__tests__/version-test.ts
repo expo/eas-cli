@@ -62,7 +62,7 @@ describe(evaluateTemplateString, () => {
 // bare workflow
 describe(bumpVersionAsync, () => {
   beforeEach(() => {
-    getPbxproj.mockImplementation(() => ({} as any));
+    getPbxproj.mockImplementation(() => ({}) as any);
   });
   afterEach(() => {
     getXCBuildConfigurationFromPbxproj.mockReset();
@@ -76,7 +76,7 @@ describe(bumpVersionAsync, () => {
           buildSettings: {
             INFOPLIST_FILE: 'myproject/Info.plist',
           },
-        } as XCBuildConfiguration)
+        }) as XCBuildConfiguration
     );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.BUILD_NUMBER,
@@ -112,7 +112,7 @@ describe(bumpVersionAsync, () => {
           buildSettings: {
             INFOPLIST_FILE: '$(SRCROOT)/myproject/Info2.plist',
           },
-        } as XCBuildConfiguration)
+        }) as XCBuildConfiguration
     );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.BUILD_NUMBER,
@@ -147,7 +147,7 @@ describe(bumpVersionAsync, () => {
           buildSettings: {
             INFOPLIST_FILE: 'myproject/Info.plist',
           },
-        } as XCBuildConfiguration)
+        }) as XCBuildConfiguration
     );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.APP_VERSION,
@@ -182,7 +182,7 @@ describe(bumpVersionAsync, () => {
           buildSettings: {
             INFOPLIST_FILE: 'myproject/Info.plist',
           },
-        } as XCBuildConfiguration)
+        }) as XCBuildConfiguration
     );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.NOOP,

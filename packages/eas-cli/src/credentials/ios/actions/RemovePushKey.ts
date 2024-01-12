@@ -1,8 +1,8 @@
+import { selectPushKeyAsync } from './PushKeyUtils';
 import { AccountFragment, ApplePushKeyFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
-import { selectPushKeyAsync } from './PushKeyUtils';
 
 export class SelectAndRemovePushKey {
   constructor(private account: AccountFragment) {}

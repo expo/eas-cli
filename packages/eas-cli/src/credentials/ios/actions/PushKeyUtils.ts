@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { formatAppleTeam } from './AppleTeamFormatting';
 import { AccountFragment, ApplePushKeyFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
@@ -11,7 +12,6 @@ import { filterRevokedAndUntrackedPushKeysFromEasServersAsync } from '../appstor
 import { APPLE_KEYS_TOO_MANY_GENERATED_ERROR } from '../appstore/pushKey';
 import { pushKeySchema } from '../credentials';
 import { isPushKeyValidAndTrackedAsync } from '../validators/validatePushKey';
-import { formatAppleTeam } from './AppleTeamFormatting';
 
 export async function provideOrGeneratePushKeyAsync(ctx: CredentialsContext): Promise<PushKey> {
   if (!ctx.nonInteractive) {

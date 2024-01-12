@@ -4,6 +4,8 @@ import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import { fetchSessionSecretAndSsoUserAsync } from './fetchSessionSecretAndSsoUser';
+import { fetchSessionSecretAndUserAsync } from './fetchSessionSecretAndUser';
 import { ApiV2Error } from '../ApiV2Error';
 import { AnalyticsWithOrchestration } from '../analytics/AnalyticsManager';
 import { ApiV2Client } from '../api';
@@ -13,8 +15,6 @@ import { UserQuery } from '../graphql/queries/UserQuery';
 import Log, { learnMore } from '../log';
 import { promptAsync, selectAsync } from '../prompts';
 import { getStateJsonPath } from '../utils/paths';
-import { fetchSessionSecretAndSsoUserAsync } from './fetchSessionSecretAndSsoUser';
-import { fetchSessionSecretAndUserAsync } from './fetchSessionSecretAndUser';
 
 type UserSettingsData = {
   auth?: SessionData;

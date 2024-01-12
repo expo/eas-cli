@@ -5,10 +5,10 @@ import {
   createCertificateAndP12Async,
 } from '@expo/apple-utils';
 
-import { ora } from '../../../ora';
 import { DistributionCertificate, DistributionCertificateStoreInfo } from './Credentials.types';
 import { getRequestContext } from './authenticate';
 import { AuthCtx } from './authenticateTypes';
+import { ora } from '../../../ora';
 
 export class AppleTooManyCertsError extends Error {}
 

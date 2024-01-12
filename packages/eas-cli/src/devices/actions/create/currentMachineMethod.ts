@@ -2,6 +2,7 @@ import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import os from 'os';
 
+import { DeviceData, printDeviceData, promptForNameAsync } from './utils';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppleDeviceMutation } from '../../../credentials/ios/api/graphql/mutations/AppleDeviceMutation';
 import { AppleDeviceClass, AppleTeam } from '../../../graphql/generated';
@@ -9,7 +10,6 @@ import Log from '../../../log';
 import { ora } from '../../../ora';
 import { confirmAsync } from '../../../prompts';
 import { DeviceCreateError } from '../../utils/errors';
-import { DeviceData, printDeviceData, promptForNameAsync } from './utils';
 
 export async function runCurrentMachineMethodAsync(
   graphqlClient: ExpoGraphqlClient,

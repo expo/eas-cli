@@ -1,6 +1,7 @@
 import { Updates } from '@expo/config-plugins';
 import assert from 'assert';
 
+import { SelectRuntime } from './SelectRuntime';
 import { SelectBranch } from '../../branch/actions/SelectBranch';
 import {
   getStandardBranchId,
@@ -36,7 +37,6 @@ import {
   formatBranchWithUpdateGroup,
   promptForRolloutPercentAsync,
 } from '../utils';
-import { SelectRuntime } from './SelectRuntime';
 
 export type NonInteractiveOptions = {
   branchNameToRollout: string;

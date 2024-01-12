@@ -4,9 +4,6 @@ import chalk from 'chalk';
 import os from 'os';
 import path from 'path';
 
-import Log from '../../log';
-import { promptAsync } from '../../prompts';
-import { truthy } from '../../utils/expodash/filter';
 import {
   AndroidEmulator,
   adbAsync,
@@ -15,6 +12,9 @@ import {
   waitForEmulatorToBeBootedAsync,
 } from './adb';
 import { getAndroidSdkRootAsync } from './sdk';
+import Log from '../../log';
+import { promptAsync } from '../../prompts';
+import { truthy } from '../../utils/expodash/filter';
 
 export const EMULATOR_MAX_WAIT_TIMEOUT_MS = 60 * 1000 * 3;
 

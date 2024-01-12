@@ -2,13 +2,13 @@ import { App, BundleId } from '@expo/apple-utils';
 import { JSONObject } from '@expo/json-file';
 import chalk from 'chalk';
 
-import Log from '../../../log';
-import { ora } from '../../../ora';
 import { getRequestContext, isUserAuthCtx } from './authenticate';
 import { AuthCtx, UserAuthCtx } from './authenticateTypes';
 import { syncCapabilitiesForEntitlementsAsync } from './bundleIdCapabilities';
 import { syncCapabilityIdentifiersForEntitlementsAsync } from './capabilityIdentifiers';
 import { assertContractMessagesAsync } from './contractMessages';
+import Log from '../../../log';
+import { ora } from '../../../ora';
 
 export interface IosCapabilitiesOptions {
   entitlements: JSONObject;

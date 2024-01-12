@@ -1,9 +1,9 @@
 import { ExpoConfig } from '@expo/config-types';
 
-import { getPrivateExpoConfig } from '../../project/expoConfig';
 import ContextField, { ContextOptions } from './ContextField';
 import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
+import { getPrivateExpoConfig } from '../../project/expoConfig';
 
 export class PrivateProjectConfigContextField extends ContextField<{
   projectId: string;

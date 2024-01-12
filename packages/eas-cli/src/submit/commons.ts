@@ -2,9 +2,9 @@ import { Platform } from '@expo/eas-build-job';
 import { EasJsonAccessor, EasJsonUtils, SubmitProfile } from '@expo/eas-json';
 import { MissingProfileError } from '@expo/eas-json/build/errors';
 
-import Log from '../log';
 import { ArchiveSource, ArchiveSourceType, isUuidV4 } from './ArchiveSource';
 import { SubmissionContext } from './context';
+import Log from '../log';
 
 export function resolveArchiveSource<T extends Platform>(ctx: SubmissionContext<T>): ArchiveSource {
   const { url, path, id, latest } = ctx.archiveFlags;

@@ -2,6 +2,7 @@ import assert from 'assert';
 import indentString from 'indent-string';
 import qrcodeTerminal from 'qrcode-terminal';
 
+import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url';
 import {
   AppPlatform,
   BuildError,
@@ -13,7 +14,6 @@ import {
 } from '../../graphql/generated';
 import Log, { learnMore, link } from '../../log';
 import { appPlatformDisplayNames, appPlatformEmojis } from '../../platform';
-import { getBuildLogsUrl, getInternalDistributionInstallUrl } from './url';
 
 function terminalLinkFallback(url: string, text: string): string {
   return `${text} (${url})`;

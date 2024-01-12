@@ -1,6 +1,5 @@
 import { AppCategoryId, AppSubcategoryId } from '@expo/apple-utils';
 
-import { AppleConfigWriter } from '../writer';
 import {
   emptyAdvisory,
   kidsSixToEightAdvisory,
@@ -13,6 +12,7 @@ import { nameAndDemoReviewDetails, nameOnlyReviewDetails } from './fixtures/appS
 import { automaticRelease, manualRelease, scheduledRelease } from './fixtures/appStoreVersion';
 import { dutchVersion, englishVersion } from './fixtures/appStoreVersionLocalization';
 import { phasedRelease } from './fixtures/appStoreVersionPhasedRelease';
+import { AppleConfigWriter } from '../writer';
 
 describe('toSchema', () => {
   it('returns object with apple schema', () => {

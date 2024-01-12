@@ -3,6 +3,10 @@ import { Env } from '@expo/eas-build-job';
 import { EasJson } from '@expo/eas-json';
 import chalk from 'chalk';
 
+import * as AndroidGraphqlClient from './android/api/GraphqlClient';
+import * as IosGraphqlClient from './ios/api/GraphqlClient';
+import AppStoreApi from './ios/appstore/AppStoreApi';
+import { AuthenticationMode } from './ios/appstore/authenticateTypes';
 import { Analytics } from '../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../log';
@@ -10,10 +14,6 @@ import { getPrivateExpoConfig } from '../project/expoConfig';
 import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
 import { Client } from '../vcs/vcs';
-import * as AndroidGraphqlClient from './android/api/GraphqlClient';
-import * as IosGraphqlClient from './ios/api/GraphqlClient';
-import AppStoreApi from './ios/appstore/AppStoreApi';
-import { AuthenticationMode } from './ios/appstore/authenticateTypes';
 
 export type CredentialsContextProjectInfo = {
   exp: ExpoConfig;

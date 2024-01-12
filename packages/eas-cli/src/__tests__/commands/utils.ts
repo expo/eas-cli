@@ -59,7 +59,7 @@ export interface LocalProjectContext {
 export function mockCommandContext<
   C extends {
     [name: string]: any;
-  } = object
+  } = object,
 >(
   commandClass: { contextDefinition: ContextInput<C> },
   overrides: {

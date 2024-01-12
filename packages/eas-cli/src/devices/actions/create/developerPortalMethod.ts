@@ -97,10 +97,13 @@ async function findUnregisteredPortalDevicesAsync(
     appleTeam.appleTeamIdentifier,
     { useCache: false }
   );
-  const expoRegisteredDevicesByUdid = expoRegisteredDevices.reduce((acc, device) => {
-    acc[device.identifier] = device;
-    return acc;
-  }, {} as Record<string, AppleDeviceFragmentWithAppleTeam>);
+  const expoRegisteredDevicesByUdid = expoRegisteredDevices.reduce(
+    (acc, device) => {
+      acc[device.identifier] = device;
+      return acc;
+    },
+    {} as Record<string, AppleDeviceFragmentWithAppleTeam>
+  );
 
   const portalDevices = await Device.getAsync(getRequestContext(appleAuthCtx));
   return portalDevices.filter(

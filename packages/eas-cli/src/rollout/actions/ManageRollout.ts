@@ -1,12 +1,6 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
-import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
-import { ChannelQuery, UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
-import { promptAsync } from '../../prompts';
-import { getRolloutInfo, isConstrainedRolloutInfo, isRollout } from '../branch-mapping';
-import { printRollout } from '../utils';
 import {
   EditRollout,
   NonInteractiveOptions as EditRolloutNonInteractiveOptions,
@@ -16,6 +10,12 @@ import {
   GeneralOptions as EndRolloutGeneralOptions,
   NonInteractiveOptions as EndRolloutNonInteractiveOptions,
 } from './EndRollout';
+import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
+import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
+import { ChannelQuery, UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
+import { promptAsync } from '../../prompts';
+import { getRolloutInfo, isConstrainedRolloutInfo, isRollout } from '../branch-mapping';
+import { printRollout } from '../utils';
 
 export enum ManageRolloutActions {
   EDIT = 'Edit',

@@ -6,13 +6,13 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
+import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../../log';
 import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { syncUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
 import { Client } from '../../vcs/vcs';
-import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 
 export async function syncProjectConfigurationAsync(
   graphqlClient: ExpoGraphqlClient,

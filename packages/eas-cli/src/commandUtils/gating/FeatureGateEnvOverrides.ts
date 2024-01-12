@@ -1,7 +1,7 @@
 import nullthrows from 'nullthrows';
 
-import env from '../../env';
 import { FeatureGateKey } from './FeatureGateKey';
+import env from '../../env';
 
 function parseFeatureGateEnvVariableValue(value: string | undefined): string[] {
   if (!value) {

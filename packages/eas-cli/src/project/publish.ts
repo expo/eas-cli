@@ -12,6 +12,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
+import { resolveWorkflowAsync } from './workflow';
 import { selectBranchOnAppAsync } from '../branch/queries';
 import { getDefaultBranchNameAsync } from '../branch/utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -38,7 +39,6 @@ import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
 import uniqBy from '../utils/expodash/uniqBy';
 import { Client } from '../vcs/vcs';
-import { resolveWorkflowAsync } from './workflow';
 
 export type ExpoCLIExportPlatformFlag = Platform | 'all';
 

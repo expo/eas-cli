@@ -1,8 +1,8 @@
-import { AppleTask } from '../task';
 import { AgeRatingTask } from './age-rating';
 import { AppInfoTask } from './app-info';
 import { AppReviewDetailTask } from './app-review-detail';
 import { AppVersionOptions, AppVersionTask } from './app-version';
+import { AppleTask } from '../task';
 
 type AppleTaskOptions = {
   version?: AppVersionOptions['version'];

@@ -1,5 +1,6 @@
 import nullthrows from 'nullthrows';
 
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
@@ -11,7 +12,6 @@ import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils'
 import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { App, Target } from '../types';
-import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 
 export async function getAllBuildCredentialsAsync(
   ctx: CredentialsContext,

@@ -1,6 +1,15 @@
 import nullthrows from 'nullthrows';
 
 import {
+  assignBuildCredentialsAsync,
+  getBuildCredentialsAsync,
+  getProvisioningProfileAsync,
+} from './BuildCredentialsUtils';
+import { ConfigureProvisioningProfile } from './ConfigureProvisioningProfile';
+import { CreateProvisioningProfile } from './CreateProvisioningProfile';
+import { formatProvisioningProfileFromApple } from './ProvisioningProfileUtils';
+import { SetUpDistributionCertificate } from './SetUpDistributionCertificate';
+import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
   IosAppBuildCredentialsFragment,
@@ -14,15 +23,6 @@ import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
 import { Target } from '../types';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
-import {
-  assignBuildCredentialsAsync,
-  getBuildCredentialsAsync,
-  getProvisioningProfileAsync,
-} from './BuildCredentialsUtils';
-import { ConfigureProvisioningProfile } from './ConfigureProvisioningProfile';
-import { CreateProvisioningProfile } from './CreateProvisioningProfile';
-import { formatProvisioningProfileFromApple } from './ProvisioningProfileUtils';
-import { SetUpDistributionCertificate } from './SetUpDistributionCertificate';
 
 /**
  * Sets up either APP_STORE or ENTERPRISE provisioning profiles

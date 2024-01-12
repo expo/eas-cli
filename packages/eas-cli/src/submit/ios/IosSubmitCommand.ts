@@ -4,12 +4,6 @@ import chalk from 'chalk';
 import getenv from 'getenv';
 import wrapAnsi from 'wrap-ansi';
 
-import { MissingCredentialsError } from '../../credentials/errors';
-import { SubmissionFragment } from '../../graphql/generated';
-import Log, { learnMore } from '../../log';
-import { ArchiveSource, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
-import { refreshContextSubmitProfileAsync, resolveArchiveSource } from '../commons';
-import { SubmissionContext } from '../context';
 import { ensureAppStoreConnectAppExistsAsync } from './AppProduce';
 import {
   AppSpecificPasswordSource,
@@ -17,6 +11,12 @@ import {
 } from './AppSpecificPasswordSource';
 import { AscApiKeySource, AscApiKeySourceType } from './AscApiKeySource';
 import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter';
+import { MissingCredentialsError } from '../../credentials/errors';
+import { SubmissionFragment } from '../../graphql/generated';
+import Log, { learnMore } from '../../log';
+import { ArchiveSource, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
+import { refreshContextSubmitProfileAsync, resolveArchiveSource } from '../commons';
+import { SubmissionContext } from '../context';
 
 export default class IosSubmitCommand {
   constructor(private ctx: SubmissionContext<Platform.IOS>) {}

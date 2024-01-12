@@ -1,5 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 
+import { ArchiveSourceType, ResolvedArchiveSource } from './ArchiveSource';
+import { SubmissionContext } from './context';
 import { AnalyticsEvent, SubmissionEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
 import {
@@ -13,8 +15,6 @@ import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { ora } from '../ora';
 import { appPlatformDisplayNames } from '../platform';
-import { ArchiveSourceType, ResolvedArchiveSource } from './ArchiveSource';
-import { SubmissionContext } from './context';
 
 export interface SubmissionInput<P extends Platform> {
   projectId: string;
@@ -34,7 +34,7 @@ interface AnalyticEvents {
 export default abstract class BaseSubmitter<
   P extends Platform,
   ResolvedSourceOptions,
-  SubmissionOptions
+  SubmissionOptions,
 > {
   constructor(
     protected ctx: SubmissionContext<P>,

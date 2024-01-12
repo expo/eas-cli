@@ -4,6 +4,10 @@ import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
 
+import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from './android/version';
+import { BuildContext } from './context';
+import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
+import { LocalBuildMode } from './local';
 import Log from '../log';
 import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils';
 import {
@@ -15,10 +19,6 @@ import {
   readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync,
 } from '../update/ios/UpdatesModule';
 import { easCliVersion } from '../utils/easCli';
-import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from './android/version';
-import { BuildContext } from './context';
-import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
-import { LocalBuildMode } from './local';
 
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>
