@@ -1214,6 +1214,22 @@
             "deprecationReason": null
           },
           {
+            "name": "isDisabled",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "isSSOEnabled",
             "description": "Whether this account has SSO enabled. Can be queried by all members.",
             "args": [],
@@ -1717,6 +1733,18 @@
         "description": null,
         "fields": null,
         "inputFields": [
+          {
+            "name": "searchTerm",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "sortByField",
             "description": null,
@@ -3118,6 +3146,33 @@
         "possibleTypes": null
       },
       {
+        "kind": "OBJECT",
+        "name": "AccountUsageEASJobsMetadata",
+        "description": null,
+        "fields": [
+          {
+            "name": "resourceClassDisplayName",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "UNION",
         "name": "AccountUsageMetadata",
         "description": null,
@@ -3129,6 +3184,11 @@
           {
             "kind": "OBJECT",
             "name": "AccountUsageEASBuildMetadata",
+            "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "AccountUsageEASJobsMetadata",
             "ofType": null
           }
         ]
@@ -14945,6 +15005,18 @@
         "description": null,
         "fields": [
           {
+            "name": "authorUsername",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "buildPhase",
             "description": null,
             "args": [],
@@ -15012,6 +15084,18 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "regexFlags",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -15111,6 +15195,18 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "regexFlags",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -16540,18 +16636,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "buildMode",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "BuildMode",
               "ofType": null
             },
             "defaultValue": null,
@@ -21092,6 +21176,12 @@
             "deprecationReason": null
           },
           {
+            "name": "JOBS",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "UPDATES",
             "description": null,
             "isDeprecated": false,
@@ -21128,6 +21218,12 @@
           },
           {
             "name": "MANIFEST_REQUESTS",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "RUN_TIME",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -37385,14 +37481,14 @@
           {
             "name": "EAS_BUILD_PROJECT_SOURCES",
             "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Use EAS_BUILD_GCS_PROJECT_SOURCES instead."
           },
           {
             "name": "EAS_SUBMIT_APP_ARCHIVE",
             "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Use EAS_SUBMIT_GCS_APP_ARCHIVE instead."
           },
           {
             "name": "EAS_SUBMIT_GCS_APP_ARCHIVE",
@@ -37526,6 +37622,12 @@
           },
           {
             "name": "BUILD",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "MINUTE",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
