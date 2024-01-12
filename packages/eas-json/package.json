@@ -20,7 +20,7 @@
   "devDependencies": {
     "@types/babel__code-frame": "7.0.3",
     "@types/fs-extra": "11.0.4",
-    "memfs": "4.6.0",
+    "memfs": "3.4.13",
     "rimraf": "3.0.2",
     "typescript": "5.3.3"
   },
