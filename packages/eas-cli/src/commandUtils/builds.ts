@@ -33,15 +33,18 @@ export async function fetchBuildsAsync({
       limit: 10,
     });
   } else {
-    for (const status of statuses) {
-      const buildsForStatus = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
-        appId: projectId,
-        offset: 0,
-        limit: 10,
-        filter: { status },
-      });
-      builds.push(...buildsForStatus);
-    }
+    builds = (
+      await Promise.all(
+        statuses.map(status =>
+          BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
+            appId: projectId,
+            offset: 0,
+            limit: 10,
+            filter: { status },
+          })
+        )
+      )
+    ).flat();
   }
   builds.sort((buildA, buildB) => (buildA.createdAt > buildB.createdAt ? -1 : 1));
   return builds;
