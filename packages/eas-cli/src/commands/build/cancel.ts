@@ -117,7 +117,7 @@ export default class BuildCancel extends EasCommand {
     let buildId: string | null = buildIdFromArg;
     if (!buildId) {
       if (nonInteractive) {
-        throw new Error('BUILD_ID must not be empty in non-interactive mode');
+        throw new Error('Build ID must be provided in non-interactive mode');
       }
 
       buildId = await selectBuildToCancelAsync(graphqlClient, projectId, displayName);
