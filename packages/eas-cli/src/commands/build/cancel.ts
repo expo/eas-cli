@@ -49,11 +49,11 @@ export async function selectBuildToCancelAsync(
 
   let builds;
   try {
-    builds = await fetchBuildsAsync(graphqlClient, projectId, [
-      BuildStatus.New,
-      BuildStatus.InQueue,
-      BuildStatus.InProgress,
-    ]);
+    builds = await fetchBuildsAsync({
+      graphqlClient,
+      projectId,
+      statuses: [BuildStatus.New, BuildStatus.InQueue, BuildStatus.InProgress],
+    });
     spinner.stop();
   } catch (error) {
     spinner.fail(
@@ -62,7 +62,7 @@ export async function selectBuildToCancelAsync(
     throw error;
   }
   if (builds.length === 0) {
-    Log.warn(`There aren't any uncompleted builds for the project ${projectDisplayName}.`);
+    Log.warn(`We couldn't find any uncompleted builds for the project ${projectDisplayName}.`);
     return null;
   } else {
     const buildId = await selectAsync<string>(

@@ -43,7 +43,7 @@ export async function selectBuildToDeleteAsync(
 
   let builds;
   try {
-    builds = await fetchBuildsAsync(graphqlClient, projectId);
+    builds = await fetchBuildsAsync({ graphqlClient, projectId });
     spinner.stop();
   } catch (error) {
     spinner.fail(
@@ -52,7 +52,7 @@ export async function selectBuildToDeleteAsync(
     throw error;
   }
   if (builds.length === 0) {
-    Log.warn(`There aren't any builds for the project ${projectDisplayName}.`);
+    Log.warn(`We couldn't find any builds for the project ${projectDisplayName}.`);
     return null;
   } else {
     const buildId = await selectAsync<string>(
