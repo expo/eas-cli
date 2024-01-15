@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Remove "bare"-specific **eas.json** template. ([#2179](https://github.com/expo/eas-cli/pull/2179) by [@sjchmiela](https://github.com/sjchmiela))
+
 ## [6.0.0](https://github.com/expo/eas-cli/releases/tag/v6.0.0) - 2024-01-12
 
 ### 🛠 Breaking changes
