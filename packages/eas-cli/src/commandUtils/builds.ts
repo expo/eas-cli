@@ -39,6 +39,7 @@ export async function fetchBuildsAsync(
       builds.push(...buildsForStatus);
     }
   }
+  builds.sort((buildA, buildB) => (buildA.createdAt > buildB.createdAt ? -1 : 1));
   return builds;
 }
 
