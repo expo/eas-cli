@@ -16,11 +16,15 @@ export async function ensureBuildExistsAsync(
   }
 }
 
-export async function fetchBuildsAsync(
-  graphqlClient: ExpoGraphqlClient,
-  projectId: string,
-  statuses?: BuildStatus[]
-): Promise<BuildFragment[]> {
+export async function fetchBuildsAsync({
+  graphqlClient,
+  projectId,
+  statuses,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  projectId: string;
+  statuses?: BuildStatus[];
+}): Promise<BuildFragment[]> {
   let builds = [];
   if (!statuses) {
     builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
