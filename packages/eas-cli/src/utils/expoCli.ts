@@ -1,11 +1,11 @@
 import { ExpoConfig } from '@expo/config-types';
-import spawnAsync from '@expo/spawn-async';
+import { createForProject } from '@expo/package-manager';
 import chalk from 'chalk';
 import { boolish } from 'getenv';
-import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
+import resolveFrom from 'resolve-from';
 import semver from 'semver';
 
-import Log, { link } from '../log';
+import Log from '../log';
 import { memoize } from './expodash/memoize';
 
 // Aggressively returns `true` (UNVERSIONED, invalid SDK version format) to push users towards the versioned CLI.
@@ -53,7 +53,7 @@ export function shouldUseVersionedExpoCLIExpensive(
   }
 
   // Finally ensure the CLI is available for sanity.
-  return !!resolveFrom.silent(projectDir, '@expo/cli');
+  return !!resolveFrom.silent(projectDir, 'expo');
 }
 
 /**
@@ -64,7 +64,8 @@ export function shouldUseVersionedExpoCLIExpensive(
 export function shouldUseVersionedExpoCLIWithExplicitPlatformsExpensive(
   projectDir: string
 ): boolean {
-  const expoCliPath = resolveFrom.silent(projectDir, '@expo/cli/package.json');
+  const expoPath = resolveFrom.silent(projectDir, 'expo');
+  const expoCliPath = expoPath && resolveFrom.silent(expoPath, '@expo/cli/package.json');
   if (!expoCliPath) {
     return false;
   }
@@ -82,41 +83,31 @@ export async function expoCommandAsync(
   args: string[],
   { silent = false }: { silent?: boolean } = {}
 ): Promise<void> {
-  let expoCliPath;
-  try {
-    expoCliPath =
-      silentResolveFrom(projectDir, 'expo/bin/cli') ?? resolveFrom(projectDir, 'expo/bin/cli.js');
-  } catch (e: any) {
-    if (e.code === 'MODULE_NOT_FOUND') {
-      throw new Error(
-        `The \`expo\` package was not found. Follow the installation directions at ${link(
-          'https://docs.expo.dev/bare/installing-expo-modules/'
-        )}`
-      );
-    }
-    throw e;
-  }
-
-  const spawnPromise = spawnAsync(expoCliPath, args, {
-    stdio: ['inherit', 'pipe', 'pipe'], // inherit stdin so user can install a missing expo-cli from inside this command
+  const packageManager = createForProject(projectDir, {
+    silent,
+    stdio: ['inherit', 'pipe', 'pipe'],
   });
-  const {
-    child: { stdout, stderr },
-  } = spawnPromise;
-  if (!(stdout && stderr)) {
+
+  const commandPromise = packageManager.runAsync(['expo', ...args]);
+  const { child: spawnPromise } = commandPromise;
+
+  if (!spawnPromise.stdout || !spawnPromise.stderr) {
     throw new Error('Failed to spawn expo-cli');
   }
+
   if (!silent) {
-    stdout.on('data', data => {
+    spawnPromise.stdout.on('data', data => {
       for (const line of data.toString().trim().split('\n')) {
         Log.log(`${chalk.gray('[expo-cli]')} ${line}`);
       }
     });
-    stderr.on('data', data => {
+
+    spawnPromise.stderr.on('data', data => {
       for (const line of data.toString().trim().split('\n')) {
         Log.warn(`${chalk.gray('[expo-cli]')} ${line}`);
       }
     });
   }
-  await spawnPromise;
+
+  await commandPromise;
 }
