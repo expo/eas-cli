@@ -8,6 +8,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `build:delete` command. ([#2178](https://github.com/expo/eas-cli/pull/2178) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Add filter flags for `platform` and `profile` to `build:cancel` and `build:delete` commands. ([#2178](https://github.com/expo/eas-cli/pull/2178) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

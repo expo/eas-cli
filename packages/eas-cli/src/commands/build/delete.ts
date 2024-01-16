@@ -6,31 +6,25 @@ import { ensureBuildExistsAsync, fetchBuildsAsync, formatBuild } from '../../com
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { withErrorHandlingAsync } from '../../graphql/client';
-import {
-  Build,
-  BuildStatus,
-  CancelBuildMutation,
-  CancelBuildMutationVariables,
-} from '../../graphql/generated';
+import { Build, DeleteBuildMutation, DeleteBuildMutationVariables } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, selectAsync } from '../../prompts';
 
-async function cancelBuildAsync(
+async function deleteBuildAsync(
   graphqlClient: ExpoGraphqlClient,
   buildId: string
-): Promise<Pick<Build, 'id' | 'status'>> {
+): Promise<Pick<Build, 'id'>> {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<CancelBuildMutation, CancelBuildMutationVariables>(
+      .mutation<DeleteBuildMutation, DeleteBuildMutationVariables>(
         gql`
-          mutation CancelBuildMutation($buildId: ID!) {
+          mutation DeleteBuildMutation($buildId: ID!) {
             build(buildId: $buildId) {
-              cancel {
+              deleteBuild(buildId: $buildId) {
                 id
-                status
               }
             }
           }
@@ -39,10 +33,10 @@ async function cancelBuildAsync(
       )
       .toPromise()
   );
-  return data.build!.cancel;
+  return data.build!.deleteBuild;
 }
 
-export async function selectBuildToCancelAsync(
+export async function selectBuildToDeleteAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
   projectDisplayName: string,
@@ -51,18 +45,11 @@ export async function selectBuildToCancelAsync(
     profile?: string;
   }
 ): Promise<string | null> {
-  const spinner = ora().start('Fetching the uncompleted builds…');
+  const spinner = ora().start('Fetching builds…');
 
   let builds;
   try {
-    builds = await fetchBuildsAsync({
-      graphqlClient,
-      projectId,
-      filters: {
-        ...filters,
-        statuses: [BuildStatus.New, BuildStatus.InQueue, BuildStatus.InProgress],
-      },
-    });
+    builds = await fetchBuildsAsync({ graphqlClient, projectId, filters });
     spinner.stop();
   } catch (error) {
     spinner.fail(
@@ -71,11 +58,11 @@ export async function selectBuildToCancelAsync(
     throw error;
   }
   if (builds.length === 0) {
-    Log.warn(`We couldn't find any uncompleted builds for the project ${projectDisplayName}.`);
+    Log.warn(`We couldn't find any builds for the project ${projectDisplayName}.`);
     return null;
   } else {
     const buildId = await selectAsync<string>(
-      'Which build do you want to cancel?',
+      'Which build do you want to delete?',
       builds.map(build => ({
         title: formatBuild(build),
         value: build.id,
@@ -83,18 +70,16 @@ export async function selectBuildToCancelAsync(
     );
 
     return (await confirmAsync({
-      message: 'Are you sure you want to cancel it?',
+      message: 'Are you sure you want to delete it?',
     }))
       ? buildId
       : null;
   }
 }
 
-export default class BuildCancel extends EasCommand {
-  static override description = 'cancel a build';
-
+export default class BuildDelete extends EasCommand {
+  static override description = 'delete a build';
   static override args = [{ name: 'BUILD_ID' }];
-
   static override flags = {
     ...EASNonInteractiveFlag,
     platform: Flags.enum({
@@ -108,7 +93,6 @@ export default class BuildCancel extends EasCommand {
       helpValue: 'PROFILE_NAME',
     }),
   };
-
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
@@ -119,7 +103,7 @@ export default class BuildCancel extends EasCommand {
     const {
       args: { BUILD_ID: buildIdFromArg },
       flags: { 'non-interactive': nonInteractive, platform, profile },
-    } = await this.parse(BuildCancel);
+    } = await this.parse(BuildDelete);
 
     if (buildIdFromArg && (platform || profile)) {
       throw new Error(
@@ -130,10 +114,7 @@ export default class BuildCancel extends EasCommand {
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(BuildCancel, {
-      nonInteractive,
-    });
-
+    } = await this.getContextAsync(BuildDelete, { nonInteractive });
     const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
     if (buildIdFromArg) {
@@ -146,7 +127,7 @@ export default class BuildCancel extends EasCommand {
         throw new Error('Build ID must be provided in non-interactive mode');
       }
 
-      buildId = await selectBuildToCancelAsync(graphqlClient, projectId, displayName, {
+      buildId = await selectBuildToDeleteAsync(graphqlClient, projectId, displayName, {
         platform,
         profile,
       });
@@ -155,17 +136,12 @@ export default class BuildCancel extends EasCommand {
       }
     }
 
-    const spinner = ora().start('Canceling the build…');
+    const spinner = ora().start('Deleting the build...');
     try {
-      const { status } = await cancelBuildAsync(graphqlClient, buildId);
-      if ([BuildStatus.Canceled, BuildStatus.PendingCancel].includes(status)) {
-        spinner.succeed('Build canceled');
-      } else {
-        spinner.text = 'Build is already completed';
-        spinner.stopAndPersist();
-      }
+      await deleteBuildAsync(graphqlClient, buildId);
+      spinner.succeed('Build deleted');
     } catch (error) {
-      spinner.fail(`Something went wrong and we couldn't cancel your build ${buildId}`);
+      spinner.fail(`Something went wrong and we couldn't delete your build ${buildId}`);
       throw error;
     }
   }

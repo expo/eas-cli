@@ -112,6 +112,7 @@ export type Account = {
   googleServiceAccountKeys: Array<GoogleServiceAccountKey>;
   id: Scalars['ID'];
   isCurrent: Scalars['Boolean'];
+  isDisabled: Scalars['Boolean'];
   /** Whether this account has SSO enabled. Can be queried by all members. */
   isSSOEnabled: Scalars['Boolean'];
   name: Scalars['String'];
@@ -314,6 +315,7 @@ export type AccountAppsEdge = {
 };
 
 export type AccountAppsFilterInput = {
+  searchTerm?: InputMaybe<Scalars['String']>;
   sortByField: AccountAppsSortByField;
 };
 
@@ -540,7 +542,12 @@ export type AccountUsageEasBuildMetadata = {
   platform: AppPlatform;
 };
 
-export type AccountUsageMetadata = AccountUsageEasBuildMetadata;
+export type AccountUsageEasJobsMetadata = {
+  __typename?: 'AccountUsageEASJobsMetadata';
+  resourceClassDisplayName: Scalars['String'];
+};
+
+export type AccountUsageMetadata = AccountUsageEasBuildMetadata | AccountUsageEasJobsMetadata;
 
 export type AccountUsageMetric = {
   __typename?: 'AccountUsageMetric';
@@ -2159,11 +2166,13 @@ export type BuildRetryDisabledReasonArgs = {
 
 export type BuildAnnotation = {
   __typename?: 'BuildAnnotation';
+  authorUsername?: Maybe<Scalars['String']>;
   buildPhase: Scalars['String'];
   exampleBuildLog?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   internalNotes?: Maybe<Scalars['String']>;
   message: Scalars['String'];
+  regexFlags?: Maybe<Scalars['String']>;
   regexString: Scalars['String'];
   title: Scalars['String'];
 };
@@ -2173,6 +2182,7 @@ export type BuildAnnotationDataInput = {
   exampleBuildLog?: InputMaybe<Scalars['String']>;
   internalNotes?: InputMaybe<Scalars['String']>;
   message: Scalars['String'];
+  regexFlags?: InputMaybe<Scalars['String']>;
   regexString: Scalars['String'];
   title: Scalars['String'];
 };
@@ -2375,7 +2385,6 @@ export type BuildMetadataInput = {
   appIdentifier?: InputMaybe<Scalars['String']>;
   appName?: InputMaybe<Scalars['String']>;
   appVersion?: InputMaybe<Scalars['String']>;
-  buildMode?: InputMaybe<BuildMode>;
   buildProfile?: InputMaybe<Scalars['String']>;
   channel?: InputMaybe<Scalars['String']>;
   cliVersion?: InputMaybe<Scalars['String']>;
@@ -3073,6 +3082,7 @@ export type EasBuildOrClassicBuildJob = Build | BuildJob;
 
 export enum EasService {
   Builds = 'BUILDS',
+  Jobs = 'JOBS',
   Updates = 'UPDATES'
 }
 
@@ -3081,6 +3091,7 @@ export enum EasServiceMetric {
   BandwidthUsage = 'BANDWIDTH_USAGE',
   Builds = 'BUILDS',
   ManifestRequests = 'MANIFEST_REQUESTS',
+  RunTime = 'RUN_TIME',
   UniqueUpdaters = 'UNIQUE_UPDATERS',
   UniqueUsers = 'UNIQUE_USERS'
 }
@@ -5390,7 +5401,9 @@ export type UploadSessionCreateUploadSessionArgs = {
 
 export enum UploadSessionType {
   EasBuildGcsProjectSources = 'EAS_BUILD_GCS_PROJECT_SOURCES',
+  /** @deprecated Use EAS_BUILD_GCS_PROJECT_SOURCES instead. */
   EasBuildProjectSources = 'EAS_BUILD_PROJECT_SOURCES',
+  /** @deprecated Use EAS_SUBMIT_GCS_APP_ARCHIVE instead. */
   EasSubmitAppArchive = 'EAS_SUBMIT_APP_ARCHIVE',
   EasSubmitGcsAppArchive = 'EAS_SUBMIT_GCS_APP_ARCHIVE'
 }
@@ -5408,6 +5421,7 @@ export type UsageMetricTotal = {
 export enum UsageMetricType {
   Bandwidth = 'BANDWIDTH',
   Build = 'BUILD',
+  Minute = 'MINUTE',
   Request = 'REQUEST',
   Update = 'UPDATE',
   User = 'USER'
@@ -6026,6 +6040,13 @@ export type CancelBuildMutationVariables = Exact<{
 
 
 export type CancelBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', cancel: { __typename?: 'Build', id: string, status: BuildStatus } } };
+
+export type DeleteBuildMutationVariables = Exact<{
+  buildId: Scalars['ID'];
+}>;
+
+
+export type DeleteBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', deleteBuild: { __typename?: 'Build', id: string } } };
 
 export type DeleteUpdateChannelMutationVariables = Exact<{
   channelId: Scalars['ID'];
