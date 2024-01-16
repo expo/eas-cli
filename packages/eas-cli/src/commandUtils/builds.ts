@@ -12,6 +12,11 @@ import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { appPlatformEmojis } from '../platform';
 import { ExpoGraphqlClient } from './context/contextUtils/createGraphqlClient';
 
+const platformToAppPlatform: Record<string, AppPlatform | undefined> = {
+  android: AppPlatform.Android,
+  ios: AppPlatform.Ios,
+};
+
 export async function ensureBuildExistsAsync(
   graphqlClient: ExpoGraphqlClient,
   buildId: string
@@ -35,7 +40,7 @@ export async function fetchBuildsAsync({
   let builds: BuildFragment[];
   const queryFilters: InputMaybe<BuildFilter> = {};
   if (filters?.platform && filters.platform !== 'all') {
-    queryFilters['platform'] = toAppPlatform(filters.platform);
+    queryFilters['platform'] = platformToAppPlatform[filters.platform];
   }
   if (filters?.profile) {
     queryFilters['buildProfile'] = filters.profile;
@@ -88,10 +93,4 @@ export function formatBuild(
   }
   const status = chalk.blue(statusText);
   return `${platform} Started at: ${startTime}, Status: ${status}, Id: ${build.id}`;
-}
-
-function toAppPlatform(platform: string): AppPlatform {
-  const capitalizedPlatform = (platform[0].toUpperCase() +
-    platform.substring(1)) as keyof typeof AppPlatform;
-  return AppPlatform[capitalizedPlatform];
 }
