@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Allow undefined update message for EAS Update publishing when no VCS. ([#2148](https://github.com/expo/eas-cli/pull/2148) by [@wschurman](https://github.com/wschurman))
+- Added `build:delete` command. ([#2178](https://github.com/expo/eas-cli/pull/2178) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ### 🐛 Bug fixes
 
