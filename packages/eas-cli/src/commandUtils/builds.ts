@@ -14,7 +14,7 @@ import { ExpoGraphqlClient } from './context/contextUtils/createGraphqlClient';
 
 const platformToAppPlatform: Record<
   Exclude<RequestedPlatform, RequestedPlatform.All>,
-  AppPlatform | undefined
+  AppPlatform
 > = {
   android: AppPlatform.Android,
   ios: AppPlatform.Ios,
