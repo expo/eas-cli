@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Remove "bare"-specific **eas.json** template. ([#2179](https://github.com/expo/eas-cli/pull/2179) by [@sjchmiela](https://github.com/sjchmiela))
+- Prompt users if they want to continue if EAS CLI fails to provision the devices. ([#2181](https://github.com/expo/eas-cli/pull/2181) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [6.0.0](https://github.com/expo/eas-cli/releases/tag/v6.0.0) - 2024-01-12
 

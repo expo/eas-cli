@@ -1,4 +1,5 @@
 import { ProfileType } from '@expo/apple-utils';
+import { Errors } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -15,7 +16,12 @@ import {
 } from '../../../graphql/generated';
 import Log from '../../../log';
 import { getApplePlatformFromTarget } from '../../../project/ios/target';
-import { confirmAsync, pressAnyKeyToContinueAsync, promptAsync } from '../../../prompts';
+import {
+  confirmAsync,
+  pressAnyKeyToContinueAsync,
+  promptAsync,
+  selectAsync,
+} from '../../../prompts';
 import differenceBy from '../../../utils/expodash/differenceBy';
 import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
@@ -181,6 +187,22 @@ export class SetUpAdhocProvisioningProfile {
       Log.log(
         'Most commonly devices fail to to be provisioned while they are still being processed by Apple, which can take up to 24-72 hours. Check your Apple Developer Portal page at https://developer.apple.com/account/resources/devices/list, the devices in "Processing" status cannot be provisioned yet'
       );
+      const shouldContinue = await selectAsync(
+        'Do you want to continue without provisioning these devices?',
+        [
+          {
+            title: 'Yes',
+            value: true,
+          },
+          {
+            title: 'No (EAS CLI will exit)',
+            value: false,
+          },
+        ]
+      );
+      if (!shouldContinue) {
+        Errors.exit(1);
+      }
     }
 
     // 7. Create (or update) app build credentials

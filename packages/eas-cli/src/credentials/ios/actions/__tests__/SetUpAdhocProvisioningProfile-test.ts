@@ -14,6 +14,7 @@ import {
 } from '../../../../graphql/generated';
 import Log from '../../../../log';
 import { getApplePlatformFromTarget } from '../../../../project/ios/target';
+import { selectAsync } from '../../../../prompts';
 import { Actor } from '../../../../user/User';
 import { Client } from '../../../../vcs/vcs';
 import { CredentialsContext, CredentialsContextProjectInfo } from '../../../context';
@@ -34,6 +35,7 @@ jest.mock('../DeviceUtils', () => {
   };
 });
 jest.mock('../../../../project/ios/target');
+jest.mock('../../../../prompts');
 
 describe(doUDIDsMatch, () => {
   it('return false if UDIDs do not match', () => {
@@ -67,6 +69,7 @@ describe('runWithDistributionCertificateAsync', () => {
               developerPortalIdentifier: 'provisioningProfileId',
             },
           } as IosAppBuildCredentialsFragment);
+          jest.mocked(selectAsync).mockImplementation(async () => true);
           ctx.ios.updateProvisioningProfileAsync = jest.fn().mockResolvedValue({
             appleTeam: {},
             appleDevices: [{ identifier: 'id1' }],
