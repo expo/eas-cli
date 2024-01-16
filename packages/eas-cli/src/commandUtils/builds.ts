@@ -9,10 +9,13 @@ import {
   InputMaybe,
 } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
-import { appPlatformEmojis } from '../platform';
+import { RequestedPlatform, appPlatformEmojis } from '../platform';
 import { ExpoGraphqlClient } from './context/contextUtils/createGraphqlClient';
 
-const platformToAppPlatform: Record<string, AppPlatform | undefined> = {
+const platformToAppPlatform: Record<
+  Exclude<RequestedPlatform, RequestedPlatform.All>,
+  AppPlatform | undefined
+> = {
   android: AppPlatform.Android,
   ios: AppPlatform.Ios,
 };
@@ -35,7 +38,7 @@ export async function fetchBuildsAsync({
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
-  filters?: { statuses?: BuildStatus[]; platform?: string; profile?: string };
+  filters?: { statuses?: BuildStatus[]; platform?: RequestedPlatform; profile?: string };
 }): Promise<BuildFragment[]> {
   let builds: BuildFragment[];
   const queryFilters: InputMaybe<BuildFilter> = {};

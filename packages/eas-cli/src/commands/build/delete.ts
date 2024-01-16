@@ -9,6 +9,7 @@ import { withErrorHandlingAsync } from '../../graphql/client';
 import { Build, DeleteBuildMutation, DeleteBuildMutationVariables } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
+import { RequestedPlatform } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, selectAsync } from '../../prompts';
 
@@ -40,7 +41,7 @@ export async function selectBuildToDeleteAsync(
   projectId: string,
   projectDisplayName: string,
   filters?: {
-    platform?: string;
+    platform?: RequestedPlatform;
     profile?: string;
   }
 ): Promise<string | null> {
@@ -81,10 +82,10 @@ export default class BuildDelete extends EasCommand {
   static override args = [{ name: 'BUILD_ID' }];
   static override flags = {
     ...EASNonInteractiveFlag,
-    platform: Flags.string({
+    platform: Flags.enum({
       char: 'p',
       description: 'Filter builds by the platform if build ID is not provided',
-      options: ['android', 'ios', 'all'],
+      options: Object.values(RequestedPlatform),
     }),
     profile: Flags.string({
       char: 'e',

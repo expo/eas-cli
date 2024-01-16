@@ -14,6 +14,7 @@ import {
 } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
+import { RequestedPlatform } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, selectAsync } from '../../prompts';
 
@@ -46,7 +47,7 @@ export async function selectBuildToCancelAsync(
   projectId: string,
   projectDisplayName: string,
   filters?: {
-    platform?: string;
+    platform?: RequestedPlatform;
     profile?: string;
   }
 ): Promise<string | null> {
@@ -96,10 +97,10 @@ export default class BuildCancel extends EasCommand {
 
   static override flags = {
     ...EASNonInteractiveFlag,
-    platform: Flags.string({
+    platform: Flags.enum({
       char: 'p',
       description: 'Filter builds by the platform if build ID is not provided',
-      options: ['android', 'ios', 'all'],
+      options: Object.values(RequestedPlatform),
     }),
     profile: Flags.string({
       char: 'e',
