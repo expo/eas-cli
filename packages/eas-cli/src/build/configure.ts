@@ -1,10 +1,8 @@
-import { Platform, Workflow } from '@expo/eas-build-job';
 import { EasJson, EasJsonAccessor } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
 import Log, { learnMore } from '../log';
-import { resolveWorkflowAsync } from '../project/workflow';
 import { easCliVersion } from '../utils/easCli';
 import { Client } from '../vcs/vcs';
 import { maybeBailOnRepoStatusAsync, reviewAndCommitChangesAsync } from './utils/repository';
@@ -54,7 +52,7 @@ async function configureAsync({
   }
 }
 
-const EAS_JSON_MANAGED_DEFAULT: EasJson = {
+const EAS_JSON_DEFAULT: EasJson = {
   cli: {
     version: `>= ${easCliVersion}`,
   },
@@ -73,43 +71,10 @@ const EAS_JSON_MANAGED_DEFAULT: EasJson = {
   },
 };
 
-const EAS_JSON_BARE_DEFAULT: EasJson = {
-  cli: {
-    version: `>= ${easCliVersion}`,
-  },
-  build: {
-    development: {
-      distribution: 'internal',
-      android: {
-        gradleCommand: ':app:assembleDebug',
-      },
-      ios: {
-        buildConfiguration: 'Debug',
-      },
-    },
-    preview: {
-      distribution: 'internal',
-    },
-    production: {},
-  },
-  submit: {
-    production: {},
-  },
-};
-
 async function createEasJsonAsync(projectDir: string, vcsClient: Client): Promise<void> {
   const easJsonPath = EasJsonAccessor.formatEasJsonPath(projectDir);
 
-  const hasAndroidNativeProject =
-    (await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient)) === Workflow.GENERIC;
-  const hasIosNativeProject =
-    (await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient)) === Workflow.GENERIC;
-  const easJson =
-    hasAndroidNativeProject || hasIosNativeProject
-      ? EAS_JSON_BARE_DEFAULT
-      : EAS_JSON_MANAGED_DEFAULT;
-
-  await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
+  await fs.writeFile(easJsonPath, `${JSON.stringify(EAS_JSON_DEFAULT, null, 2)}\n`);
   await vcsClient.trackFileAsync(easJsonPath);
   Log.withTick(
     `Generated ${chalk.bold('eas.json')}. ${learnMore(

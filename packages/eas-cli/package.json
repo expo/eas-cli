@@ -1,7 +1,7 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "5.9.3",
+  "version": "6.0.0",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
@@ -14,7 +14,7 @@
     "@expo/config-plugins": "7.2.4",
     "@expo/config-types": "49.0.0",
     "@expo/eas-build-job": "1.0.56",
-    "@expo/eas-json": "5.9.3",
+    "@expo/eas-json": "6.0.0",
     "@expo/json-file": "8.2.37",
     "@expo/multipart-body-parser": "1.1.0",
     "@expo/osascript": "2.0.33",
@@ -118,7 +118,7 @@
     "typescript": "4.9.4"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
   "files": [
     "/bin",
@@ -217,7 +217,7 @@
     "clean": "rimraf dist build tmp node_modules yarn-error.log"
   },
   "volta": {
-    "node": "18.19.0",
-    "yarn": "1.22.19"
+    "node": "20.11.0",
+    "yarn": "1.22.21"
   }
 }

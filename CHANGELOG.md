@@ -8,11 +8,24 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Allow undefined update message for EAS Update publishing when no VCS. ([#2148](https://github.com/expo/eas-cli/pull/2148) by [@wschurman](https://github.com/wschurman))
 - Add `build:delete` command. ([#2178](https://github.com/expo/eas-cli/pull/2178) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 - Add filter flags for `platform` and `profile` to `build:cancel` and `build:delete` commands. ([#2178](https://github.com/expo/eas-cli/pull/2178) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+- Remove "bare"-specific **eas.json** template. ([#2179](https://github.com/expo/eas-cli/pull/2179) by [@sjchmiela](https://github.com/sjchmiela))
+
+## [6.0.0](https://github.com/expo/eas-cli/releases/tag/v6.0.0) - 2024-01-12
+
+### 🛠 Breaking changes
+
+- Drop support for Node 14. ([#2175](https://github.com/expo/eas-cli/pull/2175) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🎉 New features
+
+- Allow undefined update message for EAS Update publishing when no VCS. ([#2148](https://github.com/expo/eas-cli/pull/2148) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
 
