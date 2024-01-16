@@ -34,11 +34,11 @@ export async function fetchBuildsAsync({
 }): Promise<BuildFragment[]> {
   let builds: BuildFragment[];
   const queryFilters: InputMaybe<BuildFilter> = {};
-  if (filters?.platform && filters?.platform !== 'all') {
-    queryFilters['platform'] = filters?.platform.toUpperCase() as AppPlatform;
+  if (filters?.platform && filters.platform !== 'all') {
+    queryFilters['platform'] = toAppPlatform(filters.platform);
   }
   if (filters?.profile) {
-    queryFilters['buildProfile'] = filters?.profile;
+    queryFilters['buildProfile'] = filters.profile;
   }
   if (!filters?.statuses) {
     builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
@@ -88,4 +88,10 @@ export function formatBuild(
   }
   const status = chalk.blue(statusText);
   return `${platform} Started at: ${startTime}, Status: ${status}, Id: ${build.id}`;
+}
+
+function toAppPlatform(platform: string): AppPlatform {
+  const capitalizedPlatform = (platform[0].toUpperCase() +
+    platform.substring(1)) as keyof typeof AppPlatform;
+  return AppPlatform[capitalizedPlatform];
 }
