@@ -98,13 +98,12 @@ export default class BuildCancel extends EasCommand {
     ...EASNonInteractiveFlag,
     platform: Flags.string({
       char: 'p',
-      description: 'Platform for which to list builds when ID not provided',
+      description: 'Filter builds by the platform if build ID is not provided',
       options: ['android', 'ios', 'all'],
     }),
     profile: Flags.string({
       char: 'e',
-      description:
-        'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
+      description: 'Filter builds by build profile if build ID is not provided',
       helpValue: 'PROFILE_NAME',
     }),
   };
