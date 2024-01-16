@@ -1,3 +1,4 @@
+import { Flags } from '@oclif/core';
 import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -43,7 +44,11 @@ async function cancelBuildAsync(
 export async function selectBuildToCancelAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
-  projectDisplayName: string
+  projectDisplayName: string,
+  filters?: {
+    platform?: string;
+    profile?: string;
+  }
 ): Promise<string | null> {
   const spinner = ora().start('Fetching the uncompleted builds…');
 
@@ -52,7 +57,10 @@ export async function selectBuildToCancelAsync(
     builds = await fetchBuildsAsync({
       graphqlClient,
       projectId,
-      statuses: [BuildStatus.New, BuildStatus.InQueue, BuildStatus.InProgress],
+      filters: {
+        ...filters,
+        statuses: [BuildStatus.New, BuildStatus.InQueue, BuildStatus.InProgress],
+      },
     });
     spinner.stop();
   } catch (error) {
@@ -88,6 +96,17 @@ export default class BuildCancel extends EasCommand {
 
   static override flags = {
     ...EASNonInteractiveFlag,
+    platform: Flags.string({
+      char: 'p',
+      description: 'Platform for which to list builds when ID not provided',
+      options: ['android', 'ios', 'all'],
+    }),
+    profile: Flags.string({
+      char: 'e',
+      description:
+        'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
+      helpValue: 'PROFILE_NAME',
+    }),
   };
 
   static override contextDefinition = {
@@ -99,7 +118,7 @@ export default class BuildCancel extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       args: { BUILD_ID: buildIdFromArg },
-      flags: { 'non-interactive': nonInteractive },
+      flags: { 'non-interactive': nonInteractive, platform, profile },
     } = await this.parse(BuildCancel);
     const {
       privateProjectConfig: { projectId },
@@ -120,7 +139,10 @@ export default class BuildCancel extends EasCommand {
         throw new Error('Build ID must be provided in non-interactive mode');
       }
 
-      buildId = await selectBuildToCancelAsync(graphqlClient, projectId, displayName);
+      buildId = await selectBuildToCancelAsync(graphqlClient, projectId, displayName, {
+        platform,
+        profile,
+      });
       if (!buildId) {
         return;
       }

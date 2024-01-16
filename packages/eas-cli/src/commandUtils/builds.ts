@@ -1,6 +1,13 @@
 import chalk from 'chalk';
 
-import { Build, BuildFragment, BuildStatus } from '../graphql/generated';
+import {
+  AppPlatform,
+  Build,
+  BuildFilter,
+  BuildFragment,
+  BuildStatus,
+  InputMaybe,
+} from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { appPlatformEmojis } from '../platform';
 import { ExpoGraphqlClient } from './context/contextUtils/createGraphqlClient';
@@ -19,28 +26,36 @@ export async function ensureBuildExistsAsync(
 export async function fetchBuildsAsync({
   graphqlClient,
   projectId,
-  statuses,
+  filters,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
-  statuses?: BuildStatus[];
+  filters?: { statuses?: BuildStatus[]; platform?: string; profile?: string };
 }): Promise<BuildFragment[]> {
-  let builds = [];
-  if (!statuses) {
+  let builds: BuildFragment[];
+  const queryFilters: InputMaybe<BuildFilter> = {};
+  if (filters?.platform && filters?.platform !== 'all') {
+    queryFilters['platform'] = filters?.platform.toUpperCase() as AppPlatform;
+  }
+  if (filters?.profile) {
+    queryFilters['buildProfile'] = filters?.profile;
+  }
+  if (!filters?.statuses) {
     builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
       appId: projectId,
       offset: 0,
       limit: 10,
+      filter: queryFilters ? queryFilters : undefined,
     });
   } else {
     builds = (
       await Promise.all(
-        statuses.map(status =>
+        filters.statuses.map(status =>
           BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
             appId: projectId,
             offset: 0,
             limit: 10,
-            filter: { status },
+            filter: queryFilters ? { ...queryFilters, status } : { status },
           })
         )
       )
