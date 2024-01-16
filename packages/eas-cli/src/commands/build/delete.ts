@@ -104,6 +104,13 @@ export default class BuildDelete extends EasCommand {
       args: { BUILD_ID: buildIdFromArg },
       flags: { 'non-interactive': nonInteractive, platform, profile },
     } = await this.parse(BuildDelete);
+
+    if (buildIdFromArg && (platform || profile)) {
+      throw new Error(
+        'Build ID cannot be used together with platform and profile flags. They are used to filter the list of builds when not providing the build ID'
+      );
+    }
+
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
