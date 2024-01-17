@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { ExpoGraphqlClient } from './context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
   Build,
@@ -10,7 +11,6 @@ import {
 } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { RequestedPlatform, appPlatformEmojis } from '../platform';
-import { ExpoGraphqlClient } from './context/contextUtils/createGraphqlClient';
 
 const platformToAppPlatform: Record<
   Exclude<RequestedPlatform, RequestedPlatform.All>,
