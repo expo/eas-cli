@@ -5,6 +5,8 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import semver from 'semver';
 
+import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from './android/UpdatesModule';
+import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from './ios/UpdatesModule';
 import { getEASUpdateURL } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPlatform } from '../graphql/generated';
@@ -19,8 +21,6 @@ import {
 import { resolveWorkflowPerPlatformAsync } from '../project/workflow';
 import { confirmAsync } from '../prompts';
 import { Client } from '../vcs/vcs';
-import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from './android/UpdatesModule';
-import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from './ios/UpdatesModule';
 
 export const DEFAULT_MANAGED_RUNTIME_VERSION_GTE_SDK_49 = { policy: 'appVersion' } as const;
 export const DEFAULT_MANAGED_RUNTIME_VERSION_LTE_SDK_48 = { policy: 'sdkVersion' } as const;

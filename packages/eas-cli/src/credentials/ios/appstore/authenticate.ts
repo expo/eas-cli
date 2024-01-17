@@ -10,9 +10,6 @@ import assert from 'assert';
 import chalk from 'chalk';
 import { int } from 'getenv';
 
-import Log from '../../../log';
-import { toggleConfirmAsync } from '../../../prompts';
-import { MinimalAscApiKey } from '../credentials';
 import {
   ApiKeyAuthCtx,
   AppleTeamType,
@@ -28,6 +25,9 @@ import {
   resolveAscApiKeyAsync,
   resolveUserCredentialsAsync,
 } from './resolveCredentials';
+import Log from '../../../log';
+import { toggleConfirmAsync } from '../../../prompts';
+import { MinimalAscApiKey } from '../credentials';
 
 const APPLE_IN_HOUSE_TEAM_TYPE = 'in-house';
 

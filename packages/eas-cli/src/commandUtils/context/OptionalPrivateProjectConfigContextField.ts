@@ -1,10 +1,10 @@
 import { ExpoConfig } from '@expo/config-types';
 import { InvalidEasJsonError } from '@expo/eas-json/build/errors';
 
-import { getPrivateExpoConfig } from '../../project/expoConfig';
 import ContextField, { ContextOptions } from './ContextField';
 import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
+import { getPrivateExpoConfig } from '../../project/expoConfig';
 
 export class OptionalPrivateProjectConfigContextField extends ContextField<
   | {

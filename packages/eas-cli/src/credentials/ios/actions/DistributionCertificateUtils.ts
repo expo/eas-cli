@@ -2,6 +2,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 import dateformat from 'dateformat';
 
+import { formatAppleTeam } from './AppleTeamFormatting';
 import { AccountFragment, AppleDistributionCertificateFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
@@ -17,7 +18,6 @@ import { filterRevokedDistributionCertsFromEasServers } from '../appstore/Creden
 import { AppleTooManyCertsError } from '../appstore/distributionCertificate';
 import { distributionCertificateSchema } from '../credentials';
 import { validateDistributionCertificateAsync } from '../validators/validateDistributionCertificate';
-import { formatAppleTeam } from './AppleTeamFormatting';
 
 export function formatDistributionCertificate(
   distributionCertificate: AppleDistributionCertificateFragment,

@@ -6,6 +6,8 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 
+import { GradleBuildContext } from './gradle';
+import * as gradleUtils from './gradleUtils';
 import { readAppJson } from '../../build/utils/appJson';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import env from '../../env';
@@ -17,8 +19,6 @@ import {
 import { promptAsync } from '../../prompts';
 import { Client } from '../../vcs/vcs';
 import { resolveWorkflowAsync } from '../workflow';
-import { GradleBuildContext } from './gradle';
-import * as gradleUtils from './gradleUtils';
 
 export const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
 

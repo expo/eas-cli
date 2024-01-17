@@ -3,16 +3,16 @@ import { SubmitProfile } from '@expo/eas-json';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { Analytics, MetadataEvent } from '../analytics/AnalyticsManager';
-import { CredentialsContext } from '../credentials/context';
-import Log from '../log';
-import { confirmAsync } from '../prompts';
 import { AppleData } from './apple/data';
 import { createAppleTasks } from './apple/tasks';
 import { getAppStoreAuthAsync } from './auth';
 import { createAppleWriter, getStaticConfigFilePath } from './config/resolve';
 import { MetadataDownloadError, MetadataValidationError } from './errors';
 import { subscribeTelemetry } from './utils/telemetry';
+import { Analytics, MetadataEvent } from '../analytics/AnalyticsManager';
+import { CredentialsContext } from '../credentials/context';
+import Log from '../log';
+import { confirmAsync } from '../prompts';
 
 /**
  * Generate a local store configuration from the stores.

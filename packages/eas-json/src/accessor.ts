@@ -25,9 +25,7 @@ const customErrorMessageHandlers: ((err: ValidationError) => void)[] = [
       ) {
         throw new InvalidEasJsonError(
           chalk.red(
-            `Specified build image '${
-              detail?.context?.value
-            }' is not recognized. Please update your EAS CLI and see ${link(
+            `Specified build image '${detail?.context}' is not recognized. Please update your EAS CLI and see ${link(
               'https://docs.expo.dev/build-reference/infrastructure/'
             )} for supported build images.`
           )
@@ -101,7 +99,7 @@ export class EasJsonAccessor {
     if (!this.easJsonPath) {
       throw new Error('Updates are not supported for EasJsonAccessor created from string.');
     }
-    if (!this.easJsonPatched) {
+    if (!this.easJsonPatched || !this.easJsonRawContents) {
       return;
     }
     await fs.writeFile(this.easJsonPath, this.easJsonRawContents);

@@ -1,3 +1,10 @@
+import { AndroidAppBuildCredentialsMutation } from './graphql/mutations/AndroidAppBuildCredentialsMutation';
+import { AndroidAppCredentialsMutation } from './graphql/mutations/AndroidAppCredentialsMutation';
+import { AndroidFcmMutation } from './graphql/mutations/AndroidFcmMutation';
+import { AndroidKeystoreMutation } from './graphql/mutations/AndroidKeystoreMutation';
+import { GoogleServiceAccountKeyMutation } from './graphql/mutations/GoogleServiceAccountKeyMutation';
+import { AndroidAppCredentialsQuery } from './graphql/queries/AndroidAppCredentialsQuery';
+import { GoogleServiceAccountKeyQuery } from './graphql/queries/GoogleServiceAccountKeyQuery';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AccountFragment,
@@ -11,13 +18,6 @@ import {
 } from '../../../graphql/generated';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { GoogleServiceAccountKey, KeystoreWithType } from '../credentials';
-import { AndroidAppBuildCredentialsMutation } from './graphql/mutations/AndroidAppBuildCredentialsMutation';
-import { AndroidAppCredentialsMutation } from './graphql/mutations/AndroidAppCredentialsMutation';
-import { AndroidFcmMutation } from './graphql/mutations/AndroidFcmMutation';
-import { AndroidKeystoreMutation } from './graphql/mutations/AndroidKeystoreMutation';
-import { GoogleServiceAccountKeyMutation } from './graphql/mutations/GoogleServiceAccountKeyMutation';
-import { AndroidAppCredentialsQuery } from './graphql/queries/AndroidAppCredentialsQuery';
-import { GoogleServiceAccountKeyQuery } from './graphql/queries/GoogleServiceAccountKeyQuery';
 
 export interface AppLookupParams {
   account: AccountFragment;

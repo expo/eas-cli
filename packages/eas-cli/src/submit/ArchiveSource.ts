@@ -4,6 +4,8 @@ import prompts from 'prompts';
 import { URL } from 'url';
 import * as uuid from 'uuid';
 
+import { getRecentBuildsForSubmissionAsync } from './utils/builds';
+import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { BuildFragment } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
@@ -12,8 +14,6 @@ import Log, { learnMore } from '../log';
 import { appPlatformDisplayNames } from '../platform';
 import { confirmAsync, promptAsync } from '../prompts';
 import { fromNow } from '../utils/date';
-import { getRecentBuildsForSubmissionAsync } from './utils/builds';
-import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files';
 
 export const BUILD_LIST_ITEM_COUNT = 4;
 

@@ -1,13 +1,13 @@
 import { BundleId, CapabilityTypeOption } from '@expo/apple-utils';
 import { JSONObject } from '@expo/json-file';
 
-import Log from '../../../log';
-import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
 import {
   CapabilityMapping,
   EXPO_NO_CAPABILITY_SYNC,
   assertValidOptions,
 } from './bundleIdCapabilities';
+import Log from '../../../log';
+import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
 
 type UpdateCapabilityRequest = Parameters<BundleId['updateBundleIdCapabilityAsync']>[0];
 

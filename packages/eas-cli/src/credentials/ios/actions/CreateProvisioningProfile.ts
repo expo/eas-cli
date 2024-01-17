@@ -1,6 +1,8 @@
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
+import { generateProvisioningProfileAsync } from './ProvisioningProfileUtils';
 import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
@@ -12,8 +14,6 @@ import { ProvisioningProfile } from '../appstore/Credentials.types';
 import { AuthCtx } from '../appstore/authenticateTypes';
 import { provisioningProfileSchema } from '../credentials';
 import { Target } from '../types';
-import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
-import { generateProvisioningProfileAsync } from './ProvisioningProfileUtils';
 
 export class CreateProvisioningProfile {
   constructor(

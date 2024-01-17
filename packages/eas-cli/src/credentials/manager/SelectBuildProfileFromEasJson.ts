@@ -7,7 +7,10 @@ import { promptAsync } from '../../prompts';
 export class SelectBuildProfileFromEasJson<T extends Platform> {
   private easJsonAccessor: EasJsonAccessor;
 
-  constructor(projectDir: string, private platform: T) {
+  constructor(
+    projectDir: string,
+    private platform: T
+  ) {
     this.easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   }
 

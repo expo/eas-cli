@@ -11,7 +11,10 @@ export class MissingCredentialsError extends Error {
 }
 
 export class UnsupportedCredentialsChoiceError extends Error {
-  constructor(message: string, public choice: string) {
+  constructor(
+    message: string,
+    public choice: string
+  ) {
     super(message);
   }
 }

@@ -1,12 +1,12 @@
 import { ApiKey, ApiKeyProps, ApiKeyType, UserRole } from '@expo/apple-utils';
 import promiseRetry from 'promise-retry';
 
-import { Analytics, SubmissionEvent } from '../../../analytics/AnalyticsManager';
-import Log, { learnMore } from '../../../log';
-import { ora } from '../../../ora';
 import { AscApiKey, AscApiKeyInfo } from './Credentials.types';
 import { getRequestContext } from './authenticate';
 import { AuthCtx, UserAuthCtx } from './authenticateTypes';
+import { Analytics, SubmissionEvent } from '../../../analytics/AnalyticsManager';
+import Log, { learnMore } from '../../../log';
+import { ora } from '../../../ora';
 
 /**
  * List App Store Connect API Keys.

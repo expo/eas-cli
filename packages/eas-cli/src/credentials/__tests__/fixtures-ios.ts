@@ -1,5 +1,6 @@
 import { UserRole } from '@expo/apple-utils';
 
+import { testProvisioningProfileBase64 } from './fixtures-base64-data';
 import {
   AppFragment,
   AppStoreConnectApiKeyFragment,
@@ -21,7 +22,6 @@ import {
   ProvisioningProfile,
 } from '../ios/appstore/Credentials.types';
 import { Target } from '../ios/types';
-import { testProvisioningProfileBase64 } from './fixtures-base64-data';
 
 const now = new Date();
 

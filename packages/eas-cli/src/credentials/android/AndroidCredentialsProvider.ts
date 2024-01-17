@@ -2,12 +2,12 @@ import { Platform } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 import nullthrows from 'nullthrows';
 
-import { AndroidAppBuildCredentialsFragment } from '../../graphql/generated';
-import { CredentialsContext } from '../context';
-import * as credentialsJsonReader from '../credentialsJson/read';
 import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials';
 import { AppLookupParams } from './api/GraphqlClient';
 import { Keystore } from './credentials';
+import { AndroidAppBuildCredentialsFragment } from '../../graphql/generated';
+import { CredentialsContext } from '../context';
+import * as credentialsJsonReader from '../credentialsJson/read';
 
 export interface AndroidCredentials {
   keystore: Keystore;
@@ -20,7 +20,10 @@ interface Options {
 export default class AndroidCredentialsProvider {
   public readonly platform = Platform.ANDROID;
 
-  constructor(private ctx: CredentialsContext, private options: Options) {}
+  constructor(
+    private ctx: CredentialsContext,
+    private options: Options
+  ) {}
 
   public async getCredentialsAsync(
     src: CredentialsSource.LOCAL | CredentialsSource.REMOTE

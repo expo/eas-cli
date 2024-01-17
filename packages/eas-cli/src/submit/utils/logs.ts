@@ -1,9 +1,9 @@
 import chalk from 'chalk';
 
+import { printSubmissionError } from './errors';
 import fetch from '../../fetch';
 import { SubmissionFragment, SubmissionStatus } from '../../graphql/generated';
 import Log from '../../log';
-import { printSubmissionError } from './errors';
 
 export async function displayLogsAsync(
   submission: SubmissionFragment,

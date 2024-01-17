@@ -2,10 +2,10 @@ import { EasJson, EasJsonAccessor } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
+import { maybeBailOnRepoStatusAsync, reviewAndCommitChangesAsync } from './utils/repository';
 import Log, { learnMore } from '../log';
 import { easCliVersion } from '../utils/easCli';
 import { Client } from '../vcs/vcs';
-import { maybeBailOnRepoStatusAsync, reviewAndCommitChangesAsync } from './utils/repository';
 
 interface ConfigureParams {
   projectDir: string;

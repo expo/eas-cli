@@ -2,8 +2,6 @@ import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 
-import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { Client } from '../vcs/vcs';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   getApplicationIdAsync,
@@ -16,6 +14,8 @@ import {
 import { resolveXcodeBuildContextAsync } from './ios/scheme';
 import { findApplicationTarget, resolveTargetsAsync } from './ios/target';
 import { resolveWorkflowAsync } from './workflow';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { Client } from '../vcs/vcs';
 
 export async function getApplicationIdentifierAsync({
   graphqlClient,

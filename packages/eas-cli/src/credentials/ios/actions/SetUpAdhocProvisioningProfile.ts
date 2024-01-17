@@ -4,6 +4,10 @@ import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
+import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
+import { chooseDevicesAsync, formatDeviceLabel } from './DeviceUtils';
+import { SetUpDistributionCertificate } from './SetUpDistributionCertificate';
 import DeviceCreateAction, { RegistrationMethod } from '../../../devices/actions/create/action';
 import {
   AppleAppIdentifierFragment,
@@ -30,10 +34,6 @@ import { ProvisioningProfile } from '../appstore/Credentials.types';
 import { ApplePlatform } from '../appstore/constants';
 import { Target } from '../types';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
-import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
-import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
-import { chooseDevicesAsync, formatDeviceLabel } from './DeviceUtils';
-import { SetUpDistributionCertificate } from './SetUpDistributionCertificate';
 
 enum ReuseAction {
   Yes,

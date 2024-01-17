@@ -41,7 +41,7 @@ export type AlwaysTrueBranchMapping = {
     {
       branchId: string;
       branchMappingLogic: BranchMappingAlwaysTrue;
-    }
+    },
   ];
 };
 

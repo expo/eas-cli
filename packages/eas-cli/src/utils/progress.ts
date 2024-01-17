@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
-import { Ora, ora } from '../ora';
 import { endTimer, formatMilliseconds, startTimer } from './timer';
+import { Ora, ora } from '../ora';
 
 export type Progress = {
   total: number;

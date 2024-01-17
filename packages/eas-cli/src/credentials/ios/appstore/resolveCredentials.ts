@@ -3,11 +3,11 @@ import chalk from 'chalk';
 import * as fs from 'fs-extra';
 import wrapAnsi from 'wrap-ansi';
 
+import { AppleTeamType, Team } from './authenticateTypes';
+import * as Keychain from './keychain';
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { MinimalAscApiKey } from '../credentials';
-import { AppleTeamType, Team } from './authenticateTypes';
-import * as Keychain from './keychain';
 
 /**
  * Get the username and possibly the password from the environment variables or the supplied options.

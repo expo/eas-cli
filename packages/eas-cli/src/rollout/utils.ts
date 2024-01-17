@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { Rollout, getRollout, isConstrainedRollout, isRollout } from './branch-mapping';
 import {
   RuntimeFragment,
   UpdateBranchBasicInfoFragment,
@@ -10,7 +11,6 @@ import Log from '../log';
 import { promptAsync } from '../prompts';
 import { FormattedUpdateGroupDescription, getUpdateGroupDescriptions } from '../update/utils';
 import formatFields from '../utils/formatFields';
-import { Rollout, getRollout, isConstrainedRollout, isRollout } from './branch-mapping';
 
 export function printRollout(channel: UpdateChannelObject): void {
   if (!isRollout(channel)) {
