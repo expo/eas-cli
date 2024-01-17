@@ -357,6 +357,7 @@
               "enum": [
                 "default",
                 "latest",
+                "macos-ventura-13.6-xcode-15.2",
                 "macos-ventura-13.6-xcode-15.1",
                 "macos-ventura-13.6-xcode-15.0",
                 "macos-ventura-13.4-xcode-14.3.1",
@@ -367,7 +368,7 @@
               ],
               "markdownEnumDescriptions": [
                 "`macos-ventura-13.4-xcode-14.3.1`",
-                "`macos-ventura-13.6-xcode-15.1`"
+                "`macos-ventura-13.6-xcode-15.2`"
               ]
             },
             {
