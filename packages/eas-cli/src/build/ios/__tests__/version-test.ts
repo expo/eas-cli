@@ -62,7 +62,7 @@ describe(evaluateTemplateString, () => {
 // bare workflow
 describe(bumpVersionAsync, () => {
   beforeEach(() => {
-    getPbxproj.mockImplementation(() => ({}) as any);
+    getPbxproj.mockImplementation((): any => {});
   });
   afterEach(() => {
     getXCBuildConfigurationFromPbxproj.mockReset();
