@@ -293,7 +293,12 @@ async function askUpdatesFromChannelNameAsync(
     nonInteractive,
   }: { projectId: string; channelName: string; json: boolean; nonInteractive: boolean }
 ): Promise<UpdateToRepublish[]> {
-  const branchName = await getBranchNameFromChannelNameAsync(graphqlClient, projectId, channelName);
+  const branchName = await getBranchNameFromChannelNameAsync(
+    graphqlClient,
+    projectId,
+    channelName,
+    { json, nonInteractive, offset: 0 }
+  );
 
   return await askUpdatesFromBranchNameAsync(graphqlClient, {
     projectId,

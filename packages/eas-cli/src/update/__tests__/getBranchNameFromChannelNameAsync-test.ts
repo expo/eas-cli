@@ -1,13 +1,22 @@
 import { instance, mock } from 'ts-mockito';
 
+import { selectBranchOnAppAsync } from '../../branch/queries';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { updateChannelBranchMappingAsync } from '../../commands/channel/edit';
 import { App, Runtime, UpdateBranch, UpdateChannel, UpdateInsights } from '../../graphql/generated';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import { getBranchNameFromChannelNameAsync } from '../getBranchNameFromChannelNameAsync';
 
 jest.mock('../../graphql/queries/ChannelQuery');
 jest.mock('../../graphql/queries/BranchQuery');
+jest.mock('../../branch/queries');
+jest.mock('../../commands/channel/edit');
 
+const defaultPaginatedQueryOptions = {
+  json: false,
+  nonInteractive: false,
+  offset: 0,
+};
 describe(getBranchNameFromChannelNameAsync, () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -26,13 +35,14 @@ describe(getBranchNameFromChannelNameAsync, () => {
     const result = await getBranchNameFromChannelNameAsync(
       graphqlClient,
       'test-project-id',
-      'channel-name'
+      'channel-name',
+      defaultPaginatedQueryOptions
     );
 
     expect(result).toBe('test-branch-name');
   });
 
-  test('errors when no branch is connected to channel', async () => {
+  test('prompts user to select a branch if no branch is connected to channel', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
     jest.mocked(ChannelQuery.viewUpdateChannelAsync).mockImplementationOnce(
       async () =>
@@ -41,11 +51,24 @@ describe(getBranchNameFromChannelNameAsync, () => {
         }) as any
     );
 
-    expect(
-      getBranchNameFromChannelNameAsync(graphqlClient, 'test-project-id', 'test-channel-name')
-    ).rejects.toThrow(
-      "Channel has no branches associated with it. Run 'eas channel:edit' to map a branch"
+    jest
+      .mocked(selectBranchOnAppAsync)
+      .mockImplementationOnce(async () => mockUpdateBranches(['test-branch-name'])[0] as any);
+    jest.mocked(updateChannelBranchMappingAsync).mockImplementationOnce(
+      async () =>
+        mockUpdateChannel({
+          channelName: 'test-channel-name',
+          branchNames: ['test-branch-name'],
+        }) as any
     );
+
+    const result = await getBranchNameFromChannelNameAsync(
+      graphqlClient,
+      'test-project-id',
+      'test-channel-name',
+      defaultPaginatedQueryOptions
+    );
+    expect(result).toBe('test-branch-name');
   });
 
   test('errors when more than one branch is connected to channel', async () => {
@@ -59,7 +82,12 @@ describe(getBranchNameFromChannelNameAsync, () => {
     );
 
     expect(
-      getBranchNameFromChannelNameAsync(graphqlClient, 'test-project-id', 'test-channel-name')
+      getBranchNameFromChannelNameAsync(
+        graphqlClient,
+        'test-project-id',
+        'test-channel-name',
+        defaultPaginatedQueryOptions
+      )
     ).rejects.toThrow(
       "Channel has multiple branches associated with it. Instead, use '--branch' instead of '--channel'"
     );
@@ -78,7 +106,8 @@ describe(getBranchNameFromChannelNameAsync, () => {
     const result = await getBranchNameFromChannelNameAsync(
       graphqlClient,
       'test-project-id',
-      'test-channel-name'
+      'test-channel-name',
+      defaultPaginatedQueryOptions
     );
 
     expect(result).toBe('test-branch-name');

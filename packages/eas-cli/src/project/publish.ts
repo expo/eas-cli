@@ -575,7 +575,12 @@ export async function getBranchNameForCommandAsync({
   }
 
   if (channelNameArg) {
-    return await getBranchNameFromChannelNameAsync(graphqlClient, projectId, channelNameArg);
+    return await getBranchNameFromChannelNameAsync(
+      graphqlClient,
+      projectId,
+      channelNameArg,
+      paginatedQueryOptions
+    );
   }
 
   if (branchNameArg) {

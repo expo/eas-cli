@@ -1,13 +1,18 @@
-import { ensureBranchExistsAsync } from '../branch/queries';
+import { ensureBranchExistsAsync, selectBranchOnAppAsync } from '../branch/queries';
+import { getAlwaysTrueBranchMapping } from '../channel/branch-mapping';
 import { ChannelNotFoundError } from '../channel/errors';
 import { createChannelOnAppAsync } from '../channel/queries';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { PaginatedQueryOptions } from '../commandUtils/pagination';
+import { updateChannelBranchMappingAsync } from '../commands/channel/edit';
 import { ChannelQuery } from '../graphql/queries/ChannelQuery';
+import Log from '../log';
 
 export async function getBranchNameFromChannelNameAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
-  channelName: string
+  channelName: string,
+  paginatedQueryOptions: PaginatedQueryOptions
 ): Promise<string> {
   let branchName;
 
@@ -20,9 +25,19 @@ export async function getBranchNameFromChannelNameAsync(
     if (channel.updateBranches.length === 1) {
       branchName = channel.updateBranches[0].name;
     } else if (channel.updateBranches.length === 0) {
-      throw new Error(
-        "Channel has no branches associated with it. Run 'eas channel:edit' to map a branch"
-      );
+      Log.log('Channel has no branches associated with it.');
+      const branch = await selectBranchOnAppAsync(graphqlClient, {
+        projectId,
+        promptTitle: `Which branch would you like ${channel.name} to point at?`,
+        displayTextForListItem: updateBranch => ({ title: updateBranch.name }),
+        paginatedQueryOptions,
+      });
+
+      await updateChannelBranchMappingAsync(graphqlClient, {
+        channelId: channel.id,
+        branchMapping: JSON.stringify(getAlwaysTrueBranchMapping(branch.id)),
+      });
+      return branch.name;
     } else {
       throw new Error(
         `Channel has multiple branches associated with it. Instead, use '--branch' instead of '--channel'`
