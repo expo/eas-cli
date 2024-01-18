@@ -5,7 +5,7 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 export type EASUpdateContext = {
   graphqlClient: ExpoGraphqlClient;
   nonInteractive: boolean;
-  app: { exp: ExpoConfig; projectId: string };
+  app: { exp: ExpoConfig; projectId: string; projectDir: string };
 };
 
 export interface EASUpdateAction<T = any> {

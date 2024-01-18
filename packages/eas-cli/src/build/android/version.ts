@@ -232,7 +232,9 @@ export async function resolveRemoteVersionCodeAsync(
         applicationIdentifier: applicationId,
         storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
         buildVersion: currentBuildVersion,
-        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
+        runtimeVersion:
+          (await Updates.getRuntimeVersionNullableAsync(projectDir, exp, Platform.ANDROID)) ??
+          undefined,
       });
       spinner.succeed(`Initialized versionCode with ${chalk.bold(currentBuildVersion)}.`);
     } catch (err) {
@@ -254,7 +256,9 @@ export async function resolveRemoteVersionCodeAsync(
         applicationIdentifier: applicationId,
         storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
         buildVersion: String(nextBuildVersion),
-        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
+        runtimeVersion:
+          (await Updates.getRuntimeVersionNullableAsync(projectDir, exp, Platform.ANDROID)) ??
+          undefined,
       });
       spinner.succeed(
         `Incremented versionCode from ${chalk.bold(currentBuildVersion)} to ${chalk.bold(

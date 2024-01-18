@@ -19,6 +19,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Prompt users if they want to continue if EAS CLI fails to provision the devices. ([#2181](https://github.com/expo/eas-cli/pull/2181) by [@szdziedzic](https://github.com/szdziedzic))
 - Update `eas-cli` and `@expo/eas-json` dependencies. ([#2176](https://github.com/expo/eas-cli/pull/2176) by [@szdziedzic](https://github.com/szdziedzic))
 - Update `eas.schema.json` to after adding Xcode 15.2 image. ([#2184](https://github.com/expo/eas-cli/pull/2184) by [@szdziedzic](https://github.com/szdziedzic))
+- Upgrade packages from the expo/expo repo. ([#2145](https://github.com/expo/eas-cli/pull/2145) by [@wschurman](https://github.com/wschurman))
 
 ## [6.0.0](https://github.com/expo/eas-cli/releases/tag/v6.0.0) - 2024-01-12
 

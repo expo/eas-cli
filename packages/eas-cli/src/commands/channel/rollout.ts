@@ -132,7 +132,7 @@ export default class ChannelRollout extends EasCommand {
     const { args, flags } = await this.parse(ChannelRollout);
     const argsAndFlags = this.sanitizeArgsAndFlags({ ...flags, ...args });
     const {
-      privateProjectConfig: { exp, projectId },
+      privateProjectConfig: { exp, projectId, projectDir },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelRollout, {
       nonInteractive: argsAndFlags.nonInteractive,
@@ -141,9 +141,8 @@ export default class ChannelRollout extends EasCommand {
       enableJsonOutput();
     }
 
-    const app = { projectId, exp };
+    const app = { projectId, exp, projectDir };
     const ctx = {
-      projectId,
       nonInteractive: argsAndFlags.nonInteractive,
       graphqlClient,
       app,
