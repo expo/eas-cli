@@ -12,6 +12,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
+import { resolveWorkflowAsync } from './workflow';
 import { selectBranchOnAppAsync } from '../branch/queries';
 import { getDefaultBranchNameAsync } from '../branch/utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -23,7 +24,11 @@ import Log, { learnMore } from '../log';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../platform';
 import { promptAsync } from '../prompts';
 import { getBranchNameFromChannelNameAsync } from '../update/getBranchNameFromChannelNameAsync';
-import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../update/utils';
+import {
+  UpdateJsonInfo,
+  formatUpdateMessage,
+  truncateString as truncateUpdateMessage,
+} from '../update/utils';
 import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
 import {
   expoCommandAsync,
@@ -34,7 +39,6 @@ import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
 import uniqBy from '../utils/expodash/uniqBy';
 import { Client } from '../vcs/vcs';
-import { resolveWorkflowAsync } from './workflow';
 
 export type ExpoCLIExportPlatformFlag = Platform | 'all';
 
@@ -292,6 +296,14 @@ export function loadMetadata(distRoot: string): Metadata {
   }
   Log.debug(`Loaded ${platforms.length} platform(s): ${platforms.join(', ')}`);
   return metadata;
+}
+
+export async function generateEasMetadataAsync(
+  distRoot: string,
+  metadata: UpdateJsonInfo[]
+): Promise<void> {
+  const easMetadataPath = path.join(distRoot, 'eas-update-metadata.json');
+  await JsonFile.writeAsync(easMetadataPath, { updates: metadata });
 }
 
 export function filterExportedPlatformsByFlag<T extends Partial<Record<Platform, any>>>(
@@ -619,32 +631,38 @@ export async function getUpdateMessageForCommandAsync(
     nonInteractive: boolean;
     jsonFlag: boolean;
   }
-): Promise<string> {
+): Promise<string | undefined> {
   let updateMessage = updateMessageArg;
   if (!updateMessageArg && autoFlag) {
     updateMessage = (await vcsClient.getLastCommitMessageAsync())?.trim();
   }
 
   if (!updateMessage) {
-    if (nonInteractive) {
-      throw new Error('Must supply --message or use --auto when in non-interactive mode');
+    if (nonInteractive || jsonFlag) {
+      if (vcsClient.canGetLastCommitMessage()) {
+        throw new Error(
+          'Must supply --message or use --auto when in non-interactive mode and VCS is available'
+        );
+      }
+      return undefined;
     }
 
-    const validationMessage = 'publish message may not be empty.';
-    if (jsonFlag) {
-      throw new Error(validationMessage);
-    }
     const { updateMessageLocal } = await promptAsync({
       type: 'text',
       name: 'updateMessageLocal',
       message: `Provide an update message:`,
       initial: (await vcsClient.getLastCommitMessageAsync())?.trim(),
-      validate: (value: any) => (value ? true : validationMessage),
     });
+    if (!updateMessageLocal) {
+      return undefined;
+    }
+
     updateMessage = updateMessageLocal;
   }
 
-  assert(updateMessage, 'Update message must be specified.');
+  if (!updateMessage) {
+    return undefined;
+  }
 
   const truncatedMessage = truncateUpdateMessage(updateMessage, 1024);
   if (truncatedMessage !== updateMessage) {

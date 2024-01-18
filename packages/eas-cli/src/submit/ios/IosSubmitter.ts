@@ -1,6 +1,17 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import {
+  AppSpecificPasswordCredentials,
+  AppSpecificPasswordSource,
+  getAppSpecificPasswordLocallyAsync,
+} from './AppSpecificPasswordSource';
+import {
+  AscApiKeyFromExpoServers,
+  AscApiKeyResult,
+  AscApiKeySource,
+  getAscApiKeyResultAsync,
+} from './AscApiKeySource';
 import { SubmissionEvent } from '../../analytics/AnalyticsManager';
 import { MinimalAscApiKey } from '../../credentials/ios/credentials';
 import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
@@ -14,17 +25,6 @@ import {
   formatArchiveSourceSummary,
   printSummary,
 } from '../utils/summary';
-import {
-  AppSpecificPasswordCredentials,
-  AppSpecificPasswordSource,
-  getAppSpecificPasswordLocallyAsync,
-} from './AppSpecificPasswordSource';
-import {
-  AscApiKeyFromExpoServers,
-  AscApiKeyResult,
-  AscApiKeySource,
-  getAscApiKeyResultAsync,
-} from './AscApiKeySource';
 
 export interface IosSubmissionOptions
   extends Pick<IosSubmissionConfigInput, 'appleIdUsername' | 'ascAppIdentifier'> {

@@ -2,6 +2,13 @@ import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
+import { readRawAsync } from './read';
+import {
+  CredentialsJson,
+  CredentialsJsonIosCredentials,
+  CredentialsJsonIosTargetCredentials,
+} from './types';
+import { getCredentialsJsonPath } from './utils';
 import { AndroidAppBuildCredentialsFragment, IosDistributionType } from '../../graphql/generated';
 import Log from '../../log';
 import { findApplicationTarget, findTargetByName } from '../../project/ios/target';
@@ -10,13 +17,6 @@ import GitClient from '../../vcs/clients/git';
 import { Client } from '../../vcs/vcs';
 import { CredentialsContext } from '../context';
 import { App, Target, TargetCredentials } from '../ios/types';
-import { readRawAsync } from './read';
-import {
-  CredentialsJson,
-  CredentialsJsonIosCredentials,
-  CredentialsJsonIosTargetCredentials,
-} from './types';
-import { getCredentialsJsonPath } from './utils';
 
 /**
  * Update Android credentials.json with values from www, content of credentials.json

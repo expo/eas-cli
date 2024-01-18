@@ -1,7 +1,7 @@
+import { provideOrGeneratePushKeyAsync } from './PushKeyUtils';
 import { AccountFragment, ApplePushKeyFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
-import { provideOrGeneratePushKeyAsync } from './PushKeyUtils';
 
 export class CreatePushKey {
   constructor(private account: AccountFragment) {}

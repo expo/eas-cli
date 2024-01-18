@@ -7,13 +7,13 @@ import { extract } from 'tar';
 import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 
+import { formatBytes } from './files';
+import { getTmpDirectory } from './paths';
+import { ProgressHandler, createProgressTracker } from './progress';
 import fetch, { RequestInit, Response } from '../fetch';
 import { AppPlatform } from '../graphql/generated';
 import Log from '../log';
 import { promptAsync } from '../prompts';
-import { formatBytes } from './files';
-import { getTmpDirectory } from './paths';
-import { ProgressHandler, createProgressTracker } from './progress';
 
 const pipeline = promisify(Stream.pipeline);
 

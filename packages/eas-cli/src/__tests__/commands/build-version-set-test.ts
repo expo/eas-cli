@@ -2,12 +2,6 @@ import { AppVersionSource, EasJson } from '@expo/eas-json';
 import fs from 'fs-extra';
 import path from 'path';
 
-import BuildVersionSetView from '../../commands/build/version/set';
-import { AppVersionMutation } from '../../graphql/mutations/AppVersionMutation';
-import { AppQuery } from '../../graphql/queries/AppQuery';
-import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
-import Log from '../../log';
-import * as prompts from '../../prompts';
 import {
   getMockAppFragment,
   getMockEasJson,
@@ -15,6 +9,12 @@ import {
   mockProjectId,
   mockTestCommand,
 } from './utils';
+import BuildVersionSetView from '../../commands/build/version/set';
+import { AppVersionMutation } from '../../graphql/mutations/AppVersionMutation';
+import { AppQuery } from '../../graphql/queries/AppQuery';
+import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
+import Log from '../../log';
+import * as prompts from '../../prompts';
 
 jest.mock('../../project/applicationIdentifier');
 jest.mock('../../graphql/queries/AppVersionQuery');

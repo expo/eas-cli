@@ -78,4 +78,10 @@ export abstract class Client {
   public async isFileIgnoredAsync(_filePath: string): Promise<boolean> {
     return false;
   }
+
+  /**
+   * Whether this VCS client can get the last commit message.
+   * Used for EAS Update - implementation can be false for noVcs client.
+   */
+  public abstract canGetLastCommitMessage(): boolean;
 }

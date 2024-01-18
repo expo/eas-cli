@@ -3,6 +3,8 @@ import { ExpoConfig } from '@expo/config-types';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import { createGraphqlClient } from './createGraphqlClient';
+import { findProjectRootAsync } from './findProjectDirAndVerifyProjectSetupAsync';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
@@ -11,8 +13,6 @@ import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../
 import { toAppPrivacy } from '../../../project/projectUtils';
 import SessionManager from '../../../user/SessionManager';
 import { Actor, getActorUsername } from '../../../user/User';
-import { createGraphqlClient } from './createGraphqlClient';
-import { findProjectRootAsync } from './findProjectDirAndVerifyProjectSetupAsync';
 
 /**
  * Save an EAS project ID to the appropriate field in the app config.

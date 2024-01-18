@@ -1,10 +1,10 @@
 import * as osascript from '@expo/osascript';
 import spawnAsync from '@expo/spawn-async';
 
+import { simctlAsync } from './simctl';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { sleepAsync } from '../../utils/promise';
-import { simctlAsync } from './simctl';
 
 interface IosSimulator {
   runtime: string;

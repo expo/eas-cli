@@ -2,13 +2,13 @@ import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { IosVersionAutoIncrement } from '@expo/eas-json';
 
+import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { Target } from '../../credentials/ios/types';
 import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { syncUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
 import { Client } from '../../vcs/vcs';
-import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 
 export async function syncProjectConfigurationAsync(
   graphqlClient: ExpoGraphqlClient,

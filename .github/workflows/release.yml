@@ -27,9 +27,9 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: 18
+          node-version: 20
       - run: yarn install --frozen-lockfile --check-files
-      - run: yarn build-ci
+      - run: yarn build
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
         run: |
@@ -68,9 +68,9 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: 18
+          node-version: 20
       - run: yarn install --frozen-lockfile --check-files
-      - run: yarn build-ci
+      - run: yarn build
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
         run: |
@@ -96,10 +96,10 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: 18
+          node-version: 20
       - run: yarn install --frozen-lockfile --check-files
       - run: sudo apt-get install nsis
-      - run: yarn build-ci
+      - run: yarn build
       - run: |
           yarn pretarball-ci
           yarn oclif pack:win
@@ -138,11 +138,11 @@ jobs:
         with:
           registry-url: 'https://registry.npmjs.org/'
           scope: 'expo'
-          node-version: 18
+          node-version: 20
       - name: Install dependencies
         run: yarn install --frozen-lockfile --check-files
       - name: Build
-        run: yarn build-ci
+        run: yarn build
       - name: Publish packages to npm
         run: yarn lerna publish from-package --yes --no-verify-access
         env:
@@ -165,7 +165,7 @@ jobs:
           token: ${{ secrets.EXPO_BOT_PAT }}
       - uses: actions/setup-node@v2
         with:
-          node-version: 18
+          node-version: 20
       - name: Install dependencies
         working-directory: ./scripts
         run: yarn install --frozen-lockfile --check-files

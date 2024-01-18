@@ -3,6 +3,17 @@ import { BuildProfile } from '@expo/eas-json';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
+import { ActionInfo, IosActionType, Scope } from './Actions';
+import { Action, PressAnyKeyToContinue } from './HelperActions';
+import {
+  credentialsJsonActions,
+  getAscApiKeyActions,
+  getBuildCredentialsActions,
+  getPushKeyActions,
+  highLevelActions,
+} from './IosActions';
+import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
+import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDistributionTypeGraphqlFromBuildProfile';
 import {
   AccountFragment,
   AppleDistributionCertificateFragment,
@@ -42,20 +53,12 @@ import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/graphql/types/AppLookupParams';
 import { App, IosAppCredentialsMap, Target } from '../ios/types';
 import { displayIosCredentials } from '../ios/utils/printCredentials';
-import { ActionInfo, IosActionType, Scope } from './Actions';
-import { Action, PressAnyKeyToContinue } from './HelperActions';
-import {
-  credentialsJsonActions,
-  getAscApiKeyActions,
-  getBuildCredentialsActions,
-  getPushKeyActions,
-  highLevelActions,
-} from './IosActions';
-import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
-import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDistributionTypeGraphqlFromBuildProfile';
 
 export class ManageIos {
-  constructor(private callingAction: Action, private projectDir: string) {}
+  constructor(
+    private callingAction: Action,
+    private projectDir: string
+  ) {}
 
   async runAsync(currentActions: ActionInfo[] = highLevelActions): Promise<void> {
     const buildProfile = this.callingAction.projectInfo

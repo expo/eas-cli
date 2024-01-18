@@ -2,11 +2,11 @@ import { Keys } from '@expo/apple-utils';
 import chalk from 'chalk';
 import dateformat from 'dateformat';
 
-import Log from '../../../log';
-import { ora } from '../../../ora';
 import { PushKey, PushKeyStoreInfo } from './Credentials.types';
 import { getRequestContext } from './authenticate';
 import { UserAuthCtx } from './authenticateTypes';
+import Log from '../../../log';
+import { ora } from '../../../ora';
 
 const { MaxKeysCreatedError } = Keys;
 

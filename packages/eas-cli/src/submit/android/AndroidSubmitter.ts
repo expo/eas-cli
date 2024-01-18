@@ -1,6 +1,11 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import {
+  ServiceAccountKeyResult,
+  ServiceAccountSource,
+  getServiceAccountKeyResultAsync,
+} from './ServiceAccountSource';
 import { SubmissionEvent } from '../../analytics/AnalyticsManager';
 import {
   AndroidSubmissionConfigInput,
@@ -18,11 +23,6 @@ import {
   formatArchiveSourceSummary,
   printSummary,
 } from '../utils/summary';
-import {
-  ServiceAccountKeyResult,
-  ServiceAccountSource,
-  getServiceAccountKeyResultAsync,
-} from './ServiceAccountSource';
 
 export interface AndroidSubmissionOptions
   extends Pick<

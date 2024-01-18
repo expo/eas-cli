@@ -1,9 +1,9 @@
 import { Flags } from '@oclif/core';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { promptAsync } from '../../prompts';
 import UpdateRepublish from './republish';
 import UpdateRollBackToEmbedded from './roll-back-to-embedded';
+import EasCommand from '../../commandUtils/EasCommand';
+import { promptAsync } from '../../prompts';
 
 export default class UpdateRollback extends EasCommand {
   static override description = 'roll back to an embedded update or an existing update';

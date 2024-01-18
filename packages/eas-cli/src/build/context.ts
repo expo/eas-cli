@@ -3,6 +3,7 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile, EasJson } from '@expo/eas-json';
 import { NodePackageManager } from '@expo/package-manager';
 
+import { LocalBuildOptions } from './local';
 import { Analytics, AnalyticsEventProperties } from '../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
@@ -13,7 +14,6 @@ import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { XcodeBuildContext } from '../project/ios/scheme';
 import { Actor } from '../user/User';
 import { Client } from '../vcs/vcs';
-import { LocalBuildOptions } from './local';
 
 export type CommonContext<T extends Platform> = Omit<BuildContext<T>, 'android' | 'ios'>;
 

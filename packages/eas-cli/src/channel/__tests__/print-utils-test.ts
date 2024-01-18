@@ -1,8 +1,8 @@
 import { format } from '@expo/timeago.js';
 
+import { testChannelObject, testUpdateBranch1, testUpdateBranch2 } from './fixtures';
 import { getAlwaysTrueBranchMapping, getEmptyBranchMapping } from '../branch-mapping';
 import { getDescriptionByBranchId } from '../print-utils';
-import { testChannelObject, testUpdateBranch1, testUpdateBranch2 } from './fixtures';
 
 describe(getDescriptionByBranchId, () => {
   it('should get descriptions for multiple branches with multiple update groups', () => {

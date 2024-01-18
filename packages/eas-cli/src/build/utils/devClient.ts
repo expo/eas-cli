@@ -3,6 +3,7 @@ import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 import resolveFrom from 'resolve-from';
 
+import { reviewAndCommitChangesAsync } from './repository';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import Log, { learnMore } from '../../log';
 import { appPlatformDisplayNames } from '../../platform';
@@ -11,7 +12,6 @@ import { confirmAsync } from '../../prompts';
 import { expoCommandAsync } from '../../utils/expoCli';
 import { ProfileData } from '../../utils/profiles';
 import { Client } from '../../vcs/vcs';
-import { reviewAndCommitChangesAsync } from './repository';
 
 export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
   projectDir,

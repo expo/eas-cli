@@ -29,6 +29,7 @@ import {
   collectAssetsAsync,
   defaultPublishPlatforms,
   filterExportedPlatformsByFlag,
+  generateEasMetadataAsync,
   getBranchNameForCommandAsync,
   getRequestedPlatform,
   getRuntimeToPlatformMappingFromRuntimeVersions,
@@ -40,7 +41,7 @@ import {
   uploadAssetsAsync,
 } from '../../project/publish';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
-import { getUpdateGroupJsonInfo } from '../../update/utils';
+import { getUpdateJsonInfosForUpdates } from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -468,8 +469,11 @@ export default class UpdatePublish extends EasCommand {
       throw e;
     }
 
+    if (!skipBundler) {
+      await generateEasMetadataAsync(distRoot, getUpdateJsonInfosForUpdates(newUpdates));
+    }
     if (jsonFlag) {
-      printJsonOnlyOutput(getUpdateGroupJsonInfo(newUpdates));
+      printJsonOnlyOutput(getUpdateJsonInfosForUpdates(newUpdates));
     } else {
       if (new Set(newUpdates.map(update => update.group)).size > 1) {
         Log.addNewLineIfNone();
@@ -511,7 +515,7 @@ export default class UpdatePublish extends EasCommand {
               ? [{ label: 'Android update ID', value: newAndroidUpdate.id }]
               : []),
             ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
-            { label: 'Message', value: updateMessage },
+            { label: 'Message', value: updateMessage ?? '' },
             ...(gitCommitHash
               ? [
                   {

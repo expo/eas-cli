@@ -34,7 +34,7 @@ import {
   getUpdateMessageForCommandAsync,
 } from '../../project/publish';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
-import { getUpdateGroupJsonInfo } from '../../update/utils';
+import { getUpdateJsonInfosForUpdates } from '../../update/utils';
 import {
   CodeSigningInfo,
   checkDirectiveBodyAgainstUpdateInfoGroup,
@@ -228,7 +228,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     }
 
     if (jsonFlag) {
-      printJsonOnlyOutput(getUpdateGroupJsonInfo(newUpdates));
+      printJsonOnlyOutput(getUpdateJsonInfosForUpdates(newUpdates));
     } else {
       if (new Set(newUpdates.map(update => update.group)).size > 1) {
         Log.addNewLineIfNone();
@@ -270,7 +270,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
               ? [{ label: 'Android update ID', value: newAndroidUpdate.id }]
               : []),
             ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
-            { label: 'Message', value: updateMessage },
+            { label: 'Message', value: updateMessage ?? '' },
             ...(gitCommitHash
               ? [
                   {
@@ -300,7 +300,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     graphqlClient: ExpoGraphqlClient;
     isGitWorkingTreeDirty: boolean | undefined;
     gitCommitHash: string | undefined;
-    updateMessage: string;
+    updateMessage: string | undefined;
     branchId: string;
     codeSigningInfo: CodeSigningInfo | undefined;
     runtimeVersions: { platform: string; runtimeVersion: string }[];

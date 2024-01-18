@@ -1,11 +1,6 @@
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
-import { ApplePushKeyFragment, CommonIosAppCredentialsFragment } from '../../../graphql/generated';
-import Log from '../../../log';
-import { confirmAsync, promptAsync } from '../../../prompts';
-import { CredentialsContext } from '../../context';
-import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { AssignPushKey } from './AssignPushKey';
 import { CreatePushKey } from './CreatePushKey';
 import {
@@ -13,6 +8,11 @@ import {
   getValidAndTrackedPushKeysOnEasServersAsync,
   selectPushKeyAsync,
 } from './PushKeyUtils';
+import { ApplePushKeyFragment, CommonIosAppCredentialsFragment } from '../../../graphql/generated';
+import Log from '../../../log';
+import { confirmAsync, promptAsync } from '../../../prompts';
+import { CredentialsContext } from '../../context';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 
 export class SetUpPushKey {
   constructor(private app: AppLookupParams) {}

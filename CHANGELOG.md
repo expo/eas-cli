@@ -8,7 +8,39 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `build:delete` command. ([#2178](https://github.com/expo/eas-cli/pull/2178) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Add filter flags for `platform` and `profile` to `build:cancel` and `build:delete` commands. ([#2178](https://github.com/expo/eas-cli/pull/2178) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+- Remove "bare"-specific **eas.json** template. ([#2179](https://github.com/expo/eas-cli/pull/2179) by [@sjchmiela](https://github.com/sjchmiela))
+- Prompt users if they want to continue if EAS CLI fails to provision the devices. ([#2181](https://github.com/expo/eas-cli/pull/2181) by [@szdziedzic](https://github.com/szdziedzic))
+- Update `eas-cli` and `@expo/eas-json` dependencies. ([#2176](https://github.com/expo/eas-cli/pull/2176) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [6.0.0](https://github.com/expo/eas-cli/releases/tag/v6.0.0) - 2024-01-12
+
+### 🛠 Breaking changes
+
+- Drop support for Node 14. ([#2175](https://github.com/expo/eas-cli/pull/2175) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🎉 New features
+
+- Allow undefined update message for EAS Update publishing when no VCS. ([#2148](https://github.com/expo/eas-cli/pull/2148) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Upgrade `@expo/eas-build-job` to `1.0.56`, thus removing unused (since [#1524](https://github.com/expo/eas-cli/pull/1524)) support for S3 project archives. ([#2165](https://github.com/expo/eas-cli/pull/2165) by [@sjchmiela](https://github.com/sjchmiela))
+
+## [5.9.3](https://github.com/expo/eas-cli/releases/tag/v5.9.3) - 2023-12-19
+
+### 🧹 Chores
+
+- Rename getUpdateGroupJsonInfo. ([#2157](https://github.com/expo/eas-cli/pull/2157) by [@quinlanj](https://github.com/quinlanj))
+- Add new Xcode 15.1 image to `eas.schema.json`. ([#2155](https://github.com/expo/eas-cli/pull/2155) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [5.9.2](https://github.com/expo/eas-cli/releases/tag/v5.9.2) - 2023-12-15
 
 ### 🧹 Chores
 

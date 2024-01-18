@@ -1,3 +1,4 @@
+import { testChannelBasicInfo } from './branch-mapping-fixtures';
 import {
   emptyBranchMapping,
   rolloutBranchMapping,
@@ -13,7 +14,6 @@ import {
   isAlwaysTrueBranchMapping,
   isEmptyBranchMapping,
 } from '../branch-mapping';
-import { testChannelBasicInfo } from './branch-mapping-fixtures';
 
 describe(assertVersion, () => {
   it('throws if the branch mapping is not the correct version', () => {

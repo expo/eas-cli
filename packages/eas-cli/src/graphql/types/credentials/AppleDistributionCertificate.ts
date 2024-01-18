@@ -1,10 +1,10 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { AppFragmentNode } from '../App';
 import { AppleAppIdentifierFragmentNode } from './AppleAppIdentifier';
 import { AppleProvisioningProfileIdentifiersFragmentNode } from './AppleProvisioningProfile';
 import { AppleTeamFragmentNode } from './AppleTeam';
+import { AppFragmentNode } from '../App';
 
 export const AppleDistributionCertificateFragmentNode = gql`
   fragment AppleDistributionCertificateFragment on AppleDistributionCertificate {

@@ -2,6 +2,8 @@ import { Platform } from '@expo/eas-build-job';
 import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
 import { Result, result } from '@expo/results';
 
+import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
+import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
 import {
   SubmissionAndroidReleaseStatus,
   SubmissionAndroidTrack,
@@ -16,8 +18,6 @@ import capitalizeFirstLetter from '../../utils/expodash/capitalize';
 import { ArchiveSource, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
 import { refreshContextSubmitProfileAsync, resolveArchiveSource } from '../commons';
 import { SubmissionContext } from '../context';
-import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
-import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
 
 export default class AndroidSubmitCommand {
   constructor(private ctx: SubmissionContext<Platform.ANDROID>) {}

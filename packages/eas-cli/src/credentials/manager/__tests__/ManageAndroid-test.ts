@@ -51,7 +51,7 @@ describe('runAsync', () => {
         );
       });
       const pressAnyKeyToContinueAsyncMock = jest.mocked(pressAnyKeyToContinueAsync);
-      Array.from(Array(100)).map((_, i) => {
+      Array.from(Array(100)).map((_, _i) => {
         // continue 101 times if error is rethrown indefinitely
         pressAnyKeyToContinueAsyncMock.mockResolvedValueOnce();
       });

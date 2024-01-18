@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { formatGraphQLBuild } from './utils/formatBuild';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { AppPlatform, BuildFilter, BuildFragment } from '../graphql/generated';
@@ -11,7 +12,6 @@ import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
-import { formatGraphQLBuild } from './utils/formatBuild';
 
 export const BUILDS_LIMIT = 50;
 

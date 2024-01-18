@@ -1,14 +1,3 @@
-import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
-import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
-import {
-  ChannelQuery,
-  UpdateBranchObject,
-  UpdateChannelObject,
-} from '../../graphql/queries/ChannelQuery';
-import Log from '../../log';
-import { printJsonOnlyOutput } from '../../utils/json';
-import { getRollout, getRolloutInfo, isConstrainedRolloutInfo, isRollout } from '../branch-mapping';
-import { printRollout } from '../utils';
 import {
   CreateRollout,
   NonInteractiveOptions as CreateRolloutNonInteractiveOptions,
@@ -24,6 +13,17 @@ import {
 } from './EndRollout';
 import { ManageRolloutActions } from './ManageRollout';
 import { MainMenuActions, RolloutActions } from './RolloutMainMenu';
+import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
+import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
+import {
+  ChannelQuery,
+  UpdateBranchObject,
+  UpdateChannelObject,
+} from '../../graphql/queries/ChannelQuery';
+import Log from '../../log';
+import { printJsonOnlyOutput } from '../../utils/json';
+import { getRollout, getRolloutInfo, isConstrainedRolloutInfo, isRollout } from '../branch-mapping';
+import { printRollout } from '../utils';
 
 type JSONRolloutOutput = {
   defaultBranch: UpdateBranchObject;

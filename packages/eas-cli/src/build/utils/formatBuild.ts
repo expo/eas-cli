@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { getBuildLogsUrl } from './url';
 import {
   AppPlatform,
   BuildFragment,
@@ -7,7 +8,6 @@ import {
 } from '../../graphql/generated';
 import { appPlatformDisplayNames } from '../../platform';
 import formatFields from '../../utils/formatFields';
-import { getBuildLogsUrl } from './url';
 
 export function formatGraphQLBuild(build: BuildFragment): string {
   const actor = getActorName(build);

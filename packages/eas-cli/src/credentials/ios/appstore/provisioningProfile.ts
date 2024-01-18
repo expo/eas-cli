@@ -1,8 +1,5 @@
 import { Profile, ProfileType, RequestContext } from '@expo/apple-utils';
 
-import { ora } from '../../../ora';
-import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
-import { findP12CertSerialNumber } from '../utils/p12Certificate';
 import {
   DistributionCertificate,
   ProvisioningProfile,
@@ -13,6 +10,9 @@ import { AuthCtx } from './authenticateTypes';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
 import { ApplePlatform } from './constants';
 import { getCertificateBySerialNumberAsync, transformCertificate } from './distributionCertificate';
+import { ora } from '../../../ora';
+import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
+import { findP12CertSerialNumber } from '../utils/p12Certificate';
 
 export enum ProfileClass {
   Adhoc = 'ad_hoc',

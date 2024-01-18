@@ -4,9 +4,9 @@ import fs from 'fs-extra';
 import path from 'path';
 import semver from 'semver';
 
+import { CommonContext } from './context';
 import Log, { learnMore } from '../log';
 import { isPNGAsync } from '../utils/image';
-import { CommonContext } from './context';
 
 export function checkNodeEnvVariable(ctx: CommonContext<Platform>): void {
   if (ctx.buildProfile.env?.NODE_ENV === 'production') {

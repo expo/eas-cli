@@ -1,7 +1,7 @@
-import { appleRules } from '../apple/rules';
-import { createValidator, getReadableErrors } from '../utils/ajv';
 import { Issue, IssueRule, IssueSeverity } from './issue';
 import { MetadataConfig } from './schema';
+import { appleRules } from '../apple/rules';
+import { createValidator, getReadableErrors } from '../utils/ajv';
 
 const metadataSchema = require('../../../schema/metadata-0.json');
 

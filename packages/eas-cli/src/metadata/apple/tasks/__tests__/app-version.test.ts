@@ -8,11 +8,11 @@ import {
 } from '@expo/apple-utils';
 import nock from 'nock';
 
+import { requestContext } from './fixtures/requestContext';
 import { AppleConfigReader } from '../../config/reader';
 import { AppleConfigWriter } from '../../config/writer';
 import { AppleData, PartialAppleData } from '../../data';
 import { AppVersionTask } from '../app-version';
-import { requestContext } from './fixtures/requestContext';
 
 jest.mock('../../../../ora');
 jest.mock('../../config/writer');

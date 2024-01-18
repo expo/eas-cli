@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
+import { BranchNotFoundError } from './utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { withErrorHandlingAsync } from '../graphql/client';
@@ -19,7 +20,6 @@ import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
-import { BranchNotFoundError } from './utils';
 
 export const BRANCHES_LIMIT = 50;
 

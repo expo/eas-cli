@@ -1,6 +1,11 @@
 import { Ios, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { AppVersionSource } from '@expo/eas-json';
 
+import { ensureIosCredentialsAsync } from './credentials';
+import { transformJob } from './graphql';
+import { prepareJobAsync } from './prepareJob';
+import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
+import { resolveRemoteBuildNumberAsync } from './version';
 import { IosCredentials } from '../../credentials/ios/types';
 import { BuildParamsInput } from '../../graphql/generated';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
@@ -15,11 +20,6 @@ import {
   checkNodeEnvVariable,
   validatePNGsForManagedProjectAsync,
 } from '../validate';
-import { ensureIosCredentialsAsync } from './credentials';
-import { transformJob } from './graphql';
-import { prepareJobAsync } from './prepareJob';
-import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
-import { resolveRemoteBuildNumberAsync } from './version';
 
 export async function createIosContextAsync(
   ctx: CommonContext<Platform.IOS>

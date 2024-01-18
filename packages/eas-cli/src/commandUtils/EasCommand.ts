@@ -3,13 +3,6 @@ import { CombinedError } from '@urql/core';
 import { GraphQLError } from 'graphql/error';
 import nullthrows from 'nullthrows';
 
-import {
-  AnalyticsWithOrchestration,
-  CommandEvent,
-  createAnalyticsAsync,
-} from '../analytics/AnalyticsManager';
-import Log from '../log';
-import SessionManager from '../user/SessionManager';
 import AnalyticsContextField from './context/AnalyticsContextField';
 import ContextField from './context/ContextField';
 import {
@@ -24,11 +17,18 @@ import ProjectDirContextField from './context/ProjectDirContextField';
 import SessionManagementContextField from './context/SessionManagementContextField';
 import VcsClientContextField from './context/VcsClientContextField';
 import { EasCommandError } from './errors';
+import {
+  AnalyticsWithOrchestration,
+  CommandEvent,
+  createAnalyticsAsync,
+} from '../analytics/AnalyticsManager';
+import Log from '../log';
+import SessionManager from '../user/SessionManager';
 
 export type ContextInput<
   T extends {
     [name: string]: any;
-  } = object
+  } = object,
 > = {
   [P in keyof T]: ContextField<T[P]>;
 };
@@ -36,7 +36,7 @@ export type ContextInput<
 export type ContextOutput<
   T extends {
     [name: string]: any;
-  } = object
+  } = object,
 > = {
   [P in keyof T]: T[P];
 };
@@ -136,7 +136,7 @@ export default abstract class EasCommand extends Command {
   protected async getContextAsync<
     C extends {
       [name: string]: any;
-    } = object
+    } = object,
   >(
     commandClass: { contextDefinition: ContextInput<C> },
     { nonInteractive }: { nonInteractive: boolean }

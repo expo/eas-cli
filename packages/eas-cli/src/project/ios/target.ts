@@ -5,16 +5,16 @@ import { JSONObject } from '@expo/json-file';
 import Joi from 'joi';
 import type { XCBuildConfiguration } from 'xcode';
 
-import { ApplePlatform } from '../../credentials/ios/appstore/constants';
-import { Target } from '../../credentials/ios/types';
-import { Client } from '../../vcs/vcs';
-import { resolveWorkflowAsync } from '../workflow';
 import { getBundleIdentifierAsync } from './bundleIdentifier';
 import {
   getManagedApplicationTargetEntitlementsAsync,
   getNativeTargetEntitlementsAsync,
 } from './entitlements';
 import { XcodeBuildContext } from './scheme';
+import { ApplePlatform } from '../../credentials/ios/appstore/constants';
+import { Target } from '../../credentials/ios/types';
+import { Client } from '../../vcs/vcs';
+import { resolveWorkflowAsync } from '../workflow';
 
 interface UserDefinedTarget {
   targetName: string;
