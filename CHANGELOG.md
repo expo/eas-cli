@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Use branch mapping utility fn. ([#2186](https://github.com/expo/eas-cli/pull/2186) by [@quinlanj](https://github.com/quinlanj))
+
 ## [6.1.0](https://github.com/expo/eas-cli/releases/tag/v6.1.0) - 2024-01-18
 
 ### 🎉 New features
