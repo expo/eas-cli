@@ -717,20 +717,22 @@ export async function getRuntimeVersionObjectAsync(
     }
   }
 
-  return [...new Set(platforms)].map(platform => {
-    if (platform === 'web') {
-      return { platform: 'web', runtimeVersion: 'UNVERSIONED' };
-    }
-    return {
-      platform,
-      runtimeVersion: nullthrows(
-        Updates.getRuntimeVersion(exp, platform),
-        `Unable to determine runtime version for ${
-          requestedPlatformDisplayNames[platform]
-        }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
-      ),
-    };
-  });
+  return await Promise.all(
+    [...new Set(platforms)].map(async platform => {
+      if (platform === 'web') {
+        return { platform: 'web', runtimeVersion: 'UNVERSIONED' };
+      }
+      return {
+        platform,
+        runtimeVersion: nullthrows(
+          await Updates.getRuntimeVersionAsync(projectDir, exp, platform),
+          `Unable to determine runtime version for ${
+            requestedPlatformDisplayNames[platform]
+          }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
+        ),
+      };
+    })
+  );
 }
 
 export function getRuntimeToPlatformMappingFromRuntimeVersions(

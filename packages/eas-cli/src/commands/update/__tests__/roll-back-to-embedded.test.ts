@@ -84,7 +84,7 @@ describe(UpdateRollBackToEmbedded.name, () => {
     mockTestProject();
     const platforms = ['android', 'ios'];
     const runtimeVersion = 'exposdk:47.0.0';
-    jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
+    jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
       branchId: 'branch123',
@@ -106,7 +106,7 @@ describe(UpdateRollBackToEmbedded.name, () => {
     const { projectId } = mockTestProject();
     const platforms = ['android', 'ios'];
     const runtimeVersion = 'exposdk:47.0.0';
-    jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
+    jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
     jest.mocked(getBranchNameFromChannelNameAsync).mockResolvedValue('branchFromChannel');
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
@@ -154,7 +154,7 @@ describe(UpdateRollBackToEmbedded.name, () => {
 
     const platforms = ['ios'];
     const runtimeVersion = 'exposdk:47.0.0';
-    jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
+    jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
     // Mock an existing branch, so we don't create a new one
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({

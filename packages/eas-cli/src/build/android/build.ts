@@ -99,14 +99,13 @@ export async function prepareAndroidBuildAsync(
       return await ensureAndroidCredentialsAsync(ctx);
     },
     syncProjectConfigurationAsync: async () => {
-      await syncProjectConfigurationAsync(ctx.graphqlClient, {
+      await syncProjectConfigurationAsync({
         projectDir: ctx.projectDir,
         exp: ctx.exp,
         localAutoIncrement:
           ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
             ? false
             : ctx.buildProfile.autoIncrement,
-        projectId: ctx.projectId,
         vcsClient: ctx.vcsClient,
       });
     },
