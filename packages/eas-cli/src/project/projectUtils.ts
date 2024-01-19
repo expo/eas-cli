@@ -88,6 +88,17 @@ export function isUsingEASUpdate(exp: ExpoConfig, projectId: string): boolean {
   return exp.updates?.url === getEASUpdateURL(projectId);
 }
 
+async function getExpoUpdatesPackageVersionIfInstalledAsync(
+  projectDir: string
+): Promise<string | null> {
+  const maybePackageJson = resolveFrom.silent(projectDir, 'expo-updates/package.json');
+  if (!maybePackageJson) {
+    return null;
+  }
+  const { version } = await fs.readJson(maybePackageJson);
+  return version ?? null;
+}
+
 export async function validateAppVersionRuntimePolicySupportAsync(
   projectDir: string,
   exp: ExpoConfig
@@ -96,12 +107,9 @@ export async function validateAppVersionRuntimePolicySupportAsync(
     return;
   }
 
-  const maybePackageJson = resolveFrom.silent(projectDir, 'expo-updates/package.json');
-  if (maybePackageJson) {
-    const { version } = await fs.readJson(maybePackageJson);
-    if (semver.gte(version, '0.14.4')) {
-      return;
-    }
+  const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
+  if (expoUpdatesPackageVersion !== null && semver.gte(expoUpdatesPackageVersion, '0.14.4')) {
+    return;
   }
 
   Log.warn(
@@ -112,13 +120,9 @@ export async function validateAppVersionRuntimePolicySupportAsync(
 export async function enforceRollBackToEmbeddedUpdateSupportAsync(
   projectDir: string
 ): Promise<void> {
-  const maybePackageJson = resolveFrom.silent(projectDir, 'expo-updates/package.json');
-
-  if (maybePackageJson) {
-    const { version } = await fs.readJson(maybePackageJson);
-    if (semver.gte(version, '0.19.0')) {
-      return;
-    }
+  const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
+  if (expoUpdatesPackageVersion !== null && semver.gte(expoUpdatesPackageVersion, '0.19.0')) {
+    return;
   }
 
   throw new Error(
@@ -126,6 +130,15 @@ export async function enforceRollBackToEmbeddedUpdateSupportAsync(
       'https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/'
     )}`
   );
+}
+
+export async function isClassicUpdatesSupportedAsync(projectDir: string): Promise<boolean> {
+  const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
+  if (expoUpdatesPackageVersion === null) {
+    return false;
+  }
+
+  return !semver.gte(expoUpdatesPackageVersion, '0.19.0');
 }
 
 export async function installExpoUpdatesAsync(
