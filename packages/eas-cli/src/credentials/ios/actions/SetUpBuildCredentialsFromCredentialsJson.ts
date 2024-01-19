@@ -1,3 +1,4 @@
+import { Ios } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
 import { SetUpTargetBuildCredentialsFromCredentialsJson } from './SetUpTargetBuildCredentialsFromCredentialsJson';
@@ -6,7 +7,6 @@ import Log from '../../../log';
 import { findApplicationTarget } from '../../../project/ios/target';
 import { CredentialsContext } from '../../context';
 import { readIosCredentialsAsync } from '../../credentialsJson/read';
-import { IosCredentials } from '../../credentialsJson/types';
 import { ensureAllTargetsAreConfigured } from '../../credentialsJson/utils';
 import { App, Target } from '../types';
 
@@ -45,7 +45,7 @@ export class SetUpBuildCredentialsFromCredentialsJson {
     }
   }
 
-  private async readCredentialsJsonAsync(ctx: CredentialsContext): Promise<IosCredentials> {
+  private async readCredentialsJsonAsync(ctx: CredentialsContext): Promise<Ios.BuildCredentials> {
     const applicationTarget = findApplicationTarget(this.targets);
     try {
       return await readIosCredentialsAsync(ctx.projectDir, applicationTarget);

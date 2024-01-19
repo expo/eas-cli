@@ -6,7 +6,6 @@ import { transformJob } from './graphql';
 import { prepareJobAsync } from './prepareJob';
 import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
 import { resolveRemoteBuildNumberAsync } from './version';
-import { IosCredentials } from '../../credentials/ios/types';
 import { BuildParamsInput } from '../../graphql/generated';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
@@ -94,7 +93,7 @@ export async function prepareIosBuildAsync(
     },
     prepareJobAsync: async (
       ctx: BuildContext<Platform.IOS>,
-      jobData: JobData<IosCredentials>
+      jobData: JobData<Ios.BuildCredentials>
     ): Promise<Job> => {
       return await prepareJobAsync(ctx, {
         ...jobData,
