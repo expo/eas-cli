@@ -1,4 +1,5 @@
 import { Ios } from '@expo/eas-build-job';
+
 import { IosDistributionType } from '../../../../graphql/generated';
 import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../../project/ios/target';

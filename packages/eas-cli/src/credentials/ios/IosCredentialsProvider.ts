@@ -35,7 +35,10 @@ enum PushNotificationSetupOption {
 export default class IosCredentialsProvider {
   public readonly platform = Platform.IOS;
 
-  constructor(private ctx: CredentialsContext, private options: Options) {}
+  constructor(
+    private ctx: CredentialsContext,
+    private options: Options
+  ) {}
 
   public async getCredentialsAsync(
     src: CredentialsSource.LOCAL | CredentialsSource.REMOTE

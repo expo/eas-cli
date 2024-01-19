@@ -125,10 +125,10 @@ describe(IosCredentialsProvider, () => {
           {
             testapp: {
               distributionCertificate: {
-                certificateP12: buildCredentials.distributionCertificate?.certificateP12,
-                certificatePassword: buildCredentials.distributionCertificate?.certificatePassword,
+                dataBase64: buildCredentials.distributionCertificate?.certificateP12,
+                password: buildCredentials.distributionCertificate?.certificatePassword,
               },
-              provisioningProfile: buildCredentials.provisioningProfile?.provisioningProfile,
+              provisioningProfileBase64: buildCredentials.provisioningProfile?.provisioningProfile,
             },
           }
         );
