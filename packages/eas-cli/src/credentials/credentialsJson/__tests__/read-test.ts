@@ -109,10 +109,10 @@ describe('credentialsJson', () => {
         const result = await credentialsJsonReader.readIosCredentialsAsync('.', applicationTarget);
         expect(result).toEqual({
           [applicationTarget.targetName]: {
-            provisioningProfile: 'c29tZWJpbmFyeWNvbnRlbnQ=',
+            provisioningProfileBase64: 'c29tZWJpbmFyeWNvbnRlbnQ=',
             distributionCertificate: {
-              certificateP12: 'c29tZWJpbmFyeWNvbnRlbnQy',
-              certificatePassword: 'certPass',
+              dataBase64: 'c29tZWJpbmFyeWNvbnRlbnQy',
+              password: 'certPass',
             },
           },
         });
@@ -230,17 +230,17 @@ describe('credentialsJson', () => {
         );
         expect(result).toEqual({
           target1: {
-            provisioningProfile: 'cHByb2ZpbGUtMS1zb21lYmluYXJ5Y29udGVudA==',
+            provisioningProfileBase64: 'cHByb2ZpbGUtMS1zb21lYmluYXJ5Y29udGVudA==',
             distributionCertificate: {
-              certificateP12: 'Y2VydC0xLXNvbWViaW5hcnljb250ZW50',
-              certificatePassword: 'cert-pass-1',
+              dataBase64: 'Y2VydC0xLXNvbWViaW5hcnljb250ZW50',
+              password: 'cert-pass-1',
             },
           },
           target2: {
-            provisioningProfile: 'cHByb2ZpbGUtMi1zb21lYmluYXJ5Y29udGVudA==',
+            provisioningProfileBase64: 'cHByb2ZpbGUtMi1zb21lYmluYXJ5Y29udGVudA==',
             distributionCertificate: {
-              certificateP12: 'Y2VydC0yLXNvbWViaW5hcnljb250ZW50',
-              certificatePassword: 'cert-pass-2',
+              dataBase64: 'Y2VydC0yLXNvbWViaW5hcnljb250ZW50',
+              password: 'cert-pass-2',
             },
           },
         });

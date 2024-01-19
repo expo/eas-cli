@@ -1,3 +1,4 @@
+import { Ios } from '@expo/eas-build-job';
 import { DistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -5,7 +6,7 @@ import nullthrows from 'nullthrows';
 import { SetUpTargetBuildCredentials } from './SetUpTargetBuildCredentials';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
-import { App, IosAppBuildCredentialsMap, IosCredentials, Target } from '../types';
+import { App, IosAppBuildCredentialsMap, Target } from '../types';
 import { displayProjectCredentials } from '../utils/printCredentials';
 
 interface Options {
@@ -18,7 +19,7 @@ interface Options {
 export class SetUpBuildCredentials {
   constructor(private options: Options) {}
 
-  async runAsync(ctx: CredentialsContext): Promise<IosCredentials> {
+  async runAsync(ctx: CredentialsContext): Promise<Ios.BuildCredentials> {
     const hasManyTargets = this.options.targets.length > 1;
     const iosAppBuildCredentialsMap: IosAppBuildCredentialsMap = {};
     if (hasManyTargets) {
@@ -71,19 +72,19 @@ export class SetUpBuildCredentials {
   }
 }
 
-function toIosCredentials(appBuildCredentialsMap: IosAppBuildCredentialsMap): IosCredentials {
+function toIosCredentials(appBuildCredentialsMap: IosAppBuildCredentialsMap): Ios.BuildCredentials {
   return Object.entries(appBuildCredentialsMap).reduce((acc, [targetName, appBuildCredentials]) => {
     acc[targetName] = {
       distributionCertificate: {
-        certificateP12: nullthrows(appBuildCredentials.distributionCertificate?.certificateP12),
-        certificatePassword: nullthrows(
-          appBuildCredentials.distributionCertificate?.certificatePassword
-        ),
+        dataBase64: nullthrows(appBuildCredentials.distributionCertificate?.certificateP12),
+        password: nullthrows(appBuildCredentials.distributionCertificate?.certificatePassword),
       },
-      provisioningProfile: nullthrows(appBuildCredentials.provisioningProfile?.provisioningProfile),
+      provisioningProfileBase64: nullthrows(
+        appBuildCredentials.provisioningProfile?.provisioningProfile
+      ),
     };
     return acc;
-  }, {} as IosCredentials);
+  }, {} as Ios.BuildCredentials);
 }
 
 function formatAppInfo({ account, projectName }: App, targets: Target[]): string {

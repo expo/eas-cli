@@ -1,4 +1,4 @@
-import { Platform } from '@expo/eas-build-job';
+import { Ios, Platform } from '@expo/eas-build-job';
 import {
   CredentialsSource,
   DistributionType,
@@ -9,7 +9,7 @@ import {
 import { getAppFromContextAsync } from './actions/BuildCredentialsUtils';
 import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials';
 import { SetUpPushKey } from './actions/SetUpPushKey';
-import { App, IosCredentials, Target } from './types';
+import { App, Target } from './types';
 import { isAdHocProfile, isEnterpriseUniversalProfile } from './utils/provisioningProfile';
 import { CommonIosAppCredentialsFragment } from '../../graphql/generated';
 import Log from '../../log';
@@ -42,7 +42,7 @@ export default class IosCredentialsProvider {
 
   public async getCredentialsAsync(
     src: CredentialsSource.LOCAL | CredentialsSource.REMOTE
-  ): Promise<IosCredentials> {
+  ): Promise<Ios.BuildCredentials> {
     let buildCredentials;
     if (src === CredentialsSource.LOCAL) {
       buildCredentials = await this.getLocalAsync();
@@ -53,7 +53,7 @@ export default class IosCredentialsProvider {
     return buildCredentials;
   }
 
-  private async getLocalAsync(): Promise<IosCredentials> {
+  private async getLocalAsync(): Promise<Ios.BuildCredentials> {
     const applicationTarget = findApplicationTarget(this.options.targets);
     const iosCredentials = await credentialsJsonReader.readIosCredentialsAsync(
       this.ctx.projectDir,
@@ -62,14 +62,14 @@ export default class IosCredentialsProvider {
     ensureAllTargetsAreConfigured(this.options.targets, iosCredentials);
     for (const target of this.options.targets) {
       this.assertProvisioningProfileType(
-        iosCredentials[target.targetName].provisioningProfile,
+        iosCredentials[target.targetName].provisioningProfileBase64,
         target.targetName
       );
     }
     return iosCredentials;
   }
 
-  private async getRemoteAsync(): Promise<IosCredentials> {
+  private async getRemoteAsync(): Promise<Ios.BuildCredentials> {
     return await new SetUpBuildCredentials({
       app: this.options.app,
       targets: this.options.targets,

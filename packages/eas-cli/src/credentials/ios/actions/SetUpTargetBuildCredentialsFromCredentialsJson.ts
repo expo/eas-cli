@@ -1,3 +1,4 @@
+import { Ios } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -17,7 +18,6 @@ import {
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
-import { IosTargetCredentials } from '../../credentialsJson/types';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { displayProjectCredentials } from '../utils/printCredentials';
 import { readAppleTeam } from '../utils/provisioningProfile';
@@ -26,7 +26,7 @@ export class SetUpTargetBuildCredentialsFromCredentialsJson {
   constructor(
     private app: AppLookupParams,
     private distributionType: IosDistributionType,
-    private targetCredentials: IosTargetCredentials
+    private targetCredentials: Ios.TargetCredentials
   ) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
@@ -42,7 +42,7 @@ export class SetUpTargetBuildCredentialsFromCredentialsJson {
 
     // new credentials from local json
     const appleTeamFromProvisioningProfile = readAppleTeam(
-      this.targetCredentials.provisioningProfile
+      this.targetCredentials.provisioningProfileBase64
     );
     const appleTeam = await ctx.ios.createOrGetExistingAppleTeamAsync(
       ctx.graphqlClient,
@@ -110,22 +110,22 @@ export class SetUpTargetBuildCredentialsFromCredentialsJson {
     appleTeam: AppleTeamFragment,
     currentDistributionCertificate: AppleDistributionCertificateFragment | null
   ): Promise<AppleDistributionCertificateFragment> {
-    const { certificateP12, certificatePassword } = this.targetCredentials.distributionCertificate;
+    const { dataBase64, password } = this.targetCredentials.distributionCertificate;
 
     if (!currentDistributionCertificate) {
       return await ctx.ios.createDistributionCertificateAsync(ctx.graphqlClient, this.app.account, {
-        certP12: certificateP12,
-        certPassword: certificatePassword,
+        certP12: dataBase64,
+        certPassword: password,
         teamId: appleTeam.appleTeamIdentifier,
         teamName: appleTeam.appleTeamName ?? undefined,
       });
     }
 
-    const isSameCertificate = currentDistributionCertificate.certificateP12 === certificateP12;
+    const isSameCertificate = currentDistributionCertificate.certificateP12 === dataBase64;
     if (!isSameCertificate) {
       return await ctx.ios.createDistributionCertificateAsync(ctx.graphqlClient, this.app.account, {
-        certP12: certificateP12,
-        certPassword: certificatePassword,
+        certP12: dataBase64,
+        certPassword: password,
         teamId: appleTeam.appleTeamIdentifier,
         teamName: appleTeam.appleTeamName ?? undefined,
       });
@@ -140,13 +140,14 @@ export class SetUpTargetBuildCredentialsFromCredentialsJson {
     appleTeam: AppleTeamFragment,
     currentProvisioningProfile: AppleProvisioningProfileFragment | null
   ): Promise<AppleProvisioningProfileFragment> {
-    const { provisioningProfile } = this.targetCredentials;
+    const { provisioningProfileBase64 } = this.targetCredentials;
 
     if (!currentProvisioningProfile) {
       return await this.createNewProvisioningProfileAsync(ctx, appleTeam);
     }
 
-    const isSameProfile = currentProvisioningProfile.provisioningProfile === provisioningProfile;
+    const isSameProfile =
+      currentProvisioningProfile.provisioningProfile === provisioningProfileBase64;
     if (!isSameProfile) {
       return await this.createNewProvisioningProfileAsync(ctx, appleTeam);
     }
@@ -159,7 +160,7 @@ export class SetUpTargetBuildCredentialsFromCredentialsJson {
     ctx: CredentialsContext,
     appleTeam: AppleTeamFragment
   ): Promise<AppleProvisioningProfileFragment> {
-    const { provisioningProfile } = this.targetCredentials;
+    const { provisioningProfileBase64 } = this.targetCredentials;
 
     const appleAppIdentifier = await ctx.ios.createOrGetExistingAppleAppIdentifierAsync(
       ctx.graphqlClient,
@@ -171,7 +172,7 @@ export class SetUpTargetBuildCredentialsFromCredentialsJson {
       this.app,
       appleAppIdentifier,
       {
-        appleProvisioningProfile: provisioningProfile,
+        appleProvisioningProfile: provisioningProfileBase64,
       }
     );
   }

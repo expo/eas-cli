@@ -1,13 +1,10 @@
+import { Ios } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
 import { readRawAsync } from './read';
-import {
-  CredentialsJson,
-  CredentialsJsonIosCredentials,
-  CredentialsJsonIosTargetCredentials,
-} from './types';
+import { CredentialsJson, CredentialsJsonIosTargetCredentials } from './types';
 import { getCredentialsJsonPath } from './utils';
 import { AndroidAppBuildCredentialsFragment, IosDistributionType } from '../../graphql/generated';
 import Log from '../../log';
@@ -16,7 +13,7 @@ import zipObject from '../../utils/expodash/zipObject';
 import GitClient from '../../vcs/clients/git';
 import { Client } from '../../vcs/vcs';
 import { CredentialsContext } from '../context';
-import { App, Target, TargetCredentials } from '../ios/types';
+import { App, Target } from '../ios/types';
 
 /**
  * Update Android credentials.json with values from www, content of credentials.json
@@ -112,7 +109,7 @@ export async function updateIosCredentialsAsync(
     throw new Error(errorMessage);
   }
 
-  const iosCredentials: CredentialsJsonIosCredentials = {};
+  const iosCredentials: CredentialsJson['ios'] = {};
   const targetCredentialsPathsMap = createTargetCredentialsPathsMap(
     targets,
     rawCredentialsJson.ios
@@ -209,7 +206,7 @@ async function getTargetBuildCredentialsAsync(
   app: App,
   target: Target,
   iosDistributionType: IosDistributionType
-): Promise<TargetCredentials | null> {
+): Promise<Ios.TargetCredentials | null> {
   const appCredentials = await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(
     ctx.graphqlClient,
     {
@@ -237,12 +234,12 @@ async function getTargetBuildCredentialsAsync(
   }
   return {
     distributionCertificate: {
-      certificateP12: nullthrows(appBuildCredentials.distributionCertificate.certificateP12),
-      certificatePassword: nullthrows(
-        appBuildCredentials.distributionCertificate.certificatePassword
-      ),
+      dataBase64: nullthrows(appBuildCredentials.distributionCertificate.certificateP12),
+      password: nullthrows(appBuildCredentials.distributionCertificate.certificatePassword),
     },
-    provisioningProfile: nullthrows(appBuildCredentials.provisioningProfile.provisioningProfile),
+    provisioningProfileBase64: nullthrows(
+      appBuildCredentials.provisioningProfile.provisioningProfile
+    ),
   };
 }
 
@@ -252,7 +249,7 @@ async function backupTargetCredentialsAsync(
     targetCredentials,
     targetCredentialsPaths,
   }: {
-    targetCredentials: TargetCredentials;
+    targetCredentials: Ios.TargetCredentials;
     targetCredentialsPaths: TargetCredentialsPaths;
   }
 ): Promise<CredentialsJsonIosTargetCredentials> {
@@ -262,20 +259,20 @@ async function backupTargetCredentialsAsync(
   await updateFileAsync(
     ctx.projectDir,
     provisioningProfilePath,
-    targetCredentials.provisioningProfile
+    targetCredentials.provisioningProfileBase64
   );
 
   Log.log(`Writing Distribution Certificate to ${distCertPath}`);
   await updateFileAsync(
     ctx.projectDir,
     distCertPath,
-    targetCredentials.distributionCertificate.certificateP12
+    targetCredentials.distributionCertificate.dataBase64
   );
 
   return {
     distributionCertificate: {
       path: distCertPath,
-      password: targetCredentials.distributionCertificate.certificatePassword,
+      password: targetCredentials.distributionCertificate.password,
     },
     provisioningProfilePath,
   };
