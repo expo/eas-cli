@@ -9,7 +9,11 @@ import { BuildContext } from './context';
 import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
 import { LocalBuildMode } from './local';
 import Log from '../log';
-import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils';
+import {
+  getUsername,
+  isClassicUpdatesSupportedAsync,
+  isExpoUpdatesInstalled,
+} from '../project/projectUtils';
 import {
   readChannelSafelyAsync as readAndroidChannelSafelyAsync,
   readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync,
@@ -125,13 +129,19 @@ async function resolveChannelOrReleaseChannelAsync<T extends Platform>(
   if (ctx.buildProfile.channel) {
     return { channel: ctx.buildProfile.channel };
   }
-  if (ctx.buildProfile.releaseChannel) {
-    return { releaseChannel: ctx.buildProfile.releaseChannel };
-  }
   const channel = await getNativeChannelAsync(ctx);
   if (channel) {
     return { channel };
   }
+
+  if (!(await isClassicUpdatesSupportedAsync(ctx.projectDir))) {
+    return null;
+  }
+
+  if (ctx.buildProfile.releaseChannel) {
+    return { releaseChannel: ctx.buildProfile.releaseChannel };
+  }
+
   const releaseChannel = await getNativeReleaseChannelAsync(ctx);
   return { releaseChannel };
 }
