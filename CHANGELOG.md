@@ -6,11 +6,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Stop generating eas-update-metadata.json on publish. ([#2187](https://github.com/expo/eas-cli/pull/2187) by [@quinlanj](https://github.com/quinlanj))
-
 ### 🎉 New features
 
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [7.0.0](https://github.com/expo/eas-cli/releases/tag/v7.0.0) - 2024-01-19
+
+### 🛠 Breaking changes
+
+- Stop generating eas-update-metadata.json on publish. ([#2187](https://github.com/expo/eas-cli/pull/2187) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🧹 Chores
 
