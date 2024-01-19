@@ -12,7 +12,6 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import slash from 'slash';
 
-import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
 import { IosJobSecretsInput } from '../../graphql/generated';
 import { getCustomBuildConfigPath } from '../../project/customBuildConfig';
 import { getUsername } from '../../project/projectUtils';
@@ -20,7 +19,7 @@ import { BuildContext } from '../context';
 
 interface JobData {
   projectArchive: ArchiveSource;
-  credentials?: IosCredentials;
+  credentials?: Ios.BuildCredentials;
   buildScheme: string;
 }
 
@@ -41,7 +40,7 @@ export async function prepareJobAsync(
   if (jobData.credentials) {
     const targetNames = Object.keys(jobData.credentials);
     for (const targetName of targetNames) {
-      buildCredentials[targetName] = prepareTargetCredentials(jobData.credentials[targetName]);
+      buildCredentials[targetName] = jobData.credentials[targetName];
     }
   }
 
@@ -102,28 +101,18 @@ export async function prepareJobAsync(
   return sanitizeJob(job);
 }
 
-export function prepareCredentialsToResign(credentials: IosCredentials): IosJobSecretsInput {
+export function prepareCredentialsToResign(credentials: Ios.BuildCredentials): IosJobSecretsInput {
   const buildCredentials: IosJobSecretsInput['buildCredentials'] = [];
   for (const targetName of Object.keys(credentials ?? {})) {
     buildCredentials.push({
       targetName,
-      provisioningProfileBase64: nullthrows(credentials?.[targetName].provisioningProfile),
+      provisioningProfileBase64: nullthrows(credentials?.[targetName].provisioningProfileBase64),
       distributionCertificate: {
-        dataBase64: nullthrows(credentials?.[targetName].distributionCertificate.certificateP12),
-        password: nullthrows(credentials?.[targetName].distributionCertificate.certificatePassword),
+        dataBase64: nullthrows(credentials?.[targetName].distributionCertificate.dataBase64),
+        password: nullthrows(credentials?.[targetName].distributionCertificate.password),
       },
     });
   }
 
   return { buildCredentials };
-}
-
-function prepareTargetCredentials(targetCredentials: TargetCredentials): Ios.TargetCredentials {
-  return {
-    provisioningProfileBase64: targetCredentials.provisioningProfile,
-    distributionCertificate: {
-      dataBase64: targetCredentials.distributionCertificate.certificateP12,
-      password: targetCredentials.distributionCertificate.certificatePassword,
-    },
-  };
 }

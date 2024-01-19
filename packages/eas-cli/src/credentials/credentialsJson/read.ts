@@ -1,14 +1,12 @@
+import { Ios } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 
 import {
   AndroidCredentials,
   CredentialsJson,
-  CredentialsJsonIosCredentials,
   CredentialsJsonIosTargetCredentials,
   CredentialsJsonSchema,
-  IosCredentials,
-  IosTargetCredentials,
 } from './types';
 import { getCredentialsJsonPath } from './utils';
 import { Target } from '../ios/types';
@@ -32,7 +30,7 @@ export async function readAndroidCredentialsAsync(projectDir: string): Promise<A
 export async function readIosCredentialsAsync(
   projectDir: string,
   applicationTarget: Target
-): Promise<IosCredentials> {
+): Promise<Ios.BuildCredentials> {
   const credentialsJson = await readAsync(projectDir);
   if (!credentialsJson.ios) {
     throw new Error('iOS credentials are missing in credentials.json');
@@ -40,7 +38,7 @@ export async function readIosCredentialsAsync(
 
   if (isCredentialsMap(credentialsJson.ios)) {
     const targets = Object.keys(credentialsJson.ios);
-    const iosCredentials: IosCredentials = {};
+    const iosCredentials: Ios.BuildCredentials = {};
     for (const target of targets) {
       iosCredentials[target] = await readCredentialsForTargetAsync(
         projectDir,
@@ -60,26 +58,26 @@ export async function readIosCredentialsAsync(
 }
 
 function isCredentialsMap(
-  ios: CredentialsJsonIosTargetCredentials | CredentialsJsonIosCredentials
-): ios is CredentialsJsonIosCredentials {
+  ios: Exclude<CredentialsJson['ios'], undefined>
+): ios is Record<string, CredentialsJsonIosTargetCredentials> {
   return typeof ios.provisioningProfilePath !== 'string';
 }
 
 async function readCredentialsForTargetAsync(
   projectDir: string,
   targetCredentials: CredentialsJsonIosTargetCredentials
-): Promise<IosTargetCredentials> {
+): Promise<Ios.TargetCredentials> {
   return {
-    provisioningProfile: await fs.readFile(
+    provisioningProfileBase64: await fs.readFile(
       getAbsolutePath(projectDir, targetCredentials.provisioningProfilePath),
       'base64'
     ),
     distributionCertificate: {
-      certificateP12: await fs.readFile(
+      dataBase64: await fs.readFile(
         getAbsolutePath(projectDir, targetCredentials.distributionCertificate.path),
         'base64'
       ),
-      certificatePassword: targetCredentials.distributionCertificate.password,
+      password: targetCredentials.distributionCertificate.password,
     },
   };
 }

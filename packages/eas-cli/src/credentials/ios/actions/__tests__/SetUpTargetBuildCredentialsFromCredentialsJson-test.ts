@@ -1,3 +1,4 @@
+import { Ios } from '@expo/eas-build-job';
 import { IosDistributionType } from '../../../../graphql/generated';
 import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../../project/ios/target';
@@ -14,7 +15,6 @@ import {
   testProvisioningProfileFragment,
   testTargets,
 } from '../../../__tests__/fixtures-ios';
-import { IosTargetCredentials } from '../../../credentialsJson/types';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetUpTargetBuildCredentialsFromCredentialsJson } from '../SetUpTargetBuildCredentialsFromCredentialsJson';
 
@@ -31,12 +31,12 @@ describe('SetUpTargetBuildCredentialsFromCredentialsJson', () => {
   beforeEach(() => {
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
   });
-  const targetCredentials: IosTargetCredentials = {
+  const targetCredentials: Ios.TargetCredentials = {
     distributionCertificate: {
-      certificateP12: testDistCert.certP12,
-      certificatePassword: testDistCert.certPassword,
+      dataBase64: testDistCert.certP12,
+      password: testDistCert.certPassword,
     },
-    provisioningProfile: testProvisioningProfile.provisioningProfile,
+    provisioningProfileBase64: testProvisioningProfile.provisioningProfile,
   };
 
   it('sets up build credentials with same prior configuration in Interactive Mode', async () => {

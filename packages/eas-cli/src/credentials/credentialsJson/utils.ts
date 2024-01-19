@@ -1,6 +1,6 @@
+import { Ios } from '@expo/eas-build-job';
 import path from 'path';
 
-import { IosCredentials } from './types';
 import { Target } from '../ios/types';
 
 export function getCredentialsJsonPath(projectDir: string): string {
@@ -9,7 +9,7 @@ export function getCredentialsJsonPath(projectDir: string): string {
 
 export function ensureAllTargetsAreConfigured(
   targets: Target[],
-  credentialsJson: IosCredentials
+  credentialsJson: Ios.BuildCredentials
 ): void {
   const notConfiguredTargets: string[] = [];
   for (const target of targets) {

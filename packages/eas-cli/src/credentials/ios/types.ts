@@ -21,15 +21,5 @@ export interface Target {
   buildSettings?: XCBuildConfiguration['buildSettings'];
 }
 
-export interface TargetCredentials {
-  distributionCertificate: {
-    certificateP12: string;
-    certificatePassword: string;
-  };
-  provisioningProfile: string;
-}
-
-export type IosCredentials = Record<string, TargetCredentials>;
-
 export type IosAppBuildCredentialsMap = Record<string, IosAppBuildCredentialsFragment>;
 export type IosAppCredentialsMap = Record<string, CommonIosAppCredentialsFragment | null>;
