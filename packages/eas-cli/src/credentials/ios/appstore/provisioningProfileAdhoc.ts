@@ -1,6 +1,9 @@
 import { Device, Profile, ProfileState, ProfileType, RequestContext } from '@expo/apple-utils';
 
-import { ProvisioningProfile } from './Credentials.types';
+import {
+  ProvisioningProfile,
+  getProvisioningProfileTypeForDistributionMethod,
+} from './Credentials.types';
 import { getRequestContext } from './authenticate';
 import { AuthCtx } from './authenticateTypes';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
@@ -14,6 +17,7 @@ interface ProfileResults {
   profileName?: string;
   provisioningProfileId: string;
   provisioningProfile: any;
+  provisioningProfileType: ProfileType;
 }
 
 function uniqueItems<T = any>(items: T[]): T[] {
@@ -177,6 +181,7 @@ async function manageAdHocProfilesAsync(
         profileName: existingProfile?.attributes?.name,
         provisioningProfileId: existingProfile?.id,
         provisioningProfile: existingProfile?.attributes.profileContent,
+        provisioningProfileType: existingProfile?.attributes.profileType,
       };
       if (didUpdate) {
         result.didUpdate = true;
@@ -208,6 +213,7 @@ async function manageAdHocProfilesAsync(
       profileName: updatedProfile.attributes.name,
       provisioningProfileId: updatedProfile.id,
       provisioningProfile: updatedProfile.attributes.profileContent,
+      provisioningProfileType: updatedProfile.attributes.profileType,
     };
   }
 
@@ -239,6 +245,7 @@ async function manageAdHocProfilesAsync(
     profileName: newProfile.attributes.name,
     provisioningProfileId: newProfile.id,
     provisioningProfile: newProfile.attributes.profileContent,
+    provisioningProfileType: newProfile.attributes.profileType,
   };
 }
 
@@ -252,13 +259,18 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
   const spinner = ora(`Handling Apple ad hoc provisioning profiles`).start();
   try {
     const context = getRequestContext(authCtx);
-    const { didUpdate, didCreate, profileName, ...adhocProvisioningProfile } =
-      await manageAdHocProfilesAsync(context, {
-        udids,
-        bundleId: bundleIdentifier,
-        certSerialNumber: distCertSerialNumber,
-        profileType,
-      });
+    const {
+      didUpdate,
+      didCreate,
+      profileName,
+      provisioningProfileType,
+      ...adhocProvisioningProfile
+    } = await manageAdHocProfilesAsync(context, {
+      udids,
+      bundleId: bundleIdentifier,
+      certSerialNumber: distCertSerialNumber,
+      profileType,
+    });
 
     if (didCreate) {
       spinner.succeed(`Created new profile: ${profileName}`);
@@ -270,6 +282,8 @@ export async function createOrReuseAdhocProvisioningProfileAsync(
 
     return {
       ...adhocProvisioningProfile,
+      provisioningProfileType:
+        getProvisioningProfileTypeForDistributionMethod(provisioningProfileType),
       teamId: authCtx.team.id,
       teamName: authCtx.team.name,
     };
