@@ -51,6 +51,7 @@ export default class BuildList extends EasCommand {
     ...EasPaginatedQueryFlags,
     limit: getLimitFlagWithCustomValues({ defaultTo: 10, limit: BUILDS_LIMIT }),
     ...EasNonInteractiveAndJsonFlags,
+    simulator: Flags.boolean(),
   };
 
   static override contextDefinition = {
@@ -100,6 +101,7 @@ export default class BuildList extends EasCommand {
         appIdentifier: flags.appIdentifier,
         buildProfile: flags.buildProfile,
         gitCommitHash: flags.gitCommitHash,
+        simulator: flags.simulator,
       },
       paginatedQueryOptions,
     });
