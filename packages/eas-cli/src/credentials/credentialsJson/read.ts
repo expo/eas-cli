@@ -72,6 +72,10 @@ async function readCredentialsForTargetAsync(
       getAbsolutePath(projectDir, targetCredentials.provisioningProfilePath),
       'base64'
     ),
+    provisioningProfileType:
+      path.extname(targetCredentials.provisioningProfilePath) === 'provisionprofile'
+        ? Ios.ProvisioningProfileType.PROVISIONPROFILE
+        : Ios.ProvisioningProfileType.MOBILEPROVISION,
     distributionCertificate: {
       dataBase64: await fs.readFile(
         getAbsolutePath(projectDir, targetCredentials.distributionCertificate.path),

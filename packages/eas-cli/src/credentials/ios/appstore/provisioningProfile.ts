@@ -4,6 +4,7 @@ import {
   DistributionCertificate,
   ProvisioningProfile,
   ProvisioningProfileStoreInfo,
+  getProvisioningProfileTypeForDistributionMethod,
 } from './Credentials.types';
 import { getRequestContext } from './authenticate';
 import { AuthCtx } from './authenticateTypes';
@@ -71,8 +72,11 @@ async function transformProfileAsync(
     status: cert.attributes.profileState,
     expires: new Date(cert.attributes.expirationDate).getTime() / 1000,
     distributionMethod: cert.attributes.profileType,
-    // @ts-ignore -- this can be null when the profile has expired.
-    provisioningProfile: cert.attributes.profileContent,
+    provisioningProfileType: getProvisioningProfileTypeForDistributionMethod(
+      cert.attributes.profileType
+    ),
+    // this can be null when the profile has expired.
+    provisioningProfile: cert.attributes.profileContent as string,
     certificates: (await cert.getCertificatesAsync()).map(transformCertificate),
     teamId: authCtx.team.id,
     teamName: authCtx.team.name,
@@ -147,17 +151,13 @@ export async function useExistingProvisioningProfileAsync(
         `Provisioning profile "${profile.attributes.name}" (${profile.id}) is expired!`
       );
     }
-    const result = {
-      provisioningProfileId: profile.id,
-      provisioningProfile: content,
-      teamId: authCtx.team.id,
-      teamName: authCtx.team.name,
-    };
     spinner.succeed(
       `Updated provisioning profile (${profile.id}) with distribution certificate${certIdTag}`
     );
     return {
-      ...result,
+      provisioningProfileId: profile.id,
+      provisioningProfile: content,
+      provisioningProfileType: provisioningProfile.provisioningProfileType,
       teamId: authCtx.team.id,
       teamName: authCtx.team.name,
     };

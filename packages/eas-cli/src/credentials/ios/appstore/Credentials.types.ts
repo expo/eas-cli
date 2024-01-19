@@ -1,4 +1,6 @@
+import { ProfileType } from '@expo/app-store';
 import { UserRole } from '@expo/apple-utils';
+import { Ios } from '@expo/eas-build-job';
 
 export interface DistributionCertificateStoreInfo {
   id: string;
@@ -26,6 +28,30 @@ export interface ProvisioningProfile {
   provisioningProfile: string;
   teamId: string;
   teamName?: string;
+  provisioningProfileType: Ios.ProvisioningProfileType;
+}
+
+export function getProvisioningProfileTypeForDistributionMethod(
+  distributionMethod: ProfileType
+): Ios.ProvisioningProfileType {
+  switch (distributionMethod) {
+    case ProfileType.IOS_APP_DEVELOPMENT:
+    case ProfileType.IOS_APP_STORE:
+    case ProfileType.IOS_APP_ADHOC:
+    case ProfileType.IOS_APP_INHOUSE:
+    case ProfileType.TVOS_APP_DEVELOPMENT:
+    case ProfileType.TVOS_APP_STORE:
+    case ProfileType.TVOS_APP_ADHOC:
+    case ProfileType.TVOS_APP_INHOUSE:
+      return Ios.ProvisioningProfileType.MOBILEPROVISION;
+    case ProfileType.MAC_APP_DEVELOPMENT:
+    case ProfileType.MAC_APP_STORE:
+    case ProfileType.MAC_APP_DIRECT:
+    case ProfileType.MAC_CATALYST_APP_DEVELOPMENT:
+    case ProfileType.MAC_CATALYST_APP_STORE:
+    case ProfileType.MAC_CATALYST_APP_DIRECT:
+      return Ios.ProvisioningProfileType.PROVISIONPROFILE;
+  }
 }
 
 export interface ProvisioningProfileStoreInfo extends ProvisioningProfile {
