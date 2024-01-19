@@ -138,7 +138,7 @@ export async function isClassicUpdatesSupportedAsync(projectDir: string): Promis
     return false;
   }
 
-  return !semver.gte(expoUpdatesPackageVersion, '0.19.0');
+  return semver.lt(expoUpdatesPackageVersion, '0.19.0');
 }
 
 export async function installExpoUpdatesAsync(
