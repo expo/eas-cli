@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Remove support for classic updates release channel in 50+. ([#2189](https://github.com/expo/eas-cli/pull/2189) by [@wschurman](https://github.com/wschurman))
+- Migrate to using credentials types from `eas-build-job` where possible. ([#2191](https://github.com/expo/eas-cli/pull/2191) by [@sjchmiela](https://github.com/sjchmiela))
 
 ## [7.0.0](https://github.com/expo/eas-cli/releases/tag/v7.0.0) - 2024-01-19
 
