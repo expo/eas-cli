@@ -10,6 +10,7 @@ import {
   getPaginatedQueryOptions,
 } from '../../commandUtils/pagination';
 import { AppPlatform, BuildStatus as GraphQLBuildStatus } from '../../graphql/generated';
+import Log from '../../log';
 import { RequestedPlatform } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { buildDistributionTypeToGraphQLDistributionType } from '../../utils/buildDistribution';
@@ -70,6 +71,11 @@ export default class BuildList extends EasCommand {
       distribution: buildDistribution,
       'non-interactive': nonInteractive,
     } = flags;
+    if (buildDistribution === BuildDistributionType.SIMULATOR) {
+      Log.warn(
+        `Using "distribution" flag with "simulator" value is deprecated - use "simulator" flag instead`
+      );
+    }
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
