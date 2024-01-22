@@ -35,7 +35,6 @@ export default class UpdateConfigure extends EasCommand {
     const platform = flags.platform as RequestedPlatform;
     const {
       privateProjectConfig: { projectId, exp, projectDir },
-      loggedIn: { graphqlClient },
       vcsClient,
     } = await this.getContextAsync(UpdateConfigure, {
       nonInteractive: flags['non-interactive'],
@@ -47,7 +46,7 @@ export default class UpdateConfigure extends EasCommand {
 
     await vcsClient.ensureRepoExistsAsync();
 
-    await ensureEASUpdateIsConfiguredAsync(graphqlClient, {
+    await ensureEASUpdateIsConfiguredAsync({
       exp,
       projectId,
       projectDir,

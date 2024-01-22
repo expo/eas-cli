@@ -324,7 +324,7 @@ function mockTestExport({
     uniqueUploadedAssetPaths: [],
   });
 
-  jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
+  jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
   return { inputDir: exportDir, platforms, runtimeVersion };
 }

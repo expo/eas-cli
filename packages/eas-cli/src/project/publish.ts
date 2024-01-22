@@ -24,11 +24,7 @@ import Log, { learnMore } from '../log';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../platform';
 import { promptAsync } from '../prompts';
 import { getBranchNameFromChannelNameAsync } from '../update/getBranchNameFromChannelNameAsync';
-import {
-  UpdateJsonInfo,
-  formatUpdateMessage,
-  truncateString as truncateUpdateMessage,
-} from '../update/utils';
+import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../update/utils';
 import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
 import {
   expoCommandAsync,
@@ -296,14 +292,6 @@ export function loadMetadata(distRoot: string): Metadata {
   }
   Log.debug(`Loaded ${platforms.length} platform(s): ${platforms.join(', ')}`);
   return metadata;
-}
-
-export async function generateEasMetadataAsync(
-  distRoot: string,
-  metadata: UpdateJsonInfo[]
-): Promise<void> {
-  const easMetadataPath = path.join(distRoot, 'eas-update-metadata.json');
-  await JsonFile.writeAsync(easMetadataPath, { updates: metadata });
 }
 
 export function filterExportedPlatformsByFlag<T extends Partial<Record<Platform, any>>>(
@@ -717,20 +705,22 @@ export async function getRuntimeVersionObjectAsync(
     }
   }
 
-  return [...new Set(platforms)].map(platform => {
-    if (platform === 'web') {
-      return { platform: 'web', runtimeVersion: 'UNVERSIONED' };
-    }
-    return {
-      platform,
-      runtimeVersion: nullthrows(
-        Updates.getRuntimeVersion(exp, platform),
-        `Unable to determine runtime version for ${
-          requestedPlatformDisplayNames[platform]
-        }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
-      ),
-    };
-  });
+  return await Promise.all(
+    [...new Set(platforms)].map(async platform => {
+      if (platform === 'web') {
+        return { platform: 'web', runtimeVersion: 'UNVERSIONED' };
+      }
+      return {
+        platform,
+        runtimeVersion: nullthrows(
+          await Updates.getRuntimeVersionAsync(projectDir, exp, platform),
+          `Unable to determine runtime version for ${
+            requestedPlatformDisplayNames[platform]
+          }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
+        ),
+      };
+    })
+  );
 }
 
 export function getRuntimeToPlatformMappingFromRuntimeVersions(

@@ -3,37 +3,31 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { IosVersionAutoIncrement } from '@expo/eas-json';
 
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { Target } from '../../credentials/ios/types';
 import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { syncUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
 import { Client } from '../../vcs/vcs';
 
-export async function syncProjectConfigurationAsync(
-  graphqlClient: ExpoGraphqlClient,
-  {
-    projectDir,
-    exp,
-    targets,
-    localAutoIncrement,
-    projectId,
-    vcsClient,
-  }: {
-    projectDir: string;
-    exp: ExpoConfig;
-    targets: Target[];
-    localAutoIncrement?: IosVersionAutoIncrement;
-    projectId: string;
-    vcsClient: Client;
-  }
-): Promise<void> {
+export async function syncProjectConfigurationAsync({
+  projectDir,
+  exp,
+  targets,
+  localAutoIncrement,
+  vcsClient,
+}: {
+  projectDir: string;
+  exp: ExpoConfig;
+  targets: Target[];
+  localAutoIncrement?: IosVersionAutoIncrement;
+  vcsClient: Client;
+}): Promise<void> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   const versionBumpStrategy = resolveVersionBumpStrategy(localAutoIncrement ?? false);
 
   if (workflow === Workflow.GENERIC) {
     if (isExpoUpdatesInstalled(projectDir)) {
-      await syncUpdatesConfigurationAsync(graphqlClient, vcsClient, projectDir, exp, projectId);
+      await syncUpdatesConfigurationAsync(vcsClient, projectDir, exp);
     }
     await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy, targets });
   } else {

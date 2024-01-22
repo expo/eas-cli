@@ -29,7 +29,6 @@ import {
   collectAssetsAsync,
   defaultPublishPlatforms,
   filterExportedPlatformsByFlag,
-  generateEasMetadataAsync,
   getBranchNameForCommandAsync,
   getRequestedPlatform,
   getRuntimeToPlatformMappingFromRuntimeVersions,
@@ -197,7 +196,7 @@ export default class UpdatePublish extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
-    await ensureEASUpdateIsConfiguredAsync(graphqlClient, {
+    await ensureEASUpdateIsConfiguredAsync({
       exp: expPossiblyWithoutEasUpdateConfigured,
       platform: getRequestedPlatform(platformFlag),
       projectDir,
@@ -469,9 +468,6 @@ export default class UpdatePublish extends EasCommand {
       throw e;
     }
 
-    if (!skipBundler) {
-      await generateEasMetadataAsync(distRoot, getUpdateJsonInfosForUpdates(newUpdates));
-    }
     if (jsonFlag) {
       printJsonOnlyOutput(getUpdateJsonInfosForUpdates(newUpdates));
     } else {

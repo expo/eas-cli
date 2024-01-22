@@ -342,7 +342,9 @@ export async function resolveRemoteBuildNumberAsync(
         applicationIdentifier: applicationTarget.bundleIdentifier,
         storeVersion: localShortVersion ?? '1.0.0',
         buildVersion: currentBuildVersion,
-        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
+        runtimeVersion:
+          (await Updates.getRuntimeVersionNullableAsync(projectDir, exp, Platform.IOS)) ??
+          undefined,
       });
       spinner.succeed(`Initialized buildNumber with ${chalk.bold(currentBuildVersion)}.`);
     } catch (err) {
@@ -364,7 +366,9 @@ export async function resolveRemoteBuildNumberAsync(
         applicationIdentifier: applicationTarget.bundleIdentifier,
         storeVersion: localShortVersion ?? '1.0.0',
         buildVersion: nextBuildVersion,
-        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
+        runtimeVersion:
+          (await Updates.getRuntimeVersionNullableAsync(projectDir, exp, Platform.IOS)) ??
+          undefined,
       });
       spinner.succeed(
         `Incremented buildNumber from ${chalk.bold(currentBuildVersion)} to ${chalk.bold(

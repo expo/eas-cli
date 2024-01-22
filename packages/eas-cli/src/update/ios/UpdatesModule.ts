@@ -1,28 +1,22 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { RequestedPlatform } from '../../platform';
-import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { readPlistAsync, writePlistAsync } from '../../utils/plist';
 import { Client } from '../../vcs/vcs';
 import { ensureValidVersions } from '../utils';
 
 export async function syncUpdatesConfigurationAsync(
-  graphqlClient: ExpoGraphqlClient,
   vcsClient: Client,
   projectDir: string,
-  exp: ExpoConfig,
-  projectId: string
+  exp: ExpoConfig
 ): Promise<void> {
   ensureValidVersions(exp, RequestedPlatform.Ios);
-  const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
   const expoPlist = await readExpoPlistAsync(projectDir);
-  const updatedExpoPlist = IOSConfig.Updates.setUpdatesConfig(
+  const updatedExpoPlist = await IOSConfig.Updates.setUpdatesConfigAsync(
     projectDir,
     exp,
-    expoPlist,
-    accountName
+    expoPlist
   );
   await writeExpoPlistAsync(vcsClient, projectDir, updatedExpoPlist);
 }

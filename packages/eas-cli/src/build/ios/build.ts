@@ -80,7 +80,7 @@ export async function prepareIosBuildAsync(
       return ensureIosCredentialsAsync(ctx, ctx.ios.targets);
     },
     syncProjectConfigurationAsync: async () => {
-      await syncProjectConfigurationAsync(ctx.graphqlClient, {
+      await syncProjectConfigurationAsync({
         projectDir: ctx.projectDir,
         exp: ctx.exp,
         targets: ctx.ios.targets,
@@ -88,7 +88,6 @@ export async function prepareIosBuildAsync(
           ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
             ? false
             : ctx.buildProfile.autoIncrement,
-        projectId: ctx.projectId,
         vcsClient: ctx.vcsClient,
       });
     },

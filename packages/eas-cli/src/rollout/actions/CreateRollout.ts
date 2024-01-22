@@ -272,9 +272,13 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
 
   async selectRuntimeVersionFromProjectConfigAsync(ctx: EASUpdateContext): Promise<string> {
     const platforms: ('ios' | 'android')[] = ['ios', 'android'];
-    const runtimes = platforms
-      .map(platform => Updates.getRuntimeVersion(ctx.app.exp, platform))
-      .filter(truthy);
+    const runtimes = (
+      await Promise.all(
+        platforms.map(platform =>
+          Updates.getRuntimeVersionAsync(ctx.app.projectDir, ctx.app.exp, platform)
+        )
+      )
+    ).filter(truthy);
     const dedupedRuntimes = [...new Set(runtimes)];
 
     if (dedupedRuntimes.length === 0) {
