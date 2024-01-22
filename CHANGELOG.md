@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Support requireCommit for EAS Update. ([#2196](https://github.com/expo/eas-cli/pull/2196) by [@wschurman](https://github.com/wschurman))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
