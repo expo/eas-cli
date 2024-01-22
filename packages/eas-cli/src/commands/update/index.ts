@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { ensureBranchExistsAsync } from '../../branch/queries';
+import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import { ensureChannelExistsAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -187,6 +188,9 @@ export default class UpdatePublish extends EasCommand {
     if (jsonFlag) {
       enableJsonOutput();
     }
+
+    await vcsClient.ensureRepoExistsAsync();
+    await ensureRepoIsCleanAsync(vcsClient, nonInteractive);
 
     const {
       exp: expPossiblyWithoutEasUpdateConfigured,
