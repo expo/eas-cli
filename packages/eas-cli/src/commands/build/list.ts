@@ -79,6 +79,12 @@ export default class BuildList extends EasCommand {
         `Using "distribution" flag with "simulator" value is deprecated - use "simulator" flag instead`
       );
     }
+    if (flags.simulator && requestedPlatform !== RequestedPlatform.Ios) {
+      Log.error(
+        `The --simulator flag is only usable with --platform flag set to "ios", as it is used to filter specifically iOS simulator builds`
+      );
+      process.exit(1);
+    }
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
