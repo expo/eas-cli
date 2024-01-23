@@ -76,7 +76,7 @@ export default class BuildList extends EasCommand {
     } = flags;
     if (buildDistribution === BuildDistributionType.SIMULATOR) {
       Log.warn(
-        `Using "distribution" flag with "simulator" value is deprecated - use "simulator" flag instead`
+        `Using --distribution flag with "simulator" value is deprecated - use --simulator flag instead`
       );
     }
     if (flags.simulator && requestedPlatform !== RequestedPlatform.Ios) {
