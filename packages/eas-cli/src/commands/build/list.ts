@@ -52,7 +52,10 @@ export default class BuildList extends EasCommand {
     ...EasPaginatedQueryFlags,
     limit: getLimitFlagWithCustomValues({ defaultTo: 10, limit: BUILDS_LIMIT }),
     ...EasNonInteractiveAndJsonFlags,
-    simulator: Flags.boolean(),
+    simulator: Flags.boolean({
+      description:
+        'Filter only iOS simulator builds. Can only be used with --platform flag set to "ios"',
+    }),
   };
 
   static override contextDefinition = {
