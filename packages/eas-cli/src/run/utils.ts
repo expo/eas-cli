@@ -12,7 +12,7 @@ export function isRunnableOnSimulatorOrEmulator(build: BuildFragment): boolean {
   return (
     build.status === BuildStatus.Finished &&
     !!build.artifacts?.applicationArchiveUrl &&
-    ((build.platform === AppPlatform.Ios && build.isForSimulator) ||
+    ((build.platform === AppPlatform.Ios && build.isForIosSimulator) ||
       (build.platform === AppPlatform.Android && !isAab(build))) &&
     !didArtifactsExpire(build)
   );

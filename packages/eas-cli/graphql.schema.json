@@ -14574,7 +14574,7 @@
             "deprecationReason": null
           },
           {
-            "name": "isForSimulator",
+            "name": "isForIosSimulator",
             "description": null,
             "args": [],
             "type": {
@@ -15993,6 +15993,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "simulator",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
               "ofType": null
             },
             "defaultValue": null,
