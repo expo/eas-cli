@@ -7,13 +7,13 @@ export const highLevelActions: ActionInfo[] = [
     scope: Scope.Manager,
   },
   {
-    value: AndroidActionType.ManageFcm,
-    title: 'Push Notifications: Manage your FCM API Key',
+    value: AndroidActionType.ManageGoogleServiceAccount,
+    title: 'Google Service Account',
     scope: Scope.Manager,
   },
   {
-    value: AndroidActionType.ManageGoogleServiceAccountKey,
-    title: 'Google Service Account: Manage your Service Account Key',
+    value: AndroidActionType.ManageFcm,
+    title: 'Push Notifications (Legacy): Manage your FCM (Legacy) API Key',
     scope: Scope.Manager,
   },
   {
@@ -92,20 +92,56 @@ export const fcmActions: ActionInfo[] = [
   },
 ];
 
-export const gsaKeyActions: ActionInfo[] = [
+export const gsaKeyActionsForFcmV1: ActionInfo[] = [
   {
-    value: AndroidActionType.SetUpGsaKey,
-    title: 'Set up a Google Service Account Key',
+    value: AndroidActionType.SetUpGsaKeyForFcmV1,
+    title: 'Set up a Google Service Account Key for Push Notifications (FCM V1)',
     scope: Scope.Project,
+  },
+  {
+    value: AndroidActionType.UseExistingGsaKeyForFcmV1,
+    title: 'Select an existing Google Service Account Key for Push Notifications (FCM V1)',
+    scope: Scope.Project,
+  },
+  {
+    value: AndroidActionType.GoBackToHighLevelActions,
+    title: 'Go back',
+    scope: Scope.Manager,
+  },
+];
+
+export const gsaKeyActionsForSubmissions: ActionInfo[] = [
+  {
+    value: AndroidActionType.SetUpGsaKeyForSubmissions,
+    title: 'Set up a Google Service Account Key for Play Store Submissions',
+    scope: Scope.Project,
+  },
+  {
+    value: AndroidActionType.UseExistingGsaKeyForSubmissions,
+    title: 'Select an existing Google Service Account Key for Play Store Submissions',
+    scope: Scope.Project,
+  },
+  {
+    value: AndroidActionType.GoBackToHighLevelActions,
+    title: 'Go back',
+    scope: Scope.Manager,
+  },
+];
+
+export const gsaActions: ActionInfo[] = [
+  {
+    value: AndroidActionType.ManageGoogleServiceAccountKeyForSubmissions,
+    title: 'Manage your Google Service Account Key for Play Store Submissions',
+    scope: Scope.Manager,
+  },
+  {
+    value: AndroidActionType.ManageGoogleServiceAccountKeyForFcmV1,
+    title: 'Manage your Google Service Account Key for Push Notifications (FCM V1)',
+    scope: Scope.Manager,
   },
   {
     value: AndroidActionType.CreateGsaKey,
     title: 'Upload a Google Service Account Key',
-    scope: Scope.Project,
-  },
-  {
-    value: AndroidActionType.UseExistingGsaKey,
-    title: 'Use an existing Google Service Account Key',
     scope: Scope.Project,
   },
   {

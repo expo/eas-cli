@@ -1,6 +1,6 @@
 import nullthrows from 'nullthrows';
 
-import { AssignGoogleServiceAccountKey } from './AssignGoogleServiceAccountKey';
+import { AssignGoogleServiceAccountKeyForFcmV1 } from './AssignGoogleServiceAccountKeyForFcmV1';
 import { CreateGoogleServiceAccountKey } from './CreateGoogleServiceAccountKey';
 import { UseExistingGoogleServiceAccountKey } from './UseExistingGoogleServiceAccountKey';
 import {
@@ -13,13 +13,13 @@ import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 
-export class SetUpGoogleServiceAccountKey {
+export class SetUpGoogleServiceAccountKeyForFcmV1 {
   constructor(private app: AppLookupParams) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<CommonAndroidAppCredentialsFragment> {
     const isKeySetup = await this.isGoogleServiceAccountKeySetupAsync(ctx);
     if (isKeySetup) {
-      Log.succeed('Google Service Account Key already set up.');
+      Log.succeed('Google Service Account Key for FCM V1 already set up.');
       return nullthrows(
         await ctx.android.getAndroidAppCredentialsWithCommonFieldsAsync(
           ctx.graphqlClient,
@@ -46,7 +46,10 @@ export class SetUpGoogleServiceAccountKey {
     } else {
       googleServiceAccountKey = await this.createOrUseExistingKeyAsync(ctx);
     }
-    return await new AssignGoogleServiceAccountKey(this.app).runAsync(ctx, googleServiceAccountKey);
+    return await new AssignGoogleServiceAccountKeyForFcmV1(this.app).runAsync(
+      ctx,
+      googleServiceAccountKey
+    );
   }
 
   private async isGoogleServiceAccountKeySetupAsync(ctx: CredentialsContext): Promise<boolean> {
@@ -54,7 +57,7 @@ export class SetUpGoogleServiceAccountKey {
       ctx.graphqlClient,
       this.app
     );
-    return !!appCredentials?.googleServiceAccountKeyForSubmissions;
+    return !!appCredentials?.googleServiceAccountKeyForFcmV1;
   }
 
   private async createOrUseExistingKeyAsync(
@@ -63,7 +66,7 @@ export class SetUpGoogleServiceAccountKey {
     const { action } = await promptAsync({
       type: 'select',
       name: 'action',
-      message: 'Select the Google Service Account Key to use for your project:',
+      message: 'Select the Google Service Account Key to use for FCM V1:',
       choices: [
         {
           title: '[Choose an existing key]',

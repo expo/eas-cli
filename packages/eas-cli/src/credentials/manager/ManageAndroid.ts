@@ -7,7 +7,9 @@ import {
   buildCredentialsActions,
   credentialsJsonActions,
   fcmActions,
-  gsaKeyActions,
+  gsaActions,
+  gsaKeyActionsForFcmV1,
+  gsaKeyActionsForSubmissions,
   highLevelActions,
 } from './AndroidActions';
 import { CreateAndroidBuildCredentials } from './CreateAndroidBuildCredentials';
@@ -19,7 +21,8 @@ import Log, { learnMore } from '../../log';
 import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
 import { promptAsync } from '../../prompts';
 import { AssignFcm } from '../android/actions/AssignFcm';
-import { AssignGoogleServiceAccountKey } from '../android/actions/AssignGoogleServiceAccountKey';
+import { AssignGoogleServiceAccountKeyForFcmV1 } from '../android/actions/AssignGoogleServiceAccountKeyForFcmV1';
+import { AssignGoogleServiceAccountKeyForSubmissions } from '../android/actions/AssignGoogleServiceAccountKeyForSubmissions';
 import {
   canCopyLegacyCredentialsAsync,
   getAppLookupParamsFromContextAsync,
@@ -32,7 +35,8 @@ import { RemoveFcm } from '../android/actions/RemoveFcm';
 import { SelectAndRemoveGoogleServiceAccountKey } from '../android/actions/RemoveGoogleServiceAccountKey';
 import { RemoveKeystore } from '../android/actions/RemoveKeystore';
 import { SetUpBuildCredentialsFromCredentialsJson } from '../android/actions/SetUpBuildCredentialsFromCredentialsJson';
-import { SetUpGoogleServiceAccountKey } from '../android/actions/SetUpGoogleServiceAccountKey';
+import { SetUpGoogleServiceAccountKeyForFcmV1 } from '../android/actions/SetUpGoogleServiceAccountKeyForFcmV1';
+import { SetUpGoogleServiceAccountKeyForSubmissions } from '../android/actions/SetUpGoogleServiceAccountKeyForSubmissions';
 import { UpdateCredentialsJson } from '../android/actions/UpdateCredentialsJson';
 import { UseExistingGoogleServiceAccountKey } from '../android/actions/UseExistingGoogleServiceAccountKey';
 import {
@@ -120,8 +124,16 @@ export class ManageAndroid {
           } else if (chosenAction === AndroidActionType.ManageFcm) {
             currentActions = fcmActions;
             continue;
-          } else if (chosenAction === AndroidActionType.ManageGoogleServiceAccountKey) {
-            currentActions = gsaKeyActions;
+          } else if (chosenAction === AndroidActionType.ManageGoogleServiceAccount) {
+            currentActions = gsaActions;
+            continue;
+          } else if (
+            chosenAction === AndroidActionType.ManageGoogleServiceAccountKeyForSubmissions
+          ) {
+            currentActions = gsaKeyActionsForSubmissions;
+            continue;
+          } else if (chosenAction === AndroidActionType.ManageGoogleServiceAccountKeyForFcmV1) {
+            currentActions = gsaKeyActionsForFcmV1;
             continue;
           } else if (chosenAction === AndroidActionType.ManageCredentialsJson) {
             currentActions = credentialsJsonActions;
@@ -193,20 +205,31 @@ export class ManageAndroid {
       await new AssignFcm(appLookupParams).runAsync(ctx, fcm);
     } else if (action === AndroidActionType.RemoveFcm) {
       await new RemoveFcm(appLookupParams).runAsync(ctx);
-    } else if (action === AndroidActionType.CreateGsaKey) {
-      const gsaKey = await new CreateGoogleServiceAccountKey(appLookupParams.account).runAsync(ctx);
-      await new AssignGoogleServiceAccountKey(appLookupParams).runAsync(ctx, gsaKey);
-    } else if (action === AndroidActionType.UseExistingGsaKey) {
+    } else if (action === AndroidActionType.SetUpGsaKeyForSubmissions) {
+      await new SetUpGoogleServiceAccountKeyForSubmissions(appLookupParams).runAsync(ctx);
+    } else if (action === AndroidActionType.UseExistingGsaKeyForSubmissions) {
       const gsaKey = await new UseExistingGoogleServiceAccountKey(appLookupParams.account).runAsync(
         ctx
       );
       if (gsaKey) {
-        await new AssignGoogleServiceAccountKey(appLookupParams).runAsync(ctx, gsaKey);
+        await new AssignGoogleServiceAccountKeyForSubmissions(appLookupParams).runAsync(
+          ctx,
+          gsaKey
+        );
       }
+    } else if (action === AndroidActionType.SetUpGsaKeyForFcmV1) {
+      await new SetUpGoogleServiceAccountKeyForFcmV1(appLookupParams).runAsync(ctx);
+    } else if (action === AndroidActionType.UseExistingGsaKeyForFcmV1) {
+      const gsaKey = await new UseExistingGoogleServiceAccountKey(appLookupParams.account).runAsync(
+        ctx
+      );
+      if (gsaKey) {
+        await new AssignGoogleServiceAccountKeyForFcmV1(appLookupParams).runAsync(ctx, gsaKey);
+      }
+    } else if (action === AndroidActionType.CreateGsaKey) {
+      await new CreateGoogleServiceAccountKey(appLookupParams.account).runAsync(ctx);
     } else if (action === AndroidActionType.RemoveGsaKey) {
       await new SelectAndRemoveGoogleServiceAccountKey(appLookupParams.account).runAsync(ctx);
-    } else if (action === AndroidActionType.SetUpGsaKey) {
-      await new SetUpGoogleServiceAccountKey(appLookupParams).runAsync(ctx);
     } else if (action === AndroidActionType.UpdateCredentialsJson) {
       const buildCredentials = await new SelectExistingAndroidBuildCredentials(
         appLookupParams

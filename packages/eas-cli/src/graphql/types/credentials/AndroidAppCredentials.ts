@@ -18,6 +18,10 @@ export const CommonAndroidAppCredentialsFragmentNode = gql`
       id
       ...AndroidFcmFragment
     }
+    googleServiceAccountKeyForFcmV1 {
+      id
+      ...GoogleServiceAccountKeyFragment
+    }
     googleServiceAccountKeyForSubmissions {
       id
       ...GoogleServiceAccountKeyFragment

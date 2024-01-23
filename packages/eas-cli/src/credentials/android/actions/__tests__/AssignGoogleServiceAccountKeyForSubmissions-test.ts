@@ -2,12 +2,12 @@ import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { testGoogleServiceAccountKeyFragment } from '../../../__tests__/fixtures-android';
 import { testAppQueryByIdResponse } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { AssignGoogleServiceAccountKey } from '../AssignGoogleServiceAccountKey';
+import { AssignGoogleServiceAccountKeyForSubmissions } from '../AssignGoogleServiceAccountKeyForSubmissions';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 
 jest.mock('../../../../graphql/queries/AppQuery');
 
-describe(AssignGoogleServiceAccountKey, () => {
+describe(AssignGoogleServiceAccountKeyForSubmissions, () => {
   beforeEach(() => {
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
   });
@@ -16,7 +16,9 @@ describe(AssignGoogleServiceAccountKey, () => {
       nonInteractive: false,
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
-    const assignGoogleServiceAccountKeyAction = new AssignGoogleServiceAccountKey(appLookupParams);
+    const assignGoogleServiceAccountKeyAction = new AssignGoogleServiceAccountKeyForSubmissions(
+      appLookupParams
+    );
     await assignGoogleServiceAccountKeyAction.runAsync(ctx, testGoogleServiceAccountKeyFragment);
 
     // expect app credentials to be fetched/created, then updated
@@ -30,7 +32,9 @@ describe(AssignGoogleServiceAccountKey, () => {
       nonInteractive: true,
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
-    const assignGoogleServiceAccountKeyAction = new AssignGoogleServiceAccountKey(appLookupParams);
+    const assignGoogleServiceAccountKeyAction = new AssignGoogleServiceAccountKeyForSubmissions(
+      appLookupParams
+    );
 
     // dont fail if users are running in non-interactive mode
     await expect(
