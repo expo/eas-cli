@@ -111,7 +111,7 @@ export class EasJsonUtils {
 
       if (iosProfile.ascApiKeyId && !ASC_API_KEY_ID_REGEX.test(iosProfile.ascApiKeyId)) {
         throw new Error(
-          `Invalid Apple App Store Connect API Key ID was specified. It should contain 10 letters or digits. Example: "AB32CDE81F".`
+          `Invalid Apple App Store Connect API Key ID was specified. It should contain 10 letters or digits. Example: "AB32CDE81F". Learn more: https://expo.fyi/creating-asc-api-key.`
         );
       }
       if (iosProfile.appleTeamId && !APPLE_TEAM_ID_REGEX.test(iosProfile.appleTeamId)) {
@@ -121,12 +121,12 @@ export class EasJsonUtils {
       }
       if (iosProfile.ascAppId && !ASC_APP_ID_REGEX.test(iosProfile.ascAppId)) {
         throw new Error(
-          `Invalid Apple App Store Connect App ID was specified. It should contain 10 digits. Example: "1234567891".`
+          `Invalid Apple App Store Connect App ID was specified. It should contain 10 digits. Example: "1234567891". Learn more: https://expo.fyi/asc-app-id.md.`
         );
       }
       if (iosProfile.ascApiKeyIssuerId && !validate(iosProfile.ascApiKeyIssuerId)) {
         throw new Error(
-          `Invalid Apple App Store Connect API Key Issuer ID was specified. It should be a valid UUID. Example: "123e4567-e89b-12d3-a456-426614174000".`
+          `Invalid Apple App Store Connect API Key Issuer ID was specified. It should be a valid UUID. Example: "123e4567-e89b-12d3-a456-426614174000". Learn more: https://expo.fyi/creating-asc-api-key.`
         );
       }
       if (iosProfile.appleId && !isEmailValid(iosProfile.appleId)) {
