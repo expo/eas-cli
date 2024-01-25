@@ -45,7 +45,7 @@ export const ResolvedIosSubmitProfileSchema = Joi.object({
       'Invalid Apple App Store Connect API Key ID ("ascApiKeyId") was specified. It should consist of 10 upper case letters or digits. Example: "AB32CDE81F". Learn more: https://expo.fyi/creating-asc-api-key.'
     ),
   ascApiKeyIssuerId: Joi.string()
-    .uuid({ version: 'uuidv4' })
+    .uuid()
     .message(
       'Invalid Apple App Store Connect API Key Issuer ID ("ascApiKeyIssuerId") was specified. It should be a valid UUID. Example: "b4d78f58-48c6-4f2c-96cb-94d8cd76970a". Learn more: https://expo.fyi/creating-asc-api-key.'
     ),
