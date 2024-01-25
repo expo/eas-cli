@@ -109,7 +109,7 @@ test('ios config with all required values', async () => {
           ascAppId: '1223423523',
           appleTeamId: 'AB32CDE81F',
           ascApiKeyPath: './path-ABCD.p8',
-          ascApiKeyIssuerId: '123e4567-e89b-12d3-a456-426614174000',
+          ascApiKeyIssuerId: 'b4d78f58-48c6-4f2c-96cb-94d8cd76970a',
           ascApiKeyId: 'AB32CDE81F',
         },
       },
@@ -124,7 +124,7 @@ test('ios config with all required values', async () => {
     appleTeamId: 'AB32CDE81F',
     ascAppId: '1223423523',
     ascApiKeyPath: './path-ABCD.p8',
-    ascApiKeyIssuerId: '123e4567-e89b-12d3-a456-426614174000',
+    ascApiKeyIssuerId: 'b4d78f58-48c6-4f2c-96cb-94d8cd76970a',
     ascApiKeyId: 'AB32CDE81F',
     language: 'en-US',
   });
@@ -148,7 +148,7 @@ test('ios config with ascApiKey fields set to env var', async () => {
 
   try {
     process.env.ASC_API_KEY_PATH = './path-ABCD.p8';
-    process.env.ASC_API_KEY_ISSUER_ID = '123e4567-e89b-12d3-a456-426614174000';
+    process.env.ASC_API_KEY_ISSUER_ID = 'b4d78f58-48c6-4f2c-96cb-94d8cd76970a';
     process.env.ASC_API_KEY_ID = 'AB32CDE81F';
     const accessor = EasJsonAccessor.fromProjectPath('/project');
     const iosProfile = await EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
@@ -158,7 +158,7 @@ test('ios config with ascApiKey fields set to env var', async () => {
       ascAppId: '1223423523',
       appleTeamId: 'AB32CDE81F',
       ascApiKeyPath: './path-ABCD.p8',
-      ascApiKeyIssuerId: '123e4567-e89b-12d3-a456-426614174000',
+      ascApiKeyIssuerId: 'b4d78f58-48c6-4f2c-96cb-94d8cd76970a',
       ascApiKeyId: 'AB32CDE81F',
       language: 'en-US',
     });
@@ -303,7 +303,7 @@ test('ios config with with invalid ascApiKeyIssuerId', async () => {
   const accessor = EasJsonAccessor.fromProjectPath('/project');
   const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
   await expect(promise).rejects.toThrow(
-    'Invalid Apple App Store Connect API Key Issuer ID ("ascApiKeyIssuerId") was specified. It should be a valid UUID. Example: "123e4567-e89b-12d3-a456-426614174000". Learn more: https://expo.fyi/creating-asc-api-key.'
+    'Invalid Apple App Store Connect API Key Issuer ID ("ascApiKeyIssuerId") was specified. It should be a valid UUID. Example: "b4d78f58-48c6-4f2c-96cb-94d8cd76970a". Learn more: https://expo.fyi/creating-asc-api-key.'
   );
 });
 
@@ -316,7 +316,7 @@ test('ios config with with invalid ascApiKeyId', async () => {
           ascAppId: '1223423523',
           appleTeamId: 'AB32CDE81F',
           ascApiKeyPath: './path-ABCD.p8',
-          ascApiKeyIssuerId: '123e4567-e89b-12d3-a456-426614174000',
+          ascApiKeyIssuerId: 'b4d78f58-48c6-4f2c-96cb-94d8cd76970a',
           ascApiKeyId: 'wrong value',
         },
       },
