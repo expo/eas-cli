@@ -1,4 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
+import { isEmailValid } from '@hapi/address';
+import { validate } from 'uuid';
 
 import { EasJsonAccessor } from './accessor';
 import { resolveBuildProfile } from './build/resolver';
@@ -7,6 +9,10 @@ import { MissingEasJsonError } from './errors';
 import { resolveSubmitProfile } from './submit/resolver';
 import { SubmitProfile } from './submit/types';
 import { EasJson } from './types';
+
+const ASC_API_KEY_ID_REGEX = /^[\dA-Z]{10}$/;
+const APPLE_TEAM_ID_REGEX = /^[\dA-Z]{10}$/;
+const ASC_APP_ID_REGEX = /^\d{10}$/;
 
 interface EasJsonDeprecationWarning {
   message: string[];
@@ -96,12 +102,49 @@ export class EasJsonUtils {
     return Object.keys(easJson?.submit ?? {});
   }
 
+  public static validateSubmitProfile<T extends Platform>(
+    profile: SubmitProfile<T>,
+    platform: T
+  ): void {
+    if (platform === Platform.IOS) {
+      const iosProfile = profile as SubmitProfile<Platform.IOS>;
+
+      if (iosProfile.ascApiKeyId && !ASC_API_KEY_ID_REGEX.test(iosProfile.ascApiKeyId)) {
+        throw new Error(
+          `Invalid Apple App Store Connect API Key ID was specified. It should contain 10 letters or digits. Example: "AB32CDE81F".`
+        );
+      }
+      if (iosProfile.appleTeamId && !APPLE_TEAM_ID_REGEX.test(iosProfile.appleTeamId)) {
+        throw new Error(
+          `Invalid Apple Team ID was specified. It should contain 10 letters or digits. Example: "AB32CDE81F".`
+        );
+      }
+      if (iosProfile.ascAppId && !ASC_APP_ID_REGEX.test(iosProfile.ascAppId)) {
+        throw new Error(
+          `Invalid Apple App Store Connect App ID was specified. It should contain 10 digits. Example: "1234567891".`
+        );
+      }
+      if (iosProfile.ascApiKeyIssuerId && !validate(iosProfile.ascApiKeyIssuerId)) {
+        throw new Error(
+          `Invalid Apple App Store Connect API Key Issuer ID was specified. It should be a valid UUID. Example: "123e4567-e89b-12d3-a456-426614174000".`
+        );
+      }
+      if (iosProfile.appleId && !isEmailValid(iosProfile.appleId)) {
+        throw new Error(
+          `Invalid Apple ID was specified. It should be a valid email address. Example: "name@domain.com".`
+        );
+      }
+    }
+  }
+
   public static async getSubmitProfileAsync<T extends Platform>(
     accessor: EasJsonAccessor,
     platform: T,
     profileName?: string
   ): Promise<SubmitProfile<T>> {
     const easJson = await accessor.readAsync();
-    return resolveSubmitProfile({ easJson, platform, profileName });
+    const profile = resolveSubmitProfile({ easJson, platform, profileName });
+    this.validateSubmitProfile(profile, platform);
+    return profile;
   }
 }
