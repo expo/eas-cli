@@ -78,7 +78,7 @@ describe(IosSubmitCommand, () => {
     jest.mocked(getOwnerAccountForProjectIdAsync).mockResolvedValue(mockJester.accounts[0]);
   });
 
-  it('throws an error if using app specific passowrd in invalid format', async () => {
+  it('throws an error if using app specific password in invalid format', async () => {
     const projectId = uuidv4();
     const graphqlClient = {} as any as ExpoGraphqlClient;
     const analytics = instance(mock<Analytics>());
