@@ -111,11 +111,6 @@ export default class IosSubmitCommand {
     const envAppSpecificPassword = getenv.string('EXPO_APPLE_APP_SPECIFIC_PASSWORD', '');
 
     if (envAppSpecificPassword) {
-      if (!/^[a-z]{4}-[a-z]{4}-[a-z]{4}-[a-z]{4}$/.test(envAppSpecificPassword)) {
-        throw new Error(
-          'EXPO_APPLE_APP_SPECIFIC_PASSWORD must be in the format XXXX-XXXX-XXXX-XXXX, where X is a lowercase letter.'
-        );
-      }
       return result({
         sourceType: AppSpecificPasswordSourceType.userDefined,
         appSpecificPassword: envAppSpecificPassword,

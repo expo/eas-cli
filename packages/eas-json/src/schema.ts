@@ -1,7 +1,7 @@
 import Joi from 'joi';
 
 import { BuildProfileSchema } from './build/schema';
-import { UnresolvedSubmitProfileSchema } from './submit/schema';
+import { SubmitProfileSchema } from './submit/schema';
 import { AppVersionSource } from './types';
 
 export const EasJsonSchema = Joi.object({
@@ -12,5 +12,5 @@ export const EasJsonSchema = Joi.object({
     promptToConfigurePushNotifications: Joi.boolean(),
   }),
   build: Joi.object().pattern(Joi.string(), BuildProfileSchema),
-  submit: Joi.object().pattern(Joi.string(), UnresolvedSubmitProfileSchema),
+  submit: Joi.object().pattern(Joi.string(), SubmitProfileSchema),
 });

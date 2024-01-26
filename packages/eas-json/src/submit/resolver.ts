@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import envString from 'env-string';
 
-import { AndroidSubmitProfileSchema, ResolvedIosSubmitProfileSchema } from './schema';
+import { AndroidSubmitProfileSchema, IosSubmitProfileSchema } from './schema';
 import {
   AndroidSubmitProfileFieldsToEvaluate,
   IosSubmitProfileFieldsToEvaluate,
@@ -99,7 +99,7 @@ function mergeProfiles<T extends Platform>(
 
 export function getDefaultProfile<T extends Platform>(platform: T): SubmitProfile<T> {
   const Schema =
-    platform === Platform.ANDROID ? AndroidSubmitProfileSchema : ResolvedIosSubmitProfileSchema;
+    platform === Platform.ANDROID ? AndroidSubmitProfileSchema : IosSubmitProfileSchema;
   return Schema.validate({}, { allowUnknown: false, abortEarly: false, convert: true }).value;
 }
 

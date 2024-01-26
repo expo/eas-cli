@@ -107,10 +107,10 @@ test('ios config with all required values', async () => {
         ios: {
           appleId: 'some@email.com',
           ascAppId: '1223423523',
-          appleTeamId: 'AB32CDE81F',
+          appleTeamId: 'QWERTY',
           ascApiKeyPath: './path-ABCD.p8',
-          ascApiKeyIssuerId: 'b4d78f58-48c6-4f2c-96cb-94d8cd76970a',
-          ascApiKeyId: 'AB32CDE81F',
+          ascApiKeyIssuerId: 'abc-123-def-456',
+          ascApiKeyId: 'ABCD',
         },
       },
     },
@@ -121,11 +121,11 @@ test('ios config with all required values', async () => {
 
   expect(iosProfile).toEqual({
     appleId: 'some@email.com',
-    appleTeamId: 'AB32CDE81F',
+    appleTeamId: 'QWERTY',
     ascAppId: '1223423523',
     ascApiKeyPath: './path-ABCD.p8',
-    ascApiKeyIssuerId: 'b4d78f58-48c6-4f2c-96cb-94d8cd76970a',
-    ascApiKeyId: 'AB32CDE81F',
+    ascApiKeyIssuerId: 'abc-123-def-456',
+    ascApiKeyId: 'ABCD',
     language: 'en-US',
   });
 });
@@ -137,7 +137,7 @@ test('ios config with ascApiKey fields set to env var', async () => {
         ios: {
           appleId: 'some@email.com',
           ascAppId: '1223423523',
-          appleTeamId: 'AB32CDE81F',
+          appleTeamId: 'QWERTY',
           ascApiKeyPath: '$ASC_API_KEY_PATH',
           ascApiKeyIssuerId: '$ASC_API_KEY_ISSUER_ID',
           ascApiKeyId: '$ASC_API_KEY_ID',
@@ -148,18 +148,18 @@ test('ios config with ascApiKey fields set to env var', async () => {
 
   try {
     process.env.ASC_API_KEY_PATH = './path-ABCD.p8';
-    process.env.ASC_API_KEY_ISSUER_ID = 'b4d78f58-48c6-4f2c-96cb-94d8cd76970a';
-    process.env.ASC_API_KEY_ID = 'AB32CDE81F';
+    process.env.ASC_API_KEY_ISSUER_ID = 'abc-123-def-456';
+    process.env.ASC_API_KEY_ID = 'ABCD';
     const accessor = EasJsonAccessor.fromProjectPath('/project');
     const iosProfile = await EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
 
     expect(iosProfile).toEqual({
       appleId: 'some@email.com',
       ascAppId: '1223423523',
-      appleTeamId: 'AB32CDE81F',
+      appleTeamId: 'QWERTY',
       ascApiKeyPath: './path-ABCD.p8',
-      ascApiKeyIssuerId: 'b4d78f58-48c6-4f2c-96cb-94d8cd76970a',
-      ascApiKeyId: 'AB32CDE81F',
+      ascApiKeyIssuerId: 'abc-123-def-456',
+      ascApiKeyId: 'ABCD',
       language: 'en-US',
     });
   } finally {
@@ -176,16 +176,16 @@ test('valid profile extending other profile', async () => {
         ios: {
           appleId: 'some@email.com',
           ascAppId: '1223423523',
-          appleTeamId: 'AB32CDE81F',
+          appleTeamId: 'QWERTY',
         },
       },
       extension: {
         extends: 'base',
         ios: {
-          appleTeamId: 'AB32CDE81F',
+          appleTeamId: 'ABCDEF',
           ascApiKeyPath: './path-ABCD.p8',
-          ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
-          ascApiKeyId: 'AB32CDE81F',
+          ascApiKeyIssuerId: 'abc-123-def-456',
+          ascApiKeyId: 'ABCD',
         },
       },
     },
@@ -202,132 +202,17 @@ test('valid profile extending other profile', async () => {
     language: 'en-US',
     appleId: 'some@email.com',
     ascAppId: '1223423523',
-    appleTeamId: 'AB32CDE81F',
+    appleTeamId: 'QWERTY',
   });
   expect(extendedProfile).toEqual({
     language: 'en-US',
     appleId: 'some@email.com',
     ascAppId: '1223423523',
-    appleTeamId: 'AB32CDE81F',
+    appleTeamId: 'ABCDEF',
     ascApiKeyPath: './path-ABCD.p8',
-    ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
-    ascApiKeyId: 'AB32CDE81F',
+    ascApiKeyIssuerId: 'abc-123-def-456',
+    ascApiKeyId: 'ABCD',
   });
-});
-
-test('ios config with with invalid appleId', async () => {
-  await fs.writeJson('/project/eas.json', {
-    submit: {
-      release: {
-        ios: {
-          appleId: '| /bin/bash echo "hello"',
-          ascAppId: '1223423523',
-          appleTeamId: 'AB32CDE81F',
-          ascApiKeyPath: './path-ABCD.p8',
-          ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
-          ascApiKeyId: 'AB32CDE81F',
-        },
-      },
-    },
-  });
-
-  const accessor = EasJsonAccessor.fromProjectPath('/project');
-  const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
-  await expect(promise).rejects.toThrow(
-    'Invalid Apple ID was specified. It should be a valid email address. Example: "name@example.com".'
-  );
-});
-
-test('ios config with with invalid ascAppId', async () => {
-  await fs.writeJson('/project/eas.json', {
-    submit: {
-      release: {
-        ios: {
-          appleId: 'some@example.com',
-          ascAppId: 'othervalue',
-          appleTeamId: 'AB32CDE81F',
-          ascApiKeyPath: './path-ABCD.p8',
-          ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
-          ascApiKeyId: 'AB32CDE81F',
-        },
-      },
-    },
-  });
-
-  const accessor = EasJsonAccessor.fromProjectPath('/project');
-  const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
-  await expect(promise).rejects.toThrow(
-    'Invalid Apple App Store Connect App ID ("ascAppId") was specified. It should consist of 10 digits. Example: "1234567891". Learn more: https://expo.fyi/asc-app-id.md.'
-  );
-});
-
-test('ios config with with invalid appleTeamId', async () => {
-  await fs.writeJson('/project/eas.json', {
-    submit: {
-      release: {
-        ios: {
-          appleId: 'some@example.com',
-          ascAppId: '1223423523',
-          appleTeamId: 'ls -la',
-          ascApiKeyPath: './path-ABCD.p8',
-          ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
-          ascApiKeyId: 'AB32CDE81F',
-        },
-      },
-    },
-  });
-
-  const accessor = EasJsonAccessor.fromProjectPath('/project');
-  const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
-  await expect(promise).rejects.toThrow(
-    'Invalid Apple Team ID was specified. It should consist of 10 uppercase letters or digits. Example: "AB32CDE81F".'
-  );
-});
-
-test('ios config with with invalid ascApiKeyIssuerId', async () => {
-  await fs.writeJson('/project/eas.json', {
-    submit: {
-      release: {
-        ios: {
-          appleId: 'some@example.com',
-          ascAppId: '1223423523',
-          appleTeamId: 'AB32CDE81F',
-          ascApiKeyPath: './path-ABCD.p8',
-          ascApiKeyIssuerId: 'notanuuid',
-          ascApiKeyId: 'AB32CDE81F',
-        },
-      },
-    },
-  });
-
-  const accessor = EasJsonAccessor.fromProjectPath('/project');
-  const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
-  await expect(promise).rejects.toThrow(
-    'Invalid Apple App Store Connect API Key Issuer ID ("ascApiKeyIssuerId") was specified. It should be a valid UUID. Example: "b4d78f58-48c6-4f2c-96cb-94d8cd76970a". Learn more: https://expo.fyi/creating-asc-api-key.'
-  );
-});
-
-test('ios config with with invalid ascApiKeyId', async () => {
-  await fs.writeJson('/project/eas.json', {
-    submit: {
-      release: {
-        ios: {
-          appleId: 'some@example.com',
-          ascAppId: '1223423523',
-          appleTeamId: 'AB32CDE81F',
-          ascApiKeyPath: './path-ABCD.p8',
-          ascApiKeyIssuerId: 'b4d78f58-48c6-4f2c-96cb-94d8cd76970a',
-          ascApiKeyId: 'wrong value',
-        },
-      },
-    },
-  });
-
-  const accessor = EasJsonAccessor.fromProjectPath('/project');
-  const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
-  await expect(promise).rejects.toThrow(
-    `Invalid Apple App Store Connect API Key ID ("ascApiKeyId") was specified. It should consist of 10 uppercase letters or digits. Example: "AB32CDE81F". Learn more: https://expo.fyi/creating-asc-api-key.`
-  );
 });
 
 test('get profile names', async () => {

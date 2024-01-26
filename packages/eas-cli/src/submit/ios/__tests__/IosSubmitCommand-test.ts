@@ -78,43 +78,6 @@ describe(IosSubmitCommand, () => {
     jest.mocked(getOwnerAccountForProjectIdAsync).mockResolvedValue(mockJester.accounts[0]);
   });
 
-  it('throws an error if using app specific password in invalid format', async () => {
-    const projectId = uuidv4();
-    const graphqlClient = {} as any as ExpoGraphqlClient;
-    const analytics = instance(mock<Analytics>());
-    jest
-      .mocked(getArchiveAsync)
-      .mockImplementation(jest.requireActual('../../ArchiveSource').getArchiveAsync);
-
-    process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'ls -la';
-
-    const ctx = await createSubmissionContextAsync({
-      platform: Platform.IOS,
-      projectDir: testProject.projectRoot,
-      archiveFlags: {
-        url: 'http://expo.dev/fake.ipa',
-      },
-      profile: {
-        language: 'en-US',
-        appleId: 'test@example.com',
-        ascAppId: '12345678',
-      },
-      nonInteractive: false,
-      actor: mockJester,
-      graphqlClient,
-      analytics,
-      exp: testProject.appJSON.expo,
-      projectId,
-      vcsClient,
-    });
-    const command = new IosSubmitCommand(ctx);
-    await expect(command.runAsync()).rejects.toThrow(
-      'EXPO_APPLE_APP_SPECIFIC_PASSWORD must be in the format XXXX-XXXX-XXXX-XXXX, where X is a lowercase letter.'
-    );
-
-    delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;
-  });
-
   describe('non-interactive mode', () => {
     it("throws error if didn't provide appleId and ascAppId in the submit profile", async () => {
       const projectId = uuidv4();
@@ -155,7 +118,7 @@ describe(IosSubmitCommand, () => {
         .mocked(getArchiveAsync)
         .mockImplementation(jest.requireActual('../../ArchiveSource').getArchiveAsync);
 
-      process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'abcd-abcd-abcd-abcd';
+      process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.IOS,
@@ -184,7 +147,7 @@ describe(IosSubmitCommand, () => {
         archiveSource: { type: SubmissionArchiveSourceType.Url, url: 'http://expo.dev/fake.ipa' },
         config: {
           appleIdUsername: 'test@example.com',
-          appleAppSpecificPassword: 'abcd-abcd-abcd-abcd',
+          appleAppSpecificPassword: 'supersecret',
           ascAppIdentifier: '12345678',
         },
       });
@@ -219,7 +182,7 @@ describe(IosSubmitCommand, () => {
             return ctx;
           });
 
-        process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'abcd-abcd-abcd-abcd';
+        process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
 
         const ctx = await createSubmissionContextAsync({
           platform: Platform.IOS,
@@ -246,7 +209,7 @@ describe(IosSubmitCommand, () => {
           submittedBuildId: selectedBuild.id,
           config: {
             appleIdUsername: 'other-test@example.com',
-            appleAppSpecificPassword: 'abcd-abcd-abcd-abcd',
+            appleAppSpecificPassword: 'supersecret',
             ascAppIdentifier: '87654321',
           },
           archiveSource: undefined,
@@ -276,7 +239,7 @@ describe(IosSubmitCommand, () => {
             return ctx;
           });
 
-        process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'abcd-abcd-abcd-abcd';
+        process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
 
         const ctx = await createSubmissionContextAsync({
           platform: Platform.IOS,
@@ -303,7 +266,7 @@ describe(IosSubmitCommand, () => {
           submittedBuildId: selectedBuild.id,
           config: {
             appleIdUsername: 'test@example.com',
-            appleAppSpecificPassword: 'abcd-abcd-abcd-abcd',
+            appleAppSpecificPassword: 'supersecret',
             ascAppIdentifier: '12345678',
           },
           archiveSource: undefined,
@@ -338,7 +301,7 @@ describe(IosSubmitCommand, () => {
             return ctx;
           });
 
-        process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'abcd-abcd-abcd-abcd';
+        process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD = 'supersecret';
 
         const ctx = await createSubmissionContextAsync({
           platform: Platform.IOS,
@@ -366,7 +329,7 @@ describe(IosSubmitCommand, () => {
           submittedBuildId: selectedBuild.id,
           config: {
             appleIdUsername: 'test@example.com',
-            appleAppSpecificPassword: 'abcd-abcd-abcd-abcd',
+            appleAppSpecificPassword: 'supersecret',
             ascAppIdentifier: '12345678',
           },
           archiveSource: undefined,
