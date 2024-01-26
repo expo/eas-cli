@@ -42,7 +42,7 @@ export const ResolvedIosSubmitProfileSchema = Joi.object({
   ascApiKeyId: Joi.string()
     .regex(/^[\dA-Z]{10}$/)
     .message(
-      'Invalid Apple App Store Connect API Key ID ("ascApiKeyId") was specified. It should consist of 10 upper case letters or digits. Example: "AB32CDE81F". Learn more: https://expo.fyi/creating-asc-api-key.'
+      'Invalid Apple App Store Connect API Key ID ("ascApiKeyId") was specified. It should consist of 10 uppercase letters or digits. Example: "AB32CDE81F". Learn more: https://expo.fyi/creating-asc-api-key.'
     ),
   ascApiKeyIssuerId: Joi.string()
     .uuid()
@@ -52,7 +52,7 @@ export const ResolvedIosSubmitProfileSchema = Joi.object({
   appleId: Joi.string()
     .email()
     .message(
-      'Invalid Apple ID was specified. It should be a valid email address. Example: "name@domain.com".'
+      'Invalid Apple ID was specified. It should be a valid email address. Example: "name@example.com".'
     ),
   ascAppId: Joi.string()
     .regex(/^\d{10}$/)
@@ -62,7 +62,7 @@ export const ResolvedIosSubmitProfileSchema = Joi.object({
   appleTeamId: Joi.string()
     .regex(/^[\dA-Z]{10}$/)
     .message(
-      'Invalid Apple Team ID was specified. It should consist of 10 letters or digits. Example: "AB32CDE81F".'
+      'Invalid Apple Team ID was specified. It should consist of 10 uppercase letters or digits. Example: "AB32CDE81F".'
     ),
   sku: Joi.string(),
   language: Joi.string().default('en-US'),
