@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Revert incorrect EAS Submit input validation changes. ([#2200](https://github.com/expo/eas-cli/pull/2200) by [@szdziedzic](https://github.com/szdziedzic))
-
 ### 🧹 Chores
+
+## [7.1.1](https://github.com/expo/eas-cli/releases/tag/v7.1.1) - 2024-01-26
+
+### 🐛 Bug fixes
+
+- Revert incorrect EAS Submit input validation changes. ([#2200](https://github.com/expo/eas-cli/pull/2200) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [7.1.0](https://github.com/expo/eas-cli/releases/tag/v7.1.0) - 2024-01-26
 
