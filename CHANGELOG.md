@@ -21,6 +21,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Remove support for classic updates release channel in 50+. ([#2189](https://github.com/expo/eas-cli/pull/2189) by [@wschurman](https://github.com/wschurman))
+- Validate EAS Submit inputs better. ([#2198](https://github.com/expo/eas-cli/pull/2198) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [7.0.0](https://github.com/expo/eas-cli/releases/tag/v7.0.0) - 2024-01-19
 
