@@ -234,7 +234,7 @@ test('ios config with with invalid appleId', async () => {
   const accessor = EasJsonAccessor.fromProjectPath('/project');
   const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
   await expect(promise).rejects.toThrow(
-    'Invalid Apple ID was specified. It should be a valid email address. Example: "name@domain.com".'
+    'Invalid Apple ID was specified. It should be a valid email address. Example: "name@example.com".'
   );
 });
 
@@ -280,7 +280,7 @@ test('ios config with with invalid appleTeamId', async () => {
   const accessor = EasJsonAccessor.fromProjectPath('/project');
   const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
   await expect(promise).rejects.toThrow(
-    'Invalid Apple Team ID was specified. It should consist of 10 letters or digits. Example: "AB32CDE81F".'
+    'Invalid Apple Team ID was specified. It should consist of 10 uppercase letters or digits. Example: "AB32CDE81F".'
   );
 });
 
@@ -326,7 +326,7 @@ test('ios config with with invalid ascApiKeyId', async () => {
   const accessor = EasJsonAccessor.fromProjectPath('/project');
   const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
   await expect(promise).rejects.toThrow(
-    `Invalid Apple App Store Connect API Key ID ("ascApiKeyId") was specified. It should consist of 10 upper case letters or digits. Example: "AB32CDE81F". Learn more: https://expo.fyi/creating-asc-api-key.`
+    `Invalid Apple App Store Connect API Key ID ("ascApiKeyId") was specified. It should consist of 10 uppercase letters or digits. Example: "AB32CDE81F". Learn more: https://expo.fyi/creating-asc-api-key.`
   );
 });
 
