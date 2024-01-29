@@ -257,7 +257,7 @@ test('ios config with with invalid ascAppId', async () => {
   const accessor = EasJsonAccessor.fromProjectPath('/project');
   const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
   await expect(promise).rejects.toThrow(
-    'Invalid Apple App Store Connect App ID ("ascAppId") was specified. It should consist of 10 digits. Example: "1234567891". Learn more: https://expo.fyi/asc-app-id.md.'
+    'Invalid Apple App Store Connect App ID ("ascAppId") was specified. It should consist only of digits. Example: "1234567891". Learn more: https://expo.fyi/asc-app-id.md.'
   );
 });
 

@@ -40,12 +40,13 @@ export const UnresolvedIosSubmitProfileSchema = Joi.object({
 export const ResolvedIosSubmitProfileSchema = Joi.object({
   ascApiKeyPath: Joi.string(),
   ascApiKeyId: Joi.string()
-    .regex(/^[\dA-Z]{10}$/)
+    .regex(/^[\dA-Z]+$/)
     .message(
       'Invalid Apple App Store Connect API Key ID ("ascApiKeyId") was specified. It should consist of 10 uppercase letters or digits. Example: "AB32CDE81F". Learn more: https://expo.fyi/creating-asc-api-key.'
-    ),
+    )
+    .max(30), // I didn't find any docs about it, but all of the ones I've seen are 10 characters long so 30 characters limit should be enough
   ascApiKeyIssuerId: Joi.string()
-    .uuid()
+    .uuid() // All of the issuer IDs I've seen are UUIDs, but again, I didn't find any docs about it
     .message(
       'Invalid Apple App Store Connect API Key Issuer ID ("ascApiKeyIssuerId") was specified. It should be a valid UUID. Example: "b4d78f58-48c6-4f2c-96cb-94d8cd76970a". Learn more: https://expo.fyi/creating-asc-api-key.'
     ),
@@ -55,12 +56,13 @@ export const ResolvedIosSubmitProfileSchema = Joi.object({
       'Invalid Apple ID was specified. It should be a valid email address. Example: "name@example.com".'
     ),
   ascAppId: Joi.string()
-    .regex(/^\d{10}$/)
+    .regex(/^\d+$/)
     .message(
-      'Invalid Apple App Store Connect App ID ("ascAppId") was specified. It should consist of 10 digits. Example: "1234567891". Learn more: https://expo.fyi/asc-app-id.md.'
-    ),
+      'Invalid Apple App Store Connect App ID ("ascAppId") was specified. It should consist only of digits. Example: "1234567891". Learn more: https://expo.fyi/asc-app-id.md.'
+    )
+    .max(30), // I didn't find any docs about it, but the longest app ID I've seen is 10 digits long so 30 characters limit should be enough
   appleTeamId: Joi.string()
-    .regex(/^[\dA-Z]{10}$/)
+    .regex(/^[\dA-Z]{10}$/) // Apple says that it always has to be 10 characters long https://developer.apple.com/help/account/manage-your-team/locate-your-team-id/
     .message(
       'Invalid Apple Team ID was specified. It should consist of 10 uppercase letters or digits. Example: "AB32CDE81F".'
     ),
