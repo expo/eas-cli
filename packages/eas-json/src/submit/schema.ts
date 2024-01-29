@@ -42,7 +42,7 @@ export const ResolvedIosSubmitProfileSchema = Joi.object({
   ascApiKeyId: Joi.string()
     .regex(/^[\dA-Z]+$/)
     .message(
-      'Invalid Apple App Store Connect API Key ID ("ascApiKeyId") was specified. It should consist of 10 uppercase letters or digits. Example: "AB32CDE81F". Learn more: https://expo.fyi/creating-asc-api-key.'
+      'Invalid Apple App Store Connect API Key ID ("ascApiKeyId") was specified. It should consist of uppercase letters or digits. Example: "AB32CDE81F". Learn more: https://expo.fyi/creating-asc-api-key.'
     )
     .max(30), // I didn't find any docs about it, but all of the ones I've seen are 10 characters long so 30 characters limit should be enough
   ascApiKeyIssuerId: Joi.string()

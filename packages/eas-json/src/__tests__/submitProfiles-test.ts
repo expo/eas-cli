@@ -326,7 +326,7 @@ test('ios config with with invalid ascApiKeyId', async () => {
   const accessor = EasJsonAccessor.fromProjectPath('/project');
   const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
   await expect(promise).rejects.toThrow(
-    `Invalid Apple App Store Connect API Key ID ("ascApiKeyId") was specified. It should consist of 10 uppercase letters or digits. Example: "AB32CDE81F". Learn more: https://expo.fyi/creating-asc-api-key.`
+    `Invalid Apple App Store Connect API Key ID ("ascApiKeyId") was specified. It should consist of uppercase letters or digits. Example: "AB32CDE81F". Learn more: https://expo.fyi/creating-asc-api-key.`
   );
 });
 
