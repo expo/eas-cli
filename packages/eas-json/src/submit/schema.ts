@@ -58,7 +58,7 @@ export const ResolvedIosSubmitProfileSchema = Joi.object({
   ascAppId: Joi.string()
     .regex(/^\d+$/)
     .message(
-      'Invalid Apple App Store Connect App ID ("ascAppId") was specified. It should consist only of digits. Example: "1234567891". Learn more: https://expo.fyi/asc-app-id.md.'
+      'Invalid Apple App Store Connect App ID ("ascAppId") was specified. It should consist only of digits. Example: "1234567891". Learn more: https://expo.fyi/asc-app-id.'
     )
     .max(30), // I didn't find any docs about it, but the longest app ID I've seen is 10 digits long so 30 characters limit should be enough
   appleTeamId: Joi.string()
