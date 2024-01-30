@@ -12,8 +12,30 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- Remove support for classic updates release channel in 50+. ([#2189](https://github.com/expo/eas-cli/pull/2189) by [@wschurman](https://github.com/wschurman))
 - Add simulator flag to metadata. ([#2073](https://github.com/expo/eas-cli/pull/2073) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
+## [7.1.2](https://github.com/expo/eas-cli/releases/tag/v7.1.2) - 2024-01-30
+
+### 🧹 Chores
+
+- Add better validation for EAS Submit inputs. ([#2202](https://github.com/expo/eas-cli/pull/2202) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [7.1.1](https://github.com/expo/eas-cli/releases/tag/v7.1.1) - 2024-01-26
+
+### 🐛 Bug fixes
+
+- Revert incorrect EAS Submit input validation changes. ([#2200](https://github.com/expo/eas-cli/pull/2200) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [7.1.0](https://github.com/expo/eas-cli/releases/tag/v7.1.0) - 2024-01-26
+
+### 🎉 New features
+
+- Support requireCommit for EAS Update. ([#2196](https://github.com/expo/eas-cli/pull/2196) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Remove support for classic updates release channel in 50+. ([#2189](https://github.com/expo/eas-cli/pull/2189) by [@wschurman](https://github.com/wschurman))
+- Validate EAS Submit inputs better. ([#2198](https://github.com/expo/eas-cli/pull/2198) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [7.0.0](https://github.com/expo/eas-cli/releases/tag/v7.0.0) - 2024-01-19
 
