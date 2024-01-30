@@ -42,13 +42,13 @@ export const ResolvedIosSubmitProfileSchema = Joi.object({
   ascApiKeyId: Joi.string()
     .regex(/^[\dA-Z]+$/)
     .message(
-      'Invalid Apple App Store Connect API Key ID ("ascApiKeyId") was specified. It should consist of uppercase letters or digits. Example: "AB32CDE81F". Learn more: https://expo.fyi/creating-asc-api-key.'
+      'Invalid Apple App Store Connect API Key ID ("ascApiKeyId") was specified. It should consist of uppercase letters or digits. Example: "AB32CZE81F". Learn more: https://expo.fyi/creating-asc-api-key.'
     )
     .max(30), // I didn't find any docs about it, but all of the ones I've seen are 10 characters long so 30 characters limit should be enough
   ascApiKeyIssuerId: Joi.string()
     .uuid() // All of the issuer IDs I've seen are UUIDs, but again, I didn't find any docs about it
     .message(
-      'Invalid Apple App Store Connect API Key Issuer ID ("ascApiKeyIssuerId") was specified. It should be a valid UUID. Example: "b4d78f58-48c6-4f2c-96cb-94d8cd76970a". Learn more: https://expo.fyi/creating-asc-api-key.'
+      'Invalid Apple App Store Connect API Key Issuer ID ("ascApiKeyIssuerId") was specified. It should be a valid UUID. Example: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx". Learn more: https://expo.fyi/creating-asc-api-key.'
     ),
   appleId: Joi.string()
     .email()
@@ -64,7 +64,7 @@ export const ResolvedIosSubmitProfileSchema = Joi.object({
   appleTeamId: Joi.string()
     .regex(/^[\dA-Z]{10}$/) // Apple says that it always has to be 10 characters long https://developer.apple.com/help/account/manage-your-team/locate-your-team-id/
     .message(
-      'Invalid Apple Team ID was specified. It should consist of 10 uppercase letters or digits. Example: "AB32CDE81F".'
+      'Invalid Apple Team ID was specified. It should consist of 10 uppercase letters or digits. Example: "AB32CZE81F".'
     ),
   sku: Joi.string(),
   language: Joi.string().default('en-US'),

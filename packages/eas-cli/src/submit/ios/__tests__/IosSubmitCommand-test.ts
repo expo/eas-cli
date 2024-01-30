@@ -109,7 +109,7 @@ describe(IosSubmitCommand, () => {
     });
     const command = new IosSubmitCommand(ctx);
     await expect(command.runAsync()).rejects.toThrow(
-      'EXPO_APPLE_APP_SPECIFIC_PASSWORD must be in the format XXXX-XXXX-XXXX-XXXX, where X is a lowercase letter.'
+      'EXPO_APPLE_APP_SPECIFIC_PASSWORD must be in the format xxxx-xxxx-xxxx-xxxx, where x is a lowercase letter.'
     );
 
     delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;

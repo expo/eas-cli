@@ -113,7 +113,7 @@ export default class IosSubmitCommand {
     if (envAppSpecificPassword) {
       if (!/^[a-z]{4}-[a-z]{4}-[a-z]{4}-[a-z]{4}$/.test(envAppSpecificPassword)) {
         throw new Error(
-          'EXPO_APPLE_APP_SPECIFIC_PASSWORD must be in the format XXXX-XXXX-XXXX-XXXX, where X is a lowercase letter.'
+          'EXPO_APPLE_APP_SPECIFIC_PASSWORD must be in the format xxxx-xxxx-xxxx-xxxx, where x is a lowercase letter.'
         );
       }
       return result({
