@@ -7,6 +7,30 @@ import fs from 'fs-extra';
 import { GraphQLError } from 'graphql/error';
 import nullthrows from 'nullthrows';
 
+import { BuildContext } from './context';
+import {
+  EasBuildDownForMaintenanceError,
+  EasBuildFreeTierDisabledAndroidError,
+  EasBuildFreeTierDisabledError,
+  EasBuildFreeTierDisabledIOSError,
+  EasBuildFreeTierIosLimitExceededError,
+  EasBuildFreeTierLimitExceededError,
+  EasBuildLegacyResourceClassNotAvailableError,
+  EasBuildProjectArchiveUploadError,
+  EasBuildResourceClassNotAvailableInFreeTierError,
+  EasBuildTooManyPendingBuildsError,
+  RequestValidationError,
+  TurtleDeprecatedJobFormatError,
+} from './errors';
+import { transformMetadata } from './graphql';
+import { LocalBuildMode, runLocalBuildAsync } from './local';
+import { collectMetadataAsync } from './metadata';
+import { printDeprecationWarnings } from './utils/printBuildInfo';
+import {
+  makeProjectMetadataFileAsync,
+  makeProjectTarballAsync,
+  reviewAndCommitChangesAsync,
+} from './utils/repository';
 import { BuildEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
 import { getExpoWebsiteBaseUrl } from '../api';
@@ -34,30 +58,6 @@ import { formatBytes } from '../utils/files';
 import { printJsonOnlyOutput } from '../utils/json';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
-import { BuildContext } from './context';
-import {
-  EasBuildDownForMaintenanceError,
-  EasBuildFreeTierDisabledAndroidError,
-  EasBuildFreeTierDisabledError,
-  EasBuildFreeTierDisabledIOSError,
-  EasBuildFreeTierIosLimitExceededError,
-  EasBuildFreeTierLimitExceededError,
-  EasBuildLegacyResourceClassNotAvailableError,
-  EasBuildProjectArchiveUploadError,
-  EasBuildResourceClassNotAvailableInFreeTierError,
-  EasBuildTooManyPendingBuildsError,
-  RequestValidationError,
-  TurtleDeprecatedJobFormatError,
-} from './errors';
-import { transformMetadata } from './graphql';
-import { LocalBuildMode, runLocalBuildAsync } from './local';
-import { collectMetadataAsync } from './metadata';
-import { printDeprecationWarnings } from './utils/printBuildInfo';
-import {
-  makeProjectMetadataFileAsync,
-  makeProjectTarballAsync,
-  reviewAndCommitChangesAsync,
-} from './utils/repository';
 
 export interface CredentialsResult<Credentials> {
   source: CredentialsSource.LOCAL | CredentialsSource.REMOTE;
@@ -101,7 +101,7 @@ function resolveBuildParamsInput<T extends Platform>(
 export async function prepareBuildRequestForPlatformAsync<
   TPlatform extends Platform,
   Credentials,
-  TJob extends Job
+  TJob extends Job,
 >(builder: Builder<TPlatform, Credentials, TJob>): Promise<BuildRequestSender> {
   const { ctx } = builder;
   const credentialsResult = await withAnalyticsAsync(
@@ -351,7 +351,7 @@ async function uploadMetadataFileAsync<TPlatform extends Platform>(
     return { metadataLocation: null };
   } finally {
     if (projectMetadataFile) {
-      await fs.remove(projectMetadataFile);
+      await fs.remove(projectMetadataFile.path);
     }
   }
 }
