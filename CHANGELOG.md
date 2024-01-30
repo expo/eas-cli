@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add better validation for EAS Submit inputs. ([#2202](https://github.com/expo/eas-cli/pull/2202) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [7.1.1](https://github.com/expo/eas-cli/releases/tag/v7.1.1) - 2024-01-26
 
 ### 🐛 Bug fixes

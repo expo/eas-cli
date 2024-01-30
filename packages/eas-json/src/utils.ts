@@ -5,6 +5,7 @@ import { resolveBuildProfile } from './build/resolver';
 import { BuildProfile } from './build/types';
 import { MissingEasJsonError } from './errors';
 import { resolveSubmitProfile } from './submit/resolver';
+import { AndroidSubmitProfileSchema, ResolvedIosSubmitProfileSchema } from './submit/schema';
 import { SubmitProfile } from './submit/types';
 import { EasJson } from './types';
 
@@ -102,6 +103,17 @@ export class EasJsonUtils {
     profileName?: string
   ): Promise<SubmitProfile<T>> {
     const easJson = await accessor.readAsync();
-    return resolveSubmitProfile({ easJson, platform, profileName });
+    const profile = resolveSubmitProfile({ easJson, platform, profileName });
+    const Schema =
+      platform === Platform.ANDROID ? AndroidSubmitProfileSchema : ResolvedIosSubmitProfileSchema;
+    const { value, error } = Schema.validate(profile, {
+      allowUnknown: false,
+      abortEarly: false,
+      convert: true,
+    });
+    if (error) {
+      throw error;
+    }
+    return value;
   }
 }
