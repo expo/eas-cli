@@ -357,7 +357,7 @@ async function uploadMetadataFileAsync<TPlatform extends Platform>(
     return { metadataLocation: null };
   } finally {
     if (projectMetadataFile) {
-      await fs.remove(projectMetadataFile);
+      await fs.remove(projectMetadataFile.path);
     }
   }
 }
