@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Remove support for classic updates release channel in 50+. ([#2189](https://github.com/expo/eas-cli/pull/2189) by [@wschurman](https://github.com/wschurman))
+- Add simulator flag to metadata. ([#2073](https://github.com/expo/eas-cli/pull/2073) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ## [7.0.0](https://github.com/expo/eas-cli/releases/tag/v7.0.0) - 2024-01-19
 
