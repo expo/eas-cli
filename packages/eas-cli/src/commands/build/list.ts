@@ -10,7 +10,6 @@ import {
   getPaginatedQueryOptions,
 } from '../../commandUtils/pagination';
 import { AppPlatform, BuildStatus as GraphQLBuildStatus } from '../../graphql/generated';
-import Log from '../../log';
 import { RequestedPlatform } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { buildDistributionTypeToGraphQLDistributionType } from '../../utils/buildDistribution';
@@ -52,10 +51,6 @@ export default class BuildList extends EasCommand {
     ...EasPaginatedQueryFlags,
     limit: getLimitFlagWithCustomValues({ defaultTo: 10, limit: BUILDS_LIMIT }),
     ...EasNonInteractiveAndJsonFlags,
-    simulator: Flags.boolean({
-      description:
-        'Filter only iOS simulator builds. Can only be used with --platform flag set to "ios"',
-    }),
   };
 
   static override contextDefinition = {
@@ -74,17 +69,6 @@ export default class BuildList extends EasCommand {
       distribution: buildDistribution,
       'non-interactive': nonInteractive,
     } = flags;
-    if (buildDistribution === BuildDistributionType.SIMULATOR) {
-      Log.warn(
-        `Using --distribution flag with "simulator" value is deprecated - use --simulator flag instead`
-      );
-    }
-    if (flags.simulator && requestedPlatform !== RequestedPlatform.Ios) {
-      Log.error(
-        `The --simulator flag is only usable with --platform flag set to "ios", as it is used to filter specifically iOS simulator builds`
-      );
-      process.exit(1);
-    }
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
@@ -116,7 +100,6 @@ export default class BuildList extends EasCommand {
         appIdentifier: flags.appIdentifier,
         buildProfile: flags.buildProfile,
         gitCommitHash: flags.gitCommitHash,
-        simulator: flags.simulator,
       },
       paginatedQueryOptions,
     });

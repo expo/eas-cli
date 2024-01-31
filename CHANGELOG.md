@@ -12,8 +12,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- Add simulator flag to metadata. ([#2073](https://github.com/expo/eas-cli/pull/2073) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
-
 ## [7.1.2](https://github.com/expo/eas-cli/releases/tag/v7.1.2) - 2024-01-30
 
 ### 🧹 Chores
