@@ -8,7 +8,6 @@ import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from '.
 import { BuildContext } from './context';
 import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
 import { LocalBuildMode } from './local';
-import { BuildDistributionType } from './types';
 import Log from '../log';
 import {
   getUsername,
@@ -29,7 +28,10 @@ export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<Metadata> {
   const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
-  const distribution = ctx.buildProfile.distribution ?? BuildDistributionType.STORE;
+  const distribution =
+    ('simulator' in ctx.buildProfile && ctx.buildProfile.simulator
+      ? 'simulator'
+      : ctx.buildProfile.distribution) ?? 'store';
   const metadata: Metadata = {
     trackingContext: ctx.analyticsEventProperties,
     ...(await maybeResolveVersionsAsync(ctx)),
@@ -68,7 +70,6 @@ export async function collectMetadataAsync<T extends Platform>(
     requiredPackageManager: ctx.requiredPackageManager ?? undefined,
     selectedImage: ctx.buildProfile.image,
     customNodeVersion: ctx.buildProfile.node,
-    simulator: 'simulator' in ctx.buildProfile && ctx.buildProfile.simulator,
   };
   return sanitizeMetadata(metadata);
 }

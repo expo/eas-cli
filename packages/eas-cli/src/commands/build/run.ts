@@ -11,7 +11,7 @@ import {
   PaginatedQueryOptions,
   getPaginatedQueryOptions,
 } from '../../commandUtils/pagination';
-import { AppPlatform, BuildFragment, BuildStatus } from '../../graphql/generated';
+import { AppPlatform, BuildFragment, BuildStatus, DistributionType } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
 import { appPlatformDisplayNames } from '../../platform';
@@ -200,7 +200,8 @@ async function maybeGetBuildAsync(
   projectId: string,
   paginatedQueryOptions: PaginatedQueryOptions
 ): Promise<BuildFragment | null> {
-  const simulator = flags.selectedPlatform === AppPlatform.Ios ? true : undefined;
+  const distributionType =
+    flags.selectedPlatform === AppPlatform.Ios ? DistributionType.Simulator : undefined;
 
   if (flags.runArchiveFlags.id) {
     const build = await BuildQuery.byIdAsync(graphqlClient, flags.runArchiveFlags.id);
@@ -218,9 +219,9 @@ async function maybeGetBuildAsync(
       } build to run for ${await getDisplayNameForProjectIdAsync(graphqlClient, projectId)} app`,
       filter: {
         platform: flags.selectedPlatform,
+        distribution: distributionType,
         status: BuildStatus.Finished,
         buildProfile: flags.profile,
-        simulator,
       },
       paginatedQueryOptions,
       selectPromptDisabledFunction: build => !isRunnableOnSimulatorOrEmulator(build),
@@ -234,9 +235,9 @@ async function maybeGetBuildAsync(
       projectId,
       filter: {
         platform: flags.selectedPlatform,
+        distribution: distributionType,
         status: BuildStatus.Finished,
         buildProfile: flags.profile,
-        simulator,
       },
     });
 
