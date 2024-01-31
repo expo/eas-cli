@@ -759,6 +759,7 @@ export type AndroidAppCredentials = {
   androidFcm?: Maybe<AndroidFcm>;
   app: App;
   applicationIdentifier?: Maybe<Scalars['String']['output']>;
+  googleServiceAccountKeyForFcmV1?: Maybe<GoogleServiceAccountKey>;
   googleServiceAccountKeyForSubmissions?: Maybe<GoogleServiceAccountKey>;
   id: Scalars['ID']['output'];
   isLegacy: Scalars['Boolean']['output'];
@@ -771,6 +772,7 @@ export type AndroidAppCredentialsFilter = {
 
 export type AndroidAppCredentialsInput = {
   fcmId?: InputMaybe<Scalars['ID']['input']>;
+  googleServiceAccountKeyForFcmV1Id?: InputMaybe<Scalars['ID']['input']>;
   googleServiceAccountKeyForSubmissionsId?: InputMaybe<Scalars['ID']['input']>;
 };
 
@@ -778,10 +780,17 @@ export type AndroidAppCredentialsMutation = {
   __typename?: 'AndroidAppCredentialsMutation';
   /** Create a set of credentials for an Android app */
   createAndroidAppCredentials: AndroidAppCredentials;
+  /**
+   * Create a GoogleServiceAccountKeyEntity to store credential and
+   * connect it with an edge from AndroidAppCredential
+   */
+  createFcmV1Credential: AndroidAppCredentials;
   /** Delete a set of credentials for an Android app */
   deleteAndroidAppCredentials: DeleteAndroidAppCredentialsResult;
   /** Set the FCM push key to be used in an Android app */
   setFcm: AndroidAppCredentials;
+  /** Set the Google Service Account Key to be used for Firebase Cloud Messaging V1 */
+  setGoogleServiceAccountKeyForFcmV1: AndroidAppCredentials;
   /** Set the Google Service Account Key to be used for submitting an Android app */
   setGoogleServiceAccountKeyForSubmissions: AndroidAppCredentials;
 };
@@ -794,6 +803,13 @@ export type AndroidAppCredentialsMutationCreateAndroidAppCredentialsArgs = {
 };
 
 
+export type AndroidAppCredentialsMutationCreateFcmV1CredentialArgs = {
+  accountId: Scalars['ID']['input'];
+  androidAppCredentialsId: Scalars['String']['input'];
+  credential: Scalars['String']['input'];
+};
+
+
 export type AndroidAppCredentialsMutationDeleteAndroidAppCredentialsArgs = {
   id: Scalars['ID']['input'];
 };
@@ -801,6 +817,12 @@ export type AndroidAppCredentialsMutationDeleteAndroidAppCredentialsArgs = {
 
 export type AndroidAppCredentialsMutationSetFcmArgs = {
   fcmId: Scalars['ID']['input'];
+  id: Scalars['ID']['input'];
+};
+
+
+export type AndroidAppCredentialsMutationSetGoogleServiceAccountKeyForFcmV1Args = {
+  googleServiceAccountKeyId: Scalars['ID']['input'];
   id: Scalars['ID']['input'];
 };
 
@@ -2592,6 +2614,7 @@ export type BuildPublicData = {
   artifacts: PublicArtifacts;
   distribution?: Maybe<DistributionType>;
   id: Scalars['ID']['output'];
+  isForIosSimulator: Scalars['Boolean']['output'];
   platform: AppPlatform;
   project: ProjectPublicData;
   status: BuildStatus;
