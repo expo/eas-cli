@@ -12,7 +12,3 @@ The algorithm works as follows:
 - If there are any entries in the "🛠 Breaking changes" section, bump the MAJOR version.
 - Otherwise, if there are any entries in the "🎉 New features", bump the MINOR version.
 - Otherwise, bump the PATCH version.
-
-## Updating EAS CLI version on EAS Build
-
-The release process promotes the new version to staging. After verifying it works there, you can promote it to production with `npm dist-tag add eas-cli@{version} latest-eas-build`.
