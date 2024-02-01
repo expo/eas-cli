@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Remove duplicated log message when creating ASC API key. ([#2208](https://github.com/expo/eas-cli/pull/2208) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
 ## [7.1.2](https://github.com/expo/eas-cli/releases/tag/v7.1.2) - 2024-01-30
 
 ### 🧹 Chores
