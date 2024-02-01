@@ -1,4 +1,4 @@
-import { AppPlatform, BuildFragment, BuildStatus, DistributionType } from '../graphql/generated';
+import { AppPlatform, BuildFragment, BuildStatus } from '../graphql/generated';
 
 function isAab(build: BuildFragment): boolean {
   return build.artifacts?.applicationArchiveUrl?.endsWith('.aab') ?? false;
@@ -12,7 +12,7 @@ export function isRunnableOnSimulatorOrEmulator(build: BuildFragment): boolean {
   return (
     build.status === BuildStatus.Finished &&
     !!build.artifacts?.applicationArchiveUrl &&
-    ((build.platform === AppPlatform.Ios && build.distribution === DistributionType.Simulator) ||
+    ((build.platform === AppPlatform.Ios && build.isForIosSimulator) ||
       (build.platform === AppPlatform.Android && !isAab(build))) &&
     !didArtifactsExpire(build)
   );

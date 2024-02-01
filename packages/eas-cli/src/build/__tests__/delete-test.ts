@@ -92,5 +92,6 @@ function createMockBuildFragment({
     },
     status: BuildStatus.InQueue,
     resourceClass: BuildResourceClass.AndroidMedium,
+    isForIosSimulator: false,
   };
 }
