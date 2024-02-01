@@ -152,7 +152,13 @@ jobs:
           VERSION=$(cat lerna.json | jq -r .version)
           echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
           npm dist-tag add eas-cli@$VERSION latest-eas-build-staging
-          echo "Run \"npm dist-tag add eas-cli@$VERSION latest-eas-build\" to promote it to production."
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+      - name: Add latest-eas-build tag
+        run: |
+          VERSION=$(cat lerna.json | jq -r .version)
+          echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
+          npm dist-tag add eas-cli@$VERSION latest-eas-build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
   release-changelog:
