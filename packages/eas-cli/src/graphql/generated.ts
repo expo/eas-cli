@@ -2818,6 +2818,7 @@ export type CreateGitHubBuildTriggerInput = {
   platform: AppPlatform;
   /** A branch or tag name, or a wildcard pattern where the code change originates from. For example, `main` or `release/*`. */
   sourcePattern: Scalars['String']['input'];
+  submitProfile?: InputMaybe<Scalars['String']['input']>;
   /** A branch name or a wildcard pattern that the pull request targets. For example, `main` or `release/*`. */
   targetPattern?: InputMaybe<Scalars['String']['input']>;
   type: GitHubBuildTriggerType;
@@ -3398,6 +3399,7 @@ export type GitHubBuildTrigger = {
   lastRunStatus?: Maybe<GitHubBuildTriggerRunStatus>;
   platform: AppPlatform;
   sourcePattern: Scalars['String']['output'];
+  submitProfile?: Maybe<Scalars['String']['output']>;
   targetPattern?: Maybe<Scalars['String']['output']>;
   type: GitHubBuildTriggerType;
   updatedAt: Scalars['DateTime']['output'];
@@ -3966,6 +3968,7 @@ export enum MailchimpAudience {
 
 export enum MailchimpTag {
   DevClientUsers = 'DEV_CLIENT_USERS',
+  DidSubscribeToEasAtLeastOnce = 'DID_SUBSCRIBE_TO_EAS_AT_LEAST_ONCE',
   EasMasterList = 'EAS_MASTER_LIST',
   NewsletterSignupList = 'NEWSLETTER_SIGNUP_LIST'
 }
@@ -4133,9 +4136,11 @@ export type Notification = {
 
 export enum NotificationEvent {
   BuildComplete = 'BUILD_COMPLETE',
+  BuildErrored = 'BUILD_ERRORED',
   BuildLimitThresholdExceeded = 'BUILD_LIMIT_THRESHOLD_EXCEEDED',
   BuildPlanCreditThresholdExceeded = 'BUILD_PLAN_CREDIT_THRESHOLD_EXCEEDED',
   SubmissionComplete = 'SUBMISSION_COMPLETE',
+  SubmissionErrored = 'SUBMISSION_ERRORED',
   Test = 'TEST'
 }
 
@@ -5361,6 +5366,7 @@ export type UpdateGitHubBuildTriggerInput = {
   isActive: Scalars['Boolean']['input'];
   platform: AppPlatform;
   sourcePattern: Scalars['String']['input'];
+  submitProfile?: InputMaybe<Scalars['String']['input']>;
   targetPattern?: InputMaybe<Scalars['String']['input']>;
   type: GitHubBuildTriggerType;
 };

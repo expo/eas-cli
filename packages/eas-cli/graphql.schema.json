@@ -19537,6 +19537,18 @@
             "deprecationReason": null
           },
           {
+            "name": "submitProfile",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "targetPattern",
             "description": "A branch name or a wildcard pattern that the pull request targets. For example, `main` or `release/*`.",
             "type": {
@@ -23444,6 +23456,18 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "submitProfile",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -27707,6 +27731,12 @@
             "deprecationReason": null
           },
           {
+            "name": "DID_SUBSCRIBE_TO_EAS_AT_LEAST_ONCE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "EAS_MASTER_LIST",
             "description": null,
             "isDeprecated": false,
@@ -28654,6 +28684,12 @@
             "deprecationReason": null
           },
           {
+            "name": "BUILD_ERRORED",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "BUILD_LIMIT_THRESHOLD_EXCEEDED",
             "description": null,
             "isDeprecated": false,
@@ -28667,6 +28703,12 @@
           },
           {
             "name": "SUBMISSION_COMPLETE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SUBMISSION_ERRORED",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -37251,6 +37293,18 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "submitProfile",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,
