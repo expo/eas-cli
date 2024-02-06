@@ -4,7 +4,7 @@ on:
   workflow_dispatch: {}
   pull_request:
     paths:
-      - .github/workflows/update-eas-build-modules.yml
+      - .github/workflows/upgrade-eas-build-modules.yml
 
 jobs:
   open-pr:
@@ -30,7 +30,7 @@ jobs:
           git config --global user.email "support+ci@expo.io"
           git config --global user.name "Expo Bot"
 
-      - name: Update eas-build modules
+      - name: Upgrade eas-build modules
         run: |
           for DIR in packages/eas-cli packages/eas-json; do
             pushd $DIR >/dev/null 2>&1
@@ -59,15 +59,28 @@ jobs:
 
           git checkout -b $BRANCH_NAME
           git add .
-          git commit -m "Update eas-build dependencies"
+          git commit -m "Upgrade eas-build dependencies"
           git push origin $BRANCH_NAME
 
       - name: Open a PR to main
         uses: repo-sync/pull-request@v2
+        id: open-pr
         with:
           source_branch: '${{ steps.bump-branch-name.outputs.BRANCH_NAME }}'
           destination_branch: 'main'
-          pr_title: 'Update eas-build dependencies'
-          pr_body: ':arrow_up: Updates [`eas-build`](https://github.com/expo/eas-build) dependencies.'
-          pr_reviewer: 'szdziedzic,radoslawkrzemien,sjchmiela,khamilowicz'
+          pr_title: 'Upgrade eas-build dependencies'
+          pr_body: ':arrow_up: Upgrades [`eas-build`](https://github.com/expo/eas-build) dependencies.'
+          # pr_reviewer: 'szdziedzic,radoslawkrzemien,sjchmiela,khamilowicz'
+          pr_reviewer: 'sjchmiela'
           github_token: ${{ secrets.EXPO_BOT_PAT }}
+
+      - uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.EXPO_BOT_PAT }}
+          script: |
+            github.issues.createComment({
+              issue_number: ${{ steps.open-pr.outputs.pr_number }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "/changelog-entry chore Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies."
+            })
