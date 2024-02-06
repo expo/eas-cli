@@ -13,7 +13,7 @@
     "@expo/config": "8.5.4",
     "@expo/config-plugins": "7.8.4",
     "@expo/config-types": "50.0.0",
-    "@expo/eas-build-job": "1.0.59",
+    "@expo/eas-build-job": "1.0.61",
     "@expo/eas-json": "7.1.2",
     "@expo/json-file": "8.2.37",
     "@expo/multipart-body-parser": "1.1.0",
