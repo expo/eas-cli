@@ -6,7 +6,7 @@ import Log from '../../../log';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 
-export class AssignGoogleServiceAccountKey {
+export class AssignGoogleServiceAccountKeyForSubmissions {
   constructor(private app: AppLookupParams) {}
 
   public async runAsync(

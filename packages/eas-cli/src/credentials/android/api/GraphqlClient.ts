@@ -106,9 +106,11 @@ export async function updateAndroidAppCredentialsAsync(
   {
     androidFcmId,
     googleServiceAccountKeyForSubmissionsId,
+    googleServiceAccountKeyForFcmV1Id,
   }: {
     androidFcmId?: string;
     googleServiceAccountKeyForSubmissionsId?: string;
+    googleServiceAccountKeyForFcmV1Id?: string;
   }
 ): Promise<CommonAndroidAppCredentialsFragment> {
   let updatedAppCredentials = appCredentials;
@@ -125,6 +127,14 @@ export async function updateAndroidAppCredentialsAsync(
         graphqlClient,
         appCredentials.id,
         googleServiceAccountKeyForSubmissionsId
+      );
+  }
+  if (googleServiceAccountKeyForFcmV1Id) {
+    updatedAppCredentials =
+      await AndroidAppCredentialsMutation.setGoogleServiceAccountKeyForFcmV1Async(
+        graphqlClient,
+        appCredentials.id,
+        googleServiceAccountKeyForFcmV1Id
       );
   }
   return updatedAppCredentials;
