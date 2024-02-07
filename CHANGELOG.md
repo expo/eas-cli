@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Support configuring a Google Service Account Key via eas credentials, for sending Android Notifications via FCM V1. ([#2197](https://github.com/expo/eas-cli/pull/2197) by [@christopherwalter](https://github.com/christopherwalter))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
