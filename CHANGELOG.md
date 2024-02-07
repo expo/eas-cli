@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Remove duplicated log message when creating ASC API key. ([#2208](https://github.com/expo/eas-cli/pull/2208) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 - Add simulator flag to metadata. ([#2073](https://github.com/expo/eas-cli/pull/2073) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2220](https://github.com/expo/eas-cli/pull/2220) by [@expo-bot](https://github.com/expo-bot))
 
 ## [7.1.2](https://github.com/expo/eas-cli/releases/tag/v7.1.2) - 2024-01-30
 
