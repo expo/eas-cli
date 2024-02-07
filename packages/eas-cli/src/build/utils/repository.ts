@@ -83,9 +83,12 @@ export async function commitPromptAsync(
   });
 }
 
-export async function makeProjectMetadataFileAsync(
-  archivePath: string
-): Promise<{ path: string; size: number }> {
+export type LocalFile = {
+  path: string;
+  size: number;
+};
+
+export async function makeProjectMetadataFileAsync(archivePath: string): Promise<LocalFile> {
   const spinner = ora('Creating project metadata file');
   const timerLabel = 'makeProjectMetadataFileAsync';
   const timer = setTimeout(
@@ -103,7 +106,7 @@ export async function makeProjectMetadataFileAsync(
     await tar.list({
       file: archivePath,
       onentry: (entry: tar.ReadEntry) => {
-        if (entry.type === 'File' && !entry.path.includes('.git')) {
+        if (entry.type === 'File' && !entry.path.includes('.git/')) {
           archiveContent.push(entry.path);
         }
       },
@@ -127,9 +130,7 @@ export async function makeProjectMetadataFileAsync(
   return { path: metadataLocation, size: await fs.stat(metadataLocation).then(stat => stat.size) };
 }
 
-export async function makeProjectTarballAsync(
-  vcsClient: Client
-): Promise<{ path: string; size: number }> {
+export async function makeProjectTarballAsync(vcsClient: Client): Promise<LocalFile> {
   const spinner = ora('Compressing project files');
 
   await fs.mkdirp(getTmpDirectory());

@@ -27,6 +27,7 @@ import { LocalBuildMode, runLocalBuildAsync } from './local';
 import { collectMetadataAsync } from './metadata';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import {
+  LocalFile,
   makeProjectMetadataFileAsync,
   makeProjectTarballAsync,
   reviewAndCommitChangesAsync,
@@ -150,7 +151,7 @@ export async function prepareBuildRequestForPlatformAsync<
   } else if (!ctx.localBuildOptions.localBuildMode) {
     projectArchive = {
       type: ArchiveSourceType.GCS,
-      ...(await uploadProjectAsync({ ctx, generateMetadataFile: true })),
+      ...(await uploadProjectAsync(ctx)),
     };
   }
   assert(projectArchive);
@@ -234,13 +235,9 @@ export function handleBuildRequestError(error: any, platform: Platform): never {
   throw error;
 }
 
-async function uploadProjectAsync<TPlatform extends Platform>({
-  ctx,
-  generateMetadataFile = true,
-}: {
-  ctx: BuildContext<TPlatform>;
-  generateMetadataFile: boolean;
-}): Promise<{
+async function uploadProjectAsync<TPlatform extends Platform>(
+  ctx: BuildContext<TPlatform>
+): Promise<{
   bucketKey: string;
   metadataLocation?: string;
 }> {
@@ -285,14 +282,9 @@ async function uploadProjectAsync<TPlatform extends Platform>({
             completedMessage: (duration: string) => `Uploaded to EAS ${chalk.dim(duration)}`,
           })
         );
-        if (generateMetadataFile) {
-          const { metadataLocation } = await uploadMetadataFileAsync<TPlatform>(
-            projectTarball,
-            ctx
-          );
-          if (metadataLocation) {
-            return { bucketKey, metadataLocation };
-          }
+        const { metadataLocation } = await uploadMetadataFileAsync<TPlatform>(projectTarball, ctx);
+        if (metadataLocation) {
+          return { bucketKey, metadataLocation };
         }
         return { bucketKey };
       },
@@ -319,23 +311,23 @@ async function uploadProjectAsync<TPlatform extends Platform>({
 }
 
 async function uploadMetadataFileAsync<TPlatform extends Platform>(
-  projectTarball: { path: string; size: number },
+  projectTarball: LocalFile,
   ctx: BuildContext<TPlatform>
 ): Promise<{ metadataLocation: string | null }> {
-  let projectMetadataFile: any;
+  let projectMetadataFile: LocalFile | null = null;
   try {
     projectMetadataFile = await makeProjectMetadataFileAsync(projectTarball.path);
 
     const metadataLocation = await uploadFileAtPathToGCSAsync(
       ctx.graphqlClient,
-      UploadSessionType.EasBuildGcsProjectSources,
+      UploadSessionType.EasBuildGcsProjectMetadata,
       projectMetadataFile.path,
       createProgressTracker({
         total: projectMetadataFile.size,
         message: ratio =>
           `Uploading metadata to EAS Build (${formatBytes(
-            projectMetadataFile.size * ratio
-          )} / ${formatBytes(projectMetadataFile.size)})`,
+            projectMetadataFile!.size * ratio
+          )} / ${formatBytes(projectMetadataFile!.size)})`,
         completedMessage: (duration: string) => `Uploaded to EAS ${chalk.dim(duration)}`,
       })
     );
