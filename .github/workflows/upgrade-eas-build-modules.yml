@@ -1,0 +1,81 @@
+name: Open a PR bumping eas-build modules
+
+on: workflow_dispatch
+
+jobs:
+  open-pr:
+    name: Open a PR bumping eas-build modules
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.EXPO_BOT_PAT }}
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 20
+
+      - run: yarn install --frozen-lockfile
+
+      - name: Configure git
+        run: |
+          git config --global user.email "support+ci@expo.io"
+          git config --global user.name "Expo Bot"
+
+      - name: Upgrade eas-build modules
+        run: |
+          for DIR in packages/eas-cli packages/eas-json; do
+            pushd $DIR >/dev/null 2>&1
+              # packages are ordered according to output of `lerna list --toposort`
+              # https://github.com/expo/turtle-v2/pull/568
+              for PACKAGE in "@expo/downloader" "@expo/eas-build-job" "@expo/logger" "@expo/template-file" "@expo/steps" "@expo/turtle-spawn" "@expo/build-tools"; do
+                if grep -q $PACKAGE package.json; then
+                  echo "[$DIR] yarn --exact add $PACKAGE"
+                  yarn add --exact $PACKAGE
+                fi
+              done
+            popd >/dev/null 2>&1
+          done
+
+      - name: Set a branch name
+        id: bump-branch-name
+        run: |
+          HASH="$(echo $RANDOM | md5sum | head -c 10)"
+          BRANCH_NAME="@expo-bot/eas-build-bump-$HASH"
+
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Create a branch, commit, and push
+        run: |
+          BRANCH_NAME="${{ steps.bump-branch-name.outputs.BRANCH_NAME }}"
+
+          git checkout -b $BRANCH_NAME
+          git add .
+          git commit -m "Upgrade eas-build dependencies"
+          git push origin $BRANCH_NAME
+
+      - name: Open a PR to main
+        uses: repo-sync/pull-request@v2
+        id: open-pr
+        with:
+          source_branch: '${{ steps.bump-branch-name.outputs.BRANCH_NAME }}'
+          destination_branch: 'main'
+          pr_title: 'Upgrade eas-build dependencies'
+          pr_body: ':arrow_up: Upgrades [`eas-build`](https://github.com/expo/eas-build) dependencies.'
+          pr_reviewer: 'szdziedzic,radoslawkrzemien,sjchmiela,khamilowicz'
+          github_token: ${{ secrets.EXPO_BOT_PAT }}
+
+      - uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.EXPO_BOT_PAT }}
+          script: |
+            github.issues.createComment({
+              issue_number: ${{ steps.open-pr.outputs.pr_number }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "/changelog-entry chore Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies."
+            })
