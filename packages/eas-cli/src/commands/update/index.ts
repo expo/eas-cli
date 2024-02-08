@@ -56,7 +56,6 @@ import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
 type RawUpdateFlags = {
   auto: boolean;
-  dev: boolean;
   branch?: string;
   channel?: string;
   message?: string;
@@ -75,7 +74,6 @@ type RawUpdateFlags = {
 
 type UpdateFlags = {
   auto: boolean;
-  dev: boolean;
   platform: ExpoCLIExportPlatformFlag;
   branchName?: string;
   channelName?: string;
@@ -136,10 +134,6 @@ export default class UpdatePublish extends EasCommand {
       default: 'all',
       required: false,
     }),
-    dev: Flags.boolean({
-      description: 'Publish a development bundle',
-      default: false,
-    }),
     auto: Flags.boolean({
       description:
         'Use the current git branch and commit message for the EAS branch and update message',
@@ -165,7 +159,6 @@ export default class UpdatePublish extends EasCommand {
       auto: autoFlag,
       platform: platformFlag,
       channelName: channelNameArg,
-      dev,
       updateMessage: updateMessageArg,
       inputDir,
       skipBundler,
@@ -234,7 +227,7 @@ export default class UpdatePublish extends EasCommand {
     if (!skipBundler) {
       const bundleSpinner = ora().start('Exporting...');
       try {
-        await buildBundlesAsync({ projectDir, inputDir, dev, exp, platformFlag, clearCache });
+        await buildBundlesAsync({ projectDir, inputDir, exp, platformFlag, clearCache });
         bundleSpinner.succeed('Exported bundle(s)');
       } catch (e) {
         bundleSpinner.fail('Export failed');
@@ -547,7 +540,7 @@ export default class UpdatePublish extends EasCommand {
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
     const nonInteractive = flags['non-interactive'] ?? false;
 
-    const { auto, branch: branchName, channel: channelName, dev, message: updateMessage } = flags;
+    const { auto, branch: branchName, channel: channelName, message: updateMessage } = flags;
     if (nonInteractive && !auto && !(updateMessage && (branchName || channelName))) {
       Errors.error(
         '--branch and --message, or --channel and --message are required when updating in non-interactive mode unless --auto is specified',
@@ -576,7 +569,6 @@ export default class UpdatePublish extends EasCommand {
       auto,
       branchName,
       channelName,
-      dev,
       updateMessage,
       inputDir: flags['input-dir'],
       skipBundler: flags['skip-bundler'],

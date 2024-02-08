@@ -185,14 +185,12 @@ export async function buildBundlesAsync({
   exp,
   platformFlag,
   clearCache,
-  dev = false,
 }: {
   projectDir: string;
   inputDir: string;
   exp: Pick<ExpoConfig, 'sdkVersion' | 'web'>;
   platformFlag: ExpoCLIExportPlatformFlag;
   clearCache?: boolean;
-  dev?: boolean;
 }): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
   if (!packageJSON) {
@@ -210,7 +208,6 @@ export async function buildBundlesAsync({
       '--dump-sourcemap',
       '--dump-assetmap',
       `--platform=${platformFlag}`,
-      ...(dev ? ['--dev'] : []),
       ...(clearCache ? ['--clear'] : []),
     ]);
   }
@@ -230,7 +227,6 @@ export async function buildBundlesAsync({
       '--dump-sourcemap',
       '--dump-assetmap',
       ...platformArgs,
-      ...(dev ? ['--dev'] : []),
       ...(clearCache ? ['--clear'] : []),
     ]);
   }
@@ -252,7 +248,6 @@ export async function buildBundlesAsync({
     '--dump-sourcemap',
     '--dump-assetmap',
     `--platform=${platformFlag}`,
-    ...(dev ? ['--dev'] : []),
     ...(clearCache ? ['--clear'] : []),
   ]);
 }

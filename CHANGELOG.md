@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Revert expose expo export dev flag as an option in eas update. ([#2214](https://github.com/expo/eas-cli/pull/2214) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2223](https://github.com/expo/eas-cli/pull/2223) by [@expo-bot](https://github.com/expo-bot))
