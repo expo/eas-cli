@@ -41,7 +41,7 @@ export async function validateCustomBuildConfigAsync({
 
   try {
     const config = await readAndValidateBuildConfigAsync(configPath, {
-      skipNamespacedFunctionsCheck: true,
+      skipNamespacedFunctionsOrFunctionGroupsCheck: true,
     });
     return {
       workflowName: config.build.name,
