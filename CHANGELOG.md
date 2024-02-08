@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Revert expose expo export dev flag as an option in eas update. ([#2214](https://github.com/expo/eas-cli/pull/2214) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 - Remove duplicated log message when creating ASC API key. ([#2208](https://github.com/expo/eas-cli/pull/2208) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
