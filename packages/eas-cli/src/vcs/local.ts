@@ -32,16 +32,23 @@ export function getRootPath(): string {
 export class Ignore {
   private ignoreMapping: (readonly [string, SingleFileIgnore])[] = [];
 
-  constructor(private rootDir: string) {}
+  constructor(
+    private readonly rootDir: string,
+    private readonly options: {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: boolean;
+    }
+  ) {}
 
   public async initIgnoreAsync(): Promise<void> {
-    const easIgnorePath = path.join(this.rootDir, EASIGNORE_FILENAME);
-    if (await fs.pathExists(easIgnorePath)) {
-      this.ignoreMapping = [
-        ['', createIgnore().add(DEFAULT_IGNORE)],
-        ['', createIgnore().add(await fs.readFile(easIgnorePath, 'utf-8'))],
-      ];
-      return;
+    if (this.options.useEASIgnoreIfAvailableWhenEvaluatingFileIgnores) {
+      const easIgnorePath = path.join(this.rootDir, EASIGNORE_FILENAME);
+      if (await fs.pathExists(easIgnorePath)) {
+        this.ignoreMapping = [
+          ['', createIgnore().add(DEFAULT_IGNORE)],
+          ['', createIgnore().add(await fs.readFile(easIgnorePath, 'utf-8'))],
+        ];
+        return;
+      }
     }
     const ignoreFilePaths = (
       await fg(`**/${GITIGNORE_FILENAME}`, {
@@ -74,8 +81,14 @@ export class Ignore {
   }
 }
 
-export async function makeShallowCopyAsync(src: string, dst: string): Promise<void> {
-  const ignore = new Ignore(src);
+export async function makeShallowCopyAsync(
+  src: string,
+  dst: string,
+  options: {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: boolean;
+  }
+): Promise<void> {
+  const ignore = new Ignore(src, options);
   await ignore.initIgnoreAsync();
   await fs.copy(src, dst, {
     filter: (srcFilePath: string) => {

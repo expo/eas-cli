@@ -114,7 +114,9 @@ export async function readShortVersionAsync(
   buildSettings: XCBuildConfiguration['buildSettings'],
   vcsClient: Client
 ): Promise<string | undefined> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient, {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+  });
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir, buildSettings);
 
@@ -136,7 +138,9 @@ export async function readBuildNumberAsync(
   buildSettings: XCBuildConfiguration['buildSettings'],
   vcsClient: Client
 ): Promise<string | undefined> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient, {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+  });
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir, buildSettings);
     return (

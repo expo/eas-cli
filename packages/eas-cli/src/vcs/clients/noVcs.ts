@@ -6,13 +6,23 @@ export default class NoVcsClient extends Client {
     return getRootPath();
   }
 
-  public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
+  public async makeShallowCopyAsync(
+    destinationPath: string,
+    options: {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: boolean;
+    }
+  ): Promise<void> {
     const srcPath = getRootPath();
-    await makeShallowCopyAsync(srcPath, destinationPath);
+    await makeShallowCopyAsync(srcPath, destinationPath, options);
   }
 
-  public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
-    const ignore = new Ignore(getRootPath());
+  public override async isFileIgnoredAsync(
+    filePath: string,
+    options: {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: boolean;
+    }
+  ): Promise<boolean> {
+    const ignore = new Ignore(getRootPath(), options);
     await ignore.initIgnoreAsync();
     return ignore.ignores(filePath);
   }

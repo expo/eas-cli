@@ -28,7 +28,9 @@ export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync({
   exp: ExpoConfig;
   vcsClient: Client;
 }): Promise<string> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient, {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+  });
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
 
   try {
@@ -55,7 +57,9 @@ export async function getBundleIdentifierAsync(
   vcsClient: Client,
   xcodeContext?: { targetName?: string; buildConfiguration?: string }
 ): Promise<string> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient, {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+  });
   if (workflow === Workflow.GENERIC) {
     warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
 

@@ -15,16 +15,26 @@ export default class GitNoCommitClient extends GitClient {
     return (await spawnAsync('git', ['rev-parse', '--show-toplevel'])).stdout.trim();
   }
 
-  public override async makeShallowCopyAsync(destinationPath: string): Promise<void> {
+  public override async makeShallowCopyAsync(
+    destinationPath: string,
+    options: {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: boolean;
+    }
+  ): Promise<void> {
     // normalize converts C:/some/path to C:\some\path on windows
     const srcPath = path.normalize(await this.getRootPathAsync());
-    await makeShallowCopyAsync(srcPath, destinationPath);
+    await makeShallowCopyAsync(srcPath, destinationPath, options);
   }
 
-  public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
+  public override async isFileIgnoredAsync(
+    filePath: string,
+    options: {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: boolean;
+    }
+  ): Promise<boolean> {
     // normalize converts C:/some/path to C:\some\path on windows
     const rootPath = path.normalize(await this.getRootPathAsync());
-    const ignore = new Ignore(rootPath);
+    const ignore = new Ignore(rootPath, options);
     await ignore.initIgnoreAsync();
     return ignore.ignores(filePath);
   }

@@ -61,7 +61,9 @@ export async function createBuildContextAsync<T extends Platform>({
   const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: buildProfile.env });
   const projectName = exp.slug;
   const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
-  const workflow = await resolveWorkflowAsync(projectDir, platform, vcsClient);
+  const workflow = await resolveWorkflowAsync(projectDir, platform, vcsClient, {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+  });
   const accountId = account.id;
   const runFromCI = getenv.boolish('CI', false);
   const developmentClient =

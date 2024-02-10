@@ -8,7 +8,10 @@ import { Client } from '../vcs/vcs';
 export async function resolveWorkflowAsync(
   projectDir: string,
   platform: Platform,
-  vcsClient: Client
+  vcsClient: Client,
+  options: {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: boolean;
+  }
 ): Promise<Workflow> {
   let platformWorkflowMarkers: string[];
   try {
@@ -27,7 +30,7 @@ export async function resolveWorkflowAsync(
   for (const marker of platformWorkflowMarkers) {
     if (
       (await fs.pathExists(marker)) &&
-      !(await vcsClient.isFileIgnoredAsync(path.relative(vcsRootPath, marker)))
+      !(await vcsClient.isFileIgnoredAsync(path.relative(vcsRootPath, marker), options))
     ) {
       return Workflow.GENERIC;
     }
@@ -37,24 +40,30 @@ export async function resolveWorkflowAsync(
 
 export async function resolveWorkflowPerPlatformAsync(
   projectDir: string,
-  vcsClient: Client
+  vcsClient: Client,
+  options: {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: boolean;
+  }
 ): Promise<Record<Platform, Workflow>> {
   const [android, ios] = await Promise.all([
-    resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient),
-    resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient),
+    resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient, options),
+    resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient, options),
   ]);
   return { android, ios };
 }
 
 export async function hasIgnoredIosProjectAsync(
   projectDir: string,
-  vcsClient: Client
+  vcsClient: Client,
+  options: {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: boolean;
+  }
 ): Promise<boolean> {
   const vcsRootPath = path.normalize(await vcsClient.getRootPathAsync());
 
   try {
     const pbxProjectPath = IOSConfig.Paths.getPBXProjectPath(projectDir);
-    return await vcsClient.isFileIgnoredAsync(path.relative(vcsRootPath, pbxProjectPath));
+    return await vcsClient.isFileIgnoredAsync(path.relative(vcsRootPath, pbxProjectPath), options);
   } finally {
     return false;
   }

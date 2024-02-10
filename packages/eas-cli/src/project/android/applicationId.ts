@@ -35,7 +35,9 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync({
   exp: ExpoConfig;
   vcsClient: Client;
 }): Promise<string> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient, {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+  });
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
 
   try {
@@ -101,7 +103,9 @@ export async function getApplicationIdAsync(
   vcsClient: Client,
   gradleContext?: GradleBuildContext
 ): Promise<string> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient, {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+  });
   if (workflow === Workflow.GENERIC) {
     warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
 

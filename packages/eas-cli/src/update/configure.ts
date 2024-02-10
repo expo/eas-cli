@@ -384,7 +384,9 @@ export async function ensureEASUpdateIsConfiguredAsync({
     return;
   }
 
-  const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
+  const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient, {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+  });
   const { projectChanged, exp: expWithUpdates } =
     await ensureEASUpdatesIsConfiguredInExpoConfigAsync({
       exp: expMaybeWithoutUpdates,

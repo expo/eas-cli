@@ -24,7 +24,9 @@ export async function syncProjectConfigurationAsync({
   localAutoIncrement?: AndroidVersionAutoIncrement;
   vcsClient: Client;
 }): Promise<void> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient, {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+  });
   const versionBumpStrategy = resolveVersionBumpStrategy(localAutoIncrement ?? false);
 
   if (workflow === Workflow.GENERIC) {

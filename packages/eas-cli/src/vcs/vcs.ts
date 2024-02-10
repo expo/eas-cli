@@ -3,7 +3,12 @@ export abstract class Client {
   // destination, folder created this way will be uploaded "as is", so implementation should skip
   // anything that is not committed to the repository. Most optimal solution is to create shallow clone
   // using tooling provided by specific VCS, that respects all ignore rules
-  public abstract makeShallowCopyAsync(destinationPath: string): Promise<void>;
+  public abstract makeShallowCopyAsync(
+    destinationPath: string,
+    options: {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: boolean;
+    }
+  ): Promise<void>;
 
   // Find root of the repository.
   //
@@ -75,7 +80,12 @@ export abstract class Client {
   //
   // @param filePath has to be a relative normalized path pointing to a file
   // located under the root of the repository
-  public async isFileIgnoredAsync(_filePath: string): Promise<boolean> {
+  public async isFileIgnoredAsync(
+    _filePath: string,
+    _options: {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: boolean;
+    }
+  ): Promise<boolean> {
     return false;
   }
 

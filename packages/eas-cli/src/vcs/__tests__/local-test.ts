@@ -18,7 +18,7 @@ describe(Ignore, () => {
       '/root'
     );
 
-    const ignore = new Ignore('/root');
+    const ignore = new Ignore('/root', { useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true });
     await ignore.initIgnoreAsync();
     expect(ignore.ignores('aaa')).toBe(true);
     expect(ignore.ignores('bbb')).toBe(false);
@@ -36,12 +36,31 @@ describe(Ignore, () => {
       '/root'
     );
 
-    const ignore = new Ignore('/root');
+    const ignore = new Ignore('/root', { useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true });
     await ignore.initIgnoreAsync();
     expect(ignore.ignores('aaa')).toBe(false);
     expect(ignore.ignores('bbb')).toBe(false);
     expect(ignore.ignores('ccc')).toBe(true);
     expect((ignore as any).ignoreMapping.map((i: any) => i[0])).toEqual(['', '']);
+  });
+
+  it('uses .gitignore files if .easignore is present but useEASIgnoreIfAvailableWhenEvaluatingFileIgnores is false', async () => {
+    vol.fromJSON(
+      {
+        '.gitignore': 'aaa',
+        '.easignore': 'ccc',
+        'dir/.gitignore': 'bbb',
+      },
+      '/root'
+    );
+
+    const ignore = new Ignore('/root', { useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: false });
+    await ignore.initIgnoreAsync();
+    expect(ignore.ignores('aaa')).toBe(true);
+    expect(ignore.ignores('bbb')).toBe(false);
+    expect(ignore.ignores('ccc')).toBe(false);
+    expect(ignore.ignores('dir/aaa')).toBe(true);
+    expect(ignore.ignores('dir/bbb')).toBe(true);
   });
 
   it('ignores .gitignore files in node_modules content', async () => {
@@ -54,7 +73,7 @@ describe(Ignore, () => {
       '/root'
     );
 
-    const ignore = new Ignore('/root');
+    const ignore = new Ignore('/root', { useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true });
     await ignore.initIgnoreAsync();
     expect(ignore.ignores('aaa')).toBe(true);
     expect(ignore.ignores('bbb')).toBe(false);
@@ -72,7 +91,7 @@ describe(Ignore, () => {
       '/root'
     );
 
-    const ignore = new Ignore('/root');
+    const ignore = new Ignore('/root', { useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true });
     await ignore.initIgnoreAsync();
     expect(ignore.ignores('dir/ccc')).toBe(true);
   });
@@ -80,7 +99,7 @@ describe(Ignore, () => {
   it('ignores .git', async () => {
     vol.fromJSON({}, '/root');
 
-    const ignore = new Ignore('/root');
+    const ignore = new Ignore('/root', { useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true });
     await ignore.initIgnoreAsync();
     expect(ignore.ignores('.git')).toBe(true);
   });
@@ -93,7 +112,7 @@ describe(Ignore, () => {
       '/root'
     );
 
-    const ignore = new Ignore('/root');
+    const ignore = new Ignore('/root', { useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true });
     await ignore.initIgnoreAsync();
     expect(() => ignore.ignores('dir/test')).not.toThrowError();
   });

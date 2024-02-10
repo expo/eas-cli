@@ -120,7 +120,12 @@ export default class GitClient extends Client {
     return (await spawnAsync('git', ['rev-parse', '--show-toplevel'])).stdout.trim();
   }
 
-  public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
+  public async makeShallowCopyAsync(
+    destinationPath: string,
+    _options: {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: boolean;
+    }
+  ): Promise<void> {
     if (await this.hasUncommittedChangesAsync()) {
       // it should already be checked before this function is called, but in case it wasn't
       // we want to ensure that any changes were introduced by call to `setGitCaseSensitivityAsync`
@@ -207,7 +212,12 @@ export default class GitClient extends Client {
     );
   }
 
-  public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
+  public override async isFileIgnoredAsync(
+    filePath: string,
+    _options: {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: boolean;
+    }
+  ): Promise<boolean> {
     try {
       await spawnAsync('git', ['check-ignore', '-q', filePath], {
         cwd: path.normalize(await this.getRootPathAsync()),

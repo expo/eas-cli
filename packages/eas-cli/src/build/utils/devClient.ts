@@ -43,7 +43,11 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
   );
 
   const workflowPerPlatformList = await Promise.all(
-    platformsToCheck.map(platform => resolveWorkflowAsync(projectDir, platform, vcsClient))
+    platformsToCheck.map(platform =>
+      resolveWorkflowAsync(projectDir, platform, vcsClient, {
+        useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+      })
+    )
   );
 
   Log.newLine();

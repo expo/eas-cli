@@ -23,12 +23,16 @@ describe(resolveWorkflowAsync, () => {
       projectDir
     );
 
-    await expect(resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient)).resolves.toBe(
-      Workflow.GENERIC
-    );
-    await expect(resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient)).resolves.toBe(
-      Workflow.GENERIC
-    );
+    await expect(
+      resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient, {
+        useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+      })
+    ).resolves.toBe(Workflow.GENERIC);
+    await expect(
+      resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient, {
+        useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+      })
+    ).resolves.toBe(Workflow.GENERIC);
   });
 
   test('bare workflow for single platform', async () => {
@@ -39,12 +43,16 @@ describe(resolveWorkflowAsync, () => {
       projectDir
     );
 
-    await expect(resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient)).resolves.toBe(
-      Workflow.MANAGED
-    );
-    await expect(resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient)).resolves.toBe(
-      Workflow.GENERIC
-    );
+    await expect(
+      resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient, {
+        useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+      })
+    ).resolves.toBe(Workflow.MANAGED);
+    await expect(
+      resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient, {
+        useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+      })
+    ).resolves.toBe(Workflow.GENERIC);
   });
 
   test('android/ios directories are ignored', async () => {
@@ -57,12 +65,16 @@ describe(resolveWorkflowAsync, () => {
       projectDir
     );
 
-    await expect(resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient)).resolves.toBe(
-      Workflow.MANAGED
-    );
-    await expect(resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient)).resolves.toBe(
-      Workflow.MANAGED
-    );
+    await expect(
+      resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient, {
+        useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+      })
+    ).resolves.toBe(Workflow.MANAGED);
+    await expect(
+      resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient, {
+        useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+      })
+    ).resolves.toBe(Workflow.MANAGED);
   });
 });
 
@@ -80,7 +92,11 @@ describe(resolveWorkflowPerPlatformAsync, () => {
       projectDir
     );
 
-    await expect(resolveWorkflowPerPlatformAsync(projectDir, vcsClient)).resolves.toEqual({
+    await expect(
+      resolveWorkflowPerPlatformAsync(projectDir, vcsClient, {
+        useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+      })
+    ).resolves.toEqual({
       android: Workflow.GENERIC,
       ios: Workflow.GENERIC,
     });

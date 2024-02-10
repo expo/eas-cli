@@ -72,14 +72,18 @@ export default class BuildConfigure extends EasCommand {
     // configure expo-updates
     if (expoUpdatesIsInstalled) {
       if ([RequestedPlatform.Android, RequestedPlatform.All].includes(platform)) {
-        const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
+        const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient, {
+          useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+        });
         if (workflow === Workflow.GENERIC) {
           await syncAndroidUpdatesConfigurationAsync(projectDir, exp);
         }
       }
 
       if ([RequestedPlatform.Ios, RequestedPlatform.All].includes(platform)) {
-        const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
+        const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient, {
+          useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+        });
         if (workflow === Workflow.GENERIC) {
           await syncIosUpdatesConfigurationAsync(vcsClient, projectDir, exp);
         }

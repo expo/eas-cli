@@ -31,7 +31,11 @@ export async function validateCustomBuildConfigAsync({
       `Custom build configuration file ${chalk.bold(relativeConfigPath)} does not exist.`
     );
   }
-  if (await vcsClient.isFileIgnoredAsync(relativeConfigPath)) {
+  if (
+    await vcsClient.isFileIgnoredAsync(relativeConfigPath, {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+    })
+  ) {
     throw new Error(
       `Custom build configuration file ${chalk.bold(
         relativeConfigPath

@@ -22,7 +22,9 @@ export async function syncProjectConfigurationAsync({
   localAutoIncrement?: IosVersionAutoIncrement;
   vcsClient: Client;
 }): Promise<void> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient, {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+  });
   const versionBumpStrategy = resolveVersionBumpStrategy(localAutoIncrement ?? false);
 
   if (workflow === Workflow.GENERIC) {

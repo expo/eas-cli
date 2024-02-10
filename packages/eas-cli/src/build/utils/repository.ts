@@ -107,7 +107,9 @@ export async function makeProjectTarballAsync(
   startTimer(compressTimerLabel);
 
   try {
-    await vcsClient.makeShallowCopyAsync(shallowClonePath);
+    await vcsClient.makeShallowCopyAsync(shallowClonePath, {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+    });
     await tar.create({ cwd: shallowClonePath, file: tarPath, prefix: 'project', gzip: true }, [
       '.',
     ]);

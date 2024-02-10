@@ -109,7 +109,9 @@ export default class BuildVersionSyncView extends EasCommand {
         toAppPlatform(profileInfo.platform),
         applicationIdentifier
       );
-      const workflow = await resolveWorkflowAsync(projectDir, profileInfo.platform, vcsClient);
+      const workflow = await resolveWorkflowAsync(projectDir, profileInfo.platform, vcsClient, {
+        useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+      });
       if (!remoteVersions?.buildVersion) {
         Log.warn(
           `Skipping versions sync for ${platformDisplayName}. There are no versions configured on Expo servers, use "eas build:version:set" or run a build to initialize it.`

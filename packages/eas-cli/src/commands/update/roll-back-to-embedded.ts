@@ -201,12 +201,13 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(
+    const runtimeVersions = await getRuntimeVersionObjectAsync({
       exp,
-      realizedPlatforms,
+      platforms: realizedPlatforms,
       projectDir,
-      vcsClient
-    );
+      vcsClient,
+      nonInteractive,
+    });
 
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();

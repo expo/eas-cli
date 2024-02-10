@@ -145,7 +145,9 @@ export async function resolveBareProjectTargetsAsync({
 }
 
 export async function resolveTargetsAsync(opts: ResolveTargetOptions): Promise<Target[]> {
-  const workflow = await resolveWorkflowAsync(opts.projectDir, Platform.IOS, opts.vcsClient);
+  const workflow = await resolveWorkflowAsync(opts.projectDir, Platform.IOS, opts.vcsClient, {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+  });
   if (workflow === Workflow.GENERIC) {
     return await resolveBareProjectTargetsAsync(opts);
   } else if (workflow === Workflow.MANAGED) {

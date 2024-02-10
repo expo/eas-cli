@@ -100,7 +100,9 @@ export async function maybeResolveVersionsAsync(
   buildProfile: BuildProfile<Platform.ANDROID>,
   vcsClient: Client
 ): Promise<{ appVersion?: string; appBuildVersion?: string }> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient, {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+  });
   if (workflow === Workflow.GENERIC) {
     const buildGradle = await getAppBuildGradleAsync(projectDir);
     try {

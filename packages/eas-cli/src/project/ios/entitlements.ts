@@ -28,7 +28,9 @@ export async function getManagedApplicationTargetEntitlementsAsync(
       projectRoot: projectDir,
       platforms: ['ios'],
       introspect: true,
-      ignoreExistingNativeFiles: await hasIgnoredIosProjectAsync(projectDir, vcsClient),
+      ignoreExistingNativeFiles: await hasIgnoredIosProjectAsync(projectDir, vcsClient, {
+        useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+      }),
     });
     return expWithMods.ios?.entitlements || {};
   } finally {

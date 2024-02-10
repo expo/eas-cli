@@ -359,12 +359,13 @@ export default class UpdatePublish extends EasCommand {
       throw e;
     }
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(
+    const runtimeVersions = await getRuntimeVersionObjectAsync({
       exp,
-      realizedPlatforms,
+      platforms: realizedPlatforms,
       projectDir,
-      vcsClient
-    );
+      vcsClient,
+      nonInteractive,
+    });
     const runtimeToPlatformMapping =
       getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);
 

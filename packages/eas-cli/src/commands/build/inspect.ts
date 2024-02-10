@@ -94,7 +94,9 @@ export default class BuildInspect extends EasCommand {
 
     if (flags.stage === InspectStage.ARCHIVE) {
       await vcsClient.ensureRepoExistsAsync();
-      await vcsClient.makeShallowCopyAsync(tmpWorkingdir);
+      await vcsClient.makeShallowCopyAsync(tmpWorkingdir, {
+        useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+      });
       await this.copyToOutputDirAsync(tmpWorkingdir, outputDirectory);
     } else {
       try {

@@ -50,8 +50,12 @@ export default class Diagnostics extends EasCommand {
   }
 
   private async printWorkflowAsync(projectDir: string, vcsClient: Client): Promise<void> {
-    const androidWorkflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
-    const iosWorkflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
+    const androidWorkflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient, {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+    });
+    const iosWorkflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient, {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+    });
 
     if (androidWorkflow === iosWorkflow) {
       Log.log(`    Project workflow: ${androidWorkflow}`);

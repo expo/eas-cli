@@ -32,7 +32,9 @@ export async function checkGoogleServicesFileAsync<T extends Platform>(
   if (
     (await fs.pathExists(absGoogleServicesFilePath)) &&
     (!isInsideDirectory(absGoogleServicesFilePath, rootDir) ||
-      (await ctx.vcsClient.isFileIgnoredAsync(path.relative(rootDir, absGoogleServicesFilePath))))
+      (await ctx.vcsClient.isFileIgnoredAsync(path.relative(rootDir, absGoogleServicesFilePath), {
+        useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+      })))
   ) {
     Log.warn(
       `File specified via "${ctx.platform}.googleServicesFile" field in your app.json is not checked in to your repository and won't be uploaded to the builder.`

@@ -1,6 +1,7 @@
 import { ExpoConfig, Platform } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
 import { Platform as EASBuildJobPlatform, Workflow } from '@expo/eas-build-job';
+import * as Fingerprint from '@expo/fingerprint';
 import JsonFile from '@expo/json-file';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -8,7 +9,6 @@ import crypto from 'crypto';
 import fs from 'fs-extra';
 import Joi from 'joi';
 import mime from 'mime';
-import nullthrows from 'nullthrows';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
@@ -22,7 +22,7 @@ import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
 import Log, { learnMore } from '../log';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../platform';
-import { promptAsync } from '../prompts';
+import { confirmAsync, promptAsync } from '../prompts';
 import { getBranchNameFromChannelNameAsync } from '../update/getBranchNameFromChannelNameAsync';
 import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../update/utils';
 import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
@@ -675,47 +675,123 @@ export function getRequestedPlatform(
 }
 
 /** Get runtime versions grouped by platform. Runtime version is always `null` on web where the platform is always backwards compatible. */
-export async function getRuntimeVersionObjectAsync(
-  exp: ExpoConfig,
-  platforms: Platform[],
-  projectDir: string,
-  vcsClient: Client
-): Promise<{ platform: string; runtimeVersion: string }[]> {
+export async function getRuntimeVersionObjectAsync({
+  exp,
+  platforms,
+  projectDir,
+  vcsClient,
+  nonInteractive,
+}: {
+  exp: ExpoConfig;
+  platforms: Platform[];
+  projectDir: string;
+  vcsClient: Client;
+  nonInteractive: boolean;
+}): Promise<{ platform: string; runtimeVersion: string }[]> {
+  const runtimeVersionObjects: { platform: string; runtimeVersion: string }[] = [];
+
+  // calculate these serially since in some cases (fingerprint) we need to prompt the user to confirm that
+  // the runtime version is ready to be calculated
   for (const platform of platforms) {
-    if (platform === 'web') {
-      continue;
-    }
-    const isPolicy = typeof (exp[platform]?.runtimeVersion ?? exp.runtimeVersion) === 'object';
-    if (isPolicy) {
-      const isManaged =
-        (await resolveWorkflowAsync(projectDir, platform as EASBuildJobPlatform, vcsClient)) ===
-        Workflow.MANAGED;
-      if (!isManaged) {
-        throw new Error(
-          `You're currently using the bare workflow, where runtime version policies are not supported. You must set your runtime version manually. For example, define your runtime version as "1.0.0", not {"policy": "appVersion"} in your app config. ${learnMore(
-            'https://docs.expo.dev/eas-update/runtime-versions'
-          )}`
-        );
+    runtimeVersionObjects.push({
+      platform,
+      runtimeVersion: await getRuntimeVersionForPlatformAsync({
+        exp,
+        platform,
+        projectDir,
+        vcsClient,
+        nonInteractive,
+      }),
+    });
+  }
+
+  return runtimeVersionObjects;
+}
+
+async function getRuntimeVersionForPlatformAsync({
+  exp,
+  platform,
+  projectDir,
+  vcsClient,
+  nonInteractive,
+}: {
+  exp: ExpoConfig;
+  platform: Platform;
+  projectDir: string;
+  vcsClient: Client;
+  nonInteractive: boolean;
+}): Promise<string> {
+  if (platform === 'web') {
+    return 'UNVERSIONED';
+  }
+
+  const runtimeVersion = exp[platform]?.runtimeVersion ?? exp.runtimeVersion;
+  if (typeof runtimeVersion === 'object') {
+    const workflowIgnoringEASIgnoreToMatchExpoUpdatesDetection = await resolveWorkflowAsync(
+      projectDir,
+      platform as EASBuildJobPlatform,
+      vcsClient,
+      { useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: false }
+    );
+    const policy = runtimeVersion.policy;
+
+    if (policy === 'fingerprintExperimental') {
+      if (workflowIgnoringEASIgnoreToMatchExpoUpdatesDetection === Workflow.GENERIC) {
+        if (nonInteractive) {
+          // log to inform the user that the fingerprint has been calculated
+          Log.warn(
+            `Calculating native fingerprint for platform ${platform} using current state of the "${platform}" directory.`
+          );
+        } else {
+          // prompt the user to confirm that their native projects are in a state that is ready
+          // for the fingerprint to be calculated
+          const confirm = await confirmAsync({
+            message: `Calculating native fingerprint for platform ${platform} using current state of the "${platform}" directory. Do you want to continue?`,
+          });
+          if (!confirm) {
+            throw new Error('Aborted');
+          }
+        }
+        return await Fingerprint.createProjectHashAsync(projectDir, {
+          platforms: [platform],
+        });
+      } else if (workflowIgnoringEASIgnoreToMatchExpoUpdatesDetection === Workflow.MANAGED) {
+        // ignore everything in native directories to ensure fingerprint is the same
+        // no matter whether project has been prebuilt
+        return await Fingerprint.createProjectHashAsync(projectDir, {
+          platforms: [platform],
+          ignorePaths: ['/android/**/*', '/ios/**/*'],
+        });
+      } else {
+        throw new Error('Unknown workflow');
       }
+    }
+
+    const workflow = await resolveWorkflowAsync(
+      projectDir,
+      platform as EASBuildJobPlatform,
+      vcsClient,
+      { useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true }
+    );
+    if (workflow !== Workflow.MANAGED) {
+      throw new Error(
+        `You're currently using the bare workflow, where runtime version policies are not supported. You must set your runtime version manually. For example, define your runtime version as "1.0.0", not {"policy": "appVersion"} in your app config. ${learnMore(
+          'https://docs.expo.dev/eas-update/runtime-versions'
+        )}`
+      );
     }
   }
 
-  return await Promise.all(
-    [...new Set(platforms)].map(async platform => {
-      if (platform === 'web') {
-        return { platform: 'web', runtimeVersion: 'UNVERSIONED' };
-      }
-      return {
-        platform,
-        runtimeVersion: nullthrows(
-          await Updates.getRuntimeVersionAsync(projectDir, exp, platform),
-          `Unable to determine runtime version for ${
-            requestedPlatformDisplayNames[platform]
-          }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
-        ),
-      };
-    })
-  );
+  const resolvedRuntimeVersion = await Updates.getRuntimeVersionAsync(projectDir, exp, platform);
+  if (!resolvedRuntimeVersion) {
+    throw new Error(
+      `Unable to determine runtime version for ${
+        requestedPlatformDisplayNames[platform]
+      }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
+    );
+  }
+
+  return resolvedRuntimeVersion;
 }
 
 export function getRuntimeToPlatformMappingFromRuntimeVersions(

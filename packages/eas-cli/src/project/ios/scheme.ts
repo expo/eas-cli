@@ -24,7 +24,9 @@ export async function resolveXcodeBuildContextAsync(
   }: { exp: ExpoConfig; projectDir: string; nonInteractive: boolean; vcsClient: Client },
   buildProfile: BuildProfile<Platform.IOS>
 ): Promise<XcodeBuildContext> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient, {
+    useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+  });
   if (workflow === Workflow.GENERIC) {
     const buildScheme =
       buildProfile.scheme ??

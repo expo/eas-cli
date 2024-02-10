@@ -36,7 +36,9 @@ export async function getApplicationIdentifierAsync({
 }): Promise<string> {
   if (platform === Platform.ANDROID) {
     const profile = buildProfile as BuildProfile<Platform.ANDROID>;
-    const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
+    const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient, {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+    });
 
     if (workflow === Workflow.MANAGED) {
       return await ensureApplicationIdIsDefinedForManagedProjectAsync({
@@ -51,7 +53,9 @@ export async function getApplicationIdentifierAsync({
     const gradleContext = await resolveGradleBuildContextAsync(projectDir, profile, vcsClient);
     return await getApplicationIdAsync(projectDir, exp, vcsClient, gradleContext);
   } else {
-    const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
+    const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient, {
+      useEASIgnoreIfAvailableWhenEvaluatingFileIgnores: true,
+    });
     const profile = buildProfile as BuildProfile<Platform.IOS>;
     if (workflow === Workflow.MANAGED) {
       return await ensureBundleIdentifierIsDefinedForManagedProjectAsync({
