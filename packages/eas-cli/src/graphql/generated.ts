@@ -5439,7 +5439,6 @@ export type UploadSessionCreateUploadSessionArgs = {
 export enum UploadSessionType {
   EasBuildGcsProjectMetadata = 'EAS_BUILD_GCS_PROJECT_METADATA',
   EasBuildGcsProjectSources = 'EAS_BUILD_GCS_PROJECT_SOURCES',
-  EasBuildGcsProjectMetadata = 'EAS_BUILD_GCS_PROJECT_METADATA',
   /** @deprecated Use EAS_BUILD_GCS_PROJECT_SOURCES instead. */
   EasBuildProjectSources = 'EAS_BUILD_PROJECT_SOURCES',
   /** @deprecated Use EAS_SUBMIT_GCS_APP_ARCHIVE instead. */
