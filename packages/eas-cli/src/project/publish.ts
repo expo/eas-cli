@@ -31,6 +31,7 @@ import {
   shouldUseVersionedExpoCLI,
   shouldUseVersionedExpoCLIWithExplicitPlatforms,
 } from '../utils/expoCli';
+import { expoUpdatesCommandAsync } from '../utils/expoUpdatesCli';
 import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
 import uniqBy from '../utils/expodash/uniqBy';
@@ -675,47 +676,96 @@ export function getRequestedPlatform(
 }
 
 /** Get runtime versions grouped by platform. Runtime version is always `null` on web where the platform is always backwards compatible. */
-export async function getRuntimeVersionObjectAsync(
-  exp: ExpoConfig,
-  platforms: Platform[],
-  projectDir: string,
-  vcsClient: Client
-): Promise<{ platform: string; runtimeVersion: string }[]> {
-  for (const platform of platforms) {
-    if (platform === 'web') {
-      continue;
-    }
-    const isPolicy = typeof (exp[platform]?.runtimeVersion ?? exp.runtimeVersion) === 'object';
-    if (isPolicy) {
-      const isManaged =
-        (await resolveWorkflowAsync(projectDir, platform as EASBuildJobPlatform, vcsClient)) ===
-        Workflow.MANAGED;
-      if (!isManaged) {
-        throw new Error(
-          `You're currently using the bare workflow, where runtime version policies are not supported. You must set your runtime version manually. For example, define your runtime version as "1.0.0", not {"policy": "appVersion"} in your app config. ${learnMore(
-            'https://docs.expo.dev/eas-update/runtime-versions'
-          )}`
-        );
-      }
-    }
-  }
-
+export async function getRuntimeVersionObjectAsync({
+  exp,
+  platforms,
+  projectDir,
+  vcsClient,
+}: {
+  exp: ExpoConfig;
+  platforms: Platform[];
+  projectDir: string;
+  vcsClient: Client;
+}): Promise<{ platform: string; runtimeVersion: string }[]> {
   return await Promise.all(
-    [...new Set(platforms)].map(async platform => {
-      if (platform === 'web') {
-        return { platform: 'web', runtimeVersion: 'UNVERSIONED' };
-      }
+    platforms.map(async platform => {
       return {
         platform,
-        runtimeVersion: nullthrows(
-          await Updates.getRuntimeVersionAsync(projectDir, exp, platform),
-          `Unable to determine runtime version for ${
-            requestedPlatformDisplayNames[platform]
-          }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
-        ),
+        runtimeVersion: await getRuntimeVersionForPlatformAsync({
+          exp,
+          platform,
+          projectDir,
+          vcsClient,
+        }),
       };
     })
   );
+}
+
+async function getRuntimeVersionForPlatformAsync({
+  exp,
+  platform,
+  projectDir,
+  vcsClient,
+}: {
+  exp: ExpoConfig;
+  platform: Platform;
+  projectDir: string;
+  vcsClient: Client;
+}): Promise<string> {
+  if (platform === 'web') {
+    return 'UNVERSIONED';
+  }
+
+  const runtimeVersion = exp[platform]?.runtimeVersion ?? exp.runtimeVersion;
+  if (typeof runtimeVersion === 'object') {
+    const policy = runtimeVersion.policy;
+
+    if (policy === 'fingerprintExperimental') {
+      // log to inform the user that the fingerprint has been calculated
+      Log.warn(
+        `Calculating native fingerprint for platform ${platform} using current state of the "${platform}" directory. ` +
+          `If the fingerprint differs from the build's fingerint, ensure the state of your project is consistent ` +
+          `(repository is clean, ios and android native directories are in the same state as the build if applicable).`
+      );
+
+      const fingerprintRawString = await expoUpdatesCommandAsync(projectDir, [
+        'fingerprint:generate',
+        '--platform',
+        platform,
+      ]);
+      const fingerprintObject = JSON.parse(fingerprintRawString);
+      const hash = nullthrows(
+        fingerprintObject.hash,
+        'invalid response from expo-update CLI for fingerprint generation'
+      );
+      return hash;
+    }
+
+    const workflow = await resolveWorkflowAsync(
+      projectDir,
+      platform as EASBuildJobPlatform,
+      vcsClient
+    );
+    if (workflow !== Workflow.MANAGED) {
+      throw new Error(
+        `You're currently using the bare workflow, where runtime version policies are not supported. You must set your runtime version manually. For example, define your runtime version as "1.0.0", not {"policy": "appVersion"} in your app config. ${learnMore(
+          'https://docs.expo.dev/eas-update/runtime-versions'
+        )}`
+      );
+    }
+  }
+
+  const resolvedRuntimeVersion = await Updates.getRuntimeVersionAsync(projectDir, exp, platform);
+  if (!resolvedRuntimeVersion) {
+    throw new Error(
+      `Unable to determine runtime version for ${
+        requestedPlatformDisplayNames[platform]
+      }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
+    );
+  }
+
+  return resolvedRuntimeVersion;
 }
 
 export function getRuntimeToPlatformMappingFromRuntimeVersions(
