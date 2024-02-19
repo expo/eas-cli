@@ -68,8 +68,10 @@ export default class ProjectInit extends EasCommand {
         Log.warn(
           'Cannot determine which native SDK version your project uses because the module `expo` is not installed.'
         );
+        return;
+      } else {
+        throw error;
       }
-      return;
     }
     switch (result.type) {
       case 'success':
