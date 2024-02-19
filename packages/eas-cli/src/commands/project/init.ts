@@ -1,4 +1,4 @@
-import { getProjectConfigDescription } from '@expo/config';
+import { ConfigError, getProjectConfigDescription } from '@expo/config';
 import { ExpoConfig } from '@expo/config-types';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
@@ -60,7 +60,19 @@ export default class ProjectInit extends EasCommand {
     projectDir: string,
     modifications: Partial<ExpoConfig>
   ): Promise<void> {
-    const result = await createOrModifyExpoConfigAsync(projectDir, modifications);
+    let result;
+    try {
+      result = await createOrModifyExpoConfigAsync(projectDir, modifications);
+    } catch (error) {
+      if (error instanceof ConfigError && error.code === 'MODULE_NOT_FOUND') {
+        Log.warn(
+          'Cannot determine which native SDK version your project uses because the module `expo` is not installed.'
+        );
+        return;
+      } else {
+        throw error;
+      }
+    }
     switch (result.type) {
       case 'success':
         break;
