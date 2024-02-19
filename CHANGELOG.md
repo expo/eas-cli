@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Don't require expo on fresh react-native project. ([#2235](https://github.com/expo/eas-cli/pull/2235) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
 ### 🧹 Chores
 
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2229](https://github.com/expo/eas-cli/pull/2229) by [@expo-bot](https://github.com/expo-bot))
