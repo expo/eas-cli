@@ -231,7 +231,7 @@ function warnEASUpdatesManualConfig({
     )}`
   );
   Log.warn(
-    `Finish configuring EAS Update by adding the following to the project app.config.js:\n${learnMore(
+    `Add the following EAS Update key-values to the project app.config.js:\n${learnMore(
       'https://expo.fyi/eas-update-config'
     )}\n`
   );
