@@ -108,7 +108,11 @@ export async function validateAppVersionRuntimePolicySupportAsync(
   }
 
   const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
-  if (expoUpdatesPackageVersion !== null && semver.gte(expoUpdatesPackageVersion, '0.14.4')) {
+  if (
+    expoUpdatesPackageVersion !== null &&
+    (semver.gte(expoUpdatesPackageVersion, '0.14.4') ||
+      expoUpdatesPackageVersion.includes('canary'))
+  ) {
     return;
   }
 
@@ -121,7 +125,11 @@ export async function enforceRollBackToEmbeddedUpdateSupportAsync(
   projectDir: string
 ): Promise<void> {
   const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
-  if (expoUpdatesPackageVersion !== null && semver.gte(expoUpdatesPackageVersion, '0.19.0')) {
+  if (
+    expoUpdatesPackageVersion !== null &&
+    (semver.gte(expoUpdatesPackageVersion, '0.19.0') ||
+      expoUpdatesPackageVersion.includes('canary'))
+  ) {
     return;
   }
 
@@ -135,6 +143,10 @@ export async function enforceRollBackToEmbeddedUpdateSupportAsync(
 export async function isClassicUpdatesSupportedAsync(projectDir: string): Promise<boolean> {
   const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
   if (expoUpdatesPackageVersion === null) {
+    return false;
+  }
+
+  if (expoUpdatesPackageVersion.includes('canary')) {
     return false;
   }
 
