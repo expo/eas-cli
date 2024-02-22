@@ -27,7 +27,7 @@
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.7.0",
-    "@expo/steps": "1.0.74",
+    "@expo/steps": "1.0.75",
     "@expo/timeago.js": "1.0.0",
     "@oclif/core": "^1.26.2",
     "@oclif/plugin-autocomplete": "^2.3.10",
