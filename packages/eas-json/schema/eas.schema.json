@@ -210,6 +210,10 @@
             }
           ]
         },
+        "config": {
+          "description": "Custom workflow file name that will be used to run this build. You can also specify this property on platform level for platform-specific workflows. Learn more: https://docs.expo.dev/custom-builds/get-started/",
+          "type": "string"
+        },
         "android": {
           "$ref": "#/definitions/BuildProfileAndroid"
         },
@@ -311,6 +315,10 @@
           "description": "[DEPRECATED] Use `applicationArchivePath` instead. Path (or pattern) where EAS Build is going to look for the build artifacts. See: https://github.com/mrmlnc/fast-glob#pattern-syntax",
           "markdownDescription": "[DEPRECATED] Use `applicationArchivePath` instead. Path (or pattern) where EAS Build is going to look for the build artifacts. EAS Build uses the `fast-glob` npm package for pattern matching ([see their README to learn more about the syntax you can use](https://github.com/mrmlnc/fast-glob#pattern-syntax)).",
           "default": "android/app/build/outputs/**/*.{apk,aab}"
+        },
+        "config": {
+          "description": "Custom workflow file name that will be used to run this Android build. You can also specify this property on profile levle for platform-agnostic workflows. Learn more: https://docs.expo.dev/custom-builds/get-started/",
+          "type": "string"
         }
       }
     },
@@ -433,6 +441,10 @@
           "type": "string",
           "description": "[DEPRECATED] Use `applicationArchivePath` instead. Path (or pattern) where EAS Build is going to look for the build artifacts. See: https://github.com/mrmlnc/fast-glob#pattern-syntax",
           "markdownDescription": "[DEPRECATED] Use `applicationArchivePath` instead. Path (or pattern) where EAS Build is going to look for the build artifacts.\n\nEAS Build uses the `fast-glob` npm package for pattern matching, ([See their README to learn more about the syntax you can use](https://github.com/mrmlnc/fast-glob#pattern-syntax)).\n\nYou should modify that path only if you are using a custom `Gymfile`.\n\nThe default is `ios/build/Build/Products/*-iphonesimulator/*.app` when building for simulator and `ios/build/*.ipa` in other cases."
+        },
+        "config": {
+          "description": "Custom workflow file name that will be used to run this iOS build. You can also specify this property on profile levle for platform-agnostic workflows. Learn more: https://docs.expo.dev/custom-builds/get-started/",
+          "type": "string"
         }
       }
     },
