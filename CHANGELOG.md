@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix expo-updates package version detection for canaries. ([#2243](https://github.com/expo/eas-cli/pull/2243) by [@wschurman](https://github.com/wschurman))
+- Add missing `config` property to `eas.json` schema. ([#2248](https://github.com/expo/eas-cli/pull/2248) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🧹 Chores
 
