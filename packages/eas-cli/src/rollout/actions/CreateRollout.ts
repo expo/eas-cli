@@ -1,4 +1,3 @@
-import { Updates } from '@expo/config-plugins';
 import assert from 'assert';
 
 import { SelectRuntime } from './SelectRuntime';
@@ -24,6 +23,7 @@ import {
 } from '../../graphql/queries/ChannelQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
+import { resolveRuntimeVersionAsync } from '../../project/resolveRuntimeVersionAsync';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { truthy } from '../../utils/expodash/filter';
 import {
@@ -275,7 +275,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     const runtimes = (
       await Promise.all(
         platforms.map(platform =>
-          Updates.getRuntimeVersionAsync(ctx.app.projectDir, ctx.app.exp, platform)
+          resolveRuntimeVersionAsync({ projectDir: ctx.app.projectDir, exp: ctx.app.exp, platform })
         )
       )
     ).filter(truthy);

@@ -1,4 +1,3 @@
-import { Updates } from '@expo/config-plugins';
 import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import fs from 'fs-extra';
@@ -15,6 +14,7 @@ import {
   isClassicUpdatesSupportedAsync,
   isExpoUpdatesInstalled,
 } from '../project/projectUtils';
+import { resolveRuntimeVersionAsync } from '../project/resolveRuntimeVersionAsync';
 import {
   readChannelSafelyAsync as readAndroidChannelSafelyAsync,
   readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync,
@@ -37,9 +37,7 @@ export async function collectMetadataAsync<T extends Platform>(
     workflow: ctx.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
-    runtimeVersion:
-      (await Updates.getRuntimeVersionNullableAsync(ctx.projectDir, ctx.exp, ctx.platform)) ??
-      undefined,
+    runtimeVersion: (await resolveRuntimeVersionAsync(ctx)) ?? undefined,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
     ...channelOrReleaseChannel,
     distribution,
