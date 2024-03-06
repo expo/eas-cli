@@ -31,11 +31,7 @@ import {
   shouldUseVersionedExpoCLI,
   shouldUseVersionedExpoCLIWithExplicitPlatforms,
 } from '../utils/expoCli';
-import {
-  ExpoUpdatesCLIInvalidCommandError,
-  ExpoUpdatesCLIModuleNotFoundError,
-  expoUpdatesCommandAsync,
-} from '../utils/expoUpdatesCli';
+import { expoUpdatesCommandAsync } from '../utils/expoUpdatesCli';
 import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
 import uniqBy from '../utils/expodash/uniqBy';
@@ -721,31 +717,31 @@ async function getRuntimeVersionForPlatformAsync({
     return 'UNVERSIONED';
   }
 
-  try {
-    const resolvedRuntimeVersionJSONResult = await expoUpdatesCommandAsync(projectDir, [
-      'runtimeversion:resolve',
-      '--platform',
-      platform,
-    ]);
-    const runtimeVersionResult = JSON.parse(resolvedRuntimeVersionJSONResult);
-    if (runtimeVersionResult.fingerprintSources) {
-      Log.debug(`Resolved fingeprint runtime version for platform "${platform}". Sources:`);
-      Log.debug(runtimeVersionResult.fingerprintSources);
-    }
-    return nullthrows(runtimeVersionResult.runtimeVersion);
-  } catch (e: any) {
-    // if it's a known set of errors thrown by the CLI it means that we need to default back to the
-    // previous behavior, otherwise we throw the error since something is wrong
-    if (
-      !(e instanceof ExpoUpdatesCLIModuleNotFoundError) &&
-      !(e instanceof ExpoUpdatesCLIInvalidCommandError)
-    ) {
-      throw e;
-    }
-  }
-
   const runtimeVersion = exp[platform]?.runtimeVersion ?? exp.runtimeVersion;
   if (typeof runtimeVersion === 'object') {
+    const policy = runtimeVersion.policy;
+
+    if (policy === 'fingerprintExperimental') {
+      // log to inform the user that the fingerprint has been calculated
+      Log.warn(
+        `Calculating native fingerprint for platform ${platform} using current state of the "${platform}" directory. ` +
+          `If the fingerprint differs from the build's fingerint, ensure the state of your project is consistent ` +
+          `(repository is clean, ios and android native directories are in the same state as the build if applicable).`
+      );
+
+      const fingerprintRawString = await expoUpdatesCommandAsync(projectDir, [
+        'fingerprint:generate',
+        '--platform',
+        platform,
+      ]);
+      const fingerprintObject = JSON.parse(fingerprintRawString);
+      const hash = nullthrows(
+        fingerprintObject.hash,
+        'invalid response from expo-update CLI for fingerprint generation'
+      );
+      return hash;
+    }
+
     const workflow = await resolveWorkflowAsync(
       projectDir,
       platform as EASBuildJobPlatform,
