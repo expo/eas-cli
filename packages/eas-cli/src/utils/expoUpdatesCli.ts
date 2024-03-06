@@ -1,8 +1,10 @@
 import spawnAsync from '@expo/spawn-async';
-import chalk from 'chalk';
 import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
 
-import Log, { link } from '../log';
+import { link } from '../log';
+
+export class ExpoUpdatesCLIModuleNotFoundError extends Error {}
+export class ExpoUpdatesCLIInvalidCommandError extends Error {}
 
 export async function expoUpdatesCommandAsync(projectDir: string, args: string[]): Promise<string> {
   let expoUpdatesCli;
@@ -12,7 +14,7 @@ export async function expoUpdatesCommandAsync(projectDir: string, args: string[]
       resolveFrom(projectDir, 'expo-updates/bin/cli.js');
   } catch (e: any) {
     if (e.code === 'MODULE_NOT_FOUND') {
-      throw new Error(
+      throw new ExpoUpdatesCLIModuleNotFoundError(
         `The \`expo-updates\` package was not found. Follow the installation directions at ${link(
           'https://docs.expo.dev/bare/installing-expo-modules/'
         )}`
@@ -21,20 +23,16 @@ export async function expoUpdatesCommandAsync(projectDir: string, args: string[]
     throw e;
   }
 
-  const spawnPromise = spawnAsync(expoUpdatesCli, args, {
-    stdio: ['inherit', 'pipe', 'pipe'], // inherit stdin so user can install a missing expo-cli from inside this command
-  });
-  const {
-    child: { stderr },
-  } = spawnPromise;
-  if (!stderr) {
-    throw new Error('Failed to spawn expo-updates cli');
-  }
-  stderr.on('data', data => {
-    for (const line of data.toString().trim().split('\n')) {
-      Log.warn(`${chalk.gray('[expo-cli]')} ${line}`);
+  try {
+    return (await spawnAsync(expoUpdatesCli, args)).stdout;
+  } catch (e: any) {
+    if (e.stderr) {
+      if ((e.stderr as string).includes('Invalid command')) {
+        throw new ExpoUpdatesCLIInvalidCommandError(
+          `The command specified by ${args} was not valid in the \`expo-updates\` CLI.`
+        );
+      }
     }
-  });
-  const result = await spawnPromise;
-  return result.stdout;
+    throw e;
+  }
 }
