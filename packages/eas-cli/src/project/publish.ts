@@ -12,6 +12,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
+import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from './projectUtils';
 import { resolveWorkflowAsync } from './workflow';
 import { selectBranchOnAppAsync } from '../branch/queries';
 import { getDefaultBranchNameAsync } from '../branch/utils';
@@ -32,7 +33,6 @@ import {
   shouldUseVersionedExpoCLIWithExplicitPlatforms,
 } from '../utils/expoCli';
 import {
-  ExpoUpdatesCLIInvalidCommandError,
   ExpoUpdatesCLIModuleNotFoundError,
   expoUpdatesCommandAsync,
 } from '../utils/expoUpdatesCli';
@@ -721,26 +721,30 @@ async function getRuntimeVersionForPlatformAsync({
     return 'UNVERSIONED';
   }
 
-  try {
-    const resolvedRuntimeVersionJSONResult = await expoUpdatesCommandAsync(projectDir, [
-      'runtimeversion:resolve',
-      '--platform',
-      platform,
-    ]);
-    const runtimeVersionResult = JSON.parse(resolvedRuntimeVersionJSONResult);
-    if (runtimeVersionResult.fingerprintSources) {
-      Log.debug(`Resolved fingeprint runtime version for platform "${platform}". Sources:`);
-      Log.debug(runtimeVersionResult.fingerprintSources);
-    }
-    return nullthrows(runtimeVersionResult.runtimeVersion);
-  } catch (e: any) {
-    // if it's a known set of errors thrown by the CLI it means that we need to default back to the
-    // previous behavior, otherwise we throw the error since something is wrong
-    if (
-      !(e instanceof ExpoUpdatesCLIModuleNotFoundError) &&
-      !(e instanceof ExpoUpdatesCLIInvalidCommandError)
-    ) {
-      throw e;
+  if (await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir)) {
+    try {
+      const resolvedRuntimeVersionJSONResult = await expoUpdatesCommandAsync(projectDir, [
+        'runtimeversion:resolve',
+        '--platform',
+        platform,
+      ]);
+      const runtimeVersionResult = JSON.parse(resolvedRuntimeVersionJSONResult);
+      if (runtimeVersionResult.fingerprintSources) {
+        Log.debug(`Resolved fingeprint runtime version for platform "${platform}". Sources:`);
+        Log.debug(runtimeVersionResult.fingerprintSources);
+      }
+      return nullthrows(
+        runtimeVersionResult.runtimeVersion,
+        `Unable to determine runtime version for ${
+          requestedPlatformDisplayNames[platform]
+        }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
+      );
+    } catch (e: any) {
+      // if it's a known set of errors thrown by the CLI it means that we need to default back to the
+      // previous behavior, otherwise we throw the error since something is wrong
+      if (!(e instanceof ExpoUpdatesCLIModuleNotFoundError)) {
+        throw e;
+      }
     }
   }
 

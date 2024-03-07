@@ -153,6 +153,22 @@ export async function isClassicUpdatesSupportedAsync(projectDir: string): Promis
   return semver.lt(expoUpdatesPackageVersion, '0.19.0');
 }
 
+export async function isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(
+  projectDir: string
+): Promise<boolean> {
+  const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
+  if (expoUpdatesPackageVersion === null) {
+    return false;
+  }
+
+  if (expoUpdatesPackageVersion.includes('canary')) {
+    return true;
+  }
+
+  // TODO(wschurman): add semver check once we know the SDK51 version of expo-updates that supports this
+  return false;
+}
+
 export async function installExpoUpdatesAsync(
   projectDir: string,
   options?: { silent: boolean }

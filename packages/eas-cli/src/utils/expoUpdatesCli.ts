@@ -26,15 +26,10 @@ export async function expoUpdatesCommandAsync(projectDir: string, args: string[]
   try {
     return (await spawnAsync(expoUpdatesCli, args)).stdout;
   } catch (e: any) {
-    if (e.stderr && typeof e.stderr === 'string') {
-      if (
-        e.stderr.includes('Invalid command') || // SDK 51+
-        e.stderr.includes('commands[command] is not a function') // SDK <= 50
-      ) {
-        throw new ExpoUpdatesCLIInvalidCommandError(
-          `The command specified by ${args} was not valid in the \`expo-updates\` CLI.`
-        );
-      }
+    if (e.stderr && typeof e.stderr === 'string' && e.stderr.includes('Invalid command')) {
+      throw new ExpoUpdatesCLIInvalidCommandError(
+        `The command specified by ${args} was not valid in the \`expo-updates\` CLI.`
+      );
     }
     throw e;
   }
