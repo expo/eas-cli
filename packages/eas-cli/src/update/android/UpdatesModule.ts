@@ -2,6 +2,8 @@ import { ExpoConfig } from '@expo/config';
 import { AndroidConfig, AndroidManifest, XML } from '@expo/config-plugins';
 
 import { RequestedPlatform } from '../../platform';
+import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from '../../project/projectUtils';
+import { expoUpdatesCommandAsync } from '../../utils/expoUpdatesCli';
 import { ensureValidVersions } from '../utils';
 
 /**
@@ -12,6 +14,15 @@ export async function syncUpdatesConfigurationAsync(
   exp: ExpoConfig
 ): Promise<void> {
   ensureValidVersions(exp, RequestedPlatform.Android);
+
+  if (await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir)) {
+    await expoUpdatesCommandAsync(projectDir, [
+      'configuration:syncnative',
+      '--platform',
+      'android',
+    ]);
+    return;
+  }
 
   // sync AndroidManifest.xml
   const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
@@ -32,6 +43,7 @@ export async function syncUpdatesConfigurationAsync(
     path: stringsJSONPath,
   });
 
+  // TODO(wschurman): this dependency needs to be updated for fingerprint
   const updatedStringsResourceXML =
     await AndroidConfig.Updates.applyRuntimeVersionFromConfigForProjectRootAsync(
       projectDir,

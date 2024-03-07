@@ -2,6 +2,8 @@ import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 
 import { RequestedPlatform } from '../../platform';
+import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from '../../project/projectUtils';
+import { expoUpdatesCommandAsync } from '../../utils/expoUpdatesCli';
 import { readPlistAsync, writePlistAsync } from '../../utils/plist';
 import { Client } from '../../vcs/vcs';
 import { ensureValidVersions } from '../utils';
@@ -12,7 +14,14 @@ export async function syncUpdatesConfigurationAsync(
   exp: ExpoConfig
 ): Promise<void> {
   ensureValidVersions(exp, RequestedPlatform.Ios);
+
+  if (await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir)) {
+    await expoUpdatesCommandAsync(projectDir, ['configuration:syncnative', '--platform', 'ios']);
+    return;
+  }
+
   const expoPlist = await readExpoPlistAsync(projectDir);
+  // TODO(wschurman): this dependency needs to be updated for fingerprint
   const updatedExpoPlist = await IOSConfig.Updates.setUpdatesConfigAsync(
     projectDir,
     exp,
