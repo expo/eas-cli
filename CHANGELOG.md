@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Use new expo-updates configuration:syncnative for versioned native sync. ([#2269](https://github.com/expo/eas-cli/pull/2269) by [@wschurman](https://github.com/wschurman))
+
 ### 🐛 Bug fixes
 
 - Fix expo-updates package version detection for canaries. ([#2243](https://github.com/expo/eas-cli/pull/2243) by [@wschurman](https://github.com/wschurman))
