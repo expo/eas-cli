@@ -1354,10 +1354,10 @@
   resolved "https://registry.yarnpkg.com/@eslint/js/-/js-8.56.0.tgz#ef20350fec605a7f7035a01764731b2de0f3782b"
   integrity sha512-gMsVel9D7f2HLkBma9VbtzZRehRogVRfbr++f06nL2vnCGCNlzOD+/MUov/F4p8myyAHspEhVobgjpX64q5m6A==
 
-"@expo/apple-utils@1.4.0":
-  version "1.4.0"
-  resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-1.4.0.tgz#5b8be01673da488886ec8df9ea4b7ba21ad3b775"
-  integrity sha512-tbSWy10f/xdfUb3TZkshRLk4zIuG2wNIyuypUX1jvDrOt0bokSbwmIVYkkLRazZ+mOR0ZRcDUuBHKkZmyGuegQ==
+"@expo/apple-utils@1.5.0":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-1.5.0.tgz#1ba5ffb946f5d4a5109efaaa2a5e1548e6e74420"
+  integrity sha512-4IxSx4KlS9AughFvUOVC6d22y0fXtLpzDvlqxoPX+wf3ZCxtpg/dbVbitxU7Pcpj+hLIBm6xg2gAmK8asOMqjg==
 
 "@expo/bunyan@^4.0.0":
   version "4.0.0"
