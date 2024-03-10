@@ -30,6 +30,17 @@ export default class BuildInternal extends EasCommand {
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
+    'auto-submit': Flags.boolean({
+      default: false,
+      description:
+        'Submit on build complete using the submit profile with the same name as the build profile',
+      exclusive: ['auto-submit-with-profile'],
+    }),
+    'auto-submit-with-profile': Flags.string({
+      description: 'Submit on build complete using the submit profile with provided name',
+      helpValue: 'PROFILE_NAME',
+      exclusive: ['auto-submit'],
+    }),
   };
 
   static override contextDefinition = {
@@ -71,10 +82,11 @@ export default class BuildInternal extends EasCommand {
         wait: false,
         clearCache: false,
         json: true,
-        autoSubmit: false,
+        autoSubmit: flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined,
         localBuildOptions: {
           localBuildMode: LocalBuildMode.INTERNAL,
         },
+        submitProfile: flags['auto-submit-with-profile'] ?? flags.profile,
       },
       actor,
       getDynamicPrivateProjectConfigAsync

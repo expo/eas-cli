@@ -19,7 +19,7 @@ import { ensureProjectConfiguredAsync } from './configure';
 import { BuildContext } from './context';
 import { createBuildContextAsync } from './createContext';
 import { prepareIosBuildAsync } from './ios/build';
-import { LocalBuildOptions } from './local';
+import { LocalBuildMode, LocalBuildOptions } from './local';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
@@ -180,13 +180,23 @@ export async function runBuildAndSubmitAsync(
     buildCtxByPlatform[platform] = buildCtx;
   }
 
-  if (flags.localBuildOptions.localBuildMode) {
+  if (flags.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
     return;
   }
 
-  Log.newLine();
-  printLogsUrls(startedBuilds.map(startedBuild => startedBuild.build));
-  Log.newLine();
+  if (flags.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
+    const startedBuild = await BuildQuery.byIdAsync(
+      graphqlClient,
+      nullthrows(process.env.EAS_BUILD_ID, 'EAS_BUILD_ID is not defined')
+    );
+    startedBuilds.push({ build: startedBuild, buildProfile: buildProfiles[0] });
+  }
+
+  if (!flags.localBuildOptions.localBuildMode) {
+    Log.newLine();
+    printLogsUrls(startedBuilds.map(startedBuild => startedBuild.build));
+    Log.newLine();
+  }
 
   const submissions: SubmissionFragment[] = [];
   if (flags.autoSubmit) {
@@ -219,9 +229,15 @@ export async function runBuildAndSubmitAsync(
       submissions.push(submission);
     }
 
-    Log.newLine();
-    printSubmissionDetailsUrls(submissions);
-    Log.newLine();
+    if (!flags.localBuildOptions.localBuildMode) {
+      Log.newLine();
+      printSubmissionDetailsUrls(submissions);
+      Log.newLine();
+    }
+  }
+
+  if (flags.localBuildOptions.localBuildMode) {
+    return;
   }
 
   if (!flags.wait) {
