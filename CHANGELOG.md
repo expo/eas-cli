@@ -25,7 +25,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Fix expo-updates package version detection for canaries. ([#2243](https://github.com/expo/eas-cli/pull/2243) by [@wschurman](https://github.com/wschurman))
 - Add missing `config` property to `eas.json` schema. ([#2248](https://github.com/expo/eas-cli/pull/2248) by [@sjchmiela](https://github.com/sjchmiela))
 - Use expo-updates runtime version CLI to generate runtime versions. ([#2251](https://github.com/expo/eas-cli/pull/2251) by [@wschurman](https://github.com/wschurman))
-- Update @expo/apple-utils to handle changes in API. ([#notspecified]() by [@brentvatne](https://github.com/brentvatne))
+- Update @expo/apple-utils to handle changes in API. ([73ba19de6662763cc6bff9fac6b7700ffbd0e88a](https://github.com/expo/eas-cli/commit/73ba19de6662763cc6bff9fac6b7700ffbd0e88a) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🧹 Chores
 
