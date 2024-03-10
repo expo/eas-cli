@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [7.4.0](https://github.com/expo/eas-cli/releases/tag/v7.4.0) - 2024-03-10
+
+### 🎉 New features
+
 - Use new expo-updates configuration:syncnative for versioned native sync. ([#2269](https://github.com/expo/eas-cli/pull/2269) by [@wschurman](https://github.com/wschurman))
 
 ### 🐛 Bug fixes
