@@ -8,9 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add `--auto-submit` option to `eas build:internal` command. ([#2271](https://github.com/expo/eas-cli/pull/2271) by [@szdziedzic](https://github.com/szdziedzic))
-
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [7.5.0](https://github.com/expo/eas-cli/releases/tag/v7.5.0) - 2024-03-11
+
+### 🎉 New features
+
+- Add `--auto-submit` option to `eas build:internal` command. ([#2271](https://github.com/expo/eas-cli/pull/2271) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 
