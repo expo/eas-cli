@@ -1665,10 +1665,10 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.83":
-  version "1.0.83"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.83.tgz#a196c22e1ae4cb8fea793dad5bef6b1a58931ec4"
-  integrity sha512-00ZpxMMr67lhhuDNOF//tgOlfH0dm/PeCGt4XzlLqRjpl84DX56Mdc8EL+OKlFFSBfdSd/MQwQmP/7LcrevOSA==
+"@expo/steps@1.0.84":
+  version "1.0.84"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.84.tgz#a9f5f7b8c88057586572ce9fa59a99150acdaa53"
+  integrity sha512-7eIgIbM/+xiNjs54cmwBcHjEpq6jULH818f71js/yRU5b2reirN4QkuKENaF4T7e2wOX3JKT0qJgCeAgCsfruA==
   dependencies:
     "@expo/eas-build-job" "1.0.83"
     "@expo/logger" "1.0.57"
