@@ -1,13 +1,14 @@
+import { Platform } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { SelectPlatform } from '../../credentials/manager/SelectPlatform';
+import { SetUpBuildCredentialsCommandAction } from '../../credentials/manager/SetUpBuildCredentialsCommandAction';
 
 export default class InitializeBuildCredentials extends EasCommand {
   static override description = 'Set up credentials for building your project.';
 
   static override flags = {
-    platform: Flags.enum({ char: 'p', options: ['android', 'ios'], required: true }),
+    platform: Flags.enum({ char: 'p', options: [Platform.ANDROID, Platform.IOS], required: true }),
     profile: Flags.string({
       char: 'e',
       description:
@@ -38,14 +39,15 @@ export default class InitializeBuildCredentials extends EasCommand {
       nonInteractive: false,
     });
 
-    await new SelectPlatform(
+    await new SetUpBuildCredentialsCommandAction(
       actor,
       graphqlClient,
       vcsClient,
       analytics,
       privateProjectConfig ?? null,
       getDynamicPrivateProjectConfigAsync,
-      flags.platform
+      flags.platform,
+      flags.profile
     ).runAsync();
   }
 }
