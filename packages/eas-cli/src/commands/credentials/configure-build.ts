@@ -8,7 +8,11 @@ export default class InitializeBuildCredentials extends EasCommand {
   static override description = 'Set up credentials for building your project.';
 
   static override flags = {
-    platform: Flags.enum({ char: 'p', options: [Platform.ANDROID, Platform.IOS], required: true }),
+    platform: Flags.enum({
+      char: 'p',
+      options: [Platform.ANDROID, Platform.IOS, 'all'],
+      required: true,
+    }),
     profile: Flags.string({
       char: 'e',
       description:
@@ -46,7 +50,7 @@ export default class InitializeBuildCredentials extends EasCommand {
       analytics,
       privateProjectConfig ?? null,
       getDynamicPrivateProjectConfigAsync,
-      flags.platform,
+      flags.platform as Platform | 'all',
       flags.profile
     ).runAsync();
   }
