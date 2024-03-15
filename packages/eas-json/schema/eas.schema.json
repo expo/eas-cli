@@ -240,6 +240,8 @@
             {
               "enum": [
                 "latest",
+                "sdk-50",
+                "sdk-49",
                 "ubuntu-22.04-jdk-17-ndk-r21e",
                 "ubuntu-22.04-jdk-11-ndk-r21e",
                 "ubuntu-22.04-jdk-8-ndk-r21e",
@@ -248,7 +250,11 @@
                 "ubuntu-20.04-jdk-11-ndk-r19c",
                 "ubuntu-20.04-jdk-8-ndk-r19c"
               ],
-              "markdownEnumDescriptions": ["`ubuntu-22.04-jdk-17-ndk-r21e`"]
+              "markdownEnumDescriptions": [
+                "`ubuntu-22.04-jdk-17-ndk-r21e`",
+                "`ubuntu-22.04-jdk-17-ndk-r21e`",
+                "`ubuntu-22.04-jdk-11-ndk-r21e`"
+              ]
             },
             {
               "deprecated": true,
@@ -362,6 +368,8 @@
             {
               "enum": [
                 "latest",
+                "sdk-50",
+                "sdk-49",
                 "macos-ventura-13.6-xcode-15.2",
                 "macos-ventura-13.6-xcode-15.1",
                 "macos-ventura-13.6-xcode-15.0",
@@ -371,7 +379,11 @@
                 "macos-monterey-12.6-xcode-14.1",
                 "macos-monterey-12.6-xcode-14.0"
               ],
-              "markdownEnumDescriptions": ["`macos-ventura-13.6-xcode-15.2`"]
+              "markdownEnumDescriptions": [
+                "`macos-ventura-13.6-xcode-15.2`",
+                "`macos-ventura-13.6-xcode-15.2`",
+                "`macos-ventura-13.4-xcode-14.3.1`"
+              ]
             },
             {
               "deprecated": true,
