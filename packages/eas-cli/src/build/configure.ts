@@ -40,7 +40,7 @@ async function configureAsync({
   nonInteractive,
   vcsClient,
 }: ConfigureParams): Promise<void> {
-  await maybeBailOnRepoStatusAsync(vcsClient);
+  await maybeBailOnRepoStatusAsync(vcsClient, nonInteractive);
 
   await createEasJsonAsync(projectDir, vcsClient);
 

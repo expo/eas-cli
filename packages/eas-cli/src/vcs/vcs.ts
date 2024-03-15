@@ -51,6 +51,9 @@ export abstract class Client {
   // `commitAsync({ commitAllFiles: false })`
   public async showDiffAsync(): Promise<void> {}
 
+  /** (optional) print list of changed files */
+  public async showChangedFilesAsync(): Promise<void> {}
+
   // (optional) returns hash of the last commit
   // used for metadata - implementation can be safely skipped
   public async getCommitHashAsync(): Promise<string | undefined> {
