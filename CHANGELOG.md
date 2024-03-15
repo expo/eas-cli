@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Print uncommitted files in non-interactive mode if they fail the execution. ([#2288](https://github.com/expo/eas-cli/pull/2288) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🐛 Bug fixes
 
 - Fix expo-updates package version detection for canaries. ([#2243](https://github.com/expo/eas-cli/pull/2243) by [@wschurman](https://github.com/wschurman))
