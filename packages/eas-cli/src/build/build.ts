@@ -146,6 +146,15 @@ export async function prepareBuildRequestForPlatformAsync<
 
   const metadata = await collectMetadataAsync(ctx);
   const resolvedImage = resolveWorkerImage({ ctx, metadata });
+  if (resolvedImage === 'default') {
+    Log.warn(
+      `The "default" value for image field is deprecated. Specify the image explicitly or use SDK tags. ${learnMore(
+        ctx.platform === Platform.ANDROID
+          ? 'https://docs.expo.dev/build-reference/infrastructure/#android-server-images'
+          : 'https://docs.expo.dev/build-reference/infrastructure/#ios-server-images'
+      )}`
+    );
+  }
 
   let projectArchive: ArchiveSource | undefined;
   if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
