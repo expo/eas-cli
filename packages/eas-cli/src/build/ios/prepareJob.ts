@@ -17,6 +17,7 @@ import { IosJobSecretsInput } from '../../graphql/generated';
 import { getCustomBuildConfigPath } from '../../project/customBuildConfig';
 import { getUsername } from '../../project/projectUtils';
 import { BuildContext } from '../context';
+import { LocalBuildMode } from '../local';
 
 interface JobData {
   projectArchive: ArchiveSource;
@@ -45,9 +46,15 @@ export async function prepareJobAsync(
     }
   }
 
-  const maybeCustomBuildConfigPath = buildProfile.config
+  let maybeCustomBuildConfigPath = buildProfile.config
     ? getCustomBuildConfigPath(buildProfile.config)
     : undefined;
+  if (
+    maybeCustomBuildConfigPath &&
+    ctx.localBuildOptions.localBuildMode !== LocalBuildMode.LOCAL_BUILD_PLUGIN
+  ) {
+    maybeCustomBuildConfigPath = path.posix.join(...maybeCustomBuildConfigPath.split(path.sep));
+  }
 
   const job: Ios.Job = {
     type: ctx.workflow,
