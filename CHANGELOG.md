@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Use a custom build config path with POSIX separator when sending data to the EAS Build server. ([#2285](https://github.com/expo/eas-cli/pull/2285) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2277](https://github.com/expo/eas-cli/pull/2277) by [@expo-bot](https://github.com/expo-bot))
