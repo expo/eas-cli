@@ -51,7 +51,8 @@ export async function prepareJobAsync(
     : undefined;
   if (
     maybeCustomBuildConfigPath &&
-    ctx.localBuildOptions.localBuildMode !== LocalBuildMode.LOCAL_BUILD_PLUGIN
+    ctx.localBuildOptions.localBuildMode !== LocalBuildMode.LOCAL_BUILD_PLUGIN &&
+    process.platform === 'win32'
   ) {
     maybeCustomBuildConfigPath = path.posix.join(...maybeCustomBuildConfigPath.split(path.sep));
   }
