@@ -3,6 +3,7 @@ import {
   BuildMode,
   BuildTrigger,
   Ios,
+  IosWorkerImageWithAliases,
   Job,
   Platform,
   sanitizeJob,
@@ -29,10 +30,15 @@ const cacheDefaults = {
   paths: [],
 };
 
-export async function prepareJobAsync(
-  ctx: BuildContext<Platform.IOS>,
-  jobData: JobData
-): Promise<Job> {
+export async function prepareJobAsync({
+  ctx,
+  jobData,
+  resolvedImage,
+}: {
+  ctx: BuildContext<Platform.IOS>;
+  jobData: JobData;
+  resolvedImage: IosWorkerImageWithAliases;
+}): Promise<Job> {
   const username = getUsername(ctx.exp, ctx.user);
   const buildProfile: BuildProfile<Platform.IOS> = ctx.buildProfile;
   const projectRootDirectory =
@@ -55,7 +61,7 @@ export async function prepareJobAsync(
     projectArchive: jobData.projectArchive,
     projectRootDirectory,
     builderEnvironment: {
-      image: buildProfile.image,
+      image: resolvedImage,
       node: buildProfile.node,
       pnpm: buildProfile.pnpm,
       bun: buildProfile.bun,

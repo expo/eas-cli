@@ -1,5 +1,6 @@
 import {
   Android,
+  AndroidWorkerImageWithAliases,
   ArchiveSource,
   BuildMode,
   BuildTrigger,
@@ -26,10 +27,15 @@ const cacheDefaults = {
   paths: [],
 };
 
-export async function prepareJobAsync(
-  ctx: BuildContext<Platform.ANDROID>,
-  jobData: JobData
-): Promise<Job> {
+export async function prepareJobAsync({
+  ctx,
+  jobData,
+  resolvedImage,
+}: {
+  ctx: BuildContext<Platform.ANDROID>;
+  jobData: JobData;
+  resolvedImage: AndroidWorkerImageWithAliases;
+}): Promise<Job> {
   const username = getUsername(ctx.exp, ctx.user);
   const buildProfile: BuildProfile<Platform.ANDROID> = ctx.buildProfile;
   const projectRootDirectory =
@@ -63,7 +69,7 @@ export async function prepareJobAsync(
     projectRootDirectory,
     projectArchive: jobData.projectArchive,
     builderEnvironment: {
-      image: buildProfile.image,
+      image: resolvedImage,
       node: buildProfile.node,
       pnpm: buildProfile.pnpm,
       bun: buildProfile.bun,

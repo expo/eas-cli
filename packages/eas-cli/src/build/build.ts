@@ -1,4 +1,12 @@
-import { ArchiveSource, ArchiveSourceType, Job, Metadata, Platform } from '@expo/eas-build-job';
+import {
+  AndroidWorkerImageWithAliases,
+  ArchiveSource,
+  ArchiveSourceType,
+  IosWorkerImageWithAliases,
+  Job,
+  Metadata,
+  Platform,
+} from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -25,6 +33,7 @@ import {
 import { transformMetadata } from './graphql';
 import { LocalBuildMode, runLocalBuildAsync } from './local';
 import { collectMetadataAsync } from './metadata';
+import { resolveWorkerImage } from './utils/image';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import { makeProjectTarballAsync, reviewAndCommitChangesAsync } from './utils/repository';
 import { BuildEvent } from '../analytics/AnalyticsManager';
@@ -72,7 +81,11 @@ interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
     ctx: BuildContext<TPlatform>
   ): Promise<CredentialsResult<Credentials> | undefined>;
   syncProjectConfigurationAsync(ctx: BuildContext<TPlatform>): Promise<void>;
-  prepareJobAsync(ctx: BuildContext<TPlatform>, jobData: JobData<Credentials>): Promise<Job>;
+  prepareJobAsync(prepareJobAsyncParams: {
+    ctx: BuildContext<TPlatform>;
+    jobData: JobData<Credentials>;
+    resolvedImage: AndroidWorkerImageWithAliases | IosWorkerImageWithAliases;
+  }): Promise<Job>;
   sendBuildRequestAsync(
     appId: string,
     job: TJob,
@@ -131,6 +144,9 @@ export async function prepareBuildRequestForPlatformAsync<
     );
   }
 
+  const metadata = await collectMetadataAsync(ctx);
+  const resolvedImage = resolveWorkerImage({ ctx, metadata });
+
   let projectArchive: ArchiveSource | undefined;
   if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
     projectArchive = {
@@ -150,11 +166,14 @@ export async function prepareBuildRequestForPlatformAsync<
   }
   assert(projectArchive);
 
-  const metadata = await collectMetadataAsync(ctx);
   const buildParams = resolveBuildParamsInput(ctx, metadata);
-  const job = await builder.prepareJobAsync(ctx, {
-    projectArchive,
-    credentials: credentialsResult?.credentials,
+  const job = await builder.prepareJobAsync({
+    ctx,
+    jobData: {
+      projectArchive,
+      credentials: credentialsResult?.credentials,
+    },
+    resolvedImage,
   });
 
   return async () => {

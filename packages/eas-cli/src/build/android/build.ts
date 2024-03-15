@@ -1,4 +1,11 @@
-import { Android, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import {
+  Android,
+  AndroidWorkerImageWithAliases,
+  Job,
+  Metadata,
+  Platform,
+  Workflow,
+} from '@expo/eas-build-job';
 import { AppVersionSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -109,11 +116,20 @@ export async function prepareAndroidBuildAsync(
         vcsClient: ctx.vcsClient,
       });
     },
-    prepareJobAsync: async (
-      ctx: BuildContext<Platform.ANDROID>,
-      jobData: JobData<AndroidCredentials>
-    ): Promise<Job> => {
-      return await prepareJobAsync(ctx, jobData);
+    prepareJobAsync: async ({
+      ctx,
+      jobData,
+      resolvedImage,
+    }: {
+      ctx: BuildContext<Platform.ANDROID>;
+      jobData: JobData<AndroidCredentials>;
+      resolvedImage: AndroidWorkerImageWithAliases;
+    }): Promise<Job> => {
+      return await prepareJobAsync({
+        ctx,
+        jobData,
+        resolvedImage,
+      });
     },
     sendBuildRequestAsync: async (
       appId: string,

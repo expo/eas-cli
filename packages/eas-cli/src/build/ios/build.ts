@@ -1,4 +1,11 @@
-import { Ios, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import {
+  Ios,
+  IosWorkerImageWithAliases,
+  Job,
+  Metadata,
+  Platform,
+  Workflow,
+} from '@expo/eas-build-job';
 import { AppVersionSource } from '@expo/eas-json';
 
 import { ensureIosCredentialsAsync } from './credentials';
@@ -91,13 +98,22 @@ export async function prepareIosBuildAsync(
         vcsClient: ctx.vcsClient,
       });
     },
-    prepareJobAsync: async (
-      ctx: BuildContext<Platform.IOS>,
-      jobData: JobData<IosCredentials>
-    ): Promise<Job> => {
-      return await prepareJobAsync(ctx, {
-        ...jobData,
-        buildScheme: ctx.ios.xcodeBuildContext.buildScheme,
+    prepareJobAsync: async ({
+      ctx,
+      jobData,
+      resolvedImage,
+    }: {
+      ctx: BuildContext<Platform.IOS>;
+      jobData: JobData<IosCredentials>;
+      resolvedImage: IosWorkerImageWithAliases;
+    }): Promise<Job> => {
+      return await prepareJobAsync({
+        ctx,
+        jobData: {
+          ...jobData,
+          buildScheme: ctx.ios.xcodeBuildContext.buildScheme,
+        },
+        resolvedImage,
       });
     },
     sendBuildRequestAsync: async (
