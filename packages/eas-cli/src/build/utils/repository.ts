@@ -12,7 +12,10 @@ import { getTmpDirectory } from '../../utils/paths';
 import { endTimer, formatMilliseconds, startTimer } from '../../utils/timer';
 import { Client } from '../../vcs/vcs';
 
-export async function maybeBailOnRepoStatusAsync(vcsClient: Client): Promise<void> {
+export async function maybeBailOnRepoStatusAsync(
+  vcsClient: Client,
+  nonInteractive: boolean
+): Promise<void> {
   if (!(await vcsClient.isCommitRequiredAsync())) {
     return;
   }
@@ -28,6 +31,11 @@ export async function maybeBailOnRepoStatusAsync(vcsClient: Client): Promise<voi
   });
 
   if (!answer) {
+    if (nonInteractive) {
+      Log.log('The following files need to be committed:');
+      await vcsClient.showChangedFilesAsync();
+    }
+
     throw new Error('Commit all changes. Aborting...');
   }
 }
@@ -47,6 +55,9 @@ export async function ensureRepoIsCleanAsync(
     )}.`
   );
   if (nonInteractive) {
+    Log.log('The following files need to be committed:');
+    await vcsClient.showChangedFilesAsync();
+
     throw new Error('Commit all changes. Aborting...');
   }
   const answer = await confirmAsync({

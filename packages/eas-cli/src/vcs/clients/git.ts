@@ -111,6 +111,11 @@ export default class GitClient extends Client {
     return await this.hasUncommittedChangesAsync();
   }
 
+  public override async showChangedFilesAsync(): Promise<void> {
+    const gitStatusOutput = await gitStatusAsync({ showUntracked: true });
+    Log.log(gitStatusOutput);
+  }
+
   public override async hasUncommittedChangesAsync(): Promise<boolean> {
     const changes = await gitStatusAsync({ showUntracked: true });
     return changes.length > 0;
