@@ -5,7 +5,6 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { LocalBuildMode } from '../build/local';
 import { Client } from '../vcs/vcs';
 
 export interface CustomBuildConfigMetadata {
@@ -70,16 +69,6 @@ export function getCustomBuildConfigPath(configFilename: string): string {
   return path.join('.eas/build', configFilename);
 }
 
-export function getCustomBuildConfigPathForJob({
-  configFilename,
-  localBuildMode,
-}: {
-  configFilename: string;
-  localBuildMode?: LocalBuildMode;
-}): string {
-  let customBuildConfigPath = getCustomBuildConfigPath(configFilename);
-  if (localBuildMode !== LocalBuildMode.LOCAL_BUILD_PLUGIN && process.platform === 'win32') {
-    customBuildConfigPath = path.posix.join(...customBuildConfigPath.split(path.sep));
-  }
-  return customBuildConfigPath;
+export function getCustomBuildConfigPathForJob(configFilename: string): string {
+  return path.posix.join('.eas/build', configFilename);
 }
