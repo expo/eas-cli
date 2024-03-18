@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2277](https://github.com/expo/eas-cli/pull/2277) by [@expo-bot](https://github.com/expo-bot))
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2283](https://github.com/expo/eas-cli/pull/2283) by [@expo-bot](https://github.com/expo-bot))
+- Bump the `@expo/apple-utils` version to switch between the `developer.apple.com` and `developer-mdn.apple.com` domains when one of them doesn't work. ([#2290](https://github.com/expo/eas-cli/pull/2290) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [7.5.0](https://github.com/expo/eas-cli/releases/tag/v7.5.0) - 2024-03-11
 
