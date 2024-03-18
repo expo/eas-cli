@@ -68,3 +68,7 @@ export async function validateCustomBuildConfigAsync({
 export function getCustomBuildConfigPath(configFilename: string): string {
   return path.join('.eas/build', configFilename);
 }
+
+export function getCustomBuildConfigPathForJob(configFilename: string): string {
+  return path.posix.join('.eas/build', configFilename);
+}

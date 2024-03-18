@@ -14,7 +14,7 @@ import slash from 'slash';
 
 import { IosCredentials, TargetCredentials } from '../../credentials/ios/types';
 import { IosJobSecretsInput } from '../../graphql/generated';
-import { getCustomBuildConfigPath } from '../../project/customBuildConfig';
+import { getCustomBuildConfigPathForJob } from '../../project/customBuildConfig';
 import { getUsername } from '../../project/projectUtils';
 import { BuildContext } from '../context';
 
@@ -46,7 +46,7 @@ export async function prepareJobAsync(
   }
 
   const maybeCustomBuildConfigPath = buildProfile.config
-    ? getCustomBuildConfigPath(buildProfile.config)
+    ? getCustomBuildConfigPathForJob(buildProfile.config)
     : undefined;
 
   const job: Ios.Job = {

@@ -12,7 +12,7 @@ import path from 'path';
 import slash from 'slash';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
-import { getCustomBuildConfigPath } from '../../project/customBuildConfig';
+import { getCustomBuildConfigPathForJob } from '../../project/customBuildConfig';
 import { getUsername } from '../../project/projectUtils';
 import { BuildContext } from '../context';
 
@@ -54,7 +54,7 @@ export async function prepareJobAsync(
   }
 
   const maybeCustomBuildConfigPath = buildProfile.config
-    ? getCustomBuildConfigPath(buildProfile.config)
+    ? getCustomBuildConfigPathForJob(buildProfile.config)
     : undefined;
 
   const job: Android.Job = {
