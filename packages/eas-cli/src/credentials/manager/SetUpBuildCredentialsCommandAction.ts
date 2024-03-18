@@ -17,13 +17,11 @@ export class SetUpBuildCredentialsCommandAction {
     public readonly analytics: Analytics,
     public readonly projectInfo: CredentialsContextProjectInfo | null,
     public readonly getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn,
-    private readonly platform: Platform | 'all',
+    private readonly platform: Platform,
     private readonly profileName: string
   ) {}
 
   async runAsync(): Promise<void> {
-    // TODO: support the for "all" option which logs before running each platform action
-
     if (this.platform === Platform.IOS) {
       return await new SetUpIosBuildCredentials(this, process.cwd(), this.profileName).runAsync();
     }

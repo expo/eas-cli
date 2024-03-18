@@ -48,8 +48,8 @@ import { AndroidPackageNotDefinedError } from '../errors';
 
 export class ManageAndroid {
   constructor(
-    private callingAction: Action,
-    private projectDir: string
+    protected callingAction: Action,
+    protected projectDir: string
   ) {}
 
   async runAsync(currentActions: ActionInfo[] = highLevelActions): Promise<void> {
@@ -164,7 +164,7 @@ export class ManageAndroid {
     }
   }
 
-  private async createProjectContextAsync(
+  protected async createProjectContextAsync(
     ctx: CredentialsContext,
     buildProfile: BuildProfile<Platform.ANDROID>
   ): Promise<GradleBuildContext | undefined> {
@@ -172,7 +172,7 @@ export class ManageAndroid {
     return await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile, ctx.vcsClient);
   }
 
-  private async runProjectSpecificActionAsync(
+  protected async runProjectSpecificActionAsync(
     ctx: CredentialsContext,
     action: AndroidActionType,
     gradleContext?: GradleBuildContext

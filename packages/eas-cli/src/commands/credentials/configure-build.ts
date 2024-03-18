@@ -10,7 +10,7 @@ export default class InitializeBuildCredentials extends EasCommand {
   static override flags = {
     platform: Flags.enum({
       char: 'p',
-      options: [Platform.ANDROID, Platform.IOS, 'all'],
+      options: [Platform.ANDROID, Platform.IOS],
       required: true,
     }),
     profile: Flags.string({
@@ -50,7 +50,7 @@ export default class InitializeBuildCredentials extends EasCommand {
       analytics,
       privateProjectConfig ?? null,
       getDynamicPrivateProjectConfigAsync,
-      flags.platform as Platform | 'all',
+      flags.platform,
       flags.profile
     ).runAsync();
   }
