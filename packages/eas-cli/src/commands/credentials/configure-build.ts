@@ -3,6 +3,7 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { SetUpBuildCredentialsCommandAction } from '../../credentials/manager/SetUpBuildCredentialsCommandAction';
+import { selectPlatformAsync } from '../../platform';
 
 export default class InitializeBuildCredentials extends EasCommand {
   static override description = 'Set up credentials for building your project.';
@@ -11,14 +12,11 @@ export default class InitializeBuildCredentials extends EasCommand {
     platform: Flags.enum({
       char: 'p',
       options: [Platform.ANDROID, Platform.IOS],
-      required: true,
     }),
     profile: Flags.string({
       char: 'e',
-      description:
-        'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
+      description: 'The name of the build profile in eas.json.',
       helpValue: 'PROFILE_NAME',
-      default: 'production',
       required: true,
     }),
   };
@@ -43,6 +41,8 @@ export default class InitializeBuildCredentials extends EasCommand {
       nonInteractive: false,
     });
 
+    const platform = await selectPlatformAsync(flags.platform);
+
     await new SetUpBuildCredentialsCommandAction(
       actor,
       graphqlClient,
@@ -50,7 +50,7 @@ export default class InitializeBuildCredentials extends EasCommand {
       analytics,
       privateProjectConfig ?? null,
       getDynamicPrivateProjectConfigAsync,
-      flags.platform,
+      platform,
       flags.profile
     ).runAsync();
   }
