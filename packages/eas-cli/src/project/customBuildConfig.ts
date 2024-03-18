@@ -78,11 +78,7 @@ export function getCustomBuildConfigPathForJob({
   localBuildMode?: LocalBuildMode;
 }): string {
   let customBuildConfigPath = getCustomBuildConfigPath(configFilename);
-  if (
-    customBuildConfigPath &&
-    localBuildMode !== LocalBuildMode.LOCAL_BUILD_PLUGIN &&
-    process.platform === 'win32'
-  ) {
+  if (localBuildMode !== LocalBuildMode.LOCAL_BUILD_PLUGIN && process.platform === 'win32') {
     customBuildConfigPath = path.posix.join(...customBuildConfigPath.split(path.sep));
   }
   return customBuildConfigPath;
