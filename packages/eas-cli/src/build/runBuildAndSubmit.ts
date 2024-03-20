@@ -437,6 +437,7 @@ async function prepareAndStartSubmissionAsync({
     projectId: buildCtx.projectId,
     exp: buildCtx.exp,
     vcsClient: buildCtx.vcsClient,
+    isVerboseFastlaneEnabled: false,
   });
 
   if (moreBuilds) {
