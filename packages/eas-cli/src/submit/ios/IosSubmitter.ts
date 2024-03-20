@@ -32,7 +32,7 @@ export interface IosSubmissionOptions
   archiveSource: ArchiveSource;
   appSpecificPasswordSource?: AppSpecificPasswordSource;
   ascApiKeySource?: AscApiKeySource;
-  isVerboseFastlaneEnabled: boolean;
+  isVerboseFastlaneEnabled?: boolean;
 }
 
 interface ResolvedSourceOptions {
