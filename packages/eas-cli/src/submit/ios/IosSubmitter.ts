@@ -32,6 +32,7 @@ export interface IosSubmissionOptions
   archiveSource: ArchiveSource;
   appSpecificPasswordSource?: AppSpecificPasswordSource;
   ascApiKeySource?: AscApiKeySource;
+  isVerboseFastlaneEnabled: boolean;
 }
 
 interface ResolvedSourceOptions {
@@ -124,9 +125,11 @@ export default class IosSubmitter extends BaseSubmitter<
   ): IosSubmissionConfigInput {
     const { appSpecificPassword, ascApiKeyResult } = credentials;
     const { appleIdUsername, ascAppIdentifier } = options;
+    const { isVerboseFastlaneEnabled } = this.ctx;
     return {
       ascAppIdentifier,
       appleIdUsername,
+      isVerboseFastlaneEnabled,
       ...(appSpecificPassword ? this.formatAppSpecificPassword(appSpecificPassword) : null),
       ...(ascApiKeyResult?.result ? this.formatAscApiKeyResult(ascApiKeyResult.result) : null),
     };
