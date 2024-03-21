@@ -351,7 +351,7 @@ export default class UpdatePublish extends EasCommand {
       Log.withInfo(
         `${platformString} (maximum: ${assetLimitPerUpdateGroup} total per update). ${learnMore(
           'https://expo.fyi/eas-update-asset-limits',
-          { learnMoreMessage: 'Learn more about asset limits.' }
+          { learnMoreMessage: 'Learn more about asset limits' }
         )}`
       );
     } catch (e) {
