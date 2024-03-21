@@ -6,7 +6,7 @@ import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand from '../../commandUtils/EasCommand';
 import { RequestedPlatform } from '../../platform';
 import { enableJsonOutput } from '../../utils/json';
-import { getVcsClient, setVcsClient } from '../../vcs';
+import { setVcsClient } from '../../vcs';
 import GitNoCommitClient from '../../vcs/clients/gitNoCommit';
 
 /**
@@ -61,6 +61,7 @@ export default class BuildInternal extends EasCommand {
       getDynamicPrivateProjectConfigAsync,
       projectDir,
       analytics,
+      vcsClient,
     } = await this.getContextAsync(BuildInternal, {
       nonInteractive: true,
     });
@@ -72,7 +73,7 @@ export default class BuildInternal extends EasCommand {
     await runBuildAndSubmitAsync(
       graphqlClient,
       analytics,
-      getVcsClient(),
+      vcsClient,
       projectDir,
       {
         requestedPlatform: flags.platform as RequestedPlatform,
