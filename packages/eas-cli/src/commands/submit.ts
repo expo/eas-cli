@@ -33,6 +33,7 @@ interface RawCommandFlags {
   verbose: boolean;
   wait: boolean;
   'non-interactive': boolean;
+  'what-to-test'?: string;
   'verbose-fastlane': boolean;
 }
 
@@ -44,6 +45,7 @@ interface CommandFlags {
   wait: boolean;
   nonInteractive: boolean;
   isVerboseFastlaneEnabled: boolean;
+  whatToTest?: string;
 }
 
 export default class Submit extends EasCommand {
@@ -93,6 +95,9 @@ export default class Submit extends EasCommand {
       default: false,
       description: 'Run command in non-interactive mode',
     }),
+    'what-to-test': Flags.string({
+      description: 'What to test',
+    }),
   };
 
   static override contextDefinition = {
@@ -138,6 +143,7 @@ export default class Submit extends EasCommand {
         profile: submissionProfile.profile,
         archiveFlags: flagsWithPlatform.archiveFlags,
         nonInteractive: flagsWithPlatform.nonInteractive,
+        whatToTest: flagsWithPlatform.whatToTest,
         isVerboseFastlaneEnabled: flagsWithPlatform.isVerboseFastlaneEnabled,
         actor,
         graphqlClient,
@@ -183,6 +189,7 @@ export default class Submit extends EasCommand {
       profile,
       'non-interactive': nonInteractive,
       'verbose-fastlane': isVerboseFastlaneEnabled,
+      'what-to-test': whatToTest,
       ...archiveFlags
     } = flags;
 
@@ -204,6 +211,7 @@ export default class Submit extends EasCommand {
       profile,
       nonInteractive,
       isVerboseFastlaneEnabled,
+      whatToTest,
     };
   }
 

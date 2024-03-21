@@ -33,6 +33,7 @@ export interface SubmissionContext<T extends Platform> {
   vcsClient: Client;
   applicationIdentifierOverride?: string;
   specifiedProfile?: string;
+  whatToTest?: string;
 }
 
 export interface SubmitArchiveFlags {
@@ -59,6 +60,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   projectId: string;
   vcsClient: Client;
   specifiedProfile?: string;
+  whatToTest?: string;
 }): Promise<SubmissionContext<T>> {
   const {
     applicationIdentifier,
