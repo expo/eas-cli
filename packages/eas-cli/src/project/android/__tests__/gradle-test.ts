@@ -4,14 +4,14 @@ import os from 'os';
 
 import { jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { promptAsync } from '../../../prompts';
-import { getVcsClient } from '../../../vcs';
+import { resolveVcsClient } from '../../../vcs';
 import { resolveGradleBuildContextAsync } from '../gradle';
 
 jest.mock('fs');
 jest.mock('../../../prompts');
 jest.mock('../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 
-const vcsClient = getVcsClient();
+const vcsClient = resolveVcsClient();
 
 beforeEach(async () => {
   vol.reset();

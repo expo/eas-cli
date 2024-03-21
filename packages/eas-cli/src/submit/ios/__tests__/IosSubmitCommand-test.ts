@@ -13,7 +13,7 @@ import { BuildFragment, SubmissionArchiveSourceType } from '../../../graphql/gen
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
-import { getVcsClient } from '../../../vcs';
+import { resolveVcsClient } from '../../../vcs';
 import {
   ArchiveResolverContext,
   ArchiveSource,
@@ -53,7 +53,7 @@ jest.mock('../../commons', () => {
   };
 });
 
-const vcsClient = getVcsClient();
+const vcsClient = resolveVcsClient();
 
 describe(IosSubmitCommand, () => {
   const testProject = createTestProject(testProjectId, mockJester.accounts[0].name, {});

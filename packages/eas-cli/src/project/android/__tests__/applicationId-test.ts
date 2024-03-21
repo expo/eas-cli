@@ -7,7 +7,7 @@ import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/cr
 import { jester, jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { promptAsync } from '../../../prompts';
-import { getVcsClient } from '../../../vcs';
+import { resolveVcsClient } from '../../../vcs';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   getApplicationIdAsync,
@@ -18,7 +18,7 @@ jest.mock('../../../prompts');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 
-const vcsClient = getVcsClient();
+const vcsClient = resolveVcsClient();
 
 beforeEach(async () => {
   vol.reset();

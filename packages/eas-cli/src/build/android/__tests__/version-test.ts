@@ -8,7 +8,7 @@ import os from 'os';
 import path from 'path';
 
 import { getAppBuildGradleAsync, resolveConfigValue } from '../../../project/android/gradleUtils';
-import { getVcsClient } from '../../../vcs';
+import { resolveVcsClient } from '../../../vcs';
 import {
   BumpStrategy,
   bumpVersionAsync,
@@ -19,7 +19,7 @@ import {
 const fsReal = jest.requireActual('fs').promises as typeof fs;
 jest.mock('fs');
 
-const vcsClient = getVcsClient();
+const vcsClient = resolveVcsClient();
 
 afterAll(async () => {
   // do not remove the following line
