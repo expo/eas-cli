@@ -72,7 +72,7 @@ export class SetUpIosBuildCredentials extends ManageIos {
       nullthrows(app, 'app must be defined in project context'),
       nullthrows(targets, 'targets must be defined in project context'),
       nullthrows(buildProfile, 'buildProfile must be defined in project context'),
-      IosActionType.SetUpBuildCredentials // Directly proceed to SetUpBuildCredentials
+      IosActionType.SetUpBuildCredentials
     );
   }
 }

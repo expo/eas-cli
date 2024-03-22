@@ -35,6 +35,7 @@ export enum AndroidActionType {
   SetUpGsaKeyForFcmV1,
   UpdateCredentialsJson,
   SetUpBuildCredentialsFromCredentialsJson,
+  SetUpBuildCredentials,
 }
 
 export enum IosActionType {

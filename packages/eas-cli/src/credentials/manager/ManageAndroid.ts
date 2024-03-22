@@ -34,6 +34,7 @@ import { DownloadKeystore } from '../android/actions/DownloadKeystore';
 import { RemoveFcm } from '../android/actions/RemoveFcm';
 import { SelectAndRemoveGoogleServiceAccountKey } from '../android/actions/RemoveGoogleServiceAccountKey';
 import { RemoveKeystore } from '../android/actions/RemoveKeystore';
+import { SetUpBuildCredentials } from '../android/actions/SetUpBuildCredentials';
 import { SetUpBuildCredentialsFromCredentialsJson } from '../android/actions/SetUpBuildCredentialsFromCredentialsJson';
 import { SetUpGoogleServiceAccountKeyForFcmV1 } from '../android/actions/SetUpGoogleServiceAccountKeyForFcmV1';
 import { SetUpGoogleServiceAccountKeyForSubmissions } from '../android/actions/SetUpGoogleServiceAccountKeyForSubmissions';
@@ -239,6 +240,8 @@ export class ManageAndroid {
       }
     } else if (action === AndroidActionType.SetUpBuildCredentialsFromCredentialsJson) {
       await new SetUpBuildCredentialsFromCredentialsJson(appLookupParams).runAsync(ctx);
+    } else if (action === AndroidActionType.SetUpBuildCredentials) {
+      await new SetUpBuildCredentials({ app: appLookupParams }).runAsync(ctx);
     }
   }
 }

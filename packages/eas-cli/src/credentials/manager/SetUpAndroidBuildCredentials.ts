@@ -52,7 +52,7 @@ export class SetUpAndroidBuildCredentials extends ManageAndroid {
     if (this.setUpBuildCredentialsWithProfileNameFromFlag) {
       await this.runProjectSpecificActionAsync(
         ctx,
-        AndroidActionType.CreateKeystore, // Directly proceed to CreateKeystore
+        AndroidActionType.SetUpBuildCredentials,
         gradleContext
       );
     }
