@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2291](https://github.com/expo/eas-cli/pull/2291) by [@expo-bot](https://github.com/expo-bot))
 - Fix asset limit punctuation. ([#2296](https://github.com/expo/eas-cli/pull/2296) by [@quinlanj](https://github.com/quinlanj))
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2293](https://github.com/expo/eas-cli/pull/2293) by [@expo-bot](https://github.com/expo-bot))
 
 ## [7.6.0](https://github.com/expo/eas-cli/releases/tag/v7.6.0) - 2024-03-18
 
