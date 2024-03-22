@@ -24,6 +24,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Use a custom build config path with POSIX separator when sending data to the EAS Build server. ([#2285](https://github.com/expo/eas-cli/pull/2285) by [@szdziedzic](https://github.com/szdziedzic))
+- Improve resolving vcsClient as a part of the project context. ([#2295](https://github.com/expo/eas-cli/pull/2295) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 

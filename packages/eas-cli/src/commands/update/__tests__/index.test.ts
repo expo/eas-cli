@@ -12,6 +12,7 @@ import {
   DynamicPublicProjectConfigContextField,
 } from '../../../commandUtils/context/DynamicProjectConfigContextField';
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
+import VcsClientContextField from '../../../commandUtils/context/VcsClientContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
 import FeatureGating from '../../../commandUtils/gating/FeatureGating';
@@ -21,6 +22,7 @@ import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { collectAssetsAsync, uploadAssetsAsync } from '../../../project/publish';
 import { getBranchNameFromChannelNameAsync } from '../../../update/getBranchNameFromChannelNameAsync';
+import { resolveVcsClient } from '../../../vcs';
 
 const projectRoot = '/test-project';
 const commandOptions = { root: projectRoot } as any;
@@ -265,6 +267,9 @@ function mockTestProject({
     featureGating: new FeatureGating({}, new FeatureGateEnvOverrides()),
     graphqlClient,
   });
+  jest
+    .spyOn(VcsClientContextField.prototype, 'getValueAsync')
+    .mockResolvedValue(resolveVcsClient());
 
   jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
     id: '1234',

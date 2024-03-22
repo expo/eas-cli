@@ -1,13 +1,13 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 
-import { getVcsClient } from '../../vcs';
+import { resolveVcsClient } from '../../vcs';
 import { resolveWorkflowAsync, resolveWorkflowPerPlatformAsync } from '../workflow';
 
 jest.mock('fs');
 
 const projectDir = '/app';
-const vcsClient = getVcsClient();
+const vcsClient = resolveVcsClient();
 
 describe(resolveWorkflowAsync, () => {
   beforeEach(() => {

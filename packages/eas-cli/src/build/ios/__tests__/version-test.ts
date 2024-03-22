@@ -6,7 +6,7 @@ import os from 'os';
 import type { XCBuildConfiguration } from 'xcode';
 
 import { readPlistAsync } from '../../../utils/plist';
-import { getVcsClient } from '../../../vcs';
+import { resolveVcsClient } from '../../../vcs';
 import {
   BumpStrategy,
   bumpVersionAsync,
@@ -19,7 +19,7 @@ import {
 
 jest.mock('fs');
 
-const vcsClient = getVcsClient();
+const vcsClient = resolveVcsClient();
 
 const getXCBuildConfigurationFromPbxproj = jest.spyOn(
   IOSConfig.Target,

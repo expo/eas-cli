@@ -8,8 +8,7 @@ import semver from 'semver';
 
 import { learnMore } from '../../../log';
 import { easCliVersion } from '../../../utils/easCli';
-import { getVcsClient, setVcsClient } from '../../../vcs';
-import GitClient from '../../../vcs/clients/git';
+import { resolveVcsClient } from '../../../vcs';
 
 async function applyCliConfigAsync(projectDir: string): Promise<void> {
   const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
@@ -18,9 +17,6 @@ async function applyCliConfigAsync(projectDir: string): Promise<void> {
     throw new Error(
       `You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint in eas.json (${config.version})`
     );
-  }
-  if (config?.requireCommit) {
-    setVcsClient(new GitClient());
   }
 }
 
@@ -92,7 +88,7 @@ export async function findProjectRootAsync({
   } else {
     let vcsRoot;
     try {
-      vcsRoot = path.normalize(await getVcsClient().getRootPathAsync());
+      vcsRoot = path.normalize(await resolveVcsClient().getRootPathAsync());
     } catch {}
     if (vcsRoot && vcsRoot.startsWith(projectRootDir) && vcsRoot !== projectRootDir) {
       throw new Error(

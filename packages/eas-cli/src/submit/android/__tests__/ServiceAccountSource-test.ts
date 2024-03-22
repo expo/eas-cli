@@ -15,7 +15,7 @@ import { SetUpGoogleServiceAccountKeyForSubmissions } from '../../../credentials
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
-import { getVcsClient } from '../../../vcs';
+import { resolveVcsClient } from '../../../vcs';
 import { createSubmissionContextAsync } from '../../context';
 import {
   ServiceAccountSource,
@@ -45,7 +45,7 @@ const mockDetectableServiceAccountJson = JSON.stringify({
   client_email: 'beep-boop@iam.gserviceaccount.com',
 });
 
-const vcsClient = getVcsClient();
+const vcsClient = resolveVcsClient();
 
 beforeAll(() => {
   vol.fromJSON({

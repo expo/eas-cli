@@ -24,6 +24,7 @@ import {
 } from '../analytics/AnalyticsManager';
 import Log from '../log';
 import SessionManager from '../user/SessionManager';
+import { Client } from '../vcs/vcs';
 
 export type ContextInput<
   T extends {
@@ -139,7 +140,7 @@ export default abstract class EasCommand extends Command {
     } = object,
   >(
     commandClass: { contextDefinition: ContextInput<C> },
-    { nonInteractive }: { nonInteractive: boolean }
+    { nonInteractive, vcsClientOverride }: { nonInteractive: boolean; vcsClientOverride?: Client }
   ): Promise<ContextOutput<C>> {
     const contextDefinition = commandClass.contextDefinition;
 
@@ -152,6 +153,7 @@ export default abstract class EasCommand extends Command {
           nonInteractive,
           sessionManager: this.sessionManager,
           analytics: this.analytics,
+          vcsClientOverride,
         }),
       ]);
     }
