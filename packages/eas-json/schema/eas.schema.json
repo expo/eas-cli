@@ -245,11 +245,7 @@
                 "sdk-49",
                 "ubuntu-22.04-jdk-17-ndk-r21e",
                 "ubuntu-22.04-jdk-11-ndk-r21e",
-                "ubuntu-22.04-jdk-8-ndk-r21e",
-                "ubuntu-20.04-jdk-11-ndk-r21e",
-                "ubuntu-20.04-jdk-8-ndk-r21e",
-                "ubuntu-20.04-jdk-11-ndk-r19c",
-                "ubuntu-20.04-jdk-8-ndk-r19c"
+                "ubuntu-20.04-jdk-11-ndk-r21e"
               ],
               "markdownEnumDescriptions": [
                 "When using this option the build image is selected automatically based on the project configuration, detected Expo SDK and React Native versions.",
@@ -260,10 +256,21 @@
             },
             {
               "deprecated": true,
-              "enum": ["default", "stable"],
+              "enum": [
+                "default",
+                "stable",
+                "ubuntu-22.04-jdk-8-ndk-r21e",
+                "ubuntu-20.04-jdk-8-ndk-r21e",
+                "ubuntu-20.04-jdk-11-ndk-r19c",
+                "ubuntu-20.04-jdk-8-ndk-r19c"
+              ],
               "markdownEnumDescriptions": [
                 "This image tag is deprecated, please use other image tags or images directly instead.",
-                "This image tag is deprecated, please use other image tags or images directly instead."
+                "This image tag is deprecated, please use other image tags or images directly instead.",
+                "This image is deprecated, please use one of the more recent images instead.",
+                "This image is deprecated, please use one of the more recent images instead.",
+                "This image is deprecated, please use one of the more recent images instead.",
+                "This image is deprecated, please use one of the more recent images instead."
               ]
             }
           ]
