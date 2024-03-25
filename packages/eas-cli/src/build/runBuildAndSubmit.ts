@@ -133,11 +133,26 @@ export async function runBuildAndSubmitAsync(
   );
 
   for (const buildProfile of buildProfiles) {
-    if (buildProfile.profile.image && ['default', 'stable'].includes(buildProfile.profile.image)) {
+    if (
+      buildProfile.profile.image &&
+      [
+        'default',
+        'stable',
+        'ubuntu-22.04-jdk-8-ndk-r21e',
+        'ubuntu-20.04-jdk-8-ndk-r21e',
+        'ubuntu-20.04-jdk-11-ndk-r19c',
+        'ubuntu-20.04-jdk-8-ndk-r19c',
+        'macos-monterey-12.4-xcode-13.4',
+        'macos-monterey-12.3-xcode-13.3',
+        'macos-monterey-12.1-xcode-13.2',
+      ].includes(buildProfile.profile.image)
+    ) {
       Log.warn(
         `The "image" field in the build profile "${buildProfile.profileName}" is set to "${
           buildProfile.profile.image
-        }". This tag is deprecated and will be removed in the future. ${learnMore(
+        }". This ${
+          ['default', 'stable'].includes(buildProfile.profile.image) ? 'tag' : 'image'
+        } is deprecated and will be removed in the future. ${learnMore(
           'https://docs.expo.dev/TBA-when-docs-are-updated'
         )}`
       );
