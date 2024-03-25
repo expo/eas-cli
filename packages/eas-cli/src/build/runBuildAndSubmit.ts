@@ -132,6 +132,18 @@ export async function runBuildAndSubmitAsync(
     }. ${learnMore('https://docs.expo.dev/build-reference/variables/')}`
   );
 
+  for (const buildProfile of buildProfiles) {
+    if (buildProfile.profile.image && ['default', 'stable'].includes(buildProfile.profile.image)) {
+      Log.warn(
+        `The "image" field in the build profile "${buildProfile.profileName}" is set to "${
+          buildProfile.profile.image
+        }". This tag is deprecated and will be removed in the future. ${learnMore(
+          'https://docs.expo.dev/TBA-when-docs-are-updated'
+        )}`
+      );
+    }
+  }
+
   await ensureExpoDevClientInstalledForDevClientBuildsAsync({
     projectDir,
     nonInteractive: flags.nonInteractive,
