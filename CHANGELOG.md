@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Deprecate the `default` image tag. ([#2298](https://github.com/expo/eas-cli/pull/2298) by [@szdziedzic](https://github.com/szdziedzic))
+- Deprecate Android images with JDK 8 and NDK `r19c`. ([#2298](https://github.com/expo/eas-cli/pull/2298) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [7.6.1](https://github.com/expo/eas-cli/releases/tag/v7.6.1) - 2024-03-25
 
