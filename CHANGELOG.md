@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Deprecate the `default` image tag. ([#2298](https://github.com/expo/eas-cli/pull/2298) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [7.7.0](https://github.com/expo/eas-cli/releases/tag/v7.7.0) - 2024-04-05
 
 ### 🎉 New features
