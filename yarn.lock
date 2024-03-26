@@ -1666,10 +1666,10 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.88":
-  version "1.0.88"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.88.tgz#27944ccdefa34ea655dc39157d97fc164c8d4a5c"
-  integrity sha512-jvbJyoRvxepy3vL06E5fikCUk23oYHBo3LxEnlL+vPyOy0aiFF5dUwz8pTVB1YOgWyuOkzjLNAk9zedqmFSrsA==
+"@expo/steps@1.0.90":
+  version "1.0.90"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.90.tgz#a442490908643dbe3c2c36a27f51e62f6d78de8a"
+  integrity sha512-NFJ9HCuqcn8vAE9U8Cd66Sj76XeF9Pr0rX+54s7vO/JM/wRE9s995GVvC4eScarYjFOi/86jsd5xT+epA3u0Gw==
   dependencies:
     "@expo/eas-build-job" "1.0.88"
     "@expo/logger" "1.0.57"
@@ -1677,6 +1677,7 @@
     arg "^5.0.2"
     fs-extra "^11.2.0"
     joi "^17.11.0"
+    jsep "^1.3.8"
     lodash.clonedeep "^4.5.0"
     lodash.get "^4.4.2"
     this-file "^2.0.3"
@@ -9347,6 +9348,11 @@ js-yaml@^3.13.1:
   dependencies:
     argparse "^1.0.7"
     esprima "^4.0.0"
+
+jsep@^1.3.8:
+  version "1.3.8"
+  resolved "https://registry.yarnpkg.com/jsep/-/jsep-1.3.8.tgz#facb6eb908d085d71d950bd2b24b757c7b8a46d7"
+  integrity sha512-qofGylTGgYj9gZFsHuyWAN4jr35eJ66qJCK4eKDnldohuUoQFbU3iZn2zjvEbd9wOAhP9Wx5DsAAduTyE1PSWQ==
 
 jsesc@^2.5.1:
   version "2.5.2"
