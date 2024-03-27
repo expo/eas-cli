@@ -14892,6 +14892,18 @@
             "deprecationReason": null
           },
           {
+            "name": "projectMetadataFileUrl",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "projectRootDirectory",
             "description": null,
             "args": [],
@@ -29869,6 +29881,18 @@
             "deprecationReason": null
           },
           {
+            "name": "metadataLocation",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "repositoryUrl",
             "description": null,
             "type": {
@@ -37732,6 +37756,12 @@
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
+          {
+            "name": "EAS_BUILD_GCS_PROJECT_METADATA",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "EAS_BUILD_GCS_PROJECT_SOURCES",
             "description": null,
