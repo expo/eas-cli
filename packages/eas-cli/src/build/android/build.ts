@@ -1,4 +1,4 @@
-import { Android, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import { Android, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { AppVersionSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -112,7 +112,7 @@ export async function prepareAndroidBuildAsync(
     prepareJobAsync: async (
       ctx: BuildContext<Platform.ANDROID>,
       jobData: JobData<AndroidCredentials>
-    ): Promise<Job> => {
+    ): Promise<Android.Job> => {
       return await prepareJobAsync(ctx, jobData);
     },
     sendBuildRequestAsync: async (

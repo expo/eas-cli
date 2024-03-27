@@ -3,9 +3,8 @@ import {
   ArchiveSource,
   BuildMode,
   BuildTrigger,
-  Job,
   Platform,
-  sanitizeJob,
+  sanitizeBuildJob,
 } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 import path from 'path';
@@ -29,7 +28,7 @@ const cacheDefaults = {
 export async function prepareJobAsync(
   ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData
-): Promise<Job> {
+): Promise<Android.Job> {
   const username = getUsername(ctx.exp, ctx.user);
   const buildProfile: BuildProfile<Platform.ANDROID> = ctx.buildProfile;
   const projectRootDirectory =
@@ -105,5 +104,5 @@ export async function prepareJobAsync(
     }),
   };
 
-  return sanitizeJob(job);
+  return sanitizeBuildJob(job) as Android.Job;
 }

@@ -1,4 +1,10 @@
-import { ArchiveSource, ArchiveSourceType, Job, Metadata, Platform } from '@expo/eas-build-job';
+import {
+  ArchiveSource,
+  ArchiveSourceType,
+  BuildJob,
+  Metadata,
+  Platform,
+} from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -65,14 +71,14 @@ export interface JobData<Credentials> {
   projectArchive: ArchiveSource;
 }
 
-interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
+interface Builder<TPlatform extends Platform, Credentials, TJob extends BuildJob> {
   ctx: BuildContext<TPlatform>;
 
   ensureCredentialsAsync(
     ctx: BuildContext<TPlatform>
   ): Promise<CredentialsResult<Credentials> | undefined>;
   syncProjectConfigurationAsync(ctx: BuildContext<TPlatform>): Promise<void>;
-  prepareJobAsync(ctx: BuildContext<TPlatform>, jobData: JobData<Credentials>): Promise<Job>;
+  prepareJobAsync(ctx: BuildContext<TPlatform>, jobData: JobData<Credentials>): Promise<BuildJob>;
   sendBuildRequestAsync(
     appId: string,
     job: TJob,
@@ -97,7 +103,7 @@ function resolveBuildParamsInput<T extends Platform>(
 export async function prepareBuildRequestForPlatformAsync<
   TPlatform extends Platform,
   Credentials,
-  TJob extends Job,
+  TJob extends BuildJob,
 >(builder: Builder<TPlatform, Credentials, TJob>): Promise<BuildRequestSender> {
   const { ctx } = builder;
   const credentialsResult = await withAnalyticsAsync(
@@ -296,7 +302,11 @@ async function uploadProjectAsync<TPlatform extends Platform>(
   }
 }
 
-async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJob extends Job>(
+async function sendBuildRequestAsync<
+  TPlatform extends Platform,
+  Credentials,
+  TJob extends BuildJob,
+>(
   builder: Builder<TPlatform, Credentials, TJob>,
   job: TJob,
   metadata: Metadata,

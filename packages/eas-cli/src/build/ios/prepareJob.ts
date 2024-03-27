@@ -3,9 +3,8 @@ import {
   BuildMode,
   BuildTrigger,
   Ios,
-  Job,
   Platform,
-  sanitizeJob,
+  sanitizeBuildJob,
 } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 import nullthrows from 'nullthrows';
@@ -32,7 +31,7 @@ const cacheDefaults = {
 export async function prepareJobAsync(
   ctx: BuildContext<Platform.IOS>,
   jobData: JobData
-): Promise<Job> {
+): Promise<Ios.Job> {
   const username = getUsername(ctx.exp, ctx.user);
   const buildProfile: BuildProfile<Platform.IOS> = ctx.buildProfile;
   const projectRootDirectory =
@@ -99,7 +98,7 @@ export async function prepareJobAsync(
       },
     }),
   };
-  return sanitizeJob(job);
+  return sanitizeBuildJob(job) as Ios.Job;
 }
 
 export function prepareCredentialsToResign(credentials: IosCredentials): IosJobSecretsInput {
