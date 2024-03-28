@@ -8,6 +8,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `eas credentials:configure-build` subcommand.
+  ([#2282](https://github.com/expo/eas-cli/pull/2282) by [@fiberjw](https://github.com/fiberjw))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
@@ -72,7 +75,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2237](https://github.com/expo/eas-cli/pull/2237) by [@expo-bot](https://github.com/expo-bot))
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2240](https://github.com/expo/eas-cli/pull/2240) by [@expo-bot](https://github.com/expo-bot))
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2253](https://github.com/expo/eas-cli/pull/2253) by [@expo-bot](https://github.com/expo-bot))
-- Include src/**/build directories in vscode search and replace. ([#2250](https://github.com/expo/eas-cli/pull/2250) by [@wschurman](https://github.com/wschurman))
+- Include src/\*\*/build directories in vscode search and replace. ([#2250](https://github.com/expo/eas-cli/pull/2250) by [@wschurman](https://github.com/wschurman))
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2259](https://github.com/expo/eas-cli/pull/2259) by [@expo-bot](https://github.com/expo-bot))
 
 ## [7.3.0](https://github.com/expo/eas-cli/releases/tag/v7.3.0) - 2024-02-19
