@@ -56,8 +56,8 @@ import { displayIosCredentials } from '../ios/utils/printCredentials';
 
 export class ManageIos {
   constructor(
-    private callingAction: Action,
-    private projectDir: string
+    protected callingAction: Action,
+    protected projectDir: string
   ) {}
 
   async runAsync(currentActions: ActionInfo[] = highLevelActions): Promise<void> {
@@ -182,7 +182,7 @@ export class ManageIos {
     }
   }
 
-  private async createProjectContextAsync(
+  protected async createProjectContextAsync(
     ctx: CredentialsContext,
     account: AccountFragment,
     buildProfile: BuildProfile<Platform.IOS>
@@ -215,7 +215,7 @@ export class ManageIos {
     };
   }
 
-  private async runAccountSpecificActionAsync(
+  protected async runAccountSpecificActionAsync(
     ctx: CredentialsContext,
     account: AccountFragment,
     action: IosActionType
@@ -235,7 +235,7 @@ export class ManageIos {
     }
   }
 
-  private async runProjectSpecificActionAsync(
+  protected async runProjectSpecificActionAsync(
     ctx: CredentialsContext,
     app: App,
     targets: Target[],
@@ -396,7 +396,7 @@ export class ManageIos {
     }
   }
 
-  private async setupProvisioningProfileWithSpecificDistCertAsync(
+  protected async setupProvisioningProfileWithSpecificDistCertAsync(
     ctx: CredentialsContext,
     target: Target,
     appLookupParams: AppLookupParams,
@@ -419,7 +419,7 @@ export class ManageIos {
     }
   }
 
-  private async selectTargetAsync(targets: Target[]): Promise<Target> {
+  protected async selectTargetAsync(targets: Target[]): Promise<Target> {
     if (targets.length === 1) {
       return targets[0];
     }

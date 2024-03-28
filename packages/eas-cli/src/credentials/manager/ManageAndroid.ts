@@ -34,6 +34,7 @@ import { DownloadKeystore } from '../android/actions/DownloadKeystore';
 import { RemoveFcm } from '../android/actions/RemoveFcm';
 import { SelectAndRemoveGoogleServiceAccountKey } from '../android/actions/RemoveGoogleServiceAccountKey';
 import { RemoveKeystore } from '../android/actions/RemoveKeystore';
+import { SetUpBuildCredentials } from '../android/actions/SetUpBuildCredentials';
 import { SetUpBuildCredentialsFromCredentialsJson } from '../android/actions/SetUpBuildCredentialsFromCredentialsJson';
 import { SetUpGoogleServiceAccountKeyForFcmV1 } from '../android/actions/SetUpGoogleServiceAccountKeyForFcmV1';
 import { SetUpGoogleServiceAccountKeyForSubmissions } from '../android/actions/SetUpGoogleServiceAccountKeyForSubmissions';
@@ -48,8 +49,8 @@ import { AndroidPackageNotDefinedError } from '../errors';
 
 export class ManageAndroid {
   constructor(
-    private callingAction: Action,
-    private projectDir: string
+    protected callingAction: Action,
+    protected projectDir: string
   ) {}
 
   async runAsync(currentActions: ActionInfo[] = highLevelActions): Promise<void> {
@@ -164,7 +165,7 @@ export class ManageAndroid {
     }
   }
 
-  private async createProjectContextAsync(
+  protected async createProjectContextAsync(
     ctx: CredentialsContext,
     buildProfile: BuildProfile<Platform.ANDROID>
   ): Promise<GradleBuildContext | undefined> {
@@ -172,7 +173,7 @@ export class ManageAndroid {
     return await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile, ctx.vcsClient);
   }
 
-  private async runProjectSpecificActionAsync(
+  protected async runProjectSpecificActionAsync(
     ctx: CredentialsContext,
     action: AndroidActionType,
     gradleContext?: GradleBuildContext
@@ -239,6 +240,8 @@ export class ManageAndroid {
       }
     } else if (action === AndroidActionType.SetUpBuildCredentialsFromCredentialsJson) {
       await new SetUpBuildCredentialsFromCredentialsJson(appLookupParams).runAsync(ctx);
+    } else if (action === AndroidActionType.SetUpBuildCredentials) {
+      await new SetUpBuildCredentials({ app: appLookupParams }).runAsync(ctx);
     }
   }
 }
