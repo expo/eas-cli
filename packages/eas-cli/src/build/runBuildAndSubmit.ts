@@ -149,9 +149,7 @@ export async function runBuildAndSubmitAsync(
           buildProfile.profile.image
         }". This ${
           ['default', 'stable'].includes(buildProfile.profile.image) ? 'tag' : 'image'
-        } is deprecated and will be removed in the future. ${learnMore(
-          'https://docs.expo.dev/TBA-when-docs-are-updated'
-        )}`
+        } is deprecated and will be removed in the future. Use other images or tags listed here: https://docs.expo.dev/build-reference/infrastructure/`
       );
     }
 
