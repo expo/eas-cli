@@ -32,7 +32,12 @@ import { transformMetadata } from './graphql';
 import { LocalBuildMode, runLocalBuildAsync } from './local';
 import { collectMetadataAsync } from './metadata';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
-import { makeProjectTarballAsync, reviewAndCommitChangesAsync } from './utils/repository';
+import {
+  LocalFile,
+  makeProjectMetadataFileAsync,
+  makeProjectTarballAsync,
+  reviewAndCommitChangesAsync,
+} from './utils/repository';
 import { BuildEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
 import { getExpoWebsiteBaseUrl } from '../api';
@@ -139,9 +144,10 @@ export async function prepareBuildRequestForPlatformAsync<
 
   let projectArchive: ArchiveSource | undefined;
   if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
+    const projectPath = (await makeProjectTarballAsync(ctx.vcsClient)).path;
     projectArchive = {
       type: ArchiveSourceType.PATH,
-      path: (await makeProjectTarballAsync(ctx.vcsClient)).path,
+      path: projectPath,
     };
   } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
     projectArchive = {
@@ -151,7 +157,7 @@ export async function prepareBuildRequestForPlatformAsync<
   } else if (!ctx.localBuildOptions.localBuildMode) {
     projectArchive = {
       type: ArchiveSourceType.GCS,
-      bucketKey: await uploadProjectAsync(ctx),
+      ...(await uploadProjectAsync(ctx)),
     };
   }
   assert(projectArchive);
@@ -237,7 +243,10 @@ export function handleBuildRequestError(error: any, platform: Platform): never {
 
 async function uploadProjectAsync<TPlatform extends Platform>(
   ctx: BuildContext<TPlatform>
-): Promise<string> {
+): Promise<{
+  bucketKey: string;
+  metadataLocation?: string;
+}> {
   let projectTarballPath;
   try {
     return await withAnalyticsAsync(
@@ -266,7 +275,6 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         }
 
         projectTarballPath = projectTarball.path;
-
         const bucketKey = await uploadFileAtPathToGCSAsync(
           ctx.graphqlClient,
           UploadSessionType.EasBuildGcsProjectSources,
@@ -280,7 +288,11 @@ async function uploadProjectAsync<TPlatform extends Platform>(
             completedMessage: (duration: string) => `Uploaded to EAS ${chalk.dim(duration)}`,
           })
         );
-        return bucketKey;
+        const { metadataLocation } = await uploadMetadataFileAsync<TPlatform>(projectTarball, ctx);
+        if (metadataLocation) {
+          return { bucketKey, metadataLocation };
+        }
+        return { bucketKey };
       },
       {
         attemptEvent: BuildEvent.PROJECT_UPLOAD_ATTEMPT,
@@ -291,13 +303,53 @@ async function uploadProjectAsync<TPlatform extends Platform>(
     );
   } catch (err: any) {
     let errMessage = 'Failed to upload the project tarball to EAS Build';
+
     if (err.message) {
       errMessage += `\n\nReason: ${err.message}`;
     }
+
     throw new EasBuildProjectArchiveUploadError(errMessage);
   } finally {
     if (projectTarballPath) {
       await fs.remove(projectTarballPath);
+    }
+  }
+}
+
+async function uploadMetadataFileAsync<TPlatform extends Platform>(
+  projectTarball: LocalFile,
+  ctx: BuildContext<TPlatform>
+): Promise<{ metadataLocation: string | null }> {
+  let projectMetadataFile: LocalFile | null = null;
+  try {
+    projectMetadataFile = await makeProjectMetadataFileAsync(projectTarball.path);
+
+    const metadataLocation = await uploadFileAtPathToGCSAsync(
+      ctx.graphqlClient,
+      UploadSessionType.EasBuildGcsProjectMetadata,
+      projectMetadataFile.path,
+      createProgressTracker({
+        total: projectMetadataFile.size,
+        message: ratio =>
+          `Uploading metadata to EAS Build (${formatBytes(
+            projectMetadataFile!.size * ratio
+          )} / ${formatBytes(projectMetadataFile!.size)})`,
+        completedMessage: (duration: string) => `Uploaded to EAS ${chalk.dim(duration)}`,
+      })
+    );
+    return { metadataLocation };
+  } catch (err: any) {
+    let errMessage = 'Failed to upload metadata to EAS Build';
+
+    if (err.message) {
+      errMessage += `\n\nReason: ${err.message}`;
+    }
+
+    Log.warn(errMessage);
+    return { metadataLocation: null };
+  } finally {
+    if (projectMetadataFile) {
+      await fs.remove(projectMetadataFile.path);
     }
   }
 }

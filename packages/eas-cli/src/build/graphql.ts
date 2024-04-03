@@ -25,6 +25,7 @@ export function transformProjectArchive(archiveSource: ArchiveSource): ProjectAr
     return {
       type: ProjectArchiveSourceType.Gcs,
       bucketKey: archiveSource.bucketKey,
+      metadataLocation: archiveSource.metadataLocation,
     };
   } else if (archiveSource.type === ArchiveSourceType.URL) {
     return {
