@@ -1024,6 +1024,7 @@ export type AndroidSubmissionConfigInput = {
   changesNotSentForReview?: InputMaybe<Scalars['Boolean']['input']>;
   googleServiceAccountKeyId?: InputMaybe<Scalars['String']['input']>;
   googleServiceAccountKeyJson?: InputMaybe<Scalars['String']['input']>;
+  isVerboseFastlaneEnabled?: InputMaybe<Scalars['Boolean']['input']>;
   releaseStatus?: InputMaybe<SubmissionAndroidReleaseStatus>;
   rollout?: InputMaybe<Scalars['Float']['input']>;
   track: SubmissionAndroidTrack;
@@ -3925,6 +3926,7 @@ export type IosSubmissionConfigInput = {
   ascApiKey?: InputMaybe<AscApiKeyInput>;
   ascApiKeyId?: InputMaybe<Scalars['String']['input']>;
   ascAppIdentifier: Scalars['String']['input'];
+  isVerboseFastlaneEnabled?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export type KeystoreGenerationUrl = {

@@ -33,6 +33,7 @@ interface RawCommandFlags {
   verbose: boolean;
   wait: boolean;
   'non-interactive': boolean;
+  'verbose-fastlane': boolean;
 }
 
 interface CommandFlags {
@@ -42,6 +43,7 @@ interface CommandFlags {
   verbose: boolean;
   wait: boolean;
   nonInteractive: boolean;
+  isVerboseFastlaneEnabled: boolean;
 }
 
 export default class Submit extends EasCommand {
@@ -82,6 +84,10 @@ export default class Submit extends EasCommand {
       description: 'Wait for submission to complete',
       default: true,
       allowNo: true,
+    }),
+    'verbose-fastlane': Flags.boolean({
+      default: false,
+      description: 'Enable verbose logging for the submission process',
     }),
     'non-interactive': Flags.boolean({
       default: false,
@@ -132,6 +138,7 @@ export default class Submit extends EasCommand {
         profile: submissionProfile.profile,
         archiveFlags: flagsWithPlatform.archiveFlags,
         nonInteractive: flagsWithPlatform.nonInteractive,
+        isVerboseFastlaneEnabled: flagsWithPlatform.isVerboseFastlaneEnabled,
         actor,
         graphqlClient,
         analytics,
@@ -175,6 +182,7 @@ export default class Submit extends EasCommand {
       wait,
       profile,
       'non-interactive': nonInteractive,
+      'verbose-fastlane': isVerboseFastlaneEnabled,
       ...archiveFlags
     } = flags;
 
@@ -195,6 +203,7 @@ export default class Submit extends EasCommand {
       wait,
       profile,
       nonInteractive,
+      isVerboseFastlaneEnabled,
     };
   }
 

@@ -21,6 +21,7 @@ export interface SubmissionContext<T extends Platform> {
   analyticsEventProperties: AnalyticsEventProperties;
   exp: ExpoConfig;
   nonInteractive: boolean;
+  isVerboseFastlaneEnabled: boolean;
   platform: T;
   profile: SubmitProfile<T>;
   projectDir: string;
@@ -46,6 +47,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   credentialsCtx?: CredentialsContext;
   env?: Record<string, string>;
   nonInteractive: boolean;
+  isVerboseFastlaneEnabled: boolean;
   platform: T;
   profile: SubmitProfile<T>;
   projectDir: string;

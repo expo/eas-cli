@@ -123,6 +123,7 @@ describe(AndroidSubmitCommand, () => {
           changesNotSentForReview: false,
         },
         nonInteractive: true,
+        isVerboseFastlaneEnabled: false,
         actor: mockJester,
         graphqlClient,
         analytics,
@@ -159,6 +160,7 @@ describe(AndroidSubmitCommand, () => {
           changesNotSentForReview: false,
         },
         nonInteractive: false,
+        isVerboseFastlaneEnabled: false,
         actor: mockJester,
         graphqlClient,
         analytics,
@@ -178,6 +180,7 @@ describe(AndroidSubmitCommand, () => {
           releaseStatus: SubmissionAndroidReleaseStatus.Draft,
           track: SubmissionAndroidTrack.Internal,
           changesNotSentForReview: false,
+          isVerboseFastlaneEnabled: false,
         },
       });
     });
@@ -203,6 +206,7 @@ describe(AndroidSubmitCommand, () => {
           changesNotSentForReview: false,
         },
         nonInteractive: false,
+        isVerboseFastlaneEnabled: false,
         actor: mockJester,
         graphqlClient,
         analytics,
@@ -222,6 +226,7 @@ describe(AndroidSubmitCommand, () => {
           releaseStatus: SubmissionAndroidReleaseStatus.InProgress,
           track: SubmissionAndroidTrack.Internal,
           changesNotSentForReview: false,
+          isVerboseFastlaneEnabled: false,
         },
       });
     });
@@ -250,6 +255,7 @@ describe(AndroidSubmitCommand, () => {
           changesNotSentForReview: false,
         },
         nonInteractive: false,
+        isVerboseFastlaneEnabled: false,
         actor: mockJester,
         graphqlClient,
         analytics,
@@ -267,6 +273,7 @@ describe(AndroidSubmitCommand, () => {
           releaseStatus: SubmissionAndroidReleaseStatus.Draft,
           track: SubmissionAndroidTrack.Internal,
           changesNotSentForReview: false,
+          isVerboseFastlaneEnabled: false,
         },
         submittedBuildId: fakeBuildFragment.id,
       });
@@ -312,6 +319,7 @@ describe(AndroidSubmitCommand, () => {
             changesNotSentForReview: false,
           },
           nonInteractive: false,
+          isVerboseFastlaneEnabled: false,
           actor: mockJester,
           graphqlClient,
           analytics,
@@ -334,6 +342,7 @@ describe(AndroidSubmitCommand, () => {
               track: SubmissionAndroidTrack.Beta,
               changesNotSentForReview: false,
               rollout: undefined,
+              isVerboseFastlaneEnabled: false,
             },
             submittedBuildId: selectedBuild.id,
           }
@@ -372,6 +381,7 @@ describe(AndroidSubmitCommand, () => {
             changesNotSentForReview: false,
           },
           nonInteractive: false,
+          isVerboseFastlaneEnabled: false,
           actor: mockJester,
           graphqlClient,
           analytics,
@@ -394,6 +404,7 @@ describe(AndroidSubmitCommand, () => {
               track: SubmissionAndroidTrack.Internal,
               changesNotSentForReview: false,
               rollout: undefined,
+              isVerboseFastlaneEnabled: false,
             },
             submittedBuildId: selectedBuild.id,
           }
@@ -439,6 +450,7 @@ describe(AndroidSubmitCommand, () => {
             changesNotSentForReview: false,
           },
           nonInteractive: false,
+          isVerboseFastlaneEnabled: false,
           actor: mockJester,
           graphqlClient,
           analytics,
@@ -462,6 +474,7 @@ describe(AndroidSubmitCommand, () => {
               track: SubmissionAndroidTrack.Internal,
               changesNotSentForReview: false,
               rollout: undefined,
+              isVerboseFastlaneEnabled: false,
             },
             submittedBuildId: selectedBuild.id,
           }

@@ -100,6 +100,7 @@ describe(IosSubmitCommand, () => {
         ascAppId: '12345678',
       },
       nonInteractive: false,
+      isVerboseFastlaneEnabled: false,
       actor: mockJester,
       graphqlClient,
       analytics,
@@ -134,6 +135,7 @@ describe(IosSubmitCommand, () => {
           language: 'en-US',
         },
         nonInteractive: true,
+        isVerboseFastlaneEnabled: false,
         actor: mockJester,
         graphqlClient,
         analytics,
@@ -169,6 +171,7 @@ describe(IosSubmitCommand, () => {
           ascAppId: '12345678',
         },
         nonInteractive: false,
+        isVerboseFastlaneEnabled: false,
         actor: mockJester,
         graphqlClient,
         analytics,
@@ -186,7 +189,9 @@ describe(IosSubmitCommand, () => {
           appleIdUsername: 'test@example.com',
           appleAppSpecificPassword: 'abcd-abcd-abcd-abcd',
           ascAppIdentifier: '12345678',
+          isVerboseFastlaneEnabled: false,
         },
+        submittedBuildId: undefined,
       });
 
       delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;
@@ -231,6 +236,7 @@ describe(IosSubmitCommand, () => {
             ascAppId: '12345678',
           },
           nonInteractive: false,
+          isVerboseFastlaneEnabled: false,
           actor: mockJester,
           graphqlClient,
           analytics,
@@ -248,6 +254,7 @@ describe(IosSubmitCommand, () => {
             appleIdUsername: 'other-test@example.com',
             appleAppSpecificPassword: 'abcd-abcd-abcd-abcd',
             ascAppIdentifier: '87654321',
+            isVerboseFastlaneEnabled: false,
           },
           archiveSource: undefined,
         });
@@ -288,6 +295,7 @@ describe(IosSubmitCommand, () => {
             ascAppId: '12345678',
           },
           nonInteractive: false,
+          isVerboseFastlaneEnabled: false,
           actor: mockJester,
           graphqlClient,
           analytics,
@@ -305,6 +313,7 @@ describe(IosSubmitCommand, () => {
             appleIdUsername: 'test@example.com',
             appleAppSpecificPassword: 'abcd-abcd-abcd-abcd',
             ascAppIdentifier: '12345678',
+            isVerboseFastlaneEnabled: false,
           },
           archiveSource: undefined,
         });
@@ -350,6 +359,7 @@ describe(IosSubmitCommand, () => {
             ascAppId: '12345678',
           },
           nonInteractive: false,
+          isVerboseFastlaneEnabled: false,
           actor: mockJester,
           graphqlClient,
           analytics,
@@ -368,6 +378,7 @@ describe(IosSubmitCommand, () => {
             appleIdUsername: 'test@example.com',
             appleAppSpecificPassword: 'abcd-abcd-abcd-abcd',
             ascAppIdentifier: '12345678',
+            isVerboseFastlaneEnabled: false,
           },
           archiveSource: undefined,
         });
