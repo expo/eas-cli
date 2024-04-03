@@ -133,6 +133,7 @@ export async function makeProjectMetadataFileAsync(archivePath: string): Promise
     }
     throw e;
   }
+  clearTimeout(timer);
 
   const duration = endTimer(timerLabel);
   const prettyTime = formatMilliseconds(duration);
