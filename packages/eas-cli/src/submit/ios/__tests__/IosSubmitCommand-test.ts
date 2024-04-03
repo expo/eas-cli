@@ -189,7 +189,9 @@ describe(IosSubmitCommand, () => {
           appleIdUsername: 'test@example.com',
           appleAppSpecificPassword: 'abcd-abcd-abcd-abcd',
           ascAppIdentifier: '12345678',
+          isVerboseFastlaneEnabled: false,
         },
+        submittedBuildId: undefined,
       });
 
       delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;
@@ -252,6 +254,7 @@ describe(IosSubmitCommand, () => {
             appleIdUsername: 'other-test@example.com',
             appleAppSpecificPassword: 'abcd-abcd-abcd-abcd',
             ascAppIdentifier: '87654321',
+            isVerboseFastlaneEnabled: false,
           },
           archiveSource: undefined,
         });
@@ -310,6 +313,7 @@ describe(IosSubmitCommand, () => {
             appleIdUsername: 'test@example.com',
             appleAppSpecificPassword: 'abcd-abcd-abcd-abcd',
             ascAppIdentifier: '12345678',
+            isVerboseFastlaneEnabled: false,
           },
           archiveSource: undefined,
         });
@@ -374,6 +378,7 @@ describe(IosSubmitCommand, () => {
             appleIdUsername: 'test@example.com',
             appleAppSpecificPassword: 'abcd-abcd-abcd-abcd',
             ascAppIdentifier: '12345678',
+            isVerboseFastlaneEnabled: false,
           },
           archiveSource: undefined,
         });

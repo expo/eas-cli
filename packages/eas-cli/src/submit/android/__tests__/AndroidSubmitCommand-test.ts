@@ -180,6 +180,7 @@ describe(AndroidSubmitCommand, () => {
           releaseStatus: SubmissionAndroidReleaseStatus.Draft,
           track: SubmissionAndroidTrack.Internal,
           changesNotSentForReview: false,
+          isVerboseFastlaneEnabled: false,
         },
       });
     });
@@ -225,6 +226,7 @@ describe(AndroidSubmitCommand, () => {
           releaseStatus: SubmissionAndroidReleaseStatus.InProgress,
           track: SubmissionAndroidTrack.Internal,
           changesNotSentForReview: false,
+          isVerboseFastlaneEnabled: false,
         },
       });
     });
@@ -271,6 +273,7 @@ describe(AndroidSubmitCommand, () => {
           releaseStatus: SubmissionAndroidReleaseStatus.Draft,
           track: SubmissionAndroidTrack.Internal,
           changesNotSentForReview: false,
+          isVerboseFastlaneEnabled: false,
         },
         submittedBuildId: fakeBuildFragment.id,
       });
@@ -339,6 +342,7 @@ describe(AndroidSubmitCommand, () => {
               track: SubmissionAndroidTrack.Beta,
               changesNotSentForReview: false,
               rollout: undefined,
+              isVerboseFastlaneEnabled: false,
             },
             submittedBuildId: selectedBuild.id,
           }
@@ -400,6 +404,7 @@ describe(AndroidSubmitCommand, () => {
               track: SubmissionAndroidTrack.Internal,
               changesNotSentForReview: false,
               rollout: undefined,
+              isVerboseFastlaneEnabled: false,
             },
             submittedBuildId: selectedBuild.id,
           }
@@ -469,6 +474,7 @@ describe(AndroidSubmitCommand, () => {
               track: SubmissionAndroidTrack.Internal,
               changesNotSentForReview: false,
               rollout: undefined,
+              isVerboseFastlaneEnabled: false,
             },
             submittedBuildId: selectedBuild.id,
           }
