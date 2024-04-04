@@ -9,15 +9,15 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Generate metadata file for project archive ([#2149](https://github.com/expo/eas-cli/pull/2149) by [@khamilowicz](https://github.com/khamilowicz))
-
 - Add --verbose-fastlane flag to eas submit command for more robust fastlane pilot logs. ([#2276](https://github.com/expo/eas-cli/pull/2276) by [@khamilowicz](https://github.com/khamilowicz))
-
 - Add `eas credentials:configure-build` subcommand.
-  ([#2282](https://github.com/expo/eas-cli/pull/2282) by [@fiberjw](https://github.com/fiberjw))
+([#2282](https://github.com/expo/eas-cli/pull/2282) by [@fiberjw](https://github.com/fiberjw))
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+- Add info about the Xcode 15.3 image to `eas.schema.json`. ([#2312](https://github.com/expo/eas-cli/pull/2312) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [7.6.2](https://github.com/expo/eas-cli/releases/tag/v7.6.2) - 2024-03-27
 
