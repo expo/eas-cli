@@ -109,6 +109,7 @@ function mockUpdateChannel({
 function mockUpdateBranches(branchNames: string[]): UpdateBranch[] {
   return branchNames.map(branchName => ({
     id: 'f9dc4dbb-663f-4a19-8cf2-a783b484d2db',
+    latestActivity: '2022-12-07T02:24:29.786Z',
     name: branchName ?? 'default-branch-name',
     app: {} as App,
     appId: '123',
@@ -152,6 +153,7 @@ function mockUpdateBranches(branchNames: string[]): UpdateBranch[] {
             updates: [],
             runtimes: { edges: [], pageInfo: { hasNextPage: false, hasPreviousPage: false } },
             __typename: 'UpdateBranch' as const,
+            latestActivity: '2022-12-07T02:24:29.786Z',
           },
           codeSigningInfo: null,
           __typename: 'Update' as const,
