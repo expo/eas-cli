@@ -9,6 +9,7 @@ import {
   ResourceClass,
   SubmitProfile,
 } from '@expo/eas-json';
+import { LoggerLevel } from '@expo/logger';
 import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -93,6 +94,7 @@ export interface BuildFlags {
   localBuildOptions: LocalBuildOptions;
   resourceClass?: ResourceClass;
   message?: string;
+  'build-logger-level'?: LoggerLevel;
 }
 
 export async function runBuildAndSubmitAsync(
@@ -360,6 +362,7 @@ async function prepareAndStartBuildAsync({
     vcsClient,
     getDynamicPrivateProjectConfigAsync,
     customBuildConfigMetadata,
+    buildLoggerLevel: flags['build-logger-level'],
   });
 
   if (moreBuilds) {

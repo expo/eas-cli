@@ -1,6 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile, EasJson } from '@expo/eas-json';
+import { LoggerLevel } from '@expo/logger';
 import { NodePackageManager } from '@expo/package-manager';
 
 import { LocalBuildOptions } from './local';
@@ -60,4 +61,5 @@ export interface BuildContext<T extends Platform> {
   developmentClient: boolean;
   requiredPackageManager: NodePackageManager['name'] | null;
   vcsClient: Client;
+  loggerLevel?: LoggerLevel;
 }

@@ -1,6 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJson, ResourceClass } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
+import { LoggerLevel } from '@expo/logger';
 import { resolvePackageManager } from '@expo/package-manager';
 import getenv from 'getenv';
 import resolveFrom from 'resolve-from';
@@ -39,6 +40,7 @@ export async function createBuildContextAsync<T extends Platform>({
   vcsClient,
   getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
+  buildLoggerLevel,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -57,6 +59,7 @@ export async function createBuildContextAsync<T extends Platform>({
   vcsClient: Client;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
+  buildLoggerLevel?: LoggerLevel;
 }): Promise<BuildContext<T>> {
   const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: buildProfile.env });
   const projectName = exp.slug;
@@ -136,6 +139,7 @@ export async function createBuildContextAsync<T extends Platform>({
     customBuildConfigMetadata,
     developmentClient,
     requiredPackageManager,
+    loggerLevel: buildLoggerLevel,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;

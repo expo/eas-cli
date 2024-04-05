@@ -6,6 +6,7 @@ export const APPLE_DEVICE_CLASS_LABELS: Record<AppleDeviceClass, string> = {
   [AppleDeviceClass.Ipad]: 'iPad',
   [AppleDeviceClass.Iphone]: 'iPhone',
   [AppleDeviceClass.Mac]: 'Mac',
+  [AppleDeviceClass.Unknown]: 'Unknown',
 };
 
 export const AppleDeviceFragmentNode = gql`

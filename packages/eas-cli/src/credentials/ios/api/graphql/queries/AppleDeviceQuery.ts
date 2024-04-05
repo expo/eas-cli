@@ -113,6 +113,7 @@ export const AppleDeviceQuery = {
                       deviceClass
                       enabled
                       model
+                      createdAt
                     }
                   }
                 }
