@@ -8,11 +8,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [7.7.0](https://github.com/expo/eas-cli/releases/tag/v7.7.0) - 2024-04-05
+
+### 🎉 New features
+
 - Generate metadata file for project archive ([#2149](https://github.com/expo/eas-cli/pull/2149) by [@khamilowicz](https://github.com/khamilowicz))
 - Add --verbose-fastlane flag to eas submit command for more robust fastlane pilot logs. ([#2276](https://github.com/expo/eas-cli/pull/2276) by [@khamilowicz](https://github.com/khamilowicz))
 - Add `eas credentials:configure-build` subcommand. ([#2282](https://github.com/expo/eas-cli/pull/2282) by [@fiberjw](https://github.com/fiberjw))
-
-### 🐛 Bug fixes
 
 ### 🧹 Chores
 
