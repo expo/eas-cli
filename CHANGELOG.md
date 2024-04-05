@@ -11,8 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add `auto`, `sdk-50` and `sdk-49` image tags. ([#2298](https://github.com/expo/eas-cli/pull/2298) by [@szdziedzic](https://github.com/szdziedzic))
 - Generate metadata file for project archive ([#2149](https://github.com/expo/eas-cli/pull/2149) by [@khamilowicz](https://github.com/khamilowicz))
 - Add --verbose-fastlane flag to eas submit command for more robust fastlane pilot logs. ([#2276](https://github.com/expo/eas-cli/pull/2276) by [@khamilowicz](https://github.com/khamilowicz))
-- Add `eas credentials:configure-build` subcommand.
-([#2282](https://github.com/expo/eas-cli/pull/2282) by [@fiberjw](https://github.com/fiberjw))
+- Add `eas credentials:configure-build` subcommand. ([#2282](https://github.com/expo/eas-cli/pull/2282) by [@fiberjw](https://github.com/fiberjw))
 - Add `--build-logger-level` flag to `eas build` command. ([#2313](https://github.com/expo/eas-cli/pull/2313) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
