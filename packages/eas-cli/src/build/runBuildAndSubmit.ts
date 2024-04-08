@@ -132,6 +132,36 @@ export async function runBuildAndSubmitAsync(
     }. ${learnMore('https://docs.expo.dev/build-reference/variables/')}`
   );
 
+  for (const buildProfile of buildProfiles) {
+    if (buildProfile.profile.image && ['default', 'stable'].includes(buildProfile.profile.image)) {
+      Log.warn(
+        `The "image" field in the build profile "${buildProfile.profileName}" is set to "${buildProfile.profile.image}". This tag is deprecated and will be removed in the future. Use other images or tags listed here: https://docs.expo.dev/build-reference/infrastructure/`
+      );
+    }
+
+    if (
+      buildProfile.profile.image &&
+      [
+        'macos-monterey-12.4-xcode-13.4',
+        'macos-monterey-12.3-xcode-13.3',
+        'macos-monterey-12.1-xcode-13.2',
+        'macos-ventura-13.4-xcode-14.3.1',
+        'macos-ventura-13.3-xcode-14.3',
+        'macos-monterey-12.6-xcode-14.2',
+        'macos-monterey-12.6-xcode-14.1',
+        'macos-monterey-12.6-xcode-14.0',
+      ].includes(buildProfile.profile.image)
+    ) {
+      Log.warn(
+        `The "image" field in the build profile "${buildProfile.profileName}" is set to "${
+          buildProfile.profile.image
+        }". This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting "macos-sonoma-14.4-xcode-15.3" or "latest" as your image value. This image will be removed from EAS Build on May 29th, 2024. ${learnMore(
+          'https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates'
+        )}`
+      );
+    }
+  }
+
   await ensureExpoDevClientInstalledForDevClientBuildsAsync({
     projectDir,
     nonInteractive: flags.nonInteractive,
