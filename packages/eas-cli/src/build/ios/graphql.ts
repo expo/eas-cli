@@ -3,6 +3,7 @@ import nullthrows from 'nullthrows';
 
 import { IosJobInput, IosJobSecretsInput } from '../../graphql/generated';
 import {
+  loggerLevelToGraphQLWorkerLoggerLevel,
   transformBuildMode,
   transformBuildTrigger,
   transformProjectArchive,
@@ -31,6 +32,9 @@ export function transformJob(job: Ios.Job): IosJobInput {
     experimental: job.experimental,
     mode: transformBuildMode(job.mode),
     customBuildConfig: job.customBuildConfig,
+    loggerLevel: job.loggerLevel
+      ? loggerLevelToGraphQLWorkerLoggerLevel[job.loggerLevel]
+      : undefined,
   };
 }
 

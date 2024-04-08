@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add `auto`, `sdk-50` and `sdk-49` image tags. ([#2298](https://github.com/expo/eas-cli/pull/2298) by [@szdziedzic](https://github.com/szdziedzic))
+- Add `--build-logger-level` flag to `eas build` command. ([#2313](https://github.com/expo/eas-cli/pull/2313) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 

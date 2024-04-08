@@ -6,6 +6,7 @@ import {
   Metadata,
   Workflow,
 } from '@expo/eas-build-job';
+import { LoggerLevel } from '@expo/logger';
 import assert from 'assert';
 
 import {
@@ -18,6 +19,7 @@ import {
   BuildTrigger as GraphQLBuildTrigger,
   ProjectArchiveSourceInput,
   ProjectArchiveSourceType,
+  WorkerLoggerLevel,
 } from '../graphql/generated';
 
 export function transformProjectArchive(archiveSource: ArchiveSource): ProjectArchiveSourceInput {
@@ -108,3 +110,12 @@ export function transformBuildTrigger(buildTrigger: BuildTrigger): GraphQLBuildT
   }
   throw new Error('Unknown build trigger');
 }
+
+export const loggerLevelToGraphQLWorkerLoggerLevel: Record<LoggerLevel, WorkerLoggerLevel> = {
+  [LoggerLevel.TRACE]: WorkerLoggerLevel.Trace,
+  [LoggerLevel.DEBUG]: WorkerLoggerLevel.Debug,
+  [LoggerLevel.INFO]: WorkerLoggerLevel.Info,
+  [LoggerLevel.WARN]: WorkerLoggerLevel.Warn,
+  [LoggerLevel.ERROR]: WorkerLoggerLevel.Error,
+  [LoggerLevel.FATAL]: WorkerLoggerLevel.Fatal,
+};

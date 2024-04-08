@@ -102,6 +102,7 @@ export async function prepareJobAsync(
         path: maybeCustomBuildConfigPath,
       },
     }),
+    loggerLevel: ctx.loggerLevel,
   };
 
   return sanitizeBuildJob(job) as Android.Job;
