@@ -155,7 +155,7 @@ export async function runBuildAndSubmitAsync(
       Log.warn(
         `The "image" field in the build profile "${buildProfile.profileName}" is set to "${
           buildProfile.profile.image
-        }". This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting macos-ventura-13.6-xcode-15.2 or latest as your image value. This image will be removed from EAS Build on May 29th, 2024. ${learnMore(
+        }". This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting "macos-sonoma-14.4-xcode-15.3" or "latest" as your image value. This image will be removed from EAS Build on May 29th, 2024. ${learnMore(
           'https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates'
         )}`
       );
