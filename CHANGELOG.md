@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Deprecate the `default` image tag. ([#2298](https://github.com/expo/eas-cli/pull/2298) by [@szdziedzic](https://github.com/szdziedzic))
 - Deprecate iOS images with Xcode version lower then 15. ([#2298](https://github.com/expo/eas-cli/pull/2298) by [@szdziedzic](https://github.com/szdziedzic))
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2315](https://github.com/expo/eas-cli/pull/2315) by [@expo-bot](https://github.com/expo-bot))
 
 ## [7.7.0](https://github.com/expo/eas-cli/releases/tag/v7.7.0) - 2024-04-05
 
