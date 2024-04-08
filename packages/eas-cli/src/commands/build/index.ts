@@ -216,7 +216,7 @@ export default class Build extends EasCommand {
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
       resourceClass: flags['resource-class'],
       message,
-      'build-logger-level': flags['build-logger-level'],
+      buildLoggerLevel: flags['build-logger-level'],
     };
   }
 

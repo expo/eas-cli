@@ -94,7 +94,7 @@ export interface BuildFlags {
   localBuildOptions: LocalBuildOptions;
   resourceClass?: ResourceClass;
   message?: string;
-  'build-logger-level'?: LoggerLevel;
+  buildLoggerLevel?: LoggerLevel;
 }
 
 export async function runBuildAndSubmitAsync(
@@ -362,7 +362,7 @@ async function prepareAndStartBuildAsync({
     vcsClient,
     getDynamicPrivateProjectConfigAsync,
     customBuildConfigMetadata,
-    buildLoggerLevel: flags['build-logger-level'],
+    buildLoggerLevel: flags.buildLoggerLevel,
   });
 
   if (moreBuilds) {
