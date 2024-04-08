@@ -133,23 +133,9 @@ export async function runBuildAndSubmitAsync(
   );
 
   for (const buildProfile of buildProfiles) {
-    if (
-      buildProfile.profile.image &&
-      [
-        'default',
-        'stable',
-        'ubuntu-22.04-jdk-8-ndk-r21e',
-        'ubuntu-20.04-jdk-8-ndk-r21e',
-        'ubuntu-20.04-jdk-11-ndk-r19c',
-        'ubuntu-20.04-jdk-8-ndk-r19c',
-      ].includes(buildProfile.profile.image)
-    ) {
+    if (buildProfile.profile.image && ['default', 'stable'].includes(buildProfile.profile.image)) {
       Log.warn(
-        `The "image" field in the build profile "${buildProfile.profileName}" is set to "${
-          buildProfile.profile.image
-        }". This ${
-          ['default', 'stable'].includes(buildProfile.profile.image) ? 'tag' : 'image'
-        } is deprecated and will be removed in the future. Use other images or tags listed here: https://docs.expo.dev/build-reference/infrastructure/`
+        `The "image" field in the build profile "${buildProfile.profileName}" is set to "${buildProfile.profile.image}". This tag is deprecated and will be removed in the future. Use other images or tags listed here: https://docs.expo.dev/build-reference/infrastructure/`
       );
     }
 

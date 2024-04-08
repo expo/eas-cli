@@ -245,7 +245,11 @@
                 "sdk-49",
                 "ubuntu-22.04-jdk-17-ndk-r21e",
                 "ubuntu-22.04-jdk-11-ndk-r21e",
-                "ubuntu-20.04-jdk-11-ndk-r21e"
+                "ubuntu-20.04-jdk-11-ndk-r21e",
+                "ubuntu-22.04-jdk-8-ndk-r21e",
+                "ubuntu-20.04-jdk-8-ndk-r21e",
+                "ubuntu-20.04-jdk-11-ndk-r19c",
+                "ubuntu-20.04-jdk-8-ndk-r19c"
               ],
               "markdownEnumDescriptions": [
                 "When using this option the build image is selected automatically based on the project configuration, detected Expo SDK and React Native versions.",
@@ -256,21 +260,10 @@
             },
             {
               "deprecated": true,
-              "enum": [
-                "default",
-                "stable",
-                "ubuntu-22.04-jdk-8-ndk-r21e",
-                "ubuntu-20.04-jdk-8-ndk-r21e",
-                "ubuntu-20.04-jdk-11-ndk-r19c",
-                "ubuntu-20.04-jdk-8-ndk-r19c"
-              ],
+              "enum": ["default", "stable"],
               "markdownEnumDescriptions": [
                 "This image tag is deprecated, please use other image tags or images directly instead.",
-                "This image tag is deprecated, please use other image tags or images directly instead.",
-                "This image is deprecated, please use one of the more recent images instead.",
-                "This image is deprecated, please use one of the more recent images instead.",
-                "This image is deprecated, please use one of the more recent images instead.",
-                "This image is deprecated, please use one of the more recent images instead."
+                "This image tag is deprecated, please use other image tags or images directly instead."
               ]
             }
           ]
@@ -410,14 +403,14 @@
               "markdownEnumDescriptions": [
                 "This image tag is deprecated, please use other image tags or images directly instead.",
                 "This image tag is deprecated, please use other image tags or images directly instead.",
-                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
-                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
-                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
-                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
-                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
-                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
-                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
-                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates."
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-ventura-13.6-xcode-15.2` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates."
               ]
             }
           ]
