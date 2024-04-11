@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2316](https://github.com/expo/eas-cli/pull/2316) by [@expo-bot](https://github.com/expo-bot))
+- Stop querying `Build.resourceClass` field. ([#2320](https://github.com/expo/eas-cli/pull/2320) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [7.8.0](https://github.com/expo/eas-cli/releases/tag/v7.8.0) - 2024-04-08
 
