@@ -75,9 +75,11 @@ jobs:
         working-directory: ${{ github.workspace }}/packages/eas-cli
         run: |
           yarn pretarball-ci
-          yarn oclif pack:tarballs --no-xz --targets darwin-x64
+          yarn oclif pack:tarballs --no-xz --targets darwin-x64,darwin-arm64
       - id: x64
         run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
+      - id: arm64
+        run: echo "filename=$(ls eas-*-arm64.tar.gz)" >> $GITHUB_OUTPUT
         working-directory: ${{ github.workspace }}/packages/eas-cli/dist
       - name: Upload darwin-x64 tarball
         uses: actions/upload-release-asset@v1
@@ -87,6 +89,15 @@ jobs:
           upload_url: ${{ needs.release.outputs.upload_url }}
           asset_path: packages/eas-cli/dist/${{ steps.x64.outputs.filename }}
           asset_name: ${{ steps.x64.outputs.filename }}
+          asset_content_type: application/gzip
+      - name: Upload darwin-arm64 tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: packages/eas-cli/dist/${{ steps.arm64.outputs.filename }}
+          asset_name: ${{ steps.arm64.outputs.filename }}
           asset_content_type: application/gzip
   build-windows:
     name: Build for Windows
