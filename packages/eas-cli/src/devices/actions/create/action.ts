@@ -34,7 +34,7 @@ export default class DeviceCreateAction {
       await runDeveloperPortalMethodAsync(
         this.graphqlClient,
         this.appStoreApi,
-        this.account.id,
+        this.account,
         this.appleTeam
       );
     } else if (method === RegistrationMethod.INPUT) {

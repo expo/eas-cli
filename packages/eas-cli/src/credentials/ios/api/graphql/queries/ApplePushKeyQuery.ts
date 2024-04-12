@@ -3,25 +3,75 @@ import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../../../../../graphql/client';
-import { ApplePushKeyByAccountQuery, ApplePushKeyFragment } from '../../../../../graphql/generated';
+import {
+  ApplePushKeyFragment,
+  ApplePushKeysPaginatedByAccountQuery,
+} from '../../../../../graphql/generated';
 import { ApplePushKeyFragmentNode } from '../../../../../graphql/types/credentials/ApplePushKey';
+import { Connection, QueryParams, fetchEntireDatasetAsync } from '../../../../../utils/relay';
 
 export const ApplePushKeyQuery = {
   async getAllForAccountAsync(
     graphqlClient: ExpoGraphqlClient,
     accountName: string
   ): Promise<ApplePushKeyFragment[]> {
+    const paginatedGetterAsync = async (
+      relayArgs: QueryParams
+    ): Promise<Connection<ApplePushKeyFragment>> => {
+      return await ApplePushKeyQuery.getAllForAccountPaginatedAsync(
+        graphqlClient,
+        accountName,
+        relayArgs
+      );
+    };
+    return await fetchEntireDatasetAsync({
+      paginatedGetterAsync,
+      progressBarLabel: 'fetching Apple Push Keys...',
+    });
+  },
+  async getAllForAccountPaginatedAsync(
+    graphqlClient: ExpoGraphqlClient,
+    accountName: string,
+    {
+      after,
+      first,
+      before,
+      last,
+    }: { after?: string; first?: number; before?: string; last?: number }
+  ): Promise<ApplePushKeysPaginatedByAccountQuery['account']['byName']['applePushKeysPaginated']> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<ApplePushKeyByAccountQuery>(
+        .query<ApplePushKeysPaginatedByAccountQuery>(
           gql`
-            query ApplePushKeyByAccountQuery($accountName: String!) {
+            query ApplePushKeysPaginatedByAccountQuery(
+              $accountName: String!
+              $after: String
+              $first: Int
+              $before: String
+              $last: Int
+            ) {
               account {
                 byName(accountName: $accountName) {
                   id
-                  applePushKeys {
-                    id
-                    ...ApplePushKeyFragment
+                  applePushKeysPaginated(
+                    after: $after
+                    first: $first
+                    before: $before
+                    last: $last
+                  ) {
+                    edges {
+                      cursor
+                      node {
+                        id
+                        ...ApplePushKeyFragment
+                      }
+                    }
+                    pageInfo {
+                      hasNextPage
+                      hasPreviousPage
+                      startCursor
+                      endCursor
+                    }
                   }
                 }
               }
@@ -30,6 +80,10 @@ export const ApplePushKeyQuery = {
           `,
           {
             accountName,
+            after,
+            first,
+            before,
+            last,
           },
           {
             additionalTypenames: ['ApplePushKey'],
@@ -37,6 +91,6 @@ export const ApplePushKeyQuery = {
         )
         .toPromise()
     );
-    return data.account.byName.applePushKeys;
+    return data.account.byName.applePushKeysPaginated;
   },
 };

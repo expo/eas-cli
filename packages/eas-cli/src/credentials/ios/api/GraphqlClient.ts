@@ -326,7 +326,7 @@ export async function getDevicesForAppleTeamAsync(
 ): Promise<AppleDeviceFragment[]> {
   return await AppleDeviceQuery.getAllByAppleTeamIdentifierAsync(
     graphqlClient,
-    account.id,
+    account.name,
     appleTeamIdentifier,
     {
       useCache,
