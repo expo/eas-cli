@@ -1,4 +1,5 @@
 import assert from 'assert';
+import cliProgress from 'cli-progress';
 
 import { PageInfo } from '../graphql/generated';
 import { promptAsync } from '../prompts';
@@ -355,4 +356,52 @@ async function selectPaginatedInternalAsync<T>({
   } else {
     return selectedItem as T;
   }
+}
+
+export type PaginatedGetterAsync<Node> = (relayArgs: QueryParams) => Promise<Connection<Node>>;
+export const PAGE_SIZE = 20;
+export async function fetchEntireDatasetAsync<Node>({
+  paginatedGetterAsync,
+  progressBarLabel,
+}: {
+  paginatedGetterAsync: PaginatedGetterAsync<Node>;
+  progressBarLabel?: string;
+}): Promise<Node[]> {
+  // No way to know the total count of items beforehand
+  let totalEstimatedWork = 10;
+  const queueProgressBar = new cliProgress.SingleBar(
+    { format: `|{bar}| ${progressBarLabel}` },
+    cliProgress.Presets.rect
+  );
+
+  const data: Node[] = [];
+  let cursor = undefined;
+  let didStartProgressBar = false;
+  let progress = 0;
+  while (true) {
+    const connection = await paginatedGetterAsync({ first: PAGE_SIZE, after: cursor });
+    const nodes = connection.edges.map(edge => edge.node);
+    const hasNextPage = connection.pageInfo.hasNextPage;
+    data.push(...nodes);
+    if (!hasNextPage) {
+      break;
+    }
+    cursor = connection.pageInfo.endCursor ?? undefined;
+    if (!didStartProgressBar) {
+      // only show the progress bar if user has more than 1 page of items
+      queueProgressBar.start(totalEstimatedWork, 0);
+      didStartProgressBar = true;
+    }
+    progress++;
+    queueProgressBar.update(progress);
+    if (progress >= totalEstimatedWork) {
+      totalEstimatedWork = 8 * totalEstimatedWork;
+      queueProgressBar.setTotal(totalEstimatedWork);
+    }
+  }
+  if (didStartProgressBar) {
+    queueProgressBar.update(totalEstimatedWork);
+    queueProgressBar.stop();
+  }
+  return data;
 }
