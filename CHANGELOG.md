@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix display of errors when expo-updates CLI command fails. ([#2324](https://github.com/expo/eas-cli/pull/2324) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 ## [7.8.1](https://github.com/expo/eas-cli/releases/tag/v7.8.1) - 2024-04-11
