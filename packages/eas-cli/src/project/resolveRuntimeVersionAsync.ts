@@ -24,16 +24,21 @@ export async function resolveRuntimeVersionAsync({
   }
 
   try {
+    Log.debug('Using expo-updates runtimeversion:resolve CLI for runtime version resolution');
+
+    const extraArgs = Log.isDebug ? ['--debug'] : [];
+
     const resolvedRuntimeVersionJSONResult = await expoUpdatesCommandAsync(projectDir, [
       'runtimeversion:resolve',
       '--platform',
       platform,
+      ...extraArgs,
     ]);
     const runtimeVersionResult = JSON.parse(resolvedRuntimeVersionJSONResult);
-    if (runtimeVersionResult.fingerprintSources) {
-      Log.debug(`Resolved fingeprint runtime version for platform "${platform}". Sources:`);
-      Log.debug(runtimeVersionResult.fingerprintSources);
-    }
+
+    Log.debug('runtimeversion:resolve output:');
+    Log.debug(resolvedRuntimeVersionJSONResult);
+
     return runtimeVersionResult.runtimeVersion ?? null;
   } catch (e: any) {
     // if expo-updates is not installed, there's no need for a runtime version in the build
