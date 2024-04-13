@@ -6595,6 +6595,17 @@ export type GoogleServiceAccountKeyByAccountQueryVariables = Exact<{
 
 export type GoogleServiceAccountKeyByAccountQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, googleServiceAccountKeys: Array<{ __typename?: 'GoogleServiceAccountKey', id: string, projectIdentifier: string, privateKeyIdentifier: string, clientEmail: string, clientIdentifier: string, createdAt: any, updatedAt: any }> } } };
 
+export type GoogleServiceAccountKeysPaginatedByAccountQueryVariables = Exact<{
+  accountName: Scalars['String']['input'];
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+}>;
+
+
+export type GoogleServiceAccountKeysPaginatedByAccountQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, googleServiceAccountKeysPaginated: { __typename?: 'AccountGoogleServiceAccountKeysConnection', edges: Array<{ __typename?: 'AccountGoogleServiceAccountKeysEdge', cursor: string, node: { __typename?: 'GoogleServiceAccountKey', id: string, projectIdentifier: string, privateKeyIdentifier: string, clientEmail: string, clientIdentifier: string, createdAt: any, updatedAt: any } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
+
 export type CreateAppStoreConnectApiKeyMutationVariables = Exact<{
   appStoreConnectApiKeyInput: AppStoreConnectApiKeyInput;
   accountId: Scalars['ID']['input'];
@@ -6779,14 +6790,6 @@ export type AppleAppIdentifierByBundleIdQueryVariables = Exact<{
 
 export type AppleAppIdentifierByBundleIdQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, appleAppIdentifiers: Array<{ __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string }> } } };
 
-export type AppleDevicesByAppleTeamQueryVariables = Exact<{
-  accountId: Scalars['ID']['input'];
-  appleTeamIdentifier: Scalars['String']['input'];
-}>;
-
-
-export type AppleDevicesByAppleTeamQuery = { __typename?: 'RootQuery', appleTeam: { __typename?: 'AppleTeamQuery', byAppleTeamIdentifier?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null, appleDevices: Array<{ __typename?: 'AppleDevice', id: string, identifier: string, name?: string | null, model?: string | null, deviceClass?: AppleDeviceClass | null, createdAt: any, appleTeam: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } }> } | null } };
-
 export type AppleDevicesByTeamIdentifierQueryVariables = Exact<{
   accountName: Scalars['String']['input'];
   appleTeamIdentifier: Scalars['String']['input'];
@@ -6797,20 +6800,13 @@ export type AppleDevicesByTeamIdentifierQueryVariables = Exact<{
 
 export type AppleDevicesByTeamIdentifierQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, appleTeams: Array<{ __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null, appleDevices: Array<{ __typename?: 'AppleDevice', id: string, identifier: string, name?: string | null, deviceClass?: AppleDeviceClass | null, enabled?: boolean | null, model?: string | null, createdAt: any }> }> } } };
 
-export type AppleDevicesByIdentifierQueryVariables = Exact<{
-  accountName: Scalars['String']['input'];
-  identifier: Scalars['String']['input'];
-}>;
-
-
-export type AppleDevicesByIdentifierQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, appleDevices: Array<{ __typename?: 'AppleDevice', id: string, model?: string | null, identifier: string, name?: string | null, deviceClass?: AppleDeviceClass | null, enabled?: boolean | null, appleTeam: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } }> } } };
-
 export type AppleDevicesPaginatedByAccountQueryVariables = Exact<{
   accountName: Scalars['String']['input'];
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
+  filter?: InputMaybe<AppleDeviceFilterInput>;
 }>;
 
 
