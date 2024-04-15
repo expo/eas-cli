@@ -78,6 +78,7 @@ jobs:
           yarn oclif pack:tarballs --no-xz --targets darwin-x64,darwin-arm64
       - id: x64
         run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
+        working-directory: ${{ github.workspace }}/packages/eas-cli/dist
       - id: arm64
         run: echo "filename=$(ls eas-*-arm64.tar.gz)" >> $GITHUB_OUTPUT
         working-directory: ${{ github.workspace }}/packages/eas-cli/dist
