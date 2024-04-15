@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix display of errors when expo-updates CLI command fails. ([#2324](https://github.com/expo/eas-cli/pull/2324) by [@wschurman](https://github.com/wschurman))
+- Move credentials endpoints to paginated counterparts. ([#2327](https://github.com/expo/eas-cli/pull/2327) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🧹 Chores
 
