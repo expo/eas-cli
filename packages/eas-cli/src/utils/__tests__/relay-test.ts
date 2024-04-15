@@ -1,10 +1,15 @@
+import { PageInfo } from '../../graphql/generated';
 import { promptAsync } from '../../prompts';
 import {
   Connection,
+  Edge,
   FilterPagination,
   NEXT_PAGE_OPTION,
+  PAGE_SIZE,
   PREV_PAGE_OPTION,
+  PaginatedGetterAsync,
   QueryParams,
+  fetchEntireDatasetAsync,
   selectPaginatedAsync,
 } from '../relay';
 
@@ -778,5 +783,57 @@ describe(selectPaginatedAsync, () => {
     expect(getTitleAsync).toHaveBeenCalledWith(node1);
     expect(getTitleAsync).toHaveBeenCalledWith(node2);
     expect(getTitleAsync).toHaveBeenCalledWith(node3);
+  });
+});
+
+describe(selectPaginatedAsync, () => {
+  const mockDataset = Array.from({ length: 50 }, (_, idx) => ({ id: idx + 1 }));
+  const testPaginatedGetterAsync: PaginatedGetterAsync<object> = async (
+    relayArgs: QueryParams
+  ): Promise<Connection<object>> => {
+    const startIdx = relayArgs.after ? Number(relayArgs.after) : 0;
+    const endIdx = startIdx + (relayArgs.first || PAGE_SIZE);
+    const hasNextPage = endIdx < mockDataset.length;
+    const hasPreviousPage = startIdx > 0;
+    const edges: Edge<object>[] = mockDataset
+      .slice(startIdx, endIdx)
+      .map(node => ({ cursor: String(node.id), node }));
+
+    const pageInfo: PageInfo = {
+      hasNextPage,
+      hasPreviousPage,
+      endCursor: hasNextPage ? String(endIdx) : undefined,
+    };
+
+    return {
+      edges,
+      pageInfo,
+    };
+  };
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('getting an entire paginated dataset', async () => {
+    const data = await fetchEntireDatasetAsync({
+      paginatedGetterAsync: testPaginatedGetterAsync,
+    });
+    expect(data).toEqual(mockDataset);
+  });
+  test('getting an empty paginated dataset', async () => {
+    const emptyPaginatedGetterAsync = async (): Promise<Connection<object>> => {
+      return {
+        edges: [],
+        pageInfo: {
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      };
+    };
+    const data = await fetchEntireDatasetAsync({
+      paginatedGetterAsync: emptyPaginatedGetterAsync,
+    });
+    expect(data).toEqual([]);
   });
 });

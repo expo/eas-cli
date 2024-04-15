@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add progress bar for fetching paginated datasets. ([#2326](https://github.com/expo/eas-cli/pull/2326) by [@quinlanj](https://github.com/quinlanj))
+
 ## [7.8.1](https://github.com/expo/eas-cli/releases/tag/v7.8.1) - 2024-04-11
 
 ### 🐛 Bug fixes
