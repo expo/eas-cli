@@ -55,7 +55,6 @@ export const BuildFragmentNode = gql`
     updatedAt
     message
     completedAt
-    resourceClass
     expirationDate
     isForIosSimulator
   }
