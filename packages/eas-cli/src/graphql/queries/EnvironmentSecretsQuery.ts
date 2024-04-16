@@ -18,7 +18,8 @@ export type EnvironmentSecretWithScope = EnvironmentSecretFragment & {
 export const EnvironmentSecretsQuery = {
   async byAppIdAsync(
     graphqlClient: ExpoGraphqlClient,
-    appId: string
+    appId: string,
+    filterNames?: string[]
   ): Promise<{
     accountSecrets: EnvironmentSecretFragment[];
     appSecrets: EnvironmentSecretFragment[];
@@ -27,18 +28,18 @@ export const EnvironmentSecretsQuery = {
       graphqlClient
         .query<EnvironmentSecretsByAppIdQuery>(
           gql`
-            query EnvironmentSecretsByAppId($appId: String!) {
+            query EnvironmentSecretsByAppId($appId: String!, $filterNames: [String!]) {
               app {
                 byId(appId: $appId) {
                   id
                   ownerAccount {
                     id
-                    environmentSecrets {
+                    environmentSecrets(filterNames: $filterNames) {
                       id
                       ...EnvironmentSecretFragment
                     }
                   }
-                  environmentSecrets {
+                  environmentSecrets(filterNames: $filterNames) {
                     id
                     ...EnvironmentSecretFragment
                   }
@@ -47,7 +48,7 @@ export const EnvironmentSecretsQuery = {
             }
             ${print(EnvironmentSecretFragmentNode)}
           `,
-          { appId },
+          { appId, filterNames },
           { additionalTypenames: ['EnvironmentSecret'] }
         )
         .toPromise()
