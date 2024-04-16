@@ -117,6 +117,8 @@ export type Account = {
   createdAt: Scalars['DateTime']['output'];
   /** Environment secrets for an account */
   environmentSecrets: Array<EnvironmentSecret>;
+  /** Environment variables for an account */
+  environmentVariables: Array<EnvironmentVariable>;
   /** GitHub App installations for an account */
   githubAppInstallations: Array<GitHubAppInstallation>;
   /** @deprecated Use googleServiceAccountKeysPaginated */
@@ -344,6 +346,15 @@ export type AccountBuildsArgs = {
  * data and settings. Actors may own and be members of accounts.
  */
 export type AccountEnvironmentSecretsArgs = {
+  filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
+export type AccountEnvironmentVariablesArgs = {
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -1228,6 +1239,8 @@ export type App = Project & {
   devDomainName?: Maybe<AppDevDomainName>;
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
+  /** Environment variables for an app */
+  environmentVariables: Array<EnvironmentVariable>;
   fullName: Scalars['String']['output'];
   githubBuildTriggers: Array<GitHubBuildTrigger>;
   githubJobRunTriggers: Array<GitHubJobRunTrigger>;
@@ -1425,6 +1438,13 @@ export type AppDeploymentsArgs = {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppEnvironmentSecretsArgs = {
+  filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppEnvironmentVariablesArgs = {
+  environment: EnvironmentVariableEnvironment;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -3079,6 +3099,13 @@ export type CreateEnvironmentSecretInput = {
   value: Scalars['String']['input'];
 };
 
+export type CreateEnvironmentVariableInput = {
+  environment: EnvironmentVariableEnvironment;
+  name: Scalars['String']['input'];
+  sensitive: Scalars['Boolean']['input'];
+  value: Scalars['String']['input'];
+};
+
 export type CreateGitHubAppInstallationInput = {
   accountId: Scalars['ID']['input'];
   installationIdentifier: Scalars['Int']['input'];
@@ -3132,6 +3159,12 @@ export type CreateServerlessFunctionUploadUrlResult = {
   __typename?: 'CreateServerlessFunctionUploadUrlResult';
   formDataFields: Scalars['JSONObject']['output'];
   url: Scalars['String']['output'];
+};
+
+export type CreateSharedEnvironmentVariableInput = {
+  name: Scalars['String']['input'];
+  sensitive: Scalars['Boolean']['input'];
+  value: Scalars['String']['input'];
 };
 
 export type CreateSubmissionResult = {
@@ -3196,6 +3229,11 @@ export type DeleteDiscordUserResult = {
 
 export type DeleteEnvironmentSecretResult = {
   __typename?: 'DeleteEnvironmentSecretResult';
+  id: Scalars['ID']['output'];
+};
+
+export type DeleteEnvironmentVariableResult = {
+  __typename?: 'DeleteEnvironmentVariableResult';
   id: Scalars['ID']['output'];
 };
 
@@ -3340,6 +3378,7 @@ export type DeploymentSignedUrlResult = {
   __typename?: 'DeploymentSignedUrlResult';
   deploymentId: Scalars['ID']['output'];
   url: Scalars['String']['output'];
+  workerId: Scalars['ID']['output'];
 };
 
 /** Represents the connection over the deployments edge of an App */
@@ -3501,6 +3540,73 @@ export type EnvironmentSecretMutationDeleteEnvironmentSecretArgs = {
 export enum EnvironmentSecretType {
   FileBase64 = 'FILE_BASE64',
   String = 'STRING'
+}
+
+export type EnvironmentVariable = {
+  __typename?: 'EnvironmentVariable';
+  createdAt: Scalars['DateTime']['output'];
+  environment?: Maybe<EnvironmentVariableEnvironment>;
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  scope: EnvironmentVariableScope;
+  updatedAt: Scalars['DateTime']['output'];
+  value?: Maybe<Scalars['String']['output']>;
+};
+
+export enum EnvironmentVariableEnvironment {
+  Development = 'DEVELOPMENT',
+  Preview = 'PREVIEW',
+  Production = 'PRODUCTION'
+}
+
+export type EnvironmentVariableMutation = {
+  __typename?: 'EnvironmentVariableMutation';
+  /** Create an environment variable for an Account */
+  createEnvironmentVariableForAccount: EnvironmentVariable;
+  /** Create an environment variable for an App */
+  createEnvironmentVariableForApp: EnvironmentVariable;
+  /** Delete an environment variable */
+  deleteEnvironmentVariable: DeleteEnvironmentVariableResult;
+  /** Link shared environment variable */
+  linkSharedEnvironmentVariable: EnvironmentVariable;
+  /** Unlink shared environment variable */
+  unlinkSharedEnvironmentVariable: EnvironmentVariable;
+};
+
+
+export type EnvironmentVariableMutationCreateEnvironmentVariableForAccountArgs = {
+  accountId: Scalars['ID']['input'];
+  environmentVariableData: CreateSharedEnvironmentVariableInput;
+};
+
+
+export type EnvironmentVariableMutationCreateEnvironmentVariableForAppArgs = {
+  appId: Scalars['ID']['input'];
+  environmentVariableData: CreateEnvironmentVariableInput;
+};
+
+
+export type EnvironmentVariableMutationDeleteEnvironmentVariableArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type EnvironmentVariableMutationLinkSharedEnvironmentVariableArgs = {
+  appId: Scalars['ID']['input'];
+  environment: EnvironmentVariableEnvironment;
+  environmentVariableId: Scalars['ID']['input'];
+};
+
+
+export type EnvironmentVariableMutationUnlinkSharedEnvironmentVariableArgs = {
+  appId: Scalars['ID']['input'];
+  environment: EnvironmentVariableEnvironment;
+  environmentVariableId: Scalars['ID']['input'];
+};
+
+export enum EnvironmentVariableScope {
+  Project = 'PROJECT',
+  Shared = 'SHARED'
 }
 
 export type EstimatedOverageAndCost = {
@@ -4309,10 +4415,22 @@ export type JobRun = {
   initiatingActor?: Maybe<Actor>;
   isWaived: Scalars['Boolean']['output'];
   logFileUrls: Array<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
   priority: JobRunPriority;
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: JobRunStatus;
   updateGroups: Array<Array<Update>>;
+};
+
+export type JobRunMutation = {
+  __typename?: 'JobRunMutation';
+  /** Cancel an EAS Job Run */
+  cancelJobRun: JobRun;
+};
+
+
+export type JobRunMutationCancelJobRunArgs = {
+  jobRunId: Scalars['ID']['input'];
 };
 
 export enum JobRunPriority {
@@ -4914,6 +5032,8 @@ export type RootMutation = {
   emailSubscription: EmailSubscriptionMutation;
   /** Mutations that create and delete EnvironmentSecrets */
   environmentSecret: EnvironmentSecretMutation;
+  /** Mutations that create and delete EnvironmentVariables */
+  environmentVariable: EnvironmentVariableMutation;
   /** Mutations that utilize services facilitated by the GitHub App */
   githubApp: GitHubAppMutation;
   /** Mutations for GitHub App installations */
@@ -4933,6 +5053,8 @@ export type RootMutation = {
   iosAppBuildCredentials: IosAppBuildCredentialsMutation;
   /** Mutations that modify the credentials for an iOS app */
   iosAppCredentials: IosAppCredentialsMutation;
+  /** Mutations that modify an EAS Build */
+  jobRun: JobRunMutation;
   keystoreGenerationUrl: KeystoreGenerationUrlMutation;
   /** Mutations that modify the currently authenticated User */
   me: MeMutation;
@@ -7088,6 +7210,47 @@ export type DeleteEnvironmentSecretMutationVariables = Exact<{
 
 export type DeleteEnvironmentSecretMutation = { __typename?: 'RootMutation', environmentSecret: { __typename?: 'EnvironmentSecretMutation', deleteEnvironmentSecret: { __typename?: 'DeleteEnvironmentSecretResult', id: string } } };
 
+export type LinkSharedEnvironmentVariableMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  environment: EnvironmentVariableEnvironment;
+  environmentVariableId: Scalars['ID']['input'];
+}>;
+
+
+export type LinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', linkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope } } };
+
+export type UnlinkSharedEnvironmentVariableMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  environment: EnvironmentVariableEnvironment;
+  environmentVariableId: Scalars['ID']['input'];
+}>;
+
+
+export type UnlinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', unlinkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope } } };
+
+export type CreateEnvironmentVariableForAccountMutationVariables = Exact<{
+  input: CreateSharedEnvironmentVariableInput;
+  accountId: Scalars['ID']['input'];
+}>;
+
+
+export type CreateEnvironmentVariableForAccountMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForAccount: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope } } };
+
+export type CreateEnvironmentVariableForAppMutationVariables = Exact<{
+  input: CreateEnvironmentVariableInput;
+  appId: Scalars['ID']['input'];
+}>;
+
+
+export type CreateEnvironmentVariableForAppMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForApp: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope } } };
+
+export type DeleteEnvironmentVariableMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type DeleteEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', deleteEnvironmentVariable: { __typename?: 'DeleteEnvironmentVariableResult', id: string } } };
+
 export type CreateKeystoreGenerationUrlMutationVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -7288,10 +7451,28 @@ export type ViewUpdateChannelsPaginatedOnAppQuery = { __typename?: 'RootQuery', 
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
+  filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
 }>;
 
 
 export type EnvironmentSecretsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any }> }, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any }> } } };
+
+export type EnvironmentVariablesByAppIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
+  environment: EnvironmentVariableEnvironment;
+}>;
+
+
+export type EnvironmentVariablesByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope }> }, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope }> } } };
+
+export type EnvironmentVariablesSharedQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
+}>;
+
+
+export type EnvironmentVariablesSharedQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope }> } } } };
 
 export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']['input']> | Scalars['String']['input'];
@@ -7402,6 +7583,8 @@ export type BuildFragment = { __typename?: 'Build', id: string, status: BuildSta
 export type BuildWithSubmissionsFragment = { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, submissions: Array<{ __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logsUrl?: string | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: SubmissionAndroidTrack, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }>, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string } };
 
 export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any };
+
+export type EnvironmentVariableFragment = { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope };
 
 export type RuntimeFragment = { __typename?: 'Runtime', id: string, version: string };
 
