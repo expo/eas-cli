@@ -21,7 +21,7 @@ export const EnvironmentVariablesQuery = {
       filterNames,
     }: {
       appId: string;
-      environment: EnvironmentVariableEnvironment;
+      environment: string;
       filterNames?: string[];
     }
   ): Promise<{
@@ -63,9 +63,15 @@ export const EnvironmentVariablesQuery = {
   },
   async byAppIdAsync(
     graphqlClient: ExpoGraphqlClient,
-    appId: string,
-    environment: string,
-    filterNames?: string[]
+    {
+      appId,
+      environment,
+      filterNames,
+    }: {
+      appId: string;
+      environment: string;
+      filterNames?: string[];
+    }
   ): Promise<EnvironmentVariableFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -98,8 +104,7 @@ export const EnvironmentVariablesQuery = {
   },
   async sharedAsync(
     graphqlClient: ExpoGraphqlClient,
-    appId: string,
-    filterNames?: string[]
+    { appId, filterNames }: { appId: string; filterNames?: string[] }
   ): Promise<EnvironmentVariableFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient

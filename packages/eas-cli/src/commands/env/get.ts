@@ -124,19 +124,19 @@ async function getVariableAsync(
     throw new Error('Environment is required.');
   }
   if (environment && scope === EnvironmentVariableScope.Project) {
-    const appVariables = await EnvironmentVariablesQuery.byAppIdAsync(
-      graphqlClient,
-      projectId,
+    const appVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
+      appId: projectId,
       environment,
-      [name]
-    );
+      filterNames: [name],
+    });
     return appVariables[0];
   }
 
   if (scope === EnvironmentVariableScope.Shared) {
-    const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId, [
-      name,
-    ]);
+    const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, {
+      appId: projectId,
+      filterNames: [name],
+    });
     return sharedVariables[0];
   }
 

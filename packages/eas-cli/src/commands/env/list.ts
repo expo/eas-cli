@@ -45,8 +45,11 @@ export default class EnvironmentValueList extends EasCommand {
 
     const variables =
       scope === EnvironmentVariableScope.Project && environment
-        ? await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, projectId, environment)
-        : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
+        ? await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
+            appId: projectId,
+            environment,
+          })
+        : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, { appId: projectId });
 
     if (format === 'short') {
       for (const variable of variables) {
