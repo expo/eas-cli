@@ -12,5 +12,6 @@ export function link(
   } else {
     output = `${text === url ? '' : text + ': '}${chalk.underline(url)}`;
   }
+
   return dim ? chalk.dim(output) : output;
 }
