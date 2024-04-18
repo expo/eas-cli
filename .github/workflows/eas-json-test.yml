@@ -1,0 +1,23 @@
+on: pull_request
+
+name: eas.json update test
+
+jobs:
+  open-pr-in-universe:
+    name: Open a PR with `@expo/eas-json` bump in universe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            eas-json:
+              - 'packages/eas-json/**'
+      - name: Open a PR with `@expo/eas-json` version bump in universe
+        if: steps.filter.outputs.eas-json == 'true'
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          repo: expo/universe
+          ref: main
+          workflow: update-eas-json.yml
+          token: ${{ secrets.EXPO_BOT_PAT }}
