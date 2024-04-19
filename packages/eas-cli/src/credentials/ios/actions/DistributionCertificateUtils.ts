@@ -48,8 +48,13 @@ export function formatDistributionCertificate(
     buildCredentials => buildCredentials.iosAppCredentials.app
   );
   if (apps.length) {
-    const appFullNames = apps.map(app => app.fullName).join(',');
-    line += chalk.gray(`\n    📲 Used by: ${appFullNames}`);
+    // iosAppBuildCredentialsList is capped at 20 on www
+    const appFullNames = apps
+      .map(app => app.fullName)
+      .slice(0, 19)
+      .join(',');
+    const andMaybeMore = apps.length > 19 ? ' (and more)' : '';
+    line += chalk.gray(`\n    📲 Used by: ${appFullNames}${andMaybeMore}`);
   }
 
   if (validSerialNumbers?.includes(serialNumber)) {
