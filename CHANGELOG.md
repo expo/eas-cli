@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Amend credential removal wording. ([#2334](https://github.com/expo/eas-cli/pull/2334) by [@quinlanj](https://github.com/quinlanj))
+
 ## [7.8.2](https://github.com/expo/eas-cli/releases/tag/v7.8.2) - 2024-04-15
 
 ### 🐛 Bug fixes
