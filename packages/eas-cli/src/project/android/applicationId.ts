@@ -28,12 +28,14 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync({
   projectId,
   exp,
   vcsClient,
+  nonInteractive,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
   vcsClient: Client;
+  nonInteractive: boolean;
 }): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
@@ -43,7 +45,13 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync({
       moduleName: gradleUtils.DEFAULT_MODULE_NAME,
     });
   } catch {
-    return await configureApplicationIdAsync({ graphqlClient, projectDir, projectId, exp });
+    return await configureApplicationIdAsync({
+      graphqlClient,
+      projectDir,
+      projectId,
+      exp,
+      nonInteractive,
+    });
   }
 }
 
@@ -128,12 +136,22 @@ async function configureApplicationIdAsync({
   projectDir,
   projectId,
   exp,
+  nonInteractive,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
+  nonInteractive: boolean;
 }): Promise<string> {
+  if (nonInteractive) {
+    throw new Error(
+      `The "android.package" is required to be set in app config when running in non-interactive mode. ${learnMore(
+        'https://docs.expo.dev/versions/latest/config/app/#package'
+      )}`
+    );
+  }
+
   const paths = getConfigFilePaths(projectDir);
   // we can't automatically update app.config.js
   if (paths.dynamicConfigPath) {
