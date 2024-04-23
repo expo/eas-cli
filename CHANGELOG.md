@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [7.8.3](https://github.com/expo/eas-cli/releases/tag/v7.8.3) - 2024-04-23
+
+### 🐛 Bug fixes
+
 - Don't prompt to set `android.package` and `ios.bundleIdentifier` values when running in non-interactive mode. ([#2336](https://github.com/expo/eas-cli/pull/2336) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
