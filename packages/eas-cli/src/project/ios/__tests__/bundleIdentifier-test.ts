@@ -115,7 +115,7 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
         })
       ).rejects.toThrowError(/we can't update this file programmatically/);
     });
-    it('throws an error if using app.config.js', async () => {
+    it('throws an error in non-interactive mode', async () => {
       const graphqlClient = instance(mock<ExpoGraphqlClient>());
       vol.fromJSON(
         {
