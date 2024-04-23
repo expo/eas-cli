@@ -111,8 +111,28 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
           projectId: '1234',
           exp: {} as any,
           vcsClient,
+          nonInteractive: false,
         })
       ).rejects.toThrowError(/we can't update this file programmatically/);
+    });
+    it('throws an error in non-interactive mode', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      vol.fromJSON(
+        {
+          'app.json': '{ "blah": {} }',
+        },
+        '/app'
+      );
+      await expect(
+        ensureBundleIdentifierIsDefinedForManagedProjectAsync({
+          graphqlClient,
+          projectDir: '/app',
+          projectId: '1234',
+          exp: {} as any,
+          vcsClient,
+          nonInteractive: true,
+        })
+      ).rejects.toThrowError(/non-interactive/);
     });
     it('prompts for the bundle identifier if using app.json', async () => {
       const graphqlClient = instance(mock<ExpoGraphqlClient>());
@@ -141,6 +161,7 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
           projectId: '1234',
           exp: {} as any,
           vcsClient,
+          nonInteractive: false,
         })
       ).resolves.toBe('com.expo.notdominik');
       expect(promptAsync).toHaveBeenCalled();
@@ -172,6 +193,7 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
           projectId: '1234',
           exp: {} as any,
           vcsClient,
+          nonInteractive: false,
         })
       ).resolves.toBe('com.expo.notdominik');
       const appJson = JSON.parse(await fs.readFile('/app/app.json', 'utf-8'));

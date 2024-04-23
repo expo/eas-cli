@@ -25,6 +25,7 @@ export async function getApplicationIdentifierAsync({
   buildProfile,
   platform,
   vcsClient,
+  nonInteractive,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
@@ -33,6 +34,7 @@ export async function getApplicationIdentifierAsync({
   buildProfile: BuildProfile;
   platform: Platform;
   vcsClient: Client;
+  nonInteractive: boolean;
 }): Promise<string> {
   if (platform === Platform.ANDROID) {
     const profile = buildProfile as BuildProfile<Platform.ANDROID>;
@@ -45,6 +47,7 @@ export async function getApplicationIdentifierAsync({
         projectId,
         exp,
         vcsClient,
+        nonInteractive,
       });
     }
 
@@ -60,6 +63,7 @@ export async function getApplicationIdentifierAsync({
         projectId,
         exp,
         vcsClient,
+        nonInteractive,
       });
     }
 
