@@ -241,8 +241,12 @@
               "enum": [
                 "auto",
                 "latest",
+                "sdk-51",
                 "sdk-50",
                 "sdk-49",
+                "ubuntu-22.04-jdk-17-ndk-r25b",
+                "ubuntu-22.04-jdk-11-ndk-r23b",
+                "ubuntu-20.04-jdk-11-ndk-r23b",
                 "ubuntu-22.04-jdk-17-ndk-r21e",
                 "ubuntu-22.04-jdk-11-ndk-r21e",
                 "ubuntu-20.04-jdk-11-ndk-r21e",
@@ -253,9 +257,10 @@
               ],
               "markdownEnumDescriptions": [
                 "When using this option the build image is selected automatically based on the project configuration, detected Expo SDK and React Native versions.",
-                "The latest Android image currently available. It is resolved to `ubuntu-22.04-jdk-17-ndk-r21e`. The `latest` to image mapping will be updated as new images are released.",
-                "The recommended image for SDK 50 builds: `ubuntu-22.04-jdk-17-ndk-r21e`",
-                "The recommended image for SDK 49 builds: `ubuntu-22.04-jdk-11-ndk-r21e`"
+                "The latest Android image currently available. It is resolved to `ubuntu-22.04-jdk-17-ndk-r25b`. The `latest` to image mapping will be updated as new images are released.",
+                "The recommended image for SDK 51 builds: `ubuntu-22.04-jdk-17-ndk-r25b`",
+                "The recommended image for SDK 50 builds: `ubuntu-22.04-jdk-17-ndk-r25b`",
+                "The recommended image for SDK 49 builds: `ubuntu-22.04-jdk-11-ndk-r23b`"
               ]
             },
             {
