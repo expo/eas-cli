@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Update the list of available Android images. ([#2337](https://github.com/expo/eas-cli/pull/2337) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
 ## [7.8.3](https://github.com/expo/eas-cli/releases/tag/v7.8.3) - 2024-04-23
 
 ### 🐛 Bug fixes
