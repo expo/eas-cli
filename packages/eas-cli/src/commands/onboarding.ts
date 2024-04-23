@@ -11,10 +11,13 @@ import Log from '../log';
 import { runGitCloneAsync, runGitPushAsync } from '../onboarding/git';
 import { installDependenciesAsync } from '../onboarding/installDependencies';
 import { ExpoConfigOptions, getPrivateExpoConfig } from '../project/expoConfig';
+import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
 import GitClient from '../vcs/clients/git';
 
 export default class Onboarding extends EasCommand {
+  static override hidden = true;
+
   static override description = 'start/continue onboarding process';
 
   static override flags = {};
@@ -46,8 +49,14 @@ export default class Onboarding extends EasCommand {
     Log.log('👋 Welcome to Expo!');
     Log.log('🚀 We will continue your onboarding process in EAS CLI');
     Log.log();
-    Log.log("🔎 Let's start by cloning your project from GitHub and installing dependencies.");
+    Log.log(
+      `🔎 Let's start by cloning your project ${githubUsername}/${githubRepositoryName} from GitHub and installing dependencies.`
+    );
     Log.log();
+    const shouldContinue = await confirmAsync({ message: 'Do you want to continue?' });
+    if (!shouldContinue) {
+      throw new Error("Aborting, run the command again once you're ready.");
+    }
 
     await runGitCloneAsync({
       githubUsername,
