@@ -77,6 +77,7 @@ export default class BuildVersionSetView extends EasCommand {
       buildProfile: profile,
       platform,
       vcsClient,
+      nonInteractive: false,
     });
     const remoteVersions = await AppVersionQuery.latestVersionAsync(
       graphqlClient,

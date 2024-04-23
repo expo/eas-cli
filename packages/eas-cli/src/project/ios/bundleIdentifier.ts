@@ -21,12 +21,14 @@ export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync({
   projectId,
   exp,
   vcsClient,
+  nonInteractive,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
   vcsClient: Client;
+  nonInteractive: boolean;
 }): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
@@ -39,6 +41,7 @@ export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync({
       projectDir,
       exp,
       projectId,
+      nonInteractive,
     });
   }
 }
@@ -120,12 +123,22 @@ async function configureBundleIdentifierAsync({
   projectDir,
   projectId,
   exp,
+  nonInteractive,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
+  nonInteractive: boolean;
 }): Promise<string> {
+  if (nonInteractive) {
+    throw new Error(
+      `The "ios.bundleIdentifier" is required to be set in app config when running in non-interactive mode. ${learnMore(
+        'https://docs.expo.dev/versions/latest/config/app/#bundleidentifier'
+      )}`
+    );
+  }
+
   const paths = getConfigFilePaths(projectDir);
   // we can't automatically update app.config.js
   if (paths.dynamicConfigPath) {
@@ -148,6 +161,7 @@ async function configureBundleIdentifierAsync({
     exp,
     projectId
   );
+
   const { bundleIdentifier } = await promptAsync({
     name: 'bundleIdentifier',
     type: 'text',

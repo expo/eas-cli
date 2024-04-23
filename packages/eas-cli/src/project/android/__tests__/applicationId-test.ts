@@ -133,8 +133,29 @@ describe(ensureApplicationIdIsDefinedForManagedProjectAsync, () => {
           projectId: '',
           exp: {} as any,
           vcsClient,
+          nonInteractive: false,
         })
       ).rejects.toThrowError(/we can't update this file programmatically/);
+    });
+    it('throws an error in non-interactive mode', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+
+      vol.fromJSON(
+        {
+          'app.json': '{ "blah": {} }',
+        },
+        '/app'
+      );
+      await expect(
+        ensureApplicationIdIsDefinedForManagedProjectAsync({
+          graphqlClient,
+          projectDir: '/app',
+          projectId: '',
+          exp: {} as any,
+          vcsClient,
+          nonInteractive: true,
+        })
+      ).rejects.toThrowError(/non-interactive/);
     });
     it('prompts for the Android package if using app.json', async () => {
       const graphqlClient = instance(mock<ExpoGraphqlClient>());
@@ -163,6 +184,7 @@ describe(ensureApplicationIdIsDefinedForManagedProjectAsync, () => {
           projectId: '',
           exp: {} as any,
           vcsClient,
+          nonInteractive: false,
         })
       ).resolves.toBe('com.expo.notdominik');
       expect(promptAsync).toHaveBeenCalled();
@@ -196,6 +218,7 @@ describe(ensureApplicationIdIsDefinedForManagedProjectAsync, () => {
           projectId: '',
           exp: {} as any,
           vcsClient,
+          nonInteractive: false,
         })
       ).resolves.toBe('com.expo.notdominik');
       const appJson = JSON.parse(await fs.readFile('/app/app.json', 'utf-8'));
