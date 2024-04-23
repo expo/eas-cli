@@ -18,13 +18,18 @@ export class SetUpBuildCredentialsCommandAction {
     public readonly projectInfo: CredentialsContextProjectInfo | null,
     public readonly getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn,
     private readonly platform: Platform,
-    private readonly profileName: string
+    private readonly profileName: string,
+    private readonly projectDir: string
   ) {}
 
   async runAsync(): Promise<void> {
     if (this.platform === Platform.IOS) {
-      return await new SetUpIosBuildCredentials(this, process.cwd(), this.profileName).runAsync();
+      return await new SetUpIosBuildCredentials(this, this.projectDir, this.profileName).runAsync();
     }
-    return await new SetUpAndroidBuildCredentials(this, process.cwd(), this.profileName).runAsync();
+    return await new SetUpAndroidBuildCredentials(
+      this,
+      this.projectDir,
+      this.profileName
+    ).runAsync();
   }
 }

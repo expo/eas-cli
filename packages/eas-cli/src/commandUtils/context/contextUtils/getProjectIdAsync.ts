@@ -3,7 +3,7 @@ import { ExpoConfig } from '@expo/config-types';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { createGraphqlClient } from './createGraphqlClient';
+import { ExpoGraphqlClient, createGraphqlClient } from './createGraphqlClient';
 import { findProjectRootAsync } from './findProjectDirAndVerifyProjectSetupAsync';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import Log, { learnMore } from '../../../log';
@@ -87,6 +87,21 @@ export async function getProjectIdAsync(
   });
   const graphqlClient = createGraphqlClient(authenticationInfo);
 
+  const projectId = await validateOrSetProjectIdAsync({ exp, graphqlClient, actor, options });
+  return projectId;
+}
+
+export async function validateOrSetProjectIdAsync({
+  exp,
+  graphqlClient,
+  actor,
+  options,
+}: {
+  exp: ExpoConfig;
+  graphqlClient: ExpoGraphqlClient;
+  actor: Actor;
+  options: { env?: Env; nonInteractive: boolean };
+}): Promise<string> {
   const localProjectId = exp.extra?.eas?.projectId;
   if (localProjectId) {
     if (typeof localProjectId !== 'string') {
