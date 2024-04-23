@@ -239,7 +239,7 @@
           "anyOf": [
             {
               "enum": [
-                "default",
+                "auto",
                 "latest",
                 "stable",
                 "sdk-51",
