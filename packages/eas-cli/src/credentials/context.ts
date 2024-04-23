@@ -25,6 +25,7 @@ export class CredentialsContext {
   public readonly appStore = new AppStoreApi();
   public readonly ios = IosGraphqlClient;
   public readonly nonInteractive: boolean;
+  public readonly freezeCredentials: boolean = false;
   public readonly projectDir: string;
   public readonly user: Actor;
   public readonly graphqlClient: ExpoGraphqlClient;
@@ -47,6 +48,7 @@ export class CredentialsContext {
       graphqlClient: ExpoGraphqlClient;
       analytics: Analytics;
       vcsClient: Client;
+      freezeCredentials?: boolean;
       env?: Env;
     }
   ) {
@@ -58,6 +60,7 @@ export class CredentialsContext {
     this.vcsClient = options.vcsClient;
     this.nonInteractive = options.nonInteractive ?? false;
     this.projectInfo = options.projectInfo;
+    this.freezeCredentials = options.freezeCredentials ?? false;
   }
 
   get hasProjectContext(): boolean {

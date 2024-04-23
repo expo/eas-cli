@@ -95,6 +95,7 @@ export interface BuildFlags {
   resourceClass?: ResourceClass;
   message?: string;
   buildLoggerLevel?: LoggerLevel;
+  freezeCredentials: boolean;
 }
 
 export async function runBuildAndSubmitAsync(
@@ -363,6 +364,7 @@ async function prepareAndStartBuildAsync({
     getDynamicPrivateProjectConfigAsync,
     customBuildConfigMetadata,
     buildLoggerLevel: flags.buildLoggerLevel,
+    freezeCredentials: flags.freezeCredentials,
   });
 
   if (moreBuilds) {
