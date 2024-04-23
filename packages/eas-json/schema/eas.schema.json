@@ -239,10 +239,15 @@
           "anyOf": [
             {
               "enum": [
-                "auto",
+                "default",
                 "latest",
+                "stable",
+                "sdk-51",
                 "sdk-50",
                 "sdk-49",
+                "ubuntu-22.04-jdk-17-ndk-r25b",
+                "ubuntu-22.04-jdk-11-ndk-r23b",
+                "ubuntu-20.04-jdk-11-ndk-r23b",
                 "ubuntu-22.04-jdk-17-ndk-r21e",
                 "ubuntu-22.04-jdk-11-ndk-r21e",
                 "ubuntu-20.04-jdk-11-ndk-r21e",
