@@ -82,6 +82,16 @@ describe(UpdateRollBackToEmbedded.name, () => {
     );
   });
 
+  it('errors with both --channel and --no-channel', async () => {
+    const flags = ['--channel=channel123', '--no-channel'];
+
+    mockTestProject();
+
+    await expect(new UpdateRollBackToEmbedded(flags, commandOptions).run()).rejects.toThrow(
+      'Cannot use --channel with --no-channel'
+    );
+  });
+
   it('creates a roll back to embedded with --non-interactive, --branch, and --message', async () => {
     const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
 
