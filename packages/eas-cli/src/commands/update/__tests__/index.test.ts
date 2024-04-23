@@ -7,6 +7,7 @@ import { instance, mock } from 'ts-mockito';
 
 import UpdatePublish from '..';
 import { ensureBranchExistsAsync } from '../../../branch/queries';
+import { ensureChannelExistsAsync } from '../../../channel/queries';
 import {
   DynamicPrivateProjectConfigContextField,
   DynamicPublicProjectConfigContextField,
@@ -45,6 +46,7 @@ jest.mock('fs');
 jest.mock('@expo/config');
 jest.mock('@expo/config-plugins');
 jest.mock('../../../branch/queries');
+jest.mock('../../../channel/queries');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
 jest.mock('../../../update/configure');
 jest.mock('../../../update/getBranchNameFromChannelNameAsync');
@@ -91,6 +93,16 @@ describe(UpdatePublish.name, () => {
 
     await expect(new UpdatePublish(flags, commandOptions).run()).rejects.toThrow(
       'Cannot specify both --channel and --branch. Specify either --channel, --branch, or --auto.'
+    );
+  });
+
+  it('errors with both --channel and --no-channel', async () => {
+    const flags = ['--channel=channel123', '--no-channel'];
+
+    mockTestProject();
+
+    await expect(new UpdatePublish(flags, commandOptions).run()).rejects.toThrow(
+      'Cannot use --channel with --no-channel'
     );
   });
 
@@ -144,6 +156,31 @@ describe(UpdatePublish.name, () => {
       }
     );
 
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
+  });
+
+  it('creates a new update with --no-channel', async () => {
+    const flags = ['--non-interactive', '--branch=branch123', '--message=abc', '--no-channel'];
+
+    const { platforms, runtimeVersion } = mockTestExport();
+
+    jest.mocked(getBranchNameFromChannelNameAsync).mockResolvedValue('branchFromChannel');
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branchId: 'branch123',
+      createdBranch: true,
+    });
+
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue(
+      platforms.map(platform => ({
+        ...updateStub,
+        runtimeVersion,
+        platform,
+      }))
+    );
+
+    await new UpdatePublish(flags, commandOptions).run();
+
+    expect(ensureChannelExistsAsync).not.toHaveBeenCalled();
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
   });
 

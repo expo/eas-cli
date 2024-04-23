@@ -64,6 +64,7 @@ type RawUpdateFlags = {
   'skip-bundler': boolean;
   'clear-cache': boolean;
   'private-key-path'?: string;
+  'no-channel': boolean;
   'non-interactive': boolean;
   json: boolean;
   /** @deprecated see UpdateRepublish command */
@@ -81,6 +82,7 @@ type UpdateFlags = {
   inputDir: string;
   skipBundler: boolean;
   clearCache: boolean;
+  noChannel: boolean;
   privateKeyPath?: string;
   json: boolean;
   nonInteractive: boolean;
@@ -143,6 +145,10 @@ export default class UpdatePublish extends EasCommand {
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
       required: false,
     }),
+    'no-channel': Flags.boolean({
+      description: `Skip EAS channel creation.`,
+      default: false,
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -164,6 +170,7 @@ export default class UpdatePublish extends EasCommand {
       skipBundler,
       clearCache,
       privateKeyPath,
+      noChannel: noChannelFlag,
       json: jsonFlag,
       nonInteractive,
       branchName: branchNameArg,
@@ -372,7 +379,7 @@ export default class UpdatePublish extends EasCommand {
       appId: projectId,
       branchName,
     });
-    if (createdBranch) {
+    if (createdBranch && !noChannelFlag) {
       await ensureChannelExistsAsync(graphqlClient, {
         appId: projectId,
         branchId,
@@ -548,6 +555,10 @@ export default class UpdatePublish extends EasCommand {
       );
     }
 
+    if (channelName && flags['no-channel']) {
+      Errors.error('Cannot use --channel with --no-channel', { exit: 1 });
+    }
+
     if (flags.group || flags.republish) {
       // Pick the first flag set that is defined, in this specific order
       const args = [
@@ -575,6 +586,7 @@ export default class UpdatePublish extends EasCommand {
       clearCache: flags['clear-cache'],
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
+      noChannel: flags['no-channel'],
       nonInteractive,
       json: flags.json ?? false,
     };

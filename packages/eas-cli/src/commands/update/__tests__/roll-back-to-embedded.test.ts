@@ -6,6 +6,7 @@ import path from 'path';
 import { instance, mock } from 'ts-mockito';
 
 import { ensureBranchExistsAsync } from '../../../branch/queries';
+import { ensureChannelExistsAsync } from '../../../channel/queries';
 import {
   DynamicPrivateProjectConfigContextField,
   DynamicPublicProjectConfigContextField,
@@ -44,6 +45,7 @@ jest.mock('fs');
 jest.mock('@expo/config');
 jest.mock('@expo/config-plugins');
 jest.mock('../../../branch/queries');
+jest.mock('../../../channel/queries');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
 jest.mock('../../../project/projectUtils', () => ({
   ...jest.requireActual('../../../project/projectUtils'),
@@ -126,6 +128,42 @@ describe(UpdateRollBackToEmbedded.name, () => {
 
     await new UpdateRollBackToEmbedded(flags, commandOptions).run();
 
+    expect(ensureBranchExistsAsync).toHaveBeenCalledWith(
+      expect.any(Object), // graphql client
+      {
+        appId: projectId,
+        branchName: 'branchFromChannel',
+      }
+    );
+
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
+  });
+
+  it('creates a roll back to embedded with --no-channel', async () => {
+    const flags = ['--non-interactive', '--branch=branch123', '--message=abc', '--no-channel'];
+
+    const { projectId } = mockTestProject();
+    const platforms = ['android', 'ios'];
+    const runtimeVersion = 'exposdk:47.0.0';
+    jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
+
+    jest.mocked(getBranchNameFromChannelNameAsync).mockResolvedValue('branchFromChannel');
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branchId: 'branch123',
+      createdBranch: true,
+    });
+
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue(
+      platforms.map(platform => ({
+        ...updateStub,
+        runtimeVersion,
+        platform,
+      }))
+    );
+
+    await new UpdateRollBackToEmbedded(flags, commandOptions).run();
+
+    expect(ensureChannelExistsAsync).not.toHaveBeenCalled();
     expect(ensureBranchExistsAsync).toHaveBeenCalledWith(
       expect.any(Object), // graphql client
       {

@@ -54,6 +54,7 @@ type RawUpdateFlags = {
   message?: string;
   platform: string;
   'private-key-path'?: string;
+  'no-channel': boolean;
   'non-interactive': boolean;
   json: boolean;
 };
@@ -65,6 +66,7 @@ type UpdateFlags = {
   channelName?: string;
   updateMessage?: string;
   privateKeyPath?: string;
+  noChannel: boolean;
   json: boolean;
   nonInteractive: boolean;
 };
@@ -104,6 +106,10 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
       required: false,
     }),
+    'no-channel': Flags.boolean({
+      description: `Skip EAS channel creation.`,
+      default: false,
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -122,6 +128,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       channelName: channelNameArg,
       updateMessage: updateMessageArg,
       privateKeyPath,
+      noChannel: noChannelFlag,
       json: jsonFlag,
       nonInteractive,
       branchName: branchNameArg,
@@ -188,15 +195,16 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       appId: projectId,
       branchName,
     });
-    if (createdBranch) {
+    if (createdBranch && !noChannelFlag) {
       await ensureChannelExistsAsync(graphqlClient, {
         appId: projectId,
         branchId,
         channelName: branchName,
       });
+      Log.withTick(
+        `Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`
+      );
     }
-
-    Log.withTick(`Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`);
 
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
@@ -387,6 +395,10 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       );
     }
 
+    if (channelName && flags['no-channel']) {
+      Errors.error('Cannot use --channel with --no-channel', { exit: 1 });
+    }
+
     return {
       auto,
       branchName,
@@ -394,6 +406,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       updateMessage,
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
+      noChannel: flags['no-channel'],
       nonInteractive,
       json: flags.json ?? false,
     };
