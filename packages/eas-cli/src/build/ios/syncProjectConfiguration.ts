@@ -27,7 +27,7 @@ export async function syncProjectConfigurationAsync({
 
   if (workflow === Workflow.GENERIC) {
     if (isExpoUpdatesInstalled(projectDir)) {
-      await syncUpdatesConfigurationAsync(vcsClient, projectDir, exp);
+      await syncUpdatesConfigurationAsync(vcsClient, projectDir, exp, workflow);
     }
     await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy, targets });
   } else {

@@ -125,6 +125,7 @@ export default class ChannelRollout extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.Vcs,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -133,6 +134,7 @@ export default class ChannelRollout extends EasCommand {
     const argsAndFlags = this.sanitizeArgsAndFlags({ ...flags, ...args });
     const {
       privateProjectConfig: { exp, projectId, projectDir },
+      vcsClient,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelRollout, {
       nonInteractive: argsAndFlags.nonInteractive,
@@ -146,6 +148,7 @@ export default class ChannelRollout extends EasCommand {
       nonInteractive: argsAndFlags.nonInteractive,
       graphqlClient,
       app,
+      vcsClient,
     };
     if (argsAndFlags.nonInteractive) {
       await new NonInteractiveRollout(argsAndFlags).runAsync(ctx);

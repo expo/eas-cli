@@ -1,4 +1,5 @@
 import { Platform as PublishPlatform } from '@expo/config';
+import { Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -40,6 +41,7 @@ import {
   resolveInputDirectoryAsync,
   uploadAssetsAsync,
 } from '../../project/publish';
+import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
 import { getUpdateJsonInfosForUpdates } from '../../update/utils';
 import {
@@ -359,11 +361,15 @@ export default class UpdatePublish extends EasCommand {
       throw e;
     }
 
+    const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
     const runtimeVersions = await getRuntimeVersionObjectAsync({
       exp,
       platforms: realizedPlatforms,
       projectDir,
-      vcsClient,
+      workflows: {
+        ...workflows,
+        web: Workflow.UNKNOWN,
+      },
     });
     const runtimeToPlatformMapping =
       getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);

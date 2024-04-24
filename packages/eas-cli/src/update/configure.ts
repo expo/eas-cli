@@ -272,12 +272,12 @@ async function ensureEASUpdateIsConfiguredNativelyAsync(
   }
 ): Promise<void> {
   if (['all', 'android'].includes(platform) && workflows.android === Workflow.GENERIC) {
-    await syncAndroidUpdatesConfigurationAsync(projectDir, exp);
+    await syncAndroidUpdatesConfigurationAsync(projectDir, exp, workflows.android);
     Log.withTick(`Configured ${chalk.bold('AndroidManifest.xml')} for EAS Update`);
   }
 
   if (['all', 'ios'].includes(platform) && workflows.ios === Workflow.GENERIC) {
-    await syncIosUpdatesConfigurationAsync(vcsClient, projectDir, exp);
+    await syncIosUpdatesConfigurationAsync(vcsClient, projectDir, exp, workflows.ios);
     Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
   }
 }
