@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Update the list of available Android images. ([#2337](https://github.com/expo/eas-cli/pull/2337) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Make multi-select for revoking distribution certificates more readable. ([#2342](https://github.com/expo/eas-cli/pull/2342) by [@szdziedzic](https://github.com/szdziedzic))
 - Improve error message displayed when EAS CLI version doesn't satisfy minimal version required specified in eas.json. ([#2341](https://github.com/expo/eas-cli/pull/2341) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [7.8.3](https://github.com/expo/eas-cli/releases/tag/v7.8.3) - 2024-04-23

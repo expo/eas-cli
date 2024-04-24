@@ -259,6 +259,10 @@ function formatDistributionCertificateFromApple(
   const { name, status, id, expires, created, ownerName, serialNumber } = appleInfo;
   const expiresDate = new Date(expires * 1000).toDateString();
   const createdDate = new Date(created * 1000).toDateString();
-  return `${name} (${status}) - Cert ID: ${id}, Serial number: ${serialNumber}, Team ID: ${appleInfo.ownerId}, Team name: ${ownerName}
-    expires: ${expiresDate}, created: ${createdDate}`;
+  return [
+    `🍏 ${chalk.bold(name)} (${status})`,
+    `${chalk.bold('ID:')} ${id} ${chalk.bold('Serial Number:')} ${serialNumber}`,
+    `${chalk.bold('Apple Team:')} ${appleInfo.ownerId} (${ownerName})`,
+    `${chalk.bold('Expires:')} ${expiresDate} ${chalk.bold('Created:')} ${createdDate}`,
+  ].join('\n\t');
 }
