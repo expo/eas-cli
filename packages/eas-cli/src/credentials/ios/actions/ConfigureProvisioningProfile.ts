@@ -9,7 +9,7 @@ import Log from '../../../log';
 import { ora } from '../../../ora';
 import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
+import { ForbidCredentialModificationError } from '../../errors';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
@@ -27,9 +27,9 @@ export class ConfigureProvisioningProfile {
   public async runAsync(
     ctx: CredentialsContext
   ): Promise<AppleProvisioningProfileMutationResult | null> {
-    if (ctx.nonInteractive) {
-      throw new MissingCredentialsNonInteractiveError(
-        'Configuring Provisioning Profiles is only supported in interactive mode.'
+    if (ctx.freezeCredentials) {
+      throw new ForbidCredentialModificationError(
+        'Remove the --freeze-credentials flag to configure a Provisioning Profile.'
       );
     }
     const { developerPortalIdentifier, provisioningProfile } = this.originalProvisioningProfile;
@@ -46,7 +46,7 @@ export class ConfigureProvisioningProfile {
       return null;
     }
 
-    const applePlatform = await getApplePlatformFromTarget(this.target);
+    const applePlatform = getApplePlatformFromTarget(this.target);
     const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
       this.app.bundleIdentifier,
       applePlatform

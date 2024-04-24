@@ -6,7 +6,7 @@ import { generateProvisioningProfileAsync } from './ProvisioningProfileUtils';
 import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
+import { ForbidCredentialModificationError } from '../../errors';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
@@ -23,9 +23,9 @@ export class CreateProvisioningProfile {
   ) {}
 
   async runAsync(ctx: CredentialsContext): Promise<AppleProvisioningProfileMutationResult> {
-    if (ctx.nonInteractive) {
-      throw new MissingCredentialsNonInteractiveError(
-        'Creating Provisioning Profiles is only supported in interactive mode.'
+    if (ctx.freezeCredentials) {
+      throw new ForbidCredentialModificationError(
+        'Provisioning profile is not configured correctly. Run this command again without the --freeze-credentials flag.'
       );
     }
     const appleAuthCtx = await ctx.appStore.ensureAuthenticatedAsync();
@@ -49,15 +49,30 @@ export class CreateProvisioningProfile {
     return provisioningProfileMutationResult;
   }
 
-  private async provideOrGenerateAsync(
-    ctx: CredentialsContext,
-    appleAuthCtx: AuthCtx
-  ): Promise<ProvisioningProfile> {
+  private async maybeGetUserProvidedAsync(
+    ctx: CredentialsContext
+  ): Promise<ProvisioningProfile | null> {
+    if (ctx.nonInteractive) {
+      return null;
+    }
     const userProvided = await askForUserProvidedAsync(provisioningProfileSchema);
     if (userProvided) {
       // userProvided profiles don't come with ProvisioningProfileId's (only accessible from Apple Portal API)
       Log.warn('Provisioning profile: Unable to validate specified profile.');
       return userProvided;
+    }
+    return null;
+  }
+
+  private async provideOrGenerateAsync(
+    ctx: CredentialsContext,
+    appleAuthCtx: AuthCtx
+  ): Promise<ProvisioningProfile> {
+    const maybeUserProvided = await this.maybeGetUserProvidedAsync(ctx);
+    if (maybeUserProvided) {
+      // userProvided profiles don't come with ProvisioningProfileId's (only accessible from Apple Portal API)
+      Log.warn('Provisioning profile: Unable to validate specified profile.');
+      return maybeUserProvided;
     }
     assert(
       this.distributionCertificate.certificateP12,

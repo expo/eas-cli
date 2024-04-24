@@ -4,6 +4,15 @@ export class MissingCredentialsNonInteractiveError extends Error {
   }
 }
 
+export class ForbidCredentialModificationError extends Error {
+  constructor(message?: string) {
+    super(
+      message ??
+        'Credentials cannot be modified. Run this command again without the --freeze-credentials flag.'
+    );
+  }
+}
+
 export class MissingCredentialsError extends Error {
   constructor(message?: string) {
     super(message ?? 'Credentials are not set up.');

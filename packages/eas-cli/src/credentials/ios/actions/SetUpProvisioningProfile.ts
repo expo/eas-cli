@@ -18,7 +18,7 @@ import {
 import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
+import { ForbidCredentialModificationError } from '../../errors';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
 import { Target } from '../types';
@@ -102,9 +102,9 @@ export class SetUpProvisioningProfile {
     if (areBuildCredentialsSetup) {
       return nullthrows(await getBuildCredentialsAsync(ctx, this.app, this.distributionType));
     }
-    if (ctx.nonInteractive) {
-      throw new MissingCredentialsNonInteractiveError(
-        'Provisioning profile is not configured correctly. Run this command again in interactive mode.'
+    if (ctx.freezeCredentials) {
+      throw new ForbidCredentialModificationError(
+        'Provisioning profile is not configured correctly. Run this command again without the --freeze-credentials flag.'
       );
     }
 
@@ -127,11 +127,18 @@ export class SetUpProvisioningProfile {
       return await this.assignNewAndDeleteOldProfileAsync(ctx, distCert, currentProfile);
     }
 
-    const confirm = await confirmAsync({
-      message: `${formatProvisioningProfileFromApple(
-        currentProfileFromServer
-      )} \n  Would you like to reuse the original profile?`,
-    });
+    const isNonInteractiveOrUserDidConfirmAsync = async (): Promise<boolean> => {
+      if (ctx.nonInteractive) {
+        return true;
+      }
+      return await confirmAsync({
+        message: `${formatProvisioningProfileFromApple(
+          currentProfileFromServer
+        )} \n  Would you like to reuse the original profile?`,
+      });
+    };
+
+    const confirm = await isNonInteractiveOrUserDidConfirmAsync();
     if (!confirm) {
       return await this.assignNewAndDeleteOldProfileAsync(ctx, distCert, currentProfile);
     }
