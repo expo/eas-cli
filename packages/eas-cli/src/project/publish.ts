@@ -1,6 +1,6 @@
 import { ExpoConfig, Platform } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
-import { Platform as EASBuildJobPlatform, Workflow } from '@expo/eas-build-job';
+import { Workflow } from '@expo/eas-build-job';
 import JsonFile from '@expo/json-file';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -13,7 +13,6 @@ import path from 'path';
 import promiseLimit from 'promise-limit';
 
 import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from './projectUtils';
-import { resolveWorkflowAsync } from './workflow';
 import { selectBranchOnAppAsync } from '../branch/queries';
 import { getDefaultBranchNameAsync } from '../branch/utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -683,13 +682,13 @@ export function getRequestedPlatform(
 export async function getRuntimeVersionObjectAsync({
   exp,
   platforms,
+  workflows,
   projectDir,
-  vcsClient,
 }: {
   exp: ExpoConfig;
   platforms: Platform[];
+  workflows: Record<Platform, Workflow>;
   projectDir: string;
-  vcsClient: Client;
 }): Promise<{ platform: string; runtimeVersion: string }[]> {
   return await Promise.all(
     platforms.map(async platform => {
@@ -698,8 +697,8 @@ export async function getRuntimeVersionObjectAsync({
         runtimeVersion: await getRuntimeVersionForPlatformAsync({
           exp,
           platform,
+          workflow: workflows[platform],
           projectDir,
-          vcsClient,
         }),
       };
     })
@@ -709,13 +708,13 @@ export async function getRuntimeVersionObjectAsync({
 async function getRuntimeVersionForPlatformAsync({
   exp,
   platform,
+  workflow,
   projectDir,
-  vcsClient,
 }: {
   exp: ExpoConfig;
   platform: Platform;
+  workflow: Workflow;
   projectDir: string;
-  vcsClient: Client;
 }): Promise<string> {
   if (platform === 'web') {
     return 'UNVERSIONED';
@@ -731,6 +730,8 @@ async function getRuntimeVersionForPlatformAsync({
         'runtimeversion:resolve',
         '--platform',
         platform,
+        '--workflow',
+        workflow,
         ...extraArgs,
       ]);
       const runtimeVersionResult = JSON.parse(resolvedRuntimeVersionJSONResult);
@@ -755,11 +756,6 @@ async function getRuntimeVersionForPlatformAsync({
 
   const runtimeVersion = exp[platform]?.runtimeVersion ?? exp.runtimeVersion;
   if (typeof runtimeVersion === 'object') {
-    const workflow = await resolveWorkflowAsync(
-      projectDir,
-      platform as EASBuildJobPlatform,
-      vcsClient
-    );
     if (workflow !== Workflow.MANAGED) {
       throw new Error(
         `You're currently using the bare workflow, where runtime version policies are not supported. You must set your runtime version manually. For example, define your runtime version as "1.0.0", not {"policy": "appVersion"} in your app config. ${learnMore(

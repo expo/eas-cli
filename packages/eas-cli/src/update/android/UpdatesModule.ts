@@ -1,5 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidConfig, AndroidManifest, XML } from '@expo/config-plugins';
+import { Workflow } from '@expo/eas-build-job';
 
 import { RequestedPlatform } from '../../platform';
 import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from '../../project/projectUtils';
@@ -11,7 +12,8 @@ import { ensureValidVersions } from '../utils';
  */
 export async function syncUpdatesConfigurationAsync(
   projectDir: string,
-  exp: ExpoConfig
+  exp: ExpoConfig,
+  workflow: Workflow
 ): Promise<void> {
   ensureValidVersions(exp, RequestedPlatform.Android);
 
@@ -20,6 +22,8 @@ export async function syncUpdatesConfigurationAsync(
       'configuration:syncnative',
       '--platform',
       'android',
+      '--workflow',
+      workflow,
     ]);
     return;
   }

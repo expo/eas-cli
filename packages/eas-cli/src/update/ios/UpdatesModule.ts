@@ -1,5 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
+import { Workflow } from '@expo/eas-build-job';
 
 import { RequestedPlatform } from '../../platform';
 import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from '../../project/projectUtils';
@@ -11,12 +12,19 @@ import { ensureValidVersions } from '../utils';
 export async function syncUpdatesConfigurationAsync(
   vcsClient: Client,
   projectDir: string,
-  exp: ExpoConfig
+  exp: ExpoConfig,
+  workflow: Workflow
 ): Promise<void> {
   ensureValidVersions(exp, RequestedPlatform.Ios);
 
   if (await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir)) {
-    await expoUpdatesCommandAsync(projectDir, ['configuration:syncnative', '--platform', 'ios']);
+    await expoUpdatesCommandAsync(projectDir, [
+      'configuration:syncnative',
+      '--platform',
+      'ios',
+      '--workflow',
+      workflow,
+    ]);
     return;
   }
 

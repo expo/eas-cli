@@ -24,6 +24,7 @@ import {
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { resolveRuntimeVersionAsync } from '../../project/resolveRuntimeVersionAsync';
+import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { truthy } from '../../utils/expodash/filter';
 import {
@@ -272,10 +273,16 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
 
   async selectRuntimeVersionFromProjectConfigAsync(ctx: EASUpdateContext): Promise<string> {
     const platforms: ('ios' | 'android')[] = ['ios', 'android'];
+    const workflows = await resolveWorkflowPerPlatformAsync(ctx.app.projectDir, ctx.vcsClient);
     const runtimes = (
       await Promise.all(
         platforms.map(platform =>
-          resolveRuntimeVersionAsync({ projectDir: ctx.app.projectDir, exp: ctx.app.exp, platform })
+          resolveRuntimeVersionAsync({
+            projectDir: ctx.app.projectDir,
+            exp: ctx.app.exp,
+            platform,
+            workflow: workflows[platform],
+          })
         )
       )
     ).filter(truthy);

@@ -30,7 +30,7 @@ export async function syncProjectConfigurationAsync({
   if (workflow === Workflow.GENERIC) {
     await cleanUpOldEasBuildGradleScriptAsync(projectDir);
     if (isExpoUpdatesInstalled(projectDir)) {
-      await syncUpdatesConfigurationAsync(projectDir, exp);
+      await syncUpdatesConfigurationAsync(projectDir, exp, workflow);
     }
     await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy });
   } else {

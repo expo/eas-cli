@@ -1,4 +1,5 @@
 import { Platform as PublishPlatform } from '@expo/config';
+import { Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -33,6 +34,7 @@ import {
   getRuntimeVersionObjectAsync,
   getUpdateMessageForCommandAsync,
 } from '../../project/publish';
+import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
 import { getUpdateJsonInfosForUpdates } from '../../update/utils';
 import {
@@ -201,11 +203,15 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
 
+    const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
     const runtimeVersions = await getRuntimeVersionObjectAsync({
       exp,
       platforms: realizedPlatforms,
       projectDir,
-      vcsClient,
+      workflows: {
+        ...workflows,
+        web: Workflow.UNKNOWN,
+      },
     });
 
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
