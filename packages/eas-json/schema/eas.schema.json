@@ -40,7 +40,7 @@
         },
         "promptToConfigurePushNotifications": {
           "type": "boolean",
-          "description": "Specifies where EAS CLI should prompt to configure Push Notifications credentials. Defaults to true.",
+          "description": "Specifies where EAS CLI should prompt to configure Push Notifications credentials. It defaults to true if expo-notifications is in your project dependencies, otherwise it defaults to false.",
           "default": true
         }
       }
