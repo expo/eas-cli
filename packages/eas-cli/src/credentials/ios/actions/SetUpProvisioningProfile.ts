@@ -104,7 +104,7 @@ export class SetUpProvisioningProfile {
     }
     if (ctx.freezeCredentials) {
       throw new ForbidCredentialModificationError(
-        'Provisioning profile is not configured correctly. Run this command again without the --freeze-credentials flag.'
+        'Provisioning profile is not configured correctly. Remove the --freeze-credentials flag to configure it.'
       );
     }
 

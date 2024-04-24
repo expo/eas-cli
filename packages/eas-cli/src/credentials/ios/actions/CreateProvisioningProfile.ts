@@ -25,7 +25,7 @@ export class CreateProvisioningProfile {
   async runAsync(ctx: CredentialsContext): Promise<AppleProvisioningProfileMutationResult> {
     if (ctx.freezeCredentials) {
       throw new ForbidCredentialModificationError(
-        'Provisioning profile is not configured correctly. Run this command again without the --freeze-credentials flag.'
+        'Run this command again without the --freeze-credentials flag in order to generate a new Provisioning Profile.'
       );
     }
     const appleAuthCtx = await ctx.appStore.ensureAuthenticatedAsync();
