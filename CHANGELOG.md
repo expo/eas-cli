@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Add explicit workflow arg to expo-update CLI calls. ([#2340](https://github.com/expo/eas-cli/pull/2340) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 - Update the list of available Android images. ([#2337](https://github.com/expo/eas-cli/pull/2337) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
