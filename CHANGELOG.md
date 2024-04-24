@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Don't prompt users to set push notifications by default if they don't have the `expo-notifications` installed. ([#2343](https://github.com/expo/eas-cli/pull/2343) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [7.8.4](https://github.com/expo/eas-cli/releases/tag/v7.8.4) - 2024-04-24
 
 ### 🧹 Chores
