@@ -17,7 +17,7 @@ async function applyCliConfigAsync(projectDir: string): Promise<void> {
     throw new Error(
       `You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint defined in eas.json (${
         config.version
-      }).\n\nThi error probably means that you need update your eas-cli to a newer version.\nRun ${chalk.bold(
+      }).\n\nThis error probably means that you need update your eas-cli to a newer version.\nRun ${chalk.bold(
         'npm install -g eas-cli'
       )} to update the eas-cli to the latest version.`
     );
