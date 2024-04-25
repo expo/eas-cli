@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Improve error message if the server returns `UNAUTHORIZED_ERROR`. ([#2345](https://github.com/expo/eas-cli/pull/2345) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [7.8.4](https://github.com/expo/eas-cli/releases/tag/v7.8.4) - 2024-04-24
 
 ### 🧹 Chores
