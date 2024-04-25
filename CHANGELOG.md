@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Fill in min expo-updates version for expo-updates CLI. ([#2344](https://github.com/expo/eas-cli/pull/2344) by [@wschurman](https://github.com/wschurman))
+
 ## [7.8.4](https://github.com/expo/eas-cli/releases/tag/v7.8.4) - 2024-04-24
 
 ### 🧹 Chores
