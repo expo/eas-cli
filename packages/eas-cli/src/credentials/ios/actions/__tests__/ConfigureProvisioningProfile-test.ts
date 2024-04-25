@@ -11,7 +11,7 @@ import {
   testTarget,
   testTargets,
 } from '../../../__tests__/fixtures-ios';
-import { MissingCredentialsNonInteractiveError } from '../../../errors';
+import { ForbidCredentialModificationError } from '../../../errors';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { ConfigureProvisioningProfile } from '../ConfigureProvisioningProfile';
 
@@ -24,13 +24,14 @@ describe('ConfigureProvisioningProfile', () => {
   beforeEach(() => {
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
   });
-  it('configures a Provisioning Profile in Interactive Mode', async () => {
+  const testCases = ['NON_INTERACTIVE', 'INTERACTIVE'];
+  test.each(testCases)('configures a Provisioning Profile in %s Mode', async mode => {
     const mockProvisioningProfileFromApple = {
       provisioningProfileId: testProvisioningProfileFragment.developerPortalIdentifier,
       provisioningProfile: testProvisioningProfileFragment.provisioningProfile,
     };
     const ctx = createCtxMock({
-      nonInteractive: false,
+      nonInteractive: mode === 'NON_INTERACTIVE',
       appStore: {
         ...getAppstoreMock(),
         ensureAuthenticatedAsync: jest.fn(() => testAuthCtx),
@@ -57,9 +58,9 @@ describe('ConfigureProvisioningProfile', () => {
     // expect provisioning profile not to be updated on apple portal
     expect(jest.mocked(ctx.appStore.useExistingProvisioningProfileAsync).mock.calls.length).toBe(1);
   });
-  it('errors in Non Interactive Mode', async () => {
+  it('errors with --freeze-credentials flag', async () => {
     const ctx = createCtxMock({
-      nonInteractive: true,
+      freezeCredentials: true,
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(
       ctx,
@@ -72,7 +73,7 @@ describe('ConfigureProvisioningProfile', () => {
       testProvisioningProfileFragment
     );
     await expect(provProfConfigurator.runAsync(ctx)).rejects.toThrowError(
-      MissingCredentialsNonInteractiveError
+      ForbidCredentialModificationError
     );
 
     // expect provisioning profile not to be updated on expo servers

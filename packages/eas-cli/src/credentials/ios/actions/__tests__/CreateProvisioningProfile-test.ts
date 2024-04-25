@@ -10,7 +10,7 @@ import {
   testTarget,
   testTargets,
 } from '../../../__tests__/fixtures-ios';
-import { MissingCredentialsNonInteractiveError } from '../../../errors';
+import { ForbidCredentialModificationError } from '../../../errors';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { CreateProvisioningProfile } from '../CreateProvisioningProfile';
 
@@ -22,9 +22,11 @@ describe('CreateProvisioningProfile', () => {
   beforeEach(() => {
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
   });
-  it('creates a Provisioning Profile in Interactive Mode', async () => {
+
+  const testCases = ['NON_INTERACTIVE', 'INTERACTIVE'];
+  test.each(testCases)('creates a Provisioning Profile in in %s Mode', async mode => {
     const ctx = createCtxMock({
-      nonInteractive: false,
+      nonInteractive: mode === 'NON_INTERACTIVE',
       appStore: {
         ...getAppstoreMock(),
         ensureAuthenticatedAsync: jest.fn(() => testAuthCtx),
@@ -48,9 +50,9 @@ describe('CreateProvisioningProfile', () => {
     // expect provisioning profile to be created on apple portal
     expect(jest.mocked(ctx.appStore.createProvisioningProfileAsync).mock.calls.length).toBe(1);
   });
-  it('errors in Non Interactive Mode', async () => {
+  it('errors with --freeze-credentials flag', async () => {
     const ctx = createCtxMock({
-      nonInteractive: true,
+      freezeCredentials: true,
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(
       ctx,
@@ -62,7 +64,7 @@ describe('CreateProvisioningProfile', () => {
       testDistCertFragmentNoDependencies
     );
     await expect(createProvProfAction.runAsync(ctx)).rejects.toThrowError(
-      MissingCredentialsNonInteractiveError
+      ForbidCredentialModificationError
     );
 
     // expect provisioning profile not to be created on expo servers
