@@ -1,11 +1,9 @@
 import { Platform as PublishPlatform } from '@expo/config';
 import { Errors, Flags } from '@oclif/core';
-import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { ensureBranchExistsAsync } from '../../branch/queries';
 import { getUpdateGroupUrl } from '../../build/utils/url';
-import { ensureChannelExistsAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
@@ -184,19 +182,10 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     const realizedPlatforms: PublishPlatform[] =
       platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
 
-    const { branchId, createdBranch } = await ensureBranchExistsAsync(graphqlClient, {
+    const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
       branchName,
     });
-    if (createdBranch) {
-      await ensureChannelExistsAsync(graphqlClient, {
-        appId: projectId,
-        branchId,
-        channelName: branchName,
-      });
-    }
-
-    Log.withTick(`Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`);
 
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
