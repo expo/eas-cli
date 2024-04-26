@@ -15,7 +15,11 @@ import {
   testTarget,
   testTargets,
 } from '../../../__tests__/fixtures-ios';
-import { ForbidCredentialModificationError } from '../../../errors';
+import {
+  ForbidCredentialModificationError,
+  InsufficientAuthenticationNonInteractiveError,
+} from '../../../errors';
+import { AuthenticationMode } from '../../appstore/authenticateTypes';
 import { validateProvisioningProfileAsync } from '../../validators/validateProvisioningProfile';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetUpProvisioningProfile } from '../SetUpProvisioningProfile';
@@ -42,6 +46,8 @@ describe('SetUpProvisioningProfile', () => {
         nonInteractive: mode === 'NON_INTERACTIVE',
         appStore: {
           ...getAppstoreMock(),
+          defaultAuthenticationMode:
+            mode === 'NON_INTERACTIVE' ? AuthenticationMode.API_KEY : AuthenticationMode.USER,
           ensureAuthenticatedAsync: jest.fn(() => testAuthCtx),
           authCtx: testAuthCtx,
           listProvisioningProfilesAsync: jest.fn(() => [
@@ -92,6 +98,8 @@ describe('SetUpProvisioningProfile', () => {
         nonInteractive: mode === 'NON_INTERACTIVE',
         appStore: {
           ...getAppstoreMock(),
+          defaultAuthenticationMode:
+            mode === 'NON_INTERACTIVE' ? AuthenticationMode.API_KEY : AuthenticationMode.USER,
           ensureAuthenticatedAsync: jest.fn(() => testAuthCtx),
           authCtx: testAuthCtx,
           listProvisioningProfilesAsync: jest.fn(() => []),
@@ -132,6 +140,8 @@ describe('SetUpProvisioningProfile', () => {
         nonInteractive: mode === 'NON_INTERACTIVE',
         appStore: {
           ...getAppstoreMock(),
+          defaultAuthenticationMode:
+            mode === 'NON_INTERACTIVE' ? AuthenticationMode.API_KEY : AuthenticationMode.USER,
           ensureAuthenticatedAsync: jest.fn(() => testAuthCtx),
           authCtx: testAuthCtx,
         },
@@ -171,6 +181,8 @@ describe('SetUpProvisioningProfile', () => {
         nonInteractive: mode === 'NON_INTERACTIVE',
         appStore: {
           ...getAppstoreMock(),
+          defaultAuthenticationMode:
+            mode === 'NON_INTERACTIVE' ? AuthenticationMode.API_KEY : AuthenticationMode.USER,
           ensureAuthenticatedAsync: jest.fn(() => testAuthCtx),
           authCtx: testAuthCtx,
         },
@@ -215,6 +227,32 @@ describe('SetUpProvisioningProfile', () => {
     );
     await expect(setupProvisioningProfileAction.runAsync(ctx)).rejects.toThrowError(
       ForbidCredentialModificationError
+    );
+
+    // expect build credentials not to be created or updated on expo servers
+    expect(jest.mocked(ctx.ios.createOrUpdateIosAppBuildCredentialsAsync).mock.calls.length).toBe(
+      0
+    );
+    // expect provisioning profile not to be deleted on expo servers
+    expect(jest.mocked(ctx.ios.deleteProvisioningProfilesAsync).mock.calls.length).toBe(0);
+  });
+
+  it('errors with wrong authentication type in nonInteractive mode', async () => {
+    jest.mocked(validateProvisioningProfileAsync).mockImplementation(async () => false);
+    const ctx = createCtxMock({
+      nonInteractive: true,
+    });
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
+    const setupProvisioningProfileAction = new SetUpProvisioningProfile(
+      appLookupParams,
+      testTarget,
+      IosDistributionType.AppStore
+    );
+    await expect(setupProvisioningProfileAction.runAsync(ctx)).rejects.toThrowError(
+      InsufficientAuthenticationNonInteractiveError
     );
 
     // expect build credentials not to be created or updated on expo servers

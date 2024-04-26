@@ -11,7 +11,11 @@ import {
   testTarget,
   testTargets,
 } from '../../../__tests__/fixtures-ios';
-import { ForbidCredentialModificationError } from '../../../errors';
+import {
+  ForbidCredentialModificationError,
+  InsufficientAuthenticationNonInteractiveError,
+} from '../../../errors';
+import { AuthenticationMode } from '../../appstore/authenticateTypes';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { ConfigureProvisioningProfile } from '../ConfigureProvisioningProfile';
 
@@ -34,6 +38,8 @@ describe('ConfigureProvisioningProfile', () => {
       nonInteractive: mode === 'NON_INTERACTIVE',
       appStore: {
         ...getAppstoreMock(),
+        defaultAuthenticationMode:
+          mode === 'NON_INTERACTIVE' ? AuthenticationMode.API_KEY : AuthenticationMode.USER,
         ensureAuthenticatedAsync: jest.fn(() => testAuthCtx),
         authCtx: testAuthCtx,
         createProvisioningProfileAsync: jest.fn(() => testProvisioningProfile),
@@ -74,6 +80,29 @@ describe('ConfigureProvisioningProfile', () => {
     );
     await expect(provProfConfigurator.runAsync(ctx)).rejects.toThrowError(
       ForbidCredentialModificationError
+    );
+
+    // expect provisioning profile not to be updated on expo servers
+    expect(jest.mocked(ctx.ios.updateProvisioningProfileAsync).mock.calls.length).toBe(0);
+    // expect provisioning profile not to be updated on apple portal
+    expect(jest.mocked(ctx.appStore.useExistingProvisioningProfileAsync).mock.calls.length).toBe(0);
+  });
+  it('errors with wrong authentication type in nonInteractive mode', async () => {
+    const ctx = createCtxMock({
+      nonInteractive: true,
+    });
+    const appLookupParams = await getAppLookupParamsFromContextAsync(
+      ctx,
+      findApplicationTarget(testTargets)
+    );
+    const provProfConfigurator = new ConfigureProvisioningProfile(
+      appLookupParams,
+      testTarget,
+      testDistCertFragmentNoDependencies,
+      testProvisioningProfileFragment
+    );
+    await expect(provProfConfigurator.runAsync(ctx)).rejects.toThrowError(
+      InsufficientAuthenticationNonInteractiveError
     );
 
     // expect provisioning profile not to be updated on expo servers

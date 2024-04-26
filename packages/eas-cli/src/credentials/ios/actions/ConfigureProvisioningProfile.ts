@@ -9,11 +9,14 @@ import Log from '../../../log';
 import { ora } from '../../../ora';
 import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import { CredentialsContext } from '../../context';
-import { ForbidCredentialModificationError } from '../../errors';
+import {
+  ForbidCredentialModificationError,
+  InsufficientAuthenticationNonInteractiveError,
+} from '../../errors';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
-import { AuthCtx } from '../appstore/authenticateTypes';
+import { AuthCtx, AuthenticationMode } from '../appstore/authenticateTypes';
 import { Target } from '../types';
 
 export class ConfigureProvisioningProfile {
@@ -30,6 +33,13 @@ export class ConfigureProvisioningProfile {
     if (ctx.freezeCredentials) {
       throw new ForbidCredentialModificationError(
         'Remove the --freeze-credentials flag to configure a Provisioning Profile.'
+      );
+    } else if (
+      ctx.nonInteractive &&
+      ctx.appStore.defaultAuthenticationMode !== AuthenticationMode.API_KEY
+    ) {
+      throw new InsufficientAuthenticationNonInteractiveError(
+        'In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. See <TODO:ADD LINK HERE> for more information.'
       );
     }
     const { developerPortalIdentifier, provisioningProfile } = this.originalProvisioningProfile;

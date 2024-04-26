@@ -4,6 +4,15 @@ export class MissingCredentialsNonInteractiveError extends Error {
   }
 }
 
+export class InsufficientAuthenticationNonInteractiveError extends Error {
+  constructor(message?: string) {
+    super(
+      message ??
+        'Authentication with an ASC API key is required in non-interactive mode, see <TODO:ADD LINK HERE> for more information.'
+    );
+  }
+}
+
 export class ForbidCredentialModificationError extends Error {
   constructor(message?: string) {
     super(

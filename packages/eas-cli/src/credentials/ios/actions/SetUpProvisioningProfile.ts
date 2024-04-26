@@ -18,9 +18,13 @@ import {
 import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
-import { ForbidCredentialModificationError } from '../../errors';
+import {
+  ForbidCredentialModificationError,
+  InsufficientAuthenticationNonInteractiveError,
+} from '../../errors';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
+import { AuthenticationMode } from '../appstore/authenticateTypes';
 import { Target } from '../types';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 
@@ -105,6 +109,13 @@ export class SetUpProvisioningProfile {
     if (ctx.freezeCredentials) {
       throw new ForbidCredentialModificationError(
         'Provisioning profile is not configured correctly. Remove the --freeze-credentials flag to configure it.'
+      );
+    } else if (
+      ctx.nonInteractive &&
+      ctx.appStore.defaultAuthenticationMode !== AuthenticationMode.API_KEY
+    ) {
+      throw new InsufficientAuthenticationNonInteractiveError(
+        'In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. See <TODO:ADD LINK HERE> for more information.'
       );
     }
 

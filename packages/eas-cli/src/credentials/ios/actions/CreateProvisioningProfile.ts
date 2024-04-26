@@ -6,12 +6,15 @@ import { generateProvisioningProfileAsync } from './ProvisioningProfileUtils';
 import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
-import { ForbidCredentialModificationError } from '../../errors';
+import {
+  ForbidCredentialModificationError,
+  InsufficientAuthenticationNonInteractiveError,
+} from '../../errors';
 import { askForUserProvidedAsync } from '../../utils/promptForCredentials';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ProvisioningProfile } from '../appstore/Credentials.types';
-import { AuthCtx } from '../appstore/authenticateTypes';
+import { AuthCtx, AuthenticationMode } from '../appstore/authenticateTypes';
 import { provisioningProfileSchema } from '../credentials';
 import { Target } from '../types';
 
@@ -26,6 +29,13 @@ export class CreateProvisioningProfile {
     if (ctx.freezeCredentials) {
       throw new ForbidCredentialModificationError(
         'Run this command again without the --freeze-credentials flag in order to generate a new Provisioning Profile.'
+      );
+    } else if (
+      ctx.nonInteractive &&
+      ctx.appStore.defaultAuthenticationMode !== AuthenticationMode.API_KEY
+    ) {
+      throw new InsufficientAuthenticationNonInteractiveError(
+        'In order to generate a new Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. See <TODO:ADD LINK HERE> for more information.'
       );
     }
     const appleAuthCtx = await ctx.appStore.ensureAuthenticatedAsync();
