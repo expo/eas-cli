@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [7.8.5](https://github.com/expo/eas-cli/releases/tag/v7.8.5) - 2024-04-26
+
+### 🐛 Bug fixes
+
 - Add explicit workflow arg to expo-update CLI calls. ([#2340](https://github.com/expo/eas-cli/pull/2340) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
