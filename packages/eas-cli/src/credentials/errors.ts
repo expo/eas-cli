@@ -1,3 +1,5 @@
+import { learnMore } from '../log';
+
 export class MissingCredentialsNonInteractiveError extends Error {
   constructor(message?: string) {
     super(message ?? 'Credentials are not set up. Run this command again in interactive mode.');
@@ -8,7 +10,9 @@ export class InsufficientAuthenticationNonInteractiveError extends Error {
   constructor(message?: string) {
     super(
       message ??
-        'Authentication with an ASC API key is required in non-interactive mode, see <TODO:ADD LINK HERE> for more information.'
+        `Authentication with an ASC API key is required in non-interactive mode. ${learnMore(
+          'https://docs.expo.dev/build/building-on-ci/#optional-provide-an-asc-api-token-for-your-apple-team'
+        )}`
     );
   }
 }

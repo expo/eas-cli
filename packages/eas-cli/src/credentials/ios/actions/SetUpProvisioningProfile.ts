@@ -15,6 +15,7 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
+import { learnMore } from '../../../log';
 import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
@@ -115,7 +116,9 @@ export class SetUpProvisioningProfile {
       ctx.appStore.defaultAuthenticationMode !== AuthenticationMode.API_KEY
     ) {
       throw new InsufficientAuthenticationNonInteractiveError(
-        'In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. See <TODO:ADD LINK HERE> for more information.'
+        `In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. ${learnMore(
+          'https://docs.expo.dev/build/building-on-ci/#optional-provide-an-asc-api-token-for-your-apple-team'
+        )}`
       );
     }
 

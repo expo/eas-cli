@@ -4,7 +4,7 @@ import nullthrows from 'nullthrows';
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { generateProvisioningProfileAsync } from './ProvisioningProfileUtils';
 import { AppleDistributionCertificateFragment } from '../../../graphql/generated';
-import Log from '../../../log';
+import Log, { learnMore } from '../../../log';
 import { CredentialsContext } from '../../context';
 import {
   ForbidCredentialModificationError,
@@ -35,7 +35,9 @@ export class CreateProvisioningProfile {
       ctx.appStore.defaultAuthenticationMode !== AuthenticationMode.API_KEY
     ) {
       throw new InsufficientAuthenticationNonInteractiveError(
-        'In order to generate a new Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. See <TODO:ADD LINK HERE> for more information.'
+        `In order to generate a new Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. ${learnMore(
+          'https://docs.expo.dev/build/building-on-ci/#optional-provide-an-asc-api-token-for-your-apple-team'
+        )}`
       );
     }
     const appleAuthCtx = await ctx.appStore.ensureAuthenticatedAsync();

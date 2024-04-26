@@ -5,7 +5,7 @@ import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
 } from '../../../graphql/generated';
-import Log from '../../../log';
+import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
 import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import { CredentialsContext } from '../../context';
@@ -39,7 +39,9 @@ export class ConfigureProvisioningProfile {
       ctx.appStore.defaultAuthenticationMode !== AuthenticationMode.API_KEY
     ) {
       throw new InsufficientAuthenticationNonInteractiveError(
-        'In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. See <TODO:ADD LINK HERE> for more information.'
+        `In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. ${learnMore(
+          'https://docs.expo.dev/build/building-on-ci/#optional-provide-an-asc-api-token-for-your-apple-team'
+        )}`
       );
     }
     const { developerPortalIdentifier, provisioningProfile } = this.originalProvisioningProfile;
