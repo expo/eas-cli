@@ -7,7 +7,6 @@ import nullthrows from 'nullthrows';
 import { ensureBranchExistsAsync } from '../../branch/queries';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
-import { ensureChannelExistsAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
@@ -374,20 +373,10 @@ export default class UpdatePublish extends EasCommand {
     const runtimeToPlatformMapping =
       getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);
 
-    const { branchId, createdBranch } = await ensureBranchExistsAsync(graphqlClient, {
+    const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
       branchName,
     });
-    if (createdBranch) {
-      await ensureChannelExistsAsync(graphqlClient, {
-        appId: projectId,
-        branchId,
-        channelName: branchName,
-      });
-      Log.withTick(
-        `Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`
-      );
-    }
 
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
