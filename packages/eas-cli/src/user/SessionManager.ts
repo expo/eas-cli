@@ -171,8 +171,8 @@ export default class SessionManager {
 
     Log.log(
       `Log in to EAS with email or username (exit and run ${chalk.bold(
-        'eas login'
-      )} for other options)`
+        'eas login --help'
+      )} to see other login options)`
     );
 
     const { username, password } = await promptAsync([

@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Improve login info message for other login options. ([#2352](https://github.com/expo/eas-cli/pull/2352) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2351](https://github.com/expo/eas-cli/pull/2351) by [@expo-bot](https://github.com/expo-bot))
