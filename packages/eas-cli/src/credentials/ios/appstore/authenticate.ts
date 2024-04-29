@@ -8,7 +8,7 @@ import {
 } from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
-import { int } from 'getenv';
+import * as getenv from 'getenv';
 
 import {
   ApiKeyAuthCtx,
@@ -191,7 +191,7 @@ async function authenticateAsUserAsync(options: Options = {}): Promise<AuthCtx> 
         cookies: options.cookies,
         teamId: options.teamId ?? process.env.EXPO_APPLE_TEAM_ID,
         providerId: process.env.EXPO_APPLE_PROVIDER_ID
-          ? int(process.env.EXPO_APPLE_PROVIDER_ID)
+          ? getenv.int('EXPO_APPLE_PROVIDER_ID')
           : undefined,
       },
       {
