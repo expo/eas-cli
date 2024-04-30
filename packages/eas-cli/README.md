@@ -970,7 +970,10 @@ log in with your Expo account
 
 ```
 USAGE
-  $ eas login
+  $ eas login [--sso]
+
+FLAGS
+  -s, --sso Log in with SSO
 
 DESCRIPTION
   log in with your Expo account

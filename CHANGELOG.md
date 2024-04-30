@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Improve login info message for other login options. ([#2352](https://github.com/expo/eas-cli/pull/2352) by [@wschurman](https://github.com/wschurman))
+- Show the -s, --sso option in the login command help. ([#2353](https://github.com/expo/eas-cli/pull/2353) by [@lzkb](https://github.com/lzkb))
 
 ### 🧹 Chores
 
