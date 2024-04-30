@@ -22,6 +22,14 @@ export const UserQuery = {
                     id
                     ...AccountFragment
                   }
+                  preferences {
+                    onboarding {
+                      appId
+                      platform
+                      devEnv
+                      isCLIDone
+                    }
+                  }
                 }
                 ... on Robot {
                   firstName
