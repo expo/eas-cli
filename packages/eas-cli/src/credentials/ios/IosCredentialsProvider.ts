@@ -14,6 +14,7 @@ import { isAdHocProfile, isEnterpriseUniversalProfile } from './utils/provisioni
 import { CommonIosAppCredentialsFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { findApplicationTarget } from '../../project/ios/target';
+import { isExpoNotificationsInstalled } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
 import { CredentialsContext } from '../context';
 import * as credentialsJsonReader from '../credentialsJson/read';
@@ -104,6 +105,11 @@ export default class IosCredentialsProvider {
     }
 
     if (ctx.easJsonCliConfig?.promptToConfigurePushNotifications === false) {
+      return null;
+    } else if (
+      ctx.easJsonCliConfig?.promptToConfigurePushNotifications === undefined &&
+      !(await isExpoNotificationsInstalled(ctx.projectDir))
+    ) {
       return null;
     }
 

@@ -18,6 +18,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2351](https://github.com/expo/eas-cli/pull/2351) by [@expo-bot](https://github.com/expo-bot))
+- Don't prompt users to set push notifications by default if they don't have the `expo-notifications` installed. ([#2343](https://github.com/expo/eas-cli/pull/2343) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [7.8.5](https://github.com/expo/eas-cli/releases/tag/v7.8.5) - 2024-04-26
 
