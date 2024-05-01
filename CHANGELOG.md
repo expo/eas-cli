@@ -6,9 +6,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Stop creating a channel on `eas update` and `eas update:roll-back-to-embedded` unless the `--channel` flag is specified. ([#2346](https://github.com/expo/eas-cli/pull/2346) by [@quinlanj](https://github.com/quinlanj))
-
 ### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [8.0.0](https://github.com/expo/eas-cli/releases/tag/v8.0.0) - 2024-05-01
+
+### 🛠 Breaking changes
+
+- Stop creating a channel on `eas update` and `eas update:roll-back-to-embedded` unless the `--channel` flag is specified. ([#2346](https://github.com/expo/eas-cli/pull/2346) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🐛 Bug fixes
 
