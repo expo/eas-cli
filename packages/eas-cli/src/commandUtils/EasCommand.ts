@@ -1,5 +1,6 @@
 import { Command } from '@oclif/core';
 import { CombinedError } from '@urql/core';
+import chalk from 'chalk';
 import { GraphQLError } from 'graphql/error';
 import nullthrows from 'nullthrows';
 
@@ -210,7 +211,13 @@ export default abstract class EasCommand extends Command {
           const defaultMsg = `${messageLine}${requestIdLine}`;
 
           if (graphQLError.extensions?.errorCode === 'UNAUTHORIZED_ERROR') {
-            return `You don't have the required permissions to perform this operation.\n\n${defaultMsg}`;
+            return `${chalk.bold(
+              `You don't have the required permissions to perform this operation.`
+            )}\n\nThis can sometimes happen if you are logged in as incorrect user.\nRun ${chalk.bold(
+              'eas whoami'
+            )} to check the username you are logged in as.\nRun ${chalk.bold(
+              'eas login'
+            )} to change the account.\n\nOriginal error message: ${defaultMsg}`;
           }
 
           return defaultMsg;

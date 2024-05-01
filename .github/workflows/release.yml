@@ -69,6 +69,9 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: 20
+      - run: brew install python-setuptools
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
       - run: yarn install --frozen-lockfile --check-files
       - run: yarn build
       - name: Build tarballs

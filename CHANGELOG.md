@@ -6,7 +6,21 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Stop creating a channel on `eas update` and `eas update:roll-back-to-embedded` unless the `--channel` flag is specified. ([#2346](https://github.com/expo/eas-cli/pull/2346) by [@quinlanj](https://github.com/quinlanj))
+
 ### 🎉 New features
+
+### 🐛 Bug fixes
+
+- Improve login info message for other login options. ([#2352](https://github.com/expo/eas-cli/pull/2352) by [@wschurman](https://github.com/wschurman))
+- Show the -s, --sso option in the login command help. ([#2353](https://github.com/expo/eas-cli/pull/2353) by [@lzkb](https://github.com/lzkb))
+
+### 🧹 Chores
+
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2351](https://github.com/expo/eas-cli/pull/2351) by [@expo-bot](https://github.com/expo-bot))
+- Don't prompt users to set push notifications by default if they don't have the `expo-notifications` installed. ([#2343](https://github.com/expo/eas-cli/pull/2343) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [7.8.5](https://github.com/expo/eas-cli/releases/tag/v7.8.5) - 2024-04-26
 
 ### 🐛 Bug fixes
 
@@ -14,7 +28,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- Don't prompt users to set push notifications by default if they don't have the `expo-notifications` installed. ([#2343](https://github.com/expo/eas-cli/pull/2343) by [@szdziedzic](https://github.com/szdziedzic))
+- Improve error message if the server returns `UNAUTHORIZED_ERROR`. ([#2345](https://github.com/expo/eas-cli/pull/2345) by [@szdziedzic](https://github.com/szdziedzic))
+- Fill in min expo-updates version for expo-updates CLI. ([#2344](https://github.com/expo/eas-cli/pull/2344) by [@wschurman](https://github.com/wschurman))
 
 ## [7.8.4](https://github.com/expo/eas-cli/releases/tag/v7.8.4) - 2024-04-24
 
