@@ -111,17 +111,10 @@
             "Provide your own `credentials.json` file. [learn more](https://docs.expo.dev/app-signing/local-credentials/)"
           ]
         },
-        "releaseChannel": {
-          "type": "string",
-          "description": "Name of the release channel for the `expo-updates` package. Learn more: https://docs.expo.dev/distribution/release-channels/",
-          "markdownDescription": "Name of the release channel for the `expo-updates` package. [Learn more](https://docs.expo.dev/distribution/release-channels/)\n\nIf you do not specify a channel, your binary will pull releases from the `default` channel. If you do not use `expo-updates` in your project then this property will have no effect.\n\n**This field only applies to the Classic Update service**; if you use EAS Update, use the [channel](https://docs.expo.dev/build-reference/eas-json/#channel) field instead.",
-          "pattern": "^[a-z0-9._-]+$",
-          "patternErrorMessage": "Release channel names can only contain lowercase letters, numbers and special characters `.`, `_` and `-`."
-        },
         "channel": {
           "type": "string",
-          "description": "The channel is a name we can give to multiple builds to identify them easily. Learn more: https://docs.expo.dev/eas-update/how-eas-update-works/",
-          "markdownDescription": "The channel is a name we can give to multiple builds to identify them easily. [Learn more](https://docs.expo.dev/eas-update/how-eas-update-works/)\n\n**This field only applies to the EAS Update service**, if your project still uses Classic Updates then use the [releaseChannel](https://docs.expo.dev/build-reference/eas-json/#releasechannel) field instead."
+          "description": "The channel name identifies which EAS Update channel a build belongs to. Learn more: https://docs.expo.dev/eas-update/how-eas-update-works/",
+          "markdownDescription": "The channel name identifies which EAS Update channel a build belongs to. [Learn more](https://docs.expo.dev/eas-update/how-eas-update-works/)"
         },
         "distribution": {
           "enum": ["internal", "store"],

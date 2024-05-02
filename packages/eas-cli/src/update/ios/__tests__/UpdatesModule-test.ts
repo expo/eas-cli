@@ -54,8 +54,6 @@ const ExpoPlistWithChannel = `
     <true/>
     <key>EXUpdatesLaunchWaitMs</key>
     <integer>0</integer>
-    <key>EXUpdatesReleaseChannel</key>
-    <string>default</string>
     <key>EXUpdatesSDKVersion</key>
     <string>40.0.0</string>
     <key>EXUpdatesURL</key>
@@ -77,8 +75,6 @@ const ExpoPlistWithOutChannel = `
     <true/>
     <key>EXUpdatesLaunchWaitMs</key>
     <integer>0</integer>
-    <key>EXUpdatesReleaseChannel</key>
-    <string>default</string>
     <key>EXUpdatesSDKVersion</key>
     <string>40.0.0</string>
     <key>EXUpdatesURL</key>

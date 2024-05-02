@@ -37,7 +37,6 @@ export const BuildFragmentNode = gql`
       }
     }
     channel
-    releaseChannel
     distribution
     iosEnterpriseProvisioning
     buildProfile

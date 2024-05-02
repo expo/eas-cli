@@ -71,7 +71,6 @@ import {
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { ensureEASUpdateIsConfiguredAsync } from '../update/configure';
-import { validateBuildProfileConfigMatchesProjectConfigAsync } from '../update/utils';
 import { Actor } from '../user/User';
 import { downloadAndMaybeExtractAppAsync } from '../utils/download';
 import { truthy } from '../utils/expodash/filter';
@@ -375,12 +374,6 @@ async function prepareAndStartBuildAsync({
     );
   }
 
-  await validateBuildProfileConfigMatchesProjectConfigAsync(
-    buildCtx.exp,
-    buildProfile,
-    buildCtx.projectId,
-    flags.nonInteractive
-  );
   if (buildProfile.profile.channel) {
     await validateExpoUpdatesInstalledAsProjectDependencyAsync({
       exp: buildCtx.exp,
