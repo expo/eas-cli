@@ -107,7 +107,7 @@ export default class Build extends EasCommand {
     }),
     'freeze-credentials': Flags.boolean({
       default: false,
-      description: 'Prevent the build from updating credentials',
+      description: 'Prevent the build from updating credentials in non-interactive mode',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
