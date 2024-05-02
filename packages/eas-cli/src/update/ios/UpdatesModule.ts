@@ -53,15 +53,6 @@ async function writeExpoPlistAsync(
   await vcsClient.trackFileAsync(expoPlistPath);
 }
 
-export async function readReleaseChannelSafelyAsync(projectDir: string): Promise<string | null> {
-  try {
-    const expoPlist = await readExpoPlistAsync(projectDir);
-    return expoPlist[IOSConfig.Updates.Config.RELEASE_CHANNEL] ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export async function readChannelSafelyAsync(projectDir: string): Promise<string | null> {
   try {
     const expoPlist = await readExpoPlistAsync(projectDir);

@@ -306,8 +306,7 @@ export async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: stri
       const easBuildProfilesWithChannels = Object.keys(easJsonRawObject.build).reduce(
         (acc, profileNameKey) => {
           const buildProfile = easJsonRawObject.build[profileNameKey];
-          const isNotAlreadyConfigured = !buildProfile.channel && !buildProfile.releaseChannel;
-
+          const isNotAlreadyConfigured = !buildProfile.channel;
           if (isNotAlreadyConfigured) {
             return {
               ...acc,

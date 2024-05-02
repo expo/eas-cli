@@ -508,18 +508,6 @@ test('invalid semver value', async () => {
   );
 });
 
-test('invalid release channel', async () => {
-  await fs.writeJson('/project/eas.json', {
-    build: {
-      production: { releaseChannel: 'feature/myfeature' },
-    },
-  });
-
-  const accessor = EasJsonAccessor.fromProjectPath('/project');
-  const promise = EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'production');
-  await expect(promise).rejects.toThrowError(/fails to match the required pattern/);
-});
-
 test('get profile names', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
