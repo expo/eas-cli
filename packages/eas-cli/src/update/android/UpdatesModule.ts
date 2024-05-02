@@ -57,18 +57,6 @@ export async function syncUpdatesConfigurationAsync(
   await XML.writeXMLAsync({ path: stringsJSONPath, xml: updatedStringsResourceXML });
 }
 
-export async function readReleaseChannelSafelyAsync(projectDir: string): Promise<string | null> {
-  try {
-    const androidManifest = await getAndroidManifestAsync(projectDir);
-    return AndroidConfig.Manifest.getMainApplicationMetaDataValue(
-      androidManifest,
-      AndroidConfig.Updates.Config.RELEASE_CHANNEL
-    );
-  } catch {
-    return null;
-  }
-}
-
 export async function readChannelSafelyAsync(projectDir: string): Promise<string | null> {
   try {
     const androidManifest = await getAndroidManifestAsync(projectDir);

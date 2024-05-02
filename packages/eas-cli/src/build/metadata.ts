@@ -9,26 +9,16 @@ import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios
 import { LocalBuildMode } from './local';
 import { BuildDistributionType } from './types';
 import Log from '../log';
-import {
-  getUsername,
-  isClassicUpdatesSupportedAsync,
-  isExpoUpdatesInstalled,
-} from '../project/projectUtils';
+import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils';
 import { resolveRuntimeVersionAsync } from '../project/resolveRuntimeVersionAsync';
-import {
-  readChannelSafelyAsync as readAndroidChannelSafelyAsync,
-  readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync,
-} from '../update/android/UpdatesModule';
-import {
-  readChannelSafelyAsync as readIosChannelSafelyAsync,
-  readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync,
-} from '../update/ios/UpdatesModule';
+import { readChannelSafelyAsync as readAndroidChannelSafelyAsync } from '../update/android/UpdatesModule';
+import { readChannelSafelyAsync as readIosChannelSafelyAsync } from '../update/ios/UpdatesModule';
 import { easCliVersion } from '../utils/easCli';
 
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<Metadata> {
-  const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
+  const channelObject = await resolveChannelAsync(ctx);
   const distribution = ctx.buildProfile.distribution ?? BuildDistributionType.STORE;
   const metadata: Metadata = {
     trackingContext: ctx.analyticsEventProperties,
@@ -39,7 +29,7 @@ export async function collectMetadataAsync<T extends Platform>(
     sdkVersion: ctx.exp.sdkVersion,
     runtimeVersion: (await resolveRuntimeVersionAsync(ctx)) ?? undefined,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
-    ...channelOrReleaseChannel,
+    ...channelObject,
     distribution,
     appName: ctx.exp.name,
     appIdentifier: resolveAppIdentifier(ctx),
@@ -117,9 +107,9 @@ function resolveAppIdentifier<T extends Platform>(ctx: BuildContext<T>): string 
   }
 }
 
-async function resolveChannelOrReleaseChannelAsync<T extends Platform>(
+async function resolveChannelAsync<T extends Platform>(
   ctx: BuildContext<T>
-): Promise<{ channel: string } | { releaseChannel: string } | null> {
+): Promise<{ channel: string } | null> {
   if (!isExpoUpdatesInstalled(ctx.projectDir)) {
     return null;
   }
@@ -131,31 +121,7 @@ async function resolveChannelOrReleaseChannelAsync<T extends Platform>(
     return { channel };
   }
 
-  if (!(await isClassicUpdatesSupportedAsync(ctx.projectDir))) {
-    return null;
-  }
-
-  if (ctx.buildProfile.releaseChannel) {
-    return { releaseChannel: ctx.buildProfile.releaseChannel };
-  }
-
-  const releaseChannel = await getNativeReleaseChannelAsync(ctx);
-  return { releaseChannel };
-}
-
-async function getNativeReleaseChannelAsync<T extends Platform>(
-  ctx: BuildContext<T>
-): Promise<string> {
-  switch (ctx.platform) {
-    case Platform.ANDROID: {
-      return (await readAndroidReleaseChannelSafelyAsync(ctx.projectDir)) ?? 'default';
-    }
-    case Platform.IOS: {
-      return (await readIosReleaseChannelSafelyAsync(ctx.projectDir)) ?? 'default';
-    }
-    default:
-      return 'default';
-  }
+  return null;
 }
 
 async function getNativeChannelAsync<T extends Platform>(

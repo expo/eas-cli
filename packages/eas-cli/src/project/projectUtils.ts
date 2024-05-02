@@ -145,19 +145,6 @@ export async function enforceRollBackToEmbeddedUpdateSupportAsync(
   );
 }
 
-export async function isClassicUpdatesSupportedAsync(projectDir: string): Promise<boolean> {
-  const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
-  if (expoUpdatesPackageVersion === null) {
-    return false;
-  }
-
-  if (expoUpdatesPackageVersion.includes('canary')) {
-    return false;
-  }
-
-  return semver.lt(expoUpdatesPackageVersion, '0.19.0');
-}
-
 export async function isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(
   projectDir: string
 ): Promise<boolean> {
