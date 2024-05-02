@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Remove more classic updates code. ([#2357](https://github.com/expo/eas-cli/pull/2357) by [@wschurman](https://github.com/wschurman))
+
 ## [8.0.0](https://github.com/expo/eas-cli/releases/tag/v8.0.0) - 2024-05-01
 
 ### 🛠 Breaking changes
