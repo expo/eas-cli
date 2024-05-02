@@ -35,6 +35,7 @@ interface RawBuildFlags {
   'resource-class'?: ResourceClass;
   message?: string;
   'build-logger-level'?: LoggerLevel;
+  'freeze-credentials': boolean;
 }
 
 export default class Build extends EasCommand {
@@ -103,6 +104,10 @@ export default class Build extends EasCommand {
     'build-logger-level': Flags.enum({
       description: 'The level of logs to output during the build process. Defaults to "info".',
       options: Object.values(LoggerLevel),
+    }),
+    'freeze-credentials': Flags.boolean({
+      default: false,
+      description: 'Prevent the build from updating credentials in non-interactive mode',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -217,6 +222,7 @@ export default class Build extends EasCommand {
       resourceClass: flags['resource-class'],
       message,
       buildLoggerLevel: flags['build-logger-level'],
+      freezeCredentials: flags['freeze-credentials'],
     };
   }
 

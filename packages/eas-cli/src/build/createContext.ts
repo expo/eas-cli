@@ -41,6 +41,7 @@ export async function createBuildContextAsync<T extends Platform>({
   getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
   buildLoggerLevel,
+  freezeCredentials,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -60,6 +61,7 @@ export async function createBuildContextAsync<T extends Platform>({
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   buildLoggerLevel?: LoggerLevel;
+  freezeCredentials: boolean;
 }): Promise<BuildContext<T>> {
   const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: buildProfile.env });
   const projectName = exp.slug;
@@ -86,6 +88,7 @@ export async function createBuildContextAsync<T extends Platform>({
     env: buildProfile.env,
     easJsonCliConfig,
     vcsClient,
+    freezeCredentials,
   });
 
   const devClientProperties = getDevClientEventProperties({

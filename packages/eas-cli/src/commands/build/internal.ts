@@ -77,6 +77,7 @@ export default class BuildInternal extends EasCommand {
         requestedPlatform: flags.platform as RequestedPlatform,
         profile: flags.profile,
         nonInteractive: true,
+        freezeCredentials: false,
         wait: false,
         clearCache: false,
         json: true,

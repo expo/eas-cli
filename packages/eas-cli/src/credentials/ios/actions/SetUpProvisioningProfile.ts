@@ -15,12 +15,17 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
+import { learnMore } from '../../../log';
 import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
+import {
+  ForbidCredentialModificationError,
+  InsufficientAuthenticationNonInteractiveError,
+} from '../../errors';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
+import { AuthenticationMode } from '../appstore/authenticateTypes';
 import { Target } from '../types';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 
@@ -102,9 +107,18 @@ export class SetUpProvisioningProfile {
     if (areBuildCredentialsSetup) {
       return nullthrows(await getBuildCredentialsAsync(ctx, this.app, this.distributionType));
     }
-    if (ctx.nonInteractive) {
-      throw new MissingCredentialsNonInteractiveError(
-        'Provisioning profile is not configured correctly. Run this command again in interactive mode.'
+    if (ctx.freezeCredentials) {
+      throw new ForbidCredentialModificationError(
+        'Provisioning profile is not configured correctly. Remove the --freeze-credentials flag to configure it.'
+      );
+    } else if (
+      ctx.nonInteractive &&
+      ctx.appStore.defaultAuthenticationMode !== AuthenticationMode.API_KEY
+    ) {
+      throw new InsufficientAuthenticationNonInteractiveError(
+        `In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. ${learnMore(
+          'https://docs.expo.dev/build/building-on-ci/#optional-provide-an-asc-api-token-for-your-apple-team'
+        )}`
       );
     }
 
@@ -127,11 +141,18 @@ export class SetUpProvisioningProfile {
       return await this.assignNewAndDeleteOldProfileAsync(ctx, distCert, currentProfile);
     }
 
-    const confirm = await confirmAsync({
-      message: `${formatProvisioningProfileFromApple(
-        currentProfileFromServer
-      )} \n  Would you like to reuse the original profile?`,
-    });
+    const isNonInteractiveOrUserDidConfirmAsync = async (): Promise<boolean> => {
+      if (ctx.nonInteractive) {
+        return true;
+      }
+      return await confirmAsync({
+        message: `${formatProvisioningProfileFromApple(
+          currentProfileFromServer
+        )} \n  Would you like to reuse the original profile?`,
+      });
+    };
+
+    const confirm = await isNonInteractiveOrUserDidConfirmAsync();
     if (!confirm) {
       return await this.assignNewAndDeleteOldProfileAsync(ctx, distCert, currentProfile);
     }

@@ -105,6 +105,7 @@ export default class BuildInspect extends EasCommand {
           projectDir,
           {
             nonInteractive: false,
+            freezeCredentials: false,
             wait: true,
             clearCache: false,
             json: false,
