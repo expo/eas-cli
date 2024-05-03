@@ -282,6 +282,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
             exp: ctx.app.exp,
             platform,
             workflow: workflows[platform],
+            env: undefined,
           })
         )
       )

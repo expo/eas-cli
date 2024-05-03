@@ -1,6 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
-import { Workflow } from '@expo/eas-build-job';
+import { Env, Workflow } from '@expo/eas-build-job';
 
 import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from './projectUtils';
 import Log from '../log';
@@ -14,11 +14,13 @@ export async function resolveRuntimeVersionAsync({
   platform,
   workflow,
   projectDir,
+  env,
 }: {
   exp: ExpoConfig;
   platform: 'ios' | 'android';
   workflow: Workflow;
   projectDir: string;
+  env: Env | undefined;
 }): Promise<string | null> {
   if (!(await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir))) {
     // fall back to the previous behavior (using the @expo/config-plugins eas-cli dependency rather
@@ -31,14 +33,11 @@ export async function resolveRuntimeVersionAsync({
 
     const extraArgs = Log.isDebug ? ['--debug'] : [];
 
-    const resolvedRuntimeVersionJSONResult = await expoUpdatesCommandAsync(projectDir, [
-      'runtimeversion:resolve',
-      '--platform',
-      platform,
-      '--workflow',
-      workflow,
-      ...extraArgs,
-    ]);
+    const resolvedRuntimeVersionJSONResult = await expoUpdatesCommandAsync(
+      projectDir,
+      ['runtimeversion:resolve', '--platform', platform, '--workflow', workflow, ...extraArgs],
+      { env }
+    );
     const runtimeVersionResult = JSON.parse(resolvedRuntimeVersionJSONResult);
 
     Log.debug('runtimeversion:resolve output:');

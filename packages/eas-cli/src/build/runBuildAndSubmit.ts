@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config-types';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import {
   AppVersionSource,
   BuildProfile,
@@ -385,6 +385,7 @@ async function prepareAndStartBuildAsync({
       sdkVersion: buildCtx.exp.sdkVersion,
       nonInteractive: flags.nonInteractive,
       buildProfile,
+      env: buildProfile.profile.env,
     });
     if (isUsingEASUpdate(buildCtx.exp, buildCtx.projectId)) {
       const doesChannelExist = await doesChannelExistAsync(graphqlClient, {
@@ -529,6 +530,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
   buildProfile,
   nonInteractive,
   sdkVersion,
+  env,
 }: {
   exp: ExpoConfig;
   projectId: string;
@@ -537,6 +539,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
   buildProfile: ProfileData<'build'>;
   nonInteractive: boolean;
   sdkVersion?: string;
+  env: Env | undefined
 }): Promise<void> {
   if (isExpoUpdatesInstalledOrAvailable(projectDir, sdkVersion)) {
     return;
@@ -564,6 +567,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
         projectDir,
         platform: RequestedPlatform.All,
         vcsClient,
+        env,
       });
       Log.withTick('Installed expo-updates and configured EAS Update.');
       throw new Error('Command must be re-run to pick up new updates configuration.');

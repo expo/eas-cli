@@ -1,6 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidConfig } from '@expo/config-plugins';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import { AndroidVersionAutoIncrement } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -18,11 +18,13 @@ export async function syncProjectConfigurationAsync({
   exp,
   localAutoIncrement,
   vcsClient,
+  env,
 }: {
   projectDir: string;
   exp: ExpoConfig;
   localAutoIncrement?: AndroidVersionAutoIncrement;
   vcsClient: Client;
+  env: Env | undefined;
 }): Promise<void> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   const versionBumpStrategy = resolveVersionBumpStrategy(localAutoIncrement ?? false);
@@ -30,7 +32,7 @@ export async function syncProjectConfigurationAsync({
   if (workflow === Workflow.GENERIC) {
     await cleanUpOldEasBuildGradleScriptAsync(projectDir);
     if (isExpoUpdatesInstalled(projectDir)) {
-      await syncUpdatesConfigurationAsync(projectDir, exp, workflow);
+      await syncUpdatesConfigurationAsync({ projectDir, exp, workflow, env });
     }
     await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy });
   } else {

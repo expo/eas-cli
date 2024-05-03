@@ -89,6 +89,7 @@ export async function prepareIosBuildAsync(
             ? false
             : ctx.buildProfile.autoIncrement,
         vcsClient: ctx.vcsClient,
+        env: ctx.buildProfile.env,
       });
     },
     prepareJobAsync: async (

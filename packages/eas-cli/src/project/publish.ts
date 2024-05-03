@@ -1,6 +1,6 @@
 import { ExpoConfig, Platform } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
-import { Workflow } from '@expo/eas-build-job';
+import { Env, Workflow } from '@expo/eas-build-job';
 import JsonFile from '@expo/json-file';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -684,11 +684,13 @@ export async function getRuntimeVersionObjectAsync({
   platforms,
   workflows,
   projectDir,
+  env,
 }: {
   exp: ExpoConfig;
   platforms: Platform[];
   workflows: Record<Platform, Workflow>;
   projectDir: string;
+  env: Env | undefined;
 }): Promise<{ platform: string; runtimeVersion: string }[]> {
   return await Promise.all(
     platforms.map(async platform => {
@@ -699,6 +701,7 @@ export async function getRuntimeVersionObjectAsync({
           platform,
           workflow: workflows[platform],
           projectDir,
+          env,
         }),
       };
     })
@@ -710,11 +713,13 @@ async function getRuntimeVersionForPlatformAsync({
   platform,
   workflow,
   projectDir,
+  env,
 }: {
   exp: ExpoConfig;
   platform: Platform;
   workflow: Workflow;
   projectDir: string;
+  env: Env | undefined;
 }): Promise<string> {
   if (platform === 'web') {
     return 'UNVERSIONED';
@@ -726,14 +731,11 @@ async function getRuntimeVersionForPlatformAsync({
 
       const extraArgs = Log.isDebug ? ['--debug'] : [];
 
-      const resolvedRuntimeVersionJSONResult = await expoUpdatesCommandAsync(projectDir, [
-        'runtimeversion:resolve',
-        '--platform',
-        platform,
-        '--workflow',
-        workflow,
-        ...extraArgs,
-      ]);
+      const resolvedRuntimeVersionJSONResult = await expoUpdatesCommandAsync(
+        projectDir,
+        ['runtimeversion:resolve', '--platform', platform, '--workflow', workflow, ...extraArgs],
+        { env }
+      );
       const runtimeVersionResult = JSON.parse(resolvedRuntimeVersionJSONResult);
 
       Log.debug('runtimeversion:resolve output:');
