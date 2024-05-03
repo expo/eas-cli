@@ -22839,6 +22839,16 @@
         "possibleTypes": null
       },
       {
+        "kind": "SCALAR",
+        "name": "DevDomainName",
+        "description": "A DevDomainName for a deployed serverless app",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "OBJECT",
         "name": "DeploymentsMutation",
         "description": null,

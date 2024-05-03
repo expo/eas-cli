@@ -1,3 +1,4 @@
+import { UserRole } from '@expo/apple-utils';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
@@ -24,10 +25,19 @@ import { isAscApiKeyValidAndTrackedAsync } from '../validators/validateAscApiKey
 
 export enum AppStoreApiKeyPurpose {
   SUBMISSION_SERVICE = 'EAS Submit',
+  BUILD_SERVICE = 'EAS Build',
 }
 
-export async function promptForAscApiKeyPathAsync(ctx: CredentialsContext): Promise<AscApiKeyPath> {
-  const { keyId, keyP8Path } = await promptForKeyP8AndIdAsync();
+export const PURPOSE_TO_ROLES: Record<AppStoreApiKeyPurpose, UserRole[]> = {
+  [AppStoreApiKeyPurpose.SUBMISSION_SERVICE]: [UserRole.ADMIN],
+  [AppStoreApiKeyPurpose.BUILD_SERVICE]: [UserRole.ADMIN],
+};
+
+export async function promptForAscApiKeyPathAsync(
+  ctx: CredentialsContext,
+  roles: UserRole[]
+): Promise<AscApiKeyPath> {
+  const { keyId, keyP8Path } = await promptForKeyP8AndIdAsync(roles);
 
   const bestEffortIssuerId = await getBestEffortIssuerIdAsync(ctx, keyId);
   if (bestEffortIssuerId) {
@@ -60,15 +70,15 @@ export async function getMinimalAscApiKeyAsync(ascApiKey: AscApiKey): Promise<Mi
 
 export async function provideOrGenerateAscApiKeyAsync(
   ctx: CredentialsContext,
-  purpose: AppStoreApiKeyPurpose
+  roles: UserRole[]
 ): Promise<MinimalAscApiKey> {
   if (ctx.nonInteractive) {
     throw new Error(`A new App Store Connect API Key cannot be created in non-interactive mode.`);
   }
 
-  const userProvided = await promptForAscApiKeyAsync(ctx);
+  const userProvided = await promptForAscApiKeyAsync(ctx, roles);
   if (!userProvided) {
-    return await generateAscApiKeyAsync(ctx, purpose);
+    return await generateAscApiKeyAsync(ctx, roles);
   }
 
   if (!ctx.appStore.authCtx) {
@@ -86,39 +96,49 @@ export async function provideOrGenerateAscApiKeyAsync(
   if (useUserProvided) {
     return userProvided;
   }
-  return await provideOrGenerateAscApiKeyAsync(ctx, purpose);
+  return await provideOrGenerateAscApiKeyAsync(ctx, roles);
 }
 
 async function generateAscApiKeyAsync(
   ctx: CredentialsContext,
-  purpose: AppStoreApiKeyPurpose
+  roles: UserRole[]
 ): Promise<MinimalAscApiKey> {
   await ctx.appStore.ensureAuthenticatedAsync();
   const ascApiKey = await ctx.appStore.createAscApiKeyAsync(ctx.analytics, {
-    nickname: getAscApiKeyName(purpose),
+    nickname: getAscApiKeyName(),
+    roles,
   });
   return await getMinimalAscApiKeyAsync(ascApiKey);
 }
 
-export function getAscApiKeyName(purpose: AppStoreApiKeyPurpose): string {
-  const nameParts = ['[Expo]', purpose, nanoid(10)];
+export function getAscApiKeyName(): string {
+  const nameParts = ['[Expo]', nanoid(10)];
   return nameParts.join(' ');
 }
 
-async function promptForAscApiKeyAsync(ctx: CredentialsContext): Promise<MinimalAscApiKey | null> {
+async function promptForAscApiKeyAsync(
+  ctx: CredentialsContext,
+  roles: UserRole[]
+): Promise<MinimalAscApiKey | null> {
   const shouldAutoGenerateCredentials = await shouldAutoGenerateCredentialsAsync(ascApiKeyIdSchema);
   if (shouldAutoGenerateCredentials) {
     return null;
   }
-  const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx);
+  const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx, roles);
   const { keyP8Path, keyId, issuerId } = ascApiKeyPath;
   return { keyP8: await fs.readFile(keyP8Path, 'utf-8'), keyId, issuerId };
 }
 
-async function promptForKeyP8AndIdAsync(): Promise<Pick<AscApiKeyPath, 'keyP8Path' | 'keyId'>> {
+async function promptForKeyP8AndIdAsync(
+  roles: UserRole[]
+): Promise<Pick<AscApiKeyPath, 'keyP8Path' | 'keyId'>> {
+  const rolesStringified = roles.map(r => r.toString()).join(', ');
+  const isPlural = roles.length > 1;
   Log.log(
     chalk.bold(
-      'An App Store Connect Api key is required to upload your app to the Apple App Store Connect'
+      `An App Store Connect Api key with the ${rolesStringified} role${
+        isPlural ? 's' : ''
+      } is required to upload your app to the Apple App Store Connect`
     )
   );
   Log.log(
@@ -241,12 +261,15 @@ export function sortAscApiKeysByUpdatedAtDesc(
 }
 
 export function formatAscApiKey(ascApiKey: AppStoreConnectApiKeyFragment): string {
-  const { keyIdentifier, appleTeam, name, updatedAt } = ascApiKey;
+  const { keyIdentifier, appleTeam, roles, name, updatedAt } = ascApiKey;
   let line: string = '';
   line += `Key ID: ${keyIdentifier}`;
 
   if (name) {
     line += chalk.gray(`\n    Name: ${name}`);
+  }
+  if (roles && roles.length > 0) {
+    line += chalk.gray(`\n    Roles: ${roles.join(', ')}`);
   }
   if (appleTeam) {
     line += chalk.gray(`\n    ${formatAppleTeam(appleTeam)}`);

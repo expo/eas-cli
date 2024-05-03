@@ -1,3 +1,4 @@
+import { UserRole } from '@expo/apple-utils';
 import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
@@ -189,7 +190,7 @@ async function handlePromptSourceAsync(
   ctx: SubmissionContext<Platform.IOS>,
   _source: AscApiKeyPromptSource
 ): Promise<AscApiKeyPath> {
-  const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx.credentialsCtx);
+  const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx.credentialsCtx, [UserRole.ADMIN]);
   return await getAscApiKeyPathAsync(ctx, {
     sourceType: AscApiKeySourceType.path,
     path: ascApiKeyPath,

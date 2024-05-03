@@ -1,4 +1,4 @@
-import { ProfileType } from '@expo/app-store';
+import { ProfileType, UserRole } from '@expo/app-store';
 
 import {
   AscApiKey,
@@ -195,10 +195,10 @@ export default class AppStoreApi {
 
   public async createAscApiKeyAsync(
     analytics: Analytics,
-    { nickname }: { nickname: string }
+    { nickname, roles }: { nickname: string; roles: UserRole[] }
   ): Promise<AscApiKey> {
     const userCtx = await this.ensureUserAuthenticatedAsync();
-    return await createAscApiKeyAsync(analytics, userCtx, { nickname });
+    return await createAscApiKeyAsync(analytics, userCtx, { nickname, roles });
   }
 
   public async revokeAscApiKeyAsync(keyId: string): Promise<AscApiKeyInfo> {

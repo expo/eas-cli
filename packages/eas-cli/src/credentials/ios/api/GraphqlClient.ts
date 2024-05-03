@@ -189,28 +189,26 @@ export async function updateIosAppCredentialsAsync(
   {
     applePushKeyId,
     ascApiKeyIdForSubmissions,
+    ascApiKeyIdForBuilds,
   }: {
     applePushKeyId?: string;
     ascApiKeyIdForSubmissions?: string;
+    ascApiKeyIdForBuilds?: string;
   }
 ): Promise<CommonIosAppCredentialsFragment> {
-  let updatedAppCredentials = appCredentials;
-  if (applePushKeyId) {
-    updatedAppCredentials = await IosAppCredentialsMutation.setPushKeyAsync(
-      graphqlClient,
-      updatedAppCredentials.id,
-      applePushKeyId
-    );
+  const updatedAppCredentials = appCredentials;
+  if (!applePushKeyId && !ascApiKeyIdForSubmissions && !ascApiKeyIdForBuilds) {
+    return updatedAppCredentials;
   }
-  if (ascApiKeyIdForSubmissions) {
-    updatedAppCredentials =
-      await IosAppCredentialsMutation.setAppStoreConnectApiKeyForSubmissionsAsync(
-        graphqlClient,
-        updatedAppCredentials.id,
-        ascApiKeyIdForSubmissions
-      );
-  }
-  return updatedAppCredentials;
+  return await IosAppCredentialsMutation.updateIosAppCredentialsAsync(
+    graphqlClient,
+    appCredentials.id,
+    {
+      pushKeyId: applePushKeyId,
+      appStoreConnectApiKeyForSubmissionsId: ascApiKeyIdForSubmissions,
+      appStoreConnectApiKeyForBuildsId: ascApiKeyIdForBuilds,
+    }
+  );
 }
 
 async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync(

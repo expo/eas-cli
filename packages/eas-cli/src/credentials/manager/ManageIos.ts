@@ -85,7 +85,7 @@ export class ManageIos {
     });
     const buildCredentialsActions = getBuildCredentialsActions(ctx);
     const pushKeyActions = getPushKeyActions(ctx);
-    const ascApiKeyActions = getAscApiKeyActions(ctx);
+    const ascApiKeyActions = getAscApiKeyActions();
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
@@ -226,8 +226,6 @@ export class ManageIos {
       await new CreateDistributionCertificate(account).runAsync(ctx);
     } else if (action === IosActionType.CreatePushKey) {
       await new CreatePushKey(account).runAsync(ctx);
-    } else if (action === IosActionType.CreateAscApiKeyForSubmissions) {
-      await new CreateAscApiKey(account).runAsync(ctx, AppStoreApiKeyPurpose.SUBMISSION_SERVICE);
     } else if (action === IosActionType.RemovePushKey) {
       await new SelectAndRemovePushKey(account).runAsync(ctx);
     } else if (action === IosActionType.RemoveAscApiKey) {
@@ -354,40 +352,29 @@ export class ManageIos {
         }
         return;
       }
-      case IosActionType.SetUpAscApiKeyForSubmissions: {
-        await new SetUpAscApiKey(
-          appLookupParams,
-          AppStoreApiKeyPurpose.SUBMISSION_SERVICE
-        ).runAsync(ctx);
+      case IosActionType.SetUpAscApiKeyForService: {
+        const purpose = await this.selectAscApiKeyPurposeAsync();
+        await new SetUpAscApiKey(appLookupParams, purpose).runAsync(ctx);
         return;
       }
-      case IosActionType.UseExistingAscApiKeyForSubmissions: {
+      case IosActionType.UseExistingAscApiKeyForService: {
+        const purpose = await this.selectAscApiKeyPurposeAsync();
         const ascApiKey = await selectAscApiKeysFromAccountAsync(ctx, appLookupParams.account, {
           filterDifferentAppleTeam: true,
         });
         if (ascApiKey) {
-          await new AssignAscApiKey(appLookupParams).runAsync(
-            ctx,
-            ascApiKey,
-            AppStoreApiKeyPurpose.SUBMISSION_SERVICE
-          );
+          await new AssignAscApiKey(appLookupParams).runAsync(ctx, ascApiKey, purpose);
         }
         return;
       }
-      case IosActionType.CreateAscApiKeyForSubmissions: {
-        const ascApiKey = await new CreateAscApiKey(appLookupParams.account).runAsync(
-          ctx,
-          AppStoreApiKeyPurpose.SUBMISSION_SERVICE
-        );
+      case IosActionType.CreateAscApiKeyForService: {
+        const purpose = await this.selectAscApiKeyPurposeAsync();
+        const ascApiKey = await new CreateAscApiKey(appLookupParams.account).runAsync(ctx, purpose);
         const confirm = await confirmAsync({
           message: `Do you want ${appLookupParams.projectName} to use the new API Key?`,
         });
         if (confirm) {
-          await new AssignAscApiKey(appLookupParams).runAsync(
-            ctx,
-            ascApiKey,
-            AppStoreApiKeyPurpose.SUBMISSION_SERVICE
-          );
+          await new AssignAscApiKey(appLookupParams).runAsync(ctx, ascApiKey, purpose);
         }
         return;
       }
@@ -430,5 +417,18 @@ export class ManageIos {
         value: target,
       }))
     );
+  }
+
+  protected async selectAscApiKeyPurposeAsync(): Promise<AppStoreApiKeyPurpose> {
+    const { keyPurpose } = await promptAsync({
+      type: 'select',
+      message: `Select the service you'd like to use your ASC Api Key for:`,
+      name: 'keyPurpose',
+      choices: [
+        { title: 'EAS Submit', value: AppStoreApiKeyPurpose.SUBMISSION_SERVICE },
+        { title: 'EAS Build', value: AppStoreApiKeyPurpose.BUILD_SERVICE },
+      ],
+    });
+    return keyPurpose;
   }
 }

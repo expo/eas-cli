@@ -12,6 +12,7 @@ import { APPLE_DEVICE_CLASS_LABELS } from '../../../graphql/types/credentials/Ap
 import Log from '../../../log';
 import { fromNow } from '../../../utils/date';
 import formatFields from '../../../utils/formatFields';
+import { AppStoreApiKeyPurpose } from '../actions/AscApiKeyUtils';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { App, IosAppBuildCredentialsMap, IosAppCredentialsMap, Target } from '../types';
 
@@ -92,7 +93,12 @@ export function displayIosCredentials(
       continue;
     }
 
-    const { appleTeam, pushKey, appStoreConnectApiKeyForSubmissions } = targetAppCredentials;
+    const {
+      appleTeam,
+      pushKey,
+      appStoreConnectApiKeyForSubmissions,
+      appStoreConnectApiKeyForBuilds,
+    } = targetAppCredentials;
     if (appleTeam) {
       const { appleTeamIdentifier, appleTeamName } = appleTeam;
       fields.push({
@@ -107,7 +113,15 @@ export function displayIosCredentials(
     }
 
     if (appStoreConnectApiKeyForSubmissions) {
-      displayAscApiKey(appStoreConnectApiKeyForSubmissions, fields);
+      displayAscApiKey(
+        AppStoreApiKeyPurpose.SUBMISSION_SERVICE,
+        appStoreConnectApiKeyForSubmissions,
+        fields
+      );
+    }
+
+    if (appStoreConnectApiKeyForBuilds) {
+      displayAscApiKey(AppStoreApiKeyPurpose.BUILD_SERVICE, appStoreConnectApiKeyForBuilds, fields);
     }
 
     const sortedIosAppBuildCredentialsList = sortBuildCredentialsByDistributionType(
@@ -236,10 +250,11 @@ function displayApplePushKey(
 }
 
 function displayAscApiKey(
+  purpose: AppStoreApiKeyPurpose,
   maybeAscApiKey: AppStoreConnectApiKeyFragment | null,
   fields: { label: string; value: string }[]
 ): void {
-  fields.push({ label: 'App Store Connect API Key', value: '' });
+  fields.push({ label: `${purpose.toString()} App Store Connect API Key`, value: '' });
   if (maybeAscApiKey) {
     const { keyIdentifier, issuerIdentifier, appleTeam, name, roles, updatedAt } = maybeAscApiKey;
     fields.push({ label: 'Developer Portal ID', value: keyIdentifier });

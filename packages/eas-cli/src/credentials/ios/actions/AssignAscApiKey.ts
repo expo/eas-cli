@@ -32,6 +32,14 @@ export class AssignAscApiKey {
           ascApiKeyIdForSubmissions: ascApiKey.id,
         }
       );
+    } else if (purpose === AppStoreApiKeyPurpose.BUILD_SERVICE) {
+      updatedAppCredentials = await ctx.ios.updateIosAppCredentialsAsync(
+        ctx.graphqlClient,
+        appCredentials,
+        {
+          ascApiKeyIdForBuilds: ascApiKey.id,
+        }
+      );
     } else {
       throw new Error(`${purpose} is not yet supported.`);
     }
