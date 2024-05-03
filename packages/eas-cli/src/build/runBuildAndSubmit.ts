@@ -539,7 +539,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
   buildProfile: ProfileData<'build'>;
   nonInteractive: boolean;
   sdkVersion?: string;
-  env: Env | undefined
+  env: Env | undefined;
 }): Promise<void> {
   if (isExpoUpdatesInstalledOrAvailable(projectDir, sdkVersion)) {
     return;
