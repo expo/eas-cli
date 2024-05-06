@@ -27,7 +27,14 @@ export async function collectMetadataAsync<T extends Platform>(
     workflow: ctx.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
-    runtimeVersion: (await resolveRuntimeVersionAsync(ctx)) ?? undefined,
+    runtimeVersion:
+      (await resolveRuntimeVersionAsync({
+        exp: ctx.exp,
+        platform: ctx.platform,
+        workflow: ctx.workflow,
+        projectDir: ctx.projectDir,
+        env: ctx.buildProfile.env,
+      })) ?? undefined,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
     ...channelObject,
     distribution,

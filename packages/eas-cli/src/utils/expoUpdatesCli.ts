@@ -1,3 +1,4 @@
+import { Env } from '@expo/eas-build-job';
 import spawnAsync from '@expo/spawn-async';
 import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
 
@@ -7,7 +8,11 @@ export class ExpoUpdatesCLIModuleNotFoundError extends Error {}
 export class ExpoUpdatesCLIInvalidCommandError extends Error {}
 export class ExpoUpdatesCLICommandFailedError extends Error {}
 
-export async function expoUpdatesCommandAsync(projectDir: string, args: string[]): Promise<string> {
+export async function expoUpdatesCommandAsync(
+  projectDir: string,
+  args: string[],
+  options: { env: Env | undefined }
+): Promise<string> {
   let expoUpdatesCli;
   try {
     expoUpdatesCli =
@@ -25,7 +30,12 @@ export async function expoUpdatesCommandAsync(projectDir: string, args: string[]
   }
 
   try {
-    return (await spawnAsync(expoUpdatesCli, args, { stdio: 'pipe' })).stdout;
+    return (
+      await spawnAsync(expoUpdatesCli, args, {
+        stdio: 'pipe',
+        env: { ...process.env, ...options.env },
+      })
+    ).stdout;
   } catch (e: any) {
     if (e.stderr && typeof e.stderr === 'string') {
       if (e.stderr.includes('Invalid command')) {

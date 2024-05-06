@@ -200,6 +200,7 @@ export default class UpdatePublish extends EasCommand {
       projectDir,
       projectId,
       vcsClient,
+      env: undefined,
     });
 
     const { exp } = await getDynamicPublicProjectConfigAsync();
@@ -369,6 +370,7 @@ export default class UpdatePublish extends EasCommand {
         ...workflows,
         web: Workflow.UNKNOWN,
       },
+      env: undefined,
     });
     const runtimeToPlatformMapping =
       getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);

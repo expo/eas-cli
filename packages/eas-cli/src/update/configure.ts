@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config-types';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import { EasJsonAccessor } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -264,20 +264,33 @@ async function ensureEASUpdateIsConfiguredNativelyAsync(
     projectDir,
     platform,
     workflows,
+    env,
   }: {
     exp: ExpoConfig;
     projectDir: string;
     platform: RequestedPlatform;
     workflows: Record<Platform, Workflow>;
+    env: Env | undefined;
   }
 ): Promise<void> {
   if (['all', 'android'].includes(platform) && workflows.android === Workflow.GENERIC) {
-    await syncAndroidUpdatesConfigurationAsync(projectDir, exp, workflows.android);
+    await syncAndroidUpdatesConfigurationAsync({
+      projectDir,
+      exp,
+      workflow: workflows.android,
+      env,
+    });
     Log.withTick(`Configured ${chalk.bold('AndroidManifest.xml')} for EAS Update`);
   }
 
   if (['all', 'ios'].includes(platform) && workflows.ios === Workflow.GENERIC) {
-    await syncIosUpdatesConfigurationAsync(vcsClient, projectDir, exp, workflows.ios);
+    await syncIosUpdatesConfigurationAsync({
+      vcsClient,
+      projectDir,
+      exp,
+      workflow: workflows.ios,
+      env,
+    });
     Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
   }
 }
@@ -356,12 +369,14 @@ export async function ensureEASUpdateIsConfiguredAsync({
   projectDir,
   vcsClient,
   platform,
+  env,
 }: {
   exp: ExpoConfig;
   projectId: string;
   projectDir: string;
   vcsClient: Client;
   platform: RequestedPlatform | null;
+  env: Env | undefined;
 }): Promise<void> {
   const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
     projectDir,
@@ -399,6 +414,7 @@ export async function ensureEASUpdateIsConfiguredAsync({
       projectDir,
       platform,
       workflows,
+      env,
     });
   }
 

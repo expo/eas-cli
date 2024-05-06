@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import { IosVersionAutoIncrement } from '@expo/eas-json';
 
 import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
@@ -15,19 +15,21 @@ export async function syncProjectConfigurationAsync({
   targets,
   localAutoIncrement,
   vcsClient,
+  env,
 }: {
   projectDir: string;
   exp: ExpoConfig;
   targets: Target[];
   localAutoIncrement?: IosVersionAutoIncrement;
   vcsClient: Client;
+  env: Env | undefined;
 }): Promise<void> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   const versionBumpStrategy = resolveVersionBumpStrategy(localAutoIncrement ?? false);
 
   if (workflow === Workflow.GENERIC) {
     if (isExpoUpdatesInstalled(projectDir)) {
-      await syncUpdatesConfigurationAsync(vcsClient, projectDir, exp, workflow);
+      await syncUpdatesConfigurationAsync({ vcsClient, projectDir, exp, workflow, env });
     }
     await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy, targets });
   } else {

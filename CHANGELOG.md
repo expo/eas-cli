@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Pass env from process.env and build profile to expo-updates CLI calls where applicable. ([#2359](https://github.com/expo/eas-cli/pull/2359) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 - Remove more classic updates code. ([#2357](https://github.com/expo/eas-cli/pull/2357) by [@wschurman](https://github.com/wschurman))

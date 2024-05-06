@@ -154,6 +154,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       projectDir,
       projectId,
       vcsClient,
+      env: undefined,
     });
 
     // check that the expo-updates package version supports roll back to embedded
@@ -201,6 +202,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
         ...workflows,
         web: Workflow.UNKNOWN,
       },
+      env: undefined,
     });
 
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];

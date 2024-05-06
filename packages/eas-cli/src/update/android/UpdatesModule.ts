@@ -1,6 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidConfig, AndroidManifest, XML } from '@expo/config-plugins';
-import { Workflow } from '@expo/eas-build-job';
+import { Env, Workflow } from '@expo/eas-build-job';
 
 import { RequestedPlatform } from '../../platform';
 import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from '../../project/projectUtils';
@@ -10,21 +10,25 @@ import { ensureValidVersions } from '../utils';
 /**
  * Synchronize updates configuration to native files. This needs to do essentially the same thing as `withUpdates`
  */
-export async function syncUpdatesConfigurationAsync(
-  projectDir: string,
-  exp: ExpoConfig,
-  workflow: Workflow
-): Promise<void> {
+export async function syncUpdatesConfigurationAsync({
+  projectDir,
+  exp,
+  workflow,
+  env,
+}: {
+  projectDir: string;
+  exp: ExpoConfig;
+  workflow: Workflow;
+  env: Env | undefined;
+}): Promise<void> {
   ensureValidVersions(exp, RequestedPlatform.Android);
 
   if (await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir)) {
-    await expoUpdatesCommandAsync(projectDir, [
-      'configuration:syncnative',
-      '--platform',
-      'android',
-      '--workflow',
-      workflow,
-    ]);
+    await expoUpdatesCommandAsync(
+      projectDir,
+      ['configuration:syncnative', '--platform', 'android', '--workflow', workflow],
+      { env }
+    );
     return;
   }
 

@@ -52,6 +52,7 @@ export default class UpdateConfigure extends EasCommand {
       projectDir,
       platform,
       vcsClient,
+      env: undefined,
     });
 
     await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
