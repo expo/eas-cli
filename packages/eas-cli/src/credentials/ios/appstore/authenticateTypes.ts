@@ -9,6 +9,7 @@ export enum AuthenticationMode {
   USER,
 }
 
+// TODO: move this to graphql types
 export enum AppleTeamType {
   IN_HOUSE = 'IN_HOUSE',
   COMPANY_OR_ORGANIZATION = 'COMPANY_OR_ORGANIZATION',

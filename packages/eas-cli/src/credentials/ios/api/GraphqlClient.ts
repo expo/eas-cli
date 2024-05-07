@@ -38,6 +38,7 @@ import {
   AppleDistributionCertificateFragment,
   ApplePushKeyFragment,
   AppleTeamFragment,
+  AppleTeamInput,
   CommonIosAppCredentialsFragment,
   IosAppBuildCredentialsFragment,
   IosDistributionType,
@@ -261,7 +262,42 @@ async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync(
 export async function createOrGetExistingAppleTeamAsync(
   graphqlClient: ExpoGraphqlClient,
   account: AccountFragment,
-  { appleTeamIdentifier, appleTeamName }: { appleTeamIdentifier: string; appleTeamName?: string }
+  { appleTeamIdentifier, appleTeamName, appleTeamType }: AppleTeamInput
+): Promise<AppleTeamFragment> {
+  return await createOrManageExistingAppleTeamAsync(
+    graphqlClient,
+    account,
+    {
+      appleTeamIdentifier,
+      appleTeamName,
+      appleTeamType,
+    },
+    { updateMissingFields: false }
+  );
+}
+
+export async function createOrUpdateExistingAppleTeamAsync(
+  graphqlClient: ExpoGraphqlClient,
+  account: AccountFragment,
+  { appleTeamIdentifier, appleTeamName, appleTeamType }: AppleTeamInput
+): Promise<AppleTeamFragment> {
+  return await createOrManageExistingAppleTeamAsync(
+    graphqlClient,
+    account,
+    {
+      appleTeamIdentifier,
+      appleTeamName,
+      appleTeamType,
+    },
+    { updateMissingFields: true }
+  );
+}
+
+async function createOrManageExistingAppleTeamAsync(
+  graphqlClient: ExpoGraphqlClient,
+  account: AccountFragment,
+  { appleTeamIdentifier, appleTeamName, appleTeamType }: AppleTeamInput,
+  { updateMissingFields }: { updateMissingFields: boolean }
 ): Promise<AppleTeamFragment> {
   const appleTeam = await AppleTeamQuery.getByAppleTeamIdentifierAsync(
     graphqlClient,
@@ -269,11 +305,24 @@ export async function createOrGetExistingAppleTeamAsync(
     appleTeamIdentifier
   );
   if (appleTeam) {
+    const didTeamNameChange = appleTeamName && appleTeam.appleTeamName !== appleTeamName;
+    const didTeamTypeChange = appleTeamType && appleTeam.appleTeamType !== appleTeamType;
+    const didFieldsChange = didTeamNameChange || didTeamTypeChange;
+    if (updateMissingFields && didFieldsChange) {
+      return await AppleTeamMutation.updateAppleTeamAsync(
+        graphqlClient,
+        {
+          appleTeamName: didTeamNameChange ? appleTeamName : undefined,
+          appleTeamType: didTeamTypeChange ? appleTeamType : undefined,
+        },
+        appleTeam.id
+      );
+    }
     return appleTeam;
   } else {
     return await AppleTeamMutation.createAppleTeamAsync(
       graphqlClient,
-      { appleTeamIdentifier, appleTeamName },
+      { appleTeamIdentifier, appleTeamName, appleTeamType },
       account.id
     );
   }
@@ -516,6 +565,20 @@ export async function createAscApiKeyAsync(
       appleTeamId: maybeAppleTeam ? maybeAppleTeam.id : null,
     },
     account.id
+  );
+}
+
+export async function updateAscApiKeyAsync(
+  graphqlClient: ExpoGraphqlClient,
+  ascApiKey: AppStoreConnectApiKeyFragment,
+  appleTeam: AppleTeamFragment
+): Promise<AppStoreConnectApiKeyFragment> {
+  return await AppStoreConnectApiKeyMutation.updateAppStoreConnectApiKeyAsync(
+    graphqlClient,
+    {
+      appleTeamId: appleTeam.id,
+    },
+    ascApiKey.id
   );
 }
 

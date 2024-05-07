@@ -4456,6 +4456,11 @@ export enum OnboardingEnvironment {
   ExpoGo = 'EXPO_GO',
 }
 
+export enum OnboardingEnvironment {
+  DevBuild = 'DEV_BUILD',
+  ExpoGo = 'EXPO_GO',
+}
+
 export enum Order {
   Asc = 'ASC',
   Desc = 'DESC',

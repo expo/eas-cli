@@ -1,7 +1,9 @@
-import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { AppStoreApiKeyPurpose } from './AscApiKeyUtils';
+import { ChooseAssociatedAppleTeamId } from './ChooseAssociatedAppleTeamId';
+import { UpdateAppleTeamInfo } from './UpdateAppleTeamInfo';
 import {
   AppStoreConnectApiKeyFragment,
+  AppleTeamFragment,
   CommonIosAppCredentialsFragment,
 } from '../../../graphql/generated';
 import Log from '../../../log';
@@ -16,12 +18,15 @@ export class AssignAscApiKey {
     ascApiKey: AppStoreConnectApiKeyFragment,
     purpose: AppStoreApiKeyPurpose
   ): Promise<CommonIosAppCredentialsFragment> {
-    const appleTeam =
-      (await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app)) ?? ascApiKey.appleTeam ?? null;
+    const [ascApiKeyWithAppleTeam, appleTeam] = await this.ensureKeyHasAppleTeamInfoAsync(
+      ctx,
+      ascApiKey
+    );
+
     const appCredentials = await ctx.ios.createOrGetIosAppCredentialsWithCommonFieldsAsync(
       ctx.graphqlClient,
       this.app,
-      { appleTeam: appleTeam ?? undefined }
+      { appleTeam }
     );
     let updatedAppCredentials;
     if (purpose === AppStoreApiKeyPurpose.SUBMISSION_SERVICE) {
@@ -29,7 +34,7 @@ export class AssignAscApiKey {
         ctx.graphqlClient,
         appCredentials,
         {
-          ascApiKeyIdForSubmissions: ascApiKey.id,
+          ascApiKeyIdForSubmissions: ascApiKeyWithAppleTeam.id,
         }
       );
     } else if (purpose === AppStoreApiKeyPurpose.BUILD_SERVICE) {
@@ -37,7 +42,7 @@ export class AssignAscApiKey {
         ctx.graphqlClient,
         appCredentials,
         {
-          ascApiKeyIdForBuilds: ascApiKey.id,
+          ascApiKeyIdForBuilds: ascApiKeyWithAppleTeam.id,
         }
       );
     } else {
@@ -47,5 +52,29 @@ export class AssignAscApiKey {
       `App Store Connect API Key assigned to ${this.app.projectName}: ${this.app.bundleIdentifier} for ${purpose}.`
     );
     return updatedAppCredentials;
+  }
+
+  private async ensureKeyHasAppleTeamInfoAsync(
+    ctx: CredentialsContext,
+    ascApiKey: AppStoreConnectApiKeyFragment
+  ): Promise<[AppStoreConnectApiKeyFragment, AppleTeamFragment]> {
+    let appleTeamIdentifier = ascApiKey.appleTeam?.appleTeamIdentifier;
+    if (!appleTeamIdentifier) {
+      const chooseAssociatedAppleTeamIdAction = new ChooseAssociatedAppleTeamId(
+        'App Store Connect API Key'
+      );
+      appleTeamIdentifier = await chooseAssociatedAppleTeamIdAction.runAsync(ctx);
+    }
+    const updateAppleTeamAction = new UpdateAppleTeamInfo(this.app.account, appleTeamIdentifier);
+    const appleTeam = await updateAppleTeamAction.runAsync(ctx);
+    if (!ascApiKey.appleTeam) {
+      const updatedAscApiKey = await ctx.ios.updateAscApiKeyAsync(
+        ctx.graphqlClient,
+        ascApiKey,
+        appleTeam
+      );
+      return [updatedAscApiKey, appleTeam];
+    }
+    return [ascApiKey, appleTeam];
   }
 }
