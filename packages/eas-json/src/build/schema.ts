@@ -41,7 +41,6 @@ const CommonBuildProfileSchema = Joi.object({
   pnpm: Joi.string().empty(null).custom(semverCheck),
   bun: Joi.string().empty(null).custom(semverCheck),
   yarn: Joi.string().empty(null).custom(semverCheck),
-  expoCli: Joi.string().empty(null).custom(semverCheck),
 
   // credentials
   credentialsSource: Joi.string().valid('local', 'remote').default('remote'),

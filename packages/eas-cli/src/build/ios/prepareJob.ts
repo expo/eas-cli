@@ -62,7 +62,6 @@ export async function prepareJobAsync(
       bundler: buildProfile.bundler,
       cocoapods: buildProfile.cocoapods,
       fastlane: buildProfile.fastlane,
-      expoCli: buildProfile.expoCli,
       env: buildProfile.env,
     },
     cache: {
