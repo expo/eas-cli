@@ -15,7 +15,6 @@ export function transformJob(job: Android.Job): AndroidJobInput {
     triggeredBy: transformBuildTrigger(job.triggeredBy),
     projectArchive: transformProjectArchive(job.projectArchive),
     projectRootDirectory: job.projectRootDirectory,
-    releaseChannel: job.releaseChannel,
     updates: job.updates,
     secrets: job.secrets,
     builderEnvironment: job.builderEnvironment,

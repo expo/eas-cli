@@ -73,7 +73,6 @@ export async function prepareJobAsync(
     secrets: {
       buildCredentials,
     },
-    releaseChannel: buildProfile.releaseChannel,
     updates: { channel: buildProfile.channel },
     developmentClient: buildProfile.developmentClient,
     simulator: buildProfile.simulator,
