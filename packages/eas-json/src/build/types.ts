@@ -38,6 +38,7 @@ export interface CommonBuildProfile {
   pnpm?: string;
   bun?: string;
   yarn?: string;
+  expoCli?: string;
 
   // credentials
   credentialsSource: CredentialsSource;
