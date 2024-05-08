@@ -8,6 +8,7 @@ import { validateOrSetProjectIdAsync } from '../../commandUtils/context/contextU
 import { CredentialsContextProjectInfo } from '../../credentials/context';
 import { SetUpBuildCredentialsCommandAction } from '../../credentials/manager/SetUpBuildCredentialsCommandAction';
 import { AppPlatform, OnboardingDeviceType, OnboardingEnvironment } from '../../graphql/generated';
+import { UserPreferencesMutation } from '../../graphql/mutations/UserPreferencesMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log from '../../log';
 import { runGitCloneAsync, runGitPushAsync } from '../../onboarding/git';
@@ -161,6 +162,10 @@ export default class Onboarding extends EasCommand {
         targetProjectDir,
       });
     }
+
+    await UserPreferencesMutation.markCliDoneInOnboardingUserPreferencesAsync(graphqlClient, {
+      appId: app.id,
+    });
 
     Log.log();
     Log.log('🎉 We finished configuring your project.');

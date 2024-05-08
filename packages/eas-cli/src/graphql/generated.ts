@@ -7114,6 +7114,13 @@ export type CreateUploadSessionMutationVariables = Exact<{
 
 export type CreateUploadSessionMutation = { __typename?: 'RootMutation', uploadSession: { __typename?: 'UploadSession', createUploadSession: any } };
 
+export type MarkCliDoneInOnboardingUserPreferencesMutationVariables = Exact<{
+  preferences: UserPreferencesInput;
+}>;
+
+
+export type MarkCliDoneInOnboardingUserPreferencesMutation = { __typename?: 'RootMutation', me: { __typename?: 'MeMutation', setPreferences: { __typename?: 'UserPreferences', onboarding?: { __typename?: 'UserPreferencesOnboarding', appId: string, lastUsed: string, deviceType?: OnboardingDeviceType | null, environment?: OnboardingEnvironment | null, platform?: AppPlatform | null, isCLIDone?: boolean | null } | null } } };
+
 export type CreateWebhookMutationVariables = Exact<{
   appId: Scalars['String']['input'];
   webhookInput: WebhookInput;
