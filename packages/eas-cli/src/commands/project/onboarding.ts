@@ -7,7 +7,7 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { validateOrSetProjectIdAsync } from '../../commandUtils/context/contextUtils/getProjectIdAsync';
 import { CredentialsContextProjectInfo } from '../../credentials/context';
 import { SetUpBuildCredentialsCommandAction } from '../../credentials/manager/SetUpBuildCredentialsCommandAction';
-import { AppPlatform } from '../../graphql/generated';
+import { AppPlatform, OnboardingDeviceType, OnboardingEnvironment } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log from '../../log';
 import { runGitCloneAsync, runGitPushAsync } from '../../onboarding/git';
@@ -53,18 +53,23 @@ export default class Onboarding extends EasCommand {
 
     if (!actor.preferences.onboarding) {
       throw new Error(
-        'This command is a continuation of the onboarding process started on the Expo website. Start the onboarding process on the website before running this command. Visit https:/expo.dev/signup?onboarding=true to create an account and start the onboarding process.'
+        'This command is a continuation of the onboarding process started on the Expo website. Start the onboarding process on the website before running this command. Visit https:/expo.new to create an account and start the onboarding process.'
       );
     }
 
     if (!actor.preferences.onboarding.platform) {
       throw new Error(
-        'This command is a continuation of the onboarding process started on the Expo website. It seems like you started an onboarding process, but we are missing some information needed to be filled in before running the onboarding command: selected platform for your first build. Continue the onboarding process on the Expo website.'
+        'This command is a continuation of the onboarding process started on the Expo website. It seems like you started an onboarding process, but we are missing some information needed to be filled in before running the onboarding command (selected platform). Continue the onboarding process on the Expo website.'
       );
     }
-    if (!actor.preferences.onboarding.devEnv) {
+    if (!actor.preferences.onboarding.environment) {
       throw new Error(
-        'This command is a continuation of the onboarding process started on the Expo website. It seems like you started an onboarding process, but we are missing some information needed to be filled in before running the onboarding command: selected dev environment for your first build. Continue the onboarding process on the Expo website.'
+        'This command is a continuation of the onboarding process started on the Expo website. It seems like you started an onboarding process, but we are missing some information needed to be filled in before running the onboarding command (selected environment). Continue the onboarding process on the Expo website.'
+      );
+    }
+    if (!actor.preferences.onboarding.deviceType) {
+      throw new Error(
+        'This command is a continuation of the onboarding process started on the Expo website. It seems like you started an onboarding process, but we are missing some information needed to be filled in before running the onboarding command (selected device type). Continue the onboarding process on the Expo website.'
       );
     }
 
@@ -75,21 +80,23 @@ export default class Onboarding extends EasCommand {
 
     const app = await AppQuery.byIdAsync(graphqlClient, actor.preferences.onboarding.appId);
 
-    if (!app.githubRepository) {
-      throw new Error(
-        'This command is a continuation of the onboarding process started on the Expo website. It seems like you started an onboarding process, but we are missing some information needed to be filled in before running the onboarding command. Continue the onboarding process on the Expo website.'
-      );
-    }
-
-    const githubUsername = app.githubRepository.metadata.githubRepoOwnerName;
-    const githubRepositoryName = app.githubRepository.metadata.githubRepoName;
-    const targetProjectDir: string = targetProjectDirInput ?? `./${githubRepositoryName}`;
+    const githubUsername = app.githubRepository
+      ? app.githubRepository.metadata.githubRepoOwnerName
+      : 'expo';
+    const githubRepositoryName = app.githubRepository
+      ? app.githubRepository.metadata.githubRepoName
+      : 'expo-default-template';
+    const initialTargetProjectDir: string = targetProjectDirInput ?? `./${githubRepositoryName}`;
 
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
     Log.log('🚀 We will continue your onboarding process in EAS CLI');
     Log.log();
     Log.log(
-      `🔎 Let's start by cloning your project ${githubUsername}/${githubRepositoryName} from GitHub and installing dependencies.`
+      `🔎 Let's start by cloning ${
+        app.githubRepository
+          ? `your project (${githubUsername}/${githubRepositoryName})`
+          : `default expo template project (${githubUsername}/${githubRepositoryName})`
+      } from GitHub and installing dependencies.`
     );
     Log.log();
     const shouldContinue = await confirmAsync({ message: 'Do you want to continue?' });
@@ -97,38 +104,43 @@ export default class Onboarding extends EasCommand {
       throw new Error("Aborting, run the command again once you're ready.");
     }
 
-    await runGitCloneAsync({
+    const { targetProjectDir } = await runGitCloneAsync({
       githubUsername,
       githubRepositoryName,
-      targetProjectDir,
-    });
-
-    await installDependenciesAsync({
-      projectDir: targetProjectDir,
+      targetProjectDir: initialTargetProjectDir,
     });
 
     const vcsClient = new GitClient(targetProjectDir);
+    await installDependenciesAsync({
+      projectDir: targetProjectDir,
+    });
+    await vcsClient.trackFileAsync('package-lock.json');
 
-    Log.log('🔑 Now we need to set up build credentials for your project:');
-    await new SetUpBuildCredentialsCommandAction(
-      actor,
-      graphqlClient,
-      vcsClient,
-      analytics,
-      await getPrivateExpoConfigWithProjectIdAsync({
-        projectDir: targetProjectDir,
-        graphqlClient,
+    const shouldSetupCredentials =
+      actor.preferences.onboarding.deviceType === OnboardingDeviceType.Device &&
+      actor.preferences.onboarding.environment === OnboardingEnvironment.DevBuild;
+    if (shouldSetupCredentials) {
+      Log.log('🔑 Now we need to set up build credentials for your project:');
+      await new SetUpBuildCredentialsCommandAction(
         actor,
-      }),
-      getDynamicPrivateProjectConfigGetter({
-        projectDir: targetProjectDir,
         graphqlClient,
-        actor,
-      }),
-      platform,
-      'development',
-      targetProjectDir
-    ).runAsync();
+        vcsClient,
+        analytics,
+        await getPrivateExpoConfigWithProjectIdAsync({
+          projectDir: targetProjectDir,
+          graphqlClient,
+          actor,
+        }),
+        getDynamicPrivateProjectConfigGetter({
+          projectDir: targetProjectDir,
+          graphqlClient,
+          actor,
+        }),
+        platform,
+        'development',
+        targetProjectDir
+      ).runAsync();
+    }
 
     if (await vcsClient.hasUncommittedChangesAsync()) {
       Log.log(
@@ -139,7 +151,9 @@ export default class Onboarding extends EasCommand {
       await vcsClient.showChangedFilesAsync();
       await reviewAndCommitChangesAsync(
         vcsClient,
-        '[EAS onboarding] Install dependencies and set up build credentials',
+        `[EAS onboarding] Install dependencies${
+          shouldSetupCredentials ? 'and set up build credentials' : ''
+        }`,
         { nonInteractive: false }
       );
       Log.log('📤 Pushing changes to GitHub...');

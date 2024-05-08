@@ -26,7 +26,8 @@ export const UserQuery = {
                     onboarding {
                       appId
                       platform
-                      devEnv
+                      deviceType
+                      environment
                       isCLIDone
                     }
                   }
