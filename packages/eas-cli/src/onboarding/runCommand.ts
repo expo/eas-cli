@@ -24,8 +24,8 @@ export async function runCommandAsync({
   const {
     child: { stdout, stderr },
   } = spawnPromise;
-  if (!(stdout && stderr)) {
-    throw new Error('Failed to spawn expo-cli');
+  if (!stdout || !stderr) {
+    throw new Error(`Failed to spawn ${command}`);
   }
 
   stdout.on('data', data => {

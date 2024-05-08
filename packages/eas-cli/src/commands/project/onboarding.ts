@@ -48,29 +48,29 @@ export default class Onboarding extends EasCommand {
 
     if (actor.__typename === 'Robot') {
       throw new Error(
-        'This command is not available for robot users. Make sure you are not using robot token and try again.'
+        'This command is not available for robot users. Make sure you are not using a robot token and try again.'
       );
     }
 
     if (!actor.preferences.onboarding) {
       throw new Error(
-        'This command is a continuation of the onboarding process started on the Expo website. Start the onboarding process on the website before running this command. Visit https:/expo.new to create an account and start the onboarding process.'
+        'This command can only be run as part of the onboarding process started on the Expo website. Visit https://expo.new to start a new project.'
       );
     }
 
     if (!actor.preferences.onboarding.platform) {
       throw new Error(
-        'This command is a continuation of the onboarding process started on the Expo website. It seems like you started an onboarding process, but we are missing some information needed to be filled in before running the onboarding command (selected platform). Continue the onboarding process on the Expo website.'
+        'This command can only be run as part of the onboarding process started on the Expo website. It seems like you started an onboarding process, but we are missing some information needed to be filled in before running the eas init:onboarding command (selected platform). Continue the onboarding process on the Expo website.'
       );
     }
     if (!actor.preferences.onboarding.environment) {
       throw new Error(
-        'This command is a continuation of the onboarding process started on the Expo website. It seems like you started an onboarding process, but we are missing some information needed to be filled in before running the onboarding command (selected environment). Continue the onboarding process on the Expo website.'
+        'This command can only be run as part of the onboarding process started on the Expo website. It seems like you started an onboarding process, but we are missing some information needed to be filled in before running the eas init:onboarding command (selected environment). Continue the onboarding process on the Expo website.'
       );
     }
     if (!actor.preferences.onboarding.deviceType) {
       throw new Error(
-        'This command is a continuation of the onboarding process started on the Expo website. It seems like you started an onboarding process, but we are missing some information needed to be filled in before running the onboarding command (selected device type). Continue the onboarding process on the Expo website.'
+        'This command can only be run as part of the onboarding process started on the Expo website. It seems like you started an onboarding process, but we are missing some information needed to be filled in before running the eas init:onboarding command (selected device type). Continue the onboarding process on the Expo website.'
       );
     }
 
@@ -87,7 +87,7 @@ export default class Onboarding extends EasCommand {
     const githubRepositoryName = app.githubRepository
       ? app.githubRepository.metadata.githubRepoName
       : 'expo-default-template';
-    const initialTargetProjectDir: string = targetProjectDirInput ?? `./${githubRepositoryName}`;
+    const initialTargetProjectDir = targetProjectDirInput ?? `./${githubRepositoryName}`;
 
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
     Log.log('🚀 We will continue your onboarding process in EAS CLI');
@@ -152,7 +152,7 @@ export default class Onboarding extends EasCommand {
       await vcsClient.showChangedFilesAsync();
       await reviewAndCommitChangesAsync(
         vcsClient,
-        `[EAS onboarding] Install dependencies${
+        `[eas-onboarding] Install dependencies${
           shouldSetupCredentials ? 'and set up build credentials' : ''
         }`,
         { nonInteractive: false }

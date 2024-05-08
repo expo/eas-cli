@@ -13,15 +13,14 @@ export async function runGitCloneAsync({
 }): Promise<{
   targetProjectDir: string;
 }> {
-  const args = [
-    'clone',
-    `git@github.com:${githubUsername}/${githubRepositoryName}.git`,
-    targetProjectDir,
-  ];
   try {
     await runCommandAsync({
-      args,
       command: 'git',
+      args: [
+        'clone',
+        `git@github.com:${githubUsername}/${githubRepositoryName}.git`,
+        targetProjectDir,
+      ],
       shouldPrintStderrLineAsStdout: line => {
         return line.includes('Cloning into');
       },
@@ -58,10 +57,9 @@ export async function runGitPushAsync({
 }: {
   targetProjectDir: string;
 }): Promise<void> {
-  const args = ['push'];
   await runCommandAsync({
-    args,
     command: 'git',
+    args: ['push'],
     cwd: targetProjectDir,
   });
 }
