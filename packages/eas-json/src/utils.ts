@@ -51,6 +51,16 @@ export class EasJsonUtils {
       });
     }
 
+    if (buildProfile.expoCli) {
+      warnings.push({
+        message: [
+          `The "build.${profileName}.expoCli" field in eas.json is deprecated and will be removed in the future.`,
+          `Global Expo CLI is deprecated. Since Expo SDK 46 local Expo CLI shipped with "expo" package is used. Remove this field from eas.json.`,
+          `Using this field has no effect on EAS Build process.`,
+        ],
+      });
+    }
+
     warnings.push(...EasJsonUtils.getCustomPathsDeprecationWarnings(rawEasJson, profileName));
 
     return warnings;

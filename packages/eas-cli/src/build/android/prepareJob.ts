@@ -68,7 +68,6 @@ export async function prepareJobAsync(
       bun: buildProfile.bun,
       yarn: buildProfile.yarn,
       ndk: buildProfile.ndk,
-      expoCli: buildProfile.expoCli,
       env: buildProfile.env,
     },
     cache: {

@@ -38,6 +38,9 @@ export interface CommonBuildProfile {
   pnpm?: string;
   bun?: string;
   yarn?: string;
+  /**
+   * @deprecated
+   */
   expoCli?: string;
 
   // credentials
