@@ -231,6 +231,7 @@ jobs:
     needs: publish-to-npm
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - uses: dorny/paths-filter@v2
         id: filter
         with:
