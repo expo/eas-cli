@@ -12,6 +12,13 @@ export const AppFragmentNode = gql`
       name
       ...AccountFragment
     }
+    githubRepository {
+      id
+      metadata {
+        githubRepoOwnerName
+        githubRepoName
+      }
+    }
   }
   ${AccountFragmentNode}
 `;

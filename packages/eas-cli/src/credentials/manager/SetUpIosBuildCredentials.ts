@@ -38,7 +38,7 @@ export class SetUpIosBuildCredentials extends ManageIos {
     }
 
     const ctx = new CredentialsContext({
-      projectDir: process.cwd(),
+      projectDir: this.projectDir,
       projectInfo,
       user: this.callingAction.actor,
       graphqlClient: this.callingAction.graphqlClient,

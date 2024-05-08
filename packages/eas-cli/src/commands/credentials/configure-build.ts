@@ -58,7 +58,8 @@ export default class InitializeBuildCredentials extends EasCommand {
       privateProjectConfig ?? null,
       getDynamicPrivateProjectConfigAsync,
       platform,
-      buildProfile
+      buildProfile,
+      process.cwd()
     ).runAsync();
   }
 }
