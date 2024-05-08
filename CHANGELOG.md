@@ -6,9 +6,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Allow modification of provisioning profile in CI, add --freeze-credentials flag. ([#2347](https://github.com/expo/eas-cli/pull/2347) by [@quinlanj](https://github.com/quinlanj))
-
 ### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [9.0.0](https://github.com/expo/eas-cli/releases/tag/v9.0.0) - 2024-05-08
+
+### 🛠 Breaking changes
+
+- Allow modification of provisioning profile in CI, add --freeze-credentials flag. ([#2347](https://github.com/expo/eas-cli/pull/2347) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🐛 Bug fixes
 
