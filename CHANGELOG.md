@@ -7,7 +7,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🛠 Breaking changes
 
 - Allow modification of provisioning profile in CI, add --freeze-credentials flag. ([#2347](https://github.com/expo/eas-cli/pull/2347) by [@quinlanj](https://github.com/quinlanj))
-- Don't allow to specify a custom version of deprecated global `expo-cli` in `eas.json`. ([#2361](https://github.com/expo/eas-cli/pull/2361) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🎉 New features
 
@@ -19,6 +18,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Remove more classic updates code. ([#2357](https://github.com/expo/eas-cli/pull/2357) by [@wschurman](https://github.com/wschurman))
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2360](https://github.com/expo/eas-cli/pull/2360) by [@expo-bot](https://github.com/expo-bot))
+- Don't allow to specify a custom version of deprecated global `expo-cli` in `eas.json`. ([#2361](https://github.com/expo/eas-cli/pull/2361) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [8.0.0](https://github.com/expo/eas-cli/releases/tag/v8.0.0) - 2024-05-01
 
