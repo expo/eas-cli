@@ -1,5 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
 
+import { getExpoWebsiteBaseUrl } from '../../api';
 import { reviewAndCommitChangesAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
 import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
@@ -72,6 +73,16 @@ export default class Onboarding extends EasCommand {
       throw new Error(
         'This command can only be run as part of the onboarding process started on the Expo website. It seems like you started an onboarding process, but we are missing some information needed to be filled in before running the eas init:onboarding command (selected device type). Continue the onboarding process on the Expo website.'
       );
+    }
+
+    if (
+      new Date(actor.preferences.onboarding.lastUsed) < new Date(Date.now() - 1000 * 60 * 60 * 24)
+    ) {
+      Log.warn(
+        'It seems like you started an onboarding process, but it has been a while since you last used it. If you want to start a new onboarding process, visit https://expo.new.'
+      );
+      Log.log();
+      return;
     }
 
     const platform =
@@ -170,6 +181,11 @@ export default class Onboarding extends EasCommand {
     Log.log();
     Log.log('🎉 We finished configuring your project.');
     Log.log('🚀 You can now go back to the website to continue.');
+    const url = new URL(
+      `/onboarding/develop/set-up-project-on-your-machine?project=${app.slug}&accountId=${app.ownerAccount.id}`,
+      getExpoWebsiteBaseUrl()
+    ).toString();
+    Log.log(`👉 ${url}`);
   }
 }
 

@@ -29,6 +29,7 @@ export const UserQuery = {
                       deviceType
                       environment
                       isCLIDone
+                      lastUsed
                     }
                   }
                 }
