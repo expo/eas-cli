@@ -178,12 +178,14 @@ async function getPrivateExpoConfigWithProjectIdAsync({
   projectDir,
   graphqlClient,
   actor,
+  options,
 }: {
   projectDir: string;
   graphqlClient: ExpoGraphqlClient;
   actor: Actor;
+  options?: ExpoConfigOptions;
 }): Promise<CredentialsContextProjectInfo> {
-  const expBefore = getPrivateExpoConfig(projectDir);
+  const expBefore = getPrivateExpoConfig(projectDir, options);
   const projectId = await validateOrSetProjectIdAsync({
     exp: expBefore,
     graphqlClient,
@@ -192,7 +194,7 @@ async function getPrivateExpoConfigWithProjectIdAsync({
       nonInteractive: false,
     },
   });
-  const exp = getPrivateExpoConfig(projectDir);
+  const exp = getPrivateExpoConfig(projectDir, options);
   return {
     exp,
     projectId,
@@ -210,20 +212,14 @@ function getDynamicPrivateProjectConfigGetter({
   actor: Actor;
 }): DynamicConfigContextFn {
   return async (options?: ExpoConfigOptions) => {
-    const expBefore = getPrivateExpoConfig(projectDir, options);
-    const projectId = await validateOrSetProjectIdAsync({
-      exp: expBefore,
-      graphqlClient,
-      actor,
-      options: {
-        nonInteractive: false,
-      },
-    });
-    const exp = getPrivateExpoConfig(projectDir, options);
     return {
-      exp,
+      ...(await getPrivateExpoConfigWithProjectIdAsync({
+        projectDir,
+        graphqlClient,
+        actor,
+        options,
+      })),
       projectDir,
-      projectId,
     };
   };
 }
