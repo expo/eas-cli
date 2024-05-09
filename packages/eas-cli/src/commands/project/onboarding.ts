@@ -15,7 +15,7 @@ import Log, { link } from '../../log';
 import { runGitCloneAsync, runGitPushAsync } from '../../onboarding/git';
 import { installDependenciesAsync } from '../../onboarding/installDependencies';
 import { ExpoConfigOptions, getPrivateExpoConfig } from '../../project/expoConfig';
-import { confirmAsync } from '../../prompts';
+import { confirmAsync, promptAsync } from '../../prompts';
 import { Actor } from '../../user/User';
 import GitClient from '../../vcs/clients/git';
 
@@ -112,21 +112,30 @@ export default class Onboarding extends EasCommand {
       } from GitHub and installing dependencies.`
     );
     Log.log();
-    const shouldContinue = await confirmAsync({ message: 'Do you want to continue?' });
-    Log.log();
-    if (!shouldContinue) {
-      throw new Error("Aborting, run the command again once you're ready.");
+    const shouldContinueWithDefaultTargetDirectory = await confirmAsync({
+      message: `Do you want to clone your project into ${initialTargetProjectDir}?`,
+    });
+    let targetProjectDir = initialTargetProjectDir;
+    if (!shouldContinueWithDefaultTargetDirectory) {
+      const { newTargetProjectDir } = await promptAsync({
+        type: 'text',
+        name: 'newTargetProjectDir',
+        message: 'Provide a new target directory path:',
+        validate: (input: string) => input !== '',
+      });
+      targetProjectDir = newTargetProjectDir;
     }
+    Log.log();
 
-    const { targetProjectDir } = await runGitCloneAsync({
+    const { targetProjectDir: finalTargetProjectDirectory } = await runGitCloneAsync({
       githubUsername,
       githubRepositoryName,
-      targetProjectDir: initialTargetProjectDir,
+      targetProjectDir,
     });
 
-    const vcsClient = new GitClient(targetProjectDir);
+    const vcsClient = new GitClient(finalTargetProjectDirectory);
     await installDependenciesAsync({
-      projectDir: targetProjectDir,
+      projectDir: finalTargetProjectDirectory,
     });
     await vcsClient.trackFileAsync('package-lock.json');
 
@@ -141,18 +150,18 @@ export default class Onboarding extends EasCommand {
         vcsClient,
         analytics,
         await getPrivateExpoConfigWithProjectIdAsync({
-          projectDir: targetProjectDir,
+          projectDir: finalTargetProjectDirectory,
           graphqlClient,
           actor,
         }),
         getDynamicPrivateProjectConfigGetter({
-          projectDir: targetProjectDir,
+          projectDir: finalTargetProjectDirectory,
           graphqlClient,
           actor,
         }),
         platform,
         'development',
-        targetProjectDir
+        finalTargetProjectDirectory
       ).runAsync();
     }
 
@@ -172,7 +181,7 @@ export default class Onboarding extends EasCommand {
       );
       Log.log('📤 Pushing changes to GitHub...');
       await runGitPushAsync({
-        targetProjectDir,
+        targetProjectDir: finalTargetProjectDirectory,
       });
     }
 
