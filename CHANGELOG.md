@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Update image tags in `eas.schema.json`. ([#2363](https://github.com/expo/eas-cli/pull/2363) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [9.0.0](https://github.com/expo/eas-cli/releases/tag/v9.0.0) - 2024-05-08
 
 ### 🛠 Breaking changes
@@ -27,6 +29,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Remove more classic updates code. ([#2357](https://github.com/expo/eas-cli/pull/2357) by [@wschurman](https://github.com/wschurman))
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2360](https://github.com/expo/eas-cli/pull/2360) by [@expo-bot](https://github.com/expo-bot))
 - Don't pass custom global `"expoCli"` version set in `eas.json` to EAS Build process and warn users when setting it. ([#2361](https://github.com/expo/eas-cli/pull/2361) by [@szdziedzic](https://github.com/szdziedzic))
+
 
 ## [8.0.0](https://github.com/expo/eas-cli/releases/tag/v8.0.0) - 2024-05-01
 
