@@ -50,8 +50,17 @@ export async function gitDiffAsync({
   cwd: string | undefined;
 }): Promise<void> {
   const options = withPager ? [] : ['--no-pager'];
-  await spawnAsync('git', [...options, 'diff'], {
-    stdio: ['ignore', 'inherit', 'inherit'],
-    cwd,
-  });
+  try {
+    await spawnAsync('git', [...options, 'diff'], {
+      stdio: ['ignore', 'inherit', 'inherit'],
+      cwd,
+    });
+  } catch (error: any) {
+    if (typeof error.message === 'string' && error.message.includes('SIGPIPE')) {
+      // This error is thrown when the user exits the pager with `q`.
+      // do nothing
+      return;
+    }
+    throw error;
+  }
 }

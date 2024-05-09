@@ -2,6 +2,7 @@ import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 
 import Log from '../log';
+import { ora } from '../ora';
 
 export async function runCommandAsync({
   cwd,
@@ -17,6 +18,7 @@ export async function runCommandAsync({
   shouldPrintStderrLineAsStdout?: (line: string) => boolean;
 }): Promise<void> {
   Log.log(`🏗️  Running ${chalk.bold(`${command} ${args.join(' ')}`)}...`);
+  const spinner = ora(`${chalk.bold(`${command} ${args.join(' ')}`)}`).start();
   const spawnPromise = spawnAsync(command, args, {
     stdio: ['inherit', 'pipe', 'pipe'],
     cwd,
@@ -48,7 +50,12 @@ export async function runCommandAsync({
     }
   });
 
-  await spawnPromise;
-  Log.succeed(`✅ ${chalk.bold(`${command} ${args.join(' ')}`)} succeeded`);
+  try {
+    await spawnPromise;
+  } catch (error) {
+    spinner.fail(`${chalk.bold(`${command} ${args.join(' ')}`)} failed`);
+    throw error;
+  }
+  spinner.succeed(`✅ ${chalk.bold(`${command} ${args.join(' ')}`)} succeeded`);
   Log.log('');
 }
