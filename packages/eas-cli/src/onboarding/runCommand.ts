@@ -2,7 +2,7 @@ import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 
 import Log from '../log';
-import { ora } from '../ora';
+import { Ora, ora } from '../ora';
 
 export async function runCommandAsync({
   cwd,
@@ -10,15 +10,20 @@ export async function runCommandAsync({
   command,
   shouldShowStderrLine,
   shouldPrintStderrLineAsStdout,
+  showSpinner = true,
 }: {
   cwd?: string;
   args: string[];
   command: string;
   shouldShowStderrLine?: (line: string) => boolean;
   shouldPrintStderrLineAsStdout?: (line: string) => boolean;
+  showSpinner?: boolean;
 }): Promise<void> {
   Log.log(`🏗️  Running ${chalk.bold(`${command} ${args.join(' ')}`)}...`);
-  const spinner = ora(`${chalk.bold(`${command} ${args.join(' ')}`)}`).start();
+  let spinner: Ora | undefined;
+  if (showSpinner) {
+    spinner = ora(`${chalk.bold(`${command} ${args.join(' ')}`)}`).start();
+  }
   const spawnPromise = spawnAsync(command, args, {
     stdio: ['inherit', 'pipe', 'pipe'],
     cwd,
@@ -53,9 +58,18 @@ export async function runCommandAsync({
   try {
     await spawnPromise;
   } catch (error) {
-    spinner.fail(`${chalk.bold(`${command} ${args.join(' ')}`)} failed`);
+    if (showSpinner) {
+      spinner?.fail(`${chalk.bold(`${command} ${args.join(' ')}`)} failed`);
+    } else {
+      Log.error(`❌ ${chalk.bold(`${command} ${args.join(' ')}`)} failed`);
+    }
     throw error;
   }
-  spinner.succeed(`✅ ${chalk.bold(`${command} ${args.join(' ')}`)} succeeded`);
+
+  if (showSpinner) {
+    spinner?.succeed(`✅ ${chalk.bold(`${command} ${args.join(' ')}`)} succeeded`);
+  } else {
+    Log.log(`✅ ${chalk.bold(`${command} ${args.join(' ')}`)} succeeded`);
+  }
   Log.log('');
 }

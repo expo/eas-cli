@@ -24,6 +24,7 @@ export async function runGitCloneAsync({
       shouldPrintStderrLineAsStdout: line => {
         return line.includes('Cloning into');
       },
+      showSpinner: false,
     });
     return { targetProjectDir };
   } catch (error: any) {
