@@ -176,7 +176,9 @@ export default class Onboarding extends EasCommand {
       });
     }
 
+    const { __typename, ...previousPreferences } = actor.preferences.onboarding;
     await UserPreferencesMutation.markCliDoneInOnboardingUserPreferencesAsync(graphqlClient, {
+      ...previousPreferences,
       appId: app.id,
     });
 
