@@ -6,24 +6,26 @@ export async function runGitCloneAsync({
   targetProjectDir,
   githubRepositoryName,
   githubUsername,
+  useSsh = true,
 }: {
   githubUsername: string;
   githubRepositoryName: string;
   targetProjectDir: string;
+  useSsh?: boolean;
 }): Promise<{
   targetProjectDir: string;
 }> {
+  const url = useSsh
+    ? `git@github.com:${githubUsername}/${githubRepositoryName}.git`
+    : `https://github.com/${githubUsername}/${githubRepositoryName}.git`;
   try {
     await runCommandAsync({
       command: 'git',
-      args: [
-        'clone',
-        `git@github.com:${githubUsername}/${githubRepositoryName}.git`,
-        targetProjectDir,
-      ],
+      args: ['clone', url, targetProjectDir],
       shouldPrintStderrLineAsStdout: line => {
         return line.includes('Cloning into');
       },
+      showSpinner: false,
     });
     return { targetProjectDir };
   } catch (error: any) {
@@ -45,6 +47,20 @@ export async function runGitCloneAsync({
         githubRepositoryName,
         githubUsername,
         targetProjectDir: newTargetProjectDir,
+      });
+    } else if (useSsh && error.stderr.includes('Permission denied')) {
+      Log.warn('It seems like you do not have permission to clone the repository using SSH.');
+      const shouldContinue = await confirmAsync({
+        message: 'Do you want to clone the repository using HTTPS instead?',
+      });
+      if (!shouldContinue) {
+        throw new Error('Permission denied. Aborting...');
+      }
+      return await runGitCloneAsync({
+        githubRepositoryName,
+        githubUsername,
+        targetProjectDir,
+        useSsh: false,
       });
     } else {
       throw error;
