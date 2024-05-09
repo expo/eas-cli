@@ -22,20 +22,36 @@ export async function doesGitRepoExistAsync(): Promise<boolean> {
 }
 
 interface GitStatusOptions {
-  showUntracked?: boolean;
+  showUntracked: boolean;
+  cwd: string | undefined;
 }
 
-export async function gitStatusAsync({ showUntracked }: GitStatusOptions = {}): Promise<string> {
-  return (await spawnAsync('git', ['status', '-s', showUntracked ? '-uall' : '-uno'])).stdout;
+export async function gitStatusAsync({ showUntracked, cwd }: GitStatusOptions): Promise<string> {
+  return (
+    await spawnAsync('git', ['status', '-s', showUntracked ? '-uall' : '-uno'], {
+      cwd,
+    })
+  ).stdout;
 }
 
-export async function getGitDiffOutputAsync(): Promise<string> {
-  return (await spawnAsync('git', ['--no-pager', 'diff'])).stdout;
+export async function getGitDiffOutputAsync(cwd: string | undefined): Promise<string> {
+  return (
+    await spawnAsync('git', ['--no-pager', 'diff'], {
+      cwd,
+    })
+  ).stdout;
 }
 
 export async function gitDiffAsync({
   withPager = false,
-}: { withPager?: boolean } = {}): Promise<void> {
+  cwd,
+}: {
+  withPager?: boolean;
+  cwd: string | undefined;
+}): Promise<void> {
   const options = withPager ? [] : ['--no-pager'];
-  await spawnAsync('git', [...options, 'diff'], { stdio: ['ignore', 'inherit', 'inherit'] });
+  await spawnAsync('git', [...options, 'diff'], {
+    stdio: ['ignore', 'inherit', 'inherit'],
+    cwd,
+  });
 }

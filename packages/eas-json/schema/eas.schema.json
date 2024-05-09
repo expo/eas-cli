@@ -156,11 +156,6 @@
           "description": "The version of Bun to use for the build. See: https://bun.sh/",
           "markdownDescription": "The exact version of [Bun](https://bun.sh/) to use for the build."
         },
-        "expoCli": {
-          "type": "string",
-          "description": "The version of `expo-cli` used to `prebuild` your app.",
-          "markdownDescription": "Version of [expo-cli](https://www.npmjs.com/package/expo-cli) used to [prebuild](https://docs.expo.dev/workflow/expo-cli/#expo-prebuild) your app. It does not have any effect on bare projects."
-        },
         "env": {
           "type": "object",
           "description": "Environment variables that should be set during the build process.\n\nShould only be used for values that you would commit to your git repository, i.e. not passwords or secrets.",

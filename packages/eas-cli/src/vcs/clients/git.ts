@@ -17,6 +17,10 @@ import {
 import { Client } from '../vcs';
 
 export default class GitClient extends Client {
+  constructor(private maybeCwdOverride?: string) {
+    super();
+  }
+
   public override async ensureRepoExistsAsync(): Promise<void> {
     try {
       if (!(await isGitInstalledAsync())) {
@@ -58,14 +62,16 @@ export default class GitClient extends Client {
     const cwd = process.cwd();
     const repoRoot = PackageManagerUtils.findWorkspaceRoot(cwd) ?? cwd;
     const confirmInit = await confirmAsync({
-      message: `Would you like us to run 'git init' in ${repoRoot} for you?`,
+      message: `Would you like us to run 'git init' in ${
+        this.maybeCwdOverride ?? repoRoot
+      } for you?`,
     });
     if (!confirmInit) {
       throw new Error(
         'A git repository is required for building your project. Initialize it and run this command again.'
       );
     }
-    await spawnAsync('git', ['init'], { cwd: repoRoot });
+    await spawnAsync('git', ['init'], { cwd: this.maybeCwdOverride ?? repoRoot });
 
     Log.log("We're going to make an initial commit for your repository.");
 
@@ -92,10 +98,16 @@ export default class GitClient extends Client {
 
     try {
       if (commitAllFiles) {
-        await spawnAsync('git', ['add', '-A']);
+        await spawnAsync('git', ['add', '-A'], {
+          cwd: this.maybeCwdOverride,
+        });
       }
-      await spawnAsync('git', ['add', '-u']);
-      await spawnAsync('git', ['commit', '-m', commitMessage]);
+      await spawnAsync('git', ['add', '-u'], {
+        cwd: this.maybeCwdOverride,
+      });
+      await spawnAsync('git', ['commit', '-m', commitMessage], {
+        cwd: this.maybeCwdOverride,
+      });
     } catch (err: any) {
       if (err?.stdout) {
         Log.error(err.stdout);
@@ -112,17 +124,24 @@ export default class GitClient extends Client {
   }
 
   public override async showChangedFilesAsync(): Promise<void> {
-    const gitStatusOutput = await gitStatusAsync({ showUntracked: true });
+    const gitStatusOutput = await gitStatusAsync({
+      showUntracked: true,
+      cwd: this.maybeCwdOverride,
+    });
     Log.log(gitStatusOutput);
   }
 
   public override async hasUncommittedChangesAsync(): Promise<boolean> {
-    const changes = await gitStatusAsync({ showUntracked: true });
+    const changes = await gitStatusAsync({ showUntracked: true, cwd: this.maybeCwdOverride });
     return changes.length > 0;
   }
 
   public async getRootPathAsync(): Promise<string> {
-    return (await spawnAsync('git', ['rev-parse', '--show-toplevel'])).stdout.trim();
+    return (
+      await spawnAsync('git', ['rev-parse', '--show-toplevel'], {
+        cwd: this.maybeCwdOverride,
+      })
+    ).stdout.trim();
   }
 
   public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
@@ -147,7 +166,10 @@ export default class GitClient extends Client {
       if (await this.hasUncommittedChangesAsync()) {
         Log.error('Detected inconsistent filename casing between your local filesystem and git.');
         Log.error('This will likely cause your build to fail. Impacted files:');
-        await spawnAsync('git', ['status', '--short'], { stdio: 'inherit' });
+        await spawnAsync('git', ['status', '--short'], {
+          stdio: 'inherit',
+          cwd: this.maybeCwdOverride,
+        });
         Log.newLine();
         Log.error(
           `Error: Resolve filename casing inconsistencies before proceeding. ${learnMore(
@@ -156,14 +178,13 @@ export default class GitClient extends Client {
         );
         throw new Error('You have some uncommitted changes in your repository.');
       }
-      await spawnAsync('git', [
-        'clone',
-        '--no-hardlinks',
-        '--depth',
-        '1',
-        gitRepoUri,
-        destinationPath,
-      ]);
+      await spawnAsync(
+        'git',
+        ['clone', '--no-hardlinks', '--depth', '1', gitRepoUri, destinationPath],
+        {
+          cwd: this.maybeCwdOverride,
+        }
+      );
     } finally {
       await setGitCaseSensitivityAsync(isCaseSensitive);
     }
@@ -171,19 +192,29 @@ export default class GitClient extends Client {
 
   public override async getCommitHashAsync(): Promise<string | undefined> {
     try {
-      return (await spawnAsync('git', ['rev-parse', 'HEAD'])).stdout.trim();
+      return (
+        await spawnAsync('git', ['rev-parse', 'HEAD'], {
+          cwd: this.maybeCwdOverride,
+        })
+      ).stdout.trim();
     } catch {
       return undefined;
     }
   }
 
   public override async trackFileAsync(file: string): Promise<void> {
-    await spawnAsync('git', ['add', '--intent-to-add', file]);
+    await spawnAsync('git', ['add', '--intent-to-add', file], {
+      cwd: this.maybeCwdOverride,
+    });
   }
 
   public override async getBranchNameAsync(): Promise<string | null> {
     try {
-      return (await spawnAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim();
+      return (
+        await spawnAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+          cwd: this.maybeCwdOverride,
+        })
+      ).stdout.trim();
     } catch {
       return null;
     }
@@ -191,20 +222,28 @@ export default class GitClient extends Client {
 
   public override async getLastCommitMessageAsync(): Promise<string | null> {
     try {
-      return (await spawnAsync('git', ['--no-pager', 'log', '-1', '--pretty=%B'])).stdout.trim();
+      return (
+        await spawnAsync('git', ['--no-pager', 'log', '-1', '--pretty=%B'], {
+          cwd: this.maybeCwdOverride,
+        })
+      ).stdout.trim();
     } catch {
       return null;
     }
   }
 
   public override async showDiffAsync(): Promise<void> {
-    const outputTooLarge = (await getGitDiffOutputAsync()).split(/\r\n|\r|\n/).length > 100;
-    await gitDiffAsync({ withPager: outputTooLarge });
+    const outputTooLarge =
+      (await getGitDiffOutputAsync(this.maybeCwdOverride)).split(/\r\n|\r|\n/).length > 100;
+    await gitDiffAsync({ withPager: outputTooLarge, cwd: this.maybeCwdOverride });
   }
 
   public async isFileUntrackedAsync(path: string): Promise<boolean> {
-    const withUntrackedFiles = await gitStatusAsync({ showUntracked: true });
-    const trackedFiles = await gitStatusAsync({ showUntracked: false });
+    const withUntrackedFiles = await gitStatusAsync({
+      showUntracked: true,
+      cwd: this.maybeCwdOverride,
+    });
+    const trackedFiles = await gitStatusAsync({ showUntracked: false, cwd: this.maybeCwdOverride });
     const pathWithoutLeadingDot = path.replace(/^\.\//, ''); // remove leading './' from path
     return (
       withUntrackedFiles.includes(pathWithoutLeadingDot) &&
@@ -215,7 +254,7 @@ export default class GitClient extends Client {
   public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
     try {
       await spawnAsync('git', ['check-ignore', '-q', filePath], {
-        cwd: path.normalize(await this.getRootPathAsync()),
+        cwd: this.maybeCwdOverride ?? path.normalize(await this.getRootPathAsync()),
       });
       return true;
     } catch {

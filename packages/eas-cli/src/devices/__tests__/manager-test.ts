@@ -44,6 +44,7 @@ describe(AccountResolver, () => {
       ],
       isExpoAdmin: false,
       featureGates: {},
+      preferences: {},
     };
 
     describe('when inside project dir', () => {
