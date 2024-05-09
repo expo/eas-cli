@@ -6,14 +6,13 @@ import { withErrorHandlingAsync } from '../client';
 import {
   MarkCliDoneInOnboardingUserPreferencesMutation,
   MarkCliDoneInOnboardingUserPreferencesMutationVariables,
+  UserPreferencesOnboardingInput,
 } from '../generated';
 
 export const UserPreferencesMutation = {
   async markCliDoneInOnboardingUserPreferencesAsync(
     graphqlClient: ExpoGraphqlClient,
-    userPreferencesData: {
-      appId: string;
-    }
+    userPreferencesData: Partial<UserPreferencesOnboardingInput> & { appId: string }
   ): Promise<{
     isCLIDone: boolean;
     appId: string;
