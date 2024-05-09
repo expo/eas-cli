@@ -11,7 +11,7 @@ import { SetUpBuildCredentialsCommandAction } from '../../credentials/manager/Se
 import { AppPlatform, OnboardingDeviceType, OnboardingEnvironment } from '../../graphql/generated';
 import { UserPreferencesMutation } from '../../graphql/mutations/UserPreferencesMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
-import Log from '../../log';
+import Log, { link } from '../../log';
 import { runGitCloneAsync, runGitPushAsync } from '../../onboarding/git';
 import { installDependenciesAsync } from '../../onboarding/installDependencies';
 import { ExpoConfigOptions, getPrivateExpoConfig } from '../../project/expoConfig';
@@ -101,17 +101,19 @@ export default class Onboarding extends EasCommand {
     const initialTargetProjectDir = targetProjectDirInput ?? `./${githubRepositoryName}`;
 
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
-    Log.log('🚀 We will continue your onboarding process in EAS CLI');
+    Log.log();
+    Log.log('✨ We will continue your onboarding process in EAS CLI');
     Log.log();
     Log.log(
-      `🔎 Let's start by cloning ${
+      `🚚 Let's start by cloning ${
         app.githubRepository
           ? `your project (${githubUsername}/${githubRepositoryName})`
-          : `default expo template project (${githubUsername}/${githubRepositoryName})`
+          : `default Expo template project (${githubUsername}/${githubRepositoryName})`
       } from GitHub and installing dependencies.`
     );
     Log.log();
     const shouldContinue = await confirmAsync({ message: 'Do you want to continue?' });
+    Log.log();
     if (!shouldContinue) {
       throw new Error("Aborting, run the command again once you're ready.");
     }
@@ -180,12 +182,13 @@ export default class Onboarding extends EasCommand {
 
     Log.log();
     Log.log('🎉 We finished configuring your project.');
-    Log.log('🚀 You can now go back to the website to continue.');
+    Log.log();
+    Log.log('🚀 You can now go back to the website to continue:');
     const url = new URL(
       `/onboarding/develop/set-up-project-on-your-machine?project=${app.slug}&accountId=${app.ownerAccount.id}`,
       getExpoWebsiteBaseUrl()
     ).toString();
-    Log.log(`👉 ${url}`);
+    Log.log(`👉 ${link(url)}`);
   }
 }
 
