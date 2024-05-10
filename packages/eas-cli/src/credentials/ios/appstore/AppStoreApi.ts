@@ -45,16 +45,23 @@ import { createOrReuseAdhocProvisioningProfileAsync } from './provisioningProfil
 import { createPushKeyAsync, listPushKeysAsync, revokePushKeyAsync } from './pushKey';
 import { hasAscEnvVars } from './resolveCredentials';
 import { Analytics } from '../../../analytics/AnalyticsManager';
+import { AppleTeamType } from '../../../graphql/generated';
 import Log from '../../../log';
+import { MinimalAscApiKey } from '../credentials';
 
+type AscApiKeyAuth = {
+  ascApiKey: MinimalAscApiKey;
+  appleTeam: { teamIdentifier: string; teamName?: string; teamType: AppleTeamType };
+};
 export default class AppStoreApi {
   public authCtx?: AuthCtx;
   public defaultAuthenticationMode: AuthenticationMode;
+  public readonly ascApiKeyAuth?: AscApiKeyAuth;
 
-  constructor() {
-    this.defaultAuthenticationMode = hasAscEnvVars()
-      ? AuthenticationMode.API_KEY
-      : AuthenticationMode.USER;
+  constructor(options: { ascApiKeyAuth?: AscApiKeyAuth } = {}) {
+    this.ascApiKeyAuth = options.ascApiKeyAuth;
+    this.defaultAuthenticationMode =
+      hasAscEnvVars() || this.ascApiKeyAuth ? AuthenticationMode.API_KEY : AuthenticationMode.USER;
   }
 
   public async ensureUserAuthenticatedAsync(options?: AuthenticateOptions): Promise<UserAuthCtx> {

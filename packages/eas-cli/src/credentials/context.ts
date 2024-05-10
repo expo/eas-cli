@@ -7,8 +7,10 @@ import * as AndroidGraphqlClient from './android/api/GraphqlClient';
 import * as IosGraphqlClient from './ios/api/GraphqlClient';
 import AppStoreApi from './ios/appstore/AppStoreApi';
 import { AuthenticationMode } from './ios/appstore/authenticateTypes';
+import { MinimalAscApiKey } from './ios/credentials';
 import { Analytics } from '../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { AppStoreConnectApiKeyFragment } from '../graphql/generated';
 import Log from '../log';
 import { getPrivateExpoConfig } from '../project/expoConfig';
 import { confirmAsync } from '../prompts';
@@ -83,6 +85,28 @@ export class CredentialsContext {
     }
     // trigger getConfig error
     getPrivateExpoConfig(this.options.projectDir);
+  }
+
+  public configureAppStoreAuth(ascApiKey: AppStoreConnectApiKeyFragment): void {
+    /*     keyP8: string;
+    keyId: string;
+    issuerId: string;
+    teamId?: string;
+    teamName?: string;
+    roles?: UserRole[];
+    name?: string; */
+    this.appStore.authCtx = {
+      ascApiKey: {
+        keyP8: ascApiKey.keyP8,
+        keyId: ascApiKey.keyIdentifier,
+        issuerId: ascApiKey.issuerIdentifier,
+      },
+      appleTeam: {
+        teamIdentifier: ascApiKey.appleTeam?.appleTeamIdentifier ?? '',
+        teamName: ascApiKey.appleTeam?.appleTeamName,
+        teamType: ascApiKey.appleTeam,
+      },
+    };
   }
 
   async bestEffortAppStoreAuthenticateAsync(): Promise<void> {
