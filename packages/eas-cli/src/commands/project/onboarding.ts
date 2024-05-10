@@ -1,4 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
+import path from 'path';
 
 import { getExpoWebsiteBaseUrl } from '../../api';
 import { reviewAndCommitChangesAsync } from '../../build/utils/repository';
@@ -15,7 +16,7 @@ import Log, { link } from '../../log';
 import { runGitCloneAsync, runGitPushAsync } from '../../onboarding/git';
 import { installDependenciesAsync } from '../../onboarding/installDependencies';
 import { ExpoConfigOptions, getPrivateExpoConfig } from '../../project/expoConfig';
-import { confirmAsync, promptAsync } from '../../prompts';
+import { promptAsync } from '../../prompts';
 import { Actor } from '../../user/User';
 import GitClient from '../../vcs/clients/git';
 
@@ -82,7 +83,6 @@ export default class Onboarding extends EasCommand {
         'It seems like you started an onboarding process, but it has been a while since you last used it. If you want to start a new onboarding process, visit https://expo.new.'
       );
       Log.log();
-      return;
     }
 
     const platform =
@@ -98,7 +98,6 @@ export default class Onboarding extends EasCommand {
     const githubRepositoryName = app.githubRepository
       ? app.githubRepository.metadata.githubRepoName
       : 'expo-default-template';
-    const initialTargetProjectDir = targetProjectDirInput ?? `./${githubRepositoryName}`;
 
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
     Log.log();
@@ -112,25 +111,25 @@ export default class Onboarding extends EasCommand {
       } from GitHub and installing dependencies.`
     );
     Log.log();
-    const shouldContinueWithDefaultTargetDirectory = await confirmAsync({
-      message: `Do you want to clone your project into ${initialTargetProjectDir}?`,
-    });
-    let targetProjectDir = initialTargetProjectDir;
-    if (!shouldContinueWithDefaultTargetDirectory) {
-      const { newTargetProjectDir } = await promptAsync({
+    let initialTargetProjectDirectory: string;
+    if (targetProjectDirInput) {
+      initialTargetProjectDirectory = targetProjectDirInput;
+      Log.log(`📂 Cloning the project to ${initialTargetProjectDirectory}`);
+    } else {
+      const { selectedTargetProjectDirectory } = await promptAsync({
         type: 'text',
-        name: 'newTargetProjectDir',
-        message: 'Provide a new target directory path:',
-        validate: (input: string) => input !== '',
+        name: 'selectedTargetProjectDirectory',
+        message: '📂 Where would you like to clone the project to?',
+        initial: path.join(process.cwd(), githubRepositoryName),
       });
-      targetProjectDir = newTargetProjectDir;
+      initialTargetProjectDirectory = selectedTargetProjectDirectory;
     }
     Log.log();
 
     const { targetProjectDir: finalTargetProjectDirectory } = await runGitCloneAsync({
       githubUsername,
       githubRepositoryName,
-      targetProjectDir,
+      targetProjectDir: initialTargetProjectDirectory,
     });
 
     const vcsClient = new GitClient(finalTargetProjectDirectory);
