@@ -174,7 +174,7 @@ export default class Onboarding extends EasCommand {
       await reviewAndCommitChangesAsync(
         vcsClient,
         `[eas-onboarding] Install dependencies${
-          shouldSetupCredentials ? 'and set up build credentials' : ''
+          shouldSetupCredentials ? ' and set up build credentials' : ''
         }`,
         { nonInteractive: false }
       );
