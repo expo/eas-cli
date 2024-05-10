@@ -67,7 +67,24 @@ export function ora(options?: Options | string): Ora {
   };
 
   spinner.start = (text): Ora => {
-    wrapNativeLogs();
+    // wrapNativeLogs wraps calls to console so they always:
+    // 1. stop the spinner
+    // 2. log the message
+    // 3. start the spinner again
+    // Every restart of the spinner causes the spinner message to be logged again
+    // which makes logs look like
+    //
+    // - Exporting...
+    // [expo-cli] Starting Metro Bundler
+    // - Exporting...
+    // [expo-cli] Android Bundling complete 3492ms
+    // - Exporting...
+    //
+    // Skipping wrapping native logs removes the repeated interleaved "Exporting..." messages.
+    if (!disabled) {
+      wrapNativeLogs();
+    }
+
     return oraStart(text);
   };
 
