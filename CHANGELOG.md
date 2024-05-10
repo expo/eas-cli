@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2372](https://github.com/expo/eas-cli/pull/2372) by [@expo-bot](https://github.com/expo-bot))
+
 ## [9.0.2](https://github.com/expo/eas-cli/releases/tag/v9.0.2) - 2024-05-09
 
 ## [9.0.1](https://github.com/expo/eas-cli/releases/tag/v9.0.1) - 2024-05-09
