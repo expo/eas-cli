@@ -67,7 +67,7 @@ export async function runCommandAsync({
   }
 
   if (showSpinner) {
-    spinner?.succeed(`✅ ${chalk.bold(`${command} ${args.join(' ')}`)} succeeded`);
+    spinner?.succeed(`${chalk.bold(`${command} ${args.join(' ')}`)} succeeded`);
   } else {
     Log.log(`✅ ${chalk.bold(`${command} ${args.join(' ')}`)} succeeded`);
   }

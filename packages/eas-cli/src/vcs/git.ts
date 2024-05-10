@@ -12,9 +12,11 @@ export async function isGitInstalledAsync(): Promise<boolean> {
   return true;
 }
 
-export async function doesGitRepoExistAsync(): Promise<boolean> {
+export async function doesGitRepoExistAsync(cwd: string | undefined): Promise<boolean> {
   try {
-    await spawnAsync('git', ['rev-parse', '--git-dir']);
+    await spawnAsync('git', ['rev-parse', '--git-dir'], {
+      cwd,
+    });
     return true;
   } catch {
     return false;

@@ -52,7 +52,7 @@ export default class GitClient extends Client {
       Errors.exit(1);
     }
 
-    if (await doesGitRepoExistAsync()) {
+    if (await doesGitRepoExistAsync(this.maybeCwdOverride)) {
       return;
     }
 
@@ -160,8 +160,8 @@ export default class GitClient extends Client {
       // file:/// so only file:// needs to be prepended
       gitRepoUri = `file://${await this.getRootPathAsync()}`;
     }
-    const isCaseSensitive = await isGitCaseSensitiveAsync();
-    await setGitCaseSensitivityAsync(true);
+    const isCaseSensitive = await isGitCaseSensitiveAsync(this.maybeCwdOverride);
+    await setGitCaseSensitivityAsync(true, this.maybeCwdOverride);
     try {
       if (await this.hasUncommittedChangesAsync()) {
         Log.error('Detected inconsistent filename casing between your local filesystem and git.');
@@ -186,7 +186,7 @@ export default class GitClient extends Client {
         }
       );
     } finally {
-      await setGitCaseSensitivityAsync(isCaseSensitive);
+      await setGitCaseSensitivityAsync(isCaseSensitive, this.maybeCwdOverride);
     }
   }
 
@@ -343,13 +343,17 @@ async function ensureGitConfiguredAsync({
  *    - boolean - is git case sensitive
  *    - undefined - case sensitivity is not configured and git is using default behavior
  */
-export async function isGitCaseSensitiveAsync(): Promise<boolean | undefined> {
+export async function isGitCaseSensitiveAsync(
+  cwd: string | undefined
+): Promise<boolean | undefined> {
   if (process.platform !== 'darwin') {
     return undefined;
   }
 
   try {
-    const result = await spawnAsync('git', ['config', '--get', 'core.ignorecase']);
+    const result = await spawnAsync('git', ['config', '--get', 'core.ignorecase'], {
+      cwd,
+    });
     const isIgnoreCaseEnabled = result.stdout.trim();
     if (isIgnoreCaseEnabled === '') {
       return undefined;
@@ -363,15 +367,22 @@ export async function isGitCaseSensitiveAsync(): Promise<boolean | undefined> {
   }
 }
 
-async function setGitCaseSensitivityAsync(enable: boolean | undefined): Promise<void> {
+async function setGitCaseSensitivityAsync(
+  enable: boolean | undefined,
+  cwd: string | undefined
+): Promise<void> {
   // we are assuming that if someone sets that on non-macos device then
   // they know what they are doing
   if (process.platform !== 'darwin') {
     return;
   }
   if (enable === undefined) {
-    await spawnAsync('git', ['config', '--unset', 'core.ignorecase']);
+    await spawnAsync('git', ['config', '--unset', 'core.ignorecase'], {
+      cwd,
+    });
   } else {
-    await spawnAsync('git', ['config', 'core.ignorecase', String(!enable)]);
+    await spawnAsync('git', ['config', 'core.ignorecase', String(!enable)], {
+      cwd,
+    });
   }
 }
