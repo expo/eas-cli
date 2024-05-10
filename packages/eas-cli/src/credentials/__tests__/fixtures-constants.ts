@@ -80,6 +80,7 @@ export const testAppJsonWithDifferentOwner = {
 export const testAppQueryByIdResponse: AppFragment = {
   id: testProjectId,
   slug: testSlug,
+  name: 'testing 123',
   fullName: testExperienceName,
   ownerAccount: jester.accounts[0],
 };

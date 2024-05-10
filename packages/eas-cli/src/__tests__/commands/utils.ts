@@ -24,6 +24,7 @@ export function getMockAppFragment(): AppFragment {
   return {
     id: mockProjectId,
     slug: 'testapp',
+    name: 'testapp',
     fullName: '@testuser/testpp',
     ownerAccount: {
       id: 'test-account-id',
