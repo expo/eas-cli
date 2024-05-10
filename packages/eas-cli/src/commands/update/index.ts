@@ -514,7 +514,7 @@ export default class UpdatePublish extends EasCommand {
                   },
                 ]
               : []),
-            { label: 'Website link', value: updateGroupLink },
+            { label: 'EAS Dashboard', value: updateGroupLink },
           ])
         );
         Log.addNewLineIfNone();

@@ -195,7 +195,7 @@ export async function republishAsync({
         ? [{ label: 'iOS update ID', value: updatesRepublishedByPlatform.ios.id }]
         : []),
       { label: 'Message', value: updateMessage },
-      { label: 'Website link', value: link(updateGroupUrl, { dim: false }) },
+      { label: 'EAS Dashboard', value: link(updateGroupUrl, { dim: false }) },
     ])
   );
 }
