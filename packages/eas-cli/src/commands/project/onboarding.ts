@@ -139,7 +139,9 @@ export default class Onboarding extends EasCommand {
     await vcsClient.trackFileAsync('package-lock.json');
 
     const shouldSetupCredentials =
-      actor.preferences.onboarding.deviceType === OnboardingDeviceType.Device &&
+      ((platform === Platform.IOS &&
+        actor.preferences.onboarding.deviceType === OnboardingDeviceType.Device) ||
+        platform === Platform.ANDROID) &&
       actor.preferences.onboarding.environment === OnboardingEnvironment.DevBuild;
     if (shouldSetupCredentials) {
       Log.log('🔑 Now we need to set up build credentials for your project:');
