@@ -267,7 +267,7 @@ export default class Onboarding extends EasCommand {
     } else {
       Log.log('🚀 Now we are going to trigger your first build');
       Log.log();
-      await runBuildAndSubmitAsync(
+      const { buildIds } = await runBuildAndSubmitAsync(
         graphqlClient,
         analytics,
         vcsClient,
@@ -280,7 +280,7 @@ export default class Onboarding extends EasCommand {
             actor.preferences.onboarding.deviceType === OnboardingDeviceType.Simulator
               ? 'development-simulator'
               : 'development',
-          wait: true,
+          wait: false,
           clearCache: false,
           json: false,
           autoSubmit: false,
@@ -290,6 +290,14 @@ export default class Onboarding extends EasCommand {
         actor,
         getDynamicProjectConfigFn
       );
+      const buildId = buildIds[0];
+      Log.log();
+      Log.log('🚀 You can now go back to the website to continue:');
+      const url = new URL(
+        `/onboarding/develop/set-up-project-on-your-machine?project=${app.slug}&accountId=${app.ownerAccount.id}&buildId=${buildId}`,
+        getExpoWebsiteBaseUrl()
+      ).toString();
+      Log.log(`👉 ${link(url)}`);
     }
 
     const { __typename, ...previousPreferences } = actor.preferences.onboarding;
