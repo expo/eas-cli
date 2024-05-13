@@ -164,6 +164,10 @@ export default class Onboarding extends EasCommand {
         targetDir: finalTargetProjectDirectory,
       });
     }
+
+    await installDependenciesAsync({
+      projectDir: finalTargetProjectDirectory,
+    });
     const exp = await getPrivateExpoConfigWithProjectIdAsync({
       projectDir: finalTargetProjectDirectory,
       graphqlClient,
@@ -175,9 +179,6 @@ export default class Onboarding extends EasCommand {
       actor,
     });
 
-    await installDependenciesAsync({
-      projectDir: finalTargetProjectDirectory,
-    });
     if (!app.githubRepository) {
       await runCommandAsync({
         cwd: finalTargetProjectDirectory,
