@@ -161,7 +161,9 @@ export default class Onboarding extends EasCommand {
           actor,
         }),
         platform,
-        'development',
+        actor.preferences.onboarding.deviceType === OnboardingDeviceType.Simulator
+          ? 'development-simulator'
+          : 'development',
         finalTargetProjectDirectory
       ).runAsync();
     }
