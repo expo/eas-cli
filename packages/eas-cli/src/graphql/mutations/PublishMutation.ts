@@ -14,6 +14,8 @@ import {
 } from '../generated';
 import { UpdateFragmentNode } from '../types/Update';
 
+const turtleJobRunId = process.env.EAS_BUILD_ID;
+
 export const PublishMutation = {
   async getUploadURLsAsync(
     graphqlClient: ExpoGraphqlClient,
@@ -57,7 +59,12 @@ export const PublishMutation = {
             }
             ${print(UpdateFragmentNode)}
           `,
-          { publishUpdateGroupsInput }
+          {
+            publishUpdateGroupsInput: publishUpdateGroupsInput.map(input => ({
+              ...input,
+              turtleJobRunId,
+            })),
+          }
         )
         .toPromise()
     );
