@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [9.0.4](https://github.com/expo/eas-cli/releases/tag/v9.0.4) - 2024-05-13
+
+### 🧹 Chores
+
 - Add loader and progress information to the `diagnostics` command. ([#2378](https://github.com/expo/eas-cli/pull/2378) by [@simek](https://github.com/simek))
 
 ## [9.0.3](https://github.com/expo/eas-cli/releases/tag/v9.0.3) - 2024-05-10
