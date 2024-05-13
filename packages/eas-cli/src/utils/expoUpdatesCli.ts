@@ -11,7 +11,7 @@ export class ExpoUpdatesCLICommandFailedError extends Error {}
 export async function expoUpdatesCommandAsync(
   projectDir: string,
   args: string[],
-  options: { env: Env | undefined }
+  options: { env: Env | undefined; cwd?: string }
 ): Promise<string> {
   let expoUpdatesCli;
   try {
@@ -34,6 +34,7 @@ export async function expoUpdatesCommandAsync(
       await spawnAsync(expoUpdatesCli, args, {
         stdio: 'pipe',
         env: { ...process.env, ...options.env },
+        cwd: options.cwd,
       })
     ).stdout;
   } catch (e: any) {

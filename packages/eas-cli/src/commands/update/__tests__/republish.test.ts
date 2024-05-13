@@ -367,6 +367,7 @@ function mockTestProject({
   jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
     id: '1234',
     slug: 'testing-123',
+    name: 'testing-123',
     fullName: '@jester/testing-123',
     ownerAccount: jester.accounts[0],
   });

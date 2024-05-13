@@ -15,12 +15,14 @@ export async function resolveRuntimeVersionAsync({
   workflow,
   projectDir,
   env,
+  cwd,
 }: {
   exp: ExpoConfig;
   platform: 'ios' | 'android';
   workflow: Workflow;
   projectDir: string;
   env: Env | undefined;
+  cwd?: string;
 }): Promise<string | null> {
   if (!(await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir))) {
     // fall back to the previous behavior (using the @expo/config-plugins eas-cli dependency rather
@@ -36,7 +38,7 @@ export async function resolveRuntimeVersionAsync({
     const resolvedRuntimeVersionJSONResult = await expoUpdatesCommandAsync(
       projectDir,
       ['runtimeversion:resolve', '--platform', platform, '--workflow', workflow, ...extraArgs],
-      { env }
+      { env, cwd }
     );
     const runtimeVersionResult = JSON.parse(resolvedRuntimeVersionJSONResult);
 

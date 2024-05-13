@@ -55,6 +55,7 @@ export const testAppleAppIdentifierFragment: AppleAppIdentifierFragment = {
 export const testAppFragment: AppFragment = {
   id: 'test-app-id',
   fullName: '@testuser/testapp',
+  name: 'testapp',
   slug: 'testapp',
   ownerAccount: {
     id: 'test-account-id',

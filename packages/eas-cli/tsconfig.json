@@ -10,14 +10,10 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "strict": true,
-    "target": "ES2019",
+    "target": "ES2021",
     "outDir": "build",
     "rootDir": "src",
-    "typeRoots": [
-      "../../ts-declarations",
-      "../../node_modules/@types",
-      "./node_modules/@types"
-    ]
+    "typeRoots": ["../../ts-declarations", "../../node_modules/@types", "./node_modules/@types"]
   },
   "include": ["src/**/*"]
 }

@@ -105,7 +105,9 @@ export async function runBuildAndSubmitAsync(
   flags: BuildFlags,
   actor: Actor,
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn
-): Promise<void> {
+): Promise<{
+  buildIds: string[];
+}> {
   await vcsClient.ensureRepoExistsAsync();
   await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
 
@@ -213,7 +215,9 @@ export async function runBuildAndSubmitAsync(
   }
 
   if (flags.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
-    return;
+    return {
+      buildIds: startedBuilds.map(({ build }) => build.id),
+    };
   }
 
   if (flags.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
@@ -269,14 +273,18 @@ export async function runBuildAndSubmitAsync(
   }
 
   if (flags.localBuildOptions.localBuildMode) {
-    return;
+    return {
+      buildIds: startedBuilds.map(({ build }) => build.id),
+    };
   }
 
   if (!flags.wait) {
     if (flags.json) {
       printJsonOnlyOutput(startedBuilds.map(buildInfo => buildInfo.build));
     }
-    return;
+    return {
+      buildIds: startedBuilds.map(({ build }) => build.id),
+    };
   }
 
   const { accountName } = Object.values(buildCtxByPlatform)[0];
@@ -317,6 +325,9 @@ export async function runBuildAndSubmitAsync(
     }
     exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
   }
+  return {
+    buildIds: startedBuilds.map(({ build }) => build.id),
+  };
 }
 
 async function prepareAndStartBuildAsync({
