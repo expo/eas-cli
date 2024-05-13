@@ -1815,6 +1815,7 @@ export type AppStoreConnectApiKey = {
   id: Scalars['ID']['output'];
   issuerIdentifier: Scalars['String']['output'];
   keyIdentifier: Scalars['String']['output'];
+  keyP8: Scalars['String']['output'];
   name?: Maybe<Scalars['String']['output']>;
   roles?: Maybe<Array<AppStoreConnectUserRole>>;
   updatedAt: Scalars['DateTime']['output'];
@@ -3334,11 +3335,29 @@ export type DeploymentInsightsUniqueUsersOverTimeArgs = {
   timespan: InsightsTimespan;
 };
 
+export type DeploymentSignedUrlResult = {
+  __typename?: 'DeploymentSignedUrlResult';
+  deploymentId: Scalars['ID']['output'];
+  url: Scalars['String']['output'];
+};
+
 /** Represents the connection over the deployments edge of an App */
 export type DeploymentsConnection = {
   __typename?: 'DeploymentsConnection';
   edges: Array<DeploymentEdge>;
   pageInfo: PageInfo;
+};
+
+export type DeploymentsMutation = {
+  __typename?: 'DeploymentsMutation';
+  /** Create a signed deployment URL */
+  createSignedDeploymentUrl: DeploymentSignedUrlResult;
+};
+
+
+export type DeploymentsMutationCreateSignedDeploymentUrlArgs = {
+  appId: Scalars['ID']['input'];
+  deploymentId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 export type DiscordUser = {
@@ -4289,6 +4308,7 @@ export type JobRun = {
   priority: JobRunPriority;
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: JobRunStatus;
+  updateGroups: Array<Array<Update>>;
 };
 
 export enum JobRunPriority {
@@ -4751,6 +4771,7 @@ export type PublishUpdateGroupInput = {
   message?: InputMaybe<Scalars['String']['input']>;
   rollBackToEmbeddedInfoGroup?: InputMaybe<UpdateRollBackToEmbeddedGroup>;
   runtimeVersion: Scalars['String']['input'];
+  turtleJobRunId?: InputMaybe<Scalars['String']['input']>;
   updateInfoGroup?: InputMaybe<UpdateInfoGroup>;
 };
 
@@ -4880,6 +4901,7 @@ export type RootMutation = {
   build: BuildMutation;
   /** Mutations that create, update, and delete Build Annotations */
   buildAnnotation: BuildAnnotationMutation;
+  deployments: DeploymentsMutation;
   /** Mutations that assign or modify DevDomainNames for apps */
   devDomainName: AppDevDomainNameMutation;
   /** Mutations for Discord users */
@@ -5636,6 +5658,7 @@ export type Update = ActivityTimelineProjectActivity & {
   insights: UpdateInsights;
   isGitWorkingTreeDirty: Scalars['Boolean']['output'];
   isRollBackToEmbedded: Scalars['Boolean']['output'];
+  jobRun?: Maybe<JobRun>;
   manifestFragment: Scalars['String']['output'];
   manifestPermalink: Scalars['String']['output'];
   message?: Maybe<Scalars['String']['output']>;
