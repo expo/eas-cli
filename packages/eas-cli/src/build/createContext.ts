@@ -42,6 +42,7 @@ export async function createBuildContextAsync<T extends Platform>({
   customBuildConfigMetadata,
   buildLoggerLevel,
   freezeCredentials,
+  repack,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -62,6 +63,7 @@ export async function createBuildContextAsync<T extends Platform>({
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
+  repack: boolean;
 }): Promise<BuildContext<T>> {
   const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: buildProfile.env });
   const projectName = exp.slug;
@@ -143,6 +145,7 @@ export async function createBuildContextAsync<T extends Platform>({
     developmentClient,
     requiredPackageManager,
     loggerLevel: buildLoggerLevel,
+    repack,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;

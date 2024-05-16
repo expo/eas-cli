@@ -62,4 +62,5 @@ export interface BuildContext<T extends Platform> {
   requiredPackageManager: NodePackageManager['name'] | null;
   vcsClient: Client;
   loggerLevel?: LoggerLevel;
+  repack: boolean;
 }

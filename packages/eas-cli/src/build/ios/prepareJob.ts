@@ -88,11 +88,16 @@ export async function prepareJobAsync(
     experimental: {
       prebuildCommand: buildProfile.prebuildCommand,
     },
-    mode: buildProfile.config ? BuildMode.CUSTOM : BuildMode.BUILD,
+    mode: buildProfile.config || ctx.repack ? BuildMode.CUSTOM : BuildMode.BUILD,
     triggeredBy: BuildTrigger.EAS_CLI,
     ...(maybeCustomBuildConfigPath && {
       customBuildConfig: {
         path: maybeCustomBuildConfigPath,
+      },
+    }),
+    ...(ctx.repack && {
+      customBuildConfig: {
+        path: '__eas/repack.yml',
       },
     }),
     loggerLevel: ctx.loggerLevel,
