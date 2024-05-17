@@ -291,6 +291,7 @@ export default class Onboarding extends EasCommand {
           autoSubmit: false,
           localBuildOptions: {},
           freezeCredentials: false,
+          repack: true,
         },
         actor,
         getDynamicProjectConfigFn

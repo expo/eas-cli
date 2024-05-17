@@ -95,6 +95,7 @@ export interface BuildFlags {
   message?: string;
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
+  repack: boolean;
 }
 
 export async function runBuildAndSubmitAsync(
@@ -375,6 +376,7 @@ async function prepareAndStartBuildAsync({
     customBuildConfigMetadata,
     buildLoggerLevel: flags.buildLoggerLevel,
     freezeCredentials: flags.freezeCredentials,
+    repack: flags.repack,
   });
 
   if (moreBuilds) {
