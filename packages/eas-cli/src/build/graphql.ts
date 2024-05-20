@@ -94,6 +94,7 @@ const buildModeToGraphQLBuildMode: Record<BuildMode, GraphQLBuildMode> = {
   [BuildMode.BUILD]: GraphQLBuildMode.Build,
   [BuildMode.CUSTOM]: GraphQLBuildMode.Custom,
   [BuildMode.RESIGN]: GraphQLBuildMode.Resign,
+  [BuildMode.REPACK]: GraphQLBuildMode.Repack,
 };
 
 export function transformBuildMode(buildMode: BuildMode): GraphQLBuildMode {
