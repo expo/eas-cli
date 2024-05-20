@@ -110,10 +110,13 @@ export class SetUpAscApiKey {
       ctx.graphqlClient,
       this.app
     );
-    if (purpose !== AppStoreApiKeyPurpose.SUBMISSION_SERVICE) {
+    if (purpose === AppStoreApiKeyPurpose.SUBMISSION_SERVICE) {
+      return !!appCredentials?.appStoreConnectApiKeyForSubmissions;
+    } else if (purpose === AppStoreApiKeyPurpose.BUILD_SERVICE) {
+      return !!appCredentials?.appStoreConnectApiKeyForBuilds;
+    } else {
       throw new Error(`App Store Connect API Key setup is not yet supported for ${purpose}.`);
     }
-    return !!appCredentials?.appStoreConnectApiKeyForSubmissions;
   }
 
   private async processChoicesAsync(

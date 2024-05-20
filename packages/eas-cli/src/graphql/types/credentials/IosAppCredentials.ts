@@ -30,6 +30,10 @@ export const CommonIosAppCredentialsWithoutBuildCredentialsFragmentNode = gql`
       id
       ...AppStoreConnectApiKeyFragment
     }
+    appStoreConnectApiKeyForBuilds {
+      id
+      ...AppStoreConnectApiKeyFragment
+    }
   }
   ${AppFragmentNode}
   ${AppleTeamFragmentNode}

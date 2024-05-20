@@ -1,20 +1,14 @@
+import { UserRole } from '@expo/apple-utils';
+
 import { promptAsync } from '../../../../prompts';
 import { getAppstoreMock, testAuthCtx } from '../../../__tests__/fixtures-appstore';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
 import { testAscApiKey } from '../../../__tests__/fixtures-ios';
 import { getCredentialsFromUserAsync } from '../../../utils/promptForCredentials';
-import {
-  AppStoreApiKeyPurpose,
-  getAscApiKeyName,
-  promptForAscApiKeyPathAsync,
-} from '../AscApiKeyUtils';
+import { getAscApiKeyName, promptForAscApiKeyPathAsync } from '../AscApiKeyUtils';
 
 jest.mock('../../../../prompts');
 jest.mock('../../../utils/promptForCredentials');
-
-function enumKeys<O extends object, K extends keyof O = keyof O>(obj: O): K[] {
-  return Object.keys(obj) as K[];
-}
 
 afterEach(() => {
   jest.mocked(promptAsync).mockClear();
@@ -24,11 +18,8 @@ afterEach(() => {
 describe(getAscApiKeyName, () => {
   // Apple enforces a 30 char limit on this name
   it('produces a name under 30 chars', async () => {
-    for (const value of enumKeys(AppStoreApiKeyPurpose)) {
-      const purpose = AppStoreApiKeyPurpose[value];
-      const name = getAscApiKeyName(purpose);
-      expect(name.length < 30).toBe(true);
-    }
+    const name = getAscApiKeyName();
+    expect(name.length < 30).toBe(true);
   });
 });
 
@@ -51,7 +42,7 @@ describe(promptForAscApiKeyPathAsync, () => {
         authCtx: null,
       },
     });
-    const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx);
+    const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx, [UserRole.ADMIN]);
     expect(ascApiKeyPath).toEqual({
       keyId: 'test-key-id',
       issuerId: 'test-issuer-id',
@@ -76,7 +67,7 @@ describe(promptForAscApiKeyPathAsync, () => {
         getAscApiKeyAsync: jest.fn(() => testAscApiKey),
       },
     });
-    const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx);
+    const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx, [UserRole.ADMIN]);
     expect(ascApiKeyPath).toEqual({
       keyId: 'test-key-id',
       issuerId: 'test-issuer-id-from-apple',

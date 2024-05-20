@@ -25025,6 +25025,18 @@
             "deprecationReason": null
           },
           {
+            "name": "repack",
+            "description": "Repack the golden dev client build instead of running full build process. Used for onboarding. Do not use outside of onboarding flow, as for now it's only created with this specific use case in mind.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "submitProfile",
             "description": null,
             "type": {
@@ -29832,6 +29844,18 @@
           },
           {
             "name": "gitCommitHash",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "gitCommitMessage",
             "description": null,
             "args": [],
             "type": {

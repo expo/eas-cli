@@ -10,6 +10,7 @@ import {
   IosAppCredentialsInput,
   SetAppStoreConnectApiKeyForSubmissionsMutation,
   SetPushKeyMutation,
+  UpdateIosAppCredentialsMutation,
 } from '../../../../../graphql/generated';
 import { CommonIosAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/IosAppCredentials';
 
@@ -55,6 +56,44 @@ export const IosAppCredentialsMutation = {
       'GraphQL: `createIosAppCredentials` not defined in server response'
     );
     return data.iosAppCredentials.createIosAppCredentials;
+  },
+  async updateIosAppCredentialsAsync(
+    graphqlClient: ExpoGraphqlClient,
+    iosAppCredentialsId: string,
+    iosAppCredentialsInput: IosAppCredentialsInput
+  ): Promise<CommonIosAppCredentialsFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<UpdateIosAppCredentialsMutation>(
+          gql`
+            mutation UpdateIosAppCredentialsMutation(
+              $iosAppCredentialsInput: IosAppCredentialsInput!
+              $iosAppCredentialsId: ID!
+            ) {
+              iosAppCredentials {
+                updateIosAppCredentials(
+                  id: $iosAppCredentialsId
+                  iosAppCredentialsInput: $iosAppCredentialsInput
+                ) {
+                  id
+                  ...CommonIosAppCredentialsFragment
+                }
+              }
+            }
+            ${print(CommonIosAppCredentialsFragmentNode)}
+          `,
+          {
+            iosAppCredentialsInput,
+            iosAppCredentialsId,
+          }
+        )
+        .toPromise()
+    );
+    assert(
+      data.iosAppCredentials.updateIosAppCredentials,
+      'GraphQL: `updateIosAppCredentials` not defined in server response'
+    );
+    return data.iosAppCredentials.updateIosAppCredentials;
   },
   async setPushKeyAsync(
     graphqlClient: ExpoGraphqlClient,
