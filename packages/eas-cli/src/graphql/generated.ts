@@ -2727,6 +2727,7 @@ export type BuildMetrics = {
 export enum BuildMode {
   Build = 'BUILD',
   Custom = 'CUSTOM',
+  Repack = 'REPACK',
   Resign = 'RESIGN'
 }
 
@@ -3671,6 +3672,8 @@ export type GitHubBuildInput = {
   buildProfile: Scalars['String']['input'];
   gitRef: Scalars['String']['input'];
   platform: AppPlatform;
+  /** Repack the golden dev client build instead of running full build process. Used for onboarding. Do not use outside of onboarding flow, as for now it's only created with this specific use case in mind. */
+  repack?: InputMaybe<Scalars['Boolean']['input']>;
   submitProfile?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -4300,6 +4303,7 @@ export type JobRun = {
   endedAt?: Maybe<Scalars['DateTime']['output']>;
   expiresAt: Scalars['DateTime']['output'];
   gitCommitHash?: Maybe<Scalars['String']['output']>;
+  gitCommitMessage?: Maybe<Scalars['String']['output']>;
   gitRef?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   initiatingActor?: Maybe<Actor>;
