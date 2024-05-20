@@ -5,5 +5,6 @@ export const AppleTeamFragmentNode = gql`
     id
     appleTeamIdentifier
     appleTeamName
+    appleTeamType
   }
 `;

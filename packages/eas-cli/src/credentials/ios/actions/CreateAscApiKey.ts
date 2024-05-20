@@ -3,8 +3,15 @@ import {
   PURPOSE_TO_ROLES,
   provideOrGenerateAscApiKeyAsync,
 } from './AscApiKeyUtils';
-import { AccountFragment, AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
+import { ChooseAssociatedAppleTeamId } from './ChooseAssociatedAppleTeamId';
+import { UpdateAppleTeamInfo } from './UpdateAppleTeamInfo';
+import {
+  AccountFragment,
+  AppStoreConnectApiKeyFragment,
+  AppleTeamFragment,
+} from '../../../graphql/generated';
 import { CredentialsContext } from '../../context';
+import { MinimalAscApiKey } from '../credentials';
 
 export class CreateAscApiKey {
   constructor(private account: AccountFragment) {}
@@ -22,6 +29,26 @@ export class CreateAscApiKey {
     }
 
     const ascApiKey = await provideOrGenerateAscApiKeyAsync(ctx, roles);
-    return await ctx.ios.createAscApiKeyAsync(ctx.graphqlClient, this.account, ascApiKey);
+    const appleTeam = await this.ensureKeyHasAppleTeamInfoAsync(ctx, ascApiKey);
+
+    return await ctx.ios.createAscApiKeyAsync(ctx.graphqlClient, this.account, {
+      ...ascApiKey,
+      teamId: appleTeam.appleTeamIdentifier,
+    });
+  }
+
+  private async ensureKeyHasAppleTeamInfoAsync(
+    ctx: CredentialsContext,
+    ascApiKey: MinimalAscApiKey
+  ): Promise<AppleTeamFragment> {
+    let appleTeamIdentifier = ascApiKey.teamId;
+    if (!appleTeamIdentifier) {
+      const chooseAssociatedAppleTeamIdAction = new ChooseAssociatedAppleTeamId(
+        'App Store Connect API Key'
+      );
+      appleTeamIdentifier = await chooseAssociatedAppleTeamIdAction.runAsync(ctx);
+    }
+    const updateAppleTeamAction = new UpdateAppleTeamInfo(this.account, appleTeamIdentifier);
+    return await updateAppleTeamAction.runAsync(ctx);
   }
 }
