@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [9.0.8](https://github.com/expo/eas-cli/releases/tag/v9.0.8) - 2024-05-21
+
+### 🧹 Chores
+
 - Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2387](https://github.com/expo/eas-cli/pull/2387) by [@expo-bot](https://github.com/expo-bot))
 - Improve displaying of device registration QR code. ([#2391](https://github.com/expo/eas-cli/pull/2391) by [@szdziedzic](https://github.com/szdziedzic))
 
