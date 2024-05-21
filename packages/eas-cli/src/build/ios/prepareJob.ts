@@ -48,6 +48,15 @@ export async function prepareJobAsync(
     ? getCustomBuildConfigPathForJob(buildProfile.config)
     : undefined;
 
+  let buildMode;
+  if (ctx.repack) {
+    buildMode = BuildMode.REPACK;
+  } else if (buildProfile.config) {
+    buildMode = BuildMode.CUSTOM;
+  } else {
+    buildMode = BuildMode.BUILD;
+  }
+
   const job: Ios.Job = {
     type: ctx.workflow,
     platform: Platform.IOS,
@@ -88,7 +97,7 @@ export async function prepareJobAsync(
     experimental: {
       prebuildCommand: buildProfile.prebuildCommand,
     },
-    mode: buildProfile.config || ctx.repack ? BuildMode.CUSTOM : BuildMode.BUILD,
+    mode: buildMode,
     triggeredBy: BuildTrigger.EAS_CLI,
     ...(maybeCustomBuildConfigPath && {
       customBuildConfig: {
