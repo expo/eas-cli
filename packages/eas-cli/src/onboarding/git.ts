@@ -1,3 +1,5 @@
+import spawnAsync from '@expo/spawn-async';
+
 import { runCommandAsync } from './runCommand';
 import Log from '../log';
 import { confirmAsync, promptAsync } from '../prompts';
@@ -6,18 +8,19 @@ export async function runGitCloneAsync({
   targetProjectDir,
   githubRepositoryName,
   githubUsername,
-  useSsh = true,
+  cloneMethod,
 }: {
   githubUsername: string;
   githubRepositoryName: string;
   targetProjectDir: string;
-  useSsh?: boolean;
+  cloneMethod: 'ssh' | 'https';
 }): Promise<{
   targetProjectDir: string;
 }> {
-  const url = useSsh
-    ? `git@github.com:${githubUsername}/${githubRepositoryName}.git`
-    : `https://github.com/${githubUsername}/${githubRepositoryName}.git`;
+  const url =
+    cloneMethod === 'ssh'
+      ? `git@github.com:${githubUsername}/${githubRepositoryName}.git`
+      : `https://github.com/${githubUsername}/${githubRepositoryName}.git`;
   try {
     await runCommandAsync({
       command: 'git',
@@ -47,11 +50,15 @@ export async function runGitCloneAsync({
         githubRepositoryName,
         githubUsername,
         targetProjectDir: newTargetProjectDir,
+        cloneMethod,
       });
-    } else if (useSsh && error.stderr.includes('Permission denied')) {
-      Log.warn('It seems like you do not have permission to clone the repository using SSH.');
+    } else if (error.stderr.includes('Permission denied')) {
+      Log.warn(
+        `It seems like you do not have permission to clone the repository using ${cloneMethod}.`
+      );
+      const newMethod = cloneMethod === 'ssh' ? 'https' : 'ssh';
       const shouldContinue = await confirmAsync({
-        message: 'Do you want to clone the repository using HTTPS instead?',
+        message: `Do you want to clone the repository using ${newMethod} instead?`,
       });
       if (!shouldContinue) {
         throw new Error('Permission denied. Aborting...');
@@ -60,7 +67,7 @@ export async function runGitCloneAsync({
         githubRepositoryName,
         githubUsername,
         targetProjectDir,
-        useSsh: false,
+        cloneMethod: newMethod,
       });
     } else {
       throw error;
@@ -78,4 +85,22 @@ export async function runGitPushAsync({
     args: ['push'],
     cwd: targetProjectDir,
   });
+}
+
+export async function canAccessRepositoryUsingSshAsync({
+  githubUsername,
+  githubRepositoryName,
+}: {
+  githubUsername: string;
+  githubRepositoryName: string;
+}): Promise<boolean> {
+  try {
+    await spawnAsync('git', [
+      'ls-remote',
+      `git@github.com:${githubUsername}/${githubRepositoryName}.git`,
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
 }

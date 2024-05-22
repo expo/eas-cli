@@ -23,7 +23,11 @@ import {
 import { UserPreferencesMutation } from '../../graphql/mutations/UserPreferencesMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { learnMore, link } from '../../log';
-import { runGitCloneAsync, runGitPushAsync } from '../../onboarding/git';
+import {
+  canAccessRepositoryUsingSshAsync,
+  runGitCloneAsync,
+  runGitPushAsync,
+} from '../../onboarding/git';
 import { installDependenciesAsync } from '../../onboarding/installDependencies';
 import { runCommandAsync } from '../../onboarding/runCommand';
 import { RequestedPlatform } from '../../platform';
@@ -143,10 +147,17 @@ export default class Onboarding extends EasCommand {
     }
     Log.log();
 
+    const cloneMethod = (await canAccessRepositoryUsingSshAsync({
+      githubUsername,
+      githubRepositoryName,
+    }))
+      ? 'ssh'
+      : 'https';
     const { targetProjectDir: finalTargetProjectDirectory } = await runGitCloneAsync({
       githubUsername,
       githubRepositoryName,
       targetProjectDir: initialTargetProjectDirectory,
+      cloneMethod,
     });
 
     const vcsClient = new GitClient(finalTargetProjectDirectory);
