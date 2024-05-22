@@ -1,3 +1,5 @@
+import spawnAsync from '@expo/spawn-async';
+
 import { runCommandAsync } from './runCommand';
 import Log from '../log';
 import { confirmAsync, promptAsync } from '../prompts';
@@ -83,4 +85,22 @@ export async function runGitPushAsync({
     args: ['push'],
     cwd: targetProjectDir,
   });
+}
+
+export async function canAccessRepositoryUsingSshAsync({
+  githubUsername,
+  githubRepositoryName,
+}: {
+  githubUsername: string;
+  githubRepositoryName: string;
+}): Promise<boolean> {
+  try {
+    await spawnAsync('git', [
+      'ls-remote',
+      `git@github.com:${githubUsername}/${githubRepositoryName}.git`,
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
 }
