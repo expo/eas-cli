@@ -153,6 +153,9 @@ export default class Onboarding extends EasCommand {
     }))
       ? 'ssh'
       : 'https';
+    Log.log(chalk.dim(`We detected that ${cloneMethod} is your preffered git clone method`));
+    Log.log();
+
     const { targetProjectDir: finalTargetProjectDirectory } = await runGitCloneAsync({
       githubUsername,
       githubRepositoryName,
