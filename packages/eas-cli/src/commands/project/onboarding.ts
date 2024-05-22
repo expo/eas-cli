@@ -402,7 +402,6 @@ async function configureProjectFromBareDefaultExpoTemplateAsync({
       development: {
         developmentClient: true,
         distribution: 'internal',
-        channel: 'development',
         ...easBuildGitHubConfig,
       },
       'development-simulator': {
@@ -413,7 +412,7 @@ async function configureProjectFromBareDefaultExpoTemplateAsync({
       },
       preview: {
         distribution: 'internal',
-        channel: 'preview',
+        channel: 'main',
         ...easBuildGitHubConfig,
       },
       production: {
