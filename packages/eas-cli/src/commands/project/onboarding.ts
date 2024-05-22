@@ -449,7 +449,11 @@ async function configureProjectFromBareDefaultExpoTemplateAsync({
   );
   Log.log();
 
+  const baseExpoConfig = JSON.parse(await fs.readFile(path.join(targetDir, 'app.json'), 'utf8'))
+    .expo as ExpoConfig;
+
   const expoConfig: ExpoConfig = {
+    ...baseExpoConfig,
     name: app.name ?? app.slug,
     slug: app.slug,
     extra: {
@@ -465,9 +469,11 @@ async function configureProjectFromBareDefaultExpoTemplateAsync({
       policy: 'appVersion',
     },
     ios: {
+      ...baseExpoConfig.ios,
       bundleIdentifier,
     },
     android: {
+      ...baseExpoConfig.android,
       package: bundleIdentifier,
     },
   };
