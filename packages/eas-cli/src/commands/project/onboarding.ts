@@ -143,10 +143,22 @@ export default class Onboarding extends EasCommand {
     }
     Log.log();
 
+    const { cloneMethod } = await promptAsync({
+      type: 'select',
+      message: 'Select git clone method',
+      name: 'cloneMethod',
+      choices: [
+        { title: 'SSH', value: 'ssh' },
+        { title: 'HTTPS', value: 'https' },
+      ],
+    });
+    Log.log();
+
     const { targetProjectDir: finalTargetProjectDirectory } = await runGitCloneAsync({
       githubUsername,
       githubRepositoryName,
       targetProjectDir: initialTargetProjectDirectory,
+      cloneMethod,
     });
 
     const vcsClient = new GitClient(finalTargetProjectDirectory);
