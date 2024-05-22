@@ -18,7 +18,7 @@ export async function uploadFileAtPathToGCSAsync(
   graphqlClient: ExpoGraphqlClient,
   type: UploadSessionType,
   path: string,
-  handleProgressEvent: ProgressHandler
+  handleProgressEvent: ProgressHandler = () => {}
 ): Promise<string> {
   const signedUrl = await UploadSessionMutation.createUploadSessionAsync(graphqlClient, type);
 
