@@ -96,11 +96,13 @@ export async function validateOrSetProjectIdAsync({
   graphqlClient,
   actor,
   options,
+  cwd,
 }: {
   exp: ExpoConfig;
   graphqlClient: ExpoGraphqlClient;
   actor: Actor;
   options: { env?: Env; nonInteractive: boolean };
+  cwd?: string;
 }): Promise<string> {
   const localProjectId = exp.extra?.eas?.projectId;
   if (localProjectId) {
@@ -161,7 +163,9 @@ export async function validateOrSetProjectIdAsync({
     return localProjectId;
   }
 
-  const projectDir = await findProjectRootAsync();
+  const projectDir = await findProjectRootAsync({
+    cwd,
+  });
   if (!projectDir) {
     throw new Error('This command must be run inside a project directory.');
   }

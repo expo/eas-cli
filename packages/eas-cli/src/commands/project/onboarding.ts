@@ -348,6 +348,7 @@ async function getPrivateExpoConfigWithProjectIdAsync({
     options: {
       nonInteractive: false,
     },
+    cwd: projectDir,
   });
   const exp = getPrivateExpoConfig(projectDir, options);
   return {
