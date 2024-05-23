@@ -8,11 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Make `eas init:onboarding` command public. ([#2399](https://github.com/expo/eas-cli/pull/2399) by [@szdziedzic](https://github.com/szdziedzic))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [9.1.0](https://github.com/expo/eas-cli/releases/tag/v9.1.0) - 2024-05-23
+
+### 🎉 New features
+
+- Make `eas init:onboarding` command public. ([#2399](https://github.com/expo/eas-cli/pull/2399) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [9.0.10](https://github.com/expo/eas-cli/releases/tag/v9.0.10) - 2024-05-22
 
