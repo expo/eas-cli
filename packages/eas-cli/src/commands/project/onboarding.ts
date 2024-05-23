@@ -38,11 +38,10 @@ import { easCliVersion } from '../../utils/easCli';
 import GitClient from '../../vcs/clients/git';
 
 export default class Onboarding extends EasCommand {
-  static override hidden = true;
-
   static override aliases = ['init:onboarding', 'onboarding'];
 
-  static override description = 'continue onboarding process started on the expo.dev website';
+  static override description =
+    'continue onboarding process started on the https://expo.new website.';
 
   static override flags = {};
 
