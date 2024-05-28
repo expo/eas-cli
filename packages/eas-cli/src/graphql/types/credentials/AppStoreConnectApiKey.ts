@@ -12,6 +12,7 @@ export const AppStoreConnectApiKeyFragmentNode = gql`
     }
     issuerIdentifier
     keyIdentifier
+    keyP8
     name
     roles
     createdAt

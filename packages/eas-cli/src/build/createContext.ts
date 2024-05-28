@@ -16,6 +16,8 @@ import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/An
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
+import { getAppFromContextAsync } from '../credentials/ios/actions/BuildCredentialsUtils';
+import { GetAscApiKey } from '../credentials/ios/actions/GetAscApiKey';
 import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
@@ -155,10 +157,23 @@ export async function createBuildContextAsync<T extends Platform>({
     } as BuildContext<T>;
   } else {
     const common = commonContext as CommonContext<Platform.IOS>;
-    return {
+    const iosBuildCtx = {
       ...common,
       ios: await createIosContextAsync(common),
     } as BuildContext<T>;
+    const appLookupParams = {
+      ...(await getAppFromContextAsync(credentialsCtx)),
+      bundleIdentifier: (iosBuildCtx as BuildContext<Platform.IOS>).ios.bundleIdentifier,
+    };
+    const ascForBuilds = await GetAscApiKey.getForBuildServiceAsync(
+      appLookupParams,
+      credentialsCtx
+    );
+    if (ascForBuilds) {
+      credentialsCtx.configureAppStoreAuth(ascForBuilds);
+    }
+
+    return iosBuildCtx;
   }
 }
 

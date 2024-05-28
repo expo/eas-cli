@@ -3,7 +3,6 @@ import { CredentialsContext } from '../../context';
 import { AscApiKeyInfo } from '../appstore/Credentials.types';
 import { MinimalAscApiKey } from '../credentials';
 
-// TODO
 export async function isAscApiKeyValidAndTrackedAsync(
   ctx: CredentialsContext,
   ascApiKey: MinimalAscApiKey
