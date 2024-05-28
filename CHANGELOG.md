@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Use the correct app config for no GitHub flow in `init:onboarding`. ([#2397](https://github.com/expo/eas-cli/pull/2397) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 ## [9.1.0](https://github.com/expo/eas-cli/releases/tag/v9.1.0) - 2024-05-23
