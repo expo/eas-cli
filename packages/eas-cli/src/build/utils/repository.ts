@@ -100,44 +100,21 @@ export type LocalFile = {
 };
 
 export async function makeProjectMetadataFileAsync(archivePath: string): Promise<LocalFile> {
-  const spinner = ora('Creating project metadata file');
-  const timerLabel = 'makeProjectMetadataFileAsync';
-  const timer = setTimeout(
-    () => {
-      spinner.start();
-    },
-    Log.isDebug ? 1 : 1000
-  );
-  startTimer(timerLabel);
-
   const metadataLocation = path.join(getTmpDirectory(), `${uuidv4()}-eas-build-metadata.json`);
   const archiveContent: string[] = [];
 
-  try {
-    await tar.list({
-      file: archivePath,
-      onentry: (entry: tar.ReadEntry) => {
-        if (entry.type === 'File' && !entry.path.includes('.git/')) {
-          archiveContent.push(entry.path);
-        }
-      },
-    });
+  await tar.list({
+    file: archivePath,
+    onentry: (entry: tar.ReadEntry) => {
+      if (entry.type === 'File' && !entry.path.includes('.git/')) {
+        archiveContent.push(entry.path);
+      }
+    },
+  });
 
-    await fs.writeJSON(metadataLocation, {
-      archiveContent,
-    });
-  } catch (e) {
-    clearTimeout(timer);
-    if (spinner.isSpinning) {
-      spinner.fail();
-    }
-    throw e;
-  }
-  clearTimeout(timer);
-
-  const duration = endTimer(timerLabel);
-  const prettyTime = formatMilliseconds(duration);
-  spinner.succeed(`Created project metadata file ${chalk.dim(prettyTime)}`);
+  await fs.writeJSON(metadataLocation, {
+    archiveContent,
+  });
 
   return { path: metadataLocation, size: await fs.stat(metadataLocation).then(stat => stat.size) };
 }

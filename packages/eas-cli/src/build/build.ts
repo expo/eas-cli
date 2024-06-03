@@ -275,20 +275,23 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         }
 
         projectTarballPath = projectTarball.path;
-        const bucketKey = await uploadFileAtPathToGCSAsync(
-          ctx.graphqlClient,
-          UploadSessionType.EasBuildGcsProjectSources,
-          projectTarball.path,
-          createProgressTracker({
-            total: projectTarball.size,
-            message: ratio =>
-              `Uploading to EAS Build (${formatBytes(projectTarball.size * ratio)} / ${formatBytes(
-                projectTarball.size
-              )})`,
-            completedMessage: (duration: string) => `Uploaded to EAS ${chalk.dim(duration)}`,
-          })
-        );
-        const { metadataLocation } = await uploadMetadataFileAsync<TPlatform>(projectTarball, ctx);
+        const [bucketKey, { metadataLocation }] = await Promise.all([
+          uploadFileAtPathToGCSAsync(
+            ctx.graphqlClient,
+            UploadSessionType.EasBuildGcsProjectSources,
+            projectTarball.path,
+            createProgressTracker({
+              total: projectTarball.size,
+              message: ratio =>
+                `Uploading to EAS Build (${formatBytes(
+                  projectTarball.size * ratio
+                )} / ${formatBytes(projectTarball.size)})`,
+              completedMessage: (duration: string) => `Uploaded to EAS ${chalk.dim(duration)}`,
+            })
+          ),
+          uploadMetadataFileAsync<TPlatform>(projectTarball, ctx),
+        ]);
+
         if (metadataLocation) {
           return { bucketKey, metadataLocation };
         }
@@ -327,15 +330,7 @@ async function uploadMetadataFileAsync<TPlatform extends Platform>(
     const metadataLocation = await uploadFileAtPathToGCSAsync(
       ctx.graphqlClient,
       UploadSessionType.EasBuildGcsProjectMetadata,
-      projectMetadataFile.path,
-      createProgressTracker({
-        total: projectMetadataFile.size,
-        message: ratio =>
-          `Uploading metadata to EAS Build (${formatBytes(
-            projectMetadataFile!.size * ratio
-          )} / ${formatBytes(projectMetadataFile!.size)})`,
-        completedMessage: (duration: string) => `Uploaded to EAS ${chalk.dim(duration)}`,
-      })
+      projectMetadataFile.path
     );
     return { metadataLocation };
   } catch (err: any) {
