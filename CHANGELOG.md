@@ -15,6 +15,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Print network error message if present. ([#2407](https://github.com/expo/eas-cli/pull/2407) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [9.1.0](https://github.com/expo/eas-cli/releases/tag/v9.1.0) - 2024-05-23
 
 ### 🎉 New features
