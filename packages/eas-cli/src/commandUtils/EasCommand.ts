@@ -201,7 +201,7 @@ export default abstract class EasCommand extends Command {
     if (err instanceof EasCommandError) {
       Log.error(err.message);
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
-      const cleanMessage = err?.graphQLErrors
+      const cleanGQLErrorsMessage = err?.graphQLErrors
         .map((graphQLError: GraphQLError) => {
           const messageLine = graphQLError.message.replace('[GraphQL] ', '');
           const requestIdLine = graphQLError.extensions?.requestId
@@ -223,6 +223,9 @@ export default abstract class EasCommand extends Command {
           return defaultMsg;
         })
         .join('\n');
+      const cleanMessage = err.networkError
+        ? `${cleanGQLErrorsMessage}\n${err.networkError.message}`
+        : cleanGQLErrorsMessage;
       Log.error(cleanMessage);
       baseMessage = BASE_GRAPHQL_ERROR_MESSAGE;
     } else {
