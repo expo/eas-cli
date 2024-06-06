@@ -11,8 +11,11 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Use the correct app config for no GitHub flow in `init:onboarding`. ([#2397](https://github.com/expo/eas-cli/pull/2397) by [@szdziedzic](https://github.com/szdziedzic))
+- Disallow picking expired builds as submit archive source. ([#2406](https://github.com/expo/eas-cli/pull/2406) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🧹 Chores
+
+- Print network error message if present. ([#2407](https://github.com/expo/eas-cli/pull/2407) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [9.1.0](https://github.com/expo/eas-cli/releases/tag/v9.1.0) - 2024-05-23
 

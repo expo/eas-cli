@@ -273,7 +273,9 @@ describe(getArchiveAsync, () => {
     jest.mocked(getRecentBuildsForSubmissionAsync).mockResolvedValueOnce([
       {
         ...MOCK_BUILD_FRAGMENT,
-        updatedAt: new Date(Date.now() - 31 * 24 * 3600 * 1000),
+        // We're setting expirationDate to be in the past,
+        // because we want to build to appear expired.
+        expirationDate: new Date(Date.now() - 31 * 24 * 3600 * 1000),
       } as BuildFragment,
     ]);
     jest
