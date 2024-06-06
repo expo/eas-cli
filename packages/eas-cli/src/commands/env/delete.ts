@@ -51,10 +51,13 @@ export default class EnvironmentVariableDelete extends EasCommand {
       }
 
       variables = (
-        await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, projectId, environment)
+        await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
+          appId: projectId,
+          environment,
+        })
       ).appVariables;
     } else {
-      variables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
+      variables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, { appId: projectId });
     }
 
     if (!name) {
@@ -78,6 +81,8 @@ export default class EnvironmentVariableDelete extends EasCommand {
       if (!name) {
         throw new Error(validationMessage);
       }
+    } else {
+      variable = variables.find(variable => variable.name === name);
     }
 
     if (!variable) {
@@ -87,7 +92,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
     if (!nonInteractive) {
       Log.addNewLineIfNone();
       Log.warn(
-        `You are about to permanently delete variable ${variable.name} .\nThis action is irreversible.`
+        `You are about to permanently delete variable "${variable.name}" .\nThis action is irreversible.`
       );
       Log.newLine();
       const confirmed = await toggleConfirmAsync({
@@ -98,13 +103,13 @@ export default class EnvironmentVariableDelete extends EasCommand {
         }`,
       });
       if (!confirmed) {
-        Log.error(`Canceled deletion of variable ${variable.name}.`);
+        Log.error(`Canceled deletion of variable "${variable.name}".`);
         process.exit(1);
       }
     }
 
     await EnvironmentVariableMutation.deleteAsync(graphqlClient, variable.id);
 
-    Log.withTick(`️Deleted variable ${variable.name}".`);
+    Log.withTick(`️Deleted variable "${variable.name}".`);
   }
 }

@@ -7,11 +7,65 @@ import { EnvironmentVariableFragment, EnvironmentVariablesByAppIdQuery } from '.
 import { EnvironmentVariableFragmentNode } from '../types/EnvironmentVariable';
 
 export const EnvironmentVariablesQuery = {
+  async byAppIdWithSensitiveAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      environment,
+      filterNames,
+    }: {
+      appId: string;
+      environment: string;
+      filterNames?: string[];
+    }
+  ): Promise<{
+    appVariables: EnvironmentVariableFragment[];
+  }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query(
+          gql`
+            query EnvironmentVariablesIncludingSensitiveByAppId(
+              $appId: String!
+              $filterNames: [String!]
+              $environment: EnvironmentVariableEnvironment!
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  environmentVariablesIncludingSensitive(
+                    filterNames: $filterNames
+                    environment: $environment
+                  ) {
+                    id
+                    name
+                    value
+                  }
+                }
+              }
+            }
+          `,
+          { appId, filterNames, environment },
+          { additionalTypenames: ['EnvironmentVariable'] }
+        )
+        .toPromise()
+    );
+
+    return {
+      appVariables: data.app?.byId.environmentVariablesIncludingSensitive ?? [],
+    };
+  },
   async byAppIdAsync(
     graphqlClient: ExpoGraphqlClient,
-    appId: string,
-    environment: string,
-    filterNames?: string[]
+    {
+      appId,
+      environment,
+      filterNames,
+    }: {
+      appId: string;
+      environment: string;
+      filterNames?: string[];
+    }
   ): Promise<{
     sharedVariables: EnvironmentVariableFragment[];
     appVariables: EnvironmentVariableFragment[];
@@ -57,8 +111,7 @@ export const EnvironmentVariablesQuery = {
   },
   async sharedAsync(
     graphqlClient: ExpoGraphqlClient,
-    appId: string,
-    filterNames?: string[]
+    { appId, filterNames }: { appId: string; filterNames?: string[] }
   ): Promise<EnvironmentVariableFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -90,14 +143,12 @@ export const EnvironmentVariablesQuery = {
   },
   async allAsync(
     graphqlClient: ExpoGraphqlClient,
-    projectId: string,
-    environment: string
+    { appId, environment }: { appId: string; environment: string }
   ): Promise<EnvironmentVariableFragment[]> {
-    const { sharedVariables, appVariables } = await this.byAppIdAsync(
-      graphqlClient,
-      projectId,
-      environment
-    );
+    const { sharedVariables, appVariables } = await this.byAppIdAsync(graphqlClient, {
+      appId,
+      environment,
+    });
     return [...appVariables, ...sharedVariables];
   },
 };
