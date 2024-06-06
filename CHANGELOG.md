@@ -18,6 +18,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Print network error message if present. ([#2407](https://github.com/expo/eas-cli/pull/2407) by [@szdziedzic](https://github.com/szdziedzic))
+- Make flags for `eas build:list` command more aligned with flags for rest of the commands. ([#2409](https://github.com/expo/eas-cli/pull/2409) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [9.1.0](https://github.com/expo/eas-cli/releases/tag/v9.1.0) - 2024-05-23
 
