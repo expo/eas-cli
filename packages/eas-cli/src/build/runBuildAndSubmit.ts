@@ -415,7 +415,7 @@ async function prepareAndStartBuildAsync({
   }
 
   await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
-  if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
+  if (easJsonCliConfig?.appVersionSource !== AppVersionSource.LOCAL) {
     validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
   }
   if (buildCtx.workflow === Workflow.MANAGED) {
