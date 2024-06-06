@@ -1,7 +1,13 @@
-import { AppVersionSource, EasJson } from '@expo/eas-json';
 import chalk from 'chalk';
 
-import { getMockEasJson, mockCommandContext, mockProjectId, mockTestCommand } from './utils';
+import {
+  getMockEasJson,
+  mockCommandContext,
+  mockProjectId,
+  mockTestCommand,
+  withLocalVersionSource,
+  withRemoteVersionSource,
+} from './utils';
 import BuildVersionGetView from '../../commands/build/version/get';
 import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
 import Log from '../../log';
@@ -12,26 +18,6 @@ jest.mock('fs');
 jest.mock('../../log');
 jest.mock('../../utils/json');
 jest.mock('../../graphql/queries/AppVersionQuery');
-
-function withRemoteVersionSource(easJson: EasJson): EasJson {
-  return {
-    ...easJson,
-    cli: {
-      ...easJson.cli,
-      appVersionSource: AppVersionSource.REMOTE,
-    },
-  };
-}
-
-function withLocalVersionSource(easJson: EasJson): EasJson {
-  return {
-    ...easJson,
-    cli: {
-      ...easJson.cli,
-      appVersionSource: AppVersionSource.LOCAL,
-    },
-  };
-}
 
 describe(BuildVersionGetView, () => {
   afterEach(() => {

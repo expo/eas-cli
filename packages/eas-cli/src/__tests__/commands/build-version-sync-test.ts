@@ -1,5 +1,4 @@
 import { Workflow } from '@expo/eas-build-job';
-import { AppVersionSource, EasJson } from '@expo/eas-json';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -9,6 +8,8 @@ import {
   mockCommandContext,
   mockProjectId,
   mockTestCommand,
+  withLocalVersionSource,
+  withRemoteVersionSource,
 } from './utils';
 import { updateNativeVersionsAsync as updateAndroidNativeVersionsAsync } from '../../build/android/version';
 import { updateNativeVersionsAsync as updateIosNativeVersionsAsync } from '../../build/ios/version';
@@ -36,26 +37,6 @@ jest.mock('fs');
 jest.mock('../../log');
 jest.mock('../../prompts');
 jest.mock('../../utils/json');
-
-function withRemoteVersionSource(easJson: EasJson): EasJson {
-  return {
-    ...easJson,
-    cli: {
-      ...easJson.cli,
-      appVersionSource: AppVersionSource.REMOTE,
-    },
-  };
-}
-
-function withLocalVersionSource(easJson: EasJson): EasJson {
-  return {
-    ...easJson,
-    cli: {
-      ...easJson.cli,
-      appVersionSource: AppVersionSource.LOCAL,
-    },
-  };
-}
 
 describe(BuildVersionSyncView, () => {
   afterEach(() => {
