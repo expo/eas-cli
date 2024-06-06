@@ -40,6 +40,10 @@ export function formatGraphQLBuild(build: BuildFragment): string {
       },
     },
     {
+      label: 'Profile',
+      value: build.buildProfile,
+    },
+    {
       label: 'Message',
       value: build.message,
     },
