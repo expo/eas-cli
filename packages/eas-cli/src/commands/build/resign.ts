@@ -70,7 +70,7 @@ export default class BuildResign extends EasCommand {
     'target-profile': Flags.string({
       char: 'e',
       description:
-        'Name of the target build profile from eas.json. Used to resolve credentials for re-signing. Defaults to "production" if defined in eas.json.',
+        'Name of the target build profile from eas.json. Credentials and environment variables from this profile will be used when re-signing. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
       aliases: ['profile'],
     }),
