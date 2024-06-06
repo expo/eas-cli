@@ -23,6 +23,16 @@ function withRemoteVersionSource(easJson: EasJson): EasJson {
   };
 }
 
+function withLocalVersionSource(easJson: EasJson): EasJson {
+  return {
+    ...easJson,
+    cli: {
+      ...easJson.cli,
+      appVersionSource: AppVersionSource.LOCAL,
+    },
+  };
+}
+
 describe(BuildVersionGetView, () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -31,6 +41,26 @@ describe(BuildVersionGetView, () => {
     const ctx = mockCommandContext(BuildVersionGetView, {
       easJson: withRemoteVersionSource(getMockEasJson()),
     });
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => ({
+      buildVersion: '100',
+      storeVersion: '1.0.0',
+    }));
+
+    const cmd = mockTestCommand(BuildVersionGetView, ['--platform=android'], ctx);
+    await cmd.run();
+    expect(AppVersionQuery.latestVersionAsync).toHaveBeenCalledWith(
+      ctx.loggedIn.graphqlClient,
+      mockProjectId,
+      'ANDROID',
+      'eas.test.com'
+    );
+    expect(Log.log).toHaveBeenCalledWith(`Android versionCode - ${chalk.bold('100')}`);
+    expect(enableJsonOutput).not.toHaveBeenCalled();
+    expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+  });
+
+  test('reading version for platform android when appVersionSource is not set and defaults to REMOTE', async () => {
+    const ctx = mockCommandContext(BuildVersionGetView, {});
     jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => ({
       buildVersion: '100',
       storeVersion: '1.0.0',
@@ -145,7 +175,9 @@ describe(BuildVersionGetView, () => {
   });
 
   test('reading version when appVersionSource is set to local ', async () => {
-    const ctx = mockCommandContext(BuildVersionGetView, {});
+    const ctx = mockCommandContext(BuildVersionGetView, {
+      easJson: withLocalVersionSource(getMockEasJson()),
+    });
     jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => ({
       buildVersion: '100',
       storeVersion: '1.0.0',

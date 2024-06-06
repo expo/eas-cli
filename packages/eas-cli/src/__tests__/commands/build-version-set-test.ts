@@ -35,6 +35,16 @@ function withRemoteVersionSource(easJson: EasJson): EasJson {
   };
 }
 
+function withLocalVersionSource(easJson: EasJson): EasJson {
+  return {
+    ...easJson,
+    cli: {
+      ...easJson.cli,
+      appVersionSource: AppVersionSource.LOCAL,
+    },
+  };
+}
+
 describe(BuildVersionSetView, () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -44,6 +54,31 @@ describe(BuildVersionSetView, () => {
     const ctx = mockCommandContext(BuildVersionSetView, {
       easJson: withRemoteVersionSource(getMockEasJson()),
     });
+    jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
+    jest.mocked(prompts.promptAsync).mockImplementation(async () => ({
+      version: '1000',
+    }));
+
+    const cmd = mockTestCommand(BuildVersionSetView, ['--platform=android'], ctx);
+    await cmd.run();
+    expect(AppVersionQuery.latestVersionAsync).toHaveBeenCalledWith(
+      ctx.loggedIn.graphqlClient,
+      mockProjectId,
+      'ANDROID',
+      'eas.test.com'
+    );
+    expect(AppVersionMutation.createAppVersionAsync).toHaveBeenCalledWith(
+      ctx.loggedIn.graphqlClient,
+      expect.objectContaining({
+        buildVersion: '1000',
+        storeVersion: '1.0.0',
+      })
+    );
+  });
+
+  test('setting version for platform android when the appVersionSource is not specified and defaults to REMOTE', async () => {
+    const ctx = mockCommandContext(BuildVersionSetView, {});
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
     jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
     jest.mocked(prompts.promptAsync).mockImplementation(async () => ({
@@ -115,7 +150,9 @@ describe(BuildVersionSetView, () => {
   });
 
   test('setting version aborts when appVersionSource is set to local and users refuse auto configuration', async () => {
-    const ctx = mockCommandContext(BuildVersionSetView, {});
+    const ctx = mockCommandContext(BuildVersionSetView, {
+      easJson: withLocalVersionSource(getMockEasJson()),
+    });
     jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
     jest.mocked(prompts.confirmAsync).mockImplementation(async () => false);
@@ -126,7 +163,9 @@ describe(BuildVersionSetView, () => {
   });
 
   test('setting version when appVersionSource is set to local and user allows auto configuration', async () => {
-    const ctx = mockCommandContext(BuildVersionSetView, {});
+    const ctx = mockCommandContext(BuildVersionSetView, {
+      easJson: withLocalVersionSource(getMockEasJson()),
+    });
     jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
     jest.mocked(prompts.confirmAsync).mockImplementation(async () => true);
