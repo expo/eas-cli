@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `target-profile` and `source-profile` flags to the `eas build:resign` command. ([#2410](https://github.com/expo/eas-cli/pull/2410) by [@szdziedzic](https://github.com/szdziedzic))
 - Display build profile in the output of `eas build:list`. ([#2408](https://github.com/expo/eas-cli/pull/2408) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
