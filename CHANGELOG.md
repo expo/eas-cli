@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Display build profile in the output of `eas build:list`. ([#2408](https://github.com/expo/eas-cli/pull/2408) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🐛 Bug fixes
 
 - Use the correct app config for no GitHub flow in `init:onboarding`. ([#2397](https://github.com/expo/eas-cli/pull/2397) by [@szdziedzic](https://github.com/szdziedzic))
