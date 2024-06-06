@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Print network error message if present. ([#2407](https://github.com/expo/eas-cli/pull/2407) by [@szdziedzic](https://github.com/szdziedzic))
+- Treat undefined appVersionSource as REMOTE as a default. ([#2411](https://github.com/expo/eas-cli/pull/2411) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ## [9.1.0](https://github.com/expo/eas-cli/releases/tag/v9.1.0) - 2024-05-23
 
