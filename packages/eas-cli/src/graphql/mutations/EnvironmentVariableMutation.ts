@@ -4,6 +4,7 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  CreateBulkEnvironmentVariablesForAppMutation,
   CreateEnvironmentVariableForAccountMutation,
   CreateEnvironmentVariableForAppMutation,
   DeleteEnvironmentVariableMutation,
@@ -12,6 +13,14 @@ import {
   UnlinkSharedEnvironmentVariableMutation,
 } from '../generated';
 import { EnvironmentVariableFragmentNode } from '../types/EnvironmentVariable';
+
+export type EnvironmentVariablePushInput = {
+  name: string;
+  value: string;
+  environment: string;
+  sensitive: boolean;
+  overwrite?: boolean;
+};
 
 export const EnvironmentVariableMutation = {
   async linkSharedEnvironmentVariableAsync(
@@ -164,5 +173,35 @@ export const EnvironmentVariableMutation = {
     );
 
     return data.environmentVariable.deleteEnvironmentVariable;
+  },
+  async createBulkEnvironmentVariablesForAppAsync(
+    graphqlClient: ExpoGraphqlClient,
+    input: EnvironmentVariablePushInput[],
+    appId: string
+  ): Promise<boolean> {
+    await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<CreateBulkEnvironmentVariablesForAppMutation>(
+          gql`
+            mutation CreateBulkEnvironmentVariablesForApp(
+              $input: [CreateEnvironmentVariableInput!]!
+              $appId: ID!
+            ) {
+              environmentVariable {
+                createBulkEnvironmentVariablesForApp(
+                  environmentVariablesData: $input
+                  appId: $appId
+                ) {
+                  id
+                }
+              }
+            }
+          `,
+          { input, appId }
+        )
+        .toPromise()
+    );
+
+    return true;
   },
 };
