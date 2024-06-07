@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Correctly parse the EXPO_APPLE_PROVIER_ID environment variable. ([#2349](https://github.com/expo/eas-cli/pull/2349) by [@louix](https://github.com/louix))
+- Swapped `node-fetch` for `undici` to support Node 22. ([#2414](https://github.com/expo/eas-cli/pull/2414) by [@byCedric](https://github.com/byCedric))
 
 ### 🧹 Chores
 
