@@ -1,4 +1,4 @@
-# eas-cli
+# eas-cli - This is a test
 
 EAS command line tool
 
