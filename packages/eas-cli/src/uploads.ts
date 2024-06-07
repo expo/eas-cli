@@ -1,10 +1,9 @@
 import FormData from 'form-data';
 import fs from 'fs-extra';
-import { Response } from 'node-fetch';
 import promiseRetry from 'promise-retry';
 
 import { ExpoGraphqlClient } from './commandUtils/context/contextUtils/createGraphqlClient';
-import fetch from './fetch';
+import fetch, { type Response } from './fetch';
 import { UploadSessionType } from './graphql/generated';
 import { SignedUrl, UploadSessionMutation } from './graphql/mutations/UploadSessionMutation';
 import { ProgressHandler } from './utils/progress';
