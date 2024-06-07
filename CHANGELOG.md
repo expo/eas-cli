@@ -109,6 +109,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Add explicit workflow arg to expo-update CLI calls. ([#2340](https://github.com/expo/eas-cli/pull/2340) by [@wschurman](https://github.com/wschurman))
+- Correctly parse the EXPO_APPLE_PROVIER_ID environment variable. ([#2349](https://github.com/expo/eas-cli/pull/2349) by [@louix](https://github.com/louix))
 
 ### 🧹 Chores
 
