@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Drop support for Node 16. ([#2413](https://github.com/expo/eas-cli/pull/2413) by [@byCedric](https://github.com/byCedric))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes
@@ -15,6 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Update lockfile to only include `@types/node@20.11.0`. ([#2412](https://github.com/expo/eas-cli/pull/2412) by [@byCedric](https://github.com/byCedric))
+- Update test workflow Node versions to 18, 20, and 22. ([#2413](https://github.com/expo/eas-cli/pull/2413) by [@byCedric](https://github.com/byCedric))
 
 ## [9.2.0](https://github.com/expo/eas-cli/releases/tag/v9.2.0) - 2024-06-06
 
