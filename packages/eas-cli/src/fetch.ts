@@ -1,3 +1,4 @@
+import { env } from 'node:process';
 import {
   ProxyAgent,
   type RequestInfo,
@@ -31,7 +32,7 @@ export default async function (url: RequestInfo, init?: RequestInit): Promise<Re
 }
 
 function installProxyAgent(): void {
-  const httpsProxyUrl = process.env.https_proxy;
+  const httpsProxyUrl = env.https_proxy;
 
   if (httpsProxyUrl && !(getGlobalDispatcher() instanceof ProxyAgent)) {
     setGlobalDispatcher(new ProxyAgent(httpsProxyUrl));
