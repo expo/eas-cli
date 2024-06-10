@@ -1,15 +1,11 @@
 import { env } from 'node:process';
-import {
-  ProxyAgent,
-  type RequestInfo,
-  type RequestInit,
-  type Response,
-  fetch,
-  getGlobalDispatcher,
-  setGlobalDispatcher,
-} from 'undici';
+import { ProxyAgent, getGlobalDispatcher, setGlobalDispatcher } from 'undici';
 
-export { Agent, Headers, type RequestInfo, type RequestInit, Response } from 'undici';
+// Re-export the fetch-related Node globals
+export type RequestInfo = globalThis.RequestInfo;
+export type RequestInit = globalThis.RequestInit;
+export type Response = globalThis.Response;
+export const Headers = globalThis.Headers;
 
 export class RequestError extends Error {
   constructor(
