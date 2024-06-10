@@ -7,7 +7,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🛠 Breaking changes
 
 - Drop support for Node 16. ([#2413](https://github.com/expo/eas-cli/pull/2413) by [@byCedric](https://github.com/byCedric))
-- Update [`eas-build`](https://github.com/expo/eas-build) dependencies to the version requiring Node 18 as minimal Node version. ([#2416](https://github.com/expo/eas-cli/pull/2416) [@expo-bot](https://github.com/expo-bot))
+- Update [`eas-build`](https://github.com/expo/eas-build) dependencies to the version requiring Node 18 as minimal Node version. ([#2416](https://github.com/expo/eas-cli/pull/2416) by [@expo-bot](https://github.com/expo-bot))
 
 ### 🎉 New features
 
