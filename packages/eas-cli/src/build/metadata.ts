@@ -20,6 +20,14 @@ export async function collectMetadataAsync<T extends Platform>(
 ): Promise<Metadata> {
   const channelObject = await resolveChannelAsync(ctx);
   const distribution = ctx.buildProfile.distribution ?? BuildDistributionType.STORE;
+  const runtimeVersion = await resolveRuntimeVersionAsync({
+    exp: ctx.exp,
+    platform: ctx.platform,
+    workflow: ctx.workflow,
+    projectDir: ctx.projectDir,
+    env: ctx.buildProfile.env,
+    cwd: ctx.projectDir,
+  });
   const metadata: Metadata = {
     trackingContext: ctx.analyticsEventProperties,
     ...(await maybeResolveVersionsAsync(ctx)),
@@ -27,15 +35,8 @@ export async function collectMetadataAsync<T extends Platform>(
     workflow: ctx.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
-    runtimeVersion:
-      (await resolveRuntimeVersionAsync({
-        exp: ctx.exp,
-        platform: ctx.platform,
-        workflow: ctx.workflow,
-        projectDir: ctx.projectDir,
-        env: ctx.buildProfile.env,
-        cwd: ctx.projectDir,
-      })) ?? undefined,
+    runtimeVersion: runtimeVersion?.runtimeVersion ?? undefined,
+    fingerprintSources: runtimeVersion?.fingerprintSources ?? undefined,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
     ...channelObject,
     distribution,
