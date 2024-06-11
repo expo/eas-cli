@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Bump minimum required Node version to 18.14.0 to support `FormData` file streaming withi `undici`. ([#2420](https://github.com/expo/eas-cli/pull/2420) by [@byCedric](https://github.com/byCedric))
+
 ### 🎉 New features
 
 - Allow filtering by `--fingerprint_hash` in `eas build:list` command. ([#2818](https://github.com/expo/eas-cli/pull/2818) by [@szdziedzic](https://github.com/szdziedzic))
