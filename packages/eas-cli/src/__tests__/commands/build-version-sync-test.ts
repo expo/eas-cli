@@ -20,6 +20,7 @@ import { AppQuery } from '../../graphql/queries/AppQuery';
 import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
 import { getAppBuildGradleAsync } from '../../project/android/gradleUtils';
 import { resolveTargetsAsync } from '../../project/ios/target';
+import { AppVersionSourceUpdateOption } from '../../project/remoteVersionSource';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import * as prompts from '../../prompts';
 
@@ -70,16 +71,19 @@ describe(BuildVersionSyncView, () => {
     expect(syncAndroidAsync).not.toHaveBeenCalled();
   });
 
-  test('syncing version for managed project on platform android when appVersionSource is not set and defaults to REMOTE', async () => {
+  test('syncing version for managed project on platform android when appVersionSource is not set and the user chooses to set it to REMOTE', async () => {
     const ctx = mockCommandContext(BuildVersionSyncView, {});
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
     jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => ({
       buildVersion: '1000',
       storeVersion: '0.0.1',
     }));
-    jest.mocked(prompts.promptAsync).mockImplementation(async () => ({
+    jest.mocked(prompts.promptAsync).mockImplementationOnce(async () => ({
       version: '1000',
     }));
+    jest
+      .mocked(prompts.selectAsync)
+      .mockImplementationOnce(async () => AppVersionSourceUpdateOption.SET_TO_REMOTE);
     jest.mocked(resolveWorkflowAsync).mockImplementation(async () => Workflow.MANAGED);
 
     const cmd = mockTestCommand(BuildVersionSyncView, ['--platform=android'], ctx);
@@ -207,6 +211,20 @@ describe(BuildVersionSyncView, () => {
     expect(AppVersionMutation.createAppVersionAsync).not.toHaveBeenCalledWith();
   });
 
+  test('syncing version aborts when appVersionSource is not set and the user chooses to set it to LOCAL, and they refuse auto configuration', async () => {
+    const ctx = mockCommandContext(BuildVersionSyncView, {});
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
+    jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
+    jest
+      .mocked(prompts.selectAsync)
+      .mockImplementationOnce(async () => AppVersionSourceUpdateOption.SET_TO_LOCAL);
+    jest.mocked(prompts.confirmAsync).mockImplementation(async () => false);
+
+    const cmd = mockTestCommand(BuildVersionSyncView, ['--platform=android'], ctx);
+    await expect(cmd.run()).rejects.toThrowError('Aborting...');
+    expect(AppVersionMutation.createAppVersionAsync).not.toHaveBeenCalledWith();
+  });
+
   test('syncing version when appVersionSource is set to local and user allows auto configuration', async () => {
     const ctx = mockCommandContext(BuildVersionSyncView, {
       easJson: withLocalVersionSource(getMockEasJson()),
@@ -220,5 +238,34 @@ describe(BuildVersionSyncView, () => {
 
     const easJsonAfterCmd = await fs.readJson(path.join(ctx.projectDir, 'eas.json'));
     expect(easJsonAfterCmd.cli.appVersionSource).toBe('remote');
+  });
+
+  test('syncing version when appVersionSource is not set and the user chooses to set it to LOCAL and they allow auto configuration', async () => {
+    const ctx = mockCommandContext(BuildVersionSyncView, {});
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
+    jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
+    jest
+      .mocked(prompts.selectAsync)
+      .mockImplementationOnce(async () => AppVersionSourceUpdateOption.SET_TO_LOCAL);
+    jest.mocked(prompts.confirmAsync).mockImplementation(async () => true);
+
+    const cmd = mockTestCommand(BuildVersionSyncView, ['--platform=android'], ctx);
+    await cmd.run();
+
+    const easJsonAfterCmd = await fs.readJson(path.join(ctx.projectDir, 'eas.json'));
+    expect(easJsonAfterCmd.cli.appVersionSource).toBe('remote');
+  });
+
+  test('syncing version aborts when appVersionSource is not set and the user chooses to configure manually', async () => {
+    const ctx = mockCommandContext(BuildVersionSyncView, {});
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
+    jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
+    jest
+      .mocked(prompts.selectAsync)
+      .mockImplementationOnce(async () => AppVersionSourceUpdateOption.ABORT);
+
+    const cmd = mockTestCommand(BuildVersionSyncView, ['--platform=android'], ctx);
+    await expect(cmd.run()).rejects.toThrowError('Aborted.');
+    expect(AppVersionMutation.createAppVersionAsync).not.toHaveBeenCalledWith();
   });
 });

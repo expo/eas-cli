@@ -1,17 +1,32 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { AppVersionSource, EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
+import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 
-import Log from '../log';
-import { confirmAsync } from '../prompts';
+import Log, { learnMore } from '../log';
+import { confirmAsync, selectAsync } from '../prompts';
 import { ProfileData } from '../utils/profiles';
+
+export enum AppVersionSourceUpdateOption {
+  SET_TO_REMOTE,
+  SET_TO_LOCAL,
+  ABORT,
+}
 
 export async function ensureVersionSourceIsRemoteAsync(
   easJsonAccessor: EasJsonAccessor,
   { nonInteractive }: { nonInteractive: boolean }
 ): Promise<void> {
   const easJsonCliConfig = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
+  if (easJsonCliConfig?.appVersionSource === undefined) {
+    const selection = await ensureAppVersionSourceIsSetAsync(easJsonAccessor);
+    if (selection === AppVersionSourceUpdateOption.SET_TO_LOCAL && easJsonCliConfig) {
+      easJsonCliConfig.appVersionSource = AppVersionSource.LOCAL;
+    } else if (selection === AppVersionSourceUpdateOption.SET_TO_REMOTE && easJsonCliConfig) {
+      easJsonCliConfig.appVersionSource = AppVersionSource.REMOTE;
+    }
+  }
   if (easJsonCliConfig?.appVersionSource !== AppVersionSource.LOCAL) {
     return;
   }
@@ -49,10 +64,20 @@ export async function ensureVersionSourceIsRemoteAsync(
   Log.withTick('Updated eas.json');
 }
 
-export function validateBuildProfileVersionSettings(
+export async function validateBuildProfileVersionSettingsAsync(
   profileInfo: ProfileData<'build'>,
-  cliConfig: EasJson['cli']
-): void {
+  cliConfig: EasJson['cli'],
+  projectDir: string
+): Promise<void> {
+  if (cliConfig?.appVersionSource === undefined) {
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+    const selection = await ensureAppVersionSourceIsSetAsync(easJsonAccessor);
+    if (selection === AppVersionSourceUpdateOption.SET_TO_LOCAL && cliConfig) {
+      cliConfig.appVersionSource = AppVersionSource.LOCAL;
+    } else if (selection === AppVersionSourceUpdateOption.SET_TO_REMOTE && cliConfig) {
+      cliConfig.appVersionSource = AppVersionSource.REMOTE;
+    }
+  }
   if (cliConfig?.appVersionSource === AppVersionSource.LOCAL) {
     return;
   }
@@ -101,4 +126,63 @@ export function getBuildVersionName(platform: Platform): string {
   } else {
     return 'buildNumber';
   }
+}
+
+export async function ensureAppVersionSourceIsSetAsync(
+  easJsonAccessor: EasJsonAccessor
+): Promise<AppVersionSourceUpdateOption | undefined> {
+  Log.log(
+    `This project is using the default app version source, which currently is the "remote" version source. Prior to version 10.0.0 of CLI the default used to be the "local" version source. App version source can be set for you automatically, or you can configure it yourself - if you wish to use the default "remote" version source add ${chalk.bold(
+      '{"cli": { "appVersionSource": "remote" }}'
+    )} to your eas.json or if you want to use the "local" version source add ${chalk.bold(
+      '{"cli": { "appVersionSource": "local" }}'
+    )} to your eas.json.`
+  );
+
+  const selectOption = await selectAsync(`What would you like to do?`, [
+    {
+      title: 'Update eas.json to use the default "remote" version source',
+      value: AppVersionSourceUpdateOption.SET_TO_REMOTE,
+    },
+    {
+      title: 'Update eas.json to use "local" version source',
+      value: AppVersionSourceUpdateOption.SET_TO_LOCAL,
+    },
+    {
+      title: "Don't update eas.json, abort command and configure manually",
+      value: AppVersionSourceUpdateOption.ABORT,
+    },
+  ]);
+
+  if (selectOption === AppVersionSourceUpdateOption.SET_TO_LOCAL) {
+    await easJsonAccessor.readRawJsonAsync();
+    easJsonAccessor.patch(easJsonRawObject => {
+      easJsonRawObject.cli = { ...easJsonRawObject?.cli, appVersionSource: AppVersionSource.LOCAL };
+      return easJsonRawObject;
+    });
+    await easJsonAccessor.writeAsync();
+    Log.withTick('Updated eas.json');
+  } else if (selectOption === AppVersionSourceUpdateOption.SET_TO_REMOTE) {
+    await easJsonAccessor.readRawJsonAsync();
+    easJsonAccessor.patch(easJsonRawObject => {
+      easJsonRawObject.cli = {
+        ...easJsonRawObject?.cli,
+        appVersionSource: AppVersionSource.REMOTE,
+      };
+      return easJsonRawObject;
+    });
+    await easJsonAccessor.writeAsync();
+    Log.withTick('Updated eas.json');
+  } else {
+    Log.warn(`You'll need to configure ${chalk.bold('appVersionSource')} manually.`);
+    Log.warn(
+      learnMore('https://docs.expo.dev/build-reference/app-versions/', {
+        learnMoreMessage: 'See the docs on what are the options and how to do it.',
+        dim: false,
+      })
+    );
+    Errors.error('Aborted.', { exit: 1 });
+  }
+
+  return selectOption;
 }

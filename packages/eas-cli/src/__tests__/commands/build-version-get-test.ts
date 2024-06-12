@@ -11,6 +11,8 @@ import {
 import BuildVersionGetView from '../../commands/build/version/get';
 import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
 import Log from '../../log';
+import { AppVersionSourceUpdateOption } from '../../project/remoteVersionSource';
+import * as prompts from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 jest.mock('../../project/applicationIdentifier');
@@ -18,6 +20,7 @@ jest.mock('fs');
 jest.mock('../../log');
 jest.mock('../../utils/json');
 jest.mock('../../graphql/queries/AppVersionQuery');
+jest.mock('../../prompts');
 
 describe(BuildVersionGetView, () => {
   afterEach(() => {
@@ -45,14 +48,17 @@ describe(BuildVersionGetView, () => {
     expect(printJsonOnlyOutput).not.toHaveBeenCalled();
   });
 
-  test('reading version for platform android when appVersionSource is not set and defaults to REMOTE', async () => {
+  test('reading version for platform android when the appVersionSource is not specified and the user chooses to set it to REMOTE', async () => {
     const ctx = mockCommandContext(BuildVersionGetView, {});
     jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => ({
       buildVersion: '100',
       storeVersion: '1.0.0',
     }));
-
     const cmd = mockTestCommand(BuildVersionGetView, ['--platform=android'], ctx);
+    jest
+      .mocked(prompts.selectAsync)
+      .mockImplementationOnce(async () => AppVersionSourceUpdateOption.SET_TO_REMOTE);
+
     await cmd.run();
     expect(AppVersionQuery.latestVersionAsync).toHaveBeenCalledWith(
       ctx.loggedIn.graphqlClient,
@@ -175,5 +181,41 @@ describe(BuildVersionGetView, () => {
       ctx
     );
     await expect(cmd.run()).rejects.toThrowErrorMatchingSnapshot();
+  });
+
+  test('reading version when the appVersionSource is not specified and the user chooses to set it to LOCAL', async () => {
+    const ctx = mockCommandContext(BuildVersionGetView, {});
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => ({
+      buildVersion: '100',
+      storeVersion: '1.0.0',
+    }));
+    jest
+      .mocked(prompts.selectAsync)
+      .mockImplementationOnce(async () => AppVersionSourceUpdateOption.SET_TO_LOCAL);
+
+    const cmd = mockTestCommand(
+      BuildVersionGetView,
+      ['--non-interactive', '--json', '--platform=android'],
+      ctx
+    );
+    await expect(cmd.run()).rejects.toThrowErrorMatchingSnapshot();
+  });
+
+  test('reading version aborts when the appVersionSource is not specified and the user chooses to configure it manually', async () => {
+    const ctx = mockCommandContext(BuildVersionGetView, {});
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => ({
+      buildVersion: '100',
+      storeVersion: '1.0.0',
+    }));
+    jest
+      .mocked(prompts.selectAsync)
+      .mockImplementationOnce(async () => AppVersionSourceUpdateOption.ABORT);
+
+    const cmd = mockTestCommand(
+      BuildVersionGetView,
+      ['--non-interactive', '--json', '--platform=android'],
+      ctx
+    );
+    await expect(cmd.run()).rejects.toThrowError('Aborted.');
   });
 });

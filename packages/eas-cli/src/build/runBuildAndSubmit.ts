@@ -57,8 +57,10 @@ import {
   validateAppVersionRuntimePolicySupportAsync,
 } from '../project/projectUtils';
 import {
+  AppVersionSourceUpdateOption,
+  ensureAppVersionSourceIsSetAsync,
   validateAppConfigForRemoteVersionSource,
-  validateBuildProfileVersionSettings,
+  validateBuildProfileVersionSettingsAsync,
 } from '../project/remoteVersionSource';
 import { confirmAsync } from '../prompts';
 import { runAsync } from '../run/run';
@@ -177,7 +179,7 @@ export async function runBuildAndSubmitAsync(
   const customBuildConfigMetadataByPlatform: { [p in AppPlatform]?: CustomBuildConfigMetadata } =
     {};
   for (const buildProfile of buildProfiles) {
-    validateBuildProfileVersionSettings(buildProfile, easJsonCliConfig);
+    await validateBuildProfileVersionSettingsAsync(buildProfile, easJsonCliConfig, projectDir);
     const maybeMetadata = await validateCustomBuildConfigAsync({
       projectDir,
       profile: buildProfile.profile,
@@ -415,6 +417,15 @@ async function prepareAndStartBuildAsync({
   }
 
   await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
+  if (easJsonCliConfig?.appVersionSource === undefined) {
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+    const selection = await ensureAppVersionSourceIsSetAsync(easJsonAccessor);
+    if (selection === AppVersionSourceUpdateOption.SET_TO_LOCAL && easJsonCliConfig) {
+      easJsonCliConfig.appVersionSource = AppVersionSource.LOCAL;
+    } else if (selection === AppVersionSourceUpdateOption.SET_TO_REMOTE && easJsonCliConfig) {
+      easJsonCliConfig.appVersionSource = AppVersionSource.REMOTE;
+    }
+  }
   if (easJsonCliConfig?.appVersionSource !== AppVersionSource.LOCAL) {
     validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
   }
