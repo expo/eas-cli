@@ -132,7 +132,7 @@ export async function ensureAppVersionSourceIsSetAsync(
   easJsonAccessor: EasJsonAccessor
 ): Promise<AppVersionSourceUpdateOption | undefined> {
   Log.log(
-    `This project is using the default app version source, which currently is the "remote" version source. Prior to version 10.0.0 of CLI the default used to be the "local" version source. App version source can be set for you automatically, or you can configure it yourself - if you wish to use the default "remote" version source add ${chalk.bold(
+    `Please select your app version source. With "local" the build android.versionCode / ios.buildNumber needs to be incremented manually in app.json / app.config.js, and with "remote" this value is stored in EAS and will be incremented automatically with each build. Until now, this project has been using the "local" version source (which was previously the default). App version source can be set for you automatically, or you can configure it yourself - if you wish to use the default "remote" version source add ${chalk.bold(
       '{"cli": { "appVersionSource": "remote" }}'
     )} to your eas.json or if you want to use the "local" version source add ${chalk.bold(
       '{"cli": { "appVersionSource": "local" }}'
