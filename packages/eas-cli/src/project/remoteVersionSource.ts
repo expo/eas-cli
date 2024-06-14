@@ -34,18 +34,14 @@ export async function ensureVersionSourceIsRemoteAsync(
     throw new Error(
       `This project is not configured for using remote version source. Add ${chalk.bold(
         '{"cli": { "appVersionSource": "remote" }}'
-      )} in eas.json (or remove ${chalk.bold(
-        '{"cli": { "appVersionSource": "local" }}'
-      )} to use "remote" as a default) or re-run this command without "--non-interactive" flag.`
+      )} in eas.json or re-run this command without "--non-interactive" flag.`
     );
   }
 
   Log.log(
     `The app version source defines whether the app version is stored locally in your project source (e.g. in app.json, Info.plist, or build.gradle) or remotely on EAS servers and only applied to the project at build time. To use this command, you will need to enable the remote version policy by adding  ${chalk.bold(
       '{"cli": { "appVersionSource": "remote" }}'
-    )} in eas.json or removing ${chalk.bold(
-      '{"cli": { "appVersionSource": "local" }}'
-    )} to use "remote" as a default.`
+    )} in eas.json.`
   );
   // TODO: add link to docs
   const confirm = await confirmAsync({
