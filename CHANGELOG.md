@@ -6,14 +6,24 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Drop support for Node 16. ([#2413](https://github.com/expo/eas-cli/pull/2413) by [@byCedric](https://github.com/byCedric))
-- Update [`eas-build`](https://github.com/expo/eas-build) dependencies to the version requiring Node 18 as minimal Node version. ([#2416](https://github.com/expo/eas-cli/pull/2416) by [@expo-bot](https://github.com/expo-bot))
 - Prompt the users to set `appVersionSource`, while mentioning that `remote` is the default. ([#2411](https://github.com/expo/eas-cli/pull/2411) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ### 🎉 New features
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [10.0.0](https://github.com/expo/eas-cli/releases/tag/v10.0.0) - 2024-06-13
+
+### 🛠 Breaking changes
+
+- Drop support for Node 16. ([#2413](https://github.com/expo/eas-cli/pull/2413) by [@byCedric](https://github.com/byCedric))
+- Update [`eas-build`](https://github.com/expo/eas-build) dependencies to the version requiring Node 18 as minimal Node version. ([#2416](https://github.com/expo/eas-cli/pull/2416) by [@expo-bot](https://github.com/expo-bot))
+
+### 🐛 Bug fixes
+
+- Resolve correct submit profile configuration for `eas build` command with `--auto-submit-with-profile` flag. ([#2425](https://github.com/expo/eas-cli/pull/2425) by [@szdziedzic](https://github.com/szdziedzic))
 - Correctly parse the EXPO_APPLE_PROVIER_ID environment variable. ([#2349](https://github.com/expo/eas-cli/pull/2349) by [@louix](https://github.com/louix))
 
 ### 🧹 Chores

@@ -260,6 +260,7 @@ export async function runBuildAndSubmitAsync(
         buildProfile: startedBuild.buildProfile.profile,
         submitProfile,
         nonInteractive: flags.nonInteractive,
+        selectedSubmitProfileName: flags.submitProfile,
       });
       startedBuild.build = await BuildQuery.withSubmissionsByIdAsync(
         graphqlClient,
@@ -464,6 +465,7 @@ async function prepareAndStartSubmissionAsync({
   projectDir,
   buildProfile,
   submitProfile,
+  selectedSubmitProfileName,
   nonInteractive,
 }: {
   build: BuildFragment;
@@ -472,6 +474,7 @@ async function prepareAndStartSubmissionAsync({
   projectDir: string;
   buildProfile: BuildProfile;
   submitProfile: SubmitProfile;
+  selectedSubmitProfileName?: string;
   nonInteractive: boolean;
 }): Promise<SubmissionFragment> {
   const platform = toPlatform(build.platform);
@@ -491,6 +494,7 @@ async function prepareAndStartSubmissionAsync({
     exp: buildCtx.exp,
     vcsClient: buildCtx.vcsClient,
     isVerboseFastlaneEnabled: false,
+    specifiedProfile: selectedSubmitProfileName,
   });
 
   if (moreBuilds) {
