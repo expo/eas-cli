@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add clarification to private-key flag in command line help. ([#2432](https://github.com/expo/eas-cli/pull/2432) by [@quinlanj](https://github.com/quinlanj))
+
 ## [10.0.0](https://github.com/expo/eas-cli/releases/tag/v10.0.0) - 2024-06-13
 
 ### 🛠 Breaking changes
