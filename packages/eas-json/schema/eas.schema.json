@@ -383,18 +383,7 @@
             },
             {
               "deprecated": true,
-              "enum": [
-                "default",
-                "stable",
-                "macos-monterey-12.4-xcode-13.4",
-                "macos-monterey-12.3-xcode-13.3",
-                "macos-monterey-12.1-xcode-13.2",
-                "macos-ventura-13.4-xcode-14.3.1",
-                "macos-ventura-13.3-xcode-14.3",
-                "macos-monterey-12.6-xcode-14.2",
-                "macos-monterey-12.6-xcode-14.1",
-                "macos-monterey-12.6-xcode-14.0"
-              ],
+              "enum": ["default", "stable"],
               "markdownEnumDescriptions": [
                 "This image tag is deprecated, please use other image tags or images directly instead.",
                 "This image tag is deprecated, please use other image tags or images directly instead.",
