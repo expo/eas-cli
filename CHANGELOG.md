@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix parsing of `build.gradle` file by `gradle-to-js` parser by filtering out empty single line comments. ([#2435](https://github.com/expo/eas-cli/pull/2435) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 ## [10.0.1](https://github.com/expo/eas-cli/releases/tag/v10.0.1) - 2024-06-17
