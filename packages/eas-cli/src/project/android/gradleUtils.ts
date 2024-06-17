@@ -35,7 +35,7 @@ export async function getAppBuildGradleAsync(projectDir: string): Promise<AppBui
   // when comments are present, gradle-to-js fails to parse the file
   const rawBuildGradleWithoutComments = rawBuildGradle
     .split('\n')
-    .filter(line => !line.startsWith('//'))
+    .filter(line => !line.trim().startsWith('//'))
     .join('\n');
 
   return await g2js.parseText(rawBuildGradleWithoutComments);
