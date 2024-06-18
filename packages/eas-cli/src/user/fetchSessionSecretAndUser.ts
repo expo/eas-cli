@@ -26,3 +26,18 @@ export async function fetchSessionSecretAndUserAsync({
     username: userData.username,
   };
 }
+
+export async function upgradeSudoSessionAndAsync(
+  apiV2Client: ApiV2Client,
+  {
+    password,
+    otp,
+  }: {
+    password: string;
+    otp?: string;
+  }
+): Promise<void> {
+  await apiV2Client.postAsync('auth/upgradeSudo', {
+    body: { password, otp },
+  });
+}

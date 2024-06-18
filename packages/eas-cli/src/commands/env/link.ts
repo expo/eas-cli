@@ -40,7 +40,9 @@ export default class EnvironmentVariableLink extends EasCommand {
     const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
     let variable;
 
-    const variables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
+    const variables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, {
+      appId: projectId,
+    });
     if (name) {
       variable = variables.find(variable => variable.name === name);
       if (!variable) {

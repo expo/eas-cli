@@ -46,8 +46,7 @@ export default class EnvironmentVariableUnlink extends EasCommand {
 
     const { appVariables, sharedVariables } = await EnvironmentVariablesQuery.byAppIdAsync(
       graphqlClient,
-      projectId,
-      environment
+      { appId: projectId, environment }
     );
     const sharedVariablesIds = sharedVariables.map(v => v.id);
     const linkedVariables = appVariables.filter(({ id }) => sharedVariablesIds.includes(id));
