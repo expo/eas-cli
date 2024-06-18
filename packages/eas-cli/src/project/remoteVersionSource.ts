@@ -4,6 +4,7 @@ import { AppVersionSource, EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/
 import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 
+import { BuildFlags } from '../build/runBuildAndSubmit';
 import Log, { learnMore } from '../log';
 import { confirmAsync, selectAsync } from '../prompts';
 import { ProfileData } from '../utils/profiles';
@@ -20,7 +21,7 @@ export async function ensureVersionSourceIsRemoteAsync(
 ): Promise<void> {
   const easJsonCliConfig = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
   if (easJsonCliConfig?.appVersionSource === undefined) {
-    const selection = await ensureAppVersionSourceIsSetAsync(easJsonAccessor);
+    const selection = await ensureAppVersionSourceIsSetAsync(easJsonAccessor, nonInteractive);
     if (selection === AppVersionSourceUpdateOption.SET_TO_LOCAL && easJsonCliConfig) {
       easJsonCliConfig.appVersionSource = AppVersionSource.LOCAL;
     } else if (selection === AppVersionSourceUpdateOption.SET_TO_REMOTE && easJsonCliConfig) {
@@ -63,11 +64,12 @@ export async function ensureVersionSourceIsRemoteAsync(
 export async function validateBuildProfileVersionSettingsAsync(
   profileInfo: ProfileData<'build'>,
   cliConfig: EasJson['cli'],
-  projectDir: string
+  projectDir: string,
+  flags: BuildFlags
 ): Promise<void> {
   if (cliConfig?.appVersionSource === undefined) {
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    const selection = await ensureAppVersionSourceIsSetAsync(easJsonAccessor);
+    const selection = await ensureAppVersionSourceIsSetAsync(easJsonAccessor, flags.nonInteractive);
     if (selection === AppVersionSourceUpdateOption.SET_TO_LOCAL && cliConfig) {
       cliConfig.appVersionSource = AppVersionSource.LOCAL;
     } else if (selection === AppVersionSourceUpdateOption.SET_TO_REMOTE && cliConfig) {
@@ -125,8 +127,23 @@ export function getBuildVersionName(platform: Platform): string {
 }
 
 export async function ensureAppVersionSourceIsSetAsync(
-  easJsonAccessor: EasJsonAccessor
+  easJsonAccessor: EasJsonAccessor,
+  nonInteractive: boolean
 ): Promise<AppVersionSourceUpdateOption | undefined> {
+  if (nonInteractive) {
+    Log.error('Cannot select "appVersionSource" in non-interactive mode.');
+    Log.error(
+      'Run the command again in interactive mode or configure the "appVersionSource" manually.'
+    );
+    Log.error(
+      learnMore('https://docs.expo.dev/build-reference/app-versions/', {
+        learnMoreMessage: 'See the docs to learn more.',
+        dim: false,
+      })
+    );
+    Errors.error('"appVersionSource" must be configured in non-interactive mode', { exit: 1 });
+  }
+
   Log.log(
     `Please select your app version source. With "local" the build android.versionCode / ios.buildNumber needs to be incremented manually in app.json / app.config.js, and with "remote" this value is stored in EAS and will be incremented automatically with each build. Until now, this project has been using the "local" version source (which was previously the default). App version source can be set for you automatically, or you can configure it yourself - if you wish to use the default "remote" version source add ${chalk.bold(
       '{"cli": { "appVersionSource": "remote" }}'

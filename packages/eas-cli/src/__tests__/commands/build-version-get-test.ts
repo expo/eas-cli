@@ -183,7 +183,7 @@ describe(BuildVersionGetView, () => {
     await expect(cmd.run()).rejects.toThrowErrorMatchingSnapshot();
   });
 
-  test('reading version when the appVersionSource is not specified and the user chooses to set it to LOCAL', async () => {
+  test('reading version aborts when the appVersionSource is not specified and the user chooses to set it to LOCAL', async () => {
     const ctx = mockCommandContext(BuildVersionGetView, {});
     jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => ({
       buildVersion: '100',
@@ -193,11 +193,7 @@ describe(BuildVersionGetView, () => {
       .mocked(prompts.selectAsync)
       .mockImplementationOnce(async () => AppVersionSourceUpdateOption.SET_TO_LOCAL);
 
-    const cmd = mockTestCommand(
-      BuildVersionGetView,
-      ['--non-interactive', '--json', '--platform=android'],
-      ctx
-    );
+    const cmd = mockTestCommand(BuildVersionGetView, ['--platform=android'], ctx);
     await expect(cmd.run()).rejects.toThrowErrorMatchingSnapshot();
   });
 
@@ -211,11 +207,24 @@ describe(BuildVersionGetView, () => {
       .mocked(prompts.selectAsync)
       .mockImplementationOnce(async () => AppVersionSourceUpdateOption.ABORT);
 
+    const cmd = mockTestCommand(BuildVersionGetView, ['--platform=android'], ctx);
+    await expect(cmd.run()).rejects.toThrowError('Aborted.');
+  });
+
+  test('reading version aborts when the appVersionSource is not specified and is run in non-interactive mode', async () => {
+    const ctx = mockCommandContext(BuildVersionGetView, {});
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => ({
+      buildVersion: '100',
+      storeVersion: '1.0.0',
+    }));
+
     const cmd = mockTestCommand(
       BuildVersionGetView,
       ['--non-interactive', '--json', '--platform=android'],
       ctx
     );
-    await expect(cmd.run()).rejects.toThrowError('Aborted.');
+    await expect(cmd.run()).rejects.toThrowError(
+      '"appVersionSource" must be configured in non-interactive mode'
+    );
   });
 });

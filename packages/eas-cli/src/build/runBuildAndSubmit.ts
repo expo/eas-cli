@@ -179,7 +179,12 @@ export async function runBuildAndSubmitAsync(
   const customBuildConfigMetadataByPlatform: { [p in AppPlatform]?: CustomBuildConfigMetadata } =
     {};
   for (const buildProfile of buildProfiles) {
-    await validateBuildProfileVersionSettingsAsync(buildProfile, easJsonCliConfig, projectDir);
+    await validateBuildProfileVersionSettingsAsync(
+      buildProfile,
+      easJsonCliConfig,
+      projectDir,
+      flags
+    );
     const maybeMetadata = await validateCustomBuildConfigAsync({
       projectDir,
       profile: buildProfile.profile,
@@ -420,7 +425,7 @@ async function prepareAndStartBuildAsync({
   await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
   if (easJsonCliConfig?.appVersionSource === undefined) {
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    const selection = await ensureAppVersionSourceIsSetAsync(easJsonAccessor);
+    const selection = await ensureAppVersionSourceIsSetAsync(easJsonAccessor, flags.nonInteractive);
     if (selection === AppVersionSourceUpdateOption.SET_TO_LOCAL && easJsonCliConfig) {
       easJsonCliConfig.appVersionSource = AppVersionSource.LOCAL;
     } else if (selection === AppVersionSourceUpdateOption.SET_TO_REMOTE && easJsonCliConfig) {
