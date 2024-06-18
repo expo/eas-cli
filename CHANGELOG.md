@@ -14,6 +14,20 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Remove any mentions of deleted Xcode < 15 images. ([#2438](https://github.com/expo/eas-cli/pull/2438) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [10.0.2](https://github.com/expo/eas-cli/releases/tag/v10.0.2) - 2024-06-17
+
+### 🐛 Bug fixes
+
+- Fix parsing of `build.gradle` file by `gradle-to-js` parser by filtering out empty single line comments. ([#2435](https://github.com/expo/eas-cli/pull/2435) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [10.0.1](https://github.com/expo/eas-cli/releases/tag/v10.0.1) - 2024-06-17
+
+### 🧹 Chores
+
+- Add clarification to private-key flag in command line help. ([#2432](https://github.com/expo/eas-cli/pull/2432) by [@quinlanj](https://github.com/quinlanj))
+
 ## [10.0.0](https://github.com/expo/eas-cli/releases/tag/v10.0.0) - 2024-06-13
 
 ### 🛠 Breaking changes

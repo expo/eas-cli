@@ -1,7 +1,7 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "10.0.0",
+  "version": "10.0.2",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
@@ -28,7 +28,7 @@
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.7.0",
-    "@expo/steps": "1.0.117",
+    "@expo/steps": "1.0.118",
     "@expo/timeago.js": "1.0.0",
     "@oclif/core": "^1.26.2",
     "@oclif/plugin-autocomplete": "^2.3.10",

@@ -1667,10 +1667,10 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.117":
-  version "1.0.117"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.117.tgz#dd71bde35c741ed81375681ee00684d26c061b72"
-  integrity sha512-MjBYD5/F4tLB1TERyBCk8jF9bmhh99b2lgC6NHGD3J4QrFYSyct9CxIHJixdgaEo0QLMe0ltf3zQsJQSM+kWDw==
+"@expo/steps@1.0.118":
+  version "1.0.118"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.118.tgz#67839259e67b52e7b24f0bfc5913c869c1ed1f2e"
+  integrity sha512-JzU4K5bmNG+RFj21ulPXNADwxdtynN8WAZnqRluafz7FcU9ibNMdowdXWR17zo0xpCd1f5awcsjhTebWDjd5hg==
   dependencies:
     "@expo/eas-build-job" "1.0.117"
     "@expo/logger" "1.0.117"
@@ -14096,16 +14096,16 @@ write-pkg@4.0.0:
     write-json-file "^3.2.0"
 
 ws@^5.2.0:
-  version "5.2.3"
-  resolved "https://registry.yarnpkg.com/ws/-/ws-5.2.3.tgz#05541053414921bc29c63bee14b8b0dd50b07b3d"
-  integrity sha512-jZArVERrMsKUatIdnLzqvcfydI85dvd/Fp1u/VOpfdDWQ4c9qWXe+VIeAbQ5FrDwciAkr+lzofXLz3Kuf26AOA==
+  version "5.2.4"
+  resolved "https://registry.yarnpkg.com/ws/-/ws-5.2.4.tgz#c7bea9f1cfb5f410de50e70e82662e562113f9a7"
+  integrity sha512-fFCejsuC8f9kOSu9FYaOw8CdO68O3h5v0lg4p74o8JqWpwTf9tniOD+nOB78aWoVSS6WptVUmDrp/KPsMVBWFQ==
   dependencies:
     async-limiter "~1.0.0"
 
 ws@^8.12.0, ws@^8.13.0, ws@^8.15.0:
-  version "8.16.0"
-  resolved "https://registry.yarnpkg.com/ws/-/ws-8.16.0.tgz#d1cd774f36fbc07165066a60e40323eab6446fd4"
-  integrity sha512-HS0c//TP7Ina87TfiPUz1rQzMhHrl/SG2guqRcTOIUYD2q8uhUdNHZYJUaQ8aTGPzCh+c6oawMKW35nFl1dxyQ==
+  version "8.17.1"
+  resolved "https://registry.yarnpkg.com/ws/-/ws-8.17.1.tgz#9293da530bb548febc95371d90f9c878727d919b"
+  integrity sha512-6XQFvXTkbfUOZOKKILFG1PDK2NDQs4azKQl26T0YS5CxqWLgXajbPZ+h4gZekJyRqFU8pvnbAbbs/3TgRPy+GQ==
 
 xcode@^3.0.1:
   version "3.0.1"
