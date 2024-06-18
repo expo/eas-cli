@@ -57,7 +57,6 @@ import {
   validateAppVersionRuntimePolicySupportAsync,
 } from '../project/projectUtils';
 import {
-  AppVersionSourceUpdateOption,
   ensureAppVersionSourceIsSetAsync,
   validateAppConfigForRemoteVersionSource,
   validateBuildProfileVersionSettingsAsync,
@@ -425,12 +424,11 @@ async function prepareAndStartBuildAsync({
   await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
   if (easJsonCliConfig?.appVersionSource === undefined) {
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    const selection = await ensureAppVersionSourceIsSetAsync(easJsonAccessor, flags.nonInteractive);
-    if (selection === AppVersionSourceUpdateOption.SET_TO_LOCAL && easJsonCliConfig) {
-      easJsonCliConfig.appVersionSource = AppVersionSource.LOCAL;
-    } else if (selection === AppVersionSourceUpdateOption.SET_TO_REMOTE && easJsonCliConfig) {
-      easJsonCliConfig.appVersionSource = AppVersionSource.REMOTE;
-    }
+    easJsonCliConfig = await ensureAppVersionSourceIsSetAsync(
+      easJsonAccessor,
+      easJsonCliConfig,
+      flags.nonInteractive
+    );
   }
   if (easJsonCliConfig?.appVersionSource !== AppVersionSource.LOCAL) {
     validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);

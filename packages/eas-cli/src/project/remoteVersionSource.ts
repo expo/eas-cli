@@ -19,14 +19,13 @@ export async function ensureVersionSourceIsRemoteAsync(
   easJsonAccessor: EasJsonAccessor,
   { nonInteractive }: { nonInteractive: boolean }
 ): Promise<void> {
-  const easJsonCliConfig = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
+  let easJsonCliConfig = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
   if (easJsonCliConfig?.appVersionSource === undefined) {
-    const selection = await ensureAppVersionSourceIsSetAsync(easJsonAccessor, nonInteractive);
-    if (selection === AppVersionSourceUpdateOption.SET_TO_LOCAL && easJsonCliConfig) {
-      easJsonCliConfig.appVersionSource = AppVersionSource.LOCAL;
-    } else if (selection === AppVersionSourceUpdateOption.SET_TO_REMOTE && easJsonCliConfig) {
-      easJsonCliConfig.appVersionSource = AppVersionSource.REMOTE;
-    }
+    easJsonCliConfig = await ensureAppVersionSourceIsSetAsync(
+      easJsonAccessor,
+      easJsonCliConfig ?? undefined,
+      nonInteractive
+    );
   }
   if (easJsonCliConfig?.appVersionSource !== AppVersionSource.LOCAL) {
     return;
@@ -69,12 +68,11 @@ export async function validateBuildProfileVersionSettingsAsync(
 ): Promise<void> {
   if (cliConfig?.appVersionSource === undefined) {
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    const selection = await ensureAppVersionSourceIsSetAsync(easJsonAccessor, flags.nonInteractive);
-    if (selection === AppVersionSourceUpdateOption.SET_TO_LOCAL && cliConfig) {
-      cliConfig.appVersionSource = AppVersionSource.LOCAL;
-    } else if (selection === AppVersionSourceUpdateOption.SET_TO_REMOTE && cliConfig) {
-      cliConfig.appVersionSource = AppVersionSource.REMOTE;
-    }
+    cliConfig = await ensureAppVersionSourceIsSetAsync(
+      easJsonAccessor,
+      cliConfig,
+      flags.nonInteractive
+    );
   }
   if (cliConfig?.appVersionSource === AppVersionSource.LOCAL) {
     return;
@@ -128,8 +126,9 @@ export function getBuildVersionName(platform: Platform): string {
 
 export async function ensureAppVersionSourceIsSetAsync(
   easJsonAccessor: EasJsonAccessor,
+  easJsonCliConfig: EasJson['cli'] | undefined,
   nonInteractive: boolean
-): Promise<AppVersionSourceUpdateOption | undefined> {
+): Promise<EasJson['cli'] | undefined> {
   if (nonInteractive) {
     Log.error('Cannot select "appVersionSource" in non-interactive mode.');
     Log.error(
@@ -174,6 +173,9 @@ export async function ensureAppVersionSourceIsSetAsync(
       return easJsonRawObject;
     });
     await easJsonAccessor.writeAsync();
+    if (easJsonCliConfig) {
+      easJsonCliConfig.appVersionSource = AppVersionSource.LOCAL;
+    }
     Log.withTick('Updated eas.json');
   } else if (selectOption === AppVersionSourceUpdateOption.SET_TO_REMOTE) {
     await easJsonAccessor.readRawJsonAsync();
@@ -185,6 +187,9 @@ export async function ensureAppVersionSourceIsSetAsync(
       return easJsonRawObject;
     });
     await easJsonAccessor.writeAsync();
+    if (easJsonCliConfig) {
+      easJsonCliConfig.appVersionSource = AppVersionSource.REMOTE;
+    }
     Log.withTick('Updated eas.json');
   } else {
     Log.warn(`You'll need to configure ${chalk.bold('appVersionSource')} manually.`);
@@ -197,5 +202,5 @@ export async function ensureAppVersionSourceIsSetAsync(
     Errors.error('Aborted.', { exit: 1 });
   }
 
-  return selectOption;
+  return easJsonCliConfig;
 }
