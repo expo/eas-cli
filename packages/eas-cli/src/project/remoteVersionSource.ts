@@ -4,7 +4,7 @@ import { AppVersionSource, EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/
 import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 
-import { BuildFlags } from '../build/runBuildAndSubmit';
+import { BuildFlags } from '../build/types';
 import Log, { learnMore } from '../log';
 import { confirmAsync, selectAsync } from '../prompts';
 import { ProfileData } from '../utils/profiles';

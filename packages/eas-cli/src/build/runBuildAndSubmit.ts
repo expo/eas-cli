@@ -6,10 +6,8 @@ import {
   EasJson,
   EasJsonAccessor,
   EasJsonUtils,
-  ResourceClass,
   SubmitProfile,
 } from '@expo/eas-json';
-import { LoggerLevel } from '@expo/logger';
 import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -20,7 +18,8 @@ import { ensureProjectConfiguredAsync } from './configure';
 import { BuildContext } from './context';
 import { createBuildContextAsync } from './createContext';
 import { prepareIosBuildAsync } from './ios/build';
-import { LocalBuildMode, LocalBuildOptions } from './local';
+import { LocalBuildMode } from './local';
+import { BuildFlags } from './types';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
@@ -81,23 +80,6 @@ import { Client } from '../vcs/vcs';
 
 let metroConfigValidated = false;
 let sdkVersionChecked = false;
-
-export interface BuildFlags {
-  requestedPlatform: RequestedPlatform;
-  profile?: string;
-  nonInteractive: boolean;
-  wait: boolean;
-  clearCache: boolean;
-  json: boolean;
-  autoSubmit: boolean;
-  submitProfile?: string;
-  localBuildOptions: LocalBuildOptions;
-  resourceClass?: ResourceClass;
-  message?: string;
-  buildLoggerLevel?: LoggerLevel;
-  freezeCredentials: boolean;
-  repack: boolean;
-}
 
 export async function runBuildAndSubmitAsync(
   graphqlClient: ExpoGraphqlClient,
