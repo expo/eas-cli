@@ -38,6 +38,30 @@ describe(getAppBuildGradleAsync, () => {
     });
   });
 
+  test('parsing build gradle with empty single line comment', async () => {
+    vol.fromJSON(
+      {
+        'android/app/build.gradle': await fsReal.promises.readFile(
+          path.join(__dirname, 'fixtures/empty-single-line-comment-in-build.gradle'),
+          'utf-8'
+        ),
+      },
+      '/test'
+    );
+    const buildGradle = await getAppBuildGradleAsync('/test');
+    expect(
+      pick(buildGradle?.android ?? {}, ['defaultConfig', 'flavorDimensions', 'productFlavors'])
+    ).toEqual({
+      defaultConfig: {
+        applicationId: 'com.helloworld',
+        minSdkVersion: 'rootProject.ext.minSdkVersion',
+        targetSdkVersion: 'rootProject.ext.targetSdkVersion',
+        versionCode: '1',
+        versionName: '1.0',
+      },
+    });
+  });
+
   test('parsing multiflavor build.gradle', async () => {
     vol.fromJSON(
       {

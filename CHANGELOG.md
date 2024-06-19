@@ -6,13 +6,36 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Drop support for Node 16. ([#2413](https://github.com/expo/eas-cli/pull/2413) by [@byCedric](https://github.com/byCedric))
-- Update [`eas-build`](https://github.com/expo/eas-build) dependencies to the version requiring Node 18 as minimal Node version. ([#2416](https://github.com/expo/eas-cli/pull/2416) by [@expo-bot](https://github.com/expo-bot))
-
 ### 🎉 New features
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+- Remove any mentions of deleted Xcode < 15 images. ([#2438](https://github.com/expo/eas-cli/pull/2438) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [10.0.2](https://github.com/expo/eas-cli/releases/tag/v10.0.2) - 2024-06-17
+
+### 🐛 Bug fixes
+
+- Fix parsing of `build.gradle` file by `gradle-to-js` parser by filtering out empty single line comments. ([#2435](https://github.com/expo/eas-cli/pull/2435) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [10.0.1](https://github.com/expo/eas-cli/releases/tag/v10.0.1) - 2024-06-17
+
+### 🧹 Chores
+
+- Add clarification to private-key flag in command line help. ([#2432](https://github.com/expo/eas-cli/pull/2432) by [@quinlanj](https://github.com/quinlanj))
+
+## [10.0.0](https://github.com/expo/eas-cli/releases/tag/v10.0.0) - 2024-06-13
+
+### 🛠 Breaking changes
+
+- Drop support for Node 16. ([#2413](https://github.com/expo/eas-cli/pull/2413) by [@byCedric](https://github.com/byCedric))
+- Update [`eas-build`](https://github.com/expo/eas-build) dependencies to the version requiring Node 18 as minimal Node version. ([#2416](https://github.com/expo/eas-cli/pull/2416) by [@expo-bot](https://github.com/expo-bot))
+
+### 🐛 Bug fixes
+
+- Resolve correct submit profile configuration for `eas build` command with `--auto-submit-with-profile` flag. ([#2425](https://github.com/expo/eas-cli/pull/2425) by [@szdziedzic](https://github.com/szdziedzic))
 - Correctly parse the EXPO_APPLE_PROVIER_ID environment variable. ([#2349](https://github.com/expo/eas-cli/pull/2349) by [@louix](https://github.com/louix))
 
 ### 🧹 Chores
