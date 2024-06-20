@@ -12,6 +12,8 @@ import cliProgress from 'cli-progress';
 import fs from 'fs-extra';
 import { GraphQLError } from 'graphql/error';
 import nullthrows from 'nullthrows';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 import { BuildContext } from './context';
 import {
@@ -60,9 +62,11 @@ import {
   appPlatformEmojis,
   requestedPlatformDisplayNames,
 } from '../platform';
+import { resolveRuntimeVersionAsync } from '../project/resolveRuntimeVersionAsync';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { printJsonOnlyOutput } from '../utils/json';
+import { getTmpDirectory } from '../utils/paths';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
 
@@ -162,7 +166,8 @@ export async function prepareBuildRequestForPlatformAsync<
   }
   assert(projectArchive);
 
-  const metadata = await collectMetadataAsync(ctx);
+  const runtimeMetadata = await createAndUploadFingerprintAsync(ctx);
+  const metadata = await collectMetadataAsync(ctx, runtimeMetadata);
   const buildParams = resolveBuildParamsInput(ctx, metadata);
   const job = await builder.prepareJobAsync(ctx, {
     projectArchive,
@@ -648,4 +653,60 @@ function formatAccountSubscriptionsUrl(accountName: string): string {
     `/accounts/${accountName}/settings/subscriptions`,
     getExpoWebsiteBaseUrl()
   ).toString();
+}
+
+async function createAndUploadFingerprintAsync<T extends Platform>(
+  ctx: BuildContext<T>
+): Promise<{
+  runtimeVersion?: string;
+  fingerprintGCSLocation?: string;
+}> {
+  const resolvedRuntimeVersion = await resolveRuntimeVersionAsync({
+    exp: ctx.exp,
+    platform: ctx.platform,
+    workflow: ctx.workflow,
+    projectDir: ctx.projectDir,
+    env: ctx.buildProfile.env,
+    cwd: ctx.projectDir,
+  });
+
+  if (!resolvedRuntimeVersion?.fingerprintSources) {
+    return {
+      runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+    };
+  }
+
+  const fingerprintLocation = path.join(getTmpDirectory(), `${uuidv4()}-runtime-fingerprint.json`);
+
+  await fs.writeJSON(fingerprintLocation, {
+    hash: resolvedRuntimeVersion.runtimeVersion,
+    sources: resolvedRuntimeVersion.fingerprintSources,
+  });
+
+  let fingerprintGCSLocation = undefined;
+  try {
+    fingerprintGCSLocation = await uploadFileAtPathToGCSAsync(
+      ctx.graphqlClient,
+      UploadSessionType.EasUpdateFingerprint,
+      fingerprintLocation
+    );
+  } catch (err: any) {
+    let errMessage = 'Failed to upload fingerprint to EAS';
+
+    if (err.message) {
+      errMessage += `\n\nReason: ${err.message}`;
+    }
+
+    Log.warn(errMessage);
+    return {
+      runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+    };
+  } finally {
+    await fs.remove(fingerprintLocation);
+  }
+
+  return {
+    runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+    fingerprintGCSLocation,
+  };
 }

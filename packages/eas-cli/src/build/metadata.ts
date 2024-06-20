@@ -10,24 +10,19 @@ import { LocalBuildMode } from './local';
 import { BuildDistributionType } from './types';
 import Log from '../log';
 import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils';
-import { resolveRuntimeVersionAsync } from '../project/resolveRuntimeVersionAsync';
 import { readChannelSafelyAsync as readAndroidChannelSafelyAsync } from '../update/android/UpdatesModule';
 import { readChannelSafelyAsync as readIosChannelSafelyAsync } from '../update/ios/UpdatesModule';
 import { easCliVersion } from '../utils/easCli';
 
 export async function collectMetadataAsync<T extends Platform>(
-  ctx: BuildContext<T>
+  ctx: BuildContext<T>,
+  runtimeMetadata: {
+    runtimeVersion?: string;
+    fingerprintGCSLocation?: string;
+  }
 ): Promise<Metadata> {
   const channelObject = await resolveChannelAsync(ctx);
   const distribution = ctx.buildProfile.distribution ?? BuildDistributionType.STORE;
-  const runtimeVersion = await resolveRuntimeVersionAsync({
-    exp: ctx.exp,
-    platform: ctx.platform,
-    workflow: ctx.workflow,
-    projectDir: ctx.projectDir,
-    env: ctx.buildProfile.env,
-    cwd: ctx.projectDir,
-  });
   const metadata: Metadata = {
     trackingContext: ctx.analyticsEventProperties,
     ...(await maybeResolveVersionsAsync(ctx)),
@@ -35,8 +30,8 @@ export async function collectMetadataAsync<T extends Platform>(
     workflow: ctx.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
-    runtimeVersion: runtimeVersion?.runtimeVersion ?? undefined,
-    fingerprintSources: runtimeVersion?.fingerprintSources ?? undefined,
+    runtimeVersion: runtimeMetadata?.runtimeVersion,
+    fingerprintGCSLocation: runtimeMetadata?.fingerprintGCSLocation,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
     ...channelObject,
     distribution,
