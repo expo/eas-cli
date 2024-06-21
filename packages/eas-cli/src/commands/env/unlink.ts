@@ -3,12 +3,12 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
+import { promptVariableEnvironmentAsync } from '../../environment-variables/prompts';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
-import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvironmentVariableUnlink extends EasCommand {
   static override description = 'link a shared environment variable to the current project';
@@ -42,7 +42,6 @@ export default class EnvironmentVariableUnlink extends EasCommand {
     }
 
     const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
-    let variable;
 
     const { appVariables, sharedVariables } = await EnvironmentVariablesQuery.byAppIdAsync(
       graphqlClient,
@@ -51,34 +50,38 @@ export default class EnvironmentVariableUnlink extends EasCommand {
     );
     const sharedVariablesIds = sharedVariables.map(v => v.id);
     const linkedVariables = appVariables.filter(({ id }) => sharedVariablesIds.includes(id));
+
     if (linkedVariables.length === 0) {
       Log.fail('No variables to unlink');
       return;
     }
-    if (name) {
-      variable = linkedVariables.find(variable => variable.name === name);
-      if (!variable) {
-        throw new Error(`Shared variable ${name} doesn't exist`);
-      }
-    } else {
-      variable = await selectAsync(
+
+    if (!name) {
+      name = await selectAsync(
         'Select shared variable',
         linkedVariables.map(variable => ({
           title: variable.name,
-          value: variable,
+          value: variable.name,
         }))
       );
     }
 
+    const selectedVariable = linkedVariables.find(variable => variable.name === name);
+
+    if (!selectedVariable) {
+      throw new Error(`Shared variable ${name} doesn't exist`);
+    }
+
     const unlinkedVariable = await EnvironmentVariableMutation.unlinkSharedEnvironmentVariableAsync(
       graphqlClient,
-      variable.id,
+      selectedVariable.id,
       projectId,
       environment
     );
-    if (!variable) {
+
+    if (!unlinkedVariable) {
       throw new Error(
-        `Could not unlink variable with name ${unlinkedVariable.name} to project with id ${projectId}`
+        `Could not unlink variable with name ${selectedVariable.name} from project ${projectDisplayName}`
       );
     }
 
