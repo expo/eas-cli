@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import dateFormat from 'dateformat';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   EASEnvironmentFlag,
   EASNonInteractiveFlag,
@@ -10,11 +11,14 @@ import {
   EASVariableScopeFlag,
   EASVariableSensitiveFlag,
 } from '../../commandUtils/flags';
+import {
+  promptVariableEnvironmentAsync,
+  promptVariableNameAsync,
+} from '../../environment-variables/prompts';
 import { EnvironmentVariableFragment, EnvironmentVariableScope } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
-import { promptVariableEnvironmentAsync, promptVariableNameAsync } from '../../utils/prompts';
 
 export default class EnvironmentValueList extends EasCommand {
   static override description = 'list environment Variables available for your current app';
@@ -54,25 +58,8 @@ export default class EnvironmentValueList extends EasCommand {
       environment = await promptVariableEnvironmentAsync(nonInteractive);
     }
 
-    let variable;
-    if (environment && scope === EnvironmentVariableScope.Project) {
-      const { appVariables } = await EnvironmentVariablesQuery.byAppIdAsync(
-        graphqlClient,
-        projectId,
-        environment,
-        [name]
-      );
-      variable = appVariables[0];
-    }
+    const variable = await getVariableAsync(graphqlClient, scope, projectId, name, environment);
 
-    if (scope === EnvironmentVariableScope.Shared) {
-      const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(
-        graphqlClient,
-        projectId,
-        [name]
-      );
-      variable = sharedVariables[0];
-    }
     if (!variable) {
       Log.error(`Variable with name "${name}" not found`);
       return;
@@ -84,6 +71,36 @@ export default class EnvironmentValueList extends EasCommand {
       Log.log(formatVariable(variable));
     }
   }
+}
+
+async function getVariableAsync(
+  graphqlClient: ExpoGraphqlClient,
+  scope: string,
+  projectId: string,
+  name: string,
+  environment: string | undefined
+): Promise<EnvironmentVariableFragment | null> {
+  if (!environment && scope === EnvironmentVariableScope.Project) {
+    throw new Error('Environment is required.');
+  }
+  if (environment && scope === EnvironmentVariableScope.Project) {
+    const { appVariables } = await EnvironmentVariablesQuery.byAppIdAsync(
+      graphqlClient,
+      projectId,
+      environment,
+      [name]
+    );
+    return appVariables[0];
+  }
+
+  if (scope === EnvironmentVariableScope.Shared) {
+    const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId, [
+      name,
+    ]);
+    return sharedVariables[0];
+  }
+
+  return null;
 }
 
 function formatVariable(variable: EnvironmentVariableFragment): string {

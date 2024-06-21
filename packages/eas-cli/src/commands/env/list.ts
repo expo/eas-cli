@@ -8,11 +8,11 @@ import {
   EASVariableScopeFlag,
   EASVariableSensitiveFlag,
 } from '../../commandUtils/flags';
+import { promptVariableEnvironmentAsync } from '../../environment-variables/prompts';
 import { EnvironmentVariableFragment, EnvironmentVariableScope } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
-import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvironmentValueList extends EasCommand {
   static override description = 'list environment variables for the current project';
@@ -40,18 +40,15 @@ export default class EnvironmentValueList extends EasCommand {
       nonInteractive: true,
     });
 
-    let variables;
-
-    if (scope === EnvironmentVariableScope.Shared) {
-      variables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
-    } else {
-      if (!environment) {
-        environment = await promptVariableEnvironmentAsync(false);
-      }
-      variables = (
-        await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, projectId, environment)
-      ).appVariables;
+    if (scope === EnvironmentVariableScope.Project && !environment) {
+      environment = await promptVariableEnvironmentAsync(false);
     }
+
+    const variables =
+      scope === EnvironmentVariableScope.Project && environment
+        ? (await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, projectId, environment))
+            .appVariables
+        : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
 
     if (format === 'short') {
       for (const variable of variables) {

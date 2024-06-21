@@ -8,6 +8,11 @@ import {
   EASVariableScopeFlag,
   EASVariableSensitiveFlag,
 } from '../../commandUtils/flags';
+import {
+  promptVariableEnvironmentAsync,
+  promptVariableNameAsync,
+  promptVariableValueAsync,
+} from '../../environment-variables/prompts';
 import { EnvironmentVariableScope } from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
@@ -17,11 +22,6 @@ import {
   getOwnerAccountForProjectIdAsync,
 } from '../../project/projectUtils';
 import { confirmAsync } from '../../prompts';
-import {
-  promptVariableEnvironmentAsync,
-  promptVariableNameAsync,
-  promptVariableValueAsync,
-} from '../../utils/prompts';
 
 export default class EnvironmentVariableCreate extends EasCommand {
   static override description =
@@ -141,10 +141,9 @@ export default class EnvironmentVariableCreate extends EasCommand {
       const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
       const existingVariable = sharedVariables.find(variable => variable.name === name);
       if (existingVariable) {
-        Log.error(
-          'Variable with this name already exists on this account. Please use a different name .'
+        throw new Error(
+          'Variable with this name already exists on this account. Please use a different name.'
         );
-        return;
       }
       if (!environment && link) {
         environment = await promptVariableEnvironmentAsync(nonInteractive);

@@ -3,12 +3,12 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
+import { promptVariableEnvironmentAsync } from '../../environment-variables/prompts';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
-import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvironmentVariableLink extends EasCommand {
   static override description = 'link a shared environment variable to the current project';
@@ -38,22 +38,22 @@ export default class EnvironmentVariableLink extends EasCommand {
     });
 
     const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
-    let variable;
-
     const variables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
-    if (name) {
-      variable = variables.find(variable => variable.name === name);
-      if (!variable) {
-        throw new Error(`Shared variable ${name} doesn't exist`);
-      }
-    } else {
-      variable = await selectAsync(
+
+    if (!name) {
+      name = await selectAsync(
         'Select shared variable',
         variables.map(variable => ({
           title: variable.name,
-          value: variable,
+          value: variable.name,
         }))
       );
+    }
+
+    const selectedVariable = variables.find(variable => variable.name === name);
+
+    if (!selectedVariable) {
+      throw new Error(`Shared variable ${name} doesn't exist`);
     }
 
     if (!environment) {
@@ -62,11 +62,11 @@ export default class EnvironmentVariableLink extends EasCommand {
 
     const linkedVariable = await EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync(
       graphqlClient,
-      variable.id,
+      selectedVariable.id,
       projectId,
       environment
     );
-    if (!variable) {
+    if (!selectedVariable) {
       throw new Error(
         `Could not link variable with name ${linkedVariable.name} to project with id ${projectId}`
       );
