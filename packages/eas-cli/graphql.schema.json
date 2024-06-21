@@ -18914,7 +18914,7 @@
             "deprecationReason": null
           },
           {
-            "name": "fingerprintGCSLocation",
+            "name": "fingerprintGCSBucketKey",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -33765,18 +33765,6 @@
         "inputFields": [
           {
             "name": "bucketKey",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "fingerprintLocation",
             "description": null,
             "type": {
               "kind": "SCALAR",

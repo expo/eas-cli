@@ -659,7 +659,7 @@ async function createAndUploadFingerprintAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<{
   runtimeVersion?: string;
-  fingerprintGCSLocation?: string;
+  fingerprintGCSBucketKey?: string;
 }> {
   const resolvedRuntimeVersion = await resolveRuntimeVersionAsync({
     exp: ctx.exp,
@@ -683,9 +683,9 @@ async function createAndUploadFingerprintAsync<T extends Platform>(
     sources: resolvedRuntimeVersion.fingerprintSources,
   });
 
-  let fingerprintGCSLocation = undefined;
+  let fingerprintGCSBucketKey = undefined;
   try {
-    fingerprintGCSLocation = await uploadFileAtPathToGCSAsync(
+    fingerprintGCSBucketKey = await uploadFileAtPathToGCSAsync(
       ctx.graphqlClient,
       UploadSessionType.EasUpdateFingerprint,
       fingerprintLocation
@@ -707,6 +707,6 @@ async function createAndUploadFingerprintAsync<T extends Platform>(
 
   return {
     runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
-    fingerprintGCSLocation,
+    fingerprintGCSBucketKey,
   };
 }

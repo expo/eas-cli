@@ -18,7 +18,7 @@ export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>,
   runtimeMetadata: {
     runtimeVersion?: string;
-    fingerprintGCSLocation?: string;
+    fingerprintGCSBucketKey?: string;
   }
 ): Promise<Metadata> {
   const channelObject = await resolveChannelAsync(ctx);
@@ -31,7 +31,7 @@ export async function collectMetadataAsync<T extends Platform>(
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
     runtimeVersion: runtimeMetadata?.runtimeVersion,
-    fingerprintGCSLocation: runtimeMetadata?.fingerprintGCSLocation,
+    fingerprintGCSBucketKey: runtimeMetadata?.fingerprintGCSBucketKey,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
     ...channelObject,
     distribution,
