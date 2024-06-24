@@ -23,6 +23,8 @@ import formatFields from '../../utils/formatFields';
 export default class EnvironmentValueList extends EasCommand {
   static override description = 'list environment Variables available for your current app';
 
+  static override hidden = true;
+
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
@@ -64,9 +66,15 @@ export default class EnvironmentValueList extends EasCommand {
       Log.error(`Variable with name "${name}" not found`);
       return;
     }
+    if (variable.value === null) {
+      Log.log(
+        chalk`{bold ${variable.name}} is a secret variable and cannot be displayed once it has been created.`
+      );
+      return;
+    }
 
     if (format === 'short') {
-      Log.log(chalk`{bold ${variable.name}}=${variable.value || '*****'}`);
+      Log.log(chalk`{bold ${variable.name}}=${variable.value}`);
     } else {
       Log.log(formatVariable(variable));
     }
