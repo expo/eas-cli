@@ -13,6 +13,8 @@ import { selectAsync } from '../../prompts';
 export default class EnvironmentVariableUnlink extends EasCommand {
   static override description = 'link a shared environment variable to the current project';
 
+  static override hidden = true;
+
   static override flags = {
     name: Flags.string({
       description: 'Name of the variable',

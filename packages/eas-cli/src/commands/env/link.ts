@@ -13,6 +13,8 @@ import { selectAsync } from '../../prompts';
 export default class EnvironmentVariableLink extends EasCommand {
   static override description = 'link a shared environment variable to the current project';
 
+  static override hidden = true;
+
   static override flags = {
     name: Flags.string({
       description: 'Name of the variable',
@@ -66,9 +68,9 @@ export default class EnvironmentVariableLink extends EasCommand {
       projectId,
       environment
     );
-    if (!selectedVariable) {
+    if (!linkedVariable) {
       throw new Error(
-        `Could not link variable with name ${linkedVariable.name} to project with id ${projectId}`
+        `Could not link variable with name ${selectedVariable.name} to project with id ${projectId}`
       );
     }
 
