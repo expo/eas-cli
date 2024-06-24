@@ -2756,7 +2756,7 @@ export type BuildMetadataInput = {
   customWorkflowName?: InputMaybe<Scalars['String']['input']>;
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
   distribution?: InputMaybe<DistributionType>;
-  fingerprintGCSBucketKey?: InputMaybe<Scalars['String']['input']>;
+  fingerprintSource?: InputMaybe<FingerprintSourceInput>;
   gitCommitHash?: InputMaybe<Scalars['String']['input']>;
   gitCommitMessage?: InputMaybe<Scalars['String']['input']>;
   iosEnterpriseProvisioning?: InputMaybe<BuildIosEnterpriseProvisioning>;
@@ -3711,6 +3711,15 @@ export enum Feature {
   Support = 'SUPPORT',
   /** Share access to projects */
   Teams = 'TEAMS'
+}
+
+export type FingerprintSourceInput = {
+  bucketKey?: InputMaybe<Scalars['String']['input']>;
+  type?: InputMaybe<FingerprintSourceType>;
+};
+
+export enum FingerprintSourceType {
+  Gcs = 'GCS'
 }
 
 export type FutureSubscription = {

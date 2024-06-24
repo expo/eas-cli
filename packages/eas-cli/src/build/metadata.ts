@@ -14,6 +14,12 @@ import { readChannelSafelyAsync as readAndroidChannelSafelyAsync } from '../upda
 import { readChannelSafelyAsync as readIosChannelSafelyAsync } from '../update/ios/UpdatesModule';
 import { easCliVersion } from '../utils/easCli';
 
+enum FingerprintSourceType {
+  'GCS' = 'GCS',
+  'PATH' = 'PATH',
+  'URL' = 'URL',
+}
+
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>,
   runtimeMetadata: {
@@ -31,7 +37,12 @@ export async function collectMetadataAsync<T extends Platform>(
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
     runtimeVersion: runtimeMetadata?.runtimeVersion,
-    fingerprintGCSBucketKey: runtimeMetadata?.fingerprintGCSBucketKey,
+    fingerprintSource: runtimeMetadata?.fingerprintGCSBucketKey
+      ? {
+          type: FingerprintSourceType.GCS,
+          bucketKey: runtimeMetadata?.fingerprintGCSBucketKey,
+        }
+      : undefined,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
     ...channelObject,
     distribution,

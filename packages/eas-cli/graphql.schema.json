@@ -18914,11 +18914,11 @@
             "deprecationReason": null
           },
           {
-            "name": "fingerprintGCSBucketKey",
+            "name": "fingerprintSource",
             "description": null,
             "type": {
-              "kind": "SCALAR",
-              "name": "String",
+              "kind": "INPUT_OBJECT",
+              "name": "FingerprintSourceInput",
               "ofType": null
             },
             "defaultValue": null,
@@ -25227,6 +25227,58 @@
           {
             "name": "TEAMS",
             "description": "Share access to projects",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "FingerprintSourceInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "bucketKey",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "type",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "FingerprintSourceType",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "FingerprintSourceType",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "GCS",
+            "description": null,
             "isDeprecated": false,
             "deprecationReason": null
           }
