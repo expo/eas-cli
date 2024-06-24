@@ -4,4 +4,6 @@ import EnvironmentVariableCreate from './create';
 export default class EnvironmentVariableUpdate extends EnvironmentVariableCreate {
   static override description =
     'update an environment variable on the current project or owner account';
+
+  static override hidden = true;
 }

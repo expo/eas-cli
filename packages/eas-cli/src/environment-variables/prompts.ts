@@ -1,3 +1,5 @@
+import chalk from 'chalk';
+
 import { EnvironmentVariableEnvironment } from '../graphql/generated';
 import { promptAsync, selectAsync } from '../prompts';
 
@@ -5,7 +7,11 @@ export async function promptVariableEnvironmentAsync(
   nonInteractive: boolean
 ): Promise<EnvironmentVariableEnvironment> {
   if (nonInteractive) {
-    throw new Error('Environment may not be empty.');
+    throw new Error(
+      `Environment value needs to be specified when running in non-interactive mode. Run the command with ${chalk.bold(
+        '--environment development|preview|production'
+      )} flag to fix the issue`
+    );
   }
   return await selectAsync('Select environment:', [
     { title: 'Development', value: EnvironmentVariableEnvironment.Development },
@@ -14,34 +20,43 @@ export async function promptVariableEnvironmentAsync(
   ]);
 }
 export async function promptVariableValueAsync(nonInteractive: boolean): Promise<string> {
-  const validationMessage = 'Variable value may not be empty.';
   if (nonInteractive) {
-    throw new Error(validationMessage);
+    throw new Error(
+      `Environment variable needs 'value' to be specified when running in non-interactive mode. Run the command with ${chalk.bold(
+        '--value VARIABLE_VALUE'
+      )} flag to fix the issue`
+    );
   }
 
   const { variableValue } = await promptAsync({
     type: 'text',
     name: 'variableValue',
     message: 'Variable value:',
-    // eslint-disable-next-line async-protect/async-suffix
-    validate: async variableValue => {
-      if (!variableValue) {
-        return validationMessage;
+    validate: variableValue => {
+      if (!variableValue || variableValue.trim() === '') {
+        return "Environment variable value can't be empty";
       }
       return true;
     },
   });
 
   if (!variableValue) {
-    throw new Error(validationMessage);
+    throw new Error(
+      `Environment variable needs 'value' to be specifed. Run the command again  with ${chalk.bold(
+        '--value VARIABLE_VALUE'
+      )} flag or provide it interactively to fix the issue.`
+    );
   }
 
   return variableValue;
 }
 export async function promptVariableNameAsync(nonInteractive: boolean): Promise<string> {
-  const validationMessage = 'Variable name may not be empty.';
   if (nonInteractive) {
-    throw new Error(validationMessage);
+    throw new Error(
+      `Environment variable needs 'name' to be specified when running in non-interactive mode. Run the command with ${chalk.bold(
+        '--name VARIABLE_NAME'
+      )} flag to fix the issue`
+    );
   }
 
   const { name } = await promptAsync({
@@ -50,11 +65,11 @@ export async function promptVariableNameAsync(nonInteractive: boolean): Promise<
     message: `Variable name:`,
     validate: value => {
       if (!value) {
-        return validationMessage;
+        return "Environment variable name can't be empty";
       }
 
       if (!value.match(/^\w+$/)) {
-        return 'Names may contain only letters, numbers, and underscores.';
+        return 'Environment variable names may contain only letters, numbers, and underscores.';
       }
 
       return true;
@@ -62,7 +77,11 @@ export async function promptVariableNameAsync(nonInteractive: boolean): Promise<
   });
 
   if (!name) {
-    throw new Error(validationMessage);
+    throw new Error(
+      `Environment variable needs 'name' to be specifed. Run the command again  with ${chalk.bold(
+        '--name VARIABLE_NAME'
+      )} flag or provide it interactively to fix the issue.`
+    );
   }
 
   return name;

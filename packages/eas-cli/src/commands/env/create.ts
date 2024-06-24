@@ -27,6 +27,8 @@ export default class EnvironmentVariableCreate extends EasCommand {
   static override description =
     'create an environment variable on the current project or owner account';
 
+  static override hidden = true;
+
   static override flags = {
     name: Flags.string({
       description: 'Name of the variable',
@@ -45,6 +47,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.Analytics,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -92,13 +95,17 @@ export default class EnvironmentVariableCreate extends EasCommand {
       const existingVariable = existingVariables.find(variable => variable.name === name);
 
       if (existingVariable) {
-        if (!nonInteractive) {
-          await confirmAsync({
-            message: `Variable ${name} already exists on this project. Do you want to overwrite it?`,
-          });
-        }
-
         if (existingVariable.scope === EnvironmentVariableScope.Shared) {
+          if (!nonInteractive) {
+            const confirmation = await confirmAsync({
+              message: `Shared variable ${name} already exists on this project. Do you want to unlink it first?`,
+            });
+
+            if (!confirmation) {
+              Log.log('Aborting');
+              return;
+            }
+          }
           await EnvironmentVariableMutation.unlinkSharedEnvironmentVariableAsync(
             graphqlClient,
             existingVariable.id,
@@ -111,6 +118,16 @@ export default class EnvironmentVariableCreate extends EasCommand {
             )}.`
           );
         } else {
+          if (!nonInteractive) {
+            const confirmation = await confirmAsync({
+              message: `Variable ${name} already exists on this project. Do you want to overwrite it?`,
+            });
+
+            if (!confirmation) {
+              Log.log('Aborting');
+              return;
+            }
+          }
           await EnvironmentVariableMutation.deleteAsync(graphqlClient, existingVariable.id);
 
           Log.withTick(

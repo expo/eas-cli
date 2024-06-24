@@ -17,6 +17,8 @@ import formatFields from '../../utils/formatFields';
 export default class EnvironmentValueList extends EasCommand {
   static override description = 'list environment variables for the current project';
 
+  static override hidden = true;
+
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,

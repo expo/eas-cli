@@ -1,4 +1,5 @@
 import { Flags } from '@oclif/core';
+import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -16,6 +17,8 @@ import { promptAsync, toggleConfirmAsync } from '../../prompts';
 
 export default class EnvironmentVariableDelete extends EasCommand {
   static override description = 'delete an environment variable by name';
+
+  static override hidden = true;
 
   static override flags = {
     name: Flags.string({
@@ -47,10 +50,6 @@ export default class EnvironmentVariableDelete extends EasCommand {
       if (!environment) {
         environment = await promptVariableEnvironmentAsync(nonInteractive);
       }
-
-      if (!environment) {
-        throw new Error('Environment is required.');
-      }
     }
 
     const variables =
@@ -60,9 +59,12 @@ export default class EnvironmentVariableDelete extends EasCommand {
         : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
 
     if (!name) {
-      const validationMessage = 'Variable name to delete may not be empty.';
       if (nonInteractive) {
-        throw new Error(validationMessage);
+        throw new Error(
+          `Environment variable needs 'name' to be specified when running in non-interactive mode. Run the command with ${chalk.bold(
+            '--name VARIABLE_NAME'
+          )} flag to fix the issue`
+        );
       }
 
       ({ name } = await promptAsync({
@@ -76,7 +78,11 @@ export default class EnvironmentVariableDelete extends EasCommand {
       }));
 
       if (!name) {
-        throw new Error(validationMessage);
+        throw new Error(
+          `Environment variable wasn't selected. Run the command again and selected existing variable or run it with ${chalk.bold(
+            '--name VARIABLE_NAME'
+          )} flag to fix the issue.`
+        );
       }
     }
 
@@ -89,7 +95,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
     if (!nonInteractive) {
       Log.addNewLineIfNone();
       Log.warn(
-        `You are about to permanently delete variable ${selectedVariable.name} .\nThis action is irreversible.`
+        `You are about to permanently delete variable ${selectedVariable.name}.\nThis action is irreversible.`
       );
       Log.newLine();
       const confirmed = await toggleConfirmAsync({
@@ -101,7 +107,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
       });
       if (!confirmed) {
         Log.error(`Canceled deletion of variable ${selectedVariable.name}.`);
-        process.exit(1);
+        return;
       }
     }
 

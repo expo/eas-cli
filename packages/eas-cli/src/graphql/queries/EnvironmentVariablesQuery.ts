@@ -88,16 +88,4 @@ export const EnvironmentVariablesQuery = {
 
     return data.app?.byId.ownerAccount.environmentVariables ?? [];
   },
-  async allAsync(
-    graphqlClient: ExpoGraphqlClient,
-    projectId: string,
-    environment: string
-  ): Promise<EnvironmentVariableFragment[]> {
-    const { sharedVariables, appVariables } = await this.byAppIdAsync(
-      graphqlClient,
-      projectId,
-      environment
-    );
-    return [...appVariables, ...sharedVariables];
-  },
 };
