@@ -2,11 +2,13 @@ import { Platform as PublishPlatform } from '@expo/config';
 import { Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
+import indentString from 'indent-string';
 import nullthrows from 'nullthrows';
+import qrcodeTerminal from 'qrcode-terminal';
 
 import { ensureBranchExistsAsync } from '../../branch/queries';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
-import { getUpdateGroupUrl } from '../../build/utils/url';
+import { getUpdateGroupUrl, getUpdatePreviewUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
@@ -494,6 +496,15 @@ export default class UpdatePublish extends EasCommand {
         const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
         const updateGroupUrl = getUpdateGroupUrl(accountName, projectName, updateGroupId);
         const updateGroupLink = link(updateGroupUrl, { dim: false });
+        const updateCreatedAt = (newAndroidUpdate ?? newIosUpdate)?.createdAt;
+        const updateQrCodeUrl = getUpdatePreviewUrl({
+          message: updateMessage,
+          updateRuntimeVersion: runtime.runtimeVersion,
+          createdAt: updateCreatedAt.toString(),
+          slug: projectName, // todo check this
+          projectId,
+          group: updateGroupId,
+        });
 
         Log.log(
           formatFields([
@@ -516,6 +527,9 @@ export default class UpdatePublish extends EasCommand {
               : []),
             { label: 'EAS Dashboard', value: updateGroupLink },
           ])
+        );
+        qrcodeTerminal.generate(updateQrCodeUrl, { small: true }, code =>
+          Log.log(`${indentString(code, 2)}\n`)
         );
         Log.addNewLineIfNone();
         if (

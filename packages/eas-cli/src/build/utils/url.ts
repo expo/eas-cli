@@ -50,3 +50,31 @@ export function getUpdateGroupUrl(
     getExpoWebsiteBaseUrl()
   ).toString();
 }
+
+export function getUpdatePreviewUrl({
+  message,
+  updateRuntimeVersion,
+  createdAt,
+  slug,
+  projectId,
+  group,
+}: {
+  message?: string;
+  updateRuntimeVersion: string;
+  createdAt: string;
+  slug: string;
+  projectId: string;
+  group: string;
+}): string {
+  const previewUrl = new URL(`/preview/update`, getExpoWebsiteBaseUrl());
+  if (message) {
+    //previewUrl.searchParams.append('message', message);
+  }
+
+  previewUrl.searchParams.append('updateRuntimeVersion', updateRuntimeVersion);
+  //previewUrl.searchParams.append('createdAt', createdAt);
+  previewUrl.searchParams.append('slug', slug);
+  previewUrl.searchParams.append('projectId', projectId);
+  previewUrl.searchParams.append('group', group);
+  return previewUrl.toString();
+}
