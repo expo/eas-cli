@@ -1,4 +1,4 @@
-import { EasJson, EasJsonAccessor } from '@expo/eas-json';
+import { AppVersionSource, EasJson, EasJsonAccessor } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
@@ -55,6 +55,7 @@ async function configureAsync({
 const EAS_JSON_DEFAULT: EasJson = {
   cli: {
     version: `>= ${easCliVersion}`,
+    appVersionSource: AppVersionSource.REMOTE,
   },
   build: {
     development: {
