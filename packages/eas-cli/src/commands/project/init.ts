@@ -8,6 +8,7 @@ import { getProjectDashboardUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../../commandUtils/context/contextUtils/getProjectIdAsync';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { AppPrivacy, Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -34,13 +35,8 @@ export default class ProjectInit extends EasCommand {
     }),
     force: Flags.boolean({
       description: 'Whether to overwrite any existing project ID',
-      dependsOn: ['id'],
     }),
-    // this is the same as EASNonInteractiveFlag but with the dependsOn
-    'non-interactive': Flags.boolean({
-      description: 'Run the command in non-interactive mode.',
-      dependsOn: ['id'],
-    }),
+    ...EASNonInteractiveFlag,
   };
 
   static override contextDefinition = {
@@ -219,7 +215,8 @@ export default class ProjectInit extends EasCommand {
   private static async initializeWithInteractiveSelectionAsync(
     graphqlClient: ExpoGraphqlClient,
     actor: Actor,
-    projectDir: string
+    projectDir: string,
+    { force, nonInteractive }: InitializeMethodOptions
   ): Promise<string> {
     const exp = getPrivateExpoConfig(projectDir);
     const existingProjectId = exp.extra?.eas?.projectId;
@@ -274,13 +271,21 @@ export default class ProjectInit extends EasCommand {
       projectName
     );
     if (existingProjectIdOnServer) {
-      const affirmedLink = await confirmAsync({
-        message: `Existing project found: ${projectFullName} (ID: ${existingProjectIdOnServer}). Link this project?`,
-      });
-      if (!affirmedLink) {
-        throw new Error(
-          `Project ID configuration canceled. Re-run the command to select a different account/project.`
-        );
+      if (!force) {
+        if (nonInteractive) {
+          throw new Error(
+            `Existing project found: ${projectFullName} (ID: ${existingProjectIdOnServer}). Use --force flag to continue with this project.`
+          );
+        }
+
+        const affirmedLink = await confirmAsync({
+          message: `Existing project found: ${projectFullName} (ID: ${existingProjectIdOnServer}). Link this project?`,
+        });
+        if (!affirmedLink) {
+          throw new Error(
+            `Project ID configuration canceled. Re-run the command to select a different account/project.`
+          );
+        }
       }
 
       await ProjectInit.saveProjectIdAndLogSuccessAsync(projectDir, existingProjectIdOnServer);
@@ -293,11 +298,18 @@ export default class ProjectInit extends EasCommand {
       );
     }
 
-    const affirmedCreate = await confirmAsync({
-      message: `Would you like to create a project for ${projectFullName}?`,
-    });
-    if (!affirmedCreate) {
-      throw new Error(`Project ID configuration canceled for ${projectFullName}.`);
+    if (!force) {
+      if (nonInteractive) {
+        throw new Error(
+          `Project does not exist: ${projectFullName}. Use --force flag to create this project.`
+        );
+      }
+      const affirmedCreate = await confirmAsync({
+        message: `Would you like to create a project for ${projectFullName}?`,
+      });
+      if (!affirmedCreate) {
+        throw new Error(`Project ID configuration canceled for ${projectFullName}.`);
+      }
     }
 
     const projectDashboardUrl = getProjectDashboardUrl(accountName, projectName);
@@ -408,7 +420,11 @@ export default class ProjectInit extends EasCommand {
       idForConsistency = await ProjectInit.initializeWithInteractiveSelectionAsync(
         graphqlClient,
         actor,
-        projectDir
+        projectDir,
+        {
+          force,
+          nonInteractive,
+        }
       );
     }
 
