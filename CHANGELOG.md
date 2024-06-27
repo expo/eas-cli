@@ -12,6 +12,11 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [10.0.3](https://github.com/expo/eas-cli/releases/tag/v10.0.3) - 2024-06-26
+
+### 🧹 Chores
+
+- Track usage of `--local` build mode in analytics. ([#2445](https://github.com/expo/eas-cli/pull/2445) by [@szdziedzic](https://github.com/szdziedzic))
 - Remove any mentions of deleted Xcode < 15 images. ([#2438](https://github.com/expo/eas-cli/pull/2438) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [10.0.2](https://github.com/expo/eas-cli/releases/tag/v10.0.2) - 2024-06-17
