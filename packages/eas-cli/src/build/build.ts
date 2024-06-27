@@ -670,6 +670,10 @@ async function createAndUploadFingerprintAsync<T extends Platform>(
     cwd: ctx.projectDir,
   });
 
+  /**
+   * It's ok for fingerprintSources to be empty
+   * fingerprintSources only exist if the project is using runtimeVersion.policy: fingerprint
+   */
   if (!resolvedRuntimeVersion?.fingerprintSources) {
     return {
       runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
