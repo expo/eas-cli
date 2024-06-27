@@ -1,4 +1,4 @@
-import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
+import { FingerprintSourceType, Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
@@ -13,12 +13,6 @@ import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils';
 import { readChannelSafelyAsync as readAndroidChannelSafelyAsync } from '../update/android/UpdatesModule';
 import { readChannelSafelyAsync as readIosChannelSafelyAsync } from '../update/ios/UpdatesModule';
 import { easCliVersion } from '../utils/easCli';
-
-enum FingerprintSourceType {
-  'GCS' = 'GCS',
-  'PATH' = 'PATH',
-  'URL' = 'URL',
-}
 
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>,
