@@ -2,6 +2,7 @@ import {
   ArchiveSource,
   ArchiveSourceType,
   BuildJob,
+  FingerprintSourceType,
   Metadata,
   Platform,
 } from '@expo/eas-build-job';
@@ -166,7 +167,7 @@ export async function prepareBuildRequestForPlatformAsync<
   }
   assert(projectArchive);
 
-  const runtimeMetadata = await createAndUploadFingerprintAsync(ctx);
+  const runtimeMetadata = await createAndMaybeUploadFingerprintAsync(ctx);
   const metadata = await collectMetadataAsync(ctx, runtimeMetadata);
   const buildParams = resolveBuildParamsInput(ctx, metadata);
   const job = await builder.prepareJobAsync(ctx, {
@@ -655,11 +656,11 @@ function formatAccountSubscriptionsUrl(accountName: string): string {
   ).toString();
 }
 
-async function createAndUploadFingerprintAsync<T extends Platform>(
+async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<{
   runtimeVersion?: string;
-  fingerprintGCSBucketKey?: string;
+  fingerprintSource?: Metadata['fingerprintSource'];
 }> {
   const resolvedRuntimeVersion = await resolveRuntimeVersionAsync({
     exp: ctx.exp,
@@ -687,6 +688,16 @@ async function createAndUploadFingerprintAsync<T extends Platform>(
     sources: resolvedRuntimeVersion.fingerprintSources,
   });
 
+  if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
+    return {
+      runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+      fingerprintSource: {
+        type: FingerprintSourceType.PATH,
+        path: fingerprintLocation,
+      },
+    };
+  }
+
   let fingerprintGCSBucketKey = undefined;
   try {
     fingerprintGCSBucketKey = await uploadFileAtPathToGCSAsync(
@@ -711,6 +722,9 @@ async function createAndUploadFingerprintAsync<T extends Platform>(
 
   return {
     runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
-    fingerprintGCSBucketKey,
+    fingerprintSource: {
+      type: FingerprintSourceType.GCS,
+      bucketKey: fingerprintGCSBucketKey,
+    },
   };
 }

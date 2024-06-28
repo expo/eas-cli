@@ -1,4 +1,4 @@
-import { FingerprintSourceType, Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
+import { FingerprintSource, Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
@@ -17,8 +17,8 @@ import { easCliVersion } from '../utils/easCli';
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>,
   runtimeMetadata: {
-    runtimeVersion?: string;
-    fingerprintGCSBucketKey?: string;
+    runtimeVersion?: string | undefined;
+    fingerprintSource?: FingerprintSource | undefined;
   }
 ): Promise<Metadata> {
   const channelObject = await resolveChannelAsync(ctx);
@@ -31,12 +31,7 @@ export async function collectMetadataAsync<T extends Platform>(
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
     runtimeVersion: runtimeMetadata?.runtimeVersion,
-    fingerprintSource: runtimeMetadata?.fingerprintGCSBucketKey
-      ? {
-          type: FingerprintSourceType.GCS,
-          bucketKey: runtimeMetadata?.fingerprintGCSBucketKey,
-        }
-      : undefined,
+    fingerprintSource: runtimeMetadata?.fingerprintSource,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
     ...channelObject,
     distribution,
