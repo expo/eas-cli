@@ -100,6 +100,7 @@ export type LocalFile = {
 };
 
 export async function makeProjectMetadataFileAsync(archivePath: string): Promise<LocalFile> {
+  await fs.mkdirp(getTmpDirectory());
   const metadataLocation = path.join(getTmpDirectory(), `${uuidv4()}-eas-build-metadata.json`);
   const archiveContent: string[] = [];
 

@@ -681,6 +681,7 @@ async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
     };
   }
 
+  await fs.mkdirp(getTmpDirectory());
   const fingerprintLocation = path.join(getTmpDirectory(), `${uuidv4()}-runtime-fingerprint.json`);
 
   await fs.writeJSON(fingerprintLocation, {
