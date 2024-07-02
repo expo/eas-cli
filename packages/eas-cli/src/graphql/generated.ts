@@ -117,6 +117,8 @@ export type Account = {
   createdAt: Scalars['DateTime']['output'];
   /** Environment secrets for an account */
   environmentSecrets: Array<EnvironmentSecret>;
+  /** Environment variables for an account */
+  environmentVariables: Array<EnvironmentVariable>;
   /** GitHub App installations for an account */
   githubAppInstallations: Array<GitHubAppInstallation>;
   /** @deprecated Use googleServiceAccountKeysPaginated */
@@ -128,6 +130,7 @@ export type Account = {
   isDisabled: Scalars['Boolean']['output'];
   /** Whether this account has SSO enabled. Can be queried by all members. */
   isSSOEnabled: Scalars['Boolean']['output'];
+  lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   name: Scalars['String']['output'];
   /** Offers set on this account */
   offers?: Maybe<Array<Offer>>;
@@ -344,6 +347,15 @@ export type AccountBuildsArgs = {
  * data and settings. Actors may own and be members of accounts.
  */
 export type AccountEnvironmentSecretsArgs = {
+  filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
+export type AccountEnvironmentVariablesArgs = {
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -777,6 +789,7 @@ export type Actor = {
   firstName?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   isExpoAdmin: Scalars['Boolean']['output'];
+  lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
 };
 
 
@@ -1228,6 +1241,8 @@ export type App = Project & {
   devDomainName?: Maybe<AppDevDomainName>;
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
+  /** Environment variables for an app */
+  environmentVariables: Array<EnvironmentVariable>;
   fullName: Scalars['String']['output'];
   githubBuildTriggers: Array<GitHubBuildTrigger>;
   githubJobRunTriggers: Array<GitHubJobRunTrigger>;
@@ -1346,6 +1361,7 @@ export type App = Project & {
   users?: Maybe<Array<Maybe<User>>>;
   /** Webhooks for an app */
   webhooks: Array<Webhook>;
+  workerDeployments: WorkerDeploymentsConnection;
 };
 
 
@@ -1425,6 +1441,13 @@ export type AppDeploymentsArgs = {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppEnvironmentSecretsArgs = {
+  filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppEnvironmentVariablesArgs = {
+  environment: EnvironmentVariableEnvironment;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -1545,6 +1568,15 @@ export type AppUpdatesPaginatedArgs = {
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWebhooksArgs = {
   filter?: InputMaybe<WebhookFilter>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppWorkerDeploymentsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type AppBranchEdge = {
@@ -2365,6 +2397,24 @@ export type AuditLog = {
   websiteMessage: Scalars['String']['output'];
 };
 
+export type AuditLogExportInput = {
+  accountId: Scalars['ID']['input'];
+  createdAfter: Scalars['Int']['input'];
+  createdBefore: Scalars['Int']['input'];
+  format: AuditLogsExportFormat;
+};
+
+export type AuditLogMutation = {
+  __typename?: 'AuditLogMutation';
+  /** Exports Audit Logs for an account. Returns the ID of the background job receipt. Use BackgroundJobReceiptQuery to get the status of the job. */
+  exportAuditLogs: BackgroundJobReceipt;
+};
+
+
+export type AuditLogMutationExportAuditLogsArgs = {
+  exportInput: AuditLogExportInput;
+};
+
 export type AuditLogQuery = {
   __typename?: 'AuditLogQuery';
   /** Query Audit Logs by account ID */
@@ -2385,6 +2435,12 @@ export type AuditLogQueryByIdArgs = {
   auditLogId: Scalars['ID']['input'];
 };
 
+export enum AuditLogsExportFormat {
+  Csv = 'CSV',
+  Json = 'JSON',
+  Jsonl = 'JSONL'
+}
+
 export enum AuthProtocolType {
   Oidc = 'OIDC'
 }
@@ -2403,6 +2459,7 @@ export type BackgroundJobReceipt = {
   errorCode?: Maybe<Scalars['String']['output']>;
   errorMessage?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  resultData?: Maybe<Scalars['JSONObject']['output']>;
   resultId?: Maybe<Scalars['ID']['output']>;
   resultType: BackgroundJobResultType;
   state: BackgroundJobState;
@@ -2423,6 +2480,7 @@ export type BackgroundJobReceiptQueryByIdArgs = {
 };
 
 export enum BackgroundJobResultType {
+  AuditLogsExport = 'AUDIT_LOGS_EXPORT',
   GithubBuild = 'GITHUB_BUILD',
   Void = 'VOID'
 }
@@ -2698,6 +2756,7 @@ export type BuildMetadataInput = {
   customWorkflowName?: InputMaybe<Scalars['String']['input']>;
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
   distribution?: InputMaybe<DistributionType>;
+  fingerprintSource?: InputMaybe<FingerprintSourceInput>;
   gitCommitHash?: InputMaybe<Scalars['String']['input']>;
   gitCommitMessage?: InputMaybe<Scalars['String']['input']>;
   iosEnterpriseProvisioning?: InputMaybe<BuildIosEnterpriseProvisioning>;
@@ -3079,6 +3138,13 @@ export type CreateEnvironmentSecretInput = {
   value: Scalars['String']['input'];
 };
 
+export type CreateEnvironmentVariableInput = {
+  environment: EnvironmentVariableEnvironment;
+  name: Scalars['String']['input'];
+  sensitive: Scalars['Boolean']['input'];
+  value: Scalars['String']['input'];
+};
+
 export type CreateGitHubAppInstallationInput = {
   accountId: Scalars['ID']['input'];
   installationIdentifier: Scalars['Int']['input'];
@@ -3132,6 +3198,12 @@ export type CreateServerlessFunctionUploadUrlResult = {
   __typename?: 'CreateServerlessFunctionUploadUrlResult';
   formDataFields: Scalars['JSONObject']['output'];
   url: Scalars['String']['output'];
+};
+
+export type CreateSharedEnvironmentVariableInput = {
+  name: Scalars['String']['input'];
+  sensitive: Scalars['Boolean']['input'];
+  value: Scalars['String']['input'];
 };
 
 export type CreateSubmissionResult = {
@@ -3196,6 +3268,11 @@ export type DeleteDiscordUserResult = {
 
 export type DeleteEnvironmentSecretResult = {
   __typename?: 'DeleteEnvironmentSecretResult';
+  id: Scalars['ID']['output'];
+};
+
+export type DeleteEnvironmentVariableResult = {
+  __typename?: 'DeleteEnvironmentVariableResult';
   id: Scalars['ID']['output'];
 };
 
@@ -3338,7 +3415,8 @@ export type DeploymentInsightsUniqueUsersOverTimeArgs = {
 
 export type DeploymentSignedUrlResult = {
   __typename?: 'DeploymentSignedUrlResult';
-  deploymentId: Scalars['ID']['output'];
+  deploymentIdentifier: Scalars['ID']['output'];
+  pendingWorkerDeploymentId: Scalars['ID']['output'];
   url: Scalars['String']['output'];
 };
 
@@ -3358,7 +3436,7 @@ export type DeploymentsMutation = {
 
 export type DeploymentsMutationCreateSignedDeploymentUrlArgs = {
   appId: Scalars['ID']['input'];
-  deploymentId?: InputMaybe<Scalars['ID']['input']>;
+  deploymentIdentifier?: InputMaybe<Scalars['ID']['input']>;
 };
 
 export type DiscordUser = {
@@ -3503,6 +3581,73 @@ export enum EnvironmentSecretType {
   String = 'STRING'
 }
 
+export type EnvironmentVariable = {
+  __typename?: 'EnvironmentVariable';
+  createdAt: Scalars['DateTime']['output'];
+  environment?: Maybe<EnvironmentVariableEnvironment>;
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  scope: EnvironmentVariableScope;
+  updatedAt: Scalars['DateTime']['output'];
+  value?: Maybe<Scalars['String']['output']>;
+};
+
+export enum EnvironmentVariableEnvironment {
+  Development = 'DEVELOPMENT',
+  Preview = 'PREVIEW',
+  Production = 'PRODUCTION'
+}
+
+export type EnvironmentVariableMutation = {
+  __typename?: 'EnvironmentVariableMutation';
+  /** Create an environment variable for an Account */
+  createEnvironmentVariableForAccount: EnvironmentVariable;
+  /** Create an environment variable for an App */
+  createEnvironmentVariableForApp: EnvironmentVariable;
+  /** Delete an environment variable */
+  deleteEnvironmentVariable: DeleteEnvironmentVariableResult;
+  /** Link shared environment variable */
+  linkSharedEnvironmentVariable: EnvironmentVariable;
+  /** Unlink shared environment variable */
+  unlinkSharedEnvironmentVariable: EnvironmentVariable;
+};
+
+
+export type EnvironmentVariableMutationCreateEnvironmentVariableForAccountArgs = {
+  accountId: Scalars['ID']['input'];
+  environmentVariableData: CreateSharedEnvironmentVariableInput;
+};
+
+
+export type EnvironmentVariableMutationCreateEnvironmentVariableForAppArgs = {
+  appId: Scalars['ID']['input'];
+  environmentVariableData: CreateEnvironmentVariableInput;
+};
+
+
+export type EnvironmentVariableMutationDeleteEnvironmentVariableArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type EnvironmentVariableMutationLinkSharedEnvironmentVariableArgs = {
+  appId: Scalars['ID']['input'];
+  environment: EnvironmentVariableEnvironment;
+  environmentVariableId: Scalars['ID']['input'];
+};
+
+
+export type EnvironmentVariableMutationUnlinkSharedEnvironmentVariableArgs = {
+  appId: Scalars['ID']['input'];
+  environment: EnvironmentVariableEnvironment;
+  environmentVariableId: Scalars['ID']['input'];
+};
+
+export enum EnvironmentVariableScope {
+  Project = 'PROJECT',
+  Shared = 'SHARED'
+}
+
 export type EstimatedOverageAndCost = {
   __typename?: 'EstimatedOverageAndCost';
   id: Scalars['ID']['output'];
@@ -3566,6 +3711,15 @@ export enum Feature {
   Support = 'SUPPORT',
   /** Share access to projects */
   Teams = 'TEAMS'
+}
+
+export type FingerprintSourceInput = {
+  bucketKey?: InputMaybe<Scalars['String']['input']>;
+  type?: InputMaybe<FingerprintSourceType>;
+};
+
+export enum FingerprintSourceType {
+  Gcs = 'GCS'
 }
 
 export type FutureSubscription = {
@@ -4298,6 +4452,7 @@ export type IosSubmissionConfigInput = {
 export type JobRun = {
   __typename?: 'JobRun';
   app: App;
+  childJobRun?: Maybe<JobRun>;
   createdAt: Scalars['DateTime']['output'];
   displayName?: Maybe<Scalars['String']['output']>;
   endedAt?: Maybe<Scalars['DateTime']['output']>;
@@ -4309,10 +4464,29 @@ export type JobRun = {
   initiatingActor?: Maybe<Actor>;
   isWaived: Scalars['Boolean']['output'];
   logFileUrls: Array<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
   priority: JobRunPriority;
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: JobRunStatus;
   updateGroups: Array<Array<Update>>;
+};
+
+export type JobRunMutation = {
+  __typename?: 'JobRunMutation';
+  /** Cancel an EAS Job Run */
+  cancelJobRun: JobRun;
+  /** Retry an EAS Job Run */
+  retryJobRun: JobRun;
+};
+
+
+export type JobRunMutationCancelJobRunArgs = {
+  jobRunId: Scalars['ID']['input'];
+};
+
+
+export type JobRunMutationRetryJobRunArgs = {
+  jobRunId: Scalars['ID']['input'];
 };
 
 export enum JobRunPriority {
@@ -4807,6 +4981,7 @@ export type Robot = Actor & {
   firstName?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   isExpoAdmin: Scalars['Boolean']['output'];
+  lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
 };
 
 
@@ -4901,6 +5076,7 @@ export type RootMutation = {
   /** Mutations that modify an Apple Team */
   appleTeam: AppleTeamMutation;
   asset: AssetMutation;
+  auditLog: AuditLogMutation;
   /** Mutations that modify an EAS Build */
   build: BuildMutation;
   /** Mutations that create, update, and delete Build Annotations */
@@ -4914,6 +5090,8 @@ export type RootMutation = {
   emailSubscription: EmailSubscriptionMutation;
   /** Mutations that create and delete EnvironmentSecrets */
   environmentSecret: EnvironmentSecretMutation;
+  /** Mutations that create and delete EnvironmentVariables */
+  environmentVariable: EnvironmentVariableMutation;
   /** Mutations that utilize services facilitated by the GitHub App */
   githubApp: GitHubAppMutation;
   /** Mutations for GitHub App installations */
@@ -4933,6 +5111,8 @@ export type RootMutation = {
   iosAppBuildCredentials: IosAppBuildCredentialsMutation;
   /** Mutations that modify the credentials for an iOS app */
   iosAppCredentials: IosAppCredentialsMutation;
+  /** Mutations that modify an EAS Build */
+  jobRun: JobRunMutation;
   keystoreGenerationUrl: KeystoreGenerationUrlMutation;
   /** Mutations that modify the currently authenticated User */
   me: MeMutation;
@@ -5158,6 +5338,7 @@ export type SsoUser = Actor & UserActor & {
   /** @deprecated No longer supported */
   industry?: Maybe<Scalars['String']['output']>;
   isExpoAdmin: Scalars['Boolean']['output'];
+  lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   lastName?: Maybe<Scalars['String']['output']>;
   /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']['output']>;
@@ -5889,7 +6070,8 @@ export enum UploadSessionType {
   EasBuildProjectSources = 'EAS_BUILD_PROJECT_SOURCES',
   /** @deprecated Use EAS_SUBMIT_GCS_APP_ARCHIVE instead. */
   EasSubmitAppArchive = 'EAS_SUBMIT_APP_ARCHIVE',
-  EasSubmitGcsAppArchive = 'EAS_SUBMIT_GCS_APP_ARCHIVE'
+  EasSubmitGcsAppArchive = 'EAS_SUBMIT_GCS_APP_ARCHIVE',
+  EasUpdateFingerprint = 'EAS_UPDATE_FINGERPRINT'
 }
 
 export type UsageMetricTotal = {
@@ -5965,6 +6147,7 @@ export type User = Actor & UserActor & {
   /** @deprecated No longer supported */
   isLegacy: Scalars['Boolean']['output'];
   isSecondFactorAuthenticationEnabled: Scalars['Boolean']['output'];
+  lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   lastName?: Maybe<Scalars['String']['output']>;
   /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']['output']>;
@@ -6071,6 +6254,7 @@ export type UserActor = {
   /** @deprecated No longer supported */
   industry?: Maybe<Scalars['String']['output']>;
   isExpoAdmin: Scalars['Boolean']['output'];
+  lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   lastName?: Maybe<Scalars['String']['output']>;
   /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']['output']>;
@@ -6490,6 +6674,23 @@ export type WebsiteNotificationMutationUpdateNotificationReadStateArgs = {
 export type WebsiteNotificationsConnection = {
   __typename?: 'WebsiteNotificationsConnection';
   edges: Array<WebsiteNotificationEdge>;
+  pageInfo: PageInfo;
+};
+
+export type WorkerDeployment = {
+  __typename?: 'WorkerDeployment';
+  id: Scalars['ID']['output'];
+};
+
+export type WorkerDeploymentEdge = {
+  __typename?: 'WorkerDeploymentEdge';
+  cursor: Scalars['String']['output'];
+  node: WorkerDeployment;
+};
+
+export type WorkerDeploymentsConnection = {
+  __typename?: 'WorkerDeploymentsConnection';
+  edges: Array<WorkerDeploymentEdge>;
   pageInfo: PageInfo;
 };
 
