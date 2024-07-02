@@ -8,12 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Save local fingeprint sources during build. ([#2422](https://github.com/expo/eas-cli/pull/2422) by [@kadikraman](https://github.com/kadikraman))
-
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [10.1.0](https://github.com/expo/eas-cli/releases/tag/v10.1.0) - 2024-07-02
+
+### 🎉 New features
+
+- Save local fingeprint sources during build. ([#2422](https://github.com/expo/eas-cli/pull/2422) by [@kadikraman](https://github.com/kadikraman))
 
 ## [10.0.3](https://github.com/expo/eas-cli/releases/tag/v10.0.3) - 2024-06-26
 
