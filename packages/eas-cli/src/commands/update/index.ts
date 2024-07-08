@@ -67,6 +67,7 @@ type RawUpdateFlags = {
   'clear-cache': boolean;
   'private-key-path'?: string;
   'non-interactive': boolean;
+  'emit-build-meta': boolean;
   json: boolean;
   /** @deprecated see UpdateRepublish command */
   group?: string;
@@ -86,6 +87,7 @@ type UpdateFlags = {
   privateKeyPath?: string;
   json: boolean;
   nonInteractive: boolean;
+  emitBuildMeta: boolean;
 };
 
 export default class UpdatePublish extends EasCommand {
@@ -124,6 +126,10 @@ export default class UpdatePublish extends EasCommand {
     }),
     'clear-cache': Flags.boolean({
       description: `Clear the bundler cache before publishing`,
+      default: false,
+    }),
+    'emit-build-meta': Flags.boolean({
+      description: `Emit "eas-update-metadata.json" in the bundle folder with detailed informations about the generated bundle(s)`,
       default: false,
     }),
     platform: Flags.enum({
@@ -169,6 +175,7 @@ export default class UpdatePublish extends EasCommand {
       json: jsonFlag,
       nonInteractive,
       branchName: branchNameArg,
+      emitBuildMeta,
     } = this.sanitizeFlags(rawFlags);
 
     const {
@@ -463,7 +470,8 @@ export default class UpdatePublish extends EasCommand {
       throw e;
     }
 
-    if (!skipBundler) {
+    if (!skipBundler && emitBuildMeta) {
+      Log.log('Generating eas-update-metadata.json');
       await generateEasMetadataAsync(distRoot, getUpdateJsonInfosForUpdates(newUpdates));
     }
     if (jsonFlag) {
@@ -566,17 +574,28 @@ export default class UpdatePublish extends EasCommand {
       Errors.error('--group and --republish flags are deprecated', { exit: 1 });
     }
 
+    const skipBundler = flags['skip-bundler'] ?? false;
+    let emitBuildMeta = flags['emit-build-meta'] ?? false;
+
+    if (skipBundler && emitBuildMeta) {
+      emitBuildMeta = false;
+      Log.warn(
+        'ignoring flag --emit-build-meta as metadata cannot be generated when skipping bundle generation'
+      );
+    }
+
     return {
       auto,
       branchName,
       channelName,
       updateMessage,
       inputDir: flags['input-dir'],
-      skipBundler: flags['skip-bundler'],
+      skipBundler,
       clearCache: flags['clear-cache'],
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
       nonInteractive,
+      emitBuildMeta,
       json: flags.json ?? false,
     };
   }

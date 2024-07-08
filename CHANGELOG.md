@@ -7,6 +7,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🛠 Breaking changes
 
 ### 🎉 New features
+- Added flag `--emit-build-meta` to emit `eas-update-metadata.json` in the bundle folder with detailed informations about the generated bundle(s)
 
 ### 🐛 Bug fixes
 
