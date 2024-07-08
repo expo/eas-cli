@@ -24,7 +24,11 @@ import Log, { learnMore } from '../log';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../platform';
 import { promptAsync } from '../prompts';
 import { getBranchNameFromChannelNameAsync } from '../update/getBranchNameFromChannelNameAsync';
-import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../update/utils';
+import {
+  UpdateJsonInfo,
+  formatUpdateMessage,
+  truncateString as truncateUpdateMessage,
+} from '../update/utils';
 import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
 import {
   expoCommandAsync,
@@ -291,6 +295,14 @@ export function loadMetadata(distRoot: string): Metadata {
   }
   Log.debug(`Loaded ${platforms.length} platform(s): ${platforms.join(', ')}`);
   return metadata;
+}
+
+export async function generateEasMetadataAsync(
+  distRoot: string,
+  metadata: UpdateJsonInfo[]
+): Promise<void> {
+  const easMetadataPath = path.join(distRoot, 'eas-update-metadata.json');
+  await JsonFile.writeAsync(easMetadataPath, { updates: metadata });
 }
 
 export function filterExportedPlatformsByFlag<T extends Partial<Record<Platform, any>>>(
