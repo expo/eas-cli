@@ -1,3 +1,4 @@
+import fs from 'fs-extra';
 import * as path from 'node:path';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -31,14 +32,21 @@ export default class WorkerDeploy extends EasCommand {
       nonInteractive: true,
     });
 
+    const distLocation = path.join(projectDir, 'dist');
+
+    if (!(await fs.pathExists(distLocation))) {
+      throw new Error(
+        `No dist folder found in ${distLocation}. Prepare your project for deployment with "npx expo export"`
+      );
+    }
+
     // TODO: Create manifest from user configuration
     const manifest = { env: {} };
-    const tar = await createTarOfFolderAsync(path.join(projectDir, 'dist'), manifest);
+    const tar = await createTarOfFolderAsync(distLocation, manifest);
 
-    const uploadUrl = await DeploymentsMutation.createSignedDeploymentUrlAsync(
-      graphqlClient,
-      { appId: projectId },
-    );
+    const uploadUrl = await DeploymentsMutation.createSignedDeploymentUrlAsync(graphqlClient, {
+      appId: projectId,
+    });
 
     const result = await uploadWorkerAsync(uploadUrl, tar);
 

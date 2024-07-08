@@ -3,7 +3,10 @@ import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../graphql/client';
-import { CreateDeploymentUrlMutation, CreateDeploymentUrlMutationVariables } from '../graphql/generated';
+import {
+  CreateDeploymentUrlMutation,
+  CreateDeploymentUrlMutationVariables,
+} from '../graphql/generated';
 
 export const DeploymentsMutation = {
   async createSignedDeploymentUrlAsync(
@@ -19,7 +22,10 @@ export const DeploymentsMutation = {
           gql`
             mutation createDeploymentUrlMutation($appId: ID!, $deploymentIdentifier: ID) {
               deployments {
-                createSignedDeploymentUrl(appId: $appId, deploymentIdentifier: $deploymentIdentifier) {
+                createSignedDeploymentUrl(
+                  appId: $appId
+                  deploymentIdentifier: $deploymentIdentifier
+                ) {
                   pendingWorkerDeploymentId
                   deploymentIdentifier
                   url
@@ -27,7 +33,7 @@ export const DeploymentsMutation = {
               }
             }
           `,
-          deploymentVariables,
+          deploymentVariables
         )
         .toPromise()
     );

@@ -2,10 +2,7 @@ import path from 'node:path';
 
 const cwd = process.cwd();
 
-export const formatSourcemap = (
-  projectRoot: string,
-  data: Buffer
-): string | Buffer => {
+export const formatSourcemap = (projectRoot: string, data: Buffer): string | Buffer => {
   try {
     const map = JSON.parse(data.toString('utf8'));
 
@@ -25,9 +22,7 @@ export const formatSourcemap = (
       version: map.version,
       sources,
       sourcesContent:
-        typeof map.sources.length === 'number'
-          ? new Array(map.sources.length).fill(null)
-          : null,
+        typeof map.sources.length === 'number' ? new Array(map.sources.length).fill(null) : null,
       names: map.names,
       mappings: map.mappings,
     });
