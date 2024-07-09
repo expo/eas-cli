@@ -42,6 +42,7 @@ export function transformProjectArchive(archiveSource: ArchiveSource): ProjectAr
 export function transformMetadata(metadata: Metadata): BuildMetadataInput {
   return {
     ...metadata,
+    fingerprintSource: metadata.fingerprintSource as BuildMetadataInput['fingerprintSource'],
     credentialsSource:
       metadata.credentialsSource && transformCredentialsSource(metadata.credentialsSource),
     distribution: metadata.distribution && transformDistribution(metadata.distribution),
