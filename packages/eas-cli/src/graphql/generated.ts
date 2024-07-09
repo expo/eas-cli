@@ -1335,6 +1335,7 @@ export type App = Project & {
   /** Webhooks for an app */
   webhooks: Array<Webhook>;
   workerDeployments: WorkerDeploymentsConnection;
+  workerDeploymentsMetrics?: Maybe<WorkerDeploymentMetrics>;
 };
 
 
@@ -1557,6 +1558,12 @@ export type AppWorkerDeploymentsArgs = {
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppWorkerDeploymentsMetricsArgs = {
+  timespan: MetricsTimespan;
 };
 
 export type AppBranchEdge = {
@@ -4738,6 +4745,11 @@ export type MeteredBillingStatus = {
   EAS_UPDATE: Scalars['Boolean']['output'];
 };
 
+export type MetricsTimespan = {
+  end: Scalars['DateTime']['input'];
+  start: Scalars['DateTime']['input'];
+};
+
 export type Notification = {
   __typename?: 'Notification';
   accountName: Scalars['String']['output'];
@@ -6711,6 +6723,28 @@ export type WorkerDeploymentEdge = {
   __typename?: 'WorkerDeploymentEdge';
   cursor: Scalars['String']['output'];
   node: WorkerDeployment;
+};
+
+export type WorkerDeploymentMetrics = {
+  __typename?: 'WorkerDeploymentMetrics';
+  groups: Array<Maybe<WorkerDeploymentMetricsEdge>>;
+  id: Scalars['ID']['output'];
+  summary: WorkerDeploymentMetricsData;
+};
+
+export type WorkerDeploymentMetricsData = {
+  __typename?: 'WorkerDeploymentMetricsData';
+  crashesSum: Scalars['Int']['output'];
+  durationP50?: Maybe<Scalars['Float']['output']>;
+  durationP90?: Maybe<Scalars['Float']['output']>;
+  durationP99?: Maybe<Scalars['Float']['output']>;
+  requestsSum: Scalars['Int']['output'];
+};
+
+export type WorkerDeploymentMetricsEdge = {
+  __typename?: 'WorkerDeploymentMetricsEdge';
+  node: WorkerDeploymentMetricsData;
+  timestamp: Scalars['DateTime']['output'];
 };
 
 export type WorkerDeploymentsConnection = {
