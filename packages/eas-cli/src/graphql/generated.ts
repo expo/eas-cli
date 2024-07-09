@@ -8404,3 +8404,11 @@ export type CreateDeploymentUrlMutationVariables = Exact<{
 
 
 export type CreateDeploymentUrlMutation = { __typename?: 'RootMutation', deployments: { __typename?: 'DeploymentsMutation', createSignedDeploymentUrl: { __typename?: 'DeploymentSignedUrlResult', pendingWorkerDeploymentId: string, deploymentIdentifier: string, url: string } } };
+
+export type AssignDevDomainNameMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  name: Scalars['DevDomainName']['input'];
+}>;
+
+
+export type AssignDevDomainNameMutation = { __typename?: 'RootMutation', devDomainName: { __typename?: 'AppDevDomainNameMutation', assignDevDomainName: { __typename?: 'AppDevDomainName', id: string, name: any, app?: { __typename?: 'App', id: string, devDomainName?: { __typename?: 'AppDevDomainName', id: string } | null } | null } } };
