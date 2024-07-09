@@ -35,10 +35,9 @@ export default class WorkerDeploy extends EasCommand {
     const manifest = { env: {} };
     const tar = await createTarOfFolderAsync(path.join(projectDir, 'dist'), manifest);
 
-    const uploadUrl = await DeploymentsMutation.createSignedDeploymentUrlAsync(
-      graphqlClient,
-      { appId: projectId },
-    );
+    const uploadUrl = await DeploymentsMutation.createSignedDeploymentUrlAsync(graphqlClient, {
+      appId: projectId,
+    });
 
     const result = await uploadWorkerAsync(uploadUrl, tar);
 

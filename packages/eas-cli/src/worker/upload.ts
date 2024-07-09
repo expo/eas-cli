@@ -6,7 +6,7 @@ export interface UploadResultName {
 
 export const uploadWorkerAsync = async (
   url: string,
-  contents: BodyInit,
+  contents: BodyInit
 ): Promise<UploadResultName> => {
   const response = await fetch(url, {
     method: 'POST',
