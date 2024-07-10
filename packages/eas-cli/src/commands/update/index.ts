@@ -67,7 +67,7 @@ type RawUpdateFlags = {
   'clear-cache': boolean;
   'private-key-path'?: string;
   'non-interactive': boolean;
-  'emit-build-meta': boolean;
+  'emit-metadata': boolean;
   json: boolean;
   /** @deprecated see UpdateRepublish command */
   group?: string;
@@ -128,8 +128,8 @@ export default class UpdatePublish extends EasCommand {
       description: `Clear the bundler cache before publishing`,
       default: false,
     }),
-    'emit-build-meta': Flags.boolean({
-      description: `Emit "eas-update-metadata.json" in the bundle folder with detailed informations about the generated bundle(s)`,
+    'emit-metadata': Flags.boolean({
+      description: `Emit "eas-update-metadata.json" in the bundle folder with detailed information about the generated updates`,
       default: false,
     }),
     platform: Flags.enum({
@@ -575,12 +575,12 @@ export default class UpdatePublish extends EasCommand {
     }
 
     const skipBundler = flags['skip-bundler'] ?? false;
-    let emitBuildMeta = flags['emit-build-meta'] ?? false;
+    let emitBuildMeta = flags['emit-metadata'] ?? false;
 
     if (skipBundler && emitBuildMeta) {
       emitBuildMeta = false;
       Log.warn(
-        'ignoring flag --emit-build-meta as metadata cannot be generated when skipping bundle generation'
+        'ignoring flag --emit-metadata as metadata cannot be generated when skipping bundle generation'
       );
     }
 
