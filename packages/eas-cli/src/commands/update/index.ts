@@ -87,7 +87,7 @@ type UpdateFlags = {
   privateKeyPath?: string;
   json: boolean;
   nonInteractive: boolean;
-  emitBuildMeta: boolean;
+  emitMetadata: boolean;
 };
 
 export default class UpdatePublish extends EasCommand {
@@ -175,7 +175,7 @@ export default class UpdatePublish extends EasCommand {
       json: jsonFlag,
       nonInteractive,
       branchName: branchNameArg,
-      emitBuildMeta,
+      emitMetadata,
     } = this.sanitizeFlags(rawFlags);
 
     const {
