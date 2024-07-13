@@ -470,7 +470,7 @@ export default class UpdatePublish extends EasCommand {
       throw e;
     }
 
-    if (!skipBundler && emitBuildMeta) {
+    if (!skipBundler && emitMetadata) {
       Log.log('Generating eas-update-metadata.json');
       await generateEasMetadataAsync(distRoot, getUpdateJsonInfosForUpdates(newUpdates));
     }
@@ -575,10 +575,10 @@ export default class UpdatePublish extends EasCommand {
     }
 
     const skipBundler = flags['skip-bundler'] ?? false;
-    let emitBuildMeta = flags['emit-metadata'] ?? false;
+    let emitMetadata = flags['emit-metadata'] ?? false;
 
-    if (skipBundler && emitBuildMeta) {
-      emitBuildMeta = false;
+    if (skipBundler && emitMetadata) {
+      emitMetadata = false;
       Log.warn(
         'ignoring flag --emit-metadata as metadata cannot be generated when skipping bundle generation'
       );
@@ -595,7 +595,7 @@ export default class UpdatePublish extends EasCommand {
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
       nonInteractive,
-      emitBuildMeta,
+      emitMetadata,
       json: flags.json ?? false,
     };
   }
