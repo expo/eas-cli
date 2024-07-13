@@ -39,7 +39,7 @@ An example of **eas.json** that enforces `eas-cli` in version `1.0.0` or newer:
 }
 ```
 
-Learn more: https://docs.expo.dev/build-reference/eas-json/
+Learn more: https://docs.expo.dev/build/eas-json/
 
 # Usage
 
