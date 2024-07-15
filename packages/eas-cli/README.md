@@ -1294,6 +1294,7 @@ FLAGS
   --channel=<value>                 Channel that the published update should affect
   --clear-cache                     Clear the bundler cache before publishing
   --group=<value>                   Update group to republish (deprecated, see republish command)
+  --emit-metadata                   Emit "eas-update-metadata.json" in the bundle folder with detailed information about the generated updates
   --input-dir=<value>               [default: dist] Location of the bundle
   --json                            Enable JSON output, non-JSON messages will be printed to stderr.
   --non-interactive                 Run the command in non-interactive mode.
