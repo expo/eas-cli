@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Bump `@expo/apple-utils` version to use the fallback Apple Developer Portal domain on every internal server error. ([#2459](https://github.com/expo/eas-cli/pull/2459) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 ## [10.1.1](https://github.com/expo/eas-cli/releases/tag/v10.1.1) - 2024-07-04
