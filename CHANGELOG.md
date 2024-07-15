@@ -8,13 +8,19 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [10.2.0](https://github.com/expo/eas-cli/releases/tag/v10.2.0) - 2024-07-15
+
+### 🎉 New features
+
 - Added flag `--emit-metadata` to emit `eas-update-metadata.json` in the bundle folder with detailed information about the generated updates ([#2451](https://github.com/expo/eas-cli/pull/2451) by [@rainst](https://github.com/rainst))
 
 ### 🐛 Bug fixes
 
 - Bump `@expo/apple-utils` version to use the fallback Apple Developer Portal domain on every internal server error. ([#2459](https://github.com/expo/eas-cli/pull/2459) by [@szdziedzic](https://github.com/szdziedzic))
-
-### 🧹 Chores
 
 ## [10.1.1](https://github.com/expo/eas-cli/releases/tag/v10.1.1) - 2024-07-04
 
