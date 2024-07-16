@@ -14,6 +14,14 @@ export default class AccountLogin extends EasCommand {
       char: 's',
       default: false,
     }),
+    username: Flags.string({
+      description: 'Username',
+      char: 'u',
+    }),
+    password: Flags.string({
+      description: 'Password',
+      char: 'p',
+    }),
   };
 
   static override contextDefinition = {
@@ -22,11 +30,11 @@ export default class AccountLogin extends EasCommand {
 
   async runAsync(): Promise<void> {
     const {
-      flags: { sso },
+      flags: { sso, username, password },
     } = await this.parse(AccountLogin);
 
     const { sessionManager } = await this.getContextAsync(AccountLogin, { nonInteractive: false });
-    await sessionManager.showLoginPromptAsync({ sso });
+    await sessionManager.showLoginPromptAsync({ sso, username, password });
     Log.log('Logged in');
   }
 }

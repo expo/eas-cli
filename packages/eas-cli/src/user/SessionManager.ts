@@ -13,7 +13,7 @@ import { createGraphqlClient } from '../commandUtils/context/contextUtils/create
 import { CurrentUserQuery } from '../graphql/generated';
 import { UserQuery } from '../graphql/queries/UserQuery';
 import Log, { learnMore } from '../log';
-import { promptAsync, selectAsync } from '../prompts';
+import { Question, promptAsync, selectAsync } from '../prompts';
 import { getStateJsonPath } from '../utils/paths';
 
 type UserSettingsData = {
@@ -149,6 +149,14 @@ export default class SessionManager {
     nonInteractive = false,
     printNewLine = false,
     sso = false,
+    username = undefined,
+    password = undefined,
+  }: {
+    nonInteractive?: boolean;
+    printNewLine?: boolean;
+    sso?: boolean;
+    username?: string;
+    password?: string;
   } = {}): Promise<void> {
     if (nonInteractive) {
       Errors.error(
@@ -175,28 +183,51 @@ export default class SessionManager {
       )} to see other login options)`
     );
 
-    const { username, password } = await promptAsync([
-      {
+    let finalUsername = '';
+    let finalPassword = '';
+
+    const prompts: Question[] = [];
+
+    if (username === undefined) {
+      prompts.push({
         type: 'text',
         name: 'username',
         message: 'Email or username',
-      },
-      {
+      });
+    } else {
+      finalUsername = username;
+    }
+
+    if (password === undefined) {
+      prompts.push({
         type: 'password',
         name: 'password',
         message: 'Password',
-      },
-    ]);
+      });
+    } else {
+      finalPassword = password;
+    }
+
+    if (prompts.length > 0) {
+      const { username: promptUsername, password: promptPassword } = await promptAsync(prompts);
+      if (finalUsername === '') {
+        finalUsername = promptUsername;
+      }
+      if (finalPassword === '') {
+        finalPassword = promptPassword;
+      }
+    }
+
     try {
       await this.loginAsync({
-        username,
-        password,
+        username: finalUsername,
+        password: finalPassword,
       });
     } catch (e) {
       if (e instanceof ApiV2Error && e.expoApiV2ErrorCode === 'ONE_TIME_PASSWORD_REQUIRED') {
         await this.retryUsernamePasswordAuthWithOTPAsync(
-          username,
-          password,
+          finalUsername,
+          finalPassword,
           e.expoApiV2ErrorMetadata as any
         );
       } else {
