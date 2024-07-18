@@ -12,14 +12,19 @@ export default class AccountView extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.MaybeLoggedIn,
+    ...this.ContextOptions.SessionManagment,
   };
 
   async runAsync(): Promise<void> {
     const {
       maybeLoggedIn: { actor },
+      sessionManager,
     } = await this.getContextAsync(AccountView, { nonInteractive: true });
     if (actor) {
-      Log.log(chalk.green(getActorDisplayName(actor)));
+      const loggedInAs = sessionManager.getAccessToken()
+        ? `${getActorDisplayName(actor)} (authenticated using EXPO_TOKEN)`
+        : getActorDisplayName(actor);
+      Log.log(chalk.green(loggedInAs));
 
       // personal account is included, only show if more accounts that personal account
       // but do show personal account in list if there are more
