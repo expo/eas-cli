@@ -12,9 +12,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- Indicate if a user is logged in using `EXPO_TOKEN` when running `eas whoami` command. [#2461](https://github.com/expo/eas-cli/pull/2461) by [@szdziedzic](https://github.com/szdziedzic)
-- Throw error when `eas login` command is run with `EXPO_TOKEN` environment variable set. [#2461](https://github.com/expo/eas-cli/pull/2461) by [@szdziedzic](https://github.com/szdziedzic)
-- Check if user is already logged in when running `eas login` command. [#2461](https://github.com/expo/eas-cli/pull/2461) by [@szdziedzic](https://github.com/szdziedzic)
+- Indicate if a user is logged in using `EXPO_TOKEN` when running `eas whoami` command. ([#2461](https://github.com/expo/eas-cli/pull/2461) by [@szdziedzic](https://github.com/szdziedzic))
+- Throw error when `eas login` command is run with `EXPO_TOKEN` environment variable set. ([#2461](https://github.com/expo/eas-cli/pull/2461) by [@szdziedzic](https://github.com/szdziedzic))
+- Check if user is already logged in when running `eas login` command. ([#2461](https://github.com/expo/eas-cli/pull/2461) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [10.2.0](https://github.com/expo/eas-cli/releases/tag/v10.2.0) - 2024-07-15
 
