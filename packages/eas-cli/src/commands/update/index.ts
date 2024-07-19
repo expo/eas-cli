@@ -260,7 +260,7 @@ export default class UpdatePublish extends EasCommand {
       realizedPlatforms = Object.keys(assets) as PublishPlatform[];
 
       // Timeout mechanism:
-      // - Start with NO_ACTIVITY_TIMEOUT. 90 seconds is chosen because the cloud function that processes
+      // - Start with NO_ACTIVITY_TIMEOUT. 180 seconds is chosen because the cloud function that processes
       //   uploaded assets has a timeout of 60 seconds and uploading can take some time on a slow connection.
       // - Each time one or more assets reports as ready, reset the timeout.
       // - Each time an asset upload begins, reset the timeout. This includes retries.
@@ -269,7 +269,7 @@ export default class UpdatePublish extends EasCommand {
       // - At the same time as upload is started, start timeout checker which checks every 1 second to see
       //   if timeout has been reached. When timeout expires, send a cancellation signal to currently running
       //   upload function call to instruct it to stop uploading or checking for successful processing.
-      const NO_ACTIVITY_TIMEOUT = 90 * 1000; // 90 seconds
+      const NO_ACTIVITY_TIMEOUT = 180 * 1000; // 180 seconds
       let lastUploadedStorageKeys = new Set<string>();
       let lastAssetUploadResults: {
         asset: RawAsset & { storageKey: string };
