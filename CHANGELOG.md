@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Bump asset upload timeout from 90 to 180 seconds. ([#2466](https://github.com/expo/eas-cli/pull/2466) by [@quinlanj](https://github.com/quinlanj))
+
 ## [10.2.1](https://github.com/expo/eas-cli/releases/tag/v10.2.1) - 2024-07-18
 
 ### 🧹 Chores
