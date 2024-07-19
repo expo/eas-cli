@@ -145,15 +145,20 @@ export async function runBuildAndSubmitAsync(
     } else if (
       buildProfile.profile.image &&
       [
-        'ubuntu-20.04-jdk-8-ndk-r21e',
         'ubuntu-20.04-jdk-11-ndk-r19c',
         'ubuntu-20.04-jdk-8-ndk-r19c',
         'ubuntu-20.04-jdk-11-ndk-r21e',
+        'ubuntu-20.04-jdk-8-ndk-r21e',
         'ubuntu-22.04-jdk-8-ndk-r21e',
+        'ubuntu-20.04-jdk-11-ndk-r23b',
       ].includes(buildProfile.profile.image)
     ) {
       Log.warn(
-        `The "image" field in the build profile "${buildProfile.profileName}" is set to "${buildProfile.profile.image}". This image is deprecated and will be removed in the future. Use other images or tags listed here: https://docs.expo.dev/build-reference/infrastructure/`
+        `The "image" field in the build profile "${buildProfile.profileName}" is set to "${
+          buildProfile.profile.image
+        }". This image is deprecated and will be removed on September 1st, 2024. ${learnMore(
+          'https://expo.dev/changelog/2024/07-12-eas-build-upcoming-android-images-updates'
+        )}`
       );
     }
   }

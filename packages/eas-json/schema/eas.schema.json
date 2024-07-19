@@ -235,7 +235,6 @@
                 "ubuntu-22.04-jdk-17-ndk-r26b",
                 "ubuntu-22.04-jdk-17-ndk-r25b",
                 "ubuntu-22.04-jdk-11-ndk-r23b",
-                "ubuntu-20.04-jdk-11-ndk-r23b",
                 "ubuntu-22.04-jdk-17-ndk-r21e",
                 "ubuntu-22.04-jdk-11-ndk-r21e"
               ],
@@ -252,15 +251,17 @@
               "enum": [
                 "default",
                 "stable",
-                "ubuntu-20.04-jdk-8-ndk-r21e",
+                "ubuntu-20.04-jdk-11-ndk-r23b",
                 "ubuntu-20.04-jdk-11-ndk-r19c",
                 "ubuntu-20.04-jdk-8-ndk-r19c",
                 "ubuntu-20.04-jdk-11-ndk-r21e",
+                "ubuntu-20.04-jdk-8-ndk-r21e",
                 "ubuntu-22.04-jdk-8-ndk-r21e"
               ],
               "markdownEnumDescriptions": [
                 "This image tag is deprecated, please use other image tags or images directly instead.",
                 "This image tag is deprecated, please use other image tags or images directly instead.",
+                "This image is deprecated",
                 "This image is deprecated",
                 "This image is deprecated",
                 "This image is deprecated",
