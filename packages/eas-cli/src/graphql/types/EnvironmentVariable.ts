@@ -8,5 +8,6 @@ export const EnvironmentVariableFragmentNode = gql`
     environment
     createdAt
     scope
+    visibility
   }
 `;

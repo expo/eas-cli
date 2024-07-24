@@ -6,14 +6,9 @@ import {
   EASEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableScopeFlag,
-  EASVariableSensitiveFlag,
+  EASVariableVisibilityFlag,
 } from '../../commandUtils/flags';
-import {
-  promptVariableEnvironmentAsync,
-  promptVariableNameAsync,
-  promptVariableValueAsync,
-} from '../../environment-variables/prompts';
-import { EnvironmentVariableScope } from '../../graphql/generated';
+import { EnvironmentVariableScope, EnvironmentVariableVisibility } from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
@@ -22,6 +17,11 @@ import {
   getOwnerAccountForProjectIdAsync,
 } from '../../project/projectUtils';
 import { confirmAsync } from '../../prompts';
+import {
+  promptVariableEnvironmentAsync,
+  promptVariableNameAsync,
+  promptVariableValueAsync,
+} from '../../utils/prompts';
 
 export default class EnvironmentVariableCreate extends EasCommand {
   static override description =
@@ -39,7 +39,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
     link: Flags.boolean({
       description: 'Link shared variable to the project',
     }),
-    ...EASVariableSensitiveFlag,
+    ...EASVariableVisibilityFlag,
     ...EASVariableScopeFlag,
     ...EASEnvironmentFlag,
     ...EASNonInteractiveFlag,
@@ -60,6 +60,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
         'non-interactive': nonInteractive,
         environment,
         sensitive,
+        secret,
         link,
       },
     } = await this.parse(EnvironmentVariableCreate);
@@ -80,7 +81,16 @@ export default class EnvironmentVariableCreate extends EasCommand {
     }
 
     if (!value) {
-      value = await promptVariableValueAsync(nonInteractive);
+      value = await promptVariableValueAsync({ nonInteractive });
+    }
+
+    let overwrite = false;
+
+    let visibility = EnvironmentVariableVisibility.Public;
+    if (sensitive) {
+      visibility = EnvironmentVariableVisibility.Sensitive;
+    } else if (secret) {
+      visibility = EnvironmentVariableVisibility.Secret;
     }
 
     if (scope === EnvironmentVariableScope.Project) {
@@ -127,25 +137,25 @@ export default class EnvironmentVariableCreate extends EasCommand {
               Log.log('Aborting');
               return;
             }
+            overwrite = true;
           }
-          await EnvironmentVariableMutation.deleteAsync(graphqlClient, existingVariable.id);
-
-          Log.withTick(
-            `Deleting existing variable ${chalk.bold(name)} on project ${chalk.bold(
-              projectDisplayName
-            )}.`
-          );
         }
       }
 
       const variable = await EnvironmentVariableMutation.createForAppAsync(
         graphqlClient,
-        { name, value, environment, sensitive },
+        {
+          name,
+          value,
+          environment,
+          visibility,
+          overwrite,
+        },
         projectId
       );
       if (!variable) {
         throw new Error(
-          `Could not create variable with name ${name} on project with id ${projectId}`
+          `Could not create variable with name ${name} on project ${projectDisplayName}`
         );
       }
 
@@ -168,13 +178,17 @@ export default class EnvironmentVariableCreate extends EasCommand {
 
       const variable = await EnvironmentVariableMutation.createSharedVariableAsync(
         graphqlClient,
-        { name, value, sensitive },
+        {
+          name,
+          value,
+          visibility,
+        },
         ownerAccount.id
       );
 
       if (!variable) {
         throw new Error(
-          `Could not create variable with name ${name} on account with id ${ownerAccount.id}`
+          `Could not create variable with name ${name} on account ${ownerAccount.name}`
         );
       }
 

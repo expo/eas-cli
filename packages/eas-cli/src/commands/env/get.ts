@@ -9,16 +9,12 @@ import {
   EASNonInteractiveFlag,
   EASVariableFormatFlag,
   EASVariableScopeFlag,
-  EASVariableSensitiveFlag,
 } from '../../commandUtils/flags';
-import {
-  promptVariableEnvironmentAsync,
-  promptVariableNameAsync,
-} from '../../environment-variables/prompts';
 import { EnvironmentVariableFragment, EnvironmentVariableScope } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
+import { promptVariableEnvironmentAsync, promptVariableNameAsync } from '../../utils/prompts';
 
 export default class EnvironmentValueList extends EasCommand {
   static override description = 'list environment Variables available for your current app';
@@ -35,7 +31,6 @@ export default class EnvironmentValueList extends EasCommand {
       description: 'Name of the variable',
     }),
     ...EASVariableFormatFlag,
-    ...EASVariableSensitiveFlag,
     ...EASVariableScopeFlag,
     ...EASNonInteractiveFlag,
     ...EASEnvironmentFlag,
