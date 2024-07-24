@@ -1345,6 +1345,7 @@ export type App = Project & {
   users?: Maybe<Array<Maybe<User>>>;
   /** Webhooks for an app */
   webhooks: Array<Webhook>;
+  workerCustomDomain?: Maybe<WorkerCustomDomain>;
   workerDeployment?: Maybe<WorkerDeployment>;
   workerDeploymentAlias?: Maybe<WorkerDeploymentAlias>;
   workerDeploymentAliases: WorkerDeploymentAliasesConnection;
@@ -2801,6 +2802,7 @@ export type BuildMetadataInput = {
   customWorkflowName?: InputMaybe<Scalars['String']['input']>;
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
   distribution?: InputMaybe<DistributionType>;
+  environment?: InputMaybe<Scalars['String']['input']>;
   fingerprintSource?: InputMaybe<FingerprintSourceInput>;
   gitCommitHash?: InputMaybe<Scalars['String']['input']>;
   gitCommitMessage?: InputMaybe<Scalars['String']['input']>;
@@ -3268,6 +3270,64 @@ export type CustomBuildConfigInput = {
   path: Scalars['String']['input'];
 };
 
+export type CustomDomainDnsRecord = {
+  __typename?: 'CustomDomainDNSRecord';
+  dnsContent: Scalars['String']['output'];
+  dnsName: Scalars['String']['output'];
+  dnsType: CustomDomainDnsRecordType;
+};
+
+export enum CustomDomainDnsRecordType {
+  Cname = 'CNAME',
+  Txt = 'TXT'
+}
+
+export type CustomDomainMetadata = {
+  __typename?: 'CustomDomainMetadata';
+  ownershipVerification?: Maybe<CustomDomainDnsRecord>;
+  status: CustomDomainStatus;
+  verificationErrors?: Maybe<Array<Scalars['String']['output']>>;
+};
+
+export type CustomDomainMutation = {
+  __typename?: 'CustomDomainMutation';
+  deleteCustomDomain: DeleteCustomDomainResult;
+  refreshCustomDomain: WorkerCustomDomain;
+  registerCustomDomain: WorkerCustomDomain;
+};
+
+
+export type CustomDomainMutationDeleteCustomDomainArgs = {
+  customDomainId: Scalars['ID']['input'];
+};
+
+
+export type CustomDomainMutationRefreshCustomDomainArgs = {
+  customDomainId: Scalars['ID']['input'];
+};
+
+
+export type CustomDomainMutationRegisterCustomDomainArgs = {
+  aliasName?: InputMaybe<Scalars['String']['input']>;
+  appId: Scalars['ID']['input'];
+  hostname: Scalars['String']['input'];
+};
+
+export enum CustomDomainStatus {
+  Active = 'ACTIVE',
+  ActiveRedeploying = 'ACTIVE_REDEPLOYING',
+  Blocked = 'BLOCKED',
+  Deleted = 'DELETED',
+  Moved = 'MOVED',
+  Pending = 'PENDING',
+  PendingBlocked = 'PENDING_BLOCKED',
+  PendingDeletion = 'PENDING_DELETION',
+  PendingMigration = 'PENDING_MIGRATION',
+  PendingProvisioned = 'PENDING_PROVISIONED',
+  Provisioned = 'PROVISIONED',
+  Unknown = 'UNKNOWN'
+}
+
 export type DeleteAccessTokenResult = {
   __typename?: 'DeleteAccessTokenResult';
   id: Scalars['ID']['output'];
@@ -3317,6 +3377,13 @@ export type DeleteAppleProvisioningProfileResult = {
 export type DeleteBuildAnnotationResult = {
   __typename?: 'DeleteBuildAnnotationResult';
   buildAnnotationId: Scalars['ID']['output'];
+};
+
+export type DeleteCustomDomainResult = {
+  __typename?: 'DeleteCustomDomainResult';
+  appId: Scalars['ID']['output'];
+  hostname: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
 };
 
 export type DeleteDiscordUserResult = {
@@ -3676,9 +3743,9 @@ export enum EnvironmentVariableEnvironment {
 export type EnvironmentVariableMutation = {
   __typename?: 'EnvironmentVariableMutation';
   /** Create bulk env variables for an Account */
-  createBulkEnvironmentVariablesForAccount: Array<Maybe<EnvironmentVariable>>;
+  createBulkEnvironmentVariablesForAccount: Array<EnvironmentVariable>;
   /** Create bulk env variables for an App */
-  createBulkEnvironmentVariablesForApp: Array<Maybe<EnvironmentVariable>>;
+  createBulkEnvironmentVariablesForApp: Array<EnvironmentVariable>;
   /** Create an environment variable for an Account */
   createEnvironmentVariableForAccount: EnvironmentVariable;
   /** Create an environment variable for an App */
@@ -4279,17 +4346,21 @@ export type InvoiceLineItem = {
   amount: Scalars['Int']['output'];
   description: Scalars['String']['output'];
   id: Scalars['ID']['output'];
+  metadata: Scalars['JSONObject']['output'];
   period: InvoicePeriod;
+  /** @deprecated Use 'price' instead */
   plan: InvoiceLineItemPlan;
+  price?: Maybe<StripePrice>;
   proration: Scalars['Boolean']['output'];
   quantity: Scalars['Int']['output'];
-  title: Scalars['String']['output'];
+  /** The unit amount excluding tax, in cents */
+  unitAmountExcludingTax?: Maybe<Scalars['Float']['output']>;
 };
 
 export type InvoiceLineItemPlan = {
   __typename?: 'InvoiceLineItemPlan';
   id: Scalars['ID']['output'];
-  name: Scalars['String']['output'];
+  name?: Maybe<Scalars['String']['output']>;
 };
 
 export type InvoicePeriod = {
@@ -5259,6 +5330,7 @@ export type RootMutation = {
   build: BuildMutation;
   /** Mutations that create, update, and delete Build Annotations */
   buildAnnotation: BuildAnnotationMutation;
+  customDomain: CustomDomainMutation;
   deployments: DeploymentsMutation;
   /** Mutations that assign or modify DevDomainNames for apps */
   devDomainName: AppDevDomainNameMutation;
@@ -5810,6 +5882,11 @@ export type StripeCoupon = {
   valid: Scalars['Boolean']['output'];
 };
 
+export type StripePrice = {
+  __typename?: 'StripePrice';
+  id: Scalars['ID']['output'];
+};
+
 /** Represents an EAS Submission */
 export type Submission = ActivityTimelineProjectActivity & {
   __typename?: 'Submission';
@@ -5960,6 +6037,7 @@ export type SubscriptionDetails = {
   recurringCents?: Maybe<Scalars['Int']['output']>;
   status?: Maybe<Scalars['String']['output']>;
   trialEnd?: Maybe<Scalars['DateTime']['output']>;
+  upcomingInvoice?: Maybe<Invoice>;
   willCancel?: Maybe<Scalars['Boolean']['output']>;
 };
 
@@ -6871,6 +6949,18 @@ export type WebsiteNotificationsConnection = {
   pageInfo: PageInfo;
 };
 
+export type WorkerCustomDomain = {
+  __typename?: 'WorkerCustomDomain';
+  alias: WorkerDeploymentAlias;
+  createdAt: Scalars['DateTime']['output'];
+  devDomainName: Scalars['DevDomainName']['output'];
+  dnsRecord: CustomDomainDnsRecord;
+  hostname: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  metadata?: Maybe<CustomDomainMetadata>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
 export type WorkerDeployment = {
   __typename?: 'WorkerDeployment';
   aliases?: Maybe<Array<WorkerDeploymentAlias>>;
@@ -6903,7 +6993,9 @@ export type WorkerDeploymentAlias = {
   deploymentDomain: Scalars['String']['output'];
   devDomainName: Scalars['DevDomainName']['output'];
   id: Scalars['ID']['output'];
+  subdomain: Scalars['String']['output'];
   updatedAt: Scalars['DateTime']['output'];
+  url: Scalars['String']['output'];
   workerDeployment: WorkerDeployment;
 };
 
@@ -7607,7 +7699,7 @@ export type LinkSharedEnvironmentVariableMutationVariables = Exact<{
 }>;
 
 
-export type LinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', linkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope } } };
+export type LinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', linkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
 
 export type UnlinkSharedEnvironmentVariableMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
@@ -7616,7 +7708,7 @@ export type UnlinkSharedEnvironmentVariableMutationVariables = Exact<{
 }>;
 
 
-export type UnlinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', unlinkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope } } };
+export type UnlinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', unlinkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
 
 export type CreateEnvironmentVariableForAccountMutationVariables = Exact<{
   input: CreateSharedEnvironmentVariableInput;
@@ -7624,7 +7716,7 @@ export type CreateEnvironmentVariableForAccountMutationVariables = Exact<{
 }>;
 
 
-export type CreateEnvironmentVariableForAccountMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForAccount: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope } } };
+export type CreateEnvironmentVariableForAccountMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForAccount: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
 
 export type CreateEnvironmentVariableForAppMutationVariables = Exact<{
   input: CreateEnvironmentVariableInput;
@@ -7632,7 +7724,7 @@ export type CreateEnvironmentVariableForAppMutationVariables = Exact<{
 }>;
 
 
-export type CreateEnvironmentVariableForAppMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForApp: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope } } };
+export type CreateEnvironmentVariableForAppMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForApp: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
 
 export type DeleteEnvironmentVariableMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -7854,7 +7946,7 @@ export type EnvironmentVariablesByAppIdQueryVariables = Exact<{
 }>;
 
 
-export type EnvironmentVariablesByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope }> }, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope }> } } };
+export type EnvironmentVariablesByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null }> }, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null }> } } };
 
 export type EnvironmentVariablesSharedQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -7862,7 +7954,7 @@ export type EnvironmentVariablesSharedQueryVariables = Exact<{
 }>;
 
 
-export type EnvironmentVariablesSharedQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope }> } } } };
+export type EnvironmentVariablesSharedQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null }> } } } };
 
 export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']['input']> | Scalars['String']['input'];
@@ -7974,7 +8066,7 @@ export type BuildWithSubmissionsFragment = { __typename?: 'Build', id: string, s
 
 export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any };
 
-export type EnvironmentVariableFragment = { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope };
+export type EnvironmentVariableFragment = { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null };
 
 export type RuntimeFragment = { __typename?: 'Runtime', id: string, version: string };
 

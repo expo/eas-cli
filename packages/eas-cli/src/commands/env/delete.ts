@@ -6,14 +6,13 @@ import {
   EASEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableScopeFlag,
-  EASVariableSensitiveFlag,
 } from '../../commandUtils/flags';
-import { promptVariableEnvironmentAsync } from '../../environment-variables/prompts';
 import { EnvironmentVariableScope } from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
+import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvironmentVariableDelete extends EasCommand {
   static override description = 'delete an environment variable by name';
@@ -24,7 +23,6 @@ export default class EnvironmentVariableDelete extends EasCommand {
     name: Flags.string({
       description: 'Name of the variable to delete',
     }),
-    ...EASVariableSensitiveFlag,
     ...EASVariableScopeFlag,
     ...EASEnvironmentFlag,
     ...EASNonInteractiveFlag,

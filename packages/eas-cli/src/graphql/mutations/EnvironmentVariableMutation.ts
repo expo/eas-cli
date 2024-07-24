@@ -8,10 +8,26 @@ import {
   CreateEnvironmentVariableForAppMutation,
   DeleteEnvironmentVariableMutation,
   EnvironmentVariableFragment,
+  EnvironmentVariableVisibility,
   LinkSharedEnvironmentVariableMutation,
   UnlinkSharedEnvironmentVariableMutation,
 } from '../generated';
 import { EnvironmentVariableFragmentNode } from '../types/EnvironmentVariable';
+
+type UpdateVariableArgs = {
+  value?: string;
+  name: string;
+  overwrite: true;
+  visibility?: EnvironmentVariableVisibility;
+};
+
+export type EnvironmentVariablePushInput = {
+  name: string;
+  value: string;
+  environment: string;
+  visibility: EnvironmentVariableVisibility;
+  overwrite?: boolean;
+};
 
 export const EnvironmentVariableMutation = {
   async linkSharedEnvironmentVariableAsync(
@@ -86,7 +102,14 @@ export const EnvironmentVariableMutation = {
   },
   async createSharedVariableAsync(
     graphqlClient: ExpoGraphqlClient,
-    input: { name: string; value: string; sensitive: boolean },
+    input:
+      | {
+          name: string;
+          value: string;
+          visibility: EnvironmentVariableVisibility;
+          overwrite?: boolean;
+        }
+      | UpdateVariableArgs,
     accountId: string
   ): Promise<EnvironmentVariableFragment> {
     const data = await withErrorHandlingAsync(
@@ -118,7 +141,15 @@ export const EnvironmentVariableMutation = {
   },
   async createForAppAsync(
     graphqlClient: ExpoGraphqlClient,
-    input: { name: string; value: string; environment: string; sensitive: boolean },
+    input:
+      | {
+          name: string;
+          value?: string;
+          environment: string;
+          visibility: EnvironmentVariableVisibility;
+          overwrite?: boolean;
+        }
+      | (UpdateVariableArgs & { environment: string }),
     appId: string
   ): Promise<EnvironmentVariableFragment> {
     const data = await withErrorHandlingAsync(

@@ -3,12 +3,12 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
-import { promptVariableEnvironmentAsync } from '../../environment-variables/prompts';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
+import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvironmentVariableUnlink extends EasCommand {
   static override description = 'link a shared environment variable to the current project';

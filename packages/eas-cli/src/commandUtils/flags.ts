@@ -40,10 +40,21 @@ export const EASVariableFormatFlag = {
   }),
 };
 
-export const EASVariableSensitiveFlag = {
+export const EASVariableVisibilityFlag = {
   sensitive: Flags.boolean({
     description: 'Encrypt variable value at rest',
     default: false,
+    exclusive: ['secret', 'public'],
+  }),
+  secret: Flags.boolean({
+    description: 'Encrypt variable value at rest and protect it from being displayed',
+    default: false,
+    exclusive: ['sensitive', 'public'],
+  }),
+  public: Flags.boolean({
+    description: 'Make variable value public',
+    default: false,
+    exclusive: ['sensitive', 'secret'],
   }),
 };
 
