@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Pass correct path to `vcsClient.isFileIgnoredAsync` check for monorepos to validate that custom build config file is not ignored. ([#2470](https://github.com/expo/eas-cli/pull/2470) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 - Bump asset upload timeout from 90 to 180 seconds. ([#2466](https://github.com/expo/eas-cli/pull/2466) by [@quinlanj](https://github.com/quinlanj))
