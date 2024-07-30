@@ -1,6 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
-import { errors, readAndValidateBuildConfigAsync } from '@expo/steps';
+import { errors, readAndValidateBuildConfigFromPathAsync } from '@expo/steps';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
@@ -42,7 +42,7 @@ export async function validateCustomBuildConfigAsync({
   }
 
   try {
-    const config = await readAndValidateBuildConfigAsync(configPath, {
+    const config = await readAndValidateBuildConfigFromPathAsync(configPath, {
       skipNamespacedFunctionsOrFunctionGroupsCheck: true,
     });
     return {
