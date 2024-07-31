@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [10.2.2](https://github.com/expo/eas-cli/releases/tag/v10.2.2) - 2024-07-31
+
+### 🐛 Bug fixes
+
 - Pass correct path to `vcsClient.isFileIgnoredAsync` check for monorepos to validate that custom build config file is not ignored. ([#2470](https://github.com/expo/eas-cli/pull/2470) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
