@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Update images list in `eas.schema.json` and warn users when using the deprecated Android images. ([#2450](https://github.com/expo/eas-cli/pull/2450) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [10.2.2](https://github.com/expo/eas-cli/releases/tag/v10.2.2) - 2024-07-31
 
 ### 🐛 Bug fixes
