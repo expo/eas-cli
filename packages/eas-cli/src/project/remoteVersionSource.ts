@@ -144,7 +144,7 @@ export async function ensureAppVersionSourceIsSetAsync(
   }
 
   Log.log(
-    `Please select your app version source. With "local" the build android.versionCode / ios.buildNumber needs to be incremented manually in app.json / app.config.js, and with "remote" this value is stored in EAS and will be incremented automatically with each build. Until now, this project has been using the "local" version source (which was previously the default when the app version source was not specified). App version source can be set for you automatically, or you can configure it yourself - if you wish to use the default "remote" version source add ${chalk.bold(
+    `Please select your app version source. With "local" the build android.versionCode / ios.buildNumber are taken from app.json / app.config.js files and need to be incremented manually or automatically by setting autoIncrement: true in eas.json. With "remote" this value is handled remotely by EAS and can also be incremented automatically with each build when setting autoIncrement: true in eas.json. Until now, this project has been using the "local" version source (which was previously the default when the app version source was not specified). App version source can be set for you automatically, or you can configure it yourself - if you wish to use the default "remote" version source add ${chalk.bold(
       '{"cli": { "appVersionSource": "remote" }}'
     )} to your eas.json or if you want to use the "local" version source add ${chalk.bold(
       '{"cli": { "appVersionSource": "local" }}'
