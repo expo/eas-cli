@@ -52,7 +52,7 @@ export async function createIosContextAsync(
   });
   const applicationTarget = findApplicationTarget(targets);
   const buildNumberOverride =
-    ctx.easJsonCliConfig?.appVersionSource !== AppVersionSource.LOCAL
+    ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
       ? await resolveRemoteBuildNumberAsync(ctx.graphqlClient, {
           projectDir: ctx.projectDir,
           projectId: ctx.projectId,
@@ -85,7 +85,7 @@ export async function prepareIosBuildAsync(
         exp: ctx.exp,
         targets: ctx.ios.targets,
         localAutoIncrement:
-          ctx.easJsonCliConfig?.appVersionSource !== AppVersionSource.LOCAL
+          ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
             ? false
             : ctx.buildProfile.autoIncrement,
         vcsClient: ctx.vcsClient,

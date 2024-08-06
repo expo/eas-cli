@@ -76,7 +76,7 @@ This means that it will most likely produce an AAB and you will not be able to i
     gradleContext
   );
   const versionCodeOverride =
-    ctx.easJsonCliConfig?.appVersionSource !== AppVersionSource.LOCAL
+    ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
       ? await resolveRemoteVersionCodeAsync(ctx.graphqlClient, {
           projectDir: ctx.projectDir,
           projectId: ctx.projectId,
@@ -103,7 +103,7 @@ export async function prepareAndroidBuildAsync(
         projectDir: ctx.projectDir,
         exp: ctx.exp,
         localAutoIncrement:
-          ctx.easJsonCliConfig?.appVersionSource !== AppVersionSource.LOCAL
+          ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
             ? false
             : ctx.buildProfile.autoIncrement,
         vcsClient: ctx.vcsClient,
