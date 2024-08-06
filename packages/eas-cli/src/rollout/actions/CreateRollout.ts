@@ -286,7 +286,9 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
           })
         )
       )
-    ).filter(truthy);
+    )
+      .map(runtime => runtime?.runtimeVersion)
+      .filter(truthy);
     const dedupedRuntimes = [...new Set(runtimes)];
 
     if (dedupedRuntimes.length === 0) {

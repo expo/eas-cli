@@ -30,6 +30,7 @@ import {
   collectAssetsAsync,
   defaultPublishPlatforms,
   filterExportedPlatformsByFlag,
+  generateEasMetadataAsync,
   getBranchNameForCommandAsync,
   getRequestedPlatform,
   getRuntimeToPlatformMappingFromRuntimeVersions,
@@ -66,6 +67,7 @@ type RawUpdateFlags = {
   'clear-cache': boolean;
   'private-key-path'?: string;
   'non-interactive': boolean;
+  'emit-metadata': boolean;
   json: boolean;
   /** @deprecated see UpdateRepublish command */
   group?: string;
@@ -85,6 +87,7 @@ type UpdateFlags = {
   privateKeyPath?: string;
   json: boolean;
   nonInteractive: boolean;
+  emitMetadata: boolean;
 };
 
 export default class UpdatePublish extends EasCommand {
@@ -123,6 +126,10 @@ export default class UpdatePublish extends EasCommand {
     }),
     'clear-cache': Flags.boolean({
       description: `Clear the bundler cache before publishing`,
+      default: false,
+    }),
+    'emit-metadata': Flags.boolean({
+      description: `Emit "eas-update-metadata.json" in the bundle folder with detailed information about the generated updates`,
       default: false,
     }),
     platform: Flags.enum({
@@ -168,6 +175,7 @@ export default class UpdatePublish extends EasCommand {
       json: jsonFlag,
       nonInteractive,
       branchName: branchNameArg,
+      emitMetadata,
     } = this.sanitizeFlags(rawFlags);
 
     const {
@@ -252,7 +260,7 @@ export default class UpdatePublish extends EasCommand {
       realizedPlatforms = Object.keys(assets) as PublishPlatform[];
 
       // Timeout mechanism:
-      // - Start with NO_ACTIVITY_TIMEOUT. 90 seconds is chosen because the cloud function that processes
+      // - Start with NO_ACTIVITY_TIMEOUT. 180 seconds is chosen because the cloud function that processes
       //   uploaded assets has a timeout of 60 seconds and uploading can take some time on a slow connection.
       // - Each time one or more assets reports as ready, reset the timeout.
       // - Each time an asset upload begins, reset the timeout. This includes retries.
@@ -261,7 +269,7 @@ export default class UpdatePublish extends EasCommand {
       // - At the same time as upload is started, start timeout checker which checks every 1 second to see
       //   if timeout has been reached. When timeout expires, send a cancellation signal to currently running
       //   upload function call to instruct it to stop uploading or checking for successful processing.
-      const NO_ACTIVITY_TIMEOUT = 90 * 1000; // 90 seconds
+      const NO_ACTIVITY_TIMEOUT = 180 * 1000; // 180 seconds
       let lastUploadedStorageKeys = new Set<string>();
       let lastAssetUploadResults: {
         asset: RawAsset & { storageKey: string };
@@ -462,6 +470,10 @@ export default class UpdatePublish extends EasCommand {
       throw e;
     }
 
+    if (!skipBundler && emitMetadata) {
+      Log.log('Generating eas-update-metadata.json');
+      await generateEasMetadataAsync(distRoot, getUpdateJsonInfosForUpdates(newUpdates));
+    }
     if (jsonFlag) {
       printJsonOnlyOutput(getUpdateJsonInfosForUpdates(newUpdates));
     } else {
@@ -562,17 +574,28 @@ export default class UpdatePublish extends EasCommand {
       Errors.error('--group and --republish flags are deprecated', { exit: 1 });
     }
 
+    const skipBundler = flags['skip-bundler'] ?? false;
+    let emitMetadata = flags['emit-metadata'] ?? false;
+
+    if (skipBundler && emitMetadata) {
+      emitMetadata = false;
+      Log.warn(
+        'ignoring flag --emit-metadata as metadata cannot be generated when skipping bundle generation'
+      );
+    }
+
     return {
       auto,
       branchName,
       channelName,
       updateMessage,
       inputDir: flags['input-dir'],
-      skipBundler: flags['skip-bundler'],
+      skipBundler,
       clearCache: flags['clear-cache'],
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
       nonInteractive,
+      emitMetadata,
       json: flags.json ?? false,
     };
   }

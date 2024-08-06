@@ -14,6 +14,49 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Update images list in `eas.schema.json` and warn users when using the deprecated Android images. ([#2450](https://github.com/expo/eas-cli/pull/2450) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [10.2.2](https://github.com/expo/eas-cli/releases/tag/v10.2.2) - 2024-07-31
+
+### 🐛 Bug fixes
+
+- Pass correct path to `vcsClient.isFileIgnoredAsync` check for monorepos to validate that custom build config file is not ignored. ([#2470](https://github.com/expo/eas-cli/pull/2470) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🧹 Chores
+
+- Bump asset upload timeout from 90 to 180 seconds. ([#2466](https://github.com/expo/eas-cli/pull/2466) by [@quinlanj](https://github.com/quinlanj))
+
+## [10.2.1](https://github.com/expo/eas-cli/releases/tag/v10.2.1) - 2024-07-18
+
+### 🧹 Chores
+
+- Indicate if a user is logged in using `EXPO_TOKEN` when running `eas whoami` command. ([#2461](https://github.com/expo/eas-cli/pull/2461) by [@szdziedzic](https://github.com/szdziedzic))
+- Throw error when `eas login` command is run with `EXPO_TOKEN` environment variable set. ([#2461](https://github.com/expo/eas-cli/pull/2461) by [@szdziedzic](https://github.com/szdziedzic))
+- Check if user is already logged in when running `eas login` command. ([#2461](https://github.com/expo/eas-cli/pull/2461) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [10.2.0](https://github.com/expo/eas-cli/releases/tag/v10.2.0) - 2024-07-15
+
+### 🎉 New features
+
+- Added flag `--emit-metadata` to emit `eas-update-metadata.json` in the bundle folder with detailed information about the generated updates ([#2451](https://github.com/expo/eas-cli/pull/2451) by [@rainst](https://github.com/rainst))
+
+### 🐛 Bug fixes
+
+- Bump `@expo/apple-utils` version to use the fallback Apple Developer Portal domain on every internal server error. ([#2459](https://github.com/expo/eas-cli/pull/2459) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [10.1.1](https://github.com/expo/eas-cli/releases/tag/v10.1.1) - 2024-07-04
+
+## [10.1.0](https://github.com/expo/eas-cli/releases/tag/v10.1.0) - 2024-07-02
+
+### 🎉 New features
+
+- Save local fingeprint sources during build. ([#2422](https://github.com/expo/eas-cli/pull/2422) by [@kadikraman](https://github.com/kadikraman))
+
+## [10.0.3](https://github.com/expo/eas-cli/releases/tag/v10.0.3) - 2024-06-26
+
+### 🧹 Chores
+
+- Track usage of `--local` build mode in analytics. ([#2445](https://github.com/expo/eas-cli/pull/2445) by [@szdziedzic](https://github.com/szdziedzic))
 - Remove any mentions of deleted Xcode < 15 images. ([#2438](https://github.com/expo/eas-cli/pull/2438) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [10.0.2](https://github.com/expo/eas-cli/releases/tag/v10.0.2) - 2024-06-17

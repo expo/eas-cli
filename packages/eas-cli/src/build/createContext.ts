@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createAndroidContextAsync } from './android/build';
 import { BuildContext, CommonContext } from './context';
 import { createIosContextAsync } from './ios/build';
-import { LocalBuildOptions } from './local';
+import { LocalBuildMode, LocalBuildOptions } from './local';
 import { resolveBuildResourceClassAsync } from './utils/resourceClass';
 import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/AnalyticsManager';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
@@ -108,6 +108,7 @@ export async function createBuildContextAsync<T extends Platform>({
     ...devClientProperties,
     no_wait: noWait,
     run_from_ci: runFromCI,
+    local: localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN,
   };
   analytics.logEvent(BuildEvent.BUILD_COMMAND, analyticsEventProperties);
 
