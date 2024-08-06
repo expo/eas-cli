@@ -65,7 +65,9 @@ const EAS_JSON_DEFAULT: EasJson = {
     preview: {
       distribution: 'internal',
     },
-    production: {},
+    production: {
+      autoIncrement: true,
+    },
   },
   submit: {
     production: {},
