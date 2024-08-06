@@ -75,9 +75,9 @@ export default class EnvironmentVariableLink extends EasCommand {
     }
 
     Log.withTick(
-      `Linked variable ${chalk.bold(linkedVariable.name)} with value ${chalk.bold(
-        linkedVariable.value
-      )} to project ${chalk.bold(projectDisplayName)}.`
+      `Linked variable ${chalk.bold(linkedVariable.name)} to project ${chalk.bold(
+        projectDisplayName
+      )}.`
     );
   }
 }

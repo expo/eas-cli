@@ -1,6 +1,5 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
-import dateFormat from 'dateformat';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -13,11 +12,11 @@ import {
 import { EnvironmentVariableFragment, EnvironmentVariableScope } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
-import formatFields from '../../utils/formatFields';
+import { formatVariable } from '../../utils/formatVariable';
 import { promptVariableEnvironmentAsync, promptVariableNameAsync } from '../../utils/prompts';
 
-export default class EnvironmentValueList extends EasCommand {
-  static override description = 'list environment Variables available for your current app';
+export default class EnvironmentValueGet extends EasCommand {
+  static override description = 'get environment variable';
 
   static override hidden = true;
 
@@ -39,16 +38,20 @@ export default class EnvironmentValueList extends EasCommand {
   async runAsync(): Promise<void> {
     let {
       flags: { environment, name, 'non-interactive': nonInteractive, format, scope },
-    } = await this.parse(EnvironmentValueList);
+    } = await this.parse(EnvironmentValueGet);
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentValueList, {
+    } = await this.getContextAsync(EnvironmentValueGet, {
       nonInteractive,
     });
 
     if (!name) {
       name = await promptVariableNameAsync(nonInteractive);
+    }
+
+    if (environment && scope === EnvironmentVariableScope.Shared) {
+      throw new Error(`Unexpected argument: --environment can only be used with project variables`);
     }
 
     if (!environment && scope === EnvironmentVariableScope.Project) {
@@ -61,7 +64,7 @@ export default class EnvironmentValueList extends EasCommand {
       Log.error(`Variable with name "${name}" not found`);
       return;
     }
-    if (variable.value === null) {
+    if (!variable.value) {
       Log.log(
         chalk`{bold ${variable.name}} is a secret variable and cannot be displayed once it has been created.`
       );
@@ -104,14 +107,4 @@ async function getVariableAsync(
   }
 
   return null;
-}
-
-function formatVariable(variable: EnvironmentVariableFragment): string {
-  return formatFields([
-    { label: 'ID', value: variable.id },
-    { label: 'Name', value: variable.name },
-    { label: 'Value', value: variable.value || '*****' },
-    { label: 'Scope', value: variable.scope },
-    { label: 'Created at', value: dateFormat(variable.createdAt, 'mmm dd HH:MM:ss') },
-  ]);
 }

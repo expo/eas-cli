@@ -22,7 +22,7 @@ export const EasNonInteractiveAndJsonFlags = {
 
 export const EASEnvironmentFlag = {
   environment: Flags.enum({
-    description: 'Environment to create the secret in',
+    description: "Environment variable's environment",
     parse: upperCaseAsync,
     options: mapToLowercase([
       EnvironmentVariableEnvironment.Development,
@@ -33,14 +33,14 @@ export const EASEnvironmentFlag = {
 };
 
 export const EASVariableFormatFlag = {
-  format: Flags.string({
+  format: Flags.enum({
     description: 'Output format',
     options: ['long', 'short'],
     default: 'short',
   }),
 };
 
-export const EASVariableVisibilityFlag = {
+export const EASVariableVisibilityFlags = {
   sensitive: Flags.boolean({
     description: 'Encrypt variable value at rest',
     default: false,
