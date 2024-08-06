@@ -3,6 +3,7 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
+import { EnvironmentVariableScope } from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
@@ -45,22 +46,22 @@ export default class EnvironmentVariableUnlink extends EasCommand {
 
     const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
-    const { appVariables, sharedVariables } = await EnvironmentVariablesQuery.byAppIdAsync(
+    const { appVariables } = await EnvironmentVariablesQuery.byAppIdAsync(
       graphqlClient,
       projectId,
       environment
     );
-    const sharedVariablesIds = sharedVariables.map(v => v.id);
-    const linkedVariables = appVariables.filter(({ id }) => sharedVariablesIds.includes(id));
+    const linkedVariables = appVariables.filter(
+      ({ scope }) => scope === EnvironmentVariableScope.Shared
+    );
 
     if (linkedVariables.length === 0) {
-      Log.fail('No variables to unlink');
-      return;
+      throw new Error(`There are no linked shared env variables for project ${projectDisplayName}`);
     }
 
     if (!name) {
       name = await selectAsync(
-        'Select shared variable',
+        'Select shared variable to unlink',
         linkedVariables.map(variable => ({
           title: variable.name,
           value: variable.name,
@@ -88,9 +89,9 @@ export default class EnvironmentVariableUnlink extends EasCommand {
     }
 
     Log.withTick(
-      `Unlinked variable ${chalk.bold(unlinkedVariable.name)} with value ${chalk.bold(
-        unlinkedVariable.value
-      )} to project ${chalk.bold(projectDisplayName)}.`
+      `Unlinked variable ${chalk.bold(unlinkedVariable.name)} to project ${chalk.bold(
+        projectDisplayName
+      )}.`
     );
   }
 }

@@ -92,9 +92,8 @@ export default class EnvironmentVariableDelete extends EasCommand {
 
     if (!nonInteractive) {
       Log.addNewLineIfNone();
-      Log.warn(
-        `You are about to permanently delete variable ${selectedVariable.name}.\nThis action is irreversible.`
-      );
+      Log.warn(`You are about to permanently delete variable ${selectedVariable.name}.`);
+      Log.warn('This action is irreversible.');
       Log.newLine();
       const confirmed = await toggleConfirmAsync({
         message: `Are you sure you wish to proceed?${

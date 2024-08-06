@@ -6,7 +6,7 @@ import {
   EASEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableScopeFlag,
-  EASVariableVisibilityFlag,
+  EASVariableVisibilityFlags,
 } from '../../commandUtils/flags';
 import { EnvironmentVariableScope, EnvironmentVariableVisibility } from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
@@ -37,9 +37,9 @@ export default class EnvironmentVariableCreate extends EasCommand {
       description: 'Text value or the variable',
     }),
     link: Flags.boolean({
-      description: 'Link shared variable to the project',
+      description: 'Link shared variable to the current project',
     }),
-    ...EASVariableVisibilityFlag,
+    ...EASVariableVisibilityFlags,
     ...EASVariableScopeFlag,
     ...EASEnvironmentFlag,
     ...EASNonInteractiveFlag,
@@ -80,10 +80,6 @@ export default class EnvironmentVariableCreate extends EasCommand {
       name = await promptVariableNameAsync(nonInteractive);
     }
 
-    if (!value) {
-      value = await promptVariableValueAsync({ nonInteractive });
-    }
-
     let overwrite = false;
 
     let visibility = EnvironmentVariableVisibility.Public;
@@ -93,7 +89,17 @@ export default class EnvironmentVariableCreate extends EasCommand {
       visibility = EnvironmentVariableVisibility.Secret;
     }
 
+    if (!value) {
+      value = await promptVariableValueAsync({
+        nonInteractive,
+        hidden: visibility !== EnvironmentVariableVisibility.Public,
+      });
+    }
+
     if (scope === EnvironmentVariableScope.Project) {
+      if (link) {
+        throw new Error(`Unexpected argument: --link can only be used with shared variables`);
+      }
       if (!environment) {
         environment = await promptVariableEnvironmentAsync(nonInteractive);
       }
@@ -160,18 +166,28 @@ export default class EnvironmentVariableCreate extends EasCommand {
       }
 
       Log.withTick(
-        `Created a new variable ${chalk.bold(name)} with value ${chalk.bold(
-          value
-        )} on project ${chalk.bold(projectDisplayName)}.`
+        `Created a new variable ${chalk.bold(name)} on project ${chalk.bold(projectDisplayName)}.`
       );
     } else if (scope === EnvironmentVariableScope.Shared) {
       const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
       const existingVariable = sharedVariables.find(variable => variable.name === name);
       if (existingVariable) {
         throw new Error(
-          'Variable with this name already exists on this account. Please use a different name.'
+          `Shared variable with ${name} name already exists on this account. Use a different name or delete the existing variable.`
         );
       }
+
+      if (environment && !link) {
+        const confirmation = await confirmAsync({
+          message: `Unexpected argument: --environment can only be used with --link flag. Do you want to link the variable to the current project?`,
+        });
+
+        if (!confirmation) {
+          Log.log('Aborting');
+          return;
+        }
+      }
+
       if (!environment && link) {
         environment = await promptVariableEnvironmentAsync(nonInteractive);
       }
@@ -193,9 +209,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
       }
 
       Log.withTick(
-        `Created a new variable ${chalk.bold(name)} with value ${chalk.bold(
-          value
-        )} on account ${chalk.bold(ownerAccount.name)}.`
+        `Created a new variable ${chalk.bold(name)} on account ${chalk.bold(ownerAccount.name)}.`
       );
 
       if (link && environment) {

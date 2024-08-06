@@ -7,7 +7,9 @@ export async function promptVariableEnvironmentAsync(
   nonInteractive: boolean
 ): Promise<EnvironmentVariableEnvironment> {
   if (nonInteractive) {
-    throw new Error('Environment may not be empty.');
+    throw new Error(
+      'The `--environment` flag must be set when running in `--non-interactive` mode.'
+    );
   }
   return await selectAsync('Select environment:', [
     { title: 'Development', value: EnvironmentVariableEnvironment.Development },
@@ -18,11 +20,13 @@ export async function promptVariableEnvironmentAsync(
 export async function promptVariableValueAsync({
   nonInteractive,
   required = true,
+  hidden = false,
   initial,
 }: {
   nonInteractive: boolean;
   required?: boolean;
   initial?: string | null;
+  hidden?: boolean;
 }): Promise<string> {
   if (nonInteractive && required) {
     throw new Error(
@@ -33,7 +37,7 @@ export async function promptVariableValueAsync({
   }
 
   const { variableValue } = await promptAsync({
-    type: 'text',
+    type: hidden ? 'password' : 'text',
     name: 'variableValue',
     message: 'Variable value:',
     initial: initial ?? '',

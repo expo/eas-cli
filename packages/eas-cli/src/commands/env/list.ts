@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import dateFormat from 'dateformat';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -7,10 +6,10 @@ import {
   EASVariableFormatFlag,
   EASVariableScopeFlag,
 } from '../../commandUtils/flags';
-import { EnvironmentVariableFragment, EnvironmentVariableScope } from '../../graphql/generated';
+import { EnvironmentVariableScope } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
-import formatFields from '../../utils/formatFields';
+import { formatVariable } from '../../utils/formatVariable';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvironmentValueList extends EasCommand {
@@ -52,7 +51,12 @@ export default class EnvironmentValueList extends EasCommand {
 
     if (format === 'short') {
       for (const variable of variables) {
-        Log.log(chalk`{bold ${variable.name}}=${variable.value || '*****'}`);
+        Log.log(
+          chalk`{bold ${variable.name}}=${
+            variable.value ||
+            "***** (This is a secret env variable that can only be accessed on EAS builder and can't be read in any UI. Learn more.)"
+          }`
+        );
       }
     } else {
       if (scope === EnvironmentVariableScope.Shared) {
@@ -65,14 +69,4 @@ export default class EnvironmentValueList extends EasCommand {
       );
     }
   }
-}
-
-function formatVariable(variable: EnvironmentVariableFragment): string {
-  return formatFields([
-    { label: 'ID', value: variable.id },
-    { label: 'Name', value: variable.name },
-    { label: 'Value', value: variable.value || '*****' },
-    { label: 'Scope', value: variable.scope },
-    { label: 'Created at', value: dateFormat(variable.createdAt, 'mmm dd HH:MM:ss') },
-  ]);
 }
