@@ -27,7 +27,7 @@ export async function fetchSessionSecretAndUserAsync({
   };
 }
 
-export async function upgradeSudoSessionAndAsync(
+export async function upgradeToSudoSessionAsync(
   apiV2Client: ApiV2Client,
   {
     password,
