@@ -11,10 +11,9 @@ import {
 } from '@urql/core';
 import { retryExchange } from '@urql/exchange-retry';
 import { DocumentNode } from 'graphql';
-import fetch from 'node-fetch';
 
 import { getExpoApiBaseUrl } from '../../../api';
-import { httpsProxyAgent } from '../../../fetch';
+import fetch, { RequestError, RequestInfo, RequestInit } from '../../../fetch';
 
 export interface ExpoGraphqlClient extends Client {
   query<Data = any, Variables extends AnyVariables = AnyVariables>(
@@ -44,19 +43,17 @@ export function createGraphqlClient(authInfo: {
       }),
       fetchExchange,
     ],
-    // @ts-expect-error Type 'typeof fetch' is not assignable to type '(input: RequestInfo, init?: RequestInit | undefined) => Promise<Response>'.
-    fetch,
-    fetchOptions: (): RequestInit => {
+    // @ts-expect-error - Type '(url: RequestInfo, init?: RequestInit) => Promise<Response>' is not assignable to type '{ (input: RequestInfo | URL, init?: RequestInit | undefined): Promise<Response>; (input: string | Request | URL, init?: RequestInit | undefined): Promise<...>; }'.
+    fetch: (url: RequestInfo, init?: RequestInit) =>
+      fetch(url, init).catch((error: RequestError) => error.response),
+    fetchOptions: () => {
       const headers: Record<string, string> = {};
       if (authInfo.accessToken) {
         headers.authorization = `Bearer ${authInfo.accessToken}`;
       } else if (authInfo.sessionSecret) {
         headers['expo-session'] = authInfo.sessionSecret;
       }
-      return {
-        ...(httpsProxyAgent ? { agent: httpsProxyAgent } : {}),
-        headers,
-      };
+      return { headers };
     },
   }) as ExpoGraphqlClient;
 }
