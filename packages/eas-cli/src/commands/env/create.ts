@@ -39,6 +39,10 @@ export default class EnvironmentVariableCreate extends EasCommand {
     link: Flags.boolean({
       description: 'Link shared variable to the current project',
     }),
+    force: Flags.boolean({
+      description: 'Overwrite existing variable',
+      default: false,
+    }),
     ...EASVariableVisibilityFlags,
     ...EASVariableScopeFlag,
     ...EASEnvironmentFlag,
@@ -62,6 +66,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
         sensitive,
         secret,
         link,
+        force,
       },
     } = await this.parse(EnvironmentVariableCreate);
     const {
@@ -121,7 +126,12 @@ export default class EnvironmentVariableCreate extends EasCommand {
               Log.log('Aborting');
               return;
             }
+          } else if (!force) {
+            throw new Error(
+              `Shared variable ${name} already exists on this project. Use --force to overwrite it.`
+            );
           }
+
           await EnvironmentVariableMutation.unlinkSharedEnvironmentVariableAsync(
             graphqlClient,
             existingVariable.id,
@@ -143,8 +153,12 @@ export default class EnvironmentVariableCreate extends EasCommand {
               Log.log('Aborting');
               return;
             }
-            overwrite = true;
+          } else if (!force) {
+            throw new Error(
+              `Shared variable ${name} already exists on this project. Use --force to overwrite it.`
+            );
           }
+          overwrite = true;
         }
       }
 
@@ -178,13 +192,17 @@ export default class EnvironmentVariableCreate extends EasCommand {
       }
 
       if (environment && !link) {
-        const confirmation = await confirmAsync({
-          message: `Unexpected argument: --environment can only be used with --link flag. Do you want to link the variable to the current project?`,
-        });
+        if (!nonInteractive) {
+          const confirmation = await confirmAsync({
+            message: `Unexpected argument: --environment can only be used with --link flag. Do you want to link the variable to the current project?`,
+          });
 
-        if (!confirmation) {
-          Log.log('Aborting');
-          return;
+          if (!confirmation) {
+            Log.log('Aborting');
+            return;
+          }
+        } else {
+          throw new Error('Unexpected argument: --environment can only be used with --link flag.');
         }
       }
 
