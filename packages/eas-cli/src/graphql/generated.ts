@@ -510,17 +510,12 @@ export type AccountGoogleServiceAccountKeysEdge = {
 
 export type AccountMutation = {
   __typename?: 'AccountMutation';
-  /**
-   * Makes a one time purchase
-   * @deprecated Build packs are no longer supported
-   */
-  buyProduct?: Maybe<Account>;
   /** Cancels all subscriptions immediately */
   cancelAllSubscriptionsImmediately: Account;
   /** Cancel scheduled subscription change */
   cancelScheduledSubscriptionChange: Account;
-  /** Cancels the active subscription */
-  cancelSubscription: Account;
+  /** Buys or revokes account's additional concurrencies, charging the account the appropriate amount if needed. */
+  changeAdditionalConcurrenciesCount: Account;
   /** Upgrades or downgrades the active subscription to the newPlanIdentifier, which must be one of the EAS plans (i.e., Production or Enterprise). */
   changePlan: Account;
   /** Add specified account Permissions for Actor. Actor must already have at least one permission on the account. */
@@ -531,23 +526,8 @@ export type AccountMutation = {
   requestRefund?: Maybe<Scalars['Boolean']['output']>;
   /** Revoke specified Permissions for Actor. Actor must already have at least one permission on the account. */
   revokeActorPermissions: Account;
-  /**
-   * Update setting to purchase new build packs when the current one is consumed
-   * @deprecated Build packs are no longer supported
-   */
-  setBuildAutoRenew?: Maybe<Account>;
-  /** Set payment details */
-  setPaymentSource: Account;
   /** Require authorization to send push notifications for experiences owned by this account */
   setPushSecurityEnabled: Account;
-};
-
-
-export type AccountMutationBuyProductArgs = {
-  accountName: Scalars['ID']['input'];
-  autoRenew?: InputMaybe<Scalars['Boolean']['input']>;
-  paymentSource?: InputMaybe<Scalars['ID']['input']>;
-  productId: Scalars['ID']['input'];
 };
 
 
@@ -561,8 +541,9 @@ export type AccountMutationCancelScheduledSubscriptionChangeArgs = {
 };
 
 
-export type AccountMutationCancelSubscriptionArgs = {
-  accountName: Scalars['ID']['input'];
+export type AccountMutationChangeAdditionalConcurrenciesCountArgs = {
+  accountID: Scalars['ID']['input'];
+  newAdditionalConcurrenciesCount: Scalars['Int']['input'];
 };
 
 
@@ -598,18 +579,6 @@ export type AccountMutationRevokeActorPermissionsArgs = {
   accountID: Scalars['ID']['input'];
   actorID: Scalars['ID']['input'];
   permissions?: InputMaybe<Array<InputMaybe<Permission>>>;
-};
-
-
-export type AccountMutationSetBuildAutoRenewArgs = {
-  accountName: Scalars['ID']['input'];
-  autoRenew?: InputMaybe<Scalars['Boolean']['input']>;
-};
-
-
-export type AccountMutationSetPaymentSourceArgs = {
-  accountName: Scalars['ID']['input'];
-  paymentSource: Scalars['ID']['input'];
 };
 
 
@@ -855,6 +824,7 @@ export type AddonDetails = {
   name: Scalars['String']['output'];
   nextInvoice?: Maybe<Scalars['DateTime']['output']>;
   planId: Scalars['String']['output'];
+  quantity?: Maybe<Scalars['Int']['output']>;
   willCancel?: Maybe<Scalars['Boolean']['output']>;
 };
 
@@ -1243,6 +1213,8 @@ export type App = Project & {
   environmentSecrets: Array<EnvironmentSecret>;
   /** Environment variables for an app */
   environmentVariables: Array<EnvironmentVariable>;
+  /** Environment variables for an app with decrypted secret values */
+  environmentVariablesIncludingSensitive: Array<EnvironmentVariableWithSecret>;
   fullName: Scalars['String']['output'];
   githubBuildTriggers: Array<GitHubBuildTrigger>;
   githubJobRunTriggers: Array<GitHubJobRunTrigger>;
@@ -1266,6 +1238,7 @@ export type App = Project & {
   internalDistributionBuildPrivacy: AppInternalDistributionBuildPrivacy;
   /** iOS app credentials for the project */
   iosAppCredentials: Array<IosAppCredentials>;
+  /** @deprecated Use lastDeletionAttemptTime !== null instead */
   isDeleting: Scalars['Boolean']['output'];
   /**
    * Whether the latest classic update publish is using a deprecated SDK version
@@ -1362,6 +1335,7 @@ export type App = Project & {
   /** Webhooks for an app */
   webhooks: Array<Webhook>;
   workerDeployments: WorkerDeploymentsConnection;
+  workerDeploymentsMetrics?: Maybe<WorkerDeploymentMetrics>;
 };
 
 
@@ -1447,6 +1421,13 @@ export type AppEnvironmentSecretsArgs = {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppEnvironmentVariablesArgs = {
+  environment: EnvironmentVariableEnvironment;
+  filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppEnvironmentVariablesIncludingSensitiveArgs = {
   environment: EnvironmentVariableEnvironment;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
@@ -1579,6 +1560,12 @@ export type AppWorkerDeploymentsArgs = {
   last?: InputMaybe<Scalars['Int']['input']>;
 };
 
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppWorkerDeploymentsMetricsArgs = {
+  timespan: MetricsTimespan;
+};
+
 export type AppBranchEdge = {
   __typename?: 'AppBranchEdge';
   cursor: Scalars['String']['output'];
@@ -1698,10 +1685,12 @@ export enum AppInternalDistributionBuildPrivacy {
 
 export type AppMutation = {
   __typename?: 'AppMutation';
-  /** Create an unpublished app */
+  /** Create an app */
   createApp: App;
-  /** Create an unpublished app and GitHub repository if user desire to */
+  /** Create an app and GitHub repository if user desire to */
   createAppAndGithubRepository: CreateAppAndGithubRepositoryResponse;
+  /** Delete an App. Returns the ID of the background job receipt. Use BackgroundJobReceiptQuery to get the status of the job. */
+  deleteApp: BackgroundJobReceipt;
   /** @deprecated No longer supported */
   grantAccess?: Maybe<App>;
   /** Set display info for app */
@@ -1720,6 +1709,11 @@ export type AppMutationCreateAppArgs = {
 
 export type AppMutationCreateAppAndGithubRepositoryArgs = {
   appInput: AppWithGithubRepositoryInput;
+};
+
+
+export type AppMutationDeleteAppArgs = {
+  appId: Scalars['ID']['input'];
 };
 
 
@@ -1774,10 +1768,17 @@ export type AppPushNotificationsInsights = {
   __typename?: 'AppPushNotificationsInsights';
   id: Scalars['ID']['output'];
   notificationsSentOverTime: NotificationsSentOverTimeData;
+  totalNotificationsSent: Scalars['Int']['output'];
 };
 
 
 export type AppPushNotificationsInsightsNotificationsSentOverTimeArgs = {
+  timespan: InsightsTimespan;
+};
+
+
+export type AppPushNotificationsInsightsTotalNotificationsSentArgs = {
+  filters?: InputMaybe<Array<Scalars['JSON']['input']>>;
   timespan: InsightsTimespan;
 };
 
@@ -2399,8 +2400,8 @@ export type AuditLog = {
 
 export type AuditLogExportInput = {
   accountId: Scalars['ID']['input'];
-  createdAfter: Scalars['Int']['input'];
-  createdBefore: Scalars['Int']['input'];
+  createdAfter: Scalars['String']['input'];
+  createdBefore: Scalars['String']['input'];
   format: AuditLogsExportFormat;
 };
 
@@ -2419,8 +2420,6 @@ export type AuditLogQuery = {
   __typename?: 'AuditLogQuery';
   /** Query Audit Logs by account ID */
   byAccountId: Array<AuditLog>;
-  /** Query an Audit Log by ID */
-  byId: AuditLog;
 };
 
 
@@ -2428,11 +2427,6 @@ export type AuditLogQueryByAccountIdArgs = {
   accountId: Scalars['ID']['input'];
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
-};
-
-
-export type AuditLogQueryByIdArgs = {
-  auditLogId: Scalars['ID']['input'];
 };
 
 export enum AuditLogsExportFormat {
@@ -2449,7 +2443,8 @@ export enum AuthProviderIdentifier {
   GoogleWs = 'GOOGLE_WS',
   MsEntraId = 'MS_ENTRA_ID',
   Okta = 'OKTA',
-  OneLogin = 'ONE_LOGIN'
+  OneLogin = 'ONE_LOGIN',
+  StubIdp = 'STUB_IDP'
 }
 
 export type BackgroundJobReceipt = {
@@ -3141,6 +3136,7 @@ export type CreateEnvironmentSecretInput = {
 export type CreateEnvironmentVariableInput = {
   environment: EnvironmentVariableEnvironment;
   name: Scalars['String']['input'];
+  overwrite?: InputMaybe<Scalars['Boolean']['input']>;
   sensitive: Scalars['Boolean']['input'];
   value: Scalars['String']['input'];
 };
@@ -3600,6 +3596,8 @@ export enum EnvironmentVariableEnvironment {
 
 export type EnvironmentVariableMutation = {
   __typename?: 'EnvironmentVariableMutation';
+  /** Create bulk env variables */
+  createBulkEnvironmentVariablesForApp: Array<Maybe<EnvironmentVariable>>;
   /** Create an environment variable for an Account */
   createEnvironmentVariableForAccount: EnvironmentVariable;
   /** Create an environment variable for an App */
@@ -3610,6 +3608,12 @@ export type EnvironmentVariableMutation = {
   linkSharedEnvironmentVariable: EnvironmentVariable;
   /** Unlink shared environment variable */
   unlinkSharedEnvironmentVariable: EnvironmentVariable;
+};
+
+
+export type EnvironmentVariableMutationCreateBulkEnvironmentVariablesForAppArgs = {
+  appId: Scalars['ID']['input'];
+  environmentVariablesData: Array<CreateEnvironmentVariableInput>;
 };
 
 
@@ -3647,6 +3651,17 @@ export enum EnvironmentVariableScope {
   Project = 'PROJECT',
   Shared = 'SHARED'
 }
+
+export type EnvironmentVariableWithSecret = {
+  __typename?: 'EnvironmentVariableWithSecret';
+  createdAt: Scalars['DateTime']['output'];
+  environment?: Maybe<EnvironmentVariableEnvironment>;
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  scope: EnvironmentVariableScope;
+  updatedAt: Scalars['DateTime']['output'];
+  value?: Maybe<Scalars['String']['output']>;
+};
 
 export type EstimatedOverageAndCost = {
   __typename?: 'EstimatedOverageAndCost';
@@ -3728,6 +3743,7 @@ export type FutureSubscription = {
   id: Scalars['ID']['output'];
   meteredBillingStatus: MeteredBillingStatus;
   planId: Scalars['String']['output'];
+  recurringCents?: Maybe<Scalars['Int']['output']>;
   startDate: Scalars['DateTime']['output'];
 };
 
@@ -4101,6 +4117,19 @@ export type GoogleServiceAccountKeyMutationCreateGoogleServiceAccountKeyArgs = {
 export type GoogleServiceAccountKeyMutationDeleteGoogleServiceAccountKeyArgs = {
   id: Scalars['ID']['input'];
 };
+
+/**
+ * The value field is always sent from the client as a string,
+ * and then it's parsed server-side according to the filterType
+ */
+export type InsightsFilter = {
+  filterType: InsightsFilterType;
+  value: Scalars['String']['input'];
+};
+
+export enum InsightsFilterType {
+  Platform = 'PLATFORM'
+}
 
 export type InsightsTimespan = {
   end: Scalars['DateTime']['input'];
@@ -4595,6 +4624,8 @@ export type MeMutation = {
   purgeUnfinishedSecondFactorAuthentication: SecondFactorBooleanResult;
   /** Regenerate backup codes for the current user */
   regenerateSecondFactorBackupCodes: SecondFactorRegenerateBackupCodesResult;
+  /** Schedule deletion of the current regular user */
+  scheduleCurrentUserDeletion: BackgroundJobReceipt;
   /** Send SMS OTP to a second factor device for use during device setup or during change confirmation */
   sendSMSOTPToSecondFactorDevice: SecondFactorBooleanResult;
   /**
@@ -4606,8 +4637,6 @@ export type MeMutation = {
   setPrimarySecondFactorDevice: SecondFactorBooleanResult;
   /** Transfer project to a different Account */
   transferApp: App;
-  /** Unpublish an App that the current user owns */
-  unpublishApp: App;
   /** Update an App that the current user owns */
   updateApp: App;
   /** Update the current regular user's data */
@@ -4696,11 +4725,6 @@ export type MeMutationTransferAppArgs = {
 };
 
 
-export type MeMutationUnpublishAppArgs = {
-  appId: Scalars['ID']['input'];
-};
-
-
 export type MeMutationUpdateAppArgs = {
   appData: AppDataInput;
 };
@@ -4719,6 +4743,11 @@ export type MeteredBillingStatus = {
   __typename?: 'MeteredBillingStatus';
   EAS_BUILD: Scalars['Boolean']['output'];
   EAS_UPDATE: Scalars['Boolean']['output'];
+};
+
+export type MetricsTimespan = {
+  end: Scalars['DateTime']['input'];
+  start: Scalars['DateTime']['input'];
 };
 
 export type Notification = {
@@ -5139,7 +5168,7 @@ export type RootMutation = {
 
 
 export type RootMutationAccountArgs = {
-  accountName: Scalars['ID']['input'];
+  accountName?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
@@ -5762,7 +5791,7 @@ export type SubscribeToNotificationResult = {
 export type SubscriptionDetails = {
   __typename?: 'SubscriptionDetails';
   addons: Array<AddonDetails>;
-  cancelledAt?: Maybe<Scalars['DateTime']['output']>;
+  cancelAt?: Maybe<Scalars['DateTime']['output']>;
   concurrencies?: Maybe<Concurrencies>;
   coupon?: Maybe<StripeCoupon>;
   endedAt?: Maybe<Scalars['DateTime']['output']>;
@@ -5772,9 +5801,11 @@ export type SubscriptionDetails = {
   meteredBillingStatus: MeteredBillingStatus;
   name?: Maybe<Scalars['String']['output']>;
   nextInvoice?: Maybe<Scalars['DateTime']['output']>;
+  nextInvoiceAmountDueCents?: Maybe<Scalars['Int']['output']>;
   planEnablement?: Maybe<PlanEnablement>;
   planId?: Maybe<Scalars['String']['output']>;
   price: Scalars['Int']['output'];
+  recurringCents?: Maybe<Scalars['Int']['output']>;
   status?: Maybe<Scalars['String']['output']>;
   trialEnd?: Maybe<Scalars['DateTime']['output']>;
   willCancel?: Maybe<Scalars['Boolean']['output']>;
@@ -6679,13 +6710,41 @@ export type WebsiteNotificationsConnection = {
 
 export type WorkerDeployment = {
   __typename?: 'WorkerDeployment';
+  createdAt: Scalars['DateTime']['output'];
+  deploymentDomain: Scalars['String']['output'];
+  deploymentIdentifier: Scalars['String']['output'];
+  devDomainName: Scalars['DevDomainName']['output'];
   id: Scalars['ID']['output'];
+  subdomain: Scalars['String']['output'];
+  url: Scalars['String']['output'];
 };
 
 export type WorkerDeploymentEdge = {
   __typename?: 'WorkerDeploymentEdge';
   cursor: Scalars['String']['output'];
   node: WorkerDeployment;
+};
+
+export type WorkerDeploymentMetrics = {
+  __typename?: 'WorkerDeploymentMetrics';
+  groups: Array<Maybe<WorkerDeploymentMetricsEdge>>;
+  id: Scalars['ID']['output'];
+  summary: WorkerDeploymentMetricsData;
+};
+
+export type WorkerDeploymentMetricsData = {
+  __typename?: 'WorkerDeploymentMetricsData';
+  crashesSum: Scalars['Int']['output'];
+  durationP50?: Maybe<Scalars['Float']['output']>;
+  durationP90?: Maybe<Scalars['Float']['output']>;
+  durationP99?: Maybe<Scalars['Float']['output']>;
+  requestsSum: Scalars['Int']['output'];
+};
+
+export type WorkerDeploymentMetricsEdge = {
+  __typename?: 'WorkerDeploymentMetricsEdge';
+  node: WorkerDeploymentMetricsData;
+  timestamp: Scalars['DateTime']['output'];
 };
 
 export type WorkerDeploymentsConnection = {
@@ -7653,3 +7712,19 @@ export type IosAppBuildCredentialsFragment = { __typename?: 'IosAppBuildCredenti
 export type CommonIosAppCredentialsWithoutBuildCredentialsFragment = { __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', githubRepoOwnerName: string, githubRepoName: string } } | null }, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string }, pushKey?: { __typename?: 'ApplePushKey', id: string, keyIdentifier: string, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppCredentialsList: Array<{ __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null };
 
 export type CommonIosAppCredentialsFragment = { __typename?: 'IosAppCredentials', id: string, iosAppBuildCredentialsList: Array<{ __typename?: 'IosAppBuildCredentials', id: string, iosDistributionType: IosDistributionType, distributionCertificate?: { __typename?: 'AppleDistributionCertificate', id: string, certificateP12?: string | null, certificatePassword?: string | null, serialNumber: string, developerPortalIdentifier?: string | null, validityNotBefore: any, validityNotAfter: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppBuildCredentialsList: Array<{ __typename?: 'IosAppBuildCredentials', id: string, iosAppCredentials: { __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }, provisioningProfile?: { __typename?: 'AppleProvisioningProfile', id: string, developerPortalIdentifier?: string | null } | null }> } | null, provisioningProfile?: { __typename?: 'AppleProvisioningProfile', id: string, expiration: any, developerPortalIdentifier?: string | null, provisioningProfile?: string | null, updatedAt: any, status: string, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleDevices: Array<{ __typename?: 'AppleDevice', id: string, identifier: string, name?: string | null, model?: string | null, deviceClass?: AppleDeviceClass | null, createdAt: any }> } | null }>, app: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', githubRepoOwnerName: string, githubRepoName: string } } | null }, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string }, pushKey?: { __typename?: 'ApplePushKey', id: string, keyIdentifier: string, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null, iosAppCredentialsList: Array<{ __typename?: 'IosAppCredentials', id: string, app: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', githubRepoOwnerName: string, githubRepoName: string } } | null }, appleAppIdentifier: { __typename?: 'AppleAppIdentifier', id: string, bundleIdentifier: string } }> } | null, appStoreConnectApiKeyForSubmissions?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, name?: string | null, roles?: Array<AppStoreConnectUserRole> | null, createdAt: any, updatedAt: any, appleTeam?: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null } | null } | null };
+
+export type CreateDeploymentUrlMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  deploymentIdentifier?: InputMaybe<Scalars['ID']['input']>;
+}>;
+
+
+export type CreateDeploymentUrlMutation = { __typename?: 'RootMutation', deployments: { __typename?: 'DeploymentsMutation', createSignedDeploymentUrl: { __typename?: 'DeploymentSignedUrlResult', pendingWorkerDeploymentId: string, deploymentIdentifier: string, url: string } } };
+
+export type AssignDevDomainNameMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  name: Scalars['DevDomainName']['input'];
+}>;
+
+
+export type AssignDevDomainNameMutation = { __typename?: 'RootMutation', devDomainName: { __typename?: 'AppDevDomainNameMutation', assignDevDomainName: { __typename?: 'AppDevDomainName', id: string, name: any, app?: { __typename?: 'App', id: string, devDomainName?: { __typename?: 'AppDevDomainName', id: string } | null } | null } } };
