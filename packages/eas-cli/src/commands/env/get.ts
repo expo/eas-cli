@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
+import { withSudoModeAsync } from '../../authUtils';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -35,6 +36,7 @@ export default class EnvironmentVariableGet extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.SessionManagment,
   };
 
   static override flags = {
@@ -60,6 +62,7 @@ export default class EnvironmentVariableGet extends EasCommand {
 
     const {
       privateProjectConfig: { projectId },
+      sessionManager,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentVariableGet, {
       nonInteractive,
@@ -72,8 +75,9 @@ export default class EnvironmentVariableGet extends EasCommand {
     if (!environment && scope === EnvironmentVariableScope.Project) {
       environment = await promptVariableEnvironmentAsync(nonInteractive);
     }
-
-    const variable = await getVariableAsync(graphqlClient, scope, projectId, name, environment);
+    const variable = await withSudoModeAsync(sessionManager, async () => {
+      return await getVariableAsync(graphqlClient, scope, projectId, name, environment);
+    });
 
     if (!variable) {
       Log.error(`Variable with name "${name}" not found`);
@@ -117,11 +121,14 @@ async function getVariableAsync(
   graphqlClient: ExpoGraphqlClient,
   scope: string,
   projectId: string,
-  name: string,
+  name: string | undefined,
   environment: string | undefined
 ): Promise<EnvironmentVariableFragment | null> {
   if (!environment && scope === EnvironmentVariableScope.Project) {
     throw new Error('Environment is required.');
+  }
+  if (!name) {
+    throw new Error("Variable name is required. Run the command with '--name VARIABLE_NAME' flag.");
   }
   if (environment && scope === EnvironmentVariableScope.Project) {
     const appVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
