@@ -100,6 +100,35 @@ test('valid eas.json for development client builds', async () => {
   });
 });
 
+test('valid eas.json with specified environment', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      development: {
+        environment: 'production',
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'development');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'development'
+  );
+  expect(androidProfile).toEqual({
+    credentialsSource: 'remote',
+    distribution: 'store',
+    environment: 'production',
+  });
+
+  expect(iosProfile).toEqual({
+    credentialsSource: 'remote',
+    distribution: 'store',
+    environment: 'production',
+  });
+});
+
 test('valid eas.json with top level withoutCredentials property', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
