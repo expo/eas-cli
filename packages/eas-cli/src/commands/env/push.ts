@@ -1,4 +1,5 @@
 import { Flags } from '@oclif/core';
+import dotenv from 'dotenv';
 import fs from 'fs-extra';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -19,6 +20,8 @@ import { promptAsync } from '../../prompts';
 export default class EnvironmentValuePush extends EasCommand {
   static override description = 'push env file';
 
+  static override hidden = true;
+
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
@@ -27,7 +30,7 @@ export default class EnvironmentValuePush extends EasCommand {
   static override flags = {
     ...EASEnvironmentFlag,
     path: Flags.string({
-      description: 'Path to the env file',
+      description: 'Path to the input `.env` file',
       default: '.env.local',
     }),
   };
@@ -66,10 +69,9 @@ export default class EnvironmentValuePush extends EasCommand {
       const existingSensitiveVariablesNames = existingSensitiveVariables.map(
         variable => variable.name
       );
-      Log.log(
-        'Sensitive variables cannot be overwritten with `push` command.\nUse `eas env:update` to change them:'
-      );
-      existingSensitiveVariablesNames.forEach(name => Log.log(`- ${name}`));
+      Log.warn('Sensitive variables cannot be overwritten with the `push` command.');
+      Log.warn('Use `eas env:update` to update them:');
+      existingSensitiveVariablesNames.forEach(name => Log.warn(`- ${name}`));
     }
 
     const existingDifferentVariables: EnvironmentVariableFragment[] = [];
@@ -95,11 +97,10 @@ export default class EnvironmentValuePush extends EasCommand {
       const existingDifferentSharedVariablesNames = existingDifferentSharedVariables.map(
         variable => variable.name
       );
-      Log.error(
-        'Shared variables cannot be overwritten.\nPlease remove them from the env file or unlink them from the project:'
-      );
+      Log.error('Shared variables cannot be overwritten.');
+      Log.error('Remove them from the env file or unlink them from the project to continue:');
       existingDifferentSharedVariablesNames.forEach(name => Log.error(`- ${name}`));
-      return;
+      throw new Error('Shared variables cannot be overwritten by eas env:push command');
     }
 
     if (existingDifferentVariables.length > 0) {
@@ -150,27 +151,21 @@ export default class EnvironmentValuePush extends EasCommand {
     if (!(await fs.exists(envPath))) {
       throw new Error(`File ${envPath} does not exist.`);
     }
-    const variables: Record<string, EnvironmentVariablePushInput> = {};
-    const content = await fs.readFile(envPath, 'utf8');
+    const pushInput: Record<string, EnvironmentVariablePushInput> = {};
 
-    content
-      .trim()
-      .split('\n')
-      .filter(line => !line.startsWith('#') && line.includes('='))
-      .forEach(line => {
-        const [name, value] = line.split('=');
-        if (name && value && name.match(/^\w+$/)) {
-          const visibility = name.startsWith('EXPO_SECRET')
-            ? EnvironmentVariableVisibility.Sensitive
-            : EnvironmentVariableVisibility.Public;
-          variables[name] = {
-            name,
-            value,
-            environment,
-            visibility,
-          };
-        }
-      });
-    return variables;
+    const variables: Record<string, string> = dotenv.parse(await fs.readFile(envPath, 'utf8'));
+
+    for (const [name, value] of Object.entries(variables)) {
+      pushInput[name] = {
+        name,
+        value,
+        environment,
+        visibility: name.startsWith('EXPO_SECRET')
+          ? EnvironmentVariableVisibility.Sensitive
+          : EnvironmentVariableVisibility.Public,
+      };
+    }
+
+    return pushInput;
   }
 }
