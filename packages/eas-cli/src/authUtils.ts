@@ -1,12 +1,12 @@
 import SessionManager from './user/SessionManager';
 
 // Handle the case where a user needs to be in sudo mode to perform an action.
-export async function handleSudoCallAsync<T>(
+export async function withSudoModeAsync<T>(
   sessionManager: SessionManager,
-  fn: () => Promise<T>
+  graphqlQuery: () => Promise<T>
 ): Promise<T> {
   try {
-    return await fn();
+    return await graphqlQuery();
   } catch (error: any) {
     const isSudoError = error.graphQLErrors?.some(
       (err: { extensions: { errorCode: string } }) =>
@@ -16,6 +16,6 @@ export async function handleSudoCallAsync<T>(
       throw error;
     }
     await sessionManager.showSudoPromptAsync({ sso: false });
-    return await fn();
+    return await graphqlQuery();
   }
 }

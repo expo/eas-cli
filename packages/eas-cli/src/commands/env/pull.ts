@@ -66,6 +66,7 @@ export default class EnvironmentValuePull extends EasCommand {
     const filePrefix = `# Environment: ${environment}\n\n`;
 
     const envFileContent = environmentVariables
+      .filter((variable: EnvironmentVariableFragment) => !!variable.value)
       .map((variable: EnvironmentVariableFragment) => {
         if (variable.value === null) {
           return `# ${variable.name}=***** (secret variables are not available for reading)`;
