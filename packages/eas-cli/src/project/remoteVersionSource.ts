@@ -74,7 +74,7 @@ export async function validateBuildProfileVersionSettingsAsync(
       flags.nonInteractive
     );
   }
-  if (cliConfig?.appVersionSource === AppVersionSource.LOCAL) {
+  if (cliConfig?.appVersionSource !== AppVersionSource.REMOTE) {
     return;
   }
   if (profileInfo.profile.autoIncrement === 'version') {
