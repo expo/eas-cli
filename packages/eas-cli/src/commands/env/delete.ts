@@ -58,9 +58,13 @@ export default class EnvironmentVariableDelete extends EasCommand {
 
     const variables =
       scope === EnvironmentVariableScope.Project && environment
-        ? (await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, projectId, environment))
-            .appVariables
-        : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
+        ? (
+            await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
+              appId: projectId,
+              environment,
+            })
+          ).appVariables
+        : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, { appId: projectId });
 
     if (!name) {
       ({ name } = await promptAsync({

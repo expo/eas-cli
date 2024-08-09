@@ -5,7 +5,10 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { fetchSessionSecretAndSsoUserAsync } from './fetchSessionSecretAndSsoUser';
-import { fetchSessionSecretAndUserAsync } from './fetchSessionSecretAndUser';
+import {
+  fetchSessionSecretAndUserAsync,
+  upgradeToSudoSessionAsync,
+} from './fetchSessionSecretAndUser';
 import { ApiV2Error } from '../ApiV2Error';
 import { AnalyticsWithOrchestration } from '../analytics/AnalyticsManager';
 import { ApiV2Client } from '../api';
@@ -205,6 +208,45 @@ export default class SessionManager {
     }
   }
 
+  public async showSudoPromptAsync({ sso = false }: { sso?: boolean }): Promise<void> {
+    const sessionData = this.getSession();
+
+    if (!sessionData) {
+      Log.error('You are not logged in. Run the `eas login` command to log in.');
+      throw new Error('You are not logged in.');
+    }
+
+    if (sso) {
+      await this.ssoSudoUpgradeAsync();
+      return;
+    }
+    Log.log('You need to be in sudo mode to perform this action.');
+
+    const { password } = await promptAsync([
+      {
+        type: 'password',
+        name: 'password',
+        message: 'Password',
+      },
+    ]);
+    try {
+      await this.upgradeToSudoSessionAsync({
+        password,
+      });
+    } catch (e) {
+      if (e instanceof ApiV2Error && e.expoApiV2ErrorCode === 'ONE_TIME_PASSWORD_REQUIRED') {
+        await this.retryUsernamePasswordAuthWithOTPAsync(
+          sessionData.username,
+          password,
+          e.expoApiV2ErrorMetadata as any,
+          { sudo: true }
+        );
+      } else {
+        throw e;
+      }
+    }
+  }
+
   private async ssoLoginAsync(): Promise<void> {
     const { sessionSecret, id, username } = await fetchSessionSecretAndSsoUserAsync();
     await this.setSessionAsync({
@@ -227,6 +269,22 @@ export default class SessionManager {
       username,
       currentConnection: 'Username-Password-Authentication',
     });
+  }
+
+  private async upgradeToSudoSessionAsync(input: {
+    password: string;
+    otp?: string;
+  }): Promise<void> {
+    const authenticationInfo = {
+      accessToken: this.getAccessToken(),
+      sessionSecret: this.getSessionSecret(),
+    };
+    const apiV2Client = new ApiV2Client(authenticationInfo);
+    await upgradeToSudoSessionAsync(apiV2Client, input);
+  }
+
+  private async ssoSudoUpgradeAsync(): Promise<void> {
+    throw Error('Sudo upgrade with SSO is not yet supported');
   }
 
   /**
@@ -337,7 +395,8 @@ export default class SessionManager {
     metadata: {
       secondFactorDevices?: SecondFactorDevice[];
       smsAutomaticallySent?: boolean;
-    }
+    },
+    { sudo }: { sudo: boolean } = { sudo: false }
   ): Promise<void> {
     const { secondFactorDevices, smsAutomaticallySent } = metadata;
     assert(
@@ -369,11 +428,17 @@ export default class SessionManager {
     if (!otp) {
       throw new Error('Cancelled login');
     }
-
-    await this.loginAsync({
-      username,
-      password,
-      otp,
-    });
+    if (sudo) {
+      await this.upgradeToSudoSessionAsync({
+        password,
+        otp,
+      });
+    } else {
+      await this.loginAsync({
+        username,
+        password,
+        otp,
+      });
+    }
   }
 }

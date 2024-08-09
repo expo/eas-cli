@@ -3,11 +3,7 @@ import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
-import {
-  EnvironmentVariableEnvironment,
-  EnvironmentVariableFragment,
-  EnvironmentVariablesByAppIdQuery,
-} from '../generated';
+import { EnvironmentVariableFragment, EnvironmentVariablesByAppIdQuery } from '../generated';
 import { EnvironmentVariableFragmentNode } from '../types/EnvironmentVariable';
 
 export const EnvironmentVariablesQuery = {
@@ -19,7 +15,7 @@ export const EnvironmentVariablesQuery = {
       filterNames,
     }: {
       appId: string;
-      environment: EnvironmentVariableEnvironment;
+      environment: string;
       filterNames?: string[];
     }
   ): Promise<{
@@ -61,9 +57,15 @@ export const EnvironmentVariablesQuery = {
   },
   async byAppIdAsync(
     graphqlClient: ExpoGraphqlClient,
-    appId: string,
-    environment: string,
-    filterNames?: string[]
+    {
+      appId,
+      environment,
+      filterNames,
+    }: {
+      appId: string;
+      environment: string;
+      filterNames?: string[];
+    }
   ): Promise<{
     sharedVariables: EnvironmentVariableFragment[];
     appVariables: EnvironmentVariableFragment[];
@@ -109,8 +111,7 @@ export const EnvironmentVariablesQuery = {
   },
   async sharedAsync(
     graphqlClient: ExpoGraphqlClient,
-    appId: string,
-    filterNames?: string[]
+    { appId, filterNames }: { appId: string; filterNames?: string[] }
   ): Promise<EnvironmentVariableFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient

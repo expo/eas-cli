@@ -23,6 +23,7 @@ export type Scalars = {
   DevDomainName: { input: any; output: any; }
   JSON: { input: any; output: any; }
   JSONObject: { input: any; output: any; }
+  WorkerDeploymentIdentifier: { input: any; output: any; }
 };
 
 export type AcceptUserInvitationResult = {
@@ -1352,6 +1353,7 @@ export type App = Project & {
   workerDeployments: WorkerDeploymentsConnection;
   workerDeploymentsCrashes?: Maybe<WorkerDeploymentCrashes>;
   workerDeploymentsMetrics?: Maybe<WorkerDeploymentMetrics>;
+  workerDeploymentsRequests?: Maybe<WorkerDeploymentRequests>;
 };
 
 
@@ -1570,13 +1572,13 @@ export type AppWebhooksArgs = {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentArgs = {
-  deploymentIdentifier: Scalars['String']['input'];
+  deploymentIdentifier: Scalars['WorkerDeploymentIdentifier']['input'];
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentAliasArgs = {
-  aliasName?: InputMaybe<Scalars['String']['input']>;
+  aliasName?: InputMaybe<Scalars['WorkerDeploymentIdentifier']['input']>;
 };
 
 
@@ -1608,6 +1610,13 @@ export type AppWorkerDeploymentsCrashesArgs = {
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentsMetricsArgs = {
   timespan: MetricsTimespan;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppWorkerDeploymentsRequestsArgs = {
+  limit?: Scalars['Int']['input'];
+  timespan: RequestsTimespan;
 };
 
 export type AppBranchEdge = {
@@ -3146,6 +3155,17 @@ export type Concurrencies = {
   total: Scalars['Int']['output'];
 };
 
+export enum ContinentCode {
+  Af = 'AF',
+  An = 'AN',
+  As = 'AS',
+  Eu = 'EU',
+  Na = 'NA',
+  Oc = 'OC',
+  Sa = 'SA',
+  T1 = 'T1'
+}
+
 export type CrashesTimespan = {
   end: Scalars['DateTime']['input'];
   start?: InputMaybe<Scalars['DateTime']['input']>;
@@ -3308,7 +3328,7 @@ export type CustomDomainMutationRefreshCustomDomainArgs = {
 
 
 export type CustomDomainMutationRegisterCustomDomainArgs = {
-  aliasName?: InputMaybe<Scalars['String']['input']>;
+  aliasName?: InputMaybe<Scalars['WorkerDeploymentIdentifier']['input']>;
   appId: Scalars['ID']['input'];
   hostname: Scalars['String']['input'];
 };
@@ -3345,7 +3365,7 @@ export type DeleteAccountSsoConfigurationResult = {
 
 export type DeleteAliasResult = {
   __typename?: 'DeleteAliasResult';
-  aliasName?: Maybe<Scalars['String']['output']>;
+  aliasName?: Maybe<Scalars['WorkerDeploymentIdentifier']['output']>;
   id: Scalars['ID']['output'];
 };
 
@@ -3562,7 +3582,7 @@ export type DeploymentsMutation = {
 
 
 export type DeploymentsMutationAssignAliasArgs = {
-  aliasName?: InputMaybe<Scalars['String']['input']>;
+  aliasName?: InputMaybe<Scalars['WorkerDeploymentIdentifier']['input']>;
   appId: Scalars['ID']['input'];
   deploymentIdentifier: Scalars['ID']['input'];
 };
@@ -3575,7 +3595,7 @@ export type DeploymentsMutationCreateSignedDeploymentUrlArgs = {
 
 
 export type DeploymentsMutationDeleteAliasArgs = {
-  aliasName?: InputMaybe<Scalars['String']['input']>;
+  aliasName?: InputMaybe<Scalars['WorkerDeploymentIdentifier']['input']>;
   appId: Scalars['ID']['input'];
 };
 
@@ -4851,7 +4871,7 @@ export type MeMutation = {
 
 export type MeMutationAddSecondFactorDeviceArgs = {
   deviceConfiguration: SecondFactorDeviceConfiguration;
-  otp: Scalars['String']['input'];
+  otp?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -4876,7 +4896,7 @@ export type MeMutationDeleteSsoUserArgs = {
 
 
 export type MeMutationDeleteSecondFactorDeviceArgs = {
-  otp: Scalars['String']['input'];
+  otp?: InputMaybe<Scalars['String']['input']>;
   userSecondFactorDeviceId: Scalars['ID']['input'];
 };
 
@@ -4887,7 +4907,7 @@ export type MeMutationDeleteSnackArgs = {
 
 
 export type MeMutationDisableSecondFactorAuthenticationArgs = {
-  otp: Scalars['String']['input'];
+  otp?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -4903,7 +4923,7 @@ export type MeMutationLeaveAccountArgs = {
 
 
 export type MeMutationRegenerateSecondFactorBackupCodesArgs = {
-  otp: Scalars['String']['input'];
+  otp?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -5193,6 +5213,11 @@ export type PublishUpdateGroupInput = {
   runtimeVersion: Scalars['String']['input'];
   turtleJobRunId?: InputMaybe<Scalars['String']['input']>;
   updateInfoGroup?: InputMaybe<UpdateInfoGroup>;
+};
+
+export type RequestsTimespan = {
+  end: Scalars['DateTime']['input'];
+  start?: InputMaybe<Scalars['DateTime']['input']>;
 };
 
 export type RescindUserInvitationResult = {
@@ -5911,6 +5936,7 @@ export type Submission = ActivityTimelineProjectActivity & {
   maxRetryTimeMinutes: Scalars['Int']['output'];
   parentSubmission?: Maybe<Submission>;
   platform: AppPlatform;
+  priority?: Maybe<SubmissionPriority>;
   status: SubmissionStatus;
   submittedBuild?: Maybe<Build>;
   updatedAt: Scalars['DateTime']['output'];
@@ -5991,6 +6017,11 @@ export type SubmissionMutationCreateIosSubmissionArgs = {
 export type SubmissionMutationRetrySubmissionArgs = {
   parentSubmissionId: Scalars['ID']['input'];
 };
+
+export enum SubmissionPriority {
+  High = 'HIGH',
+  Normal = 'NORMAL'
+}
 
 export type SubmissionQuery = {
   __typename?: 'SubmissionQuery';
@@ -6966,7 +6997,7 @@ export type WorkerDeployment = {
   aliases?: Maybe<Array<WorkerDeploymentAlias>>;
   createdAt: Scalars['DateTime']['output'];
   deploymentDomain: Scalars['String']['output'];
-  deploymentIdentifier: Scalars['String']['output'];
+  deploymentIdentifier: Scalars['WorkerDeploymentIdentifier']['output'];
   devDomainName: Scalars['DevDomainName']['output'];
   id: Scalars['ID']['output'];
   logs?: Maybe<WorkerDeploymentLogs>;
@@ -6988,7 +7019,7 @@ export type WorkerDeploymentMetricsArgs = {
 
 export type WorkerDeploymentAlias = {
   __typename?: 'WorkerDeploymentAlias';
-  aliasName?: Maybe<Scalars['String']['output']>;
+  aliasName?: Maybe<Scalars['WorkerDeploymentIdentifier']['output']>;
   createdAt: Scalars['DateTime']['output'];
   deploymentDomain: Scalars['String']['output'];
   devDomainName: Scalars['DevDomainName']['output'];
@@ -7089,6 +7120,29 @@ export type WorkerDeploymentQuery = {
 
 export type WorkerDeploymentQueryByIdArgs = {
   id: Scalars['ID']['input'];
+};
+
+export type WorkerDeploymentRequestLocation = {
+  __typename?: 'WorkerDeploymentRequestLocation';
+  continent?: Maybe<ContinentCode>;
+  countryCode?: Maybe<Scalars['String']['output']>;
+  regionCode?: Maybe<Scalars['String']['output']>;
+};
+
+export type WorkerDeploymentRequestNode = {
+  __typename?: 'WorkerDeploymentRequestNode';
+  location?: Maybe<WorkerDeploymentRequestLocation>;
+  method: Scalars['String']['output'];
+  pathname: Scalars['String']['output'];
+  search?: Maybe<Scalars['String']['output']>;
+  status: Scalars['Int']['output'];
+  timestamp: Scalars['DateTime']['output'];
+};
+
+export type WorkerDeploymentRequests = {
+  __typename?: 'WorkerDeploymentRequests';
+  minRowsWithoutLimit?: Maybe<Scalars['Int']['output']>;
+  nodes: Array<WorkerDeploymentRequestNode>;
 };
 
 export type WorkerDeploymentsConnection = {
@@ -7733,6 +7787,14 @@ export type DeleteEnvironmentVariableMutationVariables = Exact<{
 
 export type DeleteEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', deleteEnvironmentVariable: { __typename?: 'DeleteEnvironmentVariableResult', id: string } } };
 
+export type CreateBulkEnvironmentVariablesForAppMutationVariables = Exact<{
+  input: Array<CreateEnvironmentVariableInput> | CreateEnvironmentVariableInput;
+  appId: Scalars['ID']['input'];
+}>;
+
+
+export type CreateBulkEnvironmentVariablesForAppMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createBulkEnvironmentVariablesForApp: Array<{ __typename?: 'EnvironmentVariable', id: string }> } };
+
 export type CreateKeystoreGenerationUrlMutationVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -7938,6 +8000,15 @@ export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
 
 
 export type EnvironmentSecretsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any }> }, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any }> } } };
+
+export type EnvironmentVariablesIncludingSensitiveByAppIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
+  environment: EnvironmentVariableEnvironment;
+}>;
+
+
+export type EnvironmentVariablesIncludingSensitiveByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentVariablesIncludingSensitive: Array<{ __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null }> } } };
 
 export type EnvironmentVariablesByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

@@ -77,8 +77,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       }
       const { appVariables: existingVariables } = await EnvironmentVariablesQuery.byAppIdAsync(
         graphqlClient,
-        projectId,
-        environment
+        { appId: projectId, environment }
       );
       if (!name) {
         name = await selectAsync(
@@ -131,7 +130,9 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         )}.`
       );
     } else if (scope === EnvironmentVariableScope.Shared) {
-      const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
+      const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, {
+        appId: projectId,
+      });
 
       if (!name) {
         name = await selectAsync(
