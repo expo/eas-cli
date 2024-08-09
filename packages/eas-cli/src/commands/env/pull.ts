@@ -1,13 +1,23 @@
 import { Flags } from '@oclif/core';
+import assert from 'assert';
 import fs from 'fs-extra';
 
 import { withSudoModeAsync } from '../../authUtils';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
-import { EnvironmentVariableFragment } from '../../graphql/generated';
+import {
+  EnvironmentVariableEnvironment,
+  EnvironmentVariableFragment,
+} from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
+
+type PullFlags = {
+  environment?: EnvironmentVariableEnvironment;
+  path: string;
+  'non-interactive': boolean;
+};
 
 export default class EnvironmentValuePull extends EasCommand {
   static override description = 'pull env file';
@@ -30,9 +40,15 @@ export default class EnvironmentValuePull extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    const { flags } = await this.parse(EnvironmentValuePull);
     const {
-      flags: { environment, path: targetPath, 'non-interactive': nonInteractive },
-    } = await this.parse(EnvironmentValuePull);
+      environment,
+      path: targetPath,
+      'non-interactive': nonInteractive,
+    } = this.validateFlags(flags);
+
+    assert(environment);
+
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
@@ -41,15 +57,13 @@ export default class EnvironmentValuePull extends EasCommand {
       nonInteractive,
     });
 
-    if (!environment) {
-      throw new Error('Please provide an environment to pull the env file from.');
-    }
-
-    const { appVariables: environmentVariables } = await withSudoModeAsync(sessionManager, () =>
-      EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
-        appId: projectId,
-        environment,
-      })
+    const { appVariables: environmentVariables } = await withSudoModeAsync(
+      sessionManager,
+      async () =>
+        await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
+          appId: projectId,
+          environment,
+        })
     );
 
     if (!nonInteractive && (await fs.exists(targetPath))) {
@@ -58,7 +72,7 @@ export default class EnvironmentValuePull extends EasCommand {
       });
       if (!result) {
         Log.log('Aborting...');
-        return;
+        throw new Error(`File ${targetPath} already exists.`);
       }
     }
 
@@ -74,5 +88,12 @@ export default class EnvironmentValuePull extends EasCommand {
     await fs.writeFile(targetPath, filePrefix + envFileContent);
 
     Log.log(`Pulled environment variables from ${environment} environment to ${targetPath}.`);
+  }
+
+  private validateFlags(flags: PullFlags): PullFlags {
+    if (!flags.environment) {
+      throw new Error('Please provide an environment to pull the env file from.');
+    }
+    return flags;
   }
 }

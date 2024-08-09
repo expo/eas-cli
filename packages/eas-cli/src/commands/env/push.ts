@@ -1,10 +1,12 @@
 import { Flags } from '@oclif/core';
+import assert from 'assert';
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag } from '../../commandUtils/flags';
 import {
+  EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
@@ -15,7 +17,12 @@ import {
 } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
-import { promptAsync } from '../../prompts';
+import { confirmAsync, promptAsync } from '../../prompts';
+
+type PushFlags = {
+  environment?: EnvironmentVariableEnvironment;
+  path: string;
+};
 
 export default class EnvironmentValuePush extends EasCommand {
   static override description = 'push env file';
@@ -36,9 +43,9 @@ export default class EnvironmentValuePush extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const {
-      flags: { environment, path: envPath },
-    } = await this.parse(EnvironmentValuePush);
+    const { flags } = await this.parse(EnvironmentValuePush);
+
+    const { environment, path: envPath } = this.validateFlags(flags);
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
@@ -46,9 +53,7 @@ export default class EnvironmentValuePush extends EasCommand {
       nonInteractive: true,
     });
 
-    if (!environment) {
-      throw new Error('Please provide an environment to push the env file to.');
-    }
+    assert(environment);
 
     const updateVariables: Record<string, EnvironmentVariablePushInput> =
       await this.parseEnvFileAsync(envPath, environment);
@@ -60,29 +65,11 @@ export default class EnvironmentValuePush extends EasCommand {
       { appId: projectId, environment, filterNames: variableNames }
     );
 
-    // Check if any of the variables already exist in the environment. Prompt the user to overwrite them.
-    const existingSensitiveVariables = existingVariables.filter(
-      variable => variable.value === null
-    );
-
-    if (existingSensitiveVariables.length > 0) {
-      const existingSensitiveVariablesNames = existingSensitiveVariables.map(
-        variable => variable.name
-      );
-      Log.warn('Sensitive variables cannot be overwritten with the `push` command.');
-      Log.warn('Use `eas env:update` to update them:');
-      existingSensitiveVariablesNames.forEach(name => Log.warn(`- ${name}`));
-    }
-
     const existingDifferentVariables: EnvironmentVariableFragment[] = [];
-    // Remove variables that are the same as the ones in the environment or sensitive.
+    // Remove variables that are the same as the ones in the environment
     existingVariables.forEach(variable => {
       const existingVariableUpdate = updateVariables[variable.name];
-      if (
-        existingVariableUpdate &&
-        existingVariableUpdate.value !== variable.value &&
-        variable.value !== null
-      ) {
+      if (existingVariableUpdate && existingVariableUpdate.value !== variable.value) {
         existingDifferentVariables.push(variable);
       } else {
         delete updateVariables[variable.name];
@@ -105,18 +92,43 @@ export default class EnvironmentValuePush extends EasCommand {
 
     if (existingDifferentVariables.length > 0) {
       Log.warn('Some variables already exist in the environment.');
+      const variableNames = existingDifferentVariables.map(variable => variable.name);
 
-      const { variablesToOverwrite } = await promptAsync({
-        type: 'multiselect',
-        name: 'variablesToOverwrite',
-        message: 'Select variables to overwrite:',
-        // @ts-expect-error property missing from `@types/prompts`
-        optionsPerPage: 20,
-        choices: existingDifferentVariables.map(variable => ({
-          title: `${variable.name}: ${updateVariables[variable.name].value}`,
-          value: variable.name,
-        })),
+      const confirmationMessage =
+        variableNames.length > 1
+          ? `The ${variableNames.join(
+              ', '
+            )} environment variables already exist in ${environment} environment. Do you want to override them all?`
+          : `The ${variableNames[0]} environment variable already exists in ${environment} environment. Do you want to override it?`;
+
+      const confirm = await confirmAsync({
+        message: confirmationMessage,
       });
+
+      let variablesToOverwrite: string[] = [];
+
+      if (!confirm && existingDifferentVariables.length === 1) {
+        throw new Error('No new variables to push.');
+      }
+
+      if (confirm) {
+        variablesToOverwrite = existingDifferentVariables.map(variable => variable.name);
+      } else {
+        const promptResult = await promptAsync({
+          type: 'multiselect',
+          name: 'variablesToOverwrite',
+          message: 'Select variables to overwrite:',
+          // @ts-expect-error property missing from `@types/prompts`
+          optionsPerPage: 20,
+          choices: existingDifferentVariables.map(variable => ({
+            title: `${variable.name}: ${updateVariables[variable.name].value} (was ${
+              variable.value
+            })`,
+            value: variable.name,
+          })),
+        });
+        variablesToOverwrite = promptResult.variablesToOverwrite;
+      }
 
       for (const existingVariable of existingVariables) {
         const name = existingVariable.name;
@@ -125,6 +137,25 @@ export default class EnvironmentValuePush extends EasCommand {
         } else {
           delete updateVariables[name];
         }
+      }
+    }
+
+    // Check if any of the sensitive variables already exist in the environment. Prompt the user to overwrite them.
+    const existingSensitiveVariables = existingVariables.filter(
+      variable => variable.value === null
+    );
+
+    if (existingSensitiveVariables.length > 0) {
+      const existingSensitiveVariablesNames = existingSensitiveVariables.map(
+        variable => `- ${variable.name}`
+      );
+      const confirm = await confirmAsync({
+        message: `You are about to overwrite sensitive variables.\n${existingSensitiveVariablesNames.join(
+          '\n'
+        )}\n Do you want to continue?`,
+      });
+      if (!confirm) {
+        throw new Error('Aborting...');
       }
     }
 
@@ -160,12 +191,20 @@ export default class EnvironmentValuePush extends EasCommand {
         name,
         value,
         environment,
-        visibility: name.startsWith('EXPO_SECRET')
+        visibility: name.startsWith('EXPO_SENSITIVE')
           ? EnvironmentVariableVisibility.Sensitive
           : EnvironmentVariableVisibility.Public,
       };
     }
 
     return pushInput;
+  }
+
+  private validateFlags(flags: PushFlags): PushFlags {
+    if (!flags.environment) {
+      throw new Error('Please provide an environment to push the env file to.');
+    }
+
+    return flags;
   }
 }
