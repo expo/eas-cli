@@ -1,4 +1,5 @@
 import { Flags } from '@oclif/core';
+import assert from 'assert';
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
 
