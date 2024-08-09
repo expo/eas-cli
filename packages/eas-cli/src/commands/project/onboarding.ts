@@ -432,6 +432,7 @@ async function configureProjectFromBareDefaultExpoTemplateAsync({
       },
       production: {
         channel: 'production',
+        autoIncrement: true,
         ...easBuildGitHubConfig,
       },
     },
