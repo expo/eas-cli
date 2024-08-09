@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config-types';
-import { EasJson } from '@expo/eas-json';
+import { AppVersionSource, EasJson } from '@expo/eas-json';
 import { Command, Config } from '@oclif/core';
 import { vol } from 'memfs';
 import path from 'path';
@@ -148,3 +148,23 @@ export const getError = <TError = any>(call: () => unknown): TError | NoErrorThr
     return error as TError;
   }
 };
+
+export function withRemoteVersionSource(easJson: EasJson): EasJson {
+  return {
+    ...easJson,
+    cli: {
+      ...easJson.cli,
+      appVersionSource: AppVersionSource.REMOTE,
+    },
+  };
+}
+
+export function withLocalVersionSource(easJson: EasJson): EasJson {
+  return {
+    ...easJson,
+    cli: {
+      ...easJson.cli,
+      appVersionSource: AppVersionSource.LOCAL,
+    },
+  };
+}
