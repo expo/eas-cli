@@ -211,7 +211,7 @@ describe(BuildVersionGetView, () => {
     await expect(cmd.run()).rejects.toThrowError('Aborted.');
   });
 
-  test('reading version aborts when the appVersionSource is not specified and is run in non-interactive mode', async () => {
+  test('reading version sets appVersionSource to LOCAL and aborts when the appVersionSource is not specified and is run in non-interactive mode', async () => {
     const ctx = mockCommandContext(BuildVersionGetView, {});
     jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => ({
       buildVersion: '100',
@@ -224,7 +224,9 @@ describe(BuildVersionGetView, () => {
       ctx
     );
     await expect(cmd.run()).rejects.toThrowError(
-      '"appVersionSource" must be configured in non-interactive mode'
+      `This project is not configured for using remote version source. Add ${chalk.bold(
+        '{"cli": { "appVersionSource": "remote" }}'
+      )} in eas.json or re-run this command without "--non-interactive" flag.`
     );
   });
 });

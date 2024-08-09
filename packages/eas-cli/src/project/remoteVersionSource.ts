@@ -129,42 +129,46 @@ export async function ensureAppVersionSourceIsSetAsync(
   easJsonCliConfig: EasJson['cli'] | undefined,
   nonInteractive: boolean
 ): Promise<EasJson['cli'] | undefined> {
+  let selectOption;
   if (nonInteractive) {
-    Log.error('Cannot select "appVersionSource" in non-interactive mode.');
-    Log.error(
-      'Run the command again in interactive mode or configure the "appVersionSource" manually.'
+    Log.warn(
+      '"appVersionSource is not specified. The previous default value for "appVersionSource" used to be "local", but it has been changed to "remote".'
     );
-    Log.error(
+    Log.warn(
+      'Cannot prompt to select the value of "appVersionSource" in non-interactive mode. Setting it to "local" to keep the backwards compatibility. If you wish to use the "remote" "appVersionSource" update the "eas.json" manually.'
+    );
+    Log.warn(
       learnMore('https://docs.expo.dev/build-reference/app-versions/', {
         learnMoreMessage: 'See the docs to learn more.',
         dim: false,
       })
     );
-    Errors.error('"appVersionSource" must be configured in non-interactive mode', { exit: 1 });
+    selectOption = AppVersionSourceUpdateOption.SET_TO_LOCAL;
+    process.env.EAS_BUILD_AUTOCOMMIT = '1'; // the user can't commit changes to eas.json in non-interactive mode
+  } else {
+    Log.log(
+      `Please select your app version source. With "local" the build android.versionCode / ios.buildNumber are taken from app.json / app.config.js files and need to be incremented manually or automatically by setting autoIncrement: true in eas.json. With "remote" this value is handled remotely by EAS and can also be incremented automatically with each build when setting autoIncrement: true in eas.json. Until now, this project has been using the "local" version source (which was previously the default when the app version source was not specified). App version source can be set for you automatically, or you can configure it yourself - if you wish to use the default "remote" version source add ${chalk.bold(
+        '{"cli": { "appVersionSource": "remote" }}'
+      )} to your eas.json or if you want to use the "local" version source add ${chalk.bold(
+        '{"cli": { "appVersionSource": "local" }}'
+      )} to your eas.json.`
+    );
+
+    selectOption = await selectAsync(`What would you like to do?`, [
+      {
+        title: 'Update eas.json to use the default "remote" version source',
+        value: AppVersionSourceUpdateOption.SET_TO_REMOTE,
+      },
+      {
+        title: 'Update eas.json to use "local" version source',
+        value: AppVersionSourceUpdateOption.SET_TO_LOCAL,
+      },
+      {
+        title: "Don't update eas.json, abort command and configure manually",
+        value: AppVersionSourceUpdateOption.ABORT,
+      },
+    ]);
   }
-
-  Log.log(
-    `Please select your app version source. With "local" the build android.versionCode / ios.buildNumber are taken from app.json / app.config.js files and need to be incremented manually or automatically by setting autoIncrement: true in eas.json. With "remote" this value is handled remotely by EAS and can also be incremented automatically with each build when setting autoIncrement: true in eas.json. Until now, this project has been using the "local" version source (which was previously the default when the app version source was not specified). App version source can be set for you automatically, or you can configure it yourself - if you wish to use the default "remote" version source add ${chalk.bold(
-      '{"cli": { "appVersionSource": "remote" }}'
-    )} to your eas.json or if you want to use the "local" version source add ${chalk.bold(
-      '{"cli": { "appVersionSource": "local" }}'
-    )} to your eas.json.`
-  );
-
-  const selectOption = await selectAsync(`What would you like to do?`, [
-    {
-      title: 'Update eas.json to use the default "remote" version source',
-      value: AppVersionSourceUpdateOption.SET_TO_REMOTE,
-    },
-    {
-      title: 'Update eas.json to use "local" version source',
-      value: AppVersionSourceUpdateOption.SET_TO_LOCAL,
-    },
-    {
-      title: "Don't update eas.json, abort command and configure manually",
-      value: AppVersionSourceUpdateOption.ABORT,
-    },
-  ]);
 
   if (selectOption === AppVersionSourceUpdateOption.SET_TO_LOCAL) {
     await easJsonAccessor.readRawJsonAsync();
