@@ -1,4 +1,5 @@
 import { Flags } from '@oclif/core';
+import assert from 'assert';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -9,13 +10,25 @@ import {
   EASVariableFormatFlag,
   EASVariableScopeFlag,
 } from '../../commandUtils/flags';
-import { EnvironmentVariableFragment, EnvironmentVariableScope } from '../../graphql/generated';
+import {
+  EnvironmentVariableEnvironment,
+  EnvironmentVariableFragment,
+  EnvironmentVariableScope,
+} from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { formatVariable } from '../../utils/formatVariable';
 import { promptVariableEnvironmentAsync, promptVariableNameAsync } from '../../utils/prompts';
 
-export default class EnvironmentValueGet extends EasCommand {
+type GetFlags = {
+  name?: string;
+  environment?: EnvironmentVariableEnvironment;
+  'non-interactive': boolean;
+  format?: string;
+  scope?: EnvironmentVariableScope;
+};
+
+export default class EnvironmentVariableGet extends EasCommand {
   static override description = 'get environment variable';
 
   static override hidden = true;
@@ -36,16 +49,21 @@ export default class EnvironmentValueGet extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    const { flags } = await this.parse(EnvironmentVariableGet);
+
     let {
-      flags: { environment, name, 'non-interactive': nonInteractive, format, scope },
-    } = await this.parse(EnvironmentValueGet);
+      environment,
+      name,
+      'non-interactive': nonInteractive,
+      format,
+      scope,
+    } = this.validateFlags(flags);
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentValueGet, {
+    } = await this.getContextAsync(EnvironmentVariableGet, {
       nonInteractive,
     });
-
     if (!name) {
       name = await promptVariableNameAsync(nonInteractive);
     }
@@ -58,6 +76,8 @@ export default class EnvironmentValueGet extends EasCommand {
       environment = await promptVariableEnvironmentAsync(nonInteractive);
     }
 
+    assert(scope);
+
     const variable = await getVariableAsync(graphqlClient, scope, projectId, name, environment);
 
     if (!variable) {
@@ -66,16 +86,36 @@ export default class EnvironmentValueGet extends EasCommand {
     }
     if (!variable.value) {
       Log.log(
-        chalk`{bold ${variable.name}} is a secret variable and cannot be displayed once it has been created.`
+        `${chalk.bold(
+          variable.name
+        )} is a secret variable and cannot be displayed once it has been created.`
       );
       return;
     }
 
     if (format === 'short') {
-      Log.log(chalk`{bold ${variable.name}}=${variable.value}`);
+      Log.log(`${chalk.bold(variable.name)}=${variable.value}`);
     } else {
       Log.log(formatVariable(variable));
     }
+  }
+
+  private validateFlags(flags: GetFlags): GetFlags {
+    if (flags.environment && flags.scope === EnvironmentVariableScope.Shared) {
+      throw new Error(`Unexpected argument: --environment can only be used with project variables`);
+    }
+    if (flags['non-interactive']) {
+      if (!flags.name) {
+        throw new Error('Variable name is required. Run the command with --name flag.');
+      }
+      if (!flags.scope) {
+        throw new Error('Scope is required. Run the command with --scope flag.');
+      }
+      if (!flags.environment && flags.scope === EnvironmentVariableScope.Project) {
+        throw new Error('Environment is required.');
+      }
+    }
+    return flags;
   }
 }
 

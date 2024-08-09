@@ -7,12 +7,19 @@ import {
   EASNonInteractiveFlag,
   EASVariableScopeFlag,
 } from '../../commandUtils/flags';
-import { EnvironmentVariableScope } from '../../graphql/generated';
+import { EnvironmentVariableEnvironment, EnvironmentVariableScope } from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
+
+type DeleteFlags = {
+  name?: string;
+  environment?: EnvironmentVariableEnvironment;
+  'non-interactive': boolean;
+  scope?: EnvironmentVariableScope;
+};
 
 export default class EnvironmentVariableDelete extends EasCommand {
   static override description = 'delete an environment variable by name';
@@ -34,9 +41,8 @@ export default class EnvironmentVariableDelete extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    let {
-      flags: { name, environment, 'non-interactive': nonInteractive, scope },
-    } = await this.parse(EnvironmentVariableDelete);
+    const { flags } = await this.parse(EnvironmentVariableDelete);
+    let { name, environment, 'non-interactive': nonInteractive, scope } = this.validateFlags(flags);
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
@@ -57,14 +63,6 @@ export default class EnvironmentVariableDelete extends EasCommand {
         : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
 
     if (!name) {
-      if (nonInteractive) {
-        throw new Error(
-          `Environment variable needs 'name' to be specified when running in non-interactive mode. Run the command with ${chalk.bold(
-            '--name VARIABLE_NAME'
-          )} flag to fix the issue`
-        );
-      }
-
       ({ name } = await promptAsync({
         type: 'select',
         name: 'name',
@@ -104,12 +102,26 @@ export default class EnvironmentVariableDelete extends EasCommand {
       });
       if (!confirmed) {
         Log.error(`Canceled deletion of variable ${selectedVariable.name}.`);
-        return;
+        throw new Error(`Variable "${name}" not deleted.`);
       }
     }
 
     await EnvironmentVariableMutation.deleteAsync(graphqlClient, selectedVariable.id);
 
     Log.withTick(`️Deleted variable ${selectedVariable.name}".`);
+  }
+
+  private validateFlags(flags: DeleteFlags): DeleteFlags {
+    if (flags['non-interactive']) {
+      if (!flags.name) {
+        throw new Error(
+          `Environment variable needs 'name' to be specified when running in non-interactive mode. Run the command with ${chalk.bold(
+            '--name VARIABLE_NAME'
+          )} flag to fix the issue`
+        );
+      }
+    }
+
+    return flags;
   }
 }
