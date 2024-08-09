@@ -3,10 +3,62 @@ import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
-import { EnvironmentVariableFragment, EnvironmentVariablesByAppIdQuery } from '../generated';
+import {
+  EnvironmentVariableEnvironment,
+  EnvironmentVariableFragment,
+  EnvironmentVariablesByAppIdQuery,
+} from '../generated';
 import { EnvironmentVariableFragmentNode } from '../types/EnvironmentVariable';
 
 export const EnvironmentVariablesQuery = {
+  async byAppIdWithSensitiveAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      environment,
+      filterNames,
+    }: {
+      appId: string;
+      environment: EnvironmentVariableEnvironment;
+      filterNames?: string[];
+    }
+  ): Promise<{
+    appVariables: EnvironmentVariableFragment[];
+  }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query(
+          gql`
+            query EnvironmentVariablesIncludingSensitiveByAppId(
+              $appId: String!
+              $filterNames: [String!]
+              $environment: EnvironmentVariableEnvironment!
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  environmentVariablesIncludingSensitive(
+                    filterNames: $filterNames
+                    environment: $environment
+                  ) {
+                    id
+                    name
+                    value
+                  }
+                }
+              }
+            }
+          `,
+          { appId, filterNames, environment },
+          { additionalTypenames: ['EnvironmentVariable'] }
+        )
+        .toPromise()
+    );
+
+    return {
+      appVariables: data.app?.byId.environmentVariablesIncludingSensitive ?? [],
+    };
+  },
   async byAppIdAsync(
     graphqlClient: ExpoGraphqlClient,
     appId: string,

@@ -6,9 +6,13 @@ import {
   EASEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableScopeFlag,
-  EASVariableVisibilityFlags,
+  EASVariableVisibilityFlag,
 } from '../../commandUtils/flags';
-import { EnvironmentVariableScope, EnvironmentVariableVisibility } from '../../graphql/generated';
+import {
+  EnvironmentVariableEnvironment,
+  EnvironmentVariableScope,
+  EnvironmentVariableVisibility,
+} from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
@@ -22,6 +26,17 @@ import {
   promptVariableNameAsync,
   promptVariableValueAsync,
 } from '../../utils/prompts';
+
+type CreateFlags = {
+  name?: string;
+  value?: string;
+  link?: boolean;
+  force?: boolean;
+  visibility?: EnvironmentVariableVisibility;
+  scope?: EnvironmentVariableScope;
+  environment?: EnvironmentVariableEnvironment;
+  'non-interactive': boolean;
+};
 
 export default class EnvironmentVariableCreate extends EasCommand {
   static override description =
@@ -43,7 +58,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
       description: 'Overwrite existing variable',
       default: false,
     }),
-    ...EASVariableVisibilityFlags,
+    ...EASVariableVisibilityFlag,
     ...EASVariableScopeFlag,
     ...EASEnvironmentFlag,
     ...EASNonInteractiveFlag,
@@ -56,19 +71,19 @@ export default class EnvironmentVariableCreate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    const { flags } = await this.parse(EnvironmentVariableCreate);
+
     let {
-      flags: {
-        name,
-        value,
-        scope,
-        'non-interactive': nonInteractive,
-        environment,
-        sensitive,
-        secret,
-        link,
-        force,
-      },
-    } = await this.parse(EnvironmentVariableCreate);
+      name,
+      value,
+      scope,
+      'non-interactive': nonInteractive,
+      environment,
+      visibility,
+      link,
+      force,
+    } = this.validateFlags(flags);
+
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
@@ -86,13 +101,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
     }
 
     let overwrite = false;
-
-    let visibility = EnvironmentVariableVisibility.Public;
-    if (sensitive) {
-      visibility = EnvironmentVariableVisibility.Sensitive;
-    } else if (secret) {
-      visibility = EnvironmentVariableVisibility.Secret;
-    }
+    visibility = visibility ?? EnvironmentVariableVisibility.Public;
 
     if (!value) {
       value = await promptVariableValueAsync({
@@ -102,9 +111,6 @@ export default class EnvironmentVariableCreate extends EasCommand {
     }
 
     if (scope === EnvironmentVariableScope.Project) {
-      if (link) {
-        throw new Error(`Unexpected argument: --link can only be used with shared variables`);
-      }
       if (!environment) {
         environment = await promptVariableEnvironmentAsync(nonInteractive);
       }
@@ -124,7 +130,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
 
             if (!confirmation) {
               Log.log('Aborting');
-              return;
+              throw new Error(`Shared variable ${name} already exists on this project.`);
             }
           } else if (!force) {
             throw new Error(
@@ -151,7 +157,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
 
             if (!confirmation) {
               Log.log('Aborting');
-              return;
+              throw new Error(`Shared variable ${name} already exists on this project.`);
             }
           } else if (!force) {
             throw new Error(
@@ -192,16 +198,12 @@ export default class EnvironmentVariableCreate extends EasCommand {
       }
 
       if (environment && !link) {
-        if (!nonInteractive) {
-          const confirmation = await confirmAsync({
-            message: `Unexpected argument: --environment can only be used with --link flag. Do you want to link the variable to the current project?`,
-          });
+        const confirmation = await confirmAsync({
+          message: `Unexpected argument: --environment can only be used with --link flag. Do you want to link the variable to the current project?`,
+        });
 
-          if (!confirmation) {
-            Log.log('Aborting');
-            return;
-          }
-        } else {
+        if (!confirmation) {
+          Log.log('Aborting');
           throw new Error('Unexpected argument: --environment can only be used with --link flag.');
         }
       }
@@ -247,5 +249,20 @@ export default class EnvironmentVariableCreate extends EasCommand {
         );
       }
     }
+  }
+
+  private validateFlags(flags: CreateFlags): CreateFlags {
+    if (flags.scope !== EnvironmentVariableScope.Shared && flags.link) {
+      throw new Error(`Unexpected argument: --link can only be used with shared variables`);
+    }
+    if (
+      flags.scope === EnvironmentVariableScope.Shared &&
+      flags.environment &&
+      !flags.link &&
+      flags['non-interactive']
+    ) {
+      throw new Error('Unexpected argument: --environment can only be used with --link flag.');
+    }
+    return flags;
   }
 }

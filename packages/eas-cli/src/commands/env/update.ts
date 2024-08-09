@@ -6,9 +6,9 @@ import {
   EASEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableScopeFlag,
-  EASVariableVisibilityFlags,
+  EASVariableVisibilityFlag,
 } from '../../commandUtils/flags';
-import { EnvironmentVariableScope, EnvironmentVariableVisibility } from '../../graphql/generated';
+import { EnvironmentVariableScope } from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
@@ -35,7 +35,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     link: Flags.boolean({
       description: 'Link shared variable to the project',
     }),
-    ...EASVariableVisibilityFlags,
+    ...EASVariableVisibilityFlag,
     ...EASVariableScopeFlag,
     ...EASEnvironmentFlag,
     ...EASNonInteractiveFlag,
@@ -55,10 +55,8 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         scope,
         'non-interactive': nonInteractive,
         environment,
-        sensitive,
-        secret,
-        public: publicVisibility,
         link,
+        visibility,
       },
     } = await this.parse(EnvironmentVariableUpdate);
     const {
@@ -79,7 +77,8 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       }
       const { appVariables: existingVariables } = await EnvironmentVariablesQuery.byAppIdAsync(
         graphqlClient,
-        { appId: projectId, environment }
+        projectId,
+        environment
       );
       if (!name) {
         name = await selectAsync(
@@ -96,16 +95,6 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         Log.error(`Variable with name ${name} does not exist on project ${projectDisplayName}`);
 
         return;
-      }
-
-      let visibility = existingVariable.visibility || EnvironmentVariableVisibility.Public;
-
-      if (sensitive) {
-        visibility = EnvironmentVariableVisibility.Sensitive;
-      } else if (secret) {
-        visibility = EnvironmentVariableVisibility.Secret;
-      } else if (publicVisibility) {
-        visibility = EnvironmentVariableVisibility.Public;
       }
 
       if (!value) {
@@ -142,9 +131,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         )}.`
       );
     } else if (scope === EnvironmentVariableScope.Shared) {
-      const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, {
-        appId: projectId,
-      });
+      const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
 
       if (!name) {
         name = await selectAsync(
@@ -172,16 +159,6 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         if (!value || value.length === 0) {
           value = '';
         }
-      }
-
-      let visibility = existingVariable.visibility || EnvironmentVariableVisibility.Public;
-
-      if (sensitive) {
-        visibility = EnvironmentVariableVisibility.Sensitive;
-      } else if (secret) {
-        visibility = EnvironmentVariableVisibility.Secret;
-      } else if (publicVisibility) {
-        visibility = EnvironmentVariableVisibility.Public;
       }
 
       if (!environment && link) {

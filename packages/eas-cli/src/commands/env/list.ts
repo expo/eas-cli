@@ -52,7 +52,7 @@ export default class EnvironmentValueList extends EasCommand {
     if (format === 'short') {
       for (const variable of variables) {
         Log.log(
-          chalk`{bold ${variable.name}}=${
+          `${chalk.bold(variable.name)}=${
             variable.value ||
             "***** (This is a secret env variable that can only be accessed on EAS builder and can't be read in any UI. Learn more.)"
           }`
@@ -60,9 +60,9 @@ export default class EnvironmentValueList extends EasCommand {
       }
     } else {
       if (scope === EnvironmentVariableScope.Shared) {
-        Log.log(chalk`{bold Shared variables for this account:}`);
+        Log.log(chalk.bold('Shared variables for this account:'));
       } else {
-        Log.log(chalk`{bold Variables for this project for environment ${environment}:}`);
+        Log.log(chalk.bold(`Variables for this project for environment ${environment}:`));
       }
       Log.log(
         variables.map(variable => formatVariable(variable)).join(`\n\n${chalk.dim('———')}\n\n`)
