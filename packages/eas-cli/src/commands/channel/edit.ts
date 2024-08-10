@@ -1,7 +1,5 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
-import { print } from 'graphql';
-import gql from 'graphql-tag';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import {
@@ -9,51 +7,14 @@ import {
   hasEmptyBranchMap,
   hasStandardBranchMap,
 } from '../../channel/branch-mapping';
-import { selectChannelOnAppAsync } from '../../channel/queries';
+import { selectChannelOnAppAsync, updateChannelBranchMappingAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { withErrorHandlingAsync } from '../../graphql/client';
-import {
-  UpdateChannelBasicInfoFragment,
-  UpdateChannelBranchMappingMutation,
-  UpdateChannelBranchMappingMutationVariables,
-} from '../../graphql/generated';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
-import { UpdateChannelBasicInfoFragmentNode } from '../../graphql/types/UpdateChannelBasicInfo';
 import Log from '../../log';
 import { isRollout } from '../../rollout/branch-mapping';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-
-export async function updateChannelBranchMappingAsync(
-  graphqlClient: ExpoGraphqlClient,
-  { channelId, branchMapping }: UpdateChannelBranchMappingMutationVariables
-): Promise<UpdateChannelBasicInfoFragment> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .mutation<UpdateChannelBranchMappingMutation, UpdateChannelBranchMappingMutationVariables>(
-        gql`
-          mutation UpdateChannelBranchMapping($channelId: ID!, $branchMapping: String!) {
-            updateChannel {
-              editUpdateChannel(channelId: $channelId, branchMapping: $branchMapping) {
-                id
-                ...UpdateChannelBasicInfoFragment
-              }
-            }
-          }
-          ${print(UpdateChannelBasicInfoFragmentNode)}
-        `,
-        { channelId, branchMapping }
-      )
-      .toPromise()
-  );
-  const channel = data.updateChannel.editUpdateChannel;
-  if (!channel) {
-    throw new Error(`Could not find a channel with id: ${channelId}`);
-  }
-  return channel;
-}
 
 export default class ChannelEdit extends EasCommand {
   static override description = 'point a channel at a new branch';

@@ -7,8 +7,8 @@ import {
   hasEmptyBranchMap,
   hasStandardBranchMap,
 } from '../../channel/branch-mapping';
+import { updateChannelBranchMappingAsync } from '../../channel/queries';
 import { getUpdateBranch } from '../../channel/utils';
-import { updateChannelBranchMappingAsync } from '../../commands/channel/edit';
 import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
 import {
   UpdateBranchBasicInfoFragment,

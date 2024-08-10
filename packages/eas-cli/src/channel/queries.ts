@@ -13,6 +13,14 @@ import { withErrorHandlingAsync } from '../graphql/client';
 import {
   CreateUpdateChannelOnAppMutation,
   CreateUpdateChannelOnAppMutationVariables,
+  CreateUpdateChannelOnAppWithNoBranchMutation,
+  CreateUpdateChannelOnAppWithNoBranchMutationVariables,
+  DeleteUpdateChannelMutation,
+  DeleteUpdateChannelMutationVariables,
+  DeleteUpdateChannelResult,
+  UpdateChannelBasicInfoFragment,
+  UpdateChannelBranchMappingMutation,
+  UpdateChannelBranchMappingMutationVariables,
   ViewBranchesOnUpdateChannelQueryVariables,
   ViewUpdateChannelsOnAppQueryVariables,
 } from '../graphql/generated';
@@ -209,6 +217,42 @@ function renderChannelHeaderContent({
   Log.log(chalk`{bold Branches pointed at this channel and their most recent update group:}`);
 }
 
+export async function createChannelOnAppWithNoBranchAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    appId,
+    channelName,
+  }: {
+    appId: string;
+    channelName: string;
+  }
+): Promise<CreateUpdateChannelOnAppWithNoBranchMutation> {
+  return await withErrorHandlingAsync(
+    graphqlClient
+      .mutation<
+        CreateUpdateChannelOnAppWithNoBranchMutation,
+        CreateUpdateChannelOnAppWithNoBranchMutationVariables
+      >(
+        gql`
+          mutation CreateUpdateChannelOnAppWithNoBranch($appId: ID!, $name: String!) {
+            updateChannel {
+              createUpdateChannelForApp(appId: $appId, name: $name) {
+                id
+                ...UpdateChannelBasicInfoFragment
+              }
+            }
+          }
+          ${print(UpdateChannelBasicInfoFragmentNode)}
+        `,
+        {
+          appId,
+          name: channelName,
+        }
+      )
+      .toPromise()
+  );
+}
+
 export async function createChannelOnAppAsync(
   graphqlClient: ExpoGraphqlClient,
   {
@@ -366,4 +410,58 @@ export async function createAndLinkChannelAsync(
     );
   }
   return newChannel;
+}
+
+export async function updateChannelBranchMappingAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { channelId, branchMapping }: UpdateChannelBranchMappingMutationVariables
+): Promise<UpdateChannelBasicInfoFragment> {
+  const data = await withErrorHandlingAsync(
+    graphqlClient
+      .mutation<UpdateChannelBranchMappingMutation, UpdateChannelBranchMappingMutationVariables>(
+        gql`
+          mutation UpdateChannelBranchMapping($channelId: ID!, $branchMapping: String!) {
+            updateChannel {
+              editUpdateChannel(channelId: $channelId, branchMapping: $branchMapping) {
+                id
+                ...UpdateChannelBasicInfoFragment
+              }
+            }
+          }
+          ${print(UpdateChannelBasicInfoFragmentNode)}
+        `,
+        { channelId, branchMapping }
+      )
+      .toPromise()
+  );
+  const channel = data.updateChannel.editUpdateChannel;
+  if (!channel) {
+    throw new Error(`Could not find a channel with id: ${channelId}`);
+  }
+  return channel;
+}
+
+export async function deleteChannelOnAppAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { channelId }: DeleteUpdateChannelMutationVariables
+): Promise<DeleteUpdateChannelResult> {
+  const data = await withErrorHandlingAsync(
+    graphqlClient
+      .mutation<DeleteUpdateChannelMutation, DeleteUpdateChannelMutationVariables>(
+        gql`
+          mutation DeleteUpdateChannel($channelId: ID!) {
+            updateChannel {
+              deleteUpdateChannel(channelId: $channelId) {
+                id
+              }
+            }
+          }
+        `,
+        {
+          channelId,
+        }
+      )
+      .toPromise()
+  );
+  return data.updateChannel.deleteUpdateChannel;
 }

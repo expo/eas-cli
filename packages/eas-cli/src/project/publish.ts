@@ -17,10 +17,17 @@ import { selectBranchOnAppAsync } from '../branch/queries';
 import { getDefaultBranchNameAsync } from '../branch/utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
-import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
+import fetch from '../fetch';
+import {
+  AssetMetadataStatus,
+  PartialManifestAsset,
+  PublishUpdateGroupInput,
+  UpdatePublishMutation,
+} from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
 import Log, { learnMore } from '../log';
+import { ora } from '../ora';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../platform';
 import { promptAsync } from '../prompts';
 import { getBranchNameFromChannelNameAsync } from '../update/getBranchNameFromChannelNameAsync';
@@ -31,6 +38,12 @@ import {
 } from '../update/utils';
 import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
 import {
+  CodeSigningInfo,
+  checkManifestBodyAgainstUpdateInfoGroup,
+  getManifestBodyAsync,
+  signBody,
+} from '../utils/code-signing';
+import {
   expoCommandAsync,
   shouldUseVersionedExpoCLI,
   shouldUseVersionedExpoCLIWithExplicitPlatforms,
@@ -39,6 +52,7 @@ import {
   ExpoUpdatesCLIModuleNotFoundError,
   expoUpdatesCommandAsync,
 } from '../utils/expoUpdatesCli';
+import areSetsEqual from '../utils/expodash/areSetsEqual';
 import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
 import uniqBy from '../utils/expodash/uniqBy';
@@ -811,3 +825,273 @@ export const platformDisplayNames: Record<Platform, string> = {
   ios: 'iOS',
   web: 'Web',
 };
+
+export async function buildAndUploadAssetsAsync({
+  graphqlClient,
+  projectId,
+  skipBundler,
+  projectDir,
+  inputDir,
+  exp,
+  platformFlag,
+  clearCache,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  projectId: string;
+  skipBundler: boolean;
+  projectDir: string;
+  inputDir: string;
+  exp: ExpoConfig;
+  platformFlag: ExpoCLIExportPlatformFlag;
+  clearCache: boolean;
+}): Promise<{
+  distRoot: string;
+  realizedPlatforms: Platform[];
+  unsortedUpdateInfoGroups: UpdateInfoGroup;
+  uploadedAssetCount: number;
+  assetLimitPerUpdateGroup: number;
+}> {
+  // build bundle and upload assets for a new publish
+  if (!skipBundler) {
+    const bundleSpinner = ora().start('Exporting...');
+    try {
+      await buildBundlesAsync({ projectDir, inputDir, exp, platformFlag, clearCache });
+      bundleSpinner.succeed('Exported bundle(s)');
+    } catch (e) {
+      bundleSpinner.fail('Export failed');
+      throw e;
+    }
+  }
+
+  // After possibly bundling, assert that the input directory can be found.
+  const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
+
+  const assetSpinner = ora().start('Uploading...');
+  try {
+    const collectedAssets = await collectAssetsAsync(distRoot);
+    const assets = filterExportedPlatformsByFlag(collectedAssets, platformFlag);
+    const realizedPlatforms = Object.keys(assets) as Platform[];
+
+    // Timeout mechanism:
+    // - Start with NO_ACTIVITY_TIMEOUT. 180 seconds is chosen because the cloud function that processes
+    //   uploaded assets has a timeout of 60 seconds and uploading can take some time on a slow connection.
+    // - Each time one or more assets reports as ready, reset the timeout.
+    // - Each time an asset upload begins, reset the timeout. This includes retries.
+    // - Start upload. Internally, uploadAssetsAsync uploads them all first and then checks for successful
+    //   processing every (5 + n) seconds with a linear backoff of n + 1 second.
+    // - At the same time as upload is started, start timeout checker which checks every 1 second to see
+    //   if timeout has been reached. When timeout expires, send a cancellation signal to currently running
+    //   upload function call to instruct it to stop uploading or checking for successful processing.
+    const NO_ACTIVITY_TIMEOUT = 180 * 1000; // 180 seconds
+    let lastUploadedStorageKeys = new Set<string>();
+    let lastAssetUploadResults: {
+      asset: RawAsset & { storageKey: string };
+      finished: boolean;
+    }[] = [];
+    let timeAtWhichToTimeout = Date.now() + NO_ACTIVITY_TIMEOUT;
+    const cancelationToken = { isCanceledOrFinished: false };
+
+    const uploadResults = await Promise.race([
+      uploadAssetsAsync(
+        graphqlClient,
+        assets,
+        projectId,
+        cancelationToken,
+        assetUploadResults => {
+          const currentUploadedStorageKeys = new Set(
+            assetUploadResults.filter(r => r.finished).map(r => r.asset.storageKey)
+          );
+          if (!areSetsEqual(currentUploadedStorageKeys, lastUploadedStorageKeys)) {
+            timeAtWhichToTimeout = Date.now() + NO_ACTIVITY_TIMEOUT; // reset timeout to NO_ACTIVITY_TIMEOUT
+            lastUploadedStorageKeys = currentUploadedStorageKeys;
+            lastAssetUploadResults = assetUploadResults;
+          }
+
+          const totalAssets = assetUploadResults.length;
+          const missingAssetCount = assetUploadResults.filter(a => !a.finished).length;
+          assetSpinner.text = `Uploading (${totalAssets - missingAssetCount}/${totalAssets})`;
+        },
+        () => {
+          // when an upload is retried, reset the timeout as we know this will now need more time
+          timeAtWhichToTimeout = Date.now() + NO_ACTIVITY_TIMEOUT; // reset timeout to NO_ACTIVITY_TIMEOUT
+        }
+      ),
+      (async () => {
+        while (Date.now() < timeAtWhichToTimeout) {
+          if (cancelationToken.isCanceledOrFinished) {
+            break;
+          }
+          await new Promise(res => setTimeout(res, 1000)); // wait 1 second
+        }
+        cancelationToken.isCanceledOrFinished = true;
+        const timedOutAssets = lastAssetUploadResults
+          .filter(r => !r.finished)
+          .map(r => `\n- ${r.asset.originalPath ?? r.asset.path}`);
+        throw new Error(`Asset processing timed out for assets: ${timedOutAssets}`);
+      })(),
+    ]);
+
+    const uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
+    const assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
+    const unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
+
+    // NOTE(cedric): we assume that bundles are always uploaded, and always are part of
+    // `uploadedAssetCount`, perferably we don't assume. For that, we need to refactor the
+    // `uploadAssetsAsync` and be able to determine asset type from the uploaded assets.
+    const uploadedBundleCount = uploadResults.launchAssetCount;
+    const uploadedNormalAssetCount = Math.max(0, uploadedAssetCount - uploadedBundleCount);
+    const reusedNormalAssetCount = uploadResults.uniqueAssetCount - uploadedNormalAssetCount;
+
+    assetSpinner.stop();
+    Log.withTick(
+      `Uploaded ${uploadedBundleCount} app ${uploadedBundleCount === 1 ? 'bundle' : 'bundles'}`
+    );
+    if (uploadedNormalAssetCount === 0) {
+      Log.withTick(`Uploading assets skipped - no new assets found`);
+    } else {
+      let message = `Uploaded ${uploadedNormalAssetCount} ${
+        uploadedNormalAssetCount === 1 ? 'asset' : 'assets'
+      }`;
+      if (reusedNormalAssetCount > 0) {
+        message += ` (reused ${reusedNormalAssetCount} ${
+          reusedNormalAssetCount === 1 ? 'asset' : 'assets'
+        })`;
+      }
+      Log.withTick(message);
+    }
+    for (const uploadedAssetPath of uploadResults.uniqueUploadedAssetPaths) {
+      Log.debug(chalk.dim(`- ${uploadedAssetPath}`));
+    }
+
+    const platformString = (Object.keys(assets) as Platform[])
+      .map(platform => {
+        const collectedAssetForPlatform = nullthrows(assets[platform]);
+        const totalAssetsForPlatform = collectedAssetForPlatform.assets.length + 1; // launch asset
+        const assetString = totalAssetsForPlatform === 1 ? 'asset' : 'assets';
+        return `${totalAssetsForPlatform} ${platformDisplayNames[platform]} ${assetString}`;
+      })
+      .join(', ');
+    Log.withInfo(
+      `${platformString} (maximum: ${assetLimitPerUpdateGroup} total per update). ${learnMore(
+        'https://expo.fyi/eas-update-asset-limits',
+        { learnMoreMessage: 'Learn more about asset limits' }
+      )}`
+    );
+
+    return {
+      distRoot,
+      realizedPlatforms,
+      unsortedUpdateInfoGroups,
+      uploadedAssetCount,
+      assetLimitPerUpdateGroup,
+    };
+  } catch (e) {
+    assetSpinner.fail('Failed to upload');
+    throw e;
+  }
+}
+
+export async function publishUpdateGroupsAsync({
+  graphqlClient,
+  branchId,
+  runtimeVersions,
+  gitCommitHash,
+  isGitWorkingTreeDirty,
+  unsortedUpdateInfoGroups,
+  updateMessage,
+  codeSigningInfo,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  branchId: string;
+  runtimeVersions: { platform: string; runtimeVersion: string }[];
+  gitCommitHash: string | undefined;
+  isGitWorkingTreeDirty: boolean | undefined;
+  unsortedUpdateInfoGroups: UpdateInfoGroup;
+  updateMessage: string | undefined;
+  codeSigningInfo: CodeSigningInfo | undefined;
+}): Promise<{ newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'] }> {
+  const runtimeToPlatformMapping = getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);
+
+  // Sort the updates into different groups based on their platform specific runtime versions
+  const updateGroups: PublishUpdateGroupInput[] = runtimeToPlatformMapping.map(
+    ({ runtimeVersion, platforms }) => {
+      const localUpdateInfoGroup = Object.fromEntries(
+        platforms.map(platform => [
+          platform,
+          unsortedUpdateInfoGroups[platform as keyof UpdateInfoGroup],
+        ])
+      );
+
+      return {
+        branchId,
+        updateInfoGroup: localUpdateInfoGroup,
+        runtimeVersion,
+        message: updateMessage,
+        gitCommitHash,
+        isGitWorkingTreeDirty,
+        awaitingCodeSigningInfo: !!codeSigningInfo,
+      };
+    }
+  );
+
+  const publishSpinner = ora('Publishing...').start();
+  try {
+    const newUpdates = await PublishMutation.publishUpdateGroupAsync(graphqlClient, updateGroups);
+
+    if (codeSigningInfo) {
+      Log.log('🔒 Signing updates');
+
+      const updatesTemp = [...newUpdates];
+      const updateGroupsAndTheirUpdates = updateGroups.map(updateGroup => {
+        const newUpdates = updatesTemp.splice(
+          0,
+          Object.keys(nullthrows(updateGroup.updateInfoGroup)).length
+        );
+        return {
+          updateGroup,
+          newUpdates,
+        };
+      });
+
+      await Promise.all(
+        updateGroupsAndTheirUpdates.map(async ({ updateGroup, newUpdates }) => {
+          await Promise.all(
+            newUpdates.map(async newUpdate => {
+              const response = await fetch(newUpdate.manifestPermalink, {
+                method: 'GET',
+                headers: { accept: 'multipart/mixed' },
+              });
+              const manifestBody = nullthrows(await getManifestBodyAsync(response));
+
+              checkManifestBodyAgainstUpdateInfoGroup(
+                manifestBody,
+                nullthrows(
+                  nullthrows(updateGroup.updateInfoGroup)[
+                    newUpdate.platform as keyof UpdateInfoGroup
+                  ]
+                )
+              );
+
+              const manifestSignature = signBody(manifestBody, codeSigningInfo);
+
+              await PublishMutation.setCodeSigningInfoAsync(graphqlClient, newUpdate.id, {
+                alg: codeSigningInfo.codeSigningMetadata.alg,
+                keyid: codeSigningInfo.codeSigningMetadata.keyid,
+                sig: manifestSignature,
+              });
+            })
+          );
+        })
+      );
+    }
+
+    publishSpinner.succeed('Published!');
+
+    return {
+      newUpdates,
+    };
+  } catch (e) {
+    publishSpinner.fail('Failed to publish updates');
+    throw e;
+  }
+}

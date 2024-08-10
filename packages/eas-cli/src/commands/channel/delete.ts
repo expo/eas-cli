@@ -1,15 +1,6 @@
-import gql from 'graphql-tag';
-
-import { selectChannelOnAppAsync } from '../../channel/queries';
+import { deleteChannelOnAppAsync, selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { withErrorHandlingAsync } from '../../graphql/client';
-import {
-  DeleteUpdateChannelMutation,
-  DeleteUpdateChannelMutationVariables,
-  DeleteUpdateChannelResult,
-} from '../../graphql/generated';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { toggleConfirmAsync } from '../../prompts';
@@ -95,32 +86,7 @@ export default class ChannelDelete extends EasCommand {
     if (jsonFlag) {
       printJsonOnlyOutput(deletionResult);
     } else {
-      Log.withTick(`️Deleted channel "${channelName}".`);
+      Log.withTick(`Deleted channel "${channelName}".`);
     }
   }
-}
-
-async function deleteChannelOnAppAsync(
-  graphqlClient: ExpoGraphqlClient,
-  { channelId }: DeleteUpdateChannelMutationVariables
-): Promise<DeleteUpdateChannelResult> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .mutation<DeleteUpdateChannelMutation, DeleteUpdateChannelMutationVariables>(
-        gql`
-          mutation DeleteUpdateChannel($channelId: ID!) {
-            updateChannel {
-              deleteUpdateChannel(channelId: $channelId) {
-                id
-              }
-            }
-          }
-        `,
-        {
-          channelId,
-        }
-      )
-      .toPromise()
-  );
-  return data.updateChannel.deleteUpdateChannel;
 }

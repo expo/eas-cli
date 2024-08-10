@@ -1,6 +1,6 @@
 import { testBasicChannelInfo, testChannelObject } from '../../../channel/__tests__/fixtures';
 import { getAlwaysTrueBranchMapping, getBranchMapping } from '../../../channel/branch-mapping';
-import { updateChannelBranchMappingAsync } from '../../../commands/channel/edit';
+import { updateChannelBranchMappingAsync } from '../../../channel/queries';
 import { createCtxMock } from '../../../eas-update/__tests__/fixtures';
 import { ChannelQuery } from '../../../graphql/queries/ChannelQuery';
 import { confirmAsync } from '../../../prompts';

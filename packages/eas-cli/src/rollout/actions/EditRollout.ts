@@ -1,7 +1,7 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { updateChannelBranchMappingAsync } from '../../commands/channel/edit';
+import { updateChannelBranchMappingAsync } from '../../channel/queries';
 import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
 import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
 import { ChannelQuery, UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
