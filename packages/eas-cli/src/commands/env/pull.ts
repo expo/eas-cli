@@ -1,5 +1,4 @@
 import { Flags } from '@oclif/core';
-import assert from 'assert';
 import fs from 'fs-extra';
 
 import { withSudoModeAsync } from '../../authUtils';
@@ -47,8 +46,6 @@ export default class EnvironmentValuePull extends EasCommand {
       'non-interactive': nonInteractive,
     } = this.validateFlags(flags);
 
-    assert(environment);
-
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
@@ -79,8 +76,10 @@ export default class EnvironmentValuePull extends EasCommand {
     const filePrefix = `# Environment: ${environment}\n\n`;
 
     const envFileContent = environmentVariables
-      .filter((variable: EnvironmentVariableFragment) => !!variable.value)
       .map((variable: EnvironmentVariableFragment) => {
+        if (variable.value === null) {
+          return `# ${variable.name}=***** (secret variables are not available for reading)`;
+        }
         return `${variable.name}=${variable.value}`;
       })
       .join('\n');
@@ -90,10 +89,10 @@ export default class EnvironmentValuePull extends EasCommand {
     Log.log(`Pulled environment variables from ${environment} environment to ${targetPath}.`);
   }
 
-  private validateFlags(flags: PullFlags): PullFlags {
+  private validateFlags(flags: PullFlags): Required<PullFlags> {
     if (!flags.environment) {
       throw new Error('Please provide an environment to pull the env file from.');
     }
-    return flags;
+    return { ...flags, environment: flags.environment };
   }
 }
