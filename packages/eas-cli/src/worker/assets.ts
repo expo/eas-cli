@@ -229,7 +229,9 @@ async function uploadFileData(
         response.status === 429 ||
         (response.status >= 500 && response.status <= 599)
       ) {
-        return retry(new Error(`Upload of "${params.filePath}" failed: ${response.statusText}`));
+        const message = `Upload of "${params.filePath}" failed: ${response.statusText}`;
+        const text = await response.text().catch(() => null);
+        return retry(new Error(text ? `${message}\n${text}` : message));
       } else if (response.status === 413) {
         throw new Error(`Upload of "${params.filePath}" failed: File size exceeded the upload limit (>500MB)`);
       } else if (!response.ok) {
