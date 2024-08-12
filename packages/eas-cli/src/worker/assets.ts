@@ -1,25 +1,26 @@
-import fs, { createWriteStream } from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
-import { pipeline } from 'node:stream/promises';
-import { createHash, randomBytes, HashOptions } from 'node:crypto';
+/* eslint-disable async-protect/async-suffix */
 
-import promiseRetry from 'promise-retry';
-import { Gzip, GzipOptions } from 'minizlib';
-import { pack } from 'tar-stream';
 import mime from 'mime';
+import { Gzip, GzipOptions } from 'minizlib';
+import { HashOptions, createHash, randomBytes } from 'node:crypto';
+import fs, { createWriteStream } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { pipeline } from 'node:stream/promises';
+import promiseRetry from 'promise-retry';
+import { pack } from 'tar-stream';
 
-import fetch, { Headers, HeadersInit, Response, RequestError } from '../fetch';
+import fetch, { Headers, HeadersInit, RequestError, Response } from '../fetch';
 
 // TODO(@kitten): Sending content with Content-Encoding: gzip is unreliable
 // Disable compression for now
 const R2_GZIP_COMPRESSION_ENABLED = false;
 
 const MIN_COMPRESSION_SIZE = 5e4; // 50kB
-const MAX_UPLOAD_SIZE = 5e+8; // 5MB
+const MAX_UPLOAD_SIZE = 5e8; // 5MB
 const CACHE_CONTROL_IMMUTABLE = 'public, max-age=31536000, immutable';
 
-const isCompressible = (contentType: string | null, size: number) => {
+const isCompressible = (contentType: string | null, size: number): boolean => {
   if (size < MIN_COMPRESSION_SIZE) {
     // Don't compress small files
     return false;
@@ -139,7 +140,10 @@ async function* listWorkerFiles(workerPath: string): AsyncGenerator<WorkerFileEn
 }
 
 /** Reads files of an asset maps and enumerates normalized paths and data */
-async function* listAssetMapFiles(assetPath: string, assetMap: AssetMap): AsyncGenerator<WorkerFileEntry> {
+async function* listAssetMapFiles(
+  assetPath: string,
+  assetMap: AssetMap
+): AsyncGenerator<WorkerFileEntry> {
   for (const normalizedPath in assetMap) {
     const filePath = path.resolve(assetPath, normalizedPath.split('/').join(path.sep));
     const data = await fs.promises.readFile(filePath);
@@ -152,10 +156,7 @@ async function* listAssetMapFiles(assetPath: string, assetMap: AssetMap): AsyncG
 }
 
 /** Entry of a normalized (gzip-safe) path and file data */
-export type FileEntry = readonly [
-  normalizedPath: string,
-  data: Buffer | string,
-];
+export type FileEntry = readonly [normalizedPath: string, data: Buffer | string];
 
 /** Packs file entries into a tar.gz file (path to tgz returned) */
 async function packFilesIterable(
@@ -166,28 +167,28 @@ async function packFilesIterable(
   const write = createWriteStream(writePath);
   const gzip = new Gzip({ portable: true, ...options });
   const tar = pack();
-  const _writeTask = pipeline(tar, gzip, write);
+  const writeTask$ = pipeline(tar, gzip, write);
   for await (const file of iterable) {
     tar.entry({ name: file[0], type: 'file' }, file[1]);
   }
   tar.finalize();
-  await _writeTask;
+  await writeTask$;
   return writePath;
 }
 
 interface UploadFileDataParams {
-  url: string,
+  url: string;
   filePath: string;
   shouldCompress?: boolean;
   headers?: HeadersInit;
 }
 
-async function uploadFileData(
-  params: UploadFileDataParams,
-): Promise<Response> {
+async function uploadFileData(params: UploadFileDataParams): Promise<Response> {
   const stat = await fs.promises.stat(params.filePath);
   if (stat.size > MAX_UPLOAD_SIZE) {
-    throw new Error(`Upload of "${params.filePath}" aborted: File size is greater than the upload limit (>500MB)`);
+    throw new Error(
+      `Upload of "${params.filePath}" aborted: File size is greater than the upload limit (>500MB)`
+    );
   }
 
   const contentType = mime.getType(path.basename(params.filePath));
@@ -207,7 +208,7 @@ async function uploadFileData(
       let bodyStream: NodeJS.ReadableStream = fs.createReadStream(params.filePath);
       if (shouldCompress && R2_GZIP_COMPRESSION_ENABLED) {
         const gzip = new Gzip({ portable: true });
-        bodyStream.on('error', (error) => gzip.emit('error', error));
+        bodyStream.on('error', error => gzip.emit('error', error));
         // @ts-ignore: Gzip implements a Readable-like interface
         bodyStream = bodyStream.pipe(gzip) as NodeJS.ReadableStream;
         headers.set('content-encoding', 'gzip');
@@ -238,7 +239,9 @@ async function uploadFileData(
         const text = await response.text().catch(() => null);
         return retry(new Error(text ? `${message}\n${text}` : message));
       } else if (response.status === 413) {
-        throw new Error(`Upload of "${params.filePath}" failed: File size exceeded the upload limit (>500MB)`);
+        throw new Error(
+          `Upload of "${params.filePath}" failed: File size exceeded the upload limit (>500MB)`
+        );
       } else if (!response.ok) {
         throw new Error(`Upload of "${params.filePath}" failed: ${response.statusText}`);
       }
@@ -252,10 +255,4 @@ async function uploadFileData(
   );
 }
 
-export {
-  createAssetMap,
-  listWorkerFiles,
-  listAssetMapFiles,
-  packFilesIterable,
-  uploadFileData,
-};
+export { createAssetMap, listWorkerFiles, listAssetMapFiles, packFilesIterable, uploadFileData };

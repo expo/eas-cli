@@ -3,12 +3,13 @@ import * as path from 'node:path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
-import { getSignedDeploymentUrlAsync } from '../../worker/deployment';
 import * as WorkerAssets from '../../worker/assets';
+import { getSignedDeploymentUrlAsync } from '../../worker/deployment';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
-  fs.stat(directoryPath)
-    .then((stat) => stat.isDirectory())
+  fs
+    .stat(directoryPath)
+    .then(stat => stat.isDirectory())
     .catch(() => false);
 
 export default class WorkerDeploy extends EasCommand {
@@ -53,7 +54,9 @@ export default class WorkerDeploy extends EasCommand {
       );
     }
 
-    async function* emitWorkerTarball(assetMap: WorkerAssets.AssetMap): AsyncGenerator<WorkerAssets.FileEntry> {
+    async function* emitWorkerTarballAsync(
+      assetMap: WorkerAssets.AssetMap
+    ): AsyncGenerator<WorkerAssets.FileEntry> {
       yield ['assets.json', JSON.stringify(assetMap)];
 
       // TODO: Create manifest from user configuration
@@ -66,7 +69,7 @@ export default class WorkerDeploy extends EasCommand {
       }
     }
 
-    async function uploadTarball(tarPath: string) {
+    async function uploadTarballAsync(tarPath: string): Promise<any> {
       const uploadUrl = await getSignedDeploymentUrlAsync(graphqlClient, exp, {
         appId: projectId,
       });
@@ -91,7 +94,10 @@ export default class WorkerDeploy extends EasCommand {
       }
     }
 
-    async function uploadAssets(assetMap: WorkerAssets.AssetMap, uploads: Record<string, string>) {
+    async function uploadAssetsAsync(
+      assetMap: WorkerAssets.AssetMap,
+      uploads: Record<string, string>
+    ): Promise<void> {
       if (typeof uploads !== 'object' || !uploads) {
         return;
       }
@@ -103,15 +109,15 @@ export default class WorkerDeploy extends EasCommand {
           await WorkerAssets.uploadFileData({
             url: uploadURL,
             filePath: asset.path,
-          })
+          });
         }
       }
     }
 
     const assetMap = await WorkerAssets.createAssetMap(distClientPath);
-    const tarPath = await WorkerAssets.packFilesIterable(emitWorkerTarball(assetMap));
-    const deployResult = await uploadTarball(tarPath);
-    await uploadAssets(assetMap, deployResult.uploads);
+    const tarPath = await WorkerAssets.packFilesIterable(emitWorkerTarballAsync(assetMap));
+    const deployResult = await uploadTarballAsync(tarPath);
+    await uploadAssetsAsync(assetMap, deployResult.uploads);
 
     const baseDomain = process.env.EXPO_STAGING ? 'staging.expo.app' : 'expo.app';
     const deploymentURL = `https://${deployResult.fullName}.${baseDomain}`;
