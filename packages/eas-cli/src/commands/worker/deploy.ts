@@ -1,4 +1,4 @@
-import fs from 'fs-extra';
+import fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -6,6 +6,11 @@ import Log from '../../log';
 import { getSignedDeploymentUrlAsync } from '../../worker/deployment';
 import { createTarOfFolderAsync } from '../../worker/pack';
 import { uploadWorkerAsync } from '../../worker/upload';
+
+const isDirectory = (directoryPath: string): Promise<boolean> =>
+  fs.stat(directoryPath)
+    .then((stat) => stat.isDirectory())
+    .catch(() => false);
 
 export default class WorkerDeploy extends EasCommand {
   static override description = 'deploy an Expo web build';
@@ -32,11 +37,17 @@ export default class WorkerDeploy extends EasCommand {
       nonInteractive: true,
     });
 
-    const distLocation = path.join(projectDir, 'dist');
-
-    if (!(await fs.pathExists(distLocation))) {
+    const distLocation = path.resolve(projectDir, 'dist');
+    if (!(await isDirectory(distLocation))) {
       throw new Error(
-        `No dist folder found in ${distLocation}. Prepare your project for deployment with "npx expo export"`
+        `No "dist/" folder found at ${distLocation}. Prepare your project for deployment with "npx expo export"`
+      );
+    } else if (
+      !(await isDirectory(path.join(distLocation, 'server'))) ||
+      !(await isDirectory(path.join(distLocation, 'client')))
+    ) {
+      throw new Error(
+        `No "dist/server/" folder found in ${distLocation}. Ensure the app.json key "expo.web.output" is set to "server"`
       );
     }
 
