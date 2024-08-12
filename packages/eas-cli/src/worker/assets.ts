@@ -9,7 +9,7 @@ import { Gzip, GzipOptions } from 'minizlib';
 import { pack } from 'tar-stream';
 import mime from 'mime';
 
-import fetch, { Headers, HeadersInit, Response } from '../fetch';
+import fetch, { Headers, HeadersInit, Response, RequestError } from '../fetch';
 
 const MIN_COMPRESSION_SIZE = 5e4; // 50kB
 const MAX_UPLOAD_SIZE = 5e+8; // 5MB
@@ -209,11 +209,20 @@ async function uploadFileData(
         headers.set('content-encoding', 'gzip');
       }
 
-      const response = await fetch(params.url, {
-        method: 'POST',
-        body: bodyStream,
-        headers,
-      });
+      let response: Response;
+      try {
+        response = await fetch(params.url, {
+          method: 'POST',
+          body: bodyStream,
+          headers,
+        });
+      } catch (error) {
+        if (error instanceof RequestError) {
+          response = error.response;
+        } else {
+          throw error;
+        }
+      }
 
       if (
         response.status === 408 ||
