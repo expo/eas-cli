@@ -3,8 +3,32 @@ import path from 'node:path';
 import os from 'node:os';
 import { pipeline } from 'node:stream/promises';
 import { createHash, randomBytes, HashOptions } from 'node:crypto';
+
+import promiseRetry from 'promise-retry';
 import { Gzip, GzipOptions } from 'minizlib';
 import { pack } from 'tar-stream';
+import mime from 'mime';
+
+import fetch, { Headers, HeadersInit, Response } from '../fetch';
+
+const MIN_COMPRESSION_SIZE = 5e4; // 50kB
+const MAX_UPLOAD_SIZE = 5e+8; // 5MB
+const CACHE_CONTROL_IMMUTABLE = 'public, max-age=31536000, immutable';
+
+const isCompressible = (contentType: string | null, size: number) => {
+  if (size < MIN_COMPRESSION_SIZE) {
+    // Don't compress small files
+    return false;
+  } else if (contentType && /^(?:audio|video|image)\//i.test(contentType)) {
+    // Never compress images, audio, or videos as they're presumably precompressed
+    return false;
+  } else if (contentType && /^application\//i.test(contentType)) {
+    // Only compress `application/` files if they're marked as XML/JSON/JS
+    return /(?:xml|json5?|javascript)$/i.test(contentType);
+  } else {
+    return true;
+  }
+};
 
 /** Creates a temporary file write path */
 async function createTempWritePath(): Promise<string> {
@@ -129,12 +153,12 @@ type FileEntry = readonly [
   data: Buffer | string,
 ];
 
-/** Packs file entries into a tgz file (path to tgz returned) */
+/** Packs file entries into a tar.gz file (path to tgz returned) */
 async function packFilesIterable(
   iterable: Iterable<FileEntry> | AsyncIterable<FileEntry>,
   options?: GzipOptions
 ): Promise<string> {
-  const writePath = `${await createTempWritePath()}.tgz`;
+  const writePath = `${await createTempWritePath()}.tar.gz`;
   const write = createWriteStream(writePath);
   const gzip = new Gzip({ portable: true, ...options });
   const tar = pack();
@@ -147,9 +171,75 @@ async function packFilesIterable(
   return writePath;
 }
 
+interface UploadFileDataParams {
+  url: string,
+  filePath: string;
+  shouldCompress?: boolean;
+  headers?: HeadersInit;
+}
+
+async function uploadFileData(
+  params: UploadFileDataParams,
+): Promise<Response> {
+  const stat = await fs.promises.stat(params.filePath);
+  if (stat.size > MAX_UPLOAD_SIZE) {
+    throw new Error(`Upload of "${params.filePath}" aborted: File size is greater than the upload limit (>500MB)`);
+  }
+
+  const contentType = mime.getType(path.basename(params.filePath));
+  const shouldCompress = params.shouldCompress !== false && isCompressible(contentType, stat.size);
+
+  return await promiseRetry(
+    async retry => {
+      const headers = new Headers(params.headers);
+      // NOTE: We want to indicate that the particular uploads we're providing are immutable
+      // However, this doesn't mean that the deployed worker should serve them with this header due to aliases
+      headers.set('cache-control', CACHE_CONTROL_IMMUTABLE);
+      headers.set('accept', 'application/json');
+      if (contentType) {
+        headers.set('content-type', contentType);
+      }
+
+      let bodyStream: NodeJS.ReadableStream = fs.createReadStream(params.filePath);
+      if (shouldCompress) {
+        const gzip = new Gzip({ portable: true });
+        bodyStream.on('error', (error) => gzip.emit('error', error));
+        // @ts-ignore: Gzip implements a Readable-like interface
+        bodyStream = bodyStream.pipe(gzip) as NodeJS.ReadableStream;
+        headers.set('content-encoding', 'gzip');
+      }
+
+      const response = await fetch(params.url, {
+        method: 'POST',
+        body: bodyStream,
+        headers,
+      });
+
+      if (
+        response.status === 408 ||
+        response.status === 429 ||
+        (response.status >= 500 && response.status <= 599)
+      ) {
+        return retry(new Error(`Upload of "${params.filePath}" failed: ${response.statusText}`));
+      } else if (response.status === 413) {
+        throw new Error(`Upload of "${params.filePath}" failed: File size exceeded the upload limit (>500MB)`);
+      } else if (!response.ok) {
+        throw new Error(`Upload of "${params.filePath}" failed: ${response.statusText}`);
+      }
+
+      return response;
+    },
+    {
+      retries: 3,
+      factor: 2,
+    }
+  );
+}
+
 export {
   createAssetMap,
   listWorkerFiles,
   listAssetMapFiles,
   packFilesIterable,
+  uploadFileData,
 };
