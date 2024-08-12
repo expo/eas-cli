@@ -148,7 +148,7 @@ async function* listAssetMapFiles(assetPath: string, assetMap: AssetMap): AsyncG
 }
 
 /** Entry of a normalized (gzip-safe) path and file data */
-type FileEntry = readonly [
+export type FileEntry = readonly [
   normalizedPath: string,
   data: Buffer | string,
 ];

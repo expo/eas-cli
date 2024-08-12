@@ -4,8 +4,7 @@ import * as path from 'node:path';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { getSignedDeploymentUrlAsync } from '../../worker/deployment';
-import { createTarOfFolderAsync } from '../../worker/pack';
-import { uploadWorkerAsync } from '../../worker/upload';
+import * as WorkerAssets from '../../worker/assets';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
   fs.stat(directoryPath)
@@ -37,37 +36,87 @@ export default class WorkerDeploy extends EasCommand {
       nonInteractive: true,
     });
 
-    const distLocation = path.resolve(projectDir, 'dist');
-    if (!(await isDirectory(distLocation))) {
+    const distPath = path.resolve(projectDir, 'dist');
+    const distClientPath = path.resolve(distPath, 'client');
+    const distServerPath = path.resolve(distPath, 'server');
+    if (!(await isDirectory(distPath))) {
       throw new Error(
-        `No "dist/" folder found at ${distLocation}. Prepare your project for deployment with "npx expo export"`
+        `No "dist/" folder found at ${distPath}. Prepare your project for deployment with "npx expo export"`
       );
-    } else if (
-      !(await isDirectory(path.join(distLocation, 'server'))) ||
-      !(await isDirectory(path.join(distLocation, 'client')))
-    ) {
+    } else if (!(await isDirectory(distClientPath))) {
       throw new Error(
-        `No "dist/server/" folder found in ${distLocation}. Ensure the app.json key "expo.web.output" is set to "server"`
+        `No "dist/client/" folder found at ${distClientPath}. Ensure the app.json key "expo.web.output" is set to "server"`
+      );
+    } else if (!(await isDirectory(distServerPath))) {
+      throw new Error(
+        `No "dist/server/" folder found in ${distServerPath}. Ensure the app.json key "expo.web.output" is set to "server"`
       );
     }
 
-    // TODO: Create manifest from user configuration
-    const manifest = { env: {} };
-    const tar = await createTarOfFolderAsync(distLocation, manifest);
+    async function* emitWorkerTarball(assetMap: WorkerAssets.AssetMap): AsyncGenerator<WorkerAssets.FileEntry> {
+      yield ['assets.json', JSON.stringify(assetMap)];
 
-    const uploadUrl = await getSignedDeploymentUrlAsync(graphqlClient, exp, {
-      appId: projectId,
-    });
+      // TODO: Create manifest from user configuration
+      const manifest = { env: {} };
+      yield ['manifest.json', JSON.stringify(manifest)];
 
-    const result = await uploadWorkerAsync(uploadUrl, tar);
+      const workerFiles = WorkerAssets.listWorkerFiles(distServerPath);
+      for await (const workerFile of workerFiles) {
+        yield [`server/${workerFile.normalizedPath}`, workerFile.data];
+      }
+    }
+
+    async function uploadTarball(tarPath: string) {
+      const uploadUrl = await getSignedDeploymentUrlAsync(graphqlClient, exp, {
+        appId: projectId,
+      });
+      const response = await WorkerAssets.uploadFileData({
+        url: uploadUrl,
+        filePath: tarPath,
+        shouldCompress: false,
+      });
+      if (response.status === 413) {
+        throw new Error(
+          'Upload failed! (Payload too large)\n' +
+            `The gzipped files in "dist/server/" (at: ${distServerPath}) exceed the maximum file size.`
+        );
+      } else if (!response.ok) {
+        throw new Error(`Upload failed! (${response.statusText})`);
+      } else {
+        const json = await response.json();
+        if (!json.success || !json.result || typeof json.result !== 'object') {
+          throw new Error(json.message ? `Upload failed: ${json.message}` : 'Upload failed!');
+        }
+        return json.result;
+      }
+    }
+
+    async function uploadAssets(assetMap: WorkerAssets.AssetMap, uploads: Record<string, string>) {
+      if (typeof uploads !== 'object' || !uploads) {
+        return;
+      }
+
+      // TODO(@kitten): Batch and upload multiple files in parallel
+      for await (const asset of WorkerAssets.listAssetMapFiles(distClientPath, assetMap)) {
+        const uploadURL = uploads[asset.normalizedPath];
+        if (uploadURL) {
+          await WorkerAssets.uploadFileData({
+            url: uploadURL,
+            filePath: asset.path,
+          })
+        }
+      }
+    }
+
+    const assetMap = await WorkerAssets.createAssetMap(distClientPath);
+    const tarPath = await WorkerAssets.packFilesIterable(emitWorkerTarball(assetMap));
+    const deployResult = await uploadTarball(tarPath);
+    await uploadAssets(assetMap, deployResult.uploads);
+
+    const baseDomain = process.env.EXPO_STAGING ? 'staging.expo.app' : 'expo.app';
+    const deploymentURL = `https://${deployResult.fullName}.${baseDomain}`;
 
     Log.addNewLineIfNone();
-
-    // TODO(Kadi): read url from api reponse
-    Log.log(
-      `🎉 Your worker deployment is ready. (https://${result.fullName}.${
-        process.env.EXPO_STAGING ? 'staging.' : ''
-      }expo.app)`
-    );
+    Log.log(`🎉 Your worker deployment is ready: ${deploymentURL}`);
   }
 }
