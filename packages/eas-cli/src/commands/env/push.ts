@@ -1,5 +1,4 @@
 import { Flags } from '@oclif/core';
-import assert from 'assert';
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
 
@@ -50,10 +49,8 @@ export default class EnvironmentValuePush extends EasCommand {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentValuePush, {
-      nonInteractive: true,
+      nonInteractive: false,
     });
-
-    assert(environment);
 
     const updateVariables: Record<string, EnvironmentVariablePushInput> =
       await this.parseEnvFileAsync(envPath, environment);
@@ -84,7 +81,7 @@ export default class EnvironmentValuePush extends EasCommand {
       const existingDifferentSharedVariablesNames = existingDifferentSharedVariables.map(
         variable => variable.name
       );
-      Log.error('Shared variables cannot be overwritten.');
+      Log.error('Shared variables cannot be overwritten by eas env:push command.');
       Log.error('Remove them from the env file or unlink them from the project to continue:');
       existingDifferentSharedVariablesNames.forEach(name => Log.error(`- ${name}`));
       throw new Error('Shared variables cannot be overwritten by eas env:push command');
@@ -122,7 +119,7 @@ export default class EnvironmentValuePush extends EasCommand {
           optionsPerPage: 20,
           choices: existingDifferentVariables.map(variable => ({
             title: `${variable.name}: ${updateVariables[variable.name].value} (was ${
-              variable.value
+              variable.value ?? '(secret)'
             })`,
             value: variable.name,
           })),
@@ -200,11 +197,11 @@ export default class EnvironmentValuePush extends EasCommand {
     return pushInput;
   }
 
-  private validateFlags(flags: PushFlags): PushFlags {
+  private validateFlags(flags: PushFlags): Required<PushFlags> {
     if (!flags.environment) {
       throw new Error('Please provide an environment to push the env file to.');
     }
 
-    return flags;
+    return { ...flags, environment: flags.environment };
   }
 }
