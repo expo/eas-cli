@@ -11,6 +11,10 @@ import mime from 'mime';
 
 import fetch, { Headers, HeadersInit, Response, RequestError } from '../fetch';
 
+// TODO(@kitten): Sending content with Content-Encoding: gzip is unreliable
+// Disable compression for now
+const R2_GZIP_COMPRESSION_ENABLED = false;
+
 const MIN_COMPRESSION_SIZE = 5e4; // 50kB
 const MAX_UPLOAD_SIZE = 5e+8; // 5MB
 const CACHE_CONTROL_IMMUTABLE = 'public, max-age=31536000, immutable';
@@ -201,7 +205,7 @@ async function uploadFileData(
       }
 
       let bodyStream: NodeJS.ReadableStream = fs.createReadStream(params.filePath);
-      if (shouldCompress) {
+      if (shouldCompress && R2_GZIP_COMPRESSION_ENABLED) {
         const gzip = new Gzip({ portable: true });
         bodyStream.on('error', (error) => gzip.emit('error', error));
         // @ts-ignore: Gzip implements a Readable-like interface
@@ -226,6 +230,7 @@ async function uploadFileData(
 
       if (
         response.status === 408 ||
+        response.status === 409 ||
         response.status === 429 ||
         (response.status >= 500 && response.status <= 599)
       ) {
