@@ -3,9 +3,10 @@ import assert from 'assert';
 import { SelectRuntime } from './SelectRuntime';
 import { SelectBranch } from '../../branch/actions/SelectBranch';
 import {
-  getStandardBranchId,
+  getBranchMapping,
+  getRolloutCompatibleBranchMapAlwaysTrueBranchId,
   hasEmptyBranchMap,
-  hasStandardBranchMap,
+  hasRolloutCompatibleBranchMap,
 } from '../../channel/branch-mapping';
 import { getUpdateBranch } from '../../channel/utils';
 import { updateChannelBranchMappingAsync } from '../../commands/channel/edit';
@@ -28,10 +29,11 @@ import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { truthy } from '../../utils/expodash/filter';
 import {
-  composeRollout,
-  createRolloutBranchMapping,
+  composeConstrainedRollout,
+  doesChannelHaveRolloutForRtv,
   getRolloutInfoFromBranchMapping,
-  isRollout,
+  insertConstrainedRolloutBranchMappingForRtv,
+  isLegacyRolloutInfo,
 } from '../branch-mapping';
 import {
   displayRolloutDetails,
@@ -54,7 +56,7 @@ function assertNonInteractiveOptions(
 ): asserts options is NonInteractiveOptions {
   assert(
     isNonInteractiveOptions(options),
-    '--branch, --percent and --runtime-version are required for creating a rollout in non-interactive mode.'
+    '--branch, --percent, and --runtime-version are required for creating a rollout in non-interactive mode.'
   );
 }
 
@@ -73,23 +75,24 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     if (nonInteractive) {
       assertNonInteractiveOptions(this.options);
     }
-    if (isRollout(this.channelInfo)) {
-      throw new Error(`A rollout is already in progress for channel ${this.channelInfo.name}`);
-    }
+
     if (hasEmptyBranchMap(this.channelInfo)) {
       throw new Error(
-        `Your channel needs to be linked to a branch before a rollout can be created. Do this by running 'eas channel:edit'`
+        `Your channel needs to be linked to at least one branch before a rollout can be created. Do this by running 'eas channel:edit'`
       );
     }
-    if (!hasStandardBranchMap(this.channelInfo)) {
+
+    if (!hasRolloutCompatibleBranchMap(this.channelInfo)) {
       throw new Error(
         `You have a custom branch mapping. Map your channel to a single branch before creating a rollout. Received: ${this.channelInfo.branchMapping}`
       );
     }
-    const defaultBranchId = getStandardBranchId(this.channelInfo);
+
+    const defaultBranchId = getRolloutCompatibleBranchMapAlwaysTrueBranchId(this.channelInfo);
     const branchInfoToRollout = branchNameToRollout
       ? await this.resolveBranchNameAsync(ctx, branchNameToRollout)
       : await this.selectBranchAsync(ctx, defaultBranchId);
+
     if (branchInfoToRollout.id === defaultBranchId) {
       throw new Error(
         `Channel ${this.channelInfo.name} is already mapped to branch ${branchInfoToRollout.name}.`
@@ -99,20 +102,39 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     const runtimeVersion =
       this.options.runtimeVersion ??
       (await this.selectRuntimeVersionAsync(ctx, branchInfoToRollout, defaultBranchId));
+
+    if (doesChannelHaveRolloutForRtv(this.channelInfo, runtimeVersion)) {
+      throw new Error(
+        `A rollout is already in progress on channel ${this.channelInfo.name} for runtime version ${runtimeVersion}`
+      );
+    }
+
     Log.newLine();
     const promptMessage = `What percent of users should be rolled out to branch ${branchInfoToRollout.name}?`;
     const percent = this.options.percent ?? (await promptForRolloutPercentAsync({ promptMessage }));
-    const rolloutBranchMapping = createRolloutBranchMapping({
-      defaultBranchId,
-      rolloutBranchId: branchInfoToRollout.id,
-      percent,
-      runtimeVersion,
-    });
+
+    const previousBranchMapping = getBranchMapping(this.channelInfo.branchMapping);
+    const rolloutBranchMapping = insertConstrainedRolloutBranchMappingForRtv(
+      previousBranchMapping,
+      {
+        rolloutBranchId: branchInfoToRollout.id,
+        percent,
+        runtimeVersion,
+      }
+    );
 
     const channelObject = await this.getChannelObjectAsync(ctx, runtimeVersion);
     const defaultBranch = getUpdateBranch(channelObject, defaultBranchId);
     const defaultUpdateGroup = defaultBranch.updateGroups[0];
     const rolloutInfo = getRolloutInfoFromBranchMapping(rolloutBranchMapping);
+    if (isLegacyRolloutInfo(rolloutInfo)) {
+      throw new Error('Should not be possible');
+    }
+    const constrainedRolloutInfo = rolloutInfo.find(cri => cri.runtimeVersion === runtimeVersion);
+    if (!constrainedRolloutInfo) {
+      throw new Error('Should not be possible. No rollout for runtime version found.');
+    }
+
     const rolledOutBranchUpdateGroup = await this.getLatestUpdateGroupOnBranchAsync(
       ctx,
       branchInfoToRollout,
@@ -122,7 +144,11 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
       branchInfoToRollout,
       rolledOutBranchUpdateGroup ? [rolledOutBranchUpdateGroup] : []
     );
-    const rollout = composeRollout(rolloutInfo, defaultBranch, rolledOutBranch);
+    const rollout = composeConstrainedRollout(
+      constrainedRolloutInfo,
+      defaultBranch,
+      rolledOutBranch
+    );
     displayRolloutDetails(this.channelInfo.name, rollout);
     Log.log(
       formatBranchWithUpdateGroup(defaultUpdateGroup, defaultBranch, 100 - rollout.percentRolledOut)

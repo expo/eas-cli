@@ -16,11 +16,14 @@ import { republishAsync } from '../../update/republish';
 import { getCodeSigningInfoAsync } from '../../utils/code-signing';
 import formatFields from '../../utils/formatFields';
 import {
+  ConstrainedRolloutInfo,
+  LegacyRolloutInfo,
   Rollout,
-  getRollout,
+  getConstrainedRolloutForRtv,
+  getLegacyRollout,
   getRolloutInfo,
   isConstrainedRolloutInfo,
-  isRollout,
+  isLegacyRolloutInfo,
 } from '../branch-mapping';
 import { formatBranchWithUpdateGroup } from '../utils';
 
@@ -35,6 +38,7 @@ export type GeneralOptions = {
 
 export type NonInteractiveOptions = {
   outcome: EndOutcome;
+  runtimeVersion?: string;
 };
 function isNonInteractiveOptions(
   options: Partial<NonInteractiveOptions>
@@ -49,9 +53,22 @@ function assertNonInteractiveOptions(
     '--outcome is required for ending a rollout in non-interactive mode.'
   );
 }
+function isConstrainedNonInteractiveOptions(
+  options: Partial<NonInteractiveOptions>
+): options is Required<NonInteractiveOptions> {
+  return !!options.outcome && !!options.runtimeVersion;
+}
+function assertConstrainedRolloutNonInteractiveOptions(
+  options: Partial<NonInteractiveOptions>
+): asserts options is Required<NonInteractiveOptions> {
+  assert(
+    isConstrainedNonInteractiveOptions(options),
+    '--outcome and --runtime-version are required for ending a rollout in non-interactive mode.'
+  );
+}
 
 /**
- * End an existing rollout for the project.
+ * End an existing rollout for the channel and runtime version.
  */
 export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragment> {
   constructor(
@@ -59,14 +76,17 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     private options: Partial<NonInteractiveOptions> & GeneralOptions
   ) {}
 
-  public async runAsync(ctx: EASUpdateContext): Promise<UpdateChannelBasicInfoFragment> {
-    const { nonInteractive } = ctx;
-    if (nonInteractive) {
-      assertNonInteractiveOptions(this.options);
-    }
+  private async runForLegacyRolloutAsync(
+    ctx: EASUpdateContext
+  ): Promise<UpdateChannelBasicInfoFragment> {
+    const { graphqlClient, app } = ctx;
+    const { projectId } = app;
 
-    const channelObject = await this.getChannelObjectAsync(ctx);
-    const rollout = getRollout(channelObject);
+    const channelObject = await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
+      appId: projectId,
+      channelName: this.channelInfo.name,
+    });
+    const rollout = getLegacyRollout(channelObject);
     const { rolledOutBranch } = rollout;
     const rolledOutUpdateGroup = rolledOutBranch.updateGroups[0];
     let outcome: EndOutcome;
@@ -87,24 +107,79 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     return await this.performOutcomeAsync(ctx, rollout, outcome);
   }
 
-  async getChannelObjectAsync(ctx: EASUpdateContext): Promise<UpdateChannelObject> {
+  private async runForConstrainedRolloutAsync(
+    ctx: EASUpdateContext,
+    rolloutInfo: ConstrainedRolloutInfo[]
+  ): Promise<UpdateChannelBasicInfoFragment> {
     const { graphqlClient, app } = ctx;
     const { projectId } = app;
-    if (!isRollout(this.channelInfo)) {
+
+    // check for no constrained rollout
+    if (rolloutInfo.length < 1) {
       throw new Error(
         `The channel ${chalk.bold(
           this.channelInfo.name
-        )} is not a rollout. To end a rollout, you must specify a channel with an ongoing rollout.`
+        )} does not have a rollout. To end a rollout, you must specify a channel with an ongoing rollout.`
       );
     }
-    const rolloutInfo = getRolloutInfo(this.channelInfo);
-    return await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
+
+    // if rollout length === 1, we can infer runtime version (to make addition of the flag a non-breaking change)
+    let inferredRuntimeVersion;
+    if (rolloutInfo.length === 1) {
+      inferredRuntimeVersion = this.options.runtimeVersion ?? rolloutInfo[0].runtimeVersion;
+    } else {
+      const { nonInteractive } = ctx;
+      if (nonInteractive) {
+        assertConstrainedRolloutNonInteractiveOptions(this.options);
+      }
+      inferredRuntimeVersion =
+        this.options.runtimeVersion ?? (await this.selectRuntimeVersionAsync(rolloutInfo));
+    }
+
+    const runtimeVersion = inferredRuntimeVersion;
+
+    const channelObject = await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
       appId: projectId,
       channelName: this.channelInfo.name,
-      ...(isConstrainedRolloutInfo(rolloutInfo)
-        ? { filter: { runtimeVersions: [rolloutInfo.runtimeVersion] } }
-        : {}),
+      filter: { runtimeVersions: [runtimeVersion] },
     });
+    const rollout = getConstrainedRolloutForRtv(channelObject, runtimeVersion);
+    const { rolledOutBranch } = rollout;
+    const rolledOutUpdateGroup = rolledOutBranch.updateGroups[0];
+    let outcome: EndOutcome;
+    if (!rolledOutUpdateGroup) {
+      Log.log(`⚠️  There is no update group being served on the ${rolledOutBranch.name} branch.`);
+      assert(
+        this.options.outcome !== EndOutcome.REPUBLISH_AND_REVERT,
+        `The only valid outcome for this rollout is to revert users back to the ${rollout.defaultBranch.name} branch. `
+      );
+      outcome = EndOutcome.REVERT;
+    } else {
+      outcome = this.options.outcome ?? (await this.selectOutcomeAsync(rollout));
+    }
+    const didConfirm = await this.confirmOutcomeAsync(ctx, outcome, rollout);
+    if (!didConfirm) {
+      throw new Error('Aborting...');
+    }
+    return await this.performOutcomeAsync(ctx, rollout, outcome);
+  }
+
+  public async runAsync(ctx: EASUpdateContext): Promise<UpdateChannelBasicInfoFragment> {
+    const { nonInteractive } = ctx;
+    if (nonInteractive) {
+      assertNonInteractiveOptions(this.options);
+    }
+
+    Log.log(
+      `⚠️  The ${EndOutcome.REPUBLISH_AND_REVERT} and ${EndOutcome.REVERT} values for the outcome flag are deprecated.`
+    );
+
+    const rolloutInfo = getRolloutInfo(this.channelInfo);
+    if (isLegacyRolloutInfo(rolloutInfo)) {
+      return this.runForLegacyRolloutAsync(ctx);
+    } else {
+      return this.runForConstrainedRolloutAsync(ctx, rolloutInfo);
+    }
   }
 
   async selectOutcomeAsync(rollout: Rollout<UpdateBranchObject>): Promise<EndOutcome> {
@@ -216,5 +291,26 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     return await confirmAsync({
       message: `Continue?`,
     });
+  }
+
+  async selectRuntimeVersionAsync(rolloutInfo: ConstrainedRolloutInfo[]): Promise<string> {
+    const runtimeVersions = rolloutInfo.map(
+      constrainedRolloutInfo => constrainedRolloutInfo.runtimeVersion
+    );
+    const { runtimeVersion } = await promptAsync({
+      type: 'select',
+      name: 'runtimeVersion',
+      message: `Which runtime version rollout would you like to end?`,
+      choices: runtimeVersions.map(rtv => ({
+        value: rtv,
+        title: rtv,
+      })),
+    });
+
+    if (!runtimeVersion) {
+      throw new Error('Must select a runtime version');
+    }
+
+    return runtimeVersion;
   }
 }

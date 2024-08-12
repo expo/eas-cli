@@ -9,6 +9,11 @@ import {
   GeneralOptions as EndRolloutGeneralOptions,
   NonInteractiveOptions as EndRolloutNonInteractiveOptions,
 } from '../../rollout/actions/EndRollout';
+import {
+  GeneralOptions as EndRolloutNewGeneralOptions,
+  NonInteractiveOptions as EndRolloutNewNonInteractiveOptions,
+  NewEndOutcome,
+} from '../../rollout/actions/EndRolloutNew';
 import { ManageRolloutActions } from '../../rollout/actions/ManageRollout';
 import { NonInteractiveRollout } from '../../rollout/actions/NonInteractiveRollout';
 import {
@@ -28,7 +33,7 @@ type ChannelRolloutRawArgsAndFlags = {
   channel?: string;
   action?: ActionRawFlagValue;
   percent?: number;
-  outcome?: EndOutcome;
+  outcome?: EndOutcome | NewEndOutcome;
   'non-interactive': boolean;
   branch?: string;
   'runtime-version'?: string;
@@ -42,9 +47,13 @@ type ChannelRolloutArgsAndFlags = {
   nonInteractive: boolean;
   json?: boolean;
 } & Partial<EditRolloutNonInteractiveOptions> &
-  Partial<EndRolloutNonInteractiveOptions> &
+  Omit<Partial<EndRolloutNonInteractiveOptions>, 'outcome'> &
+  Omit<Partial<EndRolloutNewNonInteractiveOptions>, 'outcome'> &
   EndRolloutGeneralOptions &
-  Partial<CreateRolloutNonInteractiveOptions>;
+  EndRolloutNewGeneralOptions &
+  Partial<CreateRolloutNonInteractiveOptions> & {
+    outcome?: EndOutcome | NewEndOutcome;
+  };
 
 export default class ChannelRollout extends EasCommand {
   static override description = 'Roll a new branch out on a channel incrementally.';
@@ -105,7 +114,7 @@ export default class ChannelRollout extends EasCommand {
     }),
     outcome: Flags.enum({
       description: 'End outcome of rollout. Use with --action=end',
-      options: Object.values(EndOutcome),
+      options: [...Object.values(EndOutcome), ...Object.values(NewEndOutcome)],
       required: false,
     }),
     branch: Flags.string({

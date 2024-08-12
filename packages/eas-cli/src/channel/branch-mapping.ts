@@ -27,22 +27,25 @@ export type BranchMappingNode =
   | BranchMappingAlwaysTrue
   | BranchMappingObject
   | BranchMappingStatement;
-export type BranchMapping = {
-  version: number;
-  data: {
-    branchId: string;
-    branchMappingLogic: BranchMappingNode;
-  }[];
+
+export type BranchMappingDataItem = {
+  branchId: string;
+  branchMappingLogic: BranchMappingNode;
 };
 
-export type AlwaysTrueBranchMapping = {
+export type BranchMapping = {
   version: number;
-  data: [
-    {
-      branchId: string;
-      branchMappingLogic: BranchMappingAlwaysTrue;
-    },
-  ];
+  data: BranchMappingDataItem[];
+};
+
+export type AlwaysTrueDataItem = {
+  branchId: string;
+  branchMappingLogic: BranchMappingAlwaysTrue;
+};
+
+export type LastItemAlwaysTrueBranchMapping = {
+  version: number;
+  data: [...BranchMappingDataItem[], AlwaysTrueDataItem];
 };
 
 export type EmptyBranchMapping = {
@@ -57,7 +60,9 @@ export function getEmptyBranchMapping(): EmptyBranchMapping {
   };
 }
 
-export function getAlwaysTrueBranchMapping(branchId: string): AlwaysTrueBranchMapping {
+export function getFreshLastItemAlwaysTrueBranchMapping(
+  branchId: string
+): LastItemAlwaysTrueBranchMapping {
   return {
     version: 0,
     data: [
@@ -74,15 +79,23 @@ export function hasEmptyBranchMap(channelInfo: ChannelBasicInfo): boolean {
   return isEmptyBranchMapping(branchMapping);
 }
 
-export function hasStandardBranchMap(channelInfo: ChannelBasicInfo): boolean {
+export function hasRolloutCompatibleBranchMapForRtv(
+  channelInfo: ChannelBasicInfo,
+  runtimeVersion: string
+): boolean {
   const branchMapping = getBranchMapping(channelInfo.branchMapping);
-  return isAlwaysTrueBranchMapping(branchMapping);
+  return (
+    isBranchMappingWithLastItemAlwaysTrue(branchMapping) ||
+    isBranchMappingWithRtvConstrainedAlwaysTrue(branchMapping)
+  );
 }
 
-export function getStandardBranchId(channelInfo: ChannelBasicInfo): string {
+export function getRolloutCompatibleBranchMapAlwaysTrueBranchId(
+  channelInfo: ChannelBasicInfo
+): string {
   const branchMapping = getBranchMapping(channelInfo.branchMapping);
-  assertAlwaysTrueBranchMapping(branchMapping);
-  return getBranchIdFromStandardMapping(branchMapping);
+  assertLastItemAlwaysTrueBranchMapping(branchMapping);
+  return getAlwaysTrueBranchIdFromLastItemAlwaysTrueMapping(branchMapping);
 }
 
 export function isEmptyBranchMapping(
@@ -91,19 +104,26 @@ export function isEmptyBranchMapping(
   return branchMapping.data.length === 0;
 }
 
-export function isAlwaysTrueBranchMapping(
+export function isBranchMappingWithLastItemAlwaysTrue(
   branchMapping: BranchMapping
-): branchMapping is AlwaysTrueBranchMapping {
-  const numBranches = branchMapping.data.length;
-  if (numBranches !== 1) {
+): branchMapping is LastItemAlwaysTrueBranchMapping {
+  if (branchMapping.data.length === 0) {
     return false;
   }
-  const branchMappingLogic = branchMapping.data[0].branchMappingLogic;
+  const branchMappingLogic = branchMapping.data[branchMapping.data.length - 1].branchMappingLogic;
   return isAlwaysTrue(branchMappingLogic);
 }
 
-function getBranchIdFromStandardMapping(branchMapping: AlwaysTrueBranchMapping): string {
-  return branchMapping.data[0].branchId;
+export function isBranchMappingWithRtvConstrainedAlwaysTrue(branchMapping: BranchMapping): boolean {
+  if (branchMapping.data.length === 0) {
+    return false;
+  }
+}
+
+export function getAlwaysTrueBranchIdFromLastItemAlwaysTrueMapping(
+  branchMapping: LastItemAlwaysTrueBranchMapping
+): string {
+  return branchMapping.data[branchMapping.data.length - 1].branchId;
 }
 
 export function getBranchIds(branchMapping: BranchMapping): string[] {
@@ -201,12 +221,13 @@ export function assertString(operand: string | number | string[]): asserts opera
   }
 }
 
-function assertAlwaysTrueBranchMapping(
+function assertLastItemAlwaysTrueBranchMapping(
   branchMapping: BranchMapping
-): asserts branchMapping is AlwaysTrueBranchMapping {
-  if (!isAlwaysTrueBranchMapping(branchMapping)) {
+): asserts branchMapping is LastItemAlwaysTrueBranchMapping {
+  if (!isBranchMappingWithLastItemAlwaysTrue(branchMapping)) {
     throw new BranchMappingValidationError(
-      'Expected standard branch mapping. Received: ' + JSON.stringify(branchMapping)
+      'Expected branch mapping with last item always true. Received: ' +
+        JSON.stringify(branchMapping)
     );
   }
 }

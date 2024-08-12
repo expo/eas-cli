@@ -6,9 +6,15 @@ import {
 } from './CreateRollout';
 import { NonInteractiveOptions as EditRolloutNonInteractiveOptions } from './EditRollout';
 import {
+  EndOutcome,
   GeneralOptions as EndRolloutGeneralOptions,
   NonInteractiveOptions as EndRolloutNonInteractiveOptions,
 } from './EndRollout';
+import {
+  GeneralOptions as EndRolloutNewGeneralOptions,
+  NonInteractiveOptions as EndRolloutNewNonInteractiveOptions,
+  NewEndOutcome,
+} from './EndRolloutNew';
 import { ManageRollout, ManageRolloutActions } from './ManageRollout';
 import { SelectRollout } from './SelectRollout';
 import { SelectChannel } from '../../channel/actions/SelectChannel';
@@ -39,9 +45,13 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
       channelName?: string;
       action?: RolloutActions;
     } & Partial<EditRolloutNonInteractiveOptions> &
-      Partial<EndRolloutNonInteractiveOptions> &
+      Omit<Partial<EndRolloutNonInteractiveOptions>, 'outcome'> &
+      Omit<Partial<EndRolloutNewNonInteractiveOptions>, 'outcome'> &
       EndRolloutGeneralOptions &
-      Partial<CreateRolloutNonInteractiveOptions>
+      EndRolloutNewGeneralOptions &
+      Partial<CreateRolloutNonInteractiveOptions> & {
+        outcome?: EndOutcome | NewEndOutcome;
+      }
   ) {}
 
   public async runAsync(ctx: EASUpdateContext): Promise<void> {

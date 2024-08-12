@@ -7,10 +7,17 @@ import {
   NonInteractiveOptions as EditRolloutNonInteractiveOptions,
 } from './EditRollout';
 import {
+  EndOutcome,
   EndRollout,
   GeneralOptions as EndRolloutGeneralOptions,
   NonInteractiveOptions as EndRolloutNonInteractiveOptions,
 } from './EndRollout';
+import {
+  EndRolloutNew,
+  GeneralOptions as EndRolloutNewGeneralOptions,
+  NonInteractiveOptions as EndRolloutNewNonInteractiveOptions,
+  NewEndOutcome,
+} from './EndRolloutNew';
 import { ManageRolloutActions } from './ManageRollout';
 import { MainMenuActions, RolloutActions } from './RolloutMainMenu';
 import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
@@ -48,9 +55,13 @@ export class NonInteractiveRollout implements EASUpdateAction<void> {
       json?: boolean;
       action?: RolloutActions;
     } & Partial<EditRolloutNonInteractiveOptions> &
-      Partial<EndRolloutNonInteractiveOptions> &
+      Omit<Partial<EndRolloutNonInteractiveOptions>, 'outcome'> &
+      Omit<Partial<EndRolloutNewNonInteractiveOptions>, 'outcome'> &
       EndRolloutGeneralOptions &
-      Partial<CreateRolloutNonInteractiveOptions>
+      EndRolloutNewGeneralOptions &
+      Partial<CreateRolloutNonInteractiveOptions> & {
+        outcome?: EndOutcome | NewEndOutcome;
+      }
   ) {}
 
   public async runAsync(ctx: EASUpdateContext): Promise<void> {
@@ -101,8 +112,22 @@ export class NonInteractiveRollout implements EASUpdateAction<void> {
         return await new CreateRollout(channelObject, this.options).runAsync(ctx);
       case ManageRolloutActions.EDIT:
         return await new EditRollout(channelObject, this.options).runAsync(ctx);
-      case ManageRolloutActions.END:
-        return await new EndRollout(channelObject, this.options).runAsync(ctx);
+      case ManageRolloutActions.END: {
+        const outcome = this.options.outcome;
+        switch (outcome) {
+          case EndOutcome.REPUBLISH_AND_REVERT:
+          case EndOutcome.REVERT:
+            return await new EndRollout(channelObject, { ...this.options, outcome }).runAsync(ctx);
+          case NewEndOutcome.REVERT_AND_REPUBLISH:
+          case NewEndOutcome.ROLL_OUT_AND_REPUBLISH:
+          case undefined:
+            return await new EndRolloutNew(channelObject, { ...this.options, outcome }).runAsync(
+              ctx
+            );
+        }
+      }
+      // linter incorrect detection of completeness and fallthough
+      // eslint-disable-next-line no-fallthrough
       case ManageRolloutActions.VIEW:
         return this.viewRollout(channelObject);
     }

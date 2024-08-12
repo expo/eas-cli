@@ -6,10 +6,17 @@ import {
   NonInteractiveOptions as EditRolloutNonInteractiveOptions,
 } from './EditRollout';
 import {
+  EndOutcome,
   EndRollout,
   GeneralOptions as EndRolloutGeneralOptions,
   NonInteractiveOptions as EndRolloutNonInteractiveOptions,
 } from './EndRollout';
+import {
+  EndRolloutNew,
+  GeneralOptions as EndRolloutNewGeneralOptions,
+  NonInteractiveOptions as EndRolloutNewNonInteractiveOptions,
+  NewEndOutcome,
+} from './EndRolloutNew';
 import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
 import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
 import { ChannelQuery, UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
@@ -20,6 +27,7 @@ import { printRollout } from '../utils';
 export enum ManageRolloutActions {
   EDIT = 'Edit',
   END = 'End',
+  END_LEGACY = 'End (Legacy)',
   VIEW = 'View',
   GO_BACK = 'Go back',
 }
@@ -34,8 +42,12 @@ export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
       callingAction?: EASUpdateAction;
       action?: ManageRolloutActions.EDIT | ManageRolloutActions.END | ManageRolloutActions.VIEW;
     } & Partial<EditRolloutNonInteractiveOptions> &
-      Partial<EndRolloutNonInteractiveOptions> &
-      EndRolloutGeneralOptions
+      Omit<Partial<EndRolloutNonInteractiveOptions>, 'outcome'> &
+      Omit<Partial<EndRolloutNewNonInteractiveOptions>, 'outcome'> &
+      EndRolloutGeneralOptions &
+      EndRolloutNewGeneralOptions & {
+        outcome?: EndOutcome | NewEndOutcome;
+      }
   ) {}
 
   public async runAsync(ctx: EASUpdateContext): Promise<EASUpdateAction> {
@@ -47,11 +59,37 @@ export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
     printRollout(channelObject);
 
     const action = this.options.action ?? (await this.selectActionAsync());
-    switch (action as ManageRolloutActions) {
+    switch (action) {
       case ManageRolloutActions.EDIT:
         return new EditRollout(this.channelInfo, this.options);
-      case ManageRolloutActions.END:
-        return new EndRollout(this.channelInfo, this.options);
+      case ManageRolloutActions.END_LEGACY: {
+        const outcome = this.options.outcome;
+        switch (outcome) {
+          case EndOutcome.REPUBLISH_AND_REVERT:
+          case EndOutcome.REVERT:
+          case undefined:
+            return new EndRollout(channelObject, { ...this.options, outcome });
+          case NewEndOutcome.REVERT_AND_REPUBLISH:
+          case NewEndOutcome.ROLL_OUT_AND_REPUBLISH:
+            throw new Error(`Invalid outcome for ${action} action: ${outcome}`);
+        }
+      }
+      // linter incorrect detection of completeness and fallthough
+      // eslint-disable-next-line no-fallthrough
+      case ManageRolloutActions.END: {
+        const outcome = this.options.outcome;
+        switch (outcome) {
+          case EndOutcome.REPUBLISH_AND_REVERT:
+          case EndOutcome.REVERT:
+            throw new Error(`Invalid outcome for ${action} action: ${outcome}`);
+          case NewEndOutcome.REVERT_AND_REPUBLISH:
+          case NewEndOutcome.ROLL_OUT_AND_REPUBLISH:
+          case undefined:
+            return new EndRolloutNew(channelObject, { ...this.options, outcome });
+        }
+      }
+      // linter incorrect detection of completeness and fallthough
+      // eslint-disable-next-line no-fallthrough
       case ManageRolloutActions.VIEW:
         // Rollout is automatically printed in interactive mode
         return new Noop();
