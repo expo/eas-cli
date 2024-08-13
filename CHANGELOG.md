@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [10.2.3](https://github.com/expo/eas-cli/releases/tag/v10.2.3) - 2024-08-13
+
+### 🧹 Chores
+
 - Add support for `EAS_DANGEROUS_OVERRIDE_IOS_BUNDLE_IDENTIFIER` for bare workflow iOS builds. ([#2469](https://github.com/expo/eas-cli/pull/2469) by [@szdziedzic](https://github.com/szdziedzic))
 - Update images list in `eas.schema.json` and warn users when using the deprecated Android images. ([#2450](https://github.com/expo/eas-cli/pull/2450) by [@szdziedzic](https://github.com/szdziedzic))
 
