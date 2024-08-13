@@ -10,229 +10,229 @@ on:
 name: Release workflow
 
 jobs:
-  release:
-    name: Create a release
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-    steps:
-      - id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          draft: true
-  build-linux:
-    name: Build for Linux
-    runs-on: ubuntu-latest
-    needs: release
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: 20
-      - run: yarn install --frozen-lockfile --check-files
-      - run: yarn build
-      - name: Build tarballs
-        working-directory: ${{ github.workspace }}/packages/eas-cli
-        run: |
-          yarn pretarball-ci
-          yarn oclif pack:tarballs --no-xz --targets linux-x64,linux-arm
-      - id: x64
-        run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist
-      - id: arm
-        run: echo "filename=$(ls eas-*-arm.tar.gz)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist
-      - name: Upload linux-x64 tarball
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/${{ steps.x64.outputs.filename }}
-          asset_name: ${{ steps.x64.outputs.filename }}
-          asset_content_type: application/gzip
-      - name: Upload linux-arm tarball
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/${{ steps.arm.outputs.filename }}
-          asset_name: ${{ steps.arm.outputs.filename }}
-          asset_content_type: application/gzip
-  build-mac:
-    name: Build for macOS
-    # Use macOS to get the correct platform specific dependencies
-    runs-on: macos-latest
-    needs: release
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: 20
-      - run: brew install python-setuptools
-        env:
-          HOMEBREW_NO_AUTO_UPDATE: 1
-      - run: yarn install --frozen-lockfile --check-files
-      - run: yarn build
-      - name: Build tarballs
-        working-directory: ${{ github.workspace }}/packages/eas-cli
-        run: |
-          yarn pretarball-ci
-          yarn oclif pack:tarballs --no-xz --targets darwin-x64,darwin-arm64
-      - id: x64
-        run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist
-      - id: arm64
-        run: echo "filename=$(ls eas-*-arm64.tar.gz)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist
-      - name: Upload darwin-x64 tarball
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/${{ steps.x64.outputs.filename }}
-          asset_name: ${{ steps.x64.outputs.filename }}
-          asset_content_type: application/gzip
-      - name: Upload darwin-arm64 tarball
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/${{ steps.arm64.outputs.filename }}
-          asset_name: ${{ steps.arm64.outputs.filename }}
-          asset_content_type: application/gzip
-  build-windows:
-    name: Build for Windows
-    runs-on: ubuntu-latest
-    needs: release
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: 20
-      - run: yarn install --frozen-lockfile --check-files
-      - run: sudo apt-get install nsis
-      - run: yarn build
-      - run: |
-          yarn pretarball-ci
-          yarn oclif pack:win
-        working-directory: ${{ github.workspace }}/packages/eas-cli
-      - id: x64
-        run: echo "filename=$(ls eas-*-x64.exe)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win32
-      - id: x86
-        run: echo "filename=$(ls eas-*-x86.exe)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win32
-      - name: Upload x64 installer
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/win32/${{ steps.x64.outputs.filename }}
-          asset_name: ${{ steps.x64.outputs.filename }}
-          asset_content_type: application/gzip
-      - name: Upload x86 installer
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/win32/${{ steps.x86.outputs.filename }}
-          asset_name: ${{ steps.x86.outputs.filename }}
-          asset_content_type: application/gzip
-  publish-to-npm:
-    name: Publish to npm
-    runs-on: ubuntu-latest
-    needs: [build-linux, build-mac, build-windows]
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          registry-url: 'https://registry.npmjs.org/'
-          scope: 'expo'
-          node-version: 20
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile --check-files
-      - name: Build
-        run: yarn build
-      - name: Publish packages to npm
-        run: yarn lerna publish from-package --yes --no-verify-access
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
-      - name: Add latest-eas-build-staging tag
-        run: |
-          VERSION=$(cat lerna.json | jq -r .version)
-          echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
-          npm dist-tag add eas-cli@$VERSION latest-eas-build-staging
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
-      - name: Add latest-eas-build tag
-        run: |
-          VERSION=$(cat lerna.json | jq -r .version)
-          echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
-          npm dist-tag add eas-cli@$VERSION latest-eas-build
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
-  release-changelog:
-    name: Update changelog and publish release
-    runs-on: ubuntu-latest
-    needs: publish-to-npm
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.EXPO_BOT_PAT }}
-      - uses: actions/setup-node@v2
-        with:
-          node-version: 20
-      - name: Install dependencies
-        working-directory: ./scripts
-        run: yarn install --frozen-lockfile --check-files
-      - name: Resolve version
-        run: echo "EAS_CLI_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-      - name: Update changelog
-        working-directory: ./scripts
-        run: yarn --silent release-changelog $EAS_CLI_VERSION > /tmp/current-changelog
-      - name: Publish release
-        run: gh release edit v$EAS_CLI_VERSION --draft=false -F /tmp/current-changelog
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Commit and push
-        run: |
-          git fetch
-          git checkout main
-          git config --global user.email "support+ci@expo.io"
-          git config --global user.name "Expo CI"
-          git add CHANGELOG.md
-          git commit -m "update CHANGELOG.md"
-          git push
-      - name: Prepare changelog for Slack
-        run: |
-          tail -n +3 /tmp/current-changelog > /tmp/changelog.md
-          npx slackmd /tmp/changelog.md
-          echo 'SLACK_CHANGELOG<<EOF' >> $GITHUB_ENV
-          cat /tmp/changelog.slack.md >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
-      - name: Slack Notification
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: eas-cli
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_ICON: https://github.com/expo-bot.png?size=48
-          SLACK_TITLE: 'Released eas-cli@${{ env.EAS_CLI_VERSION }}'
-          SLACK_MESSAGE: ${{ env.SLACK_CHANGELOG }}
-          SLACK_USERNAME: 'EAS CLI CI'
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_FOOTER: ''
+  # release:
+  #   name: Create a release
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+  #   steps:
+  #     - id: create_release
+  #       uses: actions/create-release@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       with:
+  #         tag_name: ${{ github.ref }}
+  #         draft: true
+  # build-linux:
+  #   name: Build for Linux
+  #   runs-on: ubuntu-latest
+  #   needs: release
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-node@v2
+  #       with:
+  #         node-version: 20
+  #     - run: yarn install --frozen-lockfile --check-files
+  #     - run: yarn build
+  #     - name: Build tarballs
+  #       working-directory: ${{ github.workspace }}/packages/eas-cli
+  #       run: |
+  #         yarn pretarball-ci
+  #         yarn oclif pack:tarballs --no-xz --targets linux-x64,linux-arm
+  #     - id: x64
+  #       run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
+  #       working-directory: ${{ github.workspace }}/packages/eas-cli/dist
+  #     - id: arm
+  #       run: echo "filename=$(ls eas-*-arm.tar.gz)" >> $GITHUB_OUTPUT
+  #       working-directory: ${{ github.workspace }}/packages/eas-cli/dist
+  #     - name: Upload linux-x64 tarball
+  #       uses: actions/upload-release-asset@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       with:
+  #         upload_url: ${{ needs.release.outputs.upload_url }}
+  #         asset_path: packages/eas-cli/dist/${{ steps.x64.outputs.filename }}
+  #         asset_name: ${{ steps.x64.outputs.filename }}
+  #         asset_content_type: application/gzip
+  #     - name: Upload linux-arm tarball
+  #       uses: actions/upload-release-asset@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       with:
+  #         upload_url: ${{ needs.release.outputs.upload_url }}
+  #         asset_path: packages/eas-cli/dist/${{ steps.arm.outputs.filename }}
+  #         asset_name: ${{ steps.arm.outputs.filename }}
+  #         asset_content_type: application/gzip
+  # build-mac:
+  #   name: Build for macOS
+  #   # Use macOS to get the correct platform specific dependencies
+  #   runs-on: macos-latest
+  #   needs: release
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-node@v2
+  #       with:
+  #         node-version: 20
+  #     - run: brew install python-setuptools
+  #       env:
+  #         HOMEBREW_NO_AUTO_UPDATE: 1
+  #     - run: yarn install --frozen-lockfile --check-files
+  #     - run: yarn build
+  #     - name: Build tarballs
+  #       working-directory: ${{ github.workspace }}/packages/eas-cli
+  #       run: |
+  #         yarn pretarball-ci
+  #         yarn oclif pack:tarballs --no-xz --targets darwin-x64,darwin-arm64
+  #     - id: x64
+  #       run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
+  #       working-directory: ${{ github.workspace }}/packages/eas-cli/dist
+  #     - id: arm64
+  #       run: echo "filename=$(ls eas-*-arm64.tar.gz)" >> $GITHUB_OUTPUT
+  #       working-directory: ${{ github.workspace }}/packages/eas-cli/dist
+  #     - name: Upload darwin-x64 tarball
+  #       uses: actions/upload-release-asset@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       with:
+  #         upload_url: ${{ needs.release.outputs.upload_url }}
+  #         asset_path: packages/eas-cli/dist/${{ steps.x64.outputs.filename }}
+  #         asset_name: ${{ steps.x64.outputs.filename }}
+  #         asset_content_type: application/gzip
+  #     - name: Upload darwin-arm64 tarball
+  #       uses: actions/upload-release-asset@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       with:
+  #         upload_url: ${{ needs.release.outputs.upload_url }}
+  #         asset_path: packages/eas-cli/dist/${{ steps.arm64.outputs.filename }}
+  #         asset_name: ${{ steps.arm64.outputs.filename }}
+  #         asset_content_type: application/gzip
+  # build-windows:
+  #   name: Build for Windows
+  #   runs-on: ubuntu-latest
+  #   needs: release
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-node@v2
+  #       with:
+  #         node-version: 20
+  #     - run: yarn install --frozen-lockfile --check-files
+  #     - run: sudo apt-get install nsis
+  #     - run: yarn build
+  #     - run: |
+  #         yarn pretarball-ci
+  #         yarn oclif pack:win
+  #       working-directory: ${{ github.workspace }}/packages/eas-cli
+  #     - id: x64
+  #       run: echo "filename=$(ls eas-*-x64.exe)" >> $GITHUB_OUTPUT
+  #       working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win32
+  #     - id: x86
+  #       run: echo "filename=$(ls eas-*-x86.exe)" >> $GITHUB_OUTPUT
+  #       working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win32
+  #     - name: Upload x64 installer
+  #       uses: actions/upload-release-asset@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       with:
+  #         upload_url: ${{ needs.release.outputs.upload_url }}
+  #         asset_path: packages/eas-cli/dist/win32/${{ steps.x64.outputs.filename }}
+  #         asset_name: ${{ steps.x64.outputs.filename }}
+  #         asset_content_type: application/gzip
+  #     - name: Upload x86 installer
+  #       uses: actions/upload-release-asset@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       with:
+  #         upload_url: ${{ needs.release.outputs.upload_url }}
+  #         asset_path: packages/eas-cli/dist/win32/${{ steps.x86.outputs.filename }}
+  #         asset_name: ${{ steps.x86.outputs.filename }}
+  #         asset_content_type: application/gzip
+  # publish-to-npm:
+  #   name: Publish to npm
+  #   runs-on: ubuntu-latest
+  #   needs: [build-linux, build-mac, build-windows]
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-node@v2
+  #       with:
+  #         registry-url: 'https://registry.npmjs.org/'
+  #         scope: 'expo'
+  #         node-version: 20
+  #     - name: Install dependencies
+  #       run: yarn install --frozen-lockfile --check-files
+  #     - name: Build
+  #       run: yarn build
+  #     - name: Publish packages to npm
+  #       run: yarn lerna publish from-package --yes --no-verify-access
+  #       env:
+  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+  #     - name: Add latest-eas-build-staging tag
+  #       run: |
+  #         VERSION=$(cat lerna.json | jq -r .version)
+  #         echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
+  #         npm dist-tag add eas-cli@$VERSION latest-eas-build-staging
+  #       env:
+  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+  #     - name: Add latest-eas-build tag
+  #       run: |
+  #         VERSION=$(cat lerna.json | jq -r .version)
+  #         echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
+  #         npm dist-tag add eas-cli@$VERSION latest-eas-build
+  #       env:
+  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+  # release-changelog:
+  #   name: Update changelog and publish release
+  #   runs-on: ubuntu-latest
+  #   needs: publish-to-npm
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         token: ${{ secrets.EXPO_BOT_PAT }}
+  #     - uses: actions/setup-node@v2
+  #       with:
+  #         node-version: 20
+  #     - name: Install dependencies
+  #       working-directory: ./scripts
+  #       run: yarn install --frozen-lockfile --check-files
+  #     - name: Resolve version
+  #       run: echo "EAS_CLI_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+  #     - name: Update changelog
+  #       working-directory: ./scripts
+  #       run: yarn --silent release-changelog $EAS_CLI_VERSION > /tmp/current-changelog
+  #     - name: Publish release
+  #       run: gh release edit v$EAS_CLI_VERSION --draft=false -F /tmp/current-changelog
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: Commit and push
+  #       run: |
+  #         git fetch
+  #         git checkout main
+  #         git config --global user.email "support+ci@expo.io"
+  #         git config --global user.name "Expo CI"
+  #         git add CHANGELOG.md
+  #         git commit -m "update CHANGELOG.md"
+  #         git push
+  #     - name: Prepare changelog for Slack
+  #       run: |
+  #         tail -n +3 /tmp/current-changelog > /tmp/changelog.md
+  #         npx slackmd /tmp/changelog.md
+  #         echo 'SLACK_CHANGELOG<<EOF' >> $GITHUB_ENV
+  #         cat /tmp/changelog.slack.md >> $GITHUB_ENV
+  #         echo 'EOF' >> $GITHUB_ENV
+  #     - name: Slack Notification
+  #       uses: rtCamp/action-slack-notify@v2
+  #       env:
+  #         SLACK_CHANNEL: eas-cli
+  #         SLACK_COLOR: ${{ job.status }}
+  #         SLACK_ICON: https://github.com/expo-bot.png?size=48
+  #         SLACK_TITLE: 'Released eas-cli@${{ env.EAS_CLI_VERSION }}'
+  #         SLACK_MESSAGE: ${{ env.SLACK_CHANGELOG }}
+  #         SLACK_USERNAME: 'EAS CLI CI'
+  #         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  #         SLACK_FOOTER: ''
   open-pr-in-universe:
     name: Open a PR with `@expo/eas-json` bump in universe
-    needs: publish-to-npm
+    # needs: publish-to-npm
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
