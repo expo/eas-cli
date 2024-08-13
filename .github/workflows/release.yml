@@ -241,4 +241,4 @@ jobs:
           repo: expo/universe
           ref: main
           workflow: update-eas-json.yml
-          token: ${{ secrets.SZYMON_TEST_PAT }}
+          token: ${{ secrets.EXPO_BOT_PAT }}
