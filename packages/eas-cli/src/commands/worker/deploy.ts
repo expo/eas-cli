@@ -150,9 +150,10 @@ export default class WorkerDeploy extends EasCommand {
         }
       } catch (error: any) {
         updateProgress({ isComplete: true, error });
-      } finally {
-        updateProgress({ isComplete: true });
+        Log.error(error);
+        return;
       }
+      updateProgress({ isComplete: true });
     }
 
     let progress = ora('Preparing worker upload');
@@ -162,22 +163,22 @@ export default class WorkerDeploy extends EasCommand {
       assetMap = await WorkerAssets.createAssetMap(distClientPath);
       tarPath = await WorkerAssets.packFilesIterable(emitWorkerTarballAsync(assetMap));
     } catch (error: any) {
-      progress.fail(error);
+      progress.fail('Failed to prepare worker upload');
+      Log.error(error);
       return;
-    } finally {
-      progress.succeed('Prepared worker upload');
     }
+    progress.succeed('Prepared worker upload');
 
     progress = ora('Creating worker deployment');
     let deployResult: any;
     try {
       deployResult = await uploadTarballAsync(tarPath);
     } catch (error: any) {
-      progress.fail(error);
+      progress.fail('Failed to create worker deployment');
+      Log.error(error);
       return;
-    } finally {
-      progress.succeed('Created worker deployment');
     }
+    progress.succeed('Created worker deployment');
 
     await uploadAssetsAsync(assetMap, deployResult.uploads);
 
