@@ -153,6 +153,7 @@ export async function* batchUploadAsync(uploads: readonly UploadParams[]): Async
           uploadPromise = uploadAsync({ ...uploadParams, signal: controller.signal })
             .finally(() => queue.delete(uploadPromise))
         );
+        yield { params: uploadParams };
       }
       yield await Promise.race(queue);
     }
