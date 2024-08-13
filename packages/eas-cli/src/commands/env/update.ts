@@ -8,7 +8,7 @@ import {
   EASVariableScopeFlag,
   EASVariableVisibilityFlag,
 } from '../../commandUtils/flags';
-import { EnvironmentVariableScope } from '../../graphql/generated';
+import { EnvironmentVariableScope, EnvironmentVariableVisibility } from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
@@ -18,6 +18,15 @@ import {
 } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync, promptVariableValueAsync } from '../../utils/prompts';
+
+type UpdateFlags = {
+  name?: string;
+  value?: string;
+  scope?: EnvironmentVariableScope;
+  environment?: string;
+  visibility?: EnvironmentVariableVisibility;
+  'non-interactive': boolean;
+};
 
 export default class EnvironmentVariableUpdate extends EasCommand {
   static override description =
@@ -32,9 +41,6 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     value: Flags.string({
       description: 'Text value or the variable',
     }),
-    link: Flags.boolean({
-      description: 'Link shared variable to the project',
-    }),
     ...EASVariableVisibilityFlag,
     ...EASVariableScopeFlag,
     ...EASEnvironmentFlag,
@@ -48,17 +54,16 @@ export default class EnvironmentVariableUpdate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    const { flags } = await this.parse(EnvironmentVariableUpdate);
     let {
-      flags: {
-        name,
-        value,
-        scope,
-        'non-interactive': nonInteractive,
-        environment,
-        link,
-        visibility,
-      },
-    } = await this.parse(EnvironmentVariableUpdate);
+      name,
+      value,
+      scope,
+      'non-interactive': nonInteractive,
+      environment,
+      visibility,
+    } = this.validateFlags(flags);
+
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
@@ -75,7 +80,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       if (!environment) {
         environment = await promptVariableEnvironmentAsync(nonInteractive);
       }
-      const { appVariables: existingVariables } = await EnvironmentVariablesQuery.byAppIdAsync(
+      const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(
         graphqlClient,
         projectId,
         environment
@@ -126,9 +131,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       }
 
       Log.withTick(
-        `Updated ${chalk.bold(name)} with value ${chalk.bold(value)} on project ${chalk.bold(
-          projectDisplayName
-        )}.`
+        `Updated variable ${chalk.bold(name)} on project ${chalk.bold(projectDisplayName)}.`
       );
     } else if (scope === EnvironmentVariableScope.Shared) {
       const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
@@ -146,7 +149,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       const existingVariable = sharedVariables.find(variable => variable.name === name);
       if (!existingVariable) {
         throw new Error(
-          'Variable with this name already exists on this account. Please use a different name.'
+          "Variable with this name  doesn't exist on this account. Use a different name."
         );
       }
 
@@ -159,10 +162,6 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         if (!value || value.length === 0) {
           value = '';
         }
-      }
-
-      if (!environment && link) {
-        environment = await promptVariableEnvironmentAsync(nonInteractive);
       }
 
       const variable = await EnvironmentVariableMutation.createSharedVariableAsync(
@@ -183,27 +182,25 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       }
 
       Log.withTick(
-        `Updated ${chalk.bold(name)} with value ${chalk.bold(value)} on account ${chalk.bold(
-          ownerAccount.name
-        )}.`
+        `Updated shared variable ${chalk.bold(name)} on account ${chalk.bold(ownerAccount.name)}.`
       );
+    }
+  }
+  validateFlags(flags: UpdateFlags): UpdateFlags {
+    if (flags['non-interactive']) {
+      if (!flags.name) {
+        throw new Error(
+          'Variable name is required in non-interactive mode. Run the command with --name flag.'
+        );
+      }
 
-      if (link && environment) {
-        Log.withTick(
-          `Linking shared variable ${chalk.bold(name)} to project ${chalk.bold(
-            projectDisplayName
-          )}.`
-        );
-        await EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync(
-          graphqlClient,
-          variable.id,
-          projectId,
-          environment
-        );
-        Log.withTick(
-          `Linked shared variable ${chalk.bold(name)} to project ${chalk.bold(projectDisplayName)}.`
+      if (flags.scope === EnvironmentVariableScope.Project && !flags.environment) {
+        throw new Error(
+          'Environment is required when updating project-wide variable in non-interactive mode. Run the command with --environment flag.'
         );
       }
     }
+
+    return flags;
   }
 }

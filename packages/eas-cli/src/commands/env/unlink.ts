@@ -46,7 +46,7 @@ export default class EnvironmentVariableUnlink extends EasCommand {
 
     const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
-    const { appVariables } = await EnvironmentVariablesQuery.byAppIdAsync(
+    const appVariables = await EnvironmentVariablesQuery.byAppIdAsync(
       graphqlClient,
       projectId,
       environment

@@ -1,5 +1,4 @@
 import { Flags } from '@oclif/core';
-import assert from 'assert';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -25,7 +24,7 @@ type GetFlags = {
   environment?: EnvironmentVariableEnvironment;
   'non-interactive': boolean;
   format?: string;
-  scope?: EnvironmentVariableScope;
+  scope: EnvironmentVariableScope;
 };
 
 export default class EnvironmentVariableGet extends EasCommand {
@@ -58,25 +57,21 @@ export default class EnvironmentVariableGet extends EasCommand {
       format,
       scope,
     } = this.validateFlags(flags);
+
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentVariableGet, {
       nonInteractive,
     });
+
     if (!name) {
       name = await promptVariableNameAsync(nonInteractive);
-    }
-
-    if (environment && scope === EnvironmentVariableScope.Shared) {
-      throw new Error(`Unexpected argument: --environment can only be used with project variables`);
     }
 
     if (!environment && scope === EnvironmentVariableScope.Project) {
       environment = await promptVariableEnvironmentAsync(nonInteractive);
     }
-
-    assert(scope);
 
     const variable = await getVariableAsync(graphqlClient, scope, projectId, name, environment);
 
@@ -85,12 +80,11 @@ export default class EnvironmentVariableGet extends EasCommand {
       return;
     }
     if (!variable.value) {
-      Log.log(
+      throw new Error(
         `${chalk.bold(
           variable.name
         )} is a secret variable and cannot be displayed once it has been created.`
       );
-      return;
     }
 
     if (format === 'short') {
@@ -130,7 +124,7 @@ async function getVariableAsync(
     throw new Error('Environment is required.');
   }
   if (environment && scope === EnvironmentVariableScope.Project) {
-    const { appVariables } = await EnvironmentVariablesQuery.byAppIdAsync(
+    const appVariables = await EnvironmentVariablesQuery.byAppIdAsync(
       graphqlClient,
       projectId,
       environment,

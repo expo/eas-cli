@@ -58,8 +58,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
 
     const variables =
       scope === EnvironmentVariableScope.Project && environment
-        ? (await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, projectId, environment))
-            .appVariables
+        ? await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, projectId, environment)
         : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
 
     if (!name) {
@@ -67,15 +66,17 @@ export default class EnvironmentVariableDelete extends EasCommand {
         type: 'select',
         name: 'name',
         message: 'Pick the variable to be deleted:',
-        choices: variables.map(variable => ({
-          title: variable.name,
-          value: variable.name,
-        })),
+        choices: variables
+          .filter(({ scope: variableScope }) => scope === variableScope)
+          .map(variable => ({
+            title: variable.name,
+            value: variable.name,
+          })),
       }));
 
       if (!name) {
         throw new Error(
-          `Environment variable wasn't selected. Run the command again and selected existing variable or run it with ${chalk.bold(
+          `Environment variable wasn't selected. Run the command again and select existing variable or run it with ${chalk.bold(
             '--name VARIABLE_NAME'
           )} flag to fix the issue.`
         );

@@ -114,7 +114,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
       if (!environment) {
         environment = await promptVariableEnvironmentAsync(nonInteractive);
       }
-      const { appVariables: existingVariables } = await EnvironmentVariablesQuery.byAppIdAsync(
+      const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(
         graphqlClient,
         projectId,
         environment
@@ -157,11 +157,13 @@ export default class EnvironmentVariableCreate extends EasCommand {
 
             if (!confirmation) {
               Log.log('Aborting');
-              throw new Error(`Shared variable ${name} already exists on this project.`);
+              throw new Error(
+                `Variable ${name} already exists on this project.  Use --force to overwrite it.`
+              );
             }
           } else if (!force) {
             throw new Error(
-              `Shared variable ${name} already exists on this project. Use --force to overwrite it.`
+              `Variable ${name} already exists on this project. Use --force to overwrite it.`
             );
           }
           overwrite = true;
@@ -193,7 +195,8 @@ export default class EnvironmentVariableCreate extends EasCommand {
       const existingVariable = sharedVariables.find(variable => variable.name === name);
       if (existingVariable) {
         throw new Error(
-          `Shared variable with ${name} name already exists on this account. Use a different name or delete the existing variable.`
+          `Shared variable with ${name} name already exists on this account.\n` +
+            `Use a different name or delete the existing variable  on website or by using eas env:delete --name ${name} ... command.`
         );
       }
 
@@ -253,7 +256,9 @@ export default class EnvironmentVariableCreate extends EasCommand {
 
   private validateFlags(flags: CreateFlags): CreateFlags {
     if (flags.scope !== EnvironmentVariableScope.Shared && flags.link) {
-      throw new Error(`Unexpected argument: --link can only be used with shared variables`);
+      throw new Error(
+        `Unexpected argument: --link can only be used when creating  shared variables`
+      );
     }
     if (
       flags.scope === EnvironmentVariableScope.Shared &&
@@ -261,7 +266,9 @@ export default class EnvironmentVariableCreate extends EasCommand {
       !flags.link &&
       flags['non-interactive']
     ) {
-      throw new Error('Unexpected argument: --environment can only be used with --link flag.');
+      throw new Error(
+        'Unexpected argument: --environment in non-interactive mode can only be used with --link flag.'
+      );
     }
     return flags;
   }
