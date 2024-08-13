@@ -1,10 +1,14 @@
+import chalk from 'chalk';
 import fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
+import { ora } from '../../ora';
+import { createProgressTracker } from '../../utils/progress';
 import * as WorkerAssets from '../../worker/assets';
 import { getSignedDeploymentUrlAsync } from '../../worker/deployment';
+import { UploadParams, batchUploadAsync, uploadAsync } from '../../worker/upload';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
   fs
@@ -73,10 +77,14 @@ export default class WorkerDeploy extends EasCommand {
       const uploadUrl = await getSignedDeploymentUrlAsync(graphqlClient, exp, {
         appId: projectId,
       });
-      const response = await WorkerAssets.uploadFileData({
+
+      const { response } = await uploadAsync({
         url: uploadUrl,
         filePath: tarPath,
-        shouldCompress: false,
+        compress: false,
+        headers: {
+          accept: 'application/json',
+        },
       });
       if (response.status === 413) {
         throw new Error(
@@ -103,20 +111,74 @@ export default class WorkerDeploy extends EasCommand {
       }
 
       // TODO(@kitten): Batch and upload multiple files in parallel
+      const uploadParams: UploadParams[] = [];
       for await (const asset of WorkerAssets.listAssetMapFiles(distClientPath, assetMap)) {
         const uploadURL = uploads[asset.normalizedPath];
         if (uploadURL) {
-          await WorkerAssets.uploadFileData({
-            url: uploadURL,
-            filePath: asset.path,
-          });
+          uploadParams.push({ url: uploadURL, filePath: asset.path });
         }
+      }
+
+      const progress = {
+        total: uploadParams.length,
+        pending: 0,
+        percent: 0,
+        transferred: 0,
+      };
+
+      const updateProgress = createProgressTracker({
+        total: progress.total,
+        message(ratio) {
+          const percent = `${Math.floor(ratio * 100)}`;
+          const details = chalk.dim(
+            `(${progress.pending} Pending, ${progress.transferred} Completed, ${progress.total} Total)`
+          );
+          return `Uploading client assets: ${percent.padStart(3)}% ${details}`;
+        },
+        completedMessage: 'Uploaded client assets for worker deployment',
+      });
+
+      try {
+        for await (const signal of batchUploadAsync(uploadParams)) {
+          if ('response' in signal) {
+            progress.pending--;
+            progress.percent = ++progress.transferred / progress.total;
+          } else {
+            progress.pending++;
+          }
+          updateProgress({ progress });
+        }
+      } catch (error: any) {
+        updateProgress({ isComplete: true, error });
+      } finally {
+        updateProgress({ isComplete: true });
       }
     }
 
-    const assetMap = await WorkerAssets.createAssetMap(distClientPath);
-    const tarPath = await WorkerAssets.packFilesIterable(emitWorkerTarballAsync(assetMap));
-    const deployResult = await uploadTarballAsync(tarPath);
+    let progress = ora('Preparing worker upload');
+    let assetMap: WorkerAssets.AssetMap;
+    let tarPath: string;
+    try {
+      assetMap = await WorkerAssets.createAssetMap(distClientPath);
+      tarPath = await WorkerAssets.packFilesIterable(emitWorkerTarballAsync(assetMap));
+    } catch (error: any) {
+      progress.fail(error);
+      return;
+    } finally {
+      progress.succeed('Prepared worker upload');
+    }
+
+    progress = ora('Creating worker deployment');
+    let deployResult: any;
+    try {
+      deployResult = await uploadTarballAsync(tarPath);
+    } catch (error: any) {
+      progress.fail(error);
+      return;
+    } finally {
+      progress.succeed('Created worker deploymnt');
+    }
+
     await uploadAssetsAsync(assetMap, deployResult.uploads);
 
     const baseDomain = process.env.EXPO_STAGING ? 'staging.expo.app' : 'expo.app';
