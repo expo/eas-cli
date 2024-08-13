@@ -2,13 +2,13 @@ import chalk from 'chalk';
 import fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { ora } from '../../ora';
-import { createProgressTracker } from '../../utils/progress';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
+import { ora } from '../../ora';
+import { createProgressTracker } from '../../utils/progress';
 import * as WorkerAssets from '../../worker/assets';
-import { uploadAsync, batchUploadAsync, UploadParams } from '../../worker/upload';
 import { getSignedDeploymentUrlAsync } from '../../worker/deployment';
+import { UploadParams, batchUploadAsync, uploadAsync } from '../../worker/upload';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
   fs
@@ -114,7 +114,9 @@ export default class WorkerDeploy extends EasCommand {
       const uploadParams: UploadParams[] = [];
       for await (const asset of WorkerAssets.listAssetMapFiles(distClientPath, assetMap)) {
         const uploadURL = uploads[asset.normalizedPath];
-        if (uploadURL) uploadParams.push({ url: uploadURL, filePath: asset.path });
+        if (uploadURL) {
+          uploadParams.push({ url: uploadURL, filePath: asset.path });
+        }
       }
 
       const progress = {
@@ -128,7 +130,9 @@ export default class WorkerDeploy extends EasCommand {
         total: progress.total,
         message(ratio) {
           const percent = `${Math.floor(ratio * 100)}`;
-          const details = chalk.dim(`(${progress.pending} Pending, ${progress.transferred} Completed, ${progress.total} Total)`);
+          const details = chalk.dim(
+            `(${progress.pending} Pending, ${progress.transferred} Completed, ${progress.total} Total)`
+          );
           return `Uploading client assets: ${percent.padStart(3)}% ${details}`;
         },
         completedMessage: 'Uploaded client assets for worker deployment',

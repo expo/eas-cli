@@ -1,11 +1,11 @@
+import * as https from 'https';
+import createHttpsProxyAgent from 'https-proxy-agent';
 import mime from 'mime';
 import { Gzip } from 'minizlib';
-import path from 'node:path';
+import fetch, { Headers, HeadersInit, RequestInit, Response } from 'node-fetch';
 import fs, { createReadStream } from 'node:fs';
-import fetch, { RequestInit, HeadersInit, Headers, Response } from 'node-fetch';
-import createHttpsProxyAgent from 'https-proxy-agent';
+import path from 'node:path';
 import promiseRetry from 'promise-retry';
-import * as https from 'https';
 
 const MAX_RETRIES = 4;
 const MAX_CONCURRENCY = 10;
@@ -44,8 +44,7 @@ export interface UploadResult {
 }
 
 let sharedAgent: https.Agent | undefined;
-
-const getAgent = () => {
+const getAgent = (): https.Agent => {
   if (sharedAgent) {
     return sharedAgent;
   } else if (process.env.https_proxy) {
@@ -62,7 +61,15 @@ const getAgent = () => {
 };
 
 export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
-  const { filePath, signal, compress, method = 'POST', url, headers: headersInit, ...requestInit } = params;
+  const {
+    filePath,
+    signal,
+    compress,
+    method = 'POST',
+    url,
+    headers: headersInit,
+    ...requestInit
+  } = params;
   const stat = await fs.promises.stat(params.filePath);
   if (stat.size > MAX_UPLOAD_SIZE) {
     throw new Error(
@@ -120,7 +127,7 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
 
       return {
         params,
-        response
+        response,
       };
     },
     {
@@ -136,11 +143,11 @@ export interface UploadPending {
   params: UploadParams;
 }
 
-export type BatchUploadSignal =
-  | UploadResult
-  | UploadPending;
+export type BatchUploadSignal = UploadResult | UploadPending;
 
-export async function* batchUploadAsync(uploads: readonly UploadParams[]): AsyncGenerator<BatchUploadSignal> {
+export async function* batchUploadAsync(
+  uploads: readonly UploadParams[]
+): AsyncGenerator<BatchUploadSignal> {
   const controller = new AbortController();
   const queue = new Set<Promise<UploadResult>>();
   try {
@@ -150,8 +157,9 @@ export async function* batchUploadAsync(uploads: readonly UploadParams[]): Async
         const uploadParams = uploads[index++];
         let uploadPromise: Promise<UploadResult>;
         queue.add(
-          uploadPromise = uploadAsync({ ...uploadParams, signal: controller.signal })
-            .finally(() => queue.delete(uploadPromise))
+          (uploadPromise = uploadAsync({ ...uploadParams, signal: controller.signal }).finally(() =>
+            queue.delete(uploadPromise)
+          ))
         );
         yield { params: uploadParams };
       }
@@ -162,6 +170,8 @@ export async function* batchUploadAsync(uploads: readonly UploadParams[]): Async
       throw error;
     }
   } finally {
-    if (queue.size > 0) controller.abort();
+    if (queue.size > 0) {
+      controller.abort();
+    }
   }
 }
