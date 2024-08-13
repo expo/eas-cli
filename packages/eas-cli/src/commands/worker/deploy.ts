@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import * as WorkerAssets from '../../worker/assets';
+import { uploadAsync, batchUploadAsync, UploadParams } from '../../worker/upload';
 import { getSignedDeploymentUrlAsync } from '../../worker/deployment';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
@@ -73,10 +74,13 @@ export default class WorkerDeploy extends EasCommand {
       const uploadUrl = await getSignedDeploymentUrlAsync(graphqlClient, exp, {
         appId: projectId,
       });
-      const response = await WorkerAssets.uploadFileData({
+      const { response } = await uploadAsync({
         url: uploadUrl,
         filePath: tarPath,
-        shouldCompress: false,
+        compress: false,
+        headers: {
+          accept: 'application/json',
+        },
       });
       if (response.status === 413) {
         throw new Error(
@@ -103,14 +107,14 @@ export default class WorkerDeploy extends EasCommand {
       }
 
       // TODO(@kitten): Batch and upload multiple files in parallel
+      const uploadParams: UploadParams[] = [];
       for await (const asset of WorkerAssets.listAssetMapFiles(distClientPath, assetMap)) {
         const uploadURL = uploads[asset.normalizedPath];
-        if (uploadURL) {
-          await WorkerAssets.uploadFileData({
-            url: uploadURL,
-            filePath: asset.path,
-          });
-        }
+        if (uploadURL) uploadParams.push({ url: uploadURL, filePath: asset.path });
+      }
+
+      for await (const _signal of batchUploadAsync(uploadParams)) {
+        // TODO(@kitten): Log pending and completed to console
       }
     }
 
