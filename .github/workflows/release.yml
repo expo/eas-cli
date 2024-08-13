@@ -235,7 +235,6 @@ jobs:
     # needs: publish-to-npm
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
       - name: Open a PR with `@expo/eas-json` version bump in universe
         uses: benc-uk/workflow-dispatch@v1
         with:
