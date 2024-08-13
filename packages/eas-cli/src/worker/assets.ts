@@ -1,39 +1,12 @@
 /* eslint-disable async-protect/async-suffix */
 
-import mime from 'mime';
 import { Gzip, GzipOptions } from 'minizlib';
 import { HashOptions, createHash, randomBytes } from 'node:crypto';
 import fs, { createWriteStream } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
-import promiseRetry from 'promise-retry';
 import { pack } from 'tar-stream';
-
-import fetch, { Headers, HeadersInit, RequestError, Response } from '../fetch';
-
-// TODO(@kitten): Sending content with Content-Encoding: gzip is unreliable
-// Disable compression for now
-const R2_GZIP_COMPRESSION_ENABLED = false;
-
-const MIN_COMPRESSION_SIZE = 5e4; // 50kB
-const MAX_UPLOAD_SIZE = 5e8; // 5MB
-const CACHE_CONTROL_IMMUTABLE = 'public, max-age=31536000, immutable';
-
-const isCompressible = (contentType: string | null, size: number): boolean => {
-  if (size < MIN_COMPRESSION_SIZE) {
-    // Don't compress small files
-    return false;
-  } else if (contentType && /^(?:audio|video|image)\//i.test(contentType)) {
-    // Never compress images, audio, or videos as they're presumably precompressed
-    return false;
-  } else if (contentType && /^application\//i.test(contentType)) {
-    // Only compress `application/` files if they're marked as XML/JSON/JS
-    return /(?:xml|json5?|javascript)$/i.test(contentType);
-  } else {
-    return true;
-  }
-};
 
 /** Creates a temporary file write path */
 async function createTempWritePath(): Promise<string> {
@@ -176,83 +149,4 @@ async function packFilesIterable(
   return writePath;
 }
 
-interface UploadFileDataParams {
-  url: string;
-  filePath: string;
-  shouldCompress?: boolean;
-  headers?: HeadersInit;
-}
-
-async function uploadFileData(params: UploadFileDataParams): Promise<Response> {
-  const stat = await fs.promises.stat(params.filePath);
-  if (stat.size > MAX_UPLOAD_SIZE) {
-    throw new Error(
-      `Upload of "${params.filePath}" aborted: File size is greater than the upload limit (>500MB)`
-    );
-  }
-
-  const contentType = mime.getType(path.basename(params.filePath));
-  const shouldCompress = params.shouldCompress !== false && isCompressible(contentType, stat.size);
-
-  return await promiseRetry(
-    async retry => {
-      const headers = new Headers(params.headers);
-      // NOTE: We want to indicate that the particular uploads we're providing are immutable
-      // However, this doesn't mean that the deployed worker should serve them with this header due to aliases
-      headers.set('cache-control', CACHE_CONTROL_IMMUTABLE);
-      headers.set('accept', 'application/json');
-      if (contentType) {
-        headers.set('content-type', contentType);
-      }
-
-      let bodyStream: NodeJS.ReadableStream = fs.createReadStream(params.filePath);
-      if (shouldCompress && R2_GZIP_COMPRESSION_ENABLED) {
-        const gzip = new Gzip({ portable: true });
-        bodyStream.on('error', error => gzip.emit('error', error));
-        // @ts-ignore: Gzip implements a Readable-like interface
-        bodyStream = bodyStream.pipe(gzip) as NodeJS.ReadableStream;
-        headers.set('content-encoding', 'gzip');
-      }
-
-      let response: Response;
-      try {
-        response = await fetch(params.url, {
-          method: 'POST',
-          body: bodyStream,
-          headers,
-        });
-      } catch (error) {
-        if (error instanceof RequestError) {
-          response = error.response;
-        } else {
-          throw error;
-        }
-      }
-
-      if (
-        response.status === 408 ||
-        response.status === 409 ||
-        response.status === 429 ||
-        (response.status >= 500 && response.status <= 599)
-      ) {
-        const message = `Upload of "${params.filePath}" failed: ${response.statusText}`;
-        const text = await response.text().catch(() => null);
-        return retry(new Error(text ? `${message}\n${text}` : message));
-      } else if (response.status === 413) {
-        throw new Error(
-          `Upload of "${params.filePath}" failed: File size exceeded the upload limit (>500MB)`
-        );
-      } else if (!response.ok) {
-        throw new Error(`Upload of "${params.filePath}" failed: ${response.statusText}`);
-      }
-
-      return response;
-    },
-    {
-      retries: 3,
-      factor: 2,
-    }
-  );
-}
-
-export { createAssetMap, listWorkerFiles, listAssetMapFiles, packFilesIterable, uploadFileData };
+export { createAssetMap, listWorkerFiles, listAssetMapFiles, packFilesIterable };
