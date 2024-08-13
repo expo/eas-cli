@@ -7,6 +7,7 @@ import fs from 'fs-extra';
 
 import { readAppJson } from '../../build/utils/appJson';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import env from '../../env';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
 import { Client } from '../../vcs/vcs';
@@ -61,6 +62,10 @@ export async function getBundleIdentifierAsync(
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   if (workflow === Workflow.GENERIC) {
     warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
+
+    if (env.overrideIosBundleIdentifier) {
+      return env.overrideIosBundleIdentifier;
+    }
 
     const xcodeProject = IOSConfig.XcodeUtils.getPbxproj(projectDir);
     const isMultiScheme = IOSConfig.BuildScheme.getSchemesFromXcodeproj(projectDir).length > 1;
