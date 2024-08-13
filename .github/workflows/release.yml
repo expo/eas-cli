@@ -240,5 +240,5 @@ jobs:
         with:
           repo: expo/universe
           ref: main
-          workflow: update-eas-json.yml
+          workflow: workflows/update-eas-json.yml
           token: ${{ secrets.EXPO_BOT_PAT }}
