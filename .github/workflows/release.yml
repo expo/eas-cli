@@ -6,7 +6,7 @@
 on:
   pull_request:
     branches:
-      - @szdziedzic/fix-eas-json-bump-flow
+      - '@szdziedzic/fix-eas-json-bump-flow'
 
 name: Release workflow
 
