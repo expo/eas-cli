@@ -176,7 +176,7 @@ export default class WorkerDeploy extends EasCommand {
       progress.fail(error);
       return;
     } finally {
-      progress.succeed('Created worker deploymnt');
+      progress.succeed('Created worker deployment');
     }
 
     await uploadAssetsAsync(assetMap, deployResult.uploads);
