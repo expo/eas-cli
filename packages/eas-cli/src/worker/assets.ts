@@ -8,6 +8,22 @@ import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { pack } from 'tar-stream';
 
+/** Returns whether a file or folder is ignored */
+function isIgnoredName(name: string): boolean {
+  switch (name) {
+    // macOS system files
+    case '.DS_Store':
+    case '.AppleDouble':
+    case '.Trashes':
+    case '__MACOSX':
+    case '.LSOverride':
+      return true;
+    default:
+      // Backup file name convention
+      return name.endsWith('~');
+  }
+}
+
 /** Creates a temporary file write path */
 async function createTempWritePath(): Promise<string> {
   const basename = path.basename(__filename, path.extname(__filename));
@@ -62,7 +78,9 @@ function listFilesRecursively(basePath: string): AsyncGenerator<RecursiveFileEnt
     const entries = await fs.promises.readdir(target, { withFileTypes: true });
     for (const dirent of entries) {
       const normalizedPath = parentPath ? `${parentPath}/${dirent.name}` : dirent.name;
-      if (dirent.isFile()) {
+      if (isIgnoredName(dirent.name)) {
+        continue;
+      } else if (dirent.isFile()) {
         yield {
           normalizedPath,
           path: path.resolve(target, dirent.name),
