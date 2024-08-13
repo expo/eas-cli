@@ -57,10 +57,11 @@ export default class EnvironmentValuePush extends EasCommand {
 
     const variableNames = Object.keys(updateVariables);
 
-    const { appVariables: existingVariables } = await EnvironmentVariablesQuery.byAppIdAsync(
-      graphqlClient,
-      { appId: projectId, environment, filterNames: variableNames }
-    );
+    const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
+      appId: projectId,
+      environment,
+      filterNames: variableNames,
+    });
 
     const existingDifferentVariables: EnvironmentVariableFragment[] = [];
     // Remove variables that are the same as the ones in the environment
