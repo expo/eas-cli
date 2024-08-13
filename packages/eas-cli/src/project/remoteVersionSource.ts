@@ -66,13 +66,26 @@ export async function validateBuildProfileVersionSettingsAsync(
   projectDir: string,
   flags: BuildFlags
 ): Promise<void> {
-  if (cliConfig?.appVersionSource === undefined) {
-    const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    cliConfig = await ensureAppVersionSourceIsSetAsync(
-      easJsonAccessor,
-      cliConfig,
-      flags.nonInteractive
-    );
+  if (
+    cliConfig?.appVersionSource === undefined &&
+    profileInfo.profile.autoIncrement !== 'version'
+  ) {
+    if (profileInfo.profile.autoIncrement !== true) {
+      Log.log('The field "cli.appVersionSource" is not set, but it will be required in the future');
+      Log.log(
+        learnMore('https://docs.expo.dev/build-reference/app-versions/', {
+          learnMoreMessage: 'See the docs to learn more.',
+          dim: false,
+        })
+      );
+    } else {
+      const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+      cliConfig = await ensureAppVersionSourceIsSetAsync(
+        easJsonAccessor,
+        cliConfig,
+        flags.nonInteractive
+      );
+    }
   }
   if (cliConfig?.appVersionSource !== AppVersionSource.REMOTE) {
     return;

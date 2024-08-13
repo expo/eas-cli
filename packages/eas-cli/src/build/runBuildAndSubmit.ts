@@ -400,13 +400,26 @@ async function prepareAndStartBuildAsync({
   }
 
   await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
-  if (easJsonCliConfig?.appVersionSource === undefined) {
-    const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    easJsonCliConfig = await ensureAppVersionSourceIsSetAsync(
-      easJsonAccessor,
-      easJsonCliConfig,
-      flags.nonInteractive
-    );
+  if (
+    easJsonCliConfig?.appVersionSource === undefined &&
+    buildProfile.profile.autoIncrement !== 'version'
+  ) {
+    if (buildProfile.profile.autoIncrement !== true) {
+      Log.log('The field "cli.appVersionSource" is not set, but it will be required in the future');
+      Log.log(
+        learnMore('https://docs.expo.dev/build-reference/app-versions/', {
+          learnMoreMessage: 'See the docs to learn more.',
+          dim: false,
+        })
+      );
+    } else {
+      const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+      easJsonCliConfig = await ensureAppVersionSourceIsSetAsync(
+        easJsonAccessor,
+        easJsonCliConfig,
+        flags.nonInteractive
+      );
+    }
   }
   if (easJsonCliConfig?.appVersionSource !== AppVersionSource.LOCAL) {
     validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
