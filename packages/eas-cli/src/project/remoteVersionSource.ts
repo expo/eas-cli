@@ -148,7 +148,7 @@ export async function ensureAppVersionSourceIsSetAsync(
       '"appVersionSource" is not specified. The previous default value for "appVersionSource" used to be "local", but it has been changed to "remote".'
     );
     Log.warn(
-      'Cannot prompt to select the value of "appVersionSource" in non-interactive mode. Setting it to "local" to keep the backwards compatibility. If you wish to use the "remote" "appVersionSource" update the "eas.json" manually.'
+      'Cannot prompt to select the value of "appVersionSource" in non-interactive mode. Setting it to "local" to keep the backwards compatibility. If you wish to use the "remote" "appVersionSource", update the "eas.json" manually.'
     );
     Log.warn(
       learnMore('https://docs.expo.dev/build-reference/app-versions/', {
