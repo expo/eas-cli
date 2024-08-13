@@ -240,5 +240,5 @@ jobs:
         with:
           repo: expo/universe
           ref: main
-          workflow: Open a PR bumping eas-json version
-          token: ${{ secrets.EXPO_BOT_PAT }}
+          workflow: update-eas-json.yml
+          token: '${{ secrets.EXPO_BOT_PAT }}'
