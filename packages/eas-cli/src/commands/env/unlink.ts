@@ -12,7 +12,7 @@ import { selectAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvironmentVariableUnlink extends EasCommand {
-  static override description = 'link a shared environment variable to the current project';
+  static override description = 'unlink a shared environment variable to the current project';
 
   static override hidden = true;
 
@@ -89,7 +89,7 @@ export default class EnvironmentVariableUnlink extends EasCommand {
     }
 
     Log.withTick(
-      `Unlinked variable ${chalk.bold(unlinkedVariable.name)} to project ${chalk.bold(
+      `Unlinked variable ${chalk.bold(unlinkedVariable.name)} from the project ${chalk.bold(
         projectDisplayName
       )}.`
     );

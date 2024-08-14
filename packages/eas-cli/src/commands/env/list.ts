@@ -50,9 +50,10 @@ export default class EnvironmentValueList extends EasCommand {
 
     if (format === 'short') {
       for (const variable of variables) {
+        // TODO: Add Learn more link
         Log.log(
           `${chalk.bold(variable.name)}=${
-            variable.value ||
+            variable.value ??
             "***** (This is a secret env variable that can only be accessed on EAS builder and can't be read in any UI. Learn more.)"
           }`
         );

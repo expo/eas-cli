@@ -97,9 +97,9 @@ export default class EnvironmentVariableUpdate extends EasCommand {
 
       const existingVariable = existingVariables.find(variable => variable.name === name);
       if (!existingVariable) {
-        Log.error(`Variable with name ${name} does not exist on project ${projectDisplayName}`);
-
-        return;
+        throw new Error(
+          `Variable with name ${name} does not exist on project ${projectDisplayName}`
+        );
       }
 
       if (!value) {
@@ -186,7 +186,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       );
     }
   }
-  validateFlags(flags: UpdateFlags): UpdateFlags {
+  private validateFlags(flags: UpdateFlags): UpdateFlags {
     if (flags['non-interactive']) {
       if (!flags.name) {
         throw new Error(

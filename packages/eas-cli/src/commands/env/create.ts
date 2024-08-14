@@ -196,7 +196,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
       if (existingVariable) {
         throw new Error(
           `Shared variable with ${name} name already exists on this account.\n` +
-            `Use a different name or delete the existing variable  on website or by using eas env:delete --name ${name} ... command.`
+            `Use a different name or delete the existing variable  on website or by using eas env:delete --name ${name} --scope shared command.`
         );
       }
 
