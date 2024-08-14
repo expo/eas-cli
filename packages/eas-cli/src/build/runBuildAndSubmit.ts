@@ -25,6 +25,7 @@ import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/dev
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
 import { Analytics } from '../analytics/AnalyticsManager';
+import { withSudoModeAsync } from '../authUtils';
 import { createAndLinkChannelAsync, doesChannelExistAsync } from '../channel/queries';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -37,6 +38,7 @@ import {
   SubmissionFragment,
 } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
+import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
 import { toAppPlatform, toPlatform } from '../graphql/types/AppPlatform';
 import Log, { learnMore } from '../log';
 import {
@@ -72,6 +74,7 @@ import {
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { ensureEASUpdateIsConfiguredAsync } from '../update/configure';
+import SessionManager from '../user/SessionManager';
 import { Actor } from '../user/User';
 import { downloadAndMaybeExtractAppAsync } from '../utils/download';
 import { truthy } from '../utils/expodash/filter';
@@ -107,7 +110,8 @@ export async function runBuildAndSubmitAsync(
   projectDir: string,
   flags: BuildFlags,
   actor: Actor,
-  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn
+  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn,
+  sessionManager?: SessionManager
 ): Promise<{
   buildIds: string[];
 }> {
@@ -597,4 +601,57 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
       throw new Error('Command must be re-run to pick up new updates configuration.');
     }
   }
+}
+
+function isEnvironment(env: string): env is EnvironmentVariableEnvironment {
+  if (
+    Object.values(EnvironmentVariableEnvironment).includes(env as EnvironmentVariableEnvironment)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+async function resolveEnvVarsAsync({
+  sessionManager,
+  flags,
+  buildProfile,
+  graphqlClient,
+  projectId,
+}: {
+  sessionManager: SessionManager | undefined;
+  flags: BuildFlags;
+  buildProfile: ProfileData<'build'>;
+  graphqlClient: ExpoGraphqlClient;
+  projectId: string;
+}): Promise<Record<string, string>> {
+  const environment = flags.environment ?? buildProfile.profile.environment;
+
+  if (!environment || !isEnvironment(environment)) {
+    return {};
+  }
+  const profileEnv = buildProfile.profile.env || {};
+
+  if (sessionManager) {
+    try {
+      const environmentVariables = await withSudoModeAsync(
+        sessionManager,
+        async () =>
+          await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
+            appId: projectId,
+            environment,
+          })
+      );
+      const envVars = Object.fromEntries(
+        environmentVariables
+          .filter(({ name, value }) => name && value)
+          .map(({ name, value }) => [name, value])
+      ) as Record<string, string>;
+      return { ...profileEnv, ...envVars };
+    } catch (e) {
+      Log.error('Failed to pull the env file');
+      Log.error(e);
+    }
+  }
+  return profileEnv;
 }
