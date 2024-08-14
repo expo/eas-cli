@@ -186,7 +186,7 @@ export async function prepareBuildRequestForPlatformAsync<
 
   return async () => {
     if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
-      await runLocalBuildAsync(job, metadata, ctx.localBuildOptions);
+      await runLocalBuildAsync(job, metadata, ctx.localBuildOptions, ctx.env);
       return undefined;
     } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
       await BuildMutation.updateBuildMetadataAsync(ctx.graphqlClient, {

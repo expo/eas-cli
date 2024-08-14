@@ -1,5 +1,5 @@
 import { Flags } from '@oclif/core';
-import fs from 'fs-extra';
+import * as fs from 'fs-extra';
 
 import { withSudoModeAsync } from '../../authUtils';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -40,7 +40,7 @@ export default class EnvironmentValuePull extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(EnvironmentValuePull);
-    const {
+    let {
       environment,
       path: targetPath,
       'non-interactive': nonInteractive,
@@ -53,6 +53,18 @@ export default class EnvironmentValuePull extends EasCommand {
     } = await this.getContextAsync(EnvironmentValuePull, {
       nonInteractive,
     });
+
+    if (!nonInteractive) {
+      const confirm = await confirmAsync({
+        message: `Pull the environment variables for the ${environment} environment to a local ${targetPath} file. Do you want to continue?`,
+      });
+      if (!confirm) {
+        Log.log('Aborting...');
+        return;
+      }
+    }
+
+    targetPath = targetPath ?? '.env.local';
 
     const environmentVariables = await withSudoModeAsync(
       sessionManager,
@@ -83,7 +95,6 @@ export default class EnvironmentValuePull extends EasCommand {
         return `${variable.name}=${variable.value}`;
       })
       .join('\n');
-
     await fs.writeFile(targetPath, filePrefix + envFileContent);
 
     Log.log(`Pulled environment variables from ${environment} environment to ${targetPath}.`);
