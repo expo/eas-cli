@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
+import { withSudoModeAsync } from '../../authUtils';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -26,6 +27,7 @@ export default class EnvironmentValueList extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.SessionManagment,
   };
 
   static override flags = {
@@ -45,6 +47,7 @@ export default class EnvironmentValueList extends EasCommand {
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
+      sessionManager,
     } = await this.getContextAsync(EnvironmentValueList, {
       nonInteractive: true,
     });
