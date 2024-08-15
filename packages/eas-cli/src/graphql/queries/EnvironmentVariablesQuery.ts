@@ -24,9 +24,7 @@ export const EnvironmentVariablesQuery = {
       environment: string;
       filterNames?: string[];
     }
-  ): Promise<{
-    appVariables: EnvironmentVariableFragment[];
-  }> {
+  ): Promise<EnvironmentVariableFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query(
@@ -52,14 +50,12 @@ export const EnvironmentVariablesQuery = {
             }
           `,
           { appId, filterNames, environment },
-          { additionalTypenames: ['EnvironmentVariable'] }
+          { additionalTypenames: ['EnvironmentVariableWithSecret'] }
         )
         .toPromise()
     );
 
-    return {
-      appVariables: data.app?.byId.environmentVariablesIncludingSensitive ?? [],
-    };
+    return data.app?.byId.environmentVariablesIncludingSensitive ?? [];
   },
   async byAppIdAsync(
     graphqlClient: ExpoGraphqlClient,
@@ -133,5 +129,40 @@ export const EnvironmentVariablesQuery = {
     );
 
     return data.app?.byId.ownerAccount.environmentVariables ?? [];
+  },
+  async sharedWithSensitiveAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, filterNames }: { appId: string; filterNames?: string[] }
+  ): Promise<EnvironmentVariableFragment[]> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query(
+          gql`
+            query EnvironmentVariablesSharedWithSensitive(
+              $appId: String!
+              $filterNames: [String!]
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  ownerAccount {
+                    id
+                    environmentVariablesIncludingSensitive(filterNames: $filterNames) {
+                      id
+                      name
+                      value
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          { appId, filterNames },
+          { additionalTypenames: ['EnvironmentVariableWithSecret'] }
+        )
+        .toPromise()
+    );
+
+    return data.app?.byId.ownerAccount.environmentVariablesIncludingSensitive ?? [];
   },
 };

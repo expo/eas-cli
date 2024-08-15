@@ -54,7 +54,7 @@ export default class EnvironmentValuePull extends EasCommand {
       nonInteractive,
     });
 
-    const { appVariables: environmentVariables } = await withSudoModeAsync(
+    const environmentVariables = await withSudoModeAsync(
       sessionManager,
       async () =>
         await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {

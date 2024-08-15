@@ -23,7 +23,7 @@ type PushFlags = {
   path: string;
 };
 
-export default class EnvironmentValuePush extends EasCommand {
+export default class EnvironmentVariablePush extends EasCommand {
   static override description = 'push env file';
 
   static override hidden = true;
@@ -42,13 +42,13 @@ export default class EnvironmentValuePush extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(EnvironmentValuePush);
+    const { flags } = await this.parse(EnvironmentVariablePush);
 
     const { environment, path: envPath } = this.validateFlags(flags);
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentValuePush, {
+    } = await this.getContextAsync(EnvironmentVariablePush, {
       nonInteractive: false,
     });
 

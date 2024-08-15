@@ -114,10 +114,10 @@ export default class EnvironmentVariableCreate extends EasCommand {
       if (!environment) {
         environment = await promptVariableEnvironmentAsync(nonInteractive);
       }
-      const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(
-        graphqlClient,
-        { appId: projectId, environment }
-      );
+      const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
+        appId: projectId,
+        environment,
+      });
       const existingVariable = existingVariables.find(variable => variable.name === name);
 
       if (existingVariable) {

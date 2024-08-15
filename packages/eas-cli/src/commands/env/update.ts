@@ -80,10 +80,10 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       if (!environment) {
         environment = await promptVariableEnvironmentAsync(nonInteractive);
       }
-      const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(
-        graphqlClient,
-        { appId: projectId, environment }
-      );
+      const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
+        appId: projectId,
+        environment,
+      });
       if (!name) {
         name = await selectAsync(
           'Select variable',
