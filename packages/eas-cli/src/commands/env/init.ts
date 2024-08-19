@@ -63,7 +63,7 @@ export default class EnvironmentVariableInit extends EasCommand {
 
       await appendFile(shellConfigPath, `\n${direnvHookCmd}\n`, 'utf8');
       Log.log(`Added direnv hook to ${shellConfigPath}`);
-      await spawnAsync(direnvInitCmd[0], direnvInitCmd[1], { stdio: 'inherit' });
+      await spawnAsync(...direnvInitCmd);
     } else {
       Log.log("Unable to determine the user's shell");
       Log.log('You may need to add the direnv hook to your shell config manually.');
@@ -97,7 +97,7 @@ export default class EnvironmentVariableInit extends EasCommand {
       return {
         shellConfigPath: path.join(os.homedir(), '.config/fish/config.fish'),
         direnvHookCmd: 'direnv hook fish | source',
-        direnvInitCmd: ['direnv', ['hook', 'fish']],
+        direnvInitCmd: ['eval', ['"$(direnv hook fish)"']],
       };
     } else {
       return null;
