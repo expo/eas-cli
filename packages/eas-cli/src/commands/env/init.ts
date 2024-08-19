@@ -33,13 +33,15 @@ export default class EnvironmentVariableInit extends EasCommand {
     await this.setupEnvrcFileAsync();
     await this.addDirenvHookToShellConfigAsync();
     await this.addToGitIgnoreAsync();
+    Log.log('Running direnv allow...');
+    await spawnAsync('direnv', ['allow']);
   }
 
   private async addDirenvHookToShellConfigAsync(): Promise<void> {
     const direnvConfig = this.getShellDirenvConfig();
 
     if (direnvConfig && (await pathExists(direnvConfig.shellConfigPath))) {
-      const { shellConfigPath, direnvHookCmd } = direnvConfig;
+      const { shellConfigPath, direnvHookCmd, direnvInitCmd } = direnvConfig;
 
       const confirm = await confirmAsync({
         message: `Do you want to add the direnv hook to ${shellConfigPath}?`,
@@ -61,6 +63,7 @@ export default class EnvironmentVariableInit extends EasCommand {
 
       await appendFile(shellConfigPath, `\n${direnvHookCmd}\n`, 'utf8');
       Log.log(`Added direnv hook to ${shellConfigPath}`);
+      await spawnAsync(direnvInitCmd[0], direnvInitCmd[1], { stdio: 'inherit' });
     } else {
       Log.log("Unable to determine the user's shell");
       Log.log('You may need to add the direnv hook to your shell config manually.');
@@ -68,7 +71,11 @@ export default class EnvironmentVariableInit extends EasCommand {
     }
   }
 
-  private getShellDirenvConfig(): { shellConfigPath: string; direnvHookCmd: string } | null {
+  private getShellDirenvConfig(): {
+    shellConfigPath: string;
+    direnvHookCmd: string;
+    direnvInitCmd: [string, string[]];
+  } | null {
     const shellEnv = process.env.SHELL;
     if (!shellEnv) {
       return null;
@@ -78,16 +85,19 @@ export default class EnvironmentVariableInit extends EasCommand {
       return {
         shellConfigPath: path.join(os.homedir(), '.bashrc'),
         direnvHookCmd: 'eval "$(direnv hook bash)"',
+        direnvInitCmd: ['eval', ['"$(direnv hook bash)"']],
       };
     } else if (shellEnv.endsWith('zsh')) {
       return {
         shellConfigPath: path.join(os.homedir(), '.zshrc'),
         direnvHookCmd: 'eval "$(direnv hook zsh)"',
+        direnvInitCmd: ['eval', ['"$(direnv hook zsh)"']],
       };
     } else if (shellEnv.endsWith('fish')) {
       return {
         shellConfigPath: path.join(os.homedir(), '.config/fish/config.fish'),
         direnvHookCmd: 'direnv hook fish | source',
+        direnvInitCmd: ['direnv', ['hook', 'fish']],
       };
     } else {
       return null;
@@ -97,24 +107,17 @@ export default class EnvironmentVariableInit extends EasCommand {
   private async addToGitIgnoreAsync(): Promise<void> {
     if (await pathExists('.gitignore')) {
       const gitignoreContent = await readFile('.gitignore', 'utf8');
-      const envrcPresent = gitignoreContent.includes('.envrc');
-      const envLocalPresent =
-        gitignoreContent.includes('.env.local') || gitignoreContent.includes('.env.*');
 
-      if (!envrcPresent || !envLocalPresent) {
+      const filesToIgnore = ['.envrc', '.env.eas.local', '.env.eas.local.original'];
+      const linesToAdd = filesToIgnore.filter(file => !gitignoreContent.includes(file));
+
+      if (linesToAdd.length > 0) {
         const confirm = await confirmAsync({
-          message: 'Do you want to add .envrc and .env.local to .gitignore?',
+          message: `Do you want to add ${linesToAdd.join(',')} to .gitignore?`,
         });
         if (confirm) {
-          const linesToAdd = [];
-          if (!envrcPresent) {
-            linesToAdd.push('.envrc');
-          }
-          if (!envLocalPresent) {
-            linesToAdd.push('.env.local');
-          }
           await appendFile('.gitignore', linesToAdd.join('\n') + '\n', 'utf8');
-          Log.log('.envrc and .env.local added to .gitignore');
+          Log.log(`${linesToAdd.join(',')} added to .gitignore`);
         } else {
           Log.log('Skipping adding .envrc and .env.local to .gitignore');
         }
@@ -148,8 +151,6 @@ export default class EnvironmentVariableInit extends EasCommand {
       await writeFile('.envrc', ENVRC_TEMPLATE, 'utf8');
       Log.log('.envrc file created');
     }
-    Log.log('Running direnv allow...');
-    await spawnAsync('direnv', ['allow']);
   }
 
   private async ensureDirenvInstalledAsync(): Promise<void> {
