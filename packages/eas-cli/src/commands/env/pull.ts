@@ -24,7 +24,7 @@ export default class EnvironmentValuePull extends EasCommand {
     ...EASNonInteractiveFlag,
     path: Flags.string({
       description: 'Path to the result `.env` file',
-      default: '.env.local',
+      default: '.env.eas.local',
     }),
   };
 
