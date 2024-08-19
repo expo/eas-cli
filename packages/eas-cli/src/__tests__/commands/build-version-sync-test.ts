@@ -3,6 +3,13 @@ import { AppVersionSource, EasJson } from '@expo/eas-json';
 import fs from 'fs-extra';
 import path from 'path';
 
+import {
+  getMockAppFragment,
+  getMockEasJson,
+  mockCommandContext,
+  mockProjectId,
+  mockTestCommand,
+} from './utils';
 import { updateNativeVersionsAsync as updateAndroidNativeVersionsAsync } from '../../build/android/version';
 import { updateNativeVersionsAsync as updateIosNativeVersionsAsync } from '../../build/ios/version';
 import BuildVersionSyncView from '../../commands/build/version/sync';
@@ -14,13 +21,6 @@ import { getAppBuildGradleAsync } from '../../project/android/gradleUtils';
 import { resolveTargetsAsync } from '../../project/ios/target';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import * as prompts from '../../prompts';
-import {
-  getMockAppFragment,
-  getMockEasJson,
-  mockCommandContext,
-  mockProjectId,
-  mockTestCommand,
-} from './utils';
 
 jest.mock('../../build/android/version');
 jest.mock('../../build/ios/version');

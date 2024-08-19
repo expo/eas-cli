@@ -1,6 +1,12 @@
 import nullthrows from 'nullthrows';
 
 import {
+  canCopyLegacyCredentialsAsync,
+  createOrUpdateDefaultAndroidAppBuildCredentialsAsync,
+  promptUserAndCopyLegacyCredentialsAsync,
+} from './BuildCredentialsUtils';
+import { CreateKeystore } from './CreateKeystore';
+import {
   AndroidAppBuildCredentialsFragment,
   AndroidKeystoreFragment,
 } from '../../../graphql/generated';
@@ -9,12 +15,6 @@ import { ora } from '../../../ora';
 import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
-import {
-  canCopyLegacyCredentialsAsync,
-  createOrUpdateDefaultAndroidAppBuildCredentialsAsync,
-  promptUserAndCopyLegacyCredentialsAsync,
-} from './BuildCredentialsUtils';
-import { CreateKeystore } from './CreateKeystore';
 
 interface Options {
   app: AppLookupParams;

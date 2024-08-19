@@ -2,14 +2,6 @@ import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
-import { AndroidAppBuildCredentialsFragment, IosDistributionType } from '../../graphql/generated';
-import Log from '../../log';
-import { findApplicationTarget, findTargetByName } from '../../project/ios/target';
-import zipObject from '../../utils/expodash/zipObject';
-import { getVcsClient } from '../../vcs';
-import GitClient from '../../vcs/clients/git';
-import { CredentialsContext } from '../context';
-import { App, Target, TargetCredentials } from '../ios/types';
 import { readRawAsync } from './read';
 import {
   CredentialsJson,
@@ -17,6 +9,14 @@ import {
   CredentialsJsonIosTargetCredentials,
 } from './types';
 import { getCredentialsJsonPath } from './utils';
+import { AndroidAppBuildCredentialsFragment, IosDistributionType } from '../../graphql/generated';
+import Log from '../../log';
+import { findApplicationTarget, findTargetByName } from '../../project/ios/target';
+import zipObject from '../../utils/expodash/zipObject';
+import GitClient from '../../vcs/clients/git';
+import { Client } from '../../vcs/vcs';
+import { CredentialsContext } from '../context';
+import { App, Target, TargetCredentials } from '../ios/types';
 
 /**
  * Update Android credentials.json with values from www, content of credentials.json
@@ -38,7 +38,7 @@ export async function updateAndroidCredentialsAsync(
     rawCredentialsJson?.android?.keystore?.keystorePath ?? 'credentials/android/keystore.jks';
   Log.log(`Writing Keystore to ${keystorePath}`);
   await updateFileAsync(ctx.projectDir, keystorePath, keystore.keystore);
-  const shouldWarnKeystore = await isFileUntrackedAsync(keystorePath);
+  const shouldWarnKeystore = await isFileUntrackedAsync(keystorePath, ctx.vcsClient);
 
   const androidCredentials: Partial<CredentialsJson['android']> = {
     keystore: {
@@ -52,7 +52,7 @@ export async function updateAndroidCredentialsAsync(
   await fs.writeJson(getCredentialsJsonPath(ctx.projectDir), rawCredentialsJson, {
     spaces: 2,
   });
-  const shouldWarnCredentialsJson = await isFileUntrackedAsync('credentials.json');
+  const shouldWarnCredentialsJson = await isFileUntrackedAsync('credentials.json', ctx.vcsClient);
 
   const newFilePaths = [];
   if (shouldWarnKeystore) {
@@ -137,14 +137,14 @@ export async function updateIosCredentialsAsync(
 
   const newFilePaths = [];
   for (const [, targetCredentials] of Object.entries(iosCredentials)) {
-    if (await isFileUntrackedAsync(targetCredentials.distributionCertificate.path)) {
+    if (await isFileUntrackedAsync(targetCredentials.distributionCertificate.path, ctx.vcsClient)) {
       newFilePaths.push(targetCredentials.distributionCertificate.path);
     }
-    if (await isFileUntrackedAsync(targetCredentials.provisioningProfilePath)) {
+    if (await isFileUntrackedAsync(targetCredentials.provisioningProfilePath, ctx.vcsClient)) {
       newFilePaths.push(targetCredentials.provisioningProfilePath);
     }
   }
-  if (await isFileUntrackedAsync('credentials.json')) {
+  if (await isFileUntrackedAsync('credentials.json', ctx.vcsClient)) {
     newFilePaths.push('credentials.json');
   }
   displayUntrackedFilesWarning(newFilePaths);
@@ -296,8 +296,7 @@ async function updateFileAsync(
   }
 }
 
-async function isFileUntrackedAsync(path: string): Promise<boolean> {
-  const vcsClient = getVcsClient();
+async function isFileUntrackedAsync(path: string, vcsClient: Client): Promise<boolean> {
   if (vcsClient instanceof GitClient) {
     return await vcsClient.isFileUntrackedAsync(path);
   }

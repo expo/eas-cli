@@ -42,7 +42,8 @@ interface BuildResignFlags {
   offset?: number;
   limit?: number;
   platform?: Platform;
-  profile?: string;
+  targetProfile?: string;
+  sourceProfile?: string;
   maybeBuildId?: string;
   wait: boolean;
 }
@@ -52,7 +53,8 @@ interface RawBuildResignFlags {
   offset: number | undefined;
   limit: number | undefined;
   platform: 'android' | 'ios' | undefined;
-  profile: string | undefined;
+  'target-profile': string | undefined;
+  'source-profile': string | undefined;
   wait: boolean;
   id: string | undefined;
 }
@@ -65,10 +67,16 @@ export default class BuildResign extends EasCommand {
       char: 'p',
       options: ['android', 'ios'],
     }),
-    profile: Flags.string({
+    'target-profile': Flags.string({
       char: 'e',
       description:
-        'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
+        'Name of the target build profile from eas.json. Credentials and environment variables from this profile will be used when re-signing. Defaults to "production" if defined in eas.json.',
+      helpValue: 'PROFILE_NAME',
+      aliases: ['profile'],
+    }),
+    'source-profile': Flags.string({
+      description:
+        'Name of the source build profile from eas.json. Used to filter builds eligible for re-signing.',
       helpValue: 'PROFILE_NAME',
     }),
     wait: Flags.boolean({
@@ -88,6 +96,7 @@ export default class BuildResign extends EasCommand {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Analytics,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -104,6 +113,7 @@ export default class BuildResign extends EasCommand {
       getDynamicPrivateProjectConfigAsync,
       projectDir,
       analytics,
+      vcsClient,
     } = await this.getContextAsync(BuildResign, {
       nonInteractive: flags.nonInteractive,
     });
@@ -128,12 +138,20 @@ export default class BuildResign extends EasCommand {
     const buildProfile = await EasJsonUtils.getBuildProfileAsync(
       easJsonAccessor,
       platform,
-      flags.profile ?? 'production'
+      flags.targetProfile ?? 'production'
     );
     const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: buildProfile.env });
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
     const build = await this.ensureBuildSelectedAsync(
-      { graphqlClient, projectId, platform, nonInteractive, limit, offset },
+      {
+        graphqlClient,
+        projectId,
+        platform,
+        nonInteractive,
+        limit,
+        offset,
+        buildProfile: flags.sourceProfile,
+      },
       maybeBuild
     );
     const credentialsCtx = new CredentialsContext({
@@ -145,6 +163,7 @@ export default class BuildResign extends EasCommand {
       analytics,
       env: buildProfile.env,
       easJsonCliConfig,
+      vcsClient,
     });
     if (buildProfile.credentialsSource !== CredentialsSource.LOCAL && !nonInteractive) {
       await credentialsCtx.appStore.ensureAuthenticatedAsync();
@@ -154,6 +173,7 @@ export default class BuildResign extends EasCommand {
         projectDir,
         nonInteractive,
         exp,
+        vcsClient,
       },
       buildProfile
     );
@@ -162,6 +182,7 @@ export default class BuildResign extends EasCommand {
       exp,
       xcodeBuildContext,
       env: buildProfile.env,
+      vcsClient,
     });
     const credentialsResult = await ensureIosCredentialsForBuildResignAsync(
       credentialsCtx,
@@ -199,8 +220,6 @@ export default class BuildResign extends EasCommand {
     const buildResult = await waitForBuildEndAsync(graphqlClient, {
       buildIds: [newBuild.id],
       accountName: account.name,
-      nonInteractive,
-      projectDir,
     });
     if (!flags.json) {
       printBuildResults(buildResult);
@@ -225,7 +244,8 @@ export default class BuildResign extends EasCommand {
       offset: flags.offset,
       limit: flags.limit,
       platform: flags.platform as Platform | undefined,
-      profile: flags.profile,
+      sourceProfile: flags['source-profile'],
+      targetProfile: flags['target-profile'],
       maybeBuildId: flags.id,
       wait: flags.wait,
     };
@@ -239,6 +259,7 @@ export default class BuildResign extends EasCommand {
       nonInteractive,
       limit,
       offset,
+      buildProfile,
     }: {
       graphqlClient: ExpoGraphqlClient;
       projectId: string;
@@ -246,6 +267,7 @@ export default class BuildResign extends EasCommand {
       nonInteractive: boolean;
       limit?: number;
       offset?: number;
+      buildProfile?: string;
     },
     maybeBuild?: BuildFragment
   ): Promise<BuildFragment> {
@@ -265,6 +287,7 @@ export default class BuildResign extends EasCommand {
         distribution: DistributionType.Internal,
         platform: toAppPlatform(platform),
         status: BuildStatus.Finished,
+        buildProfile,
       },
     });
     if (!build) {

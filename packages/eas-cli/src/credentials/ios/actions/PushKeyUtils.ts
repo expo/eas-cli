@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { formatAppleTeam } from './AppleTeamFormatting';
 import { AccountFragment, ApplePushKeyFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
@@ -11,7 +12,6 @@ import { filterRevokedAndUntrackedPushKeysFromEasServersAsync } from '../appstor
 import { APPLE_KEYS_TOO_MANY_GENERATED_ERROR } from '../appstore/pushKey';
 import { pushKeySchema } from '../credentials';
 import { isPushKeyValidAndTrackedAsync } from '../validators/validatePushKey';
-import { formatAppleTeam } from './AppleTeamFormatting';
 
 export async function provideOrGeneratePushKeyAsync(ctx: CredentialsContext): Promise<PushKey> {
   if (!ctx.nonInteractive) {
@@ -185,8 +185,13 @@ export function formatPushKey(
 
   const apps = pushKey.iosAppCredentialsList.map(appCredentials => appCredentials.app);
   if (apps.length) {
-    const appFullNames = apps.map(app => app.fullName).join(',');
-    line += chalk.gray(`\n    📲 Used by: ${appFullNames}`);
+    // iosAppCredentialsList is capped at 20 on www
+    const appFullNames = apps
+      .map(app => app.fullName)
+      .slice(0, 19)
+      .join(',');
+    const andMaybeMore = apps.length > 19 ? ' (and more)' : '';
+    line += chalk.gray(`\n    📲 Used by: ${appFullNames}${andMaybeMore}`);
   }
 
   if (validPushKeyIdentifiers?.includes(keyIdentifier)) {

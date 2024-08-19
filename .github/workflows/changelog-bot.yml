@@ -14,9 +14,9 @@ jobs:
           token: ${{ secrets.EXPO_BOT_PAT }}
       - uses: actions/setup-node@v2
         with:
-          node-version: 18
+          node-version: 20
       - name: Checkout Pull Request
-        run: hub pr checkout ${{ github.event.issue.number }}
+        run: gh pr checkout ${{ github.event.issue.number }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Install dependencies

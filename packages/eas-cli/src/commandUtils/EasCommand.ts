@@ -1,15 +1,9 @@
 import { Command } from '@oclif/core';
 import { CombinedError } from '@urql/core';
+import chalk from 'chalk';
 import { GraphQLError } from 'graphql/error';
 import nullthrows from 'nullthrows';
 
-import {
-  AnalyticsWithOrchestration,
-  CommandEvent,
-  createAnalyticsAsync,
-} from '../analytics/AnalyticsManager';
-import Log from '../log';
-import SessionManager from '../user/SessionManager';
 import AnalyticsContextField from './context/AnalyticsContextField';
 import ContextField from './context/ContextField';
 import {
@@ -22,12 +16,21 @@ import { OptionalPrivateProjectConfigContextField } from './context/OptionalPriv
 import { PrivateProjectConfigContextField } from './context/PrivateProjectConfigContextField';
 import ProjectDirContextField from './context/ProjectDirContextField';
 import SessionManagementContextField from './context/SessionManagementContextField';
+import VcsClientContextField from './context/VcsClientContextField';
 import { EasCommandError } from './errors';
+import {
+  AnalyticsWithOrchestration,
+  CommandEvent,
+  createAnalyticsAsync,
+} from '../analytics/AnalyticsManager';
+import Log from '../log';
+import SessionManager from '../user/SessionManager';
+import { Client } from '../vcs/vcs';
 
 export type ContextInput<
   T extends {
     [name: string]: any;
-  } = object
+  } = object,
 > = {
   [P in keyof T]: ContextField<T[P]>;
 };
@@ -35,7 +38,7 @@ export type ContextInput<
 export type ContextOutput<
   T extends {
     [name: string]: any;
-  } = object
+  } = object,
 > = {
   [P in keyof T]: T[P];
 };
@@ -101,6 +104,9 @@ export default abstract class EasCommand extends Command {
     Analytics: {
       analytics: new AnalyticsContextField(),
     },
+    Vcs: {
+      vcsClient: new VcsClientContextField(),
+    },
   };
 
   /**
@@ -132,10 +138,10 @@ export default abstract class EasCommand extends Command {
   protected async getContextAsync<
     C extends {
       [name: string]: any;
-    } = object
+    } = object,
   >(
     commandClass: { contextDefinition: ContextInput<C> },
-    { nonInteractive }: { nonInteractive: boolean }
+    { nonInteractive, vcsClientOverride }: { nonInteractive: boolean; vcsClientOverride?: Client }
   ): Promise<ContextOutput<C>> {
     const contextDefinition = commandClass.contextDefinition;
 
@@ -148,6 +154,7 @@ export default abstract class EasCommand extends Command {
           nonInteractive,
           sessionManager: this.sessionManager,
           analytics: this.analytics,
+          vcsClientOverride,
         }),
       ]);
     }
@@ -194,7 +201,7 @@ export default abstract class EasCommand extends Command {
     if (err instanceof EasCommandError) {
       Log.error(err.message);
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
-      const cleanMessage = err?.graphQLErrors
+      const cleanGQLErrorsMessage = err?.graphQLErrors
         .map((graphQLError: GraphQLError) => {
           const messageLine = graphQLError.message.replace('[GraphQL] ', '');
           const requestIdLine = graphQLError.extensions?.requestId
@@ -204,12 +211,21 @@ export default abstract class EasCommand extends Command {
           const defaultMsg = `${messageLine}${requestIdLine}`;
 
           if (graphQLError.extensions?.errorCode === 'UNAUTHORIZED_ERROR') {
-            return `You don't have the required permissions to perform this operation.\n\n${defaultMsg}`;
+            return `${chalk.bold(
+              `You don't have the required permissions to perform this operation.`
+            )}\n\nThis can sometimes happen if you are logged in as incorrect user.\nRun ${chalk.bold(
+              'eas whoami'
+            )} to check the username you are logged in as.\nRun ${chalk.bold(
+              'eas login'
+            )} to change the account.\n\nOriginal error message: ${defaultMsg}`;
           }
 
           return defaultMsg;
         })
         .join('\n');
+      const cleanMessage = err.networkError
+        ? `${cleanGQLErrorsMessage}\n${err.networkError.message}`
+        : cleanGQLErrorsMessage;
       Log.error(cleanMessage);
       baseMessage = BASE_GRAPHQL_ERROR_MESSAGE;
     } else {

@@ -4,12 +4,6 @@ import chalk from 'chalk';
 import getenv from 'getenv';
 import wrapAnsi from 'wrap-ansi';
 
-import { MissingCredentialsError } from '../../credentials/errors';
-import { SubmissionFragment } from '../../graphql/generated';
-import Log, { learnMore } from '../../log';
-import { ArchiveSource } from '../ArchiveSource';
-import { resolveArchiveSource } from '../commons';
-import { SubmissionContext } from '../context';
 import { ensureAppStoreConnectAppExistsAsync } from './AppProduce';
 import {
   AppSpecificPasswordSource,
@@ -17,19 +11,48 @@ import {
 } from './AppSpecificPasswordSource';
 import { AscApiKeySource, AscApiKeySourceType } from './AscApiKeySource';
 import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter';
+import { MissingCredentialsError } from '../../credentials/errors';
+import { SubmissionFragment } from '../../graphql/generated';
+import Log, { learnMore } from '../../log';
+import { ArchiveSource, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
+import { refreshContextSubmitProfileAsync, resolveArchiveSource } from '../commons';
+import { SubmissionContext } from '../context';
 
 export default class IosSubmitCommand {
   constructor(private ctx: SubmissionContext<Platform.IOS>) {}
 
   async runAsync(): Promise<SubmissionFragment> {
     Log.addNewLineIfNone();
-    const options = await this.resolveSubmissionOptionsAsync();
-    const submitter = new IosSubmitter(this.ctx, options);
+    const archiveSource = this.resolveArchiveSource();
+    if (!archiveSource.ok) {
+      Log.error(archiveSource.reason?.message);
+      throw new Error('Submission failed');
+    }
+
+    const archiveSourceValue = archiveSource.enforceValue();
+    const archive = await getArchiveAsync(
+      {
+        graphqlClient: this.ctx.graphqlClient,
+        platform: Platform.IOS,
+        projectId: this.ctx.projectId,
+        nonInteractive: this.ctx.nonInteractive,
+      },
+      archiveSourceValue
+    );
+    const archiveProfile =
+      archive.sourceType === ArchiveSourceType.build ? archive.build.buildProfile : undefined;
+
+    if (archiveProfile && !this.ctx.specifiedProfile) {
+      this.ctx = await refreshContextSubmitProfileAsync(this.ctx, archiveProfile);
+    }
+    const options = await this.resolveSubmissionOptionsAsync(archiveSourceValue);
+    const submitter = new IosSubmitter(this.ctx, options, archive);
     return await submitter.submitAsync();
   }
 
-  private async resolveSubmissionOptionsAsync(): Promise<IosSubmissionOptions> {
-    const archiveSource = this.resolveArchiveSource();
+  private async resolveSubmissionOptionsAsync(
+    archiveSource: ArchiveSource
+  ): Promise<IosSubmissionOptions> {
     const credentialsSource = await this.resolveCredentialSubmissionOptionsAsync();
     const maybeAppSpecificPasswordSource =
       'appSpecificPasswordSource' in credentialsSource
@@ -40,7 +63,6 @@ export default class IosSubmitCommand {
     const ascAppIdentifier = await this.resolveAscAppIdentifierAsync();
 
     const errored = [
-      archiveSource,
       ...(maybeAppSpecificPasswordSource ? [maybeAppSpecificPasswordSource] : []),
       ...(maybeAscApiKeySource ? [maybeAscApiKeySource] : []),
       ascAppIdentifier,
@@ -54,7 +76,7 @@ export default class IosSubmitCommand {
     return {
       projectId: this.ctx.projectId,
       ascAppIdentifier: ascAppIdentifier.enforceValue(),
-      archiveSource: archiveSource.enforceValue(),
+      archiveSource,
       ...(maybeAppSpecificPasswordSource
         ? {
             appSpecificPasswordSource: maybeAppSpecificPasswordSource.enforceValue(),
@@ -89,6 +111,11 @@ export default class IosSubmitCommand {
     const envAppSpecificPassword = getenv.string('EXPO_APPLE_APP_SPECIFIC_PASSWORD', '');
 
     if (envAppSpecificPassword) {
+      if (!/^[a-z]{4}-[a-z]{4}-[a-z]{4}-[a-z]{4}$/.test(envAppSpecificPassword)) {
+        throw new Error(
+          'EXPO_APPLE_APP_SPECIFIC_PASSWORD must be in the format xxxx-xxxx-xxxx-xxxx, where x is a lowercase letter.'
+        );
+      }
       return result({
         sourceType: AppSpecificPasswordSourceType.userDefined,
         appSpecificPassword: envAppSpecificPassword,

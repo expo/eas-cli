@@ -21,6 +21,8 @@ describe(runInputMethodAsync, () => {
   it('should allow for multiple device registration', async () => {
     mockDeviceData('00001111-001122334455662E', 'my iPhone', AppleDeviceClass.Iphone);
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: true }));
+    mockDeviceData('00001111-001122334455662F', 'my Mac', AppleDeviceClass.Mac);
+    jest.mocked(prompts).mockImplementationOnce(async () => ({ value: true }));
     mockDeviceData('b12cba9856d89c932ab7a4b813c4d932534e1679', 'my iPad', AppleDeviceClass.Ipad);
     jest.mocked(prompts).mockImplementationOnce(async () => ({ value: false }));
 
@@ -35,7 +37,7 @@ describe(runInputMethodAsync, () => {
 
     await runInputMethodAsync(graphqlClient, accountId, appleTeam);
 
-    expect(AppleDeviceMutation.createAppleDeviceAsync).toHaveBeenCalledTimes(2);
+    expect(AppleDeviceMutation.createAppleDeviceAsync).toHaveBeenCalledTimes(3);
   });
 });
 

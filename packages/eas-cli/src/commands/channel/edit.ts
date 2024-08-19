@@ -4,7 +4,11 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
-import { hasStandardBranchMap } from '../../channel/branch-mapping';
+import {
+  getAlwaysTrueBranchMapping,
+  hasEmptyBranchMap,
+  hasStandardBranchMap,
+} from '../../channel/branch-mapping';
 import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -102,7 +106,7 @@ export default class ChannelEdit extends EasCommand {
 
     if (isRollout(existingChannel)) {
       throw new Error('There is a rollout in progress. Manage it with "channel:rollout" instead.');
-    } else if (!hasStandardBranchMap(existingChannel)) {
+    } else if (!hasStandardBranchMap(existingChannel) && !hasEmptyBranchMap(existingChannel)) {
       throw new Error('Only standard branch mappings can be edited with this command.');
     }
 
@@ -124,11 +128,7 @@ export default class ChannelEdit extends EasCommand {
 
     const channel = await updateChannelBranchMappingAsync(graphqlClient, {
       channelId: existingChannel.id,
-      // todo: move branch mapping logic to utility
-      branchMapping: JSON.stringify({
-        data: [{ branchId: branch.id, branchMappingLogic: 'true' }],
-        version: 0,
-      }),
+      branchMapping: JSON.stringify(getAlwaysTrueBranchMapping(branch.id)),
     });
 
     if (json) {

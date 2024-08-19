@@ -1,5 +1,5 @@
 import AppStoreApi from '../ios/appstore/AppStoreApi';
-import { AuthCtx } from '../ios/appstore/authenticateTypes';
+import { AuthCtx, AuthenticationMode } from '../ios/appstore/authenticateTypes';
 
 export const testAuthCtx: AuthCtx = {
   appleId: 'test-apple-id',
@@ -9,6 +9,7 @@ export const testAuthCtx: AuthCtx = {
 
 export function getAppstoreMock(): AppStoreApi {
   return {
+    defaultAuthenticationMode: AuthenticationMode.USER,
     ensureAuthenticatedAsync: jest.fn(),
     ensureBundleIdExistsAsync: jest.fn(),
     listDistributionCertificatesAsync: jest.fn(),

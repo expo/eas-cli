@@ -3,6 +3,7 @@ import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
 import path from 'path';
 
+import { formatAppleTeam } from './AppleTeamFormatting';
 import { AccountFragment, AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
@@ -20,7 +21,6 @@ import {
   ascApiKeyIssuerIdSchema,
 } from '../credentials';
 import { isAscApiKeyValidAndTrackedAsync } from '../validators/validateAscApiKey';
-import { formatAppleTeam } from './AppleTeamFormatting';
 
 export enum AppStoreApiKeyPurpose {
   SUBMISSION_SERVICE = 'EAS Submit',

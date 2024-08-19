@@ -1,6 +1,6 @@
+import { promptAsync } from '../.././../prompts';
 import { AppleDevice, AppleDeviceFragment } from '../../../graphql/generated';
 import { APPLE_DEVICE_CLASS_LABELS } from '../../../graphql/types/credentials/AppleDevice';
-import { promptAsync } from '../.././../prompts';
 
 export async function chooseDevicesAsync(
   allDevices: AppleDeviceFragment[],
@@ -31,7 +31,7 @@ export function formatDeviceLabel(device: AppleDeviceFragment): string {
   const deviceDetails = formatDeviceDetails(device);
   return `${device.identifier}${deviceDetails !== '' ? ` ${deviceDetails}` : ''}${
     device.name ? ` (${device.name})` : ''
-  }`;
+  }${device.createdAt ? ` (created at: ${device.createdAt})` : ''}`;
 }
 
 function formatDeviceDetails(device: AppleDeviceFragment): string {

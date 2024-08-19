@@ -3,6 +3,7 @@ import nullthrows from 'nullthrows';
 
 import { IosJobInput, IosJobSecretsInput } from '../../graphql/generated';
 import {
+  loggerLevelToGraphQLWorkerLoggerLevel,
   transformBuildMode,
   transformBuildTrigger,
   transformProjectArchive,
@@ -15,7 +16,6 @@ export function transformJob(job: Ios.Job): IosJobInput {
     triggeredBy: transformBuildTrigger(job.triggeredBy),
     projectArchive: transformProjectArchive(job.projectArchive),
     projectRootDirectory: nullthrows(job.projectRootDirectory),
-    releaseChannel: job.releaseChannel,
     updates: job.updates,
     secrets: job.secrets ? transformIosSecrets(job.secrets) : undefined,
     builderEnvironment: job.builderEnvironment,
@@ -31,6 +31,9 @@ export function transformJob(job: Ios.Job): IosJobInput {
     experimental: job.experimental,
     mode: transformBuildMode(job.mode),
     customBuildConfig: job.customBuildConfig,
+    loggerLevel: job.loggerLevel
+      ? loggerLevelToGraphQLWorkerLoggerLevel[job.loggerLevel]
+      : undefined,
   };
 }
 

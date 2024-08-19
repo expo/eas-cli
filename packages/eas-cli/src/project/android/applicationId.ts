@@ -6,6 +6,8 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 
+import { GradleBuildContext } from './gradle';
+import * as gradleUtils from './gradleUtils';
 import { readAppJson } from '../../build/utils/appJson';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import env from '../../env';
@@ -15,9 +17,8 @@ import {
   getProjectConfigDescription,
 } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
+import { Client } from '../../vcs/vcs';
 import { resolveWorkflowAsync } from '../workflow';
-import { GradleBuildContext } from './gradle';
-import * as gradleUtils from './gradleUtils';
 
 export const INVALID_APPLICATION_ID_MESSAGE = `Invalid format of Android applicationId. Only alphanumeric characters, '.' and '_' are allowed, and each '.' must be followed by a letter.`;
 
@@ -26,21 +27,31 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync({
   projectDir,
   projectId,
   exp,
+  vcsClient,
+  nonInteractive,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
+  vcsClient: Client;
+  nonInteractive: boolean;
 }): Promise<string> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
 
   try {
-    return await getApplicationIdAsync(projectDir, exp, {
+    return await getApplicationIdAsync(projectDir, exp, vcsClient, {
       moduleName: gradleUtils.DEFAULT_MODULE_NAME,
     });
   } catch {
-    return await configureApplicationIdAsync({ graphqlClient, projectDir, projectId, exp });
+    return await configureApplicationIdAsync({
+      graphqlClient,
+      projectDir,
+      projectId,
+      exp,
+      nonInteractive,
+    });
   }
 }
 
@@ -95,9 +106,10 @@ export async function getApplicationIdFromBareAsync(
 export async function getApplicationIdAsync(
   projectDir: string,
   exp: ExpoConfig,
+  vcsClient: Client,
   gradleContext?: GradleBuildContext
 ): Promise<string> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   if (workflow === Workflow.GENERIC) {
     warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
 
@@ -124,12 +136,22 @@ async function configureApplicationIdAsync({
   projectDir,
   projectId,
   exp,
+  nonInteractive,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
+  nonInteractive: boolean;
 }): Promise<string> {
+  if (nonInteractive) {
+    throw new Error(
+      `The "android.package" is required to be set in app config when running in non-interactive mode. ${learnMore(
+        'https://docs.expo.dev/versions/latest/config/app/#package'
+      )}`
+    );
+  }
+
   const paths = getConfigFilePaths(projectDir);
   // we can't automatically update app.config.js
   if (paths.dynamicConfigPath) {

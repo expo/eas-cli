@@ -1,3 +1,5 @@
+import assert from 'node:assert';
+
 import { AppFragment, Role } from '../../graphql/generated';
 import { Actor } from '../../user/User';
 
@@ -24,6 +26,7 @@ export const jester: Actor = {
   ],
   isExpoAdmin: false,
   featureGates: {},
+  preferences: {},
 };
 
 export const jester2 = {
@@ -41,6 +44,7 @@ export const jester2 = {
   featureGates: {},
 };
 
+assert(jester.__typename === 'User');
 export const testUsername = jester.username;
 export const testSlug = 'testApp';
 export const testProjectId = '7ef93448-3bc7-4b57-be32-99326dcf24f0';
@@ -76,6 +80,7 @@ export const testAppJsonWithDifferentOwner = {
 export const testAppQueryByIdResponse: AppFragment = {
   id: testProjectId,
   slug: testSlug,
+  name: 'testing 123',
   fullName: testExperienceName,
   ownerAccount: jester.accounts[0],
 };

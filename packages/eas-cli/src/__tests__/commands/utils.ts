@@ -24,6 +24,7 @@ export function getMockAppFragment(): AppFragment {
   return {
     id: mockProjectId,
     slug: 'testapp',
+    name: 'testapp',
     fullName: '@testuser/testpp',
     ownerAccount: {
       id: 'test-account-id',
@@ -59,7 +60,7 @@ export interface LocalProjectContext {
 export function mockCommandContext<
   C extends {
     [name: string]: any;
-  } = object
+  } = object,
 >(
   commandClass: { contextDefinition: ContextInput<C> },
   overrides: {

@@ -11,16 +11,7 @@ export enum ResourceClass {
   /**
    * @deprecated use M_MEDIUM instead
    */
-  M1_EXPERIMENTAL = 'm1-experimental',
-  /**
-   * @deprecated use M_MEDIUM instead
-   */
   M1_MEDIUM = 'm1-medium',
-  /**
-   * @deprecated use M_LARGE instead
-   */
-  M1_LARGE = 'm1-large',
-  INTEL_MEDIUM = 'intel-medium',
   MEDIUM = 'medium',
   M_MEDIUM = 'm-medium',
   /**
@@ -44,7 +35,12 @@ export interface CommonBuildProfile {
   // build environment
   env?: Record<string, string>;
   node?: string;
+  pnpm?: string;
+  bun?: string;
   yarn?: string;
+  /**
+   * @deprecated
+   */
   expoCli?: string;
 
   // credentials
@@ -70,6 +66,11 @@ export interface CommonBuildProfile {
 
   // custom build configuration
   config?: string;
+
+  // credentials
+  withoutCredentials?: boolean;
+
+  environment?: 'preview' | 'production' | 'development';
 }
 
 interface PlatformBuildProfile extends Omit<CommonBuildProfile, 'autoIncrement'> {
@@ -85,9 +86,6 @@ export interface AndroidBuildProfile extends PlatformBuildProfile {
   // build environment
   image?: Android.BuilderEnvironment['image'];
   ndk?: string;
-
-  // credentials
-  withoutCredentials?: boolean;
 
   // build configuration
   gradleCommand?: string;

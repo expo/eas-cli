@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 
-import * as markdown from '../markdown.js';
 import { CHANGELOG_PATH } from './consts.js';
+import * as markdown from '../markdown.js';
 
 export async function readAndParseChangelogAsync(): Promise<markdown.Tokens> {
   const contents = await fs.readFile(CHANGELOG_PATH, 'utf8');

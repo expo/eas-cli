@@ -1,42 +1,21 @@
-import { ArchiveSource, ArchiveSourceType, Job, Metadata, Platform } from '@expo/eas-build-job';
-import { CredentialsSource, EasJsonAccessor, EasJsonUtils, ResourceClass } from '@expo/eas-json';
+import {
+  ArchiveSource,
+  ArchiveSourceType,
+  BuildJob,
+  FingerprintSourceType,
+  Metadata,
+  Platform,
+} from '@expo/eas-build-job';
+import { CredentialsSource } from '@expo/eas-json';
 import assert from 'assert';
 import chalk from 'chalk';
 import cliProgress from 'cli-progress';
 import fs from 'fs-extra';
 import { GraphQLError } from 'graphql/error';
 import nullthrows from 'nullthrows';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
-import { BuildEvent } from '../analytics/AnalyticsManager';
-import { withAnalyticsAsync } from '../analytics/common';
-import { getExpoWebsiteBaseUrl } from '../api';
-import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasCommandError } from '../commandUtils/errors';
-import {
-  AppPlatform,
-  BuildFragment,
-  BuildParamsInput,
-  BuildPriority,
-  BuildResourceClass,
-  BuildStatus,
-  UploadSessionType,
-} from '../graphql/generated';
-import { BuildMutation, BuildResult } from '../graphql/mutations/BuildMutation';
-import { BuildQuery } from '../graphql/queries/BuildQuery';
-import Log, { learnMore, link } from '../log';
-import { Ora, ora } from '../ora';
-import {
-  appPlatformDisplayNames,
-  appPlatformEmojis,
-  requestedPlatformDisplayNames,
-} from '../platform';
-import { confirmAsync } from '../prompts';
-import { uploadFileAtPathToGCSAsync } from '../uploads';
-import { formatBytes } from '../utils/files';
-import { printJsonOnlyOutput } from '../utils/json';
-import { createProgressTracker } from '../utils/progress';
-import { sleepAsync } from '../utils/promise';
-import { getVcsClient } from '../vcs';
 import { BuildContext } from './context';
 import {
   EasBuildDownForMaintenanceError,
@@ -56,7 +35,41 @@ import { transformMetadata } from './graphql';
 import { LocalBuildMode, runLocalBuildAsync } from './local';
 import { collectMetadataAsync } from './metadata';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
-import { makeProjectTarballAsync, reviewAndCommitChangesAsync } from './utils/repository';
+import {
+  LocalFile,
+  makeProjectMetadataFileAsync,
+  makeProjectTarballAsync,
+  reviewAndCommitChangesAsync,
+} from './utils/repository';
+import { BuildEvent } from '../analytics/AnalyticsManager';
+import { withAnalyticsAsync } from '../analytics/common';
+import { getExpoWebsiteBaseUrl } from '../api';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { EasCommandError } from '../commandUtils/errors';
+import {
+  AppPlatform,
+  BuildFragment,
+  BuildParamsInput,
+  BuildPriority,
+  BuildStatus,
+  UploadSessionType,
+} from '../graphql/generated';
+import { BuildMutation, BuildResult } from '../graphql/mutations/BuildMutation';
+import { BuildQuery } from '../graphql/queries/BuildQuery';
+import Log, { learnMore, link } from '../log';
+import { Ora, ora } from '../ora';
+import {
+  appPlatformDisplayNames,
+  appPlatformEmojis,
+  requestedPlatformDisplayNames,
+} from '../platform';
+import { resolveRuntimeVersionAsync } from '../project/resolveRuntimeVersionAsync';
+import { uploadFileAtPathToGCSAsync } from '../uploads';
+import { formatBytes } from '../utils/files';
+import { printJsonOnlyOutput } from '../utils/json';
+import { getTmpDirectory } from '../utils/paths';
+import { createProgressTracker } from '../utils/progress';
+import { sleepAsync } from '../utils/promise';
 
 export interface CredentialsResult<Credentials> {
   source: CredentialsSource.LOCAL | CredentialsSource.REMOTE;
@@ -68,14 +81,14 @@ export interface JobData<Credentials> {
   projectArchive: ArchiveSource;
 }
 
-interface Builder<TPlatform extends Platform, Credentials, TJob extends Job> {
+interface Builder<TPlatform extends Platform, Credentials, TJob extends BuildJob> {
   ctx: BuildContext<TPlatform>;
 
   ensureCredentialsAsync(
     ctx: BuildContext<TPlatform>
   ): Promise<CredentialsResult<Credentials> | undefined>;
   syncProjectConfigurationAsync(ctx: BuildContext<TPlatform>): Promise<void>;
-  prepareJobAsync(ctx: BuildContext<TPlatform>, jobData: JobData<Credentials>): Promise<Job>;
+  prepareJobAsync(ctx: BuildContext<TPlatform>, jobData: JobData<Credentials>): Promise<BuildJob>;
   sendBuildRequestAsync(
     appId: string,
     job: TJob,
@@ -100,7 +113,7 @@ function resolveBuildParamsInput<T extends Platform>(
 export async function prepareBuildRequestForPlatformAsync<
   TPlatform extends Platform,
   Credentials,
-  TJob extends Job
+  TJob extends BuildJob,
 >(builder: Builder<TPlatform, Credentials, TJob>): Promise<BuildRequestSender> {
   const { ctx } = builder;
   const credentialsResult = await withAnalyticsAsync(
@@ -125,9 +138,10 @@ export async function prepareBuildRequestForPlatformAsync<
     }
   );
 
-  if (await getVcsClient().isCommitRequiredAsync()) {
+  if (await ctx.vcsClient.isCommitRequiredAsync()) {
     Log.addNewLineIfNone();
     await reviewAndCommitChangesAsync(
+      ctx.vcsClient,
       `[EAS Build] Run EAS Build for ${requestedPlatformDisplayNames[ctx.platform as Platform]}`,
       { nonInteractive: ctx.nonInteractive }
     );
@@ -135,9 +149,10 @@ export async function prepareBuildRequestForPlatformAsync<
 
   let projectArchive: ArchiveSource | undefined;
   if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
+    const projectPath = (await makeProjectTarballAsync(ctx.vcsClient)).path;
     projectArchive = {
       type: ArchiveSourceType.PATH,
-      path: (await makeProjectTarballAsync()).path,
+      path: projectPath,
     };
   } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
     projectArchive = {
@@ -147,12 +162,13 @@ export async function prepareBuildRequestForPlatformAsync<
   } else if (!ctx.localBuildOptions.localBuildMode) {
     projectArchive = {
       type: ArchiveSourceType.GCS,
-      bucketKey: await uploadProjectAsync(ctx),
+      ...(await uploadProjectAsync(ctx)),
     };
   }
   assert(projectArchive);
 
-  const metadata = await collectMetadataAsync(ctx);
+  const runtimeMetadata = await createAndMaybeUploadFingerprintAsync(ctx);
+  const metadata = await collectMetadataAsync(ctx, runtimeMetadata);
   const buildParams = resolveBuildParamsInput(ctx, metadata);
   const job = await builder.prepareJobAsync(ctx, {
     projectArchive,
@@ -233,7 +249,10 @@ export function handleBuildRequestError(error: any, platform: Platform): never {
 
 async function uploadProjectAsync<TPlatform extends Platform>(
   ctx: BuildContext<TPlatform>
-): Promise<string> {
+): Promise<{
+  bucketKey: string;
+  metadataLocation?: string;
+}> {
   let projectTarballPath;
   try {
     return await withAnalyticsAsync(
@@ -245,7 +264,7 @@ async function uploadProjectAsync<TPlatform extends Platform>(
             'https://expo.fyi/eas-build-archive'
           )}`
         );
-        const projectTarball = await makeProjectTarballAsync();
+        const projectTarball = await makeProjectTarballAsync(ctx.vcsClient);
 
         if (projectTarball.size > 1024 * 1024 * 100) {
           Log.warn(
@@ -262,21 +281,27 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         }
 
         projectTarballPath = projectTarball.path;
+        const [bucketKey, { metadataLocation }] = await Promise.all([
+          uploadFileAtPathToGCSAsync(
+            ctx.graphqlClient,
+            UploadSessionType.EasBuildGcsProjectSources,
+            projectTarball.path,
+            createProgressTracker({
+              total: projectTarball.size,
+              message: ratio =>
+                `Uploading to EAS Build (${formatBytes(
+                  projectTarball.size * ratio
+                )} / ${formatBytes(projectTarball.size)})`,
+              completedMessage: (duration: string) => `Uploaded to EAS ${chalk.dim(duration)}`,
+            })
+          ),
+          uploadMetadataFileAsync<TPlatform>(projectTarball, ctx),
+        ]);
 
-        const bucketKey = await uploadFileAtPathToGCSAsync(
-          ctx.graphqlClient,
-          UploadSessionType.EasBuildGcsProjectSources,
-          projectTarball.path,
-          createProgressTracker({
-            total: projectTarball.size,
-            message: ratio =>
-              `Uploading to EAS Build (${formatBytes(projectTarball.size * ratio)} / ${formatBytes(
-                projectTarball.size
-              )})`,
-            completedMessage: (duration: string) => `Uploaded to EAS ${chalk.dim(duration)}`,
-          })
-        );
-        return bucketKey;
+        if (metadataLocation) {
+          return { bucketKey, metadataLocation };
+        }
+        return { bucketKey };
       },
       {
         attemptEvent: BuildEvent.PROJECT_UPLOAD_ATTEMPT,
@@ -287,9 +312,11 @@ async function uploadProjectAsync<TPlatform extends Platform>(
     );
   } catch (err: any) {
     let errMessage = 'Failed to upload the project tarball to EAS Build';
+
     if (err.message) {
       errMessage += `\n\nReason: ${err.message}`;
     }
+
     throw new EasBuildProjectArchiveUploadError(errMessage);
   } finally {
     if (projectTarballPath) {
@@ -298,7 +325,41 @@ async function uploadProjectAsync<TPlatform extends Platform>(
   }
 }
 
-async function sendBuildRequestAsync<TPlatform extends Platform, Credentials, TJob extends Job>(
+async function uploadMetadataFileAsync<TPlatform extends Platform>(
+  projectTarball: LocalFile,
+  ctx: BuildContext<TPlatform>
+): Promise<{ metadataLocation: string | null }> {
+  let projectMetadataFile: LocalFile | null = null;
+  try {
+    projectMetadataFile = await makeProjectMetadataFileAsync(projectTarball.path);
+
+    const metadataLocation = await uploadFileAtPathToGCSAsync(
+      ctx.graphqlClient,
+      UploadSessionType.EasBuildGcsProjectMetadata,
+      projectMetadataFile.path
+    );
+    return { metadataLocation };
+  } catch (err: any) {
+    let errMessage = 'Failed to upload metadata to EAS Build';
+
+    if (err.message) {
+      errMessage += `\n\nReason: ${err.message}`;
+    }
+
+    Log.warn(errMessage);
+    return { metadataLocation: null };
+  } finally {
+    if (projectMetadataFile) {
+      await fs.remove(projectMetadataFile.path);
+    }
+  }
+}
+
+async function sendBuildRequestAsync<
+  TPlatform extends Platform,
+  Credentials,
+  TJob extends BuildJob,
+>(
   builder: Builder<TPlatform, Credentials, TJob>,
   job: TJob,
   metadata: Metadata,
@@ -335,12 +396,7 @@ export type MaybeBuildFragment = BuildFragment | null;
 
 export async function waitForBuildEndAsync(
   graphqlClient: ExpoGraphqlClient,
-  {
-    buildIds,
-    accountName,
-    projectDir,
-    nonInteractive,
-  }: { buildIds: string[]; accountName: string; projectDir: string; nonInteractive: boolean },
+  { buildIds, accountName }: { buildIds: string[]; accountName: string },
   { intervalSec = 10 } = {}
 ): Promise<MaybeBuildFragment[]> {
   let spinner;
@@ -357,10 +413,7 @@ export async function waitForBuildEndAsync(
     const builds = await getBuildsSafelyAsync(graphqlClient, buildIds);
     const { refetch } =
       builds.length === 1
-        ? await handleSingleBuildProgressAsync(
-            { build: builds[0], accountName, projectDir, nonInteractive },
-            { spinner }
-          )
+        ? await handleSingleBuildProgressAsync({ build: builds[0], accountName }, { spinner })
         : await handleMultipleBuildsProgressAsync({ builds }, { spinner, originalSpinnerText });
     if (!refetch) {
       return builds;
@@ -398,13 +451,9 @@ async function handleSingleBuildProgressAsync(
   {
     build,
     accountName,
-    projectDir,
-    nonInteractive,
   }: {
     build: MaybeBuildFragment;
     accountName: string;
-    projectDir: string;
-    nonInteractive: boolean;
   },
   { spinner }: { spinner: Ora }
 ): Promise<BuildProgressResult> {
@@ -456,54 +505,6 @@ async function handleSingleBuildProgressAsync(
               formatAccountSubscriptionsUrl(accountName)
             )}`
           );
-        }
-
-        if (
-          build.platform === AppPlatform.Ios &&
-          [BuildResourceClass.IosIntelLarge, BuildResourceClass.IosIntelMedium].includes(
-            build.resourceClass
-          )
-        ) {
-          let askToSwitchToM1 = false;
-          if (
-            build.priority === BuildPriority.High &&
-            build.estimatedWaitTimeLeftSeconds >= /* 10 minutes */ 10 * 60
-          ) {
-            Log.newLine();
-            Log.warn(
-              `Warning: Priority queue wait time for legacy iOS Intel workers is longer than usual (more than 10 minutes).`
-            );
-            Log.warn(`We recommend switching to the new, faster M1 workers for iOS builds.`);
-            Log.warn(
-              learnMore('https://blog.expo.dev/m1-workers-on-eas-build-dcaa2c1333ad', {
-                learnMoreMessage: 'Learn more on switching to M1 workers.',
-              })
-            );
-            askToSwitchToM1 = true;
-          } else if (
-            build.priority !== BuildPriority.High &&
-            build.estimatedWaitTimeLeftSeconds >= /* 120 minutes */ 120 * 60
-          ) {
-            Log.newLine();
-            Log.warn(
-              `Warning: Free tier queue wait time for legacy iOS Intel workers is longer than usual.`
-            );
-            Log.warn(`We recommend switching to the new, faster M1 workers for iOS builds.`);
-            Log.warn(
-              learnMore('https://blog.expo.dev/m1-workers-on-eas-build-dcaa2c1333ad', {
-                learnMoreMessage: 'Learn more on switching to M1 workers.',
-              })
-            );
-            askToSwitchToM1 = true;
-          }
-          if (!nonInteractive && askToSwitchToM1) {
-            const shouldSwitchToM1 = await confirmAsync({
-              message: `Switch iOS builds to M1 workers (modifies build profiles in eas.json)?`,
-            });
-            if (shouldSwitchToM1) {
-              await updateIosBuildProfilesToUseM1WorkersAsync(projectDir);
-            }
-          }
         }
 
         Log.newLine();
@@ -655,20 +656,76 @@ function formatAccountSubscriptionsUrl(accountName: string): string {
   ).toString();
 }
 
-async function updateIosBuildProfilesToUseM1WorkersAsync(projectDir: string): Promise<void> {
-  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-  await easJsonAccessor.readRawJsonAsync();
-
-  const profileNames = await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor);
-  easJsonAccessor.patch(easJsonRawObject => {
-    for (const profileName of profileNames) {
-      easJsonRawObject.build[profileName].ios = {
-        ...easJsonRawObject.build[profileName].ios,
-        resourceClass: ResourceClass.M_MEDIUM,
-      };
-    }
-    return easJsonRawObject;
+async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
+  ctx: BuildContext<T>
+): Promise<{
+  runtimeVersion?: string;
+  fingerprintSource?: Metadata['fingerprintSource'];
+}> {
+  const resolvedRuntimeVersion = await resolveRuntimeVersionAsync({
+    exp: ctx.exp,
+    platform: ctx.platform,
+    workflow: ctx.workflow,
+    projectDir: ctx.projectDir,
+    env: ctx.buildProfile.env,
+    cwd: ctx.projectDir,
   });
-  await easJsonAccessor.writeAsync();
-  Log.withTick('Updated eas.json. Your next builds will run on M1 workers.');
+
+  /**
+   * It's ok for fingerprintSources to be empty
+   * fingerprintSources only exist if the project is using runtimeVersion.policy: fingerprint
+   */
+  if (!resolvedRuntimeVersion?.fingerprintSources) {
+    return {
+      runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+    };
+  }
+
+  await fs.mkdirp(getTmpDirectory());
+  const fingerprintLocation = path.join(getTmpDirectory(), `${uuidv4()}-runtime-fingerprint.json`);
+
+  await fs.writeJSON(fingerprintLocation, {
+    hash: resolvedRuntimeVersion.runtimeVersion,
+    sources: resolvedRuntimeVersion.fingerprintSources,
+  });
+
+  if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
+    return {
+      runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+      fingerprintSource: {
+        type: FingerprintSourceType.PATH,
+        path: fingerprintLocation,
+      },
+    };
+  }
+
+  let fingerprintGCSBucketKey = undefined;
+  try {
+    fingerprintGCSBucketKey = await uploadFileAtPathToGCSAsync(
+      ctx.graphqlClient,
+      UploadSessionType.EasUpdateFingerprint,
+      fingerprintLocation
+    );
+  } catch (err: any) {
+    let errMessage = 'Failed to upload fingerprint to EAS';
+
+    if (err.message) {
+      errMessage += `\n\nReason: ${err.message}`;
+    }
+
+    Log.warn(errMessage);
+    return {
+      runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+    };
+  } finally {
+    await fs.remove(fingerprintLocation);
+  }
+
+  return {
+    runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+    fingerprintSource: {
+      type: FingerprintSourceType.GCS,
+      bucketKey: fingerprintGCSBucketKey,
+    },
+  };
 }

@@ -1,9 +1,9 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { AppFragmentNode } from '../App';
 import { AppleAppIdentifierFragmentNode } from './AppleAppIdentifier';
 import { AppleTeamFragmentNode } from './AppleTeam';
+import { AppFragmentNode } from '../App';
 
 export const ApplePushKeyFragmentNode = gql`
   fragment ApplePushKeyFragment on ApplePushKey {

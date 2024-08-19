@@ -3,11 +3,11 @@ import assert from 'assert';
 import fs from 'fs-extra';
 import path from 'path';
 
+import { MetadataConfig } from './schema';
+import { validateConfig } from './validate';
 import { AppleConfigReader } from '../apple/config/reader';
 import { AppleConfigWriter } from '../apple/config/writer';
 import { MetadataValidationError } from '../errors';
-import { MetadataConfig } from './schema';
-import { validateConfig } from './validate';
 
 /**
  * Resolve the dynamic config from the user.

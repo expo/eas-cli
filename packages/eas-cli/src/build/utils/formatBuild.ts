@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { getBuildLogsUrl } from './url';
 import {
   AppPlatform,
   BuildFragment,
@@ -7,7 +8,6 @@ import {
 } from '../../graphql/generated';
 import { appPlatformDisplayNames } from '../../platform';
 import formatFields from '../../utils/formatFields';
-import { getBuildLogsUrl } from './url';
 
 export function formatGraphQLBuild(build: BuildFragment): string {
   const actor = getActorName(build);
@@ -40,6 +40,10 @@ export function formatGraphQLBuild(build: BuildFragment): string {
       },
     },
     {
+      label: 'Profile',
+      value: build.buildProfile,
+    },
+    {
       label: 'Message',
       value: build.message,
     },
@@ -50,10 +54,6 @@ export function formatGraphQLBuild(build: BuildFragment): string {
     {
       label: 'Enterprise Provisioning',
       value: build.iosEnterpriseProvisioning?.toLowerCase(),
-    },
-    {
-      label: 'Release Channel',
-      value: build.releaseChannel,
     },
     {
       label: 'Channel',

@@ -51,6 +51,9 @@ export abstract class Client {
   // `commitAsync({ commitAllFiles: false })`
   public async showDiffAsync(): Promise<void> {}
 
+  /** (optional) print list of changed files */
+  public async showChangedFilesAsync(): Promise<void> {}
+
   // (optional) returns hash of the last commit
   // used for metadata - implementation can be safely skipped
   public async getCommitHashAsync(): Promise<string | undefined> {
@@ -78,4 +81,10 @@ export abstract class Client {
   public async isFileIgnoredAsync(_filePath: string): Promise<boolean> {
     return false;
   }
+
+  /**
+   * Whether this VCS client can get the last commit message.
+   * Used for EAS Update - implementation can be false for noVcs client.
+   */
+  public abstract canGetLastCommitMessage(): boolean;
 }

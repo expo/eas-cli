@@ -1,33 +1,33 @@
 import {
   ArchiveSource,
   ArchiveSourceType,
+  BuildMode,
   BuildTrigger,
   Metadata,
   Workflow,
 } from '@expo/eas-build-job';
+import { LoggerLevel } from '@expo/logger';
+import assert from 'assert';
 
 import {
   BuildCredentialsSource,
   BuildIosEnterpriseProvisioning,
   BuildMetadataInput,
-  BuildMode,
   BuildWorkflow,
   DistributionType,
+  BuildMode as GraphQLBuildMode,
   BuildTrigger as GraphQLBuildTrigger,
   ProjectArchiveSourceInput,
   ProjectArchiveSourceType,
+  WorkerLoggerLevel,
 } from '../graphql/generated';
 
 export function transformProjectArchive(archiveSource: ArchiveSource): ProjectArchiveSourceInput {
-  if (archiveSource.type === ArchiveSourceType.S3) {
-    return {
-      type: ProjectArchiveSourceType.S3,
-      bucketKey: archiveSource.bucketKey,
-    };
-  } else if (archiveSource.type === ArchiveSourceType.GCS) {
+  if (archiveSource.type === ArchiveSourceType.GCS) {
     return {
       type: ProjectArchiveSourceType.Gcs,
       bucketKey: archiveSource.bucketKey,
+      metadataLocation: archiveSource.metadataLocation,
     };
   } else if (archiveSource.type === ArchiveSourceType.URL) {
     return {
@@ -42,7 +42,7 @@ export function transformProjectArchive(archiveSource: ArchiveSource): ProjectAr
 export function transformMetadata(metadata: Metadata): BuildMetadataInput {
   return {
     ...metadata,
-    buildMode: metadata.buildMode && transformBuildMode(metadata.buildMode),
+    fingerprintSource: metadata.fingerprintSource as BuildMetadataInput['fingerprintSource'],
     credentialsSource:
       metadata.credentialsSource && transformCredentialsSource(metadata.credentialsSource),
     distribution: metadata.distribution && transformDistribution(metadata.distribution),
@@ -91,17 +91,17 @@ export function transformIosEnterpriseProvisioning(
   }
 }
 
-// TODO: check what in metadata
-export function transformBuildMode(buildMode: string): BuildMode {
-  if (buildMode === 'build') {
-    return BuildMode.Build;
-  } else if (buildMode === 'resign') {
-    return BuildMode.Resign;
-  } else if (buildMode === 'custom') {
-    return BuildMode.Custom;
-  } else {
-    throw new Error(`Unsupported build mode: ${buildMode}`);
-  }
+const buildModeToGraphQLBuildMode: Record<BuildMode, GraphQLBuildMode> = {
+  [BuildMode.BUILD]: GraphQLBuildMode.Build,
+  [BuildMode.CUSTOM]: GraphQLBuildMode.Custom,
+  [BuildMode.RESIGN]: GraphQLBuildMode.Resign,
+  [BuildMode.REPACK]: GraphQLBuildMode.Repack,
+};
+
+export function transformBuildMode(buildMode: BuildMode): GraphQLBuildMode {
+  const graphQLBuildMode = buildModeToGraphQLBuildMode[buildMode];
+  assert(graphQLBuildMode, `Unsupported build mode: ${buildMode}`);
+  return graphQLBuildMode;
 }
 
 export function transformBuildTrigger(buildTrigger: BuildTrigger): GraphQLBuildTrigger {
@@ -112,3 +112,12 @@ export function transformBuildTrigger(buildTrigger: BuildTrigger): GraphQLBuildT
   }
   throw new Error('Unknown build trigger');
 }
+
+export const loggerLevelToGraphQLWorkerLoggerLevel: Record<LoggerLevel, WorkerLoggerLevel> = {
+  [LoggerLevel.TRACE]: WorkerLoggerLevel.Trace,
+  [LoggerLevel.DEBUG]: WorkerLoggerLevel.Debug,
+  [LoggerLevel.INFO]: WorkerLoggerLevel.Info,
+  [LoggerLevel.WARN]: WorkerLoggerLevel.Warn,
+  [LoggerLevel.ERROR]: WorkerLoggerLevel.Error,
+  [LoggerLevel.FATAL]: WorkerLoggerLevel.Fatal,
+};

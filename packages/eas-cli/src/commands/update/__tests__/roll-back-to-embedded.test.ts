@@ -11,6 +11,7 @@ import {
   DynamicPublicProjectConfigContextField,
 } from '../../../commandUtils/context/DynamicProjectConfigContextField';
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
+import VcsClientContextField from '../../../commandUtils/context/VcsClientContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
 import FeatureGating from '../../../commandUtils/gating/FeatureGating';
@@ -19,6 +20,7 @@ import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { getBranchNameFromChannelNameAsync } from '../../../update/getBranchNameFromChannelNameAsync';
+import { resolveVcsClient } from '../../../vcs';
 import UpdateRollBackToEmbedded from '../roll-back-to-embedded';
 
 const projectRoot = '/test-project';
@@ -43,6 +45,10 @@ jest.mock('@expo/config');
 jest.mock('@expo/config-plugins');
 jest.mock('../../../branch/queries');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
+jest.mock('../../../project/projectUtils', () => ({
+  ...jest.requireActual('../../../project/projectUtils'),
+  enforceRollBackToEmbeddedUpdateSupportAsync: jest.fn(),
+}));
 jest.mock('../../../update/configure');
 jest.mock('../../../update/getBranchNameFromChannelNameAsync');
 jest.mock('../../../graphql/mutations/PublishMutation');
@@ -80,7 +86,7 @@ describe(UpdateRollBackToEmbedded.name, () => {
     mockTestProject();
     const platforms = ['android', 'ios'];
     const runtimeVersion = 'exposdk:47.0.0';
-    jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
+    jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
       branchId: 'branch123',
@@ -102,7 +108,7 @@ describe(UpdateRollBackToEmbedded.name, () => {
     const { projectId } = mockTestProject();
     const platforms = ['android', 'ios'];
     const runtimeVersion = 'exposdk:47.0.0';
-    jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
+    jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
     jest.mocked(getBranchNameFromChannelNameAsync).mockResolvedValue('branchFromChannel');
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
@@ -150,7 +156,7 @@ describe(UpdateRollBackToEmbedded.name, () => {
 
     const platforms = ['ios'];
     const runtimeVersion = 'exposdk:47.0.0';
-    jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
+    jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
     // Mock an existing branch, so we don't create a new one
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
@@ -246,10 +252,14 @@ function mockTestProject({
     featureGating: new FeatureGating({}, new FeatureGateEnvOverrides()),
     graphqlClient,
   });
+  jest
+    .spyOn(VcsClientContextField.prototype, 'getValueAsync')
+    .mockResolvedValue(resolveVcsClient());
 
   jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
     id: '1234',
     slug: 'testing-123',
+    name: 'testing-123',
     fullName: '@jester/testing-123',
     ownerAccount: jester.accounts[0],
   });

@@ -110,6 +110,7 @@ describe(ProjectInit.name, () => {
         it('is no-op if already configured for id', async () => {
           jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
             id: '1234',
+            name: 'testing-123',
             slug: 'testing-123',
             fullName: '@jester/testing-123',
             ownerAccount: jester.accounts[0],
@@ -121,6 +122,7 @@ describe(ProjectInit.name, () => {
         it('prompts to overwrite when different', async () => {
           jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
             id: '1234',
+            name: 'testing-123',
             slug: 'testing-123',
             fullName: '@jester/testing-123',
             ownerAccount: jester.accounts[0],
@@ -135,6 +137,7 @@ describe(ProjectInit.name, () => {
           jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
             id: '1234',
             slug: 'testing-123',
+            name: 'testing-123',
             fullName: '@jester/testing-123',
             ownerAccount: jester.accounts[0],
           });
@@ -152,6 +155,7 @@ describe(ProjectInit.name, () => {
           jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
             id: '1234',
             slug: 'testing-123',
+            name: 'testing-123',
             fullName: '@jester/testing-123',
             ownerAccount: jester.accounts[0],
           });
@@ -186,6 +190,7 @@ describe(ProjectInit.name, () => {
           jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
             id: '1234',
             slug: 'testing-123',
+            name: 'testing-123',
             fullName: '@jester/testing-123',
             ownerAccount: jester.accounts[0],
           });
@@ -198,6 +203,7 @@ describe(ProjectInit.name, () => {
           jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
             id: '1234',
             slug: 'testing-124',
+            name: 'testing-123',
             fullName: '@jester2/testing-124',
             ownerAccount: jester2.accounts[0],
           });
@@ -223,6 +229,7 @@ describe(ProjectInit.name, () => {
           jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
             id: '1234',
             slug: 'testing-124',
+            name: 'testing-123',
             fullName: '@jester2/testing-124',
             ownerAccount: jester2.accounts[0],
           });
@@ -247,6 +254,7 @@ describe(ProjectInit.name, () => {
           jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
             id: '1234',
             slug: 'testing-124',
+            name: 'testing-123',
             fullName: '@jester2/testing-124',
             ownerAccount: jester2.accounts[0],
           });
@@ -273,6 +281,7 @@ describe(ProjectInit.name, () => {
         jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
           id: '1234',
           slug: 'testing-123',
+          name: 'testing-123',
           fullName: '@jester/testing-123',
           ownerAccount: jester.accounts[0],
         });
@@ -288,6 +297,7 @@ describe(ProjectInit.name, () => {
           jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
             id: '1234',
             slug: 'testing-123',
+            name: 'testing-123',
             fullName: '@jester/testing-123',
             ownerAccount: jester.accounts[0],
           });
@@ -302,6 +312,7 @@ describe(ProjectInit.name, () => {
           jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
             id: '1234',
             slug: 'testing-124',
+            name: 'testing-123',
             fullName: '@jester2/testing-124',
             ownerAccount: jester2.accounts[0],
           });
@@ -329,6 +340,7 @@ describe(ProjectInit.name, () => {
           jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
             id: '1234',
             slug: 'testing-124',
+            name: 'testing-123',
             fullName: '@jester2/testing-124',
             ownerAccount: jester2.accounts[0],
           });
@@ -355,6 +367,7 @@ describe(ProjectInit.name, () => {
           jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
             id: '1234',
             slug: 'testing-124',
+            name: 'testing-123',
             fullName: '@jester2/testing-124',
             ownerAccount: jester2.accounts[0],
           });
@@ -384,6 +397,7 @@ describe(ProjectInit.name, () => {
         jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
           id: '1234',
           slug: 'testing-123',
+          name: 'testing-123',
           fullName: '@jester/testing-123',
           ownerAccount: jester.accounts[0],
         });
@@ -398,6 +412,7 @@ describe(ProjectInit.name, () => {
         jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
           id: '1234',
           slug: 'testing-124',
+          name: 'testing-123',
           fullName: '@jester2/testing-124',
           ownerAccount: jester2.accounts[0],
         });
@@ -437,6 +452,7 @@ describe(ProjectInit.name, () => {
             jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
               id: '1234',
               slug: 'testing-123',
+              name: 'testing-123',
               fullName: '@jester/testing-123',
               ownerAccount: jester.accounts[0],
             });
@@ -464,6 +480,7 @@ describe(ProjectInit.name, () => {
             jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
               id: '0129',
               slug: 'testing-123',
+              name: 'testing-123',
               fullName: '@jester/testing-123',
               ownerAccount: jester.accounts[0],
             });

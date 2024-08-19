@@ -1,10 +1,15 @@
+import { PageInfo } from '../../graphql/generated';
 import { promptAsync } from '../../prompts';
 import {
   Connection,
+  Edge,
   FilterPagination,
   NEXT_PAGE_OPTION,
+  PAGE_SIZE,
   PREV_PAGE_OPTION,
+  PaginatedGetterAsync,
   QueryParams,
+  fetchEntireDatasetAsync,
   selectPaginatedAsync,
 } from '../relay';
 
@@ -627,11 +632,15 @@ describe(selectPaginatedAsync, () => {
     expect(queryAsync).toHaveBeenCalledWith({ first: pageSize });
   });
 
-  test('returns the only item when there is only one', async () => {
+  test('still prompts if there is only one item avaiable', async () => {
     const node = { id: '1', name: 'Node 1' };
     queryAsync.mockResolvedValueOnce({
       edges: [{ node }],
+      pageInfo: { hasNextPage: false },
     });
+    jest.mocked(promptAsync).mockImplementation(async () => ({
+      item: node,
+    }));
 
     const result = await selectPaginatedAsync({
       queryAsync,
@@ -644,6 +653,7 @@ describe(selectPaginatedAsync, () => {
     expect(queryAsync).toHaveBeenCalledWith({
       first: pageSize,
     });
+    expect(promptAsync).toBeCalledTimes(1);
   });
 
   test('prompts for selection when there are multiple items', async () => {
@@ -676,15 +686,6 @@ describe(selectPaginatedAsync, () => {
     const node1 = { id: '1', name: 'Node 1' };
     const node2 = { id: '2', name: 'Node 2' };
     const node3 = { id: '3', name: 'Node 3' };
-
-    // for preflight
-    queryAsync.mockResolvedValueOnce({
-      edges: [{ node: node1 }, { node: node2 }],
-      pageInfo: {
-        endCursor: 'endCursor',
-        hasNextPage: true,
-      },
-    });
 
     queryAsync.mockResolvedValueOnce({
       edges: [{ node: node1 }, { node: node2 }],
@@ -739,15 +740,6 @@ describe(selectPaginatedAsync, () => {
     const node2 = { id: '2', name: 'Node 2' };
     const node3 = { id: '3', name: 'Node 3' };
 
-    // for preflight
-    queryAsync.mockResolvedValueOnce({
-      edges: [{ node: node1 }, { node: node2 }],
-      pageInfo: {
-        endCursor: 'endCursor',
-        hasNextPage: true,
-      },
-    });
-
     queryAsync.mockResolvedValueOnce({
       edges: [{ node: node1 }, { node: node2 }],
       pageInfo: {
@@ -791,5 +783,57 @@ describe(selectPaginatedAsync, () => {
     expect(getTitleAsync).toHaveBeenCalledWith(node1);
     expect(getTitleAsync).toHaveBeenCalledWith(node2);
     expect(getTitleAsync).toHaveBeenCalledWith(node3);
+  });
+});
+
+describe(selectPaginatedAsync, () => {
+  const mockDataset = Array.from({ length: 50 }, (_, idx) => ({ id: idx + 1 }));
+  const testPaginatedGetterAsync: PaginatedGetterAsync<object> = async (
+    relayArgs: QueryParams
+  ): Promise<Connection<object>> => {
+    const startIdx = relayArgs.after ? Number(relayArgs.after) : 0;
+    const endIdx = startIdx + (relayArgs.first || PAGE_SIZE);
+    const hasNextPage = endIdx < mockDataset.length;
+    const hasPreviousPage = startIdx > 0;
+    const edges: Edge<object>[] = mockDataset
+      .slice(startIdx, endIdx)
+      .map(node => ({ cursor: String(node.id), node }));
+
+    const pageInfo: PageInfo = {
+      hasNextPage,
+      hasPreviousPage,
+      endCursor: hasNextPage ? String(endIdx) : undefined,
+    };
+
+    return {
+      edges,
+      pageInfo,
+    };
+  };
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('getting an entire paginated dataset', async () => {
+    const data = await fetchEntireDatasetAsync({
+      paginatedGetterAsync: testPaginatedGetterAsync,
+    });
+    expect(data).toEqual(mockDataset);
+  });
+  test('getting an empty paginated dataset', async () => {
+    const emptyPaginatedGetterAsync = async (): Promise<Connection<object>> => {
+      return {
+        edges: [],
+        pageInfo: {
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      };
+    };
+    const data = await fetchEntireDatasetAsync({
+      paginatedGetterAsync: emptyPaginatedGetterAsync,
+    });
+    expect(data).toEqual([]);
   });
 });

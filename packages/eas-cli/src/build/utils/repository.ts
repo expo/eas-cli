@@ -10,10 +10,13 @@ import { confirmAsync, promptAsync } from '../../prompts';
 import { formatBytes } from '../../utils/files';
 import { getTmpDirectory } from '../../utils/paths';
 import { endTimer, formatMilliseconds, startTimer } from '../../utils/timer';
-import { getVcsClient } from '../../vcs';
+import { Client } from '../../vcs/vcs';
 
-export async function maybeBailOnRepoStatusAsync(): Promise<void> {
-  if (!(await getVcsClient().isCommitRequiredAsync())) {
+export async function maybeBailOnRepoStatusAsync(
+  vcsClient: Client,
+  nonInteractive: boolean
+): Promise<void> {
+  if (!(await vcsClient.isCommitRequiredAsync())) {
     return;
   }
   Log.addNewLineIfNone();
@@ -28,12 +31,20 @@ export async function maybeBailOnRepoStatusAsync(): Promise<void> {
   });
 
   if (!answer) {
+    if (nonInteractive) {
+      Log.log('The following files need to be committed:');
+      await vcsClient.showChangedFilesAsync();
+    }
+
     throw new Error('Commit all changes. Aborting...');
   }
 }
 
-export async function ensureRepoIsCleanAsync(nonInteractive = false): Promise<void> {
-  if (!(await getVcsClient().isCommitRequiredAsync())) {
+export async function ensureRepoIsCleanAsync(
+  vcsClient: Client,
+  nonInteractive = false
+): Promise<void> {
+  if (!(await vcsClient.isCommitRequiredAsync())) {
     return;
   }
   Log.addNewLineIfNone();
@@ -44,25 +55,31 @@ export async function ensureRepoIsCleanAsync(nonInteractive = false): Promise<vo
     )}.`
   );
   if (nonInteractive) {
+    Log.log('The following files need to be committed:');
+    await vcsClient.showChangedFilesAsync();
+
     throw new Error('Commit all changes. Aborting...');
   }
   const answer = await confirmAsync({
     message: `Commit changes to git?`,
   });
   if (answer) {
-    await commitPromptAsync({ commitAllFiles: true });
+    await commitPromptAsync(vcsClient, { commitAllFiles: true });
   } else {
     throw new Error('Commit all changes. Aborting...');
   }
 }
 
-export async function commitPromptAsync({
-  initialCommitMessage,
-  commitAllFiles,
-}: {
-  initialCommitMessage?: string;
-  commitAllFiles?: boolean;
-} = {}): Promise<void> {
+export async function commitPromptAsync(
+  vcsClient: Client,
+  {
+    initialCommitMessage,
+    commitAllFiles,
+  }: {
+    initialCommitMessage?: string;
+    commitAllFiles?: boolean;
+  } = {}
+): Promise<void> {
   const { message } = await promptAsync({
     type: 'text',
     name: 'message',
@@ -70,14 +87,40 @@ export async function commitPromptAsync({
     initial: initialCommitMessage,
     validate: (input: string) => input !== '',
   });
-  await getVcsClient().commitAsync({
+  await vcsClient.commitAsync({
     commitAllFiles,
     commitMessage: message,
     nonInteractive: false,
   });
 }
 
-export async function makeProjectTarballAsync(): Promise<{ path: string; size: number }> {
+export type LocalFile = {
+  path: string;
+  size: number;
+};
+
+export async function makeProjectMetadataFileAsync(archivePath: string): Promise<LocalFile> {
+  await fs.mkdirp(getTmpDirectory());
+  const metadataLocation = path.join(getTmpDirectory(), `${uuidv4()}-eas-build-metadata.json`);
+  const archiveContent: string[] = [];
+
+  await tar.list({
+    file: archivePath,
+    onentry: (entry: tar.ReadEntry) => {
+      if (entry.type === 'File' && !entry.path.includes('.git/')) {
+        archiveContent.push(entry.path);
+      }
+    },
+  });
+
+  await fs.writeJSON(metadataLocation, {
+    archiveContent,
+  });
+
+  return { path: metadataLocation, size: await fs.stat(metadataLocation).then(stat => stat.size) };
+}
+
+export async function makeProjectTarballAsync(vcsClient: Client): Promise<LocalFile> {
   const spinner = ora('Compressing project files');
 
   await fs.mkdirp(getTmpDirectory());
@@ -99,7 +142,7 @@ export async function makeProjectTarballAsync(): Promise<{ path: string; size: n
   startTimer(compressTimerLabel);
 
   try {
-    await getVcsClient().makeShallowCopyAsync(shallowClonePath);
+    await vcsClient.makeShallowCopyAsync(shallowClonePath);
     await tar.create({ cwd: shallowClonePath, file: tarPath, prefix: 'project', gzip: true }, [
       '.',
     ]);
@@ -133,11 +176,12 @@ enum ShouldCommitChanges {
 }
 
 export async function reviewAndCommitChangesAsync(
+  vcsClient: Client,
   initialCommitMessage: string,
   { nonInteractive, askedFirstTime = true }: { nonInteractive: boolean; askedFirstTime?: boolean }
 ): Promise<void> {
   if (process.env.EAS_BUILD_AUTOCOMMIT) {
-    await getVcsClient().commitAsync({
+    await vcsClient.commitAsync({
       commitMessage: initialCommitMessage,
       commitAllFiles: false,
       nonInteractive,
@@ -171,11 +215,11 @@ export async function reviewAndCommitChangesAsync(
       "Aborting, run the command again once you're ready. Make sure to commit any changes you've made."
     );
   } else if (selected === ShouldCommitChanges.Yes) {
-    await commitPromptAsync({ initialCommitMessage });
+    await commitPromptAsync(vcsClient, { initialCommitMessage });
     Log.withTick('Committed changes.');
   } else if (selected === ShouldCommitChanges.ShowDiffFirst) {
-    await getVcsClient().showDiffAsync();
-    await reviewAndCommitChangesAsync(initialCommitMessage, {
+    await vcsClient.showDiffAsync();
+    await reviewAndCommitChangesAsync(vcsClient, initialCommitMessage, {
       nonInteractive,
       askedFirstTime: false,
     });

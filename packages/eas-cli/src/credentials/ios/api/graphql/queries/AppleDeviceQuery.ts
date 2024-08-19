@@ -1,4 +1,3 @@
-import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
@@ -7,15 +6,16 @@ import { DeviceNotFoundError } from '../../../../../devices/utils/errors';
 import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleDevice,
+  AppleDeviceFilterInput,
   AppleDeviceFragment,
-  AppleDevicesByAppleTeamQuery,
-  AppleDevicesByIdentifierQuery,
   AppleDevicesByTeamIdentifierQuery,
   AppleDevicesByTeamIdentifierQueryVariables,
+  AppleDevicesPaginatedByAccountQuery,
   AppleTeamFragment,
 } from '../../../../../graphql/generated';
 import { AppleDeviceFragmentNode } from '../../../../../graphql/types/credentials/AppleDevice';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
+import { Connection, QueryParams, fetchEntireDatasetAsync } from '../../../../../utils/relay';
 import { formatAppleTeam } from '../../../actions/AppleTeamFormatting';
 
 export type AppleDeviceFragmentWithAppleTeam = AppleDeviceFragment & {
@@ -38,51 +38,25 @@ export type AppleDevicesByIdentifierQueryResult = AppleDeviceQueryResult & {
 export const AppleDeviceQuery = {
   async getAllByAppleTeamIdentifierAsync(
     graphqlClient: ExpoGraphqlClient,
-    accountId: string,
+    accountName: string,
     appleTeamIdentifier: string,
     { useCache = true }: { useCache?: boolean } = {}
   ): Promise<AppleDeviceFragmentWithAppleTeam[]> {
-    const data = await withErrorHandlingAsync(
-      graphqlClient
-        .query<AppleDevicesByAppleTeamQuery>(
-          gql`
-            query AppleDevicesByAppleTeamQuery($accountId: ID!, $appleTeamIdentifier: String!) {
-              appleTeam {
-                byAppleTeamIdentifier(accountId: $accountId, identifier: $appleTeamIdentifier) {
-                  id
-                  ...AppleTeamFragment
-                  appleDevices {
-                    id
-                    ...AppleDeviceFragment
-                    appleTeam {
-                      id
-                      ...AppleTeamFragment
-                    }
-                  }
-                }
-              }
-            }
-            ${print(AppleTeamFragmentNode)}
-            ${print(AppleDeviceFragmentNode)}
-          `,
-          {
-            accountId,
-            appleTeamIdentifier,
-          },
-          {
-            additionalTypenames: ['AppleDevice'],
-            requestPolicy: useCache ? 'cache-first' : 'network-only',
-          }
-        )
-        .toPromise()
-    );
-    assert(
-      data.appleTeam.byAppleTeamIdentifier,
-      'byAppleTeamIdentifier should be defined in this context - enforced by GraphQL'
-    );
-    const { appleDevices } = data.appleTeam.byAppleTeamIdentifier;
-    assert(appleDevices, 'Apple Devices should be defined in this context - enforced by GraphQL');
-    return appleDevices;
+    const paginatedGetterAsync = async (
+      relayArgs: QueryParams
+    ): Promise<Connection<AppleDeviceFragmentWithAppleTeam>> => {
+      return await AppleDeviceQuery.getAllForAccountPaginatedAsync(graphqlClient, accountName, {
+        ...relayArgs,
+        filter: {
+          appleTeamIdentifier,
+        },
+        useCache,
+      });
+    };
+    return await fetchEntireDatasetAsync({
+      paginatedGetterAsync,
+      progressBarLabel: 'Fetching Apple devices...',
+    });
   },
 
   async getAllForAppleTeamAsync(
@@ -113,6 +87,7 @@ export const AppleDeviceQuery = {
                       deviceClass
                       enabled
                       model
+                      createdAt
                     }
                   }
                 }
@@ -138,46 +113,108 @@ export const AppleDeviceQuery = {
     graphqlClient: ExpoGraphqlClient,
     accountName: string,
     identifier: string
-  ): Promise<AppleDevicesByIdentifierQueryResult> {
-    const data = await withErrorHandlingAsync(
-      graphqlClient
-        .query<AppleDevicesByIdentifierQuery>(
-          gql`
-            query AppleDevicesByIdentifier($accountName: String!, $identifier: String!) {
-              account {
-                byName(accountName: $accountName) {
-                  id
-                  appleDevices(identifier: $identifier) {
-                    id
-                    model
-                    identifier
-                    name
-                    deviceClass
-                    enabled
-                    appleTeam {
-                      id
-                      appleTeamIdentifier
-                      appleTeamName
-                    }
-                  }
-                }
-              }
-            }
-          `,
-          { accountName, identifier },
-          {
-            additionalTypenames: ['AppleDevice', 'AppleTeam'],
-          }
-        )
-        .toPromise()
-    );
-
-    const device = data.account.byName.appleDevices[0];
+  ): Promise<AppleDeviceFragmentWithAppleTeam> {
+    const paginatedGetterAsync = async (
+      relayArgs: QueryParams
+    ): Promise<Connection<AppleDeviceFragmentWithAppleTeam>> => {
+      return await AppleDeviceQuery.getAllForAccountPaginatedAsync(graphqlClient, accountName, {
+        ...relayArgs,
+        filter: {
+          identifier,
+        },
+      });
+    };
+    const devices = await fetchEntireDatasetAsync({
+      paginatedGetterAsync,
+    });
+    const device = devices[0];
     if (!device) {
       throw new DeviceNotFoundError(
         `Device with id ${identifier} was not found on account ${accountName}.`
       );
     }
     return device;
+  },
+  async getAllForAccountPaginatedAsync(
+    graphqlClient: ExpoGraphqlClient,
+    accountName: string,
+    {
+      after,
+      first,
+      before,
+      last,
+      filter,
+      useCache = true,
+    }: {
+      after?: string;
+      first?: number;
+      before?: string;
+      last?: number;
+      filter?: AppleDeviceFilterInput;
+      useCache?: boolean;
+    }
+  ): Promise<AppleDevicesPaginatedByAccountQuery['account']['byName']['appleDevicesPaginated']> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppleDevicesPaginatedByAccountQuery>(
+          gql`
+            query AppleDevicesPaginatedByAccountQuery(
+              $accountName: String!
+              $after: String
+              $first: Int
+              $before: String
+              $last: Int
+              $filter: AppleDeviceFilterInput
+            ) {
+              account {
+                byName(accountName: $accountName) {
+                  id
+                  appleDevicesPaginated(
+                    after: $after
+                    first: $first
+                    before: $before
+                    last: $last
+                    filter: $filter
+                  ) {
+                    edges {
+                      cursor
+                      node {
+                        id
+                        ...AppleDeviceFragment
+                        appleTeam {
+                          id
+                          ...AppleTeamFragment
+                        }
+                      }
+                    }
+                    pageInfo {
+                      hasNextPage
+                      hasPreviousPage
+                      startCursor
+                      endCursor
+                    }
+                  }
+                }
+              }
+            }
+            ${print(AppleTeamFragmentNode)}
+            ${print(AppleDeviceFragmentNode)}
+          `,
+          {
+            accountName,
+            after,
+            first,
+            before,
+            last,
+            filter,
+          },
+          {
+            additionalTypenames: ['AppleDevice'],
+            requestPolicy: useCache ? 'cache-first' : 'network-only',
+          }
+        )
+        .toPromise()
+    );
+    return data.account.byName.appleDevicesPaginated;
   },
 };

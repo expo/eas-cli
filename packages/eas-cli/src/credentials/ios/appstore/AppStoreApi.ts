@@ -1,7 +1,5 @@
 import { ProfileType } from '@expo/app-store';
 
-import { Analytics } from '../../../analytics/AnalyticsManager';
-import Log from '../../../log';
 import {
   AscApiKey,
   AscApiKeyInfo,
@@ -46,6 +44,8 @@ import {
 import { createOrReuseAdhocProvisioningProfileAsync } from './provisioningProfileAdhoc';
 import { createPushKeyAsync, listPushKeysAsync, revokePushKeyAsync } from './pushKey';
 import { hasAscEnvVars } from './resolveCredentials';
+import { Analytics } from '../../../analytics/AnalyticsManager';
+import Log from '../../../log';
 
 export default class AppStoreApi {
   public authCtx?: AuthCtx;

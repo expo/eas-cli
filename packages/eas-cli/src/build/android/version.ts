@@ -18,6 +18,7 @@ import {
 } from '../../project/android/gradleUtils';
 import { getNextVersionCode } from '../../project/android/versions';
 import { resolveWorkflowAsync } from '../../project/workflow';
+import { Client } from '../../vcs/vcs';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
 import { bumpAppVersionAsync, ensureStaticConfigExists } from '../utils/version';
 
@@ -96,9 +97,10 @@ export async function bumpVersionInAppJsonAsync({
 export async function maybeResolveVersionsAsync(
   projectDir: string,
   exp: ExpoConfig,
-  buildProfile: BuildProfile<Platform.ANDROID>
+  buildProfile: BuildProfile<Platform.ANDROID>,
+  vcsClient: Client
 ): Promise<{ appVersion?: string; appBuildVersion?: string }> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   if (workflow === Workflow.GENERIC) {
     const buildGradle = await getAppBuildGradleAsync(projectDir);
     try {
@@ -183,12 +185,14 @@ export async function resolveRemoteVersionCodeAsync(
     exp,
     applicationId,
     buildProfile,
+    vcsClient,
   }: {
     projectDir: string;
     projectId: string;
     exp: ExpoConfig;
     applicationId: string;
     buildProfile: BuildProfile<Platform.ANDROID>;
+    vcsClient: Client;
   }
 ): Promise<string> {
   const remoteVersions = await AppVersionQuery.latestVersionAsync(
@@ -198,7 +202,7 @@ export async function resolveRemoteVersionCodeAsync(
     applicationId
   );
 
-  const localVersions = await maybeResolveVersionsAsync(projectDir, exp, buildProfile);
+  const localVersions = await maybeResolveVersionsAsync(projectDir, exp, buildProfile, vcsClient);
   let currentBuildVersion: string;
   if (remoteVersions?.buildVersion) {
     currentBuildVersion = remoteVersions.buildVersion;
@@ -228,7 +232,9 @@ export async function resolveRemoteVersionCodeAsync(
         applicationIdentifier: applicationId,
         storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
         buildVersion: currentBuildVersion,
-        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
+        runtimeVersion:
+          (await Updates.getRuntimeVersionNullableAsync(projectDir, exp, Platform.ANDROID)) ??
+          undefined,
       });
       spinner.succeed(`Initialized versionCode with ${chalk.bold(currentBuildVersion)}.`);
     } catch (err) {
@@ -250,7 +256,9 @@ export async function resolveRemoteVersionCodeAsync(
         applicationIdentifier: applicationId,
         storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
         buildVersion: String(nextBuildVersion),
-        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.ANDROID) ?? undefined,
+        runtimeVersion:
+          (await Updates.getRuntimeVersionNullableAsync(projectDir, exp, Platform.ANDROID)) ??
+          undefined,
       });
       spinner.succeed(
         `Incremented versionCode from ${chalk.bold(currentBuildVersion)} to ${chalk.bold(

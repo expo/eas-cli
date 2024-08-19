@@ -9,7 +9,7 @@ import {
 import AppStoreApi from '../../../credentials/ios/appstore/AppStoreApi';
 import { getRequestContext } from '../../../credentials/ios/appstore/authenticate';
 import { AuthCtx } from '../../../credentials/ios/appstore/authenticateTypes';
-import { AppleDeviceClass, AppleTeam } from '../../../graphql/generated';
+import { AccountFragment, AppleDeviceClass, AppleTeam } from '../../../graphql/generated';
 import Log from '../../../log';
 import { ora } from '../../../ora';
 import { promptAsync } from '../../../prompts';
@@ -19,19 +19,20 @@ const DEVICE_IMPORT_CHUNK_SIZE = 10;
 const DEVICE_CLASS_TO_GRAPHQL_TYPE: Partial<Record<DeviceClass, AppleDeviceClass>> = {
   [DeviceClass.IPAD]: AppleDeviceClass.Ipad,
   [DeviceClass.IPHONE]: AppleDeviceClass.Iphone,
+  [DeviceClass.MAC]: AppleDeviceClass.Mac,
 };
 
 export async function runDeveloperPortalMethodAsync(
   graphqlClient: ExpoGraphqlClient,
   appStoreApi: AppStoreApi,
-  accountId: string,
+  account: AccountFragment,
   appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
 ): Promise<void> {
   const appleAuthCtx = await appStoreApi.ensureAuthenticatedAsync();
   const unregisteredPortalDevices = await findUnregisteredPortalDevicesAsync(
     graphqlClient,
     appleAuthCtx,
-    accountId,
+    account.name,
     appleTeam
   );
   if (unregisteredPortalDevices.length === 0) {
@@ -39,7 +40,7 @@ export async function runDeveloperPortalMethodAsync(
     return;
   }
   const devicesToImport = await chooseDevicesToImportAsync(unregisteredPortalDevices);
-  await importDevicesAsync(graphqlClient, accountId, appleTeam, devicesToImport);
+  await importDevicesAsync(graphqlClient, account.id, appleTeam, devicesToImport);
 }
 
 async function importDevicesAsync(
@@ -87,25 +88,28 @@ async function importDeviceChunkAsync(
 async function findUnregisteredPortalDevicesAsync(
   graphqlClient: ExpoGraphqlClient,
   appleAuthCtx: AuthCtx,
-  accountId: string,
+  accountName: string,
   appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
 ): Promise<Device[]> {
   const expoRegisteredDevices = await AppleDeviceQuery.getAllByAppleTeamIdentifierAsync(
     graphqlClient,
-    accountId,
+    accountName,
     appleTeam.appleTeamIdentifier,
     { useCache: false }
   );
-  const expoRegisteredDevicesByUdid = expoRegisteredDevices.reduce((acc, device) => {
-    acc[device.identifier] = device;
-    return acc;
-  }, {} as Record<string, AppleDeviceFragmentWithAppleTeam>);
+  const expoRegisteredDevicesByUdid = expoRegisteredDevices.reduce(
+    (acc, device) => {
+      acc[device.identifier] = device;
+      return acc;
+    },
+    {} as Record<string, AppleDeviceFragmentWithAppleTeam>
+  );
 
   const portalDevices = await Device.getAsync(getRequestContext(appleAuthCtx));
   return portalDevices.filter(
     portalDevice =>
       !(portalDevice.attributes.udid in expoRegisteredDevicesByUdid) &&
-      [DeviceClass.IPAD, DeviceClass.IPHONE, DeviceClass.APPLE_TV].includes(
+      [DeviceClass.IPAD, DeviceClass.IPHONE, DeviceClass.APPLE_TV, DeviceClass.MAC].includes(
         portalDevice.attributes.deviceClass
       )
   );

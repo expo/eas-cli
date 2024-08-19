@@ -1,5 +1,8 @@
 import assert from 'assert';
 
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
+import { CreateDistributionCertificate } from './CreateDistributionCertificate';
+import { formatDistributionCertificate } from './DistributionCertificateUtils';
 import {
   AppleDistributionCertificate,
   AppleDistributionCertificateFragment,
@@ -14,14 +17,14 @@ import { AppleDistributionCertificateMutationResult } from '../api/graphql/mutat
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { getValidCertSerialNumbers } from '../appstore/CredentialsUtils';
 import { AppleTeamMissingError } from '../errors';
-import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
-import { CreateDistributionCertificate } from './CreateDistributionCertificate';
-import { formatDistributionCertificate } from './DistributionCertificateUtils';
 
 export class SetUpDistributionCertificate {
   private validDistCerts?: AppleDistributionCertificateFragment[];
 
-  constructor(private app: AppLookupParams, private distributionType: IosDistributionType) {}
+  constructor(
+    private app: AppLookupParams,
+    private distributionType: IosDistributionType
+  ) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<AppleDistributionCertificateFragment> {
     const appleTeam = await resolveAppleTeamIfAuthenticatedAsync(ctx, this.app);

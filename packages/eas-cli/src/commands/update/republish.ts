@@ -1,6 +1,8 @@
 import { Platform } from '@expo/config';
 import { Flags } from '@oclif/core';
 
+import { selectBranchOnAppAsync } from '../../branch/queries';
+import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
@@ -44,11 +46,11 @@ export default class UpdateRepublish extends EasCommand {
 
   static override flags = {
     channel: Flags.string({
-      description: 'Channel name to select an update to republish from',
+      description: 'Channel name to select an update group to republish from',
       exclusive: ['branch', 'group'],
     }),
     branch: Flags.string({
-      description: 'Branch name to select an update to republish from',
+      description: 'Branch name to select an update group to republish from',
       exclusive: ['channel', 'group'],
     }),
     group: Flags.string({
@@ -57,7 +59,7 @@ export default class UpdateRepublish extends EasCommand {
     }),
     message: Flags.string({
       char: 'm',
-      description: 'Short message describing the republished update',
+      description: 'Short message describing the republished update group',
       required: false,
     }),
     platform: Flags.enum({
@@ -67,7 +69,7 @@ export default class UpdateRepublish extends EasCommand {
       required: false,
     }),
     'private-key-path': Flags.string({
-      description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
+      description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
     }),
     ...EasNonInteractiveAndJsonFlags,
@@ -114,15 +116,15 @@ export default class UpdateRepublish extends EasCommand {
     }
 
     if (rawFlags.platform === 'all') {
-      Log.withTick(`The republished update will appear only on: ${rawFlags.platform}`);
+      Log.withTick(`The republished update group will appear only on: ${rawFlags.platform}`);
     } else {
       const platformsFromUpdates = updatesToPublish.map(update => update.platform);
       if (platformsFromUpdates.length < defaultRepublishPlatforms.length) {
-        Log.warn(`You are republishing an update that wasn't published for all platforms.`);
+        Log.warn(`You are republishing an update group that wasn't published for all platforms.`);
       }
 
       Log.withTick(
-        `The republished update will appear on the same platforms it was originally published on: ${platformsFromUpdates.join(
+        `The republished update group will appear on the same platforms it was originally published on: ${platformsFromUpdates.join(
           ', '
         )}`
       );
@@ -150,9 +152,6 @@ export default class UpdateRepublish extends EasCommand {
 
     if (nonInteractive && !groupId) {
       throw new Error('Only --group can be used in non-interactive mode');
-    }
-    if (!groupId && !(branchName || channelName)) {
-      throw new Error(`--channel, --branch, or --group must be specified`);
     }
 
     const platform =
@@ -190,6 +189,10 @@ async function getOrAskUpdatesAsync(
     }));
   }
 
+  if (flags.nonInteractive) {
+    throw new Error('Must supply --group when in non-interactive mode');
+  }
+
   if (flags.branchName) {
     return await askUpdatesFromBranchNameAsync(graphqlClient, {
       ...flags,
@@ -206,7 +209,55 @@ async function getOrAskUpdatesAsync(
     });
   }
 
-  throw new Error('--channel, --branch, or --group is required');
+  const { choice } = await promptAsync({
+    type: 'select',
+    message: 'Find update by branch or channel?',
+    name: 'choice',
+    choices: [
+      { title: 'Branch', value: 'branch' },
+      { title: 'Channel', value: 'channel' },
+    ],
+  });
+
+  if (choice === 'channel') {
+    const { name } = await selectChannelOnAppAsync(graphqlClient, {
+      projectId,
+      selectionPromptTitle: 'Select a channel to view',
+      paginatedQueryOptions: {
+        json: flags.json,
+        nonInteractive: flags.nonInteractive,
+        offset: 0,
+      },
+    });
+
+    return await askUpdatesFromChannelNameAsync(graphqlClient, {
+      ...flags,
+      channelName: name,
+      projectId,
+    });
+  } else if (choice === 'branch') {
+    const { name } = await selectBranchOnAppAsync(graphqlClient, {
+      projectId,
+      promptTitle: 'Select branch from which to choose update',
+      displayTextForListItem: updateBranch => ({
+        title: updateBranch.name,
+      }),
+      // discard limit and offset because this query is not their intended target
+      paginatedQueryOptions: {
+        json: flags.json,
+        nonInteractive: flags.nonInteractive,
+        offset: 0,
+      },
+    });
+
+    return await askUpdatesFromBranchNameAsync(graphqlClient, {
+      ...flags,
+      branchName: name,
+      projectId,
+    });
+  } else {
+    throw new Error('Must choose update via channel or branch');
+  }
 }
 
 /** Ask the user which update needs to be republished by branch name, this requires interactive mode */
@@ -219,10 +270,6 @@ async function askUpdatesFromBranchNameAsync(
     nonInteractive,
   }: { projectId: string; branchName: string; json: boolean; nonInteractive: boolean }
 ): Promise<UpdateToRepublish[]> {
-  if (nonInteractive) {
-    throw new Error('Must supply --group when in non-interactive mode');
-  }
-
   const updateGroup = await selectUpdateGroupOnBranchAsync(graphqlClient, {
     projectId,
     branchName,
@@ -246,10 +293,6 @@ async function askUpdatesFromChannelNameAsync(
     nonInteractive,
   }: { projectId: string; channelName: string; json: boolean; nonInteractive: boolean }
 ): Promise<UpdateToRepublish[]> {
-  if (nonInteractive) {
-    throw new Error('Must supply --group when in non-interactive mode');
-  }
-
   const branchName = await getBranchNameFromChannelNameAsync(graphqlClient, projectId, channelName);
 
   return await askUpdatesFromBranchNameAsync(graphqlClient, {

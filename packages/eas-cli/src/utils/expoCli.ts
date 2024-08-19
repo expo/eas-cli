@@ -5,8 +5,8 @@ import { boolish } from 'getenv';
 import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
 import semver from 'semver';
 
-import Log, { link } from '../log';
 import { memoize } from './expodash/memoize';
+import Log, { link } from '../log';
 
 // Aggressively returns `true` (UNVERSIONED, invalid SDK version format) to push users towards the versioned CLI.
 function gteSdkVersion(fromSdkVersion: string, sdkVersion: string): boolean {
@@ -56,7 +56,26 @@ export function shouldUseVersionedExpoCLIExpensive(
   return !!resolveFrom.silent(projectDir, '@expo/cli');
 }
 
+/**
+ * Determine if we can and should use `expo export` with multiple `--platform` flags.
+ * This is an issue related to `expo export --all` causing issues when users have Metro web configured.
+ * See: https://github.com/expo/expo/pull/23621
+ */
+export function shouldUseVersionedExpoCLIWithExplicitPlatformsExpensive(
+  projectDir: string
+): boolean {
+  const expoCliPath = resolveFrom.silent(projectDir, '@expo/cli/package.json');
+  if (!expoCliPath) {
+    return false;
+  }
+
+  return gteSdkVersion(require(expoCliPath).version, '0.10.11');
+}
+
 export const shouldUseVersionedExpoCLI = memoize(shouldUseVersionedExpoCLIExpensive);
+export const shouldUseVersionedExpoCLIWithExplicitPlatforms = memoize(
+  shouldUseVersionedExpoCLIWithExplicitPlatformsExpensive
+);
 
 export async function expoCommandAsync(
   projectDir: string,

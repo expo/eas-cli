@@ -5,14 +5,16 @@ import nullthrows from 'nullthrows';
 import { getUpdateGroupUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import fetch from '../fetch';
-import { Update, UpdateInfoGroup } from '../graphql/generated';
+import { UpdateFragment, UpdateInfoGroup } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import Log, { link } from '../log';
 import { ora } from '../ora';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import {
   CodeSigningInfo,
+  checkDirectiveBodyAgainstUpdateInfoGroup,
   checkManifestBodyAgainstUpdateInfoGroup,
+  getDirectiveBodyAsync,
   getManifestBodyAsync,
   signBody,
 } from '../utils/code-signing';
@@ -23,15 +25,7 @@ export type UpdateToRepublish = {
   groupId: string;
   branchId: string;
   branchName: string;
-} & Pick<
-  Update,
-  | 'message'
-  | 'runtimeVersion'
-  | 'manifestFragment'
-  | 'platform'
-  | 'gitCommitHash'
-  | 'codeSigningInfo'
->;
+} & UpdateFragment;
 
 /**
  * @param updatesToPublish The update group to republish
@@ -65,6 +59,13 @@ export async function republishAsync({
     update.branchName === arbitraryUpdate.branchName &&
     update.runtimeVersion === arbitraryUpdate.runtimeVersion;
   assert(updatesToPublish.every(isSameGroup), 'All updates must belong to the same update group');
+
+  assert(
+    updatesToPublish.every(u => u.isRollBackToEmbedded) ||
+      updatesToPublish.every(u => !u.isRollBackToEmbedded),
+    'All updates must either be roll back to embedded updates or not'
+  );
+
   const { runtimeVersion } = arbitraryUpdate;
 
   // If codesigning was created for the original update, we need to add it to the republish.
@@ -74,7 +75,7 @@ export async function republishAsync({
   if (shouldRepublishWithCodesigning) {
     if (!codeSigningInfo) {
       throw new Error(
-        'Must specify --private-key-path argument to sign republished update for code signing'
+        'Must specify --private-key-path argument to sign republished update group for code signing'
       );
     }
 
@@ -89,30 +90,39 @@ export async function republishAsync({
       }
     }
 
-    Log.withTick(`The republished update will be signed`);
+    Log.withTick(`The republished update group will be signed`);
   }
 
   const publishIndicator = ora('Republishing...').start();
   let updatesRepublished: Awaited<ReturnType<typeof PublishMutation.publishUpdateGroupAsync>>;
 
   try {
-    const updateInfoGroup = Object.fromEntries(
-      updatesToPublish.map(update => [update.platform, JSON.parse(update.manifestFragment)])
-    );
+    const arbitraryUpdate = updatesToPublish[0];
+    const objectToMergeIn = arbitraryUpdate.isRollBackToEmbedded
+      ? {
+          rollBackToEmbeddedInfoGroup: Object.fromEntries(
+            updatesToPublish.map(update => [update.platform, true])
+          ),
+        }
+      : {
+          updateInfoGroup: Object.fromEntries(
+            updatesToPublish.map(update => [update.platform, JSON.parse(update.manifestFragment)])
+          ),
+        };
 
     updatesRepublished = await PublishMutation.publishUpdateGroupAsync(graphqlClient, [
       {
         branchId: targetBranchId,
         runtimeVersion,
         message: updateMessage,
-        updateInfoGroup,
+        ...objectToMergeIn,
         gitCommitHash: updatesToPublish[0].gitCommitHash,
         awaitingCodeSigningInfo: !!codeSigningInfo,
       },
     ]);
 
     if (codeSigningInfo) {
-      Log.log('🔒 Signing republished update');
+      Log.log('🔒 Signing republished update group');
 
       await Promise.all(
         updatesRepublished.map(async newUpdate => {
@@ -120,27 +130,39 @@ export async function republishAsync({
             method: 'GET',
             headers: { accept: 'multipart/mixed' },
           });
-          const manifestBody = nullthrows(await getManifestBodyAsync(response));
 
-          checkManifestBodyAgainstUpdateInfoGroup(
-            manifestBody,
-            nullthrows(nullthrows(updateInfoGroup)[newUpdate.platform as keyof UpdateInfoGroup])
-          );
+          let signature;
+          if (newUpdate.isRollBackToEmbedded) {
+            const directiveBody = nullthrows(await getDirectiveBodyAsync(response));
 
-          const manifestSignature = signBody(manifestBody, codeSigningInfo);
+            checkDirectiveBodyAgainstUpdateInfoGroup(directiveBody);
+            signature = signBody(directiveBody, codeSigningInfo);
+          } else {
+            const manifestBody = nullthrows(await getManifestBodyAsync(response));
+
+            checkManifestBodyAgainstUpdateInfoGroup(
+              manifestBody,
+              nullthrows(
+                nullthrows(objectToMergeIn.updateInfoGroup)[
+                  newUpdate.platform as keyof UpdateInfoGroup
+                ]
+              )
+            );
+            signature = signBody(manifestBody, codeSigningInfo);
+          }
 
           await PublishMutation.setCodeSigningInfoAsync(graphqlClient, newUpdate.id, {
             alg: codeSigningInfo.codeSigningMetadata.alg,
             keyid: codeSigningInfo.codeSigningMetadata.keyid,
-            sig: manifestSignature,
+            sig: signature,
           });
         })
       );
     }
 
-    publishIndicator.succeed('Republished update');
+    publishIndicator.succeed('Republished update group');
   } catch (error: any) {
-    publishIndicator.fail('Failed to republish update');
+    publishIndicator.fail('Failed to republish update group');
     throw error;
   }
 
@@ -165,7 +187,7 @@ export async function republishAsync({
       { label: 'Branch', value: targetBranchName },
       { label: 'Runtime version', value: arbitraryRepublishedUpdate.runtimeVersion },
       { label: 'Platform', value: updatesRepublished.map(update => update.platform).join(', ') },
-      { label: 'Update Group ID', value: arbitraryRepublishedUpdate.group },
+      { label: 'Update group ID', value: arbitraryRepublishedUpdate.group },
       ...(updatesRepublishedByPlatform.android
         ? [{ label: 'Android update ID', value: updatesRepublishedByPlatform.android.id }]
         : []),
@@ -173,7 +195,7 @@ export async function republishAsync({
         ? [{ label: 'iOS update ID', value: updatesRepublishedByPlatform.ios.id }]
         : []),
       { label: 'Message', value: updateMessage },
-      { label: 'Website link', value: link(updateGroupUrl, { dim: false }) },
+      { label: 'EAS Dashboard', value: link(updateGroupUrl, { dim: false }) },
     ])
   );
 }

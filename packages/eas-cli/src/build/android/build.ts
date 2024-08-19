@@ -1,8 +1,12 @@
-import { Android, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import { Android, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { AppVersionSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import { transformJob } from './graphql';
+import { prepareJobAsync } from './prepareJob';
+import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
+import { resolveRemoteVersionCodeAsync } from './version';
 import AndroidCredentialsProvider, {
   AndroidCredentials,
 } from '../../credentials/android/AndroidCredentialsProvider';
@@ -29,10 +33,6 @@ import {
   checkNodeEnvVariable,
   validatePNGsForManagedProjectAsync,
 } from '../validate';
-import { transformJob } from './graphql';
-import { prepareJobAsync } from './prepareJob';
-import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
-import { resolveRemoteVersionCodeAsync } from './version';
 
 export async function createAndroidContextAsync(
   ctx: CommonContext<Platform.ANDROID>
@@ -59,13 +59,22 @@ This means that it will most likely produce an AAB and you will not be able to i
   await checkGoogleServicesFileAsync(ctx);
   await validatePNGsForManagedProjectAsync(ctx);
 
-  const gradleContext = await resolveGradleBuildContextAsync(ctx.projectDir, buildProfile);
+  const gradleContext = await resolveGradleBuildContextAsync(
+    ctx.projectDir,
+    buildProfile,
+    ctx.vcsClient
+  );
 
   if (ctx.workflow === Workflow.MANAGED) {
     await ensureApplicationIdIsDefinedForManagedProjectAsync(ctx);
   }
 
-  const applicationId = await getApplicationIdAsync(ctx.projectDir, ctx.exp, gradleContext);
+  const applicationId = await getApplicationIdAsync(
+    ctx.projectDir,
+    ctx.exp,
+    ctx.vcsClient,
+    gradleContext
+  );
   const versionCodeOverride =
     ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
       ? await resolveRemoteVersionCodeAsync(ctx.graphqlClient, {
@@ -74,6 +83,7 @@ This means that it will most likely produce an AAB and you will not be able to i
           exp: ctx.exp,
           applicationId,
           buildProfile,
+          vcsClient: ctx.vcsClient,
         })
       : undefined;
 
@@ -89,20 +99,21 @@ export async function prepareAndroidBuildAsync(
       return await ensureAndroidCredentialsAsync(ctx);
     },
     syncProjectConfigurationAsync: async () => {
-      await syncProjectConfigurationAsync(ctx.graphqlClient, {
+      await syncProjectConfigurationAsync({
         projectDir: ctx.projectDir,
         exp: ctx.exp,
         localAutoIncrement:
           ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
             ? false
             : ctx.buildProfile.autoIncrement,
-        projectId: ctx.projectId,
+        vcsClient: ctx.vcsClient,
+        env: ctx.buildProfile.env,
       });
     },
     prepareJobAsync: async (
       ctx: BuildContext<Platform.ANDROID>,
       jobData: JobData<AndroidCredentials>
-    ): Promise<Job> => {
+    ): Promise<Android.Job> => {
       return await prepareJobAsync(ctx, jobData);
     },
     sendBuildRequestAsync: async (
@@ -136,6 +147,7 @@ async function ensureAndroidCredentialsAsync(
   const androidApplicationIdentifier = await getApplicationIdAsync(
     ctx.projectDir,
     ctx.exp,
+    ctx.vcsClient,
     ctx.android.gradleContext
   );
   const provider = new AndroidCredentialsProvider(ctx.credentialsCtx, {

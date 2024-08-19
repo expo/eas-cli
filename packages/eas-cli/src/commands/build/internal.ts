@@ -6,7 +6,6 @@ import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand from '../../commandUtils/EasCommand';
 import { RequestedPlatform } from '../../platform';
 import { enableJsonOutput } from '../../utils/json';
-import { setVcsClient } from '../../vcs';
 import GitNoCommitClient from '../../vcs/clients/gitNoCommit';
 
 /**
@@ -30,6 +29,17 @@ export default class BuildInternal extends EasCommand {
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
+    'auto-submit': Flags.boolean({
+      default: false,
+      description:
+        'Submit on build complete using the submit profile with the same name as the build profile',
+      exclusive: ['auto-submit-with-profile'],
+    }),
+    'auto-submit-with-profile': Flags.string({
+      description: 'Submit on build complete using the submit profile with provided name',
+      helpValue: 'PROFILE_NAME',
+      exclusive: ['auto-submit'],
+    }),
   };
 
   static override contextDefinition = {
@@ -37,6 +47,7 @@ export default class BuildInternal extends EasCommand {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Analytics,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -49,29 +60,33 @@ export default class BuildInternal extends EasCommand {
       getDynamicPrivateProjectConfigAsync,
       projectDir,
       analytics,
+      vcsClient,
     } = await this.getContextAsync(BuildInternal, {
       nonInteractive: true,
+      vcsClientOverride: new GitNoCommitClient(),
     });
-
-    setVcsClient(new GitNoCommitClient());
 
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 
     await runBuildAndSubmitAsync(
       graphqlClient,
       analytics,
+      vcsClient,
       projectDir,
       {
         requestedPlatform: flags.platform as RequestedPlatform,
         profile: flags.profile,
         nonInteractive: true,
+        freezeCredentials: false,
         wait: false,
         clearCache: false,
         json: true,
-        autoSubmit: false,
+        autoSubmit: flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined,
         localBuildOptions: {
           localBuildMode: LocalBuildMode.INTERNAL,
         },
+        submitProfile: flags['auto-submit-with-profile'] ?? flags.profile,
+        repack: false,
       },
       actor,
       getDynamicPrivateProjectConfigAsync

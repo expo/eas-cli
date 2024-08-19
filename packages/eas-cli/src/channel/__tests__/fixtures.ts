@@ -124,6 +124,7 @@ export const testChannelObject: UpdateChannelObject = {
   id: '9309afc2-9752-40db-8ef7-4abc10744c61',
   name: 'production',
   createdAt: '2023-05-16T21:26:16.946Z',
+  updatedAt: '2023-05-16T21:26:16.946Z',
   branchMapping:
     '{"data":[{"branchId":"754bf17f-efc0-46ab-8a59-a03f20e53e9b","branchMappingLogic":{"operand":0.15,"clientKey":"rolloutToken","branchMappingOperator":"hash_lt"}},{"branchId":"6941a8dd-5c0a-48bc-8876-f49c88ed419f","branchMappingLogic":"true"}],"version":0}',
   updateBranches: [testUpdateBranch1, testUpdateBranch2],

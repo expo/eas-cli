@@ -18,7 +18,7 @@ export async function uploadFileAtPathToGCSAsync(
   graphqlClient: ExpoGraphqlClient,
   type: UploadSessionType,
   path: string,
-  handleProgressEvent: ProgressHandler
+  handleProgressEvent: ProgressHandler = () => {}
 ): Promise<string> {
   const signedUrl = await UploadSessionMutation.createUploadSessionAsync(graphqlClient, type);
 
@@ -28,13 +28,15 @@ export async function uploadFileAtPathToGCSAsync(
 
 export async function uploadWithPresignedPostWithRetryAsync(
   file: string,
-  presignedPost: PresignedPost
+  presignedPost: PresignedPost,
+  onAssetUploadBegin: () => void
 ): Promise<Response> {
   return await promiseRetry(
     async retry => {
       // retry fetch errors (usually connection or DNS errors)
       let response: Response;
       try {
+        onAssetUploadBegin();
         response = await uploadWithPresignedPostAsync(file, presignedPost);
       } catch (e: any) {
         return retry(e);

@@ -1,6 +1,12 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
+import {
+  formatBranch,
+  formatUpdateGroup,
+  formatUpdateTitle,
+  getUpdateGroupDescriptionsWithBranch,
+} from './utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import {
@@ -16,12 +22,6 @@ import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
-import {
-  formatBranch,
-  formatUpdateGroup,
-  formatUpdateTitle,
-  getUpdateGroupDescriptionsWithBranch,
-} from './utils';
 
 export const UPDATES_LIMIT = 50;
 export const UPDATE_GROUPS_LIMIT = 25;

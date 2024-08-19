@@ -26,7 +26,6 @@ export async function runRegistrationUrlMethodAsync(
   Log.log(
     'Open the following link on your iOS devices (or scan the QR code) and follow the instructions to install the development profile:'
   );
-  Log.newLine();
   Log.log(chalk.green(`${registrationURL}`));
 }
 

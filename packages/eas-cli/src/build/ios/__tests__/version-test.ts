@@ -6,6 +6,7 @@ import os from 'os';
 import type { XCBuildConfiguration } from 'xcode';
 
 import { readPlistAsync } from '../../../utils/plist';
+import { resolveVcsClient } from '../../../vcs';
 import {
   BumpStrategy,
   bumpVersionAsync,
@@ -17,6 +18,8 @@ import {
 } from '../version';
 
 jest.mock('fs');
+
+const vcsClient = resolveVcsClient();
 
 const getXCBuildConfigurationFromPbxproj = jest.spyOn(
   IOSConfig.Target,
@@ -59,7 +62,7 @@ describe(evaluateTemplateString, () => {
 // bare workflow
 describe(bumpVersionAsync, () => {
   beforeEach(() => {
-    getPbxproj.mockImplementation(() => ({} as any));
+    getPbxproj.mockImplementation((): any => {});
   });
   afterEach(() => {
     getXCBuildConfigurationFromPbxproj.mockReset();
@@ -73,7 +76,7 @@ describe(bumpVersionAsync, () => {
           buildSettings: {
             INFOPLIST_FILE: 'myproject/Info.plist',
           },
-        } as XCBuildConfiguration)
+        }) as XCBuildConfiguration
     );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.BUILD_NUMBER,
@@ -109,7 +112,7 @@ describe(bumpVersionAsync, () => {
           buildSettings: {
             INFOPLIST_FILE: '$(SRCROOT)/myproject/Info2.plist',
           },
-        } as XCBuildConfiguration)
+        }) as XCBuildConfiguration
     );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.BUILD_NUMBER,
@@ -144,7 +147,7 @@ describe(bumpVersionAsync, () => {
           buildSettings: {
             INFOPLIST_FILE: 'myproject/Info.plist',
           },
-        } as XCBuildConfiguration)
+        }) as XCBuildConfiguration
     );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.APP_VERSION,
@@ -179,7 +182,7 @@ describe(bumpVersionAsync, () => {
           buildSettings: {
             INFOPLIST_FILE: 'myproject/Info.plist',
           },
-        } as XCBuildConfiguration)
+        }) as XCBuildConfiguration
     );
     await bumpVersionAsync({
       bumpStrategy: BumpStrategy.NOOP,
@@ -262,7 +265,7 @@ describe(readBuildNumberAsync, () => {
   describe('bare project', () => {
     it('reads the build number from native code', async () => {
       const exp = initBareWorkflowProject();
-      const buildNumber = await readBuildNumberAsync('/app', exp, {});
+      const buildNumber = await readBuildNumberAsync('/app', exp, {}, vcsClient);
       expect(buildNumber).toBe('1');
     });
   });
@@ -270,7 +273,7 @@ describe(readBuildNumberAsync, () => {
   describe('managed project', () => {
     it('reads the build number from expo config', async () => {
       const exp = initManagedProject();
-      const buildNumber = await readBuildNumberAsync('/app', exp, {});
+      const buildNumber = await readBuildNumberAsync('/app', exp, {}, vcsClient);
       expect(buildNumber).toBe('1');
     });
   });
@@ -280,16 +283,21 @@ describe(readShortVersionAsync, () => {
   describe('bare project', () => {
     it('reads the short version from native code', async () => {
       const exp = initBareWorkflowProject();
-      const appVersion = await readShortVersionAsync('/app', exp, {});
+      const appVersion = await readShortVersionAsync('/app', exp, {}, vcsClient);
       expect(appVersion).toBe('1.0.0');
     });
     it('evaluates interpolated build number', async () => {
       const exp = initBareWorkflowProject({
         appVersion: '$(CURRENT_PROJECT_VERSION)',
       });
-      const buildNumber = await readShortVersionAsync('/app', exp, {
-        CURRENT_PROJECT_VERSION: '1.0.0',
-      });
+      const buildNumber = await readShortVersionAsync(
+        '/app',
+        exp,
+        {
+          CURRENT_PROJECT_VERSION: '1.0.0',
+        },
+        vcsClient
+      );
       expect(buildNumber).toBe('1.0.0');
     });
 
@@ -299,9 +307,14 @@ describe(readShortVersionAsync, () => {
       });
 
       await expect(
-        readShortVersionAsync('/app', exp, {
-          CURRENT_PROJECT_VERSION: '0.0.7.1.028',
-        })
+        readShortVersionAsync(
+          '/app',
+          exp,
+          {
+            CURRENT_PROJECT_VERSION: '0.0.7.1.028',
+          },
+          vcsClient
+        )
       ).rejects.toThrowError(
         'CFBundleShortVersionString (version field in app.json/app.config.js) must be a period-separated list of three non-negative integers. Current value: 0.0.7.1.028'
       );
@@ -311,7 +324,7 @@ describe(readShortVersionAsync, () => {
   describe('managed project', () => {
     it('reads the version from app config', async () => {
       const exp = initBareWorkflowProject();
-      const appVersion = await readShortVersionAsync('/app', exp, {});
+      const appVersion = await readShortVersionAsync('/app', exp, {}, vcsClient);
       expect(appVersion).toBe('1.0.0');
     });
   });

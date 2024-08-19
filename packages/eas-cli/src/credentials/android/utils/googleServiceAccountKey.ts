@@ -96,7 +96,7 @@ export async function detectGoogleServiceAccountKeyPathAsync(
 ): Promise<string | null> {
   const foundFilePaths = await glob('**/*.json', {
     cwd: projectDir,
-    ignore: ['app.json', 'package*.json', 'tsconfig.json', 'node_modules'],
+    ignore: ['app.json', 'package*.json', 'tsconfig.json', 'node_modules', 'google-services.json'],
   });
 
   const googleServiceFiles = foundFilePaths

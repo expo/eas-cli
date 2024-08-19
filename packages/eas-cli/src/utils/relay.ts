@@ -1,4 +1,5 @@
 import assert from 'assert';
+import cliProgress from 'cli-progress';
 
 import { PageInfo } from '../graphql/generated';
 import { promptAsync } from '../prompts';
@@ -262,14 +263,6 @@ export async function selectPaginatedAsync<T>({
   getTitleAsync: (node: T) => Promise<string>;
   printedType: string;
 }): Promise<T | null> {
-  // Dont bother prompting if there are 0 or 1 items
-  const connectionPreflight = await queryAsync({ first: pageSize });
-  const { edges } = connectionPreflight;
-  if (edges.length === 0) {
-    return null;
-  } else if (edges.length === 1) {
-    return edges[0].node;
-  }
   return await selectPaginatedInternalAsync({
     queryAsync,
     getTitleAsync,
@@ -296,11 +289,14 @@ async function selectPaginatedInternalAsync<T>({
   queryAsync: (queryParams: QueryParams) => Promise<Connection<T>>;
   getTitleAsync: (node: T) => Promise<string>;
   printedType: string;
-}): Promise<T> {
+}): Promise<T | null> {
   const limit = queryParams.first ?? queryParams.last;
   assert(limit, 'queryParams must have either first or last');
   const connection = await queryAsync(queryParams);
   const { edges, pageInfo } = connection;
+  if (edges.length === 0) {
+    return null;
+  }
   /*
    * The Relay spec has a weird definition on hasNextPage and hasPreviousPage:
    * 'If the client is paginating with last/before, then the server must return true if prior edges
@@ -360,4 +356,52 @@ async function selectPaginatedInternalAsync<T>({
   } else {
     return selectedItem as T;
   }
+}
+
+export type PaginatedGetterAsync<Node> = (relayArgs: QueryParams) => Promise<Connection<Node>>;
+export const PAGE_SIZE = 20;
+export async function fetchEntireDatasetAsync<Node>({
+  paginatedGetterAsync,
+  progressBarLabel,
+}: {
+  paginatedGetterAsync: PaginatedGetterAsync<Node>;
+  progressBarLabel?: string;
+}): Promise<Node[]> {
+  // No way to know the total count of items beforehand
+  let totalEstimatedWork = 10;
+  const queueProgressBar = new cliProgress.SingleBar(
+    { format: `|{bar}| ${progressBarLabel}` },
+    cliProgress.Presets.rect
+  );
+
+  const data: Node[] = [];
+  let cursor = undefined;
+  let didStartProgressBar = false;
+  let progress = 0;
+  while (true) {
+    const connection = await paginatedGetterAsync({ first: PAGE_SIZE, after: cursor });
+    const nodes = connection.edges.map(edge => edge.node);
+    const hasNextPage = connection.pageInfo.hasNextPage;
+    data.push(...nodes);
+    if (!hasNextPage) {
+      break;
+    }
+    cursor = connection.pageInfo.endCursor ?? undefined;
+    if (!didStartProgressBar) {
+      // only show the progress bar if user has more than 1 page of items
+      queueProgressBar.start(totalEstimatedWork, 0);
+      didStartProgressBar = true;
+    }
+    progress++;
+    queueProgressBar.update(progress);
+    if (progress >= totalEstimatedWork) {
+      totalEstimatedWork = 8 * totalEstimatedWork;
+      queueProgressBar.setTotal(totalEstimatedWork);
+    }
+  }
+  if (didStartProgressBar) {
+    queueProgressBar.update(totalEstimatedWork);
+    queueProgressBar.stop();
+  }
+  return data;
 }

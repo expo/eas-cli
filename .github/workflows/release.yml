@@ -27,9 +27,9 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: 18
+          node-version: 20
       - run: yarn install --frozen-lockfile --check-files
-      - run: yarn build-ci
+      - run: yarn build
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
         run: |
@@ -68,16 +68,22 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: 18
+          node-version: 20
+      - run: brew install python-setuptools
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
       - run: yarn install --frozen-lockfile --check-files
-      - run: yarn build-ci
+      - run: yarn build
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
         run: |
           yarn pretarball-ci
-          yarn oclif pack:tarballs --no-xz --targets darwin-x64
+          yarn oclif pack:tarballs --no-xz --targets darwin-x64,darwin-arm64
       - id: x64
         run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
+        working-directory: ${{ github.workspace }}/packages/eas-cli/dist
+      - id: arm64
+        run: echo "filename=$(ls eas-*-arm64.tar.gz)" >> $GITHUB_OUTPUT
         working-directory: ${{ github.workspace }}/packages/eas-cli/dist
       - name: Upload darwin-x64 tarball
         uses: actions/upload-release-asset@v1
@@ -88,6 +94,15 @@ jobs:
           asset_path: packages/eas-cli/dist/${{ steps.x64.outputs.filename }}
           asset_name: ${{ steps.x64.outputs.filename }}
           asset_content_type: application/gzip
+      - name: Upload darwin-arm64 tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: packages/eas-cli/dist/${{ steps.arm64.outputs.filename }}
+          asset_name: ${{ steps.arm64.outputs.filename }}
+          asset_content_type: application/gzip
   build-windows:
     name: Build for Windows
     runs-on: ubuntu-latest
@@ -96,10 +111,10 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: 18
+          node-version: 20
       - run: yarn install --frozen-lockfile --check-files
       - run: sudo apt-get install nsis
-      - run: yarn build-ci
+      - run: yarn build
       - run: |
           yarn pretarball-ci
           yarn oclif pack:win
@@ -138,11 +153,11 @@ jobs:
         with:
           registry-url: 'https://registry.npmjs.org/'
           scope: 'expo'
-          node-version: 18
+          node-version: 20
       - name: Install dependencies
         run: yarn install --frozen-lockfile --check-files
       - name: Build
-        run: yarn build-ci
+        run: yarn build
       - name: Publish packages to npm
         run: yarn lerna publish from-package --yes --no-verify-access
         env:
@@ -152,7 +167,13 @@ jobs:
           VERSION=$(cat lerna.json | jq -r .version)
           echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
           npm dist-tag add eas-cli@$VERSION latest-eas-build-staging
-          echo "Run \"npm dist-tag add eas-cli@$VERSION latest-eas-build\" to promote it to production."
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+      - name: Add latest-eas-build tag
+        run: |
+          VERSION=$(cat lerna.json | jq -r .version)
+          echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
+          npm dist-tag add eas-cli@$VERSION latest-eas-build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
   release-changelog:
@@ -165,7 +186,7 @@ jobs:
           token: ${{ secrets.EXPO_BOT_PAT }}
       - uses: actions/setup-node@v2
         with:
-          node-version: 18
+          node-version: 20
       - name: Install dependencies
         working-directory: ./scripts
         run: yarn install --frozen-lockfile --check-files
@@ -175,7 +196,7 @@ jobs:
         working-directory: ./scripts
         run: yarn --silent release-changelog $EAS_CLI_VERSION > /tmp/current-changelog
       - name: Publish release
-        run: hub release edit v$EAS_CLI_VERSION --draft=false -F /tmp/current-changelog
+        run: gh release edit v$EAS_CLI_VERSION --draft=false -F /tmp/current-changelog
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Commit and push
@@ -205,3 +226,16 @@ jobs:
           SLACK_USERNAME: 'EAS CLI CI'
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_FOOTER: ''
+  open-pr-in-universe:
+    name: Open a PR with `@expo/eas-json` bump in universe
+    needs: publish-to-npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Open a PR with `@expo/eas-json` version bump in universe
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          repo: expo/universe
+          ref: main
+          workflow: update-eas-json.yml
+          token: ${{ secrets.EXPO_BOT_PAT }}

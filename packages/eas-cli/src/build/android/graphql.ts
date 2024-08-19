@@ -2,6 +2,7 @@ import { Android } from '@expo/eas-build-job';
 
 import { AndroidBuildType, AndroidJobInput } from '../../graphql/generated';
 import {
+  loggerLevelToGraphQLWorkerLoggerLevel,
   transformBuildMode,
   transformBuildTrigger,
   transformProjectArchive,
@@ -14,7 +15,6 @@ export function transformJob(job: Android.Job): AndroidJobInput {
     triggeredBy: transformBuildTrigger(job.triggeredBy),
     projectArchive: transformProjectArchive(job.projectArchive),
     projectRootDirectory: job.projectRootDirectory,
-    releaseChannel: job.releaseChannel,
     updates: job.updates,
     secrets: job.secrets,
     builderEnvironment: job.builderEnvironment,
@@ -29,6 +29,9 @@ export function transformJob(job: Android.Job): AndroidJobInput {
     experimental: job.experimental,
     mode: transformBuildMode(job.mode),
     customBuildConfig: job.customBuildConfig,
+    loggerLevel: job.loggerLevel
+      ? loggerLevelToGraphQLWorkerLoggerLevel[job.loggerLevel]
+      : undefined,
   };
 }
 

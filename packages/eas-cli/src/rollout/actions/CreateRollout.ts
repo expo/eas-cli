@@ -1,7 +1,12 @@
 import assert from 'assert';
 
+import { SelectRuntime } from './SelectRuntime';
 import { SelectBranch } from '../../branch/actions/SelectBranch';
-import { getStandardBranchId, hasStandardBranchMap } from '../../channel/branch-mapping';
+import {
+  getStandardBranchId,
+  hasEmptyBranchMap,
+  hasStandardBranchMap,
+} from '../../channel/branch-mapping';
 import { getUpdateBranch } from '../../channel/utils';
 import { updateChannelBranchMappingAsync } from '../../commands/channel/edit';
 import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
@@ -18,7 +23,10 @@ import {
 } from '../../graphql/queries/ChannelQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
-import { confirmAsync } from '../../prompts';
+import { resolveRuntimeVersionAsync } from '../../project/resolveRuntimeVersionAsync';
+import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
+import { confirmAsync, promptAsync } from '../../prompts';
+import { truthy } from '../../utils/expodash/filter';
 import {
   composeRollout,
   createRolloutBranchMapping,
@@ -30,7 +38,6 @@ import {
   formatBranchWithUpdateGroup,
   promptForRolloutPercentAsync,
 } from '../utils';
-import { SelectRuntime } from './SelectRuntime';
 
 export type NonInteractiveOptions = {
   branchNameToRollout: string;
@@ -69,6 +76,11 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     if (isRollout(this.channelInfo)) {
       throw new Error(`A rollout is already in progress for channel ${this.channelInfo.name}`);
     }
+    if (hasEmptyBranchMap(this.channelInfo)) {
+      throw new Error(
+        `Your channel needs to be linked to a branch before a rollout can be created. Do this by running 'eas channel:edit'`
+      );
+    }
     if (!hasStandardBranchMap(this.channelInfo)) {
       throw new Error(
         `You have a custom branch mapping. Map your channel to a single branch before creating a rollout. Received: ${this.channelInfo.branchMapping}`
@@ -88,7 +100,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
       this.options.runtimeVersion ??
       (await this.selectRuntimeVersionAsync(ctx, branchInfoToRollout, defaultBranchId));
     Log.newLine();
-    const promptMessage = `What percent of users should be routed to branch ${branchInfoToRollout.name}?`;
+    const promptMessage = `What percent of users should be rolled out to branch ${branchInfoToRollout.name}?`;
     const percent = this.options.percent ?? (await promptForRolloutPercentAsync({ promptMessage }));
     const rolloutBranchMapping = createRolloutBranchMapping({
       defaultBranchId,
@@ -196,10 +208,109 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
       channelName: this.channelInfo.name,
     });
     const defaultBranchRtvAgnostic = getUpdateBranch(channelObjectRtvAgnostic, defaultBranchId);
-    const selectRuntimeAction = new SelectRuntime(branchToRollout, {
+    const selectSharedRuntimeAction = new SelectRuntime(branchToRollout, {
       anotherBranchToIntersectRuntimesBy: defaultBranchRtvAgnostic,
     });
-    return await selectRuntimeAction.runAsync(ctx);
+    const sharedRuntime = await selectSharedRuntimeAction.runAsync(ctx);
+    if (sharedRuntime) {
+      return sharedRuntime;
+    }
+
+    return await this.selectRuntimeVersionFromAlternativeSourceAsync(
+      ctx,
+      branchToRollout,
+      defaultBranchRtvAgnostic
+    );
+  }
+
+  async selectRuntimeVersionFromAlternativeSourceAsync(
+    ctx: EASUpdateContext,
+    branchToRollout: UpdateBranchBasicInfoFragment,
+    defaultBranch: UpdateBranchBasicInfoFragment
+  ): Promise<string> {
+    const { runtimeSource: selectedRuntimeSource } = await promptAsync({
+      type: 'select',
+      name: 'runtimeSource',
+      message: `What would you like to do?`,
+      choices: [
+        {
+          value: 'DEFAULT_BRANCH_RUNTIME',
+          title: `Find a runtime supported on the ${defaultBranch.name} branch`,
+        },
+        {
+          value: 'ROLLED_OUT_BRANCH_RUNTIME',
+          title: `Find a runtime supported on the ${branchToRollout.name} branch`,
+        },
+        {
+          value: 'PROJECT_RUNTIME',
+          title: 'Use the runtime specified in your project config',
+        },
+      ],
+    });
+    if (selectedRuntimeSource === 'DEFAULT_BRANCH_RUNTIME') {
+      const selectDefaultBranchRuntimeAction = new SelectRuntime(defaultBranch);
+      const defaultBranchRuntime = await selectDefaultBranchRuntimeAction.runAsync(ctx);
+      if (defaultBranchRuntime) {
+        return defaultBranchRuntime;
+      }
+    } else if (selectedRuntimeSource === 'ROLLED_OUT_BRANCH_RUNTIME') {
+      const selectBranchToRolloutRuntimeAction = new SelectRuntime(branchToRollout);
+      const branchToRolloutRuntime = await selectBranchToRolloutRuntimeAction.runAsync(ctx);
+      if (branchToRolloutRuntime) {
+        return branchToRolloutRuntime;
+      }
+    } else if (selectedRuntimeSource === 'PROJECT_RUNTIME') {
+      return await this.selectRuntimeVersionFromProjectConfigAsync(ctx);
+    } else {
+      throw new Error(`Unexpected runtime source: ${selectedRuntimeSource}`);
+    }
+    return await this.selectRuntimeVersionFromAlternativeSourceAsync(
+      ctx,
+      branchToRollout,
+      defaultBranch
+    );
+  }
+
+  async selectRuntimeVersionFromProjectConfigAsync(ctx: EASUpdateContext): Promise<string> {
+    const platforms: ('ios' | 'android')[] = ['ios', 'android'];
+    const workflows = await resolveWorkflowPerPlatformAsync(ctx.app.projectDir, ctx.vcsClient);
+    const runtimes = (
+      await Promise.all(
+        platforms.map(platform =>
+          resolveRuntimeVersionAsync({
+            projectDir: ctx.app.projectDir,
+            exp: ctx.app.exp,
+            platform,
+            workflow: workflows[platform],
+            env: undefined,
+          })
+        )
+      )
+    )
+      .map(runtime => runtime?.runtimeVersion)
+      .filter(truthy);
+    const dedupedRuntimes = [...new Set(runtimes)];
+
+    if (dedupedRuntimes.length === 0) {
+      throw new Error(
+        `Your project config doesn't specify a runtime. Ensure your project is configured correctly for EAS Update by running \`eas update:configure\``
+      );
+    } else if (dedupedRuntimes.length === 1) {
+      const runtime = dedupedRuntimes[0];
+      Log.log(`🔧 Your project config currently supports runtime ${runtime}`);
+      return runtime;
+    }
+
+    const { runtime: selectedRuntime } = await promptAsync({
+      type: 'select',
+      name: 'runtime',
+      message: `Select a runtime supported by your project config`,
+      choices: runtimes.map((runtime, index) => ({
+        title: `${runtime} ${index === 0 ? '[iOS runtime]' : '[Android runtime]'}`,
+        value: runtime,
+      })),
+    });
+    return selectedRuntime;
   }
 
   async selectBranchAsync(
@@ -207,14 +318,17 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     defaultBranchId: string
   ): Promise<UpdateBranchBasicInfoFragment> {
     const selectBranchAction = new SelectBranch({
-      printedType: 'branch to rollout',
+      printedType: 'branch to roll out',
       // we don't want to show the default branch as an option
       filterPredicate: (branchInfo: UpdateBranchBasicInfoFragment) =>
         branchInfo.id !== defaultBranchId,
     });
     const branchInfo = await selectBranchAction.runAsync(ctx);
     if (!branchInfo) {
-      throw new Error(`You dont have any branches. Create one with 'eas branch:create'`);
+      // We know the user has at least one branch, since we have `defaultBranchId`
+      throw new Error(
+        `You don't have a second branch to roll out. Create it with 'eas branch:create'`
+      );
     }
     return branchInfo;
   }

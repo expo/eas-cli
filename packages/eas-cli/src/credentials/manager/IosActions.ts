@@ -1,5 +1,5 @@
-import { CredentialsContext } from '../context';
 import { ActionInfo, IosActionType, Scope } from './Actions';
+import { CredentialsContext } from '../context';
 
 export const highLevelActions: ActionInfo[] = [
   {

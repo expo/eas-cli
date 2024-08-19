@@ -14,9 +14,9 @@ import { promises as fs } from 'fs';
 import { pki as PKI } from 'node-forge';
 import nullthrows from 'nullthrows';
 
+import areSetsEqual from './expodash/areSetsEqual';
 import { Response } from '../fetch';
 import { PartialManifest, PartialManifestAsset } from '../graphql/generated';
-import areSetsEqual from './expodash/areSetsEqual';
 
 export type CodeSigningInfo = {
   privateKey: PKI.rsa.PrivateKey;

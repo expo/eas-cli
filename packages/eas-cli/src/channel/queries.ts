@@ -2,6 +2,11 @@ import chalk from 'chalk';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import { ChannelNotFoundError } from './errors';
+import { logChannelDetails } from './print-utils';
+import { ChannelBasicInfo } from './utils';
+import { createUpdateBranchOnAppAsync } from '../branch/queries';
+import { BranchNotFoundError } from '../branch/utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { withErrorHandlingAsync } from '../graphql/client';
@@ -15,13 +20,13 @@ import { BranchQuery, UpdateBranchOnChannelObject } from '../graphql/queries/Bra
 import { ChannelQuery, UpdateChannelObject } from '../graphql/queries/ChannelQuery';
 import { UpdateChannelBasicInfoFragmentNode } from '../graphql/types/UpdateChannelBasicInfo';
 import Log from '../log';
+import { getDisplayNameForProjectIdAsync } from '../project/projectUtils';
 import formatFields from '../utils/formatFields';
 import { printJsonOnlyOutput } from '../utils/json';
 import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
-import { logChannelDetails } from './print-utils';
 
 export const CHANNELS_LIMIT = 25;
 
@@ -263,4 +268,102 @@ export async function ensureChannelExistsAsync(
       throw e;
     }
   }
+}
+
+export async function doesChannelExistAsync(
+  graphqlClient: ExpoGraphqlClient,
+  { appId, channelName }: { appId: string; channelName: string }
+): Promise<boolean> {
+  try {
+    await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
+      appId,
+      channelName,
+    });
+  } catch (err) {
+    if (err instanceof ChannelNotFoundError) {
+      return false;
+    }
+    throw err;
+  }
+  return true;
+}
+
+/**
+ *
+ * Creates a channel and links it to a branch with the same name.
+ *
+ * @param appId the app ID, also known as the project ID
+ * @param channelName the name of the channel to create
+ * @param shouldPrintJson print only the JSON output
+ */
+export async function createAndLinkChannelAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    appId,
+    channelName,
+    shouldPrintJson,
+  }: { appId: string; channelName: string; shouldPrintJson?: boolean }
+): Promise<ChannelBasicInfo> {
+  let branchId: string;
+  let branchMessage: string;
+
+  try {
+    const branch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
+      appId,
+      name: channelName,
+    });
+    branchId = branch.id;
+    branchMessage = `We found a branch with the same name`;
+  } catch (error) {
+    if (error instanceof BranchNotFoundError) {
+      const newBranch = await createUpdateBranchOnAppAsync(graphqlClient, {
+        appId,
+        name: channelName,
+      });
+      branchId = newBranch.id;
+      branchMessage = `We also went ahead and made a branch with the same name`;
+    } else {
+      throw error;
+    }
+  }
+
+  const {
+    updateChannel: { createUpdateChannelForApp: newChannel },
+  } = await createChannelOnAppAsync(graphqlClient, {
+    appId,
+    channelName,
+    branchId,
+  });
+
+  if (!newChannel) {
+    throw new Error(
+      `Could not create channel with name ${channelName} on project with id ${appId}`
+    );
+  }
+
+  if (shouldPrintJson) {
+    printJsonOnlyOutput(newChannel);
+  } else {
+    Log.addNewLineIfNone();
+    Log.withTick(
+      `Created a new channel on project ${chalk.bold(
+        await getDisplayNameForProjectIdAsync(graphqlClient, appId)
+      )}`
+    );
+    Log.log(
+      formatFields([
+        { label: 'Name', value: newChannel.name },
+        { label: 'ID', value: newChannel.id },
+      ])
+    );
+    Log.addNewLineIfNone();
+    Log.withTick(`${branchMessage} and have pointed the channel at it.`);
+    Log.log(
+      formatFields([
+        { label: 'Name', value: newChannel.name },
+        { label: 'ID', value: branchId },
+      ])
+    );
+  }
+  return newChannel;
 }

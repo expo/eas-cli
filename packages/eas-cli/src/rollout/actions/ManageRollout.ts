@@ -1,12 +1,6 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
-import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
-import { ChannelQuery, UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
-import { promptAsync } from '../../prompts';
-import { getRolloutInfo, isConstrainedRolloutInfo, isRollout } from '../branch-mapping';
-import { printRollout } from '../utils';
 import {
   EditRollout,
   NonInteractiveOptions as EditRolloutNonInteractiveOptions,
@@ -16,10 +10,17 @@ import {
   GeneralOptions as EndRolloutGeneralOptions,
   NonInteractiveOptions as EndRolloutNonInteractiveOptions,
 } from './EndRollout';
+import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
+import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
+import { ChannelQuery, UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
+import { promptAsync } from '../../prompts';
+import { getRolloutInfo, isConstrainedRolloutInfo, isRollout } from '../branch-mapping';
+import { printRollout } from '../utils';
 
 export enum ManageRolloutActions {
   EDIT = 'Edit',
   END = 'End',
+  VIEW = 'View',
   GO_BACK = 'Go back',
 }
 
@@ -31,7 +32,7 @@ export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
     private channelInfo: UpdateChannelBasicInfoFragment,
     private options: {
       callingAction?: EASUpdateAction;
-      action?: ManageRolloutActions.EDIT | ManageRolloutActions.END;
+      action?: ManageRolloutActions.EDIT | ManageRolloutActions.END | ManageRolloutActions.VIEW;
     } & Partial<EditRolloutNonInteractiveOptions> &
       Partial<EndRolloutNonInteractiveOptions> &
       EndRolloutGeneralOptions
@@ -51,6 +52,9 @@ export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
         return new EditRollout(this.channelInfo, this.options);
       case ManageRolloutActions.END:
         return new EndRollout(this.channelInfo, this.options);
+      case ManageRolloutActions.VIEW:
+        // Rollout is automatically printed in interactive mode
+        return new Noop();
       case ManageRolloutActions.GO_BACK:
         assert(this.options.callingAction, 'calling action must be defined');
         return this.options.callingAction;
@@ -93,4 +97,8 @@ export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
         : {}),
     });
   }
+}
+
+class Noop {
+  public async runAsync(): Promise<void> {}
 }

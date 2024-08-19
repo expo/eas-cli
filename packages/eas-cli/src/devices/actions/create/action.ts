@@ -1,18 +1,20 @@
 import chalk from 'chalk';
 
+import { runCurrentMachineMethodAsync } from './currentMachineMethod';
+import { runDeveloperPortalMethodAsync } from './developerPortalMethod';
+import { runInputMethodAsync } from './inputMethod';
+import { runRegistrationUrlMethodAsync } from './registrationUrlMethod';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import AppStoreApi from '../../../credentials/ios/appstore/AppStoreApi';
 import { AccountFragment, AppleTeam } from '../../../graphql/generated';
 import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
-import { runDeveloperPortalMethodAsync } from './developerPortalMethod';
-import { runInputMethodAsync } from './inputMethod';
-import { runRegistrationUrlMethodAsync } from './registrationUrlMethod';
 
 export enum RegistrationMethod {
   WEBSITE,
   INPUT,
   DEVELOPER_PORTAL,
+  CURRENT_MACHINE,
   EXIT,
 }
 
@@ -32,11 +34,13 @@ export default class DeviceCreateAction {
       await runDeveloperPortalMethodAsync(
         this.graphqlClient,
         this.appStoreApi,
-        this.account.id,
+        this.account,
         this.appleTeam
       );
     } else if (method === RegistrationMethod.INPUT) {
       await runInputMethodAsync(this.graphqlClient, this.account.id, this.appleTeam);
+    } else if (method === RegistrationMethod.CURRENT_MACHINE) {
+      await runCurrentMachineMethodAsync(this.graphqlClient, this.account.id, this.appleTeam);
     } else if (method === RegistrationMethod.EXIT) {
       Log.log('Bye!');
       process.exit(0);
@@ -65,6 +69,12 @@ export default class DeviceCreateAction {
         {
           title: `${chalk.bold('Input')} - allows you to type in UDIDs (advanced option)`,
           value: RegistrationMethod.INPUT,
+        },
+        {
+          title: `${chalk.bold(
+            'Current Machine'
+          )} - automatically sets the provisioning UDID of the current Apple Silicon machine`,
+          value: RegistrationMethod.CURRENT_MACHINE,
         },
         { title: chalk.bold('Exit'), value: RegistrationMethod.EXIT },
       ],

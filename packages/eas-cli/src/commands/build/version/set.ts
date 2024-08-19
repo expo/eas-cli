@@ -1,4 +1,4 @@
-import { getRuntimeVersionNullable } from '@expo/config-plugins/build/utils/Updates';
+import { getRuntimeVersionNullableAsync } from '@expo/config-plugins/build/utils/Updates';
 import { Platform } from '@expo/eas-build-job';
 import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
@@ -41,6 +41,7 @@ export default class BuildVersionSetView extends EasCommand {
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.Vcs,
   };
 
   public async runAsync(): Promise<void> {
@@ -49,6 +50,7 @@ export default class BuildVersionSetView extends EasCommand {
       loggedIn: { graphqlClient },
       getDynamicPrivateProjectConfigAsync,
       projectDir,
+      vcsClient,
     } = await this.getContextAsync(BuildVersionSetView, {
       nonInteractive: false,
     });
@@ -74,6 +76,8 @@ export default class BuildVersionSetView extends EasCommand {
       exp,
       buildProfile: profile,
       platform,
+      vcsClient,
+      nonInteractive: false,
     });
     const remoteVersions = await AppVersionQuery.latestVersionAsync(
       graphqlClient,
@@ -113,7 +117,8 @@ export default class BuildVersionSetView extends EasCommand {
       applicationIdentifier,
       storeVersion: exp.version ?? '1.0.0',
       buildVersion: String(version),
-      runtimeVersion: getRuntimeVersionNullable(exp, platform) ?? undefined,
+      runtimeVersion:
+        (await getRuntimeVersionNullableAsync(projectDir, exp, platform)) ?? undefined,
     });
   }
 }

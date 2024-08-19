@@ -17,6 +17,7 @@ export const BuildFragmentNode = gql`
       buildUrl
       xcodeBuildLogsUrl
       applicationArchiveUrl
+      buildArtifactsUrl
     }
     initiatingActor {
       __typename
@@ -36,7 +37,6 @@ export const BuildFragmentNode = gql`
       }
     }
     channel
-    releaseChannel
     distribution
     iosEnterpriseProvisioning
     buildProfile
@@ -54,8 +54,8 @@ export const BuildFragmentNode = gql`
     updatedAt
     message
     completedAt
-    resourceClass
     expirationDate
+    isForIosSimulator
   }
 `;
 

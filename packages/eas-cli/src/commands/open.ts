@@ -37,7 +37,6 @@ export default class Open extends EasCommand {
       } else {
         spinner.fail(failedMessage);
       }
-      return;
     } catch (error) {
       spinner.fail(failedMessage);
       throw error;

@@ -3,6 +3,7 @@ import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 import resolveFrom from 'resolve-from';
 
+import { reviewAndCommitChangesAsync } from './repository';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import Log, { learnMore } from '../../log';
 import { appPlatformDisplayNames } from '../../platform';
@@ -10,15 +11,16 @@ import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync } from '../../prompts';
 import { expoCommandAsync } from '../../utils/expoCli';
 import { ProfileData } from '../../utils/profiles';
-import { getVcsClient } from '../../vcs';
-import { reviewAndCommitChangesAsync } from './repository';
+import { Client } from '../../vcs/vcs';
 
 export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
   projectDir,
+  vcsClient,
   nonInteractive = false,
   buildProfiles = [],
 }: {
   projectDir: string;
+  vcsClient: Client;
   nonInteractive?: boolean;
   buildProfiles?: ProfileData<'build'>[];
 }): Promise<void> {
@@ -41,7 +43,7 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
   );
 
   const workflowPerPlatformList = await Promise.all(
-    platformsToCheck.map(platform => resolveWorkflowAsync(projectDir, platform))
+    platformsToCheck.map(platform => resolveWorkflowAsync(projectDir, platform, vcsClient))
   );
 
   Log.newLine();
@@ -55,6 +57,19 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
       'expo-dev-client'
     )} installed for your project.`
   );
+  if (nonInteractive) {
+    Log.error(`You'll need to install ${chalk.bold('expo-dev-client')} manually.`);
+    Log.error(
+      learnMore('https://docs.expo.dev/clients/installation/', {
+        learnMoreMessage: 'See installation instructions on how to do it.',
+        dim: false,
+      })
+    );
+    Errors.error(`Install ${chalk.bold('expo-dev-client')} manually and try again later.`, {
+      exit: 1,
+    });
+  }
+
   const areAllManaged = workflowPerPlatformList.every(i => i === Workflow.MANAGED);
   if (areAllManaged) {
     const install = await confirmAsync({
@@ -62,7 +77,7 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
       instructions: 'The command will abort unless you agree.',
     });
     if (install) {
-      await installExpoDevClientAsync(projectDir, { nonInteractive });
+      await installExpoDevClientAsync(projectDir, vcsClient, { nonInteractive });
     } else {
       Errors.error(`Install ${chalk.bold('expo-dev-client')} manually and come back later.`, {
         exit: 1,
@@ -100,6 +115,7 @@ async function isExpoDevClientInstalledAsync(projectDir: string): Promise<boolea
 
 async function installExpoDevClientAsync(
   projectDir: string,
+  vcsClient: Client,
   { nonInteractive }: { nonInteractive: boolean }
 ): Promise<void> {
   Log.newLine();
@@ -107,8 +123,8 @@ async function installExpoDevClientAsync(
   Log.newLine();
   await expoCommandAsync(projectDir, ['install', 'expo-dev-client']);
   Log.newLine();
-  if (await getVcsClient().isCommitRequiredAsync()) {
-    await reviewAndCommitChangesAsync('Install expo-dev-client', {
+  if (await vcsClient.isCommitRequiredAsync()) {
+    await reviewAndCommitChangesAsync(vcsClient, 'Install expo-dev-client', {
       nonInteractive,
     });
   }

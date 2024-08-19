@@ -1,14 +1,14 @@
 import { Platform } from '@expo/eas-build-job';
 import envString from 'env-string';
 
-import { MissingParentProfileError, MissingProfileError } from '../errors';
-import { EasJson } from '../types';
-import { AndroidSubmitProfileSchema, IosSubmitProfileSchema } from './schema';
+import { AndroidSubmitProfileSchema, ResolvedIosSubmitProfileSchema } from './schema';
 import {
   AndroidSubmitProfileFieldsToEvaluate,
   IosSubmitProfileFieldsToEvaluate,
   SubmitProfile,
 } from './types';
+import { MissingParentProfileError, MissingProfileError } from '../errors';
+import { EasJson } from '../types';
 
 export function resolveSubmitProfile<T extends Platform>({
   easJson,
@@ -99,7 +99,7 @@ function mergeProfiles<T extends Platform>(
 
 export function getDefaultProfile<T extends Platform>(platform: T): SubmitProfile<T> {
   const Schema =
-    platform === Platform.ANDROID ? AndroidSubmitProfileSchema : IosSubmitProfileSchema;
+    platform === Platform.ANDROID ? AndroidSubmitProfileSchema : ResolvedIosSubmitProfileSchema;
   return Schema.validate({}, { allowUnknown: false, abortEarly: false, convert: true }).value;
 }
 

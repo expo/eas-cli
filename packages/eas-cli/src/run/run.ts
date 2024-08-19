@@ -1,6 +1,6 @@
-import { AppPlatform } from '../graphql/generated';
 import { runAppOnAndroidEmulatorAsync } from './android/run';
 import { runAppOnIosSimulatorAsync } from './ios/run';
+import { AppPlatform } from '../graphql/generated';
 
 export interface RunArchiveFlags {
   latest?: boolean;

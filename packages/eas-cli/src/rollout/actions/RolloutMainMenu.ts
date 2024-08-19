@@ -1,12 +1,5 @@
 import assert from 'assert';
 
-import { SelectChannel } from '../../channel/actions/SelectChannel';
-import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
-import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
-import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
-import Log from '../../log';
-import { promptAsync } from '../../prompts';
-import { isRollout } from '../branch-mapping';
 import {
   CreateRollout,
   NonInteractiveOptions as CreateRolloutNonInteractiveOptions,
@@ -18,6 +11,13 @@ import {
 } from './EndRollout';
 import { ManageRollout, ManageRolloutActions } from './ManageRollout';
 import { SelectRollout } from './SelectRollout';
+import { SelectChannel } from '../../channel/actions/SelectChannel';
+import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
+import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
+import Log from '../../log';
+import { promptAsync } from '../../prompts';
+import { isRollout } from '../branch-mapping';
 
 export enum MainMenuActions {
   CREATE_NEW = 'Create a new rollout',
@@ -27,7 +27,8 @@ export enum MainMenuActions {
 export type RolloutActions =
   | MainMenuActions.CREATE_NEW
   | ManageRolloutActions.EDIT
-  | ManageRolloutActions.END;
+  | ManageRolloutActions.END
+  | ManageRolloutActions.VIEW;
 
 /**
  * Manage a rollout for the project.
@@ -59,7 +60,7 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
       case MainMenuActions.CREATE_NEW: {
         const channelInfo = channelName
           ? await this.resolveChannelNameAsync(ctx, channelName)
-          : await this.selectChannelAsync(ctx, channelInfo => !isRollout(channelInfo));
+          : await this.selectChannelToRolloutAsync(ctx);
         await new CreateRollout(channelInfo, this.options).runAsync(ctx);
         return null;
       }
@@ -92,14 +93,22 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
     return channelInfo;
   }
 
-  async selectChannelAsync(
-    ctx: EASUpdateContext,
-    filterPredicate?: (channelInfo: UpdateChannelBasicInfoFragment) => boolean
+  async selectChannelToRolloutAsync(
+    ctx: EASUpdateContext
   ): Promise<UpdateChannelBasicInfoFragment> {
-    const selectChannelAction = new SelectChannel({ filterPredicate });
+    let hasSomeChannel = false;
+    const selectChannelAction = new SelectChannel({
+      filterPredicate: (channelInfo: UpdateChannelBasicInfoFragment) => {
+        hasSomeChannel = true;
+        return !isRollout(channelInfo);
+      },
+    });
     const channelInfo = await selectChannelAction.runAsync(ctx);
     if (!channelInfo) {
-      throw new Error(`You dont have any channels. Create one with <TODO>`);
+      const error = hasSomeChannel
+        ? new Error('All your channels are already part of a rollout.')
+        : new Error(`You dont have any channels. Create one with \`eas channel:create\``);
+      throw error;
     }
     return channelInfo;
   }
@@ -118,7 +127,11 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
   toMainMenuAction(action: RolloutActions): MainMenuActions {
     if (action === MainMenuActions.CREATE_NEW) {
       return MainMenuActions.CREATE_NEW;
-    } else if (action === ManageRolloutActions.EDIT || action === ManageRolloutActions.END) {
+    } else if (
+      action === ManageRolloutActions.EDIT ||
+      action === ManageRolloutActions.END ||
+      action === ManageRolloutActions.VIEW
+    ) {
       return MainMenuActions.MANAGE_EXISTING;
     } else {
       throw new Error(`Action not supported yet: ` + action);

@@ -1,8 +1,8 @@
+import { selectPushKeyAsync } from './PushKeyUtils';
 import { AccountFragment, ApplePushKeyFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
-import { selectPushKeyAsync } from './PushKeyUtils';
 
 export class SelectAndRemovePushKey {
   constructor(private account: AccountFragment) {}
@@ -27,9 +27,14 @@ export class RemovePushKey {
 
     const apps = this.pushKey.iosAppCredentialsList.map(appCredentials => appCredentials.app);
     if (apps.length !== 0) {
-      const appFullNames = apps.map(app => app.fullName).join(',');
+      // iosAppCredentialsList is capped at 20 on www
+      const appFullNames = apps
+        .map(app => app.fullName)
+        .slice(0, 19)
+        .join(',');
+      const andMaybeMore = apps.length > 19 ? ' (and more)' : '';
       const confirm = await confirmAsync({
-        message: `Removing this push key will disable push notifications for ${appFullNames}. Do you want to continue?`,
+        message: `Removing this push key will disable push notifications for ${appFullNames}${andMaybeMore}. Do you want to continue?`,
       });
       if (!confirm) {
         Log.log('Aborting');

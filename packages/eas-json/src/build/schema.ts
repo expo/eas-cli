@@ -14,7 +14,6 @@ const AllowedAndroidResourceClasses: ResourceClass[] = AllowedCommonResourceClas
 const AllowedIosResourceClasses: ResourceClass[] = [
   ...AllowedCommonResourceClasses,
   ResourceClass.M1_MEDIUM,
-  ResourceClass.INTEL_MEDIUM,
   ResourceClass.M_MEDIUM,
   ResourceClass.M_LARGE,
 ];
@@ -25,9 +24,11 @@ const CacheSchema = Joi.object({
   cacheDefaultPaths: Joi.boolean(),
   customPaths: Joi.array().items(Joi.string()),
   paths: Joi.array().items(Joi.string()),
-}).rename('customPaths', 'paths')
+})
+  .rename('customPaths', 'paths')
   .messages({
-    'object.rename.override': 'Cannot provide both "cache.customPaths" and "cache.paths" - use "cache.paths"'
+    'object.rename.override':
+      'Cannot provide both "cache.customPaths" and "cache.paths" - use "cache.paths"',
   });
 
 const CommonBuildProfileSchema = Joi.object({
@@ -37,6 +38,8 @@ const CommonBuildProfileSchema = Joi.object({
   // build environment
   env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)),
   node: Joi.string().empty(null).custom(semverCheck),
+  pnpm: Joi.string().empty(null).custom(semverCheck),
+  bun: Joi.string().empty(null).custom(semverCheck),
   yarn: Joi.string().empty(null).custom(semverCheck),
   expoCli: Joi.string().empty(null).custom(semverCheck),
 
@@ -63,6 +66,11 @@ const CommonBuildProfileSchema = Joi.object({
 
   // custom build configuration
   config: Joi.string(),
+
+  // credentials
+  withoutCredentials: Joi.boolean(),
+
+  environment: Joi.string().valid('preview', 'production', 'development'),
 });
 
 const PlatformBuildProfileSchema = CommonBuildProfileSchema.concat(
@@ -83,9 +91,6 @@ const AndroidBuildProfileSchema = PlatformBuildProfileSchema.concat(
 
     // build environment
     ndk: Joi.string().empty(null).custom(semverCheck),
-
-    // credentials
-    withoutCredentials: Joi.boolean(),
 
     // build configuration
     gradleCommand: Joi.string(),

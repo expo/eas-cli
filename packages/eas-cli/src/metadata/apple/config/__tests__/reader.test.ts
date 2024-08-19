@@ -5,8 +5,8 @@ import {
   ReleaseType,
 } from '@expo/apple-utils';
 
-import { AppleConfigReader } from '../reader';
 import { leastRestrictiveAdvisory, mostRestrictiveAdvisory } from './fixtures/ageRatingDeclaration';
+import { AppleConfigReader } from '../reader';
 
 describe('getCategories', () => {
   it('ignores categories when not set', () => {

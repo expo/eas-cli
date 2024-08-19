@@ -3,6 +3,17 @@ import { BuildProfile } from '@expo/eas-json';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
+import { ActionInfo, IosActionType, Scope } from './Actions';
+import { Action, PressAnyKeyToContinue } from './HelperActions';
+import {
+  credentialsJsonActions,
+  getAscApiKeyActions,
+  getBuildCredentialsActions,
+  getPushKeyActions,
+  highLevelActions,
+} from './IosActions';
+import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
+import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDistributionTypeGraphqlFromBuildProfile';
 import {
   AccountFragment,
   AppleDistributionCertificateFragment,
@@ -42,20 +53,12 @@ import { UpdateCredentialsJson } from '../ios/actions/UpdateCredentialsJson';
 import { AppLookupParams } from '../ios/api/graphql/types/AppLookupParams';
 import { App, IosAppCredentialsMap, Target } from '../ios/types';
 import { displayIosCredentials } from '../ios/utils/printCredentials';
-import { ActionInfo, IosActionType, Scope } from './Actions';
-import { Action, PressAnyKeyToContinue } from './HelperActions';
-import {
-  credentialsJsonActions,
-  getAscApiKeyActions,
-  getBuildCredentialsActions,
-  getPushKeyActions,
-  highLevelActions,
-} from './IosActions';
-import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
-import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDistributionTypeGraphqlFromBuildProfile';
 
 export class ManageIos {
-  constructor(private callingAction: Action, private projectDir: string) {}
+  constructor(
+    protected callingAction: Action,
+    protected projectDir: string
+  ) {}
 
   async runAsync(currentActions: ActionInfo[] = highLevelActions): Promise<void> {
     const buildProfile = this.callingAction.projectInfo
@@ -78,6 +81,7 @@ export class ManageIos {
       analytics: this.callingAction.analytics,
       env: buildProfile?.env,
       nonInteractive: false,
+      vcsClient: this.callingAction.vcsClient,
     });
     const buildCredentialsActions = getBuildCredentialsActions(ctx);
     const pushKeyActions = getPushKeyActions(ctx);
@@ -178,7 +182,7 @@ export class ManageIos {
     }
   }
 
-  private async createProjectContextAsync(
+  protected async createProjectContextAsync(
     ctx: CredentialsContext,
     account: AccountFragment,
     buildProfile: BuildProfile<Platform.IOS>
@@ -194,6 +198,7 @@ export class ManageIos {
         projectDir: ctx.projectDir,
         nonInteractive: ctx.nonInteractive,
         exp: ctx.exp,
+        vcsClient: ctx.vcsClient,
       },
       buildProfile
     );
@@ -202,6 +207,7 @@ export class ManageIos {
       projectDir: ctx.projectDir,
       xcodeBuildContext,
       env: buildProfile.env,
+      vcsClient: ctx.vcsClient,
     });
     return {
       app,
@@ -209,7 +215,7 @@ export class ManageIos {
     };
   }
 
-  private async runAccountSpecificActionAsync(
+  protected async runAccountSpecificActionAsync(
     ctx: CredentialsContext,
     account: AccountFragment,
     action: IosActionType
@@ -229,7 +235,7 @@ export class ManageIos {
     }
   }
 
-  private async runProjectSpecificActionAsync(
+  protected async runProjectSpecificActionAsync(
     ctx: CredentialsContext,
     app: App,
     targets: Target[],
@@ -390,7 +396,7 @@ export class ManageIos {
     }
   }
 
-  private async setupProvisioningProfileWithSpecificDistCertAsync(
+  protected async setupProvisioningProfileWithSpecificDistCertAsync(
     ctx: CredentialsContext,
     target: Target,
     appLookupParams: AppLookupParams,
@@ -413,7 +419,7 @@ export class ManageIos {
     }
   }
 
-  private async selectTargetAsync(targets: Target[]): Promise<Target> {
+  protected async selectTargetAsync(targets: Target[]): Promise<Target> {
     if (targets.length === 1) {
       return targets[0];
     }

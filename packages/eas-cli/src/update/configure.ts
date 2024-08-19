@@ -1,25 +1,24 @@
 import { ExpoConfig } from '@expo/config-types';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import { EasJsonAccessor } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import semver from 'semver';
 
+import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from './android/UpdatesModule';
+import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from './ios/UpdatesModule';
 import { getEASUpdateURL } from '../api';
-import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPlatform } from '../graphql/generated';
 import Log, { learnMore } from '../log';
 import { RequestedPlatform, appPlatformDisplayNames } from '../platform';
-import { createOrModifyExpoConfigAsync, isUsingStaticExpoConfig } from '../project/expoConfig';
+import { createOrModifyExpoConfigAsync } from '../project/expoConfig';
 import {
   installExpoUpdatesAsync,
   isExpoUpdatesInstalledAsDevDependency,
   isExpoUpdatesInstalledOrAvailable,
 } from '../project/projectUtils';
 import { resolveWorkflowPerPlatformAsync } from '../project/workflow';
-import { confirmAsync } from '../prompts';
-import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from './android/UpdatesModule';
-import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from './ios/UpdatesModule';
+import { Client } from '../vcs/vcs';
 
 export const DEFAULT_MANAGED_RUNTIME_VERSION_GTE_SDK_49 = { policy: 'appVersion' } as const;
 export const DEFAULT_MANAGED_RUNTIME_VERSION_LTE_SDK_48 = { policy: 'sdkVersion' } as const;
@@ -232,7 +231,7 @@ function warnEASUpdatesManualConfig({
     )}`
   );
   Log.warn(
-    `Finish configuring EAS Update by adding the following to the project app.config.js:\n${learnMore(
+    `Add the following EAS Update key-values to the project app.config.js:\n${learnMore(
       'https://expo.fyi/eas-update-config'
     )}\n`
   );
@@ -259,28 +258,39 @@ function warnEASUpdatesManualConfig({
  * Make sure that the current `app.json` configuration for EAS Updates is set natively.
  */
 async function ensureEASUpdateIsConfiguredNativelyAsync(
-  graphqlClient: ExpoGraphqlClient,
+  vcsClient: Client,
   {
     exp,
-    projectId,
     projectDir,
     platform,
     workflows,
+    env,
   }: {
     exp: ExpoConfig;
-    projectId: string;
     projectDir: string;
     platform: RequestedPlatform;
     workflows: Record<Platform, Workflow>;
+    env: Env | undefined;
   }
 ): Promise<void> {
   if (['all', 'android'].includes(platform) && workflows.android === Workflow.GENERIC) {
-    await syncAndroidUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
+    await syncAndroidUpdatesConfigurationAsync({
+      projectDir,
+      exp,
+      workflow: workflows.android,
+      env,
+    });
     Log.withTick(`Configured ${chalk.bold('AndroidManifest.xml')} for EAS Update`);
   }
 
   if (['all', 'ios'].includes(platform) && workflows.ios === Workflow.GENERIC) {
-    await syncIosUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
+    await syncIosUpdatesConfigurationAsync({
+      vcsClient,
+      projectDir,
+      exp,
+      workflow: workflows.ios,
+      env,
+    });
     Log.withTick(`Configured ${chalk.bold('Expo.plist')} for EAS Update`);
   }
 }
@@ -309,8 +319,7 @@ export async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: stri
       const easBuildProfilesWithChannels = Object.keys(easJsonRawObject.build).reduce(
         (acc, profileNameKey) => {
           const buildProfile = easJsonRawObject.build[profileNameKey];
-          const isNotAlreadyConfigured = !buildProfile.channel && !buildProfile.releaseChannel;
-
+          const isNotAlreadyConfigured = !buildProfile.channel;
           if (isNotAlreadyConfigured) {
             return {
               ...acc,
@@ -354,28 +363,21 @@ export async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: stri
  *     - Sets `updates.url` if not set
  *   - Ensure latest changes are reflected in the native config, if any
  */
-export async function ensureEASUpdateIsConfiguredAsync(
-  graphqlClient: ExpoGraphqlClient,
-  {
-    exp: expMaybeWithoutUpdates,
-    projectId,
-    projectDir,
-    platform,
-  }: {
-    exp: ExpoConfig;
-    projectId: string;
-    projectDir: string;
-    platform: RequestedPlatform | null;
-  }
-): Promise<void> {
-  // EAS Update and SDK 49's "useClassicUpdates" option are mutually exclusive
-  if (expMaybeWithoutUpdates.updates?.useClassicUpdates) {
-    expMaybeWithoutUpdates = await ensureUseClassicUpdatesIsRemovedAsync({
-      exp: expMaybeWithoutUpdates,
-      projectDir,
-    });
-  }
-
+export async function ensureEASUpdateIsConfiguredAsync({
+  exp: expMaybeWithoutUpdates,
+  projectId,
+  projectDir,
+  vcsClient,
+  platform,
+  env,
+}: {
+  exp: ExpoConfig;
+  projectId: string;
+  projectDir: string;
+  vcsClient: Client;
+  platform: RequestedPlatform | null;
+  env: Env | undefined;
+}): Promise<void> {
   const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
     projectDir,
     expMaybeWithoutUpdates.sdkVersion
@@ -396,7 +398,7 @@ export async function ensureEASUpdateIsConfiguredAsync(
     return;
   }
 
-  const workflows = await resolveWorkflowPerPlatformAsync(projectDir);
+  const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
   const { projectChanged, exp: expWithUpdates } =
     await ensureEASUpdatesIsConfiguredInExpoConfigAsync({
       exp: expMaybeWithoutUpdates,
@@ -407,12 +409,12 @@ export async function ensureEASUpdateIsConfiguredAsync(
     });
 
   if (projectChanged || !hasExpoUpdates) {
-    await ensureEASUpdateIsConfiguredNativelyAsync(graphqlClient, {
+    await ensureEASUpdateIsConfiguredNativelyAsync(vcsClient, {
       exp: expWithUpdates,
       projectDir,
-      projectId,
       platform,
       workflows,
+      env,
     });
   }
 
@@ -423,50 +425,4 @@ export async function ensureEASUpdateIsConfiguredAsync(
     );
     Log.newLine();
   }
-}
-
-export async function ensureUseClassicUpdatesIsRemovedAsync({
-  exp: expMaybeWithoutUpdates,
-  projectDir,
-}: {
-  exp: ExpoConfig;
-  projectDir: string;
-}): Promise<ExpoConfig> {
-  if (!isUsingStaticExpoConfig(projectDir)) {
-    throw new Error(
-      `Your app config sets "updates.useClassicUpdates" but EAS Update does not support classic updates. Remove "useClassicUpdates" from your app config and run this command again.`
-    );
-  }
-
-  const shouldEditConfig = await confirmAsync({
-    message: `Your app config sets "updates.useClassicUpdates" but EAS Update does not support classic updates. Remove "updates.useClassicUpdates" from your app config?`,
-  });
-  if (!shouldEditConfig) {
-    throw new Error(
-      `Manually remove "updates.useClassicUpdates" from your app config and run this command again.`
-    );
-  }
-
-  const editedExpoConfig = mergeExpoConfig(expMaybeWithoutUpdates, {
-    updates: { useClassicUpdates: undefined },
-  }) as ExpoConfig;
-  const result = await createOrModifyExpoConfigAsync(projectDir, editedExpoConfig);
-
-  switch (result.type) {
-    case 'success':
-      Log.withTick(`Removed "updates.useClassicUpdates"`);
-      expMaybeWithoutUpdates = editedExpoConfig;
-      break;
-
-    case 'warn':
-    case 'fail':
-      throw new Error(result.message);
-
-    default:
-      throw new Error(
-        `Unexpected result type "${result.type}" received when modifying the project config.`
-      );
-  }
-
-  return editedExpoConfig;
 }

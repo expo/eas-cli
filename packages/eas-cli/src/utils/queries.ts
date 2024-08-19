@@ -1,5 +1,5 @@
-import { confirmAsync, selectAsync } from '../prompts';
 import uniqBy from './expodash/uniqBy';
+import { confirmAsync, selectAsync } from '../prompts';
 
 const fetchMoreValue = '_fetchMore';
 
@@ -34,13 +34,13 @@ type PaginatedQueryWithSelectPromptArgs<QueryReturnType extends Record<string, a
   };
 
 export async function paginatedQueryWithConfirmPromptAsync<
-  QueryReturnType extends Record<string, any>
+  QueryReturnType extends Record<string, any>,
 >(queryArgs: PaginatedQueryWithConfirmPromptArgs<QueryReturnType>): Promise<void> {
   return await paginatedQueryWithConfirmPromptInternalAsync(queryArgs, []);
 }
 
 async function paginatedQueryWithConfirmPromptInternalAsync<
-  QueryReturnType extends Record<string, any>
+  QueryReturnType extends Record<string, any>,
 >(
   {
     limit,
@@ -81,13 +81,13 @@ async function paginatedQueryWithConfirmPromptInternalAsync<
  * If no items are available for a user to select, this will return an empty array.
  */
 export async function paginatedQueryWithSelectPromptAsync<
-  QueryReturnType extends Record<string, any>
+  QueryReturnType extends Record<string, any>,
 >(queryArgs: PaginatedQueryWithSelectPromptArgs<QueryReturnType>): Promise<QueryReturnType | void> {
   return await paginatedQueryWithSelectPromptInternalAsync(queryArgs, []);
 }
 
 async function paginatedQueryWithSelectPromptInternalAsync<
-  QueryReturnType extends Record<string, any>
+  QueryReturnType extends Record<string, any>,
 >(
   {
     limit,

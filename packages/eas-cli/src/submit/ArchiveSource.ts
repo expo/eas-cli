@@ -4,6 +4,8 @@ import prompts from 'prompts';
 import { URL } from 'url';
 import * as uuid from 'uuid';
 
+import { getRecentBuildsForSubmissionAsync } from './utils/builds';
+import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { BuildFragment } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
@@ -12,8 +14,6 @@ import Log, { learnMore } from '../log';
 import { appPlatformDisplayNames } from '../platform';
 import { confirmAsync, promptAsync } from '../prompts';
 import { fromNow } from '../utils/date';
-import { getRecentBuildsForSubmissionAsync } from './utils/builds';
-import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files';
 
 export const BUILD_LIST_ITEM_COUNT = 4;
 
@@ -270,8 +270,6 @@ async function handleBuildListSourceAsync(
 ): Promise<ResolvedArchiveSource> {
   try {
     const appPlatform = toAppPlatform(ctx.platform);
-    const expiryDate = new Date(); // artifacts expire after 30 days
-    expiryDate.setDate(expiryDate.getDate() - 30);
 
     const recentBuilds = await getRecentBuildsForSubmissionAsync(
       ctx.graphqlClient,
@@ -294,7 +292,7 @@ async function handleBuildListSourceAsync(
       });
     }
 
-    if (recentBuilds.every(it => new Date(it.updatedAt) < expiryDate)) {
+    if (recentBuilds.every(it => new Date(it.expirationDate) <= new Date())) {
       Log.error(
         chalk.bold(
           'It looks like all of your build artifacts have expired. ' +
@@ -306,7 +304,7 @@ async function handleBuildListSourceAsync(
       });
     }
 
-    const choices = recentBuilds.map(build => formatBuildChoice(build, expiryDate));
+    const choices = recentBuilds.map(build => formatBuildChoice(build));
     choices.push({
       title: 'None of the above (select another option)',
       value: null,
@@ -336,7 +334,7 @@ async function handleBuildListSourceAsync(
   }
 }
 
-function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choice {
+function formatBuildChoice(build: BuildFragment): prompts.Choice {
   const {
     id,
     updatedAt,
@@ -380,7 +378,7 @@ function formatBuildChoice(build: BuildFragment, expiryDate: Date): prompts.Choi
     title,
     description: filteredDescriptionArray.length > 0 ? filteredDescriptionArray.join('\n') : '',
     value: build,
-    disabled: buildDate < expiryDate,
+    disabled: new Date(build.expirationDate) < new Date(),
   };
 }
 

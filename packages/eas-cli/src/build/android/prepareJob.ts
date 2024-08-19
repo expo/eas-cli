@@ -3,18 +3,16 @@ import {
   ArchiveSource,
   BuildMode,
   BuildTrigger,
-  Job,
   Platform,
-  sanitizeJob,
+  sanitizeBuildJob,
 } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 import path from 'path';
 import slash from 'slash';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
-import { getCustomBuildConfigPath } from '../../project/customBuildConfig';
+import { getCustomBuildConfigPathForJob } from '../../project/customBuildConfig';
 import { getUsername } from '../../project/projectUtils';
-import { getVcsClient } from '../../vcs';
 import { BuildContext } from '../context';
 
 interface JobData {
@@ -30,11 +28,11 @@ const cacheDefaults = {
 export async function prepareJobAsync(
   ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData
-): Promise<Job> {
+): Promise<Android.Job> {
   const username = getUsername(ctx.exp, ctx.user);
   const buildProfile: BuildProfile<Platform.ANDROID> = ctx.buildProfile;
   const projectRootDirectory =
-    slash(path.relative(await getVcsClient().getRootPathAsync(), ctx.projectDir)) || '.';
+    slash(path.relative(await ctx.vcsClient.getRootPathAsync(), ctx.projectDir)) || '.';
   const { credentials } = jobData;
   const buildCredentials = credentials
     ? {
@@ -55,8 +53,17 @@ export async function prepareJobAsync(
   }
 
   const maybeCustomBuildConfigPath = buildProfile.config
-    ? getCustomBuildConfigPath(buildProfile.config)
+    ? getCustomBuildConfigPathForJob(buildProfile.config)
     : undefined;
+
+  let buildMode;
+  if (ctx.repack) {
+    buildMode = BuildMode.REPACK;
+  } else if (buildProfile.config) {
+    buildMode = BuildMode.CUSTOM;
+  } else {
+    buildMode = BuildMode.BUILD;
+  }
 
   const job: Android.Job = {
     type: ctx.workflow,
@@ -66,9 +73,10 @@ export async function prepareJobAsync(
     builderEnvironment: {
       image: buildProfile.image,
       node: buildProfile.node,
+      pnpm: buildProfile.pnpm,
+      bun: buildProfile.bun,
       yarn: buildProfile.yarn,
       ndk: buildProfile.ndk,
-      expoCli: buildProfile.expoCli,
       env: buildProfile.env,
     },
     cache: {
@@ -79,7 +87,6 @@ export async function prepareJobAsync(
     secrets: {
       ...buildCredentials,
     },
-    releaseChannel: buildProfile.releaseChannel,
     updates: { channel: buildProfile.channel },
     developmentClient: buildProfile.developmentClient,
     gradleCommand: buildProfile.gradleCommand,
@@ -95,14 +102,20 @@ export async function prepareJobAsync(
     experimental: {
       prebuildCommand: buildProfile.prebuildCommand,
     },
-    mode: buildProfile.config ? BuildMode.CUSTOM : BuildMode.BUILD,
+    mode: buildMode,
     triggeredBy: BuildTrigger.EAS_CLI,
     ...(maybeCustomBuildConfigPath && {
       customBuildConfig: {
         path: maybeCustomBuildConfigPath,
       },
     }),
+    ...(ctx.repack && {
+      customBuildConfig: {
+        path: '__eas/repack.yml',
+      },
+    }),
+    loggerLevel: ctx.loggerLevel,
   };
 
-  return sanitizeJob(job);
+  return sanitizeBuildJob(job) as Android.Job;
 }

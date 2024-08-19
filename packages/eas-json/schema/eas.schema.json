@@ -40,7 +40,7 @@
         },
         "promptToConfigurePushNotifications": {
           "type": "boolean",
-          "description": "Specifies where EAS CLI should prompt to configure Push Notifications credentials. Defaults to true.",
+          "description": "Specifies where EAS CLI should prompt to configure Push Notifications credentials. It defaults to true if expo-notifications is in your project dependencies, otherwise it defaults to false.",
           "default": true
         }
       }
@@ -91,6 +91,12 @@
       "type": "object",
       "description": "The build profile configuration.",
       "properties": {
+        "withoutCredentials": {
+          "type": "boolean",
+          "description": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when working with custom builds.",
+          "markdownDescription": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when working with custom builds.",
+          "default": false
+        },
         "extends": {
           "type": "string",
           "description": "The name of the build profile that the current one should inherit values from. This value can't be specified per platform."
@@ -105,17 +111,10 @@
             "Provide your own `credentials.json` file. [learn more](https://docs.expo.dev/app-signing/local-credentials/)"
           ]
         },
-        "releaseChannel": {
-          "type": "string",
-          "description": "Name of the release channel for the `expo-updates` package. Learn more: https://docs.expo.dev/distribution/release-channels/",
-          "markdownDescription": "Name of the release channel for the `expo-updates` package. [Learn more](https://docs.expo.dev/distribution/release-channels/)\n\nIf you do not specify a channel, your binary will pull releases from the `default` channel. If you do not use `expo-updates` in your project then this property will have no effect.\n\n**This field only applies to the Classic Update service**; if you use EAS Update, use the [channel](https://docs.expo.dev/build-reference/eas-json/#channel) field instead.",
-          "pattern": "^[a-z0-9._-]+$",
-          "patternErrorMessage": "Release channel names can only contain lowercase letters, numbers and special characters `.`, `_` and `-`."
-        },
         "channel": {
           "type": "string",
-          "description": "The channel is a name we can give to multiple builds to identify them easily. Learn more: https://docs.expo.dev/eas-update/how-eas-update-works/",
-          "markdownDescription": "The channel is a name we can give to multiple builds to identify them easily. [Learn more](https://docs.expo.dev/eas-update/how-eas-update-works/)\n\n**This field only applies to the EAS Update service**, if your project still uses Classic Updates then use the [releaseChannel](https://docs.expo.dev/build-reference/eas-json/#releasechannel) field instead."
+          "description": "The channel name identifies which EAS Update channel a build belongs to. Learn more: https://docs.expo.dev/eas-update/how-eas-update-works/",
+          "markdownDescription": "The channel name identifies which EAS Update channel a build belongs to. [Learn more](https://docs.expo.dev/eas-update/how-eas-update-works/)"
         },
         "distribution": {
           "enum": ["internal", "store"],
@@ -147,10 +146,15 @@
           "description": "The version of Yarn to use for the build. See: https://www.npmjs.com/package/yarn",
           "markdownDescription": "The exact version of [Yarn](https://www.npmjs.com/package/yarn) to use for the build."
         },
-        "expoCli": {
+        "pnpm": {
           "type": "string",
-          "description": "The version of `expo-cli` used to `prebuild` your app.",
-          "markdownDescription": "Version of [expo-cli](https://www.npmjs.com/package/expo-cli) used to [prebuild](https://docs.expo.dev/workflow/expo-cli/#expo-prebuild) your app. It does not have any effect on bare projects."
+          "description": "The version of pnpm to use for the build. See: https://www.npmjs.com/package/pnpm",
+          "markdownDescription": "The exact version of [pnpm](https://www.npmjs.com/package/pnpm) to use for the build."
+        },
+        "bun": {
+          "type": "string",
+          "description": "The version of Bun to use for the build. See: https://bun.sh/",
+          "markdownDescription": "The exact version of [Bun](https://bun.sh/) to use for the build."
         },
         "env": {
           "type": "object",
@@ -194,6 +198,10 @@
             }
           ]
         },
+        "config": {
+          "description": "Custom workflow file name that will be used to run this build. You can also specify this property on platform level for platform-specific workflows. Learn more: https://docs.expo.dev/custom-builds/get-started/",
+          "type": "string"
+        },
         "android": {
           "$ref": "#/definitions/BuildProfileAndroid"
         },
@@ -208,8 +216,8 @@
       "properties": {
         "withoutCredentials": {
           "type": "boolean",
-          "description": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when you want to build debug binaries and the debug keystore is checked in to the repository.",
-          "markdownDescription": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when you want to build debug binaries and the debug keystore is checked in to the repository.",
+          "description": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when you want to build debug binaries and the debug keystore is checked in to the repository or working with custom builds.",
+          "markdownDescription": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when you want to build debug binaries and the debug keystore is checked in to the repository or working with custom builds.",
           "default": false
         },
         "image": {
@@ -219,24 +227,47 @@
           "anyOf": [
             {
               "enum": [
-                "default",
+                "auto",
                 "latest",
-                "stable",
-                "ubuntu-22.04-jdk-11-ndk-r21e",
-                "ubuntu-22.04-jdk-8-ndk-r21e",
-                "ubuntu-20.04-jdk-11-ndk-r21e",
-                "ubuntu-20.04-jdk-8-ndk-r21e",
-                "ubuntu-18.04-jdk-11-ndk-r19c",
-                "ubuntu-18.04-jdk-8-ndk-r19c"
+                "sdk-51",
+                "sdk-50",
+                "sdk-49",
+                "ubuntu-22.04-jdk-17-ndk-r26b",
+                "ubuntu-22.04-jdk-17-ndk-r25b",
+                "ubuntu-22.04-jdk-11-ndk-r23b",
+                "ubuntu-22.04-jdk-17-ndk-r21e",
+                "ubuntu-22.04-jdk-11-ndk-r21e"
               ],
               "markdownEnumDescriptions": [
-                "- React Native `>=0.68.0` - `ubuntu-20.04-jdk-11-ndk-r21e`\n- React Native `<0.68.0` - `ubuntu-18.04-jdk-8-ndk-r19c`",
-                "`ubuntu-22.04-jdk-11-ndk-r21e`",
-                "`ubuntu-20.04-jdk-11-ndk-r21e`"
+                "When using this option the build image is selected automatically based on the project configuration, detected Expo SDK and React Native versions.",
+                "The latest Android image currently available. It is resolved to `ubuntu-22.04-jdk-17-ndk-r26b`. The `latest` to image mapping will be updated as new images are released.",
+                "The recommended image for SDK 51 builds",
+                "The recommended image for SDK 50 builds",
+                "The recommended image for SDK 49 builds"
               ]
             },
             {
-              "type": "string"
+              "deprecated": true,
+              "enum": [
+                "default",
+                "stable",
+                "ubuntu-20.04-jdk-11-ndk-r23b",
+                "ubuntu-20.04-jdk-11-ndk-r19c",
+                "ubuntu-20.04-jdk-8-ndk-r19c",
+                "ubuntu-20.04-jdk-11-ndk-r21e",
+                "ubuntu-20.04-jdk-8-ndk-r21e",
+                "ubuntu-22.04-jdk-8-ndk-r21e"
+              ],
+              "markdownEnumDescriptions": [
+                "This image tag is deprecated, please use other image tags or images directly instead.",
+                "This image tag is deprecated, please use other image tags or images directly instead.",
+                "This image is deprecated",
+                "This image is deprecated",
+                "This image is deprecated",
+                "This image is deprecated",
+                "This image is deprecated",
+                "This image is deprecated"
+              ]
             }
           ]
         },
@@ -294,6 +325,10 @@
           "description": "[DEPRECATED] Use `applicationArchivePath` instead. Path (or pattern) where EAS Build is going to look for the build artifacts. See: https://github.com/mrmlnc/fast-glob#pattern-syntax",
           "markdownDescription": "[DEPRECATED] Use `applicationArchivePath` instead. Path (or pattern) where EAS Build is going to look for the build artifacts. EAS Build uses the `fast-glob` npm package for pattern matching ([see their README to learn more about the syntax you can use](https://github.com/mrmlnc/fast-glob#pattern-syntax)).",
           "default": "android/app/build/outputs/**/*.{apk,aab}"
+        },
+        "config": {
+          "description": "Custom workflow file name that will be used to run this Android build. You can also specify this property on profile levle for platform-agnostic workflows. Learn more: https://docs.expo.dev/custom-builds/get-started/",
+          "type": "string"
         }
       }
     },
@@ -301,6 +336,12 @@
       "type": "object",
       "description": "The iOS-specific build profile configuration.",
       "properties": {
+        "withoutCredentials": {
+          "type": "boolean",
+          "description": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when working with custom builds.",
+          "markdownDescription": "When set to `true`, EAS CLI won't require you to configure credentials when building the app. This comes in handy when working with custom builds.",
+          "default": false
+        },
         "simulator": {
           "type": "boolean",
           "description": "If set to true, creates build for simulator.",
@@ -332,28 +373,40 @@
           "anyOf": [
             {
               "enum": [
-                "default",
+                "auto",
                 "latest",
-                "macos-ventura-13.4-xcode-14.3.1",
-                "macos-ventura-13.3-xcode-14.3",
-                "macos-monterey-12.6-xcode-14.2",
-                "macos-monterey-12.6-xcode-14.1",
-                "macos-monterey-12.6-xcode-14.0",
-                "macos-monterey-12.4-xcode-13.4",
-                "macos-monterey-12.3-xcode-13.3",
-                "macos-monterey-12.1-xcode-13.2",
-                "macos-big-sur-11.4-xcode-13.0",
-                "macos-big-sur-11.4-xcode-12.5"
+                "sdk-51",
+                "sdk-50",
+                "sdk-49",
+                "macos-sonoma-14.5-xcode-15.4",
+                "macos-sonoma-14.4-xcode-15.3",
+                "macos-ventura-13.6-xcode-15.2",
+                "macos-ventura-13.6-xcode-15.1",
+                "macos-ventura-13.6-xcode-15.0"
               ],
               "markdownEnumDescriptions": [
-                "`macos-ventura-13.3-xcode-14.3` for Apple silicon builders, `macos-monterey-12.6-xcode-14.1` for Intel builders",
-                "`macos-ventura-13.4-xcode-14.3.1` for Apple silicon builders, `macos-monterey-12.6-xcode-14.2` for Intel builders",
-                "only available for Apple silicon builders",
-                "only available for Apple silicon builders"
+                "When using this option the build image is selected automatically based on the project configuration, detected Expo SDK and React Native versions.",
+                "The latest iOS image currently available. It is resolved to `macos-sonoma-14.5-xcode-15.4`. The `latest` to image mapping will be updated as new images are released.",
+                "The recommended image for SDK 51 builds",
+                "The recommended image for SDK 50 builds",
+                "The recommended image for SDK 49 builds"
               ]
             },
             {
-              "type": "string"
+              "deprecated": true,
+              "enum": ["default", "stable"],
+              "markdownEnumDescriptions": [
+                "This image tag is deprecated, please use other image tags or images directly instead.",
+                "This image tag is deprecated, please use other image tags or images directly instead.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-sonoma-14.4-xcode-15.3` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-sonoma-14.4-xcode-15.3` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-sonoma-14.4-xcode-15.3` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-sonoma-14.4-xcode-15.3` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-sonoma-14.4-xcode-15.3` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-sonoma-14.4-xcode-15.3` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-sonoma-14.4-xcode-15.3` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates.",
+                "This image is using Xcode in version lower then 15. Apple's new requirement states that starting on April 29th, 2024, apps uploaded to App Store Connect must be built with Xcode 15 for iOS 17, iPadOS 17, tvOS 17, or watchOS 10. Start using Xcode 15 image today by setting `macos-sonoma-14.4-xcode-15.3` or `latest` as your image value. This image will be removed from EAS Build on May 29th, 2024. Learn more: https://expo.dev/changelog/2024/03-29-eas-build-upcoming-ios-images-updates."
+              ]
             }
           ]
         },
@@ -404,6 +457,10 @@
           "type": "string",
           "description": "[DEPRECATED] Use `applicationArchivePath` instead. Path (or pattern) where EAS Build is going to look for the build artifacts. See: https://github.com/mrmlnc/fast-glob#pattern-syntax",
           "markdownDescription": "[DEPRECATED] Use `applicationArchivePath` instead. Path (or pattern) where EAS Build is going to look for the build artifacts.\n\nEAS Build uses the `fast-glob` npm package for pattern matching, ([See their README to learn more about the syntax you can use](https://github.com/mrmlnc/fast-glob#pattern-syntax)).\n\nYou should modify that path only if you are using a custom `Gymfile`.\n\nThe default is `ios/build/Build/Products/*-iphonesimulator/*.app` when building for simulator and `ios/build/*.ipa` in other cases."
+        },
+        "config": {
+          "description": "Custom workflow file name that will be used to run this iOS build. You can also specify this property on profile levle for platform-agnostic workflows. Learn more: https://docs.expo.dev/custom-builds/get-started/",
+          "type": "string"
         }
       }
     },

@@ -1,3 +1,4 @@
+import { BackupKeystore } from './DownloadKeystore';
 import {
   AndroidAppBuildCredentialsFragment,
   AndroidKeystoreType,
@@ -12,7 +13,6 @@ import {
 } from '../../manager/SelectAndroidBuildCredentials';
 import { AppLookupParams } from '../api/GraphqlClient';
 import { getKeystoreWithType } from '../utils/keystoreNew';
-import { BackupKeystore } from './DownloadKeystore';
 
 export class SetUpBuildCredentialsFromCredentialsJson {
   constructor(private app: AppLookupParams) {}

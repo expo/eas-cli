@@ -11,7 +11,6 @@ import Log from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import { getTmpDirectory } from '../../utils/paths';
-import { getVcsClient } from '../../vcs';
 
 enum InspectStage {
   ARCHIVE = 'archive',
@@ -67,6 +66,7 @@ export default class BuildInspect extends EasCommand {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Analytics,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -76,6 +76,7 @@ export default class BuildInspect extends EasCommand {
       getDynamicPrivateProjectConfigAsync,
       projectDir,
       analytics,
+      vcsClient,
     } = await this.getContextAsync(BuildInspect, {
       nonInteractive: false,
     });
@@ -92,18 +93,19 @@ export default class BuildInspect extends EasCommand {
     await this.prepareOutputDirAsync(outputDirectory, flags.force);
 
     if (flags.stage === InspectStage.ARCHIVE) {
-      const vcs = getVcsClient();
-      await vcs.ensureRepoExistsAsync();
-      await vcs.makeShallowCopyAsync(tmpWorkingdir);
+      await vcsClient.ensureRepoExistsAsync();
+      await vcsClient.makeShallowCopyAsync(tmpWorkingdir);
       await this.copyToOutputDirAsync(tmpWorkingdir, outputDirectory);
     } else {
       try {
         await runBuildAndSubmitAsync(
           graphqlClient,
           analytics,
+          vcsClient,
           projectDir,
           {
             nonInteractive: false,
+            freezeCredentials: false,
             wait: true,
             clearCache: false,
             json: false,
@@ -118,6 +120,7 @@ export default class BuildInspect extends EasCommand {
               workingdir: tmpWorkingdir,
               artifactsDir: path.join(tmpWorkingdir, 'artifacts'),
             },
+            repack: false,
           },
           actor,
           getDynamicPrivateProjectConfigAsync

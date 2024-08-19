@@ -1,11 +1,10 @@
 import { Platform as PublishPlatform } from '@expo/config';
+import { Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
-import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { ensureBranchExistsAsync } from '../../branch/queries';
 import { getUpdateGroupUrl } from '../../build/utils/url';
-import { ensureChannelExistsAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
@@ -20,7 +19,10 @@ import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
-import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
+import {
+  enforceRollBackToEmbeddedUpdateSupportAsync,
+  getOwnerAccountForProjectIdAsync,
+} from '../../project/projectUtils';
 import {
   ExpoCLIExportPlatformFlag,
   defaultPublishPlatforms,
@@ -30,8 +32,9 @@ import {
   getRuntimeVersionObjectAsync,
   getUpdateMessageForCommandAsync,
 } from '../../project/publish';
+import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
-import { getUpdateGroupJsonInfo } from '../../update/utils';
+import { getUpdateJsonInfosForUpdates } from '../../update/utils';
 import {
   CodeSigningInfo,
   checkDirectiveBodyAgainstUpdateInfoGroup,
@@ -43,7 +46,6 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
-import { getVcsClient } from '../../vcs';
 
 type RawUpdateFlags = {
   auto: boolean;
@@ -68,7 +70,6 @@ type UpdateFlags = {
 };
 
 export default class UpdateRollBackToEmbedded extends EasCommand {
-  static override hidden = true; // until we launch
   static override description = 'roll back to the embedded update';
 
   static override flags = {
@@ -86,7 +87,11 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     }),
     platform: Flags.enum({
       char: 'p',
-      options: [...defaultPublishPlatforms, 'all'],
+      options: [
+        // TODO: Add web when it's fully supported
+        ...defaultPublishPlatforms,
+        'all',
+      ],
       default: 'all',
       required: false,
     }),
@@ -96,7 +101,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       default: false,
     }),
     'private-key-path': Flags.string({
-      description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
+      description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
     }),
     ...EasNonInteractiveAndJsonFlags,
@@ -105,6 +110,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -125,6 +131,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       getDynamicPublicProjectConfigAsync,
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
+      vcsClient,
     } = await this.getContextAsync(UpdateRollBackToEmbedded, {
       nonInteractive,
     });
@@ -141,12 +148,17 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
-    await ensureEASUpdateIsConfiguredAsync(graphqlClient, {
+    await ensureEASUpdateIsConfiguredAsync({
       exp: expPossiblyWithoutEasUpdateConfigured,
       platform: getRequestedPlatform(platformFlag),
       projectDir,
       projectId,
+      vcsClient,
+      env: undefined,
     });
+
+    // check that the expo-updates package version supports roll back to embedded
+    await enforceRollBackToEmbeddedUpdateSupportAsync(projectDir);
 
     const { exp } = await getDynamicPublicProjectConfigAsync();
     const { exp: expPrivate } = await getDynamicPrivateProjectConfigAsync();
@@ -154,6 +166,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
 
     const branchName = await getBranchNameForCommandAsync({
       graphqlClient,
+      vcsClient,
       projectId,
       channelNameArg,
       branchNameArg,
@@ -162,7 +175,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       paginatedQueryOptions,
     });
 
-    const updateMessage = await getUpdateMessageForCommandAsync({
+    const updateMessage = await getUpdateMessageForCommandAsync(vcsClient, {
       updateMessageArg,
       autoFlag,
       nonInteractive,
@@ -172,26 +185,25 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     const realizedPlatforms: PublishPlatform[] =
       platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
 
-    const { branchId, createdBranch } = await ensureBranchExistsAsync(graphqlClient, {
+    const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
       branchName,
     });
-    if (createdBranch) {
-      await ensureChannelExistsAsync(graphqlClient, {
-        appId: projectId,
-        branchId,
-        channelName: branchName,
-      });
-    }
-
-    Log.withTick(`Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`);
-
-    const vcsClient = getVcsClient();
 
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
+    const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
+    const runtimeVersions = await getRuntimeVersionObjectAsync({
+      exp,
+      platforms: realizedPlatforms,
+      projectDir,
+      workflows: {
+        ...workflows,
+        web: Workflow.UNKNOWN,
+      },
+      env: undefined,
+    });
 
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();
@@ -213,7 +225,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     }
 
     if (jsonFlag) {
-      printJsonOnlyOutput(getUpdateGroupJsonInfo(newUpdates));
+      printJsonOnlyOutput(getUpdateJsonInfosForUpdates(newUpdates));
     } else {
       if (new Set(newUpdates.map(update => update.group)).size > 1) {
         Log.addNewLineIfNone();
@@ -255,7 +267,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
               ? [{ label: 'Android update ID', value: newAndroidUpdate.id }]
               : []),
             ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
-            { label: 'Message', value: updateMessage },
+            { label: 'Message', value: updateMessage ?? '' },
             ...(gitCommitHash
               ? [
                   {
@@ -264,7 +276,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
                   },
                 ]
               : []),
-            { label: 'Website link', value: updateGroupLink },
+            { label: 'EAS Dashboard', value: updateGroupLink },
           ])
         );
         Log.addNewLineIfNone();
@@ -285,7 +297,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     graphqlClient: ExpoGraphqlClient;
     isGitWorkingTreeDirty: boolean | undefined;
     gitCommitHash: string | undefined;
-    updateMessage: string;
+    updateMessage: string | undefined;
     branchId: string;
     codeSigningInfo: CodeSigningInfo | undefined;
     runtimeVersions: { platform: string; runtimeVersion: string }[];

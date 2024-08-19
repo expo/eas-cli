@@ -1,5 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
 import { EasJsonAccessor, EasJsonUtils, ResourceClass } from '@expo/eas-json';
+import { LoggerLevel } from '@expo/logger';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import figures from 'figures';
@@ -33,6 +34,9 @@ interface RawBuildFlags {
   'auto-submit-with-profile'?: string;
   'resource-class'?: ResourceClass;
   message?: string;
+  'build-logger-level'?: LoggerLevel;
+  'freeze-credentials': boolean;
+  repack: boolean;
 }
 
 export default class Build extends EasCommand {
@@ -98,6 +102,19 @@ export default class Build extends EasCommand {
       char: 'm',
       description: 'A short message describing the build',
     }),
+    'build-logger-level': Flags.enum({
+      description: 'The level of logs to output during the build process. Defaults to "info".',
+      options: Object.values(LoggerLevel),
+    }),
+    'freeze-credentials': Flags.boolean({
+      default: false,
+      description: 'Prevent the build from updating credentials in non-interactive mode',
+    }),
+    repack: Flags.boolean({
+      default: false,
+      hidden: true,
+      description: 'Use the golden dev client build repack flow as it works for onboarding',
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -106,6 +123,7 @@ export default class Build extends EasCommand {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Analytics,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -121,6 +139,7 @@ export default class Build extends EasCommand {
       getDynamicPrivateProjectConfigAsync,
       projectDir,
       analytics,
+      vcsClient,
     } = await this.getContextAsync(Build, {
       nonInteractive: flags.nonInteractive,
     });
@@ -141,6 +160,7 @@ export default class Build extends EasCommand {
     await runBuildAndSubmitAsync(
       graphqlClient,
       analytics,
+      vcsClient,
       projectDir,
       flagsWithPlatform,
       actor,
@@ -207,6 +227,9 @@ export default class Build extends EasCommand {
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
       resourceClass: flags['resource-class'],
       message,
+      buildLoggerLevel: flags['build-logger-level'],
+      freezeCredentials: flags['freeze-credentials'],
+      repack: flags.repack,
     };
   }
 

@@ -1,11 +1,11 @@
 import chalk from 'chalk';
 
+import { BackupKeystore } from './DownloadKeystore';
 import { AndroidAppBuildCredentialsFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
-import { BackupKeystore } from './DownloadKeystore';
 
 export class RemoveKeystore {
   constructor(private app: AppLookupParams) {}

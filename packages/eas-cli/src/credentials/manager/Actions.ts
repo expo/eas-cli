@@ -13,7 +13,9 @@ export enum Scope {
 export enum AndroidActionType {
   ManageBuildCredentials,
   ManageFcm,
-  ManageGoogleServiceAccountKey,
+  ManageGoogleServiceAccountKeyForSubmissions,
+  ManageGoogleServiceAccount,
+  ManageGoogleServiceAccountKeyForFcmV1,
   ManageCredentialsJson,
   GoBackToCaller,
   GoBackToHighLevelActions,
@@ -24,11 +26,16 @@ export enum AndroidActionType {
   CreateFcm,
   RemoveFcm,
   CreateGsaKey,
-  UseExistingGsaKey,
+  UseExistingGsaKeyForSubmissions,
   RemoveGsaKey,
-  SetUpGsaKey,
+  SetUpGsaKeyForSubmissions,
+  CreateGsaKeyForFcmV1,
+  UseExistingGsaKeyForFcmV1,
+  RemoveGsaKeyForFcmV1,
+  SetUpGsaKeyForFcmV1,
   UpdateCredentialsJson,
   SetUpBuildCredentialsFromCredentialsJson,
+  SetUpBuildCredentials,
 }
 
 export enum IosActionType {

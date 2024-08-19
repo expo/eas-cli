@@ -12,13 +12,11 @@ import {
   UpdateFragment,
   User,
 } from '../graphql/generated';
-import Log, { learnMore } from '../log';
+import { learnMore } from '../log';
 import { RequestedPlatform } from '../platform';
-import { confirmAsync } from '../prompts';
 import { getActorDisplayName } from '../user/User';
 import groupBy from '../utils/expodash/groupBy';
 import formatFields from '../utils/formatFields';
-import { ProfileData } from '../utils/profiles';
 
 export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
   actor?:
@@ -201,8 +199,8 @@ export function formatUpdateTitle(update: UpdateFragment): string {
   )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
 }
 
-export function getUpdateGroupJsonInfo(updateGroups: UpdateFragment[]): UpdateJsonInfo[] {
-  return updateGroups.map(update => ({
+export function getUpdateJsonInfosForUpdates(updates: UpdateFragment[]): UpdateJsonInfo[] {
+  return updates.map(update => ({
     id: update.id,
     createdAt: update.createdAt,
     group: update.group,
@@ -273,32 +271,4 @@ export async function checkEASUpdateURLIsSetAsync(
   const expectedURL = getEASUpdateURL(projectId);
 
   return configuredURL === expectedURL;
-}
-
-export async function validateBuildProfileConfigMatchesProjectConfigAsync(
-  exp: ExpoConfig,
-  buildProfile: ProfileData<'build'>,
-  projectId: string,
-  nonInteractive: boolean
-): Promise<void> {
-  if ((await checkEASUpdateURLIsSetAsync(exp, projectId)) && buildProfile.profile.releaseChannel) {
-    const warning = `» Your project is configured for EAS Update, but build profile "${
-      buildProfile.profileName
-    }" in ${chalk.bold('eas.json')} specifies the \`releaseChannel\` property.
-  For EAS Update, you need to specify the \`channel\` property, or your build will not be able to receive any updates
-
-  ${learnMore('https://docs.expo.dev/eas-update/getting-started/#configure-your-project')}`;
-
-    Log.warn(warning);
-    if (!nonInteractive) {
-      const answer = await confirmAsync({
-        message: `Would you like to proceed?`,
-      });
-
-      if (!answer) {
-        Log.log('Aborting...');
-        process.exit(1);
-      }
-    }
-  }
 }

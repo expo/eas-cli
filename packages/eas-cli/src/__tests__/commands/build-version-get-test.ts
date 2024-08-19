@@ -1,11 +1,11 @@
 import { AppVersionSource, EasJson } from '@expo/eas-json';
 import chalk from 'chalk';
 
+import { getMockEasJson, mockCommandContext, mockProjectId, mockTestCommand } from './utils';
 import BuildVersionGetView from '../../commands/build/version/get';
 import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
 import Log from '../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { getMockEasJson, mockCommandContext, mockProjectId, mockTestCommand } from './utils';
 
 jest.mock('../../project/applicationIdentifier');
 jest.mock('fs');
