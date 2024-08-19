@@ -34,7 +34,8 @@ export default class ProjectInit extends EasCommand {
       description: 'ID of the EAS project to link',
     }),
     force: Flags.boolean({
-      description: 'Whether to create a new project/link an existing project without additional prompts or overwrite any existing project ID when running with --id flag',
+      description:
+        'Whether to create a new project/link an existing project without additional prompts or overwrite any existing project ID when running with --id flag',
     }),
     ...EASNonInteractiveFlag,
   };
@@ -417,7 +418,7 @@ export default class ProjectInit extends EasCommand {
       });
       idForConsistency = idArgument;
     } else {
-      idForConsistency = await ProjectInit.initializeWithInteractiveSelectionAsync(
+      idForConsistency = await ProjectInit.initializeWithoutExplicitIDAsync(
         graphqlClient,
         actor,
         projectDir,
