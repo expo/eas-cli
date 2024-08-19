@@ -1,4 +1,3 @@
-import { Platform as PublishPlatform } from '@expo/config';
 import { Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
@@ -16,6 +15,7 @@ import {
   StatuspageServiceName,
   UpdateInfoGroup,
   UpdatePublishMutation,
+  UpdateRolloutInfoGroup,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log, { learnMore, link } from '../../log';
@@ -23,17 +23,17 @@ import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
-  ExpoCLIExportPlatformFlag,
   RawAsset,
+  UpdatePublishPlatform,
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
   defaultPublishPlatforms,
-  filterExportedPlatformsByFlag,
+  filterCollectedAssetsByRequestedPlatforms,
   generateEasMetadataAsync,
   getBranchNameForCommandAsync,
-  getRequestedPlatform,
   getRuntimeToPlatformMappingFromRuntimeVersions,
+  getRuntimeToUpdateRolloutInfoGroupMappingAsync,
   getRuntimeVersionObjectAsync,
   getUpdateMessageForCommandAsync,
   isUploadedAssetCountAboveWarningThreshold,
@@ -66,14 +66,15 @@ type RawUpdateFlags = {
   'skip-bundler': boolean;
   'clear-cache': boolean;
   'private-key-path'?: string;
-  'non-interactive': boolean;
   'emit-metadata': boolean;
+  'rollout-percentage'?: number;
+  'non-interactive': boolean;
   json: boolean;
 };
 
 type UpdateFlags = {
   auto: boolean;
-  platform: ExpoCLIExportPlatformFlag;
+  platform: RequestedPlatform;
   branchName?: string;
   channelName?: string;
   updateMessage?: string;
@@ -81,9 +82,10 @@ type UpdateFlags = {
   skipBundler: boolean;
   clearCache: boolean;
   privateKeyPath?: string;
+  emitMetadata: boolean;
+  rolloutPercentage?: number;
   json: boolean;
   nonInteractive: boolean;
-  emitMetadata: boolean;
 };
 
 export default class UpdatePublish extends EasCommand {
@@ -120,6 +122,13 @@ export default class UpdatePublish extends EasCommand {
       description: `Emit "eas-update-metadata.json" in the bundle folder with detailed information about the generated updates`,
       default: false,
     }),
+    'rollout-percentage': Flags.integer({
+      description: `Percentage of users this update should be immediately available to. Users not in the rollout will be served the previous latest update on the branch, even if that update is itself being rolled out. The specified number must be an integer between 1 and 100. When not specified, this defaults to 100.`,
+      required: false,
+      hidden: true,
+      min: 0,
+      max: 100,
+    }),
     platform: Flags.enum({
       char: 'p',
       options: [
@@ -153,7 +162,7 @@ export default class UpdatePublish extends EasCommand {
     const paginatedQueryOptions = getPaginatedQueryOptions(rawFlags);
     const {
       auto: autoFlag,
-      platform: platformFlag,
+      platform: requestedPlatform,
       channelName: channelNameArg,
       updateMessage: updateMessageArg,
       inputDir,
@@ -164,6 +173,7 @@ export default class UpdatePublish extends EasCommand {
       nonInteractive,
       branchName: branchNameArg,
       emitMetadata,
+      rolloutPercentage,
     } = this.sanitizeFlags(rawFlags);
 
     const {
@@ -192,7 +202,7 @@ export default class UpdatePublish extends EasCommand {
 
     await ensureEASUpdateIsConfiguredAsync({
       exp: expPossiblyWithoutEasUpdateConfigured,
-      platform: getRequestedPlatform(platformFlag),
+      platform: requestedPlatform,
       projectDir,
       projectId,
       vcsClient,
@@ -225,7 +235,13 @@ export default class UpdatePublish extends EasCommand {
     if (!skipBundler) {
       const bundleSpinner = ora().start('Exporting...');
       try {
-        await buildBundlesAsync({ projectDir, inputDir, exp, platformFlag, clearCache });
+        await buildBundlesAsync({
+          projectDir,
+          inputDir,
+          exp,
+          platformFlag: requestedPlatform,
+          clearCache,
+        });
         bundleSpinner.succeed('Exported bundle(s)');
       } catch (e) {
         bundleSpinner.fail('Export failed');
@@ -240,12 +256,12 @@ export default class UpdatePublish extends EasCommand {
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
     let uploadedAssetCount = 0;
     let assetLimitPerUpdateGroup = 0;
-    let realizedPlatforms: PublishPlatform[] = [];
+    let realizedPlatforms: UpdatePublishPlatform[] = [];
 
     try {
       const collectedAssets = await collectAssetsAsync(distRoot);
-      const assets = filterExportedPlatformsByFlag(collectedAssets, platformFlag);
-      realizedPlatforms = Object.keys(assets) as PublishPlatform[];
+      const assets = filterCollectedAssetsByRequestedPlatforms(collectedAssets, requestedPlatform);
+      realizedPlatforms = Object.keys(assets) as UpdatePublishPlatform[];
 
       // Timeout mechanism:
       // - Start with NO_ACTIVITY_TIMEOUT. 180 seconds is chosen because the cloud function that processes
@@ -338,7 +354,7 @@ export default class UpdatePublish extends EasCommand {
         Log.debug(chalk.dim(`- ${uploadedAssetPath}`));
       }
 
-      const platformString = (Object.keys(assets) as PublishPlatform[])
+      const platformString = realizedPlatforms
         .map(platform => {
           const collectedAssetForPlatform = nullthrows(assets[platform]);
           const totalAssetsForPlatform = collectedAssetForPlatform.assets.length + 1; // launch asset
@@ -376,6 +392,16 @@ export default class UpdatePublish extends EasCommand {
       branchName,
     });
 
+    const runtimeVersionToRolloutInfoGroup =
+      rolloutPercentage !== undefined
+        ? await getRuntimeToUpdateRolloutInfoGroupMappingAsync(graphqlClient, {
+            appId: projectId,
+            branchName,
+            rolloutPercentage,
+            runtimeToPlatformMapping,
+          })
+        : undefined;
+
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
 
@@ -389,9 +415,22 @@ export default class UpdatePublish extends EasCommand {
           ])
         );
 
+        const rolloutInfoGroupForRuntimeVersion = runtimeVersionToRolloutInfoGroup
+          ? runtimeVersionToRolloutInfoGroup.get(runtimeVersion)
+          : null;
+        const localRolloutInfoGroup = rolloutInfoGroupForRuntimeVersion
+          ? Object.fromEntries(
+              platforms.map(platform => [
+                platform,
+                rolloutInfoGroupForRuntimeVersion[platform as keyof UpdateRolloutInfoGroup],
+              ])
+            )
+          : null;
+
         return {
           branchId,
           updateInfoGroup: localUpdateInfoGroup,
+          rolloutInfoGroup: localRolloutInfoGroup,
           runtimeVersion,
           message: updateMessage,
           gitCommitHash,
@@ -505,6 +544,22 @@ export default class UpdatePublish extends EasCommand {
               ? [{ label: 'Android update ID', value: newAndroidUpdate.id }]
               : []),
             ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
+            ...(newAndroidUpdate?.rolloutControlUpdate
+              ? [
+                  {
+                    label: 'Android Rollout',
+                    value: `${newAndroidUpdate.rolloutPercentage}% (Base update ID: ${newAndroidUpdate.rolloutControlUpdate.id})`,
+                  },
+                ]
+              : []),
+            ...(newIosUpdate?.rolloutControlUpdate
+              ? [
+                  {
+                    label: 'iOS Rollout',
+                    value: `${newIosUpdate.rolloutPercentage}% (Base update ID: ${newIosUpdate.rolloutControlUpdate.id})`,
+                  },
+                ]
+              : []),
             { label: 'Message', value: updateMessage ?? '' },
             ...(gitCommitHash
               ? [
@@ -565,6 +620,7 @@ export default class UpdatePublish extends EasCommand {
       clearCache: flags['clear-cache'],
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
+      rolloutPercentage: flags['rollout-percentage'],
       nonInteractive,
       emitMetadata,
       json: flags.json ?? false,

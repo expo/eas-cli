@@ -8,13 +8,15 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { AssetMetadataStatus } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../../graphql/queries/PublishQuery';
+import { RequestedPlatform } from '../../platform';
 import {
   MetadataJoi,
+  RawAsset,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
   convertAssetToUpdateInfoGroupFormatAsync,
   defaultPublishPlatforms,
-  filterExportedPlatformsByFlag,
+  filterCollectedAssetsByRequestedPlatforms,
   filterOutAssetsThatAlreadyExistAsync,
   getAssetHashFromPath,
   getBase64URLEncoding,
@@ -94,22 +96,47 @@ describe('MetadataJoi', () => {
   });
 });
 
-describe(filterExportedPlatformsByFlag, () => {
+describe(filterCollectedAssetsByRequestedPlatforms, () => {
+  const rawAsset: RawAsset = {
+    contentType: 'test',
+    path: 'wat',
+  };
+
   it(`returns all`, () => {
-    expect(filterExportedPlatformsByFlag({ web: true, ios: true, android: true }, 'all')).toEqual({
-      web: true,
-      ios: true,
-      android: true,
+    expect(
+      filterCollectedAssetsByRequestedPlatforms(
+        {
+          web: { launchAsset: rawAsset, assets: [] },
+          ios: { launchAsset: rawAsset, assets: [] },
+          android: { launchAsset: rawAsset, assets: [] },
+        },
+        RequestedPlatform.All
+      )
+    ).toEqual({
+      ios: { launchAsset: rawAsset, assets: [] },
+      android: { launchAsset: rawAsset, assets: [] },
     });
   });
   it(`selects a platform`, () => {
-    expect(filterExportedPlatformsByFlag({ web: true, ios: true, android: true }, 'ios')).toEqual({
-      ios: true,
+    expect(
+      filterCollectedAssetsByRequestedPlatforms(
+        {
+          web: { launchAsset: rawAsset, assets: [] },
+          ios: { launchAsset: rawAsset, assets: [] },
+          android: { launchAsset: rawAsset, assets: [] },
+        },
+        RequestedPlatform.Ios
+      )
+    ).toEqual({
+      ios: { launchAsset: rawAsset, assets: [] },
     });
   });
   it(`asserts selected platform missing`, () => {
     expect(() =>
-      filterExportedPlatformsByFlag({ web: true }, 'ios')
+      filterCollectedAssetsByRequestedPlatforms(
+        { web: { launchAsset: rawAsset, assets: [] } },
+        RequestedPlatform.Ios
+      )
     ).toThrowErrorMatchingInlineSnapshot(
       `"--platform="ios" not found in metadata.json. Available platform(s): web"`
     );
