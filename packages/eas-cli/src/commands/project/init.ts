@@ -243,7 +243,10 @@ export default class ProjectInit extends EasCommand {
     if (!accountName) {
       if (allAccounts.length === 1) {
         accountName = allAccounts[0].name;
-      } else {
+      } else if (nonInteractive && force) {
+        accountName = allAccounts[0].name;
+        Log.log(`Using default account ${accountName} for non-interactive and force mode`);
+      } else if (!nonInteractive) {
         const choices = ProjectInit.getAccountChoices(
           actor,
           accountNamesWhereUserHasSufficientPermissionsToCreateApp
