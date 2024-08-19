@@ -34,7 +34,7 @@ export default class ProjectInit extends EasCommand {
       description: 'ID of the EAS project to link',
     }),
     force: Flags.boolean({
-      description: 'Whether to overwrite any existing project ID',
+      description: 'Whether to create a new project/link an existing project without additional prompts or overwrite any existing project ID when running with --id flag',
     }),
     ...EASNonInteractiveFlag,
   };
@@ -212,7 +212,7 @@ export default class ProjectInit extends EasCommand {
     });
   }
 
-  private static async initializeWithInteractiveSelectionAsync(
+  private static async initializeWithoutExplicitIDAsync(
     graphqlClient: ExpoGraphqlClient,
     actor: Actor,
     projectDir: string,
