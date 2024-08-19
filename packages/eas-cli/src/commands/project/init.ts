@@ -243,10 +243,21 @@ export default class ProjectInit extends EasCommand {
     if (!accountName) {
       if (allAccounts.length === 1) {
         accountName = allAccounts[0].name;
-      } else if (nonInteractive && force) {
+      } else if (nonInteractive) {
+        if (!force) {
+          throw new Error(
+            `There are multiple accounts that you have access to: ${allAccounts
+              .map(a => a.name)
+              .join(
+                ', '
+              )}. Explicitly set the owner property in your app config or run this command with the --force flag to proceed with a default account: ${
+              allAccounts[0].name
+            }.`
+          );
+        }
         accountName = allAccounts[0].name;
         Log.log(`Using default account ${accountName} for non-interactive and force mode`);
-      } else if (!nonInteractive) {
+      } else {
         const choices = ProjectInit.getAccountChoices(
           actor,
           accountNamesWhereUserHasSufficientPermissionsToCreateApp
