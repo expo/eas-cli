@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Upgrade packages to SDK 51 release. ([#2498](https://github.com/expo/eas-cli/pull/2498) by [@wschurman](https://github.com/wschurman))
+
 ## [10.2.4](https://github.com/expo/eas-cli/releases/tag/v10.2.4) - 2024-08-19
 
 ## [10.2.3](https://github.com/expo/eas-cli/releases/tag/v10.2.3) - 2024-08-13
