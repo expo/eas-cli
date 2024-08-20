@@ -30,8 +30,8 @@ describe('update queries', () => {
 
     it('to throw when no items are available', async () => {
       const graphqlClient = instance(mock<ExpoGraphqlClient>());
-      expect(async () => {
-        await selectUpdateGroupOnBranchAsync(graphqlClient, {
+      await expect(
+        selectUpdateGroupOnBranchAsync(graphqlClient, {
           branchName,
           projectId: appId,
           paginatedQueryOptions: {
@@ -40,14 +40,14 @@ describe('update queries', () => {
             offset: 0,
             limit: 50,
           },
-        });
-      }).rejects.toThrowError(`Could not find any branches for project "${appId}`);
+        })
+      ).rejects.toThrowError(`Could not find any branches for project "${appId}`);
     });
 
     it('to throw when in non-interactive mode', async () => {
       const graphqlClient = instance(mock<ExpoGraphqlClient>());
-      expect(async () => {
-        await selectUpdateGroupOnBranchAsync(graphqlClient, {
+      await expect(
+        selectUpdateGroupOnBranchAsync(graphqlClient, {
           branchName,
           projectId: appId,
           paginatedQueryOptions: {
@@ -56,8 +56,8 @@ describe('update queries', () => {
             offset: 0,
             limit: 50,
           },
-        });
-      }).rejects.toThrowError(`Unable to select an update in non-interactive mode.`);
+        })
+      ).rejects.toThrowError(`Unable to select an update in non-interactive mode.`);
     });
   });
 });

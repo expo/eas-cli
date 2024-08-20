@@ -46,7 +46,7 @@ async function assertCorrectXcodeVersionInstalledAsync(): Promise<void> {
 }
 
 async function ensureXcrunInstalledAsync(): Promise<void> {
-  if (!isXcrunInstalledAsync()) {
+  if (!(await isXcrunInstalledAsync())) {
     const { installXcrun } = await promptAsync({
       type: 'select',
       message: 'Xcode Command Line Tools need to be installed, continue?',

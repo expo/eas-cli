@@ -327,7 +327,7 @@ export class ManageIos {
         return;
       }
       case IosActionType.SetUpPushKey: {
-        const setupPushKeyAction = await new SetUpPushKey(appLookupParams);
+        const setupPushKeyAction = new SetUpPushKey(appLookupParams);
         const isPushKeySetup = await setupPushKeyAction.isPushKeySetupAsync(ctx);
         if (isPushKeySetup) {
           Log.log(

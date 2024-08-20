@@ -53,10 +53,13 @@ export default class UpdateList extends EasCommand {
     }
 
     if (all) {
-      listAndRenderUpdateGroupsOnAppAsync(graphqlClient, { projectId, paginatedQueryOptions });
+      await listAndRenderUpdateGroupsOnAppAsync(graphqlClient, {
+        projectId,
+        paginatedQueryOptions,
+      });
     } else {
       if (branchFlag) {
-        listAndRenderUpdateGroupsOnBranchAsync(graphqlClient, {
+        await listAndRenderUpdateGroupsOnBranchAsync(graphqlClient, {
           projectId,
           branchName: branchFlag,
           paginatedQueryOptions,
@@ -81,7 +84,7 @@ export default class UpdateList extends EasCommand {
               offset: 0,
             },
         });
-        listAndRenderUpdateGroupsOnBranchAsync(graphqlClient, {
+        await listAndRenderUpdateGroupsOnBranchAsync(graphqlClient, {
           projectId,
           branchName: selectedBranch.name,
           paginatedQueryOptions,

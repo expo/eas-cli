@@ -90,7 +90,7 @@ async function validateProvisioningProfileWithAppleAsync(
   assert(buildCredentials.provisioningProfile, 'Provisioning Profile must be defined');
   const { developerPortalIdentifier, provisioningProfile } = buildCredentials.provisioningProfile;
 
-  const applePlatform = await getApplePlatformFromTarget(target);
+  const applePlatform = getApplePlatformFromTarget(target);
   const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
     app.bundleIdentifier,
     applePlatform,

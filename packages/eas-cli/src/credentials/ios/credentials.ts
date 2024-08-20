@@ -170,7 +170,7 @@ export const provisioningProfileSchema: CredentialSchema<ProvisioningProfile> = 
   transformResultAsync: async answers => {
     return {
       ...answers,
-      ...(await readAppleTeamFromProvisioningProfile(answers.provisioningProfile!)),
+      ...readAppleTeamFromProvisioningProfile(answers.provisioningProfile!),
     } as ProvisioningProfile;
   },
 };
