@@ -269,7 +269,7 @@ function formatAppleDevice(device: AppleDeviceFragment): string {
   if (device.name) {
     deviceString += device.name;
   }
-  if (device.deviceClass || device.model) {
+  if (device.deviceClass ?? device.model) {
     const deviceDetails = [
       device.deviceClass && APPLE_DEVICE_CLASS_LABELS[device.deviceClass],
       device.model,

@@ -58,7 +58,7 @@ export class AppleConfigReader {
 
   public getLocales(): string[] {
     // TODO: filter "default" locales, add option to add non-localized info to the config
-    return uniq(Object.keys(this.schema.info || {}));
+    return uniq(Object.keys(this.schema.info ?? {}));
   }
 
   public getInfoLocale(
@@ -182,7 +182,7 @@ export class AppleConfigReader {
       description: info.description,
       keywords: info.keywords?.join(','),
       // TODO: maybe move this to task logic, it's more an exception than data handling
-      whatsNew: context.versionIsFirst ? undefined : info.releaseNotes || DEFAULT_WHATSNEW,
+      whatsNew: context.versionIsFirst ? undefined : info.releaseNotes ?? DEFAULT_WHATSNEW,
       marketingUrl: info.marketingUrl,
       promotionalText: info.promoText,
       supportUrl: info.supportUrl,

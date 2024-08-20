@@ -199,7 +199,7 @@ export default class BuildVersionSyncView extends EasCommand {
     if (workflow === Workflow.GENERIC) {
       const buildGradle = await getAppBuildGradleAsync(projectDir);
       const isMultiFlavor =
-        buildGradle.android?.productFlavors || buildGradle.android?.flavorDimensions;
+        buildGradle.android?.productFlavors ?? buildGradle.android?.flavorDimensions;
       if (isMultiFlavor) {
         throw new Error(
           "Versions in native code can't be automatically synced in multi-flavor Android projects. If you are using EAS Build with app version source set to remote, the correct values will be injected at the build time."

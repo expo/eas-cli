@@ -377,7 +377,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     const nonInteractive = flags['non-interactive'] ?? false;
 
     const { auto, branch: branchName, channel: channelName, message: updateMessage } = flags;
-    if (nonInteractive && !auto && !(updateMessage && (branchName || channelName))) {
+    if (nonInteractive && !auto && !(updateMessage && (branchName ?? channelName))) {
       Errors.error(
         '--branch and --message, or --channel and --message are required when updating in non-interactive mode unless --auto is specified',
         { exit: 1 }

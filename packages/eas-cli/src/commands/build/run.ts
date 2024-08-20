@@ -130,7 +130,7 @@ export default class Run extends EasCommand {
       });
     }
 
-    if (profile && (runArchiveFlags.id || runArchiveFlags.path || runArchiveFlags.url)) {
+    if (profile && (runArchiveFlags.id ?? runArchiveFlags.path ?? runArchiveFlags.url)) {
       Log.warn('The --profile flag is ignored when using --id, --path, or --url flags.');
     }
 

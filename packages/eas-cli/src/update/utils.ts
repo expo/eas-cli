@@ -160,14 +160,14 @@ export function ensureValidVersions(exp: ExpoConfig, platform: RequestedPlatform
 
   if (
     [RequestedPlatform.Android, RequestedPlatform.All].includes(platform) &&
-    !(exp.android?.runtimeVersion || exp.runtimeVersion) &&
+    !(exp.android?.runtimeVersion ?? exp.runtimeVersion) &&
     !exp.sdkVersion
   ) {
     throw error;
   }
   if (
     [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
-    !(exp.ios?.runtimeVersion || exp.runtimeVersion) &&
+    !(exp.ios?.runtimeVersion ?? exp.runtimeVersion) &&
     !exp.sdkVersion
   ) {
     throw error;

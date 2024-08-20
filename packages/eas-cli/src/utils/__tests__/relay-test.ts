@@ -792,7 +792,7 @@ describe(selectPaginatedAsync, () => {
     relayArgs: QueryParams
   ): Promise<Connection<object>> => {
     const startIdx = relayArgs.after ? Number(relayArgs.after) : 0;
-    const endIdx = startIdx + (relayArgs.first || PAGE_SIZE);
+    const endIdx = startIdx + (relayArgs.first ?? PAGE_SIZE);
     const hasNextPage = endIdx < mockDataset.length;
     const hasPreviousPage = startIdx > 0;
     const edges: Edge<object>[] = mockDataset

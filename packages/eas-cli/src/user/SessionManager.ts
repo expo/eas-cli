@@ -90,7 +90,7 @@ export default class SessionManager {
   }
 
   public async getUserAsync(): Promise<Actor | undefined> {
-    if (!this.currentActor && (this.getAccessToken() || this.getSessionSecret())) {
+    if (!this.currentActor && (this.getAccessToken() ?? this.getSessionSecret())) {
       const authenticationInfo = {
         accessToken: this.getAccessToken(),
         sessionSecret: this.getSessionSecret(),

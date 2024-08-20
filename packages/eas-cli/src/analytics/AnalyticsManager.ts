@@ -158,7 +158,7 @@ class NoOpAnalytics implements AnalyticsWithOrchestration {
 }
 
 const RudderstackAnalyticsConfig =
-  process.env.EXPO_STAGING || process.env.EXPO_LOCAL
+  process.env.EXPO_STAGING !== undefined || process.env.EXPO_LOCAL !== undefined
     ? {
         // staging environment
         rudderstackWriteKey: '1wpX20Da4ltFGSXbPFYUL00Chb7',
@@ -224,7 +224,7 @@ class RudderstackAnalytics implements AnalyticsWithOrchestration {
   }
 
   private getRudderStackContext(): Record<string, any> {
-    const platform = PLATFORM_TO_ANALYTICS_PLATFORM[os.platform()] || os.platform();
+    const platform = PLATFORM_TO_ANALYTICS_PLATFORM[os.platform()] ?? os.platform();
     return {
       os: { name: platform, version: os.release() },
       device: { type: platform, model: platform },

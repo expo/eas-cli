@@ -213,7 +213,7 @@ export default class Submit extends EasCommand {
     const requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
 
     if (requestedPlatform === RequestedPlatform.All) {
-      if (flags.archiveFlags.id || flags.archiveFlags.path || flags.archiveFlags.url) {
+      if (flags.archiveFlags.id ?? flags.archiveFlags.path ?? flags.archiveFlags.url) {
         Errors.error(
           '--id, --path, and --url params are only supported when performing a single-platform submit',
           { exit: 1 }

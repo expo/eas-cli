@@ -45,8 +45,8 @@ export function sanitizeLanguage(
  */
 function languageListToString(): string {
   return LANGUAGES.map(lang => {
-    const code = lang.itcLocale || lang.locale;
-    const name = lang.displayName || lang.name;
+    const code = lang.itcLocale ?? lang.locale;
+    const name = lang.displayName ?? lang.name;
     return `- ${code}\t(${name})`;
   }).join('\n');
 }

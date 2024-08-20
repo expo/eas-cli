@@ -141,7 +141,7 @@ async function loginWithUserCredentialsAsync({
   const newSession = await Auth.loginWithUserCredentialsAsync({
     username,
     // If the session couldn't be restored, then prompt for the password (also check if it's stored in the keychain).
-    password: password || (await promptPasswordAsync({ username })),
+    password: password ?? (await promptPasswordAsync({ username })),
     providerId,
     teamId,
   });

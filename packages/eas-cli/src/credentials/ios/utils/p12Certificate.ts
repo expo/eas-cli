@@ -36,7 +36,7 @@ function getRawCertData(p12Buffer: Buffer | string, passwordRaw: string | null):
     throw new Error('getCertData only takes strings and buffers.');
   }
 
-  const password = String(passwordRaw || '');
+  const password = String(passwordRaw ?? '');
   const p12Der = forge.util.decode64(p12Buffer);
   const p12Asn1 = forge.asn1.fromDer(p12Der);
 

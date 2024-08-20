@@ -121,7 +121,7 @@ export default class BuildCancel extends EasCommand {
       flags: { 'non-interactive': nonInteractive, platform, profile },
     } = await this.parse(BuildCancel);
 
-    if (buildIdFromArg && (platform || profile)) {
+    if (buildIdFromArg && (platform ?? profile)) {
       throw new Error(
         'Build ID cannot be used together with platform and profile flags. They are used to filter the list of builds when not providing the build ID'
       );

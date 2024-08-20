@@ -126,5 +126,5 @@ export function formatGraphQLBuild(build: BuildFragment): string {
 }
 
 const getActorName = (build: BuildFragment): string => {
-  return build.initiatingActor?.displayName || 'unknown';
+  return build.initiatingActor?.displayName ?? 'unknown';
 };

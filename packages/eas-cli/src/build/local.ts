@@ -59,7 +59,7 @@ export async function runLocalBuildAsync(
       env: {
         ...process.env,
         EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? process.env.EAS_LOCAL_BUILD_WORKINGDIR,
-        ...(options.skipCleanup || options.skipNativeBuild
+        ...(!!options.skipCleanup || options.skipNativeBuild
           ? { EAS_LOCAL_BUILD_SKIP_CLEANUP: '1' }
           : {}),
         ...(options.skipNativeBuild ? { EAS_LOCAL_BUILD_SKIP_NATIVE_BUILD: '1' } : {}),
