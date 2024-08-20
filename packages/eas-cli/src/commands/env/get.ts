@@ -126,7 +126,7 @@ async function getVariableAsync(
     throw new Error("Variable name is required. Run the command with '--name VARIABLE_NAME' flag.");
   }
   if (environment && scope === EnvironmentVariableScope.Project) {
-    const appVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
+    const appVariables = await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
       appId: projectId,
       environment,
       filterNames: [name],
@@ -135,10 +135,13 @@ async function getVariableAsync(
   }
 
   if (scope === EnvironmentVariableScope.Shared) {
-    const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, {
-      appId: projectId,
-      filterNames: [name],
-    });
+    const sharedVariables = await EnvironmentVariablesQuery.sharedWithSensitiveAsync(
+      graphqlClient,
+      {
+        appId: projectId,
+        filterNames: [name],
+      }
+    );
     return sharedVariables[0];
   }
 

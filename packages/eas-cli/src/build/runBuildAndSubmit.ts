@@ -132,13 +132,6 @@ export async function runBuildAndSubmitAsync(
     profileName: flags.profile ?? undefined,
     projectDir,
   });
-  Log.log(
-    `Loaded "env" configuration for the "${buildProfiles[0].profileName}" profile: ${
-      buildProfiles[0].profile.env
-        ? Object.keys(buildProfiles[0].profile.env).join(', ')
-        : 'no environment variables specified'
-    }. ${learnMore('https://docs.expo.dev/build-reference/variables/')}`
-  );
 
   for (const buildProfile of buildProfiles) {
     if (buildProfile.profile.image && ['default', 'stable'].includes(buildProfile.profile.image)) {
@@ -658,8 +651,11 @@ async function resolveEnvVarsAsync({
 
     return envVars;
   } catch (e) {
-    Log.error('Failed to pull the env file');
+    Log.error('Failed to pull env variables for environment ${environment} from EAS servers');
     Log.error(e);
+    Log.error(
+      'This can possibly be a bug in EAS/EAS CLI. Report it here: https://github.com/expo/eas-cli/issues'
+    );
   }
 
   return {};
