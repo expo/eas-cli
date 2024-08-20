@@ -5,3 +5,4 @@
 packages/eas-cli/src/graphql/generated.ts
 
 node_modules
+ts-declarations
