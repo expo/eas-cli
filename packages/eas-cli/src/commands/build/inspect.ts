@@ -67,7 +67,6 @@ export default class BuildInspect extends EasCommand {
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Analytics,
     ...this.ContextOptions.Vcs,
-    ...this.ContextOptions.SessionManagment,
   };
 
   async runAsync(): Promise<void> {
@@ -78,7 +77,6 @@ export default class BuildInspect extends EasCommand {
       projectDir,
       analytics,
       vcsClient,
-      sessionManager,
     } = await this.getContextAsync(BuildInspect, {
       nonInteractive: false,
     });
@@ -125,8 +123,7 @@ export default class BuildInspect extends EasCommand {
             repack: false,
           },
           actor,
-          getDynamicPrivateProjectConfigAsync,
-          sessionManager
+          getDynamicPrivateProjectConfigAsync
         );
         if (!flags.verbose) {
           Log.log(chalk.green('Build successful'));
