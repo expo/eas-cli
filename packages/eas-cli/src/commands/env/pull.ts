@@ -1,7 +1,6 @@
 import { Flags } from '@oclif/core';
 import * as fs from 'fs-extra';
 
-import { withSudoModeAsync } from '../../authUtils';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
 import {
@@ -26,7 +25,6 @@ export default class EnvironmentValuePull extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
-    ...this.ContextOptions.SessionManagment,
   };
 
   static override flags = {
@@ -49,30 +47,18 @@ export default class EnvironmentValuePull extends EasCommand {
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
-      sessionManager,
     } = await this.getContextAsync(EnvironmentValuePull, {
       nonInteractive,
     });
 
-    if (!nonInteractive) {
-      const confirm = await confirmAsync({
-        message: `Pull the environment variables for the ${environment} environment to a local ${targetPath} file. Do you want to continue?`,
-      });
-      if (!confirm) {
-        Log.log('Aborting...');
-        return;
-      }
-    }
-
     targetPath = targetPath ?? '.env.local';
 
-    const environmentVariables = await withSudoModeAsync(
-      sessionManager,
-      async () =>
-        await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
-          appId: projectId,
-          environment,
-        })
+    const environmentVariables = await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(
+      graphqlClient,
+      {
+        appId: projectId,
+        environment,
+      }
     );
 
     if (!nonInteractive && (await fs.exists(targetPath))) {

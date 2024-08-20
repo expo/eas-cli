@@ -10,7 +10,7 @@ import path from 'path';
 import { LocalBuildMode } from '../../build/local';
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASEnvironmentFlag, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { EASEnvironmentFlagHidden, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { EnvironmentVariableEnvironment, StatuspageServiceName } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
@@ -117,7 +117,7 @@ export default class Build extends EasCommand {
       description: 'Use the golden dev client build repack flow as it works for onboarding',
     }),
     ...EasNonInteractiveAndJsonFlags,
-    ...EASEnvironmentFlag,
+    ...EASEnvironmentFlagHidden,
   };
 
   static override contextDefinition = {
@@ -127,7 +127,6 @@ export default class Build extends EasCommand {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.Analytics,
     ...this.ContextOptions.Vcs,
-    ...this.ContextOptions.SessionManagment,
   };
 
   async runAsync(): Promise<void> {
@@ -144,7 +143,6 @@ export default class Build extends EasCommand {
       projectDir,
       analytics,
       vcsClient,
-      sessionManager,
     } = await this.getContextAsync(Build, {
       nonInteractive: flags.nonInteractive,
     });
@@ -169,8 +167,7 @@ export default class Build extends EasCommand {
       projectDir,
       flagsWithPlatform,
       actor,
-      getDynamicPrivateProjectConfigAsync,
-      sessionManager
+      getDynamicPrivateProjectConfigAsync
     );
   }
 

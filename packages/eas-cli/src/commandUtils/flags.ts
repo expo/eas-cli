@@ -38,6 +38,21 @@ export const EASEnvironmentFlag = {
   }),
 };
 
+// NOTE: Used in build commands, should be replaced with EASEnvironmentFlag when
+// the feature is public
+export const EASEnvironmentFlagHidden = {
+  environment: Flags.enum<EnvironmentVariableEnvironment>({
+    description: "Environment variable's environment",
+    parse: upperCaseAsync,
+    hidden: true,
+    options: mapToLowercase([
+      EnvironmentVariableEnvironment.Development,
+      EnvironmentVariableEnvironment.Preview,
+      EnvironmentVariableEnvironment.Production,
+    ]),
+  }),
+};
+
 export const EASVariableFormatFlag = {
   format: Flags.enum({
     description: 'Output format',

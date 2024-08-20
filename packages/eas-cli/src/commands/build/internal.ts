@@ -48,7 +48,6 @@ export default class BuildInternal extends EasCommand {
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Analytics,
     ...this.ContextOptions.Vcs,
-    ...this.ContextOptions.SessionManagment,
   };
 
   async runAsync(): Promise<void> {
@@ -62,7 +61,6 @@ export default class BuildInternal extends EasCommand {
       projectDir,
       analytics,
       vcsClient,
-      sessionManager,
     } = await this.getContextAsync(BuildInternal, {
       nonInteractive: true,
       vcsClientOverride: new GitNoCommitClient(),
@@ -91,8 +89,7 @@ export default class BuildInternal extends EasCommand {
         repack: false,
       },
       actor,
-      getDynamicPrivateProjectConfigAsync,
-      sessionManager
+      getDynamicPrivateProjectConfigAsync
     );
   }
 }
