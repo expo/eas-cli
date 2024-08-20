@@ -29,7 +29,8 @@ export class AppReviewDetailTask extends AppleTask {
   public async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
     const reviewDetail = config.getReviewDetails();
     if (!reviewDetail) {
-      return Log.log(chalk`{dim - Skipped store review details, not configured}`);
+      Log.log(chalk`{dim - Skipped store review details, not configured}`);
+      return;
     }
 
     assert(context.version, `App version not initialized, can't upload store review details`);

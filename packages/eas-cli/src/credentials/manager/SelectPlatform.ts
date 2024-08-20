@@ -23,8 +23,9 @@ export class SelectPlatform {
     const platform = await selectPlatformAsync(this.flagPlatform);
 
     if (platform === 'ios') {
-      return await new ManageIos(this, process.cwd()).runAsync();
+      await new ManageIos(this, process.cwd()).runAsync();
+      return;
     }
-    return await new ManageAndroid(this, process.cwd()).runAsync();
+    await new ManageAndroid(this, process.cwd()).runAsync();
   }
 }

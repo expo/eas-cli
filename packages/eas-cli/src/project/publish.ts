@@ -134,7 +134,9 @@ async function calculateFileHashAsync(filePath: string, algorithm: string): Prom
   return await new Promise((resolve, reject) => {
     const file = fs.createReadStream(filePath).on('error', reject);
     const hash = file.pipe(crypto.createHash(algorithm)).on('error', reject);
-    hash.on('finish', () => resolve(hash.read()));
+    hash.on('finish', () => {
+      resolve(hash.read());
+    });
   });
 }
 
@@ -207,7 +209,7 @@ export async function buildBundlesAsync({
 
   // Legacy global Expo CLI
   if (!shouldUseVersionedExpoCLI(projectDir, exp)) {
-    return await expoCommandAsync(projectDir, [
+    await expoCommandAsync(projectDir, [
       'export',
       '--output-dir',
       inputDir,
@@ -218,6 +220,7 @@ export async function buildBundlesAsync({
       `--platform=${platformFlag}`,
       ...(clearCache ? ['--clear'] : []),
     ]);
+    return;
   }
 
   // Versioned Expo CLI, with multiple platform flag support
@@ -228,7 +231,7 @@ export async function buildBundlesAsync({
         ? ['--platform', 'ios', '--platform', 'android']
         : ['--platform', platformFlag];
 
-    return await expoCommandAsync(projectDir, [
+    await expoCommandAsync(projectDir, [
       'export',
       '--output-dir',
       inputDir,
@@ -237,6 +240,7 @@ export async function buildBundlesAsync({
       ...platformArgs,
       ...(clearCache ? ['--clear'] : []),
     ]);
+    return;
   }
 
   // Versioned Expo CLI, without multiple platform flag support
@@ -249,7 +253,7 @@ export async function buildBundlesAsync({
     );
   }
 
-  return await expoCommandAsync(projectDir, [
+  await expoCommandAsync(projectDir, [
     'export',
     '--output-dir',
     inputDir,

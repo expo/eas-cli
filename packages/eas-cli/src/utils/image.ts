@@ -11,7 +11,7 @@ export async function ensurePNGIsNotTransparentAsync(imagePathOrURL: string): Pr
   const stream = await getImageStreamAsync(imagePathOrURL);
   let metadata: Metadata | undefined;
 
-  return await new Promise((res, rej) => {
+  await new Promise<void>((res, rej) => {
     stream
       .pipe(new PNG({ filterType: 4 }))
       .on('error', err => {

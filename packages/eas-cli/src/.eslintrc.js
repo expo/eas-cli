@@ -14,7 +14,7 @@ module.exports = {
           },
         ],
         '@typescript-eslint/prefer-nullish-coalescing': ['warn', { ignorePrimitives: true }],
-        // '@typescript-eslint/no-confusing-void-expression': 'warn',
+        '@typescript-eslint/no-confusing-void-expression': 'warn',
         // '@typescript-eslint/await-thenable': 'error',
         // '@typescript-eslint/no-misused-promises': [
         //   'error',

@@ -27,7 +27,8 @@ export async function deletePasswordAsync({
       (error: Error) => {
         if (error) {
           if (error.message.match(NO_PASSWORD_REGEX)) {
-            return resolve(false);
+            resolve(false);
+            return;
           }
           reject(error);
         } else {
@@ -52,7 +53,8 @@ export async function getPasswordAsync({
       (error: Error, password: string) => {
         if (error) {
           if (error.message.match(NO_PASSWORD_REGEX)) {
-            return resolve(null);
+            resolve(null);
+            return;
           }
           reject(error);
         } else {

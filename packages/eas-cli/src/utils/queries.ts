@@ -36,7 +36,7 @@ type PaginatedQueryWithSelectPromptArgs<QueryReturnType extends Record<string, a
 export async function paginatedQueryWithConfirmPromptAsync<
   QueryReturnType extends Record<string, any>,
 >(queryArgs: PaginatedQueryWithConfirmPromptArgs<QueryReturnType>): Promise<void> {
-  return await paginatedQueryWithConfirmPromptInternalAsync(queryArgs, []);
+  await paginatedQueryWithConfirmPromptInternalAsync(queryArgs, []);
 }
 
 async function paginatedQueryWithConfirmPromptInternalAsync<
@@ -64,7 +64,7 @@ async function paginatedQueryWithConfirmPromptInternalAsync<
   }
 
   if (await confirmAsync({ message: promptOptions.title })) {
-    return await paginatedQueryWithConfirmPromptInternalAsync(
+    await paginatedQueryWithConfirmPromptInternalAsync(
       {
         limit,
         offset: offset + limit,

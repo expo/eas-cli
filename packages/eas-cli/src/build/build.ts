@@ -130,7 +130,9 @@ export async function prepareBuildRequestForPlatformAsync<
 
   await withAnalyticsAsync(
     ctx.analytics,
-    async () => await builder.syncProjectConfigurationAsync(ctx),
+    async () => {
+      await builder.syncProjectConfigurationAsync(ctx);
+    },
     {
       attemptEvent: BuildEvent.CONFIGURE_PROJECT_ATTEMPT,
       successEvent: BuildEvent.CONFIGURE_PROJECT_SUCCESS,

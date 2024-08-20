@@ -25,7 +25,7 @@ export async function ensureBundleIdExistsAsync(
   { accountName, projectName, bundleIdentifier }: AppLookupParams,
   options?: IosCapabilitiesOptions
 ): Promise<void> {
-  return await ensureBundleIdExistsWithNameAsync(
+  await ensureBundleIdExistsWithNameAsync(
     authCtx,
     {
       name: `@${accountName}/${projectName}`,

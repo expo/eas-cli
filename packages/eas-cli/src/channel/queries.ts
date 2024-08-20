@@ -89,7 +89,9 @@ export async function listAndRenderChannelsOnAppAsync(
         queryChannelsOnAppAsync(graphqlClient, { limit, offset, appId: projectId }),
       promptOptions: {
         title: 'Load more channels?',
-        renderListItems: channels => renderPageOfChannels(channels, paginatedQueryOptions),
+        renderListItems: channels => {
+          renderPageOfChannels(channels, paginatedQueryOptions);
+        },
       },
     });
   }
@@ -131,8 +133,9 @@ export async function listAndRenderBranchesAndUpdatesOnChannelAsync(
         }),
       promptOptions: {
         title: 'Load more channels?',
-        renderListItems: branches =>
-          renderPageOfBranchesOnChannel(channel, branches, paginatedQueryOptions),
+        renderListItems: branches => {
+          renderPageOfBranchesOnChannel(channel, branches, paginatedQueryOptions);
+        },
       },
     });
   }

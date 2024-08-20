@@ -11,9 +11,9 @@ describe(assertValidOptions, () => {
     const classifier = CapabilityMapping.find(
       ({ capabilityIdPrefix }) => capabilityIdPrefix === 'merchant.'
     )!;
-    expect(() => assertValidOptions(classifier, ['foobar'])).toThrowError(
-      /Expected an array of strings, where each string is prefixed with "merchant."/
-    );
+    expect(() => {
+      assertValidOptions(classifier, ['foobar']);
+    }).toThrowError(/Expected an array of strings, where each string is prefixed with "merchant."/);
   });
 });
 
