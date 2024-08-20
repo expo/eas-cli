@@ -47,7 +47,7 @@ export async function runCommandAsync({
       }
 
       const log = `${chalk.gray(`[${command}]`)} ${line}`;
-      if (shouldPrintStderrLineAsStdout && shouldPrintStderrLineAsStdout(line)) {
+      if (shouldPrintStderrLineAsStdout?.(line)) {
         Log.log(log);
       } else {
         Log.warn(`${chalk.gray(`[${command}]`)} ${line}`);

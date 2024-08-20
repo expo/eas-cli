@@ -16,7 +16,7 @@ export class AgeRatingTask extends AppleTask {
 
   public async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
     assert(context.version, `App version information is not prepared, can't update age rating`);
-    context.ageRating = (await context.version.getAgeRatingDeclarationAsync()) || undefined;
+    context.ageRating = (await context.version.getAgeRatingDeclarationAsync()) ?? undefined;
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {

@@ -38,7 +38,7 @@ export function createGraphqlClient(authInfo: {
           return !!(
             err &&
             !operation.context.noRetry &&
-            (err.networkError || err.graphQLErrors.some(e => e?.extensions?.isTransient))
+            (err.networkError ?? err.graphQLErrors.some(e => e?.extensions?.isTransient))
           );
         },
       }),

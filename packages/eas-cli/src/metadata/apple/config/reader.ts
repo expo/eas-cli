@@ -58,7 +58,7 @@ export class AppleConfigReader {
 
   public getLocales(): string[] {
     // TODO: filter "default" locales, add option to add non-localized info to the config
-    return uniq(Object.keys(this.schema.info || {}));
+    return uniq(Object.keys(this.schema.info ?? {}));
   }
 
   public getInfoLocale(

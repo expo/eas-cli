@@ -58,7 +58,7 @@ export async function createPushKeyAsync(
     const resultString = err.rawDump?.resultString;
     if (
       err instanceof MaxKeysCreatedError ||
-      (resultString && resultString.match(/maximum allowed number of Keys/))
+      resultString?.match(/maximum allowed number of Keys/)
     ) {
       throw new Error(APPLE_KEYS_TOO_MANY_GENERATED_ERROR);
     }

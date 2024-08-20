@@ -273,7 +273,7 @@ export default class Onboarding extends EasCommand {
     Log.log('🎉 We finished configuring your project.');
     Log.log();
     if (
-      app.githubRepository ||
+      !!app.githubRepository ||
       actor.preferences.onboarding.environment === OnboardingEnvironment.ExpoGo
     ) {
       Log.log('🚀 You can now go back to the website to continue:');
