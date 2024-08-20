@@ -9,7 +9,7 @@ import Log from '../../log';
 import { confirmAsync } from '../../prompts';
 
 const ENVRC_TEMPLATE =
-  'dotenv_if_exists .env;\ndotenv_if_exists .env.local;\ndotenv_if_exists .env.eas.local;\n';
+  'dotenv_if_exists .env;\ndotenv_if_exists .env.eas.local;\ndotenv_if_exists .env.local;\n';
 
 export default class EnvironmentVariableInit extends EasCommand {
   static override description = 'setup environment variables';
@@ -18,6 +18,10 @@ export default class EnvironmentVariableInit extends EasCommand {
 
   static override flags = {
     ...EASNonInteractiveFlag,
+  };
+
+  static override contextDefinition = {
+    ...this.ContextOptions.ProjectDir,
   };
 
   async runAsync(): Promise<void> {
@@ -29,12 +33,16 @@ export default class EnvironmentVariableInit extends EasCommand {
       throw new Error("Non-interactive mode is not supported for 'eas env:init'");
     }
 
-    await this.ensureDirenvInstalledAsync();
-    await this.setupEnvrcFileAsync();
+    const { projectDir } = await this.getContextAsync(EnvironmentVariableInit, {
+      nonInteractive,
+    });
+
+    await this.ensureDirenvInstalledAsync(projectDir);
+    await this.setupEnvrcFileAsync(projectDir);
     await this.addDirenvHookToShellConfigAsync();
-    await this.addToGitIgnoreAsync();
+    await this.addToGitIgnoreAsync(projectDir);
     Log.log('Running direnv allow...');
-    await spawnAsync('direnv', ['allow']);
+    await spawnAsync('direnv', ['allow'], { cwd: projectDir, stdio: 'inherit' });
   }
 
   private async addDirenvHookToShellConfigAsync(): Promise<void> {
@@ -104,9 +112,10 @@ export default class EnvironmentVariableInit extends EasCommand {
     }
   }
 
-  private async addToGitIgnoreAsync(): Promise<void> {
-    if (await pathExists('.gitignore')) {
-      const gitignoreContent = await readFile('.gitignore', 'utf8');
+  private async addToGitIgnoreAsync(cwd: string): Promise<void> {
+    const gitIgnorePath = path.resolve(cwd, '.gitignore');
+    if (await pathExists(gitIgnorePath)) {
+      const gitignoreContent = await readFile(gitIgnorePath, 'utf8');
 
       const filesToIgnore = ['.envrc', '.env.eas.local', '.env.eas.local.original'];
       const linesToAdd = filesToIgnore.filter(file => !gitignoreContent.includes(file));
@@ -116,7 +125,7 @@ export default class EnvironmentVariableInit extends EasCommand {
           message: `Do you want to add ${linesToAdd.join(',')} to .gitignore?`,
         });
         if (confirm) {
-          await appendFile('.gitignore', linesToAdd.join('\n') + '\n', 'utf8');
+          await appendFile(gitIgnorePath, linesToAdd.join('\n') + '\n', 'utf8');
           Log.log(`${linesToAdd.join(',')} added to .gitignore`);
         } else {
           Log.log('Skipping adding .envrc and .env.local to .gitignore');
@@ -127,10 +136,11 @@ export default class EnvironmentVariableInit extends EasCommand {
     }
   }
 
-  private async setupEnvrcFileAsync(): Promise<void> {
-    if (await pathExists('.envrc')) {
+  private async setupEnvrcFileAsync(cwd: string): Promise<void> {
+    const envrcPath = path.resolve(cwd, '.envrc');
+    if (await pathExists(envrcPath)) {
       Log.log('.envrc file already exists');
-      const envrcContent = await readFile('.envrc', 'utf8');
+      const envrcContent = await readFile(envrcPath, 'utf8');
       if (envrcContent.includes(ENVRC_TEMPLATE)) {
         Log.log('.envrc file is already set up');
         return;
@@ -141,19 +151,19 @@ export default class EnvironmentVariableInit extends EasCommand {
       });
       if (confirm) {
         Log.log('Modifying existing .envrc file...');
-        await appendFile('.envrc', ENVRC_TEMPLATE, 'utf8');
+        await appendFile(envrcPath, ENVRC_TEMPLATE, 'utf8');
         Log.log('.envrc file modified');
       } else {
         Log.log('Skipping modifying .envrc file');
       }
     } else {
       Log.log('Creating .envrc file...');
-      await writeFile('.envrc', ENVRC_TEMPLATE, 'utf8');
+      await writeFile(envrcPath, ENVRC_TEMPLATE, 'utf8');
       Log.log('.envrc file created');
     }
   }
 
-  private async ensureDirenvInstalledAsync(): Promise<void> {
+  private async ensureDirenvInstalledAsync(cwd: string): Promise<void> {
     Log.log('Checking direnv installation...');
     try {
       await spawnAsync('direnv', ['--version']);
@@ -164,7 +174,7 @@ export default class EnvironmentVariableInit extends EasCommand {
         message: 'Do you want EAS CLI to install direnv for you?',
       });
       if (install) {
-        await this.installDirenvAsync();
+        await this.installDirenvAsync(cwd);
         Log.log('direnv installed');
       } else {
         Log.error("You'll need to install direnv manually");
@@ -173,7 +183,7 @@ export default class EnvironmentVariableInit extends EasCommand {
     }
   }
 
-  private async installDirenvAsync(): Promise<void> {
+  private async installDirenvAsync(cwd: string): Promise<void> {
     const platform = os.platform();
 
     let installCommand;
@@ -212,7 +222,7 @@ export default class EnvironmentVariableInit extends EasCommand {
 
     try {
       Log.log(`Running: ${installCommand}`);
-      await spawnAsync(installCommand, installArgs, { stdio: 'inherit' });
+      await spawnAsync(installCommand, installArgs, { stdio: 'inherit', cwd });
     } catch (error: any) {
       Log.error(`Failed to install direnv: ${error.message}`);
       throw error;
