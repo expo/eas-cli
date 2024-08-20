@@ -6,7 +6,7 @@ import { promptAsync } from '../../prompts';
 import { CredentialsContext } from '../context';
 
 export class SelectIosDistributionTypeGraphqlFromBuildProfile {
-  constructor(private buildProfile: BuildProfile<Platform.IOS>) {}
+  constructor(private readonly buildProfile: BuildProfile<Platform.IOS>) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosDistributionTypeGraphql> {
     const { distribution, simulator } = this.buildProfile;

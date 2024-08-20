@@ -5,7 +5,7 @@ import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 
 export class AssignPushKey {
-  constructor(private app: AppLookupParams) {}
+  constructor(private readonly app: AppLookupParams) {}
 
   public async runAsync(
     ctx: CredentialsContext,

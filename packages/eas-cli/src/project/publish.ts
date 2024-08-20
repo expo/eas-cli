@@ -313,7 +313,7 @@ export function filterExportedPlatformsByFlag<T extends Partial<Record<Platform,
     return record;
   }
 
-  const platform = platformFlag as Platform;
+  const platform = platformFlag;
 
   if (!record[platform]) {
     throw new Error(

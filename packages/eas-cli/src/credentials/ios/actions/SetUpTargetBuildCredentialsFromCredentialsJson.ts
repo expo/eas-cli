@@ -24,9 +24,9 @@ import { readAppleTeam } from '../utils/provisioningProfile';
 
 export class SetUpTargetBuildCredentialsFromCredentialsJson {
   constructor(
-    private app: AppLookupParams,
-    private distributionType: IosDistributionType,
-    private targetCredentials: IosTargetCredentials
+    private readonly app: AppLookupParams,
+    private readonly distributionType: IosDistributionType,
+    private readonly targetCredentials: IosTargetCredentials
   ) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {

@@ -11,7 +11,7 @@ import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 
 export class SelectAndRemoveDistributionCertificate {
-  constructor(private account: AccountFragment) {}
+  constructor(private readonly account: AccountFragment) {}
 
   async runAsync(ctx: CredentialsContext): Promise<void> {
     const selected = await selectDistributionCertificateWithDependenciesAsync(ctx, this.account);
@@ -25,8 +25,8 @@ export class SelectAndRemoveDistributionCertificate {
 
 export class RemoveDistributionCertificate {
   constructor(
-    private account: AccountFragment,
-    private distributionCertificate: AppleDistributionCertificateFragment
+    private readonly account: AccountFragment,
+    private readonly distributionCertificate: AppleDistributionCertificateFragment
   ) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<void> {

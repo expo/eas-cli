@@ -15,10 +15,10 @@ import { formatRuntimeWithUpdateGroup } from '../utils';
  * Select a runtime from a branch
  */
 export class SelectRuntime implements EASUpdateAction<string | null> {
-  private printedType;
+  private readonly printedType;
   constructor(
-    private branchInfo: UpdateBranchBasicInfoFragment,
-    private options: {
+    private readonly branchInfo: UpdateBranchBasicInfoFragment,
+    private readonly options: {
       anotherBranchToIntersectRuntimesBy?: UpdateBranchBasicInfoFragment;
     } = {}
   ) {

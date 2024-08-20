@@ -28,7 +28,7 @@ import {
  */
 export class SelectBranch implements EASUpdateAction<UpdateBranchBasicInfoFragment | null> {
   constructor(
-    private options: {
+    private readonly options: {
       filterPredicate?: (branchInfo: UpdateBranchBasicInfoFragment) => boolean;
       printedType?: string;
       pageSize?: number;

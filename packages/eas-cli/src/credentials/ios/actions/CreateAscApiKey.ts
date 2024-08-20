@@ -3,7 +3,7 @@ import { AccountFragment, AppStoreConnectApiKeyFragment } from '../../../graphql
 import { CredentialsContext } from '../../context';
 
 export class CreateAscApiKey {
-  constructor(private account: AccountFragment) {}
+  constructor(private readonly account: AccountFragment) {}
 
   public async runAsync(
     ctx: CredentialsContext,

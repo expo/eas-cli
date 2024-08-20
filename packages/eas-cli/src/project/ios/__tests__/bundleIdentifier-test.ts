@@ -32,7 +32,7 @@ beforeEach(async () => {
   jest.mocked(promptAsync).mockReset();
 });
 
-const originalFs = jest.requireActual('fs') as typeof fs;
+const originalFs = jest.requireActual('fs');
 
 describe(getBundleIdentifierAsync, () => {
   describe('bare projects', () => {

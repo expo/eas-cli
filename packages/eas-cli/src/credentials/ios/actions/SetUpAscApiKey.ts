@@ -38,8 +38,8 @@ export class SetUpAscApiKey {
   ];
 
   constructor(
-    private app: AppLookupParams,
-    private purpose: AppStoreApiKeyPurpose
+    private readonly app: AppLookupParams,
+    private readonly purpose: AppStoreApiKeyPurpose
   ) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<CommonIosAppCredentialsFragment> {

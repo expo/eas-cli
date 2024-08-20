@@ -59,6 +59,7 @@ import { BuildQuery } from '../graphql/queries/BuildQuery';
 import Log, { learnMore, link } from '../log';
 import { Ora, ora } from '../ora';
 import {
+  RequestedPlatform,
   appPlatformDisplayNames,
   appPlatformEmojis,
   requestedPlatformDisplayNames,
@@ -140,9 +141,15 @@ export async function prepareBuildRequestForPlatformAsync<
 
   if (await ctx.vcsClient.isCommitRequiredAsync()) {
     Log.addNewLineIfNone();
+    const platformToRequestedPlatform: Record<Platform, RequestedPlatform> = {
+      [Platform.ANDROID]: RequestedPlatform.Android,
+      [Platform.IOS]: RequestedPlatform.Ios,
+    };
     await reviewAndCommitChangesAsync(
       ctx.vcsClient,
-      `[EAS Build] Run EAS Build for ${requestedPlatformDisplayNames[ctx.platform as Platform]}`,
+      `[EAS Build] Run EAS Build for ${
+        requestedPlatformDisplayNames[platformToRequestedPlatform[ctx.platform]]
+      }`,
       { nonInteractive: ctx.nonInteractive }
     );
   }

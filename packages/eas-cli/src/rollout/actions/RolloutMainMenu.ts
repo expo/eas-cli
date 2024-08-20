@@ -35,7 +35,7 @@ export type RolloutActions =
  */
 export class RolloutMainMenu implements EASUpdateAction<void> {
   constructor(
-    private options: {
+    private readonly options: {
       channelName?: string;
       action?: RolloutActions;
     } & Partial<EditRolloutNonInteractiveOptions> &

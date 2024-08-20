@@ -16,7 +16,7 @@ interface Options {
 }
 
 export class SetUpBuildCredentials {
-  constructor(private options: Options) {}
+  constructor(private readonly options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosCredentials> {
     const hasManyTargets = this.options.targets.length > 1;

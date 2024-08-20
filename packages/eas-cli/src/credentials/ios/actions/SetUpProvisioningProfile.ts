@@ -34,9 +34,9 @@ import { validateProvisioningProfileAsync } from '../validators/validateProvisio
  */
 export class SetUpProvisioningProfile {
   constructor(
-    private app: AppLookupParams,
-    private target: Target,
-    private distributionType: IosDistributionType
+    private readonly app: AppLookupParams,
+    private readonly target: Target,
+    private readonly distributionType: IosDistributionType
   ) {}
 
   async areBuildCredentialsSetupAsync(ctx: CredentialsContext): Promise<boolean> {

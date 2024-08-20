@@ -240,7 +240,7 @@ function getCapabilitiesToDisable(
         )
       ) {
         request.push({
-          // @ts-ignore
+          // @ts-expect-error
           capabilityType: adjustedType,
           option: CapabilityTypeOption.OFF,
         });

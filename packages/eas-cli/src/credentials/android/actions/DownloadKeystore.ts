@@ -16,7 +16,7 @@ interface DownloadKeystoreOptions {
 }
 
 export class DownloadKeystore {
-  constructor(private options: DownloadKeystoreOptions) {}
+  constructor(private readonly options: DownloadKeystoreOptions) {}
 
   public async runAsync(
     ctx: CredentialsContext,
@@ -62,7 +62,7 @@ export class DownloadKeystore {
 }
 
 export class BackupKeystore {
-  constructor(private app: AppLookupParams) {}
+  constructor(private readonly app: AppLookupParams) {}
 
   public async runAsync(
     ctx: CredentialsContext,

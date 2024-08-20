@@ -21,7 +21,7 @@ interface Options {
   target: Target;
 }
 export class SetUpTargetBuildCredentials {
-  constructor(private options: Options) {}
+  constructor(private readonly options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
     const { app, entitlements } = this.options;

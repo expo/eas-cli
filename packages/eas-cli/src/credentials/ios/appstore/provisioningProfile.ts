@@ -71,7 +71,7 @@ async function transformProfileAsync(
     status: cert.attributes.profileState,
     expires: new Date(cert.attributes.expirationDate).getTime() / 1000,
     distributionMethod: cert.attributes.profileType,
-    // @ts-ignore -- this can be null when the profile has expired.
+    // @ts-expect-error -- this can be null when the profile has expired.
     provisioningProfile: cert.attributes.profileContent,
     certificates: (await cert.getCertificatesAsync()).map(transformCertificate),
     teamId: authCtx.team.id,

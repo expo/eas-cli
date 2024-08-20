@@ -15,7 +15,7 @@ import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 
 export class SetUpPushKey {
-  constructor(private app: AppLookupParams) {}
+  constructor(private readonly app: AppLookupParams) {}
 
   async isPushKeySetupAsync(ctx: CredentialsContext): Promise<boolean> {
     const pushKey = await ctx.ios.getPushKeyForAppAsync(ctx.graphqlClient, this.app);

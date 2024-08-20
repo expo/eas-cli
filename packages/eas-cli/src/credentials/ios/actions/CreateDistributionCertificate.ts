@@ -5,7 +5,7 @@ import { CredentialsContext } from '../../context';
 import { AppleDistributionCertificateMutationResult } from '../api/graphql/mutations/AppleDistributionCertificateMutation';
 
 export class CreateDistributionCertificate {
-  constructor(private account: AccountFragment) {}
+  constructor(private readonly account: AccountFragment) {}
 
   public async runAsync(
     ctx: CredentialsContext
