@@ -131,7 +131,7 @@ export function getStorageKey(contentType: string, contentHash: string): string 
 }
 
 async function calculateFileHashAsync(filePath: string, algorithm: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
+  return await new Promise((resolve, reject) => {
     const file = fs.createReadStream(filePath).on('error', reject);
     const hash = file.pipe(crypto.createHash(algorithm)).on('error', reject);
     hash.on('finish', () => resolve(hash.read()));

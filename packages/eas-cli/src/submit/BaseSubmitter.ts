@@ -103,7 +103,7 @@ export default abstract class BaseSubmitter<
     const platformDisplayName = appPlatformDisplayNames[toAppPlatform(this.ctx.platform)];
     const scheduleSpinner = ora(`Scheduling ${platformDisplayName} submission`).start();
     try {
-      const submission = this.createPlatformSubmissionAsync(submissionInput);
+      const submission = await this.createPlatformSubmissionAsync(submissionInput);
       scheduleSpinner.succeed(`Scheduled ${platformDisplayName} submission`);
       return submission;
     } catch (err) {
@@ -117,7 +117,7 @@ export default abstract class BaseSubmitter<
   ): Promise<SubmissionFragment> {
     return await withAnalyticsAsync<SubmissionFragment>(
       this.ctx.analytics,
-      async () => this.createSubmissionAsync(submissionInput),
+      async () => await this.createSubmissionAsync(submissionInput),
       {
         attemptEvent: SubmissionEvent.SUBMIT_REQUEST_ATTEMPT,
         successEvent: SubmissionEvent.SUBMIT_REQUEST_SUCCESS,

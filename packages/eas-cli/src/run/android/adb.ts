@@ -88,7 +88,7 @@ export async function getRunningEmulatorsAsync(): Promise<AndroidEmulator[]> {
     };
   });
 
-  return Promise.all(devicePromises);
+  return await Promise.all(devicePromises);
 }
 
 export async function getFirstRunningEmulatorAsync(): Promise<AndroidEmulator | null> {

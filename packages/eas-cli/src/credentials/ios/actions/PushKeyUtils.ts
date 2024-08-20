@@ -121,11 +121,11 @@ export async function selectPushKeyAsync(
     return null;
   }
   if (!ctx.appStore.authCtx) {
-    return selectPushKeysAsync(pushKeysForAccount);
+    return await selectPushKeysAsync(pushKeysForAccount);
   }
 
   const validPushKeys = await getValidAndTrackedPushKeysOnEasServersAsync(ctx, pushKeysForAccount);
-  return selectPushKeysAsync(pushKeysForAccount, validPushKeys);
+  return await selectPushKeysAsync(pushKeysForAccount, validPushKeys);
 }
 
 export async function getValidAndTrackedPushKeysOnEasServersAsync(

@@ -111,7 +111,7 @@ async function loginAsync(
 
       if (await toggleConfirmAsync({ message: 'Would you like to try again?' })) {
         // Don't pass credentials back or the method will throw
-        return loginAsync(
+        return await loginAsync(
           {
             teamId: userCredentials.teamId,
             providerId: userCredentials.providerId,

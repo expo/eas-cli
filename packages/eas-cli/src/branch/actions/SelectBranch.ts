@@ -91,8 +91,8 @@ export class SelectBranch implements EASUpdateAction<UpdateBranchBasicInfoFragme
       queryParams: QueryParams
     ): Promise<Connection<UpdateBranchBasicInfoFragment>> =>
       filterPredicate
-        ? this.filterQueryAsync(ctx, queryParams, filterPredicate)
-        : this.queryAsync(ctx, queryParams);
+        ? await this.filterQueryAsync(ctx, queryParams, filterPredicate)
+        : await this.queryAsync(ctx, queryParams);
 
     const getTitleAsync = async (branchInfo: UpdateBranchBasicInfoFragment): Promise<string> =>
       branchInfo.name;

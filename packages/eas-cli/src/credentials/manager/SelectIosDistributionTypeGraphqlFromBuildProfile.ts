@@ -15,7 +15,7 @@ export class SelectIosDistributionTypeGraphqlFromBuildProfile {
     } else if (distribution === 'store') {
       return IosDistributionTypeGraphql.AppStore;
     } else {
-      return this.resolveInternalDistributionAsync(ctx);
+      return await this.resolveInternalDistributionAsync(ctx);
     }
   }
 

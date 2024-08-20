@@ -5,5 +5,5 @@
  * @returns A promise that resolves after the provided number of milliseconds.
  */
 export async function sleepAsync(ms: number): Promise<void> {
-  return new Promise(res => setTimeout(res, ms));
+  return await new Promise(res => setTimeout(res, ms));
 }

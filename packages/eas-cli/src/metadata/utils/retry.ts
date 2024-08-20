@@ -1,5 +1,5 @@
 export async function waitAsync(duration: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, duration));
+  return await new Promise(resolve => setTimeout(resolve, duration));
 }
 
 type WithRetryOptions = {

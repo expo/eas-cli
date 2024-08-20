@@ -82,5 +82,5 @@ async function getAndroidManifestAsync(projectDir: string): Promise<AndroidManif
   if (!androidManifestPath) {
     throw new Error(`Could not find AndroidManifest.xml in project directory: "${projectDir}"`);
   }
-  return AndroidConfig.Manifest.readAndroidManifestAsync(androidManifestPath);
+  return await AndroidConfig.Manifest.readAndroidManifestAsync(androidManifestPath);
 }
