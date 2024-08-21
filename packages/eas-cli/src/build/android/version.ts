@@ -44,7 +44,7 @@ export async function bumpVersionAsync({
 
   const buildGradle = await getAppBuildGradleAsync(projectDir);
   const isMultiFlavor =
-    buildGradle.android?.productFlavors || buildGradle.android?.flavorDimensions;
+    buildGradle.android?.productFlavors ?? buildGradle.android?.flavorDimensions;
   if (isMultiFlavor) {
     throw new Error(
       'Automatic version bumping is not supported for multi-flavor Android projects.'

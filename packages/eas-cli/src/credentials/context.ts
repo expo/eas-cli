@@ -86,7 +86,7 @@ export class CredentialsContext {
   }
 
   async bestEffortAppStoreAuthenticateAsync(): Promise<void> {
-    if (this.appStore.authCtx || !this.shouldAskAuthenticateAppStore) {
+    if (!!this.appStore.authCtx || !this.shouldAskAuthenticateAppStore) {
       // skip prompts if already have apple ctx or already asked about it
       return;
     }

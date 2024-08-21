@@ -23,11 +23,7 @@ jest.mock('../validators/validateProvisioningProfile', () => ({
     _app: any,
     buildCredentials: Partial<IosAppBuildCredentialsFragment> | null
   ): Promise<boolean> => {
-    return !!(
-      buildCredentials &&
-      buildCredentials.distributionCertificate &&
-      buildCredentials.provisioningProfile
-    );
+    return !!(buildCredentials?.distributionCertificate && buildCredentials.provisioningProfile);
   },
 }));
 jest.mock('../../../project/ios/bundleIdentifier');

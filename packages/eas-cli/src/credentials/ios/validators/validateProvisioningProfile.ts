@@ -20,11 +20,7 @@ export async function validateProvisioningProfileAsync(
   app: AppLookupParams,
   buildCredentials: Partial<IosAppBuildCredentialsFragment> | null
 ): Promise<boolean> {
-  if (
-    !buildCredentials ||
-    !buildCredentials.distributionCertificate ||
-    !buildCredentials.provisioningProfile
-  ) {
+  if (!buildCredentials?.distributionCertificate || !buildCredentials.provisioningProfile) {
     return false;
   }
 
