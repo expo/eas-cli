@@ -77,7 +77,7 @@ export async function prepareIosBuildAsync(
   return await prepareBuildRequestForPlatformAsync({
     ctx,
     ensureCredentialsAsync: async (ctx: BuildContext<Platform.IOS>) => {
-      return ensureIosCredentialsAsync(ctx, ctx.ios.targets);
+      return await ensureIosCredentialsAsync(ctx, ctx.ios.targets);
     },
     syncProjectConfigurationAsync: async () => {
       await syncProjectConfigurationAsync({

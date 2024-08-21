@@ -91,8 +91,8 @@ export class SelectChannel implements EASUpdateAction<UpdateChannelBasicInfoFrag
       queryParams: QueryParams
     ): Promise<Connection<UpdateChannelBasicInfoFragment>> =>
       filterPredicate
-        ? this.filterQueryAsync(ctx, queryParams, filterPredicate)
-        : this.queryAsync(ctx, queryParams);
+        ? await this.filterQueryAsync(ctx, queryParams, filterPredicate)
+        : await this.queryAsync(ctx, queryParams);
 
     const getTitleAsync = async (channelInfo: UpdateChannelBasicInfoFragment): Promise<string> =>
       channelInfo.name;

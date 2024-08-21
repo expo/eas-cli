@@ -308,7 +308,7 @@ async function getCachedPasswordAsync({
   }
 
   const serviceName = getKeychainServiceName(username);
-  return Keychain.getPasswordAsync({ username, serviceName });
+  return await Keychain.getPasswordAsync({ username, serviceName });
 }
 
 async function cachePasswordAsync({ username, password }: Auth.UserCredentials): Promise<boolean> {
@@ -320,5 +320,5 @@ async function cachePasswordAsync({ username, password }: Auth.UserCredentials):
   Log.log(`\u203A Saving Apple ID password to the local Keychain`);
   Log.log(`  ${learnMore('https://docs.expo.dev/distribution/security#keychain')}`);
   const serviceName = getKeychainServiceName(username);
-  return Keychain.setPasswordAsync({ username, password, serviceName });
+  return await Keychain.setPasswordAsync({ username, password, serviceName });
 }

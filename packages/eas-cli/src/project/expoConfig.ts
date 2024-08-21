@@ -33,9 +33,9 @@ export async function createOrModifyExpoConfigAsync(
   await ensureStaticExpoConfigIsValidAsync(projectDir);
 
   if (readOptions) {
-    return modifyConfigAsync(projectDir, exp, readOptions);
+    return await modifyConfigAsync(projectDir, exp, readOptions);
   } else {
-    return modifyConfigAsync(projectDir, exp);
+    return await modifyConfigAsync(projectDir, exp);
   }
 }
 

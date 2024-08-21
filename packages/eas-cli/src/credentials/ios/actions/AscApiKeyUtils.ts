@@ -202,7 +202,7 @@ export async function selectAscApiKeysFromAccountAsync(
     }
     return null;
   }
-  return selectAscApiKeysAsync(ascApiKeysForAccount);
+  return await selectAscApiKeysAsync(ascApiKeysForAccount);
 }
 
 async function selectAscApiKeysAsync(

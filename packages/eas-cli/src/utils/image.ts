@@ -11,7 +11,7 @@ export async function ensurePNGIsNotTransparentAsync(imagePathOrURL: string): Pr
   const stream = await getImageStreamAsync(imagePathOrURL);
   let metadata: Metadata | undefined;
 
-  return new Promise((res, rej) => {
+  return await new Promise((res, rej) => {
     stream
       .pipe(new PNG({ filterType: 4 }))
       .on('error', err => {
@@ -53,7 +53,7 @@ export async function ensurePNGIsNotTransparentAsync(imagePathOrURL: string): Pr
 
 export async function isPNGAsync(imagePathOrURL: string): Promise<boolean> {
   const stream = await getImageStreamAsync(imagePathOrURL);
-  return new Promise((res, rej) => {
+  return await new Promise((res, rej) => {
     stream
       .pipe(new PNG({ filterType: 4 }))
       .on('error', err => {

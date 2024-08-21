@@ -100,7 +100,7 @@ export async function selectDistributionCertificateWithDependenciesAsync(
     return null;
   }
   if (!ctx.appStore.authCtx) {
-    return selectDistributionCertificateAsync(distCertsForAccount);
+    return await selectDistributionCertificateAsync(distCertsForAccount);
   }
 
   // get valid certs on the developer portal
@@ -110,7 +110,7 @@ export async function selectDistributionCertificateWithDependenciesAsync(
     certInfoFromApple
   );
 
-  return selectDistributionCertificateAsync(distCertsForAccount, validDistCerts);
+  return await selectDistributionCertificateAsync(distCertsForAccount, validDistCerts);
 }
 
 /**
@@ -129,7 +129,7 @@ export async function selectValidDistributionCertificateAsync(
     return null;
   }
   if (!ctx.appStore.authCtx) {
-    return selectDistributionCertificateAsync(distCertsForAccount);
+    return await selectDistributionCertificateAsync(distCertsForAccount);
   }
 
   // filter by apple team
@@ -148,7 +148,7 @@ export async function selectValidDistributionCertificateAsync(
   Log.log(
     `${validDistCerts.length}/${distCertsForAccount.length} Distribution Certificates are currently valid for Apple Team ${ctx.appStore.authCtx?.team.id}.`
   );
-  return selectDistributionCertificateAsync(validDistCerts);
+  return await selectDistributionCertificateAsync(validDistCerts);
 }
 
 const APPLE_DIST_CERTS_TOO_MANY_GENERATED_ERROR = `
