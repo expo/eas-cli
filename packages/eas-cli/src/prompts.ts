@@ -53,13 +53,16 @@ export async function selectAsync<T>(
   choices: ExpoChoice<T>[],
   config?: {
     options?: Options;
+    initial?: T;
     warningMessageForDisabledEntries?: string;
   }
 ): Promise<T> {
+  const initial = config?.initial ? choices.findIndex(({ value }) => value === config.initial) : 0;
   const { value } = await promptAsync(
     {
       message,
       choices,
+      initial,
       name: 'value',
       type: 'select',
       warn: config?.warningMessageForDisabledEntries,

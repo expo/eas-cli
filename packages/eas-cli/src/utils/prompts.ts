@@ -2,10 +2,35 @@ import chalk from 'chalk';
 
 import capitalize from './expodash/capitalize';
 import {
+  EnvironmentSecretType,
   EnvironmentVariableEnvironment,
   EnvironmentVariableVisibility,
 } from '../graphql/generated';
 import { promptAsync, selectAsync } from '../prompts';
+
+export async function promptVariableTypeAsync(
+  nonInteractive: boolean,
+  initialType?: EnvironmentSecretType
+): Promise<EnvironmentSecretType> {
+  if (nonInteractive) {
+    throw new Error('The `--type` flag must be set when running in `--non-interactive` mode.');
+  }
+
+  const options = [
+    {
+      title: 'String',
+      value: EnvironmentSecretType.String,
+    },
+    {
+      title: 'File',
+      value: EnvironmentSecretType.FileBase64,
+    },
+  ];
+
+  return await selectAsync('Select the type of variable', options, {
+    initial: initialType,
+  });
+}
 
 export async function promptVariableVisibilityAsync(
   nonInteractive: boolean,

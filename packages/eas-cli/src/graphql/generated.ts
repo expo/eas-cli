@@ -8436,7 +8436,7 @@ export type LinkSharedEnvironmentVariableMutationVariables = Exact<{
 }>;
 
 
-export type LinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', linkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
+export type LinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', linkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType } } };
 
 export type UnlinkSharedEnvironmentVariableMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
@@ -8445,7 +8445,7 @@ export type UnlinkSharedEnvironmentVariableMutationVariables = Exact<{
 }>;
 
 
-export type UnlinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', unlinkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
+export type UnlinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', unlinkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType } } };
 
 export type CreateEnvironmentVariableForAccountMutationVariables = Exact<{
   input: CreateSharedEnvironmentVariableInput;
@@ -8453,7 +8453,7 @@ export type CreateEnvironmentVariableForAccountMutationVariables = Exact<{
 }>;
 
 
-export type CreateEnvironmentVariableForAccountMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForAccount: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
+export type CreateEnvironmentVariableForAccountMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForAccount: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType } } };
 
 export type CreateEnvironmentVariableForAppMutationVariables = Exact<{
   input: CreateEnvironmentVariableInput;
@@ -8461,14 +8461,14 @@ export type CreateEnvironmentVariableForAppMutationVariables = Exact<{
 }>;
 
 
-export type CreateEnvironmentVariableForAppMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForApp: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
+export type CreateEnvironmentVariableForAppMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForApp: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType } } };
 
 export type UpdateEnvironmentVariableMutationVariables = Exact<{
   input: UpdateEnvironmentVariableInput;
 }>;
 
 
-export type UpdateEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', updateEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
+export type UpdateEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', updateEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType } } };
 
 export type DeleteEnvironmentVariableMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -8719,37 +8719,41 @@ export type EnvironmentVariablesIncludingSensitiveByAppIdQueryVariables = Exact<
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
   environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  includeFileContent: Scalars['Boolean']['input'];
 }>;
 
 
-export type EnvironmentVariablesIncludingSensitiveByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentVariablesIncludingSensitive: Array<{ __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null }> } } };
+export type EnvironmentVariablesIncludingSensitiveByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentVariablesIncludingSensitive: Array<{ __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, valueWithFileContent?: string | null }> } } };
 
 export type EnvironmentVariablesByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
   environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  includeFileContent: Scalars['Boolean']['input'];
 }>;
 
 
-export type EnvironmentVariablesByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, linkedEnvironments?: Array<EnvironmentVariableEnvironment> | null, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null }> } } };
+export type EnvironmentVariablesByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, linkedEnvironments?: Array<EnvironmentVariableEnvironment> | null, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType, valueWithFileContent?: string | null }> } } };
 
 export type EnvironmentVariablesSharedQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
   environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  includeFileContent: Scalars['Boolean']['input'];
 }>;
 
 
-export type EnvironmentVariablesSharedQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, linkedEnvironments?: Array<EnvironmentVariableEnvironment> | null, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null }> } } } };
+export type EnvironmentVariablesSharedQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, linkedEnvironments?: Array<EnvironmentVariableEnvironment> | null, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType, valueWithFileContent?: string | null }> } } } };
 
 export type EnvironmentVariablesSharedWithSensitiveQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
   environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  includeFileContent: Scalars['Boolean']['input'];
 }>;
 
 
-export type EnvironmentVariablesSharedWithSensitiveQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariablesIncludingSensitive: Array<{ __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null }> } } } };
+export type EnvironmentVariablesSharedWithSensitiveQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariablesIncludingSensitive: Array<{ __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, valueWithFileContent?: string | null }> } } } };
 
 export type GoogleServiceAccountKeyByIdQueryVariables = Exact<{
   ascApiKeyId: Scalars['ID']['input'];
@@ -8868,7 +8872,7 @@ export type BuildWithSubmissionsFragment = { __typename?: 'Build', id: string, s
 
 export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any };
 
-export type EnvironmentVariableFragment = { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null };
+export type EnvironmentVariableFragment = { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType };
 
 export type RuntimeFragment = { __typename?: 'Runtime', id: string, version: string };
 

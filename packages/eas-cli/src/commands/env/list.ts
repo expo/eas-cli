@@ -8,40 +8,47 @@ import {
   EASVariableFormatFlag,
   EASVariableScopeFlag,
 } from '../../commandUtils/flags';
+import { EnvironmentVariableEnvironment, EnvironmentVariableScope } from '../../graphql/generated';
 import {
-  EnvironmentVariableEnvironment,
-  EnvironmentVariableFragment,
-  EnvironmentVariableScope,
-} from '../../graphql/generated';
-import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
+  EnvironmentVariableWithFileContent,
+  EnvironmentVariablesQuery,
+} from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
-import { formatVariable, performForEnvironmentsAsync } from '../../utils/variableUtils';
+import {
+  formatVariable,
+  formatVariableValue,
+  performForEnvironmentsAsync,
+} from '../../utils/variableUtils';
 
 async function getVariablesForScopeAsync(
   graphqlClient: ExpoGraphqlClient,
   {
     scope,
     includingSensitive,
+    includeFileContent,
     environment,
     projectId,
   }: {
     scope: EnvironmentVariableScope;
     includingSensitive: boolean;
+    includeFileContent: boolean;
     environment?: EnvironmentVariableEnvironment;
     projectId: string;
   }
-): Promise<EnvironmentVariableFragment[]> {
+): Promise<EnvironmentVariableWithFileContent[]> {
   if (scope === EnvironmentVariableScope.Project) {
     if (includingSensitive) {
       return await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
         appId: projectId,
         environment,
+        includeFileContent,
       });
     }
     return await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
       appId: projectId,
       environment,
+      includeFileContent,
     });
   }
 
@@ -49,8 +56,13 @@ async function getVariablesForScopeAsync(
     ? await EnvironmentVariablesQuery.sharedWithSensitiveAsync(graphqlClient, {
         appId: projectId,
         environment,
+        includeFileContent,
       })
-    : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, { appId: projectId, environment });
+    : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, {
+        appId: projectId,
+        environment,
+        includeFileContent,
+      });
 }
 
 export default class EnvironmentValueList extends EasCommand {
@@ -68,6 +80,10 @@ export default class EnvironmentValueList extends EasCommand {
       description: 'Display sensitive values in the output',
       default: false,
     }),
+    'include-file-content': Flags.boolean({
+      description: 'Display files content in the output',
+      default: false,
+    }),
     ...EASVariableFormatFlag,
     ...EASVariableScopeFlag,
     ...EASMultiEnvironmentFlag,
@@ -80,6 +96,7 @@ export default class EnvironmentValueList extends EasCommand {
         format,
         scope,
         'include-sensitive': includeSensitive,
+        'include-file-content': includeFileContent,
         'non-interactive': nonInteractive,
       },
     } = await this.parse(EnvironmentValueList);
@@ -98,6 +115,7 @@ export default class EnvironmentValueList extends EasCommand {
       const variables = await getVariablesForScopeAsync(graphqlClient, {
         scope,
         includingSensitive: includeSensitive,
+        includeFileContent,
         environment,
         projectId,
       });
@@ -109,13 +127,7 @@ export default class EnvironmentValueList extends EasCommand {
 
       if (format === 'short') {
         for (const variable of variables) {
-          // TODO: Add Learn more link
-          Log.log(
-            `${chalk.bold(variable.name)}=${
-              variable.value ??
-              "***** (This is a secret env variable that can only be accessed on EAS builder and can't be read in any UI. Learn more.)"
-            }`
-          );
+          Log.log(`${chalk.bold(variable.name)}=${formatVariableValue(variable)}`);
         }
       } else {
         if (scope === EnvironmentVariableScope.Shared) {

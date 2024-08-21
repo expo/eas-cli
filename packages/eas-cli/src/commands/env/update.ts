@@ -1,6 +1,8 @@
 import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -11,6 +13,7 @@ import {
   EasEnvironmentFlagParameters,
 } from '../../commandUtils/flags';
 import {
+  EnvironmentSecretType,
   EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariableScope,
@@ -27,6 +30,7 @@ import { selectAsync } from '../../prompts';
 import {
   promptVariableEnvironmentAsync,
   promptVariableNameAsync,
+  promptVariableTypeAsync,
   promptVariableValueAsync,
   promptVariableVisibilityAsync,
 } from '../../utils/prompts';
@@ -38,6 +42,7 @@ type UpdateFlags = {
   scope?: EnvironmentVariableScope;
   environment?: EnvironmentVariableEnvironment[];
   visibility?: EnvironmentVariableVisibility;
+  type?: 'string' | 'file';
   'variable-name'?: string;
   'variable-environment'?: EnvironmentVariableEnvironment;
   'non-interactive': boolean;
@@ -63,6 +68,10 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     value: Flags.string({
       description: 'New value or the variable',
     }),
+    type: Flags.enum<'string' | 'file'>({
+      description: 'The type of variable',
+      options: ['string', 'file'],
+    }),
     ...EASVariableVisibilityFlag,
     ...EASVariableScopeFlag,
     ...EASMultiEnvironmentFlag,
@@ -77,14 +86,15 @@ export default class EnvironmentVariableUpdate extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(EnvironmentVariableUpdate);
-    let {
+    const {
       name,
-      value,
+      value: rawValue,
       scope,
       'variable-name': currentName,
       'variable-environment': currentEnvironment,
       'non-interactive': nonInteractive,
       environment: environments,
+      type,
       visibility,
     } = this.validateFlags(flags);
 
@@ -142,47 +152,29 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     }
 
     assert(selectedVariable, 'Variable must be selected');
-    if (!nonInteractive) {
-      if (!name) {
-        name = await promptVariableNameAsync(nonInteractive, selectedVariable.name);
-        if (!name || name.length === 0) {
-          name = undefined;
-        }
-      }
 
-      if (!value) {
-        value = await promptVariableValueAsync({
-          nonInteractive,
-          required: false,
-          initial: selectedVariable.value,
-        });
-        if (!value || value.length === 0) {
-          value = undefined;
-        }
-      }
-
-      if (!environments || environments.length === 0) {
-        environments = await promptVariableEnvironmentAsync({
-          nonInteractive,
-          multiple: true,
-          selectedEnvironments: selectedVariable.environments ?? [],
-        });
-      }
-
-      if (!visibility) {
-        visibility = await promptVariableVisibilityAsync(
-          nonInteractive,
-          selectedVariable.visibility
-        );
-      }
-    }
+    const {
+      name: newName,
+      value: newValue,
+      environment: newEnvironments,
+      visibility: newVisibility,
+      type: newType,
+    } = await this.promptForMissingFlagsAsync(selectedVariable, {
+      name,
+      value: rawValue,
+      environment: environments,
+      visibility,
+      'non-interactive': nonInteractive,
+      type,
+    });
 
     const variable = await EnvironmentVariableMutation.updateAsync(graphqlClient, {
       id: selectedVariable.id,
-      name,
-      value,
-      environments,
-      visibility,
+      name: newName,
+      value: newValue,
+      environments: newEnvironments,
+      type: newType,
+      visibility: newVisibility,
     });
     if (!variable) {
       throw new Error(`Could not update variable with name ${name} ${suffix}`);
@@ -197,8 +189,119 @@ export default class EnvironmentVariableUpdate extends EasCommand {
           'Current name is required in non-interactive mode. Run the command with --variable-name flag.'
         );
       }
+      if (flags['type'] && !flags['value']) {
+        throw new Error('Value is required when type is set. Run the command with --value flag.');
+      }
     }
 
     return flags;
+  }
+
+  private async promptForMissingFlagsAsync(
+    selectedVariable: EnvironmentVariableFragment,
+    {
+      name,
+      value,
+      environment: environments,
+      visibility,
+      'non-interactive': nonInteractive,
+      type,
+      ...rest
+    }: UpdateFlags
+  ): Promise<Omit<UpdateFlags, 'type'> & { type?: EnvironmentSecretType }> {
+    let newType;
+
+    if (type === 'file') {
+      newType = EnvironmentSecretType.FileBase64;
+    } else if (type === 'string') {
+      newType = EnvironmentSecretType.String;
+    }
+
+    if (!nonInteractive) {
+      if (!name) {
+        name = await promptVariableNameAsync(nonInteractive, selectedVariable.name);
+
+        if (!name || name.length === 0) {
+          name = undefined;
+        }
+      }
+
+      Log.log(
+        selectedVariable.type,
+        EnvironmentSecretType.String === selectedVariable.type,
+        EnvironmentSecretType.FileBase64 === selectedVariable.type
+      );
+      if (!type && !value && !nonInteractive) {
+        newType = await promptVariableTypeAsync(nonInteractive, selectedVariable.type);
+
+        if (!newType || newType === selectedVariable.type) {
+          newType = undefined;
+        }
+      }
+
+      if (!value) {
+        value = await promptVariableValueAsync({
+          nonInteractive,
+          required: false,
+          initial:
+            (newType ?? selectedVariable.type) === EnvironmentSecretType.FileBase64
+              ? undefined
+              : selectedVariable.value,
+        });
+
+        if (!value || value.length === 0 || value === selectedVariable.value) {
+          value = undefined;
+        }
+      }
+
+      let environmentFilePath: string | undefined;
+
+      if (newType === EnvironmentSecretType.FileBase64 && value) {
+        environmentFilePath = path.resolve(value);
+        if (!(await fs.pathExists(environmentFilePath))) {
+          throw new Error(`File "${value}" does not exist`);
+        }
+      }
+
+      value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
+
+      if (!environments || environments.length === 0) {
+        environments = await promptVariableEnvironmentAsync({
+          nonInteractive,
+          multiple: true,
+          selectedEnvironments: selectedVariable.environments ?? [],
+        });
+
+        if (
+          !environments ||
+          environments.length === 0 ||
+          environments === selectedVariable.environments
+        ) {
+          environments = undefined;
+        }
+      }
+
+      if (!visibility) {
+        visibility = await promptVariableVisibilityAsync(
+          nonInteractive,
+          selectedVariable.visibility
+        );
+
+        if (!visibility || visibility === selectedVariable.visibility) {
+          visibility = undefined;
+        }
+      }
+    }
+
+    return {
+      name,
+      value,
+      environment: environments,
+      visibility,
+      scope: rest.scope ?? EnvironmentVariableScope.Project,
+      'non-interactive': nonInteractive,
+      type: newType,
+      ...rest,
+    };
   }
 }
