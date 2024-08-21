@@ -70,20 +70,6 @@ describe(UpdatePublish.name, () => {
     jest.mocked(PublishMutation.publishUpdateGroupAsync).mockClear();
   });
 
-  // Deprecated and split to a new command: update:republish
-  it('errors with --republish', async () => {
-    await expect(new UpdatePublish(['--republish'], commandOptions).run()).rejects.toThrow(
-      '--group and --republish flags are deprecated'
-    );
-  });
-
-  // Deprecated and split to a new command: update:republish
-  it('errors with --group', async () => {
-    await expect(new UpdatePublish(['--group=abc123'], commandOptions).run()).rejects.toThrow(
-      '--group and --republish flags are deprecated'
-    );
-  });
-
   it('errors with both --channel and --branch', async () => {
     const flags = ['--channel=channel123', '--branch=branch123'];
 

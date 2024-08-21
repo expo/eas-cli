@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Remove long-deprecated `eas update` flags. ([#2501](https://github.com/expo/eas-cli/pull/2501) by [@wschurman](https://github.com/wschurman))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes
