@@ -3,10 +3,7 @@ import * as fs from 'fs-extra';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
-import {
-  EnvironmentVariableEnvironment,
-  EnvironmentVariableFragment,
-} from '../../graphql/generated';
+import { EnvironmentVariableFragment } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
@@ -79,12 +76,5 @@ export default class EnvironmentValuePull extends EasCommand {
     await fs.writeFile(targetPath, filePrefix + envFileContent);
 
     Log.log(`Pulled environment variables from ${environment} environment to ${targetPath}.`);
-  }
-
-  private validateFlags(flags: PullFlags): Required<PullFlags> {
-    if (!flags.environment) {
-      throw new Error('Please provide an environment to pull the env file from.');
-    }
-    return { ...flags, environment: flags.environment };
   }
 }
