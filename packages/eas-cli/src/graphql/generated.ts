@@ -109,6 +109,8 @@ export type Account = {
   apps: Array<App>;
   /** Paginated list of apps associated with this account. By default sorted by name. Use filter to adjust the sorting order. */
   appsPaginated: AccountAppsConnection;
+  /** Audit logs for account */
+  auditLogsPaginated: AuditLogConnection;
   /** @deprecated Build packs are no longer supported */
   availableBuilds?: Maybe<Scalars['Int']['output']>;
   /** Billing information. Only visible to members with the ADMIN or OWNER role. */
@@ -307,6 +309,18 @@ export type AccountAppsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<AccountAppsFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
+export type AccountAuditLogsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<AuditLogFilterInput>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -1526,12 +1540,7 @@ export type AppWorkerDeploymentsMetricsArgs = {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentsRequestsArgs = {
-  limit?: Scalars['Int']['input'];
-  timespan: RequestsTimespan;
-};
-
-/** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkerDeploymentsRequestsArgs = {
+  filter?: InputMaybe<WorkerDeploymentRequestsFilter>;
   limit?: Scalars['Int']['input'];
   timespan: RequestsTimespan;
 };
@@ -2328,11 +2337,28 @@ export type AuditLog = {
   websiteMessage: Scalars['String']['output'];
 };
 
+export type AuditLogConnection = {
+  __typename?: 'AuditLogConnection';
+  edges: Array<AuditLogEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AuditLogEdge = {
+  __typename?: 'AuditLogEdge';
+  cursor: Scalars['String']['output'];
+  node: AuditLog;
+};
+
 export type AuditLogExportInput = {
   accountId: Scalars['ID']['input'];
   createdAfter: Scalars['String']['input'];
   createdBefore: Scalars['String']['input'];
   format: AuditLogsExportFormat;
+};
+
+export type AuditLogFilterInput = {
+  entityTypes?: InputMaybe<Array<EntityTypeName>>;
+  mutationTypes?: InputMaybe<Array<TargetEntityMutationType>>;
 };
 
 export type AuditLogMutation = {
@@ -3079,6 +3105,7 @@ export type CreateGitHubBuildTriggerInput = {
   appId: Scalars['ID']['input'];
   autoSubmit: Scalars['Boolean']['input'];
   buildProfile: Scalars['String']['input'];
+  executionBehavior: GitHubBuildTriggerExecutionBehavior;
   isActive: Scalars['Boolean']['input'];
   platform: AppPlatform;
   /** A branch or tag name, or a wildcard pattern where the code change originates from. For example, `main` or `release/*`. */
@@ -3382,6 +3409,7 @@ export type DeploymentInsights = {
   embeddedUpdateUniqueUsersOverTime: UniqueUsersOverTimeData;
   id: Scalars['ID']['output'];
   mostPopularUpdates: Array<Update>;
+  mostPopularUpdatesNew: Array<Update>;
   uniqueUsersOverTime: UniqueUsersOverTimeData;
 };
 
@@ -3394,6 +3422,10 @@ export type DeploymentInsightsEmbeddedUpdateUniqueUsersOverTimeArgs = {
 };
 
 export type DeploymentInsightsMostPopularUpdatesArgs = {
+  timespan: InsightsTimespan;
+};
+
+export type DeploymentInsightsMostPopularUpdatesNewArgs = {
   timespan: InsightsTimespan;
 };
 
@@ -3769,6 +3801,7 @@ export enum Feature {
 
 export type FingerprintSourceInput = {
   bucketKey?: InputMaybe<Scalars['String']['input']>;
+  isDebugFingerprint?: InputMaybe<Scalars['Boolean']['input']>;
   type?: InputMaybe<FingerprintSourceType>;
 };
 
@@ -3888,6 +3921,7 @@ export type GitHubBuildTrigger = {
   autoSubmit: Scalars['Boolean']['output'];
   buildProfile: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
+  executionBehavior: GitHubBuildTriggerExecutionBehavior;
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
   lastRunAt?: Maybe<Scalars['DateTime']['output']>;
@@ -3902,6 +3936,11 @@ export type GitHubBuildTrigger = {
   type: GitHubBuildTriggerType;
   updatedAt: Scalars['DateTime']['output'];
 };
+
+export enum GitHubBuildTriggerExecutionBehavior {
+  Always = 'ALWAYS',
+  BaseDirectoryChanged = 'BASE_DIRECTORY_CHANGED',
+}
 
 export type GitHubBuildTriggerMutation = {
   __typename?: 'GitHubBuildTriggerMutation';
@@ -4506,6 +4545,7 @@ export type IosSubmissionConfigInput = {
 export type JobRun = {
   __typename?: 'JobRun';
   app: App;
+  /** @deprecated No longer supported */
   childJobRun?: Maybe<JobRun>;
   createdAt: Scalars['DateTime']['output'];
   displayName?: Maybe<Scalars['String']['output']>;
@@ -4529,15 +4569,9 @@ export type JobRunMutation = {
   __typename?: 'JobRunMutation';
   /** Cancel an EAS Job Run */
   cancelJobRun: JobRun;
-  /** Retry an EAS Job Run */
-  retryJobRun: JobRun;
 };
 
 export type JobRunMutationCancelJobRunArgs = {
-  jobRunId: Scalars['ID']['input'];
-};
-
-export type JobRunMutationRetryJobRunArgs = {
   jobRunId: Scalars['ID']['input'];
 };
 
@@ -5008,6 +5042,13 @@ export type PublishUpdateGroupInput = {
   turtleJobRunId?: InputMaybe<Scalars['String']['input']>;
   updateInfoGroup?: InputMaybe<UpdateInfoGroup>;
 };
+
+export enum RequestStatusPattern {
+  Http_2Xx = 'HTTP_2XX',
+  Http_3Xx = 'HTTP_3XX',
+  Http_4Xx = 'HTTP_4XX',
+  Http_5Xx = 'HTTP_5XX',
+}
 
 export type RequestsTimespan = {
   end: Scalars['DateTime']['input'];
@@ -6034,6 +6075,7 @@ export type UpdateChannelMutationEditUpdateChannelArgs = {
 export type UpdateGitHubBuildTriggerInput = {
   autoSubmit: Scalars['Boolean']['input'];
   buildProfile: Scalars['String']['input'];
+  executionBehavior: GitHubBuildTriggerExecutionBehavior;
   isActive: Scalars['Boolean']['input'];
   platform: AppPlatform;
   sourcePattern: Scalars['String']['input'];
@@ -6789,7 +6831,9 @@ export type WorkerDeploymentCrashNode = {
 export type WorkerDeploymentCrashSample = {
   __typename?: 'WorkerDeploymentCrashSample';
   message: Scalars['String']['output'];
+  name: Scalars['String']['output'];
   requestTimestamp: Scalars['DateTime']['output'];
+  stack?: Maybe<Array<Scalars['String']['output']>>;
 };
 
 export type WorkerDeploymentCrashes = {
@@ -6878,6 +6922,13 @@ export type WorkerDeploymentRequests = {
   __typename?: 'WorkerDeploymentRequests';
   minRowsWithoutLimit?: Maybe<Scalars['Int']['output']>;
   nodes: Array<WorkerDeploymentRequestNode>;
+};
+
+export type WorkerDeploymentRequestsFilter = {
+  methods?: InputMaybe<Array<Scalars['String']['input']>>;
+  pathname?: InputMaybe<Scalars['String']['input']>;
+  statusCodes?: InputMaybe<Array<Scalars['Int']['input']>>;
+  statusPatterns?: InputMaybe<Array<RequestStatusPattern>>;
 };
 
 export type WorkerDeploymentsConnection = {
@@ -10889,6 +10940,19 @@ export type DeleteEnvironmentVariableMutation = {
   };
 };
 
+export type CreateBulkEnvironmentVariablesForAppMutationVariables = Exact<{
+  input: Array<CreateEnvironmentVariableInput> | CreateEnvironmentVariableInput;
+  appId: Scalars['ID']['input'];
+}>;
+
+export type CreateBulkEnvironmentVariablesForAppMutation = {
+  __typename?: 'RootMutation';
+  environmentVariable: {
+    __typename?: 'EnvironmentVariableMutation';
+    createBulkEnvironmentVariablesForApp: Array<{ __typename?: 'EnvironmentVariable'; id: string }>;
+  };
+};
+
 export type CreateKeystoreGenerationUrlMutationVariables = Exact<{ [key: string]: never }>;
 
 export type CreateKeystoreGenerationUrlMutation = {
@@ -11970,6 +12034,32 @@ export type EnvironmentVariablesSharedQuery = {
           createdAt: any;
           scope: EnvironmentVariableScope;
           visibility?: EnvironmentVariableVisibility | null;
+        }>;
+      };
+    };
+  };
+};
+
+export type EnvironmentVariablesSharedWithSensitiveQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
+}>;
+
+export type EnvironmentVariablesSharedWithSensitiveQuery = {
+  __typename?: 'RootQuery';
+  app: {
+    __typename?: 'AppQuery';
+    byId: {
+      __typename?: 'App';
+      id: string;
+      ownerAccount: {
+        __typename?: 'Account';
+        id: string;
+        environmentVariablesIncludingSensitive: Array<{
+          __typename?: 'EnvironmentVariableWithSecret';
+          id: string;
+          name: string;
+          value?: string | null;
         }>;
       };
     };

@@ -9,9 +9,9 @@ import Log, { learnMore } from '../log';
 import { isPNGAsync } from '../utils/image';
 
 export function checkNodeEnvVariable(ctx: CommonContext<Platform>): void {
-  if (ctx.buildProfile.env?.NODE_ENV === 'production') {
+  if (ctx.env?.NODE_ENV === 'production') {
     Log.warn(
-      'You set NODE_ENV=production in the build profile. Remember that it will be available during the entire build process. In particular, it will make yarn/npm install only production packages.'
+      'You set NODE_ENV=production in the build profile or environment variables. Remember that it will be available during the entire build process. In particular, it will make yarn/npm install only production packages.'
     );
     Log.newLine();
   }

@@ -2,7 +2,6 @@ import { ExpoConfig } from '@expo/config-types';
 import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import {
   AppVersionSource,
-  BuildProfile,
   EasJson,
   EasJsonAccessor,
   EasJsonUtils,
@@ -19,6 +18,7 @@ import { BuildRequestSender, MaybeBuildFragment, waitForBuildEndAsync } from './
 import { ensureProjectConfiguredAsync } from './configure';
 import { BuildContext } from './context';
 import { createBuildContextAsync } from './createContext';
+import { evaluateConfigWithEnvVarsAsync } from './evaluateConfigWithEnvVarsAsync';
 import { prepareIosBuildAsync } from './ios/build';
 import { LocalBuildMode, LocalBuildOptions } from './local';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
@@ -37,7 +37,6 @@ import {
   SubmissionFragment,
 } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
-import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
 import { toAppPlatform, toPlatform } from '../graphql/types/AppPlatform';
 import Log, { learnMore } from '../log';
 import {
@@ -188,23 +187,18 @@ export async function runBuildAndSubmitAsync(
 
   for (const buildProfile of buildProfiles) {
     const platform = toAppPlatform(buildProfile.platform);
-    const { projectId } = await getDynamicPrivateProjectConfigAsync({
-      env: buildProfile.profile.env,
-    });
-    const env = await resolveEnvVarsAsync({
-      flags,
-      buildProfile,
-      graphqlClient,
-      projectId,
-    });
 
-    const buildVariables = { ...env, ...buildProfile.profile.env };
+    const { env } = await evaluateConfigWithEnvVarsAsync({
+      flags,
+      buildProfile: buildProfile.profile,
+      graphqlClient,
+      getProjectConfig: getDynamicPrivateProjectConfigAsync,
+      opts: { env: buildProfile.profile.env },
+    });
 
     Log.log(
       `Loaded "env" configuration for the "${buildProfile.profileName}" profile: ${
-        buildVariables
-          ? Object.keys(buildVariables).join(', ')
-          : 'no environment variables specified'
+        env ? Object.keys(env).join(', ') : 'no environment variables specified'
       }. ${learnMore('https://docs.expo.dev/build-reference/variables/')}`
     );
 
@@ -268,7 +262,6 @@ export async function runBuildAndSubmitAsync(
         buildCtx: nullthrows(buildCtxByPlatform[startedBuild.build.platform]),
         moreBuilds: startedBuilds.length > 1,
         projectDir,
-        buildProfile: startedBuild.buildProfile.profile,
         submitProfile,
         nonInteractive: flags.nonInteractive,
         selectedSubmitProfileName: flags.submitProfile,
@@ -370,7 +363,7 @@ async function prepareAndStartBuildAsync({
   vcsClient: Client;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
-  env: Record<string, string>;
+  env: Env;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -468,7 +461,6 @@ async function prepareAndStartSubmissionAsync({
   buildCtx,
   moreBuilds,
   projectDir,
-  buildProfile,
   submitProfile,
   selectedSubmitProfileName,
   nonInteractive,
@@ -477,7 +469,6 @@ async function prepareAndStartSubmissionAsync({
   buildCtx: BuildContext<Platform>;
   moreBuilds: boolean;
   projectDir: string;
-  buildProfile: BuildProfile;
   submitProfile: SubmitProfile;
   selectedSubmitProfileName?: string;
   nonInteractive: boolean;
@@ -489,7 +480,7 @@ async function prepareAndStartSubmissionAsync({
     profile: submitProfile,
     archiveFlags: { id: build.id },
     nonInteractive,
-    env: buildProfile.env,
+    env: buildCtx.env,
     credentialsCtx: buildCtx.credentialsCtx,
     applicationIdentifier: buildCtx.android?.applicationId ?? buildCtx.ios?.bundleIdentifier,
     actor: buildCtx.user,
@@ -606,57 +597,4 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
       throw new Error('Command must be re-run to pick up new updates configuration.');
     }
   }
-}
-
-function isEnvironment(env: string): env is EnvironmentVariableEnvironment {
-  if (
-    Object.values(EnvironmentVariableEnvironment).includes(env as EnvironmentVariableEnvironment)
-  ) {
-    return true;
-  }
-  return false;
-}
-
-async function resolveEnvVarsAsync({
-  flags,
-  buildProfile,
-  graphqlClient,
-  projectId,
-}: {
-  flags: BuildFlags;
-  buildProfile: ProfileData<'build'>;
-  graphqlClient: ExpoGraphqlClient;
-  projectId: string;
-}): Promise<Record<string, string>> {
-  const environment =
-    flags.environment ?? buildProfile.profile.environment ?? process.env.EAS_CURRENT_ENVIRONMENT;
-
-  if (!environment || !isEnvironment(environment)) {
-    return {};
-  }
-
-  try {
-    const environmentVariables = await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(
-      graphqlClient,
-      {
-        appId: projectId,
-        environment,
-      }
-    );
-    const envVars = Object.fromEntries(
-      environmentVariables
-        .filter(({ name, value }) => name && value)
-        .map(({ name, value }) => [name, value])
-    ) as Record<string, string>;
-
-    return envVars;
-  } catch (e) {
-    Log.error('Failed to pull env variables for environment ${environment} from EAS servers');
-    Log.error(e);
-    Log.error(
-      'This can possibly be a bug in EAS/EAS CLI. Report it here: https://github.com/expo/eas-cli/issues'
-    );
-  }
-
-  return {};
 }

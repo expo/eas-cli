@@ -369,6 +369,7 @@ export default class SessionManager {
     if (!otp) {
       throw new Error('Cancelled login');
     }
+
     await this.loginAsync({
       username,
       password,

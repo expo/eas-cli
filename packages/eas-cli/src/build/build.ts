@@ -676,7 +676,7 @@ async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
     platform: ctx.platform,
     workflow: ctx.workflow,
     projectDir: ctx.projectDir,
-    env: ctx.buildProfile.env,
+    env: ctx.env,
     cwd: ctx.projectDir,
   });
 

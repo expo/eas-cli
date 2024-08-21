@@ -3,19 +3,11 @@ import * as fs from 'fs-extra';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
-import {
-  EnvironmentVariableEnvironment,
-  EnvironmentVariableFragment,
-} from '../../graphql/generated';
+import { EnvironmentVariableFragment } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
-
-type PullFlags = {
-  environment?: EnvironmentVariableEnvironment;
-  path: string;
-  'non-interactive': boolean;
-};
+import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvironmentValuePull extends EasCommand {
   static override description = 'pull env file';
@@ -37,13 +29,13 @@ export default class EnvironmentValuePull extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(EnvironmentValuePull);
     let {
-      environment,
-      path: targetPath,
-      'non-interactive': nonInteractive,
-    } = this.validateFlags(flags);
+      flags: { environment, path: targetPath, 'non-interactive': nonInteractive },
+    } = await this.parse(EnvironmentValuePull);
 
+    if (!environment) {
+      environment = await promptVariableEnvironmentAsync(nonInteractive);
+    }
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
@@ -84,12 +76,5 @@ export default class EnvironmentValuePull extends EasCommand {
     await fs.writeFile(targetPath, filePrefix + envFileContent);
 
     Log.log(`Pulled environment variables from ${environment} environment to ${targetPath}.`);
-  }
-
-  private validateFlags(flags: PullFlags): Required<PullFlags> {
-    if (!flags.environment) {
-      throw new Error('Please provide an environment to pull the env file from.');
-    }
-    return { ...flags, environment: flags.environment };
   }
 }

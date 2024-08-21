@@ -68,7 +68,7 @@ export async function createBuildContextAsync<T extends Platform>({
   env: Record<string, string>;
 }): Promise<BuildContext<T>> {
   const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
-    env: { ...env, ...buildProfile.env },
+    env,
   });
   const projectName = exp.slug;
   const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
@@ -91,7 +91,7 @@ export async function createBuildContextAsync<T extends Platform>({
     user: actor,
     graphqlClient,
     analytics,
-    env: buildProfile.env,
+    env,
     easJsonCliConfig,
     vcsClient,
     freezeCredentials,
