@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-// @ts-ignore
+// @ts-expect-error
 import TurndownService from 'turndown';
 import wrapAnsi from 'wrap-ansi';
 

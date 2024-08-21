@@ -7,7 +7,7 @@ import { AppLookupParams } from '../android/api/GraphqlClient';
 import { CredentialsContext } from '../context';
 
 export class CreateAndroidBuildCredentials {
-  constructor(private app: AppLookupParams) {}
+  constructor(private readonly app: AppLookupParams) {}
 
   async runAsync(ctx: CredentialsContext): Promise<AndroidAppBuildCredentialsFragment> {
     const name = await promptForNameAsync();

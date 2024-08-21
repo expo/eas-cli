@@ -4,7 +4,7 @@ import Log from '../../../log';
 import { CredentialsContext } from '../../context';
 
 export class CreatePushKey {
-  constructor(private account: AccountFragment) {}
+  constructor(private readonly account: AccountFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<ApplePushKeyFragment> {
     if (ctx.nonInteractive) {

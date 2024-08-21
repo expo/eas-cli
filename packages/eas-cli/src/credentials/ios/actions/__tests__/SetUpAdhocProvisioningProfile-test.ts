@@ -177,7 +177,7 @@ function setUpTest(): { ctx: CredentialsContext; distCert: AppleDistributionCert
     { identifier: 'id2', name: 'Device 2', deviceClass: AppleDeviceClass.Iphone },
     { identifier: 'id3', name: 'Device 3', deviceClass: AppleDeviceClass.Mac },
   ] as AppleDevice[]);
-  // @ts-ignore
+  // @ts-expect-error
   jest.mocked(getApplePlatformFromTarget).mockResolvedValue(ApplePlatform.IOS);
   Object.defineProperty(ctx, 'appStore', { value: jest.mock('../../appstore/AppStoreApi') });
   ctx.appStore.createOrReuseAdhocProvisioningProfileAsync = jest.fn().mockResolvedValue({

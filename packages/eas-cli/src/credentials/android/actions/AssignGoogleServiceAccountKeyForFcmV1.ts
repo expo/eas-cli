@@ -7,7 +7,7 @@ import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 
 export class AssignGoogleServiceAccountKeyForFcmV1 {
-  constructor(private app: AppLookupParams) {}
+  constructor(private readonly app: AppLookupParams) {}
 
   public async runAsync(
     ctx: CredentialsContext,

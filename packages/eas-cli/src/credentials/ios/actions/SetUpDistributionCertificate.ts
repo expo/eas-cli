@@ -22,8 +22,8 @@ export class SetUpDistributionCertificate {
   private validDistCerts?: AppleDistributionCertificateFragment[];
 
   constructor(
-    private app: AppLookupParams,
-    private distributionType: IosDistributionType
+    private readonly app: AppLookupParams,
+    private readonly distributionType: IosDistributionType
   ) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<AppleDistributionCertificateFragment> {

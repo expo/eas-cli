@@ -35,10 +35,10 @@ export class CredentialsContext {
 
   private shouldAskAuthenticateAppStore: boolean = true;
 
-  private projectInfo: CredentialsContextProjectInfo | null;
+  private readonly projectInfo: CredentialsContextProjectInfo | null;
 
   constructor(
-    private options: {
+    private readonly options: {
       // if null, this implies not running in a project context
       projectInfo: CredentialsContextProjectInfo | null;
       easJsonCliConfig?: EasJson['cli'];

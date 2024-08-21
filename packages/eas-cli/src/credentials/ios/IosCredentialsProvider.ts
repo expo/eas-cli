@@ -37,8 +37,8 @@ export default class IosCredentialsProvider {
   public readonly platform = Platform.IOS;
 
   constructor(
-    private ctx: CredentialsContext,
-    private options: Options
+    private readonly ctx: CredentialsContext,
+    private readonly options: Options
   ) {}
 
   public async getCredentialsAsync(

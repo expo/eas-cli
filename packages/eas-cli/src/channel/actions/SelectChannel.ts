@@ -28,7 +28,7 @@ import {
  */
 export class SelectChannel implements EASUpdateAction<UpdateChannelBasicInfoFragment | null> {
   constructor(
-    private options: {
+    private readonly options: {
       filterPredicate?: (channelInfo: UpdateChannelBasicInfoFragment) => boolean;
       printedType?: string;
       pageSize?: number;

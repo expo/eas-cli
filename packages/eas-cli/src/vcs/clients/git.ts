@@ -17,7 +17,7 @@ import {
 import { Client } from '../vcs';
 
 export default class GitClient extends Client {
-  constructor(private maybeCwdOverride?: string) {
+  constructor(private readonly maybeCwdOverride?: string) {
     super();
   }
 

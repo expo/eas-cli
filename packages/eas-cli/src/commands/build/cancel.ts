@@ -39,7 +39,7 @@ async function cancelBuildAsync(
       )
       .toPromise()
   );
-  return data.build!.cancel;
+  return data.build.cancel;
 }
 
 export async function selectBuildToCancelAsync(

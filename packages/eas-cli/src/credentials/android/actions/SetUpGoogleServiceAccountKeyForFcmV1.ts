@@ -14,7 +14,7 @@ import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 
 export class SetUpGoogleServiceAccountKeyForFcmV1 {
-  constructor(private app: AppLookupParams) {}
+  constructor(private readonly app: AppLookupParams) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<CommonAndroidAppCredentialsFragment> {
     const isKeySetup = await this.isGoogleServiceAccountKeySetupAsync(ctx);

@@ -47,7 +47,7 @@ interface Options {
 }
 
 export class SetUpAdhocProvisioningProfile {
-  constructor(private options: Options) {}
+  constructor(private readonly options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
     const { app } = this.options;

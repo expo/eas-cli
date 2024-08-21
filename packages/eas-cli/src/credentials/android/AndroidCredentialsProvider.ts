@@ -21,8 +21,8 @@ export default class AndroidCredentialsProvider {
   public readonly platform = Platform.ANDROID;
 
   constructor(
-    private ctx: CredentialsContext,
-    private options: Options
+    private readonly ctx: CredentialsContext,
+    private readonly options: Options
   ) {}
 
   public async getCredentialsAsync(

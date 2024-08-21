@@ -42,7 +42,7 @@ export function createProgressTracker({
   return ({ progress, isComplete, error }) => {
     if (progress) {
       if (!bar && (progress.total !== undefined || total !== undefined)) {
-        calcTotal = (total ?? progress.total) as number;
+        calcTotal = total ?? progress.total;
         bar = ora(getMessage(0, calcTotal)).start();
         startTimer(timerLabel);
       }

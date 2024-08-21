@@ -15,7 +15,7 @@ import { AppLookupParams } from '../api/GraphqlClient';
 import { getKeystoreWithType } from '../utils/keystoreNew';
 
 export class SetUpBuildCredentialsFromCredentialsJson {
-  constructor(private app: AppLookupParams) {}
+  constructor(private readonly app: AppLookupParams) {}
 
   async runAsync(ctx: CredentialsContext): Promise<AndroidAppBuildCredentialsFragment | null> {
     if (ctx.nonInteractive) {

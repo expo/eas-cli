@@ -4,7 +4,7 @@ import { CredentialsContext } from '../../context';
 import { AppLookupParams, formatProjectFullName } from '../api/GraphqlClient';
 
 export class RemoveFcm {
-  constructor(private app: AppLookupParams) {}
+  constructor(private readonly app: AppLookupParams) {}
 
   async runAsync(ctx: CredentialsContext): Promise<void> {
     if (ctx.nonInteractive) {

@@ -4,7 +4,7 @@ import { CredentialsContext } from '../../context';
 import { selectGoogleServiceAccountKeyAsync } from '../utils/googleServiceAccountKey';
 
 export class UseExistingGoogleServiceAccountKey {
-  constructor(private account: AccountFragment) {}
+  constructor(private readonly account: AccountFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<GoogleServiceAccountKeyFragment | null> {
     if (ctx.nonInteractive) {

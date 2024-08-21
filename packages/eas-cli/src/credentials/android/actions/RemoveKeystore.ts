@@ -8,7 +8,7 @@ import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/GraphqlClient';
 
 export class RemoveKeystore {
-  constructor(private app: AppLookupParams) {}
+  constructor(private readonly app: AppLookupParams) {}
 
   async runAsync(
     ctx: CredentialsContext,
