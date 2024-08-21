@@ -496,19 +496,21 @@ export async function uploadAssetsAsync(
 
   const [assetLimitPerUpdateGroup] = await Promise.all([
     PublishQuery.getAssetLimitPerUpdateGroupAsync(graphqlClient, projectId),
-    missingAssets.map((missingAsset, i) => {
-      assetUploadPromiseLimit(async () => {
-        if (cancelationToken.isCanceledOrFinished) {
-          throw Error('Canceled upload');
-        }
-        const presignedPost: PresignedPost = JSON.parse(specifications[i]);
-        await uploadWithPresignedPostWithRetryAsync(
-          missingAsset.path,
-          presignedPost,
-          onAssetUploadBegin
-        );
-      });
-    }),
+    Promise.all(
+      missingAssets.map((missingAsset, i) => {
+        return assetUploadPromiseLimit(async () => {
+          if (cancelationToken.isCanceledOrFinished) {
+            throw Error('Canceled upload');
+          }
+          const presignedPost: PresignedPost = JSON.parse(specifications[i]);
+          await uploadWithPresignedPostWithRetryAsync(
+            missingAsset.path,
+            presignedPost,
+            onAssetUploadBegin
+          );
+        });
+      })
+    ),
   ]);
 
   let timeout = 1;

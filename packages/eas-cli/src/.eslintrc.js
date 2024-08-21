@@ -15,15 +15,15 @@ module.exports = {
         ],
         '@typescript-eslint/prefer-nullish-coalescing': ['warn', { ignorePrimitives: true }],
         '@typescript-eslint/no-confusing-void-expression': 'warn',
-        // '@typescript-eslint/await-thenable': 'error',
-        // '@typescript-eslint/no-misused-promises': [
-        //   'error',
-        //   {
-        //     checksVoidReturn: false,
-        //   },
-        // ],
-        // '@typescript-eslint/no-floating-promises': 'error',
-        // 'no-void': ['warn', { allowAsStatement: true }],
+        '@typescript-eslint/await-thenable': 'error',
+        '@typescript-eslint/no-misused-promises': [
+          'error',
+          {
+            checksVoidReturn: false,
+          },
+        ],
+        '@typescript-eslint/no-floating-promises': 'error',
+        'no-void': ['warn', { allowAsStatement: true }],
         'no-return-await': 'off',
         '@typescript-eslint/return-await': ['error', 'always'],
         '@typescript-eslint/no-confusing-non-null-assertion': 'warn',

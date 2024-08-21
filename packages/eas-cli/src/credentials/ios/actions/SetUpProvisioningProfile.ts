@@ -128,7 +128,7 @@ export class SetUpProvisioningProfile {
     }
 
     // See if the profile we have exists on the Apple Servers
-    const applePlatform = await getApplePlatformFromTarget(this.target);
+    const applePlatform = getApplePlatformFromTarget(this.target);
     const existingProfiles = await ctx.appStore.listProvisioningProfilesAsync(
       this.app.bundleIdentifier,
       applePlatform

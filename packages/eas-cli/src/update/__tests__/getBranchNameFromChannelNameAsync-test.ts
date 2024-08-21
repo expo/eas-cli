@@ -41,7 +41,7 @@ describe(getBranchNameFromChannelNameAsync, () => {
         }) as any
     );
 
-    expect(
+    await expect(
       getBranchNameFromChannelNameAsync(graphqlClient, 'test-project-id', 'test-channel-name')
     ).rejects.toThrow(
       "Channel has no branches associated with it. Run 'eas channel:edit' to map a branch"
@@ -58,7 +58,7 @@ describe(getBranchNameFromChannelNameAsync, () => {
         }) as any
     );
 
-    expect(
+    await expect(
       getBranchNameFromChannelNameAsync(graphqlClient, 'test-project-id', 'test-channel-name')
     ).rejects.toThrow(
       "Channel has multiple branches associated with it. Instead, use '--branch' instead of '--channel'"

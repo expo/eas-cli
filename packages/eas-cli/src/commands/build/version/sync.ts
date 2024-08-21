@@ -128,7 +128,7 @@ export default class BuildVersionSyncView extends EasCommand {
         continue;
       }
       if (profileInfo.platform === Platform.ANDROID) {
-        this.syncAndroidAsync({
+        await this.syncAndroidAsync({
           projectDir,
           exp,
           profile: profileInfo.profile as BuildProfile<Platform.ANDROID>,
@@ -137,7 +137,7 @@ export default class BuildVersionSyncView extends EasCommand {
           vcsClient,
         });
       } else {
-        this.syncIosAsync({
+        await this.syncIosAsync({
           projectDir,
           exp,
           profile: profileInfo.profile as BuildProfile<Platform.IOS>,

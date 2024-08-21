@@ -108,7 +108,7 @@ export default class IosCredentialsProvider {
       return null;
     } else if (
       ctx.easJsonCliConfig?.promptToConfigurePushNotifications === undefined &&
-      !(await isExpoNotificationsInstalled(ctx.projectDir))
+      !isExpoNotificationsInstalled(ctx.projectDir)
     ) {
       return null;
     }

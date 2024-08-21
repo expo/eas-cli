@@ -10,7 +10,7 @@ export default class AnalyticsView extends EasCommand {
   async runAsync(): Promise<void> {
     const { STATUS: status } = (await this.parse(AnalyticsView)).args;
     if (status) {
-      setAnalyticsEnabledAsync(status === 'on');
+      await setAnalyticsEnabledAsync(status === 'on');
       Log.withTick(`${status === 'on' ? 'Enabling' : 'Disabling'} analytics.`);
     } else {
       const analyticsEnabled = await getAnalyticsEnabledAsync();

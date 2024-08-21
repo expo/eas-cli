@@ -105,7 +105,7 @@ export async function selectDistributionCertificateWithDependenciesAsync(
 
   // get valid certs on the developer portal
   const certInfoFromApple = await ctx.appStore.listDistributionCertificatesAsync();
-  const validDistCerts = await filterRevokedDistributionCertsFromEasServers(
+  const validDistCerts = filterRevokedDistributionCertsFromEasServers(
     distCertsForAccount,
     certInfoFromApple
   );
