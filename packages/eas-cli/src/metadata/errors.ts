@@ -76,7 +76,8 @@ export function logMetadataValidationError(error: MetadataValidationError): void
  */
 export function handleMetadataError(error: Error): void {
   if (error instanceof MetadataValidationError) {
-    return logMetadataValidationError(error);
+    logMetadataValidationError(error);
+    return;
   }
 
   if (error instanceof MetadataDownloadError || error instanceof MetadataUploadError) {

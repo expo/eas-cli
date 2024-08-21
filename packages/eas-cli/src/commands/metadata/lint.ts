@@ -60,7 +60,8 @@ export default class MetadataLint extends EasCommand {
       await loadConfigAsync({ projectDir, profile: submitProfile });
 
       if (flags.json) {
-        return printJsonOnlyOutput([]);
+        printJsonOnlyOutput([]);
+        return;
       }
 
       Log.log('✅ Store configuration is valid.');
@@ -70,7 +71,8 @@ export default class MetadataLint extends EasCommand {
       }
 
       if (flags.json) {
-        return printJsonOnlyOutput(error.errors);
+        printJsonOnlyOutput(error.errors);
+        return;
       }
 
       logMetadataValidationError(error);

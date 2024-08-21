@@ -143,7 +143,8 @@ export class ManageAndroid {
             currentActions = highLevelActions;
             continue;
           } else if (chosenAction === AndroidActionType.GoBackToCaller) {
-            return await this.callingAction.runAsync(ctx);
+            await this.callingAction.runAsync(ctx);
+            return;
           }
         }
 

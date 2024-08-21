@@ -279,7 +279,7 @@ export async function deleteKeystoreAsync(
   graphqlClient: ExpoGraphqlClient,
   keystore: AndroidKeystoreFragment
 ): Promise<void> {
-  return await AndroidKeystoreMutation.deleteAndroidKeystoreAsync(graphqlClient, keystore.id);
+  await AndroidKeystoreMutation.deleteAndroidKeystoreAsync(graphqlClient, keystore.id);
 }
 
 export async function createFcmAsync(
@@ -299,7 +299,7 @@ export async function deleteFcmAsync(
   graphqlClient: ExpoGraphqlClient,
   fcm: AndroidFcmFragment
 ): Promise<void> {
-  return await AndroidFcmMutation.deleteAndroidFcmAsync(graphqlClient, fcm.id);
+  await AndroidFcmMutation.deleteAndroidFcmAsync(graphqlClient, fcm.id);
 }
 
 export async function createGoogleServiceAccountKeyAsync(
@@ -318,7 +318,7 @@ export async function deleteGoogleServiceAccountKeyAsync(
   graphqlClient: ExpoGraphqlClient,
   googleServiceAccountKey: GoogleServiceAccountKeyFragment
 ): Promise<void> {
-  return await GoogleServiceAccountKeyMutation.deleteGoogleServiceAccountKeyAsync(
+  await GoogleServiceAccountKeyMutation.deleteGoogleServiceAccountKeyAsync(
     graphqlClient,
     googleServiceAccountKey.id
   );

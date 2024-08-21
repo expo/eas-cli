@@ -50,8 +50,9 @@ export async function listAndRenderBuildsOnAppAsync(
         }),
       promptOptions: {
         title: 'Load more builds?',
-        renderListItems: builds =>
-          renderPageOfBuilds({ builds, projectDisplayName, paginatedQueryOptions }),
+        renderListItems: builds => {
+          renderPageOfBuilds({ builds, projectDisplayName, paginatedQueryOptions });
+        },
       },
     });
   }

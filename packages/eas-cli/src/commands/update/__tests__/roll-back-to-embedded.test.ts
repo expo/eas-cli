@@ -68,7 +68,9 @@ jest.mock('../../../project/publish', () => ({
 }));
 
 describe(UpdateRollBackToEmbedded.name, () => {
-  afterEach(() => vol.reset());
+  afterEach(() => {
+    vol.reset();
+  });
 
   it('errors with both --channel and --branch', async () => {
     const flags = ['--channel=channel123', '--branch=branch123'];

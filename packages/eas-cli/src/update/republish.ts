@@ -167,7 +167,8 @@ export async function republishAsync({
   }
 
   if (json) {
-    return printJsonOnlyOutput(updatesRepublished);
+    printJsonOnlyOutput(updatesRepublished);
+    return;
   }
 
   const updatesRepublishedByPlatform = Object.fromEntries(

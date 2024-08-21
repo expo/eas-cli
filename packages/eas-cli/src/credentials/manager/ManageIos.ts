@@ -152,7 +152,8 @@ export class ManageIos {
             currentActions = highLevelActions;
             continue;
           } else if (chosenAction === IosActionType.GoBackToCaller) {
-            return await this.callingAction.runAsync(ctx);
+            await this.callingAction.runAsync(ctx);
+            return;
           }
         } else if (actionInfo.scope === Scope.Project) {
           assert(

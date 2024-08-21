@@ -46,13 +46,21 @@ export function ora(options?: Options | string): Ora {
 
   const wrapNativeLogs = (): void => {
     // eslint-disable-next-line no-console
-    console.log = (...args: any) => logWrap(logReal, args);
+    console.log = (...args: any) => {
+      logWrap(logReal, args);
+    };
     // eslint-disable-next-line no-console
-    console.info = (...args: any) => logWrap(infoReal, args);
+    console.info = (...args: any) => {
+      logWrap(infoReal, args);
+    };
     // eslint-disable-next-line no-console
-    console.warn = (...args: any) => logWrap(warnReal, args);
+    console.warn = (...args: any) => {
+      logWrap(warnReal, args);
+    };
     // eslint-disable-next-line no-console
-    console.error = (...args: any) => logWrap(errorReal, args);
+    console.error = (...args: any) => {
+      logWrap(errorReal, args);
+    };
   };
 
   const resetNativeLogs = (): void => {
