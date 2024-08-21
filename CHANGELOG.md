@@ -18,6 +18,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Upgrade packages to SDK 51 release. ([#2498](https://github.com/expo/eas-cli/pull/2498) by [@wschurman](https://github.com/wschurman))
 - Enable typescript linting and various lint rules. ([#2505](https://github.com/expo/eas-cli/pull/2505), [#2507](https://github.com/expo/eas-cli/pull/2507), [#2508](https://github.com/expo/eas-cli/pull/2508), [#2509](https://github.com/expo/eas-cli/pull/2509), [#2510](https://github.com/expo/eas-cli/pull/2510) by [@wschurman](https://github.com/wschurman))
+- Include debug info in fingerprint metadata during build. ([#2513](https://github.com/expo/eas-cli/pull/2513) by [@wschurman](https://github.com/wschurman))
 
 ## [10.2.4](https://github.com/expo/eas-cli/releases/tag/v10.2.4) - 2024-08-19
 
