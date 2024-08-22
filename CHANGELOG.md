@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add new rollout update type for `eas update` and `eas update:edit`. ([#2502](https://github.com/expo/eas-cli/pull/2502), [#2503](https://github.com/expo/eas-cli/pull/2503) by [@wschurman](https://github.com/wschurman))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
