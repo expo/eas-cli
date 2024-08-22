@@ -142,18 +142,7 @@ export async function ensureAppVersionSourceIsSetAsync(
 ): Promise<EasJson['cli'] | undefined> {
   let selectOption, updateEasJson;
   if (nonInteractive) {
-    Log.warn(
-      '"appVersionSource" is not specified. The previous default value for "appVersionSource" used to be "local", but it has been changed to "remote".'
-    );
-    Log.warn(
-      'Cannot prompt to select the value of "appVersionSource" in non-interactive mode. Setting it to "local" to keep the backwards compatibility. If you wish to use the "remote" "appVersionSource", update the "eas.json" manually.'
-    );
-    Log.warn(
-      learnMore('https://docs.expo.dev/build-reference/app-versions/', {
-        learnMoreMessage: 'See the docs to learn more.',
-        dim: false,
-      })
-    );
+    Log.warn(`The field "cli.appVersionSource" is not set, but it will be required in the future. ${learnMore('https://docs.expo.dev/build-reference/app-versions/')}`);
     selectOption = AppVersionSourceUpdateOption.SET_TO_LOCAL;
     updateEasJson = false;
   } else {
