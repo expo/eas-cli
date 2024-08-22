@@ -142,7 +142,7 @@ export async function ensureAppVersionSourceIsSetAsync(
   easJsonCliConfig: EasJson['cli'] | undefined,
   nonInteractive: boolean
 ): Promise<EasJson['cli'] | undefined> {
-  let selectOption;
+  let selectOption, updateEasJson;
   if (nonInteractive) {
     Log.warn(
       '"appVersionSource" is not specified. The previous default value for "appVersionSource" used to be "local", but it has been changed to "remote".'
@@ -157,7 +157,7 @@ export async function ensureAppVersionSourceIsSetAsync(
       })
     );
     selectOption = AppVersionSourceUpdateOption.SET_TO_LOCAL;
-    process.env.EAS_BUILD_AUTOCOMMIT = '1'; // the user can't commit changes to eas.json in non-interactive mode
+    updateEasJson = false;
   } else {
     Log.log(
       `Please select your app version source. With "local", the build android.versionCode / ios.buildNumber are taken from app.json / app.config.js files and need to be incremented manually or automatically by setting autoIncrement: true in eas.json. With "remote", this value is handled remotely by EAS and can also be incremented automatically with each build by setting autoIncrement: true in eas.json. Until now, this project has been using the "local" version source (which was previously the default when the app version source was not specified). App version source can be set for you automatically, or you can configure it yourself - if you wish to use the default "remote" version source add ${chalk.bold(
@@ -181,29 +181,37 @@ export async function ensureAppVersionSourceIsSetAsync(
         value: AppVersionSourceUpdateOption.ABORT,
       },
     ]);
+    updateEasJson = true;
   }
 
   if (selectOption === AppVersionSourceUpdateOption.SET_TO_LOCAL) {
-    await easJsonAccessor.readRawJsonAsync();
-    easJsonAccessor.patch(easJsonRawObject => {
-      easJsonRawObject.cli = { ...easJsonRawObject?.cli, appVersionSource: AppVersionSource.LOCAL };
-      return easJsonRawObject;
-    });
-    await easJsonAccessor.writeAsync();
+    if (updateEasJson) {
+      await easJsonAccessor.readRawJsonAsync();
+      easJsonAccessor.patch(easJsonRawObject => {
+        easJsonRawObject.cli = {
+          ...easJsonRawObject?.cli,
+          appVersionSource: AppVersionSource.LOCAL,
+        };
+        return easJsonRawObject;
+      });
+      await easJsonAccessor.writeAsync();
+    }
     if (easJsonCliConfig) {
       easJsonCliConfig.appVersionSource = AppVersionSource.LOCAL;
     }
     Log.withTick('Updated eas.json');
   } else if (selectOption === AppVersionSourceUpdateOption.SET_TO_REMOTE) {
-    await easJsonAccessor.readRawJsonAsync();
-    easJsonAccessor.patch(easJsonRawObject => {
-      easJsonRawObject.cli = {
-        ...easJsonRawObject?.cli,
-        appVersionSource: AppVersionSource.REMOTE,
-      };
-      return easJsonRawObject;
-    });
-    await easJsonAccessor.writeAsync();
+    if (updateEasJson) {
+      await easJsonAccessor.readRawJsonAsync();
+      easJsonAccessor.patch(easJsonRawObject => {
+        easJsonRawObject.cli = {
+          ...easJsonRawObject?.cli,
+          appVersionSource: AppVersionSource.REMOTE,
+        };
+        return easJsonRawObject;
+      });
+      await easJsonAccessor.writeAsync();
+    }
     if (easJsonCliConfig) {
       easJsonCliConfig.appVersionSource = AppVersionSource.REMOTE;
     }
