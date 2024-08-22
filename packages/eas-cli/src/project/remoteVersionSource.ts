@@ -27,7 +27,7 @@ export async function ensureVersionSourceIsRemoteAsync(
       nonInteractive
     );
   }
-  if (easJsonCliConfig?.appVersionSource !== AppVersionSource.LOCAL) {
+  if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     return;
   }
   if (nonInteractive) {
