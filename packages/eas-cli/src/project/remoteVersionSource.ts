@@ -209,13 +209,7 @@ export async function ensureAppVersionSourceIsSetAsync(
     }
     Log.withTick('Updated eas.json');
   } else {
-    Log.warn(`You'll need to configure ${chalk.bold('appVersionSource')} manually.`);
-    Log.warn(
-      learnMore('https://docs.expo.dev/build-reference/app-versions/', {
-        learnMoreMessage: 'See the docs on what are the options and how to do it.',
-        dim: false,
-      })
-    );
+    Log.warn(`You'll need to configure ${chalk.bold('appVersionSource')} manually. ${learnMore('https://docs.expo.dev/build-reference/app-versions/')}`);
     Errors.error('Aborted.', { exit: 1 });
   }
 
