@@ -142,7 +142,11 @@ export async function ensureAppVersionSourceIsSetAsync(
 ): Promise<EasJson['cli'] | undefined> {
   let selectOption, updateEasJson;
   if (nonInteractive) {
-    Log.warn(`The field "cli.appVersionSource" is not set, but it will be required in the future. ${learnMore('https://docs.expo.dev/build-reference/app-versions/')}`);
+    Log.warn(
+      `The field "cli.appVersionSource" is not set, but it will be required in the future. ${learnMore(
+        'https://docs.expo.dev/build-reference/app-versions/'
+      )}`
+    );
     selectOption = AppVersionSourceUpdateOption.SET_TO_LOCAL;
     updateEasJson = false;
   } else {
@@ -150,12 +154,12 @@ export async function ensureAppVersionSourceIsSetAsync(
       'Since EAS CLI version `11.0.0` explicitly specifying app version source is required. Please select your app version source:'
     );
     Log.log(
-      `\t1)With the "local" app version source and "autoIncrement" option enabled, the build number/version code is sourced from local project files and incremented automatically if possible, by editing local project files. ${learnMore(
+      `\t1) With the "local" app version source and "autoIncrement" option enabled, the build number/version code is sourced from local project files and incremented automatically if possible, by editing local project files. ${learnMore(
         'https://docs.expo.dev/build-reference/app-versions/#local-version-source'
       )}`
     );
     Log.log(
-      `\t2)With the "remote" app version source and "autoIncrement" option enabled, the build number/version code is stored on EAS servers and updated every time you create a new build. Remote auto-incrementation won't edit the version in the local project files, but instead, the new version will be injected automatically during the build process. ${learnMore(
+      `\t2) With the "remote" app version source and "autoIncrement" option enabled, the build number/version code is stored on EAS servers and updated every time you create a new build. Remote auto-incrementation won't edit the version in the local project files, but instead, the new version will be injected automatically during the build process. ${learnMore(
         'https://docs.expo.dev/build-reference/app-versions/#remote-version-source'
       )}`
     );
