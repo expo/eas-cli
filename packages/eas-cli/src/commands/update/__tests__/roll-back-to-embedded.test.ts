@@ -68,7 +68,9 @@ jest.mock('../../../project/publish', () => ({
 }));
 
 describe(UpdateRollBackToEmbedded.name, () => {
-  afterEach(() => vol.reset());
+  afterEach(() => {
+    vol.reset();
+  });
 
   it('errors with both --channel and --branch', async () => {
     const flags = ['--channel=channel123', '--branch=branch123'];
@@ -142,16 +144,7 @@ describe(UpdateRollBackToEmbedded.name, () => {
 
     // Add configuration to the project that should not be included in the update
     mockTestProject({
-      expoConfig: {
-        hooks: {
-          postPublish: [
-            {
-              file: 'custom-hook.js',
-              config: { some: 'config' },
-            },
-          ],
-        },
-      },
+      expoConfig: {},
     });
 
     const platforms = ['ios'];

@@ -5,7 +5,7 @@ import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
 
 export class SelectAndRemoveAscApiKey {
-  constructor(private account: AccountFragment) {}
+  constructor(private readonly account: AccountFragment) {}
 
   async runAsync(ctx: CredentialsContext): Promise<void> {
     const selected = await selectAscApiKeysFromAccountAsync(ctx, this.account);
@@ -18,7 +18,7 @@ export class SelectAndRemoveAscApiKey {
 }
 
 export class RemoveAscApiKey {
-  constructor(private ascApiKey: AppStoreConnectApiKeyFragment) {}
+  constructor(private readonly ascApiKey: AppStoreConnectApiKeyFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<void> {
     if (ctx.nonInteractive) {

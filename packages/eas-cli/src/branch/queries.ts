@@ -84,7 +84,9 @@ export async function listAndRenderBranchesOnAppAsync(
         queryBranchesOnProjectAsync(graphqlClient, limit, offset, projectId),
       promptOptions: {
         title: 'Load more branches?',
-        renderListItems: branches => renderPageOfBranches(branches, paginatedQueryOptions),
+        renderListItems: branches => {
+          renderPageOfBranches(branches, paginatedQueryOptions);
+        },
       },
     });
   }

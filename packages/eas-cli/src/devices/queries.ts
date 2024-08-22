@@ -136,8 +136,9 @@ export async function listAndRenderAppleDevicesOnAppleTeamAsync(
         }),
       promptOptions: {
         title: 'Load more devices?',
-        renderListItems: devices =>
-          renderPageOfAppleDevices({ devices, appleTeam, paginatedQueryOptions }),
+        renderListItems: devices => {
+          renderPageOfAppleDevices({ devices, appleTeam, paginatedQueryOptions });
+        },
       },
     });
   }

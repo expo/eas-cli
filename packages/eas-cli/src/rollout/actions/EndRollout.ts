@@ -55,8 +55,8 @@ function assertNonInteractiveOptions(
  */
 export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragment> {
   constructor(
-    private channelInfo: UpdateChannelBasicInfoFragment,
-    private options: Partial<NonInteractiveOptions> & GeneralOptions
+    private readonly channelInfo: UpdateChannelBasicInfoFragment,
+    private readonly options: Partial<NonInteractiveOptions> & GeneralOptions
   ) {}
 
   public async runAsync(ctx: EASUpdateContext): Promise<UpdateChannelBasicInfoFragment> {

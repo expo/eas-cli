@@ -5,7 +5,7 @@ import { CredentialsContext } from '../../context';
 import { selectGoogleServiceAccountKeyAsync } from '../utils/googleServiceAccountKey';
 
 export class SelectAndRemoveGoogleServiceAccountKey {
-  constructor(private account: AccountFragment) {}
+  constructor(private readonly account: AccountFragment) {}
 
   async runAsync(ctx: CredentialsContext): Promise<void> {
     if (ctx.nonInteractive) {
@@ -31,7 +31,7 @@ export class SelectAndRemoveGoogleServiceAccountKey {
 }
 
 export class RemoveGoogleServiceAccountKey {
-  constructor(private googleServiceAccountKey: GoogleServiceAccountKeyFragment) {}
+  constructor(private readonly googleServiceAccountKey: GoogleServiceAccountKeyFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<void> {
     if (ctx.nonInteractive) {

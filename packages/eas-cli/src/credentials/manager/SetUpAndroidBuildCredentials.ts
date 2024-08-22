@@ -11,7 +11,7 @@ export class SetUpAndroidBuildCredentials extends ManageAndroid {
   constructor(
     callingAction: Action,
     projectDir: string,
-    private setUpBuildCredentialsWithProfileNameFromFlag: string
+    private readonly setUpBuildCredentialsWithProfileNameFromFlag: string
   ) {
     super(callingAction, projectDir);
   }

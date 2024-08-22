@@ -20,11 +20,7 @@ export async function validateProvisioningProfileAsync(
   app: AppLookupParams,
   buildCredentials: Partial<IosAppBuildCredentialsFragment> | null
 ): Promise<boolean> {
-  if (
-    !buildCredentials ||
-    !buildCredentials.distributionCertificate ||
-    !buildCredentials.provisioningProfile
-  ) {
+  if (!buildCredentials?.distributionCertificate || !buildCredentials.provisioningProfile) {
     return false;
   }
 
@@ -94,7 +90,7 @@ async function validateProvisioningProfileWithAppleAsync(
   assert(buildCredentials.provisioningProfile, 'Provisioning Profile must be defined');
   const { developerPortalIdentifier, provisioningProfile } = buildCredentials.provisioningProfile;
 
-  const applePlatform = await getApplePlatformFromTarget(target);
+  const applePlatform = getApplePlatformFromTarget(target);
   const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
     app.bundleIdentifier,
     applePlatform,

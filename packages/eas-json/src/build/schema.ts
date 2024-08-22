@@ -69,6 +69,8 @@ const CommonBuildProfileSchema = Joi.object({
 
   // credentials
   withoutCredentials: Joi.boolean(),
+
+  environment: Joi.string().valid('preview', 'production', 'development'),
 });
 
 const PlatformBuildProfileSchema = CommonBuildProfileSchema.concat(

@@ -129,7 +129,7 @@ async function handleUrlSourceAsync(
 
   if (!validateUrl(url)) {
     Log.error(chalk.bold(`The URL you provided is invalid: ${url}`));
-    return getArchiveAsync(ctx, {
+    return await getArchiveAsync(ctx, {
       sourceType: ArchiveSourceType.prompt,
     });
   }
@@ -137,7 +137,7 @@ async function handleUrlSourceAsync(
   const maybeBuildId = isBuildDetailsPage(url);
   if (maybeBuildId) {
     if (await askIfUseBuildIdFromUrlAsync(ctx, source, maybeBuildId)) {
-      return getArchiveAsync(ctx, {
+      return await getArchiveAsync(ctx, {
         sourceType: ArchiveSourceType.buildId,
         id: maybeBuildId,
       });
@@ -166,7 +166,7 @@ async function handleLatestSourceAsync(
           "Couldn't find any builds for this project on EAS servers. It looks like you haven't run 'eas build' yet."
         )
       );
-      return getArchiveAsync(ctx, {
+      return await getArchiveAsync(ctx, {
         sourceType: ArchiveSourceType.prompt,
       });
     }
@@ -179,7 +179,7 @@ async function handleLatestSourceAsync(
           )} or choose another build.`
         )
       );
-      return getArchiveAsync(ctx, {
+      return await getArchiveAsync(ctx, {
         sourceType: ArchiveSourceType.prompt,
       });
     }
@@ -200,7 +200,7 @@ async function handlePathSourceAsync(
 ): Promise<ResolvedArchiveSource> {
   if (!(await isExistingFileAsync(source.path))) {
     Log.error(chalk.bold(`${source.path} doesn't exist`));
-    return getArchiveAsync(ctx, {
+    return await getArchiveAsync(ctx, {
       sourceType: ArchiveSourceType.prompt,
     });
   }
@@ -233,14 +233,14 @@ async function handleBuildIdSourceAsync(
         )
       );
 
-      return getArchiveAsync(ctx, {
+      return await getArchiveAsync(ctx, {
         sourceType: ArchiveSourceType.prompt,
       });
     }
 
     if (new Date() >= new Date(build.expirationDate)) {
       Log.error(chalk.bold(`The build with ID ${build.id} is expired. Choose another build.`));
-      return getArchiveAsync(ctx, {
+      return await getArchiveAsync(ctx, {
         sourceType: ArchiveSourceType.prompt,
       });
     }
@@ -259,7 +259,7 @@ async function handleBuildIdSourceAsync(
     );
     Log.debug('Original error:', err);
 
-    return getArchiveAsync(ctx, {
+    return await getArchiveAsync(ctx, {
       sourceType: ArchiveSourceType.prompt,
     });
   }
@@ -287,7 +287,7 @@ async function handleBuildListSourceAsync(
             "It looks like you haven't run 'eas build' yet."
         )
       );
-      return getArchiveAsync(ctx, {
+      return await getArchiveAsync(ctx, {
         sourceType: ArchiveSourceType.prompt,
       });
     }
@@ -299,7 +299,7 @@ async function handleBuildListSourceAsync(
             'EAS keeps your build artifacts only for 30 days.'
         )
       );
-      return getArchiveAsync(ctx, {
+      return await getArchiveAsync(ctx, {
         sourceType: ArchiveSourceType.prompt,
       });
     }
@@ -319,7 +319,7 @@ async function handleBuildListSourceAsync(
     });
 
     if (selectedBuild == null) {
-      return getArchiveAsync(ctx, {
+      return await getArchiveAsync(ctx, {
         sourceType: ArchiveSourceType.prompt,
       });
     }
@@ -409,26 +409,26 @@ async function handlePromptSourceAsync(
   switch (sourceType) {
     case ArchiveSourceType.url: {
       const url = await askForArchiveUrlAsync(ctx.platform);
-      return getArchiveAsync(ctx, {
+      return await getArchiveAsync(ctx, {
         sourceType: ArchiveSourceType.url,
         url,
       });
     }
     case ArchiveSourceType.path: {
       const path = await askForArchivePathAsync(ctx.platform);
-      return getArchiveAsync(ctx, {
+      return await getArchiveAsync(ctx, {
         sourceType: ArchiveSourceType.path,
         path,
       });
     }
     case ArchiveSourceType.buildList: {
-      return getArchiveAsync(ctx, {
+      return await getArchiveAsync(ctx, {
         sourceType: ArchiveSourceType.buildList,
       });
     }
     case ArchiveSourceType.buildId: {
       const id = await askForBuildIdAsync();
-      return getArchiveAsync(ctx, {
+      return await getArchiveAsync(ctx, {
         sourceType: ArchiveSourceType.buildId,
         id,
       });

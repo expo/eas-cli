@@ -21,10 +21,10 @@ import { Target } from '../types';
 
 export class ConfigureProvisioningProfile {
   constructor(
-    private app: AppLookupParams,
-    private target: Target,
-    private distributionCertificate: AppleDistributionCertificateFragment,
-    private originalProvisioningProfile: AppleProvisioningProfileFragment
+    private readonly app: AppLookupParams,
+    private readonly target: Target,
+    private readonly distributionCertificate: AppleDistributionCertificateFragment,
+    private readonly originalProvisioningProfile: AppleProvisioningProfileFragment
   ) {}
 
   public async runAsync(

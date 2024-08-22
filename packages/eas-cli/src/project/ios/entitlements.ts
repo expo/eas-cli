@@ -30,7 +30,7 @@ export async function getManagedApplicationTargetEntitlementsAsync(
       introspect: true,
       ignoreExistingNativeFiles: await hasIgnoredIosProjectAsync(projectDir, vcsClient),
     });
-    return expWithMods.ios?.entitlements || {};
+    return expWithMods.ios?.entitlements ?? {};
   } finally {
     process.env = originalProcessEnv;
   }

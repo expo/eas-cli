@@ -170,7 +170,7 @@ export default class DeviceDelete extends EasCommand {
       Log.log(
         formatDevice(device, {
           appleTeamName,
-          appleTeamIdentifier: appleTeamIdentifier!,
+          appleTeamIdentifier,
         })
       );
       Log.newLine();

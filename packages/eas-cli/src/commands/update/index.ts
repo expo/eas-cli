@@ -69,10 +69,6 @@ type RawUpdateFlags = {
   'non-interactive': boolean;
   'emit-metadata': boolean;
   json: boolean;
-  /** @deprecated see UpdateRepublish command */
-  group?: string;
-  /** @deprecated see UpdateRepublish command */
-  republish?: boolean;
 };
 
 type UpdateFlags = {
@@ -106,14 +102,6 @@ export default class UpdatePublish extends EasCommand {
       char: 'm',
       description: 'A short message describing the update',
       required: false,
-    }),
-    republish: Flags.boolean({
-      description: 'Republish an update group (deprecated, see republish command)',
-      exclusive: ['input-dir', 'skip-bundler'],
-    }),
-    group: Flags.string({
-      description: 'Update group to republish (deprecated, see republish command)',
-      exclusive: ['input-dir', 'skip-bundler'],
     }),
     'input-dir': Flags.string({
       description: 'Location of the bundle',
@@ -555,23 +543,6 @@ export default class UpdatePublish extends EasCommand {
         '--branch and --message, or --channel and --message are required when updating in non-interactive mode unless --auto is specified',
         { exit: 1 }
       );
-    }
-
-    if (flags.group || flags.republish) {
-      // Pick the first flag set that is defined, in this specific order
-      const args = [
-        ['--group', flags.group],
-        ['--branch', flags.branch],
-      ].filter(([_, value]) => value)[0];
-
-      Log.newLine();
-      Log.warn(
-        'The --group and --republish flags are deprecated, use the republish command instead:'
-      );
-      Log.warn(`  ${chalk.bold([`eas update:republish`, ...(args ?? [])].join(' '))}`);
-      Log.newLine();
-
-      Errors.error('--group and --republish flags are deprecated', { exit: 1 });
     }
 
     const skipBundler = flags['skip-bundler'] ?? false;

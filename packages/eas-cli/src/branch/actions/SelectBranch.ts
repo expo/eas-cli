@@ -28,7 +28,7 @@ import {
  */
 export class SelectBranch implements EASUpdateAction<UpdateBranchBasicInfoFragment | null> {
   constructor(
-    private options: {
+    private readonly options: {
       filterPredicate?: (branchInfo: UpdateBranchBasicInfoFragment) => boolean;
       printedType?: string;
       pageSize?: number;
@@ -91,8 +91,8 @@ export class SelectBranch implements EASUpdateAction<UpdateBranchBasicInfoFragme
       queryParams: QueryParams
     ): Promise<Connection<UpdateBranchBasicInfoFragment>> =>
       filterPredicate
-        ? this.filterQueryAsync(ctx, queryParams, filterPredicate)
-        : this.queryAsync(ctx, queryParams);
+        ? await this.filterQueryAsync(ctx, queryParams, filterPredicate)
+        : await this.queryAsync(ctx, queryParams);
 
     const getTitleAsync = async (branchInfo: UpdateBranchBasicInfoFragment): Promise<string> =>
       branchInfo.name;

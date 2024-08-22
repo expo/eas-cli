@@ -47,14 +47,14 @@ describe(selectBuildToCancelAsync.name, () => {
   it('does not return build id when confirmation is rejected', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
     jest.mocked(confirmAsync).mockResolvedValueOnce(false);
-    expect(selectBuildToCancelAsync(graphqlClient, projectId, 'blah')).resolves.toEqual(null);
+    await expect(selectBuildToCancelAsync(graphqlClient, projectId, 'blah')).resolves.toEqual(null);
   });
 
   it('returns build id when confirmation is confirmed', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
     jest.mocked(selectAsync).mockResolvedValueOnce(selectedBuildId);
     jest.mocked(confirmAsync).mockResolvedValueOnce(true);
-    expect(selectBuildToCancelAsync(graphqlClient, projectId, 'blah')).resolves.toEqual(
+    await expect(selectBuildToCancelAsync(graphqlClient, projectId, 'blah')).resolves.toEqual(
       selectedBuildId
     );
   });

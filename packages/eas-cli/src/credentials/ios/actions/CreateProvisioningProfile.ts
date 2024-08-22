@@ -20,9 +20,9 @@ import { Target } from '../types';
 
 export class CreateProvisioningProfile {
   constructor(
-    private app: AppLookupParams,
-    private target: Target,
-    private distributionCertificate: AppleDistributionCertificateFragment
+    private readonly app: AppLookupParams,
+    private readonly target: Target,
+    private readonly distributionCertificate: AppleDistributionCertificateFragment
   ) {}
 
   async runAsync(ctx: CredentialsContext): Promise<AppleProvisioningProfileMutationResult> {

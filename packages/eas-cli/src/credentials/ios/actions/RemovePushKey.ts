@@ -5,7 +5,7 @@ import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
 
 export class SelectAndRemovePushKey {
-  constructor(private account: AccountFragment) {}
+  constructor(private readonly account: AccountFragment) {}
 
   async runAsync(ctx: CredentialsContext): Promise<void> {
     const selected = await selectPushKeyAsync(ctx, this.account);
@@ -18,7 +18,7 @@ export class SelectAndRemovePushKey {
 }
 
 export class RemovePushKey {
-  constructor(private pushKey: ApplePushKeyFragment) {}
+  constructor(private readonly pushKey: ApplePushKeyFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<void> {
     if (ctx.nonInteractive) {

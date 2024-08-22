@@ -35,10 +35,10 @@ export class CredentialsContext {
 
   private shouldAskAuthenticateAppStore: boolean = true;
 
-  private projectInfo: CredentialsContextProjectInfo | null;
+  private readonly projectInfo: CredentialsContextProjectInfo | null;
 
   constructor(
-    private options: {
+    private readonly options: {
       // if null, this implies not running in a project context
       projectInfo: CredentialsContextProjectInfo | null;
       easJsonCliConfig?: EasJson['cli'];
@@ -86,7 +86,7 @@ export class CredentialsContext {
   }
 
   async bestEffortAppStoreAuthenticateAsync(): Promise<void> {
-    if (this.appStore.authCtx || !this.shouldAskAuthenticateAppStore) {
+    if (!!this.appStore.authCtx || !this.shouldAskAuthenticateAppStore) {
       // skip prompts if already have apple ctx or already asked about it
       return;
     }

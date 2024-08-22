@@ -18,16 +18,17 @@ export async function deletePasswordAsync({
   serviceName,
 }: Pick<Credentials, 'username' | 'serviceName'>): Promise<boolean> {
   if (!IS_MAC) {
-    return Promise.resolve(false);
+    return await Promise.resolve(false);
   }
 
-  return new Promise((resolve, reject) => {
+  return await new Promise((resolve, reject) => {
     keychain.deletePassword(
       { account: username, service: serviceName, type: KEYCHAIN_TYPE },
       (error: Error) => {
         if (error) {
           if (error.message.match(NO_PASSWORD_REGEX)) {
-            return resolve(false);
+            resolve(false);
+            return;
           }
           reject(error);
         } else {
@@ -52,7 +53,8 @@ export async function getPasswordAsync({
       (error: Error, password: string) => {
         if (error) {
           if (error.message.match(NO_PASSWORD_REGEX)) {
-            return resolve(null);
+            resolve(null);
+            return;
           }
           reject(error);
         } else {
@@ -69,9 +71,9 @@ export async function setPasswordAsync({
   password,
 }: Credentials): Promise<boolean> {
   if (!IS_MAC) {
-    return Promise.resolve(false);
+    return await Promise.resolve(false);
   }
-  return new Promise((resolve, reject) => {
+  return await new Promise((resolve, reject) => {
     keychain.setPassword(
       { account: username, service: serviceName, password, type: KEYCHAIN_TYPE },
       (error: Error) => {

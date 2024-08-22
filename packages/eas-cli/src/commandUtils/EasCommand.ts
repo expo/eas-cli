@@ -187,13 +187,13 @@ export default abstract class EasCommand extends Command {
       action: `eas ${this.id}`,
     });
 
-    return this.runAsync();
+    return await this.runAsync();
   }
 
   // eslint-disable-next-line async-protect/async-suffix
   override async finally(err: Error): Promise<any> {
     await this.analytics.flushAsync();
-    return super.finally(err);
+    return await super.finally(err);
   }
 
   protected override catch(err: Error): Promise<any> {

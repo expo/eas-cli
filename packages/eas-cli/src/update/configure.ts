@@ -22,7 +22,7 @@ import { Client } from '../vcs/vcs';
 
 export const DEFAULT_MANAGED_RUNTIME_VERSION_GTE_SDK_49 = { policy: 'appVersion' } as const;
 export const DEFAULT_MANAGED_RUNTIME_VERSION_LTE_SDK_48 = { policy: 'sdkVersion' } as const;
-export const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0' as const;
+export const DEFAULT_BARE_RUNTIME_VERSION = '1.0.0';
 
 export function getDefaultRuntimeVersion(
   workflow: Workflow,

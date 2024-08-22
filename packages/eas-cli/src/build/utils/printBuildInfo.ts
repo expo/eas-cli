@@ -62,7 +62,9 @@ export function printBuildResults(builds: (BuildFragment | null)[]): void {
     assert(build, 'Build should be defined');
     printBuildResult(build);
   } else {
-    (builds.filter(i => i) as BuildFragment[]).forEach(build => printBuildResult(build));
+    (builds.filter(i => i) as BuildFragment[]).forEach(build => {
+      printBuildResult(build);
+    });
   }
 }
 
@@ -97,9 +99,9 @@ function printBuildResult(build: BuildFragment): void {
     // to the build details page and let people press the button to download there
     const qrcodeUrl =
       build.platform === AppPlatform.Ios ? getInternalDistributionInstallUrl(build) : logsUrl;
-    qrcodeTerminal.generate(qrcodeUrl, { small: true }, code =>
-      Log.log(`${indentString(code, 2)}\n`)
-    );
+    qrcodeTerminal.generate(qrcodeUrl, { small: true }, code => {
+      Log.log(`${indentString(code, 2)}\n`);
+    });
     Log.log(
       `${appPlatformEmojis[build.platform]} Open this link on your ${
         appPlatformDisplayNames[build.platform]

@@ -34,9 +34,9 @@ import { validateProvisioningProfileAsync } from '../validators/validateProvisio
  */
 export class SetUpProvisioningProfile {
   constructor(
-    private app: AppLookupParams,
-    private target: Target,
-    private distributionType: IosDistributionType
+    private readonly app: AppLookupParams,
+    private readonly target: Target,
+    private readonly distributionType: IosDistributionType
   ) {}
 
   async areBuildCredentialsSetupAsync(ctx: CredentialsContext): Promise<boolean> {
@@ -128,7 +128,7 @@ export class SetUpProvisioningProfile {
     }
 
     // See if the profile we have exists on the Apple Servers
-    const applePlatform = await getApplePlatformFromTarget(this.target);
+    const applePlatform = getApplePlatformFromTarget(this.target);
     const existingProfiles = await ctx.appStore.listProvisioningProfilesAsync(
       this.app.bundleIdentifier,
       applePlatform

@@ -112,8 +112,7 @@ export async function getApplicationIdAsync(
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   if (workflow === Workflow.GENERIC) {
     warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
-
-    return getApplicationIdFromBareAsync(projectDir, gradleContext);
+    return await getApplicationIdFromBareAsync(projectDir, gradleContext);
   } else {
     const applicationId = AndroidConfig.Package.getPackage(exp);
     if (!applicationId || !isApplicationIdValid(applicationId)) {

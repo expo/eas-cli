@@ -43,7 +43,7 @@ type JSONOutput = {
  */
 export class NonInteractiveRollout implements EASUpdateAction<void> {
   constructor(
-    private options: {
+    private readonly options: {
       channelName?: string;
       json?: boolean;
       action?: RolloutActions;

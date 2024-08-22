@@ -55,7 +55,9 @@ jest.mock('../../../utils/code-signing');
 jest.mock('../../../fetch');
 
 describe(UpdateRepublish.name, () => {
-  afterEach(() => vol.reset());
+  afterEach(() => {
+    vol.reset();
+  });
 
   it('errors when providing both --group and --branch', async () => {
     const flags = ['--group=1234', '--branch=main'];

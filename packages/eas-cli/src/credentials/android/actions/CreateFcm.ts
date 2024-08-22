@@ -4,7 +4,7 @@ import { promptAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
 
 export class CreateFcm {
-  constructor(private account: AccountFragment) {}
+  constructor(private readonly account: AccountFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<AndroidFcmFragment> {
     if (ctx.nonInteractive) {

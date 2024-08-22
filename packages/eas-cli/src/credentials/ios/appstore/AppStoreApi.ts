@@ -84,7 +84,7 @@ export default class AppStoreApi {
     options?: IosCapabilitiesOptions
   ): Promise<void> {
     const ctx = await this.ensureAuthenticatedAsync();
-    return await ensureBundleIdExistsAsync(ctx, app, options);
+    await ensureBundleIdExistsAsync(ctx, app, options);
   }
 
   public async listDistributionCertificatesAsync(): Promise<DistributionCertificateStoreInfo[]> {
@@ -99,7 +99,7 @@ export default class AppStoreApi {
 
   public async revokeDistributionCertificateAsync(ids: string[]): Promise<void> {
     const ctx = await this.ensureAuthenticatedAsync();
-    return await revokeDistributionCertificateAsync(ctx, ids);
+    await revokeDistributionCertificateAsync(ctx, ids);
   }
 
   public async listPushKeysAsync(): Promise<PushKeyStoreInfo[]> {
@@ -114,7 +114,7 @@ export default class AppStoreApi {
 
   public async revokePushKeyAsync(ids: string[]): Promise<void> {
     const userCtx = await this.ensureUserAuthenticatedAsync();
-    return await revokePushKeyAsync(userCtx, ids);
+    await revokePushKeyAsync(userCtx, ids);
   }
 
   public async useExistingProvisioningProfileAsync(
@@ -164,7 +164,7 @@ export default class AppStoreApi {
     profileClass?: ProfileClass
   ): Promise<void> {
     const ctx = await this.ensureAuthenticatedAsync();
-    return await revokeProvisioningProfileAsync(ctx, bundleIdentifier, applePlatform, profileClass);
+    await revokeProvisioningProfileAsync(ctx, bundleIdentifier, applePlatform, profileClass);
   }
 
   public async createOrReuseAdhocProvisioningProfileAsync(

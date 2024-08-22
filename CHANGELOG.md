@@ -6,6 +6,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Remove long-deprecated `eas update` flags. ([#2501](https://github.com/expo/eas-cli/pull/2501) by [@wschurman](https://github.com/wschurman))
 - Prompt the users to set `appVersionSource`, while mentioning that `remote` is the default. ([#2411](https://github.com/expo/eas-cli/pull/2411) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ### 🎉 New features
@@ -14,6 +15,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Upgrade packages to SDK 51 release. ([#2498](https://github.com/expo/eas-cli/pull/2498) by [@wschurman](https://github.com/wschurman))
+- Enable typescript linting and various lint rules. ([#2505](https://github.com/expo/eas-cli/pull/2505), [#2507](https://github.com/expo/eas-cli/pull/2507), [#2508](https://github.com/expo/eas-cli/pull/2508), [#2509](https://github.com/expo/eas-cli/pull/2509), [#2510](https://github.com/expo/eas-cli/pull/2510) by [@wschurman](https://github.com/wschurman))
+
+## [10.2.4](https://github.com/expo/eas-cli/releases/tag/v10.2.4) - 2024-08-19
+
+## [10.2.3](https://github.com/expo/eas-cli/releases/tag/v10.2.3) - 2024-08-13
+
+### 🧹 Chores
+
+- Add support for `EAS_DANGEROUS_OVERRIDE_IOS_BUNDLE_IDENTIFIER` for bare workflow iOS builds. ([#2469](https://github.com/expo/eas-cli/pull/2469) by [@szdziedzic](https://github.com/szdziedzic))
 - Update images list in `eas.schema.json` and warn users when using the deprecated Android images. ([#2450](https://github.com/expo/eas-cli/pull/2450) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [10.2.2](https://github.com/expo/eas-cli/releases/tag/v10.2.2) - 2024-07-31

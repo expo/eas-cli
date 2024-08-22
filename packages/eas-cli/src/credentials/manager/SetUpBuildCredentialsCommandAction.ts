@@ -24,12 +24,9 @@ export class SetUpBuildCredentialsCommandAction {
 
   async runAsync(): Promise<void> {
     if (this.platform === Platform.IOS) {
-      return await new SetUpIosBuildCredentials(this, this.projectDir, this.profileName).runAsync();
+      await new SetUpIosBuildCredentials(this, this.projectDir, this.profileName).runAsync();
+      return;
     }
-    return await new SetUpAndroidBuildCredentials(
-      this,
-      this.projectDir,
-      this.profileName
-    ).runAsync();
+    await new SetUpAndroidBuildCredentials(this, this.projectDir, this.profileName).runAsync();
   }
 }

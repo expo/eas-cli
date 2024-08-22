@@ -23,7 +23,7 @@ export async function submitAsync<T extends Platform>(
         ctx.platform === Platform.ANDROID
           ? new AndroidSubmitCommand(ctx as SubmissionContext<Platform.ANDROID>)
           : new IosSubmitCommand(ctx as SubmissionContext<Platform.IOS>);
-      return command.runAsync();
+      return await command.runAsync();
     },
     {
       attemptEvent: SubmissionEvent.SUBMIT_COMMAND_ATTEMPT,

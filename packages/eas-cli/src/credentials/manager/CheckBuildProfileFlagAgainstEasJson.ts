@@ -4,12 +4,12 @@ import { BuildProfile, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import Log from '../../log';
 
 export class CheckBuildProfileFlagAgainstEasJson<T extends Platform> {
-  private easJsonAccessor: EasJsonAccessor;
+  private readonly easJsonAccessor: EasJsonAccessor;
 
   constructor(
     projectDir: string,
-    private platform: T,
-    private profileNameFromFlag: string
+    private readonly platform: T,
+    private readonly profileNameFromFlag: string
   ) {
     this.easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   }

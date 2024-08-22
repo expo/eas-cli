@@ -19,7 +19,7 @@ export async function logAsync<T>(
   { hidden, ...message }: LogAsyncOptions
 ): Promise<T> {
   if (hidden) {
-    return action();
+    return await action();
   }
 
   const spinner = ora(message.pending).start();

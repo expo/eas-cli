@@ -33,7 +33,7 @@ async function deleteBuildAsync(
       )
       .toPromise()
   );
-  return data.build!.deleteBuild;
+  return data.build.deleteBuild;
 }
 
 export async function selectBuildToDeleteAsync(

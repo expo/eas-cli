@@ -22,7 +22,7 @@ interface Options {
 }
 
 export class SetUpInternalProvisioningProfile {
-  constructor(private options: Options) {}
+  constructor(private readonly options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
     const buildCredentials = await getAllBuildCredentialsAsync(ctx, this.options.app);

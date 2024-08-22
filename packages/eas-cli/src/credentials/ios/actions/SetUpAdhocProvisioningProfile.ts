@@ -47,7 +47,7 @@ interface Options {
 }
 
 export class SetUpAdhocProvisioningProfile {
-  constructor(private options: Options) {}
+  constructor(private readonly options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
     const { app } = this.options;
@@ -133,7 +133,7 @@ export class SetUpAdhocProvisioningProfile {
     );
 
     // 4. Reuse or create the profile on Apple Developer Portal
-    const applePlatform = await getApplePlatformFromTarget(target);
+    const applePlatform = getApplePlatformFromTarget(target);
     const profileType =
       applePlatform === ApplePlatform.TV_OS
         ? ProfileType.TVOS_APP_ADHOC

@@ -21,7 +21,7 @@ First of all, choose the Expo account under which you want to register your devi
 Later, authenticate with Apple and choose your desired Apple Team (if your Apple ID has access to multiple teams).`;
 
 export default class DeviceManager {
-  constructor(private ctx: DeviceManagerContext) {}
+  constructor(private readonly ctx: DeviceManagerContext) {}
 
   public async createAsync(): Promise<void> {
     Log.log(chalk.green(CREATE_COMMAND_DESCRIPTION));
@@ -50,9 +50,9 @@ export default class DeviceManager {
 
 export class AccountResolver {
   constructor(
-    private graphqlClient: ExpoGraphqlClient,
-    private projectId: string | null,
-    private user: Actor
+    private readonly graphqlClient: ExpoGraphqlClient,
+    private readonly projectId: string | null,
+    private readonly user: Actor
   ) {}
 
   public async resolveAccountAsync(): Promise<AccountFragment> {

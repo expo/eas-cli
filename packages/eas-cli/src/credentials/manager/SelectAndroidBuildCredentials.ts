@@ -14,7 +14,7 @@ export enum SelectAndroidBuildCredentialsResultType {
  * Return a selected Android Build Credential, or a request to make a new one
  */
 export class SelectAndroidBuildCredentials {
-  constructor(private app: AppLookupParams) {}
+  constructor(private readonly app: AppLookupParams) {}
 
   async runAsync(ctx: CredentialsContext): Promise<
     | {
@@ -87,7 +87,7 @@ export class SelectAndroidBuildCredentials {
 }
 
 export class SelectExistingAndroidBuildCredentials {
-  constructor(private app: AppLookupParams) {}
+  constructor(private readonly app: AppLookupParams) {}
 
   async runAsync(ctx: CredentialsContext): Promise<AndroidAppBuildCredentialsFragment | null> {
     const buildCredentialsList = await ctx.android.getAndroidAppBuildCredentialsListAsync(

@@ -29,8 +29,8 @@ export enum ManageRolloutActions {
  */
 export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
   constructor(
-    private channelInfo: UpdateChannelBasicInfoFragment,
-    private options: {
+    private readonly channelInfo: UpdateChannelBasicInfoFragment,
+    private readonly options: {
       callingAction?: EASUpdateAction;
       action?: ManageRolloutActions.EDIT | ManageRolloutActions.END | ManageRolloutActions.VIEW;
     } & Partial<EditRolloutNonInteractiveOptions> &
@@ -47,7 +47,7 @@ export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
     printRollout(channelObject);
 
     const action = this.options.action ?? (await this.selectActionAsync());
-    switch (action as ManageRolloutActions) {
+    switch (action) {
       case ManageRolloutActions.EDIT:
         return new EditRollout(this.channelInfo, this.options);
       case ManageRolloutActions.END:

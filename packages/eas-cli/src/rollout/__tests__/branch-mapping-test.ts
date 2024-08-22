@@ -100,15 +100,15 @@ describe(createRolloutBranchMapping, () => {
 
 describe(assertRolloutBranchMapping, () => {
   it('asserts a rollout branch mapping', () => {
-    expect(() => assertRolloutBranchMapping(standardBranchMapping)).toThrowError(
-      BranchMappingValidationError
-    );
-    expect(() => assertRolloutBranchMapping(rolloutBranchMapping)).not.toThrowError(
-      BranchMappingValidationError
-    );
-    expect(() => assertRolloutBranchMapping(rolloutBranchMappingLegacy)).not.toThrowError(
-      BranchMappingValidationError
-    );
+    expect(() => {
+      assertRolloutBranchMapping(standardBranchMapping);
+    }).toThrowError(BranchMappingValidationError);
+    expect(() => {
+      assertRolloutBranchMapping(rolloutBranchMapping);
+    }).not.toThrowError(BranchMappingValidationError);
+    expect(() => {
+      assertRolloutBranchMapping(rolloutBranchMappingLegacy);
+    }).not.toThrowError(BranchMappingValidationError);
   });
 });
 

@@ -47,7 +47,11 @@ export const easMultiselect = (args: Question): Promise<Choice[]> => {
     const p = new EasMultiselect(args);
     const onAbort = toSelected || noop;
     const onSubmit = toSelected || noop;
-    p.on('submit', x => res(onSubmit(x)));
-    p.on('abort', x => rej(onAbort(x)));
+    p.on('submit', x => {
+      res(onSubmit(x));
+    });
+    p.on('abort', x => {
+      rej(onAbort(x));
+    });
   });
 };

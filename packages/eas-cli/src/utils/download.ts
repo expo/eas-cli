@@ -128,7 +128,7 @@ export async function downloadAndMaybeExtractAppAsync(
       (ratio, total) => `Downloading app (${formatBytes(total * ratio)} / ${formatBytes(total)})`,
       'Successfully downloaded app'
     );
-    return maybeCacheAppAsync(apkFilePath, cachedAppPath);
+    return await maybeCacheAppAsync(apkFilePath, cachedAppPath);
   } else {
     const tmpArchivePathDir = path.join(getTmpDirectory(), uuidv4());
     await fs.mkdir(tmpArchivePathDir, { recursive: true });
@@ -146,7 +146,7 @@ export async function downloadAndMaybeExtractAppAsync(
 
     const appPath = await getAppPathAsync(outputDir, platform === AppPlatform.Ios ? 'app' : 'apk');
 
-    return maybeCacheAppAsync(appPath, cachedAppPath);
+    return await maybeCacheAppAsync(appPath, cachedAppPath);
   }
 }
 

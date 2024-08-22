@@ -17,7 +17,9 @@ import {
 
 describe(assertVersion, () => {
   it('throws if the branch mapping is not the correct version', () => {
-    expect(() => assertVersion(testChannelBasicInfo, 5)).toThrowError(BranchMappingValidationError);
+    expect(() => {
+      assertVersion(testChannelBasicInfo, 5);
+    }).toThrowError(BranchMappingValidationError);
   });
   it('asserts the correct version', () => {
     assertVersion(testChannelBasicInfo, 0);

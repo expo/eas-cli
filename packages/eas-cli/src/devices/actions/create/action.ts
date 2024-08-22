@@ -20,10 +20,10 @@ export enum RegistrationMethod {
 
 export default class DeviceCreateAction {
   constructor(
-    private graphqlClient: ExpoGraphqlClient,
-    private appStoreApi: AppStoreApi,
-    private account: AccountFragment,
-    private appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
+    private readonly graphqlClient: ExpoGraphqlClient,
+    private readonly appStoreApi: AppStoreApi,
+    private readonly account: AccountFragment,
+    private readonly appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
   ) {}
 
   public async runAsync(): Promise<RegistrationMethod> {

@@ -7,8 +7,8 @@ import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 
 export class RemoveProvisioningProfiles {
   constructor(
-    private apps: AppLookupParams[],
-    private provisioningProfiles: AppleProvisioningProfileIdentifiersFragment[]
+    private readonly apps: AppLookupParams[],
+    private readonly provisioningProfiles: AppleProvisioningProfileIdentifiersFragment[]
   ) {
     assert(
       apps.length === provisioningProfiles.length,

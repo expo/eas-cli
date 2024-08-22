@@ -51,8 +51,9 @@ export async function listAndRenderUpdateGroupsOnAppAsync(
         queryUpdateGroupsOnAppAsync(graphqlClient, { limit, offset, appId: projectId }),
       promptOptions: {
         title: 'Load more update groups?',
-        renderListItems: updateGroups =>
-          renderUpdateGroupsOnApp({ updateGroups, paginatedQueryOptions }),
+        renderListItems: updateGroups => {
+          renderUpdateGroupsOnApp({ updateGroups, paginatedQueryOptions });
+        },
       },
     });
   }
@@ -91,8 +92,9 @@ export async function listAndRenderUpdateGroupsOnBranchAsync(
         }),
       promptOptions: {
         title: 'Load more update groups?',
-        renderListItems: updateGroups =>
-          renderUpdateGroupsOnBranch({ updateGroups, branchName, paginatedQueryOptions }),
+        renderListItems: updateGroups => {
+          renderUpdateGroupsOnBranch({ updateGroups, branchName, paginatedQueryOptions });
+        },
       },
     });
   }
@@ -179,7 +181,8 @@ function renderUpdateGroupsOnBranch({
   };
 
   if (json) {
-    return printJsonOnlyOutput({ ...branch, currentPage: updateGroupDescriptions });
+    printJsonOnlyOutput({ ...branch, currentPage: updateGroupDescriptions });
+    return;
   }
 
   Log.addNewLineIfNone();
