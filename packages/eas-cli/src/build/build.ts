@@ -680,13 +680,17 @@ async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
     cwd: ctx.projectDir,
   });
 
+  if (!resolvedRuntimeVersion) {
+    return {};
+  }
+
   /**
    * It's ok for fingerprintSources to be empty
    * fingerprintSources only exist if the project is using runtimeVersion.policy: fingerprint
    */
-  if (!resolvedRuntimeVersion?.fingerprintSources) {
+  if (!resolvedRuntimeVersion.fingerprint) {
     return {
-      runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+      runtimeVersion: resolvedRuntimeVersion.runtimeVersion ?? undefined,
     };
   }
 
@@ -695,15 +699,16 @@ async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
 
   await fs.writeJSON(fingerprintLocation, {
     hash: resolvedRuntimeVersion.runtimeVersion,
-    sources: resolvedRuntimeVersion.fingerprintSources,
+    sources: resolvedRuntimeVersion.fingerprint.fingerprintSources,
   });
 
   if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
     return {
-      runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+      runtimeVersion: resolvedRuntimeVersion.runtimeVersion ?? undefined,
       fingerprintSource: {
         type: FingerprintSourceType.PATH,
         path: fingerprintLocation,
+        isDebugFingerprint: resolvedRuntimeVersion.fingerprint.isDebugFingerprintSource,
       },
     };
   }
@@ -724,17 +729,18 @@ async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
 
     Log.warn(errMessage);
     return {
-      runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+      runtimeVersion: resolvedRuntimeVersion.runtimeVersion ?? undefined,
     };
   } finally {
     await fs.remove(fingerprintLocation);
   }
 
   return {
-    runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+    runtimeVersion: resolvedRuntimeVersion.runtimeVersion ?? undefined,
     fingerprintSource: {
       type: FingerprintSourceType.GCS,
       bucketKey: fingerprintGCSBucketKey,
+      isDebugFingerprint: resolvedRuntimeVersion.fingerprint.isDebugFingerprintSource,
     },
   };
 }
