@@ -415,7 +415,7 @@ async function prepareAndStartBuildAsync({
       );
     }
   }
-  if (easJsonCliConfig?.appVersionSource !== AppVersionSource.LOCAL) {
+  if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
   }
   if (buildCtx.workflow === Workflow.MANAGED) {
