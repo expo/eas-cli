@@ -24,10 +24,9 @@ import {
   getOwnerAccountForProjectIdAsync,
 } from '../../project/projectUtils';
 import {
-  ExpoCLIExportPlatformFlag,
+  UpdatePublishPlatform,
   defaultPublishPlatforms,
   getBranchNameForCommandAsync,
-  getRequestedPlatform,
   getRuntimeToPlatformMappingFromRuntimeVersions,
   getRuntimeVersionObjectAsync,
   getUpdateMessageForCommandAsync,
@@ -60,7 +59,7 @@ type RawUpdateFlags = {
 
 type UpdateFlags = {
   auto: boolean;
-  platform: ExpoCLIExportPlatformFlag;
+  platform: RequestedPlatform;
   branchName?: string;
   channelName?: string;
   updateMessage?: string;
@@ -150,7 +149,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
 
     await ensureEASUpdateIsConfiguredAsync({
       exp: expPossiblyWithoutEasUpdateConfigured,
-      platform: getRequestedPlatform(platformFlag),
+      platform: platformFlag,
       projectDir,
       projectId,
       vcsClient,
@@ -182,7 +181,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       jsonFlag,
     });
 
-    const realizedPlatforms: PublishPlatform[] =
+    const realizedPlatforms: UpdatePublishPlatform[] =
       platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
 
     const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
@@ -300,7 +299,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     updateMessage: string | undefined;
     branchId: string;
     codeSigningInfo: CodeSigningInfo | undefined;
-    runtimeVersions: { platform: string; runtimeVersion: string }[];
+    runtimeVersions: { platform: UpdatePublishPlatform; runtimeVersion: string }[];
     realizedPlatforms: PublishPlatform[];
   }): Promise<UpdatePublishMutation['updateBranch']['publishUpdateGroups']> {
     const runtimeToPlatformMapping =

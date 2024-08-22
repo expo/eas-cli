@@ -5,6 +5,7 @@ import { BranchNotFoundError } from '../../branch/utils';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  AppPlatform,
   BranchesBasicPaginatedOnAppQuery,
   BranchesBasicPaginatedOnAppQueryVariables,
   BranchesByAppQuery,
@@ -15,6 +16,8 @@ import {
   ViewBranchQueryVariables,
   ViewBranchesOnUpdateChannelQuery,
   ViewBranchesOnUpdateChannelQueryVariables,
+  ViewLatestUpdateOnBranchQuery,
+  ViewLatestUpdateOnBranchQueryVariables,
 } from '../generated';
 import { UpdateFragmentNode } from '../types/Update';
 import { UpdateBranchFragmentNode } from '../types/UpdateBranch';
@@ -59,6 +62,62 @@ export const BranchQuery = {
       throw new BranchNotFoundError(`Could not find a branch named "${name}".`);
     }
     return updateBranchByName;
+  },
+  async getLatestUpdateIdOnBranchAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      branchName,
+      platform,
+      runtimeVersion,
+    }: { appId: string; branchName: string; platform: AppPlatform; runtimeVersion: string }
+  ): Promise<string | null> {
+    const response = await withErrorHandlingAsync(
+      graphqlClient
+        .query<ViewLatestUpdateOnBranchQuery, ViewLatestUpdateOnBranchQueryVariables>(
+          gql`
+            query ViewLatestUpdateOnBranch(
+              $appId: String!
+              $branchName: String!
+              $platform: AppPlatform!
+              $runtimeVersion: String!
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  updateBranchByName(name: $branchName) {
+                    id
+                    updates(
+                      offset: 0
+                      limit: 1
+                      filter: { platform: $platform, runtimeVersions: [$runtimeVersion] }
+                    ) {
+                      id
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          {
+            appId,
+            branchName,
+            platform,
+            runtimeVersion,
+          },
+          { additionalTypenames: ['UpdateBranch'] }
+        )
+        .toPromise()
+    );
+    const { updateBranchByName } = response.app.byId;
+    if (!updateBranchByName) {
+      throw new BranchNotFoundError(`Could not find a branch named "${branchName}".`);
+    }
+    const latestUpdate = updateBranchByName.updates[0];
+    if (!latestUpdate) {
+      return null;
+    }
+    return latestUpdate.id;
   },
   async listBranchesOnAppAsync(
     graphqlClient: ExpoGraphqlClient,

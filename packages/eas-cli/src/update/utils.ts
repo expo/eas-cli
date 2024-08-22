@@ -52,6 +52,7 @@ export type FormattedUpdateGroupDescription = {
   runtimeVersion: string;
   codeSigningKey: string | undefined;
   isRollBackToEmbedded: boolean;
+  rolloutPercentage: number | undefined;
 };
 
 export type FormattedBranchDescription = {
@@ -80,6 +81,10 @@ export function formatUpdateGroup(update: FormattedUpdateGroupDescription): stri
     { label: 'Message', value: update.message },
     { label: 'Code Signing Key', value: update.codeSigningKey ?? 'N/A' },
     { label: 'Is Roll Back to Embedded', value: update.isRollBackToEmbedded ? 'Yes' : 'No' },
+    {
+      label: 'Rollout Percentage',
+      value: update.rolloutPercentage !== undefined ? `${update.rolloutPercentage}%` : 'N/A',
+    },
     { label: 'Group ID', value: update.group },
   ]);
 }
@@ -221,6 +226,7 @@ export function getUpdateGroupDescriptions(
     message: formatUpdateMessage(updateGroup[0]),
     runtimeVersion: updateGroup[0].runtimeVersion,
     isRollBackToEmbedded: updateGroup[0].isRollBackToEmbedded,
+    rolloutPercentage: updateGroup[0].rolloutPercentage ?? undefined,
     codeSigningKey: updateGroup[0].codeSigningInfo?.keyid,
     group: updateGroup[0].group,
     platforms: formatPlatformForUpdateGroup(updateGroup),
@@ -235,6 +241,7 @@ export function getUpdateGroupDescriptionsWithBranch(
     message: formatUpdateMessage(updateGroup[0]),
     runtimeVersion: updateGroup[0].runtimeVersion,
     isRollBackToEmbedded: updateGroup[0].isRollBackToEmbedded,
+    rolloutPercentage: updateGroup[0].rolloutPercentage ?? undefined,
     codeSigningKey: updateGroup[0].codeSigningInfo?.keyid,
     group: updateGroup[0].group,
     platforms: formatPlatformForUpdateGroup(updateGroup),
@@ -253,6 +260,7 @@ export function getBranchDescription(branch: UpdateBranchFragment): FormattedBra
       message: formatUpdateMessage(latestUpdate),
       runtimeVersion: latestUpdate.runtimeVersion,
       isRollBackToEmbedded: latestUpdate.isRollBackToEmbedded,
+      rolloutPercentage: latestUpdate.rolloutPercentage ?? undefined,
       codeSigningKey: latestUpdate.codeSigningInfo?.keyid,
       group: latestUpdate.group,
       platforms: getPlatformsForGroup({
