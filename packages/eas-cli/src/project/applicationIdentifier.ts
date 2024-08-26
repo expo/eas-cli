@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 
 import {
@@ -26,6 +26,7 @@ export async function getApplicationIdentifierAsync({
   platform,
   vcsClient,
   nonInteractive,
+  env,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
@@ -35,6 +36,7 @@ export async function getApplicationIdentifierAsync({
   platform: Platform;
   vcsClient: Client;
   nonInteractive: boolean;
+  env: Env;
 }): Promise<string> {
   if (platform === Platform.ANDROID) {
     const profile = buildProfile as BuildProfile<Platform.ANDROID>;
@@ -71,11 +73,12 @@ export async function getApplicationIdentifierAsync({
       { exp, projectDir, nonInteractive: false, vcsClient },
       profile
     );
+
     const targets = await resolveTargetsAsync({
       projectDir,
       exp,
       xcodeBuildContext,
-      env: profile.env,
+      env,
       vcsClient,
     });
     const applicationTarget = findApplicationTarget(targets);

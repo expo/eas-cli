@@ -4,8 +4,9 @@ import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
+import { evaluateConfigWithEnvVarsAsync } from '../build/evaluateConfigWithEnvVarsAsync';
 import EasCommand from '../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../commandUtils/flags';
+import { EASEnvironmentFlagHidden, EasNonInteractiveAndJsonFlags } from '../commandUtils/flags';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { appPlatformEmojis } from '../platform';
@@ -27,12 +28,14 @@ export default class Config extends EasCommand {
     'eas-json-only': Flags.boolean({
       hidden: true,
     }),
+    ...EASEnvironmentFlagHidden,
     ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -41,7 +44,11 @@ export default class Config extends EasCommand {
       enableJsonOutput();
     }
     const { platform: maybePlatform, profile: maybeProfile } = flags;
-    const { getDynamicPublicProjectConfigAsync, projectDir } = await this.getContextAsync(Config, {
+    const {
+      getDynamicPublicProjectConfigAsync,
+      projectDir,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(Config, {
       nonInteractive: false,
     });
 
@@ -80,8 +87,12 @@ export default class Config extends EasCommand {
         Log.log(JSON.stringify(profile, null, 2));
       }
     } else {
-      const { exp: appConfig } = await getDynamicPublicProjectConfigAsync({
-        env: profile.env,
+      const { exp: appConfig } = await evaluateConfigWithEnvVarsAsync({
+        flags,
+        buildProfile: profile,
+        graphqlClient,
+        getProjectConfig: getDynamicPublicProjectConfigAsync,
+        opts: { env: profile.env },
       });
 
       if (flags.json) {

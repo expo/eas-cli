@@ -2,7 +2,6 @@ import { ExpoConfig } from '@expo/config-types';
 import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import {
   AppVersionSource,
-  BuildProfile,
   EasJson,
   EasJsonAccessor,
   EasJsonUtils,
@@ -19,6 +18,7 @@ import { BuildRequestSender, MaybeBuildFragment, waitForBuildEndAsync } from './
 import { ensureProjectConfiguredAsync } from './configure';
 import { BuildContext } from './context';
 import { createBuildContextAsync } from './createContext';
+import { evaluateConfigWithEnvVarsAsync } from './evaluateConfigWithEnvVarsAsync';
 import { prepareIosBuildAsync } from './ios/build';
 import { LocalBuildMode, LocalBuildOptions } from './local';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
@@ -33,6 +33,7 @@ import {
   BuildFragment,
   BuildStatus,
   BuildWithSubmissionsFragment,
+  EnvironmentVariableEnvironment,
   SubmissionFragment,
 } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
@@ -96,6 +97,7 @@ export interface BuildFlags {
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
   repack: boolean;
+  environment?: EnvironmentVariableEnvironment;
 }
 
 export async function runBuildAndSubmitAsync(
@@ -129,13 +131,6 @@ export async function runBuildAndSubmitAsync(
     profileName: flags.profile ?? undefined,
     projectDir,
   });
-  Log.log(
-    `Loaded "env" configuration for the "${buildProfiles[0].profileName}" profile: ${
-      buildProfiles[0].profile.env
-        ? Object.keys(buildProfiles[0].profile.env).join(', ')
-        : 'no environment variables specified'
-    }. ${learnMore('https://docs.expo.dev/build-reference/variables/')}`
-  );
 
   for (const buildProfile of buildProfiles) {
     if (buildProfile.profile.image && ['default', 'stable'].includes(buildProfile.profile.image)) {
@@ -192,6 +187,21 @@ export async function runBuildAndSubmitAsync(
 
   for (const buildProfile of buildProfiles) {
     const platform = toAppPlatform(buildProfile.platform);
+
+    const { env } = await evaluateConfigWithEnvVarsAsync({
+      flags,
+      buildProfile: buildProfile.profile,
+      graphqlClient,
+      getProjectConfig: getDynamicPrivateProjectConfigAsync,
+      opts: { env: buildProfile.profile.env },
+    });
+
+    Log.log(
+      `Loaded "env" configuration for the "${buildProfile.profileName}" profile: ${
+        env ? Object.keys(env).join(', ') : 'no environment variables specified'
+      }. ${learnMore('https://docs.expo.dev/build-reference/variables/')}`
+    );
+
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
       flags,
@@ -204,6 +214,7 @@ export async function runBuildAndSubmitAsync(
       vcsClient,
       getDynamicPrivateProjectConfigAsync,
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
+      env,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -251,7 +262,6 @@ export async function runBuildAndSubmitAsync(
         buildCtx: nullthrows(buildCtxByPlatform[startedBuild.build.platform]),
         moreBuilds: startedBuilds.length > 1,
         projectDir,
-        buildProfile: startedBuild.buildProfile.profile,
         submitProfile,
         nonInteractive: flags.nonInteractive,
         selectedSubmitProfileName: flags.submitProfile,
@@ -340,6 +350,7 @@ async function prepareAndStartBuildAsync({
   vcsClient,
   getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
+  env,
 }: {
   projectDir: string;
   flags: BuildFlags;
@@ -352,6 +363,7 @@ async function prepareAndStartBuildAsync({
   vcsClient: Client;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
+  env: Env;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -374,6 +386,7 @@ async function prepareAndStartBuildAsync({
     buildLoggerLevel: flags.buildLoggerLevel,
     freezeCredentials: flags.freezeCredentials,
     repack: flags.repack,
+    env,
   });
 
   if (moreBuilds) {
@@ -448,7 +461,6 @@ async function prepareAndStartSubmissionAsync({
   buildCtx,
   moreBuilds,
   projectDir,
-  buildProfile,
   submitProfile,
   selectedSubmitProfileName,
   nonInteractive,
@@ -457,7 +469,6 @@ async function prepareAndStartSubmissionAsync({
   buildCtx: BuildContext<Platform>;
   moreBuilds: boolean;
   projectDir: string;
-  buildProfile: BuildProfile;
   submitProfile: SubmitProfile;
   selectedSubmitProfileName?: string;
   nonInteractive: boolean;
@@ -469,7 +480,7 @@ async function prepareAndStartSubmissionAsync({
     profile: submitProfile,
     archiveFlags: { id: build.id },
     nonInteractive,
-    env: buildProfile.env,
+    env: buildCtx.env,
     credentialsCtx: buildCtx.credentialsCtx,
     applicationIdentifier: buildCtx.android?.applicationId ?? buildCtx.ios?.bundleIdentifier,
     actor: buildCtx.user,

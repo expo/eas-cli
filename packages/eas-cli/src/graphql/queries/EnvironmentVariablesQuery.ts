@@ -4,7 +4,6 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
-  EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariablesByAppIdQuery,
   EnvironmentVariablesSharedQuery,
@@ -21,12 +20,10 @@ export const EnvironmentVariablesQuery = {
       filterNames,
     }: {
       appId: string;
-      environment: EnvironmentVariableEnvironment;
+      environment: string;
       filterNames?: string[];
     }
-  ): Promise<{
-    appVariables: EnvironmentVariableFragment[];
-  }> {
+  ): Promise<EnvironmentVariableFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query(
@@ -52,20 +49,24 @@ export const EnvironmentVariablesQuery = {
             }
           `,
           { appId, filterNames, environment },
-          { additionalTypenames: ['EnvironmentVariable'] }
+          { additionalTypenames: ['EnvironmentVariableWithSecret'] }
         )
         .toPromise()
     );
 
-    return {
-      appVariables: data.app?.byId.environmentVariablesIncludingSensitive ?? [],
-    };
+    return data.app?.byId.environmentVariablesIncludingSensitive ?? [];
   },
   async byAppIdAsync(
     graphqlClient: ExpoGraphqlClient,
-    appId: string,
-    environment: string,
-    filterNames?: string[]
+    {
+      appId,
+      environment,
+      filterNames,
+    }: {
+      appId: string;
+      environment: string;
+      filterNames?: string[];
+    }
   ): Promise<EnvironmentVariableFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -98,8 +99,7 @@ export const EnvironmentVariablesQuery = {
   },
   async sharedAsync(
     graphqlClient: ExpoGraphqlClient,
-    appId: string,
-    filterNames?: string[]
+    { appId, filterNames }: { appId: string; filterNames?: string[] }
   ): Promise<EnvironmentVariableFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -128,5 +128,40 @@ export const EnvironmentVariablesQuery = {
     );
 
     return data.app?.byId.ownerAccount.environmentVariables ?? [];
+  },
+  async sharedWithSensitiveAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, filterNames }: { appId: string; filterNames?: string[] }
+  ): Promise<EnvironmentVariableFragment[]> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query(
+          gql`
+            query EnvironmentVariablesSharedWithSensitive(
+              $appId: String!
+              $filterNames: [String!]
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  ownerAccount {
+                    id
+                    environmentVariablesIncludingSensitive(filterNames: $filterNames) {
+                      id
+                      name
+                      value
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          { appId, filterNames },
+          { additionalTypenames: ['EnvironmentVariableWithSecret'] }
+        )
+        .toPromise()
+    );
+
+    return data.app?.byId.ownerAccount.environmentVariablesIncludingSensitive ?? [];
   },
 };
