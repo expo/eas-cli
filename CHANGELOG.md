@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Make `eas config` command not require authentication when running in `--eas-json-only` mode. ([#2517](https://github.com/expo/eas-cli/pull/2517) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 ## [11.0.0](https://github.com/expo/eas-cli/releases/tag/v11.0.0) - 2024-08-26
