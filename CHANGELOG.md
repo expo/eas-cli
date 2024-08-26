@@ -6,13 +6,21 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [11.0.0](https://github.com/expo/eas-cli/releases/tag/v11.0.0) - 2024-08-26
+
+### 🛠 Breaking changes
+
 - Remove long-deprecated `eas update` flags. ([#2501](https://github.com/expo/eas-cli/pull/2501) by [@wschurman](https://github.com/wschurman))
 
 ### 🎉 New features
 
 - Add new rollout update type for `eas update` and `eas update:edit`. ([#2502](https://github.com/expo/eas-cli/pull/2502), [#2503](https://github.com/expo/eas-cli/pull/2503) by [@wschurman](https://github.com/wschurman))
-
-### 🐛 Bug fixes
 
 ### 🧹 Chores
 
