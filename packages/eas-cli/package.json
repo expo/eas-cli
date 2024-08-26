@@ -1,7 +1,7 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "10.2.4",
+  "version": "11.0.0",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
@@ -14,7 +14,7 @@
     "@expo/config-plugins": "8.0.8",
     "@expo/config-types": "51.0.2",
     "@expo/eas-build-job": "1.0.133",
-    "@expo/eas-json": "10.2.4",
+    "@expo/eas-json": "11.0.0",
     "@expo/json-file": "8.3.3",
     "@expo/logger": "1.0.117",
     "@expo/multipart-body-parser": "1.1.0",
