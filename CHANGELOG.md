@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Remove unncessary static project config context definition from `eas build` command context, to fix resolving dynamic projest ID and slug for dynamic app configs. ([#2521](https://github.com/expo/eas-cli/pull/2521) by [@szdziedzic](https://github.com/szdziedzic))
-
 ### 🧹 Chores
+
+## [11.0.2](https://github.com/expo/eas-cli/releases/tag/v11.0.2) - 2024-08-27
+
+### 🐛 Bug fixes
+
+- Remove unncessary static project config context definition from `eas build` command context, to fix resolving dynamic projest ID and slug for dynamic app configs. ([#2521](https://github.com/expo/eas-cli/pull/2521) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [11.0.1](https://github.com/expo/eas-cli/releases/tag/v11.0.1) - 2024-08-26
 
