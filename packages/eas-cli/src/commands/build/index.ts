@@ -124,7 +124,6 @@ export default class Build extends EasCommand {
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
-    ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.Analytics,
     ...this.ContextOptions.Vcs,
   };
