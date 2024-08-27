@@ -24,7 +24,7 @@ import {
 export async function createIosContextAsync(
   ctx: CommonContext<Platform.IOS>
 ): Promise<IosBuildContext> {
-  const { buildProfile, env } = ctx;
+  const { buildProfile } = ctx;
 
   if (ctx.workflow === Workflow.MANAGED) {
     await ensureBundleIdentifierIsDefinedForManagedProjectAsync(ctx);
@@ -47,7 +47,7 @@ export async function createIosContextAsync(
     projectDir: ctx.projectDir,
     exp: ctx.exp,
     xcodeBuildContext,
-    env,
+    env: buildProfile.env,
     vcsClient: ctx.vcsClient,
   });
   const applicationTarget = findApplicationTarget(targets);
@@ -89,7 +89,7 @@ export async function prepareIosBuildAsync(
             ? false
             : ctx.buildProfile.autoIncrement,
         vcsClient: ctx.vcsClient,
-        env: ctx.env,
+        env: ctx.buildProfile.env,
       });
     },
     prepareJobAsync: async (

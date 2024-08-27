@@ -6,14 +6,13 @@ import chalk from 'chalk';
 
 import { handleDeprecatedEasJsonAsync } from '.';
 import { waitForBuildEndAsync } from '../../build/build';
-import { evaluateConfigWithEnvVarsAsync } from '../../build/evaluateConfigWithEnvVarsAsync';
 import { ensureIosCredentialsForBuildResignAsync } from '../../build/ios/credentials';
 import { prepareCredentialsToResign } from '../../build/ios/prepareJob';
 import { listAndSelectBuildOnAppAsync } from '../../build/queries';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EASEnvironmentFlagHidden, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { EasPaginatedQueryFlags } from '../../commandUtils/pagination';
 import { CredentialsContext } from '../../credentials/context';
 import {
@@ -22,7 +21,6 @@ import {
   BuildStatus,
   BuildWorkflow,
   DistributionType,
-  EnvironmentVariableEnvironment,
   IosJobOverridesInput,
   ProjectArchiveSourceType,
   StatuspageServiceName,
@@ -48,7 +46,6 @@ interface BuildResignFlags {
   sourceProfile?: string;
   maybeBuildId?: string;
   wait: boolean;
-  environment?: EnvironmentVariableEnvironment;
 }
 interface RawBuildResignFlags {
   json: boolean;
@@ -60,7 +57,6 @@ interface RawBuildResignFlags {
   'source-profile': string | undefined;
   wait: boolean;
   id: string | undefined;
-  environment: EnvironmentVariableEnvironment | undefined;
 }
 
 export default class BuildResign extends EasCommand {
@@ -93,7 +89,6 @@ export default class BuildResign extends EasCommand {
     }),
     ...EasPaginatedQueryFlags,
     ...EasNonInteractiveAndJsonFlags,
-    ...EASEnvironmentFlagHidden,
   };
 
   static override contextDefinition = {
@@ -145,15 +140,7 @@ export default class BuildResign extends EasCommand {
       platform,
       flags.targetProfile ?? 'production'
     );
-
-    const { exp, projectId, env } = await evaluateConfigWithEnvVarsAsync({
-      flags,
-      buildProfile,
-      graphqlClient,
-      getProjectConfig: getDynamicPrivateProjectConfigAsync,
-      opts: { env: buildProfile.env },
-    });
-
+    const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: buildProfile.env });
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
     const build = await this.ensureBuildSelectedAsync(
       {
@@ -174,7 +161,7 @@ export default class BuildResign extends EasCommand {
       user: actor,
       graphqlClient,
       analytics,
-      env,
+      env: buildProfile.env,
       easJsonCliConfig,
       vcsClient,
     });
@@ -194,7 +181,7 @@ export default class BuildResign extends EasCommand {
       projectDir,
       exp,
       xcodeBuildContext,
-      env,
+      env: buildProfile.env,
       vcsClient,
     });
     const credentialsResult = await ensureIosCredentialsForBuildResignAsync(
@@ -261,7 +248,6 @@ export default class BuildResign extends EasCommand {
       targetProfile: flags['target-profile'],
       maybeBuildId: flags.id,
       wait: flags.wait,
-      environment: flags.environment,
     };
   }
 

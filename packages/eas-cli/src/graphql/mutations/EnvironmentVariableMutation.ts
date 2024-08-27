@@ -4,7 +4,6 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
-  CreateBulkEnvironmentVariablesForAppMutation,
   CreateEnvironmentVariableForAccountMutation,
   CreateEnvironmentVariableForAppMutation,
   DeleteEnvironmentVariableMutation,
@@ -196,35 +195,5 @@ export const EnvironmentVariableMutation = {
     );
 
     return data.environmentVariable.deleteEnvironmentVariable;
-  },
-  async createBulkEnvironmentVariablesForAppAsync(
-    graphqlClient: ExpoGraphqlClient,
-    input: EnvironmentVariablePushInput[],
-    appId: string
-  ): Promise<boolean> {
-    await withErrorHandlingAsync(
-      graphqlClient
-        .mutation<CreateBulkEnvironmentVariablesForAppMutation>(
-          gql`
-            mutation CreateBulkEnvironmentVariablesForApp(
-              $input: [CreateEnvironmentVariableInput!]!
-              $appId: ID!
-            ) {
-              environmentVariable {
-                createBulkEnvironmentVariablesForApp(
-                  environmentVariablesData: $input
-                  appId: $appId
-                ) {
-                  id
-                }
-              }
-            }
-          `,
-          { input, appId }
-        )
-        .toPromise()
-    );
-
-    return true;
   },
 };

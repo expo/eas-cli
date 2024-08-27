@@ -10,8 +10,8 @@ import path from 'path';
 import { LocalBuildMode } from '../../build/local';
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASEnvironmentFlagHidden, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { EnvironmentVariableEnvironment, StatuspageServiceName } from '../../graphql/generated';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { StatuspageServiceName } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { selectAsync } from '../../prompts';
@@ -37,7 +37,6 @@ interface RawBuildFlags {
   'build-logger-level'?: LoggerLevel;
   'freeze-credentials': boolean;
   repack: boolean;
-  environment?: EnvironmentVariableEnvironment;
 }
 
 export default class Build extends EasCommand {
@@ -117,14 +116,12 @@ export default class Build extends EasCommand {
       description: 'Use the golden dev client build repack flow as it works for onboarding',
     }),
     ...EasNonInteractiveAndJsonFlags,
-    ...EASEnvironmentFlagHidden,
   };
 
   static override contextDefinition = {
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
-    ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.Analytics,
     ...this.ContextOptions.Vcs,
   };
@@ -233,7 +230,6 @@ export default class Build extends EasCommand {
       buildLoggerLevel: flags['build-logger-level'],
       freezeCredentials: flags['freeze-credentials'],
       repack: flags.repack,
-      environment: flags.environment,
     };
   }
 

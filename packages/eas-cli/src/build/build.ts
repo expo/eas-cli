@@ -186,7 +186,7 @@ export async function prepareBuildRequestForPlatformAsync<
 
   return async () => {
     if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
-      await runLocalBuildAsync(job, metadata, ctx.localBuildOptions, ctx.env);
+      await runLocalBuildAsync(job, metadata, ctx.localBuildOptions);
       return undefined;
     } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
       await BuildMutation.updateBuildMetadataAsync(ctx.graphqlClient, {
@@ -676,7 +676,7 @@ async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
     platform: ctx.platform,
     workflow: ctx.workflow,
     projectDir: ctx.projectDir,
-    env: ctx.env,
+    env: ctx.buildProfile.env,
     cwd: ctx.projectDir,
   });
 

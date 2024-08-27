@@ -80,10 +80,11 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       if (!environment) {
         environment = await promptVariableEnvironmentAsync(nonInteractive);
       }
-      const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
-        appId: projectId,
-        environment,
-      });
+      const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(
+        graphqlClient,
+        projectId,
+        environment
+      );
       if (!name) {
         name = await selectAsync(
           'Select variable',
@@ -133,9 +134,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         `Updated variable ${chalk.bold(name)} on project ${chalk.bold(projectDisplayName)}.`
       );
     } else if (scope === EnvironmentVariableScope.Shared) {
-      const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, {
-        appId: projectId,
-      });
+      const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
 
       if (!name) {
         name = await selectAsync(

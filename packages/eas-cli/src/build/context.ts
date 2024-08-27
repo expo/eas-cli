@@ -63,5 +63,4 @@ export interface BuildContext<T extends Platform> {
   vcsClient: Client;
   loggerLevel?: LoggerLevel;
   repack: boolean;
-  env: Record<string, string>;
 }

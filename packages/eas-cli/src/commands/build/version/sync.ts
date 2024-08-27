@@ -5,10 +5,8 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import { updateNativeVersionsAsync as updateAndroidNativeVersionsAsync } from '../../../build/android/version';
-import { evaluateConfigWithEnvVarsAsync } from '../../../build/evaluateConfigWithEnvVarsAsync';
 import { updateNativeVersionsAsync as updateIosNativeVersionsAsync } from '../../../build/ios/version';
 import EasCommand from '../../../commandUtils/EasCommand';
-import { EASEnvironmentFlagHidden } from '../../../commandUtils/flags';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
 import Log from '../../../log';
@@ -56,7 +54,6 @@ export default class BuildVersionSyncView extends EasCommand {
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
-    ...EASEnvironmentFlagHidden,
   };
 
   static override contextDefinition = {
@@ -90,12 +87,8 @@ export default class BuildVersionSyncView extends EasCommand {
       projectDir,
     });
     for (const profileInfo of buildProfiles) {
-      const { exp, projectId, env } = await evaluateConfigWithEnvVarsAsync({
-        flags,
-        buildProfile: profileInfo.profile,
-        graphqlClient,
-        getProjectConfig: getDynamicPrivateProjectConfigAsync,
-        opts: { env: profileInfo.profile.env },
+      const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
+        env: profileInfo.profile.env,
       });
 
       validateAppConfigForRemoteVersionSource(exp, profileInfo.platform);
@@ -110,7 +103,6 @@ export default class BuildVersionSyncView extends EasCommand {
         platform: profileInfo.platform,
         vcsClient,
         nonInteractive: false,
-        env,
       });
       const remoteVersions = await AppVersionQuery.latestVersionAsync(
         graphqlClient,

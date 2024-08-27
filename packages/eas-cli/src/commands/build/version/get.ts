@@ -3,12 +3,8 @@ import { EasJsonAccessor } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import { evaluateConfigWithEnvVarsAsync } from '../../../build/evaluateConfigWithEnvVarsAsync';
 import EasCommand from '../../../commandUtils/EasCommand';
-import {
-  EASEnvironmentFlagHidden,
-  EasNonInteractiveAndJsonFlags,
-} from '../../../commandUtils/flags';
+import { EasNonInteractiveAndJsonFlags } from '../../../commandUtils/flags';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
 import Log from '../../../log';
@@ -35,7 +31,6 @@ export default class BuildVersionGetView extends EasCommand {
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
-    ...EASEnvironmentFlagHidden,
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -79,12 +74,8 @@ export default class BuildVersionGetView extends EasCommand {
     });
     const results: { [key in Platform]?: string } = {};
     for (const { profile, platform } of buildProfiles) {
-      const { exp, projectId, env } = await evaluateConfigWithEnvVarsAsync({
-        flags,
-        buildProfile: profile,
-        graphqlClient,
-        getProjectConfig: getDynamicPrivateProjectConfigAsync,
-        opts: { env: profile.env },
+      const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
+        env: profile.env,
       });
 
       validateAppConfigForRemoteVersionSource(exp, platform);
@@ -98,7 +89,6 @@ export default class BuildVersionGetView extends EasCommand {
         platform,
         vcsClient,
         nonInteractive: flags['non-interactive'],
-        env,
       });
       const remoteVersions = await AppVersionQuery.latestVersionAsync(
         graphqlClient,

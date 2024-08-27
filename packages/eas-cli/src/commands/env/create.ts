@@ -114,10 +114,11 @@ export default class EnvironmentVariableCreate extends EasCommand {
       if (!environment) {
         environment = await promptVariableEnvironmentAsync(nonInteractive);
       }
-      const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
-        appId: projectId,
-        environment,
-      });
+      const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(
+        graphqlClient,
+        projectId,
+        environment
+      );
       const existingVariable = existingVariables.find(variable => variable.name === name);
 
       if (existingVariable) {
@@ -190,9 +191,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
         `Created a new variable ${chalk.bold(name)} on project ${chalk.bold(projectDisplayName)}.`
       );
     } else if (scope === EnvironmentVariableScope.Shared) {
-      const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, {
-        appId: projectId,
-      });
+      const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId);
       const existingVariable = sharedVariables.find(variable => variable.name === name);
       if (existingVariable) {
         throw new Error(

@@ -72,6 +72,7 @@ export default class EnvironmentVariableGet extends EasCommand {
     if (!environment && scope === EnvironmentVariableScope.Project) {
       environment = await promptVariableEnvironmentAsync(nonInteractive);
     }
+
     const variable = await getVariableAsync(graphqlClient, scope, projectId, name, environment);
 
     if (!variable) {
@@ -116,32 +117,26 @@ async function getVariableAsync(
   graphqlClient: ExpoGraphqlClient,
   scope: string,
   projectId: string,
-  name: string | undefined,
+  name: string,
   environment: string | undefined
 ): Promise<EnvironmentVariableFragment | null> {
   if (!environment && scope === EnvironmentVariableScope.Project) {
     throw new Error('Environment is required.');
   }
-  if (!name) {
-    throw new Error("Variable name is required. Run the command with '--name VARIABLE_NAME' flag.");
-  }
   if (environment && scope === EnvironmentVariableScope.Project) {
-    const appVariables = await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
-      appId: projectId,
+    const appVariables = await EnvironmentVariablesQuery.byAppIdAsync(
+      graphqlClient,
+      projectId,
       environment,
-      filterNames: [name],
-    });
+      [name]
+    );
     return appVariables[0];
   }
 
   if (scope === EnvironmentVariableScope.Shared) {
-    const sharedVariables = await EnvironmentVariablesQuery.sharedWithSensitiveAsync(
-      graphqlClient,
-      {
-        appId: projectId,
-        filterNames: [name],
-      }
-    );
+    const sharedVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, projectId, [
+      name,
+    ]);
     return sharedVariables[0];
   }
 

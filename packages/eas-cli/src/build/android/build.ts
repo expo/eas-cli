@@ -107,7 +107,7 @@ export async function prepareAndroidBuildAsync(
             ? false
             : ctx.buildProfile.autoIncrement,
         vcsClient: ctx.vcsClient,
-        env: ctx.env,
+        env: ctx.buildProfile.env,
       });
     },
     prepareJobAsync: async (
