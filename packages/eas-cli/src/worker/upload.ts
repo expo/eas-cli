@@ -89,7 +89,7 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
       if (compress && isCompressible(contentType, stat.size)) {
         const gzip = new Gzip({ portable: true });
         bodyStream.on('error', error => gzip.emit('error', error));
-        // @ts-ignore: Gzip implements a Readable-like interface
+        // @ts-expect-error: Gzip implements a Readable-like interface
         bodyStream = bodyStream.pipe(gzip) as NodeJS.ReadableStream;
         headers.set('content-encoding', 'gzip');
       }
@@ -102,7 +102,7 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
           body: bodyStream,
           headers,
           agent: getAgent(),
-          // @ts-ignore: Internal types don't match
+          // @ts-expect-error: Internal types don't match
           signal,
         });
       } catch (error) {
