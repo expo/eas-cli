@@ -20,8 +20,12 @@ export default class WorkerDeploy extends EasCommand {
   static override description = 'deploy an Expo web build';
   static override aliases = ['deploy'];
 
+  // TODO(@kitten): Keep command hidden until worker deployments are live
+  static override hidden = true;
+  static override state = 'beta';
+
   static override flags = {
-    // TODO: Allow deployment identifier to be specified
+    // TODO(@kitten): Allow deployment identifier to be specified
   };
 
   static override contextDefinition = {
