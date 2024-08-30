@@ -169,11 +169,11 @@ export async function ensureAppVersionSourceIsSetAsync(
 
     selectOption = await selectAsync(`What would you like to do?`, [
       {
-        title: 'Update eas.json to use the default "remote" version source',
+        title: 'Update eas.json to use the default "remote" version source (recommended)',
         value: AppVersionSourceUpdateOption.SET_TO_REMOTE,
       },
       {
-        title: 'Update eas.json to use "local" version source',
+        title: 'Update eas.json to use "local" version source (old behavior)',
         value: AppVersionSourceUpdateOption.SET_TO_LOCAL,
       },
       {
