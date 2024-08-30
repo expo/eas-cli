@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add support for syncing Journaling Suggestions, Managed App Installation UI, and 5G Network Slicing capabilities. ([#2525](https://github.com/expo/eas-cli/pull/2525) by [@szdziedzic](https://github.com/szdziedzic))
+- **Internal/Experimental:** Add EAS Worker command ([#2447](https://github.com/expo/eas-cli/pull/2447) by [@kitten](https://github.com/kitten))
 
 ### 🐛 Bug fixes
 
