@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Revert config-related packages to SDK 50 version from SDK 51 version to fix broken entitlements behavior for older SDKs. ([#2524](https://github.com/expo/eas-cli/pull/2524) by [@szdziedzic](https://github.com/szdziedzic))
-
 ### 🧹 Chores
+
+## [11.0.3](https://github.com/expo/eas-cli/releases/tag/v11.0.3) - 2024-08-31
+
+### 🐛 Bug fixes
+
+- Revert config-related packages to SDK 50 version from SDK 51 version to fix broken entitlements behavior for older SDKs. ([#2524](https://github.com/expo/eas-cli/pull/2524) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [11.0.2](https://github.com/expo/eas-cli/releases/tag/v11.0.2) - 2024-08-27
 
