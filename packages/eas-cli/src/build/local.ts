@@ -55,19 +55,26 @@ export async function runLocalBuildAsync(
   };
   process.on('SIGINT', interruptHandler);
   try {
+    const mergedEnv = {
+      ...env,
+      ...process.env,
+      EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? process.env.EAS_LOCAL_BUILD_WORKINGDIR,
+      ...(options.skipCleanup || options.skipNativeBuild
+        ? { EAS_LOCAL_BUILD_SKIP_CLEANUP: '1' }
+        : {}),
+      ...(options.skipNativeBuild ? { EAS_LOCAL_BUILD_SKIP_NATIVE_BUILD: '1' } : {}),
+      ...(options.artifactsDir ? { EAS_LOCAL_BUILD_ARTIFACTS_DIR: options.artifactsDir } : {}),
+      ...(options.artifactPath ? { EAS_LOCAL_BUILD_ARTIFACT_PATH: options.artifactPath } : {}),
+    };
+    // log command execution to assist in debugging local builds
+    console.log({
+      command,
+      args,
+      env: mergedEnv
+    });
     const spawnPromise = spawnAsync(command, args, {
       stdio: options.verbose ? 'inherit' : 'pipe',
-      env: {
-        ...env,
-        ...process.env,
-        EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? process.env.EAS_LOCAL_BUILD_WORKINGDIR,
-        ...(options.skipCleanup || options.skipNativeBuild
-          ? { EAS_LOCAL_BUILD_SKIP_CLEANUP: '1' }
-          : {}),
-        ...(options.skipNativeBuild ? { EAS_LOCAL_BUILD_SKIP_NATIVE_BUILD: '1' } : {}),
-        ...(options.artifactsDir ? { EAS_LOCAL_BUILD_ARTIFACTS_DIR: options.artifactsDir } : {}),
-        ...(options.artifactPath ? { EAS_LOCAL_BUILD_ARTIFACT_PATH: options.artifactPath } : {}),
-      },
+      env: mergedEnv,
     });
     childProcess = spawnPromise.child;
     await spawnPromise;
