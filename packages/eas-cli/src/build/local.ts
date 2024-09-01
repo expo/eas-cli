@@ -67,7 +67,7 @@ export async function runLocalBuildAsync(
       ...(options.artifactPath ? { EAS_LOCAL_BUILD_ARTIFACT_PATH: options.artifactPath } : {}),
     };
     // log command execution to assist in debugging local builds
-    console.log({
+    Log.debug('Running local build, using local-build-plugin', {
       command,
       args,
       env: mergedEnv
