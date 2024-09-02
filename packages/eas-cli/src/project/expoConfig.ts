@@ -1,8 +1,15 @@
-import { ExpoConfig, getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
+import {
+  ExpoConfig,
+  getConfig as _getConfig,
+  getConfigFilePaths,
+  modifyConfigAsync,
+} from '@expo/config';
 import { Env } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import Joi from 'joi';
 import path from 'path';
+
+import Log from '../log';
 
 export type PublicExpoConfig = Omit<
   ExpoConfig,
@@ -47,6 +54,16 @@ function getExpoConfigInternal(
       ...process.env,
       ...opts.env,
     };
+    let getConfig: typeof _getConfig;
+    try {
+      const expoConfig = require(`${projectDir}/node_modules/@expo/config`);
+      getConfig = expoConfig.getConfig;
+    } catch (error: any) {
+      Log.warn(
+        `Failed to load getConfig function from ${projectDir}/node_modules/@expo/config: ${error.message}`
+      );
+      getConfig = _getConfig;
+    }
     const { exp } = getConfig(projectDir, {
       skipSDKVersionRequirement: true,
       ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
