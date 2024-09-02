@@ -32,32 +32,6 @@ async function createTempWritePath(): Promise<string> {
   return path.resolve(tmpdir, `tmp-${basename}-${process.pid}-${random}`);
 }
 
-/** Normalizes given sourcemap sources to relative paths for a given root path */
-function formatSourcemap(rootPath: string, data: Buffer | string): Buffer | string {
-  try {
-    const cwd = process.cwd();
-    const map = JSON.parse(data.toString('utf8'));
-    let sources = map.sources || [];
-    if (Array.isArray(sources)) {
-      sources = sources.map(source => {
-        return typeof source === 'string' && source.startsWith(cwd)
-          ? path.relative(rootPath, source).split(path.sep).filter(Boolean).join('/')
-          : source;
-      });
-    }
-    return JSON.stringify({
-      version: map.version,
-      sources,
-      sourcesContent:
-        typeof map.sources.length === 'number' ? new Array(map.sources.length).fill(null) : null,
-      names: map.names,
-      mappings: map.mappings,
-    });
-  } catch {
-    return data;
-  }
-}
-
 /** Computes a SHA512 hash for a file */
 async function computeSha512Hash(filePath: fs.PathLike, options?: HashOptions): Promise<string> {
   const hash = createHash('sha512', { encoding: 'hex', ...options });
@@ -118,14 +92,10 @@ interface WorkerFileEntry {
 /** Reads worker files while normalizing sourcemaps and providing normalized paths */
 async function* listWorkerFiles(workerPath: string): AsyncGenerator<WorkerFileEntry> {
   for await (const file of listFilesRecursively(workerPath)) {
-    let data: string | Buffer = await fs.promises.readFile(file.path);
-    if (path.extname(file.path) === '.map') {
-      data = formatSourcemap(file.path, data);
-    }
     yield {
       normalizedPath: file.normalizedPath,
       path: file.path,
-      data,
+      data: await fs.promises.readFile(file.path),
     };
   }
 }
