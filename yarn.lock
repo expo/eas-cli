@@ -1428,7 +1428,7 @@
     xcode "^3.0.1"
     xml2js "0.6.0"
 
-"@expo/config-types@50.0.0", "@expo/config-types@^50.0.0", "@expo/config-types@^50.0.0-alpha.1":
+"@expo/config-types@^50.0.0", "@expo/config-types@^50.0.0-alpha.1":
   version "50.0.0"
   resolved "https://registry.yarnpkg.com/@expo/config-types/-/config-types-50.0.0.tgz#b534d3ec997ec60f8af24f6ad56244c8afc71a0b"
   integrity sha512-0kkhIwXRT6EdFDwn+zTg9R2MZIAEYGn1MVkyRohAd+C9cXOb5RA8WLQi7vuxKF9m1SMtNAUrf0pO+ENK0+/KSw==

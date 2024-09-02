@@ -1,4 +1,4 @@
-import { ExpoConfig } from '@expo/config-types';
+import { ExpoConfig } from '@expo/config';
 import { InvalidEasJsonError } from '@expo/eas-json/build/errors';
 
 import ContextField, { ContextOptions } from './ContextField';
