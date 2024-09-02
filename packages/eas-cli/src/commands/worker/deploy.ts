@@ -29,7 +29,7 @@ export default class WorkerDeploy extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.LoggedIn,
   };
@@ -139,7 +139,7 @@ export default class WorkerDeploy extends EasCommand {
           );
           return `Uploading client assets: ${percent.padStart(3)}% ${details}`;
         },
-        completedMessage: 'Uploaded client assets for worker deployment',
+        completedMessage: 'Uploaded assets for serverless deployment',
       });
 
       try {
