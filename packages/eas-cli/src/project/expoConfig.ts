@@ -1,10 +1,17 @@
-import { ExpoConfig, getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
+import {
+  ExpoConfig,
+  getConfig as _getConfig,
+  getConfigFilePaths,
+  modifyConfigAsync,
+} from '@expo/config';
 import { Env } from '@expo/eas-build-job';
 import JsonFile from '@expo/json-file';
 import fs from 'fs-extra';
 import Joi from 'joi';
 import nullthrows from 'nullthrows';
 import path from 'path';
+
+import Log from '../log';
 
 export type PublicExpoConfig = Omit<
   ExpoConfig,
@@ -39,6 +46,8 @@ export async function createOrModifyExpoConfigAsync(
   }
 }
 
+let wasExpoConfigWarnPrinted = false;
+
 function getExpoConfigInternal(
   projectDir: string,
   opts: ExpoConfigOptionsInternal = {}
@@ -49,6 +58,19 @@ function getExpoConfigInternal(
       ...process.env,
       ...opts.env,
     };
+    const projectExpoConfigPath = path.join(projectDir, 'node_modules', '@expo', 'config');
+    let getConfig: typeof _getConfig;
+    try {
+      const expoConfig = require(projectExpoConfigPath);
+      getConfig = expoConfig.getConfig;
+    } catch {
+      if (!wasExpoConfigWarnPrinted) {
+        Log.warn(`Failed to load getConfig function from ${projectExpoConfigPath}`);
+        Log.warn('Falling back to the version of @expo/config shipped with the EAS CLI.');
+        wasExpoConfigWarnPrinted = true;
+      }
+      getConfig = _getConfig;
+    }
     const { exp } = getConfig(projectDir, {
       skipSDKVersionRequirement: true,
       ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
