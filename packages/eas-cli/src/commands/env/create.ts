@@ -223,7 +223,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
           value,
           visibility,
         },
-        ownerAccount.id
+        ownerAccount.name
       );
 
       if (!variable) {

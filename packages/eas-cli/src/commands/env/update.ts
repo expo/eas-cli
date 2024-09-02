@@ -173,7 +173,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
           visibility,
           overwrite: true,
         },
-        ownerAccount.id
+        ownerAccount.name
       );
 
       if (!variable) {

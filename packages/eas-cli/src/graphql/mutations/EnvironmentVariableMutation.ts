@@ -111,7 +111,7 @@ export const EnvironmentVariableMutation = {
           overwrite?: boolean;
         }
       | UpdateVariableArgs,
-    accountId: string
+    accountName: string
   ): Promise<EnvironmentVariableFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -119,12 +119,12 @@ export const EnvironmentVariableMutation = {
           gql`
             mutation CreateEnvironmentVariableForAccount(
               $input: CreateSharedEnvironmentVariableInput!
-              $accountId: ID!
+              $accountName: String!
             ) {
               environmentVariable {
                 createEnvironmentVariableForAccount(
                   environmentVariableData: $input
-                  accountId: $accountId
+                  accountName: $accountName
                 ) {
                   id
                   ...EnvironmentVariableFragment
@@ -133,7 +133,7 @@ export const EnvironmentVariableMutation = {
             }
             ${print(EnvironmentVariableFragmentNode)}
           `,
-          { input, accountId }
+          { input, accountName }
         )
         .toPromise()
     );
