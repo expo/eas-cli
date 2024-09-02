@@ -12,7 +12,6 @@
     "@expo/code-signing-certificates": "0.0.5",
     "@expo/config": "8.5.4",
     "@expo/config-plugins": "7.8.4",
-    "@expo/config-types": "50.0.0",
     "@expo/eas-build-job": "1.0.136",
     "@expo/eas-json": "12.5.2",
     "@expo/env": "^0.3.0",

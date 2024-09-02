@@ -1,4 +1,4 @@
-import { ExpoConfig } from '@expo/config-types';
+import { ExpoConfig } from '@expo/config';
 import { SubmitProfile } from '@expo/eas-json';
 
 import { AppleData } from './apple/data';

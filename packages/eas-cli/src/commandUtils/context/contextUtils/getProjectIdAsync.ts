@@ -1,5 +1,4 @@
-import { getProjectConfigDescription } from '@expo/config';
-import { ExpoConfig } from '@expo/config-types';
+import { ExpoConfig, getProjectConfigDescription } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 

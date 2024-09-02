@@ -1,4 +1,4 @@
-import { ExpoConfig } from '@expo/config-types';
+import { ExpoConfig } from '@expo/config';
 import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import { EasJsonAccessor } from '@expo/eas-json';
 import chalk from 'chalk';
