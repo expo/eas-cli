@@ -38,12 +38,13 @@ export default class WorkerDeploy extends EasCommand {
     Log.warn('EAS Worker Deployments are in beta and subject to breaking changes.');
 
     const {
-      privateProjectConfig: { projectId, exp },
+      getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
-      projectDir,
     } = await this.getContextAsync(WorkerDeploy, {
       nonInteractive: true,
     });
+
+    const { projectId, projectDir, exp } = await getDynamicPrivateProjectConfigAsync();
 
     const distPath = path.resolve(projectDir, 'dist');
     const distClientPath = path.resolve(distPath, 'client');
