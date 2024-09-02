@@ -62,6 +62,7 @@ function getExpoConfigInternal(
       Log.warn(
         `Failed to load getConfig function from ${projectDir}/node_modules/@expo/config: ${error.message}`
       );
+      Log.warn('Falling back to the version of @expo/config shipped with the EAS CLI.');
       getConfig = _getConfig;
     }
     const { exp } = getConfig(projectDir, {
