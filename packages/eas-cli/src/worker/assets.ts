@@ -1,5 +1,3 @@
-/* eslint-disable async-protect/async-suffix */
-
 import { Gzip, GzipOptions } from 'minizlib';
 import { HashOptions, createHash, randomBytes } from 'node:crypto';
 import fs, { createWriteStream } from 'node:fs';
@@ -25,7 +23,7 @@ function isIgnoredName(name: string): boolean {
 }
 
 /** Creates a temporary file write path */
-async function createTempWritePath(): Promise<string> {
+async function createTempWritePathAsync(): Promise<string> {
   const basename = path.basename(__filename, path.extname(__filename));
   const tmpdir = await fs.promises.realpath(os.tmpdir());
   const random = randomBytes(4).toString('hex');
@@ -33,7 +31,7 @@ async function createTempWritePath(): Promise<string> {
 }
 
 /** Computes a SHA512 hash for a file */
-async function computeSha512Hash(filePath: fs.PathLike, options?: HashOptions): Promise<string> {
+async function computeSha512HashAsync(filePath: fs.PathLike, options?: HashOptions): Promise<string> {
   const hash = createHash('sha512', { encoding: 'hex', ...options });
   await pipeline(fs.createReadStream(filePath), hash);
   return `${hash.read()}`;
@@ -46,7 +44,7 @@ interface RecursiveFileEntry {
 }
 
 /** Lists plain files in base path recursively and outputs normalized paths */
-function listFilesRecursively(basePath: string): AsyncGenerator<RecursiveFileEntry> {
+function listFilesRecursivelyAsync(basePath: string): AsyncGenerator<RecursiveFileEntry> {
   async function* recurse(parentPath?: string): AsyncGenerator<RecursiveFileEntry> {
     const target = parentPath ? path.resolve(basePath, parentPath) : basePath;
     const entries = await fs.promises.readdir(target, { withFileTypes: true });
@@ -75,10 +73,10 @@ interface AssetMapOptions {
 export type AssetMap = Record<string, string>;
 
 /** Creates an asset map of a given target path */
-async function createAssetMap(assetPath: string, options?: AssetMapOptions): Promise<AssetMap> {
+async function createAssetMapAsync(assetPath: string, options?: AssetMapOptions): Promise<AssetMap> {
   const map: AssetMap = Object.create(null);
-  for await (const file of listFilesRecursively(assetPath)) {
-    map[file.normalizedPath] = await computeSha512Hash(file.path, options?.hashOptions);
+  for await (const file of listFilesRecursivelyAsync(assetPath)) {
+    map[file.normalizedPath] = await computeSha512HashAsync(file.path, options?.hashOptions);
   }
   return map;
 }
@@ -90,8 +88,8 @@ interface WorkerFileEntry {
 }
 
 /** Reads worker files while normalizing sourcemaps and providing normalized paths */
-async function* listWorkerFiles(workerPath: string): AsyncGenerator<WorkerFileEntry> {
-  for await (const file of listFilesRecursively(workerPath)) {
+async function* listWorkerFilesAsync(workerPath: string): AsyncGenerator<WorkerFileEntry> {
+  for await (const file of listFilesRecursivelyAsync(workerPath)) {
     yield {
       normalizedPath: file.normalizedPath,
       path: file.path,
@@ -101,7 +99,7 @@ async function* listWorkerFiles(workerPath: string): AsyncGenerator<WorkerFileEn
 }
 
 /** Reads files of an asset maps and enumerates normalized paths and data */
-async function* listAssetMapFiles(
+async function* listAssetMapFilesAsync(
   assetPath: string,
   assetMap: AssetMap
 ): AsyncGenerator<WorkerFileEntry> {
@@ -120,11 +118,11 @@ async function* listAssetMapFiles(
 export type FileEntry = readonly [normalizedPath: string, data: Buffer | string];
 
 /** Packs file entries into a tar.gz file (path to tgz returned) */
-async function packFilesIterable(
+async function packFilesIterableAsync(
   iterable: Iterable<FileEntry> | AsyncIterable<FileEntry>,
   options?: GzipOptions
 ): Promise<string> {
-  const writePath = `${await createTempWritePath()}.tar.gz`;
+  const writePath = `${await createTempWritePathAsync()}.tar.gz`;
   const write = createWriteStream(writePath);
   const gzip = new Gzip({ portable: true, ...options });
   const tar = pack();
@@ -137,4 +135,4 @@ async function packFilesIterable(
   return writePath;
 }
 
-export { createAssetMap, listWorkerFiles, listAssetMapFiles, packFilesIterable };
+export { createAssetMapAsync, listWorkerFilesAsync, listAssetMapFilesAsync, packFilesIterableAsync };

@@ -72,7 +72,7 @@ export default class WorkerDeploy extends EasCommand {
       const manifest = { env: {} };
       yield ['manifest.json', JSON.stringify(manifest)];
 
-      const workerFiles = WorkerAssets.listWorkerFiles(distServerPath);
+      const workerFiles = WorkerAssets.listWorkerFilesAsync(distServerPath);
       for await (const workerFile of workerFiles) {
         yield [`server/${workerFile.normalizedPath}`, workerFile.data];
       }
@@ -117,7 +117,7 @@ export default class WorkerDeploy extends EasCommand {
 
       // TODO(@kitten): Batch and upload multiple files in parallel
       const uploadParams: UploadParams[] = [];
-      for await (const asset of WorkerAssets.listAssetMapFiles(distClientPath, assetMap)) {
+      for await (const asset of WorkerAssets.listAssetMapFilesAsync(distClientPath, assetMap)) {
         const uploadURL = uploads[asset.normalizedPath];
         if (uploadURL) {
           uploadParams.push({ url: uploadURL, filePath: asset.path });
@@ -165,8 +165,8 @@ export default class WorkerDeploy extends EasCommand {
     let assetMap: WorkerAssets.AssetMap;
     let tarPath: string;
     try {
-      assetMap = await WorkerAssets.createAssetMap(distClientPath);
-      tarPath = await WorkerAssets.packFilesIterable(emitWorkerTarballAsync(assetMap));
+      assetMap = await WorkerAssets.createAssetMapAsync(distClientPath);
+      tarPath = await WorkerAssets.packFilesIterableAsync(emitWorkerTarballAsync(assetMap));
     } catch (error: any) {
       progress.fail('Failed to prepare worker upload');
       Log.error(error);
