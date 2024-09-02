@@ -155,8 +155,7 @@ export default class WorkerDeploy extends EasCommand {
         }
       } catch (error: any) {
         updateProgress({ isComplete: true, error });
-        Log.error(error);
-        return;
+        throw error;
       }
       updateProgress({ isComplete: true });
     }
@@ -169,8 +168,7 @@ export default class WorkerDeploy extends EasCommand {
       tarPath = await WorkerAssets.packFilesIterableAsync(emitWorkerTarballAsync(assetMap));
     } catch (error: any) {
       progress.fail('Failed to prepare worker upload');
-      Log.error(error);
-      return;
+      throw error;
     }
     progress.succeed('Prepared worker upload');
 
@@ -180,8 +178,7 @@ export default class WorkerDeploy extends EasCommand {
       deployResult = await uploadTarballAsync(tarPath);
     } catch (error: any) {
       progress.fail('Failed to create worker deployment');
-      Log.error(error);
-      return;
+      throw error;
     }
     progress.succeed('Created worker deployment');
 
