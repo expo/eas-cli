@@ -54,14 +54,13 @@ function getExpoConfigInternal(
       ...process.env,
       ...opts.env,
     };
+    const projectExpoConfigPath = path.join(projectDir, 'node_modules', '@expo', 'config');
     let getConfig: typeof _getConfig;
     try {
-      const expoConfig = require(`${projectDir}/node_modules/@expo/config`);
+      const expoConfig = require(projectExpoConfigPath);
       getConfig = expoConfig.getConfig;
     } catch (error: any) {
-      Log.warn(
-        `Failed to load getConfig function from ${projectDir}/node_modules/@expo/config: ${error.message}`
-      );
+      Log.warn(`Failed to load getConfig function from ${projectExpoConfigPath}: ${error.message}`);
       Log.warn('Falling back to the version of @expo/config shipped with the EAS CLI.');
       getConfig = _getConfig;
     }
