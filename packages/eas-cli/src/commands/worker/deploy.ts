@@ -94,7 +94,7 @@ export default class WorkerDeploy extends EasCommand {
       if (response.status === 413) {
         throw new Error(
           'Upload failed! (Payload too large)\n' +
-            `The gzipped files in "dist/server/" (at: ${distServerPath}) exceed the maximum file size.`
+            `The files in "dist/server/" (at: ${distServerPath}) exceed the maximum file size (10MB gzip).`
         );
       } else if (!response.ok) {
         throw new Error(`Upload failed! (${response.statusText})`);
