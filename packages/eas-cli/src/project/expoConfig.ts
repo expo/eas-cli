@@ -44,6 +44,8 @@ export async function createOrModifyExpoConfigAsync(
   }
 }
 
+let wasExpoConfigWarnPrinted = false;
+
 function getExpoConfigInternal(
   projectDir: string,
   opts: ExpoConfigOptionsInternal = {}
@@ -59,9 +61,12 @@ function getExpoConfigInternal(
     try {
       const expoConfig = require(projectExpoConfigPath);
       getConfig = expoConfig.getConfig;
-    } catch (error: any) {
-      Log.warn(`Failed to load getConfig function from ${projectExpoConfigPath}: ${error.message}`);
-      Log.warn('Falling back to the version of @expo/config shipped with the EAS CLI.');
+    } catch {
+      if (!wasExpoConfigWarnPrinted) {
+        Log.warn(`Failed to load getConfig function from ${projectExpoConfigPath}`);
+        Log.warn('Falling back to the version of @expo/config shipped with the EAS CLI.');
+        wasExpoConfigWarnPrinted = true;
+      }
       getConfig = _getConfig;
     }
     const { exp } = getConfig(projectDir, {
