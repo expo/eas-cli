@@ -12,6 +12,10 @@ interface Target {
   buildConfiguration?: string;
   targetName: string;
 }
+
+let wasExooPrebuildConfigWarnPrinted = false;
+let wasExpoConfigPluginsWarnPrinted = false;
+
 export async function getManagedApplicationTargetEntitlementsAsync(
   projectDir: string,
   env: Record<string, string>,
@@ -34,11 +38,14 @@ export async function getManagedApplicationTargetEntitlementsAsync(
     try {
       const expoPrebuildConfig = require(projectExpoPrebuildConfigPath);
       getPrebuildConfigAsync = expoPrebuildConfig.getPrebuildConfigAsync;
-    } catch (error: any) {
-      Log.warn(
-        `Failed to load getPrebuildConfigAsync function from ${projectExpoPrebuildConfigPath}: ${error.message}`
-      );
-      Log.warn('Falling back to the version of @expo/prebuild-config shipped with the EAS CLI.');
+    } catch {
+      if (!wasExooPrebuildConfigWarnPrinted) {
+        Log.warn(
+          `Failed to load getPrebuildConfigAsync function from ${projectExpoPrebuildConfigPath}`
+        );
+        Log.warn('Falling back to the version of @expo/prebuild-config shipped with the EAS CLI.');
+        wasExooPrebuildConfigWarnPrinted = true;
+      }
       getPrebuildConfigAsync = _getPrebuildConfigAsync;
     }
     const { exp } = await getPrebuildConfigAsync(projectDir, { platforms: ['ios'] });
@@ -53,11 +60,12 @@ export async function getManagedApplicationTargetEntitlementsAsync(
     try {
       const expoConfigPlugins = require(projectExpoConfigPluginsPath);
       compileModsAsync = expoConfigPlugins.compileModsAsync;
-    } catch (error: any) {
-      Log.warn(
-        `Failed to load compileModsAsync function from ${projectExpoConfigPluginsPath}: ${error.message}`
-      );
-      Log.warn('Falling back to the version of @expo/confi-plugins shipped with the EAS CLI.');
+    } catch {
+      if (!wasExpoConfigPluginsWarnPrinted) {
+        Log.warn(`Failed to load compileModsAsync function from ${projectExpoConfigPluginsPath}`);
+        Log.warn('Falling back to the version of @expo/config-plugins shipped with the EAS CLI.');
+        wasExpoConfigPluginsWarnPrinted = true;
+      }
       compileModsAsync = _compileModsAsync;
     }
     const expWithMods = await compileModsAsync(exp, {
