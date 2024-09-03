@@ -5,8 +5,8 @@ import {
   EasJson,
   EasJsonAccessor,
   EasJsonUtils,
+  ResourceClass,
   SubmitProfile,
-  ResourceClass
 } from '@expo/eas-json';
 import { LoggerLevel } from '@expo/logger';
 import assert from 'assert';
