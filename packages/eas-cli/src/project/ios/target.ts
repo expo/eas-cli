@@ -189,7 +189,7 @@ async function resolveBareProjectDependenciesAsync({
         }
       );
       const entitlements = await getNativeTargetEntitlementsAsync(projectDir, {
-        targetName: target.name,
+        targetName: dependency.name,
         buildConfiguration,
       });
       result.push({
