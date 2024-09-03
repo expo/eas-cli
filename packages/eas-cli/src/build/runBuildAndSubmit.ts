@@ -6,7 +6,9 @@ import {
   EasJsonAccessor,
   EasJsonUtils,
   SubmitProfile,
+  ResourceClass
 } from '@expo/eas-json';
+import { LoggerLevel } from '@expo/logger';
 import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -18,8 +20,7 @@ import { BuildContext } from './context';
 import { createBuildContextAsync } from './createContext';
 import { evaluateConfigWithEnvVarsAsync } from './evaluateConfigWithEnvVarsAsync';
 import { prepareIosBuildAsync } from './ios/build';
-import { LocalBuildMode } from './local';
-import { BuildFlags } from './types';
+import { LocalBuildMode, LocalBuildOptions } from './local';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';

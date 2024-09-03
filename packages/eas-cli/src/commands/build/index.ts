@@ -8,8 +8,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import { LocalBuildMode } from '../../build/local';
-import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
-import { BuildFlags } from '../../build/types';
+import {BuildFlags, runBuildAndSubmitAsync} from '../../build/runBuildAndSubmit';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlagHidden, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { EnvironmentVariableEnvironment, StatuspageServiceName } from '../../graphql/generated';
