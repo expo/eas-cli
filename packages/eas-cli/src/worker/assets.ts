@@ -31,7 +31,10 @@ async function createTempWritePathAsync(): Promise<string> {
 }
 
 /** Computes a SHA512 hash for a file */
-async function computeSha512HashAsync(filePath: fs.PathLike, options?: HashOptions): Promise<string> {
+async function computeSha512HashAsync(
+  filePath: fs.PathLike,
+  options?: HashOptions
+): Promise<string> {
   const hash = createHash('sha512', { encoding: 'hex', ...options });
   await pipeline(fs.createReadStream(filePath), hash);
   return `${hash.read()}`;
@@ -44,8 +47,8 @@ interface RecursiveFileEntry {
 }
 
 /** Lists plain files in base path recursively and outputs normalized paths */
-function listFilesRecursivelyAsync(basePath: string): AsyncGenerator<RecursiveFileEntry> {
-  async function* recurse(parentPath?: string): AsyncGenerator<RecursiveFileEntry> {
+function listFilesRecursively(basePath: string): AsyncGenerator<RecursiveFileEntry> {
+  async function* recurseAsync(parentPath?: string): AsyncGenerator<RecursiveFileEntry> {
     const target = parentPath ? path.resolve(basePath, parentPath) : basePath;
     const entries = await fs.promises.readdir(target, { withFileTypes: true });
     for (const dirent of entries) {
@@ -58,11 +61,11 @@ function listFilesRecursivelyAsync(basePath: string): AsyncGenerator<RecursiveFi
           path: path.resolve(target, dirent.name),
         };
       } else if (dirent.isDirectory()) {
-        yield* recurse(normalizedPath);
+        yield* recurseAsync(normalizedPath);
       }
     }
   }
-  return recurse();
+  return recurseAsync();
 }
 
 interface AssetMapOptions {
@@ -73,9 +76,12 @@ interface AssetMapOptions {
 export type AssetMap = Record<string, string>;
 
 /** Creates an asset map of a given target path */
-async function createAssetMapAsync(assetPath: string, options?: AssetMapOptions): Promise<AssetMap> {
+async function createAssetMapAsync(
+  assetPath: string,
+  options?: AssetMapOptions
+): Promise<AssetMap> {
   const map: AssetMap = Object.create(null);
-  for await (const file of listFilesRecursivelyAsync(assetPath)) {
+  for await (const file of listFilesRecursively(assetPath)) {
     map[file.normalizedPath] = await computeSha512HashAsync(file.path, options?.hashOptions);
   }
   return map;
@@ -89,7 +95,7 @@ interface WorkerFileEntry {
 
 /** Reads worker files while normalizing sourcemaps and providing normalized paths */
 async function* listWorkerFilesAsync(workerPath: string): AsyncGenerator<WorkerFileEntry> {
-  for await (const file of listFilesRecursivelyAsync(workerPath)) {
+  for await (const file of listFilesRecursively(workerPath)) {
     yield {
       normalizedPath: file.normalizedPath,
       path: file.path,
@@ -135,4 +141,9 @@ async function packFilesIterableAsync(
   return writePath;
 }
 
-export { createAssetMapAsync, listWorkerFilesAsync, listAssetMapFilesAsync, packFilesIterableAsync };
+export {
+  createAssetMapAsync,
+  listWorkerFilesAsync,
+  listAssetMapFilesAsync,
+  packFilesIterableAsync,
+};
