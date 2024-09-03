@@ -143,7 +143,7 @@ export async function ensureAppVersionSourceIsSetAsync(
   let selectOption, updateEasJson;
   if (nonInteractive) {
     Log.warn(
-      `The field "cli.appVersionSource" is not set, but it will be required in the future. ${learnMore(
+      `The field "cli.appVersionSource" is not set, but it will be required in the future Proceeding with the default "local" value. ${learnMore(
         'https://docs.expo.dev/build-reference/app-versions/'
       )}`
     );
