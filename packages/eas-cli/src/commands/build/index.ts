@@ -11,8 +11,8 @@ import { LocalBuildMode } from '../../build/local';
 import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import { BuildFlags } from '../../build/types';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { StatuspageServiceName } from '../../graphql/generated';
+import { EASEnvironmentFlagHidden, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { EnvironmentVariableEnvironment, StatuspageServiceName } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { selectAsync } from '../../prompts';
@@ -38,6 +38,7 @@ interface RawBuildFlags {
   'build-logger-level'?: LoggerLevel;
   'freeze-credentials': boolean;
   repack: boolean;
+  environment?: EnvironmentVariableEnvironment;
 }
 
 export default class Build extends EasCommand {
@@ -117,6 +118,7 @@ export default class Build extends EasCommand {
       description: 'Use the golden dev client build repack flow as it works for onboarding',
     }),
     ...EasNonInteractiveAndJsonFlags,
+    ...EASEnvironmentFlagHidden,
   };
 
   static override contextDefinition = {
@@ -231,6 +233,7 @@ export default class Build extends EasCommand {
       buildLoggerLevel: flags['build-logger-level'],
       freezeCredentials: flags['freeze-credentials'],
       repack: flags.repack,
+      environment: flags.environment,
     };
   }
 

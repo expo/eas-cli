@@ -31,5 +31,9 @@ export const UpdateFragmentNode = gql`
       sig
       alg
     }
+    rolloutPercentage
+    rolloutControlUpdate {
+      id
+    }
   }
 `;

@@ -4,7 +4,9 @@ import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
+import { evaluateConfigWithEnvVarsAsync } from '../../../build/evaluateConfigWithEnvVarsAsync';
 import EasCommand from '../../../commandUtils/EasCommand';
+import { EASEnvironmentFlagHidden } from '../../../commandUtils/flags';
 import { AppVersionMutation } from '../../../graphql/mutations/AppVersionMutation';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
@@ -35,6 +37,7 @@ export default class BuildVersionSetView extends EasCommand {
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
+    ...EASEnvironmentFlagHidden,
   };
 
   static override contextDefinition = {
@@ -64,7 +67,13 @@ export default class BuildVersionSetView extends EasCommand {
       flags.profile ?? undefined
     );
 
-    const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: profile.env });
+    const { exp, projectId, env } = await evaluateConfigWithEnvVarsAsync({
+      flags,
+      buildProfile: profile,
+      graphqlClient,
+      getProjectConfig: getDynamicPrivateProjectConfigAsync,
+      opts: { env: profile.env },
+    });
     const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
     validateAppConfigForRemoteVersionSource(exp, platform);
@@ -78,6 +87,7 @@ export default class BuildVersionSetView extends EasCommand {
       platform,
       vcsClient,
       nonInteractive: false,
+      env,
     });
     const remoteVersions = await AppVersionQuery.latestVersionAsync(
       graphqlClient,

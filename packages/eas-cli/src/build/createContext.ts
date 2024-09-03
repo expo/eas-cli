@@ -43,6 +43,7 @@ export async function createBuildContextAsync<T extends Platform>({
   buildLoggerLevel,
   freezeCredentials,
   repack,
+  env,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -64,8 +65,11 @@ export async function createBuildContextAsync<T extends Platform>({
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
   repack: boolean;
+  env: Record<string, string>;
 }): Promise<BuildContext<T>> {
-  const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: buildProfile.env });
+  const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
+    env,
+  });
   const projectName = exp.slug;
   const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
   const workflow = await resolveWorkflowAsync(projectDir, platform, vcsClient);
@@ -87,7 +91,7 @@ export async function createBuildContextAsync<T extends Platform>({
     user: actor,
     graphqlClient,
     analytics,
-    env: buildProfile.env,
+    env,
     easJsonCliConfig,
     vcsClient,
     freezeCredentials,
@@ -147,6 +151,7 @@ export async function createBuildContextAsync<T extends Platform>({
     requiredPackageManager,
     loggerLevel: buildLoggerLevel,
     repack,
+    env,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;

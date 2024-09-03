@@ -6,17 +6,49 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Remove long-deprecated `eas update` flags. ([#2501](https://github.com/expo/eas-cli/pull/2501) by [@wschurman](https://github.com/wschurman))
 - Prompt the users to set `appVersionSource`, while mentioning that `remote` is the default. ([#2411](https://github.com/expo/eas-cli/pull/2411) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ### 🎉 New features
+
+- Add support for syncing Journaling Suggestions, Managed App Installation UI, and 5G Network Slicing capabilities. ([#2525](https://github.com/expo/eas-cli/pull/2525) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
 
+## [11.0.3](https://github.com/expo/eas-cli/releases/tag/v11.0.3) - 2024-08-31
+
+### 🐛 Bug fixes
+
+- Revert config-related packages to SDK 50 version from SDK 51 version to fix broken entitlements behavior for older SDKs. ([#2524](https://github.com/expo/eas-cli/pull/2524) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [11.0.2](https://github.com/expo/eas-cli/releases/tag/v11.0.2) - 2024-08-27
+
+### 🐛 Bug fixes
+
+- Remove unncessary static project config context definition from `eas build` command context, to fix resolving dynamic projest ID and slug for dynamic app configs. ([#2521](https://github.com/expo/eas-cli/pull/2521) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [11.0.1](https://github.com/expo/eas-cli/releases/tag/v11.0.1) - 2024-08-26
+
+### 🐛 Bug fixes
+
+- Make `eas config` command not require authentication when running in `--eas-json-only` mode. ([#2517](https://github.com/expo/eas-cli/pull/2517) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [11.0.0](https://github.com/expo/eas-cli/releases/tag/v11.0.0) - 2024-08-26
+
+### 🛠 Breaking changes
+
+- Remove long-deprecated `eas update` flags. ([#2501](https://github.com/expo/eas-cli/pull/2501) by [@wschurman](https://github.com/wschurman))
+
+### 🎉 New features
+
+- Add new rollout update type for `eas update` and `eas update:edit`. ([#2502](https://github.com/expo/eas-cli/pull/2502), [#2503](https://github.com/expo/eas-cli/pull/2503) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
 - Upgrade packages to SDK 51 release. ([#2498](https://github.com/expo/eas-cli/pull/2498) by [@wschurman](https://github.com/wschurman))
 - Enable typescript linting and various lint rules. ([#2505](https://github.com/expo/eas-cli/pull/2505), [#2507](https://github.com/expo/eas-cli/pull/2507), [#2508](https://github.com/expo/eas-cli/pull/2508), [#2509](https://github.com/expo/eas-cli/pull/2509), [#2510](https://github.com/expo/eas-cli/pull/2510) by [@wschurman](https://github.com/wschurman))
+- Include debug info in fingerprint metadata during build. ([#2513](https://github.com/expo/eas-cli/pull/2513) by [@wschurman](https://github.com/wschurman))
 
 ## [10.2.4](https://github.com/expo/eas-cli/releases/tag/v10.2.4) - 2024-08-19
 

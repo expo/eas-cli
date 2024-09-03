@@ -186,7 +186,7 @@ export async function prepareBuildRequestForPlatformAsync<
 
   return async () => {
     if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
-      await runLocalBuildAsync(job, metadata, ctx.localBuildOptions);
+      await runLocalBuildAsync(job, metadata, ctx.localBuildOptions, ctx.env);
       return undefined;
     } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
       await BuildMutation.updateBuildMetadataAsync(ctx.graphqlClient, {
@@ -676,17 +676,21 @@ async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
     platform: ctx.platform,
     workflow: ctx.workflow,
     projectDir: ctx.projectDir,
-    env: ctx.buildProfile.env,
+    env: ctx.env,
     cwd: ctx.projectDir,
   });
+
+  if (!resolvedRuntimeVersion) {
+    return {};
+  }
 
   /**
    * It's ok for fingerprintSources to be empty
    * fingerprintSources only exist if the project is using runtimeVersion.policy: fingerprint
    */
-  if (!resolvedRuntimeVersion?.fingerprintSources) {
+  if (!resolvedRuntimeVersion.fingerprint) {
     return {
-      runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+      runtimeVersion: resolvedRuntimeVersion.runtimeVersion ?? undefined,
     };
   }
 
@@ -695,15 +699,16 @@ async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
 
   await fs.writeJSON(fingerprintLocation, {
     hash: resolvedRuntimeVersion.runtimeVersion,
-    sources: resolvedRuntimeVersion.fingerprintSources,
+    sources: resolvedRuntimeVersion.fingerprint.fingerprintSources,
   });
 
   if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
     return {
-      runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+      runtimeVersion: resolvedRuntimeVersion.runtimeVersion ?? undefined,
       fingerprintSource: {
         type: FingerprintSourceType.PATH,
         path: fingerprintLocation,
+        isDebugFingerprint: resolvedRuntimeVersion.fingerprint.isDebugFingerprintSource,
       },
     };
   }
@@ -724,17 +729,18 @@ async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
 
     Log.warn(errMessage);
     return {
-      runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+      runtimeVersion: resolvedRuntimeVersion.runtimeVersion ?? undefined,
     };
   } finally {
     await fs.remove(fingerprintLocation);
   }
 
   return {
-    runtimeVersion: resolvedRuntimeVersion?.runtimeVersion ?? undefined,
+    runtimeVersion: resolvedRuntimeVersion.runtimeVersion ?? undefined,
     fingerprintSource: {
       type: FingerprintSourceType.GCS,
       bucketKey: fingerprintGCSBucketKey,
+      isDebugFingerprint: resolvedRuntimeVersion.fingerprint.isDebugFingerprintSource,
     },
   };
 }

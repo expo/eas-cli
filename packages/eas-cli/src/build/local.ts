@@ -39,7 +39,8 @@ export interface LocalBuildOptions {
 export async function runLocalBuildAsync(
   job: Job,
   metadata: Metadata,
-  options: LocalBuildOptions
+  options: LocalBuildOptions,
+  env: Record<string, string>
 ): Promise<void> {
   const { command, args } = await getCommandAndArgsAsync(job, metadata);
   let spinner;
@@ -57,6 +58,7 @@ export async function runLocalBuildAsync(
     const spawnPromise = spawnAsync(command, args, {
       stdio: options.verbose ? 'inherit' : 'pipe',
       env: {
+        ...env,
         ...process.env,
         EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? process.env.EAS_LOCAL_BUILD_WORKINGDIR,
         ...(options.skipCleanup || options.skipNativeBuild
