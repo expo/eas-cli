@@ -151,7 +151,7 @@ export async function ensureAppVersionSourceIsSetAsync(
     updateEasJson = false;
   } else {
     Log.log(
-      'Since EAS CLI version `11.0.0` explicitly specifying app version source is required. Please select your app version source:'
+      'Since EAS CLI version `12.0.0` explicitly specifying app version source is required. Please select your app version source:'
     );
     Log.log(
       `\t1) With the "local" app version source and "autoIncrement" option enabled, the build number/version code is sourced from local project files and incremented automatically if possible, by editing local project files. ${learnMore(
