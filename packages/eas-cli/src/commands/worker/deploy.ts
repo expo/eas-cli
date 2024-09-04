@@ -184,10 +184,13 @@ export default class WorkerDeploy extends EasCommand {
 
     await uploadAssetsAsync(assetMap, deployResult.uploads);
 
-    const baseDomain = process.env.EXPO_STAGING ? 'staging.expo.app' : 'expo.app';
-    const deploymentURL = `https://${deployResult.fullName}.${baseDomain}`;
+    const baseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
+    const deploymentURL = `https://${deployResult.fullName}.${baseDomain}.app`;
+    const deploymentsUrl = `https://${baseDomain}.dev/accounts/${exp.owner}/projects/${deployResult.name}/serverless/deployments`;
 
     Log.addNewLineIfNone();
     Log.log(`🎉 Your worker deployment is ready: ${deploymentURL}`);
+    Log.addNewLineIfNone();
+    Log.log(`🔗 Manage on EAS: ${deploymentsUrl}`);
   }
 }
