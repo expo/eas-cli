@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { ensureBranchExistsAsync } from '../../branch/queries';
+import { transformFingerprintSource } from '../../build/graphql';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -21,6 +22,7 @@ import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
+import { maybeUploadFingerprintAsync } from '../../project/maybeUploadFingerprintAsync';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
   RawAsset,
@@ -32,9 +34,9 @@ import {
   filterCollectedAssetsByRequestedPlatforms,
   generateEasMetadataAsync,
   getBranchNameForCommandAsync,
-  getRuntimeToPlatformMappingFromRuntimeVersions,
+  getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects,
   getRuntimeToUpdateRolloutInfoGroupMappingAsync,
-  getRuntimeVersionObjectAsync,
+  getRuntimeVersionInfoObjectsAsync,
   getUpdateMessageForCommandAsync,
   isUploadedAssetCountAboveWarningThreshold,
   platformDisplayNames,
@@ -374,7 +376,7 @@ export default class UpdatePublish extends EasCommand {
     }
 
     const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
-    const runtimeVersions = await getRuntimeVersionObjectAsync({
+    const runtimeVersionInfoObjects = await getRuntimeVersionInfoObjectsAsync({
       exp,
       platforms: realizedPlatforms,
       projectDir,
@@ -384,13 +386,32 @@ export default class UpdatePublish extends EasCommand {
       },
       env: undefined,
     });
-    const runtimeToPlatformMapping =
-      getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);
+    const runtimeToPlatformsAndFingerprintInfoMapping =
+      getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects(
+        runtimeVersionInfoObjects
+      );
 
     const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
       branchName,
     });
+
+    const runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping = await Promise.all(
+      runtimeToPlatformsAndFingerprintInfoMapping.map(async info => {
+        return {
+          ...info,
+          fingerprintSource: info.fingerprint
+            ? (
+                await maybeUploadFingerprintAsync({
+                  runtimeVersion: info.runtimeVersion,
+                  fingerprint: info.fingerprint,
+                  graphqlClient,
+                })
+              ).fingerprintSource ?? null
+            : null,
+        };
+      })
+    );
 
     const runtimeVersionToRolloutInfoGroup =
       rolloutPercentage !== undefined
@@ -398,7 +419,7 @@ export default class UpdatePublish extends EasCommand {
             appId: projectId,
             branchName,
             rolloutPercentage,
-            runtimeToPlatformMapping,
+            runtimeToPlatformsAndFingerprintInfoMapping,
           })
         : undefined;
 
@@ -406,39 +427,43 @@ export default class UpdatePublish extends EasCommand {
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
 
     // Sort the updates into different groups based on their platform specific runtime versions
-    const updateGroups: PublishUpdateGroupInput[] = runtimeToPlatformMapping.map(
-      ({ runtimeVersion, platforms }) => {
-        const localUpdateInfoGroup = Object.fromEntries(
-          platforms.map(platform => [
-            platform,
-            unsortedUpdateInfoGroups[platform as keyof UpdateInfoGroup],
-          ])
-        );
+    const updateGroups: PublishUpdateGroupInput[] =
+      runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping.map(
+        ({ runtimeVersion, platforms, fingerprintSource }) => {
+          const localUpdateInfoGroup = Object.fromEntries(
+            platforms.map(platform => [
+              platform,
+              unsortedUpdateInfoGroups[platform as keyof UpdateInfoGroup],
+            ])
+          );
 
-        const rolloutInfoGroupForRuntimeVersion = runtimeVersionToRolloutInfoGroup
-          ? runtimeVersionToRolloutInfoGroup.get(runtimeVersion)
-          : null;
-        const localRolloutInfoGroup = rolloutInfoGroupForRuntimeVersion
-          ? Object.fromEntries(
-              platforms.map(platform => [
-                platform,
-                rolloutInfoGroupForRuntimeVersion[platform as keyof UpdateRolloutInfoGroup],
-              ])
-            )
-          : null;
+          const rolloutInfoGroupForRuntimeVersion = runtimeVersionToRolloutInfoGroup
+            ? runtimeVersionToRolloutInfoGroup.get(runtimeVersion)
+            : null;
+          const localRolloutInfoGroup = rolloutInfoGroupForRuntimeVersion
+            ? Object.fromEntries(
+                platforms.map(platform => [
+                  platform,
+                  rolloutInfoGroupForRuntimeVersion[platform as keyof UpdateRolloutInfoGroup],
+                ])
+              )
+            : null;
 
-        return {
-          branchId,
-          updateInfoGroup: localUpdateInfoGroup,
-          rolloutInfoGroup: localRolloutInfoGroup,
-          runtimeVersion,
-          message: updateMessage,
-          gitCommitHash,
-          isGitWorkingTreeDirty,
-          awaitingCodeSigningInfo: !!codeSigningInfo,
-        };
-      }
-    );
+          return {
+            branchId,
+            updateInfoGroup: localUpdateInfoGroup,
+            rolloutInfoGroup: localRolloutInfoGroup,
+            runtimeFingerprintSource: fingerprintSource
+              ? transformFingerprintSource(fingerprintSource)
+              : null,
+            runtimeVersion,
+            message: updateMessage,
+            gitCommitHash,
+            isGitWorkingTreeDirty,
+            awaitingCodeSigningInfo: !!codeSigningInfo,
+          };
+        }
+      );
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();
     try {
@@ -513,7 +538,10 @@ export default class UpdatePublish extends EasCommand {
 
       Log.addNewLineIfNone();
 
-      for (const runtime of uniqBy(runtimeVersions, version => version.runtimeVersion)) {
+      for (const runtime of uniqBy(
+        runtimeToPlatformsAndFingerprintInfoMapping,
+        version => version.runtimeVersion
+      )) {
         const newUpdatesForRuntimeVersion = newUpdates.filter(
           update => update.runtimeVersion === runtime.runtimeVersion
         );

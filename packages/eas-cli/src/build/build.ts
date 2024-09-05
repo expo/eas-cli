@@ -2,7 +2,7 @@ import {
   ArchiveSource,
   ArchiveSourceType,
   BuildJob,
-  FingerprintSourceType,
+  FingerprintSource,
   Metadata,
   Platform,
 } from '@expo/eas-build-job';
@@ -13,8 +13,6 @@ import cliProgress from 'cli-progress';
 import fs from 'fs-extra';
 import { GraphQLError } from 'graphql/error';
 import nullthrows from 'nullthrows';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 
 import { BuildContext } from './context';
 import {
@@ -64,11 +62,11 @@ import {
   appPlatformEmojis,
   requestedPlatformDisplayNames,
 } from '../platform';
+import { maybeUploadFingerprintAsync } from '../project/maybeUploadFingerprintAsync';
 import { resolveRuntimeVersionAsync } from '../project/resolveRuntimeVersionAsync';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
 import { printJsonOnlyOutput } from '../utils/json';
-import { getTmpDirectory } from '../utils/paths';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
 
@@ -669,7 +667,7 @@ async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<{
   runtimeVersion?: string;
-  fingerprintSource?: Metadata['fingerprintSource'];
+  fingerprintSource?: FingerprintSource;
 }> {
   const resolvedRuntimeVersion = await resolveRuntimeVersionAsync({
     exp: ctx.exp,
@@ -685,62 +683,19 @@ async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
   }
 
   /**
-   * It's ok for fingerprintSources to be empty
+   * It's ok for fingerprintSources or runtimeVersion to be empty
    * fingerprintSources only exist if the project is using runtimeVersion.policy: fingerprint
    */
-  if (!resolvedRuntimeVersion.fingerprint) {
+  if (!resolvedRuntimeVersion.fingerprint || !resolvedRuntimeVersion.runtimeVersion) {
     return {
       runtimeVersion: resolvedRuntimeVersion.runtimeVersion ?? undefined,
     };
   }
 
-  await fs.mkdirp(getTmpDirectory());
-  const fingerprintLocation = path.join(getTmpDirectory(), `${uuidv4()}-runtime-fingerprint.json`);
-
-  await fs.writeJSON(fingerprintLocation, {
-    hash: resolvedRuntimeVersion.runtimeVersion,
-    sources: resolvedRuntimeVersion.fingerprint.fingerprintSources,
+  return await maybeUploadFingerprintAsync({
+    runtimeVersion: resolvedRuntimeVersion.runtimeVersion,
+    fingerprint: resolvedRuntimeVersion.fingerprint,
+    graphqlClient: ctx.graphqlClient,
+    localBuildMode: ctx.localBuildOptions.localBuildMode,
   });
-
-  if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
-    return {
-      runtimeVersion: resolvedRuntimeVersion.runtimeVersion ?? undefined,
-      fingerprintSource: {
-        type: FingerprintSourceType.PATH,
-        path: fingerprintLocation,
-        isDebugFingerprint: resolvedRuntimeVersion.fingerprint.isDebugFingerprintSource,
-      },
-    };
-  }
-
-  let fingerprintGCSBucketKey = undefined;
-  try {
-    fingerprintGCSBucketKey = await uploadFileAtPathToGCSAsync(
-      ctx.graphqlClient,
-      UploadSessionType.EasUpdateFingerprint,
-      fingerprintLocation
-    );
-  } catch (err: any) {
-    let errMessage = 'Failed to upload fingerprint to EAS';
-
-    if (err.message) {
-      errMessage += `\n\nReason: ${err.message}`;
-    }
-
-    Log.warn(errMessage);
-    return {
-      runtimeVersion: resolvedRuntimeVersion.runtimeVersion ?? undefined,
-    };
-  } finally {
-    await fs.remove(fingerprintLocation);
-  }
-
-  return {
-    runtimeVersion: resolvedRuntimeVersion.runtimeVersion ?? undefined,
-    fingerprintSource: {
-      type: FingerprintSourceType.GCS,
-      bucketKey: fingerprintGCSBucketKey,
-      isDebugFingerprint: resolvedRuntimeVersion.fingerprint.isDebugFingerprintSource,
-    },
-  };
 }

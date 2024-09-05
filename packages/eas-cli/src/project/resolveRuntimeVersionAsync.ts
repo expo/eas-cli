@@ -9,6 +9,52 @@ import {
   expoUpdatesCommandAsync,
 } from '../utils/expoUpdatesCli';
 
+export async function resolveRuntimeVersionUsingCLIAsync({
+  platform,
+  workflow,
+  projectDir,
+  env,
+  cwd,
+}: {
+  platform: 'ios' | 'android';
+  workflow: Workflow;
+  projectDir: string;
+  env: Env | undefined;
+  cwd?: string;
+}): Promise<{
+  runtimeVersion: string | null;
+  fingerprint: {
+    fingerprintSources: object[];
+    isDebugFingerprintSource: boolean;
+  } | null;
+}> {
+  Log.debug('Using expo-updates runtimeversion:resolve CLI for runtime version resolution');
+
+  const useDebugFingerprintSource = Log.isDebug;
+
+  const extraArgs = useDebugFingerprintSource ? ['--debug'] : [];
+
+  const resolvedRuntimeVersionJSONResult = await expoUpdatesCommandAsync(
+    projectDir,
+    ['runtimeversion:resolve', '--platform', platform, '--workflow', workflow, ...extraArgs],
+    { env, cwd }
+  );
+  const runtimeVersionResult = JSON.parse(resolvedRuntimeVersionJSONResult);
+
+  Log.debug('runtimeversion:resolve output:');
+  Log.debug(resolvedRuntimeVersionJSONResult);
+
+  return {
+    runtimeVersion: runtimeVersionResult.runtimeVersion ?? null,
+    fingerprint: runtimeVersionResult.fingerprintSources
+      ? {
+          fingerprintSources: runtimeVersionResult.fingerprintSources,
+          isDebugFingerprintSource: useDebugFingerprintSource,
+        }
+      : null,
+  };
+}
+
 export async function resolveRuntimeVersionAsync({
   exp,
   platform,
@@ -40,31 +86,7 @@ export async function resolveRuntimeVersionAsync({
   }
 
   try {
-    Log.debug('Using expo-updates runtimeversion:resolve CLI for runtime version resolution');
-
-    const useDebugFingerprintSource = Log.isDebug;
-
-    const extraArgs = useDebugFingerprintSource ? ['--debug'] : [];
-
-    const resolvedRuntimeVersionJSONResult = await expoUpdatesCommandAsync(
-      projectDir,
-      ['runtimeversion:resolve', '--platform', platform, '--workflow', workflow, ...extraArgs],
-      { env, cwd }
-    );
-    const runtimeVersionResult = JSON.parse(resolvedRuntimeVersionJSONResult);
-
-    Log.debug('runtimeversion:resolve output:');
-    Log.debug(resolvedRuntimeVersionJSONResult);
-
-    return {
-      runtimeVersion: runtimeVersionResult.runtimeVersion ?? null,
-      fingerprint: runtimeVersionResult.fingerprintSources
-        ? {
-            fingerprintSources: runtimeVersionResult.fingerprintSources,
-            isDebugFingerprintSource: useDebugFingerprintSource,
-          }
-        : null,
-    };
+    return await resolveRuntimeVersionUsingCLIAsync({ platform, workflow, projectDir, env, cwd });
   } catch (e: any) {
     // if expo-updates is not installed, there's no need for a runtime version in the build
     if (e instanceof ExpoUpdatesCLIModuleNotFoundError) {
