@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import fs from 'node:fs/promises';
+import fs from 'node:fs';
 import * as path from 'node:path';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -11,7 +11,7 @@ import { getSignedDeploymentUrlAsync } from '../../worker/deployment';
 import { UploadParams, batchUploadAsync, uploadAsync } from '../../worker/upload';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
-  fs
+  fs.promises
     .stat(directoryPath)
     .then(stat => stat.isDirectory())
     .catch(() => false);
@@ -47,20 +47,31 @@ export default class WorkerDeploy extends EasCommand {
     const { projectId, projectDir, exp } = await getDynamicPrivateProjectConfigAsync();
 
     const distPath = path.resolve(projectDir, 'dist');
-    const distClientPath = path.resolve(distPath, 'client');
-    const distServerPath = path.resolve(distPath, 'server');
     if (!(await isDirectory(distPath))) {
       throw new Error(
         `No "dist/" folder found at ${distPath}. Prepare your project for deployment with "npx expo export"`
       );
-    } else if (!(await isDirectory(distClientPath))) {
+    }
+
+    let distClientPath: string = path.resolve(distPath, 'client');
+    let distServerPath: string | null = null;
+
+    const clientPathExists = (await isDirectory(path.resolve(distPath, 'client')));
+    if (!clientPathExists && fs.existsSync(path.join(distPath, 'index.html'))) {
+      Log.log('Detected "static" worker deployment');
+      distClientPath = distPath;
+      distServerPath = null;
+    } else if (!clientPathExists) {
       throw new Error(
-        `No "dist/client/" folder found at ${distClientPath}. Ensure the app.json key "expo.web.output" is set to "server"`
+        `No "dist/client/" folder found. Ensure the app.json key "expo.web.output" is set to "server"`
       );
-    } else if (!(await isDirectory(distServerPath))) {
+    } else if (!(await isDirectory(path.resolve(distPath, 'server')))) {
       throw new Error(
-        `No "dist/server/" folder found in ${distServerPath}. Ensure the app.json key "expo.web.output" is set to "server"`
+        `No "dist/server/" folder found. Ensure the app.json key "expo.web.output" is set to "server"`
       );
+    } else {
+      Log.log('Detected "server" worker deployment');
+      distClientPath = path.resolve(distPath, 'client');
     }
 
     async function* emitWorkerTarballAsync(
@@ -72,9 +83,11 @@ export default class WorkerDeploy extends EasCommand {
       const manifest = { env: {} };
       yield ['manifest.json', JSON.stringify(manifest)];
 
-      const workerFiles = WorkerAssets.listWorkerFilesAsync(distServerPath);
-      for await (const workerFile of workerFiles) {
-        yield [`server/${workerFile.normalizedPath}`, workerFile.data];
+      if (distServerPath) {
+        const workerFiles = WorkerAssets.listWorkerFilesAsync(distServerPath);
+        for await (const workerFile of workerFiles) {
+          yield [`server/${workerFile.normalizedPath}`, workerFile.data];
+        }
       }
     }
 
