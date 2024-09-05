@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import fs from 'node:fs/promises';
+import fs from 'node:fs';
 import * as path from 'node:path';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -11,7 +11,7 @@ import { getSignedDeploymentUrlAsync } from '../../worker/deployment';
 import { UploadParams, batchUploadAsync, uploadAsync } from '../../worker/upload';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
-  fs
+  fs.promises
     .stat(directoryPath)
     .then(stat => stat.isDirectory())
     .catch(() => false);
@@ -45,21 +45,35 @@ export default class WorkerDeploy extends EasCommand {
     });
 
     const { projectId, projectDir, exp } = await getDynamicPrivateProjectConfigAsync();
-
     const distPath = path.resolve(projectDir, 'dist');
-    const distClientPath = path.resolve(distPath, 'client');
-    const distServerPath = path.resolve(distPath, 'server');
-    if (!(await isDirectory(distPath))) {
+
+    let distServerPath: string | null;
+    let distClientPath: string;
+    if (exp.web?.output === 'static') {
+      distClientPath = distPath;
+      distServerPath = null;
+      if (!(await isDirectory(distClientPath))) {
+        throw new Error(
+          `No "dist/" folder found. Prepare your project for deployment with "npx expo export"`
+        );
+      }
+      Log.log('Detected "static" worker deployment');
+    } else if (exp.web?.output === 'server') {
+      distClientPath = path.resolve(distPath, 'client');
+      distServerPath = path.resolve(distPath, 'server');
+      if (!(await isDirectory(distClientPath))) {
+        throw new Error(
+          `No "dist/client/" folder found. Prepare your project for deployment with "npx expo export"`
+        );
+      } else if (!(await isDirectory(distServerPath))) {
+        throw new Error(
+          `No "dist/server/" folder found. Prepare your project for deployment with "npx expo export"`
+        );
+      }
+      Log.log('Detected "server" worker deployment');
+    } else {
       throw new Error(
-        `No "dist/" folder found at ${distPath}. Prepare your project for deployment with "npx expo export"`
-      );
-    } else if (!(await isDirectory(distClientPath))) {
-      throw new Error(
-        `No "dist/client/" folder found at ${distClientPath}. Ensure the app.json key "expo.web.output" is set to "server"`
-      );
-    } else if (!(await isDirectory(distServerPath))) {
-      throw new Error(
-        `No "dist/server/" folder found in ${distServerPath}. Ensure the app.json key "expo.web.output" is set to "server"`
+        `Single-page apps are not supported. Ensure that app.json key "expo.web.output" is set to "server" or "static".`
       );
     }
 
@@ -72,9 +86,11 @@ export default class WorkerDeploy extends EasCommand {
       const manifest = { env: {} };
       yield ['manifest.json', JSON.stringify(manifest)];
 
-      const workerFiles = WorkerAssets.listWorkerFilesAsync(distServerPath);
-      for await (const workerFile of workerFiles) {
-        yield [`server/${workerFile.normalizedPath}`, workerFile.data];
+      if (distServerPath) {
+        const workerFiles = WorkerAssets.listWorkerFilesAsync(distServerPath);
+        for await (const workerFile of workerFiles) {
+          yield [`server/${workerFile.normalizedPath}`, workerFile.data];
+        }
       }
     }
 
