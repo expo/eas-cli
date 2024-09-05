@@ -45,33 +45,36 @@ export default class WorkerDeploy extends EasCommand {
     });
 
     const { projectId, projectDir, exp } = await getDynamicPrivateProjectConfigAsync();
-
     const distPath = path.resolve(projectDir, 'dist');
-    if (!(await isDirectory(distPath))) {
-      throw new Error(
-        `No "dist/" folder found at ${distPath}. Prepare your project for deployment with "npx expo export"`
-      );
-    }
 
-    let distClientPath: string = path.resolve(distPath, 'client');
-    let distServerPath: string | null = null;
-
-    const clientPathExists = (await isDirectory(path.resolve(distPath, 'client')));
-    if (!clientPathExists && fs.existsSync(path.join(distPath, 'index.html'))) {
-      Log.log('Detected "static" worker deployment');
+    let distServerPath: string | null;
+    let distClientPath: string;
+    if (exp.web?.output === 'static') {
       distClientPath = distPath;
       distServerPath = null;
-    } else if (!clientPathExists) {
-      throw new Error(
-        `No "dist/client/" folder found. Ensure the app.json key "expo.web.output" is set to "server"`
-      );
-    } else if (!(await isDirectory(path.resolve(distPath, 'server')))) {
-      throw new Error(
-        `No "dist/server/" folder found. Ensure the app.json key "expo.web.output" is set to "server"`
-      );
-    } else {
-      Log.log('Detected "server" worker deployment');
+      if (!(await isDirectory(distClientPath))) {
+        throw new Error(
+          `No "dist/" folder found. Prepare your project for deployment with "npx expo export"`
+        );
+      }
+      Log.log('Detected "static" worker deployment');
+    } else if (exp.web?.output === 'server') {
       distClientPath = path.resolve(distPath, 'client');
+      distServerPath = path.resolve(distPath, 'server');
+      if (!(await isDirectory(distClientPath))) {
+        throw new Error(
+          `No "dist/client/" folder found. Prepare your project for deployment with "npx expo export"`
+        );
+      } else if (!(await isDirectory(distServerPath))) {
+        throw new Error(
+          `No "dist/server/" folder found. Prepare your project for deployment with "npx expo export"`
+        );
+      }
+      Log.log('Detected "server" worker deployment');
+    } else {
+      throw new Error(
+        `Single-page apps are not supported. Ensure that app.json key "expo.web.output" is set to "server" or "static".`
+      );
     }
 
     async function* emitWorkerTarballAsync(
