@@ -30,7 +30,7 @@ type UpdateFlags = {
 
 export default class EnvironmentVariableUpdate extends EasCommand {
   static override description =
-    'update an environment variable on the current project or owner account';
+    'update a shared (account-wide) or project-wide environment variable (for current project)';
 
   static override hidden = true;
 

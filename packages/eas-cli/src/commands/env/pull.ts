@@ -10,7 +10,8 @@ import { confirmAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvironmentValuePull extends EasCommand {
-  static override description = 'pull env file';
+  static override description =
+    'pull project-wide environment variables with linked shared environment variables (for current project) to .env file';
 
   static override hidden = true;
 

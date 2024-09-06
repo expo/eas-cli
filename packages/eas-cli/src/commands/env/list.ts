@@ -19,7 +19,8 @@ import { formatVariable } from '../../utils/formatVariable';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvironmentValueList extends EasCommand {
-  static override description = 'list environment variables for the current project';
+  static override description =
+    'list shared (account-wide) or project-wide environment variables with linked shared environment variables (for current project)';
 
   static override hidden = true;
 
