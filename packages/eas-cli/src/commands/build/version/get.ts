@@ -82,6 +82,7 @@ export default class BuildVersionGetView extends EasCommand {
       const { exp, projectId, env } = await evaluateConfigWithEnvVarsAsync({
         flags,
         buildProfile: profile,
+        buildProfileName: flags.profile ?? 'production',
         graphqlClient,
         getProjectConfig: getDynamicPrivateProjectConfigAsync,
         opts: { env: profile.env },

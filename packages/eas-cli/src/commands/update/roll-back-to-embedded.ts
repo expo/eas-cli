@@ -24,11 +24,12 @@ import {
   getOwnerAccountForProjectIdAsync,
 } from '../../project/projectUtils';
 import {
+  RuntimeVersionInfo,
   UpdatePublishPlatform,
   defaultPublishPlatforms,
   getBranchNameForCommandAsync,
-  getRuntimeToPlatformMappingFromRuntimeVersions,
-  getRuntimeVersionObjectAsync,
+  getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects,
+  getRuntimeVersionInfoObjectsAsync,
   getUpdateMessageForCommandAsync,
 } from '../../project/publish';
 import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
@@ -193,7 +194,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
 
     const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
-    const runtimeVersions = await getRuntimeVersionObjectAsync({
+    const runtimeVersionInfoObjects = await getRuntimeVersionInfoObjectsAsync({
       exp,
       platforms: realizedPlatforms,
       projectDir,
@@ -203,6 +204,10 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       },
       env: undefined,
     });
+    const runtimeToPlatformsAndFingerprintInfoMapping =
+      getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects(
+        runtimeVersionInfoObjects
+      );
 
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();
@@ -214,7 +219,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
         updateMessage,
         branchId,
         codeSigningInfo,
-        runtimeVersions,
+        runtimeToPlatformsAndFingerprintInfoMapping,
         realizedPlatforms,
       });
       publishSpinner.succeed('Published!');
@@ -235,7 +240,10 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
 
       Log.addNewLineIfNone();
 
-      for (const runtime of uniqBy(runtimeVersions, version => version.runtimeVersion)) {
+      for (const runtime of uniqBy(
+        runtimeToPlatformsAndFingerprintInfoMapping,
+        version => version.runtimeVersion
+      )) {
         const newUpdatesForRuntimeVersion = newUpdates.filter(
           update => update.runtimeVersion === runtime.runtimeVersion
         );
@@ -290,7 +298,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     updateMessage,
     branchId,
     codeSigningInfo,
-    runtimeVersions,
+    runtimeToPlatformsAndFingerprintInfoMapping,
     realizedPlatforms,
   }: {
     graphqlClient: ExpoGraphqlClient;
@@ -299,17 +307,17 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     updateMessage: string | undefined;
     branchId: string;
     codeSigningInfo: CodeSigningInfo | undefined;
-    runtimeVersions: { platform: UpdatePublishPlatform; runtimeVersion: string }[];
+    runtimeToPlatformsAndFingerprintInfoMapping: (RuntimeVersionInfo & {
+      platforms: UpdatePublishPlatform[];
+    })[];
     realizedPlatforms: PublishPlatform[];
   }): Promise<UpdatePublishMutation['updateBranch']['publishUpdateGroups']> {
-    const runtimeToPlatformMapping =
-      getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);
     const rollbackInfoGroups = Object.fromEntries(
       realizedPlatforms.map(platform => [platform, true])
     );
 
     // Sort the updates into different groups based on their platform specific runtime versions
-    const updateGroups: PublishUpdateGroupInput[] = runtimeToPlatformMapping.map(
+    const updateGroups: PublishUpdateGroupInput[] = runtimeToPlatformsAndFingerprintInfoMapping.map(
       ({ runtimeVersion, platforms }) => {
         const localRollbackInfoGroup = Object.fromEntries(
           platforms.map(platform => [platform, rollbackInfoGroups[platform]])

@@ -197,16 +197,11 @@ export async function runBuildAndSubmitAsync(
     const { env } = await evaluateConfigWithEnvVarsAsync({
       flags,
       buildProfile: buildProfile.profile,
+      buildProfileName: buildProfile.profileName,
       graphqlClient,
       getProjectConfig: getDynamicPrivateProjectConfigAsync,
       opts: { env: buildProfile.profile.env },
     });
-
-    Log.log(
-      `Loaded "env" configuration for the "${buildProfile.profileName}" profile: ${
-        env ? Object.keys(env).join(', ') : 'no environment variables specified'
-      }. ${learnMore('https://docs.expo.dev/build-reference/variables/')}`
-    );
 
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
