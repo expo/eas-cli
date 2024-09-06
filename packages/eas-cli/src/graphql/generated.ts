@@ -1367,6 +1367,7 @@ export type App = Project & {
   workerDeploymentAliases: WorkerDeploymentAliasesConnection;
   workerDeploymentRequest: WorkerDeploymentRequestEdge;
   workerDeployments: WorkerDeploymentsConnection;
+  workerDeploymentsCrash: WorkerDeploymentCrashEdge;
   workerDeploymentsCrashes?: Maybe<WorkerDeploymentCrashes>;
   workerDeploymentsMetrics?: Maybe<WorkerDeploymentMetrics>;
   workerDeploymentsRequests?: Maybe<WorkerDeploymentRequests>;
@@ -1623,6 +1624,13 @@ export type AppWorkerDeploymentsArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
+export type AppWorkerDeploymentsCrashArgs = {
+  crashId: Scalars['ID']['input'];
+  sampleFor?: InputMaybe<CrashSampleFor>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentsCrashesArgs = {
   limit?: Scalars['Int']['input'];
   timespan: CrashesTimespan;
@@ -1631,6 +1639,7 @@ export type AppWorkerDeploymentsCrashesArgs = {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentsMetricsArgs = {
+  filters?: InputMaybe<MetricsFilters>;
   timespan: MetricsTimespan;
 };
 
@@ -2609,6 +2618,17 @@ export type BranchFilterInput = {
   searchTerm?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type BranchQuery = {
+  __typename?: 'BranchQuery';
+  /** Query a Branch by ID */
+  byId: UpdateBranch;
+};
+
+
+export type BranchQueryByIdArgs = {
+  branchId: Scalars['ID']['input'];
+};
+
 /** Represents an EAS Build */
 export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   __typename?: 'Build';
@@ -2629,6 +2649,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   createdAt: Scalars['DateTime']['output'];
   customNodeVersion?: Maybe<Scalars['String']['output']>;
   customWorkflowName?: Maybe<Scalars['String']['output']>;
+  deployment?: Maybe<Deployment>;
   developmentClient?: Maybe<Scalars['Boolean']['output']>;
   distribution?: Maybe<DistributionType>;
   enqueuedAt?: Maybe<Scalars['DateTime']['output']>;
@@ -2677,6 +2698,8 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   resourceClassDisplayName: Scalars['String']['output'];
   retryDisabledReason?: Maybe<BuildRetryDisabledReason>;
   runFromCI?: Maybe<Scalars['Boolean']['output']>;
+  runtime?: Maybe<Runtime>;
+  /** @deprecated Use 'runtime' field . */
   runtimeVersion?: Maybe<Scalars['String']['output']>;
   sdkVersion?: Maybe<Scalars['String']['output']>;
   selectedImage?: Maybe<Scalars['String']['output']>;
@@ -2774,6 +2797,7 @@ export type BuildArtifacts = {
   applicationArchiveUrl?: Maybe<Scalars['String']['output']>;
   buildArtifactsUrl?: Maybe<Scalars['String']['output']>;
   buildUrl?: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use 'runtime.fingerprintDebugInfoUrl' instead. */
   fingerprintUrl?: Maybe<Scalars['String']['output']>;
   xcodeBuildLogsUrl?: Maybe<Scalars['String']['output']>;
 };
@@ -3165,6 +3189,17 @@ export type ChannelFilterInput = {
   searchTerm?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type ChannelQuery = {
+  __typename?: 'ChannelQuery';
+  /** Query a Channel by ID */
+  byId: UpdateChannel;
+};
+
+
+export type ChannelQueryByIdArgs = {
+  channelId: Scalars['ID']['input'];
+};
+
 export type Charge = {
   __typename?: 'Charge';
   amount: Scalars['Int']['output'];
@@ -3205,6 +3240,11 @@ export enum ContinentCode {
   Oc = 'OC',
   Sa = 'SA',
   T1 = 'T1'
+}
+
+export enum CrashSampleFor {
+  Newest = 'NEWEST',
+  Oldest = 'OLDEST'
 }
 
 export type CrashesTimespan = {
@@ -3268,6 +3308,7 @@ export type CreateGitHubBuildTriggerInput = {
   appId: Scalars['ID']['input'];
   autoSubmit: Scalars['Boolean']['input'];
   buildProfile: Scalars['String']['input'];
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   executionBehavior: GitHubBuildTriggerExecutionBehavior;
   isActive: Scalars['Boolean']['input'];
   platform: AppPlatform;
@@ -3332,22 +3373,10 @@ export type CumulativeMetricsOverTimeData = {
   __typename?: 'CumulativeMetricsOverTimeData';
   data: LineChartData;
   metricsAtLastTimestamp: Array<LineDatapoint>;
-  mostPopularUpdates: Array<Update>;
 };
 
 export type CustomBuildConfigInput = {
   path: Scalars['String']['input'];
-};
-
-export type CustomDomainCertificate = {
-  __typename?: 'CustomDomainCertificate';
-  expiresOn: Scalars['String']['output'];
-  fingerprintSha256: Scalars['String']['output'];
-  id: Scalars['ID']['output'];
-  issuedOn: Scalars['String']['output'];
-  issuer: Scalars['String']['output'];
-  serialNumber: Scalars['String']['output'];
-  signature: Scalars['String']['output'];
 };
 
 export type CustomDomainDnsRecord = {
@@ -3362,20 +3391,6 @@ export enum CustomDomainDnsRecordType {
   Cname = 'CNAME',
   Txt = 'TXT'
 }
-
-export type CustomDomainDcvDelegationRecord = {
-  __typename?: 'CustomDomainDcvDelegationRecord';
-  cname: Scalars['String']['output'];
-  cnameTarget: Scalars['String']['output'];
-};
-
-export type CustomDomainMetadata = {
-  __typename?: 'CustomDomainMetadata';
-  ownershipVerification?: Maybe<CustomDomainDnsRecord>;
-  ssl?: Maybe<CustomDomainSsl>;
-  status: CustomDomainStatus;
-  verificationErrors?: Maybe<Array<Scalars['String']['output']>>;
-};
 
 export type CustomDomainMutation = {
   __typename?: 'CustomDomainMutation';
@@ -3401,50 +3416,20 @@ export type CustomDomainMutationRegisterCustomDomainArgs = {
   hostname: Scalars['String']['input'];
 };
 
-export type CustomDomainSsl = {
-  __typename?: 'CustomDomainSSL';
-  dcvDelegationRecord?: Maybe<CustomDomainDcvDelegationRecord>;
-  status: CustomDomainSslStatus;
+export type CustomDomainSetup = {
+  __typename?: 'CustomDomainSetup';
+  sslErrors?: Maybe<Array<Scalars['String']['output']>>;
+  sslStatus?: Maybe<CustomDomainStatus>;
+  status: CustomDomainStatus;
+  verificationErrors?: Maybe<Array<Scalars['String']['output']>>;
+  verificationStatus?: Maybe<CustomDomainStatus>;
 };
-
-export enum CustomDomainSslStatus {
-  Active = 'ACTIVE',
-  BackupIssued = 'BACKUP_ISSUED',
-  Deactivating = 'DEACTIVATING',
-  Deleted = 'DELETED',
-  DeletionTimedOut = 'DELETION_TIMED_OUT',
-  DeploymentTimedOut = 'DEPLOYMENT_TIMED_OUT',
-  Expired = 'EXPIRED',
-  HoldingDeployment = 'HOLDING_DEPLOYMENT',
-  Inactive = 'INACTIVE',
-  Initializing = 'INITIALIZING',
-  InitializingTimedOut = 'INITIALIZING_TIMED_OUT',
-  IssuanceTimedOut = 'ISSUANCE_TIMED_OUT',
-  PendingCleanup = 'PENDING_CLEANUP',
-  PendingDeletion = 'PENDING_DELETION',
-  PendingDeployment = 'PENDING_DEPLOYMENT',
-  PendingExpiration = 'PENDING_EXPIRATION',
-  PendingIssuance = 'PENDING_ISSUANCE',
-  PendingValidation = 'PENDING_VALIDATION',
-  StagingActive = 'STAGING_ACTIVE',
-  StagingDeployment = 'STAGING_DEPLOYMENT',
-  Unknown = 'UNKNOWN',
-  ValidationTimedOut = 'VALIDATION_TIMED_OUT'
-}
 
 export enum CustomDomainStatus {
   Active = 'ACTIVE',
-  ActiveRedeploying = 'ACTIVE_REDEPLOYING',
-  Blocked = 'BLOCKED',
-  Deleted = 'DELETED',
-  Moved = 'MOVED',
+  Error = 'ERROR',
   Pending = 'PENDING',
-  PendingBlocked = 'PENDING_BLOCKED',
-  PendingDeletion = 'PENDING_DELETION',
-  PendingMigration = 'PENDING_MIGRATION',
-  PendingProvisioned = 'PENDING_PROVISIONED',
-  Provisioned = 'PROVISIONED',
-  Unknown = 'UNKNOWN'
+  TimedOut = 'TIMED_OUT'
 }
 
 export type DeleteAccessTokenResult = {
@@ -3617,6 +3602,13 @@ export type DeploymentBuildsConnection = {
   pageInfo: PageInfo;
 };
 
+export type DeploymentCumulativeMetricsOverTimeData = {
+  __typename?: 'DeploymentCumulativeMetricsOverTimeData';
+  data: LineChartData;
+  metricsAtLastTimestamp: Array<LineDatapoint>;
+  mostPopularUpdates: Array<Update>;
+};
+
 export type DeploymentEdge = {
   __typename?: 'DeploymentEdge';
   cursor: Scalars['String']['output'];
@@ -3630,7 +3622,7 @@ export type DeploymentFilterInput = {
 
 export type DeploymentInsights = {
   __typename?: 'DeploymentInsights';
-  cumulativeMetricsOverTime: CumulativeMetricsOverTimeData;
+  cumulativeMetricsOverTime: DeploymentCumulativeMetricsOverTimeData;
   embeddedUpdateTotalUniqueUsers: Scalars['Int']['output'];
   embeddedUpdateUniqueUsersOverTime: UniqueUsersOverTimeData;
   id: Scalars['ID']['output'];
@@ -3661,6 +3653,17 @@ export type DeploymentInsightsMostPopularUpdatesArgs = {
 
 export type DeploymentInsightsUniqueUsersOverTimeArgs = {
   timespan: InsightsTimespan;
+};
+
+export type DeploymentQuery = {
+  __typename?: 'DeploymentQuery';
+  /** Query a Deployment by ID */
+  byId: Deployment;
+};
+
+
+export type DeploymentQueryByIdArgs = {
+  deploymentId: Scalars['ID']['input'];
 };
 
 export type DeploymentSignedUrlResult = {
@@ -4158,6 +4161,7 @@ export type GitHubBuildInput = {
   autoSubmit?: InputMaybe<Scalars['Boolean']['input']>;
   baseDirectory?: InputMaybe<Scalars['String']['input']>;
   buildProfile: Scalars['String']['input'];
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   gitRef: Scalars['String']['input'];
   platform: AppPlatform;
   /** Repack the golden dev client build instead of running full build process. Used for onboarding. Do not use outside of onboarding flow, as for now it's only created with this specific use case in mind. */
@@ -4171,6 +4175,7 @@ export type GitHubBuildTrigger = {
   autoSubmit: Scalars['Boolean']['output'];
   buildProfile: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
+  environment?: Maybe<EnvironmentVariableEnvironment>;
   executionBehavior: GitHubBuildTriggerExecutionBehavior;
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
@@ -4960,10 +4965,6 @@ export type MeMutation = {
   certifySecondFactorDevice: SecondFactorBooleanResult;
   /** Create a new Account and grant this User the owner Role */
   createAccount: Account;
-  /** Delete an Account created via createAccount */
-  deleteAccount: DeleteAccountResult;
-  /** Delete a SSO user. Actor must be an owner on the SSO user's SSO account. */
-  deleteSSOUser: DeleteSsoUserResult;
   /** Delete a second factor device */
   deleteSecondFactorDevice: SecondFactorBooleanResult;
   /** Delete a Snack that the current user owns */
@@ -5017,16 +5018,6 @@ export type MeMutationCertifySecondFactorDeviceArgs = {
 
 export type MeMutationCreateAccountArgs = {
   accountData: AccountDataInput;
-};
-
-
-export type MeMutationDeleteAccountArgs = {
-  accountId: Scalars['ID']['input'];
-};
-
-
-export type MeMutationDeleteSsoUserArgs = {
-  ssoUserId: Scalars['ID']['input'];
 };
 
 
@@ -5112,6 +5103,42 @@ export type MeteredBillingStatus = {
   EAS_BUILD: Scalars['Boolean']['output'];
   EAS_UPDATE: Scalars['Boolean']['output'];
 };
+
+export enum MetricsCacheStatus {
+  Hit = 'HIT',
+  Miss = 'MISS',
+  Pass = 'PASS'
+}
+
+export type MetricsFilters = {
+  cacheStatus?: InputMaybe<Array<MetricsCacheStatus>>;
+  continent?: InputMaybe<Array<ContinentCode>>;
+  hasCustomDomainOrigin?: InputMaybe<Scalars['Boolean']['input']>;
+  isAsset?: InputMaybe<Scalars['Boolean']['input']>;
+  isCrash?: InputMaybe<Scalars['Boolean']['input']>;
+  isVerifiedBot?: InputMaybe<Scalars['Boolean']['input']>;
+  method?: InputMaybe<Array<MetricsRequestMethod>>;
+  os?: InputMaybe<Array<UserAgentOs>>;
+  pathname?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<Array<Scalars['Int']['input']>>;
+  statusType?: InputMaybe<Array<MetricsStatusType>>;
+};
+
+export enum MetricsRequestMethod {
+  Delete = 'DELETE',
+  Get = 'GET',
+  Options = 'OPTIONS',
+  Post = 'POST',
+  Put = 'PUT'
+}
+
+export enum MetricsStatusType {
+  ClientError = 'CLIENT_ERROR',
+  None = 'NONE',
+  Redirect = 'REDIRECT',
+  ServerError = 'SERVER_ERROR',
+  Successful = 'SUCCESSFUL'
+}
 
 export type MetricsTimespan = {
   end: Scalars['DateTime']['input'];
@@ -5346,6 +5373,7 @@ export type PublishUpdateGroupInput = {
   message?: InputMaybe<Scalars['String']['input']>;
   rollBackToEmbeddedInfoGroup?: InputMaybe<UpdateRollBackToEmbeddedGroup>;
   rolloutInfoGroup?: InputMaybe<UpdateRolloutInfoGroup>;
+  runtimeFingerprintSource?: InputMaybe<FingerprintSourceInput>;
   runtimeVersion: Scalars['String']['input'];
   turtleJobRunId?: InputMaybe<Scalars['String']['input']>;
   updateInfoGroup?: InputMaybe<UpdateInfoGroup>;
@@ -5369,7 +5397,8 @@ export type RescindUserInvitationResult = {
 };
 
 export enum ResourceClassExperiment {
-  C3D = 'C3D'
+  C3D = 'C3D',
+  N2 = 'N2'
 }
 
 /** Represents a robot (not human) actor. */
@@ -5408,8 +5437,6 @@ export type RobotMutation = {
   __typename?: 'RobotMutation';
   /** Create a Robot and grant it Permissions on an Account */
   createRobotForAccount: Robot;
-  /** Delete a Robot */
-  deleteRobot: DeleteRobotResult;
   /** Schedule deletion of a Robot */
   scheduleRobotDeletion: BackgroundJobReceipt;
   /** Update a Robot */
@@ -5421,11 +5448,6 @@ export type RobotMutationCreateRobotForAccountArgs = {
   accountID: Scalars['String']['input'];
   permissions: Array<InputMaybe<Permission>>;
   robotData?: InputMaybe<RobotDataInput>;
-};
-
-
-export type RobotMutationDeleteRobotArgs = {
-  id: Scalars['String']['input'];
 };
 
 
@@ -5605,11 +5627,17 @@ export type RootQuery = {
   /** Top-level query object for querying Audit Logs. */
   auditLogs: AuditLogQuery;
   backgroundJobReceipt: BackgroundJobReceiptQuery;
+  /** Top-level query object for querying Branchs. */
+  branches: BranchQuery;
   /** Top-level query object for querying annotations. */
   buildAnnotations: BuildAnnotationsQuery;
   /** Top-level query object for querying BuildPublicData publicly. */
   buildPublicData: BuildPublicDataQuery;
   builds: BuildQuery;
+  /** Top-level query object for querying Channels. */
+  channels: ChannelQuery;
+  /** Top-level query object for querying Deployments. */
+  deployments: DeploymentQuery;
   /** Top-level query object for querying Experimentation configuration. */
   experimentation: ExperimentationQuery;
   /** Top-level query object for querying GitHub App information and resources it has access to. */
@@ -5634,6 +5662,8 @@ export type RootQuery = {
   meUserActor?: Maybe<UserActor>;
   /** @deprecated Snacks and apps should be queried separately */
   project: ProjectQuery;
+  /** Top-level query object for querying Runtimes. */
+  runtimes: RuntimeQuery;
   snack: SnackQuery;
   /** Top-level query object for querying Expo status page services. */
   statuspageService: StatuspageServiceQuery;
@@ -5701,6 +5731,7 @@ export type RootQueryUserByUsernameArgs = {
 export type Runtime = {
   __typename?: 'Runtime';
   app: App;
+  fingerprintDebugInfoUrl?: Maybe<Scalars['String']['output']>;
   firstBuildCreatedAt: Scalars['DateTime']['output'];
   id: Scalars['ID']['output'];
   version: Scalars['String']['output'];
@@ -5715,6 +5746,17 @@ export type RuntimeEdge = {
 export type RuntimeFilterInput = {
   /** Only return runtimes shared with this branch */
   branchId?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type RuntimeQuery = {
+  __typename?: 'RuntimeQuery';
+  /** Query a Runtime by ID */
+  byId: Runtime;
+};
+
+
+export type RuntimeQueryByIdArgs = {
+  runtimeId: Scalars['ID']['input'];
 };
 
 /** Represents the connection over the runtime edge of an App */
@@ -6423,6 +6465,7 @@ export type UpdateChannelMutationEditUpdateChannelArgs = {
 export type UpdateGitHubBuildTriggerInput = {
   autoSubmit: Scalars['Boolean']['input'];
   buildProfile: Scalars['String']['input'];
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   executionBehavior: GitHubBuildTriggerExecutionBehavior;
   isActive: Scalars['Boolean']['input'];
   platform: AppPlatform;
@@ -6450,8 +6493,14 @@ export type UpdateInfoGroup = {
 
 export type UpdateInsights = {
   __typename?: 'UpdateInsights';
+  cumulativeMetricsOverTime: CumulativeMetricsOverTimeData;
   id: Scalars['ID']['output'];
   totalUniqueUsers: Scalars['Int']['output'];
+};
+
+
+export type UpdateInsightsCumulativeMetricsOverTimeArgs = {
+  timespan: InsightsTimespan;
 };
 
 
@@ -6838,6 +6887,34 @@ export type UserActorQueryByUsernameArgs = {
   username: Scalars['String']['input'];
 };
 
+export enum UserAgentBrowser {
+  AndroidMobile = 'ANDROID_MOBILE',
+  Chrome = 'CHROME',
+  ChromeIos = 'CHROME_IOS',
+  Edge = 'EDGE',
+  FacebookMobile = 'FACEBOOK_MOBILE',
+  Firefox = 'FIREFOX',
+  FirefoxIos = 'FIREFOX_IOS',
+  InternetExplorer = 'INTERNET_EXPLORER',
+  Konqueror = 'KONQUEROR',
+  Mozilla = 'MOZILLA',
+  Opera = 'OPERA',
+  Safari = 'SAFARI',
+  SafariMobile = 'SAFARI_MOBILE',
+  SamsungInternet = 'SAMSUNG_INTERNET',
+  UcBrowser = 'UC_BROWSER'
+}
+
+export enum UserAgentOs {
+  Android = 'ANDROID',
+  ChromeOs = 'CHROME_OS',
+  Ios = 'IOS',
+  IpadOs = 'IPAD_OS',
+  Linux = 'LINUX',
+  MacOs = 'MAC_OS',
+  Windows = 'WINDOWS'
+}
+
 export type UserAppPinMutation = {
   __typename?: 'UserAppPinMutation';
   pinApp: Scalars['ID']['output'];
@@ -7149,12 +7226,14 @@ export type WorkerCustomDomain = {
   __typename?: 'WorkerCustomDomain';
   alias: WorkerDeploymentAlias;
   createdAt: Scalars['DateTime']['output'];
+  dcvDelegationRecord?: Maybe<CustomDomainDnsRecord>;
   devDomainName: Scalars['DevDomainName']['output'];
   dnsRecord: CustomDomainDnsRecord;
   hostname: Scalars['String']['output'];
   id: Scalars['ID']['output'];
-  metadata?: Maybe<CustomDomainMetadata>;
+  setup?: Maybe<CustomDomainSetup>;
   updatedAt: Scalars['DateTime']['output'];
+  verificationRecord?: Maybe<CustomDomainDnsRecord>;
 };
 
 export type WorkerDeployment = {
@@ -7179,6 +7258,7 @@ export type WorkerDeploymentLogsArgs = {
 
 
 export type WorkerDeploymentMetricsArgs = {
+  filters?: InputMaybe<MetricsFilters>;
   timespan: MetricsTimespan;
 };
 
@@ -7207,20 +7287,30 @@ export type WorkerDeploymentAliasesConnection = {
   pageInfo: PageInfo;
 };
 
+export type WorkerDeploymentCrashEdge = {
+  __typename?: 'WorkerDeploymentCrashEdge';
+  logs: Array<WorkerDeploymentLogNode>;
+  request: WorkerDeploymentRequestNode;
+  sample: WorkerDeploymentCrashSample;
+};
+
 export type WorkerDeploymentCrashNode = {
   __typename?: 'WorkerDeploymentCrashNode';
+  id: Scalars['ID']['output'];
   minOccurrences: Scalars['Int']['output'];
   mostRecentlyOccurredAt: Scalars['DateTime']['output'];
-  sample?: Maybe<WorkerDeploymentCrashSample>;
-  sampleMessage?: Maybe<Scalars['String']['output']>;
+  oldestOccurredAt: Scalars['DateTime']['output'];
+  sample: WorkerDeploymentCrashSample;
 };
 
 export type WorkerDeploymentCrashSample = {
   __typename?: 'WorkerDeploymentCrashSample';
+  firstStackLine?: Maybe<Scalars['String']['output']>;
   message: Scalars['String']['output'];
   name: Scalars['String']['output'];
-  requestTimestamp: Scalars['DateTime']['output'];
+  scriptName: Scalars['String']['output'];
   stack?: Maybe<Array<Scalars['String']['output']>>;
+  timestamp: Scalars['DateTime']['output'];
 };
 
 export type WorkerDeploymentCrashes = {
@@ -7259,23 +7349,79 @@ export type WorkerDeploymentLogs = {
 
 export type WorkerDeploymentMetrics = {
   __typename?: 'WorkerDeploymentMetrics';
-  groups: Array<Maybe<WorkerDeploymentMetricsEdge>>;
-  id: Scalars['ID']['output'];
-  summary: WorkerDeploymentMetricsData;
+  byBrowser: Array<WorkerDeploymentMetricsBrowserEdge>;
+  byContinent: Array<WorkerDeploymentMetricsContinentEdge>;
+  byOS: Array<WorkerDeploymentMetricsOperatingSystemEdge>;
+  interval: Scalars['Int']['output'];
+  summary: WorkerDeploymentMetricsNode;
+  timeseries: Array<WorkerDeploymentMetricsTimeseriesEdge>;
 };
 
-export type WorkerDeploymentMetricsData = {
-  __typename?: 'WorkerDeploymentMetricsData';
+export type WorkerDeploymentMetricsBrowserEdge = {
+  __typename?: 'WorkerDeploymentMetricsBrowserEdge';
+  browser?: Maybe<UserAgentBrowser>;
+  node: WorkerDeploymentMetricsNode;
+};
+
+export type WorkerDeploymentMetricsContinentEdge = {
+  __typename?: 'WorkerDeploymentMetricsContinentEdge';
+  continent: ContinentCode;
+  node: WorkerDeploymentMetricsNode;
+};
+
+export type WorkerDeploymentMetricsNode = {
+  __typename?: 'WorkerDeploymentMetricsNode';
+  assetsPerMs?: Maybe<Scalars['Float']['output']>;
+  assetsSum: Scalars['Int']['output'];
+  cacheHitRatio: Scalars['Float']['output'];
+  cacheHitRatioP50: Scalars['Float']['output'];
+  cacheHitRatioP90: Scalars['Float']['output'];
+  cacheHitRatioP99: Scalars['Float']['output'];
+  cacheHitsPerMs?: Maybe<Scalars['Float']['output']>;
+  cacheHitsSum: Scalars['Int']['output'];
+  cachePassRatio: Scalars['Float']['output'];
+  cachePassRatioP50: Scalars['Float']['output'];
+  cachePassRatioP90: Scalars['Float']['output'];
+  cachePassRatioP99: Scalars['Float']['output'];
+  clientErrorRatio: Scalars['Float']['output'];
+  clientErrorRatioP50: Scalars['Float']['output'];
+  clientErrorRatioP90: Scalars['Float']['output'];
+  clientErrorRatioP99: Scalars['Float']['output'];
+  crashRatio: Scalars['Float']['output'];
+  crashRatioP50: Scalars['Float']['output'];
+  crashRatioP90: Scalars['Float']['output'];
+  crashRatioP99: Scalars['Float']['output'];
+  crashesPerMs?: Maybe<Scalars['Float']['output']>;
   crashesSum: Scalars['Int']['output'];
-  durationP50?: Maybe<Scalars['Float']['output']>;
-  durationP90?: Maybe<Scalars['Float']['output']>;
-  durationP99?: Maybe<Scalars['Float']['output']>;
+  duration: Scalars['Float']['output'];
+  durationP50: Scalars['Float']['output'];
+  durationP90: Scalars['Float']['output'];
+  durationP99: Scalars['Float']['output'];
+  requestsPerMs?: Maybe<Scalars['Float']['output']>;
   requestsSum: Scalars['Int']['output'];
+  sampleRate: Scalars['Float']['output'];
+  serverErrorRatio: Scalars['Float']['output'];
+  serverErrorRatioP50: Scalars['Float']['output'];
+  serverErrorRatioP90: Scalars['Float']['output'];
+  serverErrorRatioP99: Scalars['Float']['output'];
+  staleIfErrorPerMs?: Maybe<Scalars['Float']['output']>;
+  staleIfErrorSum: Scalars['Int']['output'];
+  staleWhileRevalidatePerMs?: Maybe<Scalars['Float']['output']>;
+  staleWhileRevalidateSum: Scalars['Int']['output'];
 };
 
-export type WorkerDeploymentMetricsEdge = {
-  __typename?: 'WorkerDeploymentMetricsEdge';
-  node: WorkerDeploymentMetricsData;
+export type WorkerDeploymentMetricsOperatingSystemEdge = {
+  __typename?: 'WorkerDeploymentMetricsOperatingSystemEdge';
+  node: WorkerDeploymentMetricsNode;
+  os?: Maybe<UserAgentOs>;
+};
+
+export type WorkerDeploymentMetricsTimeseriesEdge = {
+  __typename?: 'WorkerDeploymentMetricsTimeseriesEdge';
+  byBrowser: Array<WorkerDeploymentMetricsBrowserEdge>;
+  byContinent: Array<WorkerDeploymentMetricsContinentEdge>;
+  byOS: Array<WorkerDeploymentMetricsOperatingSystemEdge>;
+  node?: Maybe<WorkerDeploymentMetricsNode>;
   timestamp: Scalars['DateTime']['output'];
 };
 
@@ -7296,6 +7442,12 @@ export type WorkerDeploymentRequestEdge = {
   node: WorkerDeploymentRequestNode;
 };
 
+export enum WorkerDeploymentRequestKind {
+  Asset = 'ASSET',
+  Crash = 'CRASH',
+  Rejected = 'REJECTED'
+}
+
 export type WorkerDeploymentRequestLocation = {
   __typename?: 'WorkerDeploymentRequestLocation';
   continent?: Maybe<ContinentCode>;
@@ -7305,14 +7457,21 @@ export type WorkerDeploymentRequestLocation = {
 
 export type WorkerDeploymentRequestNode = {
   __typename?: 'WorkerDeploymentRequestNode';
+  browser?: Maybe<UserAgentBrowser>;
+  browserVersion?: Maybe<Scalars['String']['output']>;
+  hasCustomDomainOrigin: Scalars['Boolean']['output'];
   id: Scalars['ID']['output'];
+  isVerifiedBot: Scalars['Boolean']['output'];
+  kind?: Maybe<WorkerDeploymentRequestKind>;
   location?: Maybe<WorkerDeploymentRequestLocation>;
   method: Scalars['String']['output'];
+  os?: Maybe<UserAgentOs>;
   pathname: Scalars['String']['output'];
   scriptName: Scalars['String']['output'];
   search?: Maybe<Scalars['String']['output']>;
   status: Scalars['Int']['output'];
   timestamp: Scalars['DateTime']['output'];
+  wallTime: Scalars['Int']['output'];
 };
 
 export type WorkerDeploymentRequests = {
@@ -7322,11 +7481,18 @@ export type WorkerDeploymentRequests = {
 };
 
 export type WorkerDeploymentRequestsFilter = {
+  include?: InputMaybe<WorkerDeploymentRequestsInclude>;
+  includeBotRequests?: InputMaybe<Scalars['Boolean']['input']>;
   methods?: InputMaybe<Array<Scalars['String']['input']>>;
   pathname?: InputMaybe<Scalars['String']['input']>;
   statusCodes?: InputMaybe<Array<Scalars['Int']['input']>>;
   statusPatterns?: InputMaybe<Array<RequestStatusPattern>>;
 };
+
+export enum WorkerDeploymentRequestsInclude {
+  Assets = 'ASSETS',
+  Routes = 'ROUTES'
+}
 
 export type WorkerDeploymentsConnection = {
   __typename?: 'WorkerDeploymentsConnection';
@@ -8411,4 +8577,4 @@ export type AssignDevDomainNameMutationVariables = Exact<{
 }>;
 
 
-export type AssignDevDomainNameMutation = { __typename?: 'RootMutation', devDomainName: { __typename?: 'AppDevDomainNameMutation', assignDevDomainName: { __typename?: 'AppDevDomainName', id: string, name: any, app?: { __typename?: 'App', id: string, devDomainName?: { __typename?: 'AppDevDomainName', id: string } | null } | null } } };
+export type AssignDevDomainNameMutation = { __typename?: 'RootMutation', devDomainName: { __typename?: 'AppDevDomainNameMutation', assignDevDomainName: { __typename?: 'AppDevDomainName', id: string, name: any } } };
