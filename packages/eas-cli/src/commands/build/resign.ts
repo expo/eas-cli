@@ -149,6 +149,7 @@ export default class BuildResign extends EasCommand {
     const { exp, projectId, env } = await evaluateConfigWithEnvVarsAsync({
       flags,
       buildProfile,
+      buildProfileName: flags.targetProfile ?? 'production',
       graphqlClient,
       getProjectConfig: getDynamicPrivateProjectConfigAsync,
       opts: { env: buildProfile.env },
