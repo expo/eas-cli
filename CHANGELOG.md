@@ -8,12 +8,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- **Internal/Experimental:** Add EAS Worker command ([#2447](https://github.com/expo/eas-cli/pull/2447) by [@kitten](https://github.com/kitten))
-- Upload fingeprint source as part of eas update command. ([#2533](https://github.com/expo/eas-cli/pull/2533) by [@wschurman](https://github.com/wschurman))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [12.1.0](https://github.com/expo/eas-cli/releases/tag/v12.1.0) - 2024-09-06
+
+### 🎉 New features
+
+- **Internal/Experimental:** Add EAS Worker command ([#2447](https://github.com/expo/eas-cli/pull/2447) by [@kitten](https://github.com/kitten))
+- Upload fingeprint source as part of eas update command. ([#2533](https://github.com/expo/eas-cli/pull/2533) by [@wschurman](https://github.com/wschurman))
 
 ## [12.0.0](https://github.com/expo/eas-cli/releases/tag/v12.0.0) - 2024-09-04
 
