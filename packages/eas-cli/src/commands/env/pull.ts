@@ -75,6 +75,8 @@ export default class EnvironmentValuePull extends EasCommand {
       .join('\n');
     await fs.writeFile(targetPath, filePrefix + envFileContent);
 
-    Log.log(`Pulled environment variables from ${environment} environment to ${targetPath}.`);
+    Log.log(
+      `Pulled environment variables from ${environment.toLowerCase()} environment to ${targetPath}.`
+    );
   }
 }
