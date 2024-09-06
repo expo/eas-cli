@@ -74,7 +74,9 @@ export default class EnvironmentValueList extends EasCommand {
       if (scope === EnvironmentVariableScope.Shared) {
         Log.log(chalk.bold('Shared variables for this account:'));
       } else {
-        Log.log(chalk.bold(`Variables for this project for environment ${environment}:`));
+        Log.log(
+          chalk.bold(`Variables for this project for environment ${environment?.toLowerCase()}:`)
+        );
       }
       Log.log(
         variables.map(variable => formatVariable(variable)).join(`\n\n${chalk.dim('———')}\n\n`)

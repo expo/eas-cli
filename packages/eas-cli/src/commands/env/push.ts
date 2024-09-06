@@ -98,8 +98,10 @@ export default class EnvironmentVariablePush extends EasCommand {
         variableNames.length > 1
           ? `The ${variableNames.join(
               ', '
-            )} environment variables already exist in ${environment} environment. Do you want to override them all?`
-          : `The ${variableNames[0]} environment variable already exists in ${environment} environment. Do you want to override it?`;
+            )} environment variables already exist in ${environment.toLowerCase()} environment. Do you want to override them all?`
+          : `The ${
+              variableNames[0]
+            } environment variable already exists in ${environment.toLowerCase()} environment. Do you want to override it?`;
 
       const confirm = await confirmAsync({
         message: confirmationMessage,
@@ -172,7 +174,7 @@ export default class EnvironmentVariablePush extends EasCommand {
       projectId
     );
 
-    Log.log(`Uploaded env file to ${environment} environment.`);
+    Log.log(`Uploaded env file to ${environment.toLowerCase()} environment.`);
   }
 
   private async parseEnvFileAsync(

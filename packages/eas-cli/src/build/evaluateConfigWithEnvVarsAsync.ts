@@ -106,7 +106,9 @@ async function resolveEnvVarsAsync({
 
     return { ...serverEnvVars, ...buildProfile.env };
   } catch (e) {
-    Log.error(`Failed to pull env variables for environment ${environment} from EAS servers`);
+    Log.error(
+      `Failed to pull env variables for environment ${environment.toLowerCase()} from EAS servers`
+    );
     Log.error(e);
     Log.error(
       'This can possibly be a bug in EAS/EAS CLI. Report it here: https://github.com/expo/eas-cli/issues'
