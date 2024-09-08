@@ -13,6 +13,7 @@ import path from 'path';
 import promiseLimit from 'promise-limit';
 
 import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from './projectUtils';
+import { resolveRuntimeVersionUsingCLIAsync } from './resolveRuntimeVersionAsync';
 import { selectBranchOnAppAsync } from '../branch/queries';
 import { getDefaultBranchNameAsync } from '../branch/utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -42,12 +43,10 @@ import {
   shouldUseVersionedExpoCLI,
   shouldUseVersionedExpoCLIWithExplicitPlatforms,
 } from '../utils/expoCli';
-import {
-  ExpoUpdatesCLIModuleNotFoundError,
-  expoUpdatesCommandAsync,
-} from '../utils/expoUpdatesCli';
+import { ExpoUpdatesCLIModuleNotFoundError } from '../utils/expoUpdatesCli';
 import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
+import groupBy from '../utils/expodash/groupBy';
 import uniqBy from '../utils/expodash/uniqBy';
 import { Client } from '../vcs/vcs';
 
@@ -698,7 +697,15 @@ export async function getUpdateMessageForCommandAsync(
 
 export const defaultPublishPlatforms: UpdatePublishPlatform[] = ['android', 'ios'];
 
-export async function getRuntimeVersionObjectAsync({
+export type RuntimeVersionInfo = {
+  runtimeVersion: string;
+  fingerprint: {
+    fingerprintSources: object[];
+    isDebugFingerprintSource: boolean;
+  } | null;
+};
+
+export async function getRuntimeVersionInfoObjectsAsync({
   exp,
   platforms,
   workflows,
@@ -710,12 +717,17 @@ export async function getRuntimeVersionObjectAsync({
   workflows: Record<ExpoConfigPlatform, Workflow>;
   projectDir: string;
   env: Env | undefined;
-}): Promise<{ platform: UpdatePublishPlatform; runtimeVersion: string }[]> {
+}): Promise<
+  {
+    platform: UpdatePublishPlatform;
+    runtimeVersionInfo: RuntimeVersionInfo;
+  }[]
+> {
   return await Promise.all(
     platforms.map(async platform => {
       return {
         platform,
-        runtimeVersion: await getRuntimeVersionForPlatformAsync({
+        runtimeVersionInfo: await getRuntimeVersionInfoForPlatformAsync({
           exp,
           platform,
           workflow: workflows[platform],
@@ -727,7 +739,7 @@ export async function getRuntimeVersionObjectAsync({
   );
 }
 
-async function getRuntimeVersionForPlatformAsync({
+async function getRuntimeVersionInfoForPlatformAsync({
   exp,
   platform,
   workflow,
@@ -739,29 +751,31 @@ async function getRuntimeVersionForPlatformAsync({
   workflow: Workflow;
   projectDir: string;
   env: Env | undefined;
-}): Promise<string> {
+}): Promise<{
+  runtimeVersion: string;
+  fingerprint: {
+    fingerprintSources: object[];
+    isDebugFingerprintSource: boolean;
+  } | null;
+}> {
   if (await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir)) {
     try {
-      Log.debug('Using expo-updates runtimeversion:resolve CLI for runtime version resolution');
-
-      const extraArgs = Log.isDebug ? ['--debug'] : [];
-
-      const resolvedRuntimeVersionJSONResult = await expoUpdatesCommandAsync(
+      const runtimeVersionResult = await resolveRuntimeVersionUsingCLIAsync({
+        platform,
+        workflow,
         projectDir,
-        ['runtimeversion:resolve', '--platform', platform, '--workflow', workflow, ...extraArgs],
-        { env }
-      );
-      const runtimeVersionResult = JSON.parse(resolvedRuntimeVersionJSONResult);
+        env,
+      });
 
-      Log.debug('runtimeversion:resolve output:');
-      Log.debug(resolvedRuntimeVersionJSONResult);
-
-      return nullthrows(
-        runtimeVersionResult.runtimeVersion,
-        `Unable to determine runtime version for ${
-          requestedPlatformDisplayNames[platform]
-        }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
-      );
+      return {
+        ...runtimeVersionResult,
+        runtimeVersion: nullthrows(
+          runtimeVersionResult.runtimeVersion,
+          `Unable to determine runtime version for ${
+            requestedPlatformDisplayNames[platform]
+          }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
+        ),
+      };
     } catch (e: any) {
       // if it's a known set of errors thrown by the CLI it means that we need to default back to the
       // previous behavior, otherwise we throw the error since something is wrong
@@ -791,23 +805,37 @@ async function getRuntimeVersionForPlatformAsync({
     );
   }
 
-  return resolvedRuntimeVersion;
+  return {
+    runtimeVersion: resolvedRuntimeVersion,
+    fingerprint: null,
+  };
 }
 
-export function getRuntimeToPlatformMappingFromRuntimeVersions(
-  runtimeVersions: { platform: UpdatePublishPlatform; runtimeVersion: string }[]
-): { runtimeVersion: string; platforms: UpdatePublishPlatform[] }[] {
-  const runtimeToPlatformMapping: { runtimeVersion: string; platforms: UpdatePublishPlatform[] }[] =
-    [];
-  for (const runtime of runtimeVersions) {
-    const platforms = runtimeVersions
-      .filter(({ runtimeVersion }) => runtimeVersion === runtime.runtimeVersion)
-      .map(({ platform }) => platform);
-    if (!runtimeToPlatformMapping.find(item => item.runtimeVersion === runtime.runtimeVersion)) {
-      runtimeToPlatformMapping.push({ runtimeVersion: runtime.runtimeVersion, platforms });
+export function getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects(
+  runtimeVersionInfoObjects: {
+    platform: UpdatePublishPlatform;
+    runtimeVersionInfo: RuntimeVersionInfo;
+  }[]
+): (RuntimeVersionInfo & { platforms: UpdatePublishPlatform[] })[] {
+  const groupedRuntimeVersionInfoObjects = groupBy(
+    runtimeVersionInfoObjects,
+    runtimeVersionInfoObject => runtimeVersionInfoObject.runtimeVersionInfo.runtimeVersion
+  );
+
+  return Object.entries(groupedRuntimeVersionInfoObjects).map(
+    ([runtimeVersion, runtimeVersionInfoObjects]) => {
+      return {
+        runtimeVersion,
+        platforms: runtimeVersionInfoObjects.map(
+          runtimeVersionInfoObject => runtimeVersionInfoObject.platform
+        ),
+        fingerprint:
+          runtimeVersionInfoObjects.map(
+            runtimeVersionInfoObject => runtimeVersionInfoObject.runtimeVersionInfo.fingerprint
+          )[0] ?? null,
+      };
     }
-  }
-  return runtimeToPlatformMapping;
+  );
 }
 
 export const platformDisplayNames: Record<UpdatePublishPlatform, string> = {
@@ -841,19 +869,18 @@ export async function getRuntimeToUpdateRolloutInfoGroupMappingAsync(
     appId,
     branchName,
     rolloutPercentage,
-    runtimeToPlatformMapping,
+    runtimeToPlatformsAndFingerprintInfoMapping,
   }: {
     appId: string;
     branchName: string;
     rolloutPercentage: number;
-    runtimeToPlatformMapping: { runtimeVersion: string; platforms: UpdatePublishPlatform[] }[];
+    runtimeToPlatformsAndFingerprintInfoMapping: (RuntimeVersionInfo & {
+      platforms: UpdatePublishPlatform[];
+    })[];
   }
 ): Promise<Map<string, UpdateRolloutInfoGroup>> {
   const runtimeToPlatformsMap = new Map(
-    runtimeToPlatformMapping.map<[string, UpdatePublishPlatform[]]>(r => [
-      r.runtimeVersion,
-      r.platforms,
-    ])
+    runtimeToPlatformsAndFingerprintInfoMapping.map(r => [r.runtimeVersion, r.platforms])
   );
   return await mapMapAsync(runtimeToPlatformsMap, async (platforms, runtimeVersion) => {
     return Object.fromEntries(

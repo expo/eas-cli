@@ -8,11 +8,26 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add support for syncing Journaling Suggestions, Managed App Installation UI, and 5G Network Slicing capabilities. ([#2525](https://github.com/expo/eas-cli/pull/2525) by [@szdziedzic](https://github.com/szdziedzic))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [12.1.0](https://github.com/expo/eas-cli/releases/tag/v12.1.0) - 2024-09-06
+
+### 🎉 New features
+
+- **Internal/Experimental:** Add EAS Worker command ([#2447](https://github.com/expo/eas-cli/pull/2447) by [@kitten](https://github.com/kitten))
+- Upload fingeprint source as part of eas update command. ([#2533](https://github.com/expo/eas-cli/pull/2533) by [@wschurman](https://github.com/wschurman))
+
+## [12.0.0](https://github.com/expo/eas-cli/releases/tag/v12.0.0) - 2024-09-04
+
+### 🛠 Breaking changes
+
+- Prompt the users to set `appVersionSource`, while mentioning that `remote` is the default. ([#2411](https://github.com/expo/eas-cli/pull/2411) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
+### 🎉 New features
+
+- Add support for syncing Journaling Suggestions, Managed App Installation UI, and 5G Network Slicing capabilities. ([#2525](https://github.com/expo/eas-cli/pull/2525) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [11.0.3](https://github.com/expo/eas-cli/releases/tag/v11.0.3) - 2024-08-31
 

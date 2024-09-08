@@ -1,6 +1,6 @@
 import { ExpoConfig } from '@expo/config-types';
 import { Platform } from '@expo/eas-build-job';
-import { EasJson } from '@expo/eas-json';
+import { AppVersionSource, EasJson } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
@@ -411,6 +411,7 @@ async function configureProjectFromBareDefaultExpoTemplateAsync({
   const easJson: EasJson = {
     cli: {
       version: `>= ${easCliVersion}`,
+      appVersionSource: AppVersionSource.REMOTE,
     },
     build: {
       development: {
@@ -431,6 +432,7 @@ async function configureProjectFromBareDefaultExpoTemplateAsync({
       },
       production: {
         channel: 'production',
+        autoIncrement: true,
         ...easBuildGitHubConfig,
       },
     },
