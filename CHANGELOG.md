@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fixed an issue where extensions retrieved the main app's entitlements instead of their own. ([#2532](https://github.com/expo/eas-cli/pull/2532) by [@HarrisHan](https://github.com/HarrisHan))
-
 ### 🧹 Chores
+
+## [12.1.1](https://github.com/expo/eas-cli/releases/tag/v12.1.1) - 2024-09-09
+
+### 🐛 Bug fixes
+
+- Fixed an issue where extensions retrieved the main app's entitlements instead of their own. ([#2532](https://github.com/expo/eas-cli/pull/2532) by [@HarrisHan](https://github.com/HarrisHan))
 
 ## [12.1.0](https://github.com/expo/eas-cli/releases/tag/v12.1.0) - 2024-09-06
 
