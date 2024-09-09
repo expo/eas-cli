@@ -28,7 +28,8 @@ type GetFlags = {
 };
 
 export default class EnvironmentVariableGet extends EasCommand {
-  static override description = 'get environment variable';
+  static override description =
+    'display information about a shared (account-wide) or project-wide environment variable (for current project)';
 
   static override hidden = true;
 

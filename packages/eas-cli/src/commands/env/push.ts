@@ -24,7 +24,7 @@ type PushFlags = {
 };
 
 export default class EnvironmentVariablePush extends EasCommand {
-  static override description = 'push env file';
+  static override description = `push environment variables from local .env file to the project's environment`;
 
   static override hidden = true;
 

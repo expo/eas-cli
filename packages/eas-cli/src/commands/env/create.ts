@@ -40,7 +40,7 @@ type CreateFlags = {
 
 export default class EnvironmentVariableCreate extends EasCommand {
   static override description =
-    'create an environment variable on the current project or owner account';
+    'create a shared (account-wide) environment variable or project-wide environment variable (for current project)';
 
   static override hidden = true;
 

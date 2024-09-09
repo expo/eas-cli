@@ -22,7 +22,8 @@ type DeleteFlags = {
 };
 
 export default class EnvironmentVariableDelete extends EasCommand {
-  static override description = 'delete an environment variable by name';
+  static override description =
+    'delete a shared (account-wide) or project-wide environment variable (for current project)';
 
   static override hidden = true;
 
