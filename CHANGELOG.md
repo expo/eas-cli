@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `--non-interactive` and `--force` support when `--id` is not passed to the `eas init` command. ([#1983](https://github.com/expo/eas-cli/pull/1983) by [@mymattcarroll](https://github.com/mymattcarroll))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
