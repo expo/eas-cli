@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Make error message for invalid CFBundleShortVersionString more descriptive and actionable. Improve CFBundleShortVersionString validation regex. ([#2542](https://github.com/expo/eas-cli/pull/2542) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [12.3.0](https://github.com/expo/eas-cli/releases/tag/v12.3.0) - 2024-09-09
 
 ### 🎉 New features
