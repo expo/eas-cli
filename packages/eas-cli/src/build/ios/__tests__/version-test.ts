@@ -317,7 +317,7 @@ describe(readShortVersionAsync, () => {
           vcsClient
         )
       ).rejects.toThrowError(
-        `The required format for "version" field from app.json/app.config.ts is one to three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: 0.0.7.1.028. Edit the "version" field in your app.json/app.config.ts to match the required format. ${learnMore(
+        `The required format for "CFBundleShortVersionString" in Info.plist is one to three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: 0.0.7.1.028. Edit the "CFBundleShortVersionString" in your Info.plist to match the required format. ${learnMore(
           'https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleshortversionstring'
         )}`
       );
