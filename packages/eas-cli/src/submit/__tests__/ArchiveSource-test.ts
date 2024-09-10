@@ -286,7 +286,9 @@ describe(getArchiveAsync, () => {
     jest
       .mocked(getRecentBuildsForSubmissionAsync)
       .mockResolvedValueOnce([MOCK_IN_PROGRESS_BUILD_FRAGMENT as BuildFragment]);
-    jest.mocked(promptAsync).mockResolvedValueOnce({ selectedBuild: MOCK_IN_PROGRESS_BUILD_FRAGMENT });
+    jest
+      .mocked(promptAsync)
+      .mockResolvedValueOnce({ selectedBuild: MOCK_IN_PROGRESS_BUILD_FRAGMENT });
 
     const archive = await getArchiveAsync(
       { ...SOURCE_STUB_INPUT, graphqlClient, projectId },
@@ -308,7 +310,10 @@ describe(getArchiveAsync, () => {
     const projectId = uuidv4();
     jest
       .mocked(getRecentBuildsForSubmissionAsync)
-      .mockResolvedValueOnce([MOCK_IN_PROGRESS_BUILD_FRAGMENT as BuildFragment, MOCK_BUILD_FRAGMENT as BuildFragment]);
+      .mockResolvedValueOnce([
+        MOCK_IN_PROGRESS_BUILD_FRAGMENT as BuildFragment,
+        MOCK_BUILD_FRAGMENT as BuildFragment,
+      ]);
     jest.mocked(promptAsync).mockResolvedValueOnce({ selectedBuild: MOCK_BUILD_FRAGMENT });
 
     const archive = await getArchiveAsync(
