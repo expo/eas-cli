@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import * as path from 'node:path';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { createProgressTracker } from '../../utils/progress';
@@ -16,6 +17,16 @@ const isDirectory = (directoryPath: string): Promise<boolean> =>
     .then(stat => stat.isDirectory())
     .catch(() => false);
 
+interface DeployFlags {
+  nonInteractive: boolean;
+  json: boolean;
+}
+
+interface RawDeployFlags {
+  'non-interactive': boolean;
+  json: boolean;
+}
+
 export default class WorkerDeploy extends EasCommand {
   static override description = 'deploy an Expo web build';
   static override aliases = ['deploy'];
@@ -26,6 +37,7 @@ export default class WorkerDeploy extends EasCommand {
 
   static override flags = {
     // TODO(@kitten): Allow deployment identifier to be specified
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
@@ -37,14 +49,16 @@ export default class WorkerDeploy extends EasCommand {
   async runAsync(): Promise<void> {
     Log.warn('EAS Worker Deployments are in beta and subject to breaking changes.');
 
+    const { flags: rawFlags } = await this.parse(WorkerDeploy);
+    const flags = this.sanitizeFlags(rawFlags);
+
     const {
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(WorkerDeploy, {
-      nonInteractive: true,
-    });
+      projectDir,
+    } = await this.getContextAsync(WorkerDeploy, flags);
 
-    const { projectId, projectDir, exp } = await getDynamicPrivateProjectConfigAsync();
+    const { projectId, exp } = await getDynamicPrivateProjectConfigAsync();
     const distPath = path.resolve(projectDir, 'dist');
 
     let distServerPath: string | null;
@@ -208,5 +222,12 @@ export default class WorkerDeploy extends EasCommand {
     Log.log(`🎉 Your worker deployment is ready: ${deploymentURL}`);
     Log.addNewLineIfNone();
     Log.log(`🔗 Manage on EAS: ${deploymentsUrl}`);
+  }
+
+  private sanitizeFlags(flags: RawDeployFlags): DeployFlags {
+    return {
+      nonInteractive: flags['non-interactive'],
+      json: flags['json'],
+    };
   }
 }
