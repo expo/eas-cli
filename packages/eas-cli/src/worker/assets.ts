@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { pack } from 'tar-stream';
+import { get as getEnv } from '@expo/env';
 
 /** Returns whether a file or folder is ignored */
 function isIgnoredName(name: string): boolean {
@@ -85,6 +86,18 @@ async function createAssetMapAsync(
     map[file.normalizedPath] = await computeSha512HashAsync(file.path, options?.hashOptions);
   }
   return map;
+}
+
+export interface Manifest {
+  env: Record<string, string | undefined>;
+}
+
+/** Creates a manifest configuration sent up for deployment */
+export async function createManifestAsync(
+  projectDir: string
+): Promise<Manifest> {
+  const { env } = getEnv(projectDir);
+  return { env };
 }
 
 interface WorkerFileEntry {
