@@ -15,7 +15,7 @@
     "@expo/config-types": "50.0.0",
     "@expo/eas-build-job": "1.0.133",
     "@expo/eas-json": "12.0.0",
-    "@expo/env": "0.3.0",
+    "@expo/env": "^0.3.0",
     "@expo/json-file": "8.2.37",
     "@expo/logger": "1.0.117",
     "@expo/multipart-body-parser": "1.1.0",

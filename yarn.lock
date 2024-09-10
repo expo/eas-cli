@@ -1477,7 +1477,7 @@
     semver "^7.6.2"
     zod "^3.23.8"
 
-"@expo/env@0.3.0":
+"@expo/env@^0.3.0":
   version "0.3.0"
   resolved "https://registry.yarnpkg.com/@expo/env/-/env-0.3.0.tgz#a66064e5656e0e48197525f47f3398034fdf579e"
   integrity sha512-OtB9XVHWaXidLbHvrVDeeXa09yvTl3+IQN884sO6PhIi2/StXfgSH/9zC7IvzrDB8kW3EBJ1PPLuCUJ2hxAT7Q==
