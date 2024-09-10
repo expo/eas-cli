@@ -11,7 +11,7 @@ import { Target } from '../../credentials/ios/types';
 import { AppPlatform } from '../../graphql/generated';
 import { AppVersionMutation } from '../../graphql/mutations/AppVersionMutation';
 import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { ora } from '../../ora';
 import { findApplicationTarget } from '../../project/ios/target';
 import { getNextBuildNumber, isValidBuildNumber } from '../../project/ios/versions';
@@ -100,11 +100,27 @@ export async function bumpVersionInAppJsonAsync({
   }
 }
 
-function validateShortVersion(shortVersion: string | undefined): void {
+function validateShortVersion({
+  shortVersion,
+  workflow,
+}: {
+  shortVersion: string | undefined;
+  workflow: Workflow;
+}): void {
   if (shortVersion && !SHORT_VERSION_REGEX.test(shortVersion)) {
-    throw new Error(
-      `CFBundleShortVersionString (version field in app.json/app.config.js) must be a period-separated list of three non-negative integers. Current value: ${shortVersion}`
-    );
+    if (workflow === Workflow.MANAGED) {
+      throw new Error(
+        `The required format for "version" field from app.json/app.config.ts is three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: ${shortVersion}. Edit the "version" field in your app.json/app.config.ts to match the required format. ${learnMore(
+          'https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleshortversionstring'
+        )}`
+      );
+    } else {
+      throw new Error(
+        `The required format for "CFBundleShortVersionString" in Info.plist is three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: ${shortVersion}. Edit the "CFBundleShortVersionString" in your Info.plist to match the required format. ${learnMore(
+          'https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleshortversionstring'
+        )}`
+      );
+    }
   }
 }
 
@@ -122,10 +138,10 @@ export async function readShortVersionAsync(
       infoPlist.CFBundleShortVersionString &&
       evaluateTemplateString(infoPlist.CFBundleShortVersionString, buildSettings);
 
-    validateShortVersion(shortVersion);
+    validateShortVersion({ shortVersion, workflow });
     return shortVersion;
   } else {
-    validateShortVersion(exp.version);
+    validateShortVersion({ shortVersion: exp.version, workflow });
     return exp.version;
   }
 }
