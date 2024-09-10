@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Allow submitting builds in progress ([#2543](https://github.com/expo/eas-cli/pull/2543) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
