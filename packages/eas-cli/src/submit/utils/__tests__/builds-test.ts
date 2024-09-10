@@ -17,24 +17,25 @@ const ARCHIVE_SOURCE = {
 
 const MOCK_BUILD_FRAGMENTS: Partial<BuildFragment>[] = Array(5).map(() => ({
   id: uuidv4(),
-    artifacts: {
+  artifacts: {
     buildUrl: ARCHIVE_SOURCE.url,
   },
   appVersion: '1.2.3',
-    platform: AppPlatform.Android,
-    updatedAt: Date.now(),
-    status: BuildStatus.Finished,
+  platform: AppPlatform.Android,
+  updatedAt: Date.now(),
+  status: BuildStatus.Finished,
 }));
 const MOCK_IN_PROGRESS_BUILD_FRAGMENTS: Partial<BuildFragment>[] = Array(5).map(() => ({
   id: uuidv4(),
-    artifacts: {
+  artifacts: {
     buildUrl: ARCHIVE_SOURCE.url,
   },
   appVersion: '1.2.3',
-    platform: AppPlatform.Android,
-    updatedAt: Date.now(),
-    status: BuildStatus.InProgress,
+  platform: AppPlatform.Android,
+  updatedAt: Date.now(),
+  status: BuildStatus.InProgress,
 }));
+
 describe(getRecentBuildsForSubmissionAsync, () => {
   let graphqlClient: ExpoGraphqlClient;
 
