@@ -23,7 +23,7 @@ import { Client } from '../../vcs/vcs';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
 import { bumpAppVersionAsync, ensureStaticConfigExists } from '../utils/version';
 
-const SHORT_VERSION_REGEX = /^\d+.\d+.\d+$/;
+const SHORT_VERSION_REGEX = /^\d+(\.\d+){0,2}$/;
 
 export enum BumpStrategy {
   APP_VERSION,
@@ -110,13 +110,13 @@ function validateShortVersion({
   if (shortVersion && !SHORT_VERSION_REGEX.test(shortVersion)) {
     if (workflow === Workflow.MANAGED) {
       throw new Error(
-        `The required format for "version" field from app.json/app.config.ts is three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: ${shortVersion}. Edit the "version" field in your app.json/app.config.ts to match the required format. ${learnMore(
+        `The required format for "version" field from app.json/app.config.ts is one to three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: ${shortVersion}. Edit the "version" field in your app.json/app.config.ts to match the required format. ${learnMore(
           'https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleshortversionstring'
         )}`
       );
     } else {
       throw new Error(
-        `The required format for "CFBundleShortVersionString" in Info.plist is three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: ${shortVersion}. Edit the "CFBundleShortVersionString" in your Info.plist to match the required format. ${learnMore(
+        `The required format for "CFBundleShortVersionString" in Info.plist is one to three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: ${shortVersion}. Edit the "CFBundleShortVersionString" in your Info.plist to match the required format. ${learnMore(
           'https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleshortversionstring'
         )}`
       );
