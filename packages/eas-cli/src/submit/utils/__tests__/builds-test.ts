@@ -1,8 +1,8 @@
-import {getRecentBuildsForSubmissionAsync} from '../builds';
-import {v4 as uuidv4} from 'uuid';
-import {AppPlatform, BuildFragment, BuildStatus, SubmissionArchiveSourceType} from '../../../graphql/generated';
-import {BuildQuery} from "../../../graphql/queries/BuildQuery";
-import {ExpoGraphqlClient} from "../../../commandUtils/context/contextUtils/createGraphqlClient";
+import { getRecentBuildsForSubmissionAsync } from '../builds';
+import { v4 as uuidv4 } from 'uuid';
+import { AppPlatform, BuildFragment, BuildStatus, SubmissionArchiveSourceType } from '../../../graphql/generated';
+import { BuildQuery } from "../../../graphql/queries/BuildQuery";
+import { ExpoGraphqlClient } from "../../../commandUtils/context/contextUtils/createGraphqlClient";
 
 jest.mock('../../../graphql/queries/BuildQuery', () => ({
   BuildQuery: {

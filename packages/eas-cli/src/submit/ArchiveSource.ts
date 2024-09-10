@@ -369,7 +369,7 @@ function formatBuildChoice(build: BuildFragment): prompts.Choice {
         ? chalk.bold(message.length > 200 ? `${message.slice(0, 200)}...` : message)
         : null,
     },
-    { name: 'Status', value: status.replace('_', ' ').toLowerCase()}
+    { name: 'Status', value: status.replace('_', ' ').toLowerCase() }
   ];
 
   const filteredDescriptionArray: string[] = descriptionItems

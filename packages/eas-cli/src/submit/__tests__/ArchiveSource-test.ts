@@ -1,9 +1,9 @@
-import {Platform} from '@expo/eas-build-job';
+import { Platform } from '@expo/eas-build-job';
 import fs from 'fs-extra';
-import {vol} from 'memfs';
-import {v4 as uuidv4} from 'uuid';
+import { vol } from 'memfs';
+import { v4 as uuidv4 } from 'uuid';
 
-import {ExpoGraphqlClient} from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
   BuildFragment,
@@ -11,12 +11,12 @@ import {
   SubmissionArchiveSourceType,
   UploadSessionType,
 } from '../../graphql/generated';
-import {BuildQuery} from '../../graphql/queries/BuildQuery';
-import {toAppPlatform} from '../../graphql/types/AppPlatform';
-import {confirmAsync, promptAsync} from '../../prompts';
-import {uploadFileAtPathToGCSAsync} from '../../uploads';
-import {ArchiveSourceType, BUILD_LIST_ITEM_COUNT, getArchiveAsync} from '../ArchiveSource';
-import {getRecentBuildsForSubmissionAsync} from '../utils/builds';
+import { BuildQuery } from '../../graphql/queries/BuildQuery';
+import { toAppPlatform } from '../../graphql/types/AppPlatform';
+import { confirmAsync, promptAsync } from '../../prompts';
+import { uploadFileAtPathToGCSAsync } from '../../uploads';
+import { ArchiveSourceType, BUILD_LIST_ITEM_COUNT, getArchiveAsync } from '../ArchiveSource';
+import { getRecentBuildsForSubmissionAsync } from '../utils/builds';
 
 jest.mock('fs');
 jest.mock('../../log');
