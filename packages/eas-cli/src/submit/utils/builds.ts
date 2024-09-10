@@ -8,14 +8,29 @@ export async function getRecentBuildsForSubmissionAsync(
   appId: string,
   { limit = 1 }: { limit?: number } = {}
 ): Promise<BuildFragment[]> {
-  return await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
+  const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
     appId,
     limit,
     offset: 0,
     filter: {
       platform,
       distribution: DistributionType.Store,
-      status: BuildStatus.Finished,
+      status: BuildStatus.InProgress,
     },
   });
+  const remainingLimit = limit - builds.length;
+  if (remainingLimit > 0) {
+    const finishedBuilds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
+      appId,
+      limit: remainingLimit,
+      offset: 0,
+      filter: {
+        platform,
+        distribution: DistributionType.Store,
+        status: BuildStatus.Finished,
+      },
+    });
+    builds.push(...finishedBuilds);
+  }
+  return builds;
 }
