@@ -1,3 +1,4 @@
+import { get as getEnv } from '@expo/env';
 import { Gzip, GzipOptions } from 'minizlib';
 import { HashOptions, createHash, randomBytes } from 'node:crypto';
 import fs, { createWriteStream } from 'node:fs';
@@ -5,7 +6,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { pack } from 'tar-stream';
-import { get as getEnv } from '@expo/env';
 
 /** Returns whether a file or folder is ignored */
 function isIgnoredName(name: string): boolean {
@@ -93,9 +93,7 @@ export interface Manifest {
 }
 
 /** Creates a manifest configuration sent up for deployment */
-export async function createManifestAsync(
-  projectDir: string
-): Promise<Manifest> {
+export async function createManifestAsync(projectDir: string): Promise<Manifest> {
   const { env } = getEnv(projectDir);
   return { env };
 }

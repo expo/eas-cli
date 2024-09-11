@@ -92,8 +92,8 @@ export default class WorkerDeploy extends EasCommand {
     }
 
     async function* emitWorkerTarballAsync(params: {
-      assetMap: WorkerAssets.AssetMap,
-      manifest: WorkerAssets.Manifest,
+      assetMap: WorkerAssets.AssetMap;
+      manifest: WorkerAssets.Manifest;
     }): AsyncGenerator<WorkerAssets.FileEntry> {
       yield ['assets.json', JSON.stringify(params.assetMap)];
       yield ['manifest.json', JSON.stringify(params.manifest)];
@@ -193,10 +193,12 @@ export default class WorkerDeploy extends EasCommand {
     try {
       assetMap = await WorkerAssets.createAssetMapAsync(distClientPath);
       const manifest = await WorkerAssets.createManifestAsync(projectDir);
-      tarPath = await WorkerAssets.packFilesIterableAsync(emitWorkerTarballAsync({
-        assetMap,
-        manifest,
-      }));
+      tarPath = await WorkerAssets.packFilesIterableAsync(
+        emitWorkerTarballAsync({
+          assetMap,
+          manifest,
+        })
+      );
     } catch (error: any) {
       progress.fail('Failed to prepare worker upload');
       throw error;
