@@ -13,7 +13,7 @@ import { listAndSelectBuildOnAppAsync } from '../../build/queries';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EASEnvironmentFlagHidden, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { EasPaginatedQueryFlags } from '../../commandUtils/pagination';
 import { CredentialsContext } from '../../credentials/context';
 import {
@@ -93,7 +93,6 @@ export default class BuildResign extends EasCommand {
     }),
     ...EasPaginatedQueryFlags,
     ...EasNonInteractiveAndJsonFlags,
-    ...EASEnvironmentFlagHidden,
   };
 
   static override contextDefinition = {
@@ -147,7 +146,6 @@ export default class BuildResign extends EasCommand {
     );
 
     const { exp, projectId, env } = await evaluateConfigWithEnvVarsAsync({
-      flags,
       buildProfile,
       buildProfileName: flags.targetProfile ?? 'production',
       graphqlClient,

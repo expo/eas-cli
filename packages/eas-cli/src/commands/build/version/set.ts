@@ -6,7 +6,6 @@ import chalk from 'chalk';
 
 import { evaluateConfigWithEnvVarsAsync } from '../../../build/evaluateConfigWithEnvVarsAsync';
 import EasCommand from '../../../commandUtils/EasCommand';
-import { EASEnvironmentFlagHidden } from '../../../commandUtils/flags';
 import { AppVersionMutation } from '../../../graphql/mutations/AppVersionMutation';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
@@ -37,7 +36,6 @@ export default class BuildVersionSetView extends EasCommand {
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
-    ...EASEnvironmentFlagHidden,
   };
 
   static override contextDefinition = {
@@ -68,7 +66,6 @@ export default class BuildVersionSetView extends EasCommand {
     );
 
     const { exp, projectId, env } = await evaluateConfigWithEnvVarsAsync({
-      flags,
       buildProfile: profile,
       buildProfileName: flags.profile ?? 'production',
       graphqlClient,

@@ -13,14 +13,12 @@ function isEnvironment(env: string): env is EnvironmentVariableEnvironment {
 }
 
 export async function evaluateConfigWithEnvVarsAsync<Config extends { projectId: string }, Opts>({
-  flags,
   buildProfile,
   buildProfileName,
   graphqlClient,
   getProjectConfig,
   opts,
 }: {
-  flags: { environment?: string };
   buildProfile: BuildProfile;
   buildProfileName: string;
   graphqlClient: ExpoGraphqlClient | null;
@@ -34,7 +32,6 @@ export async function evaluateConfigWithEnvVarsAsync<Config extends { projectId:
   }
   const { projectId } = await getProjectConfig({ env: buildProfile.env, ...opts });
   const env = await resolveEnvVarsAsync({
-    flags,
     buildProfile,
     buildProfileName,
     graphqlClient,
@@ -46,22 +43,18 @@ export async function evaluateConfigWithEnvVarsAsync<Config extends { projectId:
 }
 
 async function resolveEnvVarsAsync({
-  flags,
   buildProfile,
   buildProfileName,
   graphqlClient,
   projectId,
 }: {
-  flags: { environment?: string };
   buildProfile: BuildProfile;
   buildProfileName: string;
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
 }): Promise<Env> {
   const environment =
-    flags.environment ??
-    buildProfile.environment?.toUpperCase() ??
-    process.env.EAS_CURRENT_ENVIRONMENT;
+    buildProfile.environment?.toUpperCase() ?? process.env.EAS_CURRENT_ENVIRONMENT;
 
   if (!environment || !isEnvironment(environment)) {
     Log.log(

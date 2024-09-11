@@ -8,7 +8,6 @@ import { updateNativeVersionsAsync as updateAndroidNativeVersionsAsync } from '.
 import { evaluateConfigWithEnvVarsAsync } from '../../../build/evaluateConfigWithEnvVarsAsync';
 import { updateNativeVersionsAsync as updateIosNativeVersionsAsync } from '../../../build/ios/version';
 import EasCommand from '../../../commandUtils/EasCommand';
-import { EASEnvironmentFlagHidden } from '../../../commandUtils/flags';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
 import Log from '../../../log';
@@ -56,7 +55,6 @@ export default class BuildVersionSyncView extends EasCommand {
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
-    ...EASEnvironmentFlagHidden,
   };
 
   static override contextDefinition = {
@@ -91,7 +89,6 @@ export default class BuildVersionSyncView extends EasCommand {
     });
     for (const profileInfo of buildProfiles) {
       const { exp, projectId, env } = await evaluateConfigWithEnvVarsAsync({
-        flags,
         buildProfile: profileInfo.profile,
         buildProfileName: profileInfo.profileName,
         graphqlClient,

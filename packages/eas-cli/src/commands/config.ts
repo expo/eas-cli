@@ -7,7 +7,7 @@ import chalk from 'chalk';
 import { evaluateConfigWithEnvVarsAsync } from '../build/evaluateConfigWithEnvVarsAsync';
 import EasCommand from '../commandUtils/EasCommand';
 import { createGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { EASEnvironmentFlagHidden, EasNonInteractiveAndJsonFlags } from '../commandUtils/flags';
+import { EasNonInteractiveAndJsonFlags } from '../commandUtils/flags';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { appPlatformEmojis } from '../platform';
@@ -29,7 +29,6 @@ export default class Config extends EasCommand {
     'eas-json-only': Flags.boolean({
       hidden: true,
     }),
-    ...EASEnvironmentFlagHidden,
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -94,7 +93,6 @@ export default class Config extends EasCommand {
       });
       const graphqlClient = createGraphqlClient(authenticationInfo);
       const { exp: appConfig } = await evaluateConfigWithEnvVarsAsync({
-        flags,
         buildProfile: profile,
         buildProfileName: profileName,
         graphqlClient,
