@@ -87,3 +87,21 @@ async function chooseDevDomainNameAsync({
     }
   }
 }
+
+export async function assignWorkerDeploymentAliasAsync({
+  graphqlClient,
+  appId,
+  deploymentId,
+  aliasName,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  appId: string;
+  deploymentId: string;
+  aliasName: string;
+}) {
+  return await DeploymentsMutation.assignAliasAsync(graphqlClient, {
+    appId,
+    deploymentId,
+    aliasName,
+  });
+}
