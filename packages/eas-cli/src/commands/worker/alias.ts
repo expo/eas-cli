@@ -12,7 +12,7 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { promptAsync } from '../../prompts';
 
 export default class WorkerAlias extends EasCommand {
-  static override description = 'Inspect or modify deployment alias';
+  static override description = 'Assign deployment aliases';
   static override aliases = ['deploy:alias'];
 
   // TODO(@kitten): Keep command hidden until worker deployments are live
@@ -21,11 +21,11 @@ export default class WorkerAlias extends EasCommand {
 
   static override flags = {
     id: Flags.string({
-      description: 'Expo deployment ID',
+      description: 'Worker deployment identifier',
       required: false,
     }),
     alias: Flags.string({
-      description: 'Deployment alias',
+      description: 'Worker deployment alias name to assign',
       required: false,
     }),
   };
