@@ -5,6 +5,10 @@ import { DeploymentsMutation } from './mutations';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../log';
 import { promptAsync } from '../prompts';
+import { WorkerDeploymentFragment } from '../graphql/generated';
+import { selectPaginatedAsync } from '../utils/relay';
+import { DeploymentsQuery } from './queries';
+import chalk from 'chalk';
 
 export async function getSignedDeploymentUrlAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -103,5 +107,29 @@ export async function assignWorkerDeploymentAliasAsync({
     appId,
     deploymentId,
     aliasName,
+  });
+}
+
+export async function selectWorkerDeploymentOnAppAsync({
+  graphqlClient,
+  appId,
+  selectTitle,
+  pageSize,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  appId: string;
+  selectTitle?: string;
+  pageSize?: number;
+}) {
+  return await selectPaginatedAsync({
+    pageSize: pageSize ?? 25,
+    printedType: selectTitle ?? 'worker deployment',
+    queryAsync: queryParams =>
+      DeploymentsQuery.getAllDeploymentsPaginatedAsync(graphqlClient, {
+        ...queryParams, appId,
+      }),
+    getTitleAsync: async (deployment: WorkerDeploymentFragment) => (
+      chalk`${deployment.deploymentIdentifier}{dim  - created at: ${new Date(deployment.createdAt).toLocaleString()}}`
+    )
   });
 }
