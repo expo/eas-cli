@@ -3,10 +3,13 @@ import { Flags } from '@oclif/core';
 import Log from '../../log';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ora } from '../../ora';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { assignWorkerDeploymentAliasAsync, selectWorkerDeploymentOnAppAsync } from '../../worker/deployment';
+import {
+  assignWorkerDeploymentAliasAsync,
+  selectWorkerDeploymentOnAppAsync,
+} from '../../worker/deployment';
 import chalk from 'chalk';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { promptAsync } from '../../prompts';
 
 export default class WorkerAlias extends EasCommand {
   static override description = 'Inspect or modify deployment alias';
@@ -25,7 +28,6 @@ export default class WorkerAlias extends EasCommand {
       description: 'Deployment alias',
       required: false,
     }),
-    ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
@@ -45,20 +47,11 @@ export default class WorkerAlias extends EasCommand {
       nonInteractive: true,
     });
 
-    // If `--id` is not defined, fetch the deployment IDs as list
-    //   - If non-interactive mode is enabled, abort after this
-    //   - If `--json` is provided, return the data as json
-    // If `--alias` is not defined, fetch the alias of the deployment ID
-    //   - If `--alias` is defined, update the alias of the deployment ID
-
     const { projectId } = await getDynamicPrivateProjectConfigAsync();
-
-    if (!flags.alias) throw new Error('Please provide an alias');
-
-    // resolve alias first
+    const aliasName = await resolveDeploymentAliasAsync({ flagAlias: flags.alias });
     const deploymentId = await resolveDeploymentIdAsync({
       graphqlClient,
-      aliasName: flags.alias,
+      aliasName,
       appId: projectId,
       flagId: flags.id,
     });
@@ -68,10 +61,12 @@ export default class WorkerAlias extends EasCommand {
       graphqlClient,
       appId: projectId,
       deploymentId,
-      aliasName: flags.alias,
+      aliasName,
     });
 
-    progress.succeed(chalk`Alias {bold ${workerAlias.aliasName}} assigned to deployment {bold ${deploymentId}}`);
+    progress.succeed(
+      chalk`Alias {bold ${workerAlias.aliasName}} assigned to deployment {bold ${deploymentId}}`
+    );
 
     const baseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
     const aliasUrl = `https://${baseDomain}.dev/projects/${projectId}/serverless/deployments`;
@@ -81,6 +76,22 @@ export default class WorkerAlias extends EasCommand {
     Log.addNewLineIfNone();
     Log.log(`🔗 Manage on EAS: ${aliasUrl}`);
   }
+}
+
+async function resolveDeploymentAliasAsync({ flagAlias }: { flagAlias?: string }): Promise<string> {
+  if (flagAlias?.trim()) {
+    return flagAlias.trim().toLowerCase();
+  }
+
+  const { alias: aliasName } = await promptAsync({
+    type: 'text',
+    name: 'alias',
+    message: 'Enter the alias to assign to a deployment',
+    validate: (value: string) => !!value.trim(),
+    hint: 'The alias name is case insensitive and must be URL safe',
+  });
+
+  return aliasName.trim().toLowerCase();
 }
 
 async function resolveDeploymentIdAsync({
@@ -94,13 +105,12 @@ async function resolveDeploymentIdAsync({
   appId: string;
   flagId?: string;
 }) {
-  if (flagId) {
-    return flagId;
-  }
+  if (flagId) return flagId;
 
   const deployment = await selectWorkerDeploymentOnAppAsync({
-    graphqlClient, appId,
-    selectTitle: chalk`deployment to assign the {underline ${aliasName}} alias`
+    graphqlClient,
+    appId,
+    selectTitle: chalk`deployment to assign the {underline ${aliasName}} alias`,
   });
 
   return deployment?.deploymentIdentifier as string;
