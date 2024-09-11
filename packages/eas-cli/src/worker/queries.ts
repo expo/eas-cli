@@ -1,15 +1,15 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
+
+import { WorkerDeploymentFragmentNode } from './fragments/WorkerDeployment';
 import type { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../graphql/client';
-
 import type {
   PaginatedWorkerDeploymentsQuery,
   PaginatedWorkerDeploymentsQueryVariables,
   WorkerDeploymentFragment,
 } from '../graphql/generated';
 import type { Connection } from '../utils/relay';
-import { WorkerDeploymentFragmentNode } from './fragments/WorkerDeployment';
 
 export const DeploymentsQuery = {
   async getAllDeploymentsPaginatedAsync(
@@ -29,12 +29,8 @@ export const DeploymentsQuery = {
             ) {
               app {
                 byId(appId: $appId) {
-                  workerDeployments(
-                    first: $first
-                    after: $after
-                    last: $last
-                    before: $before
-                  ) {
+                  id
+                  workerDeployments(first: $first, after: $after, last: $last, before: $before) {
                     pageInfo {
                       hasNextPage
                       hasPreviousPage

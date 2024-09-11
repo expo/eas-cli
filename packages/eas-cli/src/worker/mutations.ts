@@ -4,12 +4,12 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../graphql/client';
 import {
+  AssignAliasMutation,
+  AssignAliasMutationVariables,
   AssignDevDomainNameMutation,
   AssignDevDomainNameMutationVariables,
   CreateDeploymentUrlMutation,
   CreateDeploymentUrlMutationVariables,
-  AssignAliasMutation,
-  AssignAliasMutationVariables,
 } from '../graphql/generated';
 
 export const DeploymentsMutation = {
@@ -103,5 +103,5 @@ export const DeploymentsMutation = {
     );
 
     return data.deployments.assignAlias;
-  }
+  },
 };

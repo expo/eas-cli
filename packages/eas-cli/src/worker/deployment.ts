@@ -1,14 +1,14 @@
 import { ExpoConfig } from '@expo/config-types';
 import { CombinedError as GraphqlError } from '@urql/core';
+import chalk from 'chalk';
 
 import { DeploymentsMutation } from './mutations';
+import { DeploymentsQuery } from './queries';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { WorkerDeploymentFragment } from '../graphql/generated';
 import Log from '../log';
 import { promptAsync } from '../prompts';
-import { WorkerDeploymentFragment } from '../graphql/generated';
 import { selectPaginatedAsync } from '../utils/relay';
-import { DeploymentsQuery } from './queries';
-import chalk from 'chalk';
 
 export async function getSignedDeploymentUrlAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -102,7 +102,7 @@ export async function assignWorkerDeploymentAliasAsync({
   appId: string;
   deploymentId: string;
   aliasName: string;
-}) {
+}): ReturnType<typeof DeploymentsMutation.assignAliasAsync> {
   return await DeploymentsMutation.assignAliasAsync(graphqlClient, {
     appId,
     deploymentId,
@@ -120,16 +120,18 @@ export async function selectWorkerDeploymentOnAppAsync({
   appId: string;
   selectTitle?: string;
   pageSize?: number;
-}) {
+}): ReturnType<typeof selectPaginatedAsync<WorkerDeploymentFragment>> {
   return await selectPaginatedAsync({
     pageSize: pageSize ?? 25,
     printedType: selectTitle ?? 'worker deployment',
-    queryAsync: queryParams =>
-      DeploymentsQuery.getAllDeploymentsPaginatedAsync(graphqlClient, {
-        ...queryParams, appId,
+    queryAsync: async queryParams =>
+      await DeploymentsQuery.getAllDeploymentsPaginatedAsync(graphqlClient, {
+        ...queryParams,
+        appId,
       }),
-    getTitleAsync: async (deployment: WorkerDeploymentFragment) => (
-      chalk`${deployment.deploymentIdentifier}{dim  - created at: ${new Date(deployment.createdAt).toLocaleString()}}`
-    )
+    getTitleAsync: async (deployment: WorkerDeploymentFragment) =>
+      chalk`${deployment.deploymentIdentifier}{dim  - created at: ${new Date(
+        deployment.createdAt
+      ).toLocaleString()}}`,
   });
 }

@@ -1,15 +1,15 @@
 import { Flags } from '@oclif/core';
+import chalk from 'chalk';
 
-import Log from '../../log';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import Log from '../../log';
 import { ora } from '../../ora';
+import { promptAsync } from '../../prompts';
 import {
   assignWorkerDeploymentAliasAsync,
   selectWorkerDeploymentOnAppAsync,
 } from '../../worker/deployment';
-import chalk from 'chalk';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { promptAsync } from '../../prompts';
 
 export default class WorkerAlias extends EasCommand {
   static override description = 'Assign deployment aliases';
@@ -36,7 +36,7 @@ export default class WorkerAlias extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  override async runAsync() {
+  override async runAsync(): Promise<void> {
     Log.warn('EAS Worker Deployments are in beta and subject to breaking changes.');
 
     const { flags } = await this.parse(WorkerAlias);
@@ -104,8 +104,10 @@ async function resolveDeploymentIdAsync({
   aliasName: string;
   appId: string;
   flagId?: string;
-}) {
-  if (flagId) return flagId;
+}): Promise<string> {
+  if (flagId) {
+    return flagId;
+  }
 
   const deployment = await selectWorkerDeploymentOnAppAsync({
     graphqlClient,
@@ -113,5 +115,5 @@ async function resolveDeploymentIdAsync({
     selectTitle: chalk`deployment to assign the {underline ${aliasName}} alias`,
   });
 
-  return deployment?.deploymentIdentifier as string;
+  return deployment?.deploymentIdentifier;
 }
