@@ -44,7 +44,6 @@ export default class WorkerDeploy extends EasCommand {
   static override flags = {
     prod: Flags.boolean({
       description: 'Deploy to production',
-      type: 'boolean',
     }),
     // TODO(@kitten): Allow deployment identifier to be specified
     ...EasNonInteractiveAndJsonFlags,
