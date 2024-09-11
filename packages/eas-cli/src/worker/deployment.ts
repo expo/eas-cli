@@ -110,6 +110,22 @@ export async function assignWorkerDeploymentAliasAsync({
   });
 }
 
+export async function assignWorkerDeploymentProductionAsync({
+  graphqlClient,
+  appId,
+  deploymentId,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  appId: string;
+  deploymentId: string;
+}): ReturnType<typeof DeploymentsMutation.assignAliasAsync> {
+  return await DeploymentsMutation.assignAliasAsync(graphqlClient, {
+    appId,
+    deploymentId,
+    aliasName: null, // this will assign the deployment as production
+  });
+}
+
 export async function selectWorkerDeploymentOnAppAsync({
   graphqlClient,
   appId,
