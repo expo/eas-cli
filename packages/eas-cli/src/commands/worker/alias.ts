@@ -85,7 +85,7 @@ export default class WorkerAlias extends EasCommand {
     Log.log(
       formatFields([
         { label: 'Dashboard', value: expoDashboardUrl },
-        { label: 'Aliased URL', value: chalk.cyan(workerAlias.url) },
+        { label: 'Alias URL', value: chalk.cyan(workerAlias.url) },
       ])
     );
   }
