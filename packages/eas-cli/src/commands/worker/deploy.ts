@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import * as path from 'node:path';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags, EASEnvironmentFlag } from '../../commandUtils/flags';
+import { EASEnvironmentFlag, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { EnvironmentVariableEnvironment } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
@@ -226,11 +226,14 @@ export default class WorkerDeploy extends EasCommand {
     let progress = ora('Preparing project').start();
 
     try {
-      const manifest = await WorkerAssets.createManifestAsync({
-        environment: flags.environment,
-        projectDir,
-        projectId,
-      }, graphqlClient);
+      const manifest = await WorkerAssets.createManifestAsync(
+        {
+          environment: flags.environment,
+          projectDir,
+          projectId,
+        },
+        graphqlClient
+      );
       assetMap = await WorkerAssets.createAssetMapAsync(distClientPath);
       tarPath = await WorkerAssets.packFilesIterableAsync(
         emitWorkerTarballAsync({
