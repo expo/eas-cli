@@ -20,12 +20,14 @@ export default class WorkerAlias extends EasCommand {
   static override state = 'beta';
 
   static override flags = {
-    id: Flags.string({
-      description: 'Worker deployment identifier',
+    alias: Flags.string({
+      description: 'Custom alias to assign to the existing deployment',
+      helpValue: 'name',
       required: false,
     }),
-    alias: Flags.string({
-      description: 'Worker deployment alias name to assign',
+    id: Flags.string({
+      description: 'Unique identifier of an existing deployment',
+      helpValue: 'xyz123',
       required: false,
     }),
   };
@@ -56,16 +58,20 @@ export default class WorkerAlias extends EasCommand {
       flagId: flags.id,
     });
 
-    const progress = ora('Assigning alias to worker deployment').start();
+    const progress = ora(chalk`Assigning alias {bold ${aliasName}} to deployment {bold ${deploymentId}}`).start();
     const workerAlias = await assignWorkerDeploymentAliasAsync({
       graphqlClient,
       appId: projectId,
       deploymentId,
       aliasName,
-    });
+    })
+      .catch((error) => {
+        progress.fail(chalk`Failed to assign {bold ${flags.aliasName}} alias to deployment {bold ${deploymentId}}`);
+        throw error;
+      });
 
     progress.succeed(
-      chalk`Alias {bold ${workerAlias.aliasName}} assigned to deployment {bold ${deploymentId}}`
+      chalk`Assigned alias {bold ${flags.aliasName}} to deployment {bold ${deploymentId}}`
     );
 
     const baseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
