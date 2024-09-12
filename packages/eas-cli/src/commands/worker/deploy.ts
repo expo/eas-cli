@@ -329,7 +329,7 @@ function logDeployment(options: LogDeploymentOptions): void {
   ];
 
   if (options.aliasedUrl) {
-    fields.push({ label: 'Aliased URL', value: options.aliasedUrl });
+    fields.push({ label: 'Alias URL', value: options.aliasedUrl });
   }
   if (options.productionUrl) {
     fields.push({ label: 'Production URL', value: options.productionUrl });
