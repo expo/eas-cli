@@ -100,7 +100,8 @@ export default class WorkerDeploy extends EasCommand {
           `No "dist/" folder found. Prepare your project for deployment with "npx expo export"`
         );
       }
-      Log.log('Detected "static" worker deployment');
+
+      logDeploymentType('static');
     } else if (exp.web?.output === 'server') {
       distClientPath = path.resolve(distPath, 'client');
       distServerPath = path.resolve(distPath, 'server');
@@ -113,7 +114,8 @@ export default class WorkerDeploy extends EasCommand {
           `No "dist/server/" folder found. Prepare your project for deployment with "npx expo export"`
         );
       }
-      Log.log('Detected "server" worker deployment');
+
+      logDeploymentType('server');
     } else {
       throw new Error(
         `Single-page apps are not supported. Ensure that app.json key "expo.web.output" is set to "server" or "static".`
@@ -313,11 +315,11 @@ function logDeployment(options: LogDeploymentOptions) {
 
   Log.log(
     formatFields([
-      { label: '🎛️ Dashboard URL', value: options.expoDashboardUrl },
-      { label: '🔗 Deployment URL', value: options.deploymentUrl },
-      ...(options.aliasedUrl ? [{ label: '🔗 Aliased URL', value: options.aliasedUrl }] : []),
+      { label: 'Dashboard URL', value: options.expoDashboardUrl },
+      { label: 'Deployment URL', value: options.deploymentUrl },
+      ...(options.aliasedUrl ? [{ label: 'Aliased URL', value: options.aliasedUrl }] : []),
       ...(options.productionUrl
-        ? [{ label: '🌐 Production URL', value: options.productionUrl }]
+        ? [{ label: 'Production URL', value: options.productionUrl }]
         : []),
     ])
   );
@@ -327,4 +329,9 @@ function logDeployment(options: LogDeploymentOptions) {
     Log.log('🚢 If you are ready to deploy to production:');
     Log.log(chalk`  {dim $} eas deploy {bold --prod}`);
   }
+}
+
+/** Log the detected of Expo export */
+function logDeploymentType(type: 'static' | 'server') {
+  Log.log(chalk`{dim > output: ${type}}`);
 }
