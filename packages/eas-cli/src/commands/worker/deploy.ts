@@ -47,14 +47,14 @@ export default class WorkerDeploy extends EasCommand {
   static override state = 'beta';
 
   static override flags = {
-    alias: Flags.string({
-      description: 'Custom alias to assign to the new deployment',
-      helpValue: 'name',
-    }),
     prod: Flags.boolean({
       aliases: ['production'],
       description: 'Create a new production deployment',
       default: false,
+    }),
+    alias: Flags.string({
+      description: 'Custom alias to assign to the new deployment',
+      helpValue: 'name',
     }),
     id: Flags.string({
       description: 'Custom unique identifier for the new deployment',
