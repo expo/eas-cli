@@ -30,7 +30,7 @@ interface DeployFlags {
 interface RawDeployFlags {
   'non-interactive': boolean;
   json: boolean;
-  prod?: boolean;
+  prod: boolean;
 }
 
 export default class WorkerDeploy extends EasCommand {
@@ -44,6 +44,7 @@ export default class WorkerDeploy extends EasCommand {
   static override flags = {
     prod: Flags.boolean({
       description: 'Deploy to production',
+      default: false,
     }),
     // TODO(@kitten): Allow deployment identifier to be specified
     ...EasNonInteractiveAndJsonFlags,
@@ -238,7 +239,7 @@ export default class WorkerDeploy extends EasCommand {
       return;
     }
 
-    progress = ora('Assigning worker deployment to production');
+    progress = ora('Assigning worker deployment to production').start();
     try {
       const workerProdAlias = await assignWorkerDeploymentProductionAsync({
         graphqlClient,
