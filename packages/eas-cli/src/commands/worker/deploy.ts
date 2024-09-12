@@ -346,7 +346,7 @@ function logDeployment(options: LogDeploymentOptions) {
   if (!options.productionUrl) {
     Log.addNewLineIfNone();
     Log.log('🚀 If you are ready to deploy to production:');
-    Log.log(chalk`  $ eas deploy {underline --prod}`);
+    Log.log(chalk`  $ eas deploy {bold --prod}`);
   }
 }
 
