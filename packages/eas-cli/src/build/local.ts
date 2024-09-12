@@ -3,6 +3,7 @@ import spawnAsync from '@expo/spawn-async';
 import { ChildProcess } from 'child_process';
 import semver from 'semver';
 
+import Log from '../log';
 import { ora } from '../ora';
 
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';

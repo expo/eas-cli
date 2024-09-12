@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Log command execution to assist in debugging local builds. ([#2526](https://github.com/expo/eas-cli/pull/2526) by [@trajano](https://github.com/trajano))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
