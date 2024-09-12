@@ -4,6 +4,8 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../graphql/client';
 import {
+  AssignAliasMutation,
+  AssignAliasMutationVariables,
   AssignDevDomainNameMutation,
   AssignDevDomainNameMutationVariables,
   CreateDeploymentUrlMutation,
@@ -67,5 +69,39 @@ export const DeploymentsMutation = {
     );
 
     return data.devDomainName.assignDevDomainName.name === devDomainNameVariables.name;
+  },
+
+  async assignAliasAsync(
+    graphqlClient: ExpoGraphqlClient,
+    aliasVariables: { appId: string; deploymentId: string; aliasName: string }
+  ): Promise<AssignAliasMutation['deployments']['assignAlias']> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<AssignAliasMutation, AssignAliasMutationVariables>(
+          gql`
+            mutation AssignAlias(
+              $appId: ID!
+              $deploymentId: ID!
+              $aliasName: WorkerDeploymentIdentifier!
+            ) {
+              deployments {
+                assignAlias(
+                  appId: $appId
+                  deploymentIdentifier: $deploymentId
+                  aliasName: $aliasName
+                ) {
+                  id
+                  aliasName
+                  url
+                }
+              }
+            }
+          `,
+          aliasVariables
+        )
+        .toPromise()
+    );
+
+    return data.deployments.assignAlias;
   },
 };
