@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import * as path from 'node:path';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { EasNonInteractiveAndJsonFlags, EASEnvironmentFlag } from '../../commandUtils/flags';
+import { EnvironmentVariableEnvironment } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
@@ -28,11 +29,13 @@ interface DeployFlags {
   json: boolean;
   isProduction: boolean;
   aliasName?: string;
+  environment?: EnvironmentVariableEnvironment;
   deploymentIdentifier?: string;
 }
 
 interface RawDeployFlags {
   'non-interactive': boolean;
+  environment?: string;
   json: boolean;
   prod: boolean;
   alias?: string;
@@ -64,6 +67,7 @@ export default class WorkerDeploy extends EasCommand {
     }),
     // TODO(@kitten): Allow deployment identifier to be specified
     ...EasNonInteractiveAndJsonFlags,
+    ...EASEnvironmentFlag,
   };
 
   static override contextDefinition = {
@@ -222,8 +226,12 @@ export default class WorkerDeploy extends EasCommand {
     let progress = ora('Preparing project').start();
 
     try {
+      const manifest = await WorkerAssets.createManifestAsync({
+        environment: flags.environment,
+        projectDir,
+        projectId,
+      }, graphqlClient);
       assetMap = await WorkerAssets.createAssetMapAsync(distClientPath);
-      const manifest = await WorkerAssets.createManifestAsync(projectDir);
       tarPath = await WorkerAssets.packFilesIterableAsync(
         emitWorkerTarballAsync({
           assetMap,
