@@ -234,7 +234,7 @@ export default class WorkerDeploy extends EasCommand {
     await uploadAssetsAsync(assetMap, deployResult.uploads);
 
     if (flags.aliasName) {
-      progress = ora(chalk`Assigning alias {bold ${flags.aliasName}} to worker deployment`);
+      progress = ora(chalk`Assigning alias {bold ${flags.aliasName}} to worker deployment`).start();
       try {
         await assignWorkerDeploymentAliasAsync({
           graphqlClient,
