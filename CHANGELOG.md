@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Add `worker:alias` command to assign aliases from the CLI. ([#2548](https://github.com/expo/eas-cli/pull/2548) by [@byCedric](https://github.com/byCedric))
 - Add `worker --prod` flag to deploy to production from the CLI. ([#2550](https://github.com/expo/eas-cli/pull/2550) by [@byCedric](https://github.com/byCedric))
+- Add `worker --alias` flag to assign custom aliases when deploying. ([#2551](https://github.com/expo/eas-cli/pull/2551) by [@byCedric](https://github.com/byCedric)))
 
 ### 🐛 Bug fixes
 

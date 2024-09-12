@@ -10,6 +10,7 @@ import { ora } from '../../ora';
 import { createProgressTracker } from '../../utils/progress';
 import * as WorkerAssets from '../../worker/assets';
 import {
+  assignWorkerDeploymentAliasAsync,
   assignWorkerDeploymentProductionAsync,
   getSignedDeploymentUrlAsync,
 } from '../../worker/deployment';
@@ -25,12 +26,14 @@ interface DeployFlags {
   nonInteractive: boolean;
   json: boolean;
   prod: boolean;
+  aliasName?: string;
 }
 
 interface RawDeployFlags {
   'non-interactive': boolean;
   json: boolean;
   prod: boolean;
+  alias?: string;
 }
 
 export default class WorkerDeploy extends EasCommand {
@@ -42,6 +45,9 @@ export default class WorkerDeploy extends EasCommand {
   static override state = 'beta';
 
   static override flags = {
+    alias: Flags.string({
+      description: 'Custom alias for the deployment',
+    }),
     prod: Flags.boolean({
       description: 'Deploy to production',
       default: false,
@@ -227,6 +233,22 @@ export default class WorkerDeploy extends EasCommand {
 
     await uploadAssetsAsync(assetMap, deployResult.uploads);
 
+    if (flags.aliasName) {
+      progress = ora(chalk`Assigning alias {bold ${flags.aliasName}} to worker deployment`).start();
+      try {
+        await assignWorkerDeploymentAliasAsync({
+          graphqlClient,
+          appId: projectId,
+          deploymentId: deployResult.id,
+          aliasName: flags.aliasName,
+        });
+        progress.succeed(chalk`Assigned alias {bold ${flags.aliasName}} to worker deployment`);
+      } catch (error: any) {
+        progress.fail(chalk`Failed to assign {bold ${flags.aliasName}} alias to worker deployment`);
+        throw error;
+      }
+    }
+
     const expoBaseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
     const dashboardUrl = `https://${expoBaseDomain}.dev/projects/${projectId}/serverless/deployments`;
 
@@ -265,6 +287,7 @@ export default class WorkerDeploy extends EasCommand {
       nonInteractive: flags['non-interactive'],
       json: flags['json'],
       prod: !!flags.prod,
+      aliasName: flags.alias?.trim().toLowerCase(),
     };
   }
 }
