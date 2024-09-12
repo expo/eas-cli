@@ -1,10 +1,14 @@
 import { ExpoConfig } from '@expo/config-types';
 import { CombinedError as GraphqlError } from '@urql/core';
+import chalk from 'chalk';
 
 import { DeploymentsMutation } from './mutations';
+import { DeploymentsQuery } from './queries';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { WorkerDeploymentFragment } from '../graphql/generated';
 import Log from '../log';
 import { promptAsync } from '../prompts';
+import { selectPaginatedAsync } from '../utils/relay';
 
 export async function getSignedDeploymentUrlAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -86,4 +90,64 @@ async function chooseDevDomainNameAsync({
       throw error;
     }
   }
+}
+
+export async function assignWorkerDeploymentAliasAsync({
+  graphqlClient,
+  appId,
+  deploymentId,
+  aliasName,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  appId: string;
+  deploymentId: string;
+  aliasName: string;
+}): ReturnType<typeof DeploymentsMutation.assignAliasAsync> {
+  return await DeploymentsMutation.assignAliasAsync(graphqlClient, {
+    appId,
+    deploymentId,
+    aliasName,
+  });
+}
+
+export async function assignWorkerDeploymentProductionAsync({
+  graphqlClient,
+  appId,
+  deploymentId,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  appId: string;
+  deploymentId: string;
+}): ReturnType<typeof DeploymentsMutation.assignAliasAsync> {
+  return await DeploymentsMutation.assignAliasAsync(graphqlClient, {
+    appId,
+    deploymentId,
+    aliasName: null, // this will assign the deployment as production
+  });
+}
+
+export async function selectWorkerDeploymentOnAppAsync({
+  graphqlClient,
+  appId,
+  selectTitle,
+  pageSize,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  appId: string;
+  selectTitle?: string;
+  pageSize?: number;
+}): ReturnType<typeof selectPaginatedAsync<WorkerDeploymentFragment>> {
+  return await selectPaginatedAsync({
+    pageSize: pageSize ?? 25,
+    printedType: selectTitle ?? 'worker deployment',
+    queryAsync: async queryParams =>
+      await DeploymentsQuery.getAllDeploymentsPaginatedAsync(graphqlClient, {
+        ...queryParams,
+        appId,
+      }),
+    getTitleAsync: async (deployment: WorkerDeploymentFragment) =>
+      chalk`${deployment.deploymentIdentifier}{dim  - created at: ${new Date(
+        deployment.createdAt
+      ).toLocaleString()}}`,
+  });
 }

@@ -5,6 +5,7 @@ import { vol } from 'memfs';
 import os from 'os';
 import type { XCBuildConfiguration } from 'xcode';
 
+import { learnMore } from '../../../log';
 import { readPlistAsync } from '../../../utils/plist';
 import { resolveVcsClient } from '../../../vcs';
 import {
@@ -316,7 +317,9 @@ describe(readShortVersionAsync, () => {
           vcsClient
         )
       ).rejects.toThrowError(
-        'CFBundleShortVersionString (version field in app.json/app.config.js) must be a period-separated list of three non-negative integers. Current value: 0.0.7.1.028'
+        `The required format for "CFBundleShortVersionString" in Info.plist is one to three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: 0.0.7.1.028. Edit the "CFBundleShortVersionString" in your Info.plist to match the required format. ${learnMore(
+          'https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleshortversionstring'
+        )}`
       );
     });
   });

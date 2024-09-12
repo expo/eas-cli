@@ -8,11 +8,21 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `worker:alias` command to assign aliases from the CLI. ([#2548](https://github.com/expo/eas-cli/pull/2548) by [@byCedric](https://github.com/byCedric))
+- Add `worker --prod` flag to deploy to production from the CLI. ([#2550](https://github.com/expo/eas-cli/pull/2550) by [@byCedric](https://github.com/byCedric))
+- Add `worker --alias` flag to assign custom aliases when deploying. ([#2551](https://github.com/expo/eas-cli/pull/2551) by [@byCedric](https://github.com/byCedric)))
+- Add `worker --id` flag to use a custom deployment identifier. ([#2552](https://github.com/expo/eas-cli/pull/2552) by [@byCedric](https://github.com/byCedric)))
 - Allow submitting builds in progress ([#2543](https://github.com/expo/eas-cli/pull/2543) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ### 🐛 Bug fixes
 
+- Avoid merging `expo.extra` plugin-generated data with `expo.extra.eas.projectId` in `eas init`. ([#2554](https://github.com/expo/eas-cli/pull/2554) by [@byCedric](https://github.com/byCedric)))
+
 ### 🧹 Chores
+
+- Make error message for invalid CFBundleShortVersionString more descriptive and actionable. Improve CFBundleShortVersionString validation regex. ([#2542](https://github.com/expo/eas-cli/pull/2542) by [@szdziedzic](https://github.com/szdziedzic))
+- Add missing `--non-interactive` argument to `worker:deploy` command. ([#2544](https://github.com/expo/eas-cli/pull/2544) by [@kitten](https://github.com/kitten))
+- Source `@expo/env` dotenv files for worker deployments. ([#2545](https://github.com/expo/eas-cli/pull/2545) by [@kitten](https://github.com/kitten))
 
 ## [12.3.0](https://github.com/expo/eas-cli/releases/tag/v12.3.0) - 2024-09-09
 

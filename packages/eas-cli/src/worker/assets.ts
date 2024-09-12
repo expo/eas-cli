@@ -1,3 +1,4 @@
+import { get as getEnv } from '@expo/env';
 import { Gzip, GzipOptions } from 'minizlib';
 import { HashOptions, createHash, randomBytes } from 'node:crypto';
 import fs, { createWriteStream } from 'node:fs';
@@ -85,6 +86,16 @@ async function createAssetMapAsync(
     map[file.normalizedPath] = await computeSha512HashAsync(file.path, options?.hashOptions);
   }
   return map;
+}
+
+export interface Manifest {
+  env: Record<string, string | undefined>;
+}
+
+/** Creates a manifest configuration sent up for deployment */
+export async function createManifestAsync(projectDir: string): Promise<Manifest> {
+  const { env } = getEnv(projectDir);
+  return { env };
 }
 
 interface WorkerFileEntry {
