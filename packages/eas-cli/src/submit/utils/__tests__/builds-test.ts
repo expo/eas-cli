@@ -29,9 +29,10 @@ const MOCK_BUILD_FRAGMENTS: Partial<BuildFragment>[] = Array(5).map(() => ({
   appVersion: '1.2.3',
   platform: AppPlatform.Android,
   updatedAt: Date.now(),
+  createdAt: Date.now(),
   status: BuildStatus.Finished,
 }));
-const MOCK_IN_PROGRESS_BUILD_FRAGMENTS: Partial<BuildFragment>[] = Array(5).map(() => ({
+const MOCK_IN_PROGRESS_BUILD_FRAGMENTS: Partial<BuildFragment>[] = Array(2).map(() => ({
   id: uuidv4(),
   artifacts: {
     buildUrl: ARCHIVE_SOURCE.url,
@@ -39,7 +40,30 @@ const MOCK_IN_PROGRESS_BUILD_FRAGMENTS: Partial<BuildFragment>[] = Array(5).map(
   appVersion: '1.2.3',
   platform: AppPlatform.Android,
   updatedAt: Date.now(),
+  createdAt: Date.now(),
   status: BuildStatus.InProgress,
+}));
+const MOCK_IN_QUEUE_BUILD_FRAGMENTS = Array(2).map(() => ({
+  id: uuidv4(),
+  artifacts: {
+    buildUrl: ARCHIVE_SOURCE.url,
+  },
+  appVersion: '1.2.3',
+  platform: AppPlatform.Android,
+  updatedAt: Date.now(),
+  createdAt: Date.now(),
+  status: BuildStatus.InQueue,
+}));
+const MOCK_NEW_BUILD_FRAGMENTS = Array(1).map(() => ({
+  id: uuidv4(),
+  artifacts: {
+    buildUrl: ARCHIVE_SOURCE.url,
+  },
+  appVersion: '1.2.3',
+  platform: AppPlatform.Android,
+  updatedAt: Date.now(),
+  createdAt: Date.now(),
+  status: BuildStatus.New,
 }));
 
 describe(getRecentBuildsForSubmissionAsync, () => {
@@ -49,13 +73,15 @@ describe(getRecentBuildsForSubmissionAsync, () => {
     graphqlClient = {} as any as ExpoGraphqlClient;
   });
 
-  it('returns finished builds if there are no in-progress builds', async () => {
+  it('returns finished builds', async () => {
     const appId = uuidv4();
     const limit = 2;
     jest
       .mocked(BuildQuery.viewBuildsOnAppAsync)
       .mockResolvedValueOnce([] as BuildFragment[])
-      .mockResolvedValueOnce(MOCK_BUILD_FRAGMENTS.slice(0, limit) as BuildFragment[]);
+      .mockResolvedValueOnce([] as BuildFragment[])
+      .mockResolvedValueOnce([] as BuildFragment[])
+      .mockResolvedValueOnce(MOCK_BUILD_FRAGMENTS.slice(0, Math.min(limit, MOCK_BUILD_FRAGMENTS.length)) as BuildFragment[]);
 
     const result = await getRecentBuildsForSubmissionAsync(
       graphqlClient,
@@ -64,14 +90,16 @@ describe(getRecentBuildsForSubmissionAsync, () => {
       { limit }
     );
 
-    expect(result).toMatchObject(MOCK_BUILD_FRAGMENTS.slice(0, limit));
+    expect(result).toMatchObject(MOCK_BUILD_FRAGMENTS.slice(0, Math.min(limit, MOCK_BUILD_FRAGMENTS.length)));
   });
-  it('returns in-progress builds if there are no finished builds', async () => {
+  it('returns in-progress builds', async () => {
     const appId = uuidv4();
     const limit = 2;
     jest
       .mocked(BuildQuery.viewBuildsOnAppAsync)
-      .mockResolvedValueOnce(MOCK_IN_PROGRESS_BUILD_FRAGMENTS.slice(0, limit) as BuildFragment[])
+      .mockResolvedValueOnce([] as BuildFragment[])
+      .mockResolvedValueOnce([] as BuildFragment[])
+      .mockResolvedValueOnce(MOCK_IN_PROGRESS_BUILD_FRAGMENTS.slice(0, Math.min(limit, MOCK_IN_PROGRESS_BUILD_FRAGMENTS.length)) as BuildFragment[])
       .mockResolvedValueOnce([] as BuildFragment[]);
 
     const result = await getRecentBuildsForSubmissionAsync(
@@ -81,15 +109,17 @@ describe(getRecentBuildsForSubmissionAsync, () => {
       { limit }
     );
 
-    expect(result).toMatchObject(MOCK_IN_PROGRESS_BUILD_FRAGMENTS.slice(0, limit));
+    expect(result).toMatchObject(MOCK_IN_PROGRESS_BUILD_FRAGMENTS.slice(0, Math.min(limit, MOCK_IN_PROGRESS_BUILD_FRAGMENTS.length)));
   });
-  it('returns in-progress builds if there are finished builds, but in-progress ones fill the limit', async () => {
+  it('returns in-queue builds', async () => {
     const appId = uuidv4();
     const limit = 2;
     jest
       .mocked(BuildQuery.viewBuildsOnAppAsync)
-      .mockResolvedValueOnce(MOCK_IN_PROGRESS_BUILD_FRAGMENTS.slice(0, limit) as BuildFragment[])
-      .mockResolvedValueOnce(MOCK_BUILD_FRAGMENTS.slice(0, limit) as BuildFragment[]);
+      .mockResolvedValueOnce([] as BuildFragment[])
+      .mockResolvedValueOnce(MOCK_IN_QUEUE_BUILD_FRAGMENTS.slice(0, Math.min(limit, MOCK_IN_QUEUE_BUILD_FRAGMENTS.length)) as BuildFragment[])
+      .mockResolvedValueOnce([] as BuildFragment[])
+      .mockResolvedValueOnce([] as BuildFragment[]);
 
     const result = await getRecentBuildsForSubmissionAsync(
       graphqlClient,
@@ -98,15 +128,17 @@ describe(getRecentBuildsForSubmissionAsync, () => {
       { limit }
     );
 
-    expect(result).toMatchObject(MOCK_IN_PROGRESS_BUILD_FRAGMENTS.slice(0, limit));
+    expect(result).toMatchObject(MOCK_IN_QUEUE_BUILD_FRAGMENTS.slice(0, Math.min(limit, MOCK_IN_QUEUE_BUILD_FRAGMENTS.length)));
   });
-  it("returns in-progress and finished builds if in-progress ones don't fill the limit", async () => {
+  it('returns new builds', async () => {
     const appId = uuidv4();
-    const limit = 4;
+    const limit = 2;
     jest
       .mocked(BuildQuery.viewBuildsOnAppAsync)
-      .mockResolvedValueOnce(MOCK_IN_PROGRESS_BUILD_FRAGMENTS.slice(0, 2) as BuildFragment[])
-      .mockResolvedValueOnce(MOCK_BUILD_FRAGMENTS.slice(0, 2) as BuildFragment[]);
+      .mockResolvedValueOnce(MOCK_NEW_BUILD_FRAGMENTS.slice(0, Math.min(limit, MOCK_NEW_BUILD_FRAGMENTS.length)) as BuildFragment[])
+      .mockResolvedValueOnce([] as BuildFragment[])
+      .mockResolvedValueOnce([] as BuildFragment[])
+      .mockResolvedValueOnce([] as BuildFragment[]);
 
     const result = await getRecentBuildsForSubmissionAsync(
       graphqlClient,
@@ -115,8 +147,25 @@ describe(getRecentBuildsForSubmissionAsync, () => {
       { limit }
     );
 
-    expect(result).toMatchObject(
-      MOCK_IN_PROGRESS_BUILD_FRAGMENTS.slice(0, 2).concat(MOCK_BUILD_FRAGMENTS.slice(0, 2))
+    expect(result).toMatchObject(MOCK_NEW_BUILD_FRAGMENTS.slice(0, Math.min(limit, MOCK_NEW_BUILD_FRAGMENTS.length)));
+  });
+  it('returns up to "limit" newest builds regardless of status', async () => {
+    const appId = uuidv4();
+    const limit = 2;
+    jest
+      .mocked(BuildQuery.viewBuildsOnAppAsync)
+      .mockResolvedValueOnce(MOCK_NEW_BUILD_FRAGMENTS.slice(0, Math.min(limit, MOCK_NEW_BUILD_FRAGMENTS.length)) as BuildFragment[])
+      .mockResolvedValueOnce(MOCK_IN_QUEUE_BUILD_FRAGMENTS.slice(0, Math.min(limit, MOCK_IN_QUEUE_BUILD_FRAGMENTS.length)) as BuildFragment[])
+      .mockResolvedValueOnce(MOCK_IN_PROGRESS_BUILD_FRAGMENTS.slice(0, Math.min(limit, MOCK_IN_PROGRESS_BUILD_FRAGMENTS.length)) as BuildFragment[])
+      .mockResolvedValueOnce(MOCK_BUILD_FRAGMENTS.slice(0, Math.min(limit, MOCK_BUILD_FRAGMENTS.length)) as BuildFragment[]);
+
+    const result = await getRecentBuildsForSubmissionAsync(
+      graphqlClient,
+      AppPlatform.Android,
+      appId,
+      { limit }
     );
+
+    expect(result).toMatchObject([MOCK_NEW_BUILD_FRAGMENTS[0], MOCK_IN_QUEUE_BUILD_FRAGMENTS[1]]);
   });
 });

@@ -8,29 +8,22 @@ export async function getRecentBuildsForSubmissionAsync(
   appId: string,
   { limit = 1 }: { limit?: number } = {}
 ): Promise<BuildFragment[]> {
-  const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
-    appId,
-    limit,
-    offset: 0,
-    filter: {
-      platform,
-      distribution: DistributionType.Store,
-      status: BuildStatus.InProgress,
-    },
-  });
-  const remainingLimit = limit - builds.length;
-  if (remainingLimit > 0) {
-    const finishedBuilds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
+  const allowedStatuses = [BuildStatus.New, BuildStatus.InQueue, BuildStatus.InProgress, BuildStatus.Finished];
+  const buildsPromises: Promise<BuildFragment[]>[] = [];
+  for (let buildStatus of allowedStatuses) {
+    buildsPromises.push(BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
       appId,
-      limit: remainingLimit,
+      limit: limit,
       offset: 0,
       filter: {
         platform,
         distribution: DistributionType.Store,
-        status: BuildStatus.Finished,
+        status: buildStatus,
       },
-    });
-    builds.push(...finishedBuilds);
+    }));
   }
-  return builds;
+  const builds = (await Promise.all(buildsPromises)).reduce((acc, value) => acc.concat(value), []);
+  builds.sort((buildA, buildB) => (buildA.createdAt > buildB.createdAt ? -1 : 1));
+
+  return builds.slice(0, limit);
 }
