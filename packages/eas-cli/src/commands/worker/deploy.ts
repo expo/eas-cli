@@ -27,6 +27,7 @@ interface DeployFlags {
   json: boolean;
   prod: boolean;
   aliasName?: string;
+  deploymentIdentifier?: string;
 }
 
 interface RawDeployFlags {
@@ -34,6 +35,7 @@ interface RawDeployFlags {
   json: boolean;
   prod: boolean;
   alias?: string;
+  id?: string;
 }
 
 export default class WorkerDeploy extends EasCommand {
@@ -51,6 +53,9 @@ export default class WorkerDeploy extends EasCommand {
     prod: Flags.boolean({
       description: 'Deploy to production',
       default: false,
+    }),
+    id: Flags.string({
+      description: 'A custom deployment identifier for the new deployment',
     }),
     // TODO(@kitten): Allow deployment identifier to be specified
     ...EasNonInteractiveAndJsonFlags,
@@ -124,6 +129,7 @@ export default class WorkerDeploy extends EasCommand {
     async function uploadTarballAsync(tarPath: string): Promise<any> {
       const uploadUrl = await getSignedDeploymentUrlAsync(graphqlClient, exp, {
         appId: projectId,
+        deploymentIdentifier: flags.deploymentIdentifier,
       });
 
       const { response } = await uploadAsync({
@@ -288,6 +294,7 @@ export default class WorkerDeploy extends EasCommand {
       json: flags['json'],
       prod: !!flags.prod,
       aliasName: flags.alias?.trim().toLowerCase(),
+      deploymentIdentifier: flags.id?.trim(),
     };
   }
 }
