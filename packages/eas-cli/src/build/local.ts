@@ -71,7 +71,7 @@ export async function runLocalBuildAsync(
     Log.debug('Running local build, using local-build-plugin', {
       command,
       args,
-      env: mergedEnv
+      env: mergedEnv,
     });
     const spawnPromise = spawnAsync(command, args, {
       stdio: options.verbose ? 'inherit' : 'pipe',
