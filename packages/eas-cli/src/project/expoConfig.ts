@@ -18,6 +18,7 @@ export type PublicExpoConfig = Omit<
 export interface ExpoConfigOptions {
   env?: Env;
   skipSDKVersionRequirement?: boolean;
+  skipPlugins?: boolean;
 }
 
 interface ExpoConfigOptionsInternal extends ExpoConfigOptions {
@@ -52,6 +53,7 @@ function getExpoConfigInternal(
     const { exp } = getConfig(projectDir, {
       skipSDKVersionRequirement: true,
       ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
+      ...(opts.skipPlugins ? { skipPlugins: true } : {}),
     });
 
     const { error } = MinimalAppConfigSchema.validate(exp, {

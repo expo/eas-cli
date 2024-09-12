@@ -15,6 +15,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Avoid merging `expo.extra` plugin-generated data with `expo.extra.eas.projectId` in `eas init`. ([#2554](https://github.com/expo/eas-cli/pull/2554) by [@byCedric](https://github.com/byCedric)))
+
 ### 🧹 Chores
 
 - Make error message for invalid CFBundleShortVersionString more descriptive and actionable. Improve CFBundleShortVersionString validation regex. ([#2542](https://github.com/expo/eas-cli/pull/2542) by [@szdziedzic](https://github.com/szdziedzic))

@@ -18,13 +18,15 @@ import { Actor, getActorUsername } from '../../../user/User';
  * Save an EAS project ID to the appropriate field in the app config.
  *
  * @deprecated Should not be used outside of context functions except in the init command.
+ * @deprecated Starting from `@expo/config` from SDK 52, the `modifyConfigAsync` function is merging existing data. Once this is released, we can use that instead of manually merging.
  */
 export async function saveProjectIdToAppConfigAsync(
   projectDir: string,
   projectId: string,
   options: { env?: Env } = {}
 ): Promise<void> {
-  const exp = getPrivateExpoConfig(projectDir, options);
+  // NOTE(cedric): we disable plugins to avoid writing plugin-generated content to `expo.extra`
+  const exp = getPrivateExpoConfig(projectDir, { skipPlugins: true, ...options });
   const result = await createOrModifyExpoConfigAsync(
     projectDir,
     {
