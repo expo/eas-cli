@@ -33,13 +33,13 @@ interface DeployFlags {
 interface RawDeployFlags {
   'non-interactive': boolean;
   json: boolean;
-  production: boolean;
+  prod: boolean;
   alias?: string;
   id?: string;
 }
 
 export default class WorkerDeploy extends EasCommand {
-  static override description = 'deploy an Expo web build';
+  static override description = 'Deploy your Expo web build';
   static override aliases = ['deploy'];
 
   // TODO(@kitten): Keep command hidden until worker deployments are live
@@ -48,15 +48,17 @@ export default class WorkerDeploy extends EasCommand {
 
   static override flags = {
     alias: Flags.string({
-      description: 'Custom alias for the deployment',
+      description: 'Custom alias to assign to the new deployment',
+      helpValue: 'name',
     }),
-    production: Flags.boolean({
-      aliases: ['prod'],
-      description: 'Deploy to production',
+    prod: Flags.boolean({
+      aliases: ['production'],
+      description: 'Create a new production deployment',
       default: false,
     }),
     id: Flags.string({
-      description: 'A custom deployment identifier for the new deployment',
+      description: 'Custom unique identifier for the new deployment',
+      helpValue: 'xyz123'
     }),
     // TODO(@kitten): Allow deployment identifier to be specified
     ...EasNonInteractiveAndJsonFlags,
@@ -293,7 +295,7 @@ export default class WorkerDeploy extends EasCommand {
     return {
       nonInteractive: flags['non-interactive'],
       json: flags['json'],
-      isProduction: !!flags.production,
+      isProduction: !!flags.prod,
       aliasName: flags.alias?.trim().toLowerCase(),
       deploymentIdentifier: flags.id?.trim(),
     };
