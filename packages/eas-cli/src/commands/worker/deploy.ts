@@ -15,6 +15,7 @@ import {
   getSignedDeploymentUrlAsync,
 } from '../../worker/deployment';
 import { UploadParams, batchUploadAsync, uploadAsync } from '../../worker/upload';
+import formatFields from '../../utils/formatFields';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
   fs.promises
@@ -41,6 +42,10 @@ interface RawDeployFlags {
 export default class WorkerDeploy extends EasCommand {
   static override description = 'Deploy your Expo web build';
   static override aliases = ['deploy'];
+  static override usage = [
+    chalk`deploy {dim [options]}`,
+    `deploy --prod`,
+  ];
 
   // TODO(@kitten): Keep command hidden until worker deployments are live
   static override hidden = true;
@@ -58,7 +63,7 @@ export default class WorkerDeploy extends EasCommand {
     }),
     id: Flags.string({
       description: 'Custom unique identifier for the new deployment',
-      helpValue: 'xyz123'
+      helpValue: 'xyz123',
     }),
     // TODO(@kitten): Allow deployment identifier to be specified
     ...EasNonInteractiveAndJsonFlags,
@@ -190,9 +195,9 @@ export default class WorkerDeploy extends EasCommand {
           const details = chalk.dim(
             `(${progress.pending} Pending, ${progress.transferred} Completed, ${progress.total} Total)`
           );
-          return `Uploading client assets: ${percent.padStart(3)}% ${details}`;
+          return `Uploading assets: ${percent.padStart(3)}% ${details}`;
         },
-        completedMessage: 'Uploaded assets for serverless deployment',
+        completedMessage: 'Uploaded assets',
       });
 
       try {
@@ -212,9 +217,11 @@ export default class WorkerDeploy extends EasCommand {
       updateProgress({ isComplete: true });
     }
 
-    let progress = ora('Preparing worker upload');
     let assetMap: WorkerAssets.AssetMap;
     let tarPath: string;
+    let deployResult: any;
+    let progress = ora('Preparing project').start();
+
     try {
       assetMap = await WorkerAssets.createAssetMapAsync(distClientPath);
       const manifest = await WorkerAssets.createManifestAsync(projectDir);
@@ -224,71 +231,61 @@ export default class WorkerDeploy extends EasCommand {
           manifest,
         })
       );
-    } catch (error: any) {
-      progress.fail('Failed to prepare worker upload');
-      throw error;
-    }
-    progress.succeed('Prepared worker upload');
 
-    progress = ora('Creating worker deployment');
-    let deployResult: any;
-    try {
+      progress.text = 'Creating deployment';
       deployResult = await uploadTarballAsync(tarPath);
+      progress.succeed('Created deployment');
     } catch (error: any) {
-      progress.fail('Failed to create worker deployment');
+      progress.fail('Failed to create deployment');
       throw error;
     }
-    progress.succeed('Created worker deployment');
 
     await uploadAssetsAsync(assetMap, deployResult.uploads);
 
+    let deploymentAliasUrl: string | null = null;
     if (flags.aliasName) {
-      progress = ora(chalk`Assigning alias {bold ${flags.aliasName}} to worker deployment`).start();
+      progress = ora(chalk`Assigning alias {bold ${flags.aliasName}} to deployment`).start();
       try {
-        await assignWorkerDeploymentAliasAsync({
+        const workerAlias = await assignWorkerDeploymentAliasAsync({
           graphqlClient,
           appId: projectId,
           deploymentId: deployResult.id,
           aliasName: flags.aliasName,
         });
-        progress.succeed(chalk`Assigned alias {bold ${flags.aliasName}} to worker deployment`);
+        deploymentAliasUrl = workerAlias.url;
+        progress.succeed(chalk`Assigned alias {bold ${flags.aliasName}} to deployment`);
       } catch (error: any) {
-        progress.fail(chalk`Failed to assign {bold ${flags.aliasName}} alias to worker deployment`);
+        progress.fail(chalk`Failed to assign {bold ${flags.aliasName}} alias to deployment`);
+        throw error;
+      }
+    }
+
+    let deploymentProductionUrl: string | null = null;
+    if (flags.isProduction) {
+      try {
+        progress = ora('Promoting deployment to production').start();
+        const workerProdAlias = await assignWorkerDeploymentProductionAsync({
+          graphqlClient,
+          appId: projectId,
+          deploymentId: deployResult.id,
+        });
+
+        deploymentProductionUrl = workerProdAlias.url;
+        progress.succeed('Promoted deployment to production');
+      } catch (error: any) {
+        progress.fail('Failed to promote deployment to production');
         throw error;
       }
     }
 
     const expoBaseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
-    const dashboardUrl = `https://${expoBaseDomain}.dev/projects/${projectId}/serverless/deployments`;
 
-    if (!flags.isProduction) {
-      logDeployment({
-        dashboardUrl,
-        deploymentUrl: `https://${deployResult.fullName}.${expoBaseDomain}.app`,
-        isProduction: false,
-      });
-      return;
-    }
-
-    progress = ora('Assigning worker deployment to production').start();
-    try {
-      const workerProdAlias = await assignWorkerDeploymentProductionAsync({
-        graphqlClient,
-        appId: projectId,
-        deploymentId: deployResult.id,
-      });
-
-      progress.succeed('Assigned worker deployment to production');
-
-      logDeployment({
-        dashboardUrl,
-        deploymentUrl: workerProdAlias.url,
-        isProduction: true,
-      });
-    } catch (error: any) {
-      progress.fail('Failed to assign worker deployment to production');
-      throw error;
-    }
+    logDeployment({
+      expoDashboardUrl: `https://${expoBaseDomain}.dev/projects/${projectId}/serverless/deployments`,
+      deploymentUrl: `https://${deployResult.fullName}.${expoBaseDomain}.app`,
+      aliasedUrl: deploymentAliasUrl,
+      productionUrl: deploymentProductionUrl,
+    });
   }
 
   private sanitizeFlags(flags: RawDeployFlags): DeployFlags {
@@ -302,23 +299,32 @@ export default class WorkerDeploy extends EasCommand {
   }
 }
 
-function logDeployment({
-  deploymentUrl,
-  dashboardUrl,
-  isProduction,
-}: {
+type LogDeploymentOptions = {
+  expoDashboardUrl: string;
   deploymentUrl: string;
-  dashboardUrl: string;
-  isProduction: boolean;
-}): void {
-  Log.addNewLineIfNone();
-  Log.log(`🎉 Your worker deployment is ready: ${deploymentUrl}`);
-  Log.addNewLineIfNone();
-  Log.log(`🔗 Manage on EAS: ${dashboardUrl}`);
+  aliasedUrl?: string | null;
+  productionUrl?: string | null;
+};
 
-  if (!isProduction) {
+function logDeployment(options: LogDeploymentOptions) {
+  Log.addNewLineIfNone();
+  Log.log(`🚀 Your deployment is ready`);
+  Log.addNewLineIfNone();
+
+  Log.log(
+    formatFields([
+      { label: '🎛️ Dashboard URL', value: options.expoDashboardUrl },
+      { label: '🔗 Deployment URL', value: options.deploymentUrl },
+      ...(options.aliasedUrl ? [{ label: '🔗 Aliased URL', value: options.aliasedUrl }] : []),
+      ...(options.productionUrl
+        ? [{ label: '🌐 Production URL', value: options.productionUrl }]
+        : []),
+    ])
+  );
+
+  if (!options.productionUrl) {
     Log.addNewLineIfNone();
-    Log.log('🚀 If you are ready to deploy to production, run this command with "--prod"');
+    Log.log('🚢 If you are ready to deploy to production:');
     Log.log(chalk`  {dim $} eas deploy {bold --prod}`);
   }
 }
