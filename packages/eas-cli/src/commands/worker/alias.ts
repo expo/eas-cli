@@ -6,6 +6,7 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import Log from '../../log';
 import { ora } from '../../ora';
 import { promptAsync } from '../../prompts';
+import formatFields from '../../utils/formatFields';
 import {
   assignWorkerDeploymentAliasAsync,
   selectWorkerDeploymentOnAppAsync,
@@ -58,29 +59,35 @@ export default class WorkerAlias extends EasCommand {
       flagId: flags.id,
     });
 
-    const progress = ora(chalk`Assigning alias {bold ${aliasName}} to deployment {bold ${deploymentId}}`).start();
+    const progress = ora(
+      chalk`Assigning alias {bold ${aliasName}} to deployment {bold ${deploymentId}}`
+    ).start();
     const workerAlias = await assignWorkerDeploymentAliasAsync({
       graphqlClient,
       appId: projectId,
       deploymentId,
       aliasName,
-    })
-      .catch((error) => {
-        progress.fail(chalk`Failed to assign {bold ${flags.aliasName}} alias to deployment {bold ${deploymentId}}`);
-        throw error;
-      });
+    }).catch(error => {
+      progress.fail(
+        chalk`Failed to assign {bold ${aliasName}} alias to deployment {bold ${deploymentId}}`
+      );
+      throw error;
+    });
 
     progress.succeed(
-      chalk`Assigned alias {bold ${flags.aliasName}} to deployment {bold ${deploymentId}}`
+      chalk`Assigned alias {bold ${aliasName}} to deployment {bold ${deploymentId}}`
     );
 
-    const baseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
-    const aliasUrl = `https://${baseDomain}.dev/projects/${projectId}/serverless/deployments`;
+    const expoBaseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
+    const expoDashboardUrl = `https://${expoBaseDomain}.dev/projects/${projectId}/serverless/deployments`;
 
     Log.addNewLineIfNone();
-    Log.log(`🎉 Your deployment is now available on: ${workerAlias.url}`);
-    Log.addNewLineIfNone();
-    Log.log(`🔗 Manage on EAS: ${aliasUrl}`);
+    Log.log(
+      formatFields([
+        { label: 'Dashboard', value: expoDashboardUrl },
+        { label: 'Aliased URL', value: chalk.cyan(workerAlias.url) },
+      ])
+    );
   }
 }
 
