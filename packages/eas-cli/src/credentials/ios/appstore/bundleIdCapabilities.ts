@@ -747,7 +747,47 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     validateOptions: validateBooleanOptions,
     getOptions: getBooleanOptions,
   },
-
+  {
+    entitlement: 'com.apple.developer.journal.allow',
+    name: 'Journaling Suggestions',
+    capability: CapabilityType.JOURNALING_SUGGESTIONS,
+    validateOptions: createValidateStringArrayOptions(['suggestions']),
+    getOptions: getDefinedOptions,
+  },
+  {
+    entitlement: 'com.apple.developer.managed-app-distribution.install-ui',
+    name: 'Managed App Installation UI',
+    capability: CapabilityType.MANAGED_APP_INSTALLATION_UI,
+    validateOptions: createValidateStringArrayOptions(['managed-app']),
+    getOptions: getDefinedOptions,
+  },
+  {
+    entitlement: 'com.apple.developer.networking.slicing.appcategory',
+    name: '5G Network Slicing',
+    capability: CapabilityType.NETWORK_SLICING,
+    validateOptions: createValidateStringArrayOptions([
+      'gaming-6014',
+      'communication-9000',
+      'streaming-9001',
+    ]),
+    getOptions: getDefinedOptions,
+  },
+  {
+    entitlement: 'com.apple.developer.networking.slicing.trafficcategory',
+    name: '5G Network Slicing',
+    capability: CapabilityType.NETWORK_SLICING,
+    validateOptions: createValidateStringArrayOptions([
+      'defaultslice-1',
+      'video-2',
+      'background-3',
+      'voice-4',
+      'callsignaling-5',
+      'responsivedata-6',
+      'avstreaming-7',
+      'responsiveav-8',
+    ]),
+    getOptions: getDefinedOptions,
+  },
   // VMNET
 
   // These don't appear to have entitlements, so it's unclear how we can automatically enable / disable them at this time.

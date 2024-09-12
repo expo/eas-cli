@@ -8,6 +8,7 @@ import { getProjectDashboardUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../../commandUtils/context/contextUtils/getProjectIdAsync';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { AppPrivacy, Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -33,14 +34,10 @@ export default class ProjectInit extends EasCommand {
       description: 'ID of the EAS project to link',
     }),
     force: Flags.boolean({
-      description: 'Whether to overwrite any existing project ID',
-      dependsOn: ['id'],
+      description:
+        'Whether to create a new project/link an existing project without additional prompts or overwrite any existing project ID when running with --id flag',
     }),
-    // this is the same as EASNonInteractiveFlag but with the dependsOn
-    'non-interactive': Flags.boolean({
-      description: 'Run the command in non-interactive mode.',
-      dependsOn: ['id'],
-    }),
+    ...EASNonInteractiveFlag,
   };
 
   static override contextDefinition = {
@@ -216,10 +213,11 @@ export default class ProjectInit extends EasCommand {
     });
   }
 
-  private static async initializeWithInteractiveSelectionAsync(
+  private static async initializeWithoutExplicitIDAsync(
     graphqlClient: ExpoGraphqlClient,
     actor: Actor,
-    projectDir: string
+    projectDir: string,
+    { force, nonInteractive }: InitializeMethodOptions
   ): Promise<string> {
     const exp = getPrivateExpoConfig(projectDir);
     const existingProjectId = exp.extra?.eas?.projectId;
@@ -245,6 +243,20 @@ export default class ProjectInit extends EasCommand {
     if (!accountName) {
       if (allAccounts.length === 1) {
         accountName = allAccounts[0].name;
+      } else if (nonInteractive) {
+        if (!force) {
+          throw new Error(
+            `There are multiple accounts that you have access to: ${allAccounts
+              .map(a => a.name)
+              .join(
+                ', '
+              )}. Explicitly set the owner property in your app config or run this command with the --force flag to proceed with a default account: ${
+              allAccounts[0].name
+            }.`
+          );
+        }
+        accountName = allAccounts[0].name;
+        Log.log(`Using default account ${accountName} for non-interactive and force mode`);
       } else {
         const choices = ProjectInit.getAccountChoices(
           actor,
@@ -274,13 +286,21 @@ export default class ProjectInit extends EasCommand {
       projectName
     );
     if (existingProjectIdOnServer) {
-      const affirmedLink = await confirmAsync({
-        message: `Existing project found: ${projectFullName} (ID: ${existingProjectIdOnServer}). Link this project?`,
-      });
-      if (!affirmedLink) {
-        throw new Error(
-          `Project ID configuration canceled. Re-run the command to select a different account/project.`
-        );
+      if (!force) {
+        if (nonInteractive) {
+          throw new Error(
+            `Existing project found: ${projectFullName} (ID: ${existingProjectIdOnServer}). Use --force flag to continue with this project.`
+          );
+        }
+
+        const affirmedLink = await confirmAsync({
+          message: `Existing project found: ${projectFullName} (ID: ${existingProjectIdOnServer}). Link this project?`,
+        });
+        if (!affirmedLink) {
+          throw new Error(
+            `Project ID configuration canceled. Re-run the command to select a different account/project.`
+          );
+        }
       }
 
       await ProjectInit.saveProjectIdAndLogSuccessAsync(projectDir, existingProjectIdOnServer);
@@ -293,11 +313,18 @@ export default class ProjectInit extends EasCommand {
       );
     }
 
-    const affirmedCreate = await confirmAsync({
-      message: `Would you like to create a project for ${projectFullName}?`,
-    });
-    if (!affirmedCreate) {
-      throw new Error(`Project ID configuration canceled for ${projectFullName}.`);
+    if (!force) {
+      if (nonInteractive) {
+        throw new Error(
+          `Project does not exist: ${projectFullName}. Use --force flag to create this project.`
+        );
+      }
+      const affirmedCreate = await confirmAsync({
+        message: `Would you like to create a project for ${projectFullName}?`,
+      });
+      if (!affirmedCreate) {
+        throw new Error(`Project ID configuration canceled for ${projectFullName}.`);
+      }
     }
 
     const projectDashboardUrl = getProjectDashboardUrl(accountName, projectName);
@@ -405,10 +432,14 @@ export default class ProjectInit extends EasCommand {
       });
       idForConsistency = idArgument;
     } else {
-      idForConsistency = await ProjectInit.initializeWithInteractiveSelectionAsync(
+      idForConsistency = await ProjectInit.initializeWithoutExplicitIDAsync(
         graphqlClient,
         actor,
-        projectDir
+        projectDir,
+        {
+          force,
+          nonInteractive,
+        }
       );
     }
 

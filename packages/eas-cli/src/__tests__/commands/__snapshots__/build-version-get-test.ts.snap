@@ -1,3 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`BuildVersionGetView reading version aborts when the appVersionSource is not specified and the user chooses to set it to LOCAL 1`] = `"Aborting..."`;
+
 exports[`BuildVersionGetView reading version when appVersionSource is set to local  1`] = `"This project is not configured for using remote version source. Add [1m{"cli": { "appVersionSource": "remote" }}[22m in eas.json or re-run this command without "--non-interactive" flag."`;

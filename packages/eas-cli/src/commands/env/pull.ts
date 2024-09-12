@@ -9,7 +9,7 @@ import Log from '../../log';
 import { confirmAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
-export default class EnvironmentValuePull extends EasCommand {
+export default class EnvironmentVariablePull extends EasCommand {
   static override description = 'pull env file';
 
   static override hidden = true;
@@ -31,7 +31,7 @@ export default class EnvironmentValuePull extends EasCommand {
   async runAsync(): Promise<void> {
     let {
       flags: { environment, path: targetPath, 'non-interactive': nonInteractive },
-    } = await this.parse(EnvironmentValuePull);
+    } = await this.parse(EnvironmentVariablePull);
 
     if (!environment) {
       environment = await promptVariableEnvironmentAsync(nonInteractive);
@@ -39,7 +39,7 @@ export default class EnvironmentValuePull extends EasCommand {
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentValuePull, {
+    } = await this.getContextAsync(EnvironmentVariablePull, {
       nonInteractive,
     });
 
@@ -75,6 +75,20 @@ export default class EnvironmentValuePull extends EasCommand {
       .join('\n');
     await fs.writeFile(targetPath, filePrefix + envFileContent);
 
-    Log.log(`Pulled environment variables from ${environment} environment to ${targetPath}.`);
+    const secretEnvVariables = environmentVariables.filter(
+      (variable: EnvironmentVariableFragment) => variable.value === null
+    );
+    if (secretEnvVariables.length > 0) {
+      Log.warn(
+        `The eas env:pull command tried to pull environment variables with "secret" visibility. The variables with "secret" visibility are not available for reading, therefore thet were marked as "*****" in the generated .env file. Provide values for these manually in ${targetPath} if needed. Skipped variables: ${secretEnvVariables
+          .map(v => v.name)
+          .join('\n')}`
+      );
+      Log.warn();
+    }
+
+    Log.log(
+      `Pulled environment variables from ${environment.toLowerCase()} environment to ${targetPath}.`
+    );
   }
 }

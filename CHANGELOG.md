@@ -12,6 +12,39 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Make error message for invalid CFBundleShortVersionString more descriptive and actionable. Improve CFBundleShortVersionString validation regex. ([#2542](https://github.com/expo/eas-cli/pull/2542) by [@szdziedzic](https://github.com/szdziedzic))
+- Add missing `--non-interactive` argument to `worker:deploy` command. ([#2544](https://github.com/expo/eas-cli/pull/2544) by [@kitten](https://github.com/kitten))
+- Source `@expo/env` dotenv files for worker deployments. ([#2545](https://github.com/expo/eas-cli/pull/2545) by [@kitten](https://github.com/kitten))
+
+## [12.3.0](https://github.com/expo/eas-cli/releases/tag/v12.3.0) - 2024-09-09
+
+### 🎉 New features
+
+- Add `--non-interactive` and `--force` support when `--id` is not passed to the `eas init` command. ([#1983](https://github.com/expo/eas-cli/pull/1983) by [@mymattcarroll](https://github.com/mymattcarroll))
+
+## [12.1.1](https://github.com/expo/eas-cli/releases/tag/v12.1.1) - 2024-09-09
+
+### 🐛 Bug fixes
+
+- Fixed an issue where extensions retrieved the main app's entitlements instead of their own. ([#2532](https://github.com/expo/eas-cli/pull/2532) by [@HarrisHan](https://github.com/HarrisHan))
+
+## [12.1.0](https://github.com/expo/eas-cli/releases/tag/v12.1.0) - 2024-09-06
+
+### 🎉 New features
+
+- **Internal/Experimental:** Add EAS Worker command ([#2447](https://github.com/expo/eas-cli/pull/2447) by [@kitten](https://github.com/kitten))
+- Upload fingeprint source as part of eas update command. ([#2533](https://github.com/expo/eas-cli/pull/2533) by [@wschurman](https://github.com/wschurman))
+
+## [12.0.0](https://github.com/expo/eas-cli/releases/tag/v12.0.0) - 2024-09-04
+
+### 🛠 Breaking changes
+
+- Prompt the users to set `appVersionSource`, while mentioning that `remote` is the default. ([#2411](https://github.com/expo/eas-cli/pull/2411) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
+### 🎉 New features
+
+- Add support for syncing Journaling Suggestions, Managed App Installation UI, and 5G Network Slicing capabilities. ([#2525](https://github.com/expo/eas-cli/pull/2525) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [11.0.3](https://github.com/expo/eas-cli/releases/tag/v11.0.3) - 2024-08-31
 
 ### 🐛 Bug fixes

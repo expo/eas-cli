@@ -96,6 +96,7 @@ export default class Config extends EasCommand {
       const { exp: appConfig } = await evaluateConfigWithEnvVarsAsync({
         flags,
         buildProfile: profile,
+        buildProfileName: profileName,
         graphqlClient,
         getProjectConfig: getDynamicPublicProjectConfigAsync,
         opts: { env: profile.env },

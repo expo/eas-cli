@@ -58,8 +58,9 @@ import {
   validateAppVersionRuntimePolicySupportAsync,
 } from '../project/projectUtils';
 import {
+  ensureAppVersionSourceIsSetAsync,
   validateAppConfigForRemoteVersionSource,
-  validateBuildProfileVersionSettings,
+  validateBuildProfileVersionSettingsAsync,
 } from '../project/remoteVersionSource';
 import { confirmAsync } from '../prompts';
 import { runAsync } from '../run/run';
@@ -168,7 +169,12 @@ export async function runBuildAndSubmitAsync(
   const customBuildConfigMetadataByPlatform: { [p in AppPlatform]?: CustomBuildConfigMetadata } =
     {};
   for (const buildProfile of buildProfiles) {
-    validateBuildProfileVersionSettings(buildProfile, easJsonCliConfig);
+    await validateBuildProfileVersionSettingsAsync(
+      buildProfile,
+      easJsonCliConfig,
+      projectDir,
+      flags
+    );
     const maybeMetadata = await validateCustomBuildConfigAsync({
       projectDir,
       profile: buildProfile.profile,
@@ -191,16 +197,11 @@ export async function runBuildAndSubmitAsync(
     const { env } = await evaluateConfigWithEnvVarsAsync({
       flags,
       buildProfile: buildProfile.profile,
+      buildProfileName: buildProfile.profileName,
       graphqlClient,
       getProjectConfig: getDynamicPrivateProjectConfigAsync,
       opts: { env: buildProfile.profile.env },
     });
-
-    Log.log(
-      `Loaded "env" configuration for the "${buildProfile.profileName}" profile: ${
-        env ? Object.keys(env).join(', ') : 'no environment variables specified'
-      }. ${learnMore('https://docs.expo.dev/build-reference/variables/')}`
-    );
 
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
@@ -425,6 +426,25 @@ async function prepareAndStartBuildAsync({
   }
 
   await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
+  if (
+    easJsonCliConfig?.appVersionSource === undefined &&
+    buildProfile.profile.autoIncrement !== 'version'
+  ) {
+    if (buildProfile.profile.autoIncrement !== true) {
+      Log.warn(
+        `The field "cli.appVersionSource" is not set, but it will be required in the future. ${learnMore(
+          'https://docs.expo.dev/build-reference/app-versions/'
+        )}`
+      );
+    } else {
+      const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+      easJsonCliConfig = await ensureAppVersionSourceIsSetAsync(
+        easJsonAccessor,
+        easJsonCliConfig,
+        flags.nonInteractive
+      );
+    }
+  }
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
   }
