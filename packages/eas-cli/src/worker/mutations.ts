@@ -73,7 +73,7 @@ export const DeploymentsMutation = {
 
   async assignAliasAsync(
     graphqlClient: ExpoGraphqlClient,
-    aliasVariables: { appId: string; deploymentId: string; aliasName: string }
+    aliasVariables: { appId: string; deploymentId: string; aliasName: string | null }
   ): Promise<AssignAliasMutation['deployments']['assignAlias']> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -82,7 +82,7 @@ export const DeploymentsMutation = {
             mutation AssignAlias(
               $appId: ID!
               $deploymentId: ID!
-              $aliasName: WorkerDeploymentIdentifier!
+              $aliasName: WorkerDeploymentIdentifier
             ) {
               deployments {
                 assignAlias(

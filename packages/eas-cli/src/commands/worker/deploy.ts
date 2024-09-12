@@ -1,3 +1,4 @@
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'node:fs';
 import * as path from 'node:path';
@@ -8,7 +9,10 @@ import Log from '../../log';
 import { ora } from '../../ora';
 import { createProgressTracker } from '../../utils/progress';
 import * as WorkerAssets from '../../worker/assets';
-import { getSignedDeploymentUrlAsync } from '../../worker/deployment';
+import {
+  assignWorkerDeploymentProductionAsync,
+  getSignedDeploymentUrlAsync,
+} from '../../worker/deployment';
 import { UploadParams, batchUploadAsync, uploadAsync } from '../../worker/upload';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
@@ -20,11 +24,13 @@ const isDirectory = (directoryPath: string): Promise<boolean> =>
 interface DeployFlags {
   nonInteractive: boolean;
   json: boolean;
+  prod: boolean;
 }
 
 interface RawDeployFlags {
   'non-interactive': boolean;
   json: boolean;
+  prod: boolean;
 }
 
 export default class WorkerDeploy extends EasCommand {
@@ -36,6 +42,10 @@ export default class WorkerDeploy extends EasCommand {
   static override state = 'beta';
 
   static override flags = {
+    prod: Flags.boolean({
+      description: 'Deploy to production',
+      default: false,
+    }),
     // TODO(@kitten): Allow deployment identifier to be specified
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -217,20 +227,65 @@ export default class WorkerDeploy extends EasCommand {
 
     await uploadAssetsAsync(assetMap, deployResult.uploads);
 
-    const baseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
-    const deploymentURL = `https://${deployResult.fullName}.${baseDomain}.app`;
-    const deploymentsUrl = `https://${baseDomain}.dev/accounts/${exp.owner}/projects/${deployResult.name}/serverless/deployments`;
+    const expoBaseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
+    const dashboardUrl = `https://${expoBaseDomain}.dev/projects/${projectId}/serverless/deployments`;
 
-    Log.addNewLineIfNone();
-    Log.log(`🎉 Your worker deployment is ready: ${deploymentURL}`);
-    Log.addNewLineIfNone();
-    Log.log(`🔗 Manage on EAS: ${deploymentsUrl}`);
+    if (!flags.prod) {
+      logDeployment({
+        dashboardUrl,
+        deploymentUrl: `https://${deployResult.fullName}.${expoBaseDomain}.app`,
+        isProduction: false,
+      });
+      return;
+    }
+
+    progress = ora('Assigning worker deployment to production').start();
+    try {
+      const workerProdAlias = await assignWorkerDeploymentProductionAsync({
+        graphqlClient,
+        appId: projectId,
+        deploymentId: deployResult.id,
+      });
+
+      progress.succeed('Assigned worker deployment to production');
+
+      logDeployment({
+        dashboardUrl,
+        deploymentUrl: workerProdAlias.url,
+        isProduction: true,
+      });
+    } catch (error: any) {
+      progress.fail('Failed to assign worker deployment to production');
+      throw error;
+    }
   }
 
   private sanitizeFlags(flags: RawDeployFlags): DeployFlags {
     return {
       nonInteractive: flags['non-interactive'],
       json: flags['json'],
+      prod: !!flags.prod,
     };
+  }
+}
+
+function logDeployment({
+  deploymentUrl,
+  dashboardUrl,
+  isProduction,
+}: {
+  deploymentUrl: string;
+  dashboardUrl: string;
+  isProduction: boolean;
+}): void {
+  Log.addNewLineIfNone();
+  Log.log(`🎉 Your worker deployment is ready: ${deploymentUrl}`);
+  Log.addNewLineIfNone();
+  Log.log(`🔗 Manage on EAS: ${dashboardUrl}`);
+
+  if (!isProduction) {
+    Log.addNewLineIfNone();
+    Log.log('🚀 If you are ready to deploy to production, run this command with "--prod"');
+    Log.log(chalk`  {dim $} eas deploy {bold --prod}`);
   }
 }
