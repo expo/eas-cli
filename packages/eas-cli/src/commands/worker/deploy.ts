@@ -15,7 +15,7 @@ import {
   getSignedDeploymentUrlAsync,
 } from '../../worker/deployment';
 import { UploadParams, batchUploadAsync, uploadAsync } from '../../worker/upload';
-import formatFields from '../../utils/formatFields';
+import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
   fs.promises
@@ -255,7 +255,11 @@ export default class WorkerDeploy extends EasCommand {
           aliasName: flags.aliasName,
         });
         deploymentAliasUrl = workerAlias.url;
-        progress.succeed(chalk`Assigned alias {bold ${flags.aliasName}} to deployment`);
+
+        // Only stop the spinner when not promoting to production
+        if (!flags.isProduction) {
+          progress.succeed(chalk`Assigned alias {bold ${flags.aliasName}} to deployment`);
+        }
       } catch (error: any) {
         progress.fail(chalk`Failed to assign {bold ${flags.aliasName}} alias to deployment`);
         throw error;
@@ -265,15 +269,24 @@ export default class WorkerDeploy extends EasCommand {
     let deploymentProductionUrl: string | null = null;
     if (flags.isProduction) {
       try {
-        progress = ora('Promoting deployment to production').start();
+        if (!flags.aliasName) {
+          progress = ora('Promoting deployment to production').start();
+        } else {
+          progress.text = 'Promoting deployment to production';
+        }
+
         const workerProdAlias = await assignWorkerDeploymentProductionAsync({
           graphqlClient,
           appId: projectId,
           deploymentId: deployResult.id,
         });
-
         deploymentProductionUrl = workerProdAlias.url;
-        progress.succeed('Promoted deployment to production');
+
+        progress.succeed(
+          !flags.aliasName
+            ? chalk`Promoted deployment to {bold production}`
+            : chalk`Promoted deployment to {bold production} with alias {bold ${flags.aliasName}}`
+        );
       } catch (error: any) {
         progress.fail('Failed to promote deployment to production');
         throw error;
@@ -310,24 +323,30 @@ type LogDeploymentOptions = {
 
 function logDeployment(options: LogDeploymentOptions) {
   Log.addNewLineIfNone();
-  Log.log(`🚀 Your deployment is ready`);
+  Log.log(`🎉 Your deployment is ready`);
   Log.addNewLineIfNone();
 
-  Log.log(
-    formatFields([
-      { label: 'Dashboard URL', value: options.expoDashboardUrl },
-      { label: 'Deployment URL', value: options.deploymentUrl },
-      ...(options.aliasedUrl ? [{ label: 'Aliased URL', value: options.aliasedUrl }] : []),
-      ...(options.productionUrl
-        ? [{ label: 'Production URL', value: options.productionUrl }]
-        : []),
-    ])
-  );
+  const fields: FormatFieldsItem[] = [
+    { label: 'Dashboard', value: options.expoDashboardUrl },
+    { label: 'Deployment URL', value: options.deploymentUrl },
+  ];
+
+  if (options.aliasedUrl) {
+    fields.push({ label: 'Aliased URL', value: options.aliasedUrl });
+  }
+  if (options.productionUrl) {
+    fields.push({ label: 'Production URL', value: options.productionUrl });
+  }
+
+  const lastUrlField = fields[fields.length - 1];
+  lastUrlField.value = chalk.cyan(lastUrlField.value);
+
+  Log.log(formatFields(fields));
 
   if (!options.productionUrl) {
     Log.addNewLineIfNone();
-    Log.log('🚢 If you are ready to deploy to production:');
-    Log.log(chalk`  {dim $} eas deploy {bold --prod}`);
+    Log.log('🚀 If you are ready to deploy to production:');
+    Log.log(chalk`  $ eas deploy {underline --prod}`);
   }
 }
 
