@@ -7,6 +7,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import Log from '../../log';
 import { ora } from '../../ora';
+import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
 import { createProgressTracker } from '../../utils/progress';
 import * as WorkerAssets from '../../worker/assets';
 import {
@@ -15,7 +16,6 @@ import {
   getSignedDeploymentUrlAsync,
 } from '../../worker/deployment';
 import { UploadParams, batchUploadAsync, uploadAsync } from '../../worker/upload';
-import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
   fs.promises
@@ -42,10 +42,7 @@ interface RawDeployFlags {
 export default class WorkerDeploy extends EasCommand {
   static override description = 'Deploy your Expo web build';
   static override aliases = ['deploy'];
-  static override usage = [
-    chalk`deploy {dim [options]}`,
-    `deploy --prod`,
-  ];
+  static override usage = [chalk`deploy {dim [options]}`, `deploy --prod`];
 
   // TODO(@kitten): Keep command hidden until worker deployments are live
   static override hidden = true;
@@ -321,7 +318,7 @@ type LogDeploymentOptions = {
   productionUrl?: string | null;
 };
 
-function logDeployment(options: LogDeploymentOptions) {
+function logDeployment(options: LogDeploymentOptions): void {
   Log.addNewLineIfNone();
   Log.log(`🎉 Your deployment is ready`);
   Log.addNewLineIfNone();
@@ -345,12 +342,12 @@ function logDeployment(options: LogDeploymentOptions) {
 
   if (!options.productionUrl) {
     Log.addNewLineIfNone();
-    Log.log('🚀 If you are ready to deploy to production:');
+    Log.log('🚀 When you are ready to deploy to production:');
     Log.log(chalk`  $ eas deploy {bold --prod}`);
   }
 }
 
 /** Log the detected of Expo export */
-function logDeploymentType(type: 'static' | 'server') {
+function logDeploymentType(type: 'static' | 'server'): void {
   Log.log(chalk`{dim > output: ${type}}`);
 }
