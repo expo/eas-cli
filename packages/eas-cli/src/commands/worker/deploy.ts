@@ -25,7 +25,7 @@ const isDirectory = (directoryPath: string): Promise<boolean> =>
 interface DeployFlags {
   nonInteractive: boolean;
   json: boolean;
-  prod: boolean;
+  isProduction: boolean;
   aliasName?: string;
   deploymentIdentifier?: string;
 }
@@ -33,7 +33,7 @@ interface DeployFlags {
 interface RawDeployFlags {
   'non-interactive': boolean;
   json: boolean;
-  prod: boolean;
+  production: boolean;
   alias?: string;
   id?: string;
 }
@@ -50,7 +50,8 @@ export default class WorkerDeploy extends EasCommand {
     alias: Flags.string({
       description: 'Custom alias for the deployment',
     }),
-    prod: Flags.boolean({
+    production: Flags.boolean({
+      aliases: ['prod'],
       description: 'Deploy to production',
       default: false,
     }),
@@ -258,7 +259,7 @@ export default class WorkerDeploy extends EasCommand {
     const expoBaseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
     const dashboardUrl = `https://${expoBaseDomain}.dev/projects/${projectId}/serverless/deployments`;
 
-    if (!flags.prod) {
+    if (!flags.isProduction) {
       logDeployment({
         dashboardUrl,
         deploymentUrl: `https://${deployResult.fullName}.${expoBaseDomain}.app`,
@@ -292,7 +293,7 @@ export default class WorkerDeploy extends EasCommand {
     return {
       nonInteractive: flags['non-interactive'],
       json: flags['json'],
-      prod: !!flags.prod,
+      isProduction: !!flags.production,
       aliasName: flags.alias?.trim().toLowerCase(),
       deploymentIdentifier: flags.id?.trim(),
     };
