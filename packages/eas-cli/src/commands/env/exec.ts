@@ -51,7 +51,7 @@ export default class EnvExec extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       flags,
-      args: { COMMAND: command },
+      args: { BASH_COMMAND: command },
     } = await this.parse(EnvExec);
 
     const parsedFlags = this.sanitizeFlags(flags);
@@ -152,23 +152,30 @@ export default class EnvExec extends EasCommand {
       ({ value }) => !value
     );
     if (secretEnvironmentVariables.length > 0) {
-      Log.warn(
-        `The following environment variables are secret and cannot be downloaded locally: ${secretEnvironmentVariables}`
-      );
+      Log.warn(`The following environment variables are secret and cannot be downloaded locally:`);
+      for (const { name } of secretEnvironmentVariables) {
+        Log.warn(`- ${name}`);
+      }
       Log.warn('Proceeding with the rest of the environment variables.');
       Log.newLine();
     }
 
+    const nonSecretEnvironmentVariables = environmentVariablesQueryResult.filter(
+      ({ value }) => !!value
+    );
+    if (nonSecretEnvironmentVariables.length === 0) {
+      throw new Error('No readable environment variables found for the selected environment.');
+    }
     Log.log(
       `Loaded environment variables for the selected environment "${environment.toLowerCase()}":`
     );
-    for (const { name } of environmentVariablesQueryResult) {
+    for (const { name } of nonSecretEnvironmentVariables) {
       Log.log(`- ${name}`);
     }
     Log.newLine();
 
     const environmentVariables: Record<string, string> = {};
-    for (const { name, value } of environmentVariablesQueryResult) {
+    for (const { name, value } of nonSecretEnvironmentVariables) {
       if (value) {
         environmentVariables[name] = value;
       }
