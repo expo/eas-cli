@@ -267,9 +267,9 @@ export default class WorkerDeploy extends EasCommand {
     if (flags.isProduction) {
       try {
         if (!flags.aliasName) {
-          progress = ora('Promoting deployment to production').start();
+          progress = ora(chalk`Promoting deployment to {bold production}`).start();
         } else {
-          progress.text = 'Promoting deployment to production';
+          progress.text = chalk`Promoting deployment to {bold production}`;
         }
 
         const workerProdAlias = await assignWorkerDeploymentProductionAsync({
