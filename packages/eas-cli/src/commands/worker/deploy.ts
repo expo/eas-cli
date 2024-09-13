@@ -160,12 +160,7 @@ export default class WorkerDeploy extends EasCommand {
       }
     }
 
-    async function uploadTarballAsync(tarPath: string): Promise<any> {
-      const uploadUrl = await getSignedDeploymentUrlAsync(graphqlClient, exp, {
-        appId: projectId,
-        deploymentIdentifier: flags.deploymentIdentifier,
-      });
-
+    async function uploadTarballAsync(tarPath: string, uploadUrl: string): Promise<any> {
       const { response } = await uploadAsync({
         url: uploadUrl,
         filePath: tarPath,
@@ -265,8 +260,16 @@ export default class WorkerDeploy extends EasCommand {
         })
       );
 
-      progress.text = 'Creating deployment';
-      deployResult = await uploadTarballAsync(tarPath);
+      // NOTE(cedric): this function might ask the user for a dev-domain name,
+      // when that happens, no ora spinner should be running.
+      progress.stop();
+      const uploadUrl = await getSignedDeploymentUrlAsync(graphqlClient, exp, {
+        appId: projectId,
+        deploymentIdentifier: flags.deploymentIdentifier,
+      });
+
+      progress.start('Creating deployment');
+      deployResult = await uploadTarballAsync(tarPath, uploadUrl);
       progress.succeed('Created deployment');
     } catch (error: any) {
       progress.fail('Failed to create deployment');
