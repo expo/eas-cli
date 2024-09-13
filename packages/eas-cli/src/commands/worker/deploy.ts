@@ -5,10 +5,12 @@ import * as path from 'node:path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { EnvironmentVariableEnvironment } from '../../graphql/generated';
+import {
+  EnvironmentVariableEnvironment,
+  WorkerDeploymentAliasFragment,
+} from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
-import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { createProgressTracker } from '../../utils/progress';
 import * as WorkerAssets from '../../worker/assets';
@@ -18,6 +20,7 @@ import {
   getSignedDeploymentUrlAsync,
 } from '../../worker/deployment';
 import { UploadParams, batchUploadAsync, uploadAsync } from '../../worker/upload';
+import { formatWorkerDeploymentJson, formatWorkerDeploymentTable, getDeploymentUrlFromFullName } from '../../worker/utils/logs';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
   fs.promises
@@ -317,16 +320,41 @@ export default class WorkerDeploy extends EasCommand {
       }
     }
 
-    const expoBaseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
+    if (flags.json) {
+      printJsonOnlyOutput(
+        formatWorkerDeploymentJson({
+          projectId,
+          deployment: {
+            deploymentIdentifier: deployResult.id,
+            url: getDeploymentUrlFromFullName(deployResult.fullName),
+          },
+          aliases: [deploymentAlias].filter(Boolean) as WorkerDeploymentAliasFragment[],
+          production: deploymentProdAlias,
+        })
+      );
+      return;
+    }
 
-    logDeployment({
-      json: flags.json,
-      expoDashboardUrl: `https://${expoBaseDomain}.dev/projects/${projectId}/serverless/deployments`,
-      deploymentId: deployResult.id,
-      deploymentUrl: `https://${deployResult.fullName}.${expoBaseDomain}.app`,
-      deploymentAlias,
-      deploymentProdAlias,
-    });
+    Log.addNewLineIfNone();
+    Log.log(`🎉 Your deployment is ready`);
+    Log.addNewLineIfNone();
+    Log.log(
+      formatWorkerDeploymentTable({
+        projectId,
+        deployment: {
+          deploymentIdentifier: deployResult.id,
+          url: getDeploymentUrlFromFullName(deployResult.fullName),
+        },
+        aliases: [deploymentAlias].filter(Boolean) as WorkerDeploymentAliasFragment[],
+        production: deploymentProdAlias,
+      })
+    );
+
+    if (!deploymentProdAlias) {
+      Log.addNewLineIfNone();
+      Log.log('🚀 When you are ready to deploy to production:');
+      Log.log(chalk`  $ eas deploy {bold --prod}`);
+    }
   }
 
   private sanitizeFlags(flags: RawDeployFlags): DeployFlags {
@@ -338,70 +366,6 @@ export default class WorkerDeploy extends EasCommand {
       deploymentIdentifier: flags.id?.trim(),
       exportDir: flags['export-dir'],
     };
-  }
-}
-
-type LogDeploymentOptions = {
-  json: boolean;
-  expoDashboardUrl: string;
-  deploymentId: string;
-  deploymentUrl: string;
-  deploymentAlias?: null | Awaited<ReturnType<typeof assignWorkerDeploymentAliasAsync>>;
-  deploymentProdAlias?: null | Awaited<ReturnType<typeof assignWorkerDeploymentProductionAsync>>;
-};
-
-function logDeployment(options: LogDeploymentOptions): void {
-  if (options.json) {
-    printJsonOnlyOutput({
-      dashboardUrl: options.expoDashboardUrl,
-      deployment: {
-        id: options.deploymentId,
-        url: options.deploymentUrl,
-        aliases: !options.deploymentAlias
-          ? undefined
-          : [
-              {
-                id: options.deploymentAlias.id,
-                name: options.deploymentAlias.aliasName,
-                url: options.deploymentAlias.url,
-              },
-            ],
-        production: !options.deploymentProdAlias
-          ? undefined
-          : {
-              id: options.deploymentProdAlias.id,
-              url: options.deploymentProdAlias.url,
-            },
-      },
-    });
-    return;
-  }
-
-  Log.addNewLineIfNone();
-  Log.log(`🎉 Your deployment is ready`);
-  Log.addNewLineIfNone();
-
-  const fields: FormatFieldsItem[] = [
-    { label: 'Dashboard', value: options.expoDashboardUrl },
-    { label: 'Deployment URL', value: options.deploymentUrl },
-  ];
-
-  if (options.deploymentAlias) {
-    fields.push({ label: 'Alias URL', value: options.deploymentAlias.url });
-  }
-  if (options.deploymentProdAlias) {
-    fields.push({ label: 'Production URL', value: options.deploymentProdAlias.url });
-  }
-
-  const lastUrlField = fields[fields.length - 1];
-  lastUrlField.value = chalk.cyan(lastUrlField.value);
-
-  Log.log(formatFields(fields));
-
-  if (!options.deploymentProdAlias) {
-    Log.addNewLineIfNone();
-    Log.log('🚀 When you are ready to deploy to production:');
-    Log.log(chalk`  $ eas deploy {bold --prod}`);
   }
 }
 
