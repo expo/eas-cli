@@ -96,7 +96,7 @@ export default class WorkerDeploy extends EasCommand {
     } = await this.getContextAsync(WorkerDeploy, flags);
 
     const { projectId, exp } = await getDynamicPrivateProjectConfigAsync();
-    const distPath = path.resolve(projectDir, flags.exportDir);
+    const distPath = path.join(projectDir, flags.exportDir);
 
     let distServerPath: string | null;
     let distClientPath: string;
@@ -111,8 +111,8 @@ export default class WorkerDeploy extends EasCommand {
 
       logDeploymentType('static');
     } else if (exp.web?.output === 'server') {
-      distClientPath = path.resolve(distPath, 'client');
-      distServerPath = path.resolve(distPath, 'server');
+      distClientPath = path.join(distPath, 'client');
+      distServerPath = path.join(distPath, 'server');
       if (!(await isDirectory(distClientPath))) {
         throw new Error(
           `No "${flags.exportDir}/client/" folder found. Prepare your project for deployment with "npx expo export"`
