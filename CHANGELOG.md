@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add `worker --environment` flag to deploy with EAS environment variables. ([#2557](https://github.com/expo/eas-cli/pull/2557) by [@kitten](https://github.com/kitten)))
 - Add `worker --export-dir` flag to select exported directory. ([#2560](https://github.com/expo/eas-cli/pull/2560) by [@byCedric](https://github.com/byCedric)))
 - Add `worker --json` flag to allow integrating with 3rd parties and custom tooling. ([#2561](https://github.com/expo/eas-cli/pull/2561) by [@byCedric](https://github.com/byCedric)))
+- Add `worker:alias --json` flag to allow integrating with 3rd parties and custom tooling. ([#2562](https://github.com/expo/eas-cli/pull/2562) by [@byCedric](https://github.com/byCedric)))
 
 ### 🐛 Bug fixes
 
