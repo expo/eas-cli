@@ -20,7 +20,11 @@ import {
   getSignedDeploymentUrlAsync,
 } from '../../worker/deployment';
 import { UploadParams, batchUploadAsync, uploadAsync } from '../../worker/upload';
-import { formatWorkerDeploymentJson, formatWorkerDeploymentTable, getDeploymentUrlFromFullName } from '../../worker/utils/logs';
+import {
+  formatWorkerDeploymentJson,
+  formatWorkerDeploymentTable,
+  getDeploymentUrlFromFullName,
+} from '../../worker/utils/logs';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
   fs.promises
