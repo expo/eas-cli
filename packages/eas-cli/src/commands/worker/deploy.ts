@@ -31,6 +31,7 @@ interface DeployFlags {
   aliasName?: string;
   environment?: EnvironmentVariableEnvironment;
   deploymentIdentifier?: string;
+  exportDir: string;
 }
 
 interface RawDeployFlags {
@@ -40,6 +41,7 @@ interface RawDeployFlags {
   prod: boolean;
   alias?: string;
   id?: string;
+  'export-dir': string;
 }
 
 export default class WorkerDeploy extends EasCommand {
@@ -65,6 +67,11 @@ export default class WorkerDeploy extends EasCommand {
       description: 'Custom unique identifier for the new deployment',
       helpValue: 'xyz123',
     }),
+    'export-dir': Flags.string({
+      description: 'Directory where the Expo project was exported',
+      helpValue: 'dir',
+      default: 'dist',
+    }),
     // TODO(@kitten): Allow deployment identifier to be specified
     ...EasNonInteractiveAndJsonFlags,
     ...EASEnvironmentFlag,
@@ -89,7 +96,7 @@ export default class WorkerDeploy extends EasCommand {
     } = await this.getContextAsync(WorkerDeploy, flags);
 
     const { projectId, exp } = await getDynamicPrivateProjectConfigAsync();
-    const distPath = path.resolve(projectDir, 'dist');
+    const distPath = path.resolve(projectDir, flags.exportDir);
 
     let distServerPath: string | null;
     let distClientPath: string;
@@ -98,7 +105,7 @@ export default class WorkerDeploy extends EasCommand {
       distServerPath = null;
       if (!(await isDirectory(distClientPath))) {
         throw new Error(
-          `No "dist/" folder found. Prepare your project for deployment with "npx expo export"`
+          `No "${flags.exportDir}/" folder found. Prepare your project for deployment with "npx expo export"`
         );
       }
 
@@ -108,11 +115,11 @@ export default class WorkerDeploy extends EasCommand {
       distServerPath = path.resolve(distPath, 'server');
       if (!(await isDirectory(distClientPath))) {
         throw new Error(
-          `No "dist/client/" folder found. Prepare your project for deployment with "npx expo export"`
+          `No "${flags.exportDir}/client/" folder found. Prepare your project for deployment with "npx expo export"`
         );
       } else if (!(await isDirectory(distServerPath))) {
         throw new Error(
-          `No "dist/server/" folder found. Prepare your project for deployment with "npx expo export"`
+          `No "${flags.exportDir}/server/" folder found. Prepare your project for deployment with "npx expo export"`
         );
       }
 
@@ -318,6 +325,7 @@ export default class WorkerDeploy extends EasCommand {
       isProduction: !!flags.prod,
       aliasName: flags.alias?.trim().toLowerCase(),
       deploymentIdentifier: flags.id?.trim(),
+      exportDir: flags['export-dir'],
     };
   }
 }
