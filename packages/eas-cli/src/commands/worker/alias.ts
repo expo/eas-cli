@@ -34,7 +34,7 @@ interface RawDeployAliasFlags {
 
 export default class WorkerAlias extends EasCommand {
   static override description = 'Assign deployment aliases';
-  static override aliases = ['deploy:alias'];
+  static override aliases = ['deploy:alias', 'deploy:promote'];
 
   // TODO(@kitten): Keep command hidden until worker deployments are live
   static override hidden = true;
