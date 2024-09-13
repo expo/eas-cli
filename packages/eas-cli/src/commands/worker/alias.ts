@@ -3,16 +3,16 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { promptAsync } from '../../prompts';
 import formatFields from '../../utils/formatFields';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import {
   assignWorkerDeploymentAliasAsync,
   selectWorkerDeploymentOnAppAsync,
 } from '../../worker/deployment';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 interface DeployAliasFlags {
   nonInteractive: boolean;
@@ -109,17 +109,20 @@ export default class WorkerAlias extends EasCommand {
     const expoDashboardUrl = `https://${expoBaseDomain}.dev/projects/${projectId}/serverless/deployments`;
 
     if (flags.json) {
-      return printJsonOnlyOutput({
+      printJsonOnlyOutput({
         dashboardUrl: expoDashboardUrl,
         deployment: {
           id: deploymentId,
-          aliases: [{
-            id: workerAlias.id,
-            name: workerAlias.aliasName,
-            url: workerAlias.url,
-          }]
+          aliases: [
+            {
+              id: workerAlias.id,
+              name: workerAlias.aliasName,
+              url: workerAlias.url,
+            },
+          ],
         },
       });
+      return;
     }
 
     Log.addNewLineIfNone();
@@ -147,9 +150,7 @@ async function resolveDeploymentAliasAsync(flags: DeployAliasFlags): Promise<str
   }
 
   if (flags.nonInteractive) {
-    throw new Error(
-      'The `--alias` flag must be set when running in `--non-interactive` mode.'
-    );
+    throw new Error('The `--alias` flag must be set when running in `--non-interactive` mode.');
   }
 
   const { alias: aliasName } = await promptAsync({
@@ -178,9 +179,7 @@ async function resolveDeploymentIdAsync({
   }
 
   if (nonInteractive) {
-    throw new Error(
-      'The `--id` flag must be set when running in `--non-interactive` mode.'
-    );
+    throw new Error('The `--id` flag must be set when running in `--non-interactive` mode.');
   }
 
   const deployment = await selectWorkerDeploymentOnAppAsync({
