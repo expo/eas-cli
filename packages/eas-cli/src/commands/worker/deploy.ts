@@ -9,6 +9,7 @@ import { EnvironmentVariableEnvironment } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { createProgressTracker } from '../../utils/progress';
 import * as WorkerAssets from '../../worker/assets';
 import {
@@ -84,10 +85,18 @@ export default class WorkerDeploy extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    Log.warn('EAS Worker Deployments are in beta and subject to breaking changes.');
+    // NOTE(cedric): `Log.warn` uses `console.log`, which is incorrect when running with `--json`
+    // eslint-disable-next-line no-console
+    console.warn(
+      chalk.yellow('EAS Worker Deployments are in beta and subject to breaking changes.')
+    );
 
     const { flags: rawFlags } = await this.parse(WorkerDeploy);
     const flags = this.sanitizeFlags(rawFlags);
+
+    if (flags.json) {
+      enableJsonOutput();
+    }
 
     const {
       getDynamicPrivateProjectConfigAsync,
@@ -259,17 +268,16 @@ export default class WorkerDeploy extends EasCommand {
 
     await uploadAssetsAsync(assetMap, deployResult.uploads);
 
-    let deploymentAliasUrl: string | null = null;
+    let deploymentAlias: null | Awaited<ReturnType<typeof assignWorkerDeploymentAliasAsync>> = null;
     if (flags.aliasName) {
       progress = ora(chalk`Assigning alias {bold ${flags.aliasName}} to deployment`).start();
       try {
-        const workerAlias = await assignWorkerDeploymentAliasAsync({
+        deploymentAlias = await assignWorkerDeploymentAliasAsync({
           graphqlClient,
           appId: projectId,
           deploymentId: deployResult.id,
           aliasName: flags.aliasName,
         });
-        deploymentAliasUrl = workerAlias.url;
 
         // Only stop the spinner when not promoting to production
         if (!flags.isProduction) {
@@ -281,7 +289,9 @@ export default class WorkerDeploy extends EasCommand {
       }
     }
 
-    let deploymentProductionUrl: string | null = null;
+    let deploymentProdAlias: null | Awaited<
+      ReturnType<typeof assignWorkerDeploymentProductionAsync>
+    > = null;
     if (flags.isProduction) {
       try {
         if (!flags.aliasName) {
@@ -290,12 +300,11 @@ export default class WorkerDeploy extends EasCommand {
           progress.text = chalk`Promoting deployment to {bold production}`;
         }
 
-        const workerProdAlias = await assignWorkerDeploymentProductionAsync({
+        deploymentProdAlias = await assignWorkerDeploymentProductionAsync({
           graphqlClient,
           appId: projectId,
           deploymentId: deployResult.id,
         });
-        deploymentProductionUrl = workerProdAlias.url;
 
         progress.succeed(
           !flags.aliasName
@@ -311,10 +320,12 @@ export default class WorkerDeploy extends EasCommand {
     const expoBaseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
 
     logDeployment({
+      json: flags.json,
       expoDashboardUrl: `https://${expoBaseDomain}.dev/projects/${projectId}/serverless/deployments`,
+      deploymentId: deployResult.id,
       deploymentUrl: `https://${deployResult.fullName}.${expoBaseDomain}.app`,
-      aliasedUrl: deploymentAliasUrl,
-      productionUrl: deploymentProductionUrl,
+      deploymentAlias,
+      deploymentProdAlias,
     });
   }
 
@@ -331,13 +342,41 @@ export default class WorkerDeploy extends EasCommand {
 }
 
 type LogDeploymentOptions = {
+  json: boolean;
   expoDashboardUrl: string;
+  deploymentId: string;
   deploymentUrl: string;
-  aliasedUrl?: string | null;
-  productionUrl?: string | null;
+  deploymentAlias?: null | Awaited<ReturnType<typeof assignWorkerDeploymentAliasAsync>>;
+  deploymentProdAlias?: null | Awaited<ReturnType<typeof assignWorkerDeploymentProductionAsync>>;
 };
 
 function logDeployment(options: LogDeploymentOptions): void {
+  if (options.json) {
+    printJsonOnlyOutput({
+      dashboardUrl: options.expoDashboardUrl,
+      deployment: {
+        id: options.deploymentId,
+        url: options.deploymentUrl,
+        aliases: !options.deploymentAlias
+          ? undefined
+          : [
+              {
+                id: options.deploymentAlias.id,
+                name: options.deploymentAlias.aliasName,
+                url: options.deploymentAlias.url,
+              },
+            ],
+        production: !options.deploymentProdAlias
+          ? undefined
+          : {
+              id: options.deploymentProdAlias.id,
+              url: options.deploymentProdAlias.url,
+            },
+      },
+    });
+    return;
+  }
+
   Log.addNewLineIfNone();
   Log.log(`🎉 Your deployment is ready`);
   Log.addNewLineIfNone();
@@ -347,11 +386,11 @@ function logDeployment(options: LogDeploymentOptions): void {
     { label: 'Deployment URL', value: options.deploymentUrl },
   ];
 
-  if (options.aliasedUrl) {
-    fields.push({ label: 'Alias URL', value: options.aliasedUrl });
+  if (options.deploymentAlias) {
+    fields.push({ label: 'Alias URL', value: options.deploymentAlias.url });
   }
-  if (options.productionUrl) {
-    fields.push({ label: 'Production URL', value: options.productionUrl });
+  if (options.deploymentProdAlias) {
+    fields.push({ label: 'Production URL', value: options.deploymentProdAlias.url });
   }
 
   const lastUrlField = fields[fields.length - 1];
@@ -359,7 +398,7 @@ function logDeployment(options: LogDeploymentOptions): void {
 
   Log.log(formatFields(fields));
 
-  if (!options.productionUrl) {
+  if (!options.deploymentProdAlias) {
     Log.addNewLineIfNone();
     Log.log('🚀 When you are ready to deploy to production:');
     Log.log(chalk`  $ eas deploy {bold --prod}`);
