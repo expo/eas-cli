@@ -11,6 +11,22 @@ import {
   assignWorkerDeploymentAliasAsync,
   selectWorkerDeploymentOnAppAsync,
 } from '../../worker/deployment';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+
+interface DeployAliasFlags {
+  nonInteractive: boolean;
+  json: boolean;
+  aliasName?: string;
+  deploymentIdentifier?: string;
+}
+
+interface RawDeployAliasFlags {
+  'non-interactive': boolean;
+  json: boolean;
+  alias?: string;
+  id?: string;
+}
 
 export default class WorkerAlias extends EasCommand {
   static override description = 'Assign deployment aliases';
@@ -31,6 +47,7 @@ export default class WorkerAlias extends EasCommand {
       helpValue: 'xyz123',
       required: false,
     }),
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
@@ -40,9 +57,19 @@ export default class WorkerAlias extends EasCommand {
   };
 
   override async runAsync(): Promise<void> {
-    Log.warn('EAS Worker Deployments are in beta and subject to breaking changes.');
+    // NOTE(cedric): `Log.warn` uses `console.log`, which is incorrect when running with `--json`
+    // eslint-disable-next-line no-console
+    console.warn(
+      chalk.yellow('EAS Worker Deployments are in beta and subject to breaking changes.')
+    );
 
-    const { flags } = await this.parse(WorkerAlias);
+    const { flags: rawFlags } = await this.parse(WorkerAlias);
+    const flags = this.sanitizeFlags(rawFlags);
+
+    if (flags.json) {
+      enableJsonOutput();
+    }
+
     const {
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
@@ -51,12 +78,12 @@ export default class WorkerAlias extends EasCommand {
     });
 
     const { projectId } = await getDynamicPrivateProjectConfigAsync();
-    const aliasName = await resolveDeploymentAliasAsync({ flagAlias: flags.alias });
+    const aliasName = await resolveDeploymentAliasAsync(flags);
     const deploymentId = await resolveDeploymentIdAsync({
+      ...flags,
       graphqlClient,
+      projectId,
       aliasName,
-      appId: projectId,
-      flagId: flags.id,
     });
 
     const progress = ora(
@@ -81,6 +108,20 @@ export default class WorkerAlias extends EasCommand {
     const expoBaseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
     const expoDashboardUrl = `https://${expoBaseDomain}.dev/projects/${projectId}/serverless/deployments`;
 
+    if (flags.json) {
+      return printJsonOnlyOutput({
+        dashboardUrl: expoDashboardUrl,
+        deployment: {
+          id: deploymentId,
+          aliases: [{
+            id: workerAlias.id,
+            name: workerAlias.aliasName,
+            url: workerAlias.url,
+          }]
+        },
+      });
+    }
+
     Log.addNewLineIfNone();
     Log.log(
       formatFields([
@@ -89,11 +130,26 @@ export default class WorkerAlias extends EasCommand {
       ])
     );
   }
+
+  private sanitizeFlags(flags: RawDeployAliasFlags): DeployAliasFlags {
+    return {
+      nonInteractive: flags['non-interactive'],
+      json: flags['json'],
+      aliasName: flags.alias?.trim().toLowerCase(),
+      deploymentIdentifier: flags.id?.trim(),
+    };
+  }
 }
 
-async function resolveDeploymentAliasAsync({ flagAlias }: { flagAlias?: string }): Promise<string> {
-  if (flagAlias?.trim()) {
-    return flagAlias.trim().toLowerCase();
+async function resolveDeploymentAliasAsync(flags: DeployAliasFlags): Promise<string> {
+  if (flags.aliasName?.trim()) {
+    return flags.aliasName.trim().toLowerCase();
+  }
+
+  if (flags.nonInteractive) {
+    throw new Error(
+      'The `--alias` flag must be set when running in `--non-interactive` mode.'
+    );
   }
 
   const { alias: aliasName } = await promptAsync({
@@ -109,22 +165,27 @@ async function resolveDeploymentAliasAsync({ flagAlias }: { flagAlias?: string }
 
 async function resolveDeploymentIdAsync({
   graphqlClient,
+  deploymentIdentifier,
   aliasName,
-  appId,
-  flagId,
-}: {
+  projectId,
+  nonInteractive,
+}: DeployAliasFlags & {
   graphqlClient: ExpoGraphqlClient;
-  aliasName: string;
-  appId: string;
-  flagId?: string;
+  projectId: string;
 }): Promise<string> {
-  if (flagId) {
-    return flagId;
+  if (deploymentIdentifier) {
+    return deploymentIdentifier;
+  }
+
+  if (nonInteractive) {
+    throw new Error(
+      'The `--id` flag must be set when running in `--non-interactive` mode.'
+    );
   }
 
   const deployment = await selectWorkerDeploymentOnAppAsync({
     graphqlClient,
-    appId,
+    appId: projectId,
     selectTitle: chalk`deployment to assign the {underline ${aliasName}} alias`,
   });
 
