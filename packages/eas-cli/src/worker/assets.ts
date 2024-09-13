@@ -7,6 +7,10 @@ import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { pack } from 'tar-stream';
 
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { EnvironmentVariableEnvironment } from '../graphql/generated';
+import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
+
 /** Returns whether a file or folder is ignored */
 function isIgnoredName(name: string): boolean {
   switch (name) {
@@ -92,9 +96,32 @@ export interface Manifest {
   env: Record<string, string | undefined>;
 }
 
+interface CreateManifestParams {
+  projectId: string;
+  projectDir: string;
+  environment?: EnvironmentVariableEnvironment;
+}
+
 /** Creates a manifest configuration sent up for deployment */
-export async function createManifestAsync(projectDir: string): Promise<Manifest> {
-  const { env } = getEnv(projectDir);
+export async function createManifestAsync(
+  params: CreateManifestParams,
+  graphqlClient: ExpoGraphqlClient
+): Promise<Manifest> {
+  let env: Record<string, string | undefined>;
+  if (params.environment) {
+    env = Object.fromEntries(
+      (
+        await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
+          appId: params.projectId,
+          environment: params.environment,
+        })
+      ).map(variable => [variable.name, variable.value ?? undefined])
+    );
+  } else {
+    // NOTE: This is required for the .env resolution
+    process.env.NODE_ENV = 'production';
+    env = getEnv(params.projectDir).env;
+  }
   return { env };
 }
 
