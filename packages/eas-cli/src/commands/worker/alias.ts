@@ -136,7 +136,7 @@ export default class WorkerAlias extends EasCommand {
       nonInteractive: flags['non-interactive'],
       json: flags['json'],
       aliasName: flags.alias?.trim().toLowerCase(),
-      deploymentIdentifier: flags.id?.trim(),
+      deploymentIdentifier: flags.id?.trim().toLowerCase(),
     };
   }
 }
