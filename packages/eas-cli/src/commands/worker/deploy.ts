@@ -9,6 +9,7 @@ import { EnvironmentVariableEnvironment } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { createProgressTracker } from '../../utils/progress';
 import * as WorkerAssets from '../../worker/assets';
 import {
@@ -17,7 +18,6 @@ import {
   getSignedDeploymentUrlAsync,
 } from '../../worker/deployment';
 import { UploadParams, batchUploadAsync, uploadAsync } from '../../worker/upload';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
   fs.promises
@@ -79,7 +79,10 @@ export default class WorkerDeploy extends EasCommand {
 
   async runAsync(): Promise<void> {
     // NOTE(cedric): `Log.warn` uses `console.log`, which is incorrect when running with `--json`
-    console.warn(chalk`{yellow EAS Worker Deployments are in beta and subject to breaking changes.}`);
+    // eslint-disable-next-line no-console
+    console.warn(
+      chalk.yellow('EAS Worker Deployments are in beta and subject to breaking changes.')
+    );
 
     const { flags: rawFlags } = await this.parse(WorkerDeploy);
     const flags = this.sanitizeFlags(rawFlags);
@@ -279,7 +282,9 @@ export default class WorkerDeploy extends EasCommand {
       }
     }
 
-    let deploymentProdAlias: null | Awaited<ReturnType<typeof assignWorkerDeploymentProductionAsync>> = null;
+    let deploymentProdAlias: null | Awaited<
+      ReturnType<typeof assignWorkerDeploymentProductionAsync>
+    > = null;
     if (flags.isProduction) {
       try {
         if (!flags.aliasName) {
@@ -307,7 +312,7 @@ export default class WorkerDeploy extends EasCommand {
 
     const expoBaseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
 
-    return logDeployment({
+    logDeployment({
       json: flags.json,
       expoDashboardUrl: `https://${expoBaseDomain}.dev/projects/${projectId}/serverless/deployments`,
       deploymentId: deployResult.id,
@@ -339,22 +344,29 @@ type LogDeploymentOptions = {
 
 function logDeployment(options: LogDeploymentOptions): void {
   if (options.json) {
-    return printJsonOnlyOutput({
+    printJsonOnlyOutput({
       dashboardUrl: options.expoDashboardUrl,
       deployment: {
         id: options.deploymentId,
         url: options.deploymentUrl,
-        aliases: !options.deploymentAlias ? undefined : [{
-          id: options.deploymentAlias.id,
-          name: options.deploymentAlias.aliasName,
-          url: options.deploymentAlias.url,
-        }],
-        production: !options.deploymentProdAlias ? undefined : {
-          id: options.deploymentProdAlias.id,
-          url: options.deploymentProdAlias.url,
-        },
-      }
+        aliases: !options.deploymentAlias
+          ? undefined
+          : [
+              {
+                id: options.deploymentAlias.id,
+                name: options.deploymentAlias.aliasName,
+                url: options.deploymentAlias.url,
+              },
+            ],
+        production: !options.deploymentProdAlias
+          ? undefined
+          : {
+              id: options.deploymentProdAlias.id,
+              url: options.deploymentProdAlias.url,
+            },
+      },
     });
+    return;
   }
 
   Log.addNewLineIfNone();
