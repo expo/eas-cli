@@ -340,7 +340,7 @@ type LogDeploymentOptions = {
 function logDeployment(options: LogDeploymentOptions): void {
   if (options.json) {
     return printJsonOnlyOutput({
-      expoDashboardUrl: options.expoDashboardUrl,
+      dashboardUrl: options.expoDashboardUrl,
       deployment: {
         id: options.deploymentId,
         url: options.deploymentUrl,
