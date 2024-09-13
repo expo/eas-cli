@@ -23,6 +23,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add missing `--non-interactive` argument to `worker:deploy` command. ([#2544](https://github.com/expo/eas-cli/pull/2544) by [@kitten](https://github.com/kitten))
 - Source `@expo/env` dotenv files for worker deployments. ([#2545](https://github.com/expo/eas-cli/pull/2545) by [@kitten](https://github.com/kitten))
 - Support `worker --production` and clean up command output. ([#2555](https://github.com/expo/eas-cli/pull/2555) by [@byCedric](https://github.com/byCedric)))
+- Unify both `worker` and `worker:alias` command output. ([#2558](https://github.com/expo/eas-cli/pull/2558) by [@byCedric](https://github.com/byCedric)))
 
 ## [12.3.0](https://github.com/expo/eas-cli/releases/tag/v12.3.0) - 2024-09-09
 
