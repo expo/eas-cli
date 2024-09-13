@@ -13,7 +13,7 @@ export function getDeploymentUrlFromFullName(deploymentFullName: string): string
 }
 
 export function getDashboardUrl(projectId: string): string {
-  return `https://${EXPO_BASE_DOMAIN}.dev/projects/${projectId}/serverless/deployments`;
+  return `https://${EXPO_BASE_DOMAIN}.dev/projects/${projectId}/hosting/deployments`;
 }
 
 type WorkerDeploymentData = {
