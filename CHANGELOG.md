@@ -13,7 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add `worker --alias` flag to assign custom aliases when deploying. ([#2551](https://github.com/expo/eas-cli/pull/2551) by [@byCedric](https://github.com/byCedric)))
 - Add `worker --id` flag to use a custom deployment identifier. ([#2552](https://github.com/expo/eas-cli/pull/2552) by [@byCedric](https://github.com/byCedric)))
 - Add `worker --environment` flag to deploy with EAS environment variables. ([#2557](https://github.com/expo/eas-cli/pull/2557) by [@kitten](https://github.com/kitten)))
-- Add `worker --export-dir` flag to select exported directory.
+- Add `worker --export-dir` flag to select exported directory. ([#2560](https://github.com/expo/eas-cli/pull/2560) by [@byCedric](https://github.com/byCedric)))
 
 ### 🐛 Bug fixes
 
