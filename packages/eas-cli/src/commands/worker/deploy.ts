@@ -381,7 +381,7 @@ async function resolveExportedProjectAsync(
 
   if (!exportStat?.isDirectory()) {
     throw new Error(
-      `No "${flags.exportDir}/" folder found. Prepare your project for deployment with "npx expo export"`
+      `No "${flags.exportDir}/" folder found. Prepare your project for deployment with "npx expo export --platform web"`
     );
   }
 
