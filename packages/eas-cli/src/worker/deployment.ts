@@ -66,6 +66,7 @@ type PromptInstance = {
   placeholder: boolean;
   rendered: string;
   initial: string;
+  done: boolean;
   get value(): string;
   set value(input: string);
 };
@@ -126,7 +127,10 @@ async function chooseDevDomainNameAsync({
     onRender(this: PromptInstance, kleur) {
       this.cursorOffset = -rootDomain.length - 1;
 
-      if (this.placeholder) {
+      if (this.done) {
+        // Remove the space for the cursor when the prompt is done
+        this.rendered = this.value + kleur.dim(`${rootDomain}`);
+      } else if (this.placeholder) {
         this.rendered = kleur.dim(`${this.initial} ${rootDomain}`);
       } else {
         this.rendered = this.value + kleur.dim(` ${rootDomain}`);
