@@ -1333,6 +1333,7 @@ export type App = Project & {
   /** EAS Submissions associated with this app */
   submissions: Array<Submission>;
   submissionsPaginated: AppSubmissionsConnection;
+  suggestedDevDomainName: Scalars['String']['output'];
   /** Coalesced project activity for an app using pagination */
   timelineActivity: TimelineActivityConnection;
   /** @deprecated 'likes' have been deprecated. */
@@ -7394,6 +7395,7 @@ export type WorkerDeployment = {
   deploymentIdentifier: Scalars['WorkerDeploymentIdentifier']['output'];
   devDomainName: Scalars['DevDomainName']['output'];
   id: Scalars['ID']['output'];
+  initiatingActor?: Maybe<Actor>;
   logs?: Maybe<WorkerDeploymentLogs>;
   requests?: Maybe<WorkerDeploymentRequests>;
   subdomain: Scalars['String']['output'];
@@ -8755,3 +8757,10 @@ export type PaginatedWorkerDeploymentsQueryVariables = Exact<{
 
 
 export type PaginatedWorkerDeploymentsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, workerDeployments: { __typename?: 'WorkerDeploymentsConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null }, edges: Array<{ __typename?: 'WorkerDeploymentEdge', cursor: string, node: { __typename?: 'WorkerDeployment', id: string, url: string, deploymentIdentifier: any, deploymentDomain: string, createdAt: any } }> } } } };
+
+export type SuggestedDevDomainNameQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+}>;
+
+
+export type SuggestedDevDomainNameQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, suggestedDevDomainName: string } } };

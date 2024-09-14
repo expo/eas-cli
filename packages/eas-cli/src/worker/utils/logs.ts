@@ -6,7 +6,7 @@ import type {
 } from '../../graphql/generated';
 import formatFields, { type FormatFieldsItem } from '../../utils/formatFields';
 
-const EXPO_BASE_DOMAIN = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
+export const EXPO_BASE_DOMAIN = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
 
 export function getDeploymentUrlFromFullName(deploymentFullName: string): string {
   return `https://${deploymentFullName}.${EXPO_BASE_DOMAIN}.app`;
