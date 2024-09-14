@@ -4,21 +4,24 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { WorkerDeploymentAliasFragment } from '../../graphql/generated';
 import Log from '../../log';
-import { ora } from '../../ora';
+import { Ora, ora } from '../../ora';
 import { promptAsync } from '../../prompts';
-import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import {
   assignWorkerDeploymentAliasAsync,
+  assignWorkerDeploymentProductionAsync,
   selectWorkerDeploymentOnAppAsync,
 } from '../../worker/deployment';
+import { formatWorkerDeploymentJson, formatWorkerDeploymentTable } from '../../worker/utils/logs';
 
 interface DeployAliasFlags {
   nonInteractive: boolean;
   json: boolean;
-  aliasName?: string;
-  deploymentIdentifier?: string;
+  aliasName?: string | null;
+  deploymentIdentifier?: string | null;
+  isProduction: boolean;
 }
 
 interface RawDeployAliasFlags {
@@ -26,17 +29,23 @@ interface RawDeployAliasFlags {
   json: boolean;
   alias?: string;
   id?: string;
+  prod: boolean;
 }
 
 export default class WorkerAlias extends EasCommand {
   static override description = 'Assign deployment aliases';
-  static override aliases = ['deploy:alias'];
+  static override aliases = ['deploy:alias', 'deploy:promote'];
 
   // TODO(@kitten): Keep command hidden until worker deployments are live
   static override hidden = true;
   static override state = 'beta';
 
   static override flags = {
+    prod: Flags.boolean({
+      aliases: ['production'],
+      description: 'Promote an existing deployment to production',
+      default: false,
+    }),
     alias: Flags.string({
       description: 'Custom alias to assign to the existing deployment',
       helpValue: 'name',
@@ -86,51 +95,75 @@ export default class WorkerAlias extends EasCommand {
       aliasName,
     });
 
-    const progress = ora(
-      chalk`Assigning alias {bold ${aliasName}} to deployment {bold ${deploymentId}}`
-    ).start();
-    const workerAlias = await assignWorkerDeploymentAliasAsync({
-      graphqlClient,
-      appId: projectId,
-      deploymentId,
-      aliasName,
-    }).catch(error => {
-      progress.fail(
-        chalk`Failed to assign {bold ${aliasName}} alias to deployment {bold ${deploymentId}}`
-      );
-      throw error;
-    });
+    let progress: null | Ora = null;
+    let deploymentAlias: null | Awaited<ReturnType<typeof assignWorkerDeploymentAliasAsync>> = null;
 
-    progress.succeed(
-      chalk`Assigned alias {bold ${aliasName}} to deployment {bold ${deploymentId}}`
+    if (aliasName) {
+      try {
+        progress = ora(chalk`Assigning alias {bold ${aliasName}} to deployment`).start();
+        deploymentAlias = await assignWorkerDeploymentAliasAsync({
+          graphqlClient,
+          appId: projectId,
+          deploymentId,
+          aliasName,
+        });
+        progress.text = chalk`Assigned alias {bold ${aliasName}} to deployment`;
+      } catch (error: any) {
+        progress?.fail(chalk`Failed to assign {bold ${aliasName}} alias to deployment`);
+        throw error;
+      }
+    }
+
+    let deploymentProdAlias: null | Awaited<
+      ReturnType<typeof assignWorkerDeploymentProductionAsync>
+    > = null;
+
+    if (flags.isProduction) {
+      try {
+        progress = (progress ?? ora()).start(chalk`Promoting deployment to {bold production}`);
+        deploymentProdAlias = await assignWorkerDeploymentProductionAsync({
+          graphqlClient,
+          appId: projectId,
+          deploymentId,
+        });
+        progress.text = chalk`Promoted deployment to {bold production}`;
+      } catch (error: any) {
+        progress?.fail(chalk`Failed to promote deployment to {bold production}`);
+        throw error;
+      }
+    }
+
+    progress?.succeed(
+      !deploymentAlias
+        ? chalk`Promoted deployment to {bold production}`
+        : chalk`Promoted deployment to {bold production} with alias {bold ${deploymentAlias.aliasName}}`
     );
 
-    const expoBaseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
-    const expoDashboardUrl = `https://${expoBaseDomain}.dev/projects/${projectId}/serverless/deployments`;
+    // Either use the alias, or production deployment information
+    const deployment = deploymentAlias?.workerDeployment ?? deploymentProdAlias?.workerDeployment;
 
     if (flags.json) {
-      printJsonOnlyOutput({
-        dashboardUrl: expoDashboardUrl,
-        deployment: {
-          id: deploymentId,
-          aliases: [
-            {
-              id: workerAlias.id,
-              name: workerAlias.aliasName,
-              url: workerAlias.url,
-            },
-          ],
-        },
-      });
+      printJsonOnlyOutput(
+        formatWorkerDeploymentJson({
+          projectId,
+          deployment: deployment!,
+          aliases: [deploymentAlias].filter(Boolean) as WorkerDeploymentAliasFragment[],
+          production: deploymentProdAlias,
+        })
+      );
       return;
     }
 
     Log.addNewLineIfNone();
+    Log.log(`🎉 Your deployment is modified`);
+    Log.addNewLineIfNone();
     Log.log(
-      formatFields([
-        { label: 'Dashboard', value: expoDashboardUrl },
-        { label: 'Alias URL', value: chalk.cyan(workerAlias.url) },
-      ])
+      formatWorkerDeploymentTable({
+        projectId,
+        deployment: deployment!,
+        aliases: [deploymentAlias].filter(Boolean) as WorkerDeploymentAliasFragment[],
+        production: deploymentProdAlias,
+      })
     );
   }
 
@@ -140,13 +173,19 @@ export default class WorkerAlias extends EasCommand {
       json: flags['json'],
       aliasName: flags.alias?.trim().toLowerCase(),
       deploymentIdentifier: flags.id?.trim().toLowerCase(),
+      isProduction: flags.prod,
     };
   }
 }
 
-async function resolveDeploymentAliasAsync(flags: DeployAliasFlags): Promise<string> {
+async function resolveDeploymentAliasAsync(flags: DeployAliasFlags): Promise<string | null> {
   if (flags.aliasName?.trim()) {
     return flags.aliasName.trim().toLowerCase();
+  }
+
+  // Skip alias prompt when promoting deployments to prod
+  if (flags.isProduction) {
+    return null;
   }
 
   if (flags.nonInteractive) {

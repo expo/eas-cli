@@ -1365,11 +1365,10 @@ export type App = Project & {
   workerDeployment?: Maybe<WorkerDeployment>;
   workerDeploymentAlias?: Maybe<WorkerDeploymentAlias>;
   workerDeploymentAliases: WorkerDeploymentAliasesConnection;
-  workerDeploymentRequest: WorkerDeploymentRequestEdge;
   workerDeployments: WorkerDeploymentsConnection;
   workerDeploymentsCrash: WorkerDeploymentCrashEdge;
   workerDeploymentsCrashes?: Maybe<WorkerDeploymentCrashes>;
-  workerDeploymentsMetrics?: Maybe<WorkerDeploymentMetrics>;
+  workerDeploymentsRequest: WorkerDeploymentRequestEdge;
   workerDeploymentsRequests?: Maybe<WorkerDeploymentRequests>;
 };
 
@@ -1609,12 +1608,6 @@ export type AppWorkerDeploymentAliasesArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkerDeploymentRequestArgs = {
-  requestId: Scalars['ID']['input'];
-};
-
-
-/** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
@@ -1638,16 +1631,14 @@ export type AppWorkerDeploymentsCrashesArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
-export type AppWorkerDeploymentsMetricsArgs = {
-  filters?: InputMaybe<MetricsFilters>;
-  timespan: MetricsTimespan;
+export type AppWorkerDeploymentsRequestArgs = {
+  requestKey: Scalars['ID']['input'];
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentsRequestsArgs = {
-  filter?: InputMaybe<WorkerDeploymentRequestsFilter>;
-  limit?: Scalars['Int']['input'];
+  filters?: InputMaybe<RequestsFilters>;
   timespan: RequestsTimespan;
 };
 
@@ -3393,6 +3384,7 @@ export type CustomDomainDnsRecord = {
 };
 
 export enum CustomDomainDnsRecordType {
+  A = 'A',
   Cname = 'CNAME',
   Txt = 'TXT'
 }
@@ -5107,47 +5099,6 @@ export type MeteredBillingStatus = {
   EAS_UPDATE: Scalars['Boolean']['output'];
 };
 
-export enum MetricsCacheStatus {
-  Hit = 'HIT',
-  Miss = 'MISS',
-  Pass = 'PASS'
-}
-
-export type MetricsFilters = {
-  cacheStatus?: InputMaybe<Array<MetricsCacheStatus>>;
-  continent?: InputMaybe<Array<ContinentCode>>;
-  hasCustomDomainOrigin?: InputMaybe<Scalars['Boolean']['input']>;
-  isAsset?: InputMaybe<Scalars['Boolean']['input']>;
-  isCrash?: InputMaybe<Scalars['Boolean']['input']>;
-  isVerifiedBot?: InputMaybe<Scalars['Boolean']['input']>;
-  method?: InputMaybe<Array<MetricsRequestMethod>>;
-  os?: InputMaybe<Array<UserAgentOs>>;
-  pathname?: InputMaybe<Scalars['String']['input']>;
-  status?: InputMaybe<Array<Scalars['Int']['input']>>;
-  statusType?: InputMaybe<Array<MetricsStatusType>>;
-};
-
-export enum MetricsRequestMethod {
-  Delete = 'DELETE',
-  Get = 'GET',
-  Options = 'OPTIONS',
-  Post = 'POST',
-  Put = 'PUT'
-}
-
-export enum MetricsStatusType {
-  ClientError = 'CLIENT_ERROR',
-  None = 'NONE',
-  Redirect = 'REDIRECT',
-  ServerError = 'SERVER_ERROR',
-  Successful = 'SUCCESSFUL'
-}
-
-export type MetricsTimespan = {
-  end: Scalars['DateTime']['input'];
-  start: Scalars['DateTime']['input'];
-};
-
 export type Notification = {
   __typename?: 'Notification';
   accountName: Scalars['String']['output'];
@@ -5382,16 +5333,34 @@ export type PublishUpdateGroupInput = {
   updateInfoGroup?: InputMaybe<UpdateInfoGroup>;
 };
 
-export enum RequestStatusPattern {
-  Http_2Xx = 'HTTP_2XX',
-  Http_3Xx = 'HTTP_3XX',
-  Http_4Xx = 'HTTP_4XX',
-  Http_5Xx = 'HTTP_5XX'
+export enum RequestMethod {
+  Delete = 'DELETE',
+  Get = 'GET',
+  Head = 'HEAD',
+  Options = 'OPTIONS',
+  Patch = 'PATCH',
+  Post = 'POST',
+  Put = 'PUT'
 }
+
+export type RequestsFilters = {
+  cacheStatus?: InputMaybe<Array<ResponseCacheStatus>>;
+  continent?: InputMaybe<Array<ContinentCode>>;
+  hasCustomDomainOrigin?: InputMaybe<Scalars['Boolean']['input']>;
+  isAsset?: InputMaybe<Scalars['Boolean']['input']>;
+  isCrash?: InputMaybe<Scalars['Boolean']['input']>;
+  isVerifiedBot?: InputMaybe<Scalars['Boolean']['input']>;
+  method?: InputMaybe<Array<RequestMethod>>;
+  os?: InputMaybe<Array<UserAgentOs>>;
+  pathname?: InputMaybe<Scalars['String']['input']>;
+  responseType?: InputMaybe<Array<ResponseType>>;
+  status?: InputMaybe<Array<Scalars['Int']['input']>>;
+  statusType?: InputMaybe<Array<ResponseStatusType>>;
+};
 
 export type RequestsTimespan = {
   end: Scalars['DateTime']['input'];
-  start?: InputMaybe<Scalars['DateTime']['input']>;
+  start: Scalars['DateTime']['input'];
 };
 
 export type RescindUserInvitationResult = {
@@ -5402,6 +5371,27 @@ export type RescindUserInvitationResult = {
 export enum ResourceClassExperiment {
   C3D = 'C3D',
   N2 = 'N2'
+}
+
+export enum ResponseCacheStatus {
+  Hit = 'HIT',
+  Miss = 'MISS',
+  Pass = 'PASS'
+}
+
+export enum ResponseStatusType {
+  ClientError = 'CLIENT_ERROR',
+  None = 'NONE',
+  Redirect = 'REDIRECT',
+  ServerError = 'SERVER_ERROR',
+  Successful = 'SUCCESSFUL'
+}
+
+export enum ResponseType {
+  Asset = 'ASSET',
+  Crash = 'CRASH',
+  Rejected = 'REJECTED',
+  Route = 'ROUTE'
 }
 
 /** Represents a robot (not human) actor. */
@@ -6362,6 +6352,7 @@ export type Update = ActivityTimelineProjectActivity & {
   branchId: Scalars['ID']['output'];
   codeSigningInfo?: Maybe<CodeSigningInfo>;
   createdAt: Scalars['DateTime']['output'];
+  deployments: UpdateDeploymentsConnection;
   expoGoSDKVersion?: Maybe<Scalars['String']['output']>;
   gitCommitHash?: Maybe<Scalars['String']['output']>;
   group: Scalars['String']['output'];
@@ -6381,6 +6372,14 @@ export type Update = ActivityTimelineProjectActivity & {
   /** @deprecated Use 'runtime' field . */
   runtimeVersion: Scalars['String']['output'];
   updatedAt: Scalars['DateTime']['output'];
+};
+
+
+export type UpdateDeploymentsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type UpdateBranch = {
@@ -6510,6 +6509,18 @@ export type UpdateChannelMutationDeleteUpdateChannelArgs = {
 export type UpdateChannelMutationEditUpdateChannelArgs = {
   branchMapping: Scalars['String']['input'];
   channelId: Scalars['ID']['input'];
+};
+
+export type UpdateDeploymentEdge = {
+  __typename?: 'UpdateDeploymentEdge';
+  cursor: Scalars['String']['output'];
+  node: Deployment;
+};
+
+export type UpdateDeploymentsConnection = {
+  __typename?: 'UpdateDeploymentsConnection';
+  edges: Array<UpdateDeploymentEdge>;
+  pageInfo: PageInfo;
 };
 
 export type UpdateGitHubBuildTriggerInput = {
@@ -7384,7 +7395,7 @@ export type WorkerDeployment = {
   devDomainName: Scalars['DevDomainName']['output'];
   id: Scalars['ID']['output'];
   logs?: Maybe<WorkerDeploymentLogs>;
-  metrics?: Maybe<WorkerDeploymentMetrics>;
+  requests?: Maybe<WorkerDeploymentRequests>;
   subdomain: Scalars['String']['output'];
   url: Scalars['String']['output'];
 };
@@ -7396,9 +7407,9 @@ export type WorkerDeploymentLogsArgs = {
 };
 
 
-export type WorkerDeploymentMetricsArgs = {
-  filters?: InputMaybe<MetricsFilters>;
-  timespan: MetricsTimespan;
+export type WorkerDeploymentRequestsArgs = {
+  filters?: InputMaybe<RequestsFilters>;
+  timespan: RequestsTimespan;
 };
 
 export type WorkerDeploymentAlias = {
@@ -7486,30 +7497,69 @@ export type WorkerDeploymentLogs = {
   nodes: Array<WorkerDeploymentLogNode>;
 };
 
-export type WorkerDeploymentMetrics = {
-  __typename?: 'WorkerDeploymentMetrics';
-  byBrowser: Array<WorkerDeploymentMetricsBrowserEdge>;
-  byContinent: Array<WorkerDeploymentMetricsContinentEdge>;
-  byOS: Array<WorkerDeploymentMetricsOperatingSystemEdge>;
+export type WorkerDeploymentQuery = {
+  __typename?: 'WorkerDeploymentQuery';
+  byId: WorkerDeployment;
+};
+
+
+export type WorkerDeploymentQueryByIdArgs = {
+  id: Scalars['ID']['input'];
+};
+
+export type WorkerDeploymentRequestEdge = {
+  __typename?: 'WorkerDeploymentRequestEdge';
+  crash?: Maybe<WorkerDeploymentCrashSample>;
+  logs: Array<WorkerDeploymentLogNode>;
+  node: WorkerDeploymentRequestNode;
+};
+
+export type WorkerDeploymentRequestNode = {
+  __typename?: 'WorkerDeploymentRequestNode';
+  browserKind?: Maybe<UserAgentBrowser>;
+  browserVersion?: Maybe<Scalars['String']['output']>;
+  cacheStatus?: Maybe<ResponseCacheStatus>;
+  continent?: Maybe<ContinentCode>;
+  country?: Maybe<Scalars['String']['output']>;
+  deploymentIdentifier: Scalars['String']['output'];
+  duration: Scalars['Int']['output'];
+  hasCustomDomainOrigin: Scalars['Boolean']['output'];
+  isAsset: Scalars['Boolean']['output'];
+  isCrash: Scalars['Boolean']['output'];
+  isRejected: Scalars['Boolean']['output'];
+  isStaleIfError: Scalars['Boolean']['output'];
+  isStaleWhileRevalidate: Scalars['Boolean']['output'];
+  isVerifiedBot: Scalars['Boolean']['output'];
+  key: Scalars['ID']['output'];
+  method: Scalars['String']['output'];
+  os?: Maybe<UserAgentOs>;
+  pathname: Scalars['String']['output'];
+  region?: Maybe<Scalars['String']['output']>;
+  requestTimestamp: Scalars['DateTime']['output'];
+  responseType: ResponseType;
+  scriptName: Scalars['String']['output'];
+  search?: Maybe<Scalars['String']['output']>;
+  status: Scalars['Int']['output'];
+  statusType?: Maybe<ResponseStatusType>;
+};
+
+export type WorkerDeploymentRequests = {
+  __typename?: 'WorkerDeploymentRequests';
+  byBrowser: Array<WorkerDeploymentRequestsBrowserEdge>;
+  byCacheStatus: Array<WorkerDeploymentRequestsCacheStatusEdge>;
+  byContinent: Array<WorkerDeploymentRequestsContinentEdge>;
+  byMethod: Array<WorkerDeploymentRequestsMethodEdge>;
+  byOS: Array<WorkerDeploymentRequestsOperatingSystemEdge>;
+  byStatusType: Array<WorkerDeploymentRequestsStatusTypeEdge>;
   interval: Scalars['Int']['output'];
-  summary: WorkerDeploymentMetricsNode;
-  timeseries: Array<WorkerDeploymentMetricsTimeseriesEdge>;
+  minRowsWithoutLimit: Scalars['Int']['output'];
+  nodes: Array<WorkerDeploymentRequestNode>;
+  summary: WorkerDeploymentRequestsAggregationNode;
+  timeseries: Array<WorkerDeploymentRequestsTimeseriesEdge>;
 };
 
-export type WorkerDeploymentMetricsBrowserEdge = {
-  __typename?: 'WorkerDeploymentMetricsBrowserEdge';
-  browser?: Maybe<UserAgentBrowser>;
-  node: WorkerDeploymentMetricsNode;
-};
-
-export type WorkerDeploymentMetricsContinentEdge = {
-  __typename?: 'WorkerDeploymentMetricsContinentEdge';
-  continent: ContinentCode;
-  node: WorkerDeploymentMetricsNode;
-};
-
-export type WorkerDeploymentMetricsNode = {
-  __typename?: 'WorkerDeploymentMetricsNode';
+export type WorkerDeploymentRequestsAggregationNode = {
+  __typename?: 'WorkerDeploymentRequestsAggregationNode';
   assetsPerMs?: Maybe<Scalars['Float']['output']>;
   assetsSum: Scalars['Int']['output'];
   cacheHitRatio: Scalars['Float']['output'];
@@ -7549,90 +7599,53 @@ export type WorkerDeploymentMetricsNode = {
   staleWhileRevalidateSum: Scalars['Int']['output'];
 };
 
-export type WorkerDeploymentMetricsOperatingSystemEdge = {
-  __typename?: 'WorkerDeploymentMetricsOperatingSystemEdge';
-  node: WorkerDeploymentMetricsNode;
-  os?: Maybe<UserAgentOs>;
-};
-
-export type WorkerDeploymentMetricsTimeseriesEdge = {
-  __typename?: 'WorkerDeploymentMetricsTimeseriesEdge';
-  byBrowser: Array<WorkerDeploymentMetricsBrowserEdge>;
-  byContinent: Array<WorkerDeploymentMetricsContinentEdge>;
-  byOS: Array<WorkerDeploymentMetricsOperatingSystemEdge>;
-  node?: Maybe<WorkerDeploymentMetricsNode>;
-  timestamp: Scalars['DateTime']['output'];
-};
-
-export type WorkerDeploymentQuery = {
-  __typename?: 'WorkerDeploymentQuery';
-  byId: WorkerDeployment;
-};
-
-
-export type WorkerDeploymentQueryByIdArgs = {
-  id: Scalars['ID']['input'];
-};
-
-export type WorkerDeploymentRequestEdge = {
-  __typename?: 'WorkerDeploymentRequestEdge';
-  crash?: Maybe<WorkerDeploymentCrashSample>;
-  logs: Array<WorkerDeploymentLogNode>;
-  node: WorkerDeploymentRequestNode;
-};
-
-export enum WorkerDeploymentRequestKind {
-  Asset = 'ASSET',
-  Crash = 'CRASH',
-  Rejected = 'REJECTED'
-}
-
-export type WorkerDeploymentRequestLocation = {
-  __typename?: 'WorkerDeploymentRequestLocation';
-  continent?: Maybe<ContinentCode>;
-  countryCode?: Maybe<Scalars['String']['output']>;
-  regionCode?: Maybe<Scalars['String']['output']>;
-};
-
-export type WorkerDeploymentRequestNode = {
-  __typename?: 'WorkerDeploymentRequestNode';
+export type WorkerDeploymentRequestsBrowserEdge = {
+  __typename?: 'WorkerDeploymentRequestsBrowserEdge';
   browser?: Maybe<UserAgentBrowser>;
-  browserVersion?: Maybe<Scalars['String']['output']>;
-  deploymentIdentifier: Scalars['String']['output'];
-  hasCustomDomainOrigin: Scalars['Boolean']['output'];
-  id: Scalars['ID']['output'];
-  isVerifiedBot: Scalars['Boolean']['output'];
-  kind?: Maybe<WorkerDeploymentRequestKind>;
-  location?: Maybe<WorkerDeploymentRequestLocation>;
+  node: WorkerDeploymentRequestsAggregationNode;
+};
+
+export type WorkerDeploymentRequestsCacheStatusEdge = {
+  __typename?: 'WorkerDeploymentRequestsCacheStatusEdge';
+  cacheStatus?: Maybe<ResponseCacheStatus>;
+  node: WorkerDeploymentRequestsAggregationNode;
+};
+
+export type WorkerDeploymentRequestsContinentEdge = {
+  __typename?: 'WorkerDeploymentRequestsContinentEdge';
+  continent: ContinentCode;
+  node: WorkerDeploymentRequestsAggregationNode;
+};
+
+export type WorkerDeploymentRequestsMethodEdge = {
+  __typename?: 'WorkerDeploymentRequestsMethodEdge';
   method: Scalars['String']['output'];
+  node: WorkerDeploymentRequestsAggregationNode;
+};
+
+export type WorkerDeploymentRequestsOperatingSystemEdge = {
+  __typename?: 'WorkerDeploymentRequestsOperatingSystemEdge';
+  node: WorkerDeploymentRequestsAggregationNode;
   os?: Maybe<UserAgentOs>;
-  pathname: Scalars['String']['output'];
-  scriptName: Scalars['String']['output'];
-  search?: Maybe<Scalars['String']['output']>;
-  status: Scalars['Int']['output'];
+};
+
+export type WorkerDeploymentRequestsStatusTypeEdge = {
+  __typename?: 'WorkerDeploymentRequestsStatusTypeEdge';
+  node: WorkerDeploymentRequestsAggregationNode;
+  statusType?: Maybe<ResponseStatusType>;
+};
+
+export type WorkerDeploymentRequestsTimeseriesEdge = {
+  __typename?: 'WorkerDeploymentRequestsTimeseriesEdge';
+  byBrowser: Array<WorkerDeploymentRequestsBrowserEdge>;
+  byCacheStatus: Array<WorkerDeploymentRequestsCacheStatusEdge>;
+  byContinent: Array<WorkerDeploymentRequestsContinentEdge>;
+  byMethod: Array<WorkerDeploymentRequestsMethodEdge>;
+  byOS: Array<WorkerDeploymentRequestsOperatingSystemEdge>;
+  byStatusType: Array<WorkerDeploymentRequestsStatusTypeEdge>;
+  node?: Maybe<WorkerDeploymentRequestsAggregationNode>;
   timestamp: Scalars['DateTime']['output'];
-  wallTime: Scalars['Int']['output'];
 };
-
-export type WorkerDeploymentRequests = {
-  __typename?: 'WorkerDeploymentRequests';
-  minRowsWithoutLimit?: Maybe<Scalars['Int']['output']>;
-  nodes: Array<WorkerDeploymentRequestNode>;
-};
-
-export type WorkerDeploymentRequestsFilter = {
-  include?: InputMaybe<WorkerDeploymentRequestsInclude>;
-  includeBotRequests?: InputMaybe<Scalars['Boolean']['input']>;
-  methods?: InputMaybe<Array<Scalars['String']['input']>>;
-  pathname?: InputMaybe<Scalars['String']['input']>;
-  statusCodes?: InputMaybe<Array<Scalars['Int']['input']>>;
-  statusPatterns?: InputMaybe<Array<RequestStatusPattern>>;
-};
-
-export enum WorkerDeploymentRequestsInclude {
-  Assets = 'ASSETS',
-  Routes = 'ROUTES'
-}
 
 export type WorkerDeploymentsConnection = {
   __typename?: 'WorkerDeploymentsConnection';
@@ -8705,6 +8718,8 @@ export type CommonIosAppCredentialsFragment = { __typename?: 'IosAppCredentials'
 
 export type WorkerDeploymentFragment = { __typename?: 'WorkerDeployment', id: string, url: string, deploymentIdentifier: any, deploymentDomain: string, createdAt: any };
 
+export type WorkerDeploymentAliasFragment = { __typename?: 'WorkerDeploymentAlias', id: string, aliasName?: any | null, url: string };
+
 export type CreateDeploymentUrlMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
   deploymentIdentifier?: InputMaybe<Scalars['ID']['input']>;
@@ -8724,11 +8739,11 @@ export type AssignDevDomainNameMutation = { __typename?: 'RootMutation', devDoma
 export type AssignAliasMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
   deploymentId: Scalars['ID']['input'];
-  aliasName: Scalars['WorkerDeploymentIdentifier']['input'];
+  aliasName?: InputMaybe<Scalars['WorkerDeploymentIdentifier']['input']>;
 }>;
 
 
-export type AssignAliasMutation = { __typename?: 'RootMutation', deployments: { __typename?: 'DeploymentsMutation', assignAlias: { __typename?: 'WorkerDeploymentAlias', id: string, aliasName?: any | null, url: string } } };
+export type AssignAliasMutation = { __typename?: 'RootMutation', deployments: { __typename?: 'DeploymentsMutation', assignAlias: { __typename?: 'WorkerDeploymentAlias', id: string, aliasName?: any | null, url: string, workerDeployment: { __typename?: 'WorkerDeployment', id: string, url: string, deploymentIdentifier: any, deploymentDomain: string, createdAt: any } } } };
 
 export type PaginatedWorkerDeploymentsQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -8739,4 +8754,4 @@ export type PaginatedWorkerDeploymentsQueryVariables = Exact<{
 }>;
 
 
-export type PaginatedWorkerDeploymentsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', workerDeployments: { __typename?: 'WorkerDeploymentsConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null }, edges: Array<{ __typename?: 'WorkerDeploymentEdge', cursor: string, node: { __typename?: 'WorkerDeployment', id: string, url: string, deploymentIdentifier: any, deploymentDomain: string, createdAt: any } }> } } } };
+export type PaginatedWorkerDeploymentsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, workerDeployments: { __typename?: 'WorkerDeploymentsConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null }, edges: Array<{ __typename?: 'WorkerDeploymentEdge', cursor: string, node: { __typename?: 'WorkerDeployment', id: string, url: string, deploymentIdentifier: any, deploymentDomain: string, createdAt: any } }> } } } };

@@ -28,6 +28,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Source `@expo/env` dotenv files for worker deployments. ([#2545](https://github.com/expo/eas-cli/pull/2545) by [@kitten](https://github.com/kitten))
 - Support `worker --production` and clean up command output. ([#2555](https://github.com/expo/eas-cli/pull/2555) by [@byCedric](https://github.com/byCedric)))
 - Unify both `worker` and `worker:alias` command output. ([#2558](https://github.com/expo/eas-cli/pull/2558) by [@byCedric](https://github.com/byCedric)))
+- Share similar table/json output in both `worker` and `worker:alias` command outputs. ([#2563](https://github.com/expo/eas-cli/pull/2563) by [@byCedric](https://github.com/byCedric)))
 
 ## [12.3.0](https://github.com/expo/eas-cli/releases/tag/v12.3.0) - 2024-09-09
 
