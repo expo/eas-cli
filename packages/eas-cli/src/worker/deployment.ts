@@ -1,23 +1,23 @@
-import { ExpoConfig } from '@expo/config-types';
 import { CombinedError as GraphqlError } from '@urql/core';
 import chalk from 'chalk';
 
 import { DeploymentsMutation } from './mutations';
 import { DeploymentsQuery } from './queries';
+import { EXPO_BASE_DOMAIN } from './utils/logs';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { WorkerDeploymentFragment } from '../graphql/generated';
 import Log from '../log';
 import { promptAsync } from '../prompts';
-import { selectPaginatedAsync } from '../utils/relay';
-import { EXPO_BASE_DOMAIN } from './utils/logs';
 import { memoize } from '../utils/expodash/memoize';
+import { selectPaginatedAsync } from '../utils/relay';
 
 export async function getSignedDeploymentUrlAsync(
   graphqlClient: ExpoGraphqlClient,
-  exp: ExpoConfig,
   deploymentVariables: {
     appId: string;
     deploymentIdentifier?: string | null;
+    /** Callback which is invoked when the project is going to setup the dev domain */
+    onSetupDevDomain?: () => any;
   }
 ): Promise<string> {
   try {
@@ -34,10 +34,17 @@ export async function getSignedDeploymentUrlAsync(
       throw error;
     }
 
+    const suggestedDevDomainName = await DeploymentsQuery.getSuggestedDevDomainByAppIdAsync(
+      graphqlClient,
+      { appId: deploymentVariables.appId }
+    );
+
+    deploymentVariables.onSetupDevDomain?.();
+
     await chooseDevDomainNameAsync({
       graphqlClient,
       appId: deploymentVariables.appId,
-      slug: exp.slug,
+      initial: suggestedDevDomainName,
     });
 
     return await DeploymentsMutation.createSignedDeploymentUrlAsync(
@@ -77,11 +84,11 @@ function formatDevDomainName(name = ''): string {
 async function chooseDevDomainNameAsync({
   graphqlClient,
   appId,
-  slug,
+  initial,
 }: {
   graphqlClient: ExpoGraphqlClient;
   appId: string;
-  slug: string;
+  initial: string;
 }): Promise<void> {
   const rootDomain = `.${EXPO_BASE_DOMAIN}.app`;
   const memoizedFormatDevDomainName = memoize(formatDevDomainName);
@@ -90,7 +97,7 @@ async function chooseDevDomainNameAsync({
     type: 'text',
     name: 'name',
     message: 'Choose a URL for your project:',
-    initial: slug,
+    initial,
     validate: (value: string) => {
       if (!value) {
         return 'You have to choose a URL for your project';
@@ -140,7 +147,7 @@ async function chooseDevDomainNameAsync({
 
     if (isChosenNameTaken) {
       Log.error(`The project URL "${name}" is already taken, choose a different name.`);
-      await chooseDevDomainNameAsync({ graphqlClient, appId, slug });
+      await chooseDevDomainNameAsync({ graphqlClient, appId, initial });
     }
 
     if (!isChosenNameTaken) {
