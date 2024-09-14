@@ -9,6 +9,8 @@ import { WorkerDeploymentFragment } from '../graphql/generated';
 import Log from '../log';
 import { promptAsync } from '../prompts';
 import { selectPaginatedAsync } from '../utils/relay';
+import { EXPO_BASE_DOMAIN } from './utils/logs';
+import { memoize } from '../utils/expodash/memoize';
 
 export async function getSignedDeploymentUrlAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -45,6 +47,33 @@ export async function getSignedDeploymentUrlAsync(
   }
 }
 
+type PromptInstance = {
+  cursorOffset: number;
+  placeholder: boolean;
+  rendered: string;
+  initial: string;
+  get value(): string;
+  set value(input: string);
+};
+
+const DEV_DOMAIN_INVALID_START_END_CHARACTERS = /^[^a-z0-9]+|[^a-z0-9-]+$/;
+const DEV_DOMAIN_INVALID_REPLACEMENT_HYPHEN = /[^a-z0-9-]+/;
+const DEV_DOMAIN_INVALID_MULTIPLE_HYPHENS = /(-{2,})/;
+
+/**
+ * Format a dev domain name to match whats allowed on the backend.
+ * This is equal to our `DEV_DOMAIN_NAME_REGEX`, but implemented as a filtering function
+ * to help users find a valid name while typing.
+ */
+function formatDevDomainName(name = ''): string {
+  return name
+    .toLowerCase()
+    .replace(DEV_DOMAIN_INVALID_REPLACEMENT_HYPHEN, '-')
+    .replace(DEV_DOMAIN_INVALID_START_END_CHARACTERS, '')
+    .replace(DEV_DOMAIN_INVALID_MULTIPLE_HYPHENS, '-')
+    .trim();
+}
+
 async function chooseDevDomainNameAsync({
   graphqlClient,
   appId,
@@ -54,17 +83,45 @@ async function chooseDevDomainNameAsync({
   appId: string;
   slug: string;
 }): Promise<void> {
-  const validationMessage = 'The project does not have a dev domain name.';
+  const rootDomain = `.${EXPO_BASE_DOMAIN}.app`;
+  const memoizedFormatDevDomainName = memoize(formatDevDomainName);
+
   const { name } = await promptAsync({
     type: 'text',
     name: 'name',
-    message: 'Choose a dev domain name for your project:',
-    validate: value => (value && value.length > 3 ? true : validationMessage),
+    message: 'Choose a URL for your project:',
     initial: slug,
+    validate: (value: string) => {
+      if (!value) {
+        return 'You have to choose a URL for your project';
+      }
+      if (value.length < 3) {
+        return 'Project URLs must be at least 3 characters long';
+      }
+      if (value.endsWith('-')) {
+        return 'Project URLs cannot end with a hyphen (-)';
+      }
+      return true;
+    },
+    onState(this: PromptInstance, state: { value?: string }) {
+      const value = memoizedFormatDevDomainName(state.value);
+      if (value !== state.value) {
+        this.value = value;
+      }
+    },
+    onRender(this: PromptInstance, kleur) {
+      this.cursorOffset = -rootDomain.length - 1;
+
+      if (this.placeholder) {
+        this.rendered = kleur.dim(`${this.initial} ${rootDomain}`);
+      } else {
+        this.rendered = this.value + kleur.dim(` ${rootDomain}`);
+      }
+    },
   });
 
   if (!name) {
-    throw new Error('Prompt failed');
+    throw new Error('No project URL provided, aborting deployment.');
   }
 
   try {
@@ -74,7 +131,7 @@ async function chooseDevDomainNameAsync({
     });
 
     if (!success) {
-      throw new Error('Failed to assign dev domain name');
+      throw new Error('Failed to assign project URL');
     }
   } catch (error: any) {
     const isChosenNameTaken = (error as GraphqlError)?.graphQLErrors?.some(e =>
@@ -82,7 +139,7 @@ async function chooseDevDomainNameAsync({
     );
 
     if (isChosenNameTaken) {
-      Log.error(`The entered dev domain name "${name}" is taken. Choose a different name.`);
+      Log.error(`The entered project URL "${name}" is already taken, choose a different name.`);
       await chooseDevDomainNameAsync({ graphqlClient, appId, slug });
     }
 
