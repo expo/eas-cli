@@ -1,3 +1,4 @@
+import { format as formatTimeAgo } from '@expo/timeago.js';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'node:fs';
@@ -111,40 +112,12 @@ export default class WorkerDeploy extends EasCommand {
       projectDir,
     } = await this.getContextAsync(WorkerDeploy, flags);
 
-    const { projectId, exp } = await getDynamicPrivateProjectConfigAsync();
-    const distPath = path.join(projectDir, flags.exportDir);
+    const [{ projectId }, projectDist] = await Promise.all([
+      getDynamicPrivateProjectConfigAsync(),
+      resolveExportedProjectAsync(flags, projectDir),
+    ]);
 
-    let distServerPath: string | null;
-    let distClientPath: string;
-    if (exp.web?.output === 'static') {
-      distClientPath = distPath;
-      distServerPath = null;
-      if (!(await isDirectory(distClientPath))) {
-        throw new Error(
-          `No "${flags.exportDir}/" folder found. Prepare your project for deployment with "npx expo export"`
-        );
-      }
-
-      logDeploymentType('static');
-    } else if (exp.web?.output === 'server') {
-      distClientPath = path.join(distPath, 'client');
-      distServerPath = path.join(distPath, 'server');
-      if (!(await isDirectory(distClientPath))) {
-        throw new Error(
-          `No "${flags.exportDir}/client/" folder found. Prepare your project for deployment with "npx expo export"`
-        );
-      } else if (!(await isDirectory(distServerPath))) {
-        throw new Error(
-          `No "${flags.exportDir}/server/" folder found. Prepare your project for deployment with "npx expo export"`
-        );
-      }
-
-      logDeploymentType('server');
-    } else {
-      throw new Error(
-        `Single-page apps are not supported. Ensure that app.json key "expo.web.output" is set to "server" or "static".`
-      );
-    }
+    logExportedProjectInfo(projectDist);
 
     async function* emitWorkerTarballAsync(params: {
       assetMap: WorkerAssets.AssetMap;
@@ -152,8 +125,8 @@ export default class WorkerDeploy extends EasCommand {
     }): AsyncGenerator<WorkerAssets.FileEntry> {
       yield ['assets.json', JSON.stringify(params.assetMap)];
       yield ['manifest.json', JSON.stringify(params.manifest)];
-      if (distServerPath) {
-        const workerFiles = WorkerAssets.listWorkerFilesAsync(distServerPath);
+      if (projectDist.type === 'server' && projectDist.serverPath) {
+        const workerFiles = WorkerAssets.listWorkerFilesAsync(projectDist.serverPath);
         for await (const workerFile of workerFiles) {
           yield [`server/${workerFile.normalizedPath}`, workerFile.data];
         }
@@ -172,7 +145,10 @@ export default class WorkerDeploy extends EasCommand {
       if (response.status === 413) {
         throw new Error(
           'Upload failed! (Payload too large)\n' +
-            `The files in "dist/server/" (at: ${distServerPath}) exceed the maximum file size (10MB gzip).`
+            `The files in "${path.relative(
+              projectDir,
+              projectDist.path
+            )}" (at: ${projectDir}) exceed the maximum file size (10MB gzip).`
         );
       } else if (!response.ok) {
         throw new Error(`Upload failed! (${response.statusText})`);
@@ -195,7 +171,8 @@ export default class WorkerDeploy extends EasCommand {
 
       // TODO(@kitten): Batch and upload multiple files in parallel
       const uploadParams: UploadParams[] = [];
-      for await (const asset of WorkerAssets.listAssetMapFilesAsync(distClientPath, assetMap)) {
+      const assetPath = projectDist.type === 'server' ? projectDist.clientPath : projectDist.path;
+      for await (const asset of WorkerAssets.listAssetMapFilesAsync(assetPath, assetMap)) {
         const uploadURL = uploads[asset.normalizedPath];
         if (uploadURL) {
           uploadParams.push({ url: uploadURL, filePath: asset.path });
@@ -252,7 +229,9 @@ export default class WorkerDeploy extends EasCommand {
         },
         graphqlClient
       );
-      assetMap = await WorkerAssets.createAssetMapAsync(distClientPath);
+      assetMap = await WorkerAssets.createAssetMapAsync(
+        projectDist.type === 'server' ? projectDist.clientPath : projectDist.path
+      );
       tarPath = await WorkerAssets.packFilesIterableAsync(
         emitWorkerTarballAsync({
           assetMap,
@@ -266,6 +245,7 @@ export default class WorkerDeploy extends EasCommand {
         // NOTE(cedric): this function might ask the user for a dev-domain name,
         // when that happens, no ora spinner should be running.
         onSetupDevDomain: () => progress.stop(),
+        nonInteractive: flags.nonInteractive,
       });
 
       progress.start('Creating deployment');
@@ -376,7 +356,33 @@ export default class WorkerDeploy extends EasCommand {
   }
 }
 
-/** Log the detected of Expo export */
-function logDeploymentType(type: 'static' | 'server'): void {
-  Log.log(chalk`{dim > output: ${type}}`);
+async function resolveExportedProjectAsync(
+  flags: DeployFlags,
+  projectDir: string
+): Promise<
+  | { type: 'static'; modifiedAt: Date; path: string }
+  | { type: 'server'; modifiedAt: Date; path: string; serverPath: string; clientPath: string }
+> {
+  const exportPath = path.join(projectDir, flags.exportDir);
+  const serverPath = path.join(exportPath, 'server');
+  const clientPath = path.join(exportPath, 'client');
+
+  const [hasServerPath, hasClientPath, modifiedAt] = await Promise.all([
+    isDirectory(serverPath),
+    isDirectory(clientPath),
+    fs.promises.stat(exportPath).then(stat => stat.mtime),
+  ]);
+
+  if (hasServerPath && hasClientPath) {
+    return { type: 'server', path: exportPath, modifiedAt, serverPath, clientPath };
+  }
+
+  return { type: 'static', path: exportPath, modifiedAt };
+}
+
+function logExportedProjectInfo(
+  project: Awaited<ReturnType<typeof resolveExportedProjectAsync>>
+): void {
+  const modifiedAgo = formatTimeAgo(project.modifiedAt);
+  Log.log(chalk`{dim > Project export: ${project.type} - created ${modifiedAgo}}`);
 }

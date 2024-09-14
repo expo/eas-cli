@@ -227,5 +227,11 @@ async function resolveDeploymentIdAsync({
     selectTitle: chalk`deployment to assign the {underline ${aliasName}} alias`,
   });
 
-  return deployment?.deploymentIdentifier;
+  if (!deployment) {
+    throw new Error(
+      'No deployments found for this project, create a new deployment with "eas deploy"'
+    );
+  }
+
+  return deployment.deploymentIdentifier;
 }
