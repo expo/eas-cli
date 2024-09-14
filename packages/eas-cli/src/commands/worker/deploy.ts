@@ -239,12 +239,12 @@ export default class WorkerDeploy extends EasCommand {
         })
       );
 
-      // NOTE(cedric): this function might ask the user for a dev-domain name,
-      // when that happens, no ora spinner should be running.
-      progress.stop();
-      const uploadUrl = await getSignedDeploymentUrlAsync(graphqlClient, exp, {
+      const uploadUrl = await getSignedDeploymentUrlAsync(graphqlClient, {
         appId: projectId,
         deploymentIdentifier: flags.deploymentIdentifier,
+        // NOTE(cedric): this function might ask the user for a dev-domain name,
+        // when that happens, no ora spinner should be running.
+        onSetupDevDomain: () => progress.stop(),
       });
 
       progress.start('Creating deployment');
