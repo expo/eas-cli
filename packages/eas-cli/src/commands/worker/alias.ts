@@ -43,16 +43,16 @@ export default class WorkerAlias extends EasCommand {
   static override flags = {
     prod: Flags.boolean({
       aliases: ['production'],
-      description: 'Promote an existing deployment to production',
+      description: 'Promote an existing deployment to production.',
       default: false,
     }),
     alias: Flags.string({
-      description: 'Custom alias to assign to the existing deployment',
+      description: 'Custom alias to assign to the existing deployment.',
       helpValue: 'name',
       required: false,
     }),
     id: Flags.string({
-      description: 'Unique identifier of an existing deployment',
+      description: 'Unique identifier of an existing deployment.',
       helpValue: 'xyz123',
       required: false,
     }),
@@ -66,18 +66,14 @@ export default class WorkerAlias extends EasCommand {
   };
 
   override async runAsync(): Promise<void> {
-    // NOTE(cedric): `Log.warn` uses `console.log`, which is incorrect when running with `--json`
-    // eslint-disable-next-line no-console
-    console.warn(
-      chalk.yellow('EAS Worker Deployments are in beta and subject to breaking changes.')
-    );
-
     const { flags: rawFlags } = await this.parse(WorkerAlias);
     const flags = this.sanitizeFlags(rawFlags);
 
     if (flags.json) {
       enableJsonOutput();
     }
+
+    Log.warn('EAS Worker Deployments are in beta and subject to breaking changes.');
 
     const {
       getDynamicPrivateProjectConfigAsync,
