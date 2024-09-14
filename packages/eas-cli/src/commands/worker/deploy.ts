@@ -83,7 +83,7 @@ export default class WorkerDeploy extends EasCommand {
     }),
     environment: {
       ...EASEnvironmentFlag.environment,
-      description: 'Use EAS secret variables matching the specified environment in the new deployment.',
+      description: 'Deploy with EAS Environment Variables matching the specified environment.',
     },
     ...EasNonInteractiveAndJsonFlags,
   };
