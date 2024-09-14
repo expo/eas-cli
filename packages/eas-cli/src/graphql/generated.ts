@@ -3384,6 +3384,7 @@ export type CustomDomainDnsRecord = {
 };
 
 export enum CustomDomainDnsRecordType {
+  A = 'A',
   Cname = 'CNAME',
   Txt = 'TXT'
 }
@@ -6351,7 +6352,7 @@ export type Update = ActivityTimelineProjectActivity & {
   branchId: Scalars['ID']['output'];
   codeSigningInfo?: Maybe<CodeSigningInfo>;
   createdAt: Scalars['DateTime']['output'];
-  deploymentsPaginated: UpdateDeploymentsConnection;
+  deployments: UpdateDeploymentsConnection;
   expoGoSDKVersion?: Maybe<Scalars['String']['output']>;
   gitCommitHash?: Maybe<Scalars['String']['output']>;
   group: Scalars['String']['output'];
@@ -6374,7 +6375,7 @@ export type Update = ActivityTimelineProjectActivity & {
 };
 
 
-export type UpdateDeploymentsPaginatedArgs = {
+export type UpdateDeploymentsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -7545,8 +7546,11 @@ export type WorkerDeploymentRequestNode = {
 export type WorkerDeploymentRequests = {
   __typename?: 'WorkerDeploymentRequests';
   byBrowser: Array<WorkerDeploymentRequestsBrowserEdge>;
+  byCacheStatus: Array<WorkerDeploymentRequestsCacheStatusEdge>;
   byContinent: Array<WorkerDeploymentRequestsContinentEdge>;
+  byMethod: Array<WorkerDeploymentRequestsMethodEdge>;
   byOS: Array<WorkerDeploymentRequestsOperatingSystemEdge>;
+  byStatusType: Array<WorkerDeploymentRequestsStatusTypeEdge>;
   interval: Scalars['Int']['output'];
   minRowsWithoutLimit: Scalars['Int']['output'];
   nodes: Array<WorkerDeploymentRequestNode>;
@@ -7601,9 +7605,21 @@ export type WorkerDeploymentRequestsBrowserEdge = {
   node: WorkerDeploymentRequestsAggregationNode;
 };
 
+export type WorkerDeploymentRequestsCacheStatusEdge = {
+  __typename?: 'WorkerDeploymentRequestsCacheStatusEdge';
+  cacheStatus?: Maybe<ResponseCacheStatus>;
+  node: WorkerDeploymentRequestsAggregationNode;
+};
+
 export type WorkerDeploymentRequestsContinentEdge = {
   __typename?: 'WorkerDeploymentRequestsContinentEdge';
   continent: ContinentCode;
+  node: WorkerDeploymentRequestsAggregationNode;
+};
+
+export type WorkerDeploymentRequestsMethodEdge = {
+  __typename?: 'WorkerDeploymentRequestsMethodEdge';
+  method: Scalars['String']['output'];
   node: WorkerDeploymentRequestsAggregationNode;
 };
 
@@ -7613,11 +7629,20 @@ export type WorkerDeploymentRequestsOperatingSystemEdge = {
   os?: Maybe<UserAgentOs>;
 };
 
+export type WorkerDeploymentRequestsStatusTypeEdge = {
+  __typename?: 'WorkerDeploymentRequestsStatusTypeEdge';
+  node: WorkerDeploymentRequestsAggregationNode;
+  statusType?: Maybe<ResponseStatusType>;
+};
+
 export type WorkerDeploymentRequestsTimeseriesEdge = {
   __typename?: 'WorkerDeploymentRequestsTimeseriesEdge';
   byBrowser: Array<WorkerDeploymentRequestsBrowserEdge>;
+  byCacheStatus: Array<WorkerDeploymentRequestsCacheStatusEdge>;
   byContinent: Array<WorkerDeploymentRequestsContinentEdge>;
+  byMethod: Array<WorkerDeploymentRequestsMethodEdge>;
   byOS: Array<WorkerDeploymentRequestsOperatingSystemEdge>;
+  byStatusType: Array<WorkerDeploymentRequestsStatusTypeEdge>;
   node?: Maybe<WorkerDeploymentRequestsAggregationNode>;
   timestamp: Scalars['DateTime']['output'];
 };
