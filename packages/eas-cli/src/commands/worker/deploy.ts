@@ -145,7 +145,10 @@ export default class WorkerDeploy extends EasCommand {
       if (response.status === 413) {
         throw new Error(
           'Upload failed! (Payload too large)\n' +
-            `The files in "${path.relative(projectDir, projectDist.path)}" (at: ${projectDir}) exceed the maximum file size (10MB gzip).`
+            `The files in "${path.relative(
+              projectDir,
+              projectDist.path
+            )}" (at: ${projectDir}) exceed the maximum file size (10MB gzip).`
         );
       } else if (!response.ok) {
         throw new Error(`Upload failed! (${response.statusText})`);
@@ -376,7 +379,9 @@ async function resolveExportedProjectAsync(
   return { type: 'static', path: exportPath, modifiedAt };
 }
 
-function logExportedProjectInfo(project: Awaited<ReturnType<typeof resolveExportedProjectAsync>>): void {
+function logExportedProjectInfo(
+  project: Awaited<ReturnType<typeof resolveExportedProjectAsync>>
+): void {
   const modifiedAgo = formatTimeAgo(project.modifiedAt);
   Log.log(chalk`{dim > Project export: ${project.type} - created ${modifiedAgo}}`);
 }
