@@ -360,8 +360,8 @@ async function resolveExportedProjectAsync(
   flags: DeployFlags,
   projectDir: string
 ): Promise<
-  | { type: 'static'; modifiedAt: Date; path: string }
-  | { type: 'server'; modifiedAt: Date; path: string; serverPath: string; clientPath: string }
+  | { type: 'static'; modifiedAt: Date | null; path: string }
+  | { type: 'server'; modifiedAt: Date | null; path: string; serverPath: string; clientPath: string }
 > {
   const exportPath = path.join(projectDir, flags.exportDir);
   const serverPath = path.join(exportPath, 'server');
@@ -370,7 +370,7 @@ async function resolveExportedProjectAsync(
   const [hasServerPath, hasClientPath, modifiedAt] = await Promise.all([
     isDirectory(serverPath),
     isDirectory(clientPath),
-    fs.promises.stat(exportPath).then(stat => stat.mtime),
+    fs.promises.stat(exportPath).then(stat => stat.mtime).catch(() => null),
   ]);
 
   if (hasServerPath && hasClientPath) {
@@ -383,6 +383,12 @@ async function resolveExportedProjectAsync(
 function logExportedProjectInfo(
   project: Awaited<ReturnType<typeof resolveExportedProjectAsync>>
 ): void {
-  const modifiedAgo = formatTimeAgo(project.modifiedAt);
-  Log.log(chalk`{dim > Project export: ${project.type} - created ${modifiedAgo}}`);
+  let modifiedAgo = '';
+
+  // Only show the timestamp for exports older than 1 minute
+  if (project.modifiedAt && (Date.now() - project.modifiedAt.getTime()) > 60_000) {
+    modifiedAgo = ` - exported ${formatTimeAgo(project.modifiedAt)}`;
+  }
+
+  Log.log(chalk`{dim > Project export: ${project.type}${modifiedAgo}}`);
 }
