@@ -66,18 +66,14 @@ export default class WorkerAlias extends EasCommand {
   };
 
   override async runAsync(): Promise<void> {
-    // NOTE(cedric): `Log.warn` uses `console.log`, which is incorrect when running with `--json`
-    // eslint-disable-next-line no-console
-    console.warn(
-      chalk.yellow('EAS Worker Deployments are in beta and subject to breaking changes.')
-    );
-
     const { flags: rawFlags } = await this.parse(WorkerAlias);
     const flags = this.sanitizeFlags(rawFlags);
 
     if (flags.json) {
       enableJsonOutput();
     }
+
+    Log.warn('EAS Worker Deployments are in beta and subject to breaking changes.');
 
     const {
       getDynamicPrivateProjectConfigAsync,

@@ -65,25 +65,27 @@ export default class WorkerDeploy extends EasCommand {
   static override flags = {
     prod: Flags.boolean({
       aliases: ['production'],
-      description: 'Create a new production deployment',
+      description: 'Create a new production deployment.',
       default: false,
     }),
     alias: Flags.string({
-      description: 'Custom alias to assign to the new deployment',
+      description: 'Custom alias to assign to the new deployment.',
       helpValue: 'name',
     }),
     id: Flags.string({
-      description: 'Custom unique identifier for the new deployment',
+      description: 'Custom unique identifier for the new deployment.',
       helpValue: 'xyz123',
     }),
     'export-dir': Flags.string({
-      description: 'Directory where the Expo project was exported',
+      description: 'Directory where the Expo project was exported.',
       helpValue: 'dir',
       default: 'dist',
     }),
-    // TODO(@kitten): Allow deployment identifier to be specified
+    environment: {
+      ...EASEnvironmentFlag.environment,
+      description: 'Use EAS secret variables matching the specified environment in the new deployment.',
+    },
     ...EasNonInteractiveAndJsonFlags,
-    ...EASEnvironmentFlag,
   };
 
   static override contextDefinition = {
@@ -93,18 +95,14 @@ export default class WorkerDeploy extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    // NOTE(cedric): `Log.warn` uses `console.log`, which is incorrect when running with `--json`
-    // eslint-disable-next-line no-console
-    console.warn(
-      chalk.yellow('EAS Worker Deployments are in beta and subject to breaking changes.')
-    );
-
     const { flags: rawFlags } = await this.parse(WorkerDeploy);
     const flags = this.sanitizeFlags(rawFlags);
 
     if (flags.json) {
       enableJsonOutput();
     }
+
+    Log.warn('EAS Worker Deployments are in beta and subject to breaking changes.');
 
     const {
       getDynamicPrivateProjectConfigAsync,
