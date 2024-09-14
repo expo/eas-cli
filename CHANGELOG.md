@@ -28,6 +28,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Avoid merging `expo.extra` plugin-generated data with `expo.extra.eas.projectId` in `eas init`. ([#2554](https://github.com/expo/eas-cli/pull/2554) by [@byCedric](https://github.com/byCedric)))
+- Restore "export not found" error and hide recent export timestamps. ([#2566](https://github.com/expo/eas-cli/pull/2566) by [@byCedric](https://github.com/byCedric)))
 
 ### 🧹 Chores
 
@@ -39,6 +40,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Share similar table/json output in both `worker` and `worker:alias` command outputs. ([#2563](https://github.com/expo/eas-cli/pull/2563) by [@byCedric](https://github.com/byCedric)))
 - Polish the project URL prompt when setting up new projects. ([#2564](https://github.com/expo/eas-cli/pull/2564) by [@byCedric](https://github.com/byCedric)))
 - Always assume `static` exports in `eas deploy` and add modified time. ([#2565](https://github.com/expo/eas-cli/pull/2565) by [@byCedric](https://github.com/byCedric)))
+- Update the `eas worker --help` `--environment` description. ([#2567](https://github.com/expo/eas-cli/pull/2567) by [@byCedric](https://github.com/byCedric)))
 - Remove the cursor space after selecting project dev domain. ([#2568](https://github.com/expo/eas-cli/pull/2568) by [@byCedric](https://github.com/byCedric)))
 
 ## [12.3.0](https://github.com/expo/eas-cli/releases/tag/v12.3.0) - 2024-09-09
