@@ -43,16 +43,16 @@ export default class WorkerAlias extends EasCommand {
   static override flags = {
     prod: Flags.boolean({
       aliases: ['production'],
-      description: 'Promote an existing deployment to production',
+      description: 'Promote an existing deployment to production.',
       default: false,
     }),
     alias: Flags.string({
-      description: 'Custom alias to assign to the existing deployment',
+      description: 'Custom alias to assign to the existing deployment.',
       helpValue: 'name',
       required: false,
     }),
     id: Flags.string({
-      description: 'Unique identifier of an existing deployment',
+      description: 'Unique identifier of an existing deployment.',
       helpValue: 'xyz123',
       required: false,
     }),
