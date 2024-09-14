@@ -139,7 +139,7 @@ async function chooseDevDomainNameAsync({
     );
 
     if (isChosenNameTaken) {
-      Log.error(`The entered project URL "${name}" is already taken, choose a different name.`);
+      Log.error(`The project URL "${name}" is already taken, choose a different name.`);
       await chooseDevDomainNameAsync({ graphqlClient, appId, slug });
     }
 
