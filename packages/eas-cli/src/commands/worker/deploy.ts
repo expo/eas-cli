@@ -112,7 +112,7 @@ export default class WorkerDeploy extends EasCommand {
       projectDir,
     } = await this.getContextAsync(WorkerDeploy, flags);
 
-    const [{ projectId, exp }, projectDist] = await Promise.all([
+    const [{ projectId }, projectDist] = await Promise.all([
       getDynamicPrivateProjectConfigAsync(),
       resolveExportedProjectAsync(flags, projectDir),
     ]);
