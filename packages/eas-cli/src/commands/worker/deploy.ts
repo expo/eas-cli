@@ -360,29 +360,53 @@ async function resolveExportedProjectAsync(
   flags: DeployFlags,
   projectDir: string
 ): Promise<
-  | { type: 'static'; modifiedAt: Date; path: string }
-  | { type: 'server'; modifiedAt: Date; path: string; serverPath: string; clientPath: string }
+  | { type: 'static'; modifiedAt: Date | null; path: string }
+  | {
+      type: 'server';
+      modifiedAt: Date | null;
+      path: string;
+      serverPath: string;
+      clientPath: string;
+    }
 > {
   const exportPath = path.join(projectDir, flags.exportDir);
   const serverPath = path.join(exportPath, 'server');
   const clientPath = path.join(exportPath, 'client');
 
-  const [hasServerPath, hasClientPath, modifiedAt] = await Promise.all([
+  const [hasServerPath, hasClientPath, exportStat] = await Promise.all([
     isDirectory(serverPath),
     isDirectory(clientPath),
-    fs.promises.stat(exportPath).then(stat => stat.mtime),
+    fs.promises.stat(exportPath).catch(() => null),
   ]);
 
-  if (hasServerPath && hasClientPath) {
-    return { type: 'server', path: exportPath, modifiedAt, serverPath, clientPath };
+  if (!exportStat?.isDirectory()) {
+    throw new Error(
+      `No "${flags.exportDir}/" folder found. Prepare your project for deployment with "npx expo export --platform web"`
+    );
   }
 
-  return { type: 'static', path: exportPath, modifiedAt };
+  if (hasServerPath && hasClientPath) {
+    return {
+      type: 'server',
+      path: exportPath,
+      modifiedAt: exportStat.mtime,
+      serverPath,
+      clientPath,
+    };
+  }
+
+  return { type: 'static', path: exportPath, modifiedAt: exportStat.mtime };
 }
 
 function logExportedProjectInfo(
   project: Awaited<ReturnType<typeof resolveExportedProjectAsync>>
 ): void {
-  const modifiedAgo = formatTimeAgo(project.modifiedAt);
-  Log.log(chalk`{dim > Project export: ${project.type} - created ${modifiedAgo}}`);
+  let modifiedAgo = '';
+
+  // Only show the timestamp for exports older than 1 minute
+  if (project.modifiedAt && Date.now() - project.modifiedAt.getTime() > 60_000) {
+    modifiedAgo = ` - exported ${formatTimeAgo(project.modifiedAt)}`;
+  }
+
+  Log.log(chalk`{dim > Project export: ${project.type}${modifiedAgo}}`);
 }
