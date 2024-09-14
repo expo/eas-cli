@@ -13,18 +13,20 @@ import { selectPaginatedAsync } from '../utils/relay';
 
 export async function getSignedDeploymentUrlAsync(
   graphqlClient: ExpoGraphqlClient,
-  deploymentVariables: {
+  options: {
     appId: string;
     deploymentIdentifier?: string | null;
     /** Callback which is invoked when the project is going to setup the dev domain */
     onSetupDevDomain?: () => any;
+    /** If the terminal is running in non interactive mode or not */
+    nonInteractive?: boolean;
   }
 ): Promise<string> {
   try {
-    return await DeploymentsMutation.createSignedDeploymentUrlAsync(
-      graphqlClient,
-      deploymentVariables
-    );
+    return await DeploymentsMutation.createSignedDeploymentUrlAsync(graphqlClient, {
+      appId: options.appId,
+      deploymentIdentifier: options.deploymentIdentifier,
+    });
   } catch (error: any) {
     const isMissingDevDomain = (error as GraphqlError)?.graphQLErrors?.some(e =>
       ['APP_NO_DEV_DOMAIN_NAME'].includes(e?.extensions?.errorCode as string)
@@ -33,24 +35,29 @@ export async function getSignedDeploymentUrlAsync(
     if (!isMissingDevDomain) {
       throw error;
     }
+    if (options.nonInteractive) {
+      throw new Error(
+        'The project URL needs to be set up, but the terminal is running in non-interactive mode.'
+      );
+    }
 
     const suggestedDevDomainName = await DeploymentsQuery.getSuggestedDevDomainByAppIdAsync(
       graphqlClient,
-      { appId: deploymentVariables.appId }
+      { appId: options.appId }
     );
 
-    deploymentVariables.onSetupDevDomain?.();
+    options.onSetupDevDomain?.();
 
     await chooseDevDomainNameAsync({
       graphqlClient,
-      appId: deploymentVariables.appId,
+      appId: options.appId,
       initial: suggestedDevDomainName,
     });
 
-    return await DeploymentsMutation.createSignedDeploymentUrlAsync(
-      graphqlClient,
-      deploymentVariables
-    );
+    return await DeploymentsMutation.createSignedDeploymentUrlAsync(graphqlClient, {
+      appId: options.appId,
+      deploymentIdentifier: options.deploymentIdentifier,
+    });
   }
 }
 
