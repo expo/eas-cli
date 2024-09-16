@@ -1,28 +1,32 @@
-import { ExpoConfig } from '@expo/config-types';
 import { CombinedError as GraphqlError } from '@urql/core';
 import chalk from 'chalk';
 
 import { DeploymentsMutation } from './mutations';
 import { DeploymentsQuery } from './queries';
+import { EXPO_BASE_DOMAIN } from './utils/logs';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { WorkerDeploymentFragment } from '../graphql/generated';
 import Log from '../log';
 import { promptAsync } from '../prompts';
+import { memoize } from '../utils/expodash/memoize';
 import { selectPaginatedAsync } from '../utils/relay';
 
 export async function getSignedDeploymentUrlAsync(
   graphqlClient: ExpoGraphqlClient,
-  exp: ExpoConfig,
-  deploymentVariables: {
+  options: {
     appId: string;
     deploymentIdentifier?: string | null;
+    /** Callback which is invoked when the project is going to setup the dev domain */
+    onSetupDevDomain?: () => any;
+    /** If the terminal is running in non interactive mode or not */
+    nonInteractive?: boolean;
   }
 ): Promise<string> {
   try {
-    return await DeploymentsMutation.createSignedDeploymentUrlAsync(
-      graphqlClient,
-      deploymentVariables
-    );
+    return await DeploymentsMutation.createSignedDeploymentUrlAsync(graphqlClient, {
+      appId: options.appId,
+      deploymentIdentifier: options.deploymentIdentifier,
+    });
   } catch (error: any) {
     const isMissingDevDomain = (error as GraphqlError)?.graphQLErrors?.some(e =>
       ['APP_NO_DEV_DOMAIN_NAME'].includes(e?.extensions?.errorCode as string)
@@ -31,40 +35,111 @@ export async function getSignedDeploymentUrlAsync(
     if (!isMissingDevDomain) {
       throw error;
     }
+    if (options.nonInteractive) {
+      throw new Error(
+        'The project URL needs to be set up, but the terminal is running in non-interactive mode.'
+      );
+    }
+
+    const suggestedDevDomainName = await DeploymentsQuery.getSuggestedDevDomainByAppIdAsync(
+      graphqlClient,
+      { appId: options.appId }
+    );
+
+    options.onSetupDevDomain?.();
 
     await chooseDevDomainNameAsync({
       graphqlClient,
-      appId: deploymentVariables.appId,
-      slug: exp.slug,
+      appId: options.appId,
+      initial: suggestedDevDomainName,
     });
 
-    return await DeploymentsMutation.createSignedDeploymentUrlAsync(
-      graphqlClient,
-      deploymentVariables
-    );
+    return await DeploymentsMutation.createSignedDeploymentUrlAsync(graphqlClient, {
+      appId: options.appId,
+      deploymentIdentifier: options.deploymentIdentifier,
+    });
   }
+}
+
+type PromptInstance = {
+  cursorOffset: number;
+  placeholder: boolean;
+  rendered: string;
+  initial: string;
+  done: boolean;
+  get value(): string;
+  set value(input: string);
+};
+
+const DEV_DOMAIN_INVALID_START_END_CHARACTERS = /^[^a-z0-9]+|[^a-z0-9-]+$/;
+const DEV_DOMAIN_INVALID_REPLACEMENT_HYPHEN = /[^a-z0-9-]+/;
+const DEV_DOMAIN_INVALID_MULTIPLE_HYPHENS = /(-{2,})/;
+
+/**
+ * Format a dev domain name to match whats allowed on the backend.
+ * This is equal to our `DEV_DOMAIN_NAME_REGEX`, but implemented as a filtering function
+ * to help users find a valid name while typing.
+ */
+function formatDevDomainName(name = ''): string {
+  return name
+    .toLowerCase()
+    .replace(DEV_DOMAIN_INVALID_REPLACEMENT_HYPHEN, '-')
+    .replace(DEV_DOMAIN_INVALID_START_END_CHARACTERS, '')
+    .replace(DEV_DOMAIN_INVALID_MULTIPLE_HYPHENS, '-')
+    .trim();
 }
 
 async function chooseDevDomainNameAsync({
   graphqlClient,
   appId,
-  slug,
+  initial,
 }: {
   graphqlClient: ExpoGraphqlClient;
   appId: string;
-  slug: string;
+  initial: string;
 }): Promise<void> {
-  const validationMessage = 'The project does not have a dev domain name.';
+  const rootDomain = `.${EXPO_BASE_DOMAIN}.app`;
+  const memoizedFormatDevDomainName = memoize(formatDevDomainName);
+
   const { name } = await promptAsync({
     type: 'text',
     name: 'name',
-    message: 'Choose a dev domain name for your project:',
-    validate: value => (value && value.length > 3 ? true : validationMessage),
-    initial: slug,
+    message: 'Choose a URL for your project:',
+    initial,
+    validate: (value: string) => {
+      if (!value) {
+        return 'You have to choose a URL for your project';
+      }
+      if (value.length < 3) {
+        return 'Project URLs must be at least 3 characters long';
+      }
+      if (value.endsWith('-')) {
+        return 'Project URLs cannot end with a hyphen (-)';
+      }
+      return true;
+    },
+    onState(this: PromptInstance, state: { value?: string }) {
+      const value = memoizedFormatDevDomainName(state.value);
+      if (value !== state.value) {
+        this.value = value;
+      }
+    },
+    onRender(this: PromptInstance, kleur) {
+      this.cursorOffset = -rootDomain.length - 1;
+
+      if (this.done) {
+        // Remove the space for the cursor when the prompt is done
+        this.rendered = this.value + kleur.dim(`${rootDomain}`);
+      } else if (this.placeholder) {
+        this.rendered = kleur.dim(`${this.initial} ${rootDomain}`);
+      } else {
+        this.rendered = this.value + kleur.dim(` ${rootDomain}`);
+      }
+    },
   });
 
   if (!name) {
-    throw new Error('Prompt failed');
+    throw new Error('No project URL provided, aborting deployment.');
   }
 
   try {
@@ -74,7 +149,7 @@ async function chooseDevDomainNameAsync({
     });
 
     if (!success) {
-      throw new Error('Failed to assign dev domain name');
+      throw new Error('Failed to assign project URL');
     }
   } catch (error: any) {
     const isChosenNameTaken = (error as GraphqlError)?.graphQLErrors?.some(e =>
@@ -82,8 +157,8 @@ async function chooseDevDomainNameAsync({
     );
 
     if (isChosenNameTaken) {
-      Log.error(`The entered dev domain name "${name}" is taken. Choose a different name.`);
-      await chooseDevDomainNameAsync({ graphqlClient, appId, slug });
+      Log.error(`The project URL "${name}" is already taken, choose a different name.`);
+      await chooseDevDomainNameAsync({ graphqlClient, appId, initial });
     }
 
     if (!isChosenNameTaken) {

@@ -8,16 +8,32 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Log command execution to assist in debugging local builds. ([#2526](https://github.com/expo/eas-cli/pull/2526) by [@trajano](https://github.com/trajano))
+- Allow submitting builds in progress ([#2543](https://github.com/expo/eas-cli/pull/2543) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [12.4.1](https://github.com/expo/eas-cli/releases/tag/v12.4.1) - 2024-09-14
+
+## [12.4.0](https://github.com/expo/eas-cli/releases/tag/v12.4.0) - 2024-09-14
+
+### 🎉 New features
+
 - Add `worker:alias` command to assign aliases from the CLI. ([#2548](https://github.com/expo/eas-cli/pull/2548) by [@byCedric](https://github.com/byCedric))
 - Add `worker --prod` flag to deploy to production from the CLI. ([#2550](https://github.com/expo/eas-cli/pull/2550) by [@byCedric](https://github.com/byCedric))
 - Add `worker --alias` flag to assign custom aliases when deploying. ([#2551](https://github.com/expo/eas-cli/pull/2551) by [@byCedric](https://github.com/byCedric)))
 - Add `worker --id` flag to use a custom deployment identifier. ([#2552](https://github.com/expo/eas-cli/pull/2552) by [@byCedric](https://github.com/byCedric)))
 - Add `worker --environment` flag to deploy with EAS environment variables. ([#2557](https://github.com/expo/eas-cli/pull/2557) by [@kitten](https://github.com/kitten)))
-- Allow submitting builds in progress ([#2543](https://github.com/expo/eas-cli/pull/2543) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Add `worker --export-dir` flag to select exported directory. ([#2560](https://github.com/expo/eas-cli/pull/2560) by [@byCedric](https://github.com/byCedric)))
+- Add `worker --json` flag to allow integrating with 3rd parties and custom tooling. ([#2561](https://github.com/expo/eas-cli/pull/2561) by [@byCedric](https://github.com/byCedric)))
+- Add `worker:alias --json` flag to allow integrating with 3rd parties and custom tooling. ([#2562](https://github.com/expo/eas-cli/pull/2562) by [@byCedric](https://github.com/byCedric)))
 
 ### 🐛 Bug fixes
 
 - Avoid merging `expo.extra` plugin-generated data with `expo.extra.eas.projectId` in `eas init`. ([#2554](https://github.com/expo/eas-cli/pull/2554) by [@byCedric](https://github.com/byCedric)))
+- Restore "export not found" error and hide recent export timestamps. ([#2566](https://github.com/expo/eas-cli/pull/2566) by [@byCedric](https://github.com/byCedric)))
 
 ### 🧹 Chores
 
@@ -26,6 +42,11 @@ This is the log of notable changes to EAS CLI and related packages.
 - Source `@expo/env` dotenv files for worker deployments. ([#2545](https://github.com/expo/eas-cli/pull/2545) by [@kitten](https://github.com/kitten))
 - Support `worker --production` and clean up command output. ([#2555](https://github.com/expo/eas-cli/pull/2555) by [@byCedric](https://github.com/byCedric)))
 - Unify both `worker` and `worker:alias` command output. ([#2558](https://github.com/expo/eas-cli/pull/2558) by [@byCedric](https://github.com/byCedric)))
+- Share similar table/json output in both `worker` and `worker:alias` command outputs. ([#2563](https://github.com/expo/eas-cli/pull/2563) by [@byCedric](https://github.com/byCedric)))
+- Polish the project URL prompt when setting up new projects. ([#2564](https://github.com/expo/eas-cli/pull/2564) by [@byCedric](https://github.com/byCedric)))
+- Always assume `static` exports in `eas deploy` and add modified time. ([#2565](https://github.com/expo/eas-cli/pull/2565) by [@byCedric](https://github.com/byCedric)))
+- Update the `eas worker --help` `--environment` description. ([#2567](https://github.com/expo/eas-cli/pull/2567) by [@byCedric](https://github.com/byCedric)))
+- Remove the cursor space after selecting project dev domain. ([#2568](https://github.com/expo/eas-cli/pull/2568) by [@byCedric](https://github.com/byCedric)))
 
 ## [12.3.0](https://github.com/expo/eas-cli/releases/tag/v12.3.0) - 2024-09-09
 

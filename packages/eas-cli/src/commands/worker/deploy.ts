@@ -1,3 +1,4 @@
+import { format as formatTimeAgo } from '@expo/timeago.js';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'node:fs';
@@ -5,10 +6,13 @@ import * as path from 'node:path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { EnvironmentVariableEnvironment } from '../../graphql/generated';
+import {
+  EnvironmentVariableEnvironment,
+  WorkerDeploymentAliasFragment,
+} from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
-import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { createProgressTracker } from '../../utils/progress';
 import * as WorkerAssets from '../../worker/assets';
 import {
@@ -17,6 +21,11 @@ import {
   getSignedDeploymentUrlAsync,
 } from '../../worker/deployment';
 import { UploadParams, batchUploadAsync, uploadAsync } from '../../worker/upload';
+import {
+  formatWorkerDeploymentJson,
+  formatWorkerDeploymentTable,
+  getDeploymentUrlFromFullName,
+} from '../../worker/utils/logs';
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
   fs.promises
@@ -31,6 +40,7 @@ interface DeployFlags {
   aliasName?: string;
   environment?: EnvironmentVariableEnvironment;
   deploymentIdentifier?: string;
+  exportDir: string;
 }
 
 interface RawDeployFlags {
@@ -40,6 +50,7 @@ interface RawDeployFlags {
   prod: boolean;
   alias?: string;
   id?: string;
+  'export-dir': string;
 }
 
 export default class WorkerDeploy extends EasCommand {
@@ -54,20 +65,27 @@ export default class WorkerDeploy extends EasCommand {
   static override flags = {
     prod: Flags.boolean({
       aliases: ['production'],
-      description: 'Create a new production deployment',
+      description: 'Create a new production deployment.',
       default: false,
     }),
     alias: Flags.string({
-      description: 'Custom alias to assign to the new deployment',
+      description: 'Custom alias to assign to the new deployment.',
       helpValue: 'name',
     }),
     id: Flags.string({
-      description: 'Custom unique identifier for the new deployment',
+      description: 'Custom unique identifier for the new deployment.',
       helpValue: 'xyz123',
     }),
-    // TODO(@kitten): Allow deployment identifier to be specified
+    'export-dir': Flags.string({
+      description: 'Directory where the Expo project was exported.',
+      helpValue: 'dir',
+      default: 'dist',
+    }),
+    environment: {
+      ...EASEnvironmentFlag.environment,
+      description: 'Deploy with EAS Environment Variables matching the specified environment.',
+    },
     ...EasNonInteractiveAndJsonFlags,
-    ...EASEnvironmentFlag,
   };
 
   static override contextDefinition = {
@@ -77,10 +95,14 @@ export default class WorkerDeploy extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    Log.warn('EAS Worker Deployments are in beta and subject to breaking changes.');
-
     const { flags: rawFlags } = await this.parse(WorkerDeploy);
     const flags = this.sanitizeFlags(rawFlags);
+
+    if (flags.json) {
+      enableJsonOutput();
+    }
+
+    Log.warn('EAS Worker Deployments are in beta and subject to breaking changes.');
 
     const {
       getDynamicPrivateProjectConfigAsync,
@@ -88,40 +110,12 @@ export default class WorkerDeploy extends EasCommand {
       projectDir,
     } = await this.getContextAsync(WorkerDeploy, flags);
 
-    const { projectId, exp } = await getDynamicPrivateProjectConfigAsync();
-    const distPath = path.resolve(projectDir, 'dist');
+    const [{ projectId }, projectDist] = await Promise.all([
+      getDynamicPrivateProjectConfigAsync(),
+      resolveExportedProjectAsync(flags, projectDir),
+    ]);
 
-    let distServerPath: string | null;
-    let distClientPath: string;
-    if (exp.web?.output === 'static') {
-      distClientPath = distPath;
-      distServerPath = null;
-      if (!(await isDirectory(distClientPath))) {
-        throw new Error(
-          `No "dist/" folder found. Prepare your project for deployment with "npx expo export"`
-        );
-      }
-
-      logDeploymentType('static');
-    } else if (exp.web?.output === 'server') {
-      distClientPath = path.resolve(distPath, 'client');
-      distServerPath = path.resolve(distPath, 'server');
-      if (!(await isDirectory(distClientPath))) {
-        throw new Error(
-          `No "dist/client/" folder found. Prepare your project for deployment with "npx expo export"`
-        );
-      } else if (!(await isDirectory(distServerPath))) {
-        throw new Error(
-          `No "dist/server/" folder found. Prepare your project for deployment with "npx expo export"`
-        );
-      }
-
-      logDeploymentType('server');
-    } else {
-      throw new Error(
-        `Single-page apps are not supported. Ensure that app.json key "expo.web.output" is set to "server" or "static".`
-      );
-    }
+    logExportedProjectInfo(projectDist);
 
     async function* emitWorkerTarballAsync(params: {
       assetMap: WorkerAssets.AssetMap;
@@ -129,20 +123,15 @@ export default class WorkerDeploy extends EasCommand {
     }): AsyncGenerator<WorkerAssets.FileEntry> {
       yield ['assets.json', JSON.stringify(params.assetMap)];
       yield ['manifest.json', JSON.stringify(params.manifest)];
-      if (distServerPath) {
-        const workerFiles = WorkerAssets.listWorkerFilesAsync(distServerPath);
+      if (projectDist.type === 'server' && projectDist.serverPath) {
+        const workerFiles = WorkerAssets.listWorkerFilesAsync(projectDist.serverPath);
         for await (const workerFile of workerFiles) {
           yield [`server/${workerFile.normalizedPath}`, workerFile.data];
         }
       }
     }
 
-    async function uploadTarballAsync(tarPath: string): Promise<any> {
-      const uploadUrl = await getSignedDeploymentUrlAsync(graphqlClient, exp, {
-        appId: projectId,
-        deploymentIdentifier: flags.deploymentIdentifier,
-      });
-
+    async function uploadTarballAsync(tarPath: string, uploadUrl: string): Promise<any> {
       const { response } = await uploadAsync({
         url: uploadUrl,
         filePath: tarPath,
@@ -154,7 +143,10 @@ export default class WorkerDeploy extends EasCommand {
       if (response.status === 413) {
         throw new Error(
           'Upload failed! (Payload too large)\n' +
-            `The files in "dist/server/" (at: ${distServerPath}) exceed the maximum file size (10MB gzip).`
+            `The files in "${path.relative(
+              projectDir,
+              projectDist.path
+            )}" (at: ${projectDir}) exceed the maximum file size (10MB gzip).`
         );
       } else if (!response.ok) {
         throw new Error(`Upload failed! (${response.statusText})`);
@@ -177,7 +169,8 @@ export default class WorkerDeploy extends EasCommand {
 
       // TODO(@kitten): Batch and upload multiple files in parallel
       const uploadParams: UploadParams[] = [];
-      for await (const asset of WorkerAssets.listAssetMapFilesAsync(distClientPath, assetMap)) {
+      const assetPath = projectDist.type === 'server' ? projectDist.clientPath : projectDist.path;
+      for await (const asset of WorkerAssets.listAssetMapFilesAsync(assetPath, assetMap)) {
         const uploadURL = uploads[asset.normalizedPath];
         if (uploadURL) {
           uploadParams.push({ url: uploadURL, filePath: asset.path });
@@ -234,7 +227,9 @@ export default class WorkerDeploy extends EasCommand {
         },
         graphqlClient
       );
-      assetMap = await WorkerAssets.createAssetMapAsync(distClientPath);
+      assetMap = await WorkerAssets.createAssetMapAsync(
+        projectDist.type === 'server' ? projectDist.clientPath : projectDist.path
+      );
       tarPath = await WorkerAssets.packFilesIterableAsync(
         emitWorkerTarballAsync({
           assetMap,
@@ -242,8 +237,17 @@ export default class WorkerDeploy extends EasCommand {
         })
       );
 
-      progress.text = 'Creating deployment';
-      deployResult = await uploadTarballAsync(tarPath);
+      const uploadUrl = await getSignedDeploymentUrlAsync(graphqlClient, {
+        appId: projectId,
+        deploymentIdentifier: flags.deploymentIdentifier,
+        // NOTE(cedric): this function might ask the user for a dev-domain name,
+        // when that happens, no ora spinner should be running.
+        onSetupDevDomain: () => progress.stop(),
+        nonInteractive: flags.nonInteractive,
+      });
+
+      progress.start('Creating deployment');
+      deployResult = await uploadTarballAsync(tarPath, uploadUrl);
       progress.succeed('Created deployment');
     } catch (error: any) {
       progress.fail('Failed to create deployment');
@@ -252,17 +256,16 @@ export default class WorkerDeploy extends EasCommand {
 
     await uploadAssetsAsync(assetMap, deployResult.uploads);
 
-    let deploymentAliasUrl: string | null = null;
+    let deploymentAlias: null | Awaited<ReturnType<typeof assignWorkerDeploymentAliasAsync>> = null;
     if (flags.aliasName) {
       progress = ora(chalk`Assigning alias {bold ${flags.aliasName}} to deployment`).start();
       try {
-        const workerAlias = await assignWorkerDeploymentAliasAsync({
+        deploymentAlias = await assignWorkerDeploymentAliasAsync({
           graphqlClient,
           appId: projectId,
           deploymentId: deployResult.id,
           aliasName: flags.aliasName,
         });
-        deploymentAliasUrl = workerAlias.url;
 
         // Only stop the spinner when not promoting to production
         if (!flags.isProduction) {
@@ -274,7 +277,9 @@ export default class WorkerDeploy extends EasCommand {
       }
     }
 
-    let deploymentProductionUrl: string | null = null;
+    let deploymentProdAlias: null | Awaited<
+      ReturnType<typeof assignWorkerDeploymentProductionAsync>
+    > = null;
     if (flags.isProduction) {
       try {
         if (!flags.aliasName) {
@@ -283,12 +288,11 @@ export default class WorkerDeploy extends EasCommand {
           progress.text = chalk`Promoting deployment to {bold production}`;
         }
 
-        const workerProdAlias = await assignWorkerDeploymentProductionAsync({
+        deploymentProdAlias = await assignWorkerDeploymentProductionAsync({
           graphqlClient,
           appId: projectId,
           deploymentId: deployResult.id,
         });
-        deploymentProductionUrl = workerProdAlias.url;
 
         progress.succeed(
           !flags.aliasName
@@ -301,14 +305,41 @@ export default class WorkerDeploy extends EasCommand {
       }
     }
 
-    const expoBaseDomain = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
+    if (flags.json) {
+      printJsonOnlyOutput(
+        formatWorkerDeploymentJson({
+          projectId,
+          deployment: {
+            deploymentIdentifier: deployResult.id,
+            url: getDeploymentUrlFromFullName(deployResult.fullName),
+          },
+          aliases: [deploymentAlias].filter(Boolean) as WorkerDeploymentAliasFragment[],
+          production: deploymentProdAlias,
+        })
+      );
+      return;
+    }
 
-    logDeployment({
-      expoDashboardUrl: `https://${expoBaseDomain}.dev/projects/${projectId}/serverless/deployments`,
-      deploymentUrl: `https://${deployResult.fullName}.${expoBaseDomain}.app`,
-      aliasedUrl: deploymentAliasUrl,
-      productionUrl: deploymentProductionUrl,
-    });
+    Log.addNewLineIfNone();
+    Log.log(`🎉 Your deployment is ready`);
+    Log.addNewLineIfNone();
+    Log.log(
+      formatWorkerDeploymentTable({
+        projectId,
+        deployment: {
+          deploymentIdentifier: deployResult.id,
+          url: getDeploymentUrlFromFullName(deployResult.fullName),
+        },
+        aliases: [deploymentAlias].filter(Boolean) as WorkerDeploymentAliasFragment[],
+        production: deploymentProdAlias,
+      })
+    );
+
+    if (!deploymentProdAlias) {
+      Log.addNewLineIfNone();
+      Log.log('🚀 When you are ready to deploy to production:');
+      Log.log(chalk`  $ eas deploy {bold --prod}`);
+    }
   }
 
   private sanitizeFlags(flags: RawDeployFlags): DeployFlags {
@@ -318,47 +349,62 @@ export default class WorkerDeploy extends EasCommand {
       isProduction: !!flags.prod,
       aliasName: flags.alias?.trim().toLowerCase(),
       deploymentIdentifier: flags.id?.trim(),
+      exportDir: flags['export-dir'],
     };
   }
 }
 
-type LogDeploymentOptions = {
-  expoDashboardUrl: string;
-  deploymentUrl: string;
-  aliasedUrl?: string | null;
-  productionUrl?: string | null;
-};
+async function resolveExportedProjectAsync(
+  flags: DeployFlags,
+  projectDir: string
+): Promise<
+  | { type: 'static'; modifiedAt: Date | null; path: string }
+  | {
+      type: 'server';
+      modifiedAt: Date | null;
+      path: string;
+      serverPath: string;
+      clientPath: string;
+    }
+> {
+  const exportPath = path.join(projectDir, flags.exportDir);
+  const serverPath = path.join(exportPath, 'server');
+  const clientPath = path.join(exportPath, 'client');
 
-function logDeployment(options: LogDeploymentOptions): void {
-  Log.addNewLineIfNone();
-  Log.log(`🎉 Your deployment is ready`);
-  Log.addNewLineIfNone();
+  const [hasServerPath, hasClientPath, exportStat] = await Promise.all([
+    isDirectory(serverPath),
+    isDirectory(clientPath),
+    fs.promises.stat(exportPath).catch(() => null),
+  ]);
 
-  const fields: FormatFieldsItem[] = [
-    { label: 'Dashboard', value: options.expoDashboardUrl },
-    { label: 'Deployment URL', value: options.deploymentUrl },
-  ];
-
-  if (options.aliasedUrl) {
-    fields.push({ label: 'Alias URL', value: options.aliasedUrl });
+  if (!exportStat?.isDirectory()) {
+    throw new Error(
+      `No "${flags.exportDir}/" folder found. Prepare your project for deployment with "npx expo export --platform web"`
+    );
   }
-  if (options.productionUrl) {
-    fields.push({ label: 'Production URL', value: options.productionUrl });
+
+  if (hasServerPath && hasClientPath) {
+    return {
+      type: 'server',
+      path: exportPath,
+      modifiedAt: exportStat.mtime,
+      serverPath,
+      clientPath,
+    };
   }
 
-  const lastUrlField = fields[fields.length - 1];
-  lastUrlField.value = chalk.cyan(lastUrlField.value);
-
-  Log.log(formatFields(fields));
-
-  if (!options.productionUrl) {
-    Log.addNewLineIfNone();
-    Log.log('🚀 When you are ready to deploy to production:');
-    Log.log(chalk`  $ eas deploy {bold --prod}`);
-  }
+  return { type: 'static', path: exportPath, modifiedAt: exportStat.mtime };
 }
 
-/** Log the detected of Expo export */
-function logDeploymentType(type: 'static' | 'server'): void {
-  Log.log(chalk`{dim > output: ${type}}`);
+function logExportedProjectInfo(
+  project: Awaited<ReturnType<typeof resolveExportedProjectAsync>>
+): void {
+  let modifiedAgo = '';
+
+  // Only show the timestamp for exports older than 1 minute
+  if (project.modifiedAt && Date.now() - project.modifiedAt.getTime() > 60_000) {
+    modifiedAgo = ` - exported ${formatTimeAgo(project.modifiedAt)}`;
+  }
+
+  Log.log(chalk`{dim > Project export: ${project.type}${modifiedAgo}}`);
 }

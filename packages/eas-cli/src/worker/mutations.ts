@@ -1,6 +1,9 @@
 import assert from 'assert';
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import { WorkerDeploymentFragmentNode } from './fragments/WorkerDeployment';
+import { WorkerDeploymentAliasFragmentNode } from './fragments/WorkerDeploymentAlias';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../graphql/client';
 import {
@@ -91,11 +94,17 @@ export const DeploymentsMutation = {
                   aliasName: $aliasName
                 ) {
                   id
-                  aliasName
-                  url
+                  ...WorkerDeploymentAliasFragment
+                  workerDeployment {
+                    id
+                    ...WorkerDeploymentFragment
+                  }
                 }
               }
             }
+
+            ${print(WorkerDeploymentFragmentNode)}
+            ${print(WorkerDeploymentAliasFragmentNode)}
           `,
           aliasVariables
         )
