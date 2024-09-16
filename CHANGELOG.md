@@ -34,7 +34,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Avoid merging `expo.extra` plugin-generated data with `expo.extra.eas.projectId` in `eas init`. ([#2554](https://github.com/expo/eas-cli/pull/2554) by [@byCedric](https://github.com/byCedric)))
 - Restore "export not found" error and hide recent export timestamps. ([#2566](https://github.com/expo/eas-cli/pull/2566) by [@byCedric](https://github.com/byCedric)))
-- Check if export is available before validating project ID in `eas worker`.
+- Check if export is available before validating project ID in `eas worker`. ([#2569](https://github.com/expo/eas-cli/pull/2569) by [@byCedric](https://github.com/byCedric)))
 
 ### 🧹 Chores
 
