@@ -7,6 +7,7 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import {
   AppPlatform,
   BuildFragment,
+  BuildStatus,
   SubmissionArchiveSourceType,
   UploadSessionType,
 } from '../../graphql/generated';
@@ -41,6 +42,17 @@ const MOCK_BUILD_FRAGMENT: Partial<BuildFragment> = {
   appVersion: '1.2.3',
   platform: AppPlatform.Android,
   updatedAt: Date.now(),
+  status: BuildStatus.Finished,
+};
+const MOCK_IN_PROGRESS_BUILD_FRAGMENT: Partial<BuildFragment> = {
+  id: uuidv4(),
+  artifacts: {
+    buildUrl: ARCHIVE_SOURCE.url,
+  },
+  appVersion: '1.2.3',
+  platform: AppPlatform.Android,
+  updatedAt: Date.now(),
+  status: BuildStatus.InProgress,
 };
 
 const SOURCE_STUB_INPUT = {
@@ -246,11 +258,62 @@ describe(getArchiveAsync, () => {
     expect(archive.sourceType).toBe(ArchiveSourceType.url);
   });
 
-  it('handles build-list-select source', async () => {
+  it('handles build-list-select source for finished builds', async () => {
     const projectId = uuidv4();
     jest
       .mocked(getRecentBuildsForSubmissionAsync)
       .mockResolvedValueOnce([MOCK_BUILD_FRAGMENT as BuildFragment]);
+    jest.mocked(promptAsync).mockResolvedValueOnce({ selectedBuild: MOCK_BUILD_FRAGMENT });
+
+    const archive = await getArchiveAsync(
+      { ...SOURCE_STUB_INPUT, graphqlClient, projectId },
+      {
+        sourceType: ArchiveSourceType.buildList,
+      }
+    );
+
+    expect(getRecentBuildsForSubmissionAsync).toBeCalledWith(
+      graphqlClient,
+      toAppPlatform(SOURCE_STUB_INPUT.platform),
+      projectId,
+      { limit: BUILD_LIST_ITEM_COUNT }
+    );
+    expect(archive.sourceType).toBe(ArchiveSourceType.build);
+  });
+
+  it('handles build-list-select source for in-progress builds', async () => {
+    const projectId = uuidv4();
+    jest
+      .mocked(getRecentBuildsForSubmissionAsync)
+      .mockResolvedValueOnce([MOCK_IN_PROGRESS_BUILD_FRAGMENT as BuildFragment]);
+    jest
+      .mocked(promptAsync)
+      .mockResolvedValueOnce({ selectedBuild: MOCK_IN_PROGRESS_BUILD_FRAGMENT });
+
+    const archive = await getArchiveAsync(
+      { ...SOURCE_STUB_INPUT, graphqlClient, projectId },
+      {
+        sourceType: ArchiveSourceType.buildList,
+      }
+    );
+
+    expect(getRecentBuildsForSubmissionAsync).toBeCalledWith(
+      graphqlClient,
+      toAppPlatform(SOURCE_STUB_INPUT.platform),
+      projectId,
+      { limit: BUILD_LIST_ITEM_COUNT }
+    );
+    expect(archive.sourceType).toBe(ArchiveSourceType.build);
+  });
+
+  it('handles build-list-select source for both finished and in-progress builds', async () => {
+    const projectId = uuidv4();
+    jest
+      .mocked(getRecentBuildsForSubmissionAsync)
+      .mockResolvedValueOnce([
+        MOCK_IN_PROGRESS_BUILD_FRAGMENT as BuildFragment,
+        MOCK_BUILD_FRAGMENT as BuildFragment,
+      ]);
     jest.mocked(promptAsync).mockResolvedValueOnce({ selectedBuild: MOCK_BUILD_FRAGMENT });
 
     const archive = await getArchiveAsync(

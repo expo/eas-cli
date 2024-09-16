@@ -7,7 +7,7 @@ import * as uuid from 'uuid';
 import { getRecentBuildsForSubmissionAsync } from './utils/builds';
 import { isExistingFileAsync, uploadAppArchiveAsync } from './utils/files';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { BuildFragment } from '../graphql/generated';
+import { BuildFragment, BuildStatus } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log, { learnMore } from '../log';
@@ -88,6 +88,16 @@ export type ArchiveSource =
   | ArchiveGCSSource;
 
 export type ResolvedArchiveSource = ArchiveUrlSource | ArchiveGCSSource | ArchiveBuildSource;
+
+const buildStatusMapping: Record<BuildStatus, string> = {
+  [BuildStatus.New]: 'new',
+  [BuildStatus.InQueue]: 'in queue',
+  [BuildStatus.InProgress]: 'in progress',
+  [BuildStatus.Finished]: 'finished',
+  [BuildStatus.Errored]: 'errored',
+  [BuildStatus.PendingCancel]: 'canceled',
+  [BuildStatus.Canceled]: 'canceled',
+};
 
 export async function getArchiveAsync(
   ctx: ArchiveResolverContext,
@@ -344,6 +354,7 @@ function formatBuildChoice(build: BuildFragment): prompts.Choice {
     gitCommitMessage,
     channel,
     message,
+    status,
   } = build;
   const buildDate = new Date(updatedAt);
 
@@ -368,6 +379,7 @@ function formatBuildChoice(build: BuildFragment): prompts.Choice {
         ? chalk.bold(message.length > 200 ? `${message.slice(0, 200)}...` : message)
         : null,
     },
+    { name: 'Status', value: buildStatusMapping[status] },
   ];
 
   const filteredDescriptionArray: string[] = descriptionItems
