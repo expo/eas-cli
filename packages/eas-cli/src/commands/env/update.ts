@@ -80,10 +80,13 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       getOwnerAccountForProjectIdAsync(graphqlClient, projectId),
     ]);
 
+    if (!environment) {
+      environment = await promptVariableEnvironmentAsync(nonInteractive);
+    }
+
+    const environments = environment ? [environment] : undefined;
+
     if (scope === EnvironmentVariableScope.Project) {
-      if (!environment) {
-        environment = await promptVariableEnvironmentAsync(nonInteractive);
-      }
       const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
         appId: projectId,
         environment,
@@ -116,17 +119,13 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         }
       }
 
-      const variable = await EnvironmentVariableMutation.createForAppAsync(
-        graphqlClient,
-        {
-          name,
-          value,
-          environment,
-          visibility,
-          overwrite: true,
-        },
-        projectId
-      );
+      const variable = await EnvironmentVariableMutation.updateAsync(graphqlClient, {
+        id: existingVariable.id,
+        name,
+        value,
+        environments,
+        visibility,
+      });
       if (!variable) {
         throw new Error(
           `Could not update variable with name ${name} on project ${projectDisplayName}`
@@ -169,16 +168,13 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         }
       }
 
-      const variable = await EnvironmentVariableMutation.createSharedVariableAsync(
-        graphqlClient,
-        {
-          name,
-          value,
-          visibility,
-          overwrite: true,
-        },
-        ownerAccount.id
-      );
+      const variable = await EnvironmentVariableMutation.updateAsync(graphqlClient, {
+        id: existingVariable.id,
+        name,
+        value,
+        visibility,
+        environments,
+      });
 
       if (!variable) {
         throw new Error(
