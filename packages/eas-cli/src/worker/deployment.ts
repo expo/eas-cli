@@ -104,17 +104,17 @@ async function chooseDevDomainNameAsync({
   const { name } = await promptAsync({
     type: 'text',
     name: 'name',
-    message: 'Choose a URL for your project:',
+    message: 'Choose a preview URL for your project:',
     initial,
     validate: (value: string) => {
       if (!value) {
-        return 'You have to choose a URL for your project';
+        return 'You have to choose a preview URL for your project';
       }
       if (value.length < 3) {
-        return 'Project URLs must be at least 3 characters long';
+        return 'Preview URLs must be at least 3 characters long';
       }
       if (value.endsWith('-')) {
-        return 'Project URLs cannot end with a hyphen (-)';
+        return 'Preview URLs cannot end with a hyphen (-)';
       }
       return true;
     },
@@ -139,7 +139,7 @@ async function chooseDevDomainNameAsync({
   });
 
   if (!name) {
-    throw new Error('No project URL provided, aborting deployment.');
+    throw new Error('No preview URL provided, aborting deployment.');
   }
 
   try {
@@ -149,7 +149,7 @@ async function chooseDevDomainNameAsync({
     });
 
     if (!success) {
-      throw new Error('Failed to assign project URL');
+      throw new Error('Failed to assign preview URL');
     }
   } catch (error: any) {
     const isChosenNameTaken = (error as GraphqlError)?.graphQLErrors?.some(e =>
@@ -157,7 +157,7 @@ async function chooseDevDomainNameAsync({
     );
 
     if (isChosenNameTaken) {
-      Log.error(`The project URL "${name}" is already taken, choose a different name.`);
+      Log.error(`The preview URL "${name}" is already taken, choose a different URL.`);
       await chooseDevDomainNameAsync({ graphqlClient, appId, initial });
     }
 

@@ -48,6 +48,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Always assume `static` exports in `eas deploy` and add modified time. ([#2565](https://github.com/expo/eas-cli/pull/2565) by [@byCedric](https://github.com/byCedric)))
 - Update the `eas worker --help` `--environment` description. ([#2567](https://github.com/expo/eas-cli/pull/2567) by [@byCedric](https://github.com/byCedric)))
 - Remove the cursor space after selecting project dev domain. ([#2568](https://github.com/expo/eas-cli/pull/2568) by [@byCedric](https://github.com/byCedric)))
+- Reword the dev domain prompt to mention "preview URL". ([#2572](https://github.com/expo/eas-cli/pull/2572) by [@byCedric](https://github.com/byCedric)))
 
 ## [12.3.0](https://github.com/expo/eas-cli/releases/tag/v12.3.0) - 2024-09-09
 
