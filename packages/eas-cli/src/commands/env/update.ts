@@ -8,7 +8,11 @@ import {
   EASVariableScopeFlag,
   EASVariableVisibilityFlag,
 } from '../../commandUtils/flags';
-import { EnvironmentVariableScope, EnvironmentVariableVisibility } from '../../graphql/generated';
+import {
+  EnvironmentVariableEnvironment,
+  EnvironmentVariableScope,
+  EnvironmentVariableVisibility,
+} from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
@@ -23,7 +27,7 @@ type UpdateFlags = {
   name?: string;
   value?: string;
   scope?: EnvironmentVariableScope;
-  environment?: string;
+  environment?: EnvironmentVariableEnvironment;
   visibility?: EnvironmentVariableVisibility;
   'non-interactive': boolean;
 };
