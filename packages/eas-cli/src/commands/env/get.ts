@@ -117,7 +117,7 @@ async function getVariableAsync(
   scope: string,
   projectId: string,
   name: string | undefined,
-  environment: string | undefined
+  environment: EnvironmentVariableEnvironment | undefined
 ): Promise<EnvironmentVariableFragment | null> {
   if (!environment && scope === EnvironmentVariableScope.Project) {
     throw new Error('Environment is required.');

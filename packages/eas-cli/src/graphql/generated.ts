@@ -374,6 +374,7 @@ export type AccountEnvironmentSecretsArgs = {
  * data and settings. Actors may own and be members of accounts.
  */
 export type AccountEnvironmentVariablesArgs = {
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -383,6 +384,7 @@ export type AccountEnvironmentVariablesArgs = {
  * data and settings. Actors may own and be members of accounts.
  */
 export type AccountEnvironmentVariablesIncludingSensitiveArgs = {
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -3298,9 +3300,11 @@ export type CreateEnvironmentSecretInput = {
 };
 
 export type CreateEnvironmentVariableInput = {
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environments?: InputMaybe<Array<EnvironmentVariableEnvironment>>;
   name: Scalars['String']['input'];
   overwrite?: InputMaybe<Scalars['Boolean']['input']>;
+  type?: InputMaybe<EnvironmentSecretType>;
   value: Scalars['String']['input'];
   visibility: EnvironmentVariableVisibility;
 };
@@ -3363,8 +3367,10 @@ export type CreateServerlessFunctionUploadUrlResult = {
 };
 
 export type CreateSharedEnvironmentVariableInput = {
+  environments?: InputMaybe<Array<EnvironmentVariableEnvironment>>;
   name: Scalars['String']['input'];
   overwrite?: InputMaybe<Scalars['Boolean']['input']>;
+  type?: InputMaybe<EnvironmentSecretType>;
   value: Scalars['String']['input'];
   visibility: EnvironmentVariableVisibility;
 };
@@ -3924,12 +3930,26 @@ export type EnvironmentVariable = {
   apps: Array<App>;
   createdAt: Scalars['DateTime']['output'];
   environment?: Maybe<EnvironmentVariableEnvironment>;
+  environments?: Maybe<Array<EnvironmentVariableEnvironment>>;
   id: Scalars['ID']['output'];
+  linkedEnvironments?: Maybe<Array<EnvironmentVariableEnvironment>>;
   name: Scalars['String']['output'];
   scope: EnvironmentVariableScope;
+  type: EnvironmentSecretType;
   updatedAt: Scalars['DateTime']['output'];
   value?: Maybe<Scalars['String']['output']>;
   visibility?: Maybe<EnvironmentVariableVisibility>;
+};
+
+
+export type EnvironmentVariableLinkedEnvironmentsArgs = {
+  appFullName?: InputMaybe<Scalars['String']['input']>;
+  appId?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type EnvironmentVariableValueArgs = {
+  includeFileContent?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export enum EnvironmentVariableEnvironment {
@@ -3956,6 +3976,8 @@ export type EnvironmentVariableMutation = {
   linkSharedEnvironmentVariable: EnvironmentVariable;
   /** Unlink shared environment variable */
   unlinkSharedEnvironmentVariable: EnvironmentVariable;
+  /** Update an environment variable */
+  updateEnvironmentVariable: EnvironmentVariable;
 };
 
 
@@ -3995,15 +4017,20 @@ export type EnvironmentVariableMutationLinkBulkSharedEnvironmentVariablesArgs = 
 
 export type EnvironmentVariableMutationLinkSharedEnvironmentVariableArgs = {
   appId: Scalars['ID']['input'];
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   environmentVariableId: Scalars['ID']['input'];
 };
 
 
 export type EnvironmentVariableMutationUnlinkSharedEnvironmentVariableArgs = {
   appId: Scalars['ID']['input'];
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   environmentVariableId: Scalars['ID']['input'];
+};
+
+
+export type EnvironmentVariableMutationUpdateEnvironmentVariableArgs = {
+  environmentVariableData: UpdateEnvironmentVariableInput;
 };
 
 export enum EnvironmentVariableScope {
@@ -4022,13 +4049,21 @@ export type EnvironmentVariableWithSecret = {
   apps: Array<App>;
   createdAt: Scalars['DateTime']['output'];
   environment?: Maybe<EnvironmentVariableEnvironment>;
+  environments?: Maybe<Array<EnvironmentVariableEnvironment>>;
   id: Scalars['ID']['output'];
+  linkedEnvironments?: Maybe<Array<EnvironmentVariableEnvironment>>;
   name: Scalars['String']['output'];
   scope: EnvironmentVariableScope;
   sensitive: Scalars['Boolean']['output'];
+  type: EnvironmentSecretType;
   updatedAt: Scalars['DateTime']['output'];
   value?: Maybe<Scalars['String']['output']>;
   visibility: EnvironmentVariableVisibility;
+};
+
+
+export type EnvironmentVariableWithSecretLinkedEnvironmentsArgs = {
+  appFullName?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type EstimatedOverageAndCost = {
@@ -4989,7 +5024,7 @@ export type LineDataset = {
 
 export type LinkSharedEnvironmentVariableInput = {
   appId: Scalars['ID']['input'];
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   environmentVariableId: Scalars['ID']['input'];
 };
 
@@ -6600,6 +6635,15 @@ export type UpdateDeploymentsConnection = {
   __typename?: 'UpdateDeploymentsConnection';
   edges: Array<UpdateDeploymentEdge>;
   pageInfo: PageInfo;
+};
+
+export type UpdateEnvironmentVariableInput = {
+  environments?: InputMaybe<Array<EnvironmentVariableEnvironment>>;
+  id: Scalars['ID']['input'];
+  name?: InputMaybe<Scalars['String']['input']>;
+  type?: InputMaybe<EnvironmentSecretType>;
+  value?: InputMaybe<Scalars['String']['input']>;
+  visibility?: InputMaybe<EnvironmentVariableVisibility>;
 };
 
 export type UpdateGitHubBuildTriggerInput = {
@@ -8661,7 +8705,7 @@ export type EnvironmentSecretsByAppIdQuery = { __typename?: 'RootQuery', app: { 
 export type EnvironmentVariablesIncludingSensitiveByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
 }>;
 
 
@@ -8670,7 +8714,7 @@ export type EnvironmentVariablesIncludingSensitiveByAppIdQuery = { __typename?: 
 export type EnvironmentVariablesByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
 }>;
 
 
@@ -8679,6 +8723,7 @@ export type EnvironmentVariablesByAppIdQuery = { __typename?: 'RootQuery', app: 
 export type EnvironmentVariablesSharedQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
 }>;
 
 
@@ -8687,6 +8732,7 @@ export type EnvironmentVariablesSharedQuery = { __typename?: 'RootQuery', app: {
 export type EnvironmentVariablesSharedWithSensitiveQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
 }>;
 
 
