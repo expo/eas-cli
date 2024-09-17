@@ -374,6 +374,7 @@ export type AccountEnvironmentSecretsArgs = {
  * data and settings. Actors may own and be members of accounts.
  */
 export type AccountEnvironmentVariablesArgs = {
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -383,6 +384,7 @@ export type AccountEnvironmentVariablesArgs = {
  * data and settings. Actors may own and be members of accounts.
  */
 export type AccountEnvironmentVariablesIncludingSensitiveArgs = {
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -1619,15 +1621,15 @@ export type AppWorkerDeploymentsArgs = {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentsCrashArgs = {
-  crashId: Scalars['ID']['input'];
+  crashKey: Scalars['ID']['input'];
   sampleFor?: InputMaybe<CrashSampleFor>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentsCrashesArgs = {
-  limit?: Scalars['Int']['input'];
-  timespan: CrashesTimespan;
+  filters?: InputMaybe<CrashesFilters>;
+  timespan: DatasetTimespan;
 };
 
 
@@ -1640,7 +1642,7 @@ export type AppWorkerDeploymentsRequestArgs = {
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentsRequestsArgs = {
   filters?: InputMaybe<RequestsFilters>;
-  timespan: RequestsTimespan;
+  timespan: DatasetTimespan;
 };
 
 export type AppBranchEdge = {
@@ -3244,9 +3246,8 @@ export enum CrashSampleFor {
   Oldest = 'OLDEST'
 }
 
-export type CrashesTimespan = {
-  end: Scalars['DateTime']['input'];
-  start?: InputMaybe<Scalars['DateTime']['input']>;
+export type CrashesFilters = {
+  name?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 export type CreateAccessTokenInput = {
@@ -3289,9 +3290,11 @@ export type CreateEnvironmentSecretInput = {
 };
 
 export type CreateEnvironmentVariableInput = {
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environments?: InputMaybe<Array<EnvironmentVariableEnvironment>>;
   name: Scalars['String']['input'];
   overwrite?: InputMaybe<Scalars['Boolean']['input']>;
+  type?: InputMaybe<EnvironmentSecretType>;
   value: Scalars['String']['input'];
   visibility: EnvironmentVariableVisibility;
 };
@@ -3354,8 +3357,10 @@ export type CreateServerlessFunctionUploadUrlResult = {
 };
 
 export type CreateSharedEnvironmentVariableInput = {
+  environments?: InputMaybe<Array<EnvironmentVariableEnvironment>>;
   name: Scalars['String']['input'];
   overwrite?: InputMaybe<Scalars['Boolean']['input']>;
+  type?: InputMaybe<EnvironmentSecretType>;
   value: Scalars['String']['input'];
   visibility: EnvironmentVariableVisibility;
 };
@@ -3429,6 +3434,11 @@ export enum CustomDomainStatus {
   Pending = 'PENDING',
   TimedOut = 'TIMED_OUT'
 }
+
+export type DatasetTimespan = {
+  end: Scalars['DateTime']['input'];
+  start: Scalars['DateTime']['input'];
+};
 
 export type DeleteAccessTokenResult = {
   __typename?: 'DeleteAccessTokenResult';
@@ -3872,12 +3882,25 @@ export type EnvironmentVariable = {
   apps: Array<App>;
   createdAt: Scalars['DateTime']['output'];
   environment?: Maybe<EnvironmentVariableEnvironment>;
+  environments?: Maybe<Array<EnvironmentVariableEnvironment>>;
   id: Scalars['ID']['output'];
+  linkedEnvironments?: Maybe<Array<EnvironmentVariableEnvironment>>;
   name: Scalars['String']['output'];
   scope: EnvironmentVariableScope;
+  type: EnvironmentSecretType;
   updatedAt: Scalars['DateTime']['output'];
   value?: Maybe<Scalars['String']['output']>;
   visibility?: Maybe<EnvironmentVariableVisibility>;
+};
+
+
+export type EnvironmentVariableLinkedEnvironmentsArgs = {
+  appFullName?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type EnvironmentVariableValueArgs = {
+  includeFileContent?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export enum EnvironmentVariableEnvironment {
@@ -3904,6 +3927,8 @@ export type EnvironmentVariableMutation = {
   linkSharedEnvironmentVariable: EnvironmentVariable;
   /** Unlink shared environment variable */
   unlinkSharedEnvironmentVariable: EnvironmentVariable;
+  /** Update an environment variable */
+  updateEnvironmentVariable: EnvironmentVariable;
 };
 
 
@@ -3943,15 +3968,20 @@ export type EnvironmentVariableMutationLinkBulkSharedEnvironmentVariablesArgs = 
 
 export type EnvironmentVariableMutationLinkSharedEnvironmentVariableArgs = {
   appId: Scalars['ID']['input'];
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   environmentVariableId: Scalars['ID']['input'];
 };
 
 
 export type EnvironmentVariableMutationUnlinkSharedEnvironmentVariableArgs = {
   appId: Scalars['ID']['input'];
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   environmentVariableId: Scalars['ID']['input'];
+};
+
+
+export type EnvironmentVariableMutationUpdateEnvironmentVariableArgs = {
+  environmentVariableData: UpdateEnvironmentVariableInput;
 };
 
 export enum EnvironmentVariableScope {
@@ -3970,13 +4000,21 @@ export type EnvironmentVariableWithSecret = {
   apps: Array<App>;
   createdAt: Scalars['DateTime']['output'];
   environment?: Maybe<EnvironmentVariableEnvironment>;
+  environments?: Maybe<Array<EnvironmentVariableEnvironment>>;
   id: Scalars['ID']['output'];
+  linkedEnvironments?: Maybe<Array<EnvironmentVariableEnvironment>>;
   name: Scalars['String']['output'];
   scope: EnvironmentVariableScope;
   sensitive: Scalars['Boolean']['output'];
+  type: EnvironmentSecretType;
   updatedAt: Scalars['DateTime']['output'];
   value?: Maybe<Scalars['String']['output']>;
   visibility: EnvironmentVariableVisibility;
+};
+
+
+export type EnvironmentVariableWithSecretLinkedEnvironmentsArgs = {
+  appFullName?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type EstimatedOverageAndCost = {
@@ -4926,7 +4964,7 @@ export type LineDataset = {
 
 export type LinkSharedEnvironmentVariableInput = {
   appId: Scalars['ID']['input'];
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   environmentVariableId: Scalars['ID']['input'];
 };
 
@@ -5357,11 +5395,6 @@ export type RequestsFilters = {
   responseType?: InputMaybe<Array<ResponseType>>;
   status?: InputMaybe<Array<Scalars['Int']['input']>>;
   statusType?: InputMaybe<Array<ResponseStatusType>>;
-};
-
-export type RequestsTimespan = {
-  end: Scalars['DateTime']['input'];
-  start: Scalars['DateTime']['input'];
 };
 
 export type RescindUserInvitationResult = {
@@ -6524,6 +6557,15 @@ export type UpdateDeploymentsConnection = {
   pageInfo: PageInfo;
 };
 
+export type UpdateEnvironmentVariableInput = {
+  environments?: InputMaybe<Array<EnvironmentVariableEnvironment>>;
+  id: Scalars['ID']['input'];
+  name?: InputMaybe<Scalars['String']['input']>;
+  type?: InputMaybe<EnvironmentSecretType>;
+  value?: InputMaybe<Scalars['String']['input']>;
+  visibility?: InputMaybe<EnvironmentVariableVisibility>;
+};
+
 export type UpdateGitHubBuildTriggerInput = {
   autoSubmit: Scalars['Boolean']['input'];
   buildProfile: Scalars['String']['input'];
@@ -7390,6 +7432,7 @@ export type WorkerCustomDomain = {
 export type WorkerDeployment = {
   __typename?: 'WorkerDeployment';
   aliases?: Maybe<Array<WorkerDeploymentAlias>>;
+  crashes?: Maybe<WorkerDeploymentCrashes>;
   createdAt: Scalars['DateTime']['output'];
   deploymentDomain: Scalars['String']['output'];
   deploymentIdentifier: Scalars['WorkerDeploymentIdentifier']['output'];
@@ -7403,6 +7446,12 @@ export type WorkerDeployment = {
 };
 
 
+export type WorkerDeploymentCrashesArgs = {
+  filters?: InputMaybe<CrashesFilters>;
+  timespan: DatasetTimespan;
+};
+
+
 export type WorkerDeploymentLogsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   timespan: LogsTimespan;
@@ -7411,7 +7460,7 @@ export type WorkerDeploymentLogsArgs = {
 
 export type WorkerDeploymentRequestsArgs = {
   filters?: InputMaybe<RequestsFilters>;
-  timespan: RequestsTimespan;
+  timespan: DatasetTimespan;
 };
 
 export type WorkerDeploymentAlias = {
@@ -7442,33 +7491,64 @@ export type WorkerDeploymentAliasesConnection = {
 export type WorkerDeploymentCrashEdge = {
   __typename?: 'WorkerDeploymentCrashEdge';
   logs: Array<WorkerDeploymentLogNode>;
+  node: WorkerDeploymentCrashNode;
   request?: Maybe<WorkerDeploymentRequestNode>;
-  sample: WorkerDeploymentCrashSample;
 };
 
 export type WorkerDeploymentCrashNode = {
   __typename?: 'WorkerDeploymentCrashNode';
-  id: Scalars['ID']['output'];
-  minOccurrences: Scalars['Int']['output'];
-  mostRecentlyOccurredAt: Scalars['DateTime']['output'];
-  oldestOccurredAt: Scalars['DateTime']['output'];
-  sample: WorkerDeploymentCrashSample;
-};
-
-export type WorkerDeploymentCrashSample = {
-  __typename?: 'WorkerDeploymentCrashSample';
+  crashHash: Scalars['ID']['output'];
+  crashTimestamp: Scalars['DateTime']['output'];
+  deploymentIdentifier: Scalars['String']['output'];
   firstStackLine?: Maybe<Scalars['String']['output']>;
+  key: Scalars['ID']['output'];
   message: Scalars['String']['output'];
   name: Scalars['String']['output'];
+  requestTimestamp: Scalars['DateTime']['output'];
   scriptName: Scalars['String']['output'];
   stack?: Maybe<Array<Scalars['String']['output']>>;
-  timestamp: Scalars['DateTime']['output'];
 };
 
 export type WorkerDeploymentCrashes = {
   __typename?: 'WorkerDeploymentCrashes';
-  minRowsWithoutLimit?: Maybe<Scalars['Int']['output']>;
+  byCrashHash: Array<WorkerDeploymentCrashesHashEdge>;
+  byName: Array<WorkerDeploymentCrashesNameEdge>;
+  interval: Scalars['Int']['output'];
+  minRowsWithoutLimit: Scalars['Int']['output'];
   nodes: Array<WorkerDeploymentCrashNode>;
+  summary: WorkerDeploymentCrashesAggregationNode;
+  timeseries: Array<WorkerDeploymentCrashesTimeseriesEdge>;
+};
+
+export type WorkerDeploymentCrashesAggregationNode = {
+  __typename?: 'WorkerDeploymentCrashesAggregationNode';
+  crashesPerMs?: Maybe<Scalars['Float']['output']>;
+  crashesSum: Scalars['Int']['output'];
+  firstOccurredAt: Scalars['DateTime']['output'];
+  mostRecentlyOccurredAt: Scalars['DateTime']['output'];
+  sampleRate: Scalars['Float']['output'];
+};
+
+export type WorkerDeploymentCrashesHashEdge = {
+  __typename?: 'WorkerDeploymentCrashesHashEdge';
+  crashHash: Scalars['ID']['output'];
+  node: WorkerDeploymentCrashesAggregationNode;
+  sample: WorkerDeploymentCrashNode;
+  timeseries: Array<WorkerDeploymentCrashesTimeseriesEdge>;
+};
+
+export type WorkerDeploymentCrashesNameEdge = {
+  __typename?: 'WorkerDeploymentCrashesNameEdge';
+  name: Scalars['String']['output'];
+  node: WorkerDeploymentCrashesAggregationNode;
+  sample: WorkerDeploymentCrashNode;
+  timeseries: Array<WorkerDeploymentCrashesTimeseriesEdge>;
+};
+
+export type WorkerDeploymentCrashesTimeseriesEdge = {
+  __typename?: 'WorkerDeploymentCrashesTimeseriesEdge';
+  node?: Maybe<WorkerDeploymentCrashesAggregationNode>;
+  timestamp: Scalars['DateTime']['output'];
 };
 
 export type WorkerDeploymentEdge = {
@@ -7511,7 +7591,7 @@ export type WorkerDeploymentQueryByIdArgs = {
 
 export type WorkerDeploymentRequestEdge = {
   __typename?: 'WorkerDeploymentRequestEdge';
-  crash?: Maybe<WorkerDeploymentCrashSample>;
+  crash?: Maybe<WorkerDeploymentCrashNode>;
   logs: Array<WorkerDeploymentLogNode>;
   node: WorkerDeploymentRequestNode;
 };
@@ -8525,7 +8605,7 @@ export type EnvironmentSecretsByAppIdQuery = { __typename?: 'RootQuery', app: { 
 export type EnvironmentVariablesIncludingSensitiveByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
 }>;
 
 
@@ -8534,7 +8614,7 @@ export type EnvironmentVariablesIncludingSensitiveByAppIdQuery = { __typename?: 
 export type EnvironmentVariablesByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
 }>;
 
 
@@ -8543,6 +8623,7 @@ export type EnvironmentVariablesByAppIdQuery = { __typename?: 'RootQuery', app: 
 export type EnvironmentVariablesSharedQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
 }>;
 
 
@@ -8551,6 +8632,7 @@ export type EnvironmentVariablesSharedQuery = { __typename?: 'RootQuery', app: {
 export type EnvironmentVariablesSharedWithSensitiveQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
 }>;
 
 

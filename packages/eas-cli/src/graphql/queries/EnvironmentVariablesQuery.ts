@@ -4,6 +4,7 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariablesByAppIdQuery,
   EnvironmentVariablesSharedQuery,
@@ -20,7 +21,7 @@ export const EnvironmentVariablesQuery = {
       filterNames,
     }: {
       appId: string;
-      environment: string;
+      environment?: EnvironmentVariableEnvironment;
       filterNames?: string[];
     }
   ): Promise<EnvironmentVariableFragment[]> {
@@ -31,7 +32,7 @@ export const EnvironmentVariablesQuery = {
             query EnvironmentVariablesIncludingSensitiveByAppId(
               $appId: String!
               $filterNames: [String!]
-              $environment: EnvironmentVariableEnvironment!
+              $environment: EnvironmentVariableEnvironment
             ) {
               app {
                 byId(appId: $appId) {
@@ -64,7 +65,7 @@ export const EnvironmentVariablesQuery = {
       filterNames,
     }: {
       appId: string;
-      environment: string;
+      environment?: EnvironmentVariableEnvironment;
       filterNames?: string[];
     }
   ): Promise<EnvironmentVariableFragment[]> {
@@ -75,7 +76,7 @@ export const EnvironmentVariablesQuery = {
             query EnvironmentVariablesByAppId(
               $appId: String!
               $filterNames: [String!]
-              $environment: EnvironmentVariableEnvironment!
+              $environment: EnvironmentVariableEnvironment
             ) {
               app {
                 byId(appId: $appId) {
@@ -99,19 +100,27 @@ export const EnvironmentVariablesQuery = {
   },
   async sharedAsync(
     graphqlClient: ExpoGraphqlClient,
-    { appId, filterNames }: { appId: string; filterNames?: string[] }
+    {
+      appId,
+      filterNames,
+      environment,
+    }: { appId: string; filterNames?: string[]; environment?: EnvironmentVariableEnvironment }
   ): Promise<EnvironmentVariableFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<EnvironmentVariablesSharedQuery, EnvironmentVariablesSharedQueryVariables>(
           gql`
-            query EnvironmentVariablesShared($appId: String!, $filterNames: [String!]) {
+            query EnvironmentVariablesShared(
+              $appId: String!
+              $filterNames: [String!]
+              $environment: EnvironmentVariableEnvironment
+            ) {
               app {
                 byId(appId: $appId) {
                   id
                   ownerAccount {
                     id
-                    environmentVariables(filterNames: $filterNames) {
+                    environmentVariables(filterNames: $filterNames, environment: $environment) {
                       id
                       ...EnvironmentVariableFragment
                     }
@@ -121,7 +130,7 @@ export const EnvironmentVariablesQuery = {
             }
             ${print(EnvironmentVariableFragmentNode)}
           `,
-          { appId, filterNames },
+          { appId, filterNames, environment },
           { additionalTypenames: ['EnvironmentVariable'] }
         )
         .toPromise()
@@ -131,7 +140,11 @@ export const EnvironmentVariablesQuery = {
   },
   async sharedWithSensitiveAsync(
     graphqlClient: ExpoGraphqlClient,
-    { appId, filterNames }: { appId: string; filterNames?: string[] }
+    {
+      appId,
+      filterNames,
+      environment,
+    }: { appId: string; filterNames?: string[]; environment?: EnvironmentVariableEnvironment }
   ): Promise<EnvironmentVariableFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -140,13 +153,17 @@ export const EnvironmentVariablesQuery = {
             query EnvironmentVariablesSharedWithSensitive(
               $appId: String!
               $filterNames: [String!]
+              $environment: EnvironmentVariableEnvironment
             ) {
               app {
                 byId(appId: $appId) {
                   id
                   ownerAccount {
                     id
-                    environmentVariablesIncludingSensitive(filterNames: $filterNames) {
+                    environmentVariablesIncludingSensitive(
+                      filterNames: $filterNames
+                      environment: $environment
+                    ) {
                       id
                       name
                       value
@@ -156,7 +173,7 @@ export const EnvironmentVariablesQuery = {
               }
             }
           `,
-          { appId, filterNames },
+          { appId, filterNames, environment },
           { additionalTypenames: ['EnvironmentVariableWithSecret'] }
         )
         .toPromise()
