@@ -9,6 +9,7 @@ import {
   EASVariableVisibilityFlag,
 } from '../../commandUtils/flags';
 import {
+  EnvironmentSecretType,
   EnvironmentVariableEnvironment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
@@ -110,10 +111,13 @@ export default class EnvironmentVariableCreate extends EasCommand {
       });
     }
 
+    if (!environment) {
+      environment = await promptVariableEnvironmentAsync(nonInteractive);
+    }
+
+    const environments = [environment];
+
     if (scope === EnvironmentVariableScope.Project) {
-      if (!environment) {
-        environment = await promptVariableEnvironmentAsync(nonInteractive);
-      }
       const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
         appId: projectId,
         environment,
@@ -168,18 +172,28 @@ export default class EnvironmentVariableCreate extends EasCommand {
           overwrite = true;
         }
       }
-
-      const variable = await EnvironmentVariableMutation.createForAppAsync(
-        graphqlClient,
-        {
+      let variable;
+      if (overwrite && existingVariable) {
+        variable = await EnvironmentVariableMutation.updateAsync(graphqlClient, {
+          id: existingVariable.id,
           name,
           value,
-          environment,
           visibility,
-          overwrite,
-        },
-        projectId
-      );
+          environments,
+        });
+      } else {
+        variable = await EnvironmentVariableMutation.createForAppAsync(
+          graphqlClient,
+          {
+            name,
+            value,
+            environments,
+            visibility,
+            type: EnvironmentSecretType.String,
+          },
+          projectId
+        );
+      }
       if (!variable) {
         throw new Error(
           `Could not create variable with name ${name} on project ${projectDisplayName}`
@@ -197,7 +211,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
       if (existingVariable) {
         throw new Error(
           `Shared variable with ${name} name already exists on this account.\n` +
-            `Use a different name or delete the existing variable  on website or by using eas env:delete --name ${name} --scope shared command.`
+            `Use a different name or delete the existing variable on website or by using eas env:delete --name ${name} --scope shared command.`
         );
       }
 
@@ -212,16 +226,14 @@ export default class EnvironmentVariableCreate extends EasCommand {
         }
       }
 
-      if (!environment && link) {
-        environment = await promptVariableEnvironmentAsync(nonInteractive);
-      }
-
       const variable = await EnvironmentVariableMutation.createSharedVariableAsync(
         graphqlClient,
         {
           name,
           value,
           visibility,
+          environments,
+          type: EnvironmentSecretType.String,
         },
         ownerAccount.id
       );
