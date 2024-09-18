@@ -8365,7 +8365,7 @@ export type LinkSharedEnvironmentVariableMutationVariables = Exact<{
 }>;
 
 
-export type LinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', linkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
+export type LinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', linkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
 
 export type UnlinkSharedEnvironmentVariableMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
@@ -8374,7 +8374,7 @@ export type UnlinkSharedEnvironmentVariableMutationVariables = Exact<{
 }>;
 
 
-export type UnlinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', unlinkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
+export type UnlinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', unlinkSharedEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
 
 export type CreateEnvironmentVariableForAccountMutationVariables = Exact<{
   input: CreateSharedEnvironmentVariableInput;
@@ -8382,7 +8382,7 @@ export type CreateEnvironmentVariableForAccountMutationVariables = Exact<{
 }>;
 
 
-export type CreateEnvironmentVariableForAccountMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForAccount: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
+export type CreateEnvironmentVariableForAccountMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForAccount: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
 
 export type CreateEnvironmentVariableForAppMutationVariables = Exact<{
   input: CreateEnvironmentVariableInput;
@@ -8390,14 +8390,14 @@ export type CreateEnvironmentVariableForAppMutationVariables = Exact<{
 }>;
 
 
-export type CreateEnvironmentVariableForAppMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForApp: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
+export type CreateEnvironmentVariableForAppMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForApp: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
 
 export type UpdateEnvironmentVariableMutationVariables = Exact<{
   input: UpdateEnvironmentVariableInput;
 }>;
 
 
-export type UpdateEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', updateEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
+export type UpdateEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', updateEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
 
 export type DeleteEnvironmentVariableMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -8653,7 +8653,7 @@ export type EnvironmentVariablesByAppIdQueryVariables = Exact<{
 }>;
 
 
-export type EnvironmentVariablesByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null }> } } };
+export type EnvironmentVariablesByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null }> } } };
 
 export type EnvironmentVariablesSharedQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -8662,7 +8662,7 @@ export type EnvironmentVariablesSharedQueryVariables = Exact<{
 }>;
 
 
-export type EnvironmentVariablesSharedQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null }> } } } };
+export type EnvironmentVariablesSharedQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null }> } } } };
 
 export type EnvironmentVariablesSharedWithSensitiveQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -8783,7 +8783,7 @@ export type BuildWithSubmissionsFragment = { __typename?: 'Build', id: string, s
 
 export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any };
 
-export type EnvironmentVariableFragment = { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null };
+export type EnvironmentVariableFragment = { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null };
 
 export type RuntimeFragment = { __typename?: 'Runtime', id: string, version: string };
 
