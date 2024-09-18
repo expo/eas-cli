@@ -16,8 +16,8 @@ import {
 } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
-import { formatVariable } from '../../utils/formatVariable';
 import { promptVariableEnvironmentAsync, promptVariableNameAsync } from '../../utils/prompts';
+import { formatVariable } from '../../utils/variableUtils';
 
 type GetFlags = {
   name?: string;
