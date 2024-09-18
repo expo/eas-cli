@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Avoid malforming `app.json` with empty `.expo` object.
+
 ### 🧹 Chores
 
 ## [12.4.1](https://github.com/expo/eas-cli/releases/tag/v12.4.1) - 2024-09-14
