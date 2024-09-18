@@ -5,8 +5,9 @@ export const EnvironmentVariableFragmentNode = gql`
     id
     name
     value
-    environment
+    environments
     createdAt
+    updatedAt
     scope
     visibility
   }

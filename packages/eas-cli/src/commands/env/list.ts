@@ -15,8 +15,8 @@ import {
 } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
-import { formatVariable } from '../../utils/formatVariable';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
+import { formatVariable } from '../../utils/variableUtils';
 
 export default class EnvironmentValueList extends EasCommand {
   static override description = 'list environment variables for the current project';
