@@ -52,7 +52,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
 
     if (scope === EnvironmentVariableScope.Project) {
       if (!environment) {
-        environment = await promptVariableEnvironmentAsync(nonInteractive);
+        environment = await promptVariableEnvironmentAsync({ nonInteractive });
       }
     }
 

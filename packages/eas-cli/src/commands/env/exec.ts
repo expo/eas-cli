@@ -64,7 +64,8 @@ export default class EnvExec extends EasCommand {
     });
 
     const environment =
-      parsedFlags.environment ?? (await promptVariableEnvironmentAsync(parsedFlags.nonInteractive));
+      parsedFlags.environment ??
+      (await promptVariableEnvironmentAsync({ nonInteractive: parsedFlags.nonInteractive }));
     const environmentVariables = await this.loadEnvironmentVariablesAsync({
       graphqlClient,
       projectId,

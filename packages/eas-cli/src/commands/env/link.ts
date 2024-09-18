@@ -61,7 +61,7 @@ export default class EnvironmentVariableLink extends EasCommand {
     }
 
     if (!environment) {
-      environment = await promptVariableEnvironmentAsync(nonInteractive);
+      environment = await promptVariableEnvironmentAsync({ nonInteractive });
     }
 
     const linkedVariable = await EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync(
