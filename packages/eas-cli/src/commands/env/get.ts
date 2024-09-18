@@ -70,7 +70,7 @@ export default class EnvironmentVariableGet extends EasCommand {
     }
 
     if (!environment && scope === EnvironmentVariableScope.Project) {
-      environment = await promptVariableEnvironmentAsync(nonInteractive);
+      environment = await promptVariableEnvironmentAsync({ nonInteractive });
     }
     const variable = await getVariableAsync(graphqlClient, scope, projectId, name, environment);
 

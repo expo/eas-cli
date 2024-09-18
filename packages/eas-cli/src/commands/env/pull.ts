@@ -34,7 +34,7 @@ export default class EnvironmentVariablePull extends EasCommand {
     } = await this.parse(EnvironmentVariablePull);
 
     if (!environment) {
-      environment = await promptVariableEnvironmentAsync(nonInteractive);
+      environment = await promptVariableEnvironmentAsync({ nonInteractive });
     }
     const {
       privateProjectConfig: { projectId },
