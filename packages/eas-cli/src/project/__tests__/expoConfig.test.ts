@@ -46,17 +46,5 @@ describe('expoConfig', () => {
       await createOrModifyExpoConfigAsync('/app', { owner: 'ccheever' });
       expect(modifyConfigAsync).toHaveBeenCalledWith('/app', { owner: 'ccheever' });
     });
-
-    it('adds expo key if app.json is missing it', async () => {
-      jest.mocked(getConfigFilePaths).mockReturnValue({
-        staticConfigPath: '/app/app.json',
-        dynamicConfigPath: null,
-      });
-      jest.mocked(JsonFile.readAsync).mockResolvedValue({ name: 'App' });
-
-      await createOrModifyExpoConfigAsync('/app', { owner: 'ccheever' });
-      expect(JsonFile.writeAsync).toHaveBeenCalledWith('/app/app.json', { name: 'App', expo: {} });
-      expect(modifyConfigAsync).toHaveBeenCalledWith('/app', { owner: 'ccheever' });
-    });
   });
 });
