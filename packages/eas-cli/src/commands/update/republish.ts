@@ -7,10 +7,11 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
+import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
-import { getBranchNameFromChannelNameAsync } from '../../update/getBranchNameFromChannelNameAsync';
+import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 import { UpdateToRepublish, republishAsync } from '../../update/republish';
 import { truncateString as truncateUpdateMessage } from '../../update/utils';
@@ -22,6 +23,8 @@ const defaultRepublishPlatforms: Platform[] = ['android', 'ios'];
 type UpdateRepublishRawFlags = {
   branch?: string;
   channel?: string;
+  'destination-channel'?: string;
+  'destination-branch'?: string;
   group?: string;
   message?: string;
   platform: string;
@@ -33,6 +36,8 @@ type UpdateRepublishRawFlags = {
 type UpdateRepublishFlags = {
   branchName?: string;
   channelName?: string;
+  destinationChannelName?: string;
+  destinationBranchName?: string;
   groupId?: string;
   updateMessage?: string;
   platform: Platform[];
@@ -56,6 +61,15 @@ export default class UpdateRepublish extends EasCommand {
     group: Flags.string({
       description: 'Update group ID to republish',
       exclusive: ['branch', 'channel'],
+    }),
+    'destination-channel': Flags.string({
+      description:
+        'Channel name to select a branch to republish to if republishing to a different branch',
+      exclusive: ['destination-branch'],
+    }),
+    'destination-branch': Flags.string({
+      description: 'Branch name to republish to if republishing to a different branch',
+      exclusive: ['destination-channel'],
     }),
     message: Flags.string({
       char: 'm',
@@ -130,13 +144,21 @@ export default class UpdateRepublish extends EasCommand {
       );
     }
 
-    const updateMessage = await getOrAskUpdateMessageAsync(updatesToPublish, flags);
     const arbitraryUpdate = updatesToPublish[0];
+    const targetBranch = await getOrAskTargetBranchAsync(
+      graphqlClient,
+      projectId,
+      flags,
+      arbitraryUpdate
+    );
+
+    const updateMessage = await getOrAskUpdateMessageAsync(updatesToPublish, flags);
+
     await republishAsync({
       graphqlClient,
       app: { exp, projectId },
       updatesToPublish,
-      targetBranch: { branchId: arbitraryUpdate.branchId, branchName: arbitraryUpdate.branchName },
+      targetBranch,
       updateMessage,
       codeSigningInfo,
       json: flags.json,
@@ -147,6 +169,8 @@ export default class UpdateRepublish extends EasCommand {
     const branchName = rawFlags.branch;
     const channelName = rawFlags.channel;
     const groupId = rawFlags.group;
+    const destinationChannelName = rawFlags['destination-channel'];
+    const destinationBranchName = rawFlags['destination-branch'];
     const nonInteractive = rawFlags['non-interactive'];
     const privateKeyPath = rawFlags['private-key-path'];
 
@@ -160,6 +184,8 @@ export default class UpdateRepublish extends EasCommand {
     return {
       branchName,
       channelName,
+      destinationChannelName,
+      destinationBranchName,
       groupId,
       platform,
       updateMessage: rawFlags.message,
@@ -168,6 +194,34 @@ export default class UpdateRepublish extends EasCommand {
       nonInteractive,
     };
   }
+}
+
+async function getOrAskTargetBranchAsync(
+  graphqlClient: ExpoGraphqlClient,
+  projectId: string,
+  flags: UpdateRepublishFlags,
+  arbitraryUpdate: UpdateToRepublish
+): Promise<{ branchId: string; branchName: string }> {
+  // if branch name supplied, use that
+  if (flags.destinationBranchName) {
+    const branch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
+      appId: projectId,
+      name: flags.destinationBranchName,
+    });
+    return { branchId: branch.id, branchName: branch.name };
+  }
+
+  // if provided channel name but was non-interactive
+  if (flags.destinationChannelName) {
+    return await getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
+      graphqlClient,
+      projectId,
+      flags.destinationChannelName
+    );
+  }
+
+  // if neither provided, assume republish on same branch
+  return { branchId: arbitraryUpdate.branchId, branchName: arbitraryUpdate.branchName };
 }
 
 /** Retrieve the update group from either the update group id, or select from branch name. */
@@ -293,7 +347,11 @@ async function askUpdatesFromChannelNameAsync(
     nonInteractive,
   }: { projectId: string; channelName: string; json: boolean; nonInteractive: boolean }
 ): Promise<UpdateToRepublish[]> {
-  const branchName = await getBranchNameFromChannelNameAsync(graphqlClient, projectId, channelName);
+  const { branchName } = await getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
+    graphqlClient,
+    projectId,
+    channelName
+  );
 
   return await askUpdatesFromBranchNameAsync(graphqlClient, {
     projectId,

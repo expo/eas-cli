@@ -10,12 +10,12 @@ import {
   UpdateInsights,
 } from '../../graphql/generated';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
-import { getBranchNameFromChannelNameAsync } from '../getBranchNameFromChannelNameAsync';
+import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 
 jest.mock('../../graphql/queries/ChannelQuery');
 jest.mock('../../graphql/queries/BranchQuery');
 
-describe(getBranchNameFromChannelNameAsync, () => {
+describe(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync, () => {
   beforeEach(() => {
     jest.resetAllMocks();
   });
@@ -30,13 +30,14 @@ describe(getBranchNameFromChannelNameAsync, () => {
         }) as any
     );
 
-    const result = await getBranchNameFromChannelNameAsync(
+    const result = await getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
       graphqlClient,
       'test-project-id',
       'channel-name'
     );
 
-    expect(result).toBe('test-branch-name');
+    expect(result.branchId).toBeTruthy();
+    expect(result.branchName).toBe('test-branch-name');
   });
 
   test('errors when no branch is connected to channel', async () => {
@@ -49,7 +50,11 @@ describe(getBranchNameFromChannelNameAsync, () => {
     );
 
     await expect(
-      getBranchNameFromChannelNameAsync(graphqlClient, 'test-project-id', 'test-channel-name')
+      getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
+        graphqlClient,
+        'test-project-id',
+        'test-channel-name'
+      )
     ).rejects.toThrow(
       "Channel has no branches associated with it. Run 'eas channel:edit' to map a branch"
     );
@@ -66,7 +71,11 @@ describe(getBranchNameFromChannelNameAsync, () => {
     );
 
     await expect(
-      getBranchNameFromChannelNameAsync(graphqlClient, 'test-project-id', 'test-channel-name')
+      getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
+        graphqlClient,
+        'test-project-id',
+        'test-channel-name'
+      )
     ).rejects.toThrow(
       "Channel has multiple branches associated with it. Instead, use '--branch' instead of '--channel'"
     );
@@ -82,13 +91,13 @@ describe(getBranchNameFromChannelNameAsync, () => {
         }) as any
     );
 
-    const result = await getBranchNameFromChannelNameAsync(
+    const result = await getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
       graphqlClient,
       'test-project-id',
       'test-channel-name'
     );
 
-    expect(result).toBe('test-branch-name');
+    expect(result.branchName).toBe('test-branch-name');
   });
 });
 
