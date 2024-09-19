@@ -50,6 +50,9 @@ export default class EnvironmentVariableLink extends EasCommand {
     let selectedVariable = variables[0];
 
     if (variables.length > 1) {
+      if (nonInteractive) {
+        throw new Error("Multiple variables found, please select one using '--name'");
+      }
       selectedVariable = await selectAsync(
         'Select shared variable',
         variables.map(variable => ({
