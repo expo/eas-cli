@@ -1,9 +1,7 @@
 import { ExpoConfig, getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
-import JsonFile from '@expo/json-file';
 import fs from 'fs-extra';
 import Joi from 'joi';
-import nullthrows from 'nullthrows';
 import path from 'path';
 
 export type PublicExpoConfig = Omit<
@@ -31,7 +29,6 @@ export async function createOrModifyExpoConfigAsync(
   readOptions?: { skipSDKVersionRequirement?: boolean }
 ): ReturnType<typeof modifyConfigAsync> {
   ensureExpoConfigExists(projectDir);
-  await ensureStaticExpoConfigIsValidAsync(projectDir);
 
   if (readOptions) {
     return await modifyConfigAsync(projectDir, exp, readOptions);
@@ -92,20 +89,6 @@ export function ensureExpoConfigExists(projectDir: string): void {
   if (!paths?.staticConfigPath && !paths?.dynamicConfigPath) {
     // eslint-disable-next-line node/no-sync
     fs.writeFileSync(path.join(projectDir, 'app.json'), JSON.stringify({ expo: {} }, null, 2));
-  }
-}
-
-async function ensureStaticExpoConfigIsValidAsync(projectDir: string): Promise<void> {
-  if (isUsingStaticExpoConfig(projectDir)) {
-    const staticConfigPath = nullthrows(getConfigFilePaths(projectDir).staticConfigPath);
-    const staticConfig = await JsonFile.readAsync(staticConfigPath);
-
-    // Add the "expo" key if it doesn't exist on app.json yet, such as in
-    // projects initialized with RNC CLI
-    if (!staticConfig?.expo) {
-      staticConfig.expo = {};
-      await JsonFile.writeAsync(staticConfigPath, staticConfig);
-    }
   }
 }
 
