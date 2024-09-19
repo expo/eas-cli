@@ -65,9 +65,6 @@ export async function getApplicationIdFromBareAsync(
   projectDir: string,
   gradleContext?: GradleBuildContext
 ): Promise<string> {
-  if (env.overrideAndroidApplicationId) {
-    return env.overrideAndroidApplicationId;
-  }
   const errorMessage = 'Could not read applicationId from Android project.';
 
   if (gradleContext) {
@@ -109,6 +106,10 @@ export async function getApplicationIdAsync(
   vcsClient: Client,
   gradleContext?: GradleBuildContext
 ): Promise<string> {
+  if (env.overrideAndroidApplicationId) {
+    return env.overrideAndroidApplicationId;
+  }
+
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   if (workflow === Workflow.GENERIC) {
     warnIfAndroidPackageDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
