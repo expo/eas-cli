@@ -132,7 +132,9 @@ describe(AndroidSubmitCommand, () => {
         vcsClient,
       });
       const command = new AndroidSubmitCommand(ctx);
-      await expect(command.runAsync()).rejects.toThrowError(
+      await expect(
+        command.runAsync().then(submitter => submitter.submitAsync())
+      ).rejects.toThrowError(
         'Google Service Account Keys cannot be set up in --non-interactive mode.'
       );
     });
@@ -170,7 +172,8 @@ describe(AndroidSubmitCommand, () => {
       });
 
       const command = new AndroidSubmitCommand(ctx);
-      await command.runAsync();
+      const submitter = await command.runAsync();
+      await submitter.submitAsync();
 
       expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
@@ -216,7 +219,8 @@ describe(AndroidSubmitCommand, () => {
       });
 
       const command = new AndroidSubmitCommand(ctx);
-      await command.runAsync();
+      const submitter = await command.runAsync();
+      await submitter.submitAsync();
 
       expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
@@ -264,7 +268,8 @@ describe(AndroidSubmitCommand, () => {
         vcsClient,
       });
       const command = new AndroidSubmitCommand(ctx);
-      await command.runAsync();
+      const submitter = await command.runAsync();
+      await submitter.submitAsync();
 
       expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
@@ -329,7 +334,8 @@ describe(AndroidSubmitCommand, () => {
         });
 
         const command = new AndroidSubmitCommand(ctx);
-        await command.runAsync();
+        const submitter = await command.runAsync();
+        await submitter.submitAsync();
 
         expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(
           graphqlClient,
@@ -391,7 +397,8 @@ describe(AndroidSubmitCommand, () => {
         });
 
         const command = new AndroidSubmitCommand(ctx);
-        await command.runAsync();
+        const submitter = await command.runAsync();
+        await submitter.submitAsync();
 
         expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(
           graphqlClient,
@@ -461,7 +468,8 @@ describe(AndroidSubmitCommand, () => {
         });
 
         const command = new AndroidSubmitCommand(ctx);
-        await command.runAsync();
+        const submitter = await command.runAsync();
+        await submitter.submitAsync();
 
         expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(
           graphqlClient,

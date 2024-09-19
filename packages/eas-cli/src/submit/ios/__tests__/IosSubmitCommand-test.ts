@@ -109,7 +109,7 @@ describe(IosSubmitCommand, () => {
       vcsClient,
     });
     const command = new IosSubmitCommand(ctx);
-    await expect(command.runAsync()).rejects.toThrow(
+    await expect(command.runAsync().then(submitter => submitter.submitAsync())).rejects.toThrow(
       'EXPO_APPLE_APP_SPECIFIC_PASSWORD must be in the format xxxx-xxxx-xxxx-xxxx, where x is a lowercase letter.'
     );
 
@@ -144,7 +144,9 @@ describe(IosSubmitCommand, () => {
         vcsClient,
       });
       const command = new IosSubmitCommand(ctx);
-      await expect(command.runAsync()).rejects.toThrowError();
+      await expect(
+        command.runAsync().then(submitter => submitter.submitAsync())
+      ).rejects.toThrowError();
     });
   });
 
@@ -180,7 +182,8 @@ describe(IosSubmitCommand, () => {
         vcsClient,
       });
       const command = new IosSubmitCommand(ctx);
-      await command.runAsync();
+      const submitter = await command.runAsync();
+      await submitter.submitAsync();
 
       expect(SubmissionMutation.createIosSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
@@ -245,7 +248,8 @@ describe(IosSubmitCommand, () => {
           vcsClient,
         });
         const command = new IosSubmitCommand(ctx);
-        await command.runAsync();
+        const submitter = await command.runAsync();
+        await submitter.submitAsync();
 
         expect(SubmissionMutation.createIosSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
           appId: projectId,
@@ -304,7 +308,8 @@ describe(IosSubmitCommand, () => {
           vcsClient,
         });
         const command = new IosSubmitCommand(ctx);
-        await command.runAsync();
+        const submitter = await command.runAsync();
+        await submitter.submitAsync();
 
         expect(SubmissionMutation.createIosSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
           appId: projectId,
@@ -369,7 +374,8 @@ describe(IosSubmitCommand, () => {
           specifiedProfile: 'specificProfile',
         });
         const command = new IosSubmitCommand(ctx);
-        await command.runAsync();
+        const submitter = await command.runAsync();
+        await submitter.submitAsync();
 
         expect(SubmissionMutation.createIosSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
           appId: projectId,
