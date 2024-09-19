@@ -59,13 +59,14 @@ export async function getBundleIdentifierAsync(
   vcsClient: Client,
   xcodeContext?: { targetName?: string; buildConfiguration?: string }
 ): Promise<string> {
+  if (env.overrideIosBundleIdentifier) {
+    return env.overrideIosBundleIdentifier;
+  }
+
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
+
   if (workflow === Workflow.GENERIC) {
     warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
-
-    if (env.overrideIosBundleIdentifier) {
-      return env.overrideIosBundleIdentifier;
-    }
 
     const xcodeProject = IOSConfig.XcodeUtils.getPbxproj(projectDir);
     const isMultiScheme = IOSConfig.BuildScheme.getSchemesFromXcodeproj(projectDir).length > 1;

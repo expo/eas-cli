@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Log command execution to assist in debugging local builds. ([#2526](https://github.com/expo/eas-cli/pull/2526) by [@trajano](https://github.com/trajano))
 - Allow submitting builds in progress ([#2543](https://github.com/expo/eas-cli/pull/2543) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Use `EAS_DANGEROUS_OVERRIDE_ANDROID_APPLICATION_ID` and `EAS_DANGEROUS_OVERRIDE_IOS_BUNDLE_IDENTIFIER` environment variables as overrides of the Android application ID and iOS bundle identifier in managed workflow too. ([#2576](https://github.com/expo/eas-cli/pull/2576) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🐛 Bug fixes
 
