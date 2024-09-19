@@ -12,6 +12,10 @@ import {
 } from '../generated';
 import { EnvironmentVariableFragmentNode } from '../types/EnvironmentVariable';
 
+type EnvironmentVariableWithLinkedEnvironments = EnvironmentVariableFragment & {
+  linkedEnvironments?: EnvironmentVariableEnvironment[] | null;
+};
+
 export const EnvironmentVariablesQuery = {
   async byAppIdWithSensitiveAsync(
     graphqlClient: ExpoGraphqlClient,
@@ -69,7 +73,7 @@ export const EnvironmentVariablesQuery = {
       environment?: EnvironmentVariableEnvironment;
       filterNames?: string[];
     }
-  ): Promise<EnvironmentVariableFragment[]> {
+  ): Promise<EnvironmentVariableWithLinkedEnvironments[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<EnvironmentVariablesByAppIdQuery>(
@@ -84,6 +88,7 @@ export const EnvironmentVariablesQuery = {
                   id
                   environmentVariables(filterNames: $filterNames, environment: $environment) {
                     id
+                    linkedEnvironments(appId: $appId)
                     ...EnvironmentVariableFragment
                   }
                 }
@@ -106,7 +111,7 @@ export const EnvironmentVariablesQuery = {
       filterNames,
       environment,
     }: { appId: string; filterNames?: string[]; environment?: EnvironmentVariableEnvironment }
-  ): Promise<EnvironmentVariableFragment[]> {
+  ): Promise<EnvironmentVariableWithLinkedEnvironments[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<EnvironmentVariablesSharedQuery, EnvironmentVariablesSharedQueryVariables>(
@@ -123,6 +128,7 @@ export const EnvironmentVariablesQuery = {
                     id
                     environmentVariables(filterNames: $filterNames, environment: $environment) {
                       id
+                      linkedEnvironments(appId: $appId)
                       ...EnvironmentVariableFragment
                     }
                   }
