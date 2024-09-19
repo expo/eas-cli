@@ -1,16 +1,22 @@
 import { Config } from '@oclif/core';
 
+import { getMockAppFragment } from '../../../__tests__/commands/utils';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
   EnvironmentVariableEnvironment,
+  EnvironmentVariableFragment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../../graphql/generated';
+import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import EnvironmentVariableList from '../list';
+import Log from '../../../log';
 
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
+jest.mock('../../../graphql/queries/AppQuery');
+jest.mock('../../../log');
 
 describe(EnvironmentVariableList, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
@@ -18,49 +24,188 @@ describe(EnvironmentVariableList, () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
   });
 
-  it('lists environment variables successfully', async () => {
-    const mockVariables = [
+  it('lists project environment variables successfully', async () => {
+    const mockVariables: EnvironmentVariableFragment[] = [
       {
         id: 'var1',
         name: 'TEST_VAR_1',
         value: 'value1',
-        environment: EnvironmentVariableEnvironment.Production,
+        environments: [EnvironmentVariableEnvironment.Production],
         scope: EnvironmentVariableScope.Project,
         visibility: EnvironmentVariableVisibility.Public,
+        createdAt: undefined,
+        updatedAt: undefined,
       },
       {
         id: 'var2',
         name: 'TEST_VAR_2',
         value: 'value2',
-        environment: EnvironmentVariableEnvironment.Development,
+        environments: [EnvironmentVariableEnvironment.Development],
         scope: EnvironmentVariableScope.Project,
         visibility: EnvironmentVariableVisibility.Public,
+        createdAt: undefined,
+        updatedAt: undefined,
       },
     ];
 
-    EnvironmentVariablesQuery.byAppIdAsync.mockResolvedValueOnce(mockVariables);
+    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce(mockVariables);
 
     const command = new EnvironmentVariableList([], mockConfig);
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      privateProjectConfig: { projectId: testProjectId },
+    });
     await command.runAsync();
 
     expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
-      projectId: testProjectId,
+      appId: testProjectId,
+      environment: undefined,
     });
-    expect(command.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
-    expect(command.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
   });
 
-  it('handles errors during listing', async () => {
-    const errorMessage = 'Failed to list environment variables';
-    EnvironmentVariablesQuery.byAppIdAsync.mockRejectedValueOnce(new Error(errorMessage));
+  it('lists project environment variables including sensitive values', async () => {
+    const mockVariables: EnvironmentVariableFragment[] = [
+      {
+        id: 'var1',
+        name: 'TEST_VAR_1',
+        value: 'value1',
+        environments: [EnvironmentVariableEnvironment.Production],
+        scope: EnvironmentVariableScope.Project,
+        visibility: EnvironmentVariableVisibility.Public,
+        createdAt: undefined,
+        updatedAt: undefined,
+      },
+      {
+        id: 'var2',
+        name: 'TEST_VAR_2',
+        value: 'value2',
+        environments: [EnvironmentVariableEnvironment.Development],
+        scope: EnvironmentVariableScope.Project,
+        visibility: EnvironmentVariableVisibility.Sensitive,
+        createdAt: undefined,
+        updatedAt: undefined,
+      },
+    ];
 
-    const command = new EnvironmentVariableList([], mockConfig);
-    await expect(command.runAsync()).rejects.toThrow(errorMessage);
+    jest
+      .mocked(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync)
+      .mockResolvedValueOnce(mockVariables);
 
-    expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
-      projectId: testProjectId,
+    const command = new EnvironmentVariableList(['--include-sensitive'], mockConfig);
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      privateProjectConfig: { projectId: testProjectId },
     });
+    await command.runAsync();
+
+    expect(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      {
+        appId: testProjectId,
+        environment: undefined,
+      }
+    );
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
+  });
+
+  it('lists shared environment variables successfully', async () => {
+    const mockVariables: EnvironmentVariableFragment[] = [
+      {
+        id: 'var1',
+        name: 'TEST_VAR_1',
+        value: 'value1',
+        environments: [EnvironmentVariableEnvironment.Production],
+        scope: EnvironmentVariableScope.Shared,
+        visibility: EnvironmentVariableVisibility.Public,
+        createdAt: undefined,
+        updatedAt: undefined,
+      },
+      {
+        id: 'var2',
+        name: 'TEST_VAR_2',
+        value: 'value2',
+        environments: [EnvironmentVariableEnvironment.Development],
+        scope: EnvironmentVariableScope.Shared,
+        visibility: EnvironmentVariableVisibility.Public,
+        createdAt: undefined,
+        updatedAt: undefined,
+      },
+    ];
+
+    jest.mocked(EnvironmentVariablesQuery.sharedAsync).mockResolvedValueOnce(mockVariables);
+
+    const command = new EnvironmentVariableList(['--scope', 'shared'], mockConfig);
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      privateProjectConfig: { projectId: testProjectId },
+    });
+    await command.runAsync();
+
+    expect(EnvironmentVariablesQuery.sharedAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: testProjectId,
+      environment: undefined,
+    });
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
+  });
+
+  it('lists shared environment variables including sensitive values', async () => {
+    const mockVariables: EnvironmentVariableFragment[] = [
+      {
+        id: 'var1',
+        name: 'TEST_VAR_1',
+        value: 'value1',
+        environments: [EnvironmentVariableEnvironment.Production],
+        scope: EnvironmentVariableScope.Shared,
+        visibility: EnvironmentVariableVisibility.Public,
+        createdAt: undefined,
+        updatedAt: undefined,
+      },
+      {
+        id: 'var2',
+        name: 'TEST_VAR_2',
+        value: 'value2',
+        environments: [EnvironmentVariableEnvironment.Development],
+        scope: EnvironmentVariableScope.Shared,
+        visibility: EnvironmentVariableVisibility.Sensitive,
+        createdAt: undefined,
+        updatedAt: undefined,
+      },
+    ];
+
+    jest
+      .mocked(EnvironmentVariablesQuery.sharedWithSensitiveAsync)
+      .mockResolvedValueOnce(mockVariables);
+
+    const command = new EnvironmentVariableList(
+      ['--include-sensitive', '--scope', 'shared'],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      privateProjectConfig: { projectId: testProjectId },
+    });
+    await command.runAsync();
+
+    expect(EnvironmentVariablesQuery.sharedWithSensitiveAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: testProjectId,
+      environment: undefined,
+    });
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
   });
 });
