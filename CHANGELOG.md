@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Avoid malforming `app.json` with empty `.expo` object. ([#2573](https://github.com/expo/eas-cli/pull/2573) by [@byCedric](https://github.com/byCedric))
+- Fix typo causing `worker:deploy` asset upload errors not to be shown properly. ([#2579](https://github.com/expo/eas-cli/pull/2579) by [@kitten](https://github.com/kitten))
 
 ### 🧹 Chores
 

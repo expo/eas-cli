@@ -165,13 +165,13 @@ export async function* batchUploadAsync(
       }
       yield await Promise.race(queue);
     }
-  } catch (error: any) {
-    if (typeof error !== 'object' || error.name !== 'AbortError') {
-      throw error;
-    }
-  } finally {
+
     if (queue.size > 0) {
       controller.abort();
+    }
+  } catch (error: any) {
+    if (error.name !== 'AbortError') {
+      throw error;
     }
   }
 }
