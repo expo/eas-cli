@@ -1,0 +1,3 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EnvironmentVariableUpdate cancels deletion when user does not confirm 1`] = `"Variable \`id\` is required in non-interactive mode. Run the command with --id flag."`;

@@ -1,8 +1,30 @@
 import chalk from 'chalk';
 
 import capitalize from './expodash/capitalize';
-import { EnvironmentVariableEnvironment } from '../graphql/generated';
+import {
+  EnvironmentVariableEnvironment,
+  EnvironmentVariableVisibility,
+} from '../graphql/generated';
 import { promptAsync, selectAsync } from '../prompts';
+
+export async function promptVariableVisibilityAsync(
+  nonInteractive: boolean,
+  selectedVisibility?: EnvironmentVariableVisibility | null
+): Promise<EnvironmentVariableVisibility> {
+  if (nonInteractive) {
+    throw new Error(
+      'The `--visibility` flag must be set when running in `--non-interactive` mode.'
+    );
+  }
+  return await selectAsync(
+    'Select visibility:',
+    Object.values(EnvironmentVariableVisibility).map(visibility => ({
+      title: capitalize(visibility),
+      value: visibility,
+      selected: visibility === selectedVisibility,
+    }))
+  );
+}
 
 type EnvironmentPromptArgs = {
   nonInteractive: boolean;
@@ -95,7 +117,10 @@ export async function promptVariableValueAsync({
   return variableValue;
 }
 
-export async function promptVariableNameAsync(nonInteractive: boolean): Promise<string> {
+export async function promptVariableNameAsync(
+  nonInteractive: boolean,
+  initialValue?: string
+): Promise<string> {
   const validationMessage = 'Variable name may not be empty.';
   if (nonInteractive) {
     throw new Error(validationMessage);
@@ -105,6 +130,7 @@ export async function promptVariableNameAsync(nonInteractive: boolean): Promise<
     type: 'text',
     name: 'name',
     message: `Variable name:`,
+    initial: initialValue,
     validate: value => {
       if (!value) {
         return validationMessage;
