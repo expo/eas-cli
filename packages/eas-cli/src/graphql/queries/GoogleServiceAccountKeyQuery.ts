@@ -19,6 +19,7 @@ export const GoogleServiceAccountKeyQuery = {
             query GoogleServiceAccountKeyById($ascApiKeyId: ID!) {
               googleServiceAccountKey {
                 byId(id: $ascApiKeyId) {
+                  id
                   keyJson
                 }
               }
