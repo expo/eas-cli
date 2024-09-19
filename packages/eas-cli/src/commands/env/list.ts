@@ -76,7 +76,7 @@ export default class EnvironmentValueList extends EasCommand {
   async runAsync(): Promise<void> {
     let {
       flags: {
-        environments,
+        environment: environments,
         format,
         scope,
         'include-sensitive': includeSensitive,
