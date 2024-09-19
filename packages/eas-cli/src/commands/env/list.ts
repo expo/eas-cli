@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
-  EASEnvironmentFlag,
+  EASMultiEnvironmentFlag,
   EASVariableFormatFlag,
   EASVariableScopeFlag,
 } from '../../commandUtils/flags';
@@ -16,7 +16,42 @@ import {
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
-import { formatVariable } from '../../utils/variableUtils';
+import { formatVariable, performForEnvironmentsAsync } from '../../utils/variableUtils';
+
+async function getVariablesForScopeAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    scope,
+    includingSensitive,
+    environment,
+    projectId,
+  }: {
+    scope: EnvironmentVariableScope;
+    includingSensitive: boolean;
+    environment?: EnvironmentVariableEnvironment;
+    projectId: string;
+  }
+): Promise<EnvironmentVariableFragment[]> {
+  if (scope === EnvironmentVariableScope.Project) {
+    if (includingSensitive) {
+      return await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
+        appId: projectId,
+        environment,
+      });
+    }
+    return await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
+      appId: projectId,
+      environment,
+    });
+  }
+
+  return includingSensitive
+    ? await EnvironmentVariablesQuery.sharedWithSensitiveAsync(graphqlClient, {
+        appId: projectId,
+        environment,
+      })
+    : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, { appId: projectId, environment });
+}
 
 export default class EnvironmentValueList extends EasCommand {
   static override description = 'list environment variables for the current project';
@@ -35,12 +70,18 @@ export default class EnvironmentValueList extends EasCommand {
     }),
     ...EASVariableFormatFlag,
     ...EASVariableScopeFlag,
-    ...EASEnvironmentFlag,
+    ...EASMultiEnvironmentFlag,
   };
 
   async runAsync(): Promise<void> {
     let {
-      flags: { environment, format, scope, 'include-sensitive': includeSensitive },
+      flags: {
+        environments,
+        format,
+        scope,
+        'include-sensitive': includeSensitive,
+        'non-interactive': nonInteractive,
+      },
     } = await this.parse(EnvironmentValueList);
     const {
       privateProjectConfig: { projectId },
@@ -49,70 +90,43 @@ export default class EnvironmentValueList extends EasCommand {
       nonInteractive: true,
     });
 
-    if (scope === EnvironmentVariableScope.Project && !environment) {
-      environment = await promptVariableEnvironmentAsync({ nonInteractive: false });
+    if (!environments) {
+      environments = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
     }
 
-    const variables = await this.getVariablesForScopeAsync(graphqlClient, {
-      scope,
-      includingSensitive: includeSensitive,
-      environment,
-      projectId,
-    });
+    await performForEnvironmentsAsync(environments, async environment => {
+      const variables = await getVariablesForScopeAsync(graphqlClient, {
+        scope,
+        includingSensitive: includeSensitive,
+        environment,
+        projectId,
+      });
 
-    if (format === 'short') {
-      for (const variable of variables) {
-        // TODO: Add Learn more link
+      Log.addNewLineIfNone();
+      if (environment) {
+        Log.log(chalk.bold(`Environment: ${environment}`));
+      }
+
+      if (format === 'short') {
+        for (const variable of variables) {
+          // TODO: Add Learn more link
+          Log.log(
+            `${chalk.bold(variable.name)}=${
+              variable.value ??
+              "***** (This is a secret env variable that can only be accessed on EAS builder and can't be read in any UI. Learn more.)"
+            }`
+          );
+        }
+      } else {
+        if (scope === EnvironmentVariableScope.Shared) {
+          Log.log(chalk.bold('Shared variables for this account:'));
+        } else {
+          Log.log(chalk.bold(`Variables for this project:`));
+        }
         Log.log(
-          `${chalk.bold(variable.name)}=${
-            variable.value ??
-            "***** (This is a secret env variable that can only be accessed on EAS builder and can't be read in any UI. Learn more.)"
-          }`
+          variables.map(variable => formatVariable(variable)).join(`\n\n${chalk.dim('———')}\n\n`)
         );
       }
-    } else {
-      if (scope === EnvironmentVariableScope.Shared) {
-        Log.log(chalk.bold('Shared variables for this account:'));
-      } else {
-        Log.log(chalk.bold(`Variables for this project for environment ${environment}:`));
-      }
-      Log.log(
-        variables.map(variable => formatVariable(variable)).join(`\n\n${chalk.dim('———')}\n\n`)
-      );
-    }
-  }
-
-  private async getVariablesForScopeAsync(
-    graphqlClient: ExpoGraphqlClient,
-    {
-      scope,
-      includingSensitive,
-      environment,
-      projectId,
-    }: {
-      scope: EnvironmentVariableScope;
-      includingSensitive: boolean;
-      environment?: EnvironmentVariableEnvironment;
-      projectId: string;
-    }
-  ): Promise<EnvironmentVariableFragment[]> {
-    if (scope === EnvironmentVariableScope.Project && environment) {
-      if (includingSensitive) {
-        return await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
-          appId: projectId,
-          environment,
-        });
-      }
-      return await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
-        appId: projectId,
-        environment,
-      });
-    }
-
-    return includingSensitive
-      ? await EnvironmentVariablesQuery.sharedWithSensitiveAsync(graphqlClient, {
-          appId: projectId,
-        })
-      : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, { appId: projectId });
+    });
   }
 }
