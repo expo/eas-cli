@@ -170,7 +170,7 @@ async function getGoogleServiceAccountKeyJsonAsync({
       androidConfig.googleServiceAccountKeyId
     );
 
-    return key?.keyJson ?? null;
+    return key.keyJson;
   }
 
   return null;
@@ -191,10 +191,6 @@ async function getAppStoreConnectApiKeyJsonAsync({
     });
   } else if (iosConfig.ascApiKeyId) {
     const key = await AppStoreConnectApiKeyQuery.getByIdAsync(graphqlClient, iosConfig.ascApiKeyId);
-
-    if (!key) {
-      return null;
-    }
 
     return JSON.stringify({
       key_id: key.keyIdentifier,

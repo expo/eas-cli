@@ -15,7 +15,7 @@ export const AppStoreConnectApiKeyQuery = {
     issuerIdentifier: string;
     keyIdentifier: string;
     keyP8: string;
-  } | null> {
+  }> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AppStoreConnectApiKeyByIdQuery, AppStoreConnectApiKeyByIdQueryVariables>(
@@ -39,11 +39,7 @@ export const AppStoreConnectApiKeyQuery = {
         .toPromise()
     );
 
-    const key = data.appStoreConnectApiKey?.byId;
-
-    if (!key) {
-      return null;
-    }
+    const key = data.appStoreConnectApiKey.byId;
 
     return {
       issuerIdentifier: key.issuerIdentifier,

@@ -1975,7 +1975,7 @@ export type AppStoreConnectApiKeyMutationUpdateAppStoreConnectApiKeyArgs = {
 
 export type AppStoreConnectApiKeyQuery = {
   __typename?: 'AppStoreConnectApiKeyQuery';
-  byId?: Maybe<AppStoreConnectApiKey>;
+  byId: AppStoreConnectApiKey;
 };
 
 
@@ -3375,10 +3375,22 @@ export type CreateSubmissionResult = {
   submission: Submission;
 };
 
+export type CumulativeMetrics = {
+  __typename?: 'CumulativeMetrics';
+  /** Totals from the beginning of time till now */
+  totals: CumulativeMetricsTotals;
+};
+
 export type CumulativeMetricsOverTimeData = {
   __typename?: 'CumulativeMetricsOverTimeData';
   data: LineChartData;
   metricsAtLastTimestamp: Array<LineDatapoint>;
+};
+
+export type CumulativeMetricsTotals = {
+  __typename?: 'CumulativeMetricsTotals';
+  totalFailedInstalls: Scalars['Int']['output'];
+  totalInstalls: Scalars['Int']['output'];
 };
 
 export type CustomBuildConfigInput = {
@@ -3575,6 +3587,7 @@ export type DeployServerlessFunctionResult = {
 /** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
 export type Deployment = {
   __typename?: 'Deployment';
+  buildCount: Scalars['Int']['output'];
   builds: DeploymentBuildsConnection;
   channel: UpdateChannel;
   id: Scalars['ID']['output'];
@@ -3583,6 +3596,12 @@ export type Deployment = {
   /** Ordered the same way as 'updateBranches' in UpdateChannel */
   latestUpdatesPerBranch: Array<LatestUpdateOnBranch>;
   runtime: Runtime;
+};
+
+
+/** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
+export type DeploymentBuildCountArgs = {
+  statuses?: InputMaybe<Array<BuildStatus>>;
 };
 
 
@@ -3676,6 +3695,13 @@ export type DeploymentQuery = {
 
 export type DeploymentQueryByIdArgs = {
   deploymentId: Scalars['ID']['input'];
+};
+
+export type DeploymentResult = {
+  __typename?: 'DeploymentResult';
+  data?: Maybe<UpdateDeploymentsConnection>;
+  error?: Maybe<Scalars['String']['output']>;
+  success: Scalars['Boolean']['output'];
 };
 
 export type DeploymentSignedUrlResult = {
@@ -4460,7 +4486,7 @@ export type GoogleServiceAccountKeyMutationDeleteGoogleServiceAccountKeyArgs = {
 
 export type GoogleServiceAccountKeyQuery = {
   __typename?: 'GoogleServiceAccountKeyQuery';
-  byId?: Maybe<GoogleServiceAccountKey>;
+  byId: GoogleServiceAccountKey;
 };
 
 
@@ -6378,7 +6404,7 @@ export type Update = ActivityTimelineProjectActivity & {
   branchId: Scalars['ID']['output'];
   codeSigningInfo?: Maybe<CodeSigningInfo>;
   createdAt: Scalars['DateTime']['output'];
-  deployments: UpdateDeploymentsConnection;
+  deployments: DeploymentResult;
   expoGoSDKVersion?: Maybe<Scalars['String']['output']>;
   gitCommitHash?: Maybe<Scalars['String']['output']>;
   group: Scalars['String']['output'];
@@ -6488,6 +6514,7 @@ export type UpdateChannel = {
   branchMapping: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
   id: Scalars['ID']['output'];
+  isPaused: Scalars['Boolean']['output'];
   name: Scalars['String']['output'];
   updateBranches: Array<UpdateBranch>;
   updatedAt: Scalars['DateTime']['output'];
@@ -6517,6 +6544,10 @@ export type UpdateChannelMutation = {
    * stringified JSON supplied to the mutation as a variable.
    */
   editUpdateChannel: UpdateChannel;
+  /** Pause updates for an EAS channel. */
+  pauseUpdateChannel: UpdateChannel;
+  /** Resume updates for an EAS channel. */
+  resumeUpdateChannel: UpdateChannel;
 };
 
 
@@ -6534,6 +6565,16 @@ export type UpdateChannelMutationDeleteUpdateChannelArgs = {
 
 export type UpdateChannelMutationEditUpdateChannelArgs = {
   branchMapping: Scalars['String']['input'];
+  channelId: Scalars['ID']['input'];
+};
+
+
+export type UpdateChannelMutationPauseUpdateChannelArgs = {
+  channelId: Scalars['ID']['input'];
+};
+
+
+export type UpdateChannelMutationResumeUpdateChannelArgs = {
   channelId: Scalars['ID']['input'];
 };
 
@@ -6580,6 +6621,7 @@ export type UpdateInfoGroup = {
 
 export type UpdateInsights = {
   __typename?: 'UpdateInsights';
+  cumulativeMetrics: CumulativeMetrics;
   cumulativeMetricsOverTime: CumulativeMetricsOverTimeData;
   id: Scalars['ID']['output'];
   totalUniqueUsers: Scalars['Int']['output'];
@@ -7113,6 +7155,7 @@ export enum UserEntityTypeName {
   Password = 'Password',
   SsoUser = 'SSOUser',
   User = 'User',
+  UserPermission = 'UserPermission',
   UserSecondFactorBackupCodes = 'UserSecondFactorBackupCodes',
   UserSecondFactorDevice = 'UserSecondFactorDevice'
 }
@@ -7507,6 +7550,7 @@ export type WorkerDeploymentCrashesAggregationNode = {
   __typename?: 'WorkerDeploymentCrashesAggregationNode';
   crashesPerMs?: Maybe<Scalars['Float']['output']>;
   crashesSum: Scalars['Int']['output'];
+  distinctCrashes: Scalars['Int']['output'];
   firstOccurredAt: Scalars['DateTime']['output'];
   mostRecentlyOccurredAt: Scalars['DateTime']['output'];
   sampleRate: Scalars['Float']['output'];
@@ -8483,7 +8527,7 @@ export type AppStoreConnectApiKeyByIdQueryVariables = Exact<{
 }>;
 
 
-export type AppStoreConnectApiKeyByIdQuery = { __typename?: 'RootQuery', appStoreConnectApiKey: { __typename?: 'AppStoreConnectApiKeyQuery', byId?: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, keyP8: string } | null } };
+export type AppStoreConnectApiKeyByIdQuery = { __typename?: 'RootQuery', appStoreConnectApiKey: { __typename?: 'AppStoreConnectApiKeyQuery', byId: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, keyP8: string } } };
 
 export type LatestAppVersionQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -8641,7 +8685,7 @@ export type GoogleServiceAccountKeyByIdQueryVariables = Exact<{
 }>;
 
 
-export type GoogleServiceAccountKeyByIdQuery = { __typename?: 'RootQuery', googleServiceAccountKey: { __typename?: 'GoogleServiceAccountKeyQuery', byId?: { __typename?: 'GoogleServiceAccountKey', keyJson: string } | null } };
+export type GoogleServiceAccountKeyByIdQuery = { __typename?: 'RootQuery', googleServiceAccountKey: { __typename?: 'GoogleServiceAccountKeyQuery', byId: { __typename?: 'GoogleServiceAccountKey', id: string, keyJson: string } } };
 
 export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']['input']> | Scalars['String']['input'];

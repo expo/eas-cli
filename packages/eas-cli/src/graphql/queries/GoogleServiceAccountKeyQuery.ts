@@ -11,7 +11,7 @@ export const GoogleServiceAccountKeyQuery = {
   async getByIdAsync(
     graphqlClient: ExpoGraphqlClient,
     ascApiKeyId: string
-  ): Promise<{ keyJson: string } | null> {
+  ): Promise<{ keyJson: string }> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<GoogleServiceAccountKeyByIdQuery, GoogleServiceAccountKeyByIdQueryVariables>(
@@ -33,12 +33,6 @@ export const GoogleServiceAccountKeyQuery = {
         .toPromise()
     );
 
-    const key = data.googleServiceAccountKey?.byId;
-
-    if (!key) {
-      return null;
-    }
-
-    return { keyJson: key.keyJson };
+    return { keyJson: data.googleServiceAccountKey.byId.keyJson };
   },
 };
