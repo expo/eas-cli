@@ -397,6 +397,10 @@ function formatBuildChoice(build: BuildFragment): prompts.Choice {
 async function handlePromptSourceAsync(
   ctx: ArchiveResolverContext
 ): Promise<ResolvedArchiveSource> {
+  if (ctx.nonInteractive) {
+    throw new Error('Please run this command with appropriate input.');
+  }
+
   const { sourceType: sourceTypeRaw } = await promptAsync({
     name: 'sourceType',
     type: 'select',

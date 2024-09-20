@@ -1619,15 +1619,15 @@ export type AppWorkerDeploymentsArgs = {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentsCrashArgs = {
-  crashId: Scalars['ID']['input'];
+  crashKey: Scalars['ID']['input'];
   sampleFor?: InputMaybe<CrashSampleFor>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentsCrashesArgs = {
-  limit?: Scalars['Int']['input'];
-  timespan: CrashesTimespan;
+  filters?: InputMaybe<CrashesFilters>;
+  timespan: DatasetTimespan;
 };
 
 
@@ -1640,7 +1640,7 @@ export type AppWorkerDeploymentsRequestArgs = {
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkerDeploymentsRequestsArgs = {
   filters?: InputMaybe<RequestsFilters>;
-  timespan: RequestsTimespan;
+  timespan: DatasetTimespan;
 };
 
 export type AppBranchEdge = {
@@ -1970,6 +1970,16 @@ export type AppStoreConnectApiKeyMutationDeleteAppStoreConnectApiKeyArgs = {
 
 export type AppStoreConnectApiKeyMutationUpdateAppStoreConnectApiKeyArgs = {
   appStoreConnectApiKeyUpdateInput: AppStoreConnectApiKeyUpdateInput;
+  id: Scalars['ID']['input'];
+};
+
+export type AppStoreConnectApiKeyQuery = {
+  __typename?: 'AppStoreConnectApiKeyQuery';
+  byId: AppStoreConnectApiKey;
+};
+
+
+export type AppStoreConnectApiKeyQueryByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -3244,9 +3254,8 @@ export enum CrashSampleFor {
   Oldest = 'OLDEST'
 }
 
-export type CrashesTimespan = {
-  end: Scalars['DateTime']['input'];
-  start?: InputMaybe<Scalars['DateTime']['input']>;
+export type CrashesFilters = {
+  name?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 export type CreateAccessTokenInput = {
@@ -3366,10 +3375,22 @@ export type CreateSubmissionResult = {
   submission: Submission;
 };
 
+export type CumulativeMetrics = {
+  __typename?: 'CumulativeMetrics';
+  /** Totals from the beginning of time till now */
+  totals: CumulativeMetricsTotals;
+};
+
 export type CumulativeMetricsOverTimeData = {
   __typename?: 'CumulativeMetricsOverTimeData';
   data: LineChartData;
   metricsAtLastTimestamp: Array<LineDatapoint>;
+};
+
+export type CumulativeMetricsTotals = {
+  __typename?: 'CumulativeMetricsTotals';
+  totalFailedInstalls: Scalars['Int']['output'];
+  totalInstalls: Scalars['Int']['output'];
 };
 
 export type CustomBuildConfigInput = {
@@ -3429,6 +3450,11 @@ export enum CustomDomainStatus {
   Pending = 'PENDING',
   TimedOut = 'TIMED_OUT'
 }
+
+export type DatasetTimespan = {
+  end: Scalars['DateTime']['input'];
+  start: Scalars['DateTime']['input'];
+};
 
 export type DeleteAccessTokenResult = {
   __typename?: 'DeleteAccessTokenResult';
@@ -3561,6 +3587,7 @@ export type DeployServerlessFunctionResult = {
 /** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
 export type Deployment = {
   __typename?: 'Deployment';
+  buildCount: Scalars['Int']['output'];
   builds: DeploymentBuildsConnection;
   channel: UpdateChannel;
   id: Scalars['ID']['output'];
@@ -3569,6 +3596,12 @@ export type Deployment = {
   /** Ordered the same way as 'updateBranches' in UpdateChannel */
   latestUpdatesPerBranch: Array<LatestUpdateOnBranch>;
   runtime: Runtime;
+};
+
+
+/** Represents a Deployment - a set of Builds with the same Runtime Version and Channel */
+export type DeploymentBuildCountArgs = {
+  statuses?: InputMaybe<Array<BuildStatus>>;
 };
 
 
@@ -3662,6 +3695,13 @@ export type DeploymentQuery = {
 
 export type DeploymentQueryByIdArgs = {
   deploymentId: Scalars['ID']['input'];
+};
+
+export type DeploymentResult = {
+  __typename?: 'DeploymentResult';
+  data?: Maybe<UpdateDeploymentsConnection>;
+  error?: Maybe<Scalars['String']['output']>;
+  success: Scalars['Boolean']['output'];
 };
 
 export type DeploymentSignedUrlResult = {
@@ -4415,6 +4455,7 @@ export type GoogleServiceAccountKey = {
   clientIdentifier: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
   id: Scalars['ID']['output'];
+  keyJson: Scalars['String']['output'];
   privateKeyIdentifier: Scalars['String']['output'];
   projectIdentifier: Scalars['String']['output'];
   updatedAt: Scalars['DateTime']['output'];
@@ -4440,6 +4481,16 @@ export type GoogleServiceAccountKeyMutationCreateGoogleServiceAccountKeyArgs = {
 
 
 export type GoogleServiceAccountKeyMutationDeleteGoogleServiceAccountKeyArgs = {
+  id: Scalars['ID']['input'];
+};
+
+export type GoogleServiceAccountKeyQuery = {
+  __typename?: 'GoogleServiceAccountKeyQuery';
+  byId: GoogleServiceAccountKey;
+};
+
+
+export type GoogleServiceAccountKeyQueryByIdArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -5359,11 +5410,6 @@ export type RequestsFilters = {
   statusType?: InputMaybe<Array<ResponseStatusType>>;
 };
 
-export type RequestsTimespan = {
-  end: Scalars['DateTime']['input'];
-  start: Scalars['DateTime']['input'];
-};
-
 export type RescindUserInvitationResult = {
   __typename?: 'RescindUserInvitationResult';
   id: Scalars['ID']['output'];
@@ -5570,6 +5616,7 @@ export type RootMutation = {
   webhook: WebhookMutation;
   /** Mutations that modify a websiteNotification */
   websiteNotifications: WebsiteNotificationMutation;
+  workflowJob: WorkflowJobMutation;
 };
 
 
@@ -5614,6 +5661,8 @@ export type RootQuery = {
    * @deprecated Use 'byId' field under 'app'.
    */
   appByAppId?: Maybe<App>;
+  /** Top-level query object for querying App Store Connect API Keys. */
+  appStoreConnectApiKey: AppStoreConnectApiKeyQuery;
   /** Top-level query object for querying Apple Device registration requests. */
   appleDeviceRegistrationRequest: AppleDeviceRegistrationRequestQuery;
   /** Top-level query object for querying Apple Teams. */
@@ -5637,6 +5686,8 @@ export type RootQuery = {
   experimentation: ExperimentationQuery;
   /** Top-level query object for querying GitHub App information and resources it has access to. */
   githubApp: GitHubAppQuery;
+  /** Top-level query object for querying Google Service Account Keys. */
+  googleServiceAccountKey: GoogleServiceAccountKeyQuery;
   /** Top-level query object for querying Stripe Invoices. */
   invoice: InvoiceQuery;
   jobRun: JobRunQuery;
@@ -6353,7 +6404,7 @@ export type Update = ActivityTimelineProjectActivity & {
   branchId: Scalars['ID']['output'];
   codeSigningInfo?: Maybe<CodeSigningInfo>;
   createdAt: Scalars['DateTime']['output'];
-  deployments: UpdateDeploymentsConnection;
+  deployments: DeploymentResult;
   expoGoSDKVersion?: Maybe<Scalars['String']['output']>;
   gitCommitHash?: Maybe<Scalars['String']['output']>;
   group: Scalars['String']['output'];
@@ -6463,6 +6514,7 @@ export type UpdateChannel = {
   branchMapping: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
   id: Scalars['ID']['output'];
+  isPaused: Scalars['Boolean']['output'];
   name: Scalars['String']['output'];
   updateBranches: Array<UpdateBranch>;
   updatedAt: Scalars['DateTime']['output'];
@@ -6492,6 +6544,10 @@ export type UpdateChannelMutation = {
    * stringified JSON supplied to the mutation as a variable.
    */
   editUpdateChannel: UpdateChannel;
+  /** Pause updates for an EAS channel. */
+  pauseUpdateChannel: UpdateChannel;
+  /** Resume updates for an EAS channel. */
+  resumeUpdateChannel: UpdateChannel;
 };
 
 
@@ -6509,6 +6565,16 @@ export type UpdateChannelMutationDeleteUpdateChannelArgs = {
 
 export type UpdateChannelMutationEditUpdateChannelArgs = {
   branchMapping: Scalars['String']['input'];
+  channelId: Scalars['ID']['input'];
+};
+
+
+export type UpdateChannelMutationPauseUpdateChannelArgs = {
+  channelId: Scalars['ID']['input'];
+};
+
+
+export type UpdateChannelMutationResumeUpdateChannelArgs = {
   channelId: Scalars['ID']['input'];
 };
 
@@ -6555,6 +6621,7 @@ export type UpdateInfoGroup = {
 
 export type UpdateInsights = {
   __typename?: 'UpdateInsights';
+  cumulativeMetrics: CumulativeMetrics;
   cumulativeMetricsOverTime: CumulativeMetricsOverTimeData;
   id: Scalars['ID']['output'];
   totalUniqueUsers: Scalars['Int']['output'];
@@ -7088,6 +7155,7 @@ export enum UserEntityTypeName {
   Password = 'Password',
   SsoUser = 'SSOUser',
   User = 'User',
+  UserPermission = 'UserPermission',
   UserSecondFactorBackupCodes = 'UserSecondFactorBackupCodes',
   UserSecondFactorDevice = 'UserSecondFactorDevice'
 }
@@ -7390,6 +7458,7 @@ export type WorkerCustomDomain = {
 export type WorkerDeployment = {
   __typename?: 'WorkerDeployment';
   aliases?: Maybe<Array<WorkerDeploymentAlias>>;
+  crashes?: Maybe<WorkerDeploymentCrashes>;
   createdAt: Scalars['DateTime']['output'];
   deploymentDomain: Scalars['String']['output'];
   deploymentIdentifier: Scalars['WorkerDeploymentIdentifier']['output'];
@@ -7403,6 +7472,12 @@ export type WorkerDeployment = {
 };
 
 
+export type WorkerDeploymentCrashesArgs = {
+  filters?: InputMaybe<CrashesFilters>;
+  timespan: DatasetTimespan;
+};
+
+
 export type WorkerDeploymentLogsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   timespan: LogsTimespan;
@@ -7411,7 +7486,7 @@ export type WorkerDeploymentLogsArgs = {
 
 export type WorkerDeploymentRequestsArgs = {
   filters?: InputMaybe<RequestsFilters>;
-  timespan: RequestsTimespan;
+  timespan: DatasetTimespan;
 };
 
 export type WorkerDeploymentAlias = {
@@ -7442,33 +7517,65 @@ export type WorkerDeploymentAliasesConnection = {
 export type WorkerDeploymentCrashEdge = {
   __typename?: 'WorkerDeploymentCrashEdge';
   logs: Array<WorkerDeploymentLogNode>;
+  node: WorkerDeploymentCrashNode;
   request?: Maybe<WorkerDeploymentRequestNode>;
-  sample: WorkerDeploymentCrashSample;
 };
 
 export type WorkerDeploymentCrashNode = {
   __typename?: 'WorkerDeploymentCrashNode';
-  id: Scalars['ID']['output'];
-  minOccurrences: Scalars['Int']['output'];
-  mostRecentlyOccurredAt: Scalars['DateTime']['output'];
-  oldestOccurredAt: Scalars['DateTime']['output'];
-  sample: WorkerDeploymentCrashSample;
-};
-
-export type WorkerDeploymentCrashSample = {
-  __typename?: 'WorkerDeploymentCrashSample';
+  crashHash: Scalars['ID']['output'];
+  crashTimestamp: Scalars['DateTime']['output'];
+  deploymentIdentifier: Scalars['String']['output'];
   firstStackLine?: Maybe<Scalars['String']['output']>;
+  key: Scalars['ID']['output'];
   message: Scalars['String']['output'];
   name: Scalars['String']['output'];
+  requestTimestamp: Scalars['DateTime']['output'];
   scriptName: Scalars['String']['output'];
   stack?: Maybe<Array<Scalars['String']['output']>>;
-  timestamp: Scalars['DateTime']['output'];
 };
 
 export type WorkerDeploymentCrashes = {
   __typename?: 'WorkerDeploymentCrashes';
-  minRowsWithoutLimit?: Maybe<Scalars['Int']['output']>;
+  byCrashHash: Array<WorkerDeploymentCrashesHashEdge>;
+  byName: Array<WorkerDeploymentCrashesNameEdge>;
+  interval: Scalars['Int']['output'];
+  minRowsWithoutLimit: Scalars['Int']['output'];
   nodes: Array<WorkerDeploymentCrashNode>;
+  summary: WorkerDeploymentCrashesAggregationNode;
+  timeseries: Array<WorkerDeploymentCrashesTimeseriesEdge>;
+};
+
+export type WorkerDeploymentCrashesAggregationNode = {
+  __typename?: 'WorkerDeploymentCrashesAggregationNode';
+  crashesPerMs?: Maybe<Scalars['Float']['output']>;
+  crashesSum: Scalars['Int']['output'];
+  distinctCrashes: Scalars['Int']['output'];
+  firstOccurredAt: Scalars['DateTime']['output'];
+  mostRecentlyOccurredAt: Scalars['DateTime']['output'];
+  sampleRate: Scalars['Float']['output'];
+};
+
+export type WorkerDeploymentCrashesHashEdge = {
+  __typename?: 'WorkerDeploymentCrashesHashEdge';
+  crashHash: Scalars['ID']['output'];
+  node: WorkerDeploymentCrashesAggregationNode;
+  sample: WorkerDeploymentCrashNode;
+  timeseries: Array<WorkerDeploymentCrashesTimeseriesEdge>;
+};
+
+export type WorkerDeploymentCrashesNameEdge = {
+  __typename?: 'WorkerDeploymentCrashesNameEdge';
+  name: Scalars['String']['output'];
+  node: WorkerDeploymentCrashesAggregationNode;
+  sample: WorkerDeploymentCrashNode;
+  timeseries: Array<WorkerDeploymentCrashesTimeseriesEdge>;
+};
+
+export type WorkerDeploymentCrashesTimeseriesEdge = {
+  __typename?: 'WorkerDeploymentCrashesTimeseriesEdge';
+  node?: Maybe<WorkerDeploymentCrashesAggregationNode>;
+  timestamp: Scalars['DateTime']['output'];
 };
 
 export type WorkerDeploymentEdge = {
@@ -7511,7 +7618,7 @@ export type WorkerDeploymentQueryByIdArgs = {
 
 export type WorkerDeploymentRequestEdge = {
   __typename?: 'WorkerDeploymentRequestEdge';
-  crash?: Maybe<WorkerDeploymentCrashSample>;
+  crash?: Maybe<WorkerDeploymentCrashNode>;
   logs: Array<WorkerDeploymentLogNode>;
   node: WorkerDeploymentRequestNode;
 };
@@ -7663,6 +7770,16 @@ export enum WorkerLoggerLevel {
   Trace = 'TRACE',
   Warn = 'WARN'
 }
+
+export type WorkflowJobMutation = {
+  __typename?: 'WorkflowJobMutation';
+  approveWorkflowJob: Scalars['ID']['output'];
+};
+
+
+export type WorkflowJobMutationApproveWorkflowJobArgs = {
+  workflowJobId: Scalars['ID']['input'];
+};
 
 export type DeleteAndroidAppBuildCredentialsResult = {
   __typename?: 'deleteAndroidAppBuildCredentialsResult';
@@ -8405,6 +8522,13 @@ export type AppByFullNameQueryVariables = Exact<{
 
 export type AppByFullNameQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byFullName: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', githubRepoOwnerName: string, githubRepoName: string } } | null } } };
 
+export type AppStoreConnectApiKeyByIdQueryVariables = Exact<{
+  ascApiKeyId: Scalars['ID']['input'];
+}>;
+
+
+export type AppStoreConnectApiKeyByIdQuery = { __typename?: 'RootQuery', appStoreConnectApiKey: { __typename?: 'AppStoreConnectApiKeyQuery', byId: { __typename?: 'AppStoreConnectApiKey', id: string, issuerIdentifier: string, keyIdentifier: string, keyP8: string } } };
+
 export type LatestAppVersionQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   platform: AppPlatform;
@@ -8555,6 +8679,13 @@ export type EnvironmentVariablesSharedWithSensitiveQueryVariables = Exact<{
 
 
 export type EnvironmentVariablesSharedWithSensitiveQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariablesIncludingSensitive: Array<{ __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null }> } } } };
+
+export type GoogleServiceAccountKeyByIdQueryVariables = Exact<{
+  ascApiKeyId: Scalars['ID']['input'];
+}>;
+
+
+export type GoogleServiceAccountKeyByIdQuery = { __typename?: 'RootQuery', googleServiceAccountKey: { __typename?: 'GoogleServiceAccountKeyQuery', byId: { __typename?: 'GoogleServiceAccountKey', id: string, keyJson: string } } };
 
 export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']['input']> | Scalars['String']['input'];

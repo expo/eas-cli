@@ -4,11 +4,7 @@ import { Result, result } from '@expo/results';
 
 import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
 import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
-import {
-  SubmissionAndroidReleaseStatus,
-  SubmissionAndroidTrack,
-  SubmissionFragment,
-} from '../../graphql/generated';
+import { SubmissionAndroidReleaseStatus, SubmissionAndroidTrack } from '../../graphql/generated';
 import Log from '../../log';
 import {
   AmbiguousApplicationIdError,
@@ -22,7 +18,7 @@ import { SubmissionContext } from '../context';
 export default class AndroidSubmitCommand {
   constructor(private ctx: SubmissionContext<Platform.ANDROID>) {}
 
-  async runAsync(): Promise<SubmissionFragment> {
+  async runAsync(): Promise<AndroidSubmitter> {
     Log.addNewLineIfNone();
     const archiveSource = this.resolveArchiveSource();
     if (!archiveSource.ok) {
@@ -48,7 +44,7 @@ export default class AndroidSubmitCommand {
     }
     const submissionOptions = await this.getAndroidSubmissionOptionsAsync(archiveSourceValue);
     const submitter = new AndroidSubmitter(this.ctx, submissionOptions, archive);
-    return await submitter.submitAsync();
+    return submitter;
   }
 
   private async getAndroidSubmissionOptionsAsync(

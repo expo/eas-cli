@@ -65,9 +65,13 @@ export default abstract class BaseSubmitter<
     return resolvedSourceOptions;
   }
 
-  public async submitAsync(): Promise<SubmissionFragment> {
+  public async getSubmissionInputAsync(): Promise<SubmissionInput<P>> {
     const resolvedSourceOptions = await this.getSourceOptionsAsync();
-    const input = await this.createSubmissionInputAsync(resolvedSourceOptions);
+    return await this.createSubmissionInputAsync(resolvedSourceOptions);
+  }
+
+  public async submitAsync(): Promise<SubmissionFragment> {
+    const input = await this.getSubmissionInputAsync();
     return await this.createSubmissionWithAnalyticsAsync(input);
   }
 

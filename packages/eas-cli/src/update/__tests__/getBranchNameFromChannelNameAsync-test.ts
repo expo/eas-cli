@@ -3,10 +3,10 @@ import { instance, mock } from 'ts-mockito';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   App,
+  DeploymentResult,
   Runtime,
   UpdateBranch,
   UpdateChannel,
-  UpdateDeploymentsConnection,
   UpdateInsights,
 } from '../../graphql/generated';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
@@ -109,6 +109,7 @@ function mockUpdateChannel({
     branchMapping:
       '{"data":[{"branchId":"f9dc4dbb-663f-4a19-8cf2-a783b484d2db","branchMappingLogic":"true"}],"version":0}',
     updateBranches: branchNames ? mockUpdateBranches(branchNames) : [],
+    isPaused: false,
     __typename: 'UpdateChannel',
   };
 }
@@ -134,7 +135,7 @@ function mockUpdateBranches(branchNames: string[]): UpdateBranch[] {
           runtimeVersion: '1.0.0',
           runtime: {} as Runtime, // Temporary fix to resolve type errors
           insights: {} as UpdateInsights, // Temporary fix to resolve type errors
-          deployments: {} as UpdateDeploymentsConnection, // Temporary fix to resolve type errors
+          deployments: {} as DeploymentResult, // Temporary fix to resolve type errors
           platform: 'ios',
           manifestFragment: '...',
           isRollBackToEmbedded: false,

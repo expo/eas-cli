@@ -12,7 +12,6 @@ import {
 import { AscApiKeySource, AscApiKeySourceType } from './AscApiKeySource';
 import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter';
 import { MissingCredentialsError } from '../../credentials/errors';
-import { SubmissionFragment } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { ArchiveSource, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
 import { refreshContextSubmitProfileAsync, resolveArchiveSource } from '../commons';
@@ -21,7 +20,7 @@ import { SubmissionContext } from '../context';
 export default class IosSubmitCommand {
   constructor(private ctx: SubmissionContext<Platform.IOS>) {}
 
-  async runAsync(): Promise<SubmissionFragment> {
+  async runAsync(): Promise<IosSubmitter> {
     Log.addNewLineIfNone();
     const archiveSource = this.resolveArchiveSource();
     if (!archiveSource.ok) {
@@ -47,7 +46,7 @@ export default class IosSubmitCommand {
     }
     const options = await this.resolveSubmissionOptionsAsync(archiveSourceValue);
     const submitter = new IosSubmitter(this.ctx, options, archive);
-    return await submitter.submitAsync();
+    return submitter;
   }
 
   private async resolveSubmissionOptionsAsync(

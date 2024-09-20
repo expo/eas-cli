@@ -86,7 +86,8 @@
     "turndown": "7.1.2",
     "untildify": "4.0.0",
     "uuid": "9.0.1",
-    "wrap-ansi": "7.0.0"
+    "wrap-ansi": "7.0.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "5.0.0",
