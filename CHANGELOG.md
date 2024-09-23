@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [12.5.0](https://github.com/expo/eas-cli/releases/tag/v12.5.0) - 2024-09-23
+
+### 🎉 New features
+
 - Log command execution to assist in debugging local builds. ([#2526](https://github.com/expo/eas-cli/pull/2526) by [@trajano](https://github.com/trajano))
 - Allow submitting builds in progress ([#2543](https://github.com/expo/eas-cli/pull/2543) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 - Use `EAS_DANGEROUS_OVERRIDE_ANDROID_APPLICATION_ID` and `EAS_DANGEROUS_OVERRIDE_IOS_BUNDLE_IDENTIFIER` environment variables as overrides of the Android application ID and iOS bundle identifier in managed workflow too. ([#2576](https://github.com/expo/eas-cli/pull/2576) by [@sjchmiela](https://github.com/sjchmiela))
@@ -15,8 +23,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Avoid malforming `app.json` with empty `.expo` object. ([#2573](https://github.com/expo/eas-cli/pull/2573) by [@byCedric](https://github.com/byCedric))
-
-### 🧹 Chores
 
 ## [12.4.1](https://github.com/expo/eas-cli/releases/tag/v12.4.1) - 2024-09-14
 
