@@ -140,7 +140,7 @@ export async function assignDevDomainNameAsync({
   graphqlClient: ExpoGraphqlClient;
   appId: string;
   nonInteractive?: boolean;
-}) {
+}): ReturnType<typeof DeploymentsMutation.assignDevDomainNameAsync> {
   let devDomainName = await DeploymentsQuery.getSuggestedDevDomainByAppIdAsync(graphqlClient, {
     appId,
   });
