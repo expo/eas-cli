@@ -311,7 +311,7 @@ export default class WorkerDeploy extends EasCommand {
             deploymentIdentifier: deployResult.id,
             url: getDeploymentUrlFromFullName(deployResult.fullName),
           },
-          aliases: [deploymentAlias].filter(Boolean) as WorkerDeploymentAliasFragment[],
+          alias: deploymentAlias,
           production: deploymentProdAlias,
         })
       );
@@ -328,7 +328,7 @@ export default class WorkerDeploy extends EasCommand {
           deploymentIdentifier: deployResult.id,
           url: getDeploymentUrlFromFullName(deployResult.fullName),
         },
-        aliases: [deploymentAlias].filter(Boolean) as WorkerDeploymentAliasFragment[],
+        alias: deploymentAlias,
         production: deploymentProdAlias,
       })
     );

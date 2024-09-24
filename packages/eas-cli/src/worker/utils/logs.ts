@@ -22,7 +22,7 @@ type WorkerDeploymentData = {
   /** The actual deployment information */
   deployment: Pick<WorkerDeploymentFragment, 'deploymentIdentifier' | 'url'>;
   /** All modified aliases of the deployment, if any */
-  aliases?: WorkerDeploymentAliasFragment[];
+  alias?: WorkerDeploymentAliasFragment | null;
   /** The production promoting alias of the deployment, if any */
   production?: WorkerDeploymentAliasFragment | null;
 };
@@ -33,8 +33,8 @@ export function formatWorkerDeploymentTable(data: WorkerDeploymentData): string 
     { label: 'Deployment URL', value: data.deployment.url },
   ];
 
-  if (data.aliases?.length) {
-    fields.push({ label: 'Alias URL', value: data.aliases[0].url });
+  if (data.alias) {
+    fields.push({ label: 'Alias URL', value: data.alias.url });
   }
   if (data.production) {
     fields.push({ label: 'Production URL', value: data.production.url });
@@ -49,34 +49,22 @@ export function formatWorkerDeploymentTable(data: WorkerDeploymentData): string 
 type WorkerDeploymentOutput = {
   /** The absolute URL to the dashboard on `expo.dev` */
   dashboardUrl: string;
-  /** The deployment information */
-  deployment: {
-    identifier: string;
-    url: string;
-    aliases?: { id: string; name: string; url: string }[];
-    production?: { id: string; url: string };
-  };
+  /** The deployment identifier */
+  identifier: string;
+  /** The deployment URL */
+  url: string;
+  /** A custom alias, if assigned */
+  alias?: { id: string; url: string };
+  /** The production alias, if assigned */
+  production?: { id: string; url: string };
 };
 
 export function formatWorkerDeploymentJson(data: WorkerDeploymentData): WorkerDeploymentOutput {
   return {
     dashboardUrl: getDashboardUrl(data.projectId),
-    deployment: {
-      identifier: data.deployment.deploymentIdentifier,
-      url: data.deployment.url,
-      aliases: !data.aliases?.length
-        ? undefined
-        : data.aliases.map(alias => ({
-            id: alias.id,
-            name: alias.aliasName,
-            url: alias.url,
-          })),
-      production: !data.production
-        ? undefined
-        : {
-            id: data.production.id,
-            url: data.production.url,
-          },
-    },
+    identifier: data.deployment.deploymentIdentifier,
+    url: data.deployment.url,
+    alias: data.alias || undefined,
+    production: data.production || undefined,
   };
 }
