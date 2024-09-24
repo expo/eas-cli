@@ -40,7 +40,11 @@ export async function getSignedDeploymentUrlAsync(
     // Ensure the callback is invoked, containing cleanup logic for possible spinners
     options.onSetupDevDomain?.();
     // Assign the dev domain name by prompting the user
-    await assignDevDomainNameAsync({ graphqlClient, appId: options.appId, nonInteractive: options.nonInteractive });
+    await assignDevDomainNameAsync({
+      graphqlClient,
+      appId: options.appId,
+      nonInteractive: options.nonInteractive,
+    });
     // Retry creating the signed URL
     return await getSignedDeploymentUrlAsync(graphqlClient, options);
   }
@@ -137,10 +141,9 @@ export async function assignDevDomainNameAsync({
   appId: string;
   nonInteractive?: boolean;
 }) {
-  let devDomainName = await DeploymentsQuery.getSuggestedDevDomainByAppIdAsync(
-    graphqlClient,
-    { appId }
-  );
+  let devDomainName = await DeploymentsQuery.getSuggestedDevDomainByAppIdAsync(graphqlClient, {
+    appId,
+  });
 
   if (!nonInteractive) {
     devDomainName = await promptDevDomainNameAsync(devDomainName);
@@ -162,7 +165,7 @@ export async function assignDevDomainNameAsync({
     }
 
     if (!nonInteractive) {
-      Log.error(`The preview URL "${name}" is already taken, choose a different URL.`);
+      Log.error(`The preview URL "${devDomainName}" is already taken, choose a different URL.`);
     }
 
     return await assignDevDomainNameAsync({ graphqlClient, appId, nonInteractive });
