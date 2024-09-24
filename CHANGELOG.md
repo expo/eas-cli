@@ -10,7 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Support assigning dev domain names in non interactive mode.
+- Support assigning dev domain names in non interactive mode. ([#2595](https://github.com/expo/eas-cli/pull/2595) by [@byCedric](https://github.com/byCedric))
 
 ### 🧹 Chores
 
