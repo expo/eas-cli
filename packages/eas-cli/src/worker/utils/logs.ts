@@ -22,7 +22,7 @@ type WorkerDeploymentData = {
   /** The actual deployment information */
   deployment: Pick<WorkerDeploymentFragment, 'deploymentIdentifier' | 'url'>;
   /** All modified aliases of the deployment, if any */
-  alias?: WorkerDeploymentAliasFragment | null;
+  aliases?: (WorkerDeploymentAliasFragment | null)[];
   /** The production promoting alias of the deployment, if any */
   production?: WorkerDeploymentAliasFragment | null;
 };
@@ -33,8 +33,11 @@ export function formatWorkerDeploymentTable(data: WorkerDeploymentData): string 
     { label: 'Deployment URL', value: data.deployment.url },
   ];
 
-  if (data.alias) {
-    fields.push({ label: 'Alias URL', value: data.alias.url });
+  if (data.aliases?.length) {
+    const alias = data.aliases.filter(Boolean)[0];
+    if (alias) {
+      fields.push({ label: 'Alias URL', value: alias.url });
+    }
   }
   if (data.production) {
     fields.push({ label: 'Production URL', value: data.production.url });
@@ -53,18 +56,29 @@ type WorkerDeploymentOutput = {
   identifier: string;
   /** The deployment URL */
   url: string;
-  /** A custom alias, if assigned */
-  alias?: { id: string; url: string };
+  /** Custom aliases, if assigned */
+  aliases?: { id: string; url: string; name: string }[];
   /** The production alias, if assigned */
   production?: { id: string; url: string };
 };
 
 export function formatWorkerDeploymentJson(data: WorkerDeploymentData): WorkerDeploymentOutput {
+  const aliases = !data.aliases
+    ? []
+    : (data.aliases.filter(Boolean) as WorkerDeploymentAliasFragment[]);
+
   return {
     dashboardUrl: getDashboardUrl(data.projectId),
     identifier: data.deployment.deploymentIdentifier,
     url: data.deployment.url,
-    alias: data.alias || undefined,
-    production: data.production || undefined,
+    aliases: !aliases.length
+      ? undefined
+      : aliases.map(alias => ({ id: alias.id, url: alias.url, name: alias.aliasName })),
+    production: !data.production
+      ? undefined
+      : {
+          id: data.production.id,
+          url: data.production.url,
+        },
   };
 }
