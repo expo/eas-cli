@@ -3579,6 +3579,12 @@ export type DeleteWebhookResult = {
   id: Scalars['ID']['output'];
 };
 
+export type DeleteWorkerDeploymentResult = {
+  __typename?: 'DeleteWorkerDeploymentResult';
+  deploymentIdentifier: Scalars['WorkerDeploymentIdentifier']['output'];
+  id: Scalars['ID']['output'];
+};
+
 export type DeployServerlessFunctionResult = {
   __typename?: 'DeployServerlessFunctionResult';
   url: Scalars['String']['output'];
@@ -3724,6 +3730,7 @@ export type DeploymentsMutation = {
   /** Create a signed deployment URL */
   createSignedDeploymentUrl: DeploymentSignedUrlResult;
   deleteAlias: DeleteAliasResult;
+  deleteWorkerDeployment: DeleteWorkerDeploymentResult;
 };
 
 
@@ -3743,6 +3750,11 @@ export type DeploymentsMutationCreateSignedDeploymentUrlArgs = {
 export type DeploymentsMutationDeleteAliasArgs = {
   aliasName?: InputMaybe<Scalars['WorkerDeploymentIdentifier']['input']>;
   appId: Scalars['ID']['input'];
+};
+
+
+export type DeploymentsMutationDeleteWorkerDeploymentArgs = {
+  workerDeploymentId: Scalars['ID']['input'];
 };
 
 export type DiscordUser = {

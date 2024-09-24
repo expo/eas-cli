@@ -32,32 +32,17 @@ export async function getSignedDeploymentUrlAsync(
       ['APP_NO_DEV_DOMAIN_NAME'].includes(e?.extensions?.errorCode as string)
     );
 
+    // Throw unexpected errors eagerly
     if (!isMissingDevDomain) {
       throw error;
     }
-    if (options.nonInteractive) {
-      throw new Error(
-        'The project URL needs to be set up, but the terminal is running in non-interactive mode.'
-      );
-    }
 
-    const suggestedDevDomainName = await DeploymentsQuery.getSuggestedDevDomainByAppIdAsync(
-      graphqlClient,
-      { appId: options.appId }
-    );
-
+    // Ensure the callback is invoked, containing cleanup logic for possible spinners
     options.onSetupDevDomain?.();
-
-    await chooseDevDomainNameAsync({
-      graphqlClient,
-      appId: options.appId,
-      initial: suggestedDevDomainName,
-    });
-
-    return await DeploymentsMutation.createSignedDeploymentUrlAsync(graphqlClient, {
-      appId: options.appId,
-      deploymentIdentifier: options.deploymentIdentifier,
-    });
+    // Assign the dev domain name by prompting the user
+    await assignDevDomainNameAsync({ graphqlClient, appId: options.appId, nonInteractive: options.nonInteractive });
+    // Retry creating the signed URL
+    return await getSignedDeploymentUrlAsync(graphqlClient, options);
   }
 }
 
@@ -89,15 +74,7 @@ function formatDevDomainName(name = ''): string {
     .trim();
 }
 
-async function chooseDevDomainNameAsync({
-  graphqlClient,
-  appId,
-  initial,
-}: {
-  graphqlClient: ExpoGraphqlClient;
-  appId: string;
-  initial: string;
-}): Promise<void> {
+async function promptDevDomainNameAsync(initialDevDomain: string): Promise<string> {
   const rootDomain = `.${EXPO_BASE_DOMAIN}.app`;
   const memoizedFormatDevDomainName = memoize(formatDevDomainName);
 
@@ -105,7 +82,7 @@ async function chooseDevDomainNameAsync({
     type: 'text',
     name: 'name',
     message: 'Choose a preview URL for your project:',
-    initial,
+    initial: initialDevDomain,
     validate: (value: string) => {
       if (!value) {
         return 'You have to choose a preview URL for your project';
@@ -138,32 +115,57 @@ async function chooseDevDomainNameAsync({
     },
   });
 
+  // This should never happen due to the validation, if it does its an error
   if (!name) {
     throw new Error('No preview URL provided, aborting deployment.');
   }
 
-  try {
-    const success = await DeploymentsMutation.assignDevDomainNameAsync(graphqlClient, {
-      appId,
-      name,
-    });
+  return name;
+}
 
-    if (!success) {
-      throw new Error('Failed to assign preview URL');
-    }
-  } catch (error: any) {
+/**
+ * Assign a dev domain name to a project.
+ *   - When running in interactive mode, it will prompt the user with a suggested domain name.
+ *   - When running in non interactive mode, it will auto-assign the suggested domain name.
+ */
+export async function assignDevDomainNameAsync({
+  graphqlClient,
+  appId,
+  nonInteractive,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  appId: string;
+  nonInteractive?: boolean;
+}) {
+  let devDomainName = await DeploymentsQuery.getSuggestedDevDomainByAppIdAsync(
+    graphqlClient,
+    { appId }
+  );
+
+  if (!nonInteractive) {
+    devDomainName = await promptDevDomainNameAsync(devDomainName);
+  }
+
+  try {
+    return await DeploymentsMutation.assignDevDomainNameAsync(graphqlClient, {
+      appId,
+      name: devDomainName,
+    });
+  } catch (error) {
     const isChosenNameTaken = (error as GraphqlError)?.graphQLErrors?.some(e =>
       ['DEV_DOMAIN_NAME_TAKEN'].includes(e?.extensions?.errorCode as string)
     );
 
-    if (isChosenNameTaken) {
-      Log.error(`The preview URL "${name}" is already taken, choose a different URL.`);
-      await chooseDevDomainNameAsync({ graphqlClient, appId, initial });
-    }
-
+    // Throw unexpected errors eagerly
     if (!isChosenNameTaken) {
       throw error;
     }
+
+    if (!nonInteractive) {
+      Log.error(`The preview URL "${name}" is already taken, choose a different URL.`);
+    }
+
+    return await assignDevDomainNameAsync({ graphqlClient, appId, nonInteractive });
   }
 }
 
