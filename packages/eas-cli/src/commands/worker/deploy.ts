@@ -165,6 +165,10 @@ export default class WorkerDeploy extends EasCommand {
       // TODO(@kitten): Batch and upload multiple files in parallel
       const uploadParams: UploadParams[] = [];
       const assetPath = projectDist.type === 'server' ? projectDist.clientPath : projectDist.path;
+      if (!assetPath) {
+        return;
+      }
+
       for await (const asset of WorkerAssets.listAssetMapFilesAsync(assetPath, assetMap)) {
         const uploadURL = uploads[asset.normalizedPath];
         if (uploadURL) {
@@ -359,36 +363,36 @@ async function resolveExportedProjectAsync(
       modifiedAt: Date | null;
       path: string;
       serverPath: string;
-      clientPath: string;
+      clientPath?: string;
     }
 > {
   const exportPath = path.join(projectDir, flags.exportDir);
   const serverPath = path.join(exportPath, 'server');
   const clientPath = path.join(exportPath, 'client');
 
-  const [hasServerPath, hasClientPath, exportStat] = await Promise.all([
-    isDirectory(serverPath),
-    isDirectory(clientPath),
+  const [exportDirStat, expoRoutesStat, hasClientDir] = await Promise.all([
     fs.promises.stat(exportPath).catch(() => null),
+    fs.promises.stat(path.join(serverPath, '_expo/routes.json')).catch(() => null),
+    isDirectory(clientPath),
   ]);
 
-  if (!exportStat?.isDirectory()) {
+  if (!exportDirStat?.isDirectory()) {
     throw new Error(
       `No "${flags.exportDir}/" folder found. Prepare your project for deployment with "npx expo export --platform web"`
     );
   }
 
-  if (hasServerPath && hasClientPath) {
+  if (expoRoutesStat?.isFile()) {
     return {
       type: 'server',
       path: exportPath,
-      modifiedAt: exportStat.mtime,
+      modifiedAt: exportDirStat.mtime,
       serverPath,
-      clientPath,
+      clientPath: hasClientDir ? clientPath : undefined,
     };
   }
 
-  return { type: 'static', path: exportPath, modifiedAt: exportStat.mtime };
+  return { type: 'static', path: exportPath, modifiedAt: exportDirStat.mtime };
 }
 
 function logExportedProjectInfo(

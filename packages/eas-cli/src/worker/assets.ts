@@ -82,12 +82,14 @@ export type AssetMap = Record<string, string>;
 
 /** Creates an asset map of a given target path */
 async function createAssetMapAsync(
-  assetPath: string,
+  assetPath?: string,
   options?: AssetMapOptions
 ): Promise<AssetMap> {
   const map: AssetMap = Object.create(null);
-  for await (const file of listFilesRecursively(assetPath)) {
-    map[file.normalizedPath] = await computeSha512HashAsync(file.path, options?.hashOptions);
+  if (assetPath) {
+    for await (const file of listFilesRecursively(assetPath)) {
+      map[file.normalizedPath] = await computeSha512HashAsync(file.path, options?.hashOptions);
+    }
   }
   return map;
 }
