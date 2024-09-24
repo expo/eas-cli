@@ -6,10 +6,7 @@ import * as path from 'node:path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import {
-  EnvironmentVariableEnvironment,
-  WorkerDeploymentAliasFragment,
-} from '../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -311,7 +308,7 @@ export default class WorkerDeploy extends EasCommand {
             deploymentIdentifier: deployResult.id,
             url: getDeploymentUrlFromFullName(deployResult.fullName),
           },
-          aliases: [deploymentAlias].filter(Boolean) as WorkerDeploymentAliasFragment[],
+          aliases: [deploymentAlias],
           production: deploymentProdAlias,
         })
       );
@@ -328,7 +325,7 @@ export default class WorkerDeploy extends EasCommand {
           deploymentIdentifier: deployResult.id,
           url: getDeploymentUrlFromFullName(deployResult.fullName),
         },
-        aliases: [deploymentAlias].filter(Boolean) as WorkerDeploymentAliasFragment[],
+        aliases: [deploymentAlias],
         production: deploymentProdAlias,
       })
     );
