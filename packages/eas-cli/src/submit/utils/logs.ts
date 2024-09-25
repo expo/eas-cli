@@ -22,21 +22,20 @@ export async function displayLogsAsync(
 }
 
 async function downloadAndPrintSubmissionLogsAsync(submission: SubmissionFragment): Promise<void> {
-  if (!submission.logsUrl) {
-    return;
-  }
-  const response = await fetch(submission.logsUrl);
-  const logs = parseLogs(await response.text());
-  Log.addNewLineIfNone();
-  const prefix = chalk.blueBright('[logs] ');
-  for (const { level, msg } of logs) {
-    const msgWithPrefix = `${prefix}${msg}`;
-    if (level === 'error') {
-      Log.error(msgWithPrefix);
-    } else if (level === 'warn') {
-      Log.warn(msgWithPrefix);
-    } else {
-      Log.log(msgWithPrefix);
+  for (const logFile of submission.logFiles) {
+    const response = await fetch(logFile);
+    const logs = parseLogs(await response.text());
+    Log.addNewLineIfNone();
+    const prefix = chalk.blueBright('[logs] ');
+    for (const { level, msg } of logs) {
+      const msgWithPrefix = `${prefix}${msg}`;
+      if (level === 'error') {
+        Log.error(msgWithPrefix);
+      } else if (level === 'warn') {
+        Log.warn(msgWithPrefix);
+      } else {
+        Log.log(msgWithPrefix);
+      }
     }
   }
 }

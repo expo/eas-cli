@@ -28,6 +28,6 @@ export const SubmissionFragmentNode = gql`
       errorCode
       message
     }
-    logsUrl
+    logFiles
   }
 `;
