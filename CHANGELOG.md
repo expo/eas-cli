@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Implement new `worker` deploy API flow. ([#2601](https://github.com/expo/eas-cli/pull/2601) by [@kitten](https://github.com/kitten)))
+
 ## [12.5.1](https://github.com/expo/eas-cli/releases/tag/v12.5.1) - 2024-09-27
 
 ### 🐛 Bug fixes
