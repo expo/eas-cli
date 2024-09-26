@@ -50,6 +50,13 @@ interface RawDeployFlags {
   'export-dir': string;
 }
 
+interface DeployInProgressParams {
+  id: string;
+  fullName: string;
+  baseURL: string;
+  token: string;
+}
+
 export default class WorkerDeploy extends EasCommand {
   static override description = 'Deploy your Expo web build';
   static override aliases = ['deploy'];
@@ -126,7 +133,7 @@ export default class WorkerDeploy extends EasCommand {
       }
     }
 
-    async function uploadTarballAsync(tarPath: string, uploadUrl: string): Promise<any> {
+    async function uploadTarballAsync(tarPath: string, uploadUrl: string): Promise<DeployInProgressParams> {
       const { response } = await uploadAsync({
         url: uploadUrl,
         filePath: tarPath,
@@ -150,19 +157,23 @@ export default class WorkerDeploy extends EasCommand {
         if (!json.success || !json.result || typeof json.result !== 'object') {
           throw new Error(json.message ? `Upload failed: ${json.message}` : 'Upload failed!');
         }
-        return json.result;
+        const { id, fullName, token } = json.result;
+        if (typeof token !== 'string') {
+          throw new Error('Upload failed: API failed to return a deployment token');
+        } else if (typeof id !== 'string') {
+          throw new Error('Upload failed: API failed to return a deployment identifier');
+        } else if (typeof fullName !== 'string') {
+          throw new Error('Upload failed: API failed to return a script name');
+        }
+        const baseURL = new URL('/', uploadUrl).toString();
+        return { id, fullName, baseURL, token };
       }
     }
 
     async function uploadAssetsAsync(
       assetMap: WorkerAssets.AssetMap,
-      uploads: Record<string, string>
+      deployParams: DeployInProgressParams
     ): Promise<void> {
-      if (typeof uploads !== 'object' || !uploads) {
-        return;
-      }
-
-      // TODO(@kitten): Batch and upload multiple files in parallel
       const uploadParams: UploadParams[] = [];
       const assetPath = projectDist.type === 'server' ? projectDist.clientPath : projectDist.path;
       if (!assetPath) {
@@ -170,10 +181,9 @@ export default class WorkerDeploy extends EasCommand {
       }
 
       for await (const asset of WorkerAssets.listAssetMapFilesAsync(assetPath, assetMap)) {
-        const uploadURL = uploads[asset.normalizedPath];
-        if (uploadURL) {
-          uploadParams.push({ url: uploadURL, filePath: asset.path });
-        }
+        const uploadURL = new URL(`/asset/${asset.sha512}`, deployParams.baseURL);
+        uploadURL.searchParams.set('token', deployParams.token);
+        uploadParams.push({ url: uploadURL.toString(), filePath: asset.path });
       }
 
       const progress = {
@@ -214,7 +224,7 @@ export default class WorkerDeploy extends EasCommand {
 
     let assetMap: WorkerAssets.AssetMap;
     let tarPath: string;
-    let deployResult: any;
+    let deployResult: DeployInProgressParams;
     let progress = ora('Preparing project').start();
 
     try {
@@ -253,7 +263,7 @@ export default class WorkerDeploy extends EasCommand {
       throw error;
     }
 
-    await uploadAssetsAsync(assetMap, deployResult.uploads);
+    await uploadAssetsAsync(assetMap, deployResult);
 
     let deploymentAlias: null | Awaited<ReturnType<typeof assignWorkerDeploymentAliasAsync>> = null;
     if (flags.aliasName) {

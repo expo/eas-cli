@@ -129,8 +129,8 @@ export async function createManifestAsync(
 
 interface WorkerFileEntry {
   normalizedPath: string;
+  sha512: string;
   path: string;
-  data: Buffer | string;
 }
 
 /** Reads worker files while normalizing sourcemaps and providing normalized paths */
@@ -151,11 +151,10 @@ async function* listAssetMapFilesAsync(
 ): AsyncGenerator<WorkerFileEntry> {
   for (const normalizedPath in assetMap) {
     const filePath = path.resolve(assetPath, normalizedPath.split('/').join(path.sep));
-    const data = await fs.promises.readFile(filePath);
     yield {
       normalizedPath,
       path: filePath,
-      data,
+      sha512: assetMap[normalizedPath],
     };
   }
 }
