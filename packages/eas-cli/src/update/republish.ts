@@ -69,6 +69,11 @@ export async function republishAsync({
     'All updates must either be roll back to embedded updates or not'
   );
 
+  assert(
+    !updatesToPublish.some(u => !!u.rolloutControlUpdate),
+    'Cannot republish an update that is being rolled-out. Either complete the update rollout and then republish or publish a new rollout update.'
+  );
+
   const { runtimeVersion } = arbitraryUpdate;
 
   // If codesigning was created for the original update, we need to add it to the republish.
