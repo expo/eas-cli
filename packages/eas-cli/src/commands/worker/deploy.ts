@@ -3,6 +3,7 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'node:fs';
 import * as path from 'node:path';
+import fetch from 'node-fetch';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
@@ -129,6 +130,25 @@ export default class WorkerDeploy extends EasCommand {
         const workerFiles = WorkerAssets.listWorkerFilesAsync(projectDist.serverPath);
         for await (const workerFile of workerFiles) {
           yield [`server/${workerFile.normalizedPath}`, workerFile.data];
+        }
+      }
+    }
+
+    async function finalizeDeployAsync(deployParams: DeployInProgressParams): Promise<void> {
+      const finalizeDeployUrl = new URL('/deploy/finalize', deployParams.baseURL);
+      finalizeDeployUrl.searchParams.set('token', deployParams.token);
+      const response = await fetch(finalizeDeployUrl, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Deploy failed! (${response.statusText})`);
+      } else {
+        const json = await response.json();
+        if (!json.success) {
+          throw new Error(json.message ? `Deploy failed: ${json.message}` : 'Deploy failed!');
         }
       }
     }
@@ -264,6 +284,7 @@ export default class WorkerDeploy extends EasCommand {
     }
 
     await uploadAssetsAsync(assetMap, deployResult);
+    await finalizeDeployAsync(deployResult);
 
     let deploymentAlias: null | Awaited<ReturnType<typeof assignWorkerDeploymentAliasAsync>> = null;
     if (flags.aliasName) {
