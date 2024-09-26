@@ -31,7 +31,7 @@ import { PublishQuery } from '../graphql/queries/PublishQuery';
 import Log, { learnMore } from '../log';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../platform';
 import { promptAsync } from '../prompts';
-import { getBranchNameFromChannelNameAsync } from '../update/getBranchNameFromChannelNameAsync';
+import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 import {
   UpdateJsonInfo,
   formatUpdateMessage,
@@ -598,7 +598,12 @@ export async function getBranchNameForCommandAsync({
   }
 
   if (channelNameArg) {
-    return await getBranchNameFromChannelNameAsync(graphqlClient, projectId, channelNameArg);
+    const { branchName } = await getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
+      graphqlClient,
+      projectId,
+      channelNameArg
+    );
+    return branchName;
   }
 
   if (branchNameArg) {

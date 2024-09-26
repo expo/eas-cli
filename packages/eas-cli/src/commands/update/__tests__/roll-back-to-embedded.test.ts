@@ -19,7 +19,7 @@ import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
-import { getBranchNameFromChannelNameAsync } from '../../../update/getBranchNameFromChannelNameAsync';
+import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 import { resolveVcsClient } from '../../../vcs';
 import UpdateRollBackToEmbedded from '../roll-back-to-embedded';
 
@@ -50,7 +50,7 @@ jest.mock('../../../project/projectUtils', () => ({
   enforceRollBackToEmbeddedUpdateSupportAsync: jest.fn(),
 }));
 jest.mock('../../../update/configure');
-jest.mock('../../../update/getBranchNameFromChannelNameAsync');
+jest.mock('../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync');
 jest.mock('../../../graphql/mutations/PublishMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
@@ -112,7 +112,9 @@ describe(UpdateRollBackToEmbedded.name, () => {
     const runtimeVersion = 'exposdk:47.0.0';
     jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
-    jest.mocked(getBranchNameFromChannelNameAsync).mockResolvedValue('branchFromChannel');
+    jest
+      .mocked(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync)
+      .mockResolvedValue({ branchId: updateStub.branch.id, branchName: 'branchFromChannel' });
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
       branchId: 'branch123',
       createdBranch: false,

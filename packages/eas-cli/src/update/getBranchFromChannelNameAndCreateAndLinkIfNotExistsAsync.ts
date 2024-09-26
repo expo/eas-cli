@@ -4,12 +4,12 @@ import { createChannelOnAppAsync } from '../channel/queries';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { ChannelQuery } from '../graphql/queries/ChannelQuery';
 
-export async function getBranchNameFromChannelNameAsync(
+export async function getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
   channelName: string
-): Promise<string> {
-  let branchName;
+): Promise<{ branchName: string; branchId: string }> {
+  let branchInfo: { branchName: string; branchId: string };
 
   try {
     const channel = await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
@@ -18,7 +18,8 @@ export async function getBranchNameFromChannelNameAsync(
     });
 
     if (channel.updateBranches.length === 1) {
-      branchName = channel.updateBranches[0].name;
+      const branch = channel.updateBranches[0];
+      branchInfo = { branchId: branch.id, branchName: branch.name };
     } else if (channel.updateBranches.length === 0) {
       throw new Error(
         "Channel has no branches associated with it. Run 'eas channel:edit' to map a branch"
@@ -51,8 +52,8 @@ export async function getBranchNameFromChannelNameAsync(
       );
     }
 
-    branchName = channelName;
+    branchInfo = { branchId, branchName: channelName };
   }
 
-  return branchName;
+  return branchInfo;
 }

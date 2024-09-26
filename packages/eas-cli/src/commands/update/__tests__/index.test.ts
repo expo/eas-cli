@@ -21,7 +21,7 @@ import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { collectAssetsAsync, uploadAssetsAsync } from '../../../project/publish';
-import { getBranchNameFromChannelNameAsync } from '../../../update/getBranchNameFromChannelNameAsync';
+import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 import { resolveVcsClient } from '../../../vcs';
 
 const projectRoot = '/test-project';
@@ -47,7 +47,7 @@ jest.mock('@expo/config-plugins');
 jest.mock('../../../branch/queries');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
 jest.mock('../../../update/configure');
-jest.mock('../../../update/getBranchNameFromChannelNameAsync');
+jest.mock('../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync');
 jest.mock('../../../graphql/mutations/PublishMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
@@ -106,7 +106,9 @@ describe(UpdatePublish.name, () => {
     const { projectId } = mockTestProject();
     const { platforms, runtimeVersion } = mockTestExport();
 
-    jest.mocked(getBranchNameFromChannelNameAsync).mockResolvedValue('branchFromChannel');
+    jest
+      .mocked(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync)
+      .mockResolvedValue({ branchId: 'branch123', branchName: 'branchFromChannel' });
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
       branchId: 'branch123',
       createdBranch: false,
