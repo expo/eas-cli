@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Simplify the output of `eas deploy --json`. ([#2596](https://github.com/expo/eas-cli/pull/2596) by [@byCedric](https://github.com/byCedric))
 - Support deploying Expo Router server exports without client directory. ([#2597](https://github.com/expo/eas-cli/pull/2597) by [@byCedric](https://github.com/byCedric))
+- Add exit option to `eas credentials` interactive menu. ([#2570](https://github.com/expo/eas-cli/pull/2570) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [12.5.0](https://github.com/expo/eas-cli/releases/tag/v12.5.0) - 2024-09-23
 
