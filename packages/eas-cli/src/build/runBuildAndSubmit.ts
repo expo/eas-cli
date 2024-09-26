@@ -33,7 +33,6 @@ import {
   BuildFragment,
   BuildStatus,
   BuildWithSubmissionsFragment,
-  EnvironmentVariableEnvironment,
   SubmissionFragment,
 } from '../graphql/generated';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
@@ -98,7 +97,6 @@ export interface BuildFlags {
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
   repack: boolean;
-  environment?: EnvironmentVariableEnvironment;
 }
 
 export async function runBuildAndSubmitAsync(
@@ -195,7 +193,6 @@ export async function runBuildAndSubmitAsync(
     const platform = toAppPlatform(buildProfile.platform);
 
     const { env } = await evaluateConfigWithEnvVarsAsync({
-      flags,
       buildProfile: buildProfile.profile,
       buildProfileName: buildProfile.profileName,
       graphqlClient,
