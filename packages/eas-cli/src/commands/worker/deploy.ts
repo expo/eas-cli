@@ -17,7 +17,12 @@ import {
   assignWorkerDeploymentProductionAsync,
   getSignedDeploymentUrlAsync,
 } from '../../worker/deployment';
-import { UploadParams, batchUploadAsync, uploadAsync, callUploadApiAsync } from '../../worker/upload';
+import {
+  UploadParams,
+  batchUploadAsync,
+  callUploadApiAsync,
+  uploadAsync,
+} from '../../worker/upload';
 import {
   formatWorkerDeploymentJson,
   formatWorkerDeploymentTable,
@@ -147,7 +152,10 @@ export default class WorkerDeploy extends EasCommand {
       }
     }
 
-    async function uploadTarballAsync(tarPath: string, uploadUrl: string): Promise<DeployInProgressParams> {
+    async function uploadTarballAsync(
+      tarPath: string,
+      uploadUrl: string
+    ): Promise<DeployInProgressParams> {
       const { response } = await uploadAsync({
         url: uploadUrl,
         filePath: tarPath,
