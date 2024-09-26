@@ -12,11 +12,12 @@ export async function promptVariableEnvironmentAsync(
     );
   }
   return await selectAsync('Select environment:', [
-    { title: 'Development', value: EnvironmentVariableEnvironment.Development },
-    { title: 'Preview', value: EnvironmentVariableEnvironment.Preview },
-    { title: 'Production', value: EnvironmentVariableEnvironment.Production },
+    { title: 'development', value: EnvironmentVariableEnvironment.Development },
+    { title: 'preview', value: EnvironmentVariableEnvironment.Preview },
+    { title: 'production', value: EnvironmentVariableEnvironment.Production },
   ]);
 }
+
 export async function promptVariableValueAsync({
   nonInteractive,
   required = true,
