@@ -103,7 +103,7 @@ export default class UpdateEdit extends EasCommand {
       });
 
       if (!percentage) {
-        Log.log('Aborted.');
+        Log.log('Aborted .');
         return;
       }
 
