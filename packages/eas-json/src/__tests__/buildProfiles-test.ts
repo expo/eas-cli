@@ -100,6 +100,35 @@ test('valid eas.json for development client builds', async () => {
   });
 });
 
+test('valid eas.json with specified environment', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      development: {
+        environment: 'production',
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'development');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'development'
+  );
+  expect(androidProfile).toEqual({
+    credentialsSource: 'remote',
+    distribution: 'store',
+    environment: 'production',
+  });
+
+  expect(iosProfile).toEqual({
+    credentialsSource: 'remote',
+    distribution: 'store',
+    environment: 'production',
+  });
+});
+
 test('valid eas.json with top level withoutCredentials property', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
@@ -506,18 +535,6 @@ test('invalid semver value', async () => {
   await expect(promise).rejects.toThrowError(
     /.*eas\.json.* is not valid\.\r?\n- "build.production.node" failed custom validation because alpha is not a valid version$/g
   );
-});
-
-test('invalid release channel', async () => {
-  await fs.writeJson('/project/eas.json', {
-    build: {
-      production: { releaseChannel: 'feature/myfeature' },
-    },
-  });
-
-  const accessor = EasJsonAccessor.fromProjectPath('/project');
-  const promise = EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'production');
-  await expect(promise).rejects.toThrowError(/fails to match the required pattern/);
 });
 
 test('get profile names', async () => {

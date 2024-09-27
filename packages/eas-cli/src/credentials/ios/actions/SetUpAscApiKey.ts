@@ -2,6 +2,15 @@ import assert from 'assert';
 import nullthrows from 'nullthrows';
 
 import {
+  AppStoreApiKeyPurpose,
+  formatAscApiKey,
+  getAscApiKeysFromAccountAsync,
+  selectAscApiKeysFromAccountAsync,
+  sortAscApiKeysByUpdatedAtDesc,
+} from './AscApiKeyUtils';
+import { AssignAscApiKey } from './AssignAscApiKey';
+import { CreateAscApiKey } from './CreateAscApiKey';
+import {
   AppStoreConnectApiKeyFragment,
   CommonIosAppCredentialsFragment,
 } from '../../../graphql/generated';
@@ -14,15 +23,6 @@ import {
 } from '../../errors';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { getValidAndTrackedAscApiKeysAsync } from '../validators/validateAscApiKey';
-import {
-  AppStoreApiKeyPurpose,
-  formatAscApiKey,
-  getAscApiKeysFromAccountAsync,
-  selectAscApiKeysFromAccountAsync,
-  sortAscApiKeysByUpdatedAtDesc,
-} from './AscApiKeyUtils';
-import { AssignAscApiKey } from './AssignAscApiKey';
-import { CreateAscApiKey } from './CreateAscApiKey';
 
 export enum SetupAscApiKeyChoice {
   GENERATE = 'GENERATE',
@@ -37,7 +37,10 @@ export class SetUpAscApiKey {
     { title: '[Add a new key]', value: SetupAscApiKeyChoice.GENERATE },
   ];
 
-  constructor(private app: AppLookupParams, private purpose: AppStoreApiKeyPurpose) {}
+  constructor(
+    private readonly app: AppLookupParams,
+    private readonly purpose: AppStoreApiKeyPurpose
+  ) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<CommonIosAppCredentialsFragment> {
     const isKeySetup = await this.isAscApiKeySetupAsync(ctx, this.purpose);

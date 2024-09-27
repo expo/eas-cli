@@ -10,6 +10,7 @@ import {
   getPaginatedQueryOptions,
 } from '../../commandUtils/pagination';
 import { AppPlatform, BuildStatus as GraphQLBuildStatus } from '../../graphql/generated';
+import Log from '../../log';
 import { RequestedPlatform } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { buildDistributionTypeToGraphQLDistributionType } from '../../utils/buildDistribution';
@@ -20,43 +21,60 @@ export default class BuildList extends EasCommand {
 
   static override flags = {
     platform: Flags.enum({
-      options: [RequestedPlatform.All, RequestedPlatform.Android, RequestedPlatform.Ios],
+      options: Object.values(RequestedPlatform),
+      char: 'p',
     }),
     status: Flags.enum({
-      options: [
-        BuildStatus.NEW,
-        BuildStatus.IN_QUEUE,
-        BuildStatus.IN_PROGRESS,
-        BuildStatus.PENDING_CANCEL,
-        BuildStatus.ERRORED,
-        BuildStatus.FINISHED,
-        BuildStatus.CANCELED,
-      ],
+      options: Object.values(BuildStatus),
+      description: 'Filter only builds with the specified status',
     }),
     distribution: Flags.enum({
-      options: [
-        BuildDistributionType.STORE,
-        BuildDistributionType.DEVELOPMENT,
-        BuildDistributionType.INTERNAL,
-        BuildDistributionType.SIMULATOR,
-      ],
+      options: Object.values(BuildDistributionType),
+      description: 'Filter only builds with the specified distribution type',
     }),
     channel: Flags.string(),
-    appVersion: Flags.string(),
-    appBuildVersion: Flags.string(),
-    sdkVersion: Flags.string(),
-    runtimeVersion: Flags.string(),
-    appIdentifier: Flags.string(),
-    buildProfile: Flags.string(),
-    gitCommitHash: Flags.string(),
+    'app-version': Flags.string({
+      aliases: ['appVersion'],
+      description: 'Filter only builds created with the specified main app version',
+    }),
+    'app-build-version': Flags.string({
+      aliases: ['appBuildVersion'],
+      description: 'Filter only builds created with the specified app build version',
+    }),
+    'sdk-version': Flags.string({
+      aliases: ['sdkVersion'],
+      description: 'Filter only builds created with the specified Expo SDK version',
+    }),
+    'runtime-version': Flags.string({
+      aliases: ['runtimeVersion'],
+      description: 'Filter only builds created with the specified runtime version',
+    }),
+    'app-identifier': Flags.string({
+      aliases: ['appIdentifier'],
+      description: 'Filter only builds created with the specified app identifier',
+    }),
+    'build-profile': Flags.string({
+      char: 'e',
+      aliases: ['profile', 'buildProfile'],
+      description: 'Filter only builds created with the specified build profile',
+    }),
+    'git-commit-hash': Flags.string({
+      aliases: ['gitCommitHash'],
+      description: 'Filter only builds created with the specified git commit hash',
+    }),
     ...EasPaginatedQueryFlags,
     limit: getLimitFlagWithCustomValues({ defaultTo: 10, limit: BUILDS_LIMIT }),
     ...EasNonInteractiveAndJsonFlags,
+    simulator: Flags.boolean({
+      description:
+        'Filter only iOS simulator builds. Can only be used with --platform flag set to "ios"',
+    }),
   };
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -69,6 +87,17 @@ export default class BuildList extends EasCommand {
       distribution: buildDistribution,
       'non-interactive': nonInteractive,
     } = flags;
+    if (buildDistribution === BuildDistributionType.SIMULATOR) {
+      Log.warn(
+        `Using --distribution flag with "simulator" value is deprecated - use --simulator flag instead`
+      );
+    }
+    if (flags.simulator && requestedPlatform !== RequestedPlatform.Ios) {
+      Log.error(
+        `The --simulator flag is only usable with --platform flag set to "ios", as it is used to filter specifically iOS simulator builds`
+      );
+      process.exit(1);
+    }
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
@@ -93,13 +122,14 @@ export default class BuildList extends EasCommand {
         status: graphqlBuildStatus,
         distribution: graphqlBuildDistribution,
         channel: flags.channel,
-        appVersion: flags.appVersion,
-        appBuildVersion: flags.appBuildVersion,
-        sdkVersion: flags.sdkVersion,
-        runtimeVersion: flags.runtimeVersion,
-        appIdentifier: flags.appIdentifier,
-        buildProfile: flags.buildProfile,
-        gitCommitHash: flags.gitCommitHash,
+        appVersion: flags['app-version'],
+        appBuildVersion: flags['app-build-version'],
+        sdkVersion: flags['sdk-version'],
+        runtimeVersion: flags['runtime-version'],
+        appIdentifier: flags['app-identifier'],
+        buildProfile: flags['build-profile'],
+        gitCommitHash: flags['git-commit-hash'],
+        simulator: flags.simulator,
       },
       paginatedQueryOptions,
     });

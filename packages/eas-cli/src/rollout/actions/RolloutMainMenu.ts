@@ -1,12 +1,5 @@
 import assert from 'assert';
 
-import { SelectChannel } from '../../channel/actions/SelectChannel';
-import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
-import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
-import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
-import Log from '../../log';
-import { promptAsync } from '../../prompts';
-import { isRollout } from '../branch-mapping';
 import {
   CreateRollout,
   NonInteractiveOptions as CreateRolloutNonInteractiveOptions,
@@ -18,6 +11,13 @@ import {
 } from './EndRollout';
 import { ManageRollout, ManageRolloutActions } from './ManageRollout';
 import { SelectRollout } from './SelectRollout';
+import { SelectChannel } from '../../channel/actions/SelectChannel';
+import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
+import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
+import Log from '../../log';
+import { promptAsync } from '../../prompts';
+import { isRollout } from '../branch-mapping';
 
 export enum MainMenuActions {
   CREATE_NEW = 'Create a new rollout',
@@ -35,7 +35,7 @@ export type RolloutActions =
  */
 export class RolloutMainMenu implements EASUpdateAction<void> {
   constructor(
-    private options: {
+    private readonly options: {
       channelName?: string;
       action?: RolloutActions;
     } & Partial<EditRolloutNonInteractiveOptions> &

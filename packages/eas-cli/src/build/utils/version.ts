@@ -3,9 +3,9 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 import semver from 'semver';
 
+import { updateAppJsonConfigAsync } from './appJson';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
-import { updateAppJsonConfigAsync } from './appJson';
 
 export function ensureStaticConfigExists(projectDir: string): void {
   const paths = getConfigFilePaths(projectDir);

@@ -12,6 +12,639 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Implement new `worker` deploy API flow. ([#2601](https://github.com/expo/eas-cli/pull/2601) by [@kitten](https://github.com/kitten)))
+
+## [12.5.1](https://github.com/expo/eas-cli/releases/tag/v12.5.1) - 2024-09-27
+
+### 🐛 Bug fixes
+
+- Support assigning dev domain names in non interactive mode. ([#2595](https://github.com/expo/eas-cli/pull/2595) by [@byCedric](https://github.com/byCedric))
+
+### 🧹 Chores
+
+- Simplify the output of `eas deploy --json`. ([#2596](https://github.com/expo/eas-cli/pull/2596) by [@byCedric](https://github.com/byCedric))
+- Support deploying Expo Router server exports without client directory. ([#2597](https://github.com/expo/eas-cli/pull/2597) by [@byCedric](https://github.com/byCedric))
+- Add exit option to `eas credentials` interactive menu. ([#2570](https://github.com/expo/eas-cli/pull/2570) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [12.5.0](https://github.com/expo/eas-cli/releases/tag/v12.5.0) - 2024-09-23
+
+### 🎉 New features
+
+- Log command execution to assist in debugging local builds. ([#2526](https://github.com/expo/eas-cli/pull/2526) by [@trajano](https://github.com/trajano))
+- Allow submitting builds in progress ([#2543](https://github.com/expo/eas-cli/pull/2543) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Use `EAS_DANGEROUS_OVERRIDE_ANDROID_APPLICATION_ID` and `EAS_DANGEROUS_OVERRIDE_IOS_BUNDLE_IDENTIFIER` environment variables as overrides of the Android application ID and iOS bundle identifier in managed workflow too. ([#2576](https://github.com/expo/eas-cli/pull/2576) by [@sjchmiela](https://github.com/sjchmiela))
+- Add destination branch arguments to update:republish command. ([#2575](https://github.com/expo/eas-cli/pull/2575) by [@wschurman](https://github.com/wschurman))
+
+### 🐛 Bug fixes
+
+- Avoid malforming `app.json` with empty `.expo` object. ([#2573](https://github.com/expo/eas-cli/pull/2573) by [@byCedric](https://github.com/byCedric))
+- Fix typo causing `worker:deploy` asset upload errors not to be shown properly. ([#2579](https://github.com/expo/eas-cli/pull/2579) by [@kitten](https://github.com/kitten))
+
+## [12.4.1](https://github.com/expo/eas-cli/releases/tag/v12.4.1) - 2024-09-14
+
+## [12.4.0](https://github.com/expo/eas-cli/releases/tag/v12.4.0) - 2024-09-14
+
+### 🎉 New features
+
+- Add `worker:alias` command to assign aliases from the CLI. ([#2548](https://github.com/expo/eas-cli/pull/2548) by [@byCedric](https://github.com/byCedric))
+- Add `worker --prod` flag to deploy to production from the CLI. ([#2550](https://github.com/expo/eas-cli/pull/2550) by [@byCedric](https://github.com/byCedric))
+- Add `worker --alias` flag to assign custom aliases when deploying. ([#2551](https://github.com/expo/eas-cli/pull/2551) by [@byCedric](https://github.com/byCedric)))
+- Add `worker --id` flag to use a custom deployment identifier. ([#2552](https://github.com/expo/eas-cli/pull/2552) by [@byCedric](https://github.com/byCedric)))
+- Add `worker --environment` flag to deploy with EAS environment variables. ([#2557](https://github.com/expo/eas-cli/pull/2557) by [@kitten](https://github.com/kitten)))
+- Add `worker --export-dir` flag to select exported directory. ([#2560](https://github.com/expo/eas-cli/pull/2560) by [@byCedric](https://github.com/byCedric)))
+- Add `worker --json` flag to allow integrating with 3rd parties and custom tooling. ([#2561](https://github.com/expo/eas-cli/pull/2561) by [@byCedric](https://github.com/byCedric)))
+- Add `worker:alias --json` flag to allow integrating with 3rd parties and custom tooling. ([#2562](https://github.com/expo/eas-cli/pull/2562) by [@byCedric](https://github.com/byCedric)))
+
+### 🐛 Bug fixes
+
+- Avoid merging `expo.extra` plugin-generated data with `expo.extra.eas.projectId` in `eas init`. ([#2554](https://github.com/expo/eas-cli/pull/2554) by [@byCedric](https://github.com/byCedric)))
+- Restore "export not found" error and hide recent export timestamps. ([#2566](https://github.com/expo/eas-cli/pull/2566) by [@byCedric](https://github.com/byCedric)))
+- Check if export is available before validating project ID in `eas worker`. ([#2569](https://github.com/expo/eas-cli/pull/2569) by [@byCedric](https://github.com/byCedric)))
+
+### 🧹 Chores
+
+- Make error message for invalid CFBundleShortVersionString more descriptive and actionable. Improve CFBundleShortVersionString validation regex. ([#2542](https://github.com/expo/eas-cli/pull/2542) by [@szdziedzic](https://github.com/szdziedzic))
+- Add missing `--non-interactive` argument to `worker:deploy` command. ([#2544](https://github.com/expo/eas-cli/pull/2544) by [@kitten](https://github.com/kitten))
+- Source `@expo/env` dotenv files for worker deployments. ([#2545](https://github.com/expo/eas-cli/pull/2545) by [@kitten](https://github.com/kitten))
+- Support `worker --production` and clean up command output. ([#2555](https://github.com/expo/eas-cli/pull/2555) by [@byCedric](https://github.com/byCedric)))
+- Unify both `worker` and `worker:alias` command output. ([#2558](https://github.com/expo/eas-cli/pull/2558) by [@byCedric](https://github.com/byCedric)))
+- Share similar table/json output in both `worker` and `worker:alias` command outputs. ([#2563](https://github.com/expo/eas-cli/pull/2563) by [@byCedric](https://github.com/byCedric)))
+- Polish the project URL prompt when setting up new projects. ([#2564](https://github.com/expo/eas-cli/pull/2564) by [@byCedric](https://github.com/byCedric)))
+- Always assume `static` exports in `eas deploy` and add modified time. ([#2565](https://github.com/expo/eas-cli/pull/2565) by [@byCedric](https://github.com/byCedric)))
+- Update the `eas worker --help` `--environment` description. ([#2567](https://github.com/expo/eas-cli/pull/2567) by [@byCedric](https://github.com/byCedric)))
+- Remove the cursor space after selecting project dev domain. ([#2568](https://github.com/expo/eas-cli/pull/2568) by [@byCedric](https://github.com/byCedric)))
+- Reword the dev domain prompt to mention "preview URL". ([#2572](https://github.com/expo/eas-cli/pull/2572) by [@byCedric](https://github.com/byCedric)))
+
+## [12.3.0](https://github.com/expo/eas-cli/releases/tag/v12.3.0) - 2024-09-09
+
+### 🎉 New features
+
+- Add `--non-interactive` and `--force` support when `--id` is not passed to the `eas init` command. ([#1983](https://github.com/expo/eas-cli/pull/1983) by [@mymattcarroll](https://github.com/mymattcarroll))
+
+## [12.1.1](https://github.com/expo/eas-cli/releases/tag/v12.1.1) - 2024-09-09
+
+### 🐛 Bug fixes
+
+- Fixed an issue where extensions retrieved the main app's entitlements instead of their own. ([#2532](https://github.com/expo/eas-cli/pull/2532) by [@HarrisHan](https://github.com/HarrisHan))
+
+## [12.1.0](https://github.com/expo/eas-cli/releases/tag/v12.1.0) - 2024-09-06
+
+### 🎉 New features
+
+- **Internal/Experimental:** Add EAS Worker command ([#2447](https://github.com/expo/eas-cli/pull/2447) by [@kitten](https://github.com/kitten))
+- Upload fingeprint source as part of eas update command. ([#2533](https://github.com/expo/eas-cli/pull/2533) by [@wschurman](https://github.com/wschurman))
+
+## [12.0.0](https://github.com/expo/eas-cli/releases/tag/v12.0.0) - 2024-09-04
+
+### 🛠 Breaking changes
+
+- Prompt the users to set `appVersionSource`, while mentioning that `remote` is the default. ([#2411](https://github.com/expo/eas-cli/pull/2411) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
+### 🎉 New features
+
+- Add support for syncing Journaling Suggestions, Managed App Installation UI, and 5G Network Slicing capabilities. ([#2525](https://github.com/expo/eas-cli/pull/2525) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [11.0.3](https://github.com/expo/eas-cli/releases/tag/v11.0.3) - 2024-08-31
+
+### 🐛 Bug fixes
+
+- Revert config-related packages to SDK 50 version from SDK 51 version to fix broken entitlements behavior for older SDKs. ([#2524](https://github.com/expo/eas-cli/pull/2524) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [11.0.2](https://github.com/expo/eas-cli/releases/tag/v11.0.2) - 2024-08-27
+
+### 🐛 Bug fixes
+
+- Remove unncessary static project config context definition from `eas build` command context, to fix resolving dynamic projest ID and slug for dynamic app configs. ([#2521](https://github.com/expo/eas-cli/pull/2521) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [11.0.1](https://github.com/expo/eas-cli/releases/tag/v11.0.1) - 2024-08-26
+
+### 🐛 Bug fixes
+
+- Make `eas config` command not require authentication when running in `--eas-json-only` mode. ([#2517](https://github.com/expo/eas-cli/pull/2517) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [11.0.0](https://github.com/expo/eas-cli/releases/tag/v11.0.0) - 2024-08-26
+
+### 🛠 Breaking changes
+
+- Remove long-deprecated `eas update` flags. ([#2501](https://github.com/expo/eas-cli/pull/2501) by [@wschurman](https://github.com/wschurman))
+
+### 🎉 New features
+
+- Add new rollout update type for `eas update` and `eas update:edit`. ([#2502](https://github.com/expo/eas-cli/pull/2502), [#2503](https://github.com/expo/eas-cli/pull/2503) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Upgrade packages to SDK 51 release. ([#2498](https://github.com/expo/eas-cli/pull/2498) by [@wschurman](https://github.com/wschurman))
+- Enable typescript linting and various lint rules. ([#2505](https://github.com/expo/eas-cli/pull/2505), [#2507](https://github.com/expo/eas-cli/pull/2507), [#2508](https://github.com/expo/eas-cli/pull/2508), [#2509](https://github.com/expo/eas-cli/pull/2509), [#2510](https://github.com/expo/eas-cli/pull/2510) by [@wschurman](https://github.com/wschurman))
+- Include debug info in fingerprint metadata during build. ([#2513](https://github.com/expo/eas-cli/pull/2513) by [@wschurman](https://github.com/wschurman))
+
+## [10.2.4](https://github.com/expo/eas-cli/releases/tag/v10.2.4) - 2024-08-19
+
+## [10.2.3](https://github.com/expo/eas-cli/releases/tag/v10.2.3) - 2024-08-13
+
+### 🧹 Chores
+
+- Add support for `EAS_DANGEROUS_OVERRIDE_IOS_BUNDLE_IDENTIFIER` for bare workflow iOS builds. ([#2469](https://github.com/expo/eas-cli/pull/2469) by [@szdziedzic](https://github.com/szdziedzic))
+- Update images list in `eas.schema.json` and warn users when using the deprecated Android images. ([#2450](https://github.com/expo/eas-cli/pull/2450) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [10.2.2](https://github.com/expo/eas-cli/releases/tag/v10.2.2) - 2024-07-31
+
+### 🐛 Bug fixes
+
+- Pass correct path to `vcsClient.isFileIgnoredAsync` check for monorepos to validate that custom build config file is not ignored. ([#2470](https://github.com/expo/eas-cli/pull/2470) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🧹 Chores
+
+- Bump asset upload timeout from 90 to 180 seconds. ([#2466](https://github.com/expo/eas-cli/pull/2466) by [@quinlanj](https://github.com/quinlanj))
+
+## [10.2.1](https://github.com/expo/eas-cli/releases/tag/v10.2.1) - 2024-07-18
+
+### 🧹 Chores
+
+- Indicate if a user is logged in using `EXPO_TOKEN` when running `eas whoami` command. ([#2461](https://github.com/expo/eas-cli/pull/2461) by [@szdziedzic](https://github.com/szdziedzic))
+- Throw error when `eas login` command is run with `EXPO_TOKEN` environment variable set. ([#2461](https://github.com/expo/eas-cli/pull/2461) by [@szdziedzic](https://github.com/szdziedzic))
+- Check if user is already logged in when running `eas login` command. ([#2461](https://github.com/expo/eas-cli/pull/2461) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [10.2.0](https://github.com/expo/eas-cli/releases/tag/v10.2.0) - 2024-07-15
+
+### 🎉 New features
+
+- Added flag `--emit-metadata` to emit `eas-update-metadata.json` in the bundle folder with detailed information about the generated updates ([#2451](https://github.com/expo/eas-cli/pull/2451) by [@rainst](https://github.com/rainst))
+
+### 🐛 Bug fixes
+
+- Bump `@expo/apple-utils` version to use the fallback Apple Developer Portal domain on every internal server error. ([#2459](https://github.com/expo/eas-cli/pull/2459) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [10.1.1](https://github.com/expo/eas-cli/releases/tag/v10.1.1) - 2024-07-04
+
+## [10.1.0](https://github.com/expo/eas-cli/releases/tag/v10.1.0) - 2024-07-02
+
+### 🎉 New features
+
+- Save local fingeprint sources during build. ([#2422](https://github.com/expo/eas-cli/pull/2422) by [@kadikraman](https://github.com/kadikraman))
+
+## [10.0.3](https://github.com/expo/eas-cli/releases/tag/v10.0.3) - 2024-06-26
+
+### 🧹 Chores
+
+- Track usage of `--local` build mode in analytics. ([#2445](https://github.com/expo/eas-cli/pull/2445) by [@szdziedzic](https://github.com/szdziedzic))
+- Remove any mentions of deleted Xcode < 15 images. ([#2438](https://github.com/expo/eas-cli/pull/2438) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [10.0.2](https://github.com/expo/eas-cli/releases/tag/v10.0.2) - 2024-06-17
+
+### 🐛 Bug fixes
+
+- Fix parsing of `build.gradle` file by `gradle-to-js` parser by filtering out empty single line comments. ([#2435](https://github.com/expo/eas-cli/pull/2435) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [10.0.1](https://github.com/expo/eas-cli/releases/tag/v10.0.1) - 2024-06-17
+
+### 🧹 Chores
+
+- Add clarification to private-key flag in command line help. ([#2432](https://github.com/expo/eas-cli/pull/2432) by [@quinlanj](https://github.com/quinlanj))
+
+## [10.0.0](https://github.com/expo/eas-cli/releases/tag/v10.0.0) - 2024-06-13
+
+### 🛠 Breaking changes
+
+- Drop support for Node 16. ([#2413](https://github.com/expo/eas-cli/pull/2413) by [@byCedric](https://github.com/byCedric))
+- Update [`eas-build`](https://github.com/expo/eas-build) dependencies to the version requiring Node 18 as minimal Node version. ([#2416](https://github.com/expo/eas-cli/pull/2416) by [@expo-bot](https://github.com/expo-bot))
+
+### 🐛 Bug fixes
+
+- Resolve correct submit profile configuration for `eas build` command with `--auto-submit-with-profile` flag. ([#2425](https://github.com/expo/eas-cli/pull/2425) by [@szdziedzic](https://github.com/szdziedzic))
+- Correctly parse the EXPO_APPLE_PROVIER_ID environment variable. ([#2349](https://github.com/expo/eas-cli/pull/2349) by [@louix](https://github.com/louix))
+
+### 🧹 Chores
+
+- Update lockfile to only include `@types/node@20.11.0`. ([#2412](https://github.com/expo/eas-cli/pull/2412) by [@byCedric](https://github.com/byCedric))
+- Update test workflow Node versions to 18, 20, and 22. ([#2413](https://github.com/expo/eas-cli/pull/2413) by [@byCedric](https://github.com/byCedric))
+
+## [9.2.0](https://github.com/expo/eas-cli/releases/tag/v9.2.0) - 2024-06-06
+
+### 🎉 New features
+
+- Add `target-profile` and `source-profile` flags to the `eas build:resign` command. ([#2410](https://github.com/expo/eas-cli/pull/2410) by [@szdziedzic](https://github.com/szdziedzic))
+- Display build profile in the output of `eas build:list`. ([#2408](https://github.com/expo/eas-cli/pull/2408) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🐛 Bug fixes
+
+- Use the correct app config for no GitHub flow in `init:onboarding`. ([#2397](https://github.com/expo/eas-cli/pull/2397) by [@szdziedzic](https://github.com/szdziedzic))
+- Disallow picking expired builds as submit archive source. ([#2406](https://github.com/expo/eas-cli/pull/2406) by [@sjchmiela](https://github.com/sjchmiela))
+
+### 🧹 Chores
+
+- Print network error message if present. ([#2407](https://github.com/expo/eas-cli/pull/2407) by [@szdziedzic](https://github.com/szdziedzic))
+- Make flags for `eas build:list` command more aligned with flags for rest of the commands. ([#2409](https://github.com/expo/eas-cli/pull/2409) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [9.1.0](https://github.com/expo/eas-cli/releases/tag/v9.1.0) - 2024-05-23
+
+### 🎉 New features
+
+- Make `eas init:onboarding` command public. ([#2399](https://github.com/expo/eas-cli/pull/2399) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [9.0.10](https://github.com/expo/eas-cli/releases/tag/v9.0.10) - 2024-05-22
+
+## [9.0.9](https://github.com/expo/eas-cli/releases/tag/v9.0.9) - 2024-05-22
+
+## [9.0.8](https://github.com/expo/eas-cli/releases/tag/v9.0.8) - 2024-05-21
+
+### 🧹 Chores
+
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2387](https://github.com/expo/eas-cli/pull/2387) by [@expo-bot](https://github.com/expo-bot))
+- Improve displaying of device registration QR code. ([#2391](https://github.com/expo/eas-cli/pull/2391) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [9.0.7](https://github.com/expo/eas-cli/releases/tag/v9.0.7) - 2024-05-17
+
+## [9.0.6](https://github.com/expo/eas-cli/releases/tag/v9.0.6) - 2024-05-15
+
+## [9.0.5](https://github.com/expo/eas-cli/releases/tag/v9.0.5) - 2024-05-13
+
+## [9.0.4](https://github.com/expo/eas-cli/releases/tag/v9.0.4) - 2024-05-13
+
+### 🧹 Chores
+
+- Add loader and progress information to the `diagnostics` command. ([#2378](https://github.com/expo/eas-cli/pull/2378) by [@simek](https://github.com/simek))
+
+## [9.0.3](https://github.com/expo/eas-cli/releases/tag/v9.0.3) - 2024-05-10
+
+### 🧹 Chores
+
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2372](https://github.com/expo/eas-cli/pull/2372) by [@expo-bot](https://github.com/expo-bot))
+
+## [9.0.2](https://github.com/expo/eas-cli/releases/tag/v9.0.2) - 2024-05-09
+
+## [9.0.1](https://github.com/expo/eas-cli/releases/tag/v9.0.1) - 2024-05-09
+
+### 🧹 Chores
+
+- Update image tags in `eas.schema.json`. ([#2363](https://github.com/expo/eas-cli/pull/2363) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [9.0.0](https://github.com/expo/eas-cli/releases/tag/v9.0.0) - 2024-05-08
+
+### 🛠 Breaking changes
+
+- Allow modification of provisioning profile in CI, add --freeze-credentials flag. ([#2347](https://github.com/expo/eas-cli/pull/2347) by [@quinlanj](https://github.com/quinlanj))
+
+### 🐛 Bug fixes
+
+- Pass env from process.env and build profile to expo-updates CLI calls where applicable. ([#2359](https://github.com/expo/eas-cli/pull/2359) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Remove more classic updates code. ([#2357](https://github.com/expo/eas-cli/pull/2357) by [@wschurman](https://github.com/wschurman))
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2360](https://github.com/expo/eas-cli/pull/2360) by [@expo-bot](https://github.com/expo-bot))
+- Don't pass custom global `"expoCli"` version set in `eas.json` to EAS Build process and warn users when setting it. ([#2361](https://github.com/expo/eas-cli/pull/2361) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [8.0.0](https://github.com/expo/eas-cli/releases/tag/v8.0.0) - 2024-05-01
+
+### 🛠 Breaking changes
+
+- Stop creating a channel on `eas update` and `eas update:roll-back-to-embedded` unless the `--channel` flag is specified. ([#2346](https://github.com/expo/eas-cli/pull/2346) by [@quinlanj](https://github.com/quinlanj))
+
+### 🐛 Bug fixes
+
+- Improve login info message for other login options. ([#2352](https://github.com/expo/eas-cli/pull/2352) by [@wschurman](https://github.com/wschurman))
+- Show the -s, --sso option in the login command help. ([#2353](https://github.com/expo/eas-cli/pull/2353) by [@lzkb](https://github.com/lzkb))
+
+### 🧹 Chores
+
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2351](https://github.com/expo/eas-cli/pull/2351) by [@expo-bot](https://github.com/expo-bot))
+- Don't prompt users to set push notifications by default if they don't have the `expo-notifications` installed. ([#2343](https://github.com/expo/eas-cli/pull/2343) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [7.8.5](https://github.com/expo/eas-cli/releases/tag/v7.8.5) - 2024-04-26
+
+### 🐛 Bug fixes
+
+- Add explicit workflow arg to expo-update CLI calls. ([#2340](https://github.com/expo/eas-cli/pull/2340) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Improve error message if the server returns `UNAUTHORIZED_ERROR`. ([#2345](https://github.com/expo/eas-cli/pull/2345) by [@szdziedzic](https://github.com/szdziedzic))
+- Fill in min expo-updates version for expo-updates CLI. ([#2344](https://github.com/expo/eas-cli/pull/2344) by [@wschurman](https://github.com/wschurman))
+
+## [7.8.4](https://github.com/expo/eas-cli/releases/tag/v7.8.4) - 2024-04-24
+
+### 🧹 Chores
+
+- Update the list of available Android images. ([#2337](https://github.com/expo/eas-cli/pull/2337) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Make multi-select for revoking distribution certificates more readable. ([#2342](https://github.com/expo/eas-cli/pull/2342) by [@szdziedzic](https://github.com/szdziedzic))
+- Improve error message displayed when EAS CLI version doesn't satisfy minimal version required specified in eas.json. ([#2341](https://github.com/expo/eas-cli/pull/2341) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [7.8.3](https://github.com/expo/eas-cli/releases/tag/v7.8.3) - 2024-04-23
+
+### 🐛 Bug fixes
+
+- Don't prompt to set `android.package` and `ios.bundleIdentifier` values when running in non-interactive mode. ([#2336](https://github.com/expo/eas-cli/pull/2336) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🧹 Chores
+
+- Amend credential removal wording. ([#2334](https://github.com/expo/eas-cli/pull/2334) by [@quinlanj](https://github.com/quinlanj))
+
+## [7.8.2](https://github.com/expo/eas-cli/releases/tag/v7.8.2) - 2024-04-15
+
+### 🐛 Bug fixes
+
+- Fix display of errors when expo-updates CLI command fails. ([#2324](https://github.com/expo/eas-cli/pull/2324) by [@wschurman](https://github.com/wschurman))
+- Move credentials endpoints to paginated counterparts. ([#2327](https://github.com/expo/eas-cli/pull/2327) by [@quinlanj](https://github.com/quinlanj))
+
+### 🧹 Chores
+
+- Add progress bar for fetching paginated datasets. ([#2326](https://github.com/expo/eas-cli/pull/2326) by [@quinlanj](https://github.com/quinlanj))
+
+## [7.8.1](https://github.com/expo/eas-cli/releases/tag/v7.8.1) - 2024-04-11
+
+### 🐛 Bug fixes
+
+- Fix command source files URLs in autogenerated `README`. ([#2318](https://github.com/expo/eas-cli/pull/2318) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🧹 Chores
+
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2316](https://github.com/expo/eas-cli/pull/2316) by [@expo-bot](https://github.com/expo-bot))
+- Stop querying `Build.resourceClass` field. ([#2320](https://github.com/expo/eas-cli/pull/2320) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [7.8.0](https://github.com/expo/eas-cli/releases/tag/v7.8.0) - 2024-04-08
+
+### 🎉 New features
+
+- Add `auto`, `sdk-50` and `sdk-49` image tags. ([#2298](https://github.com/expo/eas-cli/pull/2298) by [@szdziedzic](https://github.com/szdziedzic))
+- Add `--build-logger-level` flag to `eas build` command. ([#2313](https://github.com/expo/eas-cli/pull/2313) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🧹 Chores
+
+- Deprecate the `default` image tag. ([#2298](https://github.com/expo/eas-cli/pull/2298) by [@szdziedzic](https://github.com/szdziedzic))
+- Deprecate iOS images with Xcode version lower then 15. ([#2298](https://github.com/expo/eas-cli/pull/2298) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [7.7.0](https://github.com/expo/eas-cli/releases/tag/v7.7.0) - 2024-04-05
+
+### 🎉 New features
+
+- Generate metadata file for project archive ([#2149](https://github.com/expo/eas-cli/pull/2149) by [@khamilowicz](https://github.com/khamilowicz))
+- Add --verbose-fastlane flag to eas submit command for more robust fastlane pilot logs. ([#2276](https://github.com/expo/eas-cli/pull/2276) by [@khamilowicz](https://github.com/khamilowicz))
+- Add `eas credentials:configure-build` subcommand. ([#2282](https://github.com/expo/eas-cli/pull/2282) by [@fiberjw](https://github.com/fiberjw))
+
+### 🧹 Chores
+
+- Add info about the Xcode 15.3 image to `eas.schema.json`. ([#2312](https://github.com/expo/eas-cli/pull/2312) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [7.6.2](https://github.com/expo/eas-cli/releases/tag/v7.6.2) - 2024-03-27
+
+### 🧹 Chores
+
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2301](https://github.com/expo/eas-cli/pull/2301) by [@expo-bot](https://github.com/expo-bot))
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2304](https://github.com/expo/eas-cli/pull/2304) by [@expo-bot](https://github.com/expo-bot))
+
+## [7.6.1](https://github.com/expo/eas-cli/releases/tag/v7.6.1) - 2024-03-25
+
+### 🧹 Chores
+
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2291](https://github.com/expo/eas-cli/pull/2291) by [@expo-bot](https://github.com/expo-bot))
+- Fix asset limit punctuation. ([#2296](https://github.com/expo/eas-cli/pull/2296) by [@quinlanj](https://github.com/quinlanj))
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2293](https://github.com/expo/eas-cli/pull/2293) by [@expo-bot](https://github.com/expo-bot))
+
+## [7.6.0](https://github.com/expo/eas-cli/releases/tag/v7.6.0) - 2024-03-18
+
+### 🎉 New features
+
+- Print uncommitted files in non-interactive mode if they fail the execution. ([#2288](https://github.com/expo/eas-cli/pull/2288) by [@sjchmiela](https://github.com/sjchmiela))
+
+### 🐛 Bug fixes
+
+- Use a custom build config path with POSIX separator when sending data to the EAS Build server. ([#2285](https://github.com/expo/eas-cli/pull/2285) by [@szdziedzic](https://github.com/szdziedzic))
+- Improve resolving vcsClient as a part of the project context. ([#2295](https://github.com/expo/eas-cli/pull/2295) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🧹 Chores
+
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2277](https://github.com/expo/eas-cli/pull/2277) by [@expo-bot](https://github.com/expo-bot))
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2283](https://github.com/expo/eas-cli/pull/2283) by [@expo-bot](https://github.com/expo-bot))
+- Bump the `@expo/apple-utils` version to switch between the `developer.apple.com` and `developer-mdn.apple.com` domains when one of them doesn't work. ([#2290](https://github.com/expo/eas-cli/pull/2290) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [7.5.0](https://github.com/expo/eas-cli/releases/tag/v7.5.0) - 2024-03-11
+
+### 🎉 New features
+
+- Add `--auto-submit` option to `eas build:internal` command. ([#2271](https://github.com/expo/eas-cli/pull/2271) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🧹 Chores
+
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2274](https://github.com/expo/eas-cli/pull/2274) by [@expo-bot](https://github.com/expo-bot))
+
+## [7.4.0](https://github.com/expo/eas-cli/releases/tag/v7.4.0) - 2024-03-10
+
+### 🎉 New features
+
+- Use new expo-updates configuration:syncnative for versioned native sync. ([#2269](https://github.com/expo/eas-cli/pull/2269) by [@wschurman](https://github.com/wschurman))
+
+### 🐛 Bug fixes
+
+- Fix expo-updates package version detection for canaries. ([#2243](https://github.com/expo/eas-cli/pull/2243) by [@wschurman](https://github.com/wschurman))
+- Add missing `config` property to `eas.json` schema. ([#2248](https://github.com/expo/eas-cli/pull/2248) by [@sjchmiela](https://github.com/sjchmiela))
+- Use expo-updates runtime version CLI to generate runtime versions. ([#2251](https://github.com/expo/eas-cli/pull/2251) by [@wschurman](https://github.com/wschurman))
+- Update @expo/apple-utils to handle changes in API. ([73ba19de6662763cc6bff9fac6b7700ffbd0e88a](https://github.com/expo/eas-cli/commit/73ba19de6662763cc6bff9fac6b7700ffbd0e88a) by [@brentvatne](https://github.com/brentvatne))
+
+### 🧹 Chores
+
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2237](https://github.com/expo/eas-cli/pull/2237) by [@expo-bot](https://github.com/expo-bot))
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2240](https://github.com/expo/eas-cli/pull/2240) by [@expo-bot](https://github.com/expo-bot))
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2253](https://github.com/expo/eas-cli/pull/2253) by [@expo-bot](https://github.com/expo-bot))
+- Include src/\*\*/build directories in vscode search and replace. ([#2250](https://github.com/expo/eas-cli/pull/2250) by [@wschurman](https://github.com/wschurman))
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2259](https://github.com/expo/eas-cli/pull/2259) by [@expo-bot](https://github.com/expo-bot))
+
+## [7.3.0](https://github.com/expo/eas-cli/releases/tag/v7.3.0) - 2024-02-19
+
+### 🎉 New features
+
+- Fix expo-updates fingerprinting during update. ([#2231](https://github.com/expo/eas-cli/pull/2231) by [@wschurman](https://github.com/wschurman))
+
+### 🐛 Bug fixes
+
+- Don't require expo on fresh react-native project. ([#2235](https://github.com/expo/eas-cli/pull/2235) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
+### 🧹 Chores
+
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2229](https://github.com/expo/eas-cli/pull/2229) by [@expo-bot](https://github.com/expo-bot))
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2230](https://github.com/expo/eas-cli/pull/2230) by [@expo-bot](https://github.com/expo-bot))
+- Reword update configuration warning. ([#2234](https://github.com/expo/eas-cli/pull/2234) by [@quinlanj](https://github.com/quinlanj))
+
+## [7.2.0](https://github.com/expo/eas-cli/releases/tag/v7.2.0) - 2024-02-11
+
+### 🎉 New features
+
+- Support configuring a Google Service Account Key via eas credentials, for sending Android Notifications via FCM V1. ([#2197](https://github.com/expo/eas-cli/pull/2197) by [@christopherwalter](https://github.com/christopherwalter))
+
+### 🐛 Bug fixes
+
+- Revert expose expo export dev flag as an option in eas update. ([#2214](https://github.com/expo/eas-cli/pull/2214) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2223](https://github.com/expo/eas-cli/pull/2223) by [@expo-bot](https://github.com/expo-bot))
+
+## [7.1.3](https://github.com/expo/eas-cli/releases/tag/v7.1.3) - 2024-02-07
+
+### 🧹 Chores
+
+- Remove duplicated log message when creating ASC API key. ([#2208](https://github.com/expo/eas-cli/pull/2208) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Add simulator flag to metadata. ([#2073](https://github.com/expo/eas-cli/pull/2073) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Upgrade [`eas-build`](https://github.com/expo/eas-build) dependencies. ([#2220](https://github.com/expo/eas-cli/pull/2220) by [@expo-bot](https://github.com/expo-bot))
+
+## [7.1.2](https://github.com/expo/eas-cli/releases/tag/v7.1.2) - 2024-01-30
+
+### 🧹 Chores
+
+- Add better validation for EAS Submit inputs. ([#2202](https://github.com/expo/eas-cli/pull/2202) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [7.1.1](https://github.com/expo/eas-cli/releases/tag/v7.1.1) - 2024-01-26
+
+### 🐛 Bug fixes
+
+- Revert incorrect EAS Submit input validation changes. ([#2200](https://github.com/expo/eas-cli/pull/2200) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [7.1.0](https://github.com/expo/eas-cli/releases/tag/v7.1.0) - 2024-01-26
+
+### 🎉 New features
+
+- Support requireCommit for EAS Update. ([#2196](https://github.com/expo/eas-cli/pull/2196) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Remove support for classic updates release channel in 50+. ([#2189](https://github.com/expo/eas-cli/pull/2189) by [@wschurman](https://github.com/wschurman))
+- Validate EAS Submit inputs better. ([#2198](https://github.com/expo/eas-cli/pull/2198) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [7.0.0](https://github.com/expo/eas-cli/releases/tag/v7.0.0) - 2024-01-19
+
+### 🛠 Breaking changes
+
+- Stop generating eas-update-metadata.json on publish. ([#2187](https://github.com/expo/eas-cli/pull/2187) by [@quinlanj](https://github.com/quinlanj))
+
+### 🧹 Chores
+
+- Use branch mapping utility fn. ([#2186](https://github.com/expo/eas-cli/pull/2186) by [@quinlanj](https://github.com/quinlanj))
+
+## [6.1.0](https://github.com/expo/eas-cli/releases/tag/v6.1.0) - 2024-01-18
+
+### 🎉 New features
+
+- Add `build:delete` command. ([#2178](https://github.com/expo/eas-cli/pull/2178) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Add filter flags for `platform` and `profile` to `build:cancel` and `build:delete` commands. ([#2178](https://github.com/expo/eas-cli/pull/2178) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
+### 🧹 Chores
+
+- Remove "bare"-specific **eas.json** template. ([#2179](https://github.com/expo/eas-cli/pull/2179) by [@sjchmiela](https://github.com/sjchmiela))
+- Prompt users if they want to continue if EAS CLI fails to provision the devices. ([#2181](https://github.com/expo/eas-cli/pull/2181) by [@szdziedzic](https://github.com/szdziedzic))
+- Update `eas-cli` and `@expo/eas-json` dependencies. ([#2176](https://github.com/expo/eas-cli/pull/2176) by [@szdziedzic](https://github.com/szdziedzic))
+- Update `eas.schema.json` to after adding Xcode 15.2 image. ([#2184](https://github.com/expo/eas-cli/pull/2184) by [@szdziedzic](https://github.com/szdziedzic))
+- Upgrade packages from the expo/expo repo. ([#2145](https://github.com/expo/eas-cli/pull/2145) by [@wschurman](https://github.com/wschurman))
+
+## [6.0.0](https://github.com/expo/eas-cli/releases/tag/v6.0.0) - 2024-01-12
+
+### 🛠 Breaking changes
+
+- Drop support for Node 14. ([#2175](https://github.com/expo/eas-cli/pull/2175) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🎉 New features
+
+- Allow undefined update message for EAS Update publishing when no VCS. ([#2148](https://github.com/expo/eas-cli/pull/2148) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Upgrade `@expo/eas-build-job` to `1.0.56`, thus removing unused (since [#1524](https://github.com/expo/eas-cli/pull/1524)) support for S3 project archives. ([#2165](https://github.com/expo/eas-cli/pull/2165) by [@sjchmiela](https://github.com/sjchmiela))
+
+## [5.9.3](https://github.com/expo/eas-cli/releases/tag/v5.9.3) - 2023-12-19
+
+### 🧹 Chores
+
+- Rename getUpdateGroupJsonInfo. ([#2157](https://github.com/expo/eas-cli/pull/2157) by [@quinlanj](https://github.com/quinlanj))
+- Add new Xcode 15.1 image to `eas.schema.json`. ([#2155](https://github.com/expo/eas-cli/pull/2155) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [5.9.2](https://github.com/expo/eas-cli/releases/tag/v5.9.2) - 2023-12-15
+
+### 🧹 Chores
+
+- Throw error if custom build config is gitignored. ([#2123](https://github.com/expo/eas-cli/pull/2123) by [@szdziedzic](https://github.com/szdziedzic))
+- Update `@expo/steps` library to `1.0.51`. ([#2130](https://github.com/expo/eas-cli/pull/2130) by [@szdziedzic](https://github.com/szdziedzic))
+- Update `eas.schema.json` to include changes after some of our images were migrated from Ubuntu 18.04 to Ubuntu 20.04. ([#2137](https://github.com/expo/eas-cli/pull/2137) by [@szdziedzic](https://github.com/szdziedzic))
+- Update oclif dependencies. ([#2008](https://github.com/expo/eas-cli/pull/2008) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Upgrade `eas-build-job` and unify how we're handling `buildMode`. ([#2138](https://github.com/expo/eas-cli/pull/2138) by [@sjchmiela](https://github.com/sjchmiela))
+
+## [5.9.1](https://github.com/expo/eas-cli/releases/tag/v5.9.1) - 2023-11-20
+
+### 🐛 Bug fixes
+
+- Don't ask a user to install the dev client if running in non-interactive mode. ([#2124](https://github.com/expo/eas-cli/pull/2124) by [@szdziedzic](https://github.com/szdziedzic))
+- Always refresh existing provisioning profile before use. ([#2125](https://github.com/expo/eas-cli/pull/2125) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
+## [5.9.0](https://github.com/expo/eas-cli/releases/tag/v5.9.0) - 2023-11-15
+
+### 🎉 New features
+
+- Add `--profile` flag to `eas build:run` command. ([#2035](https://github.com/expo/eas-cli/pull/2035) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [5.8.0](https://github.com/expo/eas-cli/releases/tag/v5.8.0) - 2023-11-13
+
+### 🎉 New features
+
+- Move channel:rollout out of developer preview. ([#2114](https://github.com/expo/eas-cli/pull/2114) by [@quinlanj](https://github.com/quinlanj))
+
+### 🐛 Bug fixes
+
+- Fixed provisioning of new devices into an existing profile. ([#2119](https://github.com/expo/eas-cli/pull/2119) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
+### 🧹 Chores
+
+- Update `@expo/package-manager` to `1.1.2` to change package manager resolution order. ([#2118](https://github.com/expo/eas-cli/pull/2118) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [5.7.0](https://github.com/expo/eas-cli/releases/tag/v5.7.0) - 2023-11-08
+
+### 🎉 New features
+
+- Add `EXPO_APPLE_TEAM_ID` and `EXPO_APPLE_PROVIDER_ID` support. ([#2091](https://github.com/expo/eas-cli/pull/2091) by [@EvanBacon](https://github.com/EvanBacon))
+
+### 🧹 Chores
+
+- Add link to SDK upgrade page for SDK-gated command error. ([#2106](https://github.com/expo/eas-cli/pull/2106) by [@wschurman](https://github.com/wschurman))
+- Add `selectedImage` and `customNodeVersion` information to build metadata. ([#2113](https://github.com/expo/eas-cli/pull/2113) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [5.6.0](https://github.com/expo/eas-cli/releases/tag/v5.6.0) - 2023-10-27
+
+### 🎉 New features
+
+- Use corresponding submit profile when selecting build from EAS. ([#2101](https://github.com/expo/eas-cli/pull/2101) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
+### 🐛 Bug fixes
+
+- Added `buildArtifactsUrl` to `eas-cli build:view --json` output. ([#2102](https://github.com/expo/eas-cli/pull/2102) by [@sjchmiela](https://github.com/sjchmiela))
+
+## [5.5.0](https://github.com/expo/eas-cli/releases/tag/v5.5.0) - 2023-10-25
+
+### 🎉 New features
+
+- Add account type to the items in the prompt to select project owner. ([#2083](https://github.com/expo/eas-cli/pull/2083) by [@alanjhughes](https://github.com/alanjhughes))
+- Gate roll back to embedded to expo-updates >= 0.19.0. ([#2094](https://github.com/expo/eas-cli/pull/2094) by [@wschurman](https://github.com/wschurman))
+
+### 🐛 Bug fixes
+
+- EAS Update: Increase asset upload timeout to 90s and reset on upload retry for slow connections. ([#2085](https://github.com/expo/eas-cli/pull/2085) by [@wschurman](https://github.com/wschurman))
+
+### 🧹 Chores
+
+- Add `requiredPackageManager` to metadata. ([#2067](https://github.com/expo/eas-cli/pull/2067) by [@kadikraman](https://github.com/kadikraman))
+- Move `getVcsClient` into command context. ([#2086](https://github.com/expo/eas-cli/pull/2086) by [@Josh-McFarlin](https://github.com/Josh-McFarlin))
+- Display Apple device creation date when listing devices. ([#2092](https://github.com/expo/eas-cli/pull/2092) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+- Clean up Intel resource classes code after their deletion. ([#2093](https://github.com/expo/eas-cli/pull/2093) by [@szdziedzic](https://github.com/szdziedzic))
+- Update images descriptions in `eas.schema.json` and add info about the new JDK 17 image. ([#2099](https://github.com/expo/eas-cli/pull/2099) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [5.4.0](https://github.com/expo/eas-cli/releases/tag/v5.4.0) - 2023-09-28
+
+### 🎉 New features
+
+- Add support for the Tap to Pay on iPhone iOS entitlement. ([#2069](https://github.com/expo/eas-cli/pull/2069) by [@fobos531](https://github.com/fobos531))
+
+## [5.3.1](https://github.com/expo/eas-cli/releases/tag/v5.3.1) - 2023-09-28
+
+### 🧹 Chores
+
+- Update EAS Build images description in our VSCode plugin. Add new `macos-ventura-13.6-xcode-15.0` image. ([#2068](https://github.com/expo/eas-cli/pull/2068) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [5.3.0](https://github.com/expo/eas-cli/releases/tag/v5.3.0) - 2023-09-25
 
 ### 🎉 New features

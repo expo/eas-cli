@@ -2,6 +2,9 @@ import chalk from 'chalk';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import { ChannelNotFoundError } from './errors';
+import { logChannelDetails } from './print-utils';
+import { ChannelBasicInfo } from './utils';
 import { createUpdateBranchOnAppAsync } from '../branch/queries';
 import { BranchNotFoundError } from '../branch/utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -24,9 +27,6 @@ import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
-import { ChannelNotFoundError } from './errors';
-import { logChannelDetails } from './print-utils';
-import { ChannelBasicInfo } from './utils';
 
 export const CHANNELS_LIMIT = 25;
 
@@ -89,7 +89,9 @@ export async function listAndRenderChannelsOnAppAsync(
         queryChannelsOnAppAsync(graphqlClient, { limit, offset, appId: projectId }),
       promptOptions: {
         title: 'Load more channels?',
-        renderListItems: channels => renderPageOfChannels(channels, paginatedQueryOptions),
+        renderListItems: channels => {
+          renderPageOfChannels(channels, paginatedQueryOptions);
+        },
       },
     });
   }
@@ -131,8 +133,9 @@ export async function listAndRenderBranchesAndUpdatesOnChannelAsync(
         }),
       promptOptions: {
         title: 'Load more channels?',
-        renderListItems: branches =>
-          renderPageOfBranchesOnChannel(channel, branches, paginatedQueryOptions),
+        renderListItems: branches => {
+          renderPageOfBranchesOnChannel(channel, branches, paginatedQueryOptions);
+        },
       },
     });
   }

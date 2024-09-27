@@ -11,16 +11,7 @@ export enum ResourceClass {
   /**
    * @deprecated use M_MEDIUM instead
    */
-  M1_EXPERIMENTAL = 'm1-experimental',
-  /**
-   * @deprecated use M_MEDIUM instead
-   */
   M1_MEDIUM = 'm1-medium',
-  /**
-   * @deprecated use M_LARGE instead
-   */
-  M1_LARGE = 'm1-large',
-  INTEL_MEDIUM = 'intel-medium',
   MEDIUM = 'medium',
   M_MEDIUM = 'm-medium',
   /**
@@ -47,6 +38,9 @@ export interface CommonBuildProfile {
   pnpm?: string;
   bun?: string;
   yarn?: string;
+  /**
+   * @deprecated
+   */
   expoCli?: string;
 
   // credentials
@@ -75,6 +69,8 @@ export interface CommonBuildProfile {
 
   // credentials
   withoutCredentials?: boolean;
+
+  environment?: 'preview' | 'production' | 'development';
 }
 
 interface PlatformBuildProfile extends Omit<CommonBuildProfile, 'autoIncrement'> {

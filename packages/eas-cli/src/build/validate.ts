@@ -4,15 +4,14 @@ import fs from 'fs-extra';
 import path from 'path';
 import semver from 'semver';
 
+import { CommonContext } from './context';
 import Log, { learnMore } from '../log';
 import { isPNGAsync } from '../utils/image';
-import { getVcsClient } from '../vcs';
-import { CommonContext } from './context';
 
 export function checkNodeEnvVariable(ctx: CommonContext<Platform>): void {
-  if (ctx.buildProfile.env?.NODE_ENV === 'production') {
+  if (ctx.env?.NODE_ENV === 'production') {
     Log.warn(
-      'You set NODE_ENV=production in the build profile. Remember that it will be available during the entire build process. In particular, it will make yarn/npm install only production packages.'
+      'You set NODE_ENV=production in the build profile or environment variables. Remember that it will be available during the entire build process. In particular, it will make yarn/npm install only production packages.'
     );
     Log.newLine();
   }
@@ -28,12 +27,12 @@ export async function checkGoogleServicesFileAsync<T extends Platform>(
   if (!googleServicesFilePath) {
     return;
   }
-  const rootDir = path.normalize(await getVcsClient().getRootPathAsync());
+  const rootDir = path.normalize(await ctx.vcsClient.getRootPathAsync());
   const absGoogleServicesFilePath = path.resolve(ctx.projectDir, googleServicesFilePath);
   if (
     (await fs.pathExists(absGoogleServicesFilePath)) &&
     (!isInsideDirectory(absGoogleServicesFilePath, rootDir) ||
-      (await getVcsClient().isFileIgnoredAsync(path.relative(rootDir, absGoogleServicesFilePath))))
+      (await ctx.vcsClient.isFileIgnoredAsync(path.relative(rootDir, absGoogleServicesFilePath))))
   ) {
     Log.warn(
       `File specified via "${ctx.platform}.googleServicesFile" field in your app.json is not checked in to your repository and won't be uploaded to the builder.`

@@ -1,11 +1,12 @@
-import { Platform as PublishPlatform } from '@expo/config';
+import { Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { ensureBranchExistsAsync } from '../../branch/queries';
+import { transformFingerprintSource } from '../../build/graphql';
+import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
-import { ensureChannelExistsAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
@@ -15,32 +16,36 @@ import {
   StatuspageServiceName,
   UpdateInfoGroup,
   UpdatePublishMutation,
+  UpdateRolloutInfoGroup,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
+import { maybeUploadFingerprintAsync } from '../../project/maybeUploadFingerprintAsync';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
-  ExpoCLIExportPlatformFlag,
   RawAsset,
+  UpdatePublishPlatform,
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
   defaultPublishPlatforms,
-  filterExportedPlatformsByFlag,
+  filterCollectedAssetsByRequestedPlatforms,
+  generateEasMetadataAsync,
   getBranchNameForCommandAsync,
-  getRequestedPlatform,
-  getRuntimeToPlatformMappingFromRuntimeVersions,
-  getRuntimeVersionObjectAsync,
+  getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects,
+  getRuntimeToUpdateRolloutInfoGroupMappingAsync,
+  getRuntimeVersionInfoObjectsAsync,
   getUpdateMessageForCommandAsync,
   isUploadedAssetCountAboveWarningThreshold,
   platformDisplayNames,
   resolveInputDirectoryAsync,
   uploadAssetsAsync,
 } from '../../project/publish';
+import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
-import { getUpdateGroupJsonInfo } from '../../update/utils';
+import { getUpdateJsonInfosForUpdates } from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -52,11 +57,9 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
-import { getVcsClient } from '../../vcs';
 
 type RawUpdateFlags = {
   auto: boolean;
-  dev: boolean;
   branch?: string;
   channel?: string;
   message?: string;
@@ -65,18 +68,15 @@ type RawUpdateFlags = {
   'skip-bundler': boolean;
   'clear-cache': boolean;
   'private-key-path'?: string;
+  'emit-metadata': boolean;
+  'rollout-percentage'?: number;
   'non-interactive': boolean;
   json: boolean;
-  /** @deprecated see UpdateRepublish command */
-  group?: string;
-  /** @deprecated see UpdateRepublish command */
-  republish?: boolean;
 };
 
 type UpdateFlags = {
   auto: boolean;
-  dev: boolean;
-  platform: ExpoCLIExportPlatformFlag;
+  platform: RequestedPlatform;
   branchName?: string;
   channelName?: string;
   updateMessage?: string;
@@ -84,6 +84,8 @@ type UpdateFlags = {
   skipBundler: boolean;
   clearCache: boolean;
   privateKeyPath?: string;
+  emitMetadata: boolean;
+  rolloutPercentage?: number;
   json: boolean;
   nonInteractive: boolean;
 };
@@ -105,14 +107,6 @@ export default class UpdatePublish extends EasCommand {
       description: 'A short message describing the update',
       required: false,
     }),
-    republish: Flags.boolean({
-      description: 'Republish an update group (deprecated, see republish command)',
-      exclusive: ['input-dir', 'skip-bundler'],
-    }),
-    group: Flags.string({
-      description: 'Update group to republish (deprecated, see republish command)',
-      exclusive: ['input-dir', 'skip-bundler'],
-    }),
     'input-dir': Flags.string({
       description: 'Location of the bundle',
       default: 'dist',
@@ -126,6 +120,17 @@ export default class UpdatePublish extends EasCommand {
       description: `Clear the bundler cache before publishing`,
       default: false,
     }),
+    'emit-metadata': Flags.boolean({
+      description: `Emit "eas-update-metadata.json" in the bundle folder with detailed information about the generated updates`,
+      default: false,
+    }),
+    'rollout-percentage': Flags.integer({
+      description: `Percentage of users this update should be immediately available to. Users not in the rollout will be served the previous latest update on the branch, even if that update is itself being rolled out. The specified number must be an integer between 1 and 100. When not specified, this defaults to 100.`,
+      required: false,
+      hidden: true,
+      min: 0,
+      max: 100,
+    }),
     platform: Flags.enum({
       char: 'p',
       options: [
@@ -136,17 +141,13 @@ export default class UpdatePublish extends EasCommand {
       default: 'all',
       required: false,
     }),
-    dev: Flags.boolean({
-      description: 'Publish a development bundle',
-      default: false,
-    }),
     auto: Flags.boolean({
       description:
         'Use the current git branch and commit message for the EAS branch and update message',
       default: false,
     }),
     'private-key-path': Flags.string({
-      description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
+      description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
     }),
     ...EasNonInteractiveAndJsonFlags,
@@ -155,6 +156,7 @@ export default class UpdatePublish extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -162,9 +164,8 @@ export default class UpdatePublish extends EasCommand {
     const paginatedQueryOptions = getPaginatedQueryOptions(rawFlags);
     const {
       auto: autoFlag,
-      platform: platformFlag,
+      platform: requestedPlatform,
       channelName: channelNameArg,
-      dev,
       updateMessage: updateMessageArg,
       inputDir,
       skipBundler,
@@ -173,12 +174,15 @@ export default class UpdatePublish extends EasCommand {
       json: jsonFlag,
       nonInteractive,
       branchName: branchNameArg,
+      emitMetadata,
+      rolloutPercentage,
     } = this.sanitizeFlags(rawFlags);
 
     const {
       getDynamicPublicProjectConfigAsync,
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
+      vcsClient,
     } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
     });
@@ -186,6 +190,9 @@ export default class UpdatePublish extends EasCommand {
     if (jsonFlag) {
       enableJsonOutput();
     }
+
+    await vcsClient.ensureRepoExistsAsync();
+    await ensureRepoIsCleanAsync(vcsClient, nonInteractive);
 
     const {
       exp: expPossiblyWithoutEasUpdateConfigured,
@@ -195,11 +202,13 @@ export default class UpdatePublish extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
-    await ensureEASUpdateIsConfiguredAsync(graphqlClient, {
+    await ensureEASUpdateIsConfiguredAsync({
       exp: expPossiblyWithoutEasUpdateConfigured,
-      platform: getRequestedPlatform(platformFlag),
+      platform: requestedPlatform,
       projectDir,
       projectId,
+      vcsClient,
+      env: undefined,
     });
 
     const { exp } = await getDynamicPublicProjectConfigAsync();
@@ -208,6 +217,7 @@ export default class UpdatePublish extends EasCommand {
 
     const branchName = await getBranchNameForCommandAsync({
       graphqlClient,
+      vcsClient,
       projectId,
       channelNameArg,
       branchNameArg,
@@ -216,7 +226,7 @@ export default class UpdatePublish extends EasCommand {
       paginatedQueryOptions,
     });
 
-    const updateMessage = await getUpdateMessageForCommandAsync({
+    const updateMessage = await getUpdateMessageForCommandAsync(vcsClient, {
       updateMessageArg,
       autoFlag,
       nonInteractive,
@@ -227,7 +237,13 @@ export default class UpdatePublish extends EasCommand {
     if (!skipBundler) {
       const bundleSpinner = ora().start('Exporting...');
       try {
-        await buildBundlesAsync({ projectDir, inputDir, dev, exp, platformFlag, clearCache });
+        await buildBundlesAsync({
+          projectDir,
+          inputDir,
+          exp,
+          platformFlag: requestedPlatform,
+          clearCache,
+        });
         bundleSpinner.succeed('Exported bundle(s)');
       } catch (e) {
         bundleSpinner.fail('Export failed');
@@ -242,28 +258,30 @@ export default class UpdatePublish extends EasCommand {
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
     let uploadedAssetCount = 0;
     let assetLimitPerUpdateGroup = 0;
-    let realizedPlatforms: PublishPlatform[] = [];
+    let realizedPlatforms: UpdatePublishPlatform[] = [];
 
     try {
       const collectedAssets = await collectAssetsAsync(distRoot);
-      const assets = filterExportedPlatformsByFlag(collectedAssets, platformFlag);
-      realizedPlatforms = Object.keys(assets) as PublishPlatform[];
+      const assets = filterCollectedAssetsByRequestedPlatforms(collectedAssets, requestedPlatform);
+      realizedPlatforms = Object.keys(assets) as UpdatePublishPlatform[];
 
       // Timeout mechanism:
-      // - Start with 60 second timeout. 60 seconds is chosen because the cloud function that processes
-      //   uploaded assets has a timeout of 60 seconds.
-      // - Each time one or more assets reports as ready, reset the timeout to 60 seconds.
-      // - Start upload. Internally, uploadAssetsAsync uploads them all and then checks for successful
+      // - Start with NO_ACTIVITY_TIMEOUT. 180 seconds is chosen because the cloud function that processes
+      //   uploaded assets has a timeout of 60 seconds and uploading can take some time on a slow connection.
+      // - Each time one or more assets reports as ready, reset the timeout.
+      // - Each time an asset upload begins, reset the timeout. This includes retries.
+      // - Start upload. Internally, uploadAssetsAsync uploads them all first and then checks for successful
       //   processing every (5 + n) seconds with a linear backoff of n + 1 second.
       // - At the same time as upload is started, start timeout checker which checks every 1 second to see
       //   if timeout has been reached. When timeout expires, send a cancellation signal to currently running
       //   upload function call to instruct it to stop uploading or checking for successful processing.
+      const NO_ACTIVITY_TIMEOUT = 180 * 1000; // 180 seconds
       let lastUploadedStorageKeys = new Set<string>();
       let lastAssetUploadResults: {
         asset: RawAsset & { storageKey: string };
         finished: boolean;
       }[] = [];
-      let timeAtWhichToTimeout = Date.now() + 60 * 1000; // sixty seconds from now
+      let timeAtWhichToTimeout = Date.now() + NO_ACTIVITY_TIMEOUT;
       const cancelationToken = { isCanceledOrFinished: false };
 
       const uploadResults = await Promise.race([
@@ -277,7 +295,7 @@ export default class UpdatePublish extends EasCommand {
               assetUploadResults.filter(r => r.finished).map(r => r.asset.storageKey)
             );
             if (!areSetsEqual(currentUploadedStorageKeys, lastUploadedStorageKeys)) {
-              timeAtWhichToTimeout = Date.now() + 60 * 1000; // reset timeout to sixty seconds from now
+              timeAtWhichToTimeout = Date.now() + NO_ACTIVITY_TIMEOUT; // reset timeout to NO_ACTIVITY_TIMEOUT
               lastUploadedStorageKeys = currentUploadedStorageKeys;
               lastAssetUploadResults = assetUploadResults;
             }
@@ -285,6 +303,10 @@ export default class UpdatePublish extends EasCommand {
             const totalAssets = assetUploadResults.length;
             const missingAssetCount = assetUploadResults.filter(a => !a.finished).length;
             assetSpinner.text = `Uploading (${totalAssets - missingAssetCount}/${totalAssets})`;
+          },
+          () => {
+            // when an upload is retried, reset the timeout as we know this will now need more time
+            timeAtWhichToTimeout = Date.now() + NO_ACTIVITY_TIMEOUT; // reset timeout to NO_ACTIVITY_TIMEOUT
           }
         ),
         (async () => {
@@ -334,7 +356,7 @@ export default class UpdatePublish extends EasCommand {
         Log.debug(chalk.dim(`- ${uploadedAssetPath}`));
       }
 
-      const platformString = (Object.keys(assets) as PublishPlatform[])
+      const platformString = realizedPlatforms
         .map(platform => {
           const collectedAssetForPlatform = nullthrows(assets[platform]);
           const totalAssetsForPlatform = collectedAssetForPlatform.assets.length + 1; // launch asset
@@ -345,7 +367,7 @@ export default class UpdatePublish extends EasCommand {
       Log.withInfo(
         `${platformString} (maximum: ${assetLimitPerUpdateGroup} total per update). ${learnMore(
           'https://expo.fyi/eas-update-asset-limits',
-          { learnMoreMessage: 'Learn more about asset limits.' }
+          { learnMoreMessage: 'Learn more about asset limits' }
         )}`
       );
     } catch (e) {
@@ -353,51 +375,95 @@ export default class UpdatePublish extends EasCommand {
       throw e;
     }
 
-    const runtimeVersions = await getRuntimeVersionObjectAsync(exp, realizedPlatforms, projectDir);
-    const runtimeToPlatformMapping =
-      getRuntimeToPlatformMappingFromRuntimeVersions(runtimeVersions);
+    const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
+    const runtimeVersionInfoObjects = await getRuntimeVersionInfoObjectsAsync({
+      exp,
+      platforms: realizedPlatforms,
+      projectDir,
+      workflows: {
+        ...workflows,
+        web: Workflow.UNKNOWN,
+      },
+      env: undefined,
+    });
+    const runtimeToPlatformsAndFingerprintInfoMapping =
+      getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects(
+        runtimeVersionInfoObjects
+      );
 
-    const { branchId, createdBranch } = await ensureBranchExistsAsync(graphqlClient, {
+    const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
       branchName,
     });
-    if (createdBranch) {
-      await ensureChannelExistsAsync(graphqlClient, {
-        appId: projectId,
-        branchId,
-        channelName: branchName,
-      });
-      Log.withTick(
-        `Channel: ${chalk.bold(branchName)} pointed at branch: ${chalk.bold(branchName)}`
-      );
-    }
 
-    const vcsClient = getVcsClient();
+    const runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping = await Promise.all(
+      runtimeToPlatformsAndFingerprintInfoMapping.map(async info => {
+        return {
+          ...info,
+          fingerprintSource: info.fingerprint
+            ? (
+                await maybeUploadFingerprintAsync({
+                  runtimeVersion: info.runtimeVersion,
+                  fingerprint: info.fingerprint,
+                  graphqlClient,
+                })
+              ).fingerprintSource ?? null
+            : null,
+        };
+      })
+    );
+
+    const runtimeVersionToRolloutInfoGroup =
+      rolloutPercentage !== undefined
+        ? await getRuntimeToUpdateRolloutInfoGroupMappingAsync(graphqlClient, {
+            appId: projectId,
+            branchName,
+            rolloutPercentage,
+            runtimeToPlatformsAndFingerprintInfoMapping,
+          })
+        : undefined;
 
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
 
     // Sort the updates into different groups based on their platform specific runtime versions
-    const updateGroups: PublishUpdateGroupInput[] = runtimeToPlatformMapping.map(
-      ({ runtimeVersion, platforms }) => {
-        const localUpdateInfoGroup = Object.fromEntries(
-          platforms.map(platform => [
-            platform,
-            unsortedUpdateInfoGroups[platform as keyof UpdateInfoGroup],
-          ])
-        );
+    const updateGroups: PublishUpdateGroupInput[] =
+      runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping.map(
+        ({ runtimeVersion, platforms, fingerprintSource }) => {
+          const localUpdateInfoGroup = Object.fromEntries(
+            platforms.map(platform => [
+              platform,
+              unsortedUpdateInfoGroups[platform as keyof UpdateInfoGroup],
+            ])
+          );
 
-        return {
-          branchId,
-          updateInfoGroup: localUpdateInfoGroup,
-          runtimeVersion,
-          message: updateMessage,
-          gitCommitHash,
-          isGitWorkingTreeDirty,
-          awaitingCodeSigningInfo: !!codeSigningInfo,
-        };
-      }
-    );
+          const rolloutInfoGroupForRuntimeVersion = runtimeVersionToRolloutInfoGroup
+            ? runtimeVersionToRolloutInfoGroup.get(runtimeVersion)
+            : null;
+          const localRolloutInfoGroup = rolloutInfoGroupForRuntimeVersion
+            ? Object.fromEntries(
+                platforms.map(platform => [
+                  platform,
+                  rolloutInfoGroupForRuntimeVersion[platform as keyof UpdateRolloutInfoGroup],
+                ])
+              )
+            : null;
+
+          return {
+            branchId,
+            updateInfoGroup: localUpdateInfoGroup,
+            rolloutInfoGroup: localRolloutInfoGroup,
+            runtimeFingerprintSource: fingerprintSource
+              ? transformFingerprintSource(fingerprintSource)
+              : null,
+            runtimeVersion,
+            message: updateMessage,
+            gitCommitHash,
+            isGitWorkingTreeDirty,
+            awaitingCodeSigningInfo: !!codeSigningInfo,
+          };
+        }
+      );
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
     const publishSpinner = ora('Publishing...').start();
     try {
@@ -456,8 +522,12 @@ export default class UpdatePublish extends EasCommand {
       throw e;
     }
 
+    if (!skipBundler && emitMetadata) {
+      Log.log('Generating eas-update-metadata.json');
+      await generateEasMetadataAsync(distRoot, getUpdateJsonInfosForUpdates(newUpdates));
+    }
     if (jsonFlag) {
-      printJsonOnlyOutput(getUpdateGroupJsonInfo(newUpdates));
+      printJsonOnlyOutput(getUpdateJsonInfosForUpdates(newUpdates));
     } else {
       if (new Set(newUpdates.map(update => update.group)).size > 1) {
         Log.addNewLineIfNone();
@@ -468,7 +538,10 @@ export default class UpdatePublish extends EasCommand {
 
       Log.addNewLineIfNone();
 
-      for (const runtime of uniqBy(runtimeVersions, version => version.runtimeVersion)) {
+      for (const runtime of uniqBy(
+        runtimeToPlatformsAndFingerprintInfoMapping,
+        version => version.runtimeVersion
+      )) {
         const newUpdatesForRuntimeVersion = newUpdates.filter(
           update => update.runtimeVersion === runtime.runtimeVersion
         );
@@ -499,7 +572,23 @@ export default class UpdatePublish extends EasCommand {
               ? [{ label: 'Android update ID', value: newAndroidUpdate.id }]
               : []),
             ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
-            { label: 'Message', value: updateMessage },
+            ...(newAndroidUpdate?.rolloutControlUpdate
+              ? [
+                  {
+                    label: 'Android Rollout',
+                    value: `${newAndroidUpdate.rolloutPercentage}% (Base update ID: ${newAndroidUpdate.rolloutControlUpdate.id})`,
+                  },
+                ]
+              : []),
+            ...(newIosUpdate?.rolloutControlUpdate
+              ? [
+                  {
+                    label: 'iOS Rollout',
+                    value: `${newIosUpdate.rolloutPercentage}% (Base update ID: ${newIosUpdate.rolloutControlUpdate.id})`,
+                  },
+                ]
+              : []),
+            { label: 'Message', value: updateMessage ?? '' },
             ...(gitCommitHash
               ? [
                   {
@@ -508,7 +597,7 @@ export default class UpdatePublish extends EasCommand {
                   },
                 ]
               : []),
-            { label: 'Website link', value: updateGroupLink },
+            { label: 'EAS Dashboard', value: updateGroupLink },
           ])
         );
         Log.addNewLineIfNone();
@@ -531,7 +620,7 @@ export default class UpdatePublish extends EasCommand {
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
     const nonInteractive = flags['non-interactive'] ?? false;
 
-    const { auto, branch: branchName, channel: channelName, dev, message: updateMessage } = flags;
+    const { auto, branch: branchName, channel: channelName, message: updateMessage } = flags;
     if (nonInteractive && !auto && !(updateMessage && (branchName || channelName))) {
       Errors.error(
         '--branch and --message, or --channel and --message are required when updating in non-interactive mode unless --auto is specified',
@@ -539,35 +628,29 @@ export default class UpdatePublish extends EasCommand {
       );
     }
 
-    if (flags.group || flags.republish) {
-      // Pick the first flag set that is defined, in this specific order
-      const args = [
-        ['--group', flags.group],
-        ['--branch', flags.branch],
-      ].filter(([_, value]) => value)[0];
+    const skipBundler = flags['skip-bundler'] ?? false;
+    let emitMetadata = flags['emit-metadata'] ?? false;
 
-      Log.newLine();
+    if (skipBundler && emitMetadata) {
+      emitMetadata = false;
       Log.warn(
-        'The --group and --republish flags are deprecated, use the republish command instead:'
+        'ignoring flag --emit-metadata as metadata cannot be generated when skipping bundle generation'
       );
-      Log.warn(`  ${chalk.bold([`eas update:republish`, ...(args ?? [])].join(' '))}`);
-      Log.newLine();
-
-      Errors.error('--group and --republish flags are deprecated', { exit: 1 });
     }
 
     return {
       auto,
       branchName,
       channelName,
-      dev,
       updateMessage,
       inputDir: flags['input-dir'],
-      skipBundler: flags['skip-bundler'],
+      skipBundler,
       clearCache: flags['clear-cache'],
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
+      rolloutPercentage: flags['rollout-percentage'],
       nonInteractive,
+      emitMetadata,
       json: flags.json ?? false,
     };
   }

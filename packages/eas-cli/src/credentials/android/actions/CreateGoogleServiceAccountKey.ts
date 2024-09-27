@@ -12,7 +12,7 @@ import {
 } from '../utils/googleServiceAccountKey';
 
 export class CreateGoogleServiceAccountKey {
-  constructor(private account: AccountFragment) {}
+  constructor(private readonly account: AccountFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<GoogleServiceAccountKeyFragment> {
     if (ctx.nonInteractive) {
@@ -46,7 +46,7 @@ export class CreateGoogleServiceAccountKey {
 
     Log.log(
       `${chalk.bold(
-        'A Google Service Account JSON key is required to upload your app to Google Play Store'
+        'A Google Service Account JSON key is required for uploading your app to Google Play Store, and for sending Android Notifications via FCM V1.'
       )}.\n` +
         `If you're not sure what this is or how to create one, ${learnMore(
           'https://expo.fyi/creating-google-service-account',

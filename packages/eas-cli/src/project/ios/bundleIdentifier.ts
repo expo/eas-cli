@@ -7,8 +7,10 @@ import fs from 'fs-extra';
 
 import { readAppJson } from '../../build/utils/appJson';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import env from '../../env';
 import Log, { learnMore } from '../../log';
 import { promptAsync } from '../../prompts';
+import { Client } from '../../vcs/vcs';
 import { getOwnerAccountForProjectIdAsync, getProjectConfigDescription } from '../projectUtils';
 import { resolveWorkflowAsync } from '../workflow';
 
@@ -19,23 +21,28 @@ export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync({
   projectDir,
   projectId,
   exp,
+  vcsClient,
+  nonInteractive,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
+  vcsClient: Client;
+  nonInteractive: boolean;
 }): Promise<string> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
 
   try {
-    return await getBundleIdentifierAsync(projectDir, exp);
+    return await getBundleIdentifierAsync(projectDir, exp, vcsClient);
   } catch {
     return await configureBundleIdentifierAsync({
       graphqlClient,
       projectDir,
       exp,
       projectId,
+      nonInteractive,
     });
   }
 }
@@ -49,9 +56,15 @@ export class AmbiguousBundleIdentifierError extends Error {
 export async function getBundleIdentifierAsync(
   projectDir: string,
   exp: ExpoConfig,
+  vcsClient: Client,
   xcodeContext?: { targetName?: string; buildConfiguration?: string }
 ): Promise<string> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  if (env.overrideIosBundleIdentifier) {
+    return env.overrideIosBundleIdentifier;
+  }
+
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
+
   if (workflow === Workflow.GENERIC) {
     warnIfBundleIdentifierDefinedInAppConfigForBareWorkflowProject(projectDir, exp);
 
@@ -116,12 +129,22 @@ async function configureBundleIdentifierAsync({
   projectDir,
   projectId,
   exp,
+  nonInteractive,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
+  nonInteractive: boolean;
 }): Promise<string> {
+  if (nonInteractive) {
+    throw new Error(
+      `The "ios.bundleIdentifier" is required to be set in app config when running in non-interactive mode. ${learnMore(
+        'https://docs.expo.dev/versions/latest/config/app/#bundleidentifier'
+      )}`
+    );
+  }
+
   const paths = getConfigFilePaths(projectDir);
   // we can't automatically update app.config.js
   if (paths.dynamicConfigPath) {
@@ -144,6 +167,7 @@ async function configureBundleIdentifierAsync({
     exp,
     projectId
   );
+
   const { bundleIdentifier } = await promptAsync({
     name: 'bundleIdentifier',
     type: 'text',

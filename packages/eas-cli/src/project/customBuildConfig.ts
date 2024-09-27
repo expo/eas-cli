@@ -1,18 +1,25 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
-import { errors, readAndValidateBuildConfigAsync } from '@expo/steps';
+import { errors, readAndValidateBuildConfigFromPathAsync } from '@expo/steps';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
+
+import { Client } from '../vcs/vcs';
 
 export interface CustomBuildConfigMetadata {
   workflowName?: string;
 }
 
-export async function validateCustomBuildConfigAsync(
-  projectDir: string,
-  profile: BuildProfile<Platform>
-): Promise<CustomBuildConfigMetadata | undefined> {
+export async function validateCustomBuildConfigAsync({
+  profile,
+  projectDir,
+  vcsClient,
+}: {
+  projectDir: string;
+  profile: BuildProfile<Platform>;
+  vcsClient: Client;
+}): Promise<CustomBuildConfigMetadata | undefined> {
   if (!profile.config) {
     return undefined;
   }
@@ -25,9 +32,18 @@ export async function validateCustomBuildConfigAsync(
     );
   }
 
+  const rootDir = path.normalize(await vcsClient.getRootPathAsync());
+  if (await vcsClient.isFileIgnoredAsync(path.relative(rootDir, configPath))) {
+    throw new Error(
+      `Custom build configuration file ${chalk.bold(
+        relativeConfigPath
+      )} is ignored by your version control system. Remove it from the ignore list to successfully create custom build.`
+    );
+  }
+
   try {
-    const config = await readAndValidateBuildConfigAsync(configPath, {
-      skipNamespacedFunctionsCheck: true,
+    const config = await readAndValidateBuildConfigFromPathAsync(configPath, {
+      skipNamespacedFunctionsOrFunctionGroupsCheck: true,
     });
     return {
       workflowName: config.build.name,
@@ -53,4 +69,8 @@ export async function validateCustomBuildConfigAsync(
 
 export function getCustomBuildConfigPath(configFilename: string): string {
   return path.join('.eas/build', configFilename);
+}
+
+export function getCustomBuildConfigPathForJob(configFilename: string): string {
+  return path.posix.join('.eas/build', configFilename);
 }

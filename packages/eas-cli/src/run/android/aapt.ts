@@ -2,8 +2,8 @@ import spawnAsync, { SpawnResult } from '@expo/spawn-async';
 import glob from 'fast-glob';
 import path from 'path';
 
-import Log from '../../log';
 import { getAndroidSdkRootAsync } from './sdk';
+import Log from '../../log';
 
 async function aaptAsync(...options: string[]): Promise<SpawnResult> {
   try {

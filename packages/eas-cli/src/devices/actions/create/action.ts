@@ -1,14 +1,14 @@
 import chalk from 'chalk';
 
+import { runCurrentMachineMethodAsync } from './currentMachineMethod';
+import { runDeveloperPortalMethodAsync } from './developerPortalMethod';
+import { runInputMethodAsync } from './inputMethod';
+import { runRegistrationUrlMethodAsync } from './registrationUrlMethod';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import AppStoreApi from '../../../credentials/ios/appstore/AppStoreApi';
 import { AccountFragment, AppleTeam } from '../../../graphql/generated';
 import Log from '../../../log';
 import { promptAsync } from '../../../prompts';
-import { runCurrentMachineMethodAsync } from './currentMachineMethod';
-import { runDeveloperPortalMethodAsync } from './developerPortalMethod';
-import { runInputMethodAsync } from './inputMethod';
-import { runRegistrationUrlMethodAsync } from './registrationUrlMethod';
 
 export enum RegistrationMethod {
   WEBSITE,
@@ -20,10 +20,10 @@ export enum RegistrationMethod {
 
 export default class DeviceCreateAction {
   constructor(
-    private graphqlClient: ExpoGraphqlClient,
-    private appStoreApi: AppStoreApi,
-    private account: AccountFragment,
-    private appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
+    private readonly graphqlClient: ExpoGraphqlClient,
+    private readonly appStoreApi: AppStoreApi,
+    private readonly account: AccountFragment,
+    private readonly appleTeam: Pick<AppleTeam, 'appleTeamIdentifier' | 'appleTeamName' | 'id'>
   ) {}
 
   public async runAsync(): Promise<RegistrationMethod> {
@@ -34,7 +34,7 @@ export default class DeviceCreateAction {
       await runDeveloperPortalMethodAsync(
         this.graphqlClient,
         this.appStoreApi,
-        this.account.id,
+        this.account,
         this.appleTeam
       );
     } else if (method === RegistrationMethod.INPUT) {

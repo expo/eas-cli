@@ -58,7 +58,10 @@ export async function republishAsync({
     update.branchId === arbitraryUpdate.branchId &&
     update.branchName === arbitraryUpdate.branchName &&
     update.runtimeVersion === arbitraryUpdate.runtimeVersion;
-  assert(updatesToPublish.every(isSameGroup), 'All updates must belong to the same update group');
+  assert(
+    updatesToPublish.every(isSameGroup),
+    'All updates being republished must belong to the same update group'
+  );
 
   assert(
     updatesToPublish.every(u => u.isRollBackToEmbedded) ||
@@ -90,7 +93,9 @@ export async function republishAsync({
       }
     }
 
-    Log.withTick(`The republished update group will be signed`);
+    Log.withTick(
+      `The republished update group will be signed with the same code signing key and algorithm as the original update`
+    );
   }
 
   const publishIndicator = ora('Republishing...').start();
@@ -167,7 +172,8 @@ export async function republishAsync({
   }
 
   if (json) {
-    return printJsonOnlyOutput(updatesRepublished);
+    printJsonOnlyOutput(updatesRepublished);
+    return;
   }
 
   const updatesRepublishedByPlatform = Object.fromEntries(
@@ -195,7 +201,7 @@ export async function republishAsync({
         ? [{ label: 'iOS update ID', value: updatesRepublishedByPlatform.ios.id }]
         : []),
       { label: 'Message', value: updateMessage },
-      { label: 'Website link', value: link(updateGroupUrl, { dim: false }) },
+      { label: 'EAS Dashboard', value: link(updateGroupUrl, { dim: false }) },
     ])
   );
 }

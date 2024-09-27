@@ -11,8 +11,9 @@ import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
+import { BranchQuery } from '../../../graphql/queries/BranchQuery';
 import { UpdateQuery } from '../../../graphql/queries/UpdateQuery';
-import { getBranchNameFromChannelNameAsync } from '../../../update/getBranchNameFromChannelNameAsync';
+import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 import { selectUpdateGroupOnBranchAsync } from '../../../update/queries';
 import {
   getCodeSigningInfoAsync,
@@ -44,7 +45,8 @@ jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
 jest.mock('../../../graphql/mutations/PublishMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
-jest.mock('../../../update/getBranchNameFromChannelNameAsync');
+jest.mock('../../../graphql/queries/BranchQuery');
+jest.mock('../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync');
 jest.mock('../../../update/queries');
 jest.mock('../../../ora', () => ({
   ora: () => ({
@@ -55,7 +57,10 @@ jest.mock('../../../utils/code-signing');
 jest.mock('../../../fetch');
 
 describe(UpdateRepublish.name, () => {
-  afterEach(() => vol.reset());
+  afterEach(() => {
+    vol.reset();
+    jest.resetAllMocks();
+  });
 
   it('errors when providing both --group and --branch', async () => {
     const flags = ['--group=1234', '--branch=main'];
@@ -84,6 +89,16 @@ describe(UpdateRepublish.name, () => {
 
     await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
       /--channel=main cannot also be provided when using --group/
+    );
+  });
+
+  it('errors when providing both --destination-channel and --destination-branch', async () => {
+    const flags = ['--group=1234', '--destination-channel=test', '--destination-branch=wat'];
+
+    mockTestProject();
+
+    await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
+      /--destination-branch=wat cannot also be provided when using --destination-channel/
     );
   });
 
@@ -269,7 +284,9 @@ describe(UpdateRepublish.name, () => {
 
     mockTestProject();
     // Mock resolving the channel to branch name, only valid for a single branch connected
-    jest.mocked(getBranchNameFromChannelNameAsync).mockResolvedValue('branchFromChannel');
+    jest
+      .mocked(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync)
+      .mockResolvedValue({ branchId: updateStub.branch.id, branchName: 'branchFromChannel' });
     // Mock the prompt to ask the user which update to republish, from branch
     jest.mocked(selectUpdateGroupOnBranchAsync).mockResolvedValue([updateStub]);
     // Mock mutations to store the new update
@@ -294,6 +311,94 @@ describe(UpdateRepublish.name, () => {
       expect.arrayContaining([
         expect.objectContaining({
           branchId: updateStub.branch.id,
+          runtimeVersion: updateStub.runtimeVersion,
+          updateInfoGroup: expect.objectContaining({
+            ios: expect.any(Object),
+          }),
+          gitCommitHash: updateStub.gitCommitHash,
+          awaitingCodeSigningInfo: false,
+        }),
+      ])
+    );
+  });
+
+  it('republishes to a different branch when --destination-branch is supplied', async () => {
+    const flags = ['--branch=branch123', '--message=test-republish', '--destination-branch=other'];
+
+    mockTestProject();
+    // Mock the prompt to ask the user which update to republish, from branch
+    jest.mocked(selectUpdateGroupOnBranchAsync).mockResolvedValue([updateStub]);
+    // Mock mutations to store the new update
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue([
+      {
+        ...updateStub,
+        branch: { id: 'other-id', name: 'other' },
+        id: 'update-new',
+        platform: 'ios',
+        manifestPermalink: 'https://expo.dev/@test/test-project/manifest',
+      },
+    ]);
+    jest.mocked(BranchQuery.getBranchByNameAsync).mockResolvedValue({
+      id: 'other-id',
+      name: 'other',
+    });
+
+    await new UpdateRepublish(flags, commandOptions).run();
+
+    expect(selectUpdateGroupOnBranchAsync).toHaveBeenCalledWith(
+      expect.any(Object), // graphql client
+      expect.objectContaining({ branchName: 'branch123' })
+    );
+
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalledWith(
+      expect.any(Object), // graphql client
+      expect.arrayContaining([
+        expect.objectContaining({
+          branchId: 'other-id',
+          runtimeVersion: updateStub.runtimeVersion,
+          updateInfoGroup: expect.objectContaining({
+            ios: expect.any(Object),
+          }),
+          gitCommitHash: updateStub.gitCommitHash,
+          awaitingCodeSigningInfo: false,
+        }),
+      ])
+    );
+  });
+
+  it('republishes to a different branch when --destination-channel is supplied', async () => {
+    const flags = ['--branch=branch123', '--message=test-republish', '--destination-channel=blah'];
+
+    mockTestProject();
+    // Mock the prompt to ask the user which update to republish, from branch
+    jest.mocked(selectUpdateGroupOnBranchAsync).mockResolvedValue([updateStub]);
+    // Mock mutations to store the new update
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue([
+      {
+        ...updateStub,
+        branch: { id: 'other-id', name: 'other' },
+        id: 'update-new',
+        platform: 'ios',
+        manifestPermalink: 'https://expo.dev/@test/test-project/manifest',
+      },
+    ]);
+
+    jest
+      .mocked(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync)
+      .mockResolvedValue({ branchId: 'blah-id', branchName: 'blah' });
+
+    await new UpdateRepublish(flags, commandOptions).run();
+
+    expect(selectUpdateGroupOnBranchAsync).toHaveBeenCalledWith(
+      expect.any(Object), // graphql client
+      expect.objectContaining({ branchName: 'branch123' })
+    );
+
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalledWith(
+      expect.any(Object), // graphql client
+      expect.arrayContaining([
+        expect.objectContaining({
+          branchId: 'blah-id',
           runtimeVersion: updateStub.runtimeVersion,
           updateInfoGroup: expect.objectContaining({
             ios: expect.any(Object),
@@ -367,6 +472,7 @@ function mockTestProject({
   jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
     id: '1234',
     slug: 'testing-123',
+    name: 'testing-123',
     fullName: '@jester/testing-123',
     ownerAccount: jester.accounts[0],
   });

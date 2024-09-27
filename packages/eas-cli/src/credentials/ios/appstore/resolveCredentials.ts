@@ -3,11 +3,11 @@ import chalk from 'chalk';
 import * as fs from 'fs-extra';
 import wrapAnsi from 'wrap-ansi';
 
+import { AppleTeamType, Team } from './authenticateTypes';
+import * as Keychain from './keychain';
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { MinimalAscApiKey } from '../credentials';
-import { AppleTeamType, Team } from './authenticateTypes';
-import * as Keychain from './keychain';
 
 /**
  * Get the username and possibly the password from the environment variables or the supplied options.
@@ -308,7 +308,7 @@ async function getCachedPasswordAsync({
   }
 
   const serviceName = getKeychainServiceName(username);
-  return Keychain.getPasswordAsync({ username, serviceName });
+  return await Keychain.getPasswordAsync({ username, serviceName });
 }
 
 async function cachePasswordAsync({ username, password }: Auth.UserCredentials): Promise<boolean> {
@@ -320,5 +320,5 @@ async function cachePasswordAsync({ username, password }: Auth.UserCredentials):
   Log.log(`\u203A Saving Apple ID password to the local Keychain`);
   Log.log(`  ${learnMore('https://docs.expo.dev/distribution/security#keychain')}`);
   const serviceName = getKeychainServiceName(username);
-  return Keychain.setPasswordAsync({ username, password, serviceName });
+  return await Keychain.setPasswordAsync({ username, password, serviceName });
 }

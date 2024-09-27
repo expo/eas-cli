@@ -8,6 +8,10 @@ on:
       - labeled
       - unlabeled
 
+concurrency:
+  group: changelog-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pr-changelog-entry:
     name: Check CHANGELOG.md updated
@@ -16,7 +20,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Check if CHANGELOG.md was updated
         id: changelog-updated
-        uses: tj-actions/changed-files@v35
+        uses: tj-actions/changed-files@v41
         with:
           files: CHANGELOG.md
       - name: Fail if CHANGELOG.md was not updated and the "no changelog" label is absent
@@ -32,6 +36,5 @@ jobs:
           refresh-message-position: true
           message: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog') && '⏩ The changelog entry check has been skipped since the "no changelog" label is present.' || '✅ Thank you for adding the changelog entry!' }}
           message-failure: |
-            ❌ It looks like a changelog entry is missing for this PR. You have two options: you can add it manually, or you can use the changelog bot to do it for you.
-            🤖 To use the bot, simply comment on this PR with the command `/changelog-entry [breaking-change|new-feature|bug-fix|chore] [message]`.
+            ❌ It looks like a changelog entry is missing for this PR. Add it manually to CHANGELOG.md.
             ⏩ If this PR doesn't require a changelog entry, such as if it's an internal change that doesn't affect the user experience, you can add the "no changelog" label to the PR.

@@ -1,35 +1,28 @@
-import { Updates } from '@expo/config-plugins';
-import { BuildMode, Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
+import { FingerprintSource, Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
 
-import Log from '../log';
-import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils';
-import {
-  readChannelSafelyAsync as readAndroidChannelSafelyAsync,
-  readReleaseChannelSafelyAsync as readAndroidReleaseChannelSafelyAsync,
-} from '../update/android/UpdatesModule';
-import {
-  readChannelSafelyAsync as readIosChannelSafelyAsync,
-  readReleaseChannelSafelyAsync as readIosReleaseChannelSafelyAsync,
-} from '../update/ios/UpdatesModule';
-import { easCliVersion } from '../utils/easCli';
-import { getVcsClient } from '../vcs';
 import { maybeResolveVersionsAsync as maybeResolveAndroidVersionsAsync } from './android/version';
 import { BuildContext } from './context';
 import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios/version';
 import { LocalBuildMode } from './local';
+import { BuildDistributionType } from './types';
+import Log from '../log';
+import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils';
+import { readChannelSafelyAsync as readAndroidChannelSafelyAsync } from '../update/android/UpdatesModule';
+import { readChannelSafelyAsync as readIosChannelSafelyAsync } from '../update/ios/UpdatesModule';
+import { easCliVersion } from '../utils/easCli';
 
 export async function collectMetadataAsync<T extends Platform>(
-  ctx: BuildContext<T>
+  ctx: BuildContext<T>,
+  runtimeMetadata: {
+    runtimeVersion?: string | undefined;
+    fingerprintSource?: FingerprintSource | undefined;
+  }
 ): Promise<Metadata> {
-  const vcsClient = getVcsClient();
-  const channelOrReleaseChannel = await resolveChannelOrReleaseChannelAsync(ctx);
-  const distribution =
-    ('simulator' in ctx.buildProfile && ctx.buildProfile.simulator
-      ? 'simulator'
-      : ctx.buildProfile.distribution) ?? 'store';
+  const channelObject = await resolveChannelAsync(ctx);
+  const distribution = ctx.buildProfile.distribution ?? BuildDistributionType.STORE;
   const metadata: Metadata = {
     trackingContext: ctx.analyticsEventProperties,
     ...(await maybeResolveVersionsAsync(ctx)),
@@ -37,21 +30,22 @@ export async function collectMetadataAsync<T extends Platform>(
     workflow: ctx.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
-    runtimeVersion: Updates.getRuntimeVersionNullable(ctx.exp, ctx.platform) ?? undefined,
+    runtimeVersion: runtimeMetadata?.runtimeVersion,
+    fingerprintSource: runtimeMetadata?.fingerprintSource,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
-    ...channelOrReleaseChannel,
+    ...channelObject,
     distribution,
     appName: ctx.exp.name,
     appIdentifier: resolveAppIdentifier(ctx),
     buildProfile: ctx.buildProfileName,
-    gitCommitHash: await vcsClient.getCommitHashAsync(),
+    gitCommitHash: await ctx.vcsClient.getCommitHashAsync(),
     gitCommitMessage: truncateGitCommitMessage(
-      (await vcsClient.getLastCommitMessageAsync()) ?? undefined
+      (await ctx.vcsClient.getLastCommitMessageAsync()) ?? undefined
     ),
     isGitWorkingTreeDirty:
       ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL
         ? false
-        : await vcsClient.hasUncommittedChangesAsync(),
+        : await ctx.vcsClient.hasUncommittedChangesAsync(),
     username: getUsername(ctx.exp, ctx.user),
     message: ctx.message,
     ...(ctx.platform === Platform.IOS && {
@@ -61,9 +55,13 @@ export async function collectMetadataAsync<T extends Platform>(
     }),
     runWithNoWaitFlag: ctx.noWait,
     runFromCI: ctx.runFromCI,
-    buildMode: ctx.buildProfile.config ? BuildMode.CUSTOM : BuildMode.BUILD,
     customWorkflowName: ctx.customBuildConfigMetadata?.workflowName,
     developmentClient: ctx.developmentClient,
+    requiredPackageManager: ctx.requiredPackageManager ?? undefined,
+    selectedImage: ctx.buildProfile.image,
+    customNodeVersion: ctx.buildProfile.node,
+    environment: ctx.buildProfile.environment,
+    simulator: 'simulator' in ctx.buildProfile && ctx.buildProfile.simulator,
   };
   return sanitizeMetadata(metadata);
 }
@@ -76,7 +74,8 @@ async function maybeResolveVersionsAsync<T extends Platform>(
     const resolvedVersion = await maybeResolveIosVersionsAsync(
       ctx.projectDir,
       ctx.exp,
-      iosContext.ios.targets
+      iosContext.ios.targets,
+      ctx.vcsClient
     );
     if (iosContext.ios.buildNumberOverride) {
       return {
@@ -90,7 +89,8 @@ async function maybeResolveVersionsAsync<T extends Platform>(
     const resolvedVersion = await maybeResolveAndroidVersionsAsync(
       ctx.projectDir,
       ctx.exp,
-      androidCtx.buildProfile
+      androidCtx.buildProfile,
+      ctx.vcsClient
     );
     if (androidCtx.android.versionCodeOverride) {
       return {
@@ -112,39 +112,21 @@ function resolveAppIdentifier<T extends Platform>(ctx: BuildContext<T>): string 
   }
 }
 
-async function resolveChannelOrReleaseChannelAsync<T extends Platform>(
+async function resolveChannelAsync<T extends Platform>(
   ctx: BuildContext<T>
-): Promise<{ channel: string } | { releaseChannel: string } | null> {
+): Promise<{ channel: string } | null> {
   if (!isExpoUpdatesInstalled(ctx.projectDir)) {
     return null;
   }
   if (ctx.buildProfile.channel) {
     return { channel: ctx.buildProfile.channel };
   }
-  if (ctx.buildProfile.releaseChannel) {
-    return { releaseChannel: ctx.buildProfile.releaseChannel };
-  }
   const channel = await getNativeChannelAsync(ctx);
   if (channel) {
     return { channel };
   }
-  const releaseChannel = await getNativeReleaseChannelAsync(ctx);
-  return { releaseChannel };
-}
 
-async function getNativeReleaseChannelAsync<T extends Platform>(
-  ctx: BuildContext<T>
-): Promise<string> {
-  switch (ctx.platform) {
-    case Platform.ANDROID: {
-      return (await readAndroidReleaseChannelSafelyAsync(ctx.projectDir)) ?? 'default';
-    }
-    case Platform.IOS: {
-      return (await readIosReleaseChannelSafelyAsync(ctx.projectDir)) ?? 'default';
-    }
-    default:
-      return 'default';
-  }
+  return null;
 }
 
 async function getNativeChannelAsync<T extends Platform>(

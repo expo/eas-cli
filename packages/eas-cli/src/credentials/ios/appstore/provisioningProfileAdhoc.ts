@@ -1,12 +1,12 @@
 import { Device, Profile, ProfileState, ProfileType, RequestContext } from '@expo/apple-utils';
 
-import { ora } from '../../../ora';
-import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
 import { ProvisioningProfile } from './Credentials.types';
 import { getRequestContext } from './authenticate';
 import { AuthCtx } from './authenticateTypes';
 import { getBundleIdForIdentifierAsync, getProfilesForBundleIdAsync } from './bundleId';
 import { getDistributionCertificateAsync } from './distributionCertificate';
+import { ora } from '../../../ora';
+import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
 
 interface ProfileResults {
   didUpdate?: boolean;

@@ -5,8 +5,8 @@ import { boolish } from 'getenv';
 import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
 import semver from 'semver';
 
-import Log, { link } from '../log';
 import { memoize } from './expodash/memoize';
+import Log, { link } from '../log';
 
 // Aggressively returns `true` (UNVERSIONED, invalid SDK version format) to push users towards the versioned CLI.
 function gteSdkVersion(fromSdkVersion: string, sdkVersion: string): boolean {

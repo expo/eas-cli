@@ -63,7 +63,11 @@ export default class FeatureGating {
   }
 
   public static overrideKeyForEachInTest(key: FeatureGateKey, enabled: boolean): void {
-    beforeEach(() => FeatureGateTestOverrides.setOverride(key, enabled));
-    afterEach(() => FeatureGateTestOverrides.removeOverride(key));
+    beforeEach(() => {
+      FeatureGateTestOverrides.setOverride(key, enabled);
+    });
+    afterEach(() => {
+      FeatureGateTestOverrides.removeOverride(key);
+    });
   }
 }

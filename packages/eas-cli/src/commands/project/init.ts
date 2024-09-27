@@ -1,4 +1,4 @@
-import { getProjectConfigDescription } from '@expo/config';
+import { ConfigError, getProjectConfigDescription } from '@expo/config';
 import { ExpoConfig } from '@expo/config-types';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
@@ -8,6 +8,7 @@ import { getProjectDashboardUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../../commandUtils/context/contextUtils/getProjectIdAsync';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { AppPrivacy, Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -16,7 +17,7 @@ import { ora } from '../../ora';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfig } from '../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { toAppPrivacy } from '../../project/projectUtils';
-import { confirmAsync, promptAsync } from '../../prompts';
+import { Choice, confirmAsync, promptAsync } from '../../prompts';
 import { Actor } from '../../user/User';
 
 type InitializeMethodOptions = {
@@ -33,14 +34,10 @@ export default class ProjectInit extends EasCommand {
       description: 'ID of the EAS project to link',
     }),
     force: Flags.boolean({
-      description: 'Whether to overwrite any existing project ID',
-      dependsOn: ['id'],
+      description:
+        'Whether to create a new project/link an existing project without additional prompts or overwrite any existing project ID when running with --id flag',
     }),
-    // this is the same as EASNonInteractiveFlag but with the dependsOn
-    'non-interactive': Flags.boolean({
-      description: 'Run the command in non-interactive mode.',
-      dependsOn: ['id'],
-    }),
+    ...EASNonInteractiveFlag,
   };
 
   static override contextDefinition = {
@@ -60,7 +57,19 @@ export default class ProjectInit extends EasCommand {
     projectDir: string,
     modifications: Partial<ExpoConfig>
   ): Promise<void> {
-    const result = await createOrModifyExpoConfigAsync(projectDir, modifications);
+    let result;
+    try {
+      result = await createOrModifyExpoConfigAsync(projectDir, modifications);
+    } catch (error) {
+      if (error instanceof ConfigError && error.code === 'MODULE_NOT_FOUND') {
+        Log.warn(
+          'Cannot determine which native SDK version your project uses because the module `expo` is not installed.'
+        );
+        return;
+      } else {
+        throw error;
+      }
+    }
     switch (result.type) {
       case 'success':
         break;
@@ -204,10 +213,11 @@ export default class ProjectInit extends EasCommand {
     });
   }
 
-  private static async initializeWithInteractiveSelectionAsync(
+  private static async initializeWithoutExplicitIDAsync(
     graphqlClient: ExpoGraphqlClient,
     actor: Actor,
-    projectDir: string
+    projectDir: string,
+    { force, nonInteractive }: InitializeMethodOptions
   ): Promise<string> {
     const exp = getPrivateExpoConfig(projectDir);
     const existingProjectId = exp.extra?.eas?.projectId;
@@ -233,22 +243,26 @@ export default class ProjectInit extends EasCommand {
     if (!accountName) {
       if (allAccounts.length === 1) {
         accountName = allAccounts[0].name;
+      } else if (nonInteractive) {
+        if (!force) {
+          throw new Error(
+            `There are multiple accounts that you have access to: ${allAccounts
+              .map(a => a.name)
+              .join(
+                ', '
+              )}. Explicitly set the owner property in your app config or run this command with the --force flag to proceed with a default account: ${
+              allAccounts[0].name
+            }.`
+          );
+        }
+        accountName = allAccounts[0].name;
+        Log.log(`Using default account ${accountName} for non-interactive and force mode`);
       } else {
-        // if regular user, put primary account first
-        const sortedAccounts =
-          actor.__typename === 'Robot'
-            ? allAccounts
-            : [...allAccounts].sort((a, _b) =>
-                actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
-              );
+        const choices = ProjectInit.getAccountChoices(
+          actor,
+          accountNamesWhereUserHasSufficientPermissionsToCreateApp
+        );
 
-        const choices = sortedAccounts.map(account => ({
-          title: account.name,
-          value: account,
-          description: !accountNamesWhereUserHasSufficientPermissionsToCreateApp.has(account.name)
-            ? '(Viewer Role)'
-            : undefined,
-        }));
         accountName = (
           await promptAsync({
             type: 'select',
@@ -272,13 +286,21 @@ export default class ProjectInit extends EasCommand {
       projectName
     );
     if (existingProjectIdOnServer) {
-      const affirmedLink = await confirmAsync({
-        message: `Existing project found: ${projectFullName} (ID: ${existingProjectIdOnServer}). Link this project?`,
-      });
-      if (!affirmedLink) {
-        throw new Error(
-          `Project ID configuration canceled. Re-run the command to select a different account/project.`
-        );
+      if (!force) {
+        if (nonInteractive) {
+          throw new Error(
+            `Existing project found: ${projectFullName} (ID: ${existingProjectIdOnServer}). Use --force flag to continue with this project.`
+          );
+        }
+
+        const affirmedLink = await confirmAsync({
+          message: `Existing project found: ${projectFullName} (ID: ${existingProjectIdOnServer}). Link this project?`,
+        });
+        if (!affirmedLink) {
+          throw new Error(
+            `Project ID configuration canceled. Re-run the command to select a different account/project.`
+          );
+        }
       }
 
       await ProjectInit.saveProjectIdAndLogSuccessAsync(projectDir, existingProjectIdOnServer);
@@ -291,11 +313,18 @@ export default class ProjectInit extends EasCommand {
       );
     }
 
-    const affirmedCreate = await confirmAsync({
-      message: `Would you like to create a project for ${projectFullName}?`,
-    });
-    if (!affirmedCreate) {
-      throw new Error(`Project ID configuration canceled for ${projectFullName}.`);
+    if (!force) {
+      if (nonInteractive) {
+        throw new Error(
+          `Project does not exist: ${projectFullName}. Use --force flag to create this project.`
+        );
+      }
+      const affirmedCreate = await confirmAsync({
+        message: `Would you like to create a project for ${projectFullName}?`,
+      });
+      if (!affirmedCreate) {
+        throw new Error(`Project ID configuration canceled for ${projectFullName}.`);
+      }
     }
 
     const projectDashboardUrl = getProjectDashboardUrl(accountName, projectName);
@@ -321,6 +350,71 @@ export default class ProjectInit extends EasCommand {
     return createdProjectId;
   }
 
+  private static getAccountChoices(
+    actor: Actor,
+    namesWithSufficientPermissions: Set<string>
+  ): Choice[] {
+    const allAccounts = actor.accounts;
+
+    const sortedAccounts =
+      actor.__typename === 'Robot'
+        ? allAccounts
+        : [...allAccounts].sort((a, _b) =>
+            actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
+          );
+
+    if (actor.__typename !== 'Robot') {
+      const personalAccount = allAccounts?.find(
+        account => account?.ownerUserActor?.id === actor.id
+      );
+
+      const personalAccountChoice = personalAccount
+        ? {
+            title: personalAccount.name,
+            value: personalAccount,
+            description: !namesWithSufficientPermissions.has(personalAccount.name)
+              ? '(Personal) (Viewer Role)'
+              : '(Personal)',
+          }
+        : undefined;
+
+      const userAccounts = allAccounts
+        ?.filter(account => account.ownerUserActor && account.name !== actor.username)
+        .map(account => ({
+          title: account.name,
+          value: account,
+          description: !namesWithSufficientPermissions.has(account.name)
+            ? '(Team) (Viewer Role)'
+            : '(Team)',
+        }));
+
+      const organizationAccounts = allAccounts
+        ?.filter(account => account.name !== actor.username && !account.ownerUserActor)
+        .map(account => ({
+          title: account.name,
+          value: account,
+          description: !namesWithSufficientPermissions.has(account.name)
+            ? '(Organization) (Viewer Role)'
+            : '(Organization)',
+        }));
+
+      let choices: Choice[] = [];
+      if (personalAccountChoice) {
+        choices = [personalAccountChoice];
+      }
+
+      return [...choices, ...userAccounts, ...organizationAccounts].sort((a, _b) =>
+        actor.__typename === 'User' ? (a.value.name === actor.username ? -1 : 1) : 0
+      );
+    }
+
+    return sortedAccounts.map(account => ({
+      title: account.name,
+      value: account,
+      description: !namesWithSufficientPermissions.has(account.name) ? '(Viewer Role)' : undefined,
+    }));
+  }
+
   async runAsync(): Promise<void> {
     const {
       flags: { id: idArgument, force, 'non-interactive': nonInteractive },
@@ -338,10 +432,14 @@ export default class ProjectInit extends EasCommand {
       });
       idForConsistency = idArgument;
     } else {
-      idForConsistency = await ProjectInit.initializeWithInteractiveSelectionAsync(
+      idForConsistency = await ProjectInit.initializeWithoutExplicitIDAsync(
         graphqlClient,
         actor,
-        projectDir
+        projectDir,
+        {
+          force,
+          nonInteractive,
+        }
       );
     }
 

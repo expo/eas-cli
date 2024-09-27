@@ -12,6 +12,7 @@ import {
   DynamicPublicProjectConfigContextField,
 } from '../../../commandUtils/context/DynamicProjectConfigContextField';
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
+import VcsClientContextField from '../../../commandUtils/context/VcsClientContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
 import FeatureGating from '../../../commandUtils/gating/FeatureGating';
@@ -20,7 +21,8 @@ import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { collectAssetsAsync, uploadAssetsAsync } from '../../../project/publish';
-import { getBranchNameFromChannelNameAsync } from '../../../update/getBranchNameFromChannelNameAsync';
+import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
+import { resolveVcsClient } from '../../../vcs';
 
 const projectRoot = '/test-project';
 const commandOptions = { root: projectRoot } as any;
@@ -45,7 +47,7 @@ jest.mock('@expo/config-plugins');
 jest.mock('../../../branch/queries');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
 jest.mock('../../../update/configure');
-jest.mock('../../../update/getBranchNameFromChannelNameAsync');
+jest.mock('../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync');
 jest.mock('../../../graphql/mutations/PublishMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
@@ -66,20 +68,6 @@ describe(UpdatePublish.name, () => {
   afterEach(() => {
     vol.reset();
     jest.mocked(PublishMutation.publishUpdateGroupAsync).mockClear();
-  });
-
-  // Deprecated and split to a new command: update:republish
-  it('errors with --republish', async () => {
-    await expect(new UpdatePublish(['--republish'], commandOptions).run()).rejects.toThrow(
-      '--group and --republish flags are deprecated'
-    );
-  });
-
-  // Deprecated and split to a new command: update:republish
-  it('errors with --group', async () => {
-    await expect(new UpdatePublish(['--group=abc123'], commandOptions).run()).rejects.toThrow(
-      '--group and --republish flags are deprecated'
-    );
   });
 
   it('errors with both --channel and --branch', async () => {
@@ -118,7 +106,9 @@ describe(UpdatePublish.name, () => {
     const { projectId } = mockTestProject();
     const { platforms, runtimeVersion } = mockTestExport();
 
-    jest.mocked(getBranchNameFromChannelNameAsync).mockResolvedValue('branchFromChannel');
+    jest
+      .mocked(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync)
+      .mockResolvedValue({ branchId: 'branch123', branchName: 'branchFromChannel' });
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
       branchId: 'branch123',
       createdBranch: false,
@@ -265,10 +255,14 @@ function mockTestProject({
     featureGating: new FeatureGating({}, new FeatureGateEnvOverrides()),
     graphqlClient,
   });
+  jest
+    .spyOn(VcsClientContextField.prototype, 'getValueAsync')
+    .mockResolvedValue(resolveVcsClient());
 
   jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
     id: '1234',
     slug: 'testing-123',
+    name: 'testing-123',
     fullName: '@jester/testing-123',
     ownerAccount: jester.accounts[0],
   });
@@ -324,7 +318,7 @@ function mockTestExport({
     uniqueUploadedAssetPaths: [],
   });
 
-  jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
+  jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
   return { inputDir: exportDir, platforms, runtimeVersion };
 }

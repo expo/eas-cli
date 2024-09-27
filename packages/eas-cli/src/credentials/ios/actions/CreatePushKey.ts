@@ -1,10 +1,10 @@
+import { provideOrGeneratePushKeyAsync } from './PushKeyUtils';
 import { AccountFragment, ApplePushKeyFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
-import { provideOrGeneratePushKeyAsync } from './PushKeyUtils';
 
 export class CreatePushKey {
-  constructor(private account: AccountFragment) {}
+  constructor(private readonly account: AccountFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<ApplePushKeyFragment> {
     if (ctx.nonInteractive) {

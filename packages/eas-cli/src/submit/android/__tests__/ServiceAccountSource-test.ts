@@ -11,10 +11,11 @@ import {
   jester as mockJester,
   testProjectId,
 } from '../../../credentials/__tests__/fixtures-constants';
-import { SetUpGoogleServiceAccountKey } from '../../../credentials/android/actions/SetUpGoogleServiceAccountKey';
+import { SetUpGoogleServiceAccountKeyForSubmissions } from '../../../credentials/android/actions/SetUpGoogleServiceAccountKeyForSubmissions';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
 import { promptAsync } from '../../../prompts';
+import { resolveVcsClient } from '../../../vcs';
 import { createSubmissionContextAsync } from '../../context';
 import {
   ServiceAccountSource,
@@ -26,7 +27,7 @@ import {
 jest.mock('fs');
 jest.mock('../../../prompts');
 jest.mock('../../../project/projectUtils');
-jest.mock('../../../credentials/android/actions/SetUpGoogleServiceAccountKey');
+jest.mock('../../../credentials/android/actions/SetUpGoogleServiceAccountKeyForSubmissions');
 jest.mock('../../../user/User', () => ({
   getUserAsync: jest.fn(() => mockJester),
 }));
@@ -44,6 +45,8 @@ const mockDetectableServiceAccountJson = JSON.stringify({
   client_email: 'beep-boop@iam.gserviceaccount.com',
 });
 
+const vcsClient = resolveVcsClient();
+
 beforeAll(() => {
   vol.fromJSON({
     '/google-service-account.json': mockDetectableServiceAccountJson,
@@ -52,7 +55,7 @@ beforeAll(() => {
     '/other_dir/invalid_file.txt': 'this is not even a JSON',
   });
   jest
-    .spyOn(SetUpGoogleServiceAccountKey.prototype, 'runAsync')
+    .spyOn(SetUpGoogleServiceAccountKeyForSubmissions.prototype, 'runAsync')
     .mockImplementation(async () => testAndroidAppCredentialsFragment);
 });
 afterAll(() => {
@@ -153,11 +156,13 @@ describe(getServiceAccountKeyResultAsync, () => {
         changesNotSentForReview: false,
       },
       nonInteractive: true,
+      isVerboseFastlaneEnabled: false,
       actor: mockJester,
       graphqlClient,
       analytics,
       exp: testProject.appJSON.expo,
       projectId,
+      vcsClient,
     });
     const source: ServiceAccountSource = {
       sourceType: ServiceAccountSourceType.path,
@@ -194,11 +199,13 @@ describe(getServiceAccountKeyResultAsync, () => {
         changesNotSentForReview: false,
       },
       nonInteractive: true,
+      isVerboseFastlaneEnabled: false,
       actor: mockJester,
       graphqlClient,
       analytics,
       exp: testProject.appJSON.expo,
       projectId,
+      vcsClient,
     });
     const source: ServiceAccountSource = {
       sourceType: ServiceAccountSourceType.prompt,
@@ -231,11 +238,13 @@ describe(getServiceAccountKeyResultAsync, () => {
         changesNotSentForReview: false,
       },
       nonInteractive: true,
+      isVerboseFastlaneEnabled: false,
       actor: mockJester,
       graphqlClient,
       analytics,
       exp: testProject.appJSON.expo,
       projectId,
+      vcsClient,
     });
     const serviceAccountResult = await getServiceAccountKeyResultAsync(ctx, {
       sourceType: ServiceAccountSourceType.credentialsService,

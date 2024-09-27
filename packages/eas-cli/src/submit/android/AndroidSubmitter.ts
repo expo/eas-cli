@@ -1,6 +1,11 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import {
+  ServiceAccountKeyResult,
+  ServiceAccountSource,
+  getServiceAccountKeyResultAsync,
+} from './ServiceAccountSource';
 import { SubmissionEvent } from '../../analytics/AnalyticsManager';
 import {
   AndroidSubmissionConfigInput,
@@ -10,7 +15,7 @@ import {
 } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
 import formatFields from '../../utils/formatFields';
-import { ArchiveSource, ResolvedArchiveSource, getArchiveAsync } from '../ArchiveSource';
+import { ArchiveSource, ResolvedArchiveSource } from '../ArchiveSource';
 import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
 import { SubmissionContext } from '../context';
 import {
@@ -18,11 +23,6 @@ import {
   formatArchiveSourceSummary,
   printSummary,
 } from '../utils/summary';
-import {
-  ServiceAccountKeyResult,
-  ServiceAccountSource,
-  getServiceAccountKeyResultAsync,
-} from './ServiceAccountSource';
 
 export interface AndroidSubmissionOptions
   extends Pick<
@@ -44,19 +44,14 @@ export default class AndroidSubmitter extends BaseSubmitter<
   ResolvedSourceOptions,
   AndroidSubmissionOptions
 > {
-  constructor(ctx: SubmissionContext<Platform.ANDROID>, options: AndroidSubmissionOptions) {
+  constructor(
+    ctx: SubmissionContext<Platform.ANDROID>,
+    options: AndroidSubmissionOptions,
+    archive: ResolvedArchiveSource
+  ) {
     const sourceOptionsResolver = {
       // eslint-disable-next-line async-protect/async-suffix
-      archive: async () =>
-        await getArchiveAsync(
-          {
-            graphqlClient: ctx.graphqlClient,
-            platform: Platform.ANDROID,
-            projectId: ctx.projectId,
-            nonInteractive: ctx.nonInteractive,
-          },
-          this.options.archiveSource
-        ),
+      archive: async () => archive,
       // eslint-disable-next-line async-protect/async-suffix
       serviceAccountKeyResult: async () => {
         return await getServiceAccountKeyResultAsync(this.ctx, this.options.serviceAccountSource);
@@ -117,6 +112,7 @@ export default class AndroidSubmitter extends BaseSubmitter<
       changesNotSentForReview,
       releaseStatus,
       rollout,
+      isVerboseFastlaneEnabled: this.ctx.isVerboseFastlaneEnabled,
       ...serviceAccountKeyResult.result,
     };
   }

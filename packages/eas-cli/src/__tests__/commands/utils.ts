@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config-types';
-import { EasJson } from '@expo/eas-json';
+import { AppVersionSource, EasJson } from '@expo/eas-json';
 import { Command, Config } from '@oclif/core';
 import { vol } from 'memfs';
 import path from 'path';
@@ -24,6 +24,7 @@ export function getMockAppFragment(): AppFragment {
   return {
     id: mockProjectId,
     slug: 'testapp',
+    name: 'testapp',
     fullName: '@testuser/testpp',
     ownerAccount: {
       id: 'test-account-id',
@@ -59,7 +60,7 @@ export interface LocalProjectContext {
 export function mockCommandContext<
   C extends {
     [name: string]: any;
-  } = object
+  } = object,
 >(
   commandClass: { contextDefinition: ContextInput<C> },
   overrides: {
@@ -147,3 +148,23 @@ export const getError = <TError = any>(call: () => unknown): TError | NoErrorThr
     return error as TError;
   }
 };
+
+export function withRemoteVersionSource(easJson: EasJson): EasJson {
+  return {
+    ...easJson,
+    cli: {
+      ...easJson.cli,
+      appVersionSource: AppVersionSource.REMOTE,
+    },
+  };
+}
+
+export function withLocalVersionSource(easJson: EasJson): EasJson {
+  return {
+    ...easJson,
+    cli: {
+      ...easJson.cli,
+      appVersionSource: AppVersionSource.LOCAL,
+    },
+  };
+}

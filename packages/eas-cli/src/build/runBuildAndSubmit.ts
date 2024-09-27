@@ -1,18 +1,29 @@
 import { ExpoConfig } from '@expo/config-types';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import {
   AppVersionSource,
-  BuildProfile,
   EasJson,
   EasJsonAccessor,
   EasJsonUtils,
   ResourceClass,
   SubmitProfile,
 } from '@expo/eas-json';
+import { LoggerLevel } from '@expo/logger';
 import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import { prepareAndroidBuildAsync } from './android/build';
+import { BuildRequestSender, MaybeBuildFragment, waitForBuildEndAsync } from './build';
+import { ensureProjectConfiguredAsync } from './configure';
+import { BuildContext } from './context';
+import { createBuildContextAsync } from './createContext';
+import { evaluateConfigWithEnvVarsAsync } from './evaluateConfigWithEnvVarsAsync';
+import { prepareIosBuildAsync } from './ios/build';
+import { LocalBuildMode, LocalBuildOptions } from './local';
+import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
+import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
+import { ensureRepoIsCleanAsync } from './utils/repository';
 import { Analytics } from '../analytics/AnalyticsManager';
 import { createAndLinkChannelAsync, doesChannelExistAsync } from '../channel/queries';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
@@ -46,8 +57,9 @@ import {
   validateAppVersionRuntimePolicySupportAsync,
 } from '../project/projectUtils';
 import {
+  ensureAppVersionSourceIsSetAsync,
   validateAppConfigForRemoteVersionSource,
-  validateBuildProfileVersionSettings,
+  validateBuildProfileVersionSettingsAsync,
 } from '../project/remoteVersionSource';
 import { confirmAsync } from '../prompts';
 import { runAsync } from '../run/run';
@@ -60,23 +72,12 @@ import {
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { ensureEASUpdateIsConfiguredAsync } from '../update/configure';
-import { validateBuildProfileConfigMatchesProjectConfigAsync } from '../update/utils';
 import { Actor } from '../user/User';
 import { downloadAndMaybeExtractAppAsync } from '../utils/download';
 import { truthy } from '../utils/expodash/filter';
 import { printJsonOnlyOutput } from '../utils/json';
 import { ProfileData, getProfilesAsync } from '../utils/profiles';
-import { getVcsClient } from '../vcs';
-import { prepareAndroidBuildAsync } from './android/build';
-import { BuildRequestSender, MaybeBuildFragment, waitForBuildEndAsync } from './build';
-import { ensureProjectConfiguredAsync } from './configure';
-import { BuildContext } from './context';
-import { createBuildContextAsync } from './createContext';
-import { prepareIosBuildAsync } from './ios/build';
-import { LocalBuildOptions } from './local';
-import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
-import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
-import { ensureRepoIsCleanAsync } from './utils/repository';
+import { Client } from '../vcs/vcs';
 
 let metroConfigValidated = false;
 let sdkVersionChecked = false;
@@ -93,22 +94,29 @@ export interface BuildFlags {
   localBuildOptions: LocalBuildOptions;
   resourceClass?: ResourceClass;
   message?: string;
+  buildLoggerLevel?: LoggerLevel;
+  freezeCredentials: boolean;
+  repack: boolean;
 }
 
 export async function runBuildAndSubmitAsync(
   graphqlClient: ExpoGraphqlClient,
   analytics: Analytics,
+  vcsClient: Client,
   projectDir: string,
   flags: BuildFlags,
   actor: Actor,
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn
-): Promise<void> {
-  await getVcsClient().ensureRepoExistsAsync();
-  await ensureRepoIsCleanAsync(flags.nonInteractive);
+): Promise<{
+  buildIds: string[];
+}> {
+  await vcsClient.ensureRepoExistsAsync();
+  await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
 
   await ensureProjectConfiguredAsync({
     projectDir,
     nonInteractive: flags.nonInteractive,
+    vcsClient,
   });
   const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   const easJsonCliConfig: EasJson['cli'] =
@@ -122,25 +130,54 @@ export async function runBuildAndSubmitAsync(
     profileName: flags.profile ?? undefined,
     projectDir,
   });
-  Log.log(
-    `Loaded "env" configuration for the "${buildProfiles[0].profileName}" profile: ${
-      buildProfiles[0].profile.env
-        ? Object.keys(buildProfiles[0].profile.env).join(', ')
-        : 'no environment variables specified'
-    }. ${learnMore('https://docs.expo.dev/build-reference/variables/')}`
-  );
+
+  for (const buildProfile of buildProfiles) {
+    if (buildProfile.profile.image && ['default', 'stable'].includes(buildProfile.profile.image)) {
+      Log.warn(
+        `The "image" field in the build profile "${buildProfile.profileName}" is set to "${buildProfile.profile.image}". This tag is deprecated and will be removed in the future. Use other images or tags listed here: https://docs.expo.dev/build-reference/infrastructure/`
+      );
+    } else if (
+      buildProfile.profile.image &&
+      [
+        'ubuntu-20.04-jdk-11-ndk-r19c',
+        'ubuntu-20.04-jdk-8-ndk-r19c',
+        'ubuntu-20.04-jdk-11-ndk-r21e',
+        'ubuntu-20.04-jdk-8-ndk-r21e',
+        'ubuntu-22.04-jdk-8-ndk-r21e',
+        'ubuntu-20.04-jdk-11-ndk-r23b',
+      ].includes(buildProfile.profile.image)
+    ) {
+      Log.warn(
+        `The "image" field in the build profile "${buildProfile.profileName}" is set to "${
+          buildProfile.profile.image
+        }". This image is deprecated and will be removed on September 1st, 2024. ${learnMore(
+          'https://expo.dev/changelog/2024/07-12-eas-build-upcoming-android-images-updates'
+        )}`
+      );
+    }
+  }
 
   await ensureExpoDevClientInstalledForDevClientBuildsAsync({
     projectDir,
     nonInteractive: flags.nonInteractive,
     buildProfiles,
+    vcsClient,
   });
 
   const customBuildConfigMetadataByPlatform: { [p in AppPlatform]?: CustomBuildConfigMetadata } =
     {};
   for (const buildProfile of buildProfiles) {
-    validateBuildProfileVersionSettings(buildProfile, easJsonCliConfig);
-    const maybeMetadata = await validateCustomBuildConfigAsync(projectDir, buildProfile.profile);
+    await validateBuildProfileVersionSettingsAsync(
+      buildProfile,
+      easJsonCliConfig,
+      projectDir,
+      flags
+    );
+    const maybeMetadata = await validateCustomBuildConfigAsync({
+      projectDir,
+      profile: buildProfile.profile,
+      vcsClient,
+    });
     if (maybeMetadata) {
       customBuildConfigMetadataByPlatform[toAppPlatform(buildProfile.platform)] = maybeMetadata;
     }
@@ -154,6 +191,15 @@ export async function runBuildAndSubmitAsync(
 
   for (const buildProfile of buildProfiles) {
     const platform = toAppPlatform(buildProfile.platform);
+
+    const { env } = await evaluateConfigWithEnvVarsAsync({
+      buildProfile: buildProfile.profile,
+      buildProfileName: buildProfile.profileName,
+      graphqlClient,
+      getProjectConfig: getDynamicPrivateProjectConfigAsync,
+      opts: { env: buildProfile.profile.env },
+    });
+
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
       flags,
@@ -163,8 +209,10 @@ export async function runBuildAndSubmitAsync(
       actor,
       graphqlClient,
       analytics,
+      vcsClient,
       getDynamicPrivateProjectConfigAsync,
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
+      env,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -172,13 +220,25 @@ export async function runBuildAndSubmitAsync(
     buildCtxByPlatform[platform] = buildCtx;
   }
 
-  if (flags.localBuildOptions.localBuildMode) {
-    return;
+  if (flags.localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
+    return {
+      buildIds: startedBuilds.map(({ build }) => build.id),
+    };
   }
 
-  Log.newLine();
-  printLogsUrls(startedBuilds.map(startedBuild => startedBuild.build));
-  Log.newLine();
+  if (flags.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
+    const startedBuild = await BuildQuery.byIdAsync(
+      graphqlClient,
+      nullthrows(process.env.EAS_BUILD_ID, 'EAS_BUILD_ID is not defined')
+    );
+    startedBuilds.push({ build: startedBuild, buildProfile: buildProfiles[0] });
+  }
+
+  if (!flags.localBuildOptions.localBuildMode) {
+    Log.newLine();
+    printLogsUrls(startedBuilds.map(startedBuild => startedBuild.build));
+    Log.newLine();
+  }
 
   const submissions: SubmissionFragment[] = [];
   if (flags.autoSubmit) {
@@ -200,9 +260,9 @@ export async function runBuildAndSubmitAsync(
         buildCtx: nullthrows(buildCtxByPlatform[startedBuild.build.platform]),
         moreBuilds: startedBuilds.length > 1,
         projectDir,
-        buildProfile: startedBuild.buildProfile.profile,
         submitProfile,
         nonInteractive: flags.nonInteractive,
+        selectedSubmitProfileName: flags.submitProfile,
       });
       startedBuild.build = await BuildQuery.withSubmissionsByIdAsync(
         graphqlClient,
@@ -211,24 +271,32 @@ export async function runBuildAndSubmitAsync(
       submissions.push(submission);
     }
 
-    Log.newLine();
-    printSubmissionDetailsUrls(submissions);
-    Log.newLine();
+    if (!flags.localBuildOptions.localBuildMode) {
+      Log.newLine();
+      printSubmissionDetailsUrls(submissions);
+      Log.newLine();
+    }
+  }
+
+  if (flags.localBuildOptions.localBuildMode) {
+    return {
+      buildIds: startedBuilds.map(({ build }) => build.id),
+    };
   }
 
   if (!flags.wait) {
     if (flags.json) {
       printJsonOnlyOutput(startedBuilds.map(buildInfo => buildInfo.build));
     }
-    return;
+    return {
+      buildIds: startedBuilds.map(({ build }) => build.id),
+    };
   }
 
   const { accountName } = Object.values(buildCtxByPlatform)[0];
   const builds = await waitForBuildEndAsync(graphqlClient, {
     buildIds: startedBuilds.map(({ build }) => build.id),
     accountName,
-    projectDir,
-    nonInteractive: flags.nonInteractive,
   });
   if (!flags.json) {
     printBuildResults(builds);
@@ -263,6 +331,9 @@ export async function runBuildAndSubmitAsync(
     }
     exitWithNonZeroCodeIfSomeSubmissionsDidntFinish(completedSubmissions);
   }
+  return {
+    buildIds: startedBuilds.map(({ build }) => build.id),
+  };
 }
 
 async function prepareAndStartBuildAsync({
@@ -274,8 +345,10 @@ async function prepareAndStartBuildAsync({
   actor,
   graphqlClient,
   analytics,
+  vcsClient,
   getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
+  env,
 }: {
   projectDir: string;
   flags: BuildFlags;
@@ -285,8 +358,10 @@ async function prepareAndStartBuildAsync({
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
+  vcsClient: Client;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
+  env: Env;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
     buildProfileName: buildProfile.profileName,
@@ -303,8 +378,13 @@ async function prepareAndStartBuildAsync({
     actor,
     graphqlClient,
     analytics,
+    vcsClient,
     getDynamicPrivateProjectConfigAsync,
     customBuildConfigMetadata,
+    buildLoggerLevel: flags.buildLoggerLevel,
+    freezeCredentials: flags.freezeCredentials,
+    repack: flags.repack,
+    env,
   });
 
   if (moreBuilds) {
@@ -317,21 +397,16 @@ async function prepareAndStartBuildAsync({
     );
   }
 
-  await validateBuildProfileConfigMatchesProjectConfigAsync(
-    buildCtx.exp,
-    buildProfile,
-    buildCtx.projectId,
-    flags.nonInteractive
-  );
   if (buildProfile.profile.channel) {
     await validateExpoUpdatesInstalledAsProjectDependencyAsync({
-      graphqlClient,
       exp: buildCtx.exp,
       projectId: buildCtx.projectId,
       projectDir,
+      vcsClient: buildCtx.vcsClient,
       sdkVersion: buildCtx.exp.sdkVersion,
       nonInteractive: flags.nonInteractive,
       buildProfile,
+      env: buildProfile.profile.env,
     });
     if (isUsingEASUpdate(buildCtx.exp, buildCtx.projectId)) {
       const doesChannelExist = await doesChannelExistAsync(graphqlClient, {
@@ -348,6 +423,25 @@ async function prepareAndStartBuildAsync({
   }
 
   await validateAppVersionRuntimePolicySupportAsync(buildCtx.projectDir, buildCtx.exp);
+  if (
+    easJsonCliConfig?.appVersionSource === undefined &&
+    buildProfile.profile.autoIncrement !== 'version'
+  ) {
+    if (buildProfile.profile.autoIncrement !== true) {
+      Log.warn(
+        `The field "cli.appVersionSource" is not set, but it will be required in the future. ${learnMore(
+          'https://docs.expo.dev/build-reference/app-versions/'
+        )}`
+      );
+    } else {
+      const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+      easJsonCliConfig = await ensureAppVersionSourceIsSetAsync(
+        easJsonAccessor,
+        easJsonCliConfig,
+        flags.nonInteractive
+      );
+    }
+  }
   if (easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE) {
     validateAppConfigForRemoteVersionSource(buildCtx.exp, buildProfile.platform);
   }
@@ -384,16 +478,16 @@ async function prepareAndStartSubmissionAsync({
   buildCtx,
   moreBuilds,
   projectDir,
-  buildProfile,
   submitProfile,
+  selectedSubmitProfileName,
   nonInteractive,
 }: {
   build: BuildFragment;
   buildCtx: BuildContext<Platform>;
   moreBuilds: boolean;
   projectDir: string;
-  buildProfile: BuildProfile;
   submitProfile: SubmitProfile;
+  selectedSubmitProfileName?: string;
   nonInteractive: boolean;
 }): Promise<SubmissionFragment> {
   const platform = toPlatform(build.platform);
@@ -403,7 +497,7 @@ async function prepareAndStartSubmissionAsync({
     profile: submitProfile,
     archiveFlags: { id: build.id },
     nonInteractive,
-    env: buildProfile.env,
+    env: buildCtx.env,
     credentialsCtx: buildCtx.credentialsCtx,
     applicationIdentifier: buildCtx.android?.applicationId ?? buildCtx.ios?.bundleIdentifier,
     actor: buildCtx.user,
@@ -411,6 +505,9 @@ async function prepareAndStartSubmissionAsync({
     analytics: buildCtx.analytics,
     projectId: buildCtx.projectId,
     exp: buildCtx.exp,
+    vcsClient: buildCtx.vcsClient,
+    isVerboseFastlaneEnabled: false,
+    specifiedProfile: selectedSubmitProfileName,
   });
 
   if (moreBuilds) {
@@ -468,20 +565,22 @@ async function maybeDownloadAndRunSimulatorBuildsAsync(
 
 async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
   exp,
-  graphqlClient,
   projectId,
   projectDir,
+  vcsClient,
   buildProfile,
   nonInteractive,
   sdkVersion,
+  env,
 }: {
-  graphqlClient: ExpoGraphqlClient;
   exp: ExpoConfig;
   projectId: string;
   projectDir: string;
+  vcsClient: Client;
   buildProfile: ProfileData<'build'>;
   nonInteractive: boolean;
   sdkVersion?: string;
+  env: Env | undefined;
 }): Promise<void> {
   if (isExpoUpdatesInstalledOrAvailable(projectDir, sdkVersion)) {
     return;
@@ -503,11 +602,13 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
       message: `Would you like to install the "expo-updates" package and configure EAS Update now?`,
     });
     if (installExpoUpdates) {
-      await ensureEASUpdateIsConfiguredAsync(graphqlClient, {
+      await ensureEASUpdateIsConfiguredAsync({
         exp,
         projectId,
         projectDir,
         platform: RequestedPlatform.All,
+        vcsClient,
+        env,
       });
       Log.withTick('Installed expo-updates and configured EAS Update.');
       throw new Error('Command must be re-run to pick up new updates configuration.');

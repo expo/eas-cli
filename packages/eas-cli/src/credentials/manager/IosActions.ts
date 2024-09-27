@@ -1,5 +1,5 @@
-import { CredentialsContext } from '../context';
 import { ActionInfo, IosActionType, Scope } from './Actions';
+import { CredentialsContext } from '../context';
 
 export const highLevelActions: ActionInfo[] = [
   {
@@ -25,6 +25,11 @@ export const highLevelActions: ActionInfo[] = [
   {
     value: IosActionType.GoBackToCaller,
     title: 'Go back',
+    scope: Scope.Manager,
+  },
+  {
+    value: IosActionType.Exit,
+    title: 'Exit',
     scope: Scope.Manager,
   },
 ];

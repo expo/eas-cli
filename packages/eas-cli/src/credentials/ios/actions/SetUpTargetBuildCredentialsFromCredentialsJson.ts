@@ -2,6 +2,12 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import {
+  assignBuildCredentialsAsync,
+  getBuildCredentialsAsync,
+  getDistributionCertificateAsync,
+  getProvisioningProfileAsync,
+} from './BuildCredentialsUtils';
+import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
   AppleTeamFragment,
@@ -15,18 +21,12 @@ import { IosTargetCredentials } from '../../credentialsJson/types';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { displayProjectCredentials } from '../utils/printCredentials';
 import { readAppleTeam } from '../utils/provisioningProfile';
-import {
-  assignBuildCredentialsAsync,
-  getBuildCredentialsAsync,
-  getDistributionCertificateAsync,
-  getProvisioningProfileAsync,
-} from './BuildCredentialsUtils';
 
 export class SetUpTargetBuildCredentialsFromCredentialsJson {
   constructor(
-    private app: AppLookupParams,
-    private distributionType: IosDistributionType,
-    private targetCredentials: IosTargetCredentials
+    private readonly app: AppLookupParams,
+    private readonly distributionType: IosDistributionType,
+    private readonly targetCredentials: IosTargetCredentials
   ) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {

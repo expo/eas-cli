@@ -9,10 +9,15 @@ import {
   GetSignedUploadMutationVariables,
   PublishUpdateGroupInput,
   SetCodeSigningInfoMutation,
+  SetCodeSigningInfoMutationVariables,
+  SetRolloutPercentageMutation,
+  SetRolloutPercentageMutationVariables,
   UpdateFragment,
   UpdatePublishMutation,
 } from '../generated';
 import { UpdateFragmentNode } from '../types/Update';
+
+const turtleJobRunId = process.env.EAS_BUILD_ID;
 
 export const PublishMutation = {
   async getUploadURLsAsync(
@@ -57,7 +62,12 @@ export const PublishMutation = {
             }
             ${print(UpdateFragmentNode)}
           `,
-          { publishUpdateGroupsInput }
+          {
+            publishUpdateGroupsInput: publishUpdateGroupsInput.map(input => ({
+              ...input,
+              turtleJobRunId,
+            })),
+          }
         )
         .toPromise()
     );
@@ -71,7 +81,7 @@ export const PublishMutation = {
   ): Promise<SetCodeSigningInfoMutation['update']['setCodeSigningInfo']> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<SetCodeSigningInfoMutation>(
+        .mutation<SetCodeSigningInfoMutation, SetCodeSigningInfoMutationVariables>(
           gql`
             mutation SetCodeSigningInfoMutation(
               $updateId: ID!
@@ -96,5 +106,32 @@ export const PublishMutation = {
         .toPromise()
     );
     return data.update.setCodeSigningInfo;
+  },
+
+  async setRolloutPercentageAsync(
+    graphqlClient: ExpoGraphqlClient,
+    updateId: string,
+    rolloutPercentage: number
+  ): Promise<UpdateFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<SetRolloutPercentageMutation, SetRolloutPercentageMutationVariables>(
+          gql`
+            mutation SetRolloutPercentageMutation($updateId: ID!, $rolloutPercentage: Int!) {
+              update {
+                setRolloutPercentage(updateId: $updateId, percentage: $rolloutPercentage) {
+                  id
+                  ...UpdateFragment
+                }
+              }
+            }
+            ${print(UpdateFragmentNode)}
+          `,
+          { updateId, rolloutPercentage },
+          { additionalTypenames: ['Update'] }
+        )
+        .toPromise()
+    );
+    return data.update.setRolloutPercentage;
   },
 };

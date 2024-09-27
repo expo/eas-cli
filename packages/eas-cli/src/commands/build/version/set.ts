@@ -1,9 +1,10 @@
-import { getRuntimeVersionNullable } from '@expo/config-plugins/build/utils/Updates';
+import { getRuntimeVersionNullableAsync } from '@expo/config-plugins/build/utils/Updates';
 import { Platform } from '@expo/eas-build-job';
 import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
+import { evaluateConfigWithEnvVarsAsync } from '../../../build/evaluateConfigWithEnvVarsAsync';
 import EasCommand from '../../../commandUtils/EasCommand';
 import { AppVersionMutation } from '../../../graphql/mutations/AppVersionMutation';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
@@ -41,6 +42,7 @@ export default class BuildVersionSetView extends EasCommand {
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.Vcs,
   };
 
   public async runAsync(): Promise<void> {
@@ -49,6 +51,7 @@ export default class BuildVersionSetView extends EasCommand {
       loggedIn: { graphqlClient },
       getDynamicPrivateProjectConfigAsync,
       projectDir,
+      vcsClient,
     } = await this.getContextAsync(BuildVersionSetView, {
       nonInteractive: false,
     });
@@ -62,7 +65,13 @@ export default class BuildVersionSetView extends EasCommand {
       flags.profile ?? undefined
     );
 
-    const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: profile.env });
+    const { exp, projectId, env } = await evaluateConfigWithEnvVarsAsync({
+      buildProfile: profile,
+      buildProfileName: flags.profile ?? 'production',
+      graphqlClient,
+      getProjectConfig: getDynamicPrivateProjectConfigAsync,
+      opts: { env: profile.env },
+    });
     const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
     validateAppConfigForRemoteVersionSource(exp, platform);
@@ -74,6 +83,9 @@ export default class BuildVersionSetView extends EasCommand {
       exp,
       buildProfile: profile,
       platform,
+      vcsClient,
+      nonInteractive: false,
+      env,
     });
     const remoteVersions = await AppVersionQuery.latestVersionAsync(
       graphqlClient,
@@ -113,7 +125,8 @@ export default class BuildVersionSetView extends EasCommand {
       applicationIdentifier,
       storeVersion: exp.version ?? '1.0.0',
       buildVersion: String(version),
-      runtimeVersion: getRuntimeVersionNullable(exp, platform) ?? undefined,
+      runtimeVersion:
+        (await getRuntimeVersionNullableAsync(projectDir, exp, platform)) ?? undefined,
     });
   }
 }

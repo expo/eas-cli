@@ -159,7 +159,7 @@ export default class DeviceRename extends EasCommand {
       Log.log(
         formatDevice(device, {
           appleTeamName,
-          appleTeamIdentifier: appleTeamIdentifier!,
+          appleTeamIdentifier,
         })
       );
       Log.newLine();

@@ -6,9 +6,9 @@ import { App, Target } from '../types';
 
 export class UpdateCredentialsJson {
   constructor(
-    private app: App,
-    private targets: Target[],
-    private distributionType: IosDistributionType
+    private readonly app: App,
+    private readonly targets: Target[],
+    private readonly distributionType: IosDistributionType
   ) {}
 
   async runAsync(ctx: CredentialsContext): Promise<void> {

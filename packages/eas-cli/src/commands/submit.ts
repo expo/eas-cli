@@ -33,6 +33,7 @@ interface RawCommandFlags {
   verbose: boolean;
   wait: boolean;
   'non-interactive': boolean;
+  'verbose-fastlane': boolean;
 }
 
 interface CommandFlags {
@@ -42,6 +43,7 @@ interface CommandFlags {
   verbose: boolean;
   wait: boolean;
   nonInteractive: boolean;
+  isVerboseFastlaneEnabled: boolean;
 }
 
 export default class Submit extends EasCommand {
@@ -83,6 +85,10 @@ export default class Submit extends EasCommand {
       default: true,
       allowNo: true,
     }),
+    'verbose-fastlane': Flags.boolean({
+      default: false,
+      description: 'Enable verbose logging for the submission process',
+    }),
     'non-interactive': Flags.boolean({
       default: false,
       description: 'Run command in non-interactive mode',
@@ -94,6 +100,7 @@ export default class Submit extends EasCommand {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Analytics,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -102,6 +109,7 @@ export default class Submit extends EasCommand {
       loggedIn: { actor, graphqlClient },
       privateProjectConfig: { exp, projectId, projectDir },
       analytics,
+      vcsClient,
     } = await this.getContextAsync(Submit, {
       nonInteractive: false,
     });
@@ -130,11 +138,14 @@ export default class Submit extends EasCommand {
         profile: submissionProfile.profile,
         archiveFlags: flagsWithPlatform.archiveFlags,
         nonInteractive: flagsWithPlatform.nonInteractive,
+        isVerboseFastlaneEnabled: flagsWithPlatform.isVerboseFastlaneEnabled,
         actor,
         graphqlClient,
         analytics,
         exp,
         projectId,
+        vcsClient,
+        specifiedProfile: flagsWithPlatform.profile,
       });
 
       if (submissionProfiles.length > 1) {
@@ -171,6 +182,7 @@ export default class Submit extends EasCommand {
       wait,
       profile,
       'non-interactive': nonInteractive,
+      'verbose-fastlane': isVerboseFastlaneEnabled,
       ...archiveFlags
     } = flags;
 
@@ -191,6 +203,7 @@ export default class Submit extends EasCommand {
       wait,
       profile,
       nonInteractive,
+      isVerboseFastlaneEnabled,
     };
   }
 

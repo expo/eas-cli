@@ -7,13 +7,13 @@ import { extract } from 'tar';
 import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 
+import { formatBytes } from './files';
+import { getTmpDirectory } from './paths';
+import { ProgressHandler, createProgressTracker } from './progress';
 import fetch, { RequestInit, Response } from '../fetch';
 import { AppPlatform } from '../graphql/generated';
 import Log from '../log';
 import { promptAsync } from '../prompts';
-import { formatBytes } from './files';
-import { getTmpDirectory } from './paths';
-import { ProgressHandler, createProgressTracker } from './progress';
 
 const pipeline = promisify(Stream.pipeline);
 
@@ -128,7 +128,7 @@ export async function downloadAndMaybeExtractAppAsync(
       (ratio, total) => `Downloading app (${formatBytes(total * ratio)} / ${formatBytes(total)})`,
       'Successfully downloaded app'
     );
-    return maybeCacheAppAsync(apkFilePath, cachedAppPath);
+    return await maybeCacheAppAsync(apkFilePath, cachedAppPath);
   } else {
     const tmpArchivePathDir = path.join(getTmpDirectory(), uuidv4());
     await fs.mkdir(tmpArchivePathDir, { recursive: true });
@@ -146,7 +146,7 @@ export async function downloadAndMaybeExtractAppAsync(
 
     const appPath = await getAppPathAsync(outputDir, platform === AppPlatform.Ios ? 'app' : 'apk');
 
-    return maybeCacheAppAsync(appPath, cachedAppPath);
+    return await maybeCacheAppAsync(appPath, cachedAppPath);
   }
 }
 

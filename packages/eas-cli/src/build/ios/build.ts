@@ -1,6 +1,11 @@
-import { Ios, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import { Ios, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { AppVersionSource } from '@expo/eas-json';
 
+import { ensureIosCredentialsAsync } from './credentials';
+import { transformJob } from './graphql';
+import { prepareJobAsync } from './prepareJob';
+import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
+import { resolveRemoteBuildNumberAsync } from './version';
 import { IosCredentials } from '../../credentials/ios/types';
 import { BuildParamsInput } from '../../graphql/generated';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
@@ -15,16 +20,11 @@ import {
   checkNodeEnvVariable,
   validatePNGsForManagedProjectAsync,
 } from '../validate';
-import { ensureIosCredentialsAsync } from './credentials';
-import { transformJob } from './graphql';
-import { prepareJobAsync } from './prepareJob';
-import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
-import { resolveRemoteBuildNumberAsync } from './version';
 
 export async function createIosContextAsync(
   ctx: CommonContext<Platform.IOS>
 ): Promise<IosBuildContext> {
-  const { buildProfile } = ctx;
+  const { buildProfile, env } = ctx;
 
   if (ctx.workflow === Workflow.MANAGED) {
     await ensureBundleIdentifierIsDefinedForManagedProjectAsync(ctx);
@@ -39,6 +39,7 @@ export async function createIosContextAsync(
       projectDir: ctx.projectDir,
       nonInteractive: ctx.nonInteractive,
       exp: ctx.exp,
+      vcsClient: ctx.vcsClient,
     },
     buildProfile
   );
@@ -46,7 +47,8 @@ export async function createIosContextAsync(
     projectDir: ctx.projectDir,
     exp: ctx.exp,
     xcodeBuildContext,
-    env: buildProfile.env,
+    env,
+    vcsClient: ctx.vcsClient,
   });
   const applicationTarget = findApplicationTarget(targets);
   const buildNumberOverride =
@@ -57,6 +59,7 @@ export async function createIosContextAsync(
           exp: ctx.exp,
           applicationTarget,
           buildProfile,
+          vcsClient: ctx.vcsClient,
         })
       : undefined;
   return {
@@ -74,10 +77,10 @@ export async function prepareIosBuildAsync(
   return await prepareBuildRequestForPlatformAsync({
     ctx,
     ensureCredentialsAsync: async (ctx: BuildContext<Platform.IOS>) => {
-      return ensureIosCredentialsAsync(ctx, ctx.ios.targets);
+      return await ensureIosCredentialsAsync(ctx, ctx.ios.targets);
     },
     syncProjectConfigurationAsync: async () => {
-      await syncProjectConfigurationAsync(ctx.graphqlClient, {
+      await syncProjectConfigurationAsync({
         projectDir: ctx.projectDir,
         exp: ctx.exp,
         targets: ctx.ios.targets,
@@ -85,13 +88,14 @@ export async function prepareIosBuildAsync(
           ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
             ? false
             : ctx.buildProfile.autoIncrement,
-        projectId: ctx.projectId,
+        vcsClient: ctx.vcsClient,
+        env: ctx.env,
       });
     },
     prepareJobAsync: async (
       ctx: BuildContext<Platform.IOS>,
       jobData: JobData<IosCredentials>
-    ): Promise<Job> => {
+    ): Promise<Ios.Job> => {
       return await prepareJobAsync(ctx, {
         ...jobData,
         buildScheme: ctx.ios.xcodeBuildContext.buildScheme,

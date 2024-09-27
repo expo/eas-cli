@@ -1,18 +1,16 @@
 import { Flags } from '@oclif/core';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { promptAsync } from '../../prompts';
 import UpdateRepublish from './republish';
 import UpdateRollBackToEmbedded from './roll-back-to-embedded';
+import EasCommand from '../../commandUtils/EasCommand';
+import { promptAsync } from '../../prompts';
 
 export default class UpdateRollback extends EasCommand {
   static override description = 'roll back to an embedded update or an existing update';
 
-  static override hidden = true;
-
   static override flags = {
     'private-key-path': Flags.string({
-      description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
+      description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
     }),
   };

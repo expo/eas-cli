@@ -2,11 +2,11 @@ import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import semver from 'semver';
 
-import Log from '../../log';
-import { promptAsync } from '../../prompts';
 import { getSimulatorAppIdAsync } from './simulator';
 import * as xcode from './xcode';
 import { installXcrunAsync, isXcrunInstalledAsync } from './xcrun';
+import Log from '../../log';
+import { promptAsync } from '../../prompts';
 
 function assertPlatform(): void {
   if (process.platform !== 'darwin') {
@@ -46,7 +46,7 @@ async function assertCorrectXcodeVersionInstalledAsync(): Promise<void> {
 }
 
 async function ensureXcrunInstalledAsync(): Promise<void> {
-  if (!isXcrunInstalledAsync()) {
+  if (!(await isXcrunInstalledAsync())) {
     const { installXcrun } = await promptAsync({
       type: 'select',
       message: 'Xcode Command Line Tools need to be installed, continue?',

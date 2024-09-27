@@ -44,6 +44,7 @@ describe(AccountResolver, () => {
       ],
       isExpoAdmin: false,
       featureGates: {},
+      preferences: {},
     };
 
     describe('when inside project dir', () => {
@@ -51,6 +52,7 @@ describe(AccountResolver, () => {
         jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
           id: 'test-project-id',
           fullName: '@foo/wat',
+          name: 'wat',
           slug: 'wat',
           ownerAccount: {
             id: 'account_id_888',

@@ -3,6 +3,8 @@ import { ExpoConfig } from '@expo/config-types';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
+import { ExpoGraphqlClient, createGraphqlClient } from './createGraphqlClient';
+import { findProjectRootAsync } from './findProjectDirAndVerifyProjectSetupAsync';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
@@ -11,20 +13,20 @@ import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../
 import { toAppPrivacy } from '../../../project/projectUtils';
 import SessionManager from '../../../user/SessionManager';
 import { Actor, getActorUsername } from '../../../user/User';
-import { createGraphqlClient } from './createGraphqlClient';
-import { findProjectRootAsync } from './findProjectDirAndVerifyProjectSetupAsync';
 
 /**
  * Save an EAS project ID to the appropriate field in the app config.
  *
  * @deprecated Should not be used outside of context functions except in the init command.
+ * @deprecated Starting from `@expo/config` from SDK 52, the `modifyConfigAsync` function is merging existing data. Once this is released, we can use that instead of manually merging.
  */
 export async function saveProjectIdToAppConfigAsync(
   projectDir: string,
   projectId: string,
   options: { env?: Env } = {}
 ): Promise<void> {
-  const exp = getPrivateExpoConfig(projectDir, options);
+  // NOTE(cedric): we disable plugins to avoid writing plugin-generated content to `expo.extra`
+  const exp = getPrivateExpoConfig(projectDir, { skipPlugins: true, ...options });
   const result = await createOrModifyExpoConfigAsync(
     projectDir,
     {
@@ -87,6 +89,23 @@ export async function getProjectIdAsync(
   });
   const graphqlClient = createGraphqlClient(authenticationInfo);
 
+  const projectId = await validateOrSetProjectIdAsync({ exp, graphqlClient, actor, options });
+  return projectId;
+}
+
+export async function validateOrSetProjectIdAsync({
+  exp,
+  graphqlClient,
+  actor,
+  options,
+  cwd,
+}: {
+  exp: ExpoConfig;
+  graphqlClient: ExpoGraphqlClient;
+  actor: Actor;
+  options: { env?: Env; nonInteractive: boolean };
+  cwd?: string;
+}): Promise<string> {
   const localProjectId = exp.extra?.eas?.projectId;
   if (localProjectId) {
     if (typeof localProjectId !== 'string') {
@@ -146,7 +165,9 @@ export async function getProjectIdAsync(
     return localProjectId;
   }
 
-  const projectDir = await findProjectRootAsync();
+  const projectDir = await findProjectRootAsync({
+    cwd,
+  });
   if (!projectDir) {
     throw new Error('This command must be run inside a project directory.');
   }

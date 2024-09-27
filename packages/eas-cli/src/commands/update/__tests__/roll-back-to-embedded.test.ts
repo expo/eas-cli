@@ -11,6 +11,7 @@ import {
   DynamicPublicProjectConfigContextField,
 } from '../../../commandUtils/context/DynamicProjectConfigContextField';
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
+import VcsClientContextField from '../../../commandUtils/context/VcsClientContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
 import FeatureGating from '../../../commandUtils/gating/FeatureGating';
@@ -18,7 +19,8 @@ import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
-import { getBranchNameFromChannelNameAsync } from '../../../update/getBranchNameFromChannelNameAsync';
+import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
+import { resolveVcsClient } from '../../../vcs';
 import UpdateRollBackToEmbedded from '../roll-back-to-embedded';
 
 const projectRoot = '/test-project';
@@ -43,8 +45,12 @@ jest.mock('@expo/config');
 jest.mock('@expo/config-plugins');
 jest.mock('../../../branch/queries');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
+jest.mock('../../../project/projectUtils', () => ({
+  ...jest.requireActual('../../../project/projectUtils'),
+  enforceRollBackToEmbeddedUpdateSupportAsync: jest.fn(),
+}));
 jest.mock('../../../update/configure');
-jest.mock('../../../update/getBranchNameFromChannelNameAsync');
+jest.mock('../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync');
 jest.mock('../../../graphql/mutations/PublishMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
@@ -62,7 +68,9 @@ jest.mock('../../../project/publish', () => ({
 }));
 
 describe(UpdateRollBackToEmbedded.name, () => {
-  afterEach(() => vol.reset());
+  afterEach(() => {
+    vol.reset();
+  });
 
   it('errors with both --channel and --branch', async () => {
     const flags = ['--channel=channel123', '--branch=branch123'];
@@ -80,7 +88,7 @@ describe(UpdateRollBackToEmbedded.name, () => {
     mockTestProject();
     const platforms = ['android', 'ios'];
     const runtimeVersion = 'exposdk:47.0.0';
-    jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
+    jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
       branchId: 'branch123',
@@ -102,9 +110,11 @@ describe(UpdateRollBackToEmbedded.name, () => {
     const { projectId } = mockTestProject();
     const platforms = ['android', 'ios'];
     const runtimeVersion = 'exposdk:47.0.0';
-    jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
+    jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
-    jest.mocked(getBranchNameFromChannelNameAsync).mockResolvedValue('branchFromChannel');
+    jest
+      .mocked(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync)
+      .mockResolvedValue({ branchId: updateStub.branch.id, branchName: 'branchFromChannel' });
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
       branchId: 'branch123',
       createdBranch: false,
@@ -150,7 +160,7 @@ describe(UpdateRollBackToEmbedded.name, () => {
 
     const platforms = ['ios'];
     const runtimeVersion = 'exposdk:47.0.0';
-    jest.mocked(Updates.getRuntimeVersion).mockReturnValue(runtimeVersion);
+    jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
     // Mock an existing branch, so we don't create a new one
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
@@ -246,10 +256,14 @@ function mockTestProject({
     featureGating: new FeatureGating({}, new FeatureGateEnvOverrides()),
     graphqlClient,
   });
+  jest
+    .spyOn(VcsClientContextField.prototype, 'getValueAsync')
+    .mockResolvedValue(resolveVcsClient());
 
   jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
     id: '1234',
     slug: 'testing-123',
+    name: 'testing-123',
     fullName: '@jester/testing-123',
     ownerAccount: jester.accounts[0],
   });

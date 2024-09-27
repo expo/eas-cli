@@ -1,31 +1,44 @@
 import { ExpoConfig } from '@expo/config';
 import { AndroidConfig, AndroidManifest, XML } from '@expo/config-plugins';
+import { Env, Workflow } from '@expo/eas-build-job';
 
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { RequestedPlatform } from '../../platform';
-import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
+import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from '../../project/projectUtils';
+import { expoUpdatesCommandAsync } from '../../utils/expoUpdatesCli';
 import { ensureValidVersions } from '../utils';
 
 /**
  * Synchronize updates configuration to native files. This needs to do essentially the same thing as `withUpdates`
  */
-export async function syncUpdatesConfigurationAsync(
-  graphqlClient: ExpoGraphqlClient,
-  projectDir: string,
-  exp: ExpoConfig,
-  projectId: string
-): Promise<void> {
+export async function syncUpdatesConfigurationAsync({
+  projectDir,
+  exp,
+  workflow,
+  env,
+}: {
+  projectDir: string;
+  exp: ExpoConfig;
+  workflow: Workflow;
+  env: Env | undefined;
+}): Promise<void> {
   ensureValidVersions(exp, RequestedPlatform.Android);
-  const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
+
+  if (await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir)) {
+    await expoUpdatesCommandAsync(
+      projectDir,
+      ['configuration:syncnative', '--platform', 'android', '--workflow', workflow],
+      { env }
+    );
+    return;
+  }
 
   // sync AndroidManifest.xml
   const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
   const androidManifest = await getAndroidManifestAsync(projectDir);
-  const updatedAndroidManifest = AndroidConfig.Updates.setUpdatesConfig(
+  const updatedAndroidManifest = await AndroidConfig.Updates.setUpdatesConfigAsync(
     projectDir,
     exp,
-    androidManifest,
-    accountName
+    androidManifest
   );
   await AndroidConfig.Manifest.writeAndroidManifestAsync(
     androidManifestPath,
@@ -37,23 +50,15 @@ export async function syncUpdatesConfigurationAsync(
   const stringsResourceXML = await AndroidConfig.Resources.readResourcesXMLAsync({
     path: stringsJSONPath,
   });
-  const updatedStringsResourceXML = AndroidConfig.Updates.applyRuntimeVersionFromConfig(
-    exp,
-    stringsResourceXML
-  );
-  await XML.writeXMLAsync({ path: stringsJSONPath, xml: updatedStringsResourceXML });
-}
 
-export async function readReleaseChannelSafelyAsync(projectDir: string): Promise<string | null> {
-  try {
-    const androidManifest = await getAndroidManifestAsync(projectDir);
-    return AndroidConfig.Manifest.getMainApplicationMetaDataValue(
-      androidManifest,
-      AndroidConfig.Updates.Config.RELEASE_CHANNEL
+  // TODO(wschurman): this dependency needs to be updated for fingerprint
+  const updatedStringsResourceXML =
+    await AndroidConfig.Updates.applyRuntimeVersionFromConfigForProjectRootAsync(
+      projectDir,
+      exp,
+      stringsResourceXML
     );
-  } catch {
-    return null;
-  }
+  await XML.writeXMLAsync({ path: stringsJSONPath, xml: updatedStringsResourceXML });
 }
 
 export async function readChannelSafelyAsync(projectDir: string): Promise<string | null> {
@@ -77,5 +82,5 @@ async function getAndroidManifestAsync(projectDir: string): Promise<AndroidManif
   if (!androidManifestPath) {
     throw new Error(`Could not find AndroidManifest.xml in project directory: "${projectDir}"`);
   }
-  return AndroidConfig.Manifest.readAndroidManifestAsync(androidManifestPath);
+  return await AndroidConfig.Manifest.readAndroidManifestAsync(androidManifestPath);
 }

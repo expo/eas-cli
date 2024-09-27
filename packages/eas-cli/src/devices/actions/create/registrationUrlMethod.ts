@@ -20,13 +20,12 @@ export async function runRegistrationUrlMethodAsync(
     appleTeam
   );
   Log.newLine();
-  qrcodeTerminal.generate(registrationURL, { small: true }, code =>
-    Log.log(`${indentString(code, 2)}\n`)
-  );
+  qrcodeTerminal.generate(registrationURL, { small: true }, code => {
+    Log.log(`${indentString(code, 2)}\n`);
+  });
   Log.log(
     'Open the following link on your iOS devices (or scan the QR code) and follow the instructions to install the development profile:'
   );
-  Log.newLine();
   Log.log(chalk.green(`${registrationURL}`));
 }
 

@@ -2,11 +2,11 @@ import { DistributionType, IosEnterpriseProvisioning } from '@expo/eas-json';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import { SetUpTargetBuildCredentials } from './SetUpTargetBuildCredentials';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
 import { App, IosAppBuildCredentialsMap, IosCredentials, Target } from '../types';
 import { displayProjectCredentials } from '../utils/printCredentials';
-import { SetUpTargetBuildCredentials } from './SetUpTargetBuildCredentials';
 
 interface Options {
   app: App;
@@ -16,7 +16,7 @@ interface Options {
 }
 
 export class SetUpBuildCredentials {
-  constructor(private options: Options) {}
+  constructor(private readonly options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosCredentials> {
     const hasManyTargets = this.options.targets.length > 1;

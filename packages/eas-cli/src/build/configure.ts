@@ -1,17 +1,16 @@
-import { Platform, Workflow } from '@expo/eas-build-job';
-import { EasJson, EasJsonAccessor } from '@expo/eas-json';
+import { AppVersionSource, EasJson, EasJsonAccessor } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 
-import Log, { learnMore } from '../log';
-import { resolveWorkflowAsync } from '../project/workflow';
-import { easCliVersion } from '../utils/easCli';
-import { getVcsClient } from '../vcs';
 import { maybeBailOnRepoStatusAsync, reviewAndCommitChangesAsync } from './utils/repository';
+import Log, { learnMore } from '../log';
+import { easCliVersion } from '../utils/easCli';
+import { Client } from '../vcs/vcs';
 
 interface ConfigureParams {
   projectDir: string;
   nonInteractive: boolean;
+  vcsClient: Client;
 }
 
 export async function easJsonExistsAsync(projectDir: string): Promise<boolean> {
@@ -36,22 +35,27 @@ export async function ensureProjectConfiguredAsync(
   return true;
 }
 
-async function configureAsync({ projectDir, nonInteractive }: ConfigureParams): Promise<void> {
-  await maybeBailOnRepoStatusAsync();
+async function configureAsync({
+  projectDir,
+  nonInteractive,
+  vcsClient,
+}: ConfigureParams): Promise<void> {
+  await maybeBailOnRepoStatusAsync(vcsClient, nonInteractive);
 
-  await createEasJsonAsync(projectDir);
+  await createEasJsonAsync(projectDir, vcsClient);
 
-  if (await getVcsClient().isCommitRequiredAsync()) {
+  if (await vcsClient.isCommitRequiredAsync()) {
     Log.newLine();
-    await reviewAndCommitChangesAsync('Configure EAS Build', {
+    await reviewAndCommitChangesAsync(vcsClient, 'Configure EAS Build', {
       nonInteractive,
     });
   }
 }
 
-const EAS_JSON_MANAGED_DEFAULT: EasJson = {
+const EAS_JSON_DEFAULT: EasJson = {
   cli: {
     version: `>= ${easCliVersion}`,
+    appVersionSource: AppVersionSource.REMOTE,
   },
   build: {
     development: {
@@ -61,51 +65,20 @@ const EAS_JSON_MANAGED_DEFAULT: EasJson = {
     preview: {
       distribution: 'internal',
     },
-    production: {},
+    production: {
+      autoIncrement: true,
+    },
   },
   submit: {
     production: {},
   },
 };
 
-const EAS_JSON_BARE_DEFAULT: EasJson = {
-  cli: {
-    version: `>= ${easCliVersion}`,
-  },
-  build: {
-    development: {
-      distribution: 'internal',
-      android: {
-        gradleCommand: ':app:assembleDebug',
-      },
-      ios: {
-        buildConfiguration: 'Debug',
-      },
-    },
-    preview: {
-      distribution: 'internal',
-    },
-    production: {},
-  },
-  submit: {
-    production: {},
-  },
-};
-
-async function createEasJsonAsync(projectDir: string): Promise<void> {
+async function createEasJsonAsync(projectDir: string, vcsClient: Client): Promise<void> {
   const easJsonPath = EasJsonAccessor.formatEasJsonPath(projectDir);
 
-  const hasAndroidNativeProject =
-    (await resolveWorkflowAsync(projectDir, Platform.ANDROID)) === Workflow.GENERIC;
-  const hasIosNativeProject =
-    (await resolveWorkflowAsync(projectDir, Platform.IOS)) === Workflow.GENERIC;
-  const easJson =
-    hasAndroidNativeProject || hasIosNativeProject
-      ? EAS_JSON_BARE_DEFAULT
-      : EAS_JSON_MANAGED_DEFAULT;
-
-  await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
-  await getVcsClient().trackFileAsync(easJsonPath);
+  await fs.writeFile(easJsonPath, `${JSON.stringify(EAS_JSON_DEFAULT, null, 2)}\n`);
+  await vcsClient.trackFileAsync(easJsonPath);
   Log.withTick(
     `Generated ${chalk.bold('eas.json')}. ${learnMore(
       'https://docs.expo.dev/build-reference/eas-json/'

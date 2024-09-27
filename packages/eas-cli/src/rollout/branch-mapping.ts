@@ -72,7 +72,7 @@ export type LegacyRolloutBranchMapping = {
     {
       branchId: string;
       branchMappingLogic: BranchMappingAlwaysTrue;
-    }
+    },
   ];
 };
 
@@ -86,7 +86,7 @@ export type ConstrainedRolloutBranchMapping = {
     {
       branchId: string;
       branchMappingLogic: BranchMappingAlwaysTrue;
-    }
+    },
   ];
 };
 

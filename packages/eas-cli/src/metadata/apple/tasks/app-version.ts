@@ -38,7 +38,7 @@ export type AppVersionData = {
 };
 
 export class AppVersionTask extends AppleTask {
-  private options: AppVersionOptions;
+  private readonly options: AppVersionOptions;
 
   public constructor(options: Partial<AppVersionOptions> = {}) {
     super();

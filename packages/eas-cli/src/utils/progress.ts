@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
-import { Ora, ora } from '../ora';
 import { endTimer, formatMilliseconds, startTimer } from './timer';
+import { Ora, ora } from '../ora';
 
 export type Progress = {
   total: number;
@@ -42,7 +42,7 @@ export function createProgressTracker({
   return ({ progress, isComplete, error }) => {
     if (progress) {
       if (!bar && (progress.total !== undefined || total !== undefined)) {
-        calcTotal = (total ?? progress.total) as number;
+        calcTotal = total ?? progress.total;
         bar = ora(getMessage(0, calcTotal)).start();
         startTimer(timerLabel);
       }

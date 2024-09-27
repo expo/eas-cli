@@ -1,6 +1,6 @@
-import { Updates } from '@expo/config-plugins';
 import assert from 'assert';
 
+import { SelectRuntime } from './SelectRuntime';
 import { SelectBranch } from '../../branch/actions/SelectBranch';
 import {
   getStandardBranchId,
@@ -23,6 +23,8 @@ import {
 } from '../../graphql/queries/ChannelQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
+import { resolveRuntimeVersionAsync } from '../../project/resolveRuntimeVersionAsync';
+import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { truthy } from '../../utils/expodash/filter';
 import {
@@ -36,7 +38,6 @@ import {
   formatBranchWithUpdateGroup,
   promptForRolloutPercentAsync,
 } from '../utils';
-import { SelectRuntime } from './SelectRuntime';
 
 export type NonInteractiveOptions = {
   branchNameToRollout: string;
@@ -62,8 +63,8 @@ function assertNonInteractiveOptions(
  */
 export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFragment> {
   constructor(
-    private channelInfo: UpdateChannelBasicInfoFragment,
-    private options: Partial<NonInteractiveOptions> = {}
+    private readonly channelInfo: UpdateChannelBasicInfoFragment,
+    private readonly options: Partial<NonInteractiveOptions> = {}
   ) {}
 
   public async runAsync(ctx: EASUpdateContext): Promise<UpdateChannelBasicInfoFragment> {
@@ -272,8 +273,21 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
 
   async selectRuntimeVersionFromProjectConfigAsync(ctx: EASUpdateContext): Promise<string> {
     const platforms: ('ios' | 'android')[] = ['ios', 'android'];
-    const runtimes = platforms
-      .map(platform => Updates.getRuntimeVersion(ctx.app.exp, platform))
+    const workflows = await resolveWorkflowPerPlatformAsync(ctx.app.projectDir, ctx.vcsClient);
+    const runtimes = (
+      await Promise.all(
+        platforms.map(platform =>
+          resolveRuntimeVersionAsync({
+            projectDir: ctx.app.projectDir,
+            exp: ctx.app.exp,
+            platform,
+            workflow: workflows[platform],
+            env: undefined,
+          })
+        )
+      )
+    )
+      .map(runtime => runtime?.runtimeVersion)
       .filter(truthy);
     const dedupedRuntimes = [...new Set(runtimes)];
 

@@ -1,9 +1,9 @@
 import gql from 'graphql-tag';
 
-import { AppFragmentNode } from '../App';
 import { AndroidAppBuildCredentialsFragmentNode } from './AndroidAppBuildCredentials';
 import { AndroidFcmFragmentNode } from './AndroidFcm';
 import { GoogleServiceAccountKeyFragmentNode } from './GoogleServiceAccountKey';
+import { AppFragmentNode } from '../App';
 
 export const CommonAndroidAppCredentialsFragmentNode = gql`
   fragment CommonAndroidAppCredentialsFragment on AndroidAppCredentials {
@@ -17,6 +17,10 @@ export const CommonAndroidAppCredentialsFragmentNode = gql`
     androidFcm {
       id
       ...AndroidFcmFragment
+    }
+    googleServiceAccountKeyForFcmV1 {
+      id
+      ...GoogleServiceAccountKeyFragment
     }
     googleServiceAccountKeyForSubmissions {
       id

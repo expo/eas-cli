@@ -3,13 +3,7 @@ import { v4 as uuid } from 'uuid';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { selectBuildToCancelAsync } from '../../commands/build/cancel';
-import {
-  AppPlatform,
-  BuildFragment,
-  BuildPriority,
-  BuildResourceClass,
-  BuildStatus,
-} from '../../graphql/generated';
+import { AppPlatform, BuildFragment, BuildPriority, BuildStatus } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { confirmAsync, selectAsync } from '../../prompts';
 
@@ -53,14 +47,14 @@ describe(selectBuildToCancelAsync.name, () => {
   it('does not return build id when confirmation is rejected', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
     jest.mocked(confirmAsync).mockResolvedValueOnce(false);
-    expect(selectBuildToCancelAsync(graphqlClient, projectId, 'blah')).resolves.toEqual(null);
+    await expect(selectBuildToCancelAsync(graphqlClient, projectId, 'blah')).resolves.toEqual(null);
   });
 
   it('returns build id when confirmation is confirmed', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
     jest.mocked(selectAsync).mockResolvedValueOnce(selectedBuildId);
     jest.mocked(confirmAsync).mockResolvedValueOnce(true);
-    expect(selectBuildToCancelAsync(graphqlClient, projectId, 'blah')).resolves.toEqual(
+    await expect(selectBuildToCancelAsync(graphqlClient, projectId, 'blah')).resolves.toEqual(
       selectedBuildId
     );
   });
@@ -91,6 +85,6 @@ function createMockBuildFragment({
       },
     },
     status: BuildStatus.InQueue,
-    resourceClass: BuildResourceClass.AndroidMedium,
+    isForIosSimulator: false,
   };
 }

@@ -1,8 +1,7 @@
 import { ExpoConfig } from '@expo/config';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 
-import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   getApplicationIdAsync,
@@ -15,6 +14,8 @@ import {
 import { resolveXcodeBuildContextAsync } from './ios/scheme';
 import { findApplicationTarget, resolveTargetsAsync } from './ios/target';
 import { resolveWorkflowAsync } from './workflow';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { Client } from '../vcs/vcs';
 
 export async function getApplicationIdentifierAsync({
   graphqlClient,
@@ -23,6 +24,9 @@ export async function getApplicationIdentifierAsync({
   exp,
   buildProfile,
   platform,
+  vcsClient,
+  nonInteractive,
+  env,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
@@ -30,10 +34,13 @@ export async function getApplicationIdentifierAsync({
   exp: ExpoConfig;
   buildProfile: BuildProfile;
   platform: Platform;
+  vcsClient: Client;
+  nonInteractive: boolean;
+  env: Env;
 }): Promise<string> {
   if (platform === Platform.ANDROID) {
     const profile = buildProfile as BuildProfile<Platform.ANDROID>;
-    const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID);
+    const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
 
     if (workflow === Workflow.MANAGED) {
       return await ensureApplicationIdIsDefinedForManagedProjectAsync({
@@ -41,13 +48,15 @@ export async function getApplicationIdentifierAsync({
         projectDir,
         projectId,
         exp,
+        vcsClient,
+        nonInteractive,
       });
     }
 
-    const gradleContext = await resolveGradleBuildContextAsync(projectDir, profile);
-    return await getApplicationIdAsync(projectDir, exp, gradleContext);
+    const gradleContext = await resolveGradleBuildContextAsync(projectDir, profile, vcsClient);
+    return await getApplicationIdAsync(projectDir, exp, vcsClient, gradleContext);
   } else {
-    const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+    const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
     const profile = buildProfile as BuildProfile<Platform.IOS>;
     if (workflow === Workflow.MANAGED) {
       return await ensureBundleIdentifierIsDefinedForManagedProjectAsync({
@@ -55,21 +64,25 @@ export async function getApplicationIdentifierAsync({
         projectDir,
         projectId,
         exp,
+        vcsClient,
+        nonInteractive,
       });
     }
 
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(
-      { exp, projectDir, nonInteractive: false },
+      { exp, projectDir, nonInteractive: false, vcsClient },
       profile
     );
+
     const targets = await resolveTargetsAsync({
       projectDir,
       exp,
       xcodeBuildContext,
-      env: profile.env,
+      env,
+      vcsClient,
     });
     const applicationTarget = findApplicationTarget(targets);
-    return await getBundleIdentifierAsync(projectDir, exp, {
+    return await getBundleIdentifierAsync(projectDir, exp, vcsClient, {
       targetName: applicationTarget.targetName,
       buildConfiguration: applicationTarget.buildConfiguration,
     });

@@ -8,10 +8,8 @@ import {
 } from '@expo/apple-utils';
 import assert from 'assert';
 import chalk from 'chalk';
+import * as getenv from 'getenv';
 
-import Log from '../../../log';
-import { toggleConfirmAsync } from '../../../prompts';
-import { MinimalAscApiKey } from '../credentials';
 import {
   ApiKeyAuthCtx,
   AppleTeamType,
@@ -27,6 +25,9 @@ import {
   resolveAscApiKeyAsync,
   resolveUserCredentialsAsync,
 } from './resolveCredentials';
+import Log from '../../../log';
+import { toggleConfirmAsync } from '../../../prompts';
+import { MinimalAscApiKey } from '../credentials';
 
 const APPLE_IN_HOUSE_TEAM_TYPE = 'in-house';
 
@@ -110,7 +111,7 @@ async function loginAsync(
 
       if (await toggleConfirmAsync({ message: 'Would you like to try again?' })) {
         // Don't pass credentials back or the method will throw
-        return loginAsync(
+        return await loginAsync(
           {
             teamId: userCredentials.teamId,
             providerId: userCredentials.providerId,
@@ -188,7 +189,10 @@ async function authenticateAsUserAsync(options: Options = {}): Promise<AuthCtx> 
     const authState = await loginAsync(
       {
         cookies: options.cookies,
-        teamId: options.teamId,
+        teamId: options.teamId ?? process.env.EXPO_APPLE_TEAM_ID,
+        providerId: process.env.EXPO_APPLE_PROVIDER_ID
+          ? getenv.int('EXPO_APPLE_PROVIDER_ID')
+          : undefined,
       },
       {
         // TODO: Provide a way to disable this for users who want to mix and match teams / providers.

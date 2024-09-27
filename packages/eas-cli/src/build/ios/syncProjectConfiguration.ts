@@ -1,36 +1,35 @@
 import { ExpoConfig } from '@expo/config';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import { IosVersionAutoIncrement } from '@expo/eas-json';
 
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
 import { Target } from '../../credentials/ios/types';
 import { isExpoUpdatesInstalled } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { syncUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
-import { BumpStrategy, bumpVersionAsync, bumpVersionInAppJsonAsync } from './version';
+import { Client } from '../../vcs/vcs';
 
-export async function syncProjectConfigurationAsync(
-  graphqlClient: ExpoGraphqlClient,
-  {
-    projectDir,
-    exp,
-    targets,
-    localAutoIncrement,
-    projectId,
-  }: {
-    projectDir: string;
-    exp: ExpoConfig;
-    targets: Target[];
-    localAutoIncrement?: IosVersionAutoIncrement;
-    projectId: string;
-  }
-): Promise<void> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+export async function syncProjectConfigurationAsync({
+  projectDir,
+  exp,
+  targets,
+  localAutoIncrement,
+  vcsClient,
+  env,
+}: {
+  projectDir: string;
+  exp: ExpoConfig;
+  targets: Target[];
+  localAutoIncrement?: IosVersionAutoIncrement;
+  vcsClient: Client;
+  env: Env | undefined;
+}): Promise<void> {
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   const versionBumpStrategy = resolveVersionBumpStrategy(localAutoIncrement ?? false);
 
   if (workflow === Workflow.GENERIC) {
     if (isExpoUpdatesInstalled(projectDir)) {
-      await syncUpdatesConfigurationAsync(graphqlClient, projectDir, exp, projectId);
+      await syncUpdatesConfigurationAsync({ vcsClient, projectDir, exp, workflow, env });
     }
     await bumpVersionAsync({ projectDir, exp, bumpStrategy: versionBumpStrategy, targets });
   } else {

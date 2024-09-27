@@ -2,9 +2,9 @@ import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import path from 'path';
 
+import GitClient from './git';
 import Log from '../../log';
 import { Ignore, makeShallowCopyAsync } from '../local';
-import GitClient from './git';
 
 export default class GitNoCommitClient extends GitClient {
   public override async isCommitRequiredAsync(): Promise<boolean> {

@@ -2,10 +2,10 @@ import spawnAsync, { SpawnResult } from '@expo/spawn-async';
 import os from 'os';
 import path from 'path';
 
+import { getAndroidSdkRootAsync } from './sdk';
 import Log from '../../log';
 import { truthy } from '../../utils/expodash/filter';
 import { sleepAsync } from '../../utils/promise';
-import { getAndroidSdkRootAsync } from './sdk';
 
 export interface AndroidEmulator {
   pid?: string;
@@ -88,7 +88,7 @@ export async function getRunningEmulatorsAsync(): Promise<AndroidEmulator[]> {
     };
   });
 
-  return Promise.all(devicePromises);
+  return await Promise.all(devicePromises);
 }
 
 export async function getFirstRunningEmulatorAsync(): Promise<AndroidEmulator | null> {

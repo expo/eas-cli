@@ -2,7 +2,6 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import Log from '../../log';
 import { NonInteractiveOptions as CreateRolloutNonInteractiveOptions } from '../../rollout/actions/CreateRollout';
 import { NonInteractiveOptions as EditRolloutNonInteractiveOptions } from '../../rollout/actions/EditRollout';
 import {
@@ -118,7 +117,7 @@ export default class ChannelRollout extends EasCommand {
       required: false,
     }),
     'private-key-path': Flags.string({
-      description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory.`,
+      description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
     }),
     ...EasNonInteractiveAndJsonFlags,
@@ -126,6 +125,7 @@ export default class ChannelRollout extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.Vcs,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -133,7 +133,8 @@ export default class ChannelRollout extends EasCommand {
     const { args, flags } = await this.parse(ChannelRollout);
     const argsAndFlags = this.sanitizeArgsAndFlags({ ...flags, ...args });
     const {
-      privateProjectConfig: { exp, projectId },
+      privateProjectConfig: { exp, projectId, projectDir },
+      vcsClient,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelRollout, {
       nonInteractive: argsAndFlags.nonInteractive,
@@ -142,21 +143,16 @@ export default class ChannelRollout extends EasCommand {
       enableJsonOutput();
     }
 
-    const app = { projectId, exp };
+    const app = { projectId, exp, projectDir };
     const ctx = {
-      projectId,
       nonInteractive: argsAndFlags.nonInteractive,
       graphqlClient,
       app,
+      vcsClient,
     };
     if (argsAndFlags.nonInteractive) {
       await new NonInteractiveRollout(argsAndFlags).runAsync(ctx);
     } else {
-      Log.addNewLineIfNone();
-      Log.warn(
-        `✨ This command is in Developer Preview and has not been released to production yet. Website support is coming soon.`
-      );
-      Log.addNewLineIfNone();
       await new RolloutMainMenu(argsAndFlags).runAsync(ctx);
     }
   }

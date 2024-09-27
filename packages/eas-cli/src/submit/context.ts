@@ -12,6 +12,7 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import { CredentialsContext } from '../credentials/context';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { Actor } from '../user/User';
+import { Client } from '../vcs/vcs';
 
 export interface SubmissionContext<T extends Platform> {
   accountName: string;
@@ -20,6 +21,7 @@ export interface SubmissionContext<T extends Platform> {
   analyticsEventProperties: AnalyticsEventProperties;
   exp: ExpoConfig;
   nonInteractive: boolean;
+  isVerboseFastlaneEnabled: boolean;
   platform: T;
   profile: SubmitProfile<T>;
   projectDir: string;
@@ -28,7 +30,9 @@ export interface SubmissionContext<T extends Platform> {
   user: Actor;
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
+  vcsClient: Client;
   applicationIdentifierOverride?: string;
+  specifiedProfile?: string;
 }
 
 export interface SubmitArchiveFlags {
@@ -43,6 +47,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   credentialsCtx?: CredentialsContext;
   env?: Record<string, string>;
   nonInteractive: boolean;
+  isVerboseFastlaneEnabled: boolean;
   platform: T;
   profile: SubmitProfile<T>;
   projectDir: string;
@@ -52,6 +57,8 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   analytics: Analytics;
   exp: ExpoConfig;
   projectId: string;
+  vcsClient: Client;
+  specifiedProfile?: string;
 }): Promise<SubmissionContext<T>> {
   const {
     applicationIdentifier,
@@ -62,6 +69,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     projectId,
     graphqlClient,
     analytics,
+    vcsClient,
   } = params;
   const { env, ...rest } = params;
   const projectName = exp.slug;
@@ -76,6 +84,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
       analytics,
       projectInfo: { exp, projectId },
       nonInteractive,
+      vcsClient,
     });
   }
 

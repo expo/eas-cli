@@ -1,3 +1,10 @@
+import { AndroidAppBuildCredentialsMutation } from './graphql/mutations/AndroidAppBuildCredentialsMutation';
+import { AndroidAppCredentialsMutation } from './graphql/mutations/AndroidAppCredentialsMutation';
+import { AndroidFcmMutation } from './graphql/mutations/AndroidFcmMutation';
+import { AndroidKeystoreMutation } from './graphql/mutations/AndroidKeystoreMutation';
+import { GoogleServiceAccountKeyMutation } from './graphql/mutations/GoogleServiceAccountKeyMutation';
+import { AndroidAppCredentialsQuery } from './graphql/queries/AndroidAppCredentialsQuery';
+import { GoogleServiceAccountKeyQuery } from './graphql/queries/GoogleServiceAccountKeyQuery';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AccountFragment,
@@ -11,13 +18,6 @@ import {
 } from '../../../graphql/generated';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { GoogleServiceAccountKey, KeystoreWithType } from '../credentials';
-import { AndroidAppBuildCredentialsMutation } from './graphql/mutations/AndroidAppBuildCredentialsMutation';
-import { AndroidAppCredentialsMutation } from './graphql/mutations/AndroidAppCredentialsMutation';
-import { AndroidFcmMutation } from './graphql/mutations/AndroidFcmMutation';
-import { AndroidKeystoreMutation } from './graphql/mutations/AndroidKeystoreMutation';
-import { GoogleServiceAccountKeyMutation } from './graphql/mutations/GoogleServiceAccountKeyMutation';
-import { AndroidAppCredentialsQuery } from './graphql/queries/AndroidAppCredentialsQuery';
-import { GoogleServiceAccountKeyQuery } from './graphql/queries/GoogleServiceAccountKeyQuery';
 
 export interface AppLookupParams {
   account: AccountFragment;
@@ -106,9 +106,11 @@ export async function updateAndroidAppCredentialsAsync(
   {
     androidFcmId,
     googleServiceAccountKeyForSubmissionsId,
+    googleServiceAccountKeyForFcmV1Id,
   }: {
     androidFcmId?: string;
     googleServiceAccountKeyForSubmissionsId?: string;
+    googleServiceAccountKeyForFcmV1Id?: string;
   }
 ): Promise<CommonAndroidAppCredentialsFragment> {
   let updatedAppCredentials = appCredentials;
@@ -125,6 +127,14 @@ export async function updateAndroidAppCredentialsAsync(
         graphqlClient,
         appCredentials.id,
         googleServiceAccountKeyForSubmissionsId
+      );
+  }
+  if (googleServiceAccountKeyForFcmV1Id) {
+    updatedAppCredentials =
+      await AndroidAppCredentialsMutation.setGoogleServiceAccountKeyForFcmV1Async(
+        graphqlClient,
+        appCredentials.id,
+        googleServiceAccountKeyForFcmV1Id
       );
   }
   return updatedAppCredentials;
@@ -260,7 +270,6 @@ export async function createKeystoreAsync(
       keystorePassword: keystore.keystorePassword,
       keyAlias: keystore.keyAlias,
       keyPassword: keystore.keyPassword,
-      type: keystore.type,
     },
     account.id
   );
@@ -270,7 +279,7 @@ export async function deleteKeystoreAsync(
   graphqlClient: ExpoGraphqlClient,
   keystore: AndroidKeystoreFragment
 ): Promise<void> {
-  return await AndroidKeystoreMutation.deleteAndroidKeystoreAsync(graphqlClient, keystore.id);
+  await AndroidKeystoreMutation.deleteAndroidKeystoreAsync(graphqlClient, keystore.id);
 }
 
 export async function createFcmAsync(
@@ -290,7 +299,7 @@ export async function deleteFcmAsync(
   graphqlClient: ExpoGraphqlClient,
   fcm: AndroidFcmFragment
 ): Promise<void> {
-  return await AndroidFcmMutation.deleteAndroidFcmAsync(graphqlClient, fcm.id);
+  await AndroidFcmMutation.deleteAndroidFcmAsync(graphqlClient, fcm.id);
 }
 
 export async function createGoogleServiceAccountKeyAsync(
@@ -309,7 +318,7 @@ export async function deleteGoogleServiceAccountKeyAsync(
   graphqlClient: ExpoGraphqlClient,
   googleServiceAccountKey: GoogleServiceAccountKeyFragment
 ): Promise<void> {
-  return await GoogleServiceAccountKeyMutation.deleteGoogleServiceAccountKeyAsync(
+  await GoogleServiceAccountKeyMutation.deleteGoogleServiceAccountKeyAsync(
     graphqlClient,
     googleServiceAccountKey.id
   );

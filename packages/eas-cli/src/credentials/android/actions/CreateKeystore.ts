@@ -9,7 +9,7 @@ import { generateRandomKeystoreAsync } from '../utils/keystore';
 import { getKeystoreWithType, validateKeystore } from '../utils/keystoreNew';
 
 export class CreateKeystore {
-  constructor(private account: AccountFragment) {}
+  constructor(private readonly account: AccountFragment) {}
 
   public async runAsync(ctx: CredentialsContext): Promise<AndroidKeystoreFragment> {
     if (ctx.nonInteractive) {

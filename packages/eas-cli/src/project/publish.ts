@@ -1,6 +1,6 @@
-import { ExpoConfig, Platform } from '@expo/config';
+import { ExpoConfig, Platform as ExpoConfigPlatform } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
-import { Platform as EASBuildJobPlatform, Workflow } from '@expo/eas-build-job';
+import { Env, Workflow } from '@expo/eas-build-job';
 import JsonFile from '@expo/json-file';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -12,37 +12,52 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
+import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from './projectUtils';
+import { resolveRuntimeVersionUsingCLIAsync } from './resolveRuntimeVersionAsync';
 import { selectBranchOnAppAsync } from '../branch/queries';
 import { getDefaultBranchNameAsync } from '../branch/utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
-import { AssetMetadataStatus, PartialManifestAsset } from '../graphql/generated';
+import {
+  AppPlatform,
+  AssetMetadataStatus,
+  PartialManifestAsset,
+  UpdateRolloutInfo,
+  UpdateRolloutInfoGroup,
+} from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
+import { BranchQuery } from '../graphql/queries/BranchQuery';
 import { PublishQuery } from '../graphql/queries/PublishQuery';
 import Log, { learnMore } from '../log';
 import { RequestedPlatform, requestedPlatformDisplayNames } from '../platform';
 import { promptAsync } from '../prompts';
-import { getBranchNameFromChannelNameAsync } from '../update/getBranchNameFromChannelNameAsync';
-import { formatUpdateMessage, truncateString as truncateUpdateMessage } from '../update/utils';
+import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
+import {
+  UpdateJsonInfo,
+  formatUpdateMessage,
+  truncateString as truncateUpdateMessage,
+} from '../update/utils';
 import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
 import {
   expoCommandAsync,
   shouldUseVersionedExpoCLI,
   shouldUseVersionedExpoCLIWithExplicitPlatforms,
 } from '../utils/expoCli';
+import { ExpoUpdatesCLIModuleNotFoundError } from '../utils/expoUpdatesCli';
 import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
+import groupBy from '../utils/expodash/groupBy';
 import uniqBy from '../utils/expodash/uniqBy';
-import { getVcsClient } from '../vcs';
-import { resolveWorkflowAsync } from './workflow';
+import { Client } from '../vcs/vcs';
 
-export type ExpoCLIExportPlatformFlag = Platform | 'all';
+// update publish does not currently support web
+export type UpdatePublishPlatform = 'ios' | 'android';
 
 type Metadata = {
   version: number;
   bundler: 'metro';
   fileMetadata: {
-    [key in Platform]: { assets: { path: string; ext: string }[]; bundle: string };
+    [key in ExpoConfigPlatform]: { assets: { path: string; ext: string }[]; bundle: string };
   };
 };
 export type RawAsset = {
@@ -54,7 +69,7 @@ export type RawAsset = {
 };
 
 type CollectedAssets = {
-  [platform in Platform]?: {
+  [platform in ExpoConfigPlatform]?: {
     launchAsset: RawAsset;
     assets: RawAsset[];
   };
@@ -70,7 +85,7 @@ type ManifestFragment = {
   extra?: ManifestExtra;
 };
 type UpdateInfoGroup = {
-  [key in Platform]: ManifestFragment;
+  [key in UpdatePublishPlatform]: ManifestFragment;
 };
 
 // Partial copy of `@expo/dev-server` `BundleAssetWithFileHashes`
@@ -123,10 +138,12 @@ export function getStorageKey(contentType: string, contentHash: string): string 
 }
 
 async function calculateFileHashAsync(filePath: string, algorithm: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
+  return await new Promise((resolve, reject) => {
     const file = fs.createReadStream(filePath).on('error', reject);
     const hash = file.pipe(crypto.createHash(algorithm)).on('error', reject);
-    hash.on('finish', () => resolve(hash.read()));
+    hash.on('finish', () => {
+      resolve(hash.read());
+    });
   });
 }
 
@@ -160,10 +177,10 @@ export async function convertAssetToUpdateInfoGroupFormatAsync(
  * This will be sorted later based on the platform's runtime versions.
  */
 export async function buildUnsortedUpdateInfoGroupAsync(
-  assets: CollectedAssets,
+  assets: FilteredCollectedAssets,
   exp: ExpoConfig
-): Promise<UpdateInfoGroup> {
-  let platform: Platform;
+): Promise<Partial<UpdateInfoGroup>> {
+  let platform: 'ios' | 'android';
   const updateInfoGroup: Partial<UpdateInfoGroup> = {};
   for (platform in assets) {
     updateInfoGroup[platform] = {
@@ -176,8 +193,10 @@ export async function buildUnsortedUpdateInfoGroupAsync(
       },
     };
   }
-  return updateInfoGroup as UpdateInfoGroup;
+  return updateInfoGroup;
 }
+
+export type ExpoCLIExportPlatformFlag = ExpoConfigPlatform | 'all';
 
 export async function buildBundlesAsync({
   projectDir,
@@ -185,14 +204,12 @@ export async function buildBundlesAsync({
   exp,
   platformFlag,
   clearCache,
-  dev = false,
 }: {
   projectDir: string;
   inputDir: string;
   exp: Pick<ExpoConfig, 'sdkVersion' | 'web'>;
   platformFlag: ExpoCLIExportPlatformFlag;
   clearCache?: boolean;
-  dev?: boolean;
 }): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
   if (!packageJSON) {
@@ -201,7 +218,7 @@ export async function buildBundlesAsync({
 
   // Legacy global Expo CLI
   if (!shouldUseVersionedExpoCLI(projectDir, exp)) {
-    return await expoCommandAsync(projectDir, [
+    await expoCommandAsync(projectDir, [
       'export',
       '--output-dir',
       inputDir,
@@ -210,9 +227,9 @@ export async function buildBundlesAsync({
       '--dump-sourcemap',
       '--dump-assetmap',
       `--platform=${platformFlag}`,
-      ...(dev ? ['--dev'] : []),
       ...(clearCache ? ['--clear'] : []),
     ]);
+    return;
   }
 
   // Versioned Expo CLI, with multiple platform flag support
@@ -223,16 +240,16 @@ export async function buildBundlesAsync({
         ? ['--platform', 'ios', '--platform', 'android']
         : ['--platform', platformFlag];
 
-    return await expoCommandAsync(projectDir, [
+    await expoCommandAsync(projectDir, [
       'export',
       '--output-dir',
       inputDir,
       '--dump-sourcemap',
       '--dump-assetmap',
       ...platformArgs,
-      ...(dev ? ['--dev'] : []),
       ...(clearCache ? ['--clear'] : []),
     ]);
+    return;
   }
 
   // Versioned Expo CLI, without multiple platform flag support
@@ -245,14 +262,13 @@ export async function buildBundlesAsync({
     );
   }
 
-  return await expoCommandAsync(projectDir, [
+  await expoCommandAsync(projectDir, [
     'export',
     '--output-dir',
     inputDir,
     '--dump-sourcemap',
     '--dump-assetmap',
     `--platform=${platformFlag}`,
-    ...(dev ? ['--dev'] : []),
     ...(clearCache ? ['--clear'] : []),
   ]);
 }
@@ -294,25 +310,42 @@ export function loadMetadata(distRoot: string): Metadata {
   return metadata;
 }
 
-export function filterExportedPlatformsByFlag<T extends Partial<Record<Platform, any>>>(
-  record: T,
-  platformFlag: ExpoCLIExportPlatformFlag
-): T {
-  if (platformFlag === 'all') {
-    return record;
+export async function generateEasMetadataAsync(
+  distRoot: string,
+  metadata: UpdateJsonInfo[]
+): Promise<void> {
+  const easMetadataPath = path.join(distRoot, 'eas-update-metadata.json');
+  await JsonFile.writeAsync(easMetadataPath, { updates: metadata });
+}
+
+export type FilteredCollectedAssets = {
+  [RequestedPlatform.Ios]?: NonNullable<CollectedAssets['ios']>;
+  [RequestedPlatform.Android]?: NonNullable<CollectedAssets['android']>;
+};
+
+export function filterCollectedAssetsByRequestedPlatforms(
+  collectedAssets: CollectedAssets,
+  requestedPlatform: RequestedPlatform
+): FilteredCollectedAssets {
+  if (requestedPlatform === RequestedPlatform.All) {
+    return {
+      ...('ios' in collectedAssets ? { [RequestedPlatform.Ios]: collectedAssets['ios'] } : {}),
+      ...('android' in collectedAssets
+        ? { [RequestedPlatform.Android]: collectedAssets['android'] }
+        : {}),
+    };
   }
 
-  const platform = platformFlag as Platform;
-
-  if (!record[platform]) {
+  const collectedAssetsKey = requestedPlatform === RequestedPlatform.Android ? 'android' : 'ios';
+  if (!collectedAssets[collectedAssetsKey]) {
     throw new Error(
-      `--platform="${platform}" not found in metadata.json. Available platform(s): ${Object.keys(
-        record
+      `--platform="${collectedAssetsKey}" not found in metadata.json. Available platform(s): ${Object.keys(
+        collectedAssets
       ).join(', ')}`
     );
   }
 
-  return { [platform]: record[platform] } as T;
+  return { [requestedPlatform]: collectedAssets[collectedAssetsKey] };
 }
 
 /** Try to load the asset map for logging the names of assets published */
@@ -360,7 +393,7 @@ export async function collectAssetsAsync(dir: string): Promise<CollectedAssets> 
 
   const collectedAssets: CollectedAssets = {};
 
-  for (const platform of Object.keys(metadata.fileMetadata) as Platform[]) {
+  for (const platform of Object.keys(metadata.fileMetadata) as ExpoConfigPlatform[]) {
     collectedAssets[platform] = {
       launchAsset: {
         fileExtension: '.bundle',
@@ -419,15 +452,16 @@ type AssetUploadResult = {
 
 export async function uploadAssetsAsync(
   graphqlClient: ExpoGraphqlClient,
-  assetsForUpdateInfoGroup: CollectedAssets,
+  assetsForUpdateInfoGroup: FilteredCollectedAssets,
   projectId: string,
   cancelationToken: { isCanceledOrFinished: boolean },
   onAssetUploadResultsChanged: (
     assetUploadResults: { asset: RawAsset & { storageKey: string }; finished: boolean }[]
-  ) => void
+  ) => void,
+  onAssetUploadBegin: () => void
 ): Promise<AssetUploadResult> {
   let assets: RawAsset[] = [];
-  let platform: keyof CollectedAssets;
+  let platform: keyof FilteredCollectedAssets;
   const launchAssets: RawAsset[] = [];
   for (platform in assetsForUpdateInfoGroup) {
     launchAssets.push(assetsForUpdateInfoGroup[platform]!.launchAsset);
@@ -480,15 +514,21 @@ export async function uploadAssetsAsync(
 
   const [assetLimitPerUpdateGroup] = await Promise.all([
     PublishQuery.getAssetLimitPerUpdateGroupAsync(graphqlClient, projectId),
-    missingAssets.map((missingAsset, i) => {
-      assetUploadPromiseLimit(async () => {
-        if (cancelationToken.isCanceledOrFinished) {
-          throw Error('Canceled upload');
-        }
-        const presignedPost: PresignedPost = JSON.parse(specifications[i]);
-        await uploadWithPresignedPostWithRetryAsync(missingAsset.path, presignedPost);
-      });
-    }),
+    Promise.all(
+      missingAssets.map((missingAsset, i) => {
+        return assetUploadPromiseLimit(async () => {
+          if (cancelationToken.isCanceledOrFinished) {
+            throw Error('Canceled upload');
+          }
+          const presignedPost: PresignedPost = JSON.parse(specifications[i]);
+          await uploadWithPresignedPostWithRetryAsync(
+            missingAsset.path,
+            presignedPost,
+            onAssetUploadBegin
+          );
+        });
+      })
+    ),
   ]);
 
   let timeout = 1;
@@ -540,6 +580,7 @@ export async function getBranchNameForCommandAsync({
   autoFlag,
   nonInteractive,
   paginatedQueryOptions,
+  vcsClient,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
@@ -548,6 +589,7 @@ export async function getBranchNameForCommandAsync({
   autoFlag: boolean;
   nonInteractive: boolean;
   paginatedQueryOptions: PaginatedQueryOptions;
+  vcsClient: Client;
 }): Promise<string> {
   if (channelNameArg && branchNameArg) {
     throw new Error(
@@ -556,7 +598,12 @@ export async function getBranchNameForCommandAsync({
   }
 
   if (channelNameArg) {
-    return await getBranchNameFromChannelNameAsync(graphqlClient, projectId, channelNameArg);
+    const { branchName } = await getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
+      graphqlClient,
+      projectId,
+      channelNameArg
+    );
+    return branchName;
   }
 
   if (branchNameArg) {
@@ -564,7 +611,7 @@ export async function getBranchNameForCommandAsync({
   }
 
   if (autoFlag) {
-    return await getDefaultBranchNameAsync();
+    return await getDefaultBranchNameAsync(vcsClient);
   } else if (nonInteractive) {
     throw new Error('Must supply --channel, --branch or --auto when in non-interactive mode.');
   } else {
@@ -588,7 +635,7 @@ export async function getBranchNameForCommandAsync({
         type: 'text',
         name: 'name',
         message: 'No branches found. Provide a branch name:',
-        initial: await getDefaultBranchNameAsync(),
+        initial: await getDefaultBranchNameAsync(vcsClient),
         validate: value => (value ? true : 'Branch name may not be empty.'),
       });
       branchName = name;
@@ -599,42 +646,51 @@ export async function getBranchNameForCommandAsync({
   }
 }
 
-export async function getUpdateMessageForCommandAsync({
-  updateMessageArg,
-  autoFlag,
-  nonInteractive,
-  jsonFlag,
-}: {
-  updateMessageArg: string | undefined;
-  autoFlag: boolean;
-  nonInteractive: boolean;
-  jsonFlag: boolean;
-}): Promise<string> {
+export async function getUpdateMessageForCommandAsync(
+  vcsClient: Client,
+  {
+    updateMessageArg,
+    autoFlag,
+    nonInteractive,
+    jsonFlag,
+  }: {
+    updateMessageArg: string | undefined;
+    autoFlag: boolean;
+    nonInteractive: boolean;
+    jsonFlag: boolean;
+  }
+): Promise<string | undefined> {
   let updateMessage = updateMessageArg;
   if (!updateMessageArg && autoFlag) {
-    updateMessage = (await getVcsClient().getLastCommitMessageAsync())?.trim();
+    updateMessage = (await vcsClient.getLastCommitMessageAsync())?.trim();
   }
 
   if (!updateMessage) {
-    if (nonInteractive) {
-      throw new Error('Must supply --message or use --auto when in non-interactive mode');
+    if (nonInteractive || jsonFlag) {
+      if (vcsClient.canGetLastCommitMessage()) {
+        throw new Error(
+          'Must supply --message or use --auto when in non-interactive mode and VCS is available'
+        );
+      }
+      return undefined;
     }
 
-    const validationMessage = 'publish message may not be empty.';
-    if (jsonFlag) {
-      throw new Error(validationMessage);
-    }
     const { updateMessageLocal } = await promptAsync({
       type: 'text',
       name: 'updateMessageLocal',
       message: `Provide an update message:`,
-      initial: (await getVcsClient().getLastCommitMessageAsync())?.trim(),
-      validate: (value: any) => (value ? true : validationMessage),
+      initial: (await vcsClient.getLastCommitMessageAsync())?.trim(),
     });
+    if (!updateMessageLocal) {
+      return undefined;
+    }
+
     updateMessage = updateMessageLocal;
   }
 
-  assert(updateMessage, 'Update message must be specified.');
+  if (!updateMessage) {
+    return undefined;
+  }
 
   const truncatedMessage = truncateUpdateMessage(updateMessage, 1024);
   if (truncatedMessage !== updateMessage) {
@@ -644,83 +700,215 @@ export async function getUpdateMessageForCommandAsync({
   return truncatedMessage;
 }
 
-export const defaultPublishPlatforms: Platform[] = ['android', 'ios'];
+export const defaultPublishPlatforms: UpdatePublishPlatform[] = ['android', 'ios'];
 
-export function getRequestedPlatform(
-  platform: ExpoCLIExportPlatformFlag
-): RequestedPlatform | null {
-  switch (platform) {
-    case 'android':
-      return RequestedPlatform.Android;
-    case 'ios':
-      return RequestedPlatform.Ios;
-    case 'web':
-      return null;
-    case 'all':
-      return RequestedPlatform.All;
-    default:
-      throw new Error(`Unsupported platform: ${platform}`);
-  }
+export type RuntimeVersionInfo = {
+  runtimeVersion: string;
+  fingerprint: {
+    fingerprintSources: object[];
+    isDebugFingerprintSource: boolean;
+  } | null;
+};
+
+export async function getRuntimeVersionInfoObjectsAsync({
+  exp,
+  platforms,
+  workflows,
+  projectDir,
+  env,
+}: {
+  exp: ExpoConfig;
+  platforms: UpdatePublishPlatform[];
+  workflows: Record<ExpoConfigPlatform, Workflow>;
+  projectDir: string;
+  env: Env | undefined;
+}): Promise<
+  {
+    platform: UpdatePublishPlatform;
+    runtimeVersionInfo: RuntimeVersionInfo;
+  }[]
+> {
+  return await Promise.all(
+    platforms.map(async platform => {
+      return {
+        platform,
+        runtimeVersionInfo: await getRuntimeVersionInfoForPlatformAsync({
+          exp,
+          platform,
+          workflow: workflows[platform],
+          projectDir,
+          env,
+        }),
+      };
+    })
+  );
 }
 
-/** Get runtime versions grouped by platform. Runtime version is always `null` on web where the platform is always backwards compatible. */
-export async function getRuntimeVersionObjectAsync(
-  exp: ExpoConfig,
-  platforms: Platform[],
-  projectDir: string
-): Promise<{ platform: string; runtimeVersion: string }[]> {
-  for (const platform of platforms) {
-    if (platform === 'web') {
-      continue;
-    }
-    const isPolicy = typeof (exp[platform]?.runtimeVersion ?? exp.runtimeVersion) === 'object';
-    if (isPolicy) {
-      const isManaged =
-        (await resolveWorkflowAsync(projectDir, platform as EASBuildJobPlatform)) ===
-        Workflow.MANAGED;
-      if (!isManaged) {
-        throw new Error(
-          `You're currently using the bare workflow, where runtime version policies are not supported. You must set your runtime version manually. For example, define your runtime version as "1.0.0", not {"policy": "appVersion"} in your app config. ${learnMore(
-            'https://docs.expo.dev/eas-update/runtime-versions'
-          )}`
-        );
+async function getRuntimeVersionInfoForPlatformAsync({
+  exp,
+  platform,
+  workflow,
+  projectDir,
+  env,
+}: {
+  exp: ExpoConfig;
+  platform: UpdatePublishPlatform;
+  workflow: Workflow;
+  projectDir: string;
+  env: Env | undefined;
+}): Promise<{
+  runtimeVersion: string;
+  fingerprint: {
+    fingerprintSources: object[];
+    isDebugFingerprintSource: boolean;
+  } | null;
+}> {
+  if (await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir)) {
+    try {
+      const runtimeVersionResult = await resolveRuntimeVersionUsingCLIAsync({
+        platform,
+        workflow,
+        projectDir,
+        env,
+      });
+
+      return {
+        ...runtimeVersionResult,
+        runtimeVersion: nullthrows(
+          runtimeVersionResult.runtimeVersion,
+          `Unable to determine runtime version for ${
+            requestedPlatformDisplayNames[platform]
+          }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
+        ),
+      };
+    } catch (e: any) {
+      // if it's a known set of errors thrown by the CLI it means that we need to default back to the
+      // previous behavior, otherwise we throw the error since something is wrong
+      if (!(e instanceof ExpoUpdatesCLIModuleNotFoundError)) {
+        throw e;
       }
     }
   }
 
-  return [...new Set(platforms)].map(platform => {
-    if (platform === 'web') {
-      return { platform: 'web', runtimeVersion: 'UNVERSIONED' };
-    }
-    return {
-      platform,
-      runtimeVersion: nullthrows(
-        Updates.getRuntimeVersion(exp, platform),
-        `Unable to determine runtime version for ${
-          requestedPlatformDisplayNames[platform]
-        }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
-      ),
-    };
-  });
-}
-
-export function getRuntimeToPlatformMappingFromRuntimeVersions(
-  runtimeVersions: { platform: string; runtimeVersion: string }[]
-): { runtimeVersion: string; platforms: string[] }[] {
-  const runtimeToPlatformMapping: { runtimeVersion: string; platforms: string[] }[] = [];
-  for (const runtime of runtimeVersions) {
-    const platforms = runtimeVersions
-      .filter(({ runtimeVersion }) => runtimeVersion === runtime.runtimeVersion)
-      .map(({ platform }) => platform);
-    if (!runtimeToPlatformMapping.find(item => item.runtimeVersion === runtime.runtimeVersion)) {
-      runtimeToPlatformMapping.push({ runtimeVersion: runtime.runtimeVersion, platforms });
+  const runtimeVersion = exp[platform]?.runtimeVersion ?? exp.runtimeVersion;
+  if (typeof runtimeVersion === 'object') {
+    if (workflow !== Workflow.MANAGED) {
+      throw new Error(
+        `You're currently using the bare workflow, where runtime version policies are not supported. You must set your runtime version manually. For example, define your runtime version as "1.0.0", not {"policy": "appVersion"} in your app config. ${learnMore(
+          'https://docs.expo.dev/eas-update/runtime-versions'
+        )}`
+      );
     }
   }
-  return runtimeToPlatformMapping;
+
+  const resolvedRuntimeVersion = await Updates.getRuntimeVersionAsync(projectDir, exp, platform);
+  if (!resolvedRuntimeVersion) {
+    throw new Error(
+      `Unable to determine runtime version for ${
+        requestedPlatformDisplayNames[platform]
+      }. ${learnMore('https://docs.expo.dev/eas-update/runtime-versions/')}`
+    );
+  }
+
+  return {
+    runtimeVersion: resolvedRuntimeVersion,
+    fingerprint: null,
+  };
 }
 
-export const platformDisplayNames: Record<Platform, string> = {
+export function getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects(
+  runtimeVersionInfoObjects: {
+    platform: UpdatePublishPlatform;
+    runtimeVersionInfo: RuntimeVersionInfo;
+  }[]
+): (RuntimeVersionInfo & { platforms: UpdatePublishPlatform[] })[] {
+  const groupedRuntimeVersionInfoObjects = groupBy(
+    runtimeVersionInfoObjects,
+    runtimeVersionInfoObject => runtimeVersionInfoObject.runtimeVersionInfo.runtimeVersion
+  );
+
+  return Object.entries(groupedRuntimeVersionInfoObjects).map(
+    ([runtimeVersion, runtimeVersionInfoObjects]) => {
+      return {
+        runtimeVersion,
+        platforms: runtimeVersionInfoObjects.map(
+          runtimeVersionInfoObject => runtimeVersionInfoObject.platform
+        ),
+        fingerprint:
+          runtimeVersionInfoObjects.map(
+            runtimeVersionInfoObject => runtimeVersionInfoObject.runtimeVersionInfo.fingerprint
+          )[0] ?? null,
+      };
+    }
+  );
+}
+
+export const platformDisplayNames: Record<UpdatePublishPlatform, string> = {
   android: 'Android',
   ios: 'iOS',
-  web: 'Web',
 };
+
+export const updatePublishPlatformToAppPlatform: Record<UpdatePublishPlatform, AppPlatform> = {
+  android: AppPlatform.Android,
+  ios: AppPlatform.Ios,
+};
+
+const mapMapAsync = async function <K, V, M>(
+  map: ReadonlyMap<K, V>,
+  mapper: (value: V, key: K) => Promise<M>
+): Promise<Map<K, M>> {
+  const resultingMap: Map<K, M> = new Map();
+  await Promise.all(
+    Array.from(map.keys()).map(async k => {
+      const initialValue = map.get(k) as V;
+      const result = await mapper(initialValue, k);
+      resultingMap.set(k, result);
+    })
+  );
+  return resultingMap;
+};
+
+export async function getRuntimeToUpdateRolloutInfoGroupMappingAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    appId,
+    branchName,
+    rolloutPercentage,
+    runtimeToPlatformsAndFingerprintInfoMapping,
+  }: {
+    appId: string;
+    branchName: string;
+    rolloutPercentage: number;
+    runtimeToPlatformsAndFingerprintInfoMapping: (RuntimeVersionInfo & {
+      platforms: UpdatePublishPlatform[];
+    })[];
+  }
+): Promise<Map<string, UpdateRolloutInfoGroup>> {
+  const runtimeToPlatformsMap = new Map(
+    runtimeToPlatformsAndFingerprintInfoMapping.map(r => [r.runtimeVersion, r.platforms])
+  );
+  return await mapMapAsync(runtimeToPlatformsMap, async (platforms, runtimeVersion) => {
+    return Object.fromEntries(
+      await Promise.all(
+        platforms.map<Promise<[string, UpdateRolloutInfo]>>(async platform => {
+          const updateIdForPlatform = await BranchQuery.getLatestUpdateIdOnBranchAsync(
+            graphqlClient,
+            {
+              appId,
+              branchName,
+              runtimeVersion,
+              platform: updatePublishPlatformToAppPlatform[platform],
+            }
+          );
+          if (!updateIdForPlatform) {
+            throw new Error(
+              `No updates on branch ${branchName} for platform ${platform} and runtimeVersion ${runtimeVersion} to roll out from.`
+            );
+          }
+
+          return [platform, { rolloutPercentage, rolloutControlUpdateId: updateIdForPlatform }];
+        })
+      )
+    );
+  });
+}

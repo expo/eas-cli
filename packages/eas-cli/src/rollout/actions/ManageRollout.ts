@@ -1,12 +1,6 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
-import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
-import { ChannelQuery, UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
-import { promptAsync } from '../../prompts';
-import { getRolloutInfo, isConstrainedRolloutInfo, isRollout } from '../branch-mapping';
-import { printRollout } from '../utils';
 import {
   EditRollout,
   NonInteractiveOptions as EditRolloutNonInteractiveOptions,
@@ -16,6 +10,12 @@ import {
   GeneralOptions as EndRolloutGeneralOptions,
   NonInteractiveOptions as EndRolloutNonInteractiveOptions,
 } from './EndRollout';
+import { EASUpdateAction, EASUpdateContext } from '../../eas-update/utils';
+import { UpdateChannelBasicInfoFragment } from '../../graphql/generated';
+import { ChannelQuery, UpdateChannelObject } from '../../graphql/queries/ChannelQuery';
+import { promptAsync } from '../../prompts';
+import { getRolloutInfo, isConstrainedRolloutInfo, isRollout } from '../branch-mapping';
+import { printRollout } from '../utils';
 
 export enum ManageRolloutActions {
   EDIT = 'Edit',
@@ -29,8 +29,8 @@ export enum ManageRolloutActions {
  */
 export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
   constructor(
-    private channelInfo: UpdateChannelBasicInfoFragment,
-    private options: {
+    private readonly channelInfo: UpdateChannelBasicInfoFragment,
+    private readonly options: {
       callingAction?: EASUpdateAction;
       action?: ManageRolloutActions.EDIT | ManageRolloutActions.END | ManageRolloutActions.VIEW;
     } & Partial<EditRolloutNonInteractiveOptions> &
@@ -47,7 +47,7 @@ export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
     printRollout(channelObject);
 
     const action = this.options.action ?? (await this.selectActionAsync());
-    switch (action as ManageRolloutActions) {
+    switch (action) {
       case ManageRolloutActions.EDIT:
         return new EditRollout(this.channelInfo, this.options);
       case ManageRolloutActions.END:

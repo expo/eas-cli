@@ -8,6 +8,7 @@ import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/cr
 import { jester, jester as mockJester } from '../../../credentials/__tests__/fixtures-constants';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { promptAsync } from '../../../prompts';
+import { resolveVcsClient } from '../../../vcs';
 import {
   ensureBundleIdentifierIsDefinedForManagedProjectAsync,
   getBundleIdentifierAsync,
@@ -19,6 +20,8 @@ jest.mock('../../../prompts');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../user/actions', () => ({ ensureLoggedInAsync: jest.fn(() => mockJester) }));
 
+const vcsClient = resolveVcsClient();
+
 beforeEach(async () => {
   vol.reset();
 
@@ -29,7 +32,7 @@ beforeEach(async () => {
   jest.mocked(promptAsync).mockReset();
 });
 
-const originalFs = jest.requireActual('fs') as typeof fs;
+const originalFs = jest.requireActual('fs');
 
 describe(getBundleIdentifierAsync, () => {
   describe('bare projects', () => {
@@ -44,7 +47,7 @@ describe(getBundleIdentifierAsync, () => {
         '/app'
       );
 
-      const bundleIdentifier = await getBundleIdentifierAsync('/app', {} as any);
+      const bundleIdentifier = await getBundleIdentifierAsync('/app', {} as any, vcsClient);
       expect(bundleIdentifier).toBe('org.name.testproject');
     });
 
@@ -59,7 +62,7 @@ describe(getBundleIdentifierAsync, () => {
         '/app'
       );
 
-      await expect(getBundleIdentifierAsync('/app', {} as any)).rejects.toThrowError(
+      await expect(getBundleIdentifierAsync('/app', {} as any, vcsClient)).rejects.toThrowError(
         /Could not read bundle identifier/
       );
     });
@@ -67,21 +70,25 @@ describe(getBundleIdentifierAsync, () => {
 
   describe('managed projects', () => {
     it('reads bundleIdentifier from app config', async () => {
-      const applicationId = await getBundleIdentifierAsync('/app', {
-        ios: { bundleIdentifier: 'com.expo.notdominik' },
-      } as any);
+      const applicationId = await getBundleIdentifierAsync(
+        '/app',
+        {
+          ios: { bundleIdentifier: 'com.expo.notdominik' },
+        } as any,
+        vcsClient
+      );
       expect(applicationId).toBe('com.expo.notdominik');
     });
 
     it('throws an error if bundleIdentifier is not defined in app config', async () => {
-      await expect(getBundleIdentifierAsync('/app', {} as any)).rejects.toThrowError(
+      await expect(getBundleIdentifierAsync('/app', {} as any, vcsClient)).rejects.toThrowError(
         /Specify "ios.bundleIdentifier"/
       );
     });
 
     it('throws an error if bundleIdentifier in app config is invalid', async () => {
       await expect(
-        getBundleIdentifierAsync('/app', { ios: { bundleIdentifier: '' } } as any)
+        getBundleIdentifierAsync('/app', { ios: { bundleIdentifier: '' } } as any, vcsClient)
       ).rejects.toThrowError(/Specify "ios.bundleIdentifier"/);
     });
   });
@@ -103,14 +110,36 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
           projectDir: '/app',
           projectId: '1234',
           exp: {} as any,
+          vcsClient,
+          nonInteractive: false,
         })
       ).rejects.toThrowError(/we can't update this file programmatically/);
+    });
+    it('throws an error in non-interactive mode', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      vol.fromJSON(
+        {
+          'app.json': '{ "blah": {} }',
+        },
+        '/app'
+      );
+      await expect(
+        ensureBundleIdentifierIsDefinedForManagedProjectAsync({
+          graphqlClient,
+          projectDir: '/app',
+          projectId: '1234',
+          exp: {} as any,
+          vcsClient,
+          nonInteractive: true,
+        })
+      ).rejects.toThrowError(/non-interactive/);
     });
     it('prompts for the bundle identifier if using app.json', async () => {
       const graphqlClient = instance(mock<ExpoGraphqlClient>());
       jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
         id: '1234',
         slug: 'testing-123',
+        name: 'testing-123',
         fullName: '@jester/testing-123',
         ownerAccount: jester.accounts[0],
       });
@@ -132,6 +161,8 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
           projectDir: '/app',
           projectId: '1234',
           exp: {} as any,
+          vcsClient,
+          nonInteractive: false,
         })
       ).resolves.toBe('com.expo.notdominik');
       expect(promptAsync).toHaveBeenCalled();
@@ -141,6 +172,7 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
       jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
         id: '1234',
         slug: 'testing-123',
+        name: 'testing-123',
         fullName: '@jester/testing-123',
         ownerAccount: jester.accounts[0],
       });
@@ -162,6 +194,8 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
           projectDir: '/app',
           projectId: '1234',
           exp: {} as any,
+          vcsClient,
+          nonInteractive: false,
         })
       ).resolves.toBe('com.expo.notdominik');
       const appJson = JSON.parse(await fs.readFile('/app/app.json', 'utf-8'));

@@ -2,6 +2,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 import dateformat from 'dateformat';
 
+import { formatAppleTeam } from './AppleTeamFormatting';
 import { AccountFragment, AppleDistributionCertificateFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
@@ -17,7 +18,6 @@ import { filterRevokedDistributionCertsFromEasServers } from '../appstore/Creden
 import { AppleTooManyCertsError } from '../appstore/distributionCertificate';
 import { distributionCertificateSchema } from '../credentials';
 import { validateDistributionCertificateAsync } from '../validators/validateDistributionCertificate';
-import { formatAppleTeam } from './AppleTeamFormatting';
 
 export function formatDistributionCertificate(
   distributionCertificate: AppleDistributionCertificateFragment,
@@ -48,8 +48,13 @@ export function formatDistributionCertificate(
     buildCredentials => buildCredentials.iosAppCredentials.app
   );
   if (apps.length) {
-    const appFullNames = apps.map(app => app.fullName).join(',');
-    line += chalk.gray(`\n    📲 Used by: ${appFullNames}`);
+    // iosAppBuildCredentialsList is capped at 20 on www
+    const appFullNames = apps
+      .map(app => app.fullName)
+      .slice(0, 19)
+      .join(',');
+    const andMaybeMore = apps.length > 19 ? ' (and more)' : '';
+    line += chalk.gray(`\n    📲 Used by: ${appFullNames}${andMaybeMore}`);
   }
 
   if (validSerialNumbers?.includes(serialNumber)) {
@@ -95,17 +100,17 @@ export async function selectDistributionCertificateWithDependenciesAsync(
     return null;
   }
   if (!ctx.appStore.authCtx) {
-    return selectDistributionCertificateAsync(distCertsForAccount);
+    return await selectDistributionCertificateAsync(distCertsForAccount);
   }
 
   // get valid certs on the developer portal
   const certInfoFromApple = await ctx.appStore.listDistributionCertificatesAsync();
-  const validDistCerts = await filterRevokedDistributionCertsFromEasServers(
+  const validDistCerts = filterRevokedDistributionCertsFromEasServers(
     distCertsForAccount,
     certInfoFromApple
   );
 
-  return selectDistributionCertificateAsync(distCertsForAccount, validDistCerts);
+  return await selectDistributionCertificateAsync(distCertsForAccount, validDistCerts);
 }
 
 /**
@@ -124,7 +129,7 @@ export async function selectValidDistributionCertificateAsync(
     return null;
   }
   if (!ctx.appStore.authCtx) {
-    return selectDistributionCertificateAsync(distCertsForAccount);
+    return await selectDistributionCertificateAsync(distCertsForAccount);
   }
 
   // filter by apple team
@@ -143,7 +148,7 @@ export async function selectValidDistributionCertificateAsync(
   Log.log(
     `${validDistCerts.length}/${distCertsForAccount.length} Distribution Certificates are currently valid for Apple Team ${ctx.appStore.authCtx?.team.id}.`
   );
-  return selectDistributionCertificateAsync(validDistCerts);
+  return await selectDistributionCertificateAsync(validDistCerts);
 }
 
 const APPLE_DIST_CERTS_TOO_MANY_GENERATED_ERROR = `
@@ -254,6 +259,10 @@ function formatDistributionCertificateFromApple(
   const { name, status, id, expires, created, ownerName, serialNumber } = appleInfo;
   const expiresDate = new Date(expires * 1000).toDateString();
   const createdDate = new Date(created * 1000).toDateString();
-  return `${name} (${status}) - Cert ID: ${id}, Serial number: ${serialNumber}, Team ID: ${appleInfo.ownerId}, Team name: ${ownerName}
-    expires: ${expiresDate}, created: ${createdDate}`;
+  return [
+    `🍏 ${chalk.bold(name)} (${status})`,
+    `${chalk.bold('ID:')} ${id} ${chalk.bold('Serial Number:')} ${serialNumber}`,
+    `${chalk.bold('Apple Team:')} ${appleInfo.ownerId} (${ownerName})`,
+    `${chalk.bold('Expires:')} ${expiresDate} ${chalk.bold('Created:')} ${createdDate}`,
+  ].join('\n\t');
 }

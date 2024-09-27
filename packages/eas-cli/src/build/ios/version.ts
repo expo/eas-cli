@@ -11,7 +11,7 @@ import { Target } from '../../credentials/ios/types';
 import { AppPlatform } from '../../graphql/generated';
 import { AppVersionMutation } from '../../graphql/mutations/AppVersionMutation';
 import { AppVersionQuery } from '../../graphql/queries/AppVersionQuery';
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { ora } from '../../ora';
 import { findApplicationTarget } from '../../project/ios/target';
 import { getNextBuildNumber, isValidBuildNumber } from '../../project/ios/versions';
@@ -19,10 +19,11 @@ import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
 import uniqBy from '../../utils/expodash/uniqBy';
 import { readPlistAsync, writePlistAsync } from '../../utils/plist';
+import { Client } from '../../vcs/vcs';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
 import { bumpAppVersionAsync, ensureStaticConfigExists } from '../utils/version';
 
-const SHORT_VERSION_REGEX = /^\d+.\d+.\d+$/;
+const SHORT_VERSION_REGEX = /^\d+(\.\d+){0,2}$/;
 
 export enum BumpStrategy {
   APP_VERSION,
@@ -99,20 +100,37 @@ export async function bumpVersionInAppJsonAsync({
   }
 }
 
-function validateShortVersion(shortVersion: string | undefined): void {
+function validateShortVersion({
+  shortVersion,
+  workflow,
+}: {
+  shortVersion: string | undefined;
+  workflow: Workflow;
+}): void {
   if (shortVersion && !SHORT_VERSION_REGEX.test(shortVersion)) {
-    throw new Error(
-      `CFBundleShortVersionString (version field in app.json/app.config.js) must be a period-separated list of three non-negative integers. Current value: ${shortVersion}`
-    );
+    if (workflow === Workflow.MANAGED) {
+      throw new Error(
+        `The required format for "version" field from app.json/app.config.ts is one to three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: ${shortVersion}. Edit the "version" field in your app.json/app.config.ts to match the required format. ${learnMore(
+          'https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleshortversionstring'
+        )}`
+      );
+    } else {
+      throw new Error(
+        `The required format for "CFBundleShortVersionString" in Info.plist is one to three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: ${shortVersion}. Edit the "CFBundleShortVersionString" in your Info.plist to match the required format. ${learnMore(
+          'https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleshortversionstring'
+        )}`
+      );
+    }
   }
 }
 
 export async function readShortVersionAsync(
   projectDir: string,
   exp: ExpoConfig,
-  buildSettings: XCBuildConfiguration['buildSettings']
+  buildSettings: XCBuildConfiguration['buildSettings'],
+  vcsClient: Client
 ): Promise<string | undefined> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir, buildSettings);
 
@@ -120,10 +138,10 @@ export async function readShortVersionAsync(
       infoPlist.CFBundleShortVersionString &&
       evaluateTemplateString(infoPlist.CFBundleShortVersionString, buildSettings);
 
-    validateShortVersion(shortVersion);
+    validateShortVersion({ shortVersion, workflow });
     return shortVersion;
   } else {
-    validateShortVersion(exp.version);
+    validateShortVersion({ shortVersion: exp.version, workflow });
     return exp.version;
   }
 }
@@ -131,9 +149,10 @@ export async function readShortVersionAsync(
 export async function readBuildNumberAsync(
   projectDir: string,
   exp: ExpoConfig,
-  buildSettings: XCBuildConfiguration['buildSettings']
+  buildSettings: XCBuildConfiguration['buildSettings'],
+  vcsClient: Client
 ): Promise<string | undefined> {
-  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS);
+  const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   if (workflow === Workflow.GENERIC) {
     const infoPlist = await readInfoPlistAsync(projectDir, buildSettings);
     return (
@@ -147,7 +166,8 @@ export async function readBuildNumberAsync(
 export async function maybeResolveVersionsAsync(
   projectDir: string,
   exp: ExpoConfig,
-  targets: Target[]
+  targets: Target[],
+  vcsClient: Client
 ): Promise<{ appVersion?: string; appBuildVersion?: string }> {
   const applicationTarget = findApplicationTarget(targets);
   try {
@@ -155,12 +175,14 @@ export async function maybeResolveVersionsAsync(
       appBuildVersion: await readBuildNumberAsync(
         projectDir,
         exp,
-        applicationTarget.buildSettings ?? {}
+        applicationTarget.buildSettings ?? {},
+        vcsClient
       ),
       appVersion: await readShortVersionAsync(
         projectDir,
         exp,
-        applicationTarget.buildSettings ?? {}
+        applicationTarget.buildSettings ?? {},
+        vcsClient
       ),
     };
   } catch (err: any) {
@@ -278,12 +300,14 @@ export async function resolveRemoteBuildNumberAsync(
     exp,
     applicationTarget,
     buildProfile,
+    vcsClient,
   }: {
     projectDir: string;
     projectId: string;
     exp: ExpoConfig;
     applicationTarget: Target;
     buildProfile: BuildProfile<Platform.IOS>;
+    vcsClient: Client;
   }
 ): Promise<string> {
   const remoteVersions = await AppVersionQuery.latestVersionAsync(
@@ -296,12 +320,14 @@ export async function resolveRemoteBuildNumberAsync(
   const localBuildNumber = await readBuildNumberAsync(
     projectDir,
     exp,
-    applicationTarget.buildSettings ?? {}
+    applicationTarget.buildSettings ?? {},
+    vcsClient
   );
   const localShortVersion = await readShortVersionAsync(
     projectDir,
     exp,
-    applicationTarget.buildSettings ?? {}
+    applicationTarget.buildSettings ?? {},
+    vcsClient
   );
   let currentBuildVersion: string;
   if (remoteVersions?.buildVersion) {
@@ -332,7 +358,9 @@ export async function resolveRemoteBuildNumberAsync(
         applicationIdentifier: applicationTarget.bundleIdentifier,
         storeVersion: localShortVersion ?? '1.0.0',
         buildVersion: currentBuildVersion,
-        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
+        runtimeVersion:
+          (await Updates.getRuntimeVersionNullableAsync(projectDir, exp, Platform.IOS)) ??
+          undefined,
       });
       spinner.succeed(`Initialized buildNumber with ${chalk.bold(currentBuildVersion)}.`);
     } catch (err) {
@@ -354,7 +382,9 @@ export async function resolveRemoteBuildNumberAsync(
         applicationIdentifier: applicationTarget.bundleIdentifier,
         storeVersion: localShortVersion ?? '1.0.0',
         buildVersion: nextBuildVersion,
-        runtimeVersion: Updates.getRuntimeVersionNullable(exp, Platform.IOS) ?? undefined,
+        runtimeVersion:
+          (await Updates.getRuntimeVersionNullableAsync(projectDir, exp, Platform.IOS)) ??
+          undefined,
       });
       spinner.succeed(
         `Incremented buildNumber from ${chalk.bold(currentBuildVersion)} to ${chalk.bold(

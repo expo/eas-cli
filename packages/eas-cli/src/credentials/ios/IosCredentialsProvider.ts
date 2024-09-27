@@ -6,13 +6,6 @@ import {
   IosEnterpriseProvisioning,
 } from '@expo/eas-json';
 
-import { CommonIosAppCredentialsFragment } from '../../graphql/generated';
-import Log from '../../log';
-import { findApplicationTarget } from '../../project/ios/target';
-import { selectAsync } from '../../prompts';
-import { CredentialsContext } from '../context';
-import * as credentialsJsonReader from '../credentialsJson/read';
-import { ensureAllTargetsAreConfigured } from '../credentialsJson/utils';
 import { getAppFromContextAsync } from './actions/BuildCredentialsUtils';
 import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials';
 import { SetUpPushKey } from './actions/SetUpPushKey';
@@ -22,6 +15,14 @@ import {
   isDevelopmentProfile,
   isEnterpriseUniversalProfile,
 } from './utils/provisioningProfile';
+import { CommonIosAppCredentialsFragment } from '../../graphql/generated';
+import Log from '../../log';
+import { findApplicationTarget } from '../../project/ios/target';
+import { isExpoNotificationsInstalled } from '../../project/projectUtils';
+import { selectAsync } from '../../prompts';
+import { CredentialsContext } from '../context';
+import * as credentialsJsonReader from '../credentialsJson/read';
+import { ensureAllTargetsAreConfigured } from '../credentialsJson/utils';
 
 interface Options {
   app: App;
@@ -39,7 +40,7 @@ enum PushNotificationSetupOption {
 export default class IosCredentialsProvider {
   public readonly platform = Platform.IOS;
 
-  constructor(private ctx: CredentialsContext, private options: Options) {}
+  constructor(private readonly ctx: CredentialsContext, private readonly options: Options) {}
 
   public async getCredentialsAsync(
     src: CredentialsSource.LOCAL | CredentialsSource.REMOTE
@@ -105,6 +106,11 @@ export default class IosCredentialsProvider {
     }
 
     if (ctx.easJsonCliConfig?.promptToConfigurePushNotifications === false) {
+      return null;
+    } else if (
+      ctx.easJsonCliConfig?.promptToConfigurePushNotifications === undefined &&
+      !isExpoNotificationsInstalled(ctx.projectDir)
+    ) {
       return null;
     }
 

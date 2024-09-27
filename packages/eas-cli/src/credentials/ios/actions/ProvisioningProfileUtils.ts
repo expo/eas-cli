@@ -29,7 +29,7 @@ export async function generateProvisioningProfileAsync(
   const appleAuthCtx = await ctx.appStore.ensureAuthenticatedAsync();
   const type = appleAuthCtx.team.inHouse ? 'Enterprise ' : 'AppStore';
   const profileName = `*[expo] ${bundleIdentifier} ${type} ${new Date().toISOString()}`; // Apple drops [ if its the first char (!!)
-  const applePlatform = await getApplePlatformFromTarget(target);
+  const applePlatform = getApplePlatformFromTarget(target);
   return await ctx.appStore.createProvisioningProfileAsync(
     bundleIdentifier,
     distCert,

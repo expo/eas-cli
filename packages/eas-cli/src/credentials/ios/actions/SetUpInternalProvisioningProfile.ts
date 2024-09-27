@@ -1,12 +1,12 @@
+import { getAllBuildCredentialsAsync } from './BuildCredentialsUtils';
+import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
+import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
 import { IosAppBuildCredentialsFragment, IosDistributionType } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
 import { promptAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { Target } from '../types';
-import { getAllBuildCredentialsAsync } from './BuildCredentialsUtils';
-import { SetUpAdhocProvisioningProfile } from './SetUpAdhocProvisioningProfile';
-import { SetUpProvisioningProfile } from './SetUpProvisioningProfile';
 
 /**
  * It's used when setting up credentials for internal distribution but `enterpriseProvisioning` is not set.
@@ -22,7 +22,7 @@ interface Options {
 }
 
 export class SetUpInternalProvisioningProfile {
-  constructor(private options: Options) {}
+  constructor(private readonly options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
     const buildCredentials = await getAllBuildCredentialsAsync(ctx, this.options.app);

@@ -8,6 +8,7 @@ import {
   CommonAndroidAppCredentialsFragment,
   CreateAndroidAppCredentialsMutation,
   SetFcmMutation,
+  SetGoogleServiceAccountKeyForFcmV1Mutation,
   SetGoogleServiceAccountKeyForSubmissionsMutation,
 } from '../../../../../graphql/generated';
 import { CommonAndroidAppCredentialsFragmentNode } from '../../../../../graphql/types/credentials/AndroidAppCredentials';
@@ -123,5 +124,43 @@ export const AndroidAppCredentialsMutation = {
       'GraphQL: `setGoogleServiceAccountKeyForSubmissions` not defined in server response'
     );
     return data.androidAppCredentials.setGoogleServiceAccountKeyForSubmissions;
+  },
+  async setGoogleServiceAccountKeyForFcmV1Async(
+    graphqlClient: ExpoGraphqlClient,
+    androidAppCredentialsId: string,
+    googleServiceAccountKeyId: string
+  ): Promise<CommonAndroidAppCredentialsFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<SetGoogleServiceAccountKeyForFcmV1Mutation>(
+          gql`
+            mutation SetGoogleServiceAccountKeyForFcmV1Mutation(
+              $androidAppCredentialsId: ID!
+              $googleServiceAccountKeyId: ID!
+            ) {
+              androidAppCredentials {
+                setGoogleServiceAccountKeyForFcmV1(
+                  id: $androidAppCredentialsId
+                  googleServiceAccountKeyId: $googleServiceAccountKeyId
+                ) {
+                  id
+                  ...CommonAndroidAppCredentialsFragment
+                }
+              }
+            }
+            ${print(CommonAndroidAppCredentialsFragmentNode)}
+          `,
+          {
+            androidAppCredentialsId,
+            googleServiceAccountKeyId,
+          }
+        )
+        .toPromise()
+    );
+    assert(
+      data.androidAppCredentials.setGoogleServiceAccountKeyForFcmV1,
+      'GraphQL: `setGoogleServiceAccountKeyForFcmV1` not defined in server response'
+    );
+    return data.androidAppCredentials.setGoogleServiceAccountKeyForFcmV1;
   },
 };

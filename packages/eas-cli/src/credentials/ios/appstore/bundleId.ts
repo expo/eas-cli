@@ -6,7 +6,7 @@ async function getProfilesForBundleIdDangerousAsync(
 ): Promise<Profile[]> {
   const bundleId = await BundleId.findAsync(context, { identifier: bundleIdentifier });
   if (bundleId) {
-    return bundleId.getProfilesAsync();
+    return await bundleId.getProfilesAsync();
   }
   return [];
 }

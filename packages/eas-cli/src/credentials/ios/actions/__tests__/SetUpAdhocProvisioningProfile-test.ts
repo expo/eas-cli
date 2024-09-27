@@ -14,7 +14,9 @@ import {
 } from '../../../../graphql/generated';
 import Log from '../../../../log';
 import { getApplePlatformFromTarget } from '../../../../project/ios/target';
+import { selectAsync } from '../../../../prompts';
 import { Actor } from '../../../../user/User';
+import { Client } from '../../../../vcs/vcs';
 import { CredentialsContext, CredentialsContextProjectInfo } from '../../../context';
 import { ProvisioningProfile } from '../../appstore/Credentials.types';
 import { ApplePlatform } from '../../appstore/constants';
@@ -33,6 +35,7 @@ jest.mock('../DeviceUtils', () => {
   };
 });
 jest.mock('../../../../project/ios/target');
+jest.mock('../../../../prompts');
 
 describe(doUDIDsMatch, () => {
   it('return false if UDIDs do not match', () => {
@@ -56,30 +59,64 @@ describe('runWithDistributionCertificateAsync', () => {
   });
   describe('compare chosen and provisioned devices', () => {
     describe('not all devices provisioned', () => {
-      it('displays warning to the user and lists the missing devices', async () => {
-        const { ctx, distCert } = setUpTest();
-        jest.mocked(getBuildCredentialsAsync).mockResolvedValue({
-          provisioningProfile: {
+      describe('still not provisioned after an update', () => {
+        it('displays warning to the user and lists the missing devices', async () => {
+          const { ctx, distCert } = setUpTest();
+          jest.mocked(getBuildCredentialsAsync).mockResolvedValue({
+            provisioningProfile: {
+              appleTeam: {},
+              appleDevices: [{ identifier: 'id1' }],
+              developerPortalIdentifier: 'provisioningProfileId',
+            },
+          } as IosAppBuildCredentialsFragment);
+          jest.mocked(selectAsync).mockImplementation(async () => true);
+          ctx.ios.updateProvisioningProfileAsync = jest.fn().mockResolvedValue({
             appleTeam: {},
             appleDevices: [{ identifier: 'id1' }],
             developerPortalIdentifier: 'provisioningProfileId',
-          },
-        } as IosAppBuildCredentialsFragment);
-        const LogWarnSpy = jest.spyOn(Log, 'warn');
-        const LogLogSpy = jest.spyOn(Log, 'log');
-        const result = await setUpAdhocProvisioningProfile.runWithDistributionCertificateAsync(
-          ctx,
-          distCert
-        );
-        expect(result).toEqual({} as IosAppBuildCredentialsFragment);
-        expect(LogWarnSpy).toHaveBeenCalledTimes(3);
-        expect(LogWarnSpy).toHaveBeenCalledWith('Failed to provision 2 of the selected devices:');
-        expect(LogWarnSpy).toHaveBeenCalledWith('- id2 (iPhone) (Device 2)');
-        expect(LogWarnSpy).toHaveBeenCalledWith('- id3 (Mac) (Device 3)');
-        expect(LogLogSpy).toHaveBeenCalledTimes(1);
-        expect(LogLogSpy).toHaveBeenCalledWith(
-          'Most commonly devices fail to to be provisioned while they are still being processed by Apple, which can take up to 24-72 hours. Check your Apple Developer Portal page at https://developer.apple.com/account/resources/devices/list, the devices in "Processing" status cannot be provisioned yet'
-        );
+          });
+          const LogWarnSpy = jest.spyOn(Log, 'warn');
+          const LogLogSpy = jest.spyOn(Log, 'log');
+          const result = await setUpAdhocProvisioningProfile.runWithDistributionCertificateAsync(
+            ctx,
+            distCert
+          );
+          expect(result).toEqual({} as IosAppBuildCredentialsFragment);
+          expect(LogWarnSpy).toHaveBeenCalledTimes(3);
+          expect(LogWarnSpy).toHaveBeenCalledWith('Failed to provision 2 of the selected devices:');
+          expect(LogWarnSpy).toHaveBeenCalledWith('- id2 (iPhone) (Device 2)');
+          expect(LogWarnSpy).toHaveBeenCalledWith('- id3 (Mac) (Device 3)');
+          expect(LogLogSpy).toHaveBeenCalledTimes(1);
+          expect(LogLogSpy).toHaveBeenCalledWith(
+            'Most commonly devices fail to to be provisioned while they are still being processed by Apple, which can take up to 24-72 hours. Check your Apple Developer Portal page at https://developer.apple.com/account/resources/devices/list, the devices in "Processing" status cannot be provisioned yet'
+          );
+        });
+      });
+      describe('all devices provisioned after an update', () => {
+        it('does not display warning', async () => {
+          const { ctx, distCert } = setUpTest();
+          jest.mocked(getBuildCredentialsAsync).mockResolvedValue({
+            provisioningProfile: {
+              appleTeam: {},
+              appleDevices: [{ identifier: 'id1' }],
+              developerPortalIdentifier: 'provisioningProfileId',
+            },
+          } as IosAppBuildCredentialsFragment);
+          ctx.ios.updateProvisioningProfileAsync = jest.fn().mockResolvedValue({
+            appleTeam: {},
+            appleDevices: [{ identifier: 'id1' }, { identifier: 'id2' }, { identifier: 'id3' }],
+            developerPortalIdentifier: 'provisioningProfileId',
+          });
+          const LogWarnSpy = jest.spyOn(Log, 'warn');
+          const LogLogSpy = jest.spyOn(Log, 'log');
+          const result = await setUpAdhocProvisioningProfile.runWithDistributionCertificateAsync(
+            ctx,
+            distCert
+          );
+          expect(result).toEqual({} as IosAppBuildCredentialsFragment);
+          expect(LogWarnSpy).not.toHaveBeenCalled();
+          expect(LogLogSpy).not.toHaveBeenCalled();
+        });
       });
     });
     describe('all devices provisioned', () => {
@@ -92,6 +129,11 @@ describe('runWithDistributionCertificateAsync', () => {
             developerPortalIdentifier: 'provisioningProfileId',
           },
         } as IosAppBuildCredentialsFragment);
+        ctx.ios.updateProvisioningProfileAsync = jest.fn().mockResolvedValue({
+          appleTeam: {},
+          appleDevices: [{ identifier: 'id1' }, { identifier: 'id2' }, { identifier: 'id3' }],
+          developerPortalIdentifier: 'provisioningProfileId',
+        });
         const LogWarnSpy = jest.spyOn(Log, 'warn');
         const LogLogSpy = jest.spyOn(Log, 'log');
         const result = await setUpAdhocProvisioningProfile.runWithDistributionCertificateAsync(
@@ -118,6 +160,7 @@ function setUpTest(): { ctx: CredentialsContext; distCert: AppleDistributionCert
         graphqlClient: ExpoGraphqlClient;
         analytics: Analytics;
         env?: Env;
+        vcsClient: Client;
       }
     )
   );
@@ -134,7 +177,7 @@ function setUpTest(): { ctx: CredentialsContext; distCert: AppleDistributionCert
     { identifier: 'id2', name: 'Device 2', deviceClass: AppleDeviceClass.Iphone },
     { identifier: 'id3', name: 'Device 3', deviceClass: AppleDeviceClass.Mac },
   ] as AppleDevice[]);
-  // @ts-ignore
+  // @ts-expect-error
   jest.mocked(getApplePlatformFromTarget).mockResolvedValue(ApplePlatform.IOS);
   Object.defineProperty(ctx, 'appStore', { value: jest.mock('../../appstore/AppStoreApi') });
   ctx.appStore.createOrReuseAdhocProvisioningProfileAsync = jest.fn().mockResolvedValue({

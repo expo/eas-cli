@@ -1,6 +1,8 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
+import DeviceCreateAction from './actions/create/action';
+import { DeviceManagerContext } from './context';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppleTeamMutation } from '../credentials/ios/api/graphql/mutations/AppleTeamMutation';
 import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery';
@@ -9,8 +11,6 @@ import Log from '../log';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
 import { Actor } from '../user/User';
-import DeviceCreateAction from './actions/create/action';
-import { DeviceManagerContext } from './context';
 
 const CREATE_COMMAND_DESCRIPTION = `This command lets you register your Apple devices (iPhones, iPads and Macs) for internal distribution of your app.
 Internal distribution means that you won't need to upload your app archive to App Store / Testflight.
@@ -21,7 +21,7 @@ First of all, choose the Expo account under which you want to register your devi
 Later, authenticate with Apple and choose your desired Apple Team (if your Apple ID has access to multiple teams).`;
 
 export default class DeviceManager {
-  constructor(private ctx: DeviceManagerContext) {}
+  constructor(private readonly ctx: DeviceManagerContext) {}
 
   public async createAsync(): Promise<void> {
     Log.log(chalk.green(CREATE_COMMAND_DESCRIPTION));
@@ -50,9 +50,9 @@ export default class DeviceManager {
 
 export class AccountResolver {
   constructor(
-    private graphqlClient: ExpoGraphqlClient,
-    private projectId: string | null,
-    private user: Actor
+    private readonly graphqlClient: ExpoGraphqlClient,
+    private readonly projectId: string | null,
+    private readonly user: Actor
   ) {}
 
   public async resolveAccountAsync(): Promise<AccountFragment> {

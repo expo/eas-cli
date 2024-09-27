@@ -5,9 +5,12 @@ import Log from '../../log';
 import { promptAsync } from '../../prompts';
 
 export class SelectBuildProfileFromEasJson<T extends Platform> {
-  private easJsonAccessor: EasJsonAccessor;
+  private readonly easJsonAccessor: EasJsonAccessor;
 
-  constructor(projectDir: string, private platform: T) {
+  constructor(
+    projectDir: string,
+    private readonly platform: T
+  ) {
     this.easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   }
 

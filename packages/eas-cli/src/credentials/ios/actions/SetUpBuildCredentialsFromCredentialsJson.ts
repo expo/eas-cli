@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { SetUpTargetBuildCredentialsFromCredentialsJson } from './SetUpTargetBuildCredentialsFromCredentialsJson';
 import { IosDistributionType } from '../../../graphql/generated';
 import Log from '../../../log';
 import { findApplicationTarget } from '../../../project/ios/target';
@@ -8,13 +9,12 @@ import { readIosCredentialsAsync } from '../../credentialsJson/read';
 import { IosCredentials } from '../../credentialsJson/types';
 import { ensureAllTargetsAreConfigured } from '../../credentialsJson/utils';
 import { App, Target } from '../types';
-import { SetUpTargetBuildCredentialsFromCredentialsJson } from './SetUpTargetBuildCredentialsFromCredentialsJson';
 
 export class SetUpBuildCredentialsFromCredentialsJson {
   constructor(
-    private app: App,
-    private targets: Target[],
-    private distributionType: IosDistributionType
+    private readonly app: App,
+    private readonly targets: Target[],
+    private readonly distributionType: IosDistributionType
   ) {}
 
   async runAsync(ctx: CredentialsContext): Promise<void> {

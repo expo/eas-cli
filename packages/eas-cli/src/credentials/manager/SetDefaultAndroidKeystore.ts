@@ -6,7 +6,7 @@ import { AppLookupParams } from '../android/api/GraphqlClient';
 import { CredentialsContext } from '../context';
 
 export class SetDefaultAndroidKeystore {
-  constructor(private app: AppLookupParams) {}
+  constructor(private readonly app: AppLookupParams) {}
 
   async runAsync(ctx: CredentialsContext): Promise<AndroidAppBuildCredentialsFragment | undefined> {
     const buildCredentialsList = await ctx.android.getAndroidAppBuildCredentialsListAsync(

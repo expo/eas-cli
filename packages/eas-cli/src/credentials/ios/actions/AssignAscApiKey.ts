@@ -1,3 +1,5 @@
+import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
+import { AppStoreApiKeyPurpose } from './AscApiKeyUtils';
 import {
   AppStoreConnectApiKeyFragment,
   CommonIosAppCredentialsFragment,
@@ -5,11 +7,9 @@ import {
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
-import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
-import { AppStoreApiKeyPurpose } from './AscApiKeyUtils';
 
 export class AssignAscApiKey {
-  constructor(private app: AppLookupParams) {}
+  constructor(private readonly app: AppLookupParams) {}
 
   public async runAsync(
     ctx: CredentialsContext,

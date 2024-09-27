@@ -29,7 +29,7 @@ export function displayEmptyAndroidCredentials(appLookupParams: AppLookupParams)
 function displayAndroidFcmCredentials(appCredentials: CommonAndroidAppCredentialsFragment): void {
   const maybeFcm = appCredentials.androidFcm;
   Log.log(
-    formatFields([{ label: 'Push Notifications (FCM)', value: '' }], {
+    formatFields([{ label: 'Push Notifications (FCM Legacy)', value: '' }], {
       labelFormat: chalk.cyan.bold,
     })
   );
@@ -60,9 +60,43 @@ function displayGoogleServiceAccountKeyForSubmissions(
 ): void {
   const maybeGsaKey = appCredentials.googleServiceAccountKeyForSubmissions;
   Log.log(
-    formatFields([{ label: 'Google Service Account Key For Submissions', value: '' }], {
-      labelFormat: chalk.cyan.bold,
-    })
+    formatFields(
+      [{ label: 'Submissions: Google Service Account Key for Play Store Submissions', value: '' }],
+      {
+        labelFormat: chalk.cyan.bold,
+      }
+    )
+  );
+  if (!maybeGsaKey) {
+    Log.log(formatFields([{ label: '', value: 'None assigned yet' }]));
+    Log.newLine();
+    return;
+  }
+  const { projectIdentifier, privateKeyIdentifier, clientEmail, clientIdentifier, updatedAt } =
+    maybeGsaKey;
+
+  const fields = [
+    { label: 'Project ID', value: projectIdentifier },
+    { label: 'Client Email', value: clientEmail },
+    { label: 'Client ID', value: clientIdentifier },
+    { label: 'Private Key ID', value: privateKeyIdentifier },
+    { label: 'Updated', value: `${fromNow(new Date(updatedAt))} ago` },
+  ];
+  Log.log(formatFields(fields, { labelFormat: chalk.cyan.bold }));
+  Log.newLine();
+}
+
+function displayGoogleServiceAccountKeyForFcmV1(
+  appCredentials: CommonAndroidAppCredentialsFragment
+): void {
+  const maybeGsaKey = appCredentials.googleServiceAccountKeyForFcmV1;
+  Log.log(
+    formatFields(
+      [{ label: 'Push Notifications (FCM V1): Google Service Account Key For FCM V1', value: '' }],
+      {
+        labelFormat: chalk.cyan.bold,
+      }
+    )
   );
   if (!maybeGsaKey) {
     Log.log(formatFields([{ label: '', value: 'None assigned yet' }]));
@@ -87,6 +121,7 @@ function displayEASAndroidAppCredentials(
   appCredentials: CommonAndroidAppCredentialsFragment
 ): void {
   displayAndroidFcmCredentials(appCredentials);
+  displayGoogleServiceAccountKeyForFcmV1(appCredentials);
   displayGoogleServiceAccountKeyForSubmissions(appCredentials);
   const sortedBuildCredentialsList = sortBuildCredentials(
     appCredentials.androidAppBuildCredentialsList

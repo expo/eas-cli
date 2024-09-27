@@ -32,7 +32,7 @@ export function getRootPath(): string {
 export class Ignore {
   private ignoreMapping: (readonly [string, SingleFileIgnore])[] = [];
 
-  constructor(private rootDir: string) {}
+  constructor(private readonly rootDir: string) {}
 
   public async initIgnoreAsync(): Promise<void> {
     const easIgnorePath = path.join(this.rootDir, EASIGNORE_FILENAME);

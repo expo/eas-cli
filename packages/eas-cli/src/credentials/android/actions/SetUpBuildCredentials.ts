@@ -1,6 +1,12 @@
 import nullthrows from 'nullthrows';
 
 import {
+  canCopyLegacyCredentialsAsync,
+  createOrUpdateDefaultAndroidAppBuildCredentialsAsync,
+  promptUserAndCopyLegacyCredentialsAsync,
+} from './BuildCredentialsUtils';
+import { CreateKeystore } from './CreateKeystore';
+import {
   AndroidAppBuildCredentialsFragment,
   AndroidKeystoreFragment,
 } from '../../../graphql/generated';
@@ -9,12 +15,6 @@ import { ora } from '../../../ora';
 import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
-import {
-  canCopyLegacyCredentialsAsync,
-  createOrUpdateDefaultAndroidAppBuildCredentialsAsync,
-  promptUserAndCopyLegacyCredentialsAsync,
-} from './BuildCredentialsUtils';
-import { CreateKeystore } from './CreateKeystore';
 
 interface Options {
   app: AppLookupParams;
@@ -26,7 +26,7 @@ interface Options {
  * @name: sets up build credentials for the specified configuration. If no name is specified, the default configuration is setup
  */
 export class SetUpBuildCredentials {
-  constructor(private options: Options) {}
+  constructor(private readonly options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<AndroidAppBuildCredentialsFragment> {
     const { app, name: maybeName } = this.options;

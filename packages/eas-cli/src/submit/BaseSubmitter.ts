@@ -1,5 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 
+import { ArchiveSourceType, ResolvedArchiveSource } from './ArchiveSource';
+import { SubmissionContext } from './context';
 import { AnalyticsEvent, SubmissionEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
 import {
@@ -13,8 +15,6 @@ import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { ora } from '../ora';
 import { appPlatformDisplayNames } from '../platform';
-import { ArchiveSourceType, ResolvedArchiveSource } from './ArchiveSource';
-import { SubmissionContext } from './context';
 
 export interface SubmissionInput<P extends Platform> {
   projectId: string;
@@ -34,7 +34,7 @@ interface AnalyticEvents {
 export default abstract class BaseSubmitter<
   P extends Platform,
   ResolvedSourceOptions,
-  SubmissionOptions
+  SubmissionOptions,
 > {
   constructor(
     protected ctx: SubmissionContext<P>,
@@ -65,9 +65,13 @@ export default abstract class BaseSubmitter<
     return resolvedSourceOptions;
   }
 
-  public async submitAsync(): Promise<SubmissionFragment> {
+  public async getSubmissionInputAsync(): Promise<SubmissionInput<P>> {
     const resolvedSourceOptions = await this.getSourceOptionsAsync();
-    const input = await this.createSubmissionInputAsync(resolvedSourceOptions);
+    return await this.createSubmissionInputAsync(resolvedSourceOptions);
+  }
+
+  public async submitAsync(): Promise<SubmissionFragment> {
+    const input = await this.getSubmissionInputAsync();
     return await this.createSubmissionWithAnalyticsAsync(input);
   }
 
@@ -103,7 +107,7 @@ export default abstract class BaseSubmitter<
     const platformDisplayName = appPlatformDisplayNames[toAppPlatform(this.ctx.platform)];
     const scheduleSpinner = ora(`Scheduling ${platformDisplayName} submission`).start();
     try {
-      const submission = this.createPlatformSubmissionAsync(submissionInput);
+      const submission = await this.createPlatformSubmissionAsync(submissionInput);
       scheduleSpinner.succeed(`Scheduled ${platformDisplayName} submission`);
       return submission;
     } catch (err) {
@@ -117,7 +121,7 @@ export default abstract class BaseSubmitter<
   ): Promise<SubmissionFragment> {
     return await withAnalyticsAsync<SubmissionFragment>(
       this.ctx.analytics,
-      async () => this.createSubmissionAsync(submissionInput),
+      async () => await this.createSubmissionAsync(submissionInput),
       {
         attemptEvent: SubmissionEvent.SUBMIT_REQUEST_ATTEMPT,
         successEvent: SubmissionEvent.SUBMIT_REQUEST_SUCCESS,

@@ -3,10 +3,11 @@ import spawnAsync from '@expo/spawn-async';
 import { ChildProcess } from 'child_process';
 import semver from 'semver';
 
+import Log from '../log';
 import { ora } from '../ora';
 
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
-const PLUGIN_PACKAGE_VERSION = '1.0.44';
+const PLUGIN_PACKAGE_VERSION = '1.0.135';
 
 export enum LocalBuildMode {
   /**
@@ -39,7 +40,8 @@ export interface LocalBuildOptions {
 export async function runLocalBuildAsync(
   job: Job,
   metadata: Metadata,
-  options: LocalBuildOptions
+  options: LocalBuildOptions,
+  env: Record<string, string>
 ): Promise<void> {
   const { command, args } = await getCommandAndArgsAsync(job, metadata);
   let spinner;
@@ -54,18 +56,26 @@ export async function runLocalBuildAsync(
   };
   process.on('SIGINT', interruptHandler);
   try {
+    const mergedEnv = {
+      ...env,
+      ...process.env,
+      EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? process.env.EAS_LOCAL_BUILD_WORKINGDIR,
+      ...(options.skipCleanup || options.skipNativeBuild
+        ? { EAS_LOCAL_BUILD_SKIP_CLEANUP: '1' }
+        : {}),
+      ...(options.skipNativeBuild ? { EAS_LOCAL_BUILD_SKIP_NATIVE_BUILD: '1' } : {}),
+      ...(options.artifactsDir ? { EAS_LOCAL_BUILD_ARTIFACTS_DIR: options.artifactsDir } : {}),
+      ...(options.artifactPath ? { EAS_LOCAL_BUILD_ARTIFACT_PATH: options.artifactPath } : {}),
+    };
+    // log command execution to assist in debugging local builds
+    Log.debug('Running local build, using local-build-plugin', {
+      command,
+      args,
+      env: mergedEnv,
+    });
     const spawnPromise = spawnAsync(command, args, {
       stdio: options.verbose ? 'inherit' : 'pipe',
-      env: {
-        ...process.env,
-        EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? process.env.EAS_LOCAL_BUILD_WORKINGDIR,
-        ...(options.skipCleanup || options.skipNativeBuild
-          ? { EAS_LOCAL_BUILD_SKIP_CLEANUP: '1' }
-          : {}),
-        ...(options.skipNativeBuild ? { EAS_LOCAL_BUILD_SKIP_NATIVE_BUILD: '1' } : {}),
-        ...(options.artifactsDir ? { EAS_LOCAL_BUILD_ARTIFACTS_DIR: options.artifactsDir } : {}),
-        ...(options.artifactPath ? { EAS_LOCAL_BUILD_ARTIFACT_PATH: options.artifactPath } : {}),
-      },
+      env: mergedEnv,
     });
     childProcess = spawnPromise.child;
     await spawnPromise;

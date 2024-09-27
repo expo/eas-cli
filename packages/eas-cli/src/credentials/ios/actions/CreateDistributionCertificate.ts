@@ -1,11 +1,11 @@
+import { provideOrGenerateDistributionCertificateAsync } from './DistributionCertificateUtils';
 import { AccountFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { CredentialsContext } from '../../context';
 import { AppleDistributionCertificateMutationResult } from '../api/graphql/mutations/AppleDistributionCertificateMutation';
-import { provideOrGenerateDistributionCertificateAsync } from './DistributionCertificateUtils';
 
 export class CreateDistributionCertificate {
-  constructor(private account: AccountFragment) {}
+  constructor(private readonly account: AccountFragment) {}
 
   public async runAsync(
     ctx: CredentialsContext

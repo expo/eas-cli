@@ -9,7 +9,7 @@ import { getEASUpdateURL } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AccountFragment, AppPrivacy } from '../graphql/generated';
 import { AppQuery } from '../graphql/queries/AppQuery';
-import Log from '../log';
+import Log, { learnMore } from '../log';
 import { Actor } from '../user/User';
 import { expoCommandAsync } from '../utils/expoCli';
 
@@ -67,6 +67,11 @@ export function isExpoUpdatesInstalled(projectDir: string): boolean {
   return !!(packageJson.dependencies && 'expo-updates' in packageJson.dependencies);
 }
 
+export function isExpoNotificationsInstalled(projectDir: string): boolean {
+  const packageJson = getPackageJson(projectDir);
+  return !!(packageJson.dependencies && 'expo-notifications' in packageJson.dependencies);
+}
+
 export function isExpoUpdatesInstalledAsDevDependency(projectDir: string): boolean {
   const packageJson = getPackageJson(projectDir);
   return !!(packageJson.devDependencies && 'expo-updates' in packageJson.devDependencies);
@@ -88,6 +93,17 @@ export function isUsingEASUpdate(exp: ExpoConfig, projectId: string): boolean {
   return exp.updates?.url === getEASUpdateURL(projectId);
 }
 
+async function getExpoUpdatesPackageVersionIfInstalledAsync(
+  projectDir: string
+): Promise<string | null> {
+  const maybePackageJson = resolveFrom.silent(projectDir, 'expo-updates/package.json');
+  if (!maybePackageJson) {
+    return null;
+  }
+  const { version } = await fs.readJson(maybePackageJson);
+  return version ?? null;
+}
+
 export async function validateAppVersionRuntimePolicySupportAsync(
   projectDir: string,
   exp: ExpoConfig
@@ -96,17 +112,53 @@ export async function validateAppVersionRuntimePolicySupportAsync(
     return;
   }
 
-  const maybePackageJson = resolveFrom.silent(projectDir, 'expo-updates/package.json');
-  if (maybePackageJson) {
-    const { version } = await fs.readJson(maybePackageJson);
-    if (semver.gte(version, '0.14.4')) {
-      return;
-    }
+  const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
+  if (
+    expoUpdatesPackageVersion !== null &&
+    (semver.gte(expoUpdatesPackageVersion, '0.14.4') ||
+      expoUpdatesPackageVersion.includes('canary'))
+  ) {
+    return;
   }
 
   Log.warn(
     `You need to be on SDK 46 or higher, and use expo-updates >= 0.14.4 to use appVersion runtime policy.`
   );
+}
+
+export async function enforceRollBackToEmbeddedUpdateSupportAsync(
+  projectDir: string
+): Promise<void> {
+  const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
+  if (
+    expoUpdatesPackageVersion !== null &&
+    (semver.gte(expoUpdatesPackageVersion, '0.19.0') ||
+      expoUpdatesPackageVersion.includes('canary'))
+  ) {
+    return;
+  }
+
+  throw new Error(
+    `The expo-updates package must have a version >= 0.19.0 to use roll back to embedded, which corresponds to Expo SDK 50 or greater. ${learnMore(
+      'https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/'
+    )}`
+  );
+}
+
+export async function isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(
+  projectDir: string
+): Promise<boolean> {
+  const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
+  if (expoUpdatesPackageVersion === null) {
+    return false;
+  }
+
+  if (expoUpdatesPackageVersion.includes('canary')) {
+    return true;
+  }
+
+  // Anything SDK 51 or greater uses the expo-updates CLI
+  return semver.gte(expoUpdatesPackageVersion, '0.25.4');
 }
 
 export async function installExpoUpdatesAsync(

@@ -109,6 +109,7 @@ export async function getAppLookupParamsFromContextAsync(
   const androidApplicationIdentifier = await getApplicationIdAsync(
     ctx.projectDir,
     ctx.exp,
+    ctx.vcsClient,
     gradleContext
   );
   if (!androidApplicationIdentifier) {

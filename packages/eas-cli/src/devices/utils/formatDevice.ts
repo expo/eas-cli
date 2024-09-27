@@ -10,6 +10,7 @@ const DEVICE_CLASS_DISPLAY_NAMES: Record<AppleDeviceClass, string> = {
   [AppleDeviceClass.Iphone]: 'iPhone',
   [AppleDeviceClass.Ipad]: 'iPad',
   [AppleDeviceClass.Mac]: 'Mac',
+  [AppleDeviceClass.Unknown]: 'Unknown',
 };
 
 function formatDeviceClass(device: Device | NewDevice): string {

@@ -1,7 +1,10 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile, EasJson } from '@expo/eas-json';
+import { LoggerLevel } from '@expo/logger';
+import { NodePackageManager } from '@expo/package-manager';
 
+import { LocalBuildOptions } from './local';
 import { Analytics, AnalyticsEventProperties } from '../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
@@ -11,7 +14,7 @@ import { GradleBuildContext } from '../project/android/gradle';
 import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { XcodeBuildContext } from '../project/ios/scheme';
 import { Actor } from '../user/User';
-import { LocalBuildOptions } from './local';
+import { Client } from '../vcs/vcs';
 
 export type CommonContext<T extends Platform> = Omit<BuildContext<T>, 'android' | 'ios'>;
 
@@ -56,4 +59,9 @@ export interface BuildContext<T extends Platform> {
   android: T extends Platform.ANDROID ? AndroidBuildContext : undefined;
   ios: T extends Platform.IOS ? IosBuildContext : undefined;
   developmentClient: boolean;
+  requiredPackageManager: NodePackageManager['name'] | null;
+  vcsClient: Client;
+  loggerLevel?: LoggerLevel;
+  repack: boolean;
+  env: Record<string, string>;
 }

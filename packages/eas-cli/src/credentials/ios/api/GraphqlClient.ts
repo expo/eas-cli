@@ -1,26 +1,6 @@
 import { UserRole } from '@expo/apple-utils';
 import nullthrows from 'nullthrows';
 
-import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import {
-  AccountFragment,
-  AppFragment,
-  AppStoreConnectApiKeyFragment,
-  AppStoreConnectUserRole,
-  AppleAppIdentifierFragment,
-  AppleDeviceFragment,
-  AppleDistributionCertificateFragment,
-  ApplePushKeyFragment,
-  AppleTeamFragment,
-  CommonIosAppCredentialsFragment,
-  IosAppBuildCredentialsFragment,
-  IosDistributionType,
-} from '../../../graphql/generated';
-import { AppQuery } from '../../../graphql/queries/AppQuery';
-import { isWildcardBundleIdentifier } from '../../../project/ios/bundleIdentifier';
-import { DistributionCertificate, PushKey } from '../appstore/Credentials.types';
-import { MinimalAscApiKey } from '../credentials';
-import { AppleTeamMissingError } from '../errors';
 import { AppStoreConnectApiKeyMutation } from './graphql/mutations/AppStoreConnectApiKeyMutation';
 import { AppleAppIdentifierMutation } from './graphql/mutations/AppleAppIdentifierMutation';
 import {
@@ -47,6 +27,26 @@ import { ApplePushKeyQuery } from './graphql/queries/ApplePushKeyQuery';
 import { AppleTeamQuery } from './graphql/queries/AppleTeamQuery';
 import { IosAppCredentialsQuery } from './graphql/queries/IosAppCredentialsQuery';
 import { AppLookupParams } from './graphql/types/AppLookupParams';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import {
+  AccountFragment,
+  AppFragment,
+  AppStoreConnectApiKeyFragment,
+  AppStoreConnectUserRole,
+  AppleAppIdentifierFragment,
+  AppleDeviceFragment,
+  AppleDistributionCertificateFragment,
+  ApplePushKeyFragment,
+  AppleTeamFragment,
+  CommonIosAppCredentialsFragment,
+  IosAppBuildCredentialsFragment,
+  IosDistributionType,
+} from '../../../graphql/generated';
+import { AppQuery } from '../../../graphql/queries/AppQuery';
+import { isWildcardBundleIdentifier } from '../../../project/ios/bundleIdentifier';
+import { DistributionCertificate, PushKey } from '../appstore/Credentials.types';
+import { MinimalAscApiKey } from '../credentials';
+import { AppleTeamMissingError } from '../errors';
 
 async function getAppAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -326,7 +326,7 @@ export async function getDevicesForAppleTeamAsync(
 ): Promise<AppleDeviceFragment[]> {
   return await AppleDeviceQuery.getAllByAppleTeamIdentifierAsync(
     graphqlClient,
-    account.id,
+    account.name,
     appleTeamIdentifier,
     {
       useCache,
@@ -388,7 +388,7 @@ export async function deleteProvisioningProfilesAsync(
   graphqlClient: ExpoGraphqlClient,
   appleProvisioningProfileIds: string[]
 ): Promise<void> {
-  return await AppleProvisioningProfileMutation.deleteAppleProvisioningProfilesAsync(
+  await AppleProvisioningProfileMutation.deleteAppleProvisioningProfilesAsync(
     graphqlClient,
     appleProvisioningProfileIds
   );
@@ -445,7 +445,7 @@ export async function deleteDistributionCertificateAsync(
   graphqlClient: ExpoGraphqlClient,
   distributionCertificateId: string
 ): Promise<void> {
-  return await AppleDistributionCertificateMutation.deleteAppleDistributionCertificateAsync(
+  await AppleDistributionCertificateMutation.deleteAppleDistributionCertificateAsync(
     graphqlClient,
     distributionCertificateId
   );
@@ -493,7 +493,7 @@ export async function deletePushKeyAsync(
   graphqlClient: ExpoGraphqlClient,
   pushKeyId: string
 ): Promise<void> {
-  return await ApplePushKeyMutation.deleteApplePushKeyAsync(graphqlClient, pushKeyId);
+  await ApplePushKeyMutation.deleteApplePushKeyAsync(graphqlClient, pushKeyId);
 }
 
 export async function createAscApiKeyAsync(
@@ -543,10 +543,7 @@ export async function deleteAscApiKeyAsync(
   graphqlClient: ExpoGraphqlClient,
   ascApiKeyId: string
 ): Promise<void> {
-  return await AppStoreConnectApiKeyMutation.deleteAppStoreConnectApiKeyAsync(
-    graphqlClient,
-    ascApiKeyId
-  );
+  await AppStoreConnectApiKeyMutation.deleteAppStoreConnectApiKeyAsync(graphqlClient, ascApiKeyId);
 }
 
 function convertUserRoleToGraphqlType(userRole: UserRole): AppStoreConnectUserRole {

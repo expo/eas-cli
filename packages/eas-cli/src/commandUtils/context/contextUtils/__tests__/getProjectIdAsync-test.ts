@@ -55,6 +55,7 @@ describe(getProjectIdAsync, () => {
         ],
         isExpoAdmin: false,
         featureGates: {},
+        preferences: {},
       },
       authenticationInfo: { accessToken: 'fake', sessionSecret: null },
     });
@@ -79,6 +80,7 @@ describe(getProjectIdAsync, () => {
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
       id: '1234',
       fullName: '@notnotbrent/test',
+      name: 'test',
       slug: 'test',
       ownerAccount: { name: 'notnotbrent' } as any,
     });
@@ -99,6 +101,7 @@ describe(getProjectIdAsync, () => {
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
       id: '1234',
       fullName: '@notnotbrent/test',
+      name: 'test',
       slug: 'test',
       ownerAccount: { name: 'notnotbrent' } as any,
     });
@@ -123,6 +126,7 @@ describe(getProjectIdAsync, () => {
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
       id: '1234',
       fullName: '@totallybrent/test',
+      name: 'test',
       slug: 'test',
       ownerAccount: { name: 'totallybrent' } as any,
     });
@@ -171,6 +175,7 @@ describe(getProjectIdAsync, () => {
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
       id: '1234',
       fullName: '@totallybrent/test',
+      name: 'test',
       slug: 'test',
       ownerAccount: { name: 'totallybrent' } as any,
     });
@@ -195,6 +200,7 @@ describe(getProjectIdAsync, () => {
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
       id: '1234',
       fullName: '@notnotbrent/test',
+      name: 'test',
       slug: 'test',
       ownerAccount: { name: 'notnotbrent' } as any,
     });
@@ -264,6 +270,7 @@ describe(getProjectIdAsync, () => {
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
       id: '1234',
       fullName: '@notnotbrent/test',
+      name: 'test',
       slug: 'test',
       ownerAccount: { name: 'notnotbrent' } as any,
     });

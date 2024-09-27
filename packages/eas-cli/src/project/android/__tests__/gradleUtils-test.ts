@@ -1,11 +1,10 @@
-import fs from 'fs';
 import { vol } from 'memfs';
 import path from 'path';
 
 import pick from '../../../utils/expodash/pick';
 import { getAppBuildGradleAsync, parseGradleCommand, resolveConfigValue } from '../gradleUtils';
 
-const fsReal = jest.requireActual('fs') as typeof fs;
+const fsReal = jest.requireActual('fs');
 
 jest.mock('fs');
 
@@ -19,6 +18,30 @@ describe(getAppBuildGradleAsync, () => {
       {
         'android/app/build.gradle': await fsReal.promises.readFile(
           path.join(__dirname, 'fixtures/build.gradle'),
+          'utf-8'
+        ),
+      },
+      '/test'
+    );
+    const buildGradle = await getAppBuildGradleAsync('/test');
+    expect(
+      pick(buildGradle?.android ?? {}, ['defaultConfig', 'flavorDimensions', 'productFlavors'])
+    ).toEqual({
+      defaultConfig: {
+        applicationId: 'com.helloworld',
+        minSdkVersion: 'rootProject.ext.minSdkVersion',
+        targetSdkVersion: 'rootProject.ext.targetSdkVersion',
+        versionCode: '1',
+        versionName: '1.0',
+      },
+    });
+  });
+
+  test('parsing build gradle with empty single line comment', async () => {
+    vol.fromJSON(
+      {
+        'android/app/build.gradle': await fsReal.promises.readFile(
+          path.join(__dirname, 'fixtures/empty-single-line-comment-in-build.gradle'),
           'utf-8'
         ),
       },

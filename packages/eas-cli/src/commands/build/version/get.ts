@@ -3,6 +3,7 @@ import { EasJsonAccessor } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
+import { evaluateConfigWithEnvVarsAsync } from '../../../build/evaluateConfigWithEnvVarsAsync';
 import EasCommand from '../../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../../commandUtils/flags';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
@@ -38,6 +39,7 @@ export default class BuildVersionGetView extends EasCommand {
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.Vcs,
   };
 
   public async runAsync(): Promise<void> {
@@ -49,6 +51,7 @@ export default class BuildVersionGetView extends EasCommand {
       loggedIn: { graphqlClient },
       getDynamicPrivateProjectConfigAsync,
       projectDir,
+      vcsClient,
     } = await this.getContextAsync(BuildVersionGetView, {
       nonInteractive: true,
     });
@@ -72,8 +75,12 @@ export default class BuildVersionGetView extends EasCommand {
     });
     const results: { [key in Platform]?: string } = {};
     for (const { profile, platform } of buildProfiles) {
-      const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
-        env: profile.env,
+      const { exp, projectId, env } = await evaluateConfigWithEnvVarsAsync({
+        buildProfile: profile,
+        buildProfileName: flags.profile ?? 'production',
+        graphqlClient,
+        getProjectConfig: getDynamicPrivateProjectConfigAsync,
+        opts: { env: profile.env },
       });
 
       validateAppConfigForRemoteVersionSource(exp, platform);
@@ -85,6 +92,9 @@ export default class BuildVersionGetView extends EasCommand {
         exp,
         buildProfile: profile,
         platform,
+        vcsClient,
+        nonInteractive: flags['non-interactive'],
+        env,
       });
       const remoteVersions = await AppVersionQuery.latestVersionAsync(
         graphqlClient,

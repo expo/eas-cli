@@ -1,8 +1,5 @@
 import { UserRole } from '@expo/apple-utils';
 
-import { AppleDevice } from '../../graphql/generated';
-import Log from '../../log';
-import { CredentialSchema } from '../utils/promptForCredentials';
 import {
   DistributionCertificate,
   ProvisioningProfile,
@@ -10,6 +7,9 @@ import {
 } from './appstore/Credentials.types';
 import { findP12CertSerialNumber } from './utils/p12Certificate';
 import { readAppleTeam as readAppleTeamFromProvisioningProfile } from './utils/provisioningProfile';
+import { AppleDevice } from '../../graphql/generated';
+import Log from '../../log';
+import { CredentialSchema } from '../utils/promptForCredentials';
 
 export interface AppLookupParams {
   accountName: string;
@@ -170,7 +170,7 @@ export const provisioningProfileSchema: CredentialSchema<ProvisioningProfile> = 
   transformResultAsync: async answers => {
     return {
       ...answers,
-      ...(await readAppleTeamFromProvisioningProfile(answers.provisioningProfile!)),
+      ...readAppleTeamFromProvisioningProfile(answers.provisioningProfile!),
     } as ProvisioningProfile;
   },
 };

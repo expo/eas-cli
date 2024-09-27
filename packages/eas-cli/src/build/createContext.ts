@@ -1,10 +1,17 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJson, ResourceClass } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
+import { LoggerLevel } from '@expo/logger';
+import { resolvePackageManager } from '@expo/package-manager';
 import getenv from 'getenv';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
+import { createAndroidContextAsync } from './android/build';
+import { BuildContext, CommonContext } from './context';
+import { createIosContextAsync } from './ios/build';
+import { LocalBuildMode, LocalBuildOptions } from './local';
+import { resolveBuildResourceClassAsync } from './utils/resourceClass';
 import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/AnalyticsManager';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -13,11 +20,7 @@ import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { resolveWorkflowAsync } from '../project/workflow';
 import { Actor } from '../user/User';
-import { createAndroidContextAsync } from './android/build';
-import { BuildContext, CommonContext } from './context';
-import { createIosContextAsync } from './ios/build';
-import { LocalBuildOptions } from './local';
-import { resolveBuildResourceClassAsync } from './utils/resourceClass';
+import { Client } from '../vcs/vcs';
 
 export async function createBuildContextAsync<T extends Platform>({
   buildProfileName,
@@ -34,8 +37,13 @@ export async function createBuildContextAsync<T extends Platform>({
   actor,
   graphqlClient,
   analytics,
+  vcsClient,
   getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
+  buildLoggerLevel,
+  freezeCredentials,
+  repack,
+  env,
 }: {
   buildProfileName: string;
   buildProfile: BuildProfile<T>;
@@ -51,13 +59,20 @@ export async function createBuildContextAsync<T extends Platform>({
   actor: Actor;
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
+  vcsClient: Client;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
+  buildLoggerLevel?: LoggerLevel;
+  freezeCredentials: boolean;
+  repack: boolean;
+  env: Record<string, string>;
 }): Promise<BuildContext<T>> {
-  const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: buildProfile.env });
+  const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
+    env,
+  });
   const projectName = exp.slug;
   const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
-  const workflow = await resolveWorkflowAsync(projectDir, platform);
+  const workflow = await resolveWorkflowAsync(projectDir, platform, vcsClient);
   const accountId = account.id;
   const runFromCI = getenv.boolish('CI', false);
   const developmentClient =
@@ -67,6 +82,8 @@ export async function createBuildContextAsync<T extends Platform>({
       : (buildProfile as BuildProfile<Platform.IOS>)?.buildConfiguration === 'Debug') ??
     false;
 
+  const requiredPackageManager = resolvePackageManager(projectDir);
+
   const credentialsCtx = new CredentialsContext({
     projectInfo: { exp, projectId },
     nonInteractive,
@@ -74,8 +91,10 @@ export async function createBuildContextAsync<T extends Platform>({
     user: actor,
     graphqlClient,
     analytics,
-    env: buildProfile.env,
+    env,
     easJsonCliConfig,
+    vcsClient,
+    freezeCredentials,
   });
 
   const devClientProperties = getDevClientEventProperties({
@@ -93,6 +112,7 @@ export async function createBuildContextAsync<T extends Platform>({
     ...devClientProperties,
     no_wait: noWait,
     run_from_ci: runFromCI,
+    local: localBuildOptions.localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN,
   };
   analytics.logEvent(BuildEvent.BUILD_COMMAND, analyticsEventProperties);
 
@@ -122,11 +142,16 @@ export async function createBuildContextAsync<T extends Platform>({
     user: actor,
     graphqlClient,
     analytics,
+    vcsClient,
     workflow,
     message,
     runFromCI,
     customBuildConfigMetadata,
     developmentClient,
+    requiredPackageManager,
+    loggerLevel: buildLoggerLevel,
+    repack,
+    env,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;

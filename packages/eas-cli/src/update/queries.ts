@@ -1,6 +1,12 @@
 import assert from 'assert';
 import chalk from 'chalk';
 
+import {
+  formatBranch,
+  formatUpdateGroup,
+  formatUpdateTitle,
+  getUpdateGroupDescriptionsWithBranch,
+} from './utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import {
@@ -16,12 +22,6 @@ import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
-import {
-  formatBranch,
-  formatUpdateGroup,
-  formatUpdateTitle,
-  getUpdateGroupDescriptionsWithBranch,
-} from './utils';
 
 export const UPDATES_LIMIT = 50;
 export const UPDATE_GROUPS_LIMIT = 25;
@@ -51,8 +51,9 @@ export async function listAndRenderUpdateGroupsOnAppAsync(
         queryUpdateGroupsOnAppAsync(graphqlClient, { limit, offset, appId: projectId }),
       promptOptions: {
         title: 'Load more update groups?',
-        renderListItems: updateGroups =>
-          renderUpdateGroupsOnApp({ updateGroups, paginatedQueryOptions }),
+        renderListItems: updateGroups => {
+          renderUpdateGroupsOnApp({ updateGroups, paginatedQueryOptions });
+        },
       },
     });
   }
@@ -91,8 +92,9 @@ export async function listAndRenderUpdateGroupsOnBranchAsync(
         }),
       promptOptions: {
         title: 'Load more update groups?',
-        renderListItems: updateGroups =>
-          renderUpdateGroupsOnBranch({ updateGroups, branchName, paginatedQueryOptions }),
+        renderListItems: updateGroups => {
+          renderUpdateGroupsOnBranch({ updateGroups, branchName, paginatedQueryOptions });
+        },
       },
     });
   }
@@ -179,7 +181,8 @@ function renderUpdateGroupsOnBranch({
   };
 
   if (json) {
-    return printJsonOnlyOutput({ ...branch, currentPage: updateGroupDescriptions });
+    printJsonOnlyOutput({ ...branch, currentPage: updateGroupDescriptions });
+    return;
   }
 
   Log.addNewLineIfNone();

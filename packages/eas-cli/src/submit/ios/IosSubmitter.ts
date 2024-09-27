@@ -1,19 +1,6 @@
 import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 
-import { SubmissionEvent } from '../../analytics/AnalyticsManager';
-import { MinimalAscApiKey } from '../../credentials/ios/credentials';
-import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
-import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
-import formatFields from '../../utils/formatFields';
-import { ArchiveSource, ResolvedArchiveSource, getArchiveAsync } from '../ArchiveSource';
-import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
-import { SubmissionContext } from '../context';
-import {
-  ArchiveSourceSummaryFields,
-  formatArchiveSourceSummary,
-  printSummary,
-} from '../utils/summary';
 import {
   AppSpecificPasswordCredentials,
   AppSpecificPasswordSource,
@@ -25,6 +12,19 @@ import {
   AscApiKeySource,
   getAscApiKeyResultAsync,
 } from './AscApiKeySource';
+import { SubmissionEvent } from '../../analytics/AnalyticsManager';
+import { MinimalAscApiKey } from '../../credentials/ios/credentials';
+import { IosSubmissionConfigInput, SubmissionFragment } from '../../graphql/generated';
+import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
+import formatFields from '../../utils/formatFields';
+import { ArchiveSource, ResolvedArchiveSource } from '../ArchiveSource';
+import BaseSubmitter, { SubmissionInput } from '../BaseSubmitter';
+import { SubmissionContext } from '../context';
+import {
+  ArchiveSourceSummaryFields,
+  formatArchiveSourceSummary,
+  printSummary,
+} from '../utils/summary';
 
 export interface IosSubmissionOptions
   extends Pick<IosSubmissionConfigInput, 'appleIdUsername' | 'ascAppIdentifier'> {
@@ -32,6 +32,7 @@ export interface IosSubmissionOptions
   archiveSource: ArchiveSource;
   appSpecificPasswordSource?: AppSpecificPasswordSource;
   ascApiKeySource?: AscApiKeySource;
+  isVerboseFastlaneEnabled?: boolean;
 }
 
 interface ResolvedSourceOptions {
@@ -47,19 +48,14 @@ export default class IosSubmitter extends BaseSubmitter<
   ResolvedSourceOptions,
   IosSubmissionOptions
 > {
-  constructor(ctx: SubmissionContext<Platform.IOS>, options: IosSubmissionOptions) {
+  constructor(
+    ctx: SubmissionContext<Platform.IOS>,
+    options: IosSubmissionOptions,
+    archive: ResolvedArchiveSource
+  ) {
     const sourceOptionsResolver = {
       // eslint-disable-next-line async-protect/async-suffix
-      archive: async () =>
-        await getArchiveAsync(
-          {
-            graphqlClient: ctx.graphqlClient,
-            platform: Platform.IOS,
-            projectId: ctx.projectId,
-            nonInteractive: ctx.nonInteractive,
-          },
-          this.options.archiveSource
-        ),
+      archive: async () => archive,
       // eslint-disable-next-line async-protect/async-suffix
       credentials: async () => {
         const maybeAppSpecificPassword = this.options.appSpecificPasswordSource
@@ -129,9 +125,11 @@ export default class IosSubmitter extends BaseSubmitter<
   ): IosSubmissionConfigInput {
     const { appSpecificPassword, ascApiKeyResult } = credentials;
     const { appleIdUsername, ascAppIdentifier } = options;
+    const { isVerboseFastlaneEnabled } = this.ctx;
     return {
       ascAppIdentifier,
       appleIdUsername,
+      isVerboseFastlaneEnabled,
       ...(appSpecificPassword ? this.formatAppSpecificPassword(appSpecificPassword) : null),
       ...(ascApiKeyResult?.result ? this.formatAscApiKeyResult(ascApiKeyResult.result) : null),
     };

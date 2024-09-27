@@ -2,11 +2,11 @@ import { Keys } from '@expo/apple-utils';
 import chalk from 'chalk';
 import dateformat from 'dateformat';
 
-import Log from '../../../log';
-import { ora } from '../../../ora';
 import { PushKey, PushKeyStoreInfo } from './Credentials.types';
 import { getRequestContext } from './authenticate';
 import { UserAuthCtx } from './authenticateTypes';
+import Log from '../../../log';
+import { ora } from '../../../ora';
 
 const { MaxKeysCreatedError } = Keys;
 
@@ -58,7 +58,7 @@ export async function createPushKeyAsync(
     const resultString = err.rawDump?.resultString;
     if (
       err instanceof MaxKeysCreatedError ||
-      (resultString && resultString.match(/maximum allowed number of Keys/))
+      resultString?.match(/maximum allowed number of Keys/)
     ) {
       throw new Error(APPLE_KEYS_TOO_MANY_GENERATED_ERROR);
     }

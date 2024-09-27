@@ -20,7 +20,15 @@ import {
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
 import { createTestProject } from '../../../project/__tests__/project-utils';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
-import { createSubmissionContextAsync } from '../../context';
+import { resolveVcsClient } from '../../../vcs';
+import {
+  ArchiveResolverContext,
+  ArchiveSource,
+  ArchiveSourceType,
+  getArchiveAsync,
+} from '../../ArchiveSource';
+import { refreshContextSubmitProfileAsync } from '../../commons';
+import { SubmissionContext, createSubmissionContextAsync } from '../../context';
 import { getRecentBuildsForSubmissionAsync } from '../../utils/builds';
 import AndroidSubmitCommand from '../AndroidSubmitCommand';
 
@@ -34,6 +42,22 @@ jest.mock('../../../credentials/android/api/graphql/queries/AndroidAppCredential
 }));
 jest.mock('../../utils/builds');
 jest.mock('../../../project/projectUtils');
+jest.mock('../../ArchiveSource', () => {
+  return {
+    __esModule__: true,
+    ...jest.requireActual('../../ArchiveSource'),
+    getArchiveAsync: jest.fn(),
+  };
+});
+jest.mock('../../commons', () => {
+  return {
+    __esModule__: true,
+    ...jest.requireActual('../../commons'),
+    refreshContextSubmitProfileAsync: jest.fn(),
+  };
+});
+
+const vcsClient = resolveVcsClient();
 
 describe(AndroidSubmitCommand, () => {
   const testProject = createTestProject(testProjectId, mockJester.accounts[0].name, {
@@ -48,6 +72,11 @@ describe(AndroidSubmitCommand, () => {
       type: 'service_account',
       private_key: 'super secret',
       client_email: 'beep-boop@iam.gserviceaccount.com',
+    }),
+    '/google-other-service-account.json': JSON.stringify({
+      type: 'service_account',
+      private_key: 'other super secret',
+      client_email: 'beep-boop-blep@iam.gserviceaccount.com',
     }),
   };
 
@@ -78,6 +107,9 @@ describe(AndroidSubmitCommand, () => {
       const projectId = uuidv4();
       const graphqlClient = {} as any as ExpoGraphqlClient;
       const analytics = instance(mock<Analytics>());
+      jest
+        .mocked(getArchiveAsync)
+        .mockImplementation(jest.requireActual('../../ArchiveSource').getArchiveAsync);
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
@@ -91,14 +123,18 @@ describe(AndroidSubmitCommand, () => {
           changesNotSentForReview: false,
         },
         nonInteractive: true,
+        isVerboseFastlaneEnabled: false,
         actor: mockJester,
         graphqlClient,
         analytics,
         exp: testProject.appJSON.expo,
         projectId,
+        vcsClient,
       });
       const command = new AndroidSubmitCommand(ctx);
-      await expect(command.runAsync()).rejects.toThrowError(
+      await expect(
+        command.runAsync().then(submitter => submitter.submitAsync())
+      ).rejects.toThrowError(
         'Google Service Account Keys cannot be set up in --non-interactive mode.'
       );
     });
@@ -109,6 +145,9 @@ describe(AndroidSubmitCommand, () => {
       const projectId = uuidv4();
       const graphqlClient = {} as any as ExpoGraphqlClient;
       const analytics = instance(mock<Analytics>());
+      jest
+        .mocked(getArchiveAsync)
+        .mockImplementation(jest.requireActual('../../ArchiveSource').getArchiveAsync);
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
@@ -123,15 +162,18 @@ describe(AndroidSubmitCommand, () => {
           changesNotSentForReview: false,
         },
         nonInteractive: false,
+        isVerboseFastlaneEnabled: false,
         actor: mockJester,
         graphqlClient,
         analytics,
         exp: testProject.appJSON.expo,
         projectId,
+        vcsClient,
       });
 
       const command = new AndroidSubmitCommand(ctx);
-      await command.runAsync();
+      const submitter = await command.runAsync();
+      await submitter.submitAsync();
 
       expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
@@ -141,6 +183,7 @@ describe(AndroidSubmitCommand, () => {
           releaseStatus: SubmissionAndroidReleaseStatus.Draft,
           track: SubmissionAndroidTrack.Internal,
           changesNotSentForReview: false,
+          isVerboseFastlaneEnabled: false,
         },
       });
     });
@@ -149,6 +192,9 @@ describe(AndroidSubmitCommand, () => {
       const projectId = uuidv4();
       const graphqlClient = {} as any as ExpoGraphqlClient;
       const analytics = instance(mock<Analytics>());
+      jest
+        .mocked(getArchiveAsync)
+        .mockImplementation(jest.requireActual('../../ArchiveSource').getArchiveAsync);
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
@@ -163,15 +209,18 @@ describe(AndroidSubmitCommand, () => {
           changesNotSentForReview: false,
         },
         nonInteractive: false,
+        isVerboseFastlaneEnabled: false,
         actor: mockJester,
         graphqlClient,
         analytics,
         exp: testProject.appJSON.expo,
         projectId,
+        vcsClient,
       });
 
       const command = new AndroidSubmitCommand(ctx);
-      await command.runAsync();
+      const submitter = await command.runAsync();
+      await submitter.submitAsync();
 
       expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
@@ -181,6 +230,7 @@ describe(AndroidSubmitCommand, () => {
           releaseStatus: SubmissionAndroidReleaseStatus.InProgress,
           track: SubmissionAndroidTrack.Internal,
           changesNotSentForReview: false,
+          isVerboseFastlaneEnabled: false,
         },
       });
     });
@@ -192,6 +242,9 @@ describe(AndroidSubmitCommand, () => {
       jest
         .mocked(getRecentBuildsForSubmissionAsync)
         .mockResolvedValueOnce([fakeBuildFragment as BuildFragment]);
+      jest
+        .mocked(getArchiveAsync)
+        .mockImplementation(jest.requireActual('../../ArchiveSource').getArchiveAsync);
 
       const ctx = await createSubmissionContextAsync({
         platform: Platform.ANDROID,
@@ -206,14 +259,17 @@ describe(AndroidSubmitCommand, () => {
           changesNotSentForReview: false,
         },
         nonInteractive: false,
+        isVerboseFastlaneEnabled: false,
         actor: mockJester,
         graphqlClient,
         analytics,
         exp: testProject.appJSON.expo,
         projectId,
+        vcsClient,
       });
       const command = new AndroidSubmitCommand(ctx);
-      await command.runAsync();
+      const submitter = await command.runAsync();
+      await submitter.submitAsync();
 
       expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
         appId: projectId,
@@ -222,8 +278,215 @@ describe(AndroidSubmitCommand, () => {
           releaseStatus: SubmissionAndroidReleaseStatus.Draft,
           track: SubmissionAndroidTrack.Internal,
           changesNotSentForReview: false,
+          isVerboseFastlaneEnabled: false,
         },
         submittedBuildId: fakeBuildFragment.id,
+      });
+    });
+    describe('build selected from EAS', () => {
+      it('sends a request to EAS Submit', async () => {
+        const projectId = uuidv4();
+        const graphqlClient = {} as any as ExpoGraphqlClient;
+        const analytics = instance(mock<Analytics>());
+        const selectedBuild = {
+          id: uuidv4(),
+          buildProfile: 'otherProfile',
+        } as any as BuildFragment;
+        jest
+          .mocked(getArchiveAsync)
+          .mockImplementation(async (_ctx: ArchiveResolverContext, _source: ArchiveSource) => {
+            return {
+              sourceType: ArchiveSourceType.build,
+              build: selectedBuild,
+            };
+          });
+        jest
+          .mocked(refreshContextSubmitProfileAsync)
+          .mockImplementation(async (ctx: SubmissionContext<Platform>, _archiveProfile: string) => {
+            ctx.profile = {
+              serviceAccountKeyPath: '/google-other-service-account.json',
+              track: AndroidReleaseTrack.beta,
+              releaseStatus: AndroidReleaseStatus.draft,
+              changesNotSentForReview: false,
+              applicationId: 'otherAppId',
+            };
+            return ctx;
+          });
+
+        const ctx = await createSubmissionContextAsync({
+          platform: Platform.ANDROID,
+          projectDir: testProject.projectRoot,
+          archiveFlags: {},
+          profile: {
+            serviceAccountKeyPath: '/google-service-account.json',
+            track: AndroidReleaseTrack.internal,
+            releaseStatus: AndroidReleaseStatus.draft,
+            changesNotSentForReview: false,
+          },
+          nonInteractive: false,
+          isVerboseFastlaneEnabled: false,
+          actor: mockJester,
+          graphqlClient,
+          analytics,
+          exp: testProject.appJSON.expo,
+          projectId,
+          vcsClient,
+        });
+
+        const command = new AndroidSubmitCommand(ctx);
+        const submitter = await command.runAsync();
+        await submitter.submitAsync();
+
+        expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(
+          graphqlClient,
+          {
+            appId: projectId,
+            archiveSource: undefined,
+            config: {
+              googleServiceAccountKeyJson: fakeFiles['/google-other-service-account.json'],
+              releaseStatus: SubmissionAndroidReleaseStatus.Draft,
+              track: SubmissionAndroidTrack.Beta,
+              changesNotSentForReview: false,
+              rollout: undefined,
+              isVerboseFastlaneEnabled: false,
+            },
+            submittedBuildId: selectedBuild.id,
+          }
+        );
+      });
+      it('sends a request to EAS Submit with default profile data when submit profile matching selected build profile does not exist', async () => {
+        const projectId = uuidv4();
+        const graphqlClient = {} as any as ExpoGraphqlClient;
+        const analytics = instance(mock<Analytics>());
+        const selectedBuild = {
+          id: uuidv4(),
+          buildProfile: 'otherProfile',
+        } as any as BuildFragment;
+        jest
+          .mocked(getArchiveAsync)
+          .mockImplementation(async (_ctx: ArchiveResolverContext, _source: ArchiveSource) => {
+            return {
+              sourceType: ArchiveSourceType.build,
+              build: selectedBuild,
+            };
+          });
+        jest
+          .mocked(refreshContextSubmitProfileAsync)
+          .mockImplementation(async (ctx: SubmissionContext<Platform>, _archiveProfile: string) => {
+            return ctx;
+          });
+
+        const ctx = await createSubmissionContextAsync({
+          platform: Platform.ANDROID,
+          projectDir: testProject.projectRoot,
+          archiveFlags: {},
+          profile: {
+            serviceAccountKeyPath: '/google-service-account.json',
+            track: AndroidReleaseTrack.internal,
+            releaseStatus: AndroidReleaseStatus.draft,
+            changesNotSentForReview: false,
+          },
+          nonInteractive: false,
+          isVerboseFastlaneEnabled: false,
+          actor: mockJester,
+          graphqlClient,
+          analytics,
+          exp: testProject.appJSON.expo,
+          projectId,
+          vcsClient,
+        });
+
+        const command = new AndroidSubmitCommand(ctx);
+        const submitter = await command.runAsync();
+        await submitter.submitAsync();
+
+        expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(
+          graphqlClient,
+          {
+            appId: projectId,
+            archiveSource: undefined,
+            config: {
+              googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],
+              releaseStatus: SubmissionAndroidReleaseStatus.Draft,
+              track: SubmissionAndroidTrack.Internal,
+              changesNotSentForReview: false,
+              rollout: undefined,
+              isVerboseFastlaneEnabled: false,
+            },
+            submittedBuildId: selectedBuild.id,
+          }
+        );
+      });
+      it('sends a request to EAS Submit with specified profile data even when submit profile matching selected build profile exists', async () => {
+        const projectId = uuidv4();
+        const graphqlClient = {} as any as ExpoGraphqlClient;
+        const analytics = instance(mock<Analytics>());
+        const selectedBuild = {
+          id: uuidv4(),
+          buildProfile: 'otherProfile',
+        } as any as BuildFragment;
+        jest
+          .mocked(getArchiveAsync)
+          .mockImplementation(async (_ctx: ArchiveResolverContext, _source: ArchiveSource) => {
+            return {
+              sourceType: ArchiveSourceType.build,
+              build: selectedBuild,
+            };
+          });
+        jest
+          .mocked(refreshContextSubmitProfileAsync)
+          .mockImplementation(async (ctx: SubmissionContext<Platform>, _archiveProfile: string) => {
+            ctx.profile = {
+              serviceAccountKeyPath: '/google-other-service-account.json',
+              track: AndroidReleaseTrack.beta,
+              releaseStatus: AndroidReleaseStatus.draft,
+              changesNotSentForReview: false,
+              applicationId: 'otherAppId',
+            };
+            return ctx;
+          });
+
+        const ctx = await createSubmissionContextAsync({
+          platform: Platform.ANDROID,
+          projectDir: testProject.projectRoot,
+          archiveFlags: {},
+          profile: {
+            serviceAccountKeyPath: '/google-service-account.json',
+            track: AndroidReleaseTrack.internal,
+            releaseStatus: AndroidReleaseStatus.draft,
+            changesNotSentForReview: false,
+          },
+          nonInteractive: false,
+          isVerboseFastlaneEnabled: false,
+          actor: mockJester,
+          graphqlClient,
+          analytics,
+          exp: testProject.appJSON.expo,
+          projectId,
+          vcsClient,
+          specifiedProfile: 'specificProfile',
+        });
+
+        const command = new AndroidSubmitCommand(ctx);
+        const submitter = await command.runAsync();
+        await submitter.submitAsync();
+
+        expect(SubmissionMutation.createAndroidSubmissionAsync).toHaveBeenCalledWith(
+          graphqlClient,
+          {
+            appId: projectId,
+            archiveSource: undefined,
+            config: {
+              googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],
+              releaseStatus: SubmissionAndroidReleaseStatus.Draft,
+              track: SubmissionAndroidTrack.Internal,
+              changesNotSentForReview: false,
+              rollout: undefined,
+              isVerboseFastlaneEnabled: false,
+            },
+            submittedBuildId: selectedBuild.id,
+          }
+        );
       });
     });
   });

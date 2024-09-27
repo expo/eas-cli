@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import formatDevice, { AppleTeamIdAndName } from './utils/formatDevice';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { formatAppleTeam } from '../credentials/ios/actions/AppleTeamFormatting';
@@ -13,7 +14,6 @@ import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
-import formatDevice, { AppleTeamIdAndName } from './utils/formatDevice';
 
 export const TEAMS_LIMIT = 50;
 export const DEVICES_LIMIT = 50;
@@ -136,8 +136,9 @@ export async function listAndRenderAppleDevicesOnAppleTeamAsync(
         }),
       promptOptions: {
         title: 'Load more devices?',
-        renderListItems: devices =>
-          renderPageOfAppleDevices({ devices, appleTeam, paginatedQueryOptions }),
+        renderListItems: devices => {
+          renderPageOfAppleDevices({ devices, appleTeam, paginatedQueryOptions });
+        },
       },
     });
   }

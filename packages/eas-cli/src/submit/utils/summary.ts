@@ -56,7 +56,7 @@ export function formatArchiveSourceSummary(
       summarySlice.archiveUrl = archive.url;
       break;
     case ArchiveSourceType.build:
-      summarySlice.formattedBuild = formatSubmissionBuildSummary(archive.build!);
+      summarySlice.formattedBuild = formatSubmissionBuildSummary(archive.build);
       break;
   }
   return summarySlice;

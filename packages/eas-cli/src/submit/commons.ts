@@ -1,7 +1,10 @@
 import { Platform } from '@expo/eas-build-job';
+import { EasJsonAccessor, EasJsonUtils, SubmitProfile } from '@expo/eas-json';
+import { MissingProfileError } from '@expo/eas-json/build/errors';
 
 import { ArchiveSource, ArchiveSourceType, isUuidV4 } from './ArchiveSource';
 import { SubmissionContext } from './context';
+import Log from '../log';
 
 export function resolveArchiveSource<T extends Platform>(ctx: SubmissionContext<T>): ArchiveSource {
   const { url, path, id, latest } = ctx.archiveFlags;
@@ -39,4 +42,26 @@ export function resolveArchiveSource<T extends Platform>(ctx: SubmissionContext<
       sourceType: ArchiveSourceType.prompt,
     };
   }
+}
+
+export async function refreshContextSubmitProfileAsync<T extends Platform>(
+  ctx: SubmissionContext<T>,
+  archiveProfile: string
+): Promise<SubmissionContext<T>> {
+  try {
+    ctx.profile = (await EasJsonUtils.getSubmitProfileAsync(
+      EasJsonAccessor.fromProjectPath(ctx.projectDir),
+      ctx.platform,
+      archiveProfile ? archiveProfile : 'production'
+    )) as SubmitProfile<T>;
+  } catch (err) {
+    if (err instanceof MissingProfileError) {
+      Log.log(
+        `Selected build uses "${archiveProfile}" build profile but a submit profile with the same name is missing in eas.json. Using default ("production") profile`
+      );
+    } else {
+      throw err;
+    }
+  }
+  return ctx;
 }

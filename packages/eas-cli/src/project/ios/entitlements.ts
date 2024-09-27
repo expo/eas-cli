@@ -3,6 +3,7 @@ import { JSONObject } from '@expo/json-file';
 import { getPrebuildConfigAsync } from '@expo/prebuild-config';
 
 import { readPlistAsync } from '../../utils/plist';
+import { Client } from '../../vcs/vcs';
 import { hasIgnoredIosProjectAsync } from '../workflow';
 
 interface Target {
@@ -11,7 +12,8 @@ interface Target {
 }
 export async function getManagedApplicationTargetEntitlementsAsync(
   projectDir: string,
-  env: Record<string, string>
+  env: Record<string, string>,
+  vcsClient: Client
 ): Promise<JSONObject> {
   const originalProcessEnv: NodeJS.ProcessEnv = process.env;
 
@@ -26,9 +28,9 @@ export async function getManagedApplicationTargetEntitlementsAsync(
       projectRoot: projectDir,
       platforms: ['ios'],
       introspect: true,
-      ignoreExistingNativeFiles: await hasIgnoredIosProjectAsync(projectDir),
+      ignoreExistingNativeFiles: await hasIgnoredIosProjectAsync(projectDir, vcsClient),
     });
-    return expWithMods.ios?.entitlements || {};
+    return expWithMods.ios?.entitlements ?? {};
   } finally {
     process.env = originalProcessEnv;
   }

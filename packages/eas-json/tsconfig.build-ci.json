@@ -1,8 +1,0 @@
-{
-  "extends": "./tsconfig.build",
-  "compilerOptions": {
-    "noUnusedLocals": true,
-    "noUnusedParameters": true
-  },
-  "exclude": ["**/__mocks__/*", "**/__tests__/*"]
-}

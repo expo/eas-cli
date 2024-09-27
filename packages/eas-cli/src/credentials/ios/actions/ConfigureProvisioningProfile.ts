@@ -5,31 +5,43 @@ import {
   AppleDistributionCertificateFragment,
   AppleProvisioningProfileFragment,
 } from '../../../graphql/generated';
-import Log from '../../../log';
+import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
 import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
+import {
+  ForbidCredentialModificationError,
+  InsufficientAuthenticationNonInteractiveError,
+} from '../../errors';
 import { AppleProvisioningProfileMutationResult } from '../api/graphql/mutations/AppleProvisioningProfileMutation';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
-import { AuthCtx } from '../appstore/authenticateTypes';
+import { AuthCtx, AuthenticationMode } from '../appstore/authenticateTypes';
 import { Target } from '../types';
 
 export class ConfigureProvisioningProfile {
   constructor(
-    private app: AppLookupParams,
-    private target: Target,
-    private distributionCertificate: AppleDistributionCertificateFragment,
-    private originalProvisioningProfile: AppleProvisioningProfileFragment
+    private readonly app: AppLookupParams,
+    private readonly target: Target,
+    private readonly distributionCertificate: AppleDistributionCertificateFragment,
+    private readonly originalProvisioningProfile: AppleProvisioningProfileFragment
   ) {}
 
   public async runAsync(
     ctx: CredentialsContext
   ): Promise<AppleProvisioningProfileMutationResult | null> {
-    if (ctx.nonInteractive) {
-      throw new MissingCredentialsNonInteractiveError(
-        'Configuring Provisioning Profiles is only supported in interactive mode.'
+    if (ctx.freezeCredentials) {
+      throw new ForbidCredentialModificationError(
+        'Remove the --freeze-credentials flag to configure a Provisioning Profile.'
+      );
+    } else if (
+      ctx.nonInteractive &&
+      ctx.appStore.defaultAuthenticationMode !== AuthenticationMode.API_KEY
+    ) {
+      throw new InsufficientAuthenticationNonInteractiveError(
+        `In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. ${learnMore(
+          'https://docs.expo.dev/build/building-on-ci/#optional-provide-an-asc-api-token-for-your-apple-team'
+        )}`
       );
     }
     const { developerPortalIdentifier, provisioningProfile } = this.originalProvisioningProfile;
@@ -46,7 +58,7 @@ export class ConfigureProvisioningProfile {
       return null;
     }
 
-    const applePlatform = await getApplePlatformFromTarget(this.target);
+    const applePlatform = getApplePlatformFromTarget(this.target);
     const profilesFromApple = await ctx.appStore.listProvisioningProfilesAsync(
       this.app.bundleIdentifier,
       applePlatform

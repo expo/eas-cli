@@ -1,9 +1,7 @@
 import { ExpoConfig, getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
-import JsonFile from '@expo/json-file';
 import fs from 'fs-extra';
 import Joi from 'joi';
-import nullthrows from 'nullthrows';
 import path from 'path';
 
 export type PublicExpoConfig = Omit<
@@ -18,6 +16,7 @@ export type PublicExpoConfig = Omit<
 export interface ExpoConfigOptions {
   env?: Env;
   skipSDKVersionRequirement?: boolean;
+  skipPlugins?: boolean;
 }
 
 interface ExpoConfigOptionsInternal extends ExpoConfigOptions {
@@ -30,12 +29,11 @@ export async function createOrModifyExpoConfigAsync(
   readOptions?: { skipSDKVersionRequirement?: boolean }
 ): ReturnType<typeof modifyConfigAsync> {
   ensureExpoConfigExists(projectDir);
-  await ensureStaticExpoConfigIsValidAsync(projectDir);
 
   if (readOptions) {
-    return modifyConfigAsync(projectDir, exp, readOptions);
+    return await modifyConfigAsync(projectDir, exp, readOptions);
   } else {
-    return modifyConfigAsync(projectDir, exp);
+    return await modifyConfigAsync(projectDir, exp);
   }
 }
 
@@ -52,6 +50,7 @@ function getExpoConfigInternal(
     const { exp } = getConfig(projectDir, {
       skipSDKVersionRequirement: true,
       ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
+      ...(opts.skipPlugins ? { skipPlugins: true } : {}),
     });
 
     const { error } = MinimalAppConfigSchema.validate(exp, {
@@ -90,20 +89,6 @@ export function ensureExpoConfigExists(projectDir: string): void {
   if (!paths?.staticConfigPath && !paths?.dynamicConfigPath) {
     // eslint-disable-next-line node/no-sync
     fs.writeFileSync(path.join(projectDir, 'app.json'), JSON.stringify({ expo: {} }, null, 2));
-  }
-}
-
-async function ensureStaticExpoConfigIsValidAsync(projectDir: string): Promise<void> {
-  if (isUsingStaticExpoConfig(projectDir)) {
-    const staticConfigPath = nullthrows(getConfigFilePaths(projectDir).staticConfigPath);
-    const staticConfig = await JsonFile.readAsync(staticConfigPath);
-
-    // Add the "expo" key if it doesn't exist on app.json yet, such as in
-    // projects initialized with RNC CLI
-    if (!staticConfig?.expo) {
-      staticConfig.expo = {};
-      await JsonFile.writeAsync(staticConfigPath, staticConfig);
-    }
   }
 }
 
