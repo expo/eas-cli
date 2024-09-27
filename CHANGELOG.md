@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [12.5.1](https://github.com/expo/eas-cli/releases/tag/v12.5.1) - 2024-09-27
+
+### 🐛 Bug fixes
+
 - Support assigning dev domain names in non interactive mode. ([#2595](https://github.com/expo/eas-cli/pull/2595) by [@byCedric](https://github.com/byCedric))
 
 ### 🧹 Chores
