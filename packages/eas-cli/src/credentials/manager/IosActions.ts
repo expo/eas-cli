@@ -27,6 +27,11 @@ export const highLevelActions: ActionInfo[] = [
     title: 'Go back',
     scope: Scope.Manager,
   },
+  {
+    value: IosActionType.Exit,
+    title: 'Exit',
+    scope: Scope.Manager,
+  },
 ];
 
 export const credentialsJsonActions: ActionInfo[] = [

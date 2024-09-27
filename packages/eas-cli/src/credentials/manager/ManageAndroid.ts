@@ -145,6 +145,8 @@ export class ManageAndroid {
           } else if (chosenAction === AndroidActionType.GoBackToCaller) {
             await this.callingAction.runAsync(ctx);
             return;
+          } else if (chosenAction === AndroidActionType.Exit) {
+            return;
           }
         }
 

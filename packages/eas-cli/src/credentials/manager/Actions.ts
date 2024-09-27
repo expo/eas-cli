@@ -36,6 +36,7 @@ export enum AndroidActionType {
   UpdateCredentialsJson,
   SetUpBuildCredentialsFromCredentialsJson,
   SetUpBuildCredentials,
+  Exit,
 }
 
 export enum IosActionType {
@@ -60,4 +61,5 @@ export enum IosActionType {
   UseExistingAscApiKeyForSubmissions,
   CreateAscApiKeyForSubmissions,
   RemoveAscApiKey,
+  Exit,
 }
