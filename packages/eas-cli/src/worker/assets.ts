@@ -144,18 +144,23 @@ async function* listWorkerFilesAsync(workerPath: string): AsyncGenerator<WorkerF
   }
 }
 
+interface AssetFileEntry {
+  normalizedPath: string;
+  sha512: string;
+  path: string;
+}
+
 /** Reads files of an asset maps and enumerates normalized paths and data */
 async function* listAssetMapFilesAsync(
   assetPath: string,
   assetMap: AssetMap
-): AsyncGenerator<WorkerFileEntry> {
+): AsyncGenerator<AssetFileEntry> {
   for (const normalizedPath in assetMap) {
     const filePath = path.resolve(assetPath, normalizedPath.split('/').join(path.sep));
-    const data = await fs.promises.readFile(filePath);
     yield {
       normalizedPath,
       path: filePath,
-      data,
+      sha512: assetMap[normalizedPath],
     };
   }
 }

@@ -139,6 +139,28 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
   );
 }
 
+export async function callUploadApiAsync(url: string | URL, init?: RequestInit): Promise<unknown> {
+  return await promiseRetry(async retry => {
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...init,
+        agent: getAgent(),
+      });
+    } catch (error) {
+      return retry(error);
+    }
+    if (response.status >= 500 && response.status <= 599) {
+      retry(new Error(`Deployment failed: ${response.statusText}`));
+    }
+    try {
+      return await response.json();
+    } catch (error) {
+      retry(error);
+    }
+  });
+}
+
 export interface UploadPending {
   params: UploadParams;
 }
