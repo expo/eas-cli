@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Implement new `worker` deploy API flow. ([#2601](https://github.com/expo/eas-cli/pull/2601) by [@kitten](https://github.com/kitten)))
+- Unhide rollout-percentage flag on update publish command. ([#2608](https://github.com/expo/eas-cli/pull/2608) by [@wschurman](https://github.com/wschurman))
 
 ## [12.5.1](https://github.com/expo/eas-cli/releases/tag/v12.5.1) - 2024-09-27
 
