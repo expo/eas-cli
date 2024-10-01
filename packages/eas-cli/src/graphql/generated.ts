@@ -8425,7 +8425,7 @@ export type DeleteEnvironmentSecretMutation = { __typename?: 'RootMutation', env
 
 export type LinkSharedEnvironmentVariableMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   environmentVariableId: Scalars['ID']['input'];
 }>;
 
@@ -8434,7 +8434,7 @@ export type LinkSharedEnvironmentVariableMutation = { __typename?: 'RootMutation
 
 export type UnlinkSharedEnvironmentVariableMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
-  environment: EnvironmentVariableEnvironment;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   environmentVariableId: Scalars['ID']['input'];
 }>;
 
@@ -8456,6 +8456,13 @@ export type CreateEnvironmentVariableForAppMutationVariables = Exact<{
 
 
 export type CreateEnvironmentVariableForAppMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForApp: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
+
+export type UpdateEnvironmentVariableMutationVariables = Exact<{
+  input: UpdateEnvironmentVariableInput;
+}>;
+
+
+export type UpdateEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', updateEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environment?: EnvironmentVariableEnvironment | null, createdAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null } } };
 
 export type DeleteEnvironmentVariableMutationVariables = Exact<{
   id: Scalars['ID']['input'];
