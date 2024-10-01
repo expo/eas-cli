@@ -41,7 +41,7 @@ export default class EnvironmentVariableUnlink extends EasCommand {
     });
 
     if (!environment) {
-      environment = await promptVariableEnvironmentAsync(nonInteractive);
+      environment = await promptVariableEnvironmentAsync({ nonInteractive });
     }
 
     const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);

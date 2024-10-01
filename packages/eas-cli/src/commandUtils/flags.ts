@@ -26,15 +26,24 @@ export const EasNonInteractiveAndJsonFlags = {
   }),
 };
 
+const EasEnvironmentFlagParameters = {
+  description: "Environment variable's environment",
+  parse: upperCaseAsync,
+  options: mapToLowercase([
+    EnvironmentVariableEnvironment.Development,
+    EnvironmentVariableEnvironment.Preview,
+    EnvironmentVariableEnvironment.Production,
+  ]),
+};
+
 export const EASEnvironmentFlag = {
+  environment: Flags.enum<EnvironmentVariableEnvironment>(EasEnvironmentFlagParameters),
+};
+
+export const EASMultiEnvironmentFlag = {
   environment: Flags.enum<EnvironmentVariableEnvironment>({
-    description: "Environment variable's environment",
-    parse: upperCaseAsync,
-    options: mapToLowercase([
-      EnvironmentVariableEnvironment.Development,
-      EnvironmentVariableEnvironment.Preview,
-      EnvironmentVariableEnvironment.Production,
-    ]),
+    ...EasEnvironmentFlagParameters,
+    multiple: true,
   }),
 };
 

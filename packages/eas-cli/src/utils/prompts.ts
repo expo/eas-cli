@@ -3,19 +3,52 @@ import chalk from 'chalk';
 import { EnvironmentVariableEnvironment } from '../graphql/generated';
 import { promptAsync, selectAsync } from '../prompts';
 
-export async function promptVariableEnvironmentAsync(
-  nonInteractive: boolean
-): Promise<EnvironmentVariableEnvironment> {
+type EnvironmentPromptArgs = {
+  nonInteractive: boolean;
+  selectedEnvironments?: EnvironmentVariableEnvironment[];
+  availableEnvironments?: EnvironmentVariableEnvironment[];
+};
+
+export function promptVariableEnvironmentAsync(
+  input: EnvironmentPromptArgs & { multiple: true }
+): Promise<EnvironmentVariableEnvironment[]>;
+export function promptVariableEnvironmentAsync(
+  input: EnvironmentPromptArgs & { multiple?: false }
+): Promise<EnvironmentVariableEnvironment>;
+
+export async function promptVariableEnvironmentAsync({
+  nonInteractive,
+  selectedEnvironments,
+  multiple = false,
+  availableEnvironments,
+}: EnvironmentPromptArgs & { multiple?: boolean }): Promise<
+  EnvironmentVariableEnvironment[] | EnvironmentVariableEnvironment
+> {
   if (nonInteractive) {
     throw new Error(
       'The `--environment` flag must be set when running in `--non-interactive` mode.'
     );
   }
-  return await selectAsync('Select environment:', [
-    { title: 'development', value: EnvironmentVariableEnvironment.Development },
-    { title: 'preview', value: EnvironmentVariableEnvironment.Preview },
-    { title: 'production', value: EnvironmentVariableEnvironment.Production },
-  ]);
+  if (!multiple) {
+    return await selectAsync(
+      'Select environment:',
+      (availableEnvironments ?? Object.values(EnvironmentVariableEnvironment)).map(environment => ({
+        title: environment,
+        value: environment,
+      }))
+    );
+  }
+  const { environments } = await promptAsync({
+    message: 'Select environment:',
+    name: 'environments',
+    type: 'multiselect',
+    choices: Object.values(EnvironmentVariableEnvironment).map(environment => ({
+      title: environment,
+      value: environment,
+      selected: selectedEnvironments?.includes(environment),
+    })),
+  });
+  return environments;
 }
 
 export async function promptVariableValueAsync({
