@@ -26,7 +26,7 @@ export const EasNonInteractiveAndJsonFlags = {
   }),
 };
 
-const EasEnvironmentFlagParameters = {
+export const EasEnvironmentFlagParameters = {
   description: "Environment variable's environment",
   parse: upperCaseAsync,
   options: mapToLowercase([

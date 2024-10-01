@@ -44,6 +44,7 @@ export const EnvironmentVariablesQuery = {
                     id
                     name
                     value
+                    environments
                   }
                 }
               }
@@ -167,6 +168,7 @@ export const EnvironmentVariablesQuery = {
                       id
                       name
                       value
+                      environments
                     }
                   }
                 }
