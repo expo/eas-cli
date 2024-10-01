@@ -1,22 +1,23 @@
 import { Flags } from '@oclif/core';
+import assert from 'assert';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
-  EASEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableScopeFlag,
+  EasEnvironmentFlagParameters,
 } from '../../commandUtils/flags';
 import { EnvironmentVariableEnvironment, EnvironmentVariableScope } from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
-import { promptVariableEnvironmentAsync } from '../../utils/prompts';
+import { formatVariableName } from '../../utils/variableUtils';
 
 type DeleteFlags = {
-  name?: string;
-  environment?: EnvironmentVariableEnvironment;
+  'variable-name'?: string;
+  'variable-environment'?: EnvironmentVariableEnvironment;
   'non-interactive': boolean;
   scope?: EnvironmentVariableScope;
 };
@@ -27,11 +28,14 @@ export default class EnvironmentVariableDelete extends EasCommand {
   static override hidden = true;
 
   static override flags = {
-    name: Flags.string({
+    'variable-name': Flags.string({
       description: 'Name of the variable to delete',
     }),
+    'variable-environment': Flags.enum<EnvironmentVariableEnvironment>({
+      ...EasEnvironmentFlagParameters,
+      description: 'Current environment of the variable to delete',
+    }),
     ...EASVariableScopeFlag,
-    ...EASEnvironmentFlag,
     ...EASNonInteractiveFlag,
   };
 
@@ -42,7 +46,12 @@ export default class EnvironmentVariableDelete extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(EnvironmentVariableDelete);
-    let { name, environment, 'non-interactive': nonInteractive, scope } = this.validateFlags(flags);
+    const {
+      'variable-name': name,
+      'variable-environment': environment,
+      'non-interactive': nonInteractive,
+      scope,
+    } = this.validateFlags(flags);
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
@@ -50,47 +59,53 @@ export default class EnvironmentVariableDelete extends EasCommand {
       nonInteractive,
     });
 
-    if (scope === EnvironmentVariableScope.Project) {
-      if (!environment) {
-        environment = await promptVariableEnvironmentAsync({ nonInteractive });
-      }
-    }
-
     const variables =
-      scope === EnvironmentVariableScope.Project && environment
+      scope === EnvironmentVariableScope.Project
         ? await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
             appId: projectId,
             environment,
           })
-        : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, { appId: projectId });
+        : await EnvironmentVariablesQuery.sharedAsync(graphqlClient, {
+            appId: projectId,
+            environment,
+          });
+
+    let selectedVariable;
 
     if (!name) {
-      ({ name } = await promptAsync({
+      ({ variable: selectedVariable } = await promptAsync({
         type: 'select',
-        name: 'name',
+        name: 'variable',
         message: 'Pick the variable to be deleted:',
         choices: variables
           .filter(({ scope: variableScope }) => scope === variableScope)
-          .map(variable => ({
-            title: variable.name,
-            value: variable.name,
-          })),
+          .map(variable => {
+            return {
+              title: formatVariableName(variable),
+              value: variable,
+            };
+          }),
       }));
+    } else {
+      const selectedVariables = variables.filter(
+        variable =>
+          variable.name === name && (!environment || variable.environments?.includes(environment))
+      );
 
-      if (!name) {
-        throw new Error(
-          `Environment variable wasn't selected. Run the command again and select existing variable or run it with ${chalk.bold(
-            '--name VARIABLE_NAME'
-          )} flag to fix the issue.`
-        );
+      if (selectedVariables.length !== 1) {
+        if (selectedVariables.length === 0) {
+          throw new Error(`Variable "${name}" not found.`);
+        } else {
+          throw new Error(
+            `Multiple variables with name "${name}" found. Please select the variable to delete interactively or run command with --variable-environment ENVIRONMENT option.`
+          );
+        }
       }
+
+      selectedVariable = selectedVariables[0];
     }
 
-    const selectedVariable = variables.find(variable => variable.name === name);
-
-    if (!selectedVariable) {
-      throw new Error(`Variable "${name}" not found.`);
-    }
+    assert(selectedVariable, `Variable "${name}" not found.`);
 
     if (!nonInteractive) {
       Log.addNewLineIfNone();
@@ -106,7 +121,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
       });
       if (!confirmed) {
         Log.error(`Canceled deletion of variable ${selectedVariable.name}.`);
-        throw new Error(`Variable "${name}" not deleted.`);
+        throw new Error(`Variable "${selectedVariable.name}" not deleted.`);
       }
     }
 
@@ -117,10 +132,10 @@ export default class EnvironmentVariableDelete extends EasCommand {
 
   private validateFlags(flags: DeleteFlags): DeleteFlags {
     if (flags['non-interactive']) {
-      if (!flags.name) {
+      if (!flags['variable-name']) {
         throw new Error(
           `Environment variable needs 'name' to be specified when running in non-interactive mode. Run the command with ${chalk.bold(
-            '--name VARIABLE_NAME'
+            '--variable-name VARIABLE_NAME'
           )} flag to fix the issue`
         );
       }
