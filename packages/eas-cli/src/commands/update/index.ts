@@ -127,7 +127,6 @@ export default class UpdatePublish extends EasCommand {
     'rollout-percentage': Flags.integer({
       description: `Percentage of users this update should be immediately available to. Users not in the rollout will be served the previous latest update on the branch, even if that update is itself being rolled out. The specified number must be an integer between 1 and 100. When not specified, this defaults to 100.`,
       required: false,
-      hidden: true,
       min: 0,
       max: 100,
     }),
