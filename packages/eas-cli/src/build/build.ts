@@ -486,8 +486,8 @@ async function handleSingleBuildProgressAsync(
       spinner.succeed('Build finished');
       return { refetch: false };
     case BuildStatus.New:
-      spinner.text = `Build is waiting to enter the queue. Check your concurrency limit at ${link(
-        formatAccountSubscriptionsUrl(accountName)
+      spinner.text = `Build concurrency limit reached for your account, waiting for a concurrency to become available. Add additional concurrencies at ${link(
+        formatAccountBillingUrl(accountName)
       )}.`;
       break;
     case BuildStatus.InQueue: {
@@ -509,7 +509,7 @@ async function handleSingleBuildProgressAsync(
           Log.log('Start builds sooner in the priority queue.');
           Log.log(
             `Sign up for EAS Production or Enterprise at ${link(
-              formatAccountSubscriptionsUrl(accountName)
+              formatAccountBillingUrl(accountName)
             )}`
           );
         }
@@ -656,9 +656,9 @@ function formatEstimatedWaitTime(estimatedWaitTimeLeftSeconds: number): string {
   }
 }
 
-function formatAccountSubscriptionsUrl(accountName: string): string {
+function formatAccountBillingUrl(accountName: string): string {
   return new URL(
-    `/accounts/${accountName}/settings/subscriptions`,
+    `/accounts/${accountName}/settings/billing`,
     getExpoWebsiteBaseUrl()
   ).toString();
 }
