@@ -1,5 +1,7 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -25,6 +27,7 @@ import { confirmAsync } from '../../prompts';
 import {
   promptVariableEnvironmentAsync,
   promptVariableNameAsync,
+  promptVariableTypeAsync,
   promptVariableValueAsync,
 } from '../../utils/prompts';
 import { performForEnvironmentsAsync } from '../../utils/variableUtils';
@@ -34,6 +37,7 @@ type CreateFlags = {
   value?: string;
   link?: boolean;
   force?: boolean;
+  type?: 'string' | 'file';
   visibility?: EnvironmentVariableVisibility;
   scope?: EnvironmentVariableScope;
   environment?: EnvironmentVariableEnvironment[];
@@ -59,6 +63,10 @@ export default class EnvironmentVariableCreate extends EasCommand {
     force: Flags.boolean({
       description: 'Overwrite existing variable',
       default: false,
+    }),
+    type: Flags.enum<'string' | 'file'>({
+      description: 'The type of variable',
+      options: ['string', 'file'],
     }),
     ...EASVariableVisibilityFlag,
     ...EASVariableScopeFlag,
@@ -86,6 +94,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
       visibility,
       link,
       force,
+      type,
     } = await this.promptForMissingFlagsAsync(validatedFlags);
 
     const {
@@ -155,6 +164,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
               value,
               visibility,
               environments,
+              type,
             })
           : await EnvironmentVariableMutation.createForAppAsync(
               graphqlClient,
@@ -163,7 +173,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
                 value,
                 environments,
                 visibility,
-                type: EnvironmentSecretType.String,
+                type: type ?? EnvironmentSecretType.String,
               },
               projectId
             );
@@ -206,6 +216,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
               value,
               visibility,
               environments,
+              type,
             })
           : await EnvironmentVariableMutation.createSharedVariableAsync(
               graphqlClient,
@@ -214,7 +225,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
                 value,
                 visibility,
                 environments,
-                type: EnvironmentSecretType.String,
+                type: type ?? EnvironmentSecretType.String,
               },
               ownerAccount.id
             );
@@ -283,10 +294,25 @@ export default class EnvironmentVariableCreate extends EasCommand {
     environment,
     visibility = EnvironmentVariableVisibility.Public,
     'non-interactive': nonInteractive,
+    type,
     ...rest
-  }: CreateFlags): Promise<Required<CreateFlags>> {
+  }: CreateFlags): Promise<
+    Required<Omit<CreateFlags, 'type'> & { type: EnvironmentSecretType | undefined }>
+  > {
     if (!name) {
       name = await promptVariableNameAsync(nonInteractive);
+    }
+
+    let newType;
+
+    if (type === 'file') {
+      newType = EnvironmentSecretType.FileBase64;
+    } else if (type === 'string') {
+      newType = EnvironmentSecretType.String;
+    }
+
+    if (!type && !value && !nonInteractive) {
+      newType = await promptVariableTypeAsync(nonInteractive);
     }
 
     if (!value) {
@@ -296,10 +322,20 @@ export default class EnvironmentVariableCreate extends EasCommand {
       });
     }
 
+    let environmentFilePath: string | undefined;
+
+    if (newType === EnvironmentSecretType.FileBase64) {
+      environmentFilePath = path.resolve(value);
+      if (!(await fs.pathExists(environmentFilePath))) {
+        throw new Error(`File "${value}" does not exist`);
+      }
+    }
+
+    value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
+
     if (!environment) {
       environment = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
     }
-
     return {
       name,
       value,
@@ -309,16 +345,18 @@ export default class EnvironmentVariableCreate extends EasCommand {
       force: rest.force ?? false,
       scope: rest.scope ?? EnvironmentVariableScope.Project,
       'non-interactive': nonInteractive,
+      type: newType,
       ...rest,
     };
   }
 
-  private validateFlags(flags: CreateFlags): CreateFlags {
+  private validateFlags(flags: CreateFlags & { type?: string }): CreateFlags {
     if (flags.scope !== EnvironmentVariableScope.Shared && flags.link) {
       throw new Error(
         `Unexpected argument: --link can only be used when creating  shared variables`
       );
     }
+
     if (
       flags.scope === EnvironmentVariableScope.Shared &&
       flags.environment &&
@@ -329,6 +367,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
         'Unexpected argument: --environment in non-interactive mode can only be used with --link flag.'
       );
     }
+
     return flags;
   }
 }

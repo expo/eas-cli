@@ -15,6 +15,7 @@ import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentV
 import {
   promptVariableEnvironmentAsync,
   promptVariableNameAsync,
+  promptVariableTypeAsync,
   promptVariableValueAsync,
 } from '../../../utils/prompts';
 import EnvironmentVariableCreate from '../create';
@@ -60,6 +61,7 @@ describe(EnvironmentVariableCreate, () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         scope: EnvironmentVariableScope.Shared,
+        type: EnvironmentSecretType.String,
       }));
     jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockImplementation(async () => []);
     jest.mocked(EnvironmentVariablesQuery.sharedAsync).mockImplementation(async () => []);
@@ -322,6 +324,10 @@ describe(EnvironmentVariableCreate, () => {
 
       jest.mocked(promptVariableNameAsync).mockImplementation(async () => 'VarName');
       jest.mocked(promptVariableValueAsync).mockImplementation(async () => 'VarValue');
+      jest
+        .mocked(promptVariableTypeAsync)
+        .mockImplementation(async () => EnvironmentSecretType.String);
+
       jest
         .mocked(promptVariableEnvironmentAsync)
         // @ts-expect-error

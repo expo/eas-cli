@@ -4,6 +4,7 @@ import { getMockAppFragment } from '../../../__tests__/commands/utils';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
+  EnvironmentSecretType,
   EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariableScope,
@@ -28,6 +29,7 @@ const mockVariables: EnvironmentVariableFragment[] = [
     visibility: EnvironmentVariableVisibility.Public,
     createdAt: undefined,
     updatedAt: undefined,
+    type: EnvironmentSecretType.String,
   },
   {
     id: 'var2',
@@ -38,6 +40,7 @@ const mockVariables: EnvironmentVariableFragment[] = [
     visibility: EnvironmentVariableVisibility.Public,
     createdAt: undefined,
     updatedAt: undefined,
+    type: EnvironmentSecretType.String,
   },
 ];
 
@@ -65,6 +68,7 @@ describe(EnvironmentVariableList, () => {
     expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
       environment: undefined,
+      includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
@@ -85,6 +89,7 @@ describe(EnvironmentVariableList, () => {
     expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
       environment: EnvironmentVariableEnvironment.Production,
+      includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
@@ -109,6 +114,7 @@ describe(EnvironmentVariableList, () => {
       {
         appId: testProjectId,
         environment: undefined,
+        includeFileContent: false,
       }
     );
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
@@ -130,6 +136,7 @@ describe(EnvironmentVariableList, () => {
     expect(EnvironmentVariablesQuery.sharedAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
       environment: undefined,
+      includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
@@ -155,6 +162,7 @@ describe(EnvironmentVariableList, () => {
     expect(EnvironmentVariablesQuery.sharedWithSensitiveAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
       environment: undefined,
+      includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));

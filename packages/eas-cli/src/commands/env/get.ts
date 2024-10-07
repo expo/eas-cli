@@ -14,11 +14,12 @@ import {
   EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariableScope,
+  EnvironmentVariableVisibility,
 } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptVariableEnvironmentAsync, promptVariableNameAsync } from '../../utils/prompts';
-import { formatVariable } from '../../utils/variableUtils';
+import { formatVariable, formatVariableValue } from '../../utils/variableUtils';
 
 type GetFlags = {
   'variable-name'?: string;
@@ -108,7 +109,7 @@ export default class EnvironmentVariableGet extends EasCommand {
       variable = variables[0];
     }
 
-    if (!variable.value) {
+    if (variable.visibility === EnvironmentVariableVisibility.Secret) {
       throw new Error(
         `${chalk.bold(
           variable.name
@@ -117,7 +118,7 @@ export default class EnvironmentVariableGet extends EasCommand {
     }
 
     if (format === 'short') {
-      Log.log(`${chalk.bold(variable.name)}=${variable.value}`);
+      Log.log(`${chalk.bold(variable.name)}=${formatVariableValue(variable)}`);
     } else {
       Log.log(formatVariable(variable));
     }
@@ -156,6 +157,7 @@ async function getVariablesAsync(
       appId: projectId,
       environment,
       filterNames: [name],
+      includeFileContent: true,
     });
     return appVariables;
   } else {
@@ -164,6 +166,7 @@ async function getVariablesAsync(
       {
         appId: projectId,
         filterNames: [name],
+        includeFileContent: true,
       }
     );
     return sharedVariables;

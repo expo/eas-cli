@@ -3,7 +3,9 @@ import { Config } from '@oclif/core';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
+  EnvironmentSecretType,
   EnvironmentVariableEnvironment,
+  EnvironmentVariableFragment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../../graphql/generated';
@@ -20,7 +22,7 @@ jest.mock('../../../utils/prompts');
 describe(EnvironmentVariableGet, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
   const mockConfig = {} as unknown as Config;
-  const mockVariables = [
+  const mockVariables: EnvironmentVariableFragment[] = [
     {
       id: 'var1',
       name: 'TEST_VAR_1',
@@ -30,6 +32,7 @@ describe(EnvironmentVariableGet, () => {
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
       visibility: EnvironmentVariableVisibility.Public,
+      type: EnvironmentSecretType.String,
     },
   ];
 
@@ -55,6 +58,7 @@ describe(EnvironmentVariableGet, () => {
         appId: testProjectId,
         environment: undefined,
         filterNames: ['TEST_VAR_1'],
+        includeFileContent: true,
       }
     );
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
@@ -99,6 +103,7 @@ describe(EnvironmentVariableGet, () => {
         updatedAt: new Date().toISOString(),
         scope: EnvironmentVariableScope.Project,
         visibility: EnvironmentVariableVisibility.Public,
+        type: EnvironmentSecretType.String,
       },
     ]);
     await command.runAsync();
