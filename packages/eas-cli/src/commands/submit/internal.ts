@@ -92,6 +92,7 @@ export default class SubmitInternal extends EasCommand {
     });
 
     let config;
+    let configInput;
 
     if (ctx.platform === Platform.IOS) {
       const command = new IosSubmitCommand(ctx as SubmissionContext<Platform.IOS>);
@@ -104,7 +105,7 @@ export default class SubmitInternal extends EasCommand {
         graphqlClient,
       });
 
-      const configInput: z.input<typeof SubmissionConfig.Ios.SchemaZ> = {
+      const schemaInput: z.input<typeof SubmissionConfig.Ios.SchemaZ> = {
         ascAppIdentifier: iosConfig.ascAppIdentifier,
         isVerboseFastlaneEnabled: iosConfig.isVerboseFastlaneEnabled ?? undefined,
         ...(ascApiKeyJson
@@ -115,7 +116,8 @@ export default class SubmitInternal extends EasCommand {
             }),
       };
 
-      config = SubmissionConfig.Ios.SchemaZ.parse(configInput);
+      config = SubmissionConfig.Ios.SchemaZ.parse(schemaInput);
+      configInput = iosConfig;
     } else if (ctx.platform === Platform.ANDROID) {
       const command = new AndroidSubmitCommand(ctx as SubmissionContext<Platform.ANDROID>);
       const submitter = await command.runAsync();
@@ -134,7 +136,7 @@ export default class SubmitInternal extends EasCommand {
       );
       const track = graphQlTrackToConfigTrack[androidConfig.track];
 
-      const configInput: z.input<typeof SubmissionConfig.Android.SchemaZ> = {
+      const schemaInput: z.input<typeof SubmissionConfig.Android.SchemaZ> = {
         changesNotSentForReview,
         googleServiceAccountKeyJson,
         track,
@@ -146,12 +148,13 @@ export default class SubmitInternal extends EasCommand {
           : { releaseStatus }),
       };
 
-      config = SubmissionConfig.Android.SchemaZ.parse(configInput);
+      config = SubmissionConfig.Android.SchemaZ.parse(schemaInput);
+      configInput = androidConfig;
     } else {
       throw new Error(`Unsupported platform: ${ctx.platform}`);
     }
 
-    printJsonOnlyOutput({ config });
+    printJsonOnlyOutput({ config, configInput });
   }
 }
 
