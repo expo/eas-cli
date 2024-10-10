@@ -59,6 +59,7 @@ export const ChannelQuery = {
                   id
                   updateChannelByName(name: $channelName) {
                     id
+                    isPaused
                     name
                     updatedAt
                     createdAt
@@ -104,6 +105,7 @@ export const ChannelQuery = {
                   id
                   updateChannels(offset: $offset, limit: $limit) {
                     id
+                    isPaused
                     name
                     updatedAt
                     createdAt
