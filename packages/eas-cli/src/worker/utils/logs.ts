@@ -5,6 +5,7 @@ import type {
   WorkerDeploymentFragment,
 } from '../../graphql/generated';
 import formatFields, { type FormatFieldsItem } from '../../utils/formatFields';
+import { link } from '../../log';
 
 export const EXPO_BASE_DOMAIN = process.env.EXPO_STAGING ? 'staging.expo' : 'expo';
 
@@ -29,18 +30,18 @@ type WorkerDeploymentData = {
 
 export function formatWorkerDeploymentTable(data: WorkerDeploymentData): string {
   const fields: FormatFieldsItem[] = [
-    { label: 'Dashboard', value: getDashboardUrl(data.projectId) },
-    { label: 'Deployment URL', value: data.deployment.url },
+    { label: 'Dashboard', value: link(getDashboardUrl(data.projectId)) },
+    { label: 'Deployment URL', value: link(data.deployment.url) },
   ];
 
   if (data.aliases?.length) {
     const alias = data.aliases.filter(Boolean)[0];
     if (alias) {
-      fields.push({ label: 'Alias URL', value: alias.url });
+      fields.push({ label: 'Alias URL', value: link(alias.url) });
     }
   }
   if (data.production) {
-    fields.push({ label: 'Production URL', value: data.production.url });
+    fields.push({ label: 'Production URL', value: link(data.production.url) });
   }
 
   const lastUrlField = fields[fields.length - 1];
