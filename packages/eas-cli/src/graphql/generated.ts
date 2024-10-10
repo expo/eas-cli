@@ -762,7 +762,8 @@ export type ActivityTimelineProjectActivity = {
 export enum ActivityTimelineProjectActivityType {
   Build = 'BUILD',
   Submission = 'SUBMISSION',
-  Update = 'UPDATE'
+  Update = 'UPDATE',
+  Worker = 'WORKER'
 }
 
 /** A regular user, SSO user, or robot that can authenticate with Expo services and be a member of accounts. */
@@ -1373,6 +1374,7 @@ export type App = Project & {
   workerDeploymentsCrashes?: Maybe<WorkerDeploymentCrashes>;
   workerDeploymentsRequest: WorkerDeploymentRequestEdge;
   workerDeploymentsRequests?: Maybe<WorkerDeploymentRequests>;
+  workflows: Array<Workflow>;
 };
 
 
@@ -2531,17 +2533,13 @@ export type AuditLogMutationExportAuditLogsArgs = {
 
 export type AuditLogQuery = {
   __typename?: 'AuditLogQuery';
-  /** Query Audit Logs by account ID */
-  byAccountId: Array<AuditLog>;
+  /** Audit logs for account */
+  byId: AuditLog;
 };
 
 
-export type AuditLogQueryByAccountIdArgs = {
-  accountId: Scalars['ID']['input'];
-  limit: Scalars['Int']['input'];
-  offset: Scalars['Int']['input'];
-  targetEntityMutationType?: InputMaybe<Array<TargetEntityMutationType>>;
-  targetEntityTypeName?: InputMaybe<Array<EntityTypeName>>;
+export type AuditLogQueryByIdArgs = {
+  auditLogId: Scalars['ID']['input'];
 };
 
 export enum AuditLogsExportFormat {
@@ -3881,7 +3879,9 @@ export enum EntityTypeName {
   GoogleServiceAccountKey = 'GoogleServiceAccountKey',
   IosAppCredentials = 'IosAppCredentials',
   UserInvitation = 'UserInvitation',
-  UserPermission = 'UserPermission'
+  UserPermission = 'UserPermission',
+  Workflow = 'Workflow',
+  WorkflowRevision = 'WorkflowRevision'
 }
 
 export type EnvironmentSecret = {
@@ -5463,6 +5463,25 @@ export type RequestsFilters = {
   statusType?: InputMaybe<Array<ResponseStatusType>>;
 };
 
+export type RequestsOrderBy = {
+  direction?: InputMaybe<RequestsOrderByDirection>;
+  field: RequestsOrderByField;
+};
+
+export enum RequestsOrderByDirection {
+  Asc = 'ASC',
+  Desc = 'DESC'
+}
+
+export enum RequestsOrderByField {
+  AssetsSum = 'ASSETS_SUM',
+  CacheHitRatio = 'CACHE_HIT_RATIO',
+  CachePassRatio = 'CACHE_PASS_RATIO',
+  CrashesSum = 'CRASHES_SUM',
+  Duration = 'DURATION',
+  RequestsSum = 'REQUESTS_SUM'
+}
+
 export type RescindUserInvitationResult = {
   __typename?: 'RescindUserInvitationResult';
   id: Scalars['ID']['output'];
@@ -5799,6 +5818,8 @@ export type RootQuery = {
   /** Top-level query object for querying Webhooks. */
   webhook: WebhookQuery;
   workerDeployment: WorkerDeploymentQuery;
+  workflowRevisions: WorkflowRevisionQuery;
+  workflows: WorkflowQuery;
 };
 
 
@@ -7175,19 +7196,14 @@ export type UserAuditLogMutationExportUserAuditLogsArgs = {
 
 export type UserAuditLogQuery = {
   __typename?: 'UserAuditLogQuery';
-  /** Query User Audit Logs by user ID */
-  byUserId: Array<UserAuditLog>;
   /** Audit logs for user */
+  byId: UserAuditLog;
   byUserIdPaginated: UserAuditLogConnection;
 };
 
 
-export type UserAuditLogQueryByUserIdArgs = {
-  limit: Scalars['Int']['input'];
-  offset: Scalars['Int']['input'];
-  targetEntityMutationType?: InputMaybe<Array<TargetEntityMutationType>>;
-  targetEntityTypeName?: InputMaybe<Array<UserEntityTypeName>>;
-  userId: Scalars['ID']['input'];
+export type UserAuditLogQueryByIdArgs = {
+  auditLogId: Scalars['ID']['input'];
 };
 
 
@@ -7517,8 +7533,10 @@ export type WorkerCustomDomain = {
   verificationRecord?: Maybe<CustomDomainDnsRecord>;
 };
 
-export type WorkerDeployment = {
+export type WorkerDeployment = ActivityTimelineProjectActivity & {
   __typename?: 'WorkerDeployment';
+  activityTimestamp: Scalars['DateTime']['output'];
+  actor?: Maybe<Actor>;
   aliases?: Maybe<Array<WorkerDeploymentAlias>>;
   crashes?: Maybe<WorkerDeploymentCrashes>;
   createdAt: Scalars['DateTime']['output'];
@@ -7719,14 +7737,64 @@ export type WorkerDeploymentRequests = {
   byBrowser: Array<WorkerDeploymentRequestsBrowserEdge>;
   byCacheStatus: Array<WorkerDeploymentRequestsCacheStatusEdge>;
   byContinent: Array<WorkerDeploymentRequestsContinentEdge>;
+  byCountry: Array<WorkerDeploymentRequestsCountryEdge>;
   byMethod: Array<WorkerDeploymentRequestsMethodEdge>;
   byOS: Array<WorkerDeploymentRequestsOperatingSystemEdge>;
+  byResponseType: Array<WorkerDeploymentRequestsResponseTypeEdge>;
   byStatusType: Array<WorkerDeploymentRequestsStatusTypeEdge>;
   interval: Scalars['Int']['output'];
   minRowsWithoutLimit: Scalars['Int']['output'];
   nodes: Array<WorkerDeploymentRequestNode>;
   summary: WorkerDeploymentRequestsAggregationNode;
   timeseries: Array<WorkerDeploymentRequestsTimeseriesEdge>;
+};
+
+
+export type WorkerDeploymentRequestsByBrowserArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<RequestsOrderBy>;
+};
+
+
+export type WorkerDeploymentRequestsByCacheStatusArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<RequestsOrderBy>;
+};
+
+
+export type WorkerDeploymentRequestsByContinentArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<RequestsOrderBy>;
+};
+
+
+export type WorkerDeploymentRequestsByCountryArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<RequestsOrderBy>;
+};
+
+
+export type WorkerDeploymentRequestsByMethodArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<RequestsOrderBy>;
+};
+
+
+export type WorkerDeploymentRequestsByOsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<RequestsOrderBy>;
+};
+
+
+export type WorkerDeploymentRequestsByResponseTypeArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<RequestsOrderBy>;
+};
+
+
+export type WorkerDeploymentRequestsByStatusTypeArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<RequestsOrderBy>;
 };
 
 export type WorkerDeploymentRequestsAggregationNode = {
@@ -7788,6 +7856,12 @@ export type WorkerDeploymentRequestsContinentEdge = {
   node: WorkerDeploymentRequestsAggregationNode;
 };
 
+export type WorkerDeploymentRequestsCountryEdge = {
+  __typename?: 'WorkerDeploymentRequestsCountryEdge';
+  country?: Maybe<Scalars['String']['output']>;
+  node: WorkerDeploymentRequestsAggregationNode;
+};
+
 export type WorkerDeploymentRequestsMethodEdge = {
   __typename?: 'WorkerDeploymentRequestsMethodEdge';
   method: Scalars['String']['output'];
@@ -7798,6 +7872,12 @@ export type WorkerDeploymentRequestsOperatingSystemEdge = {
   __typename?: 'WorkerDeploymentRequestsOperatingSystemEdge';
   node: WorkerDeploymentRequestsAggregationNode;
   os?: Maybe<UserAgentOs>;
+};
+
+export type WorkerDeploymentRequestsResponseTypeEdge = {
+  __typename?: 'WorkerDeploymentRequestsResponseTypeEdge';
+  node: WorkerDeploymentRequestsAggregationNode;
+  responseType: ResponseType;
 };
 
 export type WorkerDeploymentRequestsStatusTypeEdge = {
@@ -7811,8 +7891,10 @@ export type WorkerDeploymentRequestsTimeseriesEdge = {
   byBrowser: Array<WorkerDeploymentRequestsBrowserEdge>;
   byCacheStatus: Array<WorkerDeploymentRequestsCacheStatusEdge>;
   byContinent: Array<WorkerDeploymentRequestsContinentEdge>;
+  byCountry: Array<WorkerDeploymentRequestsCountryEdge>;
   byMethod: Array<WorkerDeploymentRequestsMethodEdge>;
   byOS: Array<WorkerDeploymentRequestsOperatingSystemEdge>;
+  byResponseType: Array<WorkerDeploymentRequestsResponseTypeEdge>;
   byStatusType: Array<WorkerDeploymentRequestsStatusTypeEdge>;
   node?: Maybe<WorkerDeploymentRequestsAggregationNode>;
   timestamp: Scalars['DateTime']['output'];
@@ -7833,6 +7915,17 @@ export enum WorkerLoggerLevel {
   Warn = 'WARN'
 }
 
+export type Workflow = {
+  __typename?: 'Workflow';
+  app: App;
+  createdAt: Scalars['DateTime']['output'];
+  fileName: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  name?: Maybe<Scalars['String']['output']>;
+  revisions: Array<WorkflowRevision>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
 export type WorkflowJobMutation = {
   __typename?: 'WorkflowJobMutation';
   approveWorkflowJob: Scalars['ID']['output'];
@@ -7841,6 +7934,38 @@ export type WorkflowJobMutation = {
 
 export type WorkflowJobMutationApproveWorkflowJobArgs = {
   workflowJobId: Scalars['ID']['input'];
+};
+
+/** Look up Workflow by ID */
+export type WorkflowQuery = {
+  __typename?: 'WorkflowQuery';
+  byId: Workflow;
+};
+
+
+/** Look up Workflow by ID */
+export type WorkflowQueryByIdArgs = {
+  workflowId: Scalars['ID']['input'];
+};
+
+export type WorkflowRevision = {
+  __typename?: 'WorkflowRevision';
+  blobSha: Scalars['String']['output'];
+  commitSha: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  workflow: Workflow;
+  yamlConfig: Scalars['String']['output'];
+};
+
+export type WorkflowRevisionQuery = {
+  __typename?: 'WorkflowRevisionQuery';
+  byId: WorkflowRevision;
+};
+
+
+export type WorkflowRevisionQueryByIdArgs = {
+  workflowRevisionId: Scalars['ID']['input'];
 };
 
 export type DeleteAndroidAppBuildCredentialsResult = {
@@ -7930,6 +8055,20 @@ export type UpdateChannelBranchMappingMutationVariables = Exact<{
 
 
 export type UpdateChannelBranchMappingMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', editUpdateChannel: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } } };
+
+export type PauseUpdateChannelMutationVariables = Exact<{
+  channelId: Scalars['ID']['input'];
+}>;
+
+
+export type PauseUpdateChannelMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', pauseUpdateChannel: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } } };
+
+export type ResumeUpdateChannelMutationVariables = Exact<{
+  channelId: Scalars['ID']['input'];
+}>;
+
+
+export type ResumeUpdateChannelMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', resumeUpdateChannel: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } } };
 
 export type AppInfoQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -8686,7 +8825,7 @@ export type ViewUpdateChannelOnAppQueryVariables = Exact<{
 }>;
 
 
-export type ViewUpdateChannelOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, name: string, updatedAt: any, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, rolloutPercentage?: number | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string } | null }>> }> } | null } } };
+export type ViewUpdateChannelOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, isPaused: boolean, name: string, updatedAt: any, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, rolloutPercentage?: number | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string } | null }>> }> } | null } } };
 
 export type ViewUpdateChannelsOnAppQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -8695,7 +8834,7 @@ export type ViewUpdateChannelsOnAppQueryVariables = Exact<{
 }>;
 
 
-export type ViewUpdateChannelsOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannels: Array<{ __typename?: 'UpdateChannel', id: string, name: string, updatedAt: any, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, rolloutPercentage?: number | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string } | null }>> }> }> } } };
+export type ViewUpdateChannelsOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannels: Array<{ __typename?: 'UpdateChannel', id: string, isPaused: boolean, name: string, updatedAt: any, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, rolloutPercentage?: number | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string } | null }>> }> }> } } };
 
 export type ViewUpdateChannelsPaginatedOnAppQueryVariables = Exact<{
   appId: Scalars['String']['input'];
