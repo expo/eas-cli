@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [12.5.2](https://github.com/expo/eas-cli/releases/tag/v12.5.2) - 2024-10-11
+
+### 🐛 Bug fixes
+
 - Disallow republishing an update that is being rolled-out. ([#2602](https://github.com/expo/eas-cli/pull/2602) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
