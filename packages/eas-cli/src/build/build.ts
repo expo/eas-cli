@@ -657,10 +657,7 @@ function formatEstimatedWaitTime(estimatedWaitTimeLeftSeconds: number): string {
 }
 
 function formatAccountBillingUrl(accountName: string): string {
-  return new URL(
-    `/accounts/${accountName}/settings/billing`,
-    getExpoWebsiteBaseUrl()
-  ).toString();
+  return new URL(`/accounts/${accountName}/settings/billing`, getExpoWebsiteBaseUrl()).toString();
 }
 
 async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
