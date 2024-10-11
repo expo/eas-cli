@@ -486,7 +486,7 @@ async function handleSingleBuildProgressAsync(
       spinner.succeed('Build finished');
       return { refetch: false };
     case BuildStatus.New:
-      spinner.text = `Build concurrency limit reached for your account, waiting for a concurrency to become available. Add additional concurrencies at ${link(
+      spinner.text = `Build concurrency limit reached for your account. Build will enter queue once a concurrency becomes available. Add additional concurrencies at ${link(
         formatAccountBillingUrl(accountName)
       )}.`;
       break;
