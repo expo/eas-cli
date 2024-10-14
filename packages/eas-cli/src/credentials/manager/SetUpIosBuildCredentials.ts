@@ -55,7 +55,7 @@ export class SetUpIosBuildCredentials extends ManageIos {
     };
 
     const account = ctx.hasProjectContext
-      ? await getAccountForProjectAsync(ctx.projectId)
+      ? await getAccountForProjectAsync(await ctx.getProjectIdAsync())
       : ensureActorHasPrimaryAccount(ctx.user);
 
     let app = null;

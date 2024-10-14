@@ -94,7 +94,7 @@ export class ManageIos {
     };
 
     const account = ctx.hasProjectContext
-      ? await getAccountForProjectAsync(ctx.projectId)
+      ? await getAccountForProjectAsync(await ctx.getProjectIdAsync())
       : ensureActorHasPrimaryAccount(ctx.user);
 
     let app = null;
@@ -195,18 +195,19 @@ export class ManageIos {
   }> {
     assert(ctx.hasProjectContext, 'createProjectContextAsync: must have project context.');
 
-    const app = { account, projectName: ctx.exp.slug };
+    const exp = await ctx.getExpoConfigAsync();
+    const app = { account, projectName: exp.slug };
     const xcodeBuildContext = await resolveXcodeBuildContextAsync(
       {
         projectDir: ctx.projectDir,
         nonInteractive: ctx.nonInteractive,
-        exp: ctx.exp,
+        exp,
         vcsClient: ctx.vcsClient,
       },
       buildProfile
     );
     const targets = await resolveTargetsAsync({
-      exp: ctx.exp,
+      exp,
       projectDir: ctx.projectDir,
       xcodeBuildContext,
       env: buildProfile.env,

@@ -1,7 +1,7 @@
-import { IOSConfig, compileModsAsync as _compileModsAsync } from '@expo/config-plugins';
+import { ExportedConfig, IOSConfig, compileModsAsync } from '@expo/config-plugins';
 import { JSONObject } from '@expo/json-file';
-import { getPrebuildConfigAsync as _getPrebuildConfigAsync } from '@expo/prebuild-config';
-import path from 'path';
+import { getPrebuildConfigAsync } from '@expo/prebuild-config';
+import spawnAsync from '@expo/spawn-async';
 
 import Log from '../../log';
 import { readPlistAsync } from '../../utils/plist';
@@ -13,7 +13,6 @@ interface Target {
   targetName: string;
 }
 
-let wasExooPrebuildConfigWarnPrinted = false;
 let wasExpoConfigPluginsWarnPrinted = false;
 
 export async function getManagedApplicationTargetEntitlementsAsync(
@@ -28,52 +27,34 @@ export async function getManagedApplicationTargetEntitlementsAsync(
       ...process.env,
       ...env,
     };
-    const projectExpoPrebuildConfigPath = path.join(
-      projectDir,
-      'node_modules',
-      '@expo',
-      'prebuild-config'
-    );
-    let getPrebuildConfigAsync: typeof _getPrebuildConfigAsync;
-    try {
-      const expoPrebuildConfig = require(projectExpoPrebuildConfigPath);
-      getPrebuildConfigAsync = expoPrebuildConfig.getPrebuildConfigAsync;
-    } catch {
-      if (!wasExooPrebuildConfigWarnPrinted) {
-        Log.warn(
-          `Failed to load getPrebuildConfigAsync function from ${projectExpoPrebuildConfigPath}`
-        );
-        Log.warn('Falling back to the version of @expo/prebuild-config shipped with the EAS CLI.');
-        wasExooPrebuildConfigWarnPrinted = true;
-      }
-      getPrebuildConfigAsync = _getPrebuildConfigAsync;
-    }
-    const { exp } = await getPrebuildConfigAsync(projectDir, { platforms: ['ios'] });
 
-    const projectExpoConfigPluginsPath = path.join(
-      projectDir,
-      'node_modules',
-      '@expo',
-      'config-plugins'
-    );
-    let compileModsAsync: typeof _compileModsAsync;
+    let expWithMods: ExportedConfig;
     try {
-      const expoConfigPlugins = require(projectExpoConfigPluginsPath);
-      compileModsAsync = expoConfigPlugins.compileModsAsync;
-    } catch {
+      const { stdout } = await spawnAsync(
+        'npx',
+        ['expo', 'config', '--json', '--type', 'introspect'],
+
+        {
+          cwd: projectDir,
+        }
+      );
+      expWithMods = JSON.parse(stdout);
+    } catch (err: any) {
       if (!wasExpoConfigPluginsWarnPrinted) {
-        Log.warn(`Failed to load compileModsAsync function from ${projectExpoConfigPluginsPath}`);
-        Log.warn('Falling back to the version of @expo/config-plugins shipped with the EAS CLI.');
+        Log.warn(
+          `Failed to read the app config from the project using npx expo config command: ${err.message}.`
+        );
+        Log.warn('Falling back to the version of @expo/config shipped with the EAS CLI.');
         wasExpoConfigPluginsWarnPrinted = true;
       }
-      compileModsAsync = _compileModsAsync;
+      const { exp } = await getPrebuildConfigAsync(projectDir, { platforms: ['ios'] });
+      expWithMods = await compileModsAsync(exp, {
+        projectRoot: projectDir,
+        platforms: ['ios'],
+        introspect: true,
+        ignoreExistingNativeFiles: await hasIgnoredIosProjectAsync(projectDir, vcsClient),
+      });
     }
-    const expWithMods = await compileModsAsync(exp, {
-      projectRoot: projectDir,
-      platforms: ['ios'],
-      introspect: true,
-      ignoreExistingNativeFiles: await hasIgnoredIosProjectAsync(projectDir, vcsClient),
-    });
     return expWithMods.ios?.entitlements ?? {};
   } finally {
     process.env = originalProcessEnv;

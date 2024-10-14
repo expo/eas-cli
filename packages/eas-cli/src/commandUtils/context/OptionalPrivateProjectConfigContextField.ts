@@ -6,7 +6,7 @@ import { createGraphqlClient } from './contextUtils/createGraphqlClient';
 import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
 import { loadServerSideEnvironmentVariablesAsync } from './contextUtils/loadServerSideEnvironmentVariablesAsync';
-import { getPrivateExpoConfig } from '../../project/expoConfig';
+import { getPrivateExpoConfigAsync } from '../../project/expoConfig';
 
 export class OptionalPrivateProjectConfigContextField extends ContextField<
   | {
@@ -41,7 +41,7 @@ export class OptionalPrivateProjectConfigContextField extends ContextField<
       return undefined;
     }
 
-    const expBefore = getPrivateExpoConfig(projectDir);
+    const expBefore = await getPrivateExpoConfigAsync(projectDir);
     const projectId = await getProjectIdAsync(sessionManager, expBefore, {
       nonInteractive,
     });
@@ -58,7 +58,7 @@ export class OptionalPrivateProjectConfigContextField extends ContextField<
       });
       serverSideEnvVars = serverSideEnvironmentVariables;
     }
-    const exp = getPrivateExpoConfig(projectDir, { env: serverSideEnvVars });
+    const exp = getPrivateExpoConfigAsync(projectDir, { env: serverSideEnvVars });
     return {
       exp,
       projectDir,

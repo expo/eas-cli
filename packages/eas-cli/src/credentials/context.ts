@@ -10,7 +10,7 @@ import { AuthenticationMode } from './ios/appstore/authenticateTypes';
 import { Analytics } from '../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../log';
-import { getPrivateExpoConfig } from '../project/expoConfig';
+import { getPrivateExpoConfigAsync } from '../project/expoConfig';
 import { confirmAsync } from '../prompts';
 import { Actor } from '../user/User';
 import { Client } from '../vcs/vcs';
@@ -67,22 +67,22 @@ export class CredentialsContext {
     return !!this.projectInfo;
   }
 
-  get exp(): ExpoConfig {
-    this.ensureProjectContext();
+  public async getExpoConfigAsync(): Promise<ExpoConfig> {
+    await this.ensureProjectContextAsync();
     return this.projectInfo!.exp;
   }
 
-  get projectId(): string {
-    this.ensureProjectContext();
+  public async getProjectIdAsync(): Promise<string> {
+    await this.ensureProjectContextAsync();
     return this.projectInfo!.projectId;
   }
 
-  public ensureProjectContext(): void {
+  public async ensureProjectContextAsync(): Promise<void> {
     if (this.hasProjectContext) {
       return;
     }
     // trigger getConfig error
-    getPrivateExpoConfig(this.options.projectDir);
+    await getPrivateExpoConfigAsync(this.options.projectDir);
   }
 
   async bestEffortAppStoreAuthenticateAsync(): Promise<void> {

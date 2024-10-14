@@ -7,8 +7,8 @@ import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
 import { loadServerSideEnvironmentVariablesAsync } from './contextUtils/loadServerSideEnvironmentVariablesAsync';
 import {
   ExpoConfigOptions,
-  getPrivateExpoConfig,
-  getPublicExpoConfig,
+  getPrivateExpoConfigAsync,
+  getPublicExpoConfigAsync,
 } from '../../project/expoConfig';
 
 export type DynamicConfigContextFn = (options?: ExpoConfigOptions) => Promise<{
@@ -25,7 +25,7 @@ export class DynamicPublicProjectConfigContextField extends ContextField<Dynamic
   }: ContextOptions): Promise<DynamicConfigContextFn> {
     const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
     return async (options?: ExpoConfigOptions) => {
-      const expBefore = getPublicExpoConfig(projectDir, options);
+      const expBefore = await getPublicExpoConfigAsync(projectDir, options);
       const projectId = await getProjectIdAsync(sessionManager, expBefore, {
         nonInteractive,
         env: options?.env,
@@ -48,7 +48,7 @@ export class DynamicPublicProjectConfigContextField extends ContextField<Dynamic
           },
         };
       }
-      const exp = getPublicExpoConfig(projectDir, options);
+      const exp = getPublicExpoConfigAsync(projectDir, options);
       return {
         exp,
         projectDir,
@@ -66,7 +66,7 @@ export class DynamicPrivateProjectConfigContextField extends ContextField<Dynami
   }: ContextOptions): Promise<DynamicConfigContextFn> {
     const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
     return async (options?: ExpoConfigOptions) => {
-      const expBefore = getPrivateExpoConfig(projectDir, options);
+      const expBefore = await getPrivateExpoConfigAsync(projectDir, options);
       const projectId = await getProjectIdAsync(sessionManager, expBefore, {
         nonInteractive,
         env: options?.env,
@@ -89,7 +89,7 @@ export class DynamicPrivateProjectConfigContextField extends ContextField<Dynami
           },
         };
       }
-      const exp = getPrivateExpoConfig(projectDir, options);
+      const exp = getPrivateExpoConfigAsync(projectDir, options);
       return {
         exp,
         projectDir,
