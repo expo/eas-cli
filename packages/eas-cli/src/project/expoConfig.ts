@@ -77,12 +77,14 @@ async function getExpoConfigInternalAsync(
         exp = getConfig(projectDir, {
           skipSDKVersionRequirement: true,
           ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
+          ...(opts.skipPlugins ? { skipPlugins: true } : {}),
         }).exp;
       }
     } else {
       exp = getConfig(projectDir, {
         skipSDKVersionRequirement: true,
         ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
+        ...(opts.skipPlugins ? { skipPlugins: true } : {}),
       }).exp;
     }
 
