@@ -146,16 +146,7 @@ describe(UpdateRollBackToEmbedded.name, () => {
 
     // Add configuration to the project that should not be included in the update
     mockTestProject({
-      expoConfig: {
-        hooks: {
-          postPublish: [
-            {
-              file: 'custom-hook.js',
-              config: { some: 'config' },
-            },
-          ],
-        },
-      },
+      expoConfig: {},
     });
 
     const platforms = ['ios'];
