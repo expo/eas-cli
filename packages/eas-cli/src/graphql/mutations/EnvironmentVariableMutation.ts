@@ -29,7 +29,7 @@ type CreateVariableArgs = {
 export type EnvironmentVariablePushInput = {
   name: string;
   value: string;
-  environment: string;
+  environments: EnvironmentVariableEnvironment[];
   visibility: EnvironmentVariableVisibility;
   overwrite?: boolean;
 };
