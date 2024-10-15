@@ -11,9 +11,14 @@ import {
   EnvironmentVariablesSharedQueryVariables,
 } from '../generated';
 import { EnvironmentVariableFragmentNode } from '../types/EnvironmentVariable';
+import { EnvironmentVariableWithSecretFragmentNode } from '../types/EnvironmentVariableWithSecret';
 
 type EnvironmentVariableWithLinkedEnvironments = EnvironmentVariableFragment & {
   linkedEnvironments?: EnvironmentVariableEnvironment[] | null;
+};
+
+export type EnvironmentVariableWithFileContent = EnvironmentVariableFragment & {
+  valueWithFileContent?: string | null | undefined;
 };
 
 export const EnvironmentVariablesQuery = {
@@ -23,12 +28,14 @@ export const EnvironmentVariablesQuery = {
       appId,
       environment,
       filterNames,
+      includeFileContent = false,
     }: {
       appId: string;
       environment?: EnvironmentVariableEnvironment;
       filterNames?: string[];
+      includeFileContent?: boolean;
     }
-  ): Promise<EnvironmentVariableFragment[]> {
+  ): Promise<EnvironmentVariableWithFileContent[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query(
@@ -37,6 +44,7 @@ export const EnvironmentVariablesQuery = {
               $appId: String!
               $filterNames: [String!]
               $environment: EnvironmentVariableEnvironment
+              $includeFileContent: Boolean!
             ) {
               app {
                 byId(appId: $appId) {
@@ -46,15 +54,16 @@ export const EnvironmentVariablesQuery = {
                     environment: $environment
                   ) {
                     id
-                    name
-                    value
-                    environments
+                    ...EnvironmentVariableWithSecretFragment
+                    valueWithFileContent: value(includeFileContent: $includeFileContent)
+                      @include(if: $includeFileContent)
                   }
                 }
               }
             }
+            ${print(EnvironmentVariableWithSecretFragmentNode)}
           `,
-          { appId, filterNames, environment },
+          { appId, filterNames, environment, includeFileContent },
           { additionalTypenames: ['EnvironmentVariableWithSecret'] }
         )
         .toPromise()
@@ -68,12 +77,14 @@ export const EnvironmentVariablesQuery = {
       appId,
       environment,
       filterNames,
+      includeFileContent = false,
     }: {
       appId: string;
       environment?: EnvironmentVariableEnvironment;
       filterNames?: string[];
+      includeFileContent?: boolean;
     }
-  ): Promise<EnvironmentVariableWithLinkedEnvironments[]> {
+  ): Promise<(EnvironmentVariableWithFileContent & EnvironmentVariableWithLinkedEnvironments)[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<EnvironmentVariablesByAppIdQuery>(
@@ -82,6 +93,7 @@ export const EnvironmentVariablesQuery = {
               $appId: String!
               $filterNames: [String!]
               $environment: EnvironmentVariableEnvironment
+              $includeFileContent: Boolean!
             ) {
               app {
                 byId(appId: $appId) {
@@ -90,13 +102,15 @@ export const EnvironmentVariablesQuery = {
                     id
                     linkedEnvironments(appId: $appId)
                     ...EnvironmentVariableFragment
+                    valueWithFileContent: value(includeFileContent: $includeFileContent)
+                      @include(if: $includeFileContent)
                   }
                 }
               }
             }
             ${print(EnvironmentVariableFragmentNode)}
           `,
-          { appId, filterNames, environment },
+          { appId, filterNames, environment, includeFileContent },
           { additionalTypenames: ['EnvironmentVariable'] }
         )
         .toPromise()
@@ -110,8 +124,14 @@ export const EnvironmentVariablesQuery = {
       appId,
       filterNames,
       environment,
-    }: { appId: string; filterNames?: string[]; environment?: EnvironmentVariableEnvironment }
-  ): Promise<EnvironmentVariableWithLinkedEnvironments[]> {
+      includeFileContent = false,
+    }: {
+      appId: string;
+      filterNames?: string[];
+      environment?: EnvironmentVariableEnvironment;
+      includeFileContent?: boolean;
+    }
+  ): Promise<(EnvironmentVariableWithFileContent & EnvironmentVariableWithLinkedEnvironments)[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<EnvironmentVariablesSharedQuery, EnvironmentVariablesSharedQueryVariables>(
@@ -120,6 +140,7 @@ export const EnvironmentVariablesQuery = {
               $appId: String!
               $filterNames: [String!]
               $environment: EnvironmentVariableEnvironment
+              $includeFileContent: Boolean!
             ) {
               app {
                 byId(appId: $appId) {
@@ -130,6 +151,8 @@ export const EnvironmentVariablesQuery = {
                       id
                       linkedEnvironments(appId: $appId)
                       ...EnvironmentVariableFragment
+                      valueWithFileContent: value(includeFileContent: $includeFileContent)
+                        @include(if: $includeFileContent)
                     }
                   }
                 }
@@ -137,7 +160,7 @@ export const EnvironmentVariablesQuery = {
             }
             ${print(EnvironmentVariableFragmentNode)}
           `,
-          { appId, filterNames, environment },
+          { appId, filterNames, environment, includeFileContent },
           { additionalTypenames: ['EnvironmentVariable'] }
         )
         .toPromise()
@@ -151,8 +174,14 @@ export const EnvironmentVariablesQuery = {
       appId,
       filterNames,
       environment,
-    }: { appId: string; filterNames?: string[]; environment?: EnvironmentVariableEnvironment }
-  ): Promise<EnvironmentVariableFragment[]> {
+      includeFileContent = false,
+    }: {
+      appId: string;
+      filterNames?: string[];
+      environment?: EnvironmentVariableEnvironment;
+      includeFileContent?: boolean;
+    }
+  ): Promise<EnvironmentVariableWithFileContent[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query(
@@ -161,6 +190,7 @@ export const EnvironmentVariablesQuery = {
               $appId: String!
               $filterNames: [String!]
               $environment: EnvironmentVariableEnvironment
+              $includeFileContent: Boolean!
             ) {
               app {
                 byId(appId: $appId) {
@@ -172,16 +202,17 @@ export const EnvironmentVariablesQuery = {
                       environment: $environment
                     ) {
                       id
-                      name
-                      value
-                      environments
+                      ...EnvironmentVariableWithSecretFragment
+                      valueWithFileContent: value(includeFileContent: $includeFileContent)
+                        @include(if: $includeFileContent)
                     }
                   }
                 }
               }
             }
+            ${print(EnvironmentVariableWithSecretFragmentNode)}
           `,
-          { appId, filterNames, environment },
+          { appId, filterNames, environment, includeFileContent },
           { additionalTypenames: ['EnvironmentVariableWithSecret'] }
         )
         .toPromise()
