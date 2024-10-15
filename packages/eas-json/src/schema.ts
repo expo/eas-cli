@@ -5,6 +5,7 @@ import { UnresolvedSubmitProfileSchema } from './submit/schema';
 import { AppVersionSource } from './types';
 
 export const EasJsonSchema = Joi.object({
+  $schema: Joi.string(),
   cli: Joi.object({
     version: Joi.string(),
     requireCommit: Joi.boolean(),
