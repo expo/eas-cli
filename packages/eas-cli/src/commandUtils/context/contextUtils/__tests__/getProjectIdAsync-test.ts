@@ -6,6 +6,7 @@ import { Role } from '../../../../graphql/generated';
 import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import { learnMore } from '../../../../log';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
+import { isExpoInstalled } from '../../../../project/projectUtils';
 import SessionManager from '../../../../user/SessionManager';
 import { findProjectRootAsync } from '../findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from '../getProjectIdAsync';
@@ -21,6 +22,7 @@ jest.mock('../../../../ora', () => ({
   }),
 }));
 jest.mock('../../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
+jest.mock('../../../../project/projectUtils');
 
 describe(getProjectIdAsync, () => {
   let sessionManager: SessionManager;
@@ -71,6 +73,7 @@ describe(getProjectIdAsync, () => {
     );
 
     jest.mocked(findProjectRootAsync).mockResolvedValue('/app');
+    jest.mocked(isExpoInstalled).mockReturnValue(true);
   });
 
   it('gets the project ID from app config if exists', async () => {
