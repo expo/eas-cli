@@ -9,8 +9,8 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { withErrorHandlingAsync } from '../../graphql/client';
 import {
-  PauseUpdateChannelMutation,
-  PauseUpdateChannelMutationVariables,
+  ResumeUpdateChannelMutation,
+  ResumeUpdateChannelMutationVariables,
   UpdateChannelBasicInfoFragment,
 } from '../../graphql/generated';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
@@ -20,11 +20,11 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export async function resumeUpdateChannelAsync(
   graphqlClient: ExpoGraphqlClient,
-  { channelId }: PauseUpdateChannelMutationVariables
+  { channelId }: ResumeUpdateChannelMutationVariables
 ): Promise<UpdateChannelBasicInfoFragment> {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<PauseUpdateChannelMutation, PauseUpdateChannelMutationVariables>(
+      .mutation<ResumeUpdateChannelMutation, ResumeUpdateChannelMutationVariables>(
         gql`
           mutation ResumeUpdateChannel($channelId: ID!) {
             updateChannel {
@@ -40,7 +40,7 @@ export async function resumeUpdateChannelAsync(
       )
       .toPromise()
   );
-  const channel = data.updateChannel.pauseUpdateChannel;
+  const channel = data.updateChannel.resumeUpdateChannel;
   if (!channel) {
     throw new Error(`Could not find a channel with id: ${channelId}`);
   }
@@ -103,7 +103,7 @@ export default class ChannelResume extends EasCommand {
     if (json) {
       printJsonOnlyOutput(channel);
     } else {
-      Log.withTick(chalk`Channel {bold ${channel.name}} is now resumed.\n`);
+      Log.withTick(chalk`Channel {bold ${channel.name}} is now active.\n`);
       Log.addNewLineIfNone();
       Log.log(chalk`Users with builds on channel {bold ${channel.name}} will now receive updates.`);
     }
