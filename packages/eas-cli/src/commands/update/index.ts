@@ -1,3 +1,4 @@
+import { ExpoConfig } from '@expo/config';
 import { Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
@@ -8,10 +9,12 @@ import { transformFingerprintSource } from '../../build/graphql';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
+  EnvironmentVariableEnvironment,
   PublishUpdateGroupInput,
   StatuspageServiceName,
   UpdateInfoGroup,
@@ -19,9 +22,11 @@ import {
   UpdateRolloutInfoGroup,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
+import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
+import { ExpoConfigOptions } from '../../project/expoConfig';
 import { maybeUploadFingerprintAsync } from '../../project/maybeUploadFingerprintAsync';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
@@ -72,6 +77,7 @@ type RawUpdateFlags = {
   'rollout-percentage'?: number;
   'non-interactive': boolean;
   json: boolean;
+  'with-eas-environment-variables-set'?: string;
 };
 
 type UpdateFlags = {
@@ -88,6 +94,7 @@ type UpdateFlags = {
   rolloutPercentage?: number;
   json: boolean;
   nonInteractive: boolean;
+  withEasEnvironmentVariablesSet?: EnvironmentVariableEnvironment;
 };
 
 export default class UpdatePublish extends EasCommand {
@@ -149,6 +156,18 @@ export default class UpdatePublish extends EasCommand {
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
     }),
+    'with-eas-environment-variables-set': Flags.enum({
+      description: 'Environment to use for EAS environment variables',
+      options: [
+        EnvironmentVariableEnvironment.Development,
+        EnvironmentVariableEnvironment.Preview,
+        EnvironmentVariableEnvironment.Production,
+      ].map(env => env.toLowerCase()),
+      // eslint-disable-next-line async-protect/async-suffix
+      parse: async input => input.toUpperCase(),
+      required: false,
+      hidden: true,
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -175,6 +194,7 @@ export default class UpdatePublish extends EasCommand {
       branchName: branchNameArg,
       emitMetadata,
       rolloutPercentage,
+      withEasEnvironmentVariablesSet,
     } = this.sanitizeFlags(rawFlags);
 
     const {
@@ -197,7 +217,13 @@ export default class UpdatePublish extends EasCommand {
       exp: expPossiblyWithoutEasUpdateConfigured,
       projectId,
       projectDir,
-    } = await getDynamicPublicProjectConfigAsync();
+    } = withEasEnvironmentVariablesSet
+      ? await resolveExpoConfigWithEasEnvironmentVariablesLoadedAsync({
+          environment: withEasEnvironmentVariablesSet,
+          graphqlClient,
+          getDynamicPublicProjectConfigAsync,
+        })
+      : await getDynamicPublicProjectConfigAsync();
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
@@ -242,6 +268,7 @@ export default class UpdatePublish extends EasCommand {
           exp,
           platformFlag: requestedPlatform,
           clearCache,
+          skipEnvVarsFromDotenvFiles: !!withEasEnvironmentVariablesSet,
         });
         bundleSpinner.succeed('Exported bundle(s)');
       } catch (e) {
@@ -637,6 +664,20 @@ export default class UpdatePublish extends EasCommand {
       );
     }
 
+    if (
+      flags['with-eas-environment-variables-set'] &&
+      !isEnvironmentVariableEnvironment(flags['with-eas-environment-variables-set'])
+    ) {
+      Errors.error(
+        `--with-eas-environment-variables-set must be one of ${Object.values(
+          EnvironmentVariableEnvironment
+        )
+          .map(env => `"${env.toLocaleLowerCase()}"`)
+          .join(', ')}`,
+        { exit: 1 }
+      );
+    }
+
     return {
       auto,
       branchName,
@@ -651,6 +692,79 @@ export default class UpdatePublish extends EasCommand {
       nonInteractive,
       emitMetadata,
       json: flags.json ?? false,
+      withEasEnvironmentVariablesSet: flags[
+        'with-eas-environment-variables-set'
+      ] as EnvironmentVariableEnvironment,
     };
   }
+}
+
+function isEnvironmentVariableEnvironment(env: string): env is EnvironmentVariableEnvironment {
+  return Object.values(EnvironmentVariableEnvironment).includes(
+    env as EnvironmentVariableEnvironment
+  );
+}
+
+async function maybeUpdateProcessEnvWithEasEnvironmentVariablesAsync({
+  projectId,
+  environment,
+  graphqlClient,
+}: {
+  projectId: string;
+  environment: EnvironmentVariableEnvironment;
+  graphqlClient: ExpoGraphqlClient;
+}): Promise<void> {
+  if (environment) {
+    const environmentVariables = await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(
+      graphqlClient,
+      {
+        appId: projectId,
+        environment,
+      }
+    );
+    process.env = {
+      ...process.env,
+      ...Object.fromEntries(
+        environmentVariables
+          .filter(({ value }) => !!value)
+          .map(({ name, value }) => [name, value?.toString()])
+      ),
+    };
+  }
+}
+
+async function resolveExpoConfigWithEasEnvironmentVariablesLoadedAsync({
+  environment,
+  graphqlClient,
+  getDynamicPublicProjectConfigAsync,
+}: {
+  environment: EnvironmentVariableEnvironment;
+  graphqlClient: ExpoGraphqlClient;
+  getDynamicPublicProjectConfigAsync: (options?: ExpoConfigOptions) => Promise<{
+    projectId: string;
+    exp: ExpoConfig;
+    projectDir: string;
+  }>;
+}): Promise<{
+  projectId: string;
+  exp: ExpoConfig;
+  projectDir: string;
+}> {
+  const { projectId } = await getDynamicPublicProjectConfigAsync();
+  await maybeUpdateProcessEnvWithEasEnvironmentVariablesAsync({
+    projectId,
+    environment,
+    graphqlClient,
+  });
+  const {
+    exp,
+    projectId: projectIdWithEasEnvironmentVariables,
+    projectDir,
+  } = await getDynamicPublicProjectConfigAsync();
+  if (projectId !== projectIdWithEasEnvironmentVariables) {
+    throw new Error(
+      `Project ID changed while resolving expo config with EAS environment variables. Project ID resolved without server-side env vars: ${projectId}, project ID with EAS environment variables: ${projectIdWithEasEnvironmentVariables}`
+    );
+  }
+  return { exp, projectDir, projectId };
 }
