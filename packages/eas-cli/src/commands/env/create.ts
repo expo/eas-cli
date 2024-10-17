@@ -353,7 +353,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
   private validateFlags(flags: CreateFlags & { type?: string }): CreateFlags {
     if (flags.scope !== EnvironmentVariableScope.Shared && flags.link) {
       throw new Error(
-        `Unexpected argument: --link can only be used when creating  shared variables`
+        `Unexpected argument: --link can only be used when creating shared variables`
       );
     }
 
