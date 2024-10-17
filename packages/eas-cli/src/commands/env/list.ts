@@ -125,6 +125,11 @@ export default class EnvironmentValueList extends EasCommand {
         Log.log(chalk.bold(`Environment: ${environment}`));
       }
 
+      if (variables.length === 0) {
+        Log.log('No variables found for this environment.');
+        return;
+      }
+
       if (format === 'short') {
         for (const variable of variables) {
           Log.log(`${chalk.bold(variable.name)}=${formatVariableValue(variable)}`);
