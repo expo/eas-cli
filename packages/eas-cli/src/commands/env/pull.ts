@@ -63,7 +63,7 @@ export default class EnvironmentVariablePull extends EasCommand {
       }
     }
 
-    const filePrefix = `# Environment: ${environment}\n\n`;
+    const filePrefix = `# Environment: ${environment.toLocaleLowerCase()}\n\n`;
 
     const envFileContent = environmentVariables
       .map((variable: EnvironmentVariableFragment) => {
