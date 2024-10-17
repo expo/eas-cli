@@ -31,7 +31,7 @@ import {
 import { installDependenciesAsync } from '../../onboarding/installDependencies';
 import { runCommandAsync } from '../../onboarding/runCommand';
 import { RequestedPlatform } from '../../platform';
-import { ExpoConfigOptions, getPrivateExpoConfig } from '../../project/expoConfig';
+import { ExpoConfigOptions, getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { promptAsync } from '../../prompts';
 import { Actor } from '../../user/User';
 import { easCliVersion } from '../../utils/easCli';
@@ -339,7 +339,7 @@ async function getPrivateExpoConfigWithProjectIdAsync({
   actor: Actor;
   options?: ExpoConfigOptions;
 }): Promise<CredentialsContextProjectInfo> {
-  const expBefore = getPrivateExpoConfig(projectDir, options);
+  const expBefore = await getPrivateExpoConfigAsync(projectDir, options);
   const projectId = await validateOrSetProjectIdAsync({
     exp: expBefore,
     graphqlClient,
@@ -349,7 +349,7 @@ async function getPrivateExpoConfigWithProjectIdAsync({
     },
     cwd: projectDir,
   });
-  const exp = getPrivateExpoConfig(projectDir, options);
+  const exp = await getPrivateExpoConfigAsync(projectDir, options);
   return {
     exp,
     projectId,
