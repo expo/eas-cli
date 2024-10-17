@@ -28,6 +28,7 @@ import {
 } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
 import {
+  parseVisibility,
   promptVariableEnvironmentAsync,
   promptVariableNameAsync,
   promptVariableTypeAsync,
@@ -41,7 +42,7 @@ type UpdateFlags = {
   value?: string;
   scope?: EnvironmentVariableScope;
   environment?: EnvironmentVariableEnvironment[];
-  visibility?: EnvironmentVariableVisibility;
+  visibility?: string;
   type?: 'string' | 'file';
   'variable-name'?: string;
   'variable-environment'?: EnvironmentVariableEnvironment;
@@ -208,8 +209,14 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       type,
       ...rest
     }: UpdateFlags
-  ): Promise<Omit<UpdateFlags, 'type'> & { type?: EnvironmentSecretType }> {
+  ): Promise<
+    Omit<UpdateFlags, 'type' | 'visibility'> & {
+      type?: EnvironmentSecretType;
+      visibility?: EnvironmentVariableVisibility;
+    }
+  > {
     let newType;
+    let newVisibility: EnvironmentVariableVisibility | undefined;
 
     if (type === 'file') {
       newType = EnvironmentSecretType.FileBase64;
@@ -282,22 +289,26 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       }
 
       if (!visibility) {
-        visibility = await promptVariableVisibilityAsync(
+        newVisibility = await promptVariableVisibilityAsync(
           nonInteractive,
           selectedVariable.visibility
         );
 
-        if (!visibility || visibility === selectedVariable.visibility) {
-          visibility = undefined;
+        if (!newVisibility || newVisibility === selectedVariable.visibility) {
+          newVisibility = undefined;
         }
       }
+    }
+
+    if (visibility) {
+      newVisibility = parseVisibility(visibility);
     }
 
     return {
       name,
       value,
       environment: environments,
-      visibility,
+      visibility: newVisibility,
       scope: rest.scope ?? EnvironmentVariableScope.Project,
       'non-interactive': nonInteractive,
       type: newType,

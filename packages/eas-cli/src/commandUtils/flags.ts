@@ -1,10 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import {
-  EnvironmentVariableEnvironment,
-  EnvironmentVariableScope,
-  EnvironmentVariableVisibility,
-} from '../graphql/generated';
+import { EnvironmentVariableEnvironment, EnvironmentVariableScope } from '../graphql/generated';
 
 // NOTE: not exactly true, but, provided mapToLowercase and upperCaseAsync
 // are used in tandem, it saves on unnecessary typying in commands
@@ -56,14 +52,9 @@ export const EASVariableFormatFlag = {
 };
 
 export const EASVariableVisibilityFlag = {
-  visibility: Flags.enum<EnvironmentVariableVisibility>({
+  visibility: Flags.enum({
     description: 'Visibility of the variable',
-    options: mapToLowercase([
-      EnvironmentVariableVisibility.Secret,
-      EnvironmentVariableVisibility.Sensitive,
-      EnvironmentVariableVisibility.Public,
-    ]),
-    parse: upperCaseAsync,
+    options: ['plaintext', 'sensitive', 'encrypted'],
   }),
 };
 

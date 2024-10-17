@@ -25,6 +25,7 @@ import {
 } from '../../project/projectUtils';
 import { confirmAsync } from '../../prompts';
 import {
+  parseVisibility,
   promptVariableEnvironmentAsync,
   promptVariableNameAsync,
   promptVariableTypeAsync,
@@ -38,7 +39,7 @@ type CreateFlags = {
   link?: boolean;
   force?: boolean;
   type?: 'string' | 'file';
-  visibility?: EnvironmentVariableVisibility;
+  visibility?: string;
   scope?: EnvironmentVariableScope;
   environment?: EnvironmentVariableEnvironment[];
   'non-interactive': boolean;
@@ -292,12 +293,17 @@ export default class EnvironmentVariableCreate extends EasCommand {
     name,
     value,
     environment,
-    visibility = EnvironmentVariableVisibility.Public,
+    visibility,
     'non-interactive': nonInteractive,
     type,
     ...rest
   }: CreateFlags): Promise<
-    Required<Omit<CreateFlags, 'type'> & { type: EnvironmentSecretType | undefined }>
+    Required<
+      Omit<CreateFlags, 'type' | 'visibility'> & {
+        type: EnvironmentSecretType | undefined;
+        visibility: EnvironmentVariableVisibility;
+      }
+    >
   > {
     if (!name) {
       name = await promptVariableNameAsync(nonInteractive);
@@ -336,11 +342,16 @@ export default class EnvironmentVariableCreate extends EasCommand {
     if (!environment) {
       environment = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
     }
+
+    const newVisibility = visibility
+      ? parseVisibility(visibility)
+      : EnvironmentVariableVisibility.Public;
+
     return {
       name,
       value,
       environment,
-      visibility,
+      visibility: newVisibility,
       link: rest.link ?? false,
       force: rest.force ?? false,
       scope: rest.scope ?? EnvironmentVariableScope.Project,
@@ -350,7 +361,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
     };
   }
 
-  private validateFlags(flags: CreateFlags & { type?: string }): CreateFlags {
+  private validateFlags(flags: CreateFlags & { type?: string; visibility?: string }): CreateFlags {
     if (flags.scope !== EnvironmentVariableScope.Shared && flags.link) {
       throw new Error(
         `Unexpected argument: --link can only be used when creating  shared variables`
