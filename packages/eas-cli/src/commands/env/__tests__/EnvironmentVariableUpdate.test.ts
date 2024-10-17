@@ -5,6 +5,7 @@ import { getMockAppFragment } from '../../../__tests__/commands/utils';
 import {
   EnvironmentVariableEnvironment,
   EnvironmentVariableScope,
+  EnvironmentVariableVisibility,
 } from '../../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../../graphql/mutations/EnvironmentVariableMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
@@ -59,6 +60,8 @@ describe(EnvironmentVariableUpdate, () => {
         'NEW_VARIABLE',
         '--environment',
         'production',
+        '--visibility',
+        'plaintext',
       ],
       mockConfig
     );
@@ -71,6 +74,7 @@ describe(EnvironmentVariableUpdate, () => {
       name: 'NEW_VARIABLE',
       value: 'new-value',
       environments: [EnvironmentVariableEnvironment.Production],
+      visibility: EnvironmentVariableVisibility.Public,
     });
     expect(Log.withTick).toHaveBeenCalledWith(
       `Updated variable ${chalk.bold('TEST_VARIABLE')} on project @testuser/testpp.`
