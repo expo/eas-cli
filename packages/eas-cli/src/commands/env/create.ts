@@ -30,6 +30,7 @@ import {
   promptVariableNameAsync,
   promptVariableTypeAsync,
   promptVariableValueAsync,
+  promptVariableVisibilityAsync,
 } from '../../utils/prompts';
 import { performForEnvironmentsAsync } from '../../utils/variableUtils';
 
@@ -39,7 +40,7 @@ type CreateFlags = {
   link?: boolean;
   force?: boolean;
   type?: 'string' | 'file';
-  visibility?: string;
+  visibility?: 'plaintext' | 'sensitive' | 'encrypted';
   scope?: EnvironmentVariableScope;
   environment?: EnvironmentVariableEnvironment[];
   'non-interactive': boolean;
@@ -310,6 +311,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
     }
 
     let newType;
+    let newVisibility = visibility ? parseVisibility(visibility) : undefined;
 
     if (type === 'file') {
       newType = EnvironmentSecretType.FileBase64;
@@ -321,10 +323,14 @@ export default class EnvironmentVariableCreate extends EasCommand {
       newType = await promptVariableTypeAsync(nonInteractive);
     }
 
+    if (!newVisibility) {
+      newVisibility = await promptVariableVisibilityAsync(nonInteractive);
+    }
+
     if (!value) {
       value = await promptVariableValueAsync({
         nonInteractive,
-        hidden: visibility !== EnvironmentVariableVisibility.Public,
+        hidden: newVisibility !== EnvironmentVariableVisibility.Public,
       });
     }
 
@@ -341,11 +347,13 @@ export default class EnvironmentVariableCreate extends EasCommand {
 
     if (!environment) {
       environment = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
+
+      if (!environment || environment.length === 0) {
+        throw new Error('No environments selected');
+      }
     }
 
-    const newVisibility = visibility
-      ? parseVisibility(visibility)
-      : EnvironmentVariableVisibility.Public;
+    newVisibility = newVisibility ?? EnvironmentVariableVisibility.Public;
 
     return {
       name,

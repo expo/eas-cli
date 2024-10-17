@@ -42,7 +42,7 @@ type UpdateFlags = {
   value?: string;
   scope?: EnvironmentVariableScope;
   environment?: EnvironmentVariableEnvironment[];
-  visibility?: string;
+  visibility?: 'plaintext' | 'sensitive' | 'encrypted';
   type?: 'string' | 'file';
   'variable-name'?: string;
   'variable-environment'?: EnvironmentVariableEnvironment;

@@ -31,7 +31,9 @@ export async function promptVariableTypeAsync(
   });
 }
 
-export function parseVisibility(stringVisibility: string): EnvironmentVariableVisibility {
+export function parseVisibility(
+  stringVisibility: 'plaintext' | 'sensitive' | 'encrypted'
+): EnvironmentVariableVisibility {
   switch (stringVisibility) {
     case 'plaintext':
       return EnvironmentVariableVisibility.Public;
