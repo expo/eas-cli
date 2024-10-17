@@ -58,6 +58,7 @@ export default class EnvironmentVariablePush extends EasCommand {
     const variableNames = Object.keys(updateVariables);
 
     for (const environment of environments) {
+      const displayedEnvironment = environment.toLocaleLowerCase();
       const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
         appId: projectId,
         environment,
@@ -99,15 +100,15 @@ export default class EnvironmentVariablePush extends EasCommand {
       }
 
       if (existingDifferentVariables.length > 0) {
-        Log.warn(`Some variables already exist in the ${environment} environment.`);
+        Log.warn(`Some variables already exist in the ${displayedEnvironment} environment.`);
         const variableNames = existingDifferentVariables.map(variable => variable.name);
 
         const confirmationMessage =
           variableNames.length > 1
             ? `The ${variableNames.join(
                 ', '
-              )} environment variables already exist in ${environment} environment. Do you want to override them all?`
-            : `The ${variableNames[0]} environment variable already exists in ${environment} environment. Do you want to override it?`;
+              )} environment variables already exist in ${displayedEnvironment} environment. Do you want to override them all?`
+            : `The ${variableNames[0]} environment variable already exists in ${displayedEnvironment} environment. Do you want to override it?`;
 
         const confirm = await confirmAsync({
           message: confirmationMessage,
@@ -180,8 +181,7 @@ export default class EnvironmentVariablePush extends EasCommand {
       variablesToPush,
       projectId
     );
-
-    Log.log(`Uploaded env file to ${environments.join(', ')}.`);
+    Log.log(`Uploaded env file to ${environments.join(', ').toLocaleLowerCase()}.`);
   }
 
   private async parseEnvFileAsync(
