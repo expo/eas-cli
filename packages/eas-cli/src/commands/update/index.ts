@@ -715,6 +715,9 @@ async function maybeUpdateProcessEnvWithEasEnvironmentVariablesAsync({
   graphqlClient: ExpoGraphqlClient;
 }): Promise<void> {
   if (environment) {
+    Log.log(
+      `Using server-side EAS environment variables for ${environment} environment. When using EAS environment variables, eas update command won't use env variables from .env files when creating update bundles.`
+    );
     const environmentVariables = await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(
       graphqlClient,
       {
@@ -722,13 +725,30 @@ async function maybeUpdateProcessEnvWithEasEnvironmentVariablesAsync({
         environment,
       }
     );
+    const readableEnvironmentVariables = Object.fromEntries(
+      environmentVariables
+        .filter(({ value }) => !!value)
+        .map(({ name, value }) => [name, value?.toString()])
+    );
+    const secretEnvironmentVariables = Object.fromEntries(
+      environmentVariables.filter(({ value }) => !value).map(({ name, value }) => [name, value])
+    );
+    if (Object.keys(secretEnvironmentVariables).length > 0) {
+      Log.warn(
+        `The following environment variables are secret and cannot be read locally and used when generating update bundles: ${Object.keys(
+          secretEnvironmentVariables
+        ).join(', ')}.`
+      );
+    }
+    Log.log(
+      `Loaded environment variables for ${environment} environment: ${Object.keys(
+        readableEnvironmentVariables
+      ).join(', ')}.`
+    );
+    Log.newLine();
     process.env = {
       ...process.env,
-      ...Object.fromEntries(
-        environmentVariables
-          .filter(({ value }) => !!value)
-          .map(({ name, value }) => [name, value?.toString()])
-      ),
+      ...readableEnvironmentVariables,
     };
   }
 }
