@@ -122,7 +122,7 @@ export default class EnvironmentValueList extends EasCommand {
 
       Log.addNewLineIfNone();
       if (environment) {
-        Log.log(chalk.bold(`Environment: ${environment}`));
+        Log.log(chalk.bold(`Environment: ${environment.toLocaleLowerCase()}`));
       }
 
       if (format === 'short') {

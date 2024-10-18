@@ -104,7 +104,7 @@ export async function promptVariableEnvironmentAsync({
     return await selectAsync(
       'Select environment:',
       (availableEnvironments ?? Object.values(EnvironmentVariableEnvironment)).map(environment => ({
-        title: environment,
+        title: environment.toLocaleLowerCase(),
         value: environment,
       }))
     );
@@ -114,7 +114,7 @@ export async function promptVariableEnvironmentAsync({
     name: 'environments',
     type: 'multiselect',
     choices: Object.values(EnvironmentVariableEnvironment).map(environment => ({
-      title: environment,
+      title: environment.toLocaleLowerCase(),
       value: environment,
       selected: selectedEnvironments?.includes(environment),
     })),

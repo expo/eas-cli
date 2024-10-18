@@ -137,7 +137,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     if (existingVariables.length === 0) {
       throw new Error(
         `Variable with name ${currentName} ${
-          currentEnvironment ? `in environment ${currentEnvironment}` : ''
+          currentEnvironment ? `in environment ${currentEnvironment.toLocaleLowerCase()}` : ''
         } does not exist ${suffix}.`
       );
     } else if (existingVariables.length > 1) {

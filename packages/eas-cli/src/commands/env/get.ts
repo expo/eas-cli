@@ -92,7 +92,9 @@ export default class EnvironmentVariableGet extends EasCommand {
     if (variables.length > 1) {
       const variableInEnvironment = variables.find(v => v.environments?.includes(environment!));
       if (!variableInEnvironment) {
-        throw new Error(`Variable with name "${name}" not found in environment "${environment}"`);
+        throw new Error(
+          `Variable with name "${name}" not found in environment "${environment.toLocaleLowerCase()}"`
+        );
       }
 
       variable = variableInEnvironment;
