@@ -1,6 +1,5 @@
 import chalk from 'chalk';
 
-import capitalize from './expodash/capitalize';
 import {
   EnvironmentSecretType,
   EnvironmentVariableEnvironment,
@@ -32,6 +31,21 @@ export async function promptVariableTypeAsync(
   });
 }
 
+export function parseVisibility(
+  stringVisibility: 'plaintext' | 'sensitive' | 'encrypted'
+): EnvironmentVariableVisibility {
+  switch (stringVisibility) {
+    case 'plaintext':
+      return EnvironmentVariableVisibility.Public;
+    case 'sensitive':
+      return EnvironmentVariableVisibility.Sensitive;
+    case 'encrypted':
+      return EnvironmentVariableVisibility.Secret;
+    default:
+      throw new Error(`Invalid visibility: ${stringVisibility}`);
+  }
+}
+
 export async function promptVariableVisibilityAsync(
   nonInteractive: boolean,
   selectedVisibility?: EnvironmentVariableVisibility | null
@@ -41,14 +55,23 @@ export async function promptVariableVisibilityAsync(
       'The `--visibility` flag must be set when running in `--non-interactive` mode.'
     );
   }
-  return await selectAsync(
-    'Select visibility:',
-    Object.values(EnvironmentVariableVisibility).map(visibility => ({
-      title: capitalize(visibility),
-      value: visibility,
-      selected: visibility === selectedVisibility,
-    }))
-  );
+  return await selectAsync('Select visibility:', [
+    {
+      title: 'Plain text',
+      value: EnvironmentVariableVisibility.Public,
+      selected: selectedVisibility === EnvironmentVariableVisibility.Public,
+    },
+    {
+      title: 'Sensitive',
+      value: EnvironmentVariableVisibility.Sensitive,
+      selected: selectedVisibility === EnvironmentVariableVisibility.Sensitive,
+    },
+    {
+      title: 'Encrypted',
+      value: EnvironmentVariableVisibility.Secret,
+      selected: selectedVisibility === EnvironmentVariableVisibility.Secret,
+    },
+  ]);
 }
 
 type EnvironmentPromptArgs = {
