@@ -110,7 +110,11 @@ export async function listAndRenderBranchesAndUpdatesOnChannelAsync(
   }
 ): Promise<void> {
   const channel = await ChannelQuery.viewUpdateChannelAsync(graphqlClient, { appId, channelName });
-  renderChannelHeaderContent({ channelName: channel.name, channelId: channel.id });
+  renderChannelHeaderContent({
+    channelName: channel.name,
+    channelId: channel.id,
+    isPaused: channel.isPaused,
+  });
 
   if (paginatedQueryOptions.nonInteractive) {
     const branches = await queryBranchesAndUpdateGroupsOnChannelAsync(graphqlClient, {
@@ -167,7 +171,11 @@ function renderPageOfChannels(
     printJsonOnlyOutput({ currentPage });
   } else {
     for (const channel of currentPage) {
-      renderChannelHeaderContent({ channelName: channel.name, channelId: channel.id });
+      renderChannelHeaderContent({
+        channelName: channel.name,
+        channelId: channel.id,
+        isPaused: channel.isPaused,
+      });
       Log.addNewLineIfNone();
       logChannelDetails(channel);
 
@@ -196,9 +204,11 @@ function renderPageOfBranchesOnChannel(
 function renderChannelHeaderContent({
   channelName,
   channelId,
+  isPaused,
 }: {
   channelName: string;
   channelId: string;
+  isPaused: boolean;
 }): void {
   Log.addNewLineIfNone();
   Log.log(chalk.bold('Channel:'));
@@ -206,6 +216,7 @@ function renderChannelHeaderContent({
     formatFields([
       { label: 'Name', value: channelName },
       { label: 'ID', value: channelId },
+      { label: 'Status', value: isPaused ? 'Paused' : 'Active' },
     ])
   );
   Log.addNewLineIfNone();
