@@ -233,11 +233,6 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         }
       }
 
-      Log.log(
-        selectedVariable.type,
-        EnvironmentSecretType.String === selectedVariable.type,
-        EnvironmentSecretType.FileBase64 === selectedVariable.type
-      );
       if (!type && !value && !nonInteractive) {
         newType = await promptVariableTypeAsync(nonInteractive, selectedVariable.type);
 
@@ -250,6 +245,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         value = await promptVariableValueAsync({
           nonInteractive,
           required: false,
+          filePath: (newType ?? selectedVariable.type) === EnvironmentSecretType.FileBase64,
           initial:
             (newType ?? selectedVariable.type) === EnvironmentSecretType.FileBase64
               ? undefined
@@ -263,7 +259,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
 
       let environmentFilePath: string | undefined;
 
-      if (newType === EnvironmentSecretType.FileBase64 && value) {
+      if ((newType ?? selectedVariable.type) === EnvironmentSecretType.FileBase64 && value) {
         environmentFilePath = path.resolve(value);
         if (!(await fs.pathExists(environmentFilePath))) {
           throw new Error(`File "${value}" does not exist`);
