@@ -4,7 +4,7 @@ import { InvalidEasJsonError } from '@expo/eas-json/build/errors';
 import ContextField, { ContextOptions } from './ContextField';
 import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
-import { getPrivateExpoConfig } from '../../project/expoConfig';
+import { getPrivateExpoConfigAsync } from '../../project/expoConfig';
 
 export class OptionalPrivateProjectConfigContextField extends ContextField<
   | {
@@ -35,11 +35,11 @@ export class OptionalPrivateProjectConfigContextField extends ContextField<
       return undefined;
     }
 
-    const expBefore = getPrivateExpoConfig(projectDir);
+    const expBefore = await getPrivateExpoConfigAsync(projectDir);
     const projectId = await getProjectIdAsync(sessionManager, expBefore, {
       nonInteractive,
     });
-    const exp = getPrivateExpoConfig(projectDir);
+    const exp = await getPrivateExpoConfigAsync(projectDir);
     return {
       exp,
       projectDir,
