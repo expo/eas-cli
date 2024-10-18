@@ -126,11 +126,13 @@ export async function promptVariableValueAsync({
   nonInteractive,
   required = true,
   hidden = false,
+  filePath = false,
   initial,
 }: {
   nonInteractive: boolean;
   required?: boolean;
   initial?: string | null;
+  filePath?: boolean;
   hidden?: boolean;
 }): Promise<string> {
   if (nonInteractive && required) {
@@ -142,9 +144,9 @@ export async function promptVariableValueAsync({
   }
 
   const { variableValue } = await promptAsync({
-    type: hidden ? 'password' : 'text',
+    type: hidden && !filePath ? 'password' : 'text',
     name: 'variableValue',
-    message: 'Variable value:',
+    message: filePath ? 'File path:' : 'Variable value:',
     initial: initial ?? '',
     validate: variableValue => {
       if (!required) {

@@ -331,6 +331,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
       value = await promptVariableValueAsync({
         nonInteractive,
         hidden: newVisibility !== EnvironmentVariableVisibility.Public,
+        filePath: newType === EnvironmentSecretType.FileBase64,
       });
     }
 
