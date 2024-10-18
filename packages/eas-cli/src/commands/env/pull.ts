@@ -3,8 +3,15 @@ import * as fs from 'fs-extra';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
-import { EnvironmentVariableFragment } from '../../graphql/generated';
-import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
+import {
+  EnvironmentSecretType,
+  EnvironmentVariableFragment,
+  EnvironmentVariableVisibility,
+} from '../../graphql/generated';
+import {
+  EnvironmentVariablesQuery,
+  EnvironmentVariableWithFileContent,
+} from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
@@ -16,6 +23,7 @@ export default class EnvironmentVariablePull extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -39,6 +47,7 @@ export default class EnvironmentVariablePull extends EasCommand {
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
+      projectDir,
     } = await this.getContextAsync(EnvironmentVariablePull, {
       nonInteractive,
     });
@@ -50,6 +59,7 @@ export default class EnvironmentVariablePull extends EasCommand {
       {
         appId: projectId,
         environment,
+        includeFileContent: true,
       }
     );
 
@@ -65,15 +75,30 @@ export default class EnvironmentVariablePull extends EasCommand {
 
     const filePrefix = `# Environment: ${environment.toLocaleLowerCase()}\n\n`;
 
-    const envFileContent = environmentVariables
-      .map((variable: EnvironmentVariableFragment) => {
-        if (variable.value === null) {
+    const isFileVariablePresent = environmentVariables.some(v => {
+      return v.type === EnvironmentSecretType.FileBase64 && v.valueWithFileContent;
+    });
+
+    const envDir = `${projectDir}/.eas/.env`;
+    if (isFileVariablePresent) {
+      await fs.mkdir(envDir, { recursive: true });
+    }
+
+    const envFileContentLines = await Promise.all(
+      environmentVariables.map(async (variable: EnvironmentVariableWithFileContent) => {
+        if (variable.visibility === EnvironmentVariableVisibility.Secret) {
           return `# ${variable.name}=***** (secret variables are not available for reading)`;
+        }
+        if (variable.type === EnvironmentSecretType.FileBase64 && variable.valueWithFileContent) {
+          const filePath = `${envDir}/${variable.name}`;
+          await fs.writeFile(filePath, variable.valueWithFileContent, 'base64');
+          return `${variable.name}=${filePath}`;
         }
         return `${variable.name}=${variable.value}`;
       })
-      .join('\n');
-    await fs.writeFile(targetPath, filePrefix + envFileContent);
+    );
+
+    await fs.writeFile(targetPath, filePrefix + envFileContentLines.join('\n'));
 
     const secretEnvVariables = environmentVariables.filter(
       (variable: EnvironmentVariableFragment) => variable.value === null
