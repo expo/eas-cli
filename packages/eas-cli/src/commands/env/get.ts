@@ -1,5 +1,4 @@
 import { Flags } from '@oclif/core';
-import assert from 'assert';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -74,6 +73,13 @@ export default class EnvironmentVariableGet extends EasCommand {
       name = await promptVariableNameAsync(nonInteractive);
     }
 
+    if (!environment) {
+      environment = await promptVariableEnvironmentAsync({
+        nonInteractive,
+        multiple: false,
+      });
+    }
+
     const variables = await getVariablesAsync(graphqlClient, scope, projectId, name, environment);
 
     if (variables.length === 0) {
@@ -84,21 +90,6 @@ export default class EnvironmentVariableGet extends EasCommand {
     let variable;
 
     if (variables.length > 1) {
-      if (!environment) {
-        const availableEnvironments = variables.reduce<EnvironmentVariableEnvironment[]>(
-          (acc, v) => [...acc, ...(v.environments ?? [])],
-          [] as EnvironmentVariableEnvironment[]
-        );
-
-        environment = await promptVariableEnvironmentAsync({
-          nonInteractive,
-          multiple: false,
-          availableEnvironments,
-        });
-      }
-
-      assert(environment, 'Environment is required.');
-
       const variableInEnvironment = variables.find(v => v.environments?.includes(environment!));
       if (!variableInEnvironment) {
         throw new Error(`Variable with name "${name}" not found in environment "${environment}"`);
