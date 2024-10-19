@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Disallow republishing an update that is being rolled-out. ([#2602](https://github.com/expo/eas-cli/pull/2602) by [@wschurman](https://github.com/wschurman))
+- Bump `@expo/apple-utils` to `2.0.1` resolving the Apple authentication error.
 
 ### 🧹 Chores
 
