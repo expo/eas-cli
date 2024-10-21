@@ -8,12 +8,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add `eas channel:pause` and `eas channel:resume` commands to pause/resume update delivery to builds using specific update channels and display paused status in channel details output. ([#2614](https://github.com/expo/eas-cli/pull/2614) by [@fiberjw](https://github.com/fiberjw))
-- Add interactivity to eas update:edit command. ([#2638](https://github.com/expo/eas-cli/pull/2638) by [@wschurman](https://github.com/wschurman))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [12.6.0](https://github.com/expo/eas-cli/releases/tag/v12.6.0) - 2024-10-21
+
+### 🎉 New features
+
+- Add `eas channel:pause` and `eas channel:resume` commands to pause/resume update delivery to builds using specific update channels and display paused status in channel details output. ([#2614](https://github.com/expo/eas-cli/pull/2614) by [@fiberjw](https://github.com/fiberjw))
+- Add interactivity to eas update:edit command. ([#2638](https://github.com/expo/eas-cli/pull/2638) by [@wschurman](https://github.com/wschurman))
 
 ## [12.5.4](https://github.com/expo/eas-cli/releases/tag/v12.5.4) - 2024-10-19
 
