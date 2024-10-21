@@ -16,7 +16,7 @@ export class CreateKeystore {
       throw new Error(`New keystore cannot be created in non-interactive mode.`);
     }
 
-    const projectId = ctx.projectId;
+    const projectId = await ctx.getProjectIdAsync();
     const keystore = await this.provideOrGenerateAsync(ctx.graphqlClient, ctx.analytics, projectId);
     const keystoreFragment = await ctx.android.createKeystoreAsync(
       ctx.graphqlClient,

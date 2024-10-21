@@ -14,6 +14,7 @@ import { AppMutation } from '../../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { createOrModifyExpoConfigAsync } from '../../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
+import { isExpoInstalled } from '../../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import ProjectInit from '../init';
 
@@ -34,6 +35,7 @@ jest.mock('../../../ora', () => ({
 }));
 jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
+jest.mock('../../../project/projectUtils');
 
 let originalProcessArgv: string[];
 
@@ -91,6 +93,7 @@ function mockTestProject(options: {
     featureGating: new FeatureGating({}, new FeatureGateEnvOverrides()),
     graphqlClient,
   });
+  jest.mocked(isExpoInstalled).mockReturnValue(true);
 }
 
 const commandOptions = { root: '/test-project' } as any;

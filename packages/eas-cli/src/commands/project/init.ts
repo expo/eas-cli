@@ -13,7 +13,7 @@ import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
-import { createOrModifyExpoConfigAsync, getPrivateExpoConfig } from '../../project/expoConfig';
+import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { toAppPrivacy } from '../../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../../prompts';
@@ -106,7 +106,7 @@ export default class ProjectInit extends EasCommand {
     projectDir: string,
     { force, nonInteractive }: InitializeMethodOptions
   ): Promise<void> {
-    const exp = getPrivateExpoConfig(projectDir);
+    const exp = await getPrivateExpoConfigAsync(projectDir);
     const appForProjectId = await AppQuery.byIdAsync(graphqlClient, projectId);
     const correctOwner = appForProjectId.ownerAccount.name;
     const correctSlug = appForProjectId.slug;
@@ -161,7 +161,7 @@ export default class ProjectInit extends EasCommand {
     projectDir: string,
     { force, nonInteractive }: InitializeMethodOptions
   ): Promise<void> {
-    const exp = getPrivateExpoConfig(projectDir);
+    const exp = await getPrivateExpoConfigAsync(projectDir);
     const existingProjectId = exp.extra?.eas?.projectId;
 
     if (projectId === existingProjectId) {
@@ -218,7 +218,7 @@ export default class ProjectInit extends EasCommand {
     projectDir: string,
     { force, nonInteractive }: InitializeMethodOptions
   ): Promise<string> {
-    const exp = getPrivateExpoConfig(projectDir);
+    const exp = await getPrivateExpoConfigAsync(projectDir);
     const existingProjectId = exp.extra?.eas?.projectId;
 
     if (existingProjectId) {
