@@ -200,6 +200,10 @@ export default class EnvironmentVariablePush extends EasCommand {
     const variables: Record<string, string> = dotenv.parse(await fs.readFile(envPath, 'utf8'));
 
     for (const [name, value] of Object.entries(variables)) {
+      // Skip file variables
+      if (value.endsWith(`.eas/.env/${name}`)) {
+        continue;
+      }
       pushInput[name] = {
         name,
         value,
