@@ -81,21 +81,57 @@ async function resolveEnvVarsAsync({
         .map(({ name, value }) => [name, value])
     ) as Record<string, string>;
 
-    const envVarsWithSource: Record<string, 'build profile' | 'EAS server'> = {
-      ...Object.fromEntries(Object.keys(serverEnvVars).map(key => [key, 'EAS server'])),
-      ...(buildProfile.env
-        ? Object.fromEntries(Object.keys(buildProfile.env).map(key => [key, 'build profile']))
-        : null),
-    };
-    Log.log(
-      `Loaded "env" configuration for the "${buildProfileName}" profile and "${environment.toLowerCase()}" environment: ${
-        Object.keys(envVarsWithSource).length > 0
-          ? Object.keys(envVarsWithSource)
-              .map(key => `${key} (source: ${envVarsWithSource[key]})`)
-              .join('\n')
-          : 'no environment variables specified'
-      }\n${learnMore('https://docs.expo.dev/build-reference/variables/')}`
-    );
+    if (Object.keys(serverEnvVars).length > 0) {
+      Log.log(
+        `Environment variables loaded from the "${environment.toLowerCase()}" environment on EAS servers: ${Object.keys(
+          serverEnvVars
+        ).join(', ')}.`
+      );
+    } else {
+      Log.log(
+        `No environment variables found for the "${environment.toLowerCase()}" environment on EAS servers.`
+      );
+    }
+
+    const encryptedEnvVars = environmentVariables.filter(({ name, value }) => name && !value);
+    if (encryptedEnvVars.length > 0) {
+      Log.warn(
+        `Some environment variables defined in the "${environment.toLowerCase()}" environment on EAS servers are of "encrypted" type and cannot be read outside of the EAS servers (including EAS CLI): ${encryptedEnvVars
+          .map(({ name }) => name)
+          .join(
+            ', '
+          )}. However, they will be available during the build process happening on the EAS servers. This can lead to potential configuration mismatches between the local development environment and the build environment if the encrypted environment variables are used to resolve the app config.`
+      );
+    }
+
+    if (buildProfile.env && Object.keys(buildProfile.env).length > 0) {
+      Log.log(
+        `Environment variables loaded from the "${buildProfileName}" build profile "env" configuration: ${
+          buildProfile.env && Object.keys(buildProfile.env).join(', ')
+        }.`
+      );
+    } else {
+      Log.log(
+        `No environment variables specified in the "${buildProfileName}" build profile "env" configuration.`
+      );
+    }
+
+    if (
+      buildProfile.env &&
+      Object.keys(buildProfile.env).length > 0 &&
+      Object.keys(serverEnvVars).length > 0
+    ) {
+      const overlappingKeys = Object.keys(serverEnvVars).filter(
+        key => buildProfile.env && Object.keys(buildProfile.env).includes(key)
+      );
+      if (overlappingKeys.length > 0) {
+        Log.warn(
+          `The following environment variables are defined in both the "${buildProfileName}" build profile "env" configuration and the "${environment.toLowerCase()}" environment on EAS servers: ${overlappingKeys.join(
+            ', '
+          )}. The values from the build profile configuration will be used.`
+        );
+      }
+    }
 
     return { ...serverEnvVars, ...buildProfile.env };
   } catch (e) {
