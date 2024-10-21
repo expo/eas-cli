@@ -6,6 +6,9 @@
     "updatedAt": "2022-07-18T15:00:00.000Z"
   },
   "properties": {
+    "$schema": {
+      "type": "string"
+    },
     "cli": {
       "$ref": "#/definitions/Cli"
     },
