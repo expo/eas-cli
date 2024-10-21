@@ -17,11 +17,7 @@ import {
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
-
-type PushFlags = {
-  environment?: EnvironmentVariableEnvironment[];
-  path: string;
-};
+import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvironmentVariablePush extends EasCommand {
   static override description = 'push env file';
@@ -42,15 +38,23 @@ export default class EnvironmentVariablePush extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(EnvironmentVariablePush);
+    let {
+      flags: { environment: environments, path: envPath },
+    } = await this.parse(EnvironmentVariablePush);
 
-    const { environment: environments, path: envPath } = this.validateFlags(flags);
     const {
       privateProjectConfig: { projectId },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentVariablePush, {
       nonInteractive: false,
     });
+
+    if (!environments) {
+      environments = await promptVariableEnvironmentAsync({
+        nonInteractive: false,
+        multiple: true,
+      });
+    }
 
     const updateVariables: Record<string, EnvironmentVariablePushInput> =
       await this.parseEnvFileAsync(envPath, environments);
@@ -207,13 +211,5 @@ export default class EnvironmentVariablePush extends EasCommand {
     }
 
     return pushInput;
-  }
-
-  private validateFlags(flags: PushFlags): Required<PushFlags> {
-    if (!flags.environment || flags.environment.length === 0) {
-      throw new Error('Please provide an environment to push the env file to.');
-    }
-
-    return { ...flags, environment: flags.environment };
   }
 }
