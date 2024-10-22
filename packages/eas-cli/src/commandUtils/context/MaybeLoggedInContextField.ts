@@ -4,16 +4,18 @@ import { Actor } from '../../user/User';
 import FeatureGateEnvOverrides from '../gating/FeatureGateEnvOverrides';
 import FeatureGating from '../gating/FeatureGating';
 
-export default class MaybeLoggedInContextField extends ContextField<{
+type MaybeLoggedInContextType = {
   actor: Actor | null;
   featureGating: FeatureGating;
   graphqlClient: ExpoGraphqlClient;
-}> {
-  async getValueAsync({ sessionManager }: ContextOptions): Promise<{
-    actor: Actor | null;
-    featureGating: FeatureGating;
-    graphqlClient: ExpoGraphqlClient;
-  }> {
+  authenticationInfo: {
+    accessToken: string | null;
+    sessionSecret: string | null;
+  };
+};
+
+export default class MaybeLoggedInContextField extends ContextField<MaybeLoggedInContextType> {
+  async getValueAsync({ sessionManager }: ContextOptions): Promise<MaybeLoggedInContextType> {
     const authenticationInfo = {
       accessToken: sessionManager.getAccessToken(),
       sessionSecret: sessionManager.getSessionSecret(),
@@ -27,6 +29,7 @@ export default class MaybeLoggedInContextField extends ContextField<{
       actor: actor ?? null,
       featureGating: new FeatureGating(featureGateServerValues, new FeatureGateEnvOverrides()),
       graphqlClient,
+      authenticationInfo,
     };
   }
 }

@@ -6,6 +6,7 @@ import nullthrows from 'nullthrows';
 
 import AnalyticsContextField from './context/AnalyticsContextField';
 import ContextField from './context/ContextField';
+import DynamicLoggedInContextField from './context/DynamicLoggedInContextField';
 import {
   DynamicPrivateProjectConfigContextField,
   DynamicPublicProjectConfigContextField,
@@ -62,7 +63,15 @@ export default abstract class EasCommand extends Command {
       maybeLoggedIn: new MaybeLoggedInContextField(),
     },
     /**
+     * Specify this context if the logged-in requirement is only necessary in a particular execution of the command.
+     */
+    DynamicLoggedIn: {
+      // eslint-disable-next-line async-protect/async-suffix
+      getDynamicLoggedInAsync: new DynamicLoggedInContextField(),
+    },
+    /**
      * Specify this context requirement if the command needs to mutate the user session.
+     * @deprecated Should not be used outside of session management commands, which currently only includes `login` and `logout`.
      */
     SessionManagment: {
       sessionManager: new SessionManagementContextField(),

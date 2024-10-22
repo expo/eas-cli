@@ -6,7 +6,6 @@ import chalk from 'chalk';
 
 import { evaluateConfigWithEnvVarsAsync } from '../build/evaluateConfigWithEnvVarsAsync';
 import EasCommand from '../commandUtils/EasCommand';
-import { createGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../commandUtils/flags';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
@@ -35,7 +34,7 @@ export default class Config extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
-    ...this.ContextOptions.SessionManagment,
+    ...this.ContextOptions.DynamicLoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -48,7 +47,7 @@ export default class Config extends EasCommand {
       profile: maybeProfile,
       'non-interactive': nonInteractive,
     } = flags;
-    const { getDynamicPublicProjectConfigAsync, projectDir, sessionManager } =
+    const { getDynamicPublicProjectConfigAsync, projectDir, getDynamicLoggedInAsync } =
       await this.getContextAsync(Config, {
         nonInteractive,
       });
@@ -88,10 +87,7 @@ export default class Config extends EasCommand {
         Log.log(JSON.stringify(profile, null, 2));
       }
     } else {
-      const { authenticationInfo } = await sessionManager.ensureLoggedInAsync({
-        nonInteractive,
-      });
-      const graphqlClient = createGraphqlClient(authenticationInfo);
+      const { graphqlClient } = await getDynamicLoggedInAsync();
       const { exp: appConfig } = await evaluateConfigWithEnvVarsAsync({
         buildProfile: profile,
         buildProfileName: profileName,

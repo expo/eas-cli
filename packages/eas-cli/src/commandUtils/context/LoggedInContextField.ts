@@ -1,19 +1,22 @@
 import ContextField, { ContextOptions } from './ContextField';
 import { ExpoGraphqlClient, createGraphqlClient } from './contextUtils/createGraphqlClient';
+import { LoggedInAuthenticationInfo } from '../../user/SessionManager';
 import { Actor } from '../../user/User';
 import FeatureGateEnvOverrides from '../gating/FeatureGateEnvOverrides';
 import FeatureGating from '../gating/FeatureGating';
 
-export default class LoggedInContextField extends ContextField<{
+type LoggedInContextType = {
   actor: Actor;
   featureGating: FeatureGating;
   graphqlClient: ExpoGraphqlClient;
-}> {
-  async getValueAsync({ nonInteractive, sessionManager }: ContextOptions): Promise<{
-    actor: Actor;
-    featureGating: FeatureGating;
-    graphqlClient: ExpoGraphqlClient;
-  }> {
+  authenticationInfo: LoggedInAuthenticationInfo;
+};
+
+export default class LoggedInContextField extends ContextField<LoggedInContextType> {
+  async getValueAsync({
+    nonInteractive,
+    sessionManager,
+  }: ContextOptions): Promise<LoggedInContextType> {
     const { actor, authenticationInfo } = await sessionManager.ensureLoggedInAsync({
       nonInteractive,
     });
@@ -25,6 +28,7 @@ export default class LoggedInContextField extends ContextField<{
       actor,
       featureGating: new FeatureGating(featureGateServerValues, new FeatureGateEnvOverrides()),
       graphqlClient,
+      authenticationInfo,
     };
   }
 }

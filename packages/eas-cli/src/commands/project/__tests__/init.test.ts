@@ -90,6 +90,7 @@ function mockTestProject(options: {
     actor: jester,
     featureGating: new FeatureGating({}, new FeatureGateEnvOverrides()),
     graphqlClient,
+    authenticationInfo: { accessToken: null, sessionSecret: '1234' },
   });
 }
 
