@@ -160,6 +160,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       environment: newEnvironments,
       visibility: newVisibility,
       type: newType,
+      fileName,
     } = await this.promptForMissingFlagsAsync(selectedVariable, {
       name,
       value: rawValue,
@@ -176,6 +177,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       environments: newEnvironments,
       type: newType,
       visibility: newVisibility,
+      fileName: newValue ? fileName : undefined,
     });
     if (!variable) {
       throw new Error(`Could not update variable with name ${name} ${suffix}`);
@@ -213,10 +215,12 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     Omit<UpdateFlags, 'type' | 'visibility'> & {
       type?: EnvironmentSecretType;
       visibility?: EnvironmentVariableVisibility;
+      fileName?: string;
     }
   > {
     let newType;
     let newVisibility: EnvironmentVariableVisibility | undefined;
+    let fileName: string | undefined;
 
     if (type === 'file') {
       newType = EnvironmentSecretType.FileBase64;
@@ -235,10 +239,6 @@ export default class EnvironmentVariableUpdate extends EasCommand {
 
       if (!type && !value && !nonInteractive) {
         newType = await promptVariableTypeAsync(nonInteractive, selectedVariable.type);
-
-        if (!newType || newType === selectedVariable.type) {
-          newType = undefined;
-        }
       }
 
       if (!value) {
@@ -254,6 +254,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
 
         if (!value || value.length === 0 || value === selectedVariable.value) {
           value = undefined;
+          newType = undefined;
         }
       }
 
@@ -264,6 +265,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         if (!(await fs.pathExists(environmentFilePath))) {
           throw new Error(`File "${value}" does not exist`);
         }
+        fileName = path.basename(environmentFilePath);
       }
 
       value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
@@ -308,6 +310,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       scope: rest.scope ?? EnvironmentVariableScope.Project,
       'non-interactive': nonInteractive,
       type: newType,
+      fileName,
       ...rest,
     };
   }

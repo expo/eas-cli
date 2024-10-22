@@ -24,6 +24,7 @@ type CreateVariableArgs = {
   visibility: EnvironmentVariableVisibility;
   environments: EnvironmentVariableEnvironment[];
   type: EnvironmentSecretType;
+  fileName?: string;
 };
 
 export type EnvironmentVariablePushInput = {

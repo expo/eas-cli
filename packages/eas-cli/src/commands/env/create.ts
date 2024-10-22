@@ -97,6 +97,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
       link,
       force,
       type,
+      fileName,
     } = await this.promptForMissingFlagsAsync(validatedFlags);
 
     const {
@@ -167,6 +168,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
               visibility,
               environments,
               type,
+              fileName,
             })
           : await EnvironmentVariableMutation.createForAppAsync(
               graphqlClient,
@@ -176,6 +178,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
                 environments,
                 visibility,
                 type: type ?? EnvironmentSecretType.String,
+                fileName,
               },
               projectId
             );
@@ -304,7 +307,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
         type: EnvironmentSecretType | undefined;
         visibility: EnvironmentVariableVisibility;
       }
-    >
+    > & { fileName?: string }
   > {
     if (!name) {
       name = await promptVariableNameAsync(nonInteractive);
@@ -336,12 +339,14 @@ export default class EnvironmentVariableCreate extends EasCommand {
     }
 
     let environmentFilePath: string | undefined;
+    let fileName: string | undefined;
 
     if (newType === EnvironmentSecretType.FileBase64) {
       environmentFilePath = path.resolve(value);
       if (!(await fs.pathExists(environmentFilePath))) {
         throw new Error(`File "${value}" does not exist`);
       }
+      fileName = path.basename(environmentFilePath);
     }
 
     value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
@@ -366,6 +371,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
       scope: rest.scope ?? EnvironmentVariableScope.Project,
       'non-interactive': nonInteractive,
       type: newType,
+      fileName,
       ...rest,
     };
   }
