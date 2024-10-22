@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
+import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASMultiEnvironmentFlag } from '../../commandUtils/flags';
@@ -199,7 +200,21 @@ export default class EnvironmentVariablePush extends EasCommand {
 
     const variables: Record<string, string> = dotenv.parse(await fs.readFile(envPath, 'utf8'));
 
+    const hasFileVariables = Object.values(variables).some(value =>
+      value.includes(path.join('.eas', '.env'))
+    );
+
+    if (hasFileVariables) {
+      Log.warn('File variables are not supported in this command.');
+    }
+
     for (const [name, value] of Object.entries(variables)) {
+      // Skip file variables
+      const fileVariablePath = path.join('.eas', '.env', name);
+      if (value.endsWith(fileVariablePath)) {
+        Log.warn(`Skipping file variable ${name}`);
+        continue;
+      }
       pushInput[name] = {
         name,
         value,
