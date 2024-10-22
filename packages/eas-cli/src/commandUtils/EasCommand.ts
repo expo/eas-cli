@@ -15,6 +15,7 @@ import MaybeLoggedInContextField from './context/MaybeLoggedInContextField';
 import { OptionalPrivateProjectConfigContextField } from './context/OptionalPrivateProjectConfigContextField';
 import { PrivateProjectConfigContextField } from './context/PrivateProjectConfigContextField';
 import ProjectDirContextField from './context/ProjectDirContextField';
+import { ServerSideEnvironmentVariablesContextField } from './context/ServerSideEnvironmentVariablesContextField';
 import SessionManagementContextField from './context/SessionManagementContextField';
 import VcsClientContextField from './context/VcsClientContextField';
 import { EasCommandError } from './errors';
@@ -23,6 +24,7 @@ import {
   CommandEvent,
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
+import { EnvironmentVariableEnvironment } from '../graphql/generated';
 import Log from '../log';
 import SessionManager from '../user/SessionManager';
 import { Client } from '../vcs/vcs';
@@ -107,6 +109,9 @@ export default abstract class EasCommand extends Command {
     Vcs: {
       vcsClient: new VcsClientContextField(),
     },
+    ServerSideEnvironmentVariables: {
+      getServerSideEnvironmentVariables: new ServerSideEnvironmentVariablesContextField(),
+    },
   };
 
   /**
@@ -141,7 +146,15 @@ export default abstract class EasCommand extends Command {
     } = object,
   >(
     commandClass: { contextDefinition: ContextInput<C> },
-    { nonInteractive, vcsClientOverride }: { nonInteractive: boolean; vcsClientOverride?: Client }
+    {
+      nonInteractive,
+      vcsClientOverride,
+      withServerSideEnvironment,
+    }: {
+      nonInteractive: boolean;
+      vcsClientOverride?: Client;
+      withServerSideEnvironment?: EnvironmentVariableEnvironment;
+    }
   ): Promise<ContextOutput<C>> {
     const contextDefinition = commandClass.contextDefinition;
 
@@ -155,6 +168,7 @@ export default abstract class EasCommand extends Command {
           sessionManager: this.sessionManager,
           analytics: this.analytics,
           vcsClientOverride,
+          withServerSideEnvironment,
         }),
       ]);
     }

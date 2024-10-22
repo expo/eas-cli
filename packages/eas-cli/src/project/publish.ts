@@ -204,14 +204,14 @@ export async function buildBundlesAsync({
   exp,
   platformFlag,
   clearCache,
-  skipEnvVarsFromDotenvFiles,
+  extraEnv,
 }: {
   projectDir: string;
   inputDir: string;
   exp: Pick<ExpoConfig, 'sdkVersion' | 'web'>;
   platformFlag: ExpoCLIExportPlatformFlag;
   clearCache?: boolean;
-  skipEnvVarsFromDotenvFiles: boolean;
+  extraEnv?: Record<string, string | undefined> | undefined;
 }): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
   if (!packageJSON) {
@@ -234,9 +234,7 @@ export async function buildBundlesAsync({
         ...(clearCache ? ['--clear'] : []),
       ],
       {
-        extraEnv: {
-          EXPO_NO_DOTENV: skipEnvVarsFromDotenvFiles ? '1' : undefined,
-        },
+        extraEnv,
       }
     );
     return;
@@ -262,9 +260,7 @@ export async function buildBundlesAsync({
         ...(clearCache ? ['--clear'] : []),
       ],
       {
-        extraEnv: {
-          EXPO_NO_DOTENV: skipEnvVarsFromDotenvFiles ? '1' : undefined,
-        },
+        extraEnv,
       }
     );
     return;
@@ -292,9 +288,7 @@ export async function buildBundlesAsync({
       ...(clearCache ? ['--clear'] : []),
     ],
     {
-      extraEnv: {
-        EXPO_NO_DOTENV: skipEnvVarsFromDotenvFiles ? '1' : undefined,
-      },
+      extraEnv,
     }
   );
 }

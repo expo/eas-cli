@@ -1,4 +1,5 @@
 import { Analytics } from '../../analytics/AnalyticsManager';
+import { EnvironmentVariableEnvironment } from '../../graphql/generated';
 import SessionManager from '../../user/SessionManager';
 import { Client } from '../../vcs/vcs';
 
@@ -7,6 +8,10 @@ export interface ContextOptions {
   analytics: Analytics;
   nonInteractive: boolean;
   vcsClientOverride?: Client;
+  /**
+   * If specified, env variables from the selected environment will be fetched from the server and used to evaluate the dynamic config.
+   */
+  withServerSideEnvironment?: EnvironmentVariableEnvironment;
 }
 
 export default abstract class ContextField<T> {
