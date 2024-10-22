@@ -133,6 +133,8 @@ async function resolveEnvVarsAsync({
       }
     }
 
+    Log.newLine();
+
     return { ...serverEnvVars, ...buildProfile.env };
   } catch (e) {
     Log.error(`Failed to pull env variables for environment ${environment} from EAS servers`);
