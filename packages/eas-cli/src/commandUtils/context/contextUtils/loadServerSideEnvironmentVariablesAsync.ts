@@ -3,14 +3,7 @@ import { EnvironmentVariableEnvironment } from '../../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
 
-const cachedServerSideEnvironmentVariables: Record<
-  EnvironmentVariableEnvironment,
-  Record<string, string> | null
-> = {
-  [EnvironmentVariableEnvironment.Development]: null,
-  [EnvironmentVariableEnvironment.Preview]: null,
-  [EnvironmentVariableEnvironment.Production]: null,
-};
+let cachedServerSideEnvironmentVariables: Record<string, string> | null = null;
 
 export async function loadServerSideEnvironmentVariablesAsync({
   environment,
@@ -22,8 +15,8 @@ export async function loadServerSideEnvironmentVariablesAsync({
   graphqlClient: ExpoGraphqlClient;
 }): Promise<Record<string, string>> {
   // don't load environment variables if they were already loaded while executing a command
-  if (cachedServerSideEnvironmentVariables[environment]) {
-    return cachedServerSideEnvironmentVariables[environment];
+  if (cachedServerSideEnvironmentVariables) {
+    return cachedServerSideEnvironmentVariables;
   }
 
   const environmentVariables = await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(
@@ -59,7 +52,7 @@ export async function loadServerSideEnvironmentVariablesAsync({
         .join(', ')}. `
     );
   }
-  cachedServerSideEnvironmentVariables[environment] = serverEnvVars;
+  cachedServerSideEnvironmentVariables = serverEnvVars;
 
   return serverEnvVars;
 }
