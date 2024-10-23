@@ -28,6 +28,7 @@ export default class Credentials extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(Credentials, {
       nonInteractive: false,
+      withServerSideEnvironment: null,
     });
 
     await new SelectPlatform(

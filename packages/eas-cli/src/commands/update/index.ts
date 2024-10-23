@@ -199,10 +199,10 @@ export default class UpdatePublish extends EasCommand {
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
       vcsClient,
-      getServerSideEnvironmentVariables,
+      getServerSideEnvironmentVariablesAsync,
     } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
-      withServerSideEnvironment: withEasEnvironmentVariablesSet,
+      withServerSideEnvironment: withEasEnvironmentVariablesSet ?? null,
     });
 
     if (jsonFlag) {
@@ -263,7 +263,7 @@ export default class UpdatePublish extends EasCommand {
           clearCache,
           extraEnv: {
             ...(withEasEnvironmentVariablesSet
-              ? { ...(await getServerSideEnvironmentVariables()), EXPO_NO_DOTENV: '1' }
+              ? { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' }
               : {}),
           },
         });

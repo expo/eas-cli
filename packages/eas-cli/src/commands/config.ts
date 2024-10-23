@@ -51,6 +51,7 @@ export default class Config extends EasCommand {
     const { getDynamicPublicProjectConfigAsync, projectDir, sessionManager } =
       await this.getContextAsync(Config, {
         nonInteractive,
+        withServerSideEnvironment: null,
       });
 
     const accessor = EasJsonAccessor.fromProjectPath(projectDir);

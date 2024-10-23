@@ -47,6 +47,20 @@ export type ContextOutput<
 
 const BASE_GRAPHQL_ERROR_MESSAGE: string = 'GraphQL request failed.';
 
+interface BaseGetContextAsyncArgs {
+  nonInteractive: boolean;
+  vcsClientOverride?: Client;
+}
+
+interface GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
+  extends BaseGetContextAsyncArgs {
+  withServerSideEnvironment: EnvironmentVariableEnvironment | null;
+}
+
+interface GetContextAsyncArgsWithoutServerSideEnvironmentArgument extends BaseGetContextAsyncArgs {
+  withServerSideEnvironment?: never;
+}
+
 export default abstract class EasCommand extends Command {
   protected static readonly ContextOptions = {
     /**
@@ -110,7 +124,8 @@ export default abstract class EasCommand extends Command {
       vcsClient: new VcsClientContextField(),
     },
     ServerSideEnvironmentVariables: {
-      getServerSideEnvironmentVariables: new ServerSideEnvironmentVariablesContextField(),
+      // eslint-disable-next-line async-protect/async-suffix
+      getServerSideEnvironmentVariablesAsync: new ServerSideEnvironmentVariablesContextField(),
     },
   };
 
@@ -150,11 +165,11 @@ export default abstract class EasCommand extends Command {
       nonInteractive,
       vcsClientOverride,
       withServerSideEnvironment,
-    }: {
-      nonInteractive: boolean;
-      vcsClientOverride?: Client;
-      withServerSideEnvironment?: EnvironmentVariableEnvironment;
-    }
+    }: C extends { getDynamicPrivateProjectConfigAsync: any }
+      ? GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
+      : C extends { getServerSideEnvironmentVariablesAsync: any }
+        ? GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
+        : GetContextAsyncArgsWithoutServerSideEnvironmentArgument
   ): Promise<ContextOutput<C>> {
     const contextDefinition = commandClass.contextDefinition;
 

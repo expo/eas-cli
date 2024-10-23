@@ -54,6 +54,7 @@ export default class BuildVersionGetView extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(BuildVersionGetView, {
       nonInteractive: true,
+      withServerSideEnvironment: null,
     });
 
     if (!flags.platform && flags['non-interactive']) {
