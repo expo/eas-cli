@@ -254,6 +254,7 @@ function mockTestProject({
     actor: jester,
     featureGating: new FeatureGating({}, new FeatureGateEnvOverrides()),
     graphqlClient,
+    authenticationInfo: { accessToken: null, sessionSecret: '1234' },
   });
   jest
     .spyOn(VcsClientContextField.prototype, 'getValueAsync')

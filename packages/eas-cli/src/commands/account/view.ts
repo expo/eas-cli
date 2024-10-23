@@ -12,16 +12,14 @@ export default class AccountView extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.MaybeLoggedIn,
-    ...this.ContextOptions.SessionManagment,
   };
 
   async runAsync(): Promise<void> {
     const {
-      maybeLoggedIn: { actor },
-      sessionManager,
+      maybeLoggedIn: { actor, authenticationInfo },
     } = await this.getContextAsync(AccountView, { nonInteractive: true });
     if (actor) {
-      const loggedInAs = sessionManager.getAccessToken()
+      const loggedInAs = authenticationInfo.accessToken
         ? `${getActorDisplayName(actor)} (authenticated using EXPO_TOKEN)`
         : getActorDisplayName(actor);
       Log.log(chalk.green(loggedInAs));
