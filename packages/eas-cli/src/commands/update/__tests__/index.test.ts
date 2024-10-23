@@ -140,16 +140,7 @@ describe(UpdatePublish.name, () => {
 
     // Add configuration to the project that should not be included in the update
     const { appJson } = mockTestProject({
-      expoConfig: {
-        hooks: {
-          postPublish: [
-            {
-              file: 'custom-hook.js',
-              config: { some: 'config' },
-            },
-          ],
-        },
-      },
+      expoConfig: {},
     });
 
     const { platforms, runtimeVersion } = mockTestExport({ platforms: ['ios'] });

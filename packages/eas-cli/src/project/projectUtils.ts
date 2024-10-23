@@ -72,6 +72,11 @@ export function isExpoNotificationsInstalled(projectDir: string): boolean {
   return !!(packageJson.dependencies && 'expo-notifications' in packageJson.dependencies);
 }
 
+export function isExpoInstalled(projectDir: string): boolean {
+  const packageJson = getPackageJson(projectDir);
+  return !!(packageJson.dependencies && 'expo' in packageJson.dependencies);
+}
+
 export function isExpoUpdatesInstalledAsDevDependency(projectDir: string): boolean {
   const packageJson = getPackageJson(projectDir);
   return !!(packageJson.devDependencies && 'expo-updates' in packageJson.devDependencies);
