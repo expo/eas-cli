@@ -164,6 +164,8 @@ export default abstract class EasCommand extends Command {
     {
       nonInteractive,
       vcsClientOverride,
+      // if specified and not null, the env vars from the selected environment will be fetched from the server
+      // to resolve dynamic config (if dynamic config context is used) and enable getServerSideEnvironmentVariablesAsync function (if server side environment variables context is used)
       withServerSideEnvironment,
     }: C extends { getDynamicPrivateProjectConfigAsync: any }
       ? GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
