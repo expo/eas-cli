@@ -88,7 +88,7 @@ export default abstract class EasCommand extends Command {
      * run within a project directory, null otherwise.
      */
     OptionalProjectConfig: {
-      privateProjectConfig: new OptionalPrivateProjectConfigContextField(),
+      optionalPrivateProjectConfig: new OptionalPrivateProjectConfigContextField(),
     },
     /**
      * Require this command to be run in a project directory. Return the project directory in the context.
@@ -167,9 +167,13 @@ export default abstract class EasCommand extends Command {
       withServerSideEnvironment,
     }: C extends { getDynamicPrivateProjectConfigAsync: any }
       ? GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
-      : C extends { getServerSideEnvironmentVariablesAsync: any }
+      : C extends { getDynamicPublicProjectConfigAsync: any }
         ? GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
-        : GetContextAsyncArgsWithoutServerSideEnvironmentArgument
+        : C extends { optionalPrivateProjectConfig: any }
+          ? GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
+          : C extends { getServerSideEnvironmentVariablesAsync: any }
+            ? GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
+            : GetContextAsyncArgsWithoutServerSideEnvironmentArgument
   ): Promise<ContextOutput<C>> {
     const contextDefinition = commandClass.contextDefinition;
 
