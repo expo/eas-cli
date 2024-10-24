@@ -12,7 +12,7 @@ export default class WorkflowValidate extends EasCommand {
   static override args = [
     {
       name: 'path',
-      description: 'Path to the workflow configuration yaml file (must end with .yml or .yaml)',
+      description: 'Path to the workflow configuration YAML file (must end with .yml or .yaml)',
       required: true,
     },
   ];
@@ -25,42 +25,49 @@ export default class WorkflowValidate extends EasCommand {
     const spinner = ora().start('Validating the workflow YAML file…');
 
     try {
-      try {
-        await fs.access(filePath);
-      } catch {
-        throw new Error(`File does not exist: ${filePath}`);
-      }
+      await checkIfFileExistsAsync(filePath);
+      await checkIfValidYAMLFileExtensionAsync(filePath);
+      await validateYAMLAsync(filePath);
 
-      const fileExtension = path.extname(filePath).toLowerCase();
-
-      if (fileExtension !== '.yml' && fileExtension !== '.yaml') {
-        throw new Error('File must have a .yml or .yaml extension');
-      }
-
-      const fileContents = await fs.readFile(filePath, 'utf8');
-
-      try {
-        const parsedYaml = yaml.load(fileContents);
-        if (parsedYaml === undefined) {
-          throw new Error('YAML file is empty or contains only comments');
-        }
-      } catch (error) {
-        if (error instanceof yaml.YAMLException) {
-          throw new Error(`YAML parsing error: ${error.message}`);
-        } else if (error instanceof Error) {
-          throw new Error(`YAML parsing error: ${error.message}`);
-        } else {
-          throw new Error(`YAML parsing error: ${String(error)}`);
-        }
-      }
-
-      spinner.succeed('Workflow configuration YAML is valid');
+      spinner.succeed('Workflow configuration YAML is valid.');
     } catch (error) {
-      spinner.fail('Workflow configuration YAML is invalid');
+      spinner.fail('Workflow configuration YAML is not valid.');
       if (error instanceof yaml.YAMLException) {
         Log.error(`YAML parsing error: ${error.message}`);
       }
       throw error;
+    }
+  }
+}
+
+async function checkIfFileExistsAsync(filePath: string): Promise<void> {
+  try {
+    await fs.access(filePath);
+  } catch {
+    throw new Error(`File does not exist: ${filePath}`);
+  }
+}
+
+async function checkIfValidYAMLFileExtensionAsync(filePath: string): Promise<void> {
+  const fileExtension = path.extname(filePath).toLowerCase();
+
+  if (fileExtension !== '.yml' && fileExtension !== '.yaml') {
+    throw new Error('File must have a .yml or .yaml extension');
+  }
+}
+
+async function validateYAMLAsync(filePath: string): Promise<void> {
+  try {
+    const fileContents = await fs.readFile(filePath, 'utf8');
+    const parsedYaml = yaml.load(fileContents);
+    if (parsedYaml === undefined) {
+      throw new Error('YAML file is empty or contains only comments');
+    }
+  } catch (error) {
+    if (error instanceof yaml.YAMLException || error instanceof Error) {
+      throw new Error(`YAML parsing error: ${error.message}`);
+    } else {
+      throw new Error(`YAML parsing error: ${String(error)}`);
     }
   }
 }
