@@ -104,17 +104,19 @@ export default class EnvironmentVariablePull extends EasCommand {
     const secretEnvVariables = environmentVariables.filter(
       (variable: EnvironmentVariableFragment) => variable.value === null
     );
+
+    Log.log(
+      `Pulled environment variables from ${environment.toLowerCase()} environment to ${targetPath}.`
+    );
+
     if (secretEnvVariables.length > 0) {
+      Log.addNewLineIfNone();
       Log.warn(
-        `The eas env:pull command tried to pull environment variables with "secret" visibility. The variables with "secret" visibility are not available for reading, therefore thet were marked as "*****" in the generated .env file. Provide values for these manually in ${targetPath} if needed. Skipped variables: ${secretEnvVariables
+        `The following variables have the encrypted visibility and were added to .env.local as variables without values: ${secretEnvVariables
           .map(v => v.name)
           .join('\n')}`
       );
       Log.warn();
     }
-
-    Log.log(
-      `Pulled environment variables from ${environment.toLowerCase()} environment to ${targetPath}.`
-    );
   }
 }
