@@ -79,6 +79,7 @@ export default class BuildInspect extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(BuildInspect, {
       nonInteractive: false,
+      withServerSideEnvironment: null,
     });
 
     const outputDirectory = path.resolve(process.cwd(), flags.output);

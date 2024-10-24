@@ -142,6 +142,7 @@ export default class Build extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(Build, {
       nonInteractive: flags.nonInteractive,
+      withServerSideEnvironment: null,
     });
 
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);

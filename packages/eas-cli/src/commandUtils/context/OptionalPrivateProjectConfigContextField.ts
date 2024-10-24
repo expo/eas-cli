@@ -2,8 +2,10 @@ import { ExpoConfig } from '@expo/config';
 import { InvalidEasJsonError } from '@expo/eas-json/build/errors';
 
 import ContextField, { ContextOptions } from './ContextField';
+import { createGraphqlClient } from './contextUtils/createGraphqlClient';
 import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
+import { loadServerSideEnvironmentVariablesAsync } from './contextUtils/loadServerSideEnvironmentVariablesAsync';
 import { getPrivateExpoConfig } from '../../project/expoConfig';
 
 export class OptionalPrivateProjectConfigContextField extends ContextField<
@@ -14,7 +16,11 @@ export class OptionalPrivateProjectConfigContextField extends ContextField<
     }
   | undefined
 > {
-  async getValueAsync({ nonInteractive, sessionManager }: ContextOptions): Promise<
+  async getValueAsync({
+    nonInteractive,
+    sessionManager,
+    withServerSideEnvironment,
+  }: ContextOptions): Promise<
     | {
         projectId: string;
         exp: ExpoConfig;
@@ -39,7 +45,20 @@ export class OptionalPrivateProjectConfigContextField extends ContextField<
     const projectId = await getProjectIdAsync(sessionManager, expBefore, {
       nonInteractive,
     });
-    const exp = getPrivateExpoConfig(projectDir);
+    let serverSideEnvVars: Record<string, string> | undefined;
+    if (withServerSideEnvironment) {
+      const { authenticationInfo } = await sessionManager.ensureLoggedInAsync({
+        nonInteractive,
+      });
+      const graphqlClient = createGraphqlClient(authenticationInfo);
+      const serverSideEnvironmentVariables = await loadServerSideEnvironmentVariablesAsync({
+        environment: withServerSideEnvironment,
+        projectId,
+        graphqlClient,
+      });
+      serverSideEnvVars = serverSideEnvironmentVariables;
+    }
+    const exp = getPrivateExpoConfig(projectDir, { env: serverSideEnvVars });
     return {
       exp,
       projectDir,

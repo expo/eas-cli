@@ -22,12 +22,13 @@ export default class Credentials extends EasCommand {
     const { flags } = await this.parse(Credentials);
     const {
       loggedIn: { actor, graphqlClient },
-      privateProjectConfig,
+      optionalPrivateProjectConfig: privateProjectConfig,
       getDynamicPrivateProjectConfigAsync,
       analytics,
       vcsClient,
     } = await this.getContextAsync(Credentials, {
       nonInteractive: false,
+      withServerSideEnvironment: null,
     });
 
     await new SelectPlatform(

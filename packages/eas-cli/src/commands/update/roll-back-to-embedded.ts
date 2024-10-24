@@ -134,6 +134,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(UpdateRollBackToEmbedded, {
       nonInteractive,
+      withServerSideEnvironment: null,
     });
 
     if (jsonFlag) {

@@ -204,12 +204,14 @@ export async function buildBundlesAsync({
   exp,
   platformFlag,
   clearCache,
+  extraEnv,
 }: {
   projectDir: string;
   inputDir: string;
   exp: Pick<ExpoConfig, 'sdkVersion' | 'web'>;
   platformFlag: ExpoCLIExportPlatformFlag;
   clearCache?: boolean;
+  extraEnv?: Record<string, string | undefined> | undefined;
 }): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
   if (!packageJSON) {
@@ -218,17 +220,23 @@ export async function buildBundlesAsync({
 
   // Legacy global Expo CLI
   if (!shouldUseVersionedExpoCLI(projectDir, exp)) {
-    await expoCommandAsync(projectDir, [
-      'export',
-      '--output-dir',
-      inputDir,
-      '--experimental-bundle',
-      '--non-interactive',
-      '--dump-sourcemap',
-      '--dump-assetmap',
-      `--platform=${platformFlag}`,
-      ...(clearCache ? ['--clear'] : []),
-    ]);
+    await expoCommandAsync(
+      projectDir,
+      [
+        'export',
+        '--output-dir',
+        inputDir,
+        '--experimental-bundle',
+        '--non-interactive',
+        '--dump-sourcemap',
+        '--dump-assetmap',
+        `--platform=${platformFlag}`,
+        ...(clearCache ? ['--clear'] : []),
+      ],
+      {
+        extraEnv,
+      }
+    );
     return;
   }
 
@@ -240,15 +248,21 @@ export async function buildBundlesAsync({
         ? ['--platform', 'ios', '--platform', 'android']
         : ['--platform', platformFlag];
 
-    await expoCommandAsync(projectDir, [
-      'export',
-      '--output-dir',
-      inputDir,
-      '--dump-sourcemap',
-      '--dump-assetmap',
-      ...platformArgs,
-      ...(clearCache ? ['--clear'] : []),
-    ]);
+    await expoCommandAsync(
+      projectDir,
+      [
+        'export',
+        '--output-dir',
+        inputDir,
+        '--dump-sourcemap',
+        '--dump-assetmap',
+        ...platformArgs,
+        ...(clearCache ? ['--clear'] : []),
+      ],
+      {
+        extraEnv,
+      }
+    );
     return;
   }
 
@@ -262,15 +276,21 @@ export async function buildBundlesAsync({
     );
   }
 
-  await expoCommandAsync(projectDir, [
-    'export',
-    '--output-dir',
-    inputDir,
-    '--dump-sourcemap',
-    '--dump-assetmap',
-    `--platform=${platformFlag}`,
-    ...(clearCache ? ['--clear'] : []),
-  ]);
+  await expoCommandAsync(
+    projectDir,
+    [
+      'export',
+      '--output-dir',
+      inputDir,
+      '--dump-sourcemap',
+      '--dump-assetmap',
+      `--platform=${platformFlag}`,
+      ...(clearCache ? ['--clear'] : []),
+    ],
+    {
+      extraEnv,
+    }
+  );
 }
 
 export async function resolveInputDirectoryAsync(

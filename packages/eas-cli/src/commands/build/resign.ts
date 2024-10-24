@@ -120,6 +120,7 @@ export default class BuildResign extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(BuildResign, {
       nonInteractive: flags.nonInteractive,
+      withServerSideEnvironment: null,
     });
 
     const maybeBuild = flags.maybeBuildId

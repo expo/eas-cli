@@ -80,6 +80,7 @@ export default class WorkerAlias extends EasCommand {
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(WorkerAlias, {
       nonInteractive: true,
+      withServerSideEnvironment: null,
     });
 
     const { projectId } = await getDynamicPrivateProjectConfigAsync();
