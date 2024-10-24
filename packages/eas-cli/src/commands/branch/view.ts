@@ -27,7 +27,7 @@ export default class BranchView extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -38,7 +38,7 @@ export default class BranchView extends EasCommand {
     } = await this.parse(BranchView);
     const { 'non-interactive': nonInteractive } = flags;
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchView, {
       nonInteractive,

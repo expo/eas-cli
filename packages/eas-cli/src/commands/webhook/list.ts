@@ -23,7 +23,7 @@ export default class WebhookList extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -36,7 +36,7 @@ export default class WebhookList extends EasCommand {
     }
 
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(WebhookList, {
       nonInteractive: true,

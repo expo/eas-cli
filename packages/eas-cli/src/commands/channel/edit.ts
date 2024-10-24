@@ -74,7 +74,7 @@ export default class ChannelEdit extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -84,7 +84,7 @@ export default class ChannelEdit extends EasCommand {
       flags: { branch: branchFlag, json, 'non-interactive': nonInteractive },
     } = await this.parse(ChannelEdit);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelEdit, {
       nonInteractive,

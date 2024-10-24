@@ -21,7 +21,7 @@ export default class BuildList extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -29,7 +29,7 @@ export default class BuildList extends EasCommand {
     const { flags } = await this.parse(BuildList);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildList, {
       nonInteractive: paginatedQueryOptions.nonInteractive,

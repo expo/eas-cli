@@ -18,7 +18,7 @@ export default class ChannelList extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -27,7 +27,7 @@ export default class ChannelList extends EasCommand {
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelList, {
       nonInteractive,

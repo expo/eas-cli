@@ -94,7 +94,7 @@ export default class BuildDelete extends EasCommand {
     }),
   };
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.Vcs,
   };
@@ -112,7 +112,7 @@ export default class BuildDelete extends EasCommand {
     }
 
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildDelete, { nonInteractive });
     const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);

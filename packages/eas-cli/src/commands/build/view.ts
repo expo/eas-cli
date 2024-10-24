@@ -18,7 +18,7 @@ export default class BuildView extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.Vcs,
   };
@@ -29,7 +29,7 @@ export default class BuildView extends EasCommand {
       flags,
     } = await this.parse(BuildView);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildView, {
       nonInteractive: true,

@@ -42,7 +42,7 @@ export default class EnvironmentSecretPush extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -51,7 +51,7 @@ export default class EnvironmentSecretPush extends EasCommand {
       flags: { scope, force, 'env-file': maybeEnvFilePath, 'non-interactive': nonInteractive },
     } = await this.parse(EnvironmentSecretPush);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentSecretPush, {
       nonInteractive,
