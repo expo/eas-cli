@@ -41,6 +41,7 @@ export default class MetadataPull extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(MetadataPull, {
       nonInteractive: false,
+      withServerSideEnvironment: null,
     });
 
     // this command is interactive (all nonInteractive flags passed to utility functions are false)

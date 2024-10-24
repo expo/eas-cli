@@ -16,6 +16,7 @@ import MaybeLoggedInContextField from './context/MaybeLoggedInContextField';
 import { OptionalPrivateProjectConfigContextField } from './context/OptionalPrivateProjectConfigContextField';
 import { PrivateProjectConfigContextField } from './context/PrivateProjectConfigContextField';
 import ProjectDirContextField from './context/ProjectDirContextField';
+import { ProjectIdContextField } from './context/ProjectIdContextField';
 import { ServerSideEnvironmentVariablesContextField } from './context/ServerSideEnvironmentVariablesContextField';
 import SessionManagementContextField from './context/SessionManagementContextField';
 import VcsClientContextField from './context/VcsClientContextField';
@@ -139,6 +140,12 @@ export default abstract class EasCommand extends Command {
     ServerSideEnvironmentVariables: {
       // eslint-disable-next-line async-protect/async-suffix
       getServerSideEnvironmentVariablesAsync: new ServerSideEnvironmentVariablesContextField(),
+    },
+    /**
+     * Require the project to be identified and registered on server. Returns the project ID evaluated from the app config.
+     */
+    ProjectId: {
+      projectId: new ProjectIdContextField(),
     },
   };
 

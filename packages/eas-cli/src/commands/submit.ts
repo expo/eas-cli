@@ -112,6 +112,7 @@ export default class Submit extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(Submit, {
       nonInteractive: false,
+      withServerSideEnvironment: null,
     });
 
     const flags = this.sanitizeFlags(rawFlags);

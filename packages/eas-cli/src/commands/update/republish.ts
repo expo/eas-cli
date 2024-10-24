@@ -103,6 +103,7 @@ export default class UpdateRepublish extends EasCommand {
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(UpdateRepublish, {
       nonInteractive: flags.nonInteractive,
+      withServerSideEnvironment: null,
     });
 
     if (flags.json) {

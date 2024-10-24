@@ -65,6 +65,7 @@ export default class SubmitInternal extends EasCommand {
     } = await this.getContextAsync(SubmitInternal, {
       nonInteractive: true,
       vcsClientOverride: new GitNoCommitClient(),
+      withServerSideEnvironment: null,
     });
 
     const submissionProfile = await EasJsonUtils.getSubmitProfileAsync(

@@ -31,7 +31,7 @@ export default class ChannelDelete extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -41,7 +41,7 @@ export default class ChannelDelete extends EasCommand {
       flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(ChannelDelete);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelDelete, {
       nonInteractive,

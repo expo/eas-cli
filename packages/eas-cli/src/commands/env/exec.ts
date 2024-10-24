@@ -31,7 +31,7 @@ export default class EnvExec extends EasCommand {
   static override hidden = true;
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -57,7 +57,7 @@ export default class EnvExec extends EasCommand {
     const parsedFlags = this.sanitizeFlags(flags);
 
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvExec, {
       nonInteractive: parsedFlags.nonInteractive,

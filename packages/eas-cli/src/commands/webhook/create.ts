@@ -26,14 +26,14 @@ export default class WebhookCreate extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(WebhookCreate);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(WebhookCreate, {
       nonInteractive: flags['non-interactive'],

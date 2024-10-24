@@ -39,6 +39,7 @@ export default class MetadataPush extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(MetadataPush, {
       nonInteractive: false,
+      withServerSideEnvironment: null,
     });
 
     // this command is interactive (all nonInteractive flags passed to utility functions are false)
