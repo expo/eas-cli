@@ -45,6 +45,10 @@ export type ContextOutput<
   [P in keyof T]: T[P];
 };
 
+type GetContextType<Type> = {
+  [Property in keyof Type]: any;
+};
+
 const BASE_GRAPHQL_ERROR_MESSAGE: string = 'GraphQL request failed.';
 
 interface BaseGetContextAsyncArgs {
@@ -167,15 +171,13 @@ export default abstract class EasCommand extends Command {
       // if specified and not null, the env vars from the selected environment will be fetched from the server
       // to resolve dynamic config (if dynamic config context is used) and enable getServerSideEnvironmentVariablesAsync function (if server side environment variables context is used)
       withServerSideEnvironment,
-    }: C extends { getDynamicPrivateProjectConfigAsync: any }
+    }: C extends
+      | GetContextType<typeof EasCommand.ContextOptions.ProjectConfig>
+      | GetContextType<typeof EasCommand.ContextOptions.DynamicProjectConfig>
+      | GetContextType<typeof EasCommand.ContextOptions.OptionalProjectConfig>
+      | GetContextType<typeof EasCommand.ContextOptions.ServerSideEnvironmentVariables>
       ? GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
-      : C extends { getDynamicPublicProjectConfigAsync: any }
-        ? GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
-        : C extends { optionalPrivateProjectConfig: any }
-          ? GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
-          : C extends { getServerSideEnvironmentVariablesAsync: any }
-            ? GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
-            : GetContextAsyncArgsWithoutServerSideEnvironmentArgument
+      : GetContextAsyncArgsWithoutServerSideEnvironmentArgument
   ): Promise<ContextOutput<C>> {
     const contextDefinition = commandClass.contextDefinition;
 
