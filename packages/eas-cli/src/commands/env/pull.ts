@@ -15,7 +15,7 @@ export default class EnvironmentVariablePull extends EasCommand {
   static override hidden = true;
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -37,7 +37,7 @@ export default class EnvironmentVariablePull extends EasCommand {
       environment = await promptVariableEnvironmentAsync({ nonInteractive });
     }
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentVariablePull, {
       nonInteractive,

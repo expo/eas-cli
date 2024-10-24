@@ -34,7 +34,7 @@ export default class EnvironmentVariableLink extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -48,7 +48,7 @@ export default class EnvironmentVariableLink extends EasCommand {
       },
     } = await this.parse(EnvironmentVariableLink);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentVariableLink, {
       nonInteractive,

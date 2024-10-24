@@ -138,6 +138,7 @@ export default class ChannelRollout extends EasCommand {
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelRollout, {
       nonInteractive: argsAndFlags.nonInteractive,
+      withServerSideEnvironment: null,
     });
     if (argsAndFlags.json) {
       enableJsonOutput();

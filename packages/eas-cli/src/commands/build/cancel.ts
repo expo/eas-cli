@@ -110,7 +110,7 @@ export default class BuildCancel extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.Vcs,
   };
@@ -128,7 +128,7 @@ export default class BuildCancel extends EasCommand {
     }
 
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildCancel, {
       nonInteractive,

@@ -40,7 +40,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -53,7 +53,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
       scope,
     } = this.validateFlags(flags);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentVariableDelete, {
       nonInteractive,

@@ -13,14 +13,14 @@ export default class BranchList extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BranchList);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchList, {
       nonInteractive: flags['non-interactive'],

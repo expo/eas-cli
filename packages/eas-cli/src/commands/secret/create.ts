@@ -50,7 +50,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -66,7 +66,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
       },
     } = await this.parse(EnvironmentSecretCreate);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentSecretCreate, {
       nonInteractive,

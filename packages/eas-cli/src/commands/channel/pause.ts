@@ -66,7 +66,7 @@ export default class ChannelPause extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -76,7 +76,7 @@ export default class ChannelPause extends EasCommand {
       flags: { json, 'non-interactive': nonInteractive },
     } = await this.parse(ChannelPause);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ChannelPause, {
       nonInteractive,

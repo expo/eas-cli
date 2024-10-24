@@ -37,13 +37,13 @@ export default class ProjectInfo extends EasCommand {
   static override description = 'information about the current project';
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ProjectInfo, {
       nonInteractive: true,

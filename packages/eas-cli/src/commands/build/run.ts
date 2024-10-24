@@ -79,8 +79,7 @@ export default class Run extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.LoggedIn,
-    ...this.ContextOptions.ProjectConfig,
-    ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.Vcs,
   };
 
@@ -90,7 +89,7 @@ export default class Run extends EasCommand {
     const queryOptions = getPaginatedQueryOptions(flags);
     const {
       loggedIn: { graphqlClient },
-      privateProjectConfig: { projectId },
+      projectId,
     } = await this.getContextAsync(Run, {
       nonInteractive: false,
     });

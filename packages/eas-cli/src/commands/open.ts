@@ -20,6 +20,7 @@ export default class Open extends EasCommand {
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(Open, {
       nonInteractive: false,
+      withServerSideEnvironment: null,
     });
 
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
