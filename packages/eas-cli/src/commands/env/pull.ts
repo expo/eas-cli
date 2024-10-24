@@ -112,22 +112,22 @@ export default class EnvironmentVariablePull extends EasCommand {
 
     await fs.writeFile(targetPath, filePrefix + envFileContentLines.join('\n'));
 
+    Log.log(
+      `Pulled environment variables from ${environment.toLowerCase()} environment to ${targetPath}.`
+    );
+
     if (overridenSecretVariables.length > 0) {
       Log.addNewLineIfNone();
       Log.log(`Reused local values for following secrets: ${overridenSecretVariables.join('\n')}`);
     }
 
     if (skippedSecretVariables.length > 0) {
+      Log.addNewLineIfNone();
       Log.warn(
-        `The eas env:pull command tried to pull environment variables with "secret" visibility. The variables with "secret" visibility are not available for reading, therefore thet were marked as "*****" in the generated .env file. Provide values for these manually in ${targetPath} if needed. Skipped variables: ${skippedSecretVariables.join(
+        `The following variables have the encrypted visibility and were added to .env.local as variables without values: ${skippedSecretVariables.join(
           '\n'
-        )}`
+        )}.`
       );
-      Log.warn();
     }
-
-    Log.log(
-      `Pulled environment variables from ${environment.toLowerCase()} environment to ${targetPath}.`
-    );
   }
 }
