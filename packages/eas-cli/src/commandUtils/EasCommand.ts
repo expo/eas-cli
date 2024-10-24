@@ -188,6 +188,7 @@ export default abstract class EasCommand extends Command {
       // to resolve dynamic config (if dynamic config context is used) and enable getServerSideEnvironmentVariablesAsync function (if server side environment variables context is used)
       withServerSideEnvironment,
     }: C extends
+      | GetContextType<typeof EasCommand.ContextOptions.ProjectConfig>
       | GetContextType<typeof EasCommand.ContextOptions.DynamicProjectConfig>
       | GetContextType<typeof EasCommand.ContextOptions.OptionalProjectConfig>
       | GetContextType<typeof EasCommand.ContextOptions.ServerSideEnvironmentVariables>
