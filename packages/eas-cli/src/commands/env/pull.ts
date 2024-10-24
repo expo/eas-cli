@@ -1,14 +1,11 @@
 import { Flags } from '@oclif/core';
+import dotenv from 'dotenv';
 import * as fs from 'fs-extra';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
-import {
-  EnvironmentSecretType,
-  EnvironmentVariableFragment,
-  EnvironmentVariableVisibility,
-} from '../../graphql/generated';
+import { EnvironmentSecretType, EnvironmentVariableVisibility } from '../../graphql/generated';
 import {
   EnvironmentVariableWithFileContent,
   EnvironmentVariablesQuery,
@@ -74,6 +71,12 @@ export default class EnvironmentVariablePull extends EasCommand {
       }
     }
 
+    let currentEnvLocal: Record<string, string> = {};
+
+    if (await fs.exists(targetPath)) {
+      currentEnvLocal = dotenv.parse(await fs.readFile(targetPath, 'utf8'));
+    }
+
     const filePrefix = `# Environment: ${environment.toLocaleLowerCase()}\n\n`;
 
     const isFileVariablePresent = environmentVariables.some(v => {
@@ -85,9 +88,17 @@ export default class EnvironmentVariablePull extends EasCommand {
       await fs.mkdir(envDir, { recursive: true });
     }
 
+    const skippedSecretVariables: string[] = [];
+    const overridenSecretVariables: string[] = [];
+
     const envFileContentLines = await Promise.all(
       environmentVariables.map(async (variable: EnvironmentVariableWithFileContent) => {
         if (variable.visibility === EnvironmentVariableVisibility.Secret) {
+          if (currentEnvLocal[variable.name]) {
+            overridenSecretVariables.push(variable.name);
+            return `${variable.name}=${currentEnvLocal[variable.name]}`;
+          }
+          skippedSecretVariables.push(variable.name);
           return `# ${variable.name}=***** (secret variables are not available for reading)`;
         }
         if (variable.type === EnvironmentSecretType.FileBase64 && variable.valueWithFileContent) {
@@ -101,14 +112,20 @@ export default class EnvironmentVariablePull extends EasCommand {
 
     await fs.writeFile(targetPath, filePrefix + envFileContentLines.join('\n'));
 
-    const secretEnvVariables = environmentVariables.filter(
-      (variable: EnvironmentVariableFragment) => variable.value === null
-    );
-    if (secretEnvVariables.length > 0) {
+    if (overridenSecretVariables.length > 0) {
+      Log.addNewLineIfNone();
+      Log.log(
+        `Following encrypted variables were overriden by local values: ${overridenSecretVariables.join(
+          '\n'
+        )}`
+      );
+    }
+
+    if (skippedSecretVariables.length > 0) {
       Log.warn(
-        `The eas env:pull command tried to pull environment variables with "secret" visibility. The variables with "secret" visibility are not available for reading, therefore thet were marked as "*****" in the generated .env file. Provide values for these manually in ${targetPath} if needed. Skipped variables: ${secretEnvVariables
-          .map(v => v.name)
-          .join('\n')}`
+        `The eas env:pull command tried to pull environment variables with "secret" visibility. The variables with "secret" visibility are not available for reading, therefore thet were marked as "*****" in the generated .env file. Provide values for these manually in ${targetPath} if needed. Skipped variables: ${skippedSecretVariables.join(
+          '\n'
+        )}`
       );
       Log.warn();
     }
