@@ -5,7 +5,11 @@ import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
-import { EnvironmentSecretType, EnvironmentVariableVisibility } from '../../graphql/generated';
+import {
+  EnvironmentSecretType,
+  EnvironmentVariableEnvironment,
+  EnvironmentVariableVisibility,
+} from '../../graphql/generated';
 import {
   EnvironmentVariableWithFileContent,
   EnvironmentVariablesQuery,
@@ -25,9 +29,18 @@ export default class EnvironmentVariablePull extends EasCommand {
     ...this.ContextOptions.ProjectDir,
   };
 
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Environment to pull variables from. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
+
   static override flags = {
-    ...EASEnvironmentFlag,
     ...EASNonInteractiveFlag,
+    ...EASEnvironmentFlag,
     path: Flags.string({
       description: 'Path to the result `.env` file',
       default: '.env.local',
@@ -36,12 +49,20 @@ export default class EnvironmentVariablePull extends EasCommand {
 
   async runAsync(): Promise<void> {
     let {
-      flags: { environment, path: targetPath, 'non-interactive': nonInteractive },
+      args: { environment: argEnvironment },
+      flags: { environment: flagEnvironment, path: targetPath, 'non-interactive': nonInteractive },
     } = await this.parse(EnvironmentVariablePull);
+
+    let environment = flagEnvironment?.toUpperCase() ?? argEnvironment?.toUpperCase();
 
     if (!environment) {
       environment = await promptVariableEnvironmentAsync({ nonInteractive });
     }
+
+    if (!Object.values(EnvironmentVariableEnvironment).includes(environment)) {
+      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
+    }
+
     const {
       projectId,
       loggedIn: { graphqlClient },
