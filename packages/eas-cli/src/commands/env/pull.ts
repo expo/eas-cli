@@ -114,11 +114,7 @@ export default class EnvironmentVariablePull extends EasCommand {
 
     if (overridenSecretVariables.length > 0) {
       Log.addNewLineIfNone();
-      Log.log(
-        `Following encrypted variables were overriden by local values: ${overridenSecretVariables.join(
-          '\n'
-        )}`
-      );
+      Log.log(`Reused local values for following secrets: ${overridenSecretVariables.join('\n')}`);
     }
 
     if (skippedSecretVariables.length > 0) {
