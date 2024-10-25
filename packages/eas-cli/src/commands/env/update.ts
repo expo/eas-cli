@@ -28,6 +28,7 @@ import {
 } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
 import {
+  parseVisibility,
   promptVariableEnvironmentAsync,
   promptVariableNameAsync,
   promptVariableTypeAsync,
@@ -41,7 +42,7 @@ type UpdateFlags = {
   value?: string;
   scope?: EnvironmentVariableScope;
   environment?: EnvironmentVariableEnvironment[];
-  visibility?: EnvironmentVariableVisibility;
+  visibility?: 'plaintext' | 'sensitive' | 'encrypted';
   type?: 'string' | 'file';
   'variable-name'?: string;
   'variable-environment'?: EnvironmentVariableEnvironment;
@@ -79,7 +80,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.Analytics,
     ...this.ContextOptions.LoggedIn,
   };
@@ -99,7 +100,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     } = this.validateFlags(flags);
 
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentVariableUpdate, {
       nonInteractive,
@@ -136,7 +137,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     if (existingVariables.length === 0) {
       throw new Error(
         `Variable with name ${currentName} ${
-          currentEnvironment ? `in environment ${currentEnvironment}` : ''
+          currentEnvironment ? `in environment ${currentEnvironment.toLocaleLowerCase()}` : ''
         } does not exist ${suffix}.`
       );
     } else if (existingVariables.length > 1) {
@@ -159,6 +160,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       environment: newEnvironments,
       visibility: newVisibility,
       type: newType,
+      fileName,
     } = await this.promptForMissingFlagsAsync(selectedVariable, {
       name,
       value: rawValue,
@@ -175,6 +177,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       environments: newEnvironments,
       type: newType,
       visibility: newVisibility,
+      fileName: newValue ? fileName : undefined,
     });
     if (!variable) {
       throw new Error(`Could not update variable with name ${name} ${suffix}`);
@@ -208,8 +211,16 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       type,
       ...rest
     }: UpdateFlags
-  ): Promise<Omit<UpdateFlags, 'type'> & { type?: EnvironmentSecretType }> {
+  ): Promise<
+    Omit<UpdateFlags, 'type' | 'visibility'> & {
+      type?: EnvironmentSecretType;
+      visibility?: EnvironmentVariableVisibility;
+      fileName?: string;
+    }
+  > {
     let newType;
+    let newVisibility: EnvironmentVariableVisibility | undefined;
+    let fileName: string | undefined;
 
     if (type === 'file') {
       newType = EnvironmentSecretType.FileBase64;
@@ -226,23 +237,15 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         }
       }
 
-      Log.log(
-        selectedVariable.type,
-        EnvironmentSecretType.String === selectedVariable.type,
-        EnvironmentSecretType.FileBase64 === selectedVariable.type
-      );
       if (!type && !value && !nonInteractive) {
         newType = await promptVariableTypeAsync(nonInteractive, selectedVariable.type);
-
-        if (!newType || newType === selectedVariable.type) {
-          newType = undefined;
-        }
       }
 
       if (!value) {
         value = await promptVariableValueAsync({
           nonInteractive,
           required: false,
+          filePath: (newType ?? selectedVariable.type) === EnvironmentSecretType.FileBase64,
           initial:
             (newType ?? selectedVariable.type) === EnvironmentSecretType.FileBase64
               ? undefined
@@ -251,16 +254,18 @@ export default class EnvironmentVariableUpdate extends EasCommand {
 
         if (!value || value.length === 0 || value === selectedVariable.value) {
           value = undefined;
+          newType = undefined;
         }
       }
 
       let environmentFilePath: string | undefined;
 
-      if (newType === EnvironmentSecretType.FileBase64 && value) {
+      if ((newType ?? selectedVariable.type) === EnvironmentSecretType.FileBase64 && value) {
         environmentFilePath = path.resolve(value);
         if (!(await fs.pathExists(environmentFilePath))) {
           throw new Error(`File "${value}" does not exist`);
         }
+        fileName = path.basename(environmentFilePath);
       }
 
       value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
@@ -282,25 +287,30 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       }
 
       if (!visibility) {
-        visibility = await promptVariableVisibilityAsync(
+        newVisibility = await promptVariableVisibilityAsync(
           nonInteractive,
           selectedVariable.visibility
         );
 
-        if (!visibility || visibility === selectedVariable.visibility) {
-          visibility = undefined;
+        if (!newVisibility || newVisibility === selectedVariable.visibility) {
+          newVisibility = undefined;
         }
       }
+    }
+
+    if (visibility) {
+      newVisibility = parseVisibility(visibility);
     }
 
     return {
       name,
       value,
       environment: environments,
-      visibility,
+      visibility: newVisibility,
       scope: rest.scope ?? EnvironmentVariableScope.Project,
       'non-interactive': nonInteractive,
       type: newType,
+      fileName,
       ...rest,
     };
   }

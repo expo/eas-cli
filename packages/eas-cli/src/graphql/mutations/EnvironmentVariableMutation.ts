@@ -24,12 +24,13 @@ type CreateVariableArgs = {
   visibility: EnvironmentVariableVisibility;
   environments: EnvironmentVariableEnvironment[];
   type: EnvironmentSecretType;
+  fileName?: string;
 };
 
 export type EnvironmentVariablePushInput = {
   name: string;
   value: string;
-  environment: string;
+  environments: EnvironmentVariableEnvironment[];
   visibility: EnvironmentVariableVisibility;
   overwrite?: boolean;
 };

@@ -1,5 +1,4 @@
 import { Flags } from '@oclif/core';
-import assert from 'assert';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -35,7 +34,7 @@ export default class EnvironmentVariableGet extends EasCommand {
   static override hidden = true;
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -64,7 +63,7 @@ export default class EnvironmentVariableGet extends EasCommand {
     } = this.validateFlags(flags);
 
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentVariableGet, {
       nonInteractive,
@@ -72,6 +71,13 @@ export default class EnvironmentVariableGet extends EasCommand {
 
     if (!name) {
       name = await promptVariableNameAsync(nonInteractive);
+    }
+
+    if (!environment) {
+      environment = await promptVariableEnvironmentAsync({
+        nonInteractive,
+        multiple: false,
+      });
     }
 
     const variables = await getVariablesAsync(graphqlClient, scope, projectId, name, environment);
@@ -84,24 +90,11 @@ export default class EnvironmentVariableGet extends EasCommand {
     let variable;
 
     if (variables.length > 1) {
-      if (!environment) {
-        const availableEnvironments = variables.reduce<EnvironmentVariableEnvironment[]>(
-          (acc, v) => [...acc, ...(v.environments ?? [])],
-          [] as EnvironmentVariableEnvironment[]
-        );
-
-        environment = await promptVariableEnvironmentAsync({
-          nonInteractive,
-          multiple: false,
-          availableEnvironments,
-        });
-      }
-
-      assert(environment, 'Environment is required.');
-
       const variableInEnvironment = variables.find(v => v.environments?.includes(environment!));
       if (!variableInEnvironment) {
-        throw new Error(`Variable with name "${name}" not found in environment "${environment}"`);
+        throw new Error(
+          `Variable with name "${name}" not found in environment "${environment.toLocaleLowerCase()}"`
+        );
       }
 
       variable = variableInEnvironment;

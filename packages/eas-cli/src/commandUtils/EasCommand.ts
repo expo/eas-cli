@@ -6,6 +6,7 @@ import nullthrows from 'nullthrows';
 
 import AnalyticsContextField from './context/AnalyticsContextField';
 import ContextField from './context/ContextField';
+import DynamicLoggedInContextField from './context/DynamicLoggedInContextField';
 import {
   DynamicPrivateProjectConfigContextField,
   DynamicPublicProjectConfigContextField,
@@ -15,6 +16,8 @@ import MaybeLoggedInContextField from './context/MaybeLoggedInContextField';
 import { OptionalPrivateProjectConfigContextField } from './context/OptionalPrivateProjectConfigContextField';
 import { PrivateProjectConfigContextField } from './context/PrivateProjectConfigContextField';
 import ProjectDirContextField from './context/ProjectDirContextField';
+import { ProjectIdContextField } from './context/ProjectIdContextField';
+import { ServerSideEnvironmentVariablesContextField } from './context/ServerSideEnvironmentVariablesContextField';
 import SessionManagementContextField from './context/SessionManagementContextField';
 import VcsClientContextField from './context/VcsClientContextField';
 import { EasCommandError } from './errors';
@@ -23,6 +26,7 @@ import {
   CommandEvent,
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
+import { EnvironmentVariableEnvironment } from '../graphql/generated';
 import Log from '../log';
 import SessionManager from '../user/SessionManager';
 import { Client } from '../vcs/vcs';
@@ -43,7 +47,25 @@ export type ContextOutput<
   [P in keyof T]: T[P];
 };
 
+type GetContextType<Type> = {
+  [Property in keyof Type]: any;
+};
+
 const BASE_GRAPHQL_ERROR_MESSAGE: string = 'GraphQL request failed.';
+
+interface BaseGetContextAsyncArgs {
+  nonInteractive: boolean;
+  vcsClientOverride?: Client;
+}
+
+interface GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
+  extends BaseGetContextAsyncArgs {
+  withServerSideEnvironment: EnvironmentVariableEnvironment | null;
+}
+
+interface GetContextAsyncArgsWithoutServerSideEnvironmentArgument extends BaseGetContextAsyncArgs {
+  withServerSideEnvironment?: never;
+}
 
 export default abstract class EasCommand extends Command {
   protected static readonly ContextOptions = {
@@ -62,7 +84,15 @@ export default abstract class EasCommand extends Command {
       maybeLoggedIn: new MaybeLoggedInContextField(),
     },
     /**
+     * Specify this context if the logged-in requirement is only necessary in a particular execution of the command.
+     */
+    DynamicLoggedIn: {
+      // eslint-disable-next-line async-protect/async-suffix
+      getDynamicLoggedInAsync: new DynamicLoggedInContextField(),
+    },
+    /**
      * Specify this context requirement if the command needs to mutate the user session.
+     * @deprecated Should not be used outside of session management commands, which currently only includes `login` and `logout`.
      */
     SessionManagment: {
       sessionManager: new SessionManagementContextField(),
@@ -72,7 +102,7 @@ export default abstract class EasCommand extends Command {
      * run within a project directory, null otherwise.
      */
     OptionalProjectConfig: {
-      privateProjectConfig: new OptionalPrivateProjectConfigContextField(),
+      optionalPrivateProjectConfig: new OptionalPrivateProjectConfigContextField(),
     },
     /**
      * Require this command to be run in a project directory. Return the project directory in the context.
@@ -106,6 +136,16 @@ export default abstract class EasCommand extends Command {
     },
     Vcs: {
       vcsClient: new VcsClientContextField(),
+    },
+    ServerSideEnvironmentVariables: {
+      // eslint-disable-next-line async-protect/async-suffix
+      getServerSideEnvironmentVariablesAsync: new ServerSideEnvironmentVariablesContextField(),
+    },
+    /**
+     * Require the project to be identified and registered on server. Returns the project ID evaluated from the app config.
+     */
+    ProjectId: {
+      projectId: new ProjectIdContextField(),
     },
   };
 
@@ -141,7 +181,19 @@ export default abstract class EasCommand extends Command {
     } = object,
   >(
     commandClass: { contextDefinition: ContextInput<C> },
-    { nonInteractive, vcsClientOverride }: { nonInteractive: boolean; vcsClientOverride?: Client }
+    {
+      nonInteractive,
+      vcsClientOverride,
+      // if specified and not null, the env vars from the selected environment will be fetched from the server
+      // to resolve dynamic config (if dynamic config context is used) and enable getServerSideEnvironmentVariablesAsync function (if server side environment variables context is used)
+      withServerSideEnvironment,
+    }: C extends
+      | GetContextType<typeof EasCommand.ContextOptions.ProjectConfig>
+      | GetContextType<typeof EasCommand.ContextOptions.DynamicProjectConfig>
+      | GetContextType<typeof EasCommand.ContextOptions.OptionalProjectConfig>
+      | GetContextType<typeof EasCommand.ContextOptions.ServerSideEnvironmentVariables>
+      ? GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
+      : GetContextAsyncArgsWithoutServerSideEnvironmentArgument
   ): Promise<ContextOutput<C>> {
     const contextDefinition = commandClass.contextDefinition;
 
@@ -155,6 +207,7 @@ export default abstract class EasCommand extends Command {
           sessionManager: this.sessionManager,
           analytics: this.analytics,
           vcsClientOverride,
+          withServerSideEnvironment,
         }),
       ]);
     }

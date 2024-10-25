@@ -25,10 +25,12 @@ import {
 } from '../../project/projectUtils';
 import { confirmAsync } from '../../prompts';
 import {
+  parseVisibility,
   promptVariableEnvironmentAsync,
   promptVariableNameAsync,
   promptVariableTypeAsync,
   promptVariableValueAsync,
+  promptVariableVisibilityAsync,
 } from '../../utils/prompts';
 import { performForEnvironmentsAsync } from '../../utils/variableUtils';
 
@@ -38,7 +40,7 @@ type CreateFlags = {
   link?: boolean;
   force?: boolean;
   type?: 'string' | 'file';
-  visibility?: EnvironmentVariableVisibility;
+  visibility?: 'plaintext' | 'sensitive' | 'encrypted';
   scope?: EnvironmentVariableScope;
   environment?: EnvironmentVariableEnvironment[];
   'non-interactive': boolean;
@@ -75,7 +77,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.Analytics,
     ...this.ContextOptions.LoggedIn,
   };
@@ -95,10 +97,11 @@ export default class EnvironmentVariableCreate extends EasCommand {
       link,
       force,
       type,
+      fileName,
     } = await this.promptForMissingFlagsAsync(validatedFlags);
 
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentVariableCreate, {
       nonInteractive,
@@ -165,6 +168,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
               visibility,
               environments,
               type,
+              fileName,
             })
           : await EnvironmentVariableMutation.createForAppAsync(
               graphqlClient,
@@ -174,6 +178,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
                 environments,
                 visibility,
                 type: type ?? EnvironmentSecretType.String,
+                fileName,
               },
               projectId
             );
@@ -292,18 +297,24 @@ export default class EnvironmentVariableCreate extends EasCommand {
     name,
     value,
     environment,
-    visibility = EnvironmentVariableVisibility.Public,
+    visibility,
     'non-interactive': nonInteractive,
     type,
     ...rest
   }: CreateFlags): Promise<
-    Required<Omit<CreateFlags, 'type'> & { type: EnvironmentSecretType | undefined }>
+    Required<
+      Omit<CreateFlags, 'type' | 'visibility'> & {
+        type: EnvironmentSecretType | undefined;
+        visibility: EnvironmentVariableVisibility;
+      }
+    > & { fileName?: string }
   > {
     if (!name) {
       name = await promptVariableNameAsync(nonInteractive);
     }
 
     let newType;
+    let newVisibility = visibility ? parseVisibility(visibility) : undefined;
 
     if (type === 'file') {
       newType = EnvironmentSecretType.FileBase64;
@@ -315,45 +326,60 @@ export default class EnvironmentVariableCreate extends EasCommand {
       newType = await promptVariableTypeAsync(nonInteractive);
     }
 
+    if (!newVisibility) {
+      newVisibility = await promptVariableVisibilityAsync(nonInteractive);
+    }
+
     if (!value) {
       value = await promptVariableValueAsync({
         nonInteractive,
-        hidden: visibility !== EnvironmentVariableVisibility.Public,
+        hidden: newVisibility !== EnvironmentVariableVisibility.Public,
+        filePath: newType === EnvironmentSecretType.FileBase64,
       });
     }
 
     let environmentFilePath: string | undefined;
+    let fileName: string | undefined;
 
     if (newType === EnvironmentSecretType.FileBase64) {
       environmentFilePath = path.resolve(value);
       if (!(await fs.pathExists(environmentFilePath))) {
         throw new Error(`File "${value}" does not exist`);
       }
+      fileName = path.basename(environmentFilePath);
     }
 
     value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
 
     if (!environment) {
       environment = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
+
+      if (!environment || environment.length === 0) {
+        throw new Error('No environments selected');
+      }
     }
+
+    newVisibility = newVisibility ?? EnvironmentVariableVisibility.Public;
+
     return {
       name,
       value,
       environment,
-      visibility,
+      visibility: newVisibility,
       link: rest.link ?? false,
       force: rest.force ?? false,
       scope: rest.scope ?? EnvironmentVariableScope.Project,
       'non-interactive': nonInteractive,
       type: newType,
+      fileName,
       ...rest,
     };
   }
 
-  private validateFlags(flags: CreateFlags & { type?: string }): CreateFlags {
+  private validateFlags(flags: CreateFlags & { type?: string; visibility?: string }): CreateFlags {
     if (flags.scope !== EnvironmentVariableScope.Shared && flags.link) {
       throw new Error(
-        `Unexpected argument: --link can only be used when creating  shared variables`
+        `Unexpected argument: --link can only be used when creating shared variables`
       );
     }
 

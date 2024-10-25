@@ -25,7 +25,7 @@ describe(EnvironmentVariableLink, () => {
   const graphqlClient = {};
   const mockConfig = {} as unknown as Config;
   const mockContext = {
-    privateProjectConfig: { projectId },
+    projectId,
     loggedIn: { graphqlClient },
   };
 

@@ -34,7 +34,7 @@ export default class EnvironmentVariableLink extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -48,7 +48,7 @@ export default class EnvironmentVariableLink extends EasCommand {
       },
     } = await this.parse(EnvironmentVariableLink);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentVariableLink, {
       nonInteractive,
@@ -64,6 +64,11 @@ export default class EnvironmentVariableLink extends EasCommand {
     let selectedVariable = variables[0];
 
     if (variables.length > 1) {
+      if (nonInteractive) {
+        throw new Error(
+          'Multiple variables found, run command with --variable-name and --variable-environment arguments.'
+        );
+      }
       selectedVariable = await selectAsync(
         'Select shared variable',
         variables.map(variable => ({

@@ -12,11 +12,29 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [12.6.1](https://github.com/expo/eas-cli/releases/tag/v12.6.1) - 2024-10-25
+
+### 🧹 Chores
+
+- Create dynamic logged in context field and clean up erroneous SessionManager context field uses. ([#2648](https://github.com/expo/eas-cli/pull/2648) by [@wschurman](https://github.com/wschurman))
+
+## [12.6.0](https://github.com/expo/eas-cli/releases/tag/v12.6.0) - 2024-10-21
+
+### 🎉 New features
+
+- Add `eas channel:pause` and `eas channel:resume` commands to pause/resume update delivery to builds using specific update channels and display paused status in channel details output. ([#2614](https://github.com/expo/eas-cli/pull/2614) by [@fiberjw](https://github.com/fiberjw))
+- Add interactivity to eas update:edit command. ([#2638](https://github.com/expo/eas-cli/pull/2638) by [@wschurman](https://github.com/wschurman))
+
+## [12.5.4](https://github.com/expo/eas-cli/releases/tag/v12.5.4) - 2024-10-19
+
+## [12.5.3](https://github.com/expo/eas-cli/releases/tag/v12.5.3) - 2024-10-16
+
 ## [12.5.2](https://github.com/expo/eas-cli/releases/tag/v12.5.2) - 2024-10-11
 
 ### 🐛 Bug fixes
 
 - Disallow republishing an update that is being rolled-out. ([#2602](https://github.com/expo/eas-cli/pull/2602) by [@wschurman](https://github.com/wschurman))
+- Bump `@expo/apple-utils` to `2.0.2` resolving the Apple authentication error. ([#2641](https://github.com/expo/eas-cli/pull/2641) by [@byCedric](https://github.com/byCedric))
 
 ### 🧹 Chores
 

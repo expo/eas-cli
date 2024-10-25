@@ -61,7 +61,7 @@ describe(EnvironmentVariableList, () => {
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
       loggedIn: { graphqlClient },
-      privateProjectConfig: { projectId: testProjectId },
+      projectId: testProjectId,
     });
     await command.runAsync();
 
@@ -82,7 +82,7 @@ describe(EnvironmentVariableList, () => {
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
       loggedIn: { graphqlClient },
-      privateProjectConfig: { projectId: testProjectId },
+      projectId: testProjectId,
     });
     await command.runAsync();
 
@@ -105,7 +105,7 @@ describe(EnvironmentVariableList, () => {
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
       loggedIn: { graphqlClient },
-      privateProjectConfig: { projectId: testProjectId },
+      projectId: testProjectId,
     });
     await command.runAsync();
 
@@ -129,7 +129,7 @@ describe(EnvironmentVariableList, () => {
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
       loggedIn: { graphqlClient },
-      privateProjectConfig: { projectId: testProjectId },
+      projectId: testProjectId,
     });
     await command.runAsync();
 
@@ -155,7 +155,7 @@ describe(EnvironmentVariableList, () => {
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
       loggedIn: { graphqlClient },
-      privateProjectConfig: { projectId: testProjectId },
+      projectId: testProjectId,
     });
     await command.runAsync();
 

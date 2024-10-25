@@ -1,4 +1,4 @@
-import { ExpoConfig } from '@expo/config-types';
+import { ExpoConfig } from '@expo/config';
 import { SubmitProfile } from '@expo/eas-json';
 import fs from 'fs-extra';
 import path from 'path';

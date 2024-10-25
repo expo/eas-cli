@@ -1,4 +1,4 @@
-import { ExpoConfig } from '@expo/config-types';
+import { ExpoConfig } from '@expo/config';
 import { AppVersionSource, EasJson } from '@expo/eas-json';
 import { Command, Config } from '@oclif/core';
 import { vol } from 'memfs';

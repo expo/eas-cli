@@ -34,7 +34,7 @@ export default class DeviceDelete extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -43,7 +43,7 @@ export default class DeviceDelete extends EasCommand {
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     let { 'apple-team-id': appleTeamIdentifier, udid } = flags;
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(DeviceDelete, {
       nonInteractive: paginatedQueryOptions.nonInteractive,

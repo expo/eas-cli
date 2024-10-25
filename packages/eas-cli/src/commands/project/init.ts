@@ -1,5 +1,4 @@
-import { ConfigError, getProjectConfigDescription } from '@expo/config';
-import { ExpoConfig } from '@expo/config-types';
+import { ConfigError, ExpoConfig, getProjectConfigDescription } from '@expo/config';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';

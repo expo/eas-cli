@@ -1,18 +1,17 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "12.5.2",
+  "version": "12.6.1",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
   },
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@expo/apple-utils": "1.8.0",
+    "@expo/apple-utils": "2.0.2",
     "@expo/code-signing-certificates": "0.0.5",
     "@expo/config": "8.5.4",
     "@expo/config-plugins": "7.8.4",
-    "@expo/config-types": "50.0.0",
     "@expo/eas-build-job": "1.0.136",
     "@expo/eas-json": "12.5.2",
     "@expo/env": "^0.3.0",

@@ -13,6 +13,7 @@ import { EnvironmentVariableMutation } from '../../../graphql/mutations/Environm
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import {
+  parseVisibility,
   promptVariableEnvironmentAsync,
   promptVariableNameAsync,
   promptVariableTypeAsync,
@@ -33,6 +34,10 @@ describe(EnvironmentVariableCreate, () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    jest
+      .mocked(parseVisibility)
+      .mockImplementation(jest.requireActual('../../../utils/prompts').parseVisibility);
+
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
     jest
       .mocked(EnvironmentVariableMutation.createForAppAsync)
@@ -70,14 +75,23 @@ describe(EnvironmentVariableCreate, () => {
   describe('in interactive mode', () => {
     it('creates a project variable', async () => {
       const command = new EnvironmentVariableCreate(
-        ['--name', 'VarName', '--value', 'VarValue', '--environment', 'production'],
+        [
+          '--name',
+          'VarName',
+          '--value',
+          'VarValue',
+          '--environment',
+          'production',
+          '--visibility',
+          'encrypted',
+        ],
         mockConfig
       );
 
       // @ts-expect-error
       jest.spyOn(command, 'getContextAsync').mockReturnValue({
         loggedIn: { graphqlClient },
-        privateProjectConfig: { projectId: testProjectId },
+        projectId: testProjectId,
       });
 
       await command.runAsync();
@@ -88,7 +102,7 @@ describe(EnvironmentVariableCreate, () => {
           name: 'VarName',
           value: 'VarValue',
           environments: [EnvironmentVariableEnvironment.Production],
-          visibility: EnvironmentVariableVisibility.Public,
+          visibility: EnvironmentVariableVisibility.Secret,
           type: EnvironmentSecretType.String,
         },
         testProjectId
@@ -97,14 +111,23 @@ describe(EnvironmentVariableCreate, () => {
 
     it('updates an existing variable in the same environment', async () => {
       const command = new EnvironmentVariableCreate(
-        ['--name', 'VarName', '--value', 'VarValue', '--environment', 'production'],
+        [
+          '--name',
+          'VarName',
+          '--value',
+          'VarValue',
+          '--environment',
+          'production',
+          '--visibility',
+          'encrypted',
+        ],
         mockConfig
       );
 
       // @ts-expect-error
       jest.spyOn(command, 'getContextAsync').mockReturnValue({
         loggedIn: { graphqlClient },
-        privateProjectConfig: { projectId: testProjectId },
+        projectId: testProjectId,
       });
 
       const otherVariableId = 'otherId';
@@ -144,7 +167,7 @@ describe(EnvironmentVariableCreate, () => {
         name: 'VarName',
         value: 'VarValue',
         environments: [EnvironmentVariableEnvironment.Production],
-        visibility: EnvironmentVariableVisibility.Public,
+        visibility: EnvironmentVariableVisibility.Secret,
       });
     });
 
@@ -286,7 +309,7 @@ describe(EnvironmentVariableCreate, () => {
       // @ts-expect-error
       jest.spyOn(command, 'getContextAsync').mockReturnValue({
         loggedIn: { graphqlClient },
-        privateProjectConfig: { projectId: testProjectId },
+        projectId: testProjectId,
       });
 
       await command.runAsync();
@@ -336,7 +359,7 @@ describe(EnvironmentVariableCreate, () => {
       // @ts-expect-error
       jest.spyOn(command, 'getContextAsync').mockReturnValue({
         loggedIn: { graphqlClient },
-        privateProjectConfig: { projectId: testProjectId },
+        projectId: testProjectId,
       });
 
       await command.runAsync();

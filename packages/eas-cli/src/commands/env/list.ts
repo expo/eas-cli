@@ -71,7 +71,7 @@ export default class EnvironmentValueList extends EasCommand {
   static override hidden = true;
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -101,7 +101,7 @@ export default class EnvironmentValueList extends EasCommand {
       },
     } = await this.parse(EnvironmentValueList);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentValueList, {
       nonInteractive: true,
@@ -122,7 +122,12 @@ export default class EnvironmentValueList extends EasCommand {
 
       Log.addNewLineIfNone();
       if (environment) {
-        Log.log(chalk.bold(`Environment: ${environment}`));
+        Log.log(chalk.bold(`Environment: ${environment.toLocaleLowerCase()}`));
+      }
+
+      if (variables.length === 0) {
+        Log.log('No variables found for this environment.');
+        return;
       }
 
       if (format === 'short') {

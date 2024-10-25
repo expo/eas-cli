@@ -12,6 +12,7 @@ import {
   DynamicPublicProjectConfigContextField,
 } from '../../../commandUtils/context/DynamicProjectConfigContextField';
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
+import { ServerSideEnvironmentVariablesContextField } from '../../../commandUtils/context/ServerSideEnvironmentVariablesContextField';
 import VcsClientContextField from '../../../commandUtils/context/VcsClientContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
@@ -233,6 +234,11 @@ function mockTestProject({
       };
     });
   jest
+    .spyOn(ServerSideEnvironmentVariablesContextField.prototype, 'getValueAsync')
+    .mockResolvedValue(async () => {
+      return {};
+    });
+  jest
     .spyOn(DynamicPublicProjectConfigContextField.prototype, 'getValueAsync')
     .mockResolvedValue(async () => {
       const exp = {
@@ -254,6 +260,7 @@ function mockTestProject({
     actor: jester,
     featureGating: new FeatureGating({}, new FeatureGateEnvOverrides()),
     graphqlClient,
+    authenticationInfo: { accessToken: null, sessionSecret: '1234' },
   });
   jest
     .spyOn(VcsClientContextField.prototype, 'getValueAsync')

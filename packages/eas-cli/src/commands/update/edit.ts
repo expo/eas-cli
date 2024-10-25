@@ -2,12 +2,14 @@ import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 
+import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
+import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 import {
   formatUpdateGroup,
   getUpdateGroupDescriptions,
@@ -17,12 +19,10 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class UpdateEdit extends EasCommand {
   static override description = 'edit all the updates in an update group';
-  static override hidden = true;
 
   static override args = [
     {
       name: 'groupId',
-      required: true,
       description: 'The ID of an update group to edit.',
     },
   ];
@@ -34,29 +34,72 @@ export default class UpdateEdit extends EasCommand {
       min: 0,
       max: 100,
     }),
+    branch: Flags.string({
+      description: 'Branch for which to list updates to select from',
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
     const {
-      args: { groupId },
+      args: { groupId: maybeGroupId },
       flags: {
         'rollout-percentage': rolloutPercentage,
         json: jsonFlag,
         'non-interactive': nonInteractive,
+        branch: branchFlag,
       },
     } = await this.parse(UpdateEdit);
 
     const {
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(UpdateEdit, { nonInteractive });
 
     if (jsonFlag) {
       enableJsonOutput();
+    }
+
+    let groupId: string | undefined = maybeGroupId;
+    if (!groupId) {
+      let branch = branchFlag;
+      if (!branch) {
+        const validationMessage = 'Branch name may not be empty.';
+        if (nonInteractive) {
+          throw new Error(validationMessage);
+        }
+
+        const selectedBranch = await selectBranchOnAppAsync(graphqlClient, {
+          projectId,
+          promptTitle: 'On which branch would you like search for an update to edit?',
+          displayTextForListItem: updateBranch => ({
+            title: updateBranch.name,
+          }),
+          paginatedQueryOptions: {
+            json: jsonFlag,
+            nonInteractive,
+            offset: 0,
+          },
+        });
+
+        branch = selectedBranch.name;
+      }
+
+      const selectedUpdateGroup = await selectUpdateGroupOnBranchAsync(graphqlClient, {
+        projectId,
+        branchName: branch,
+        paginatedQueryOptions: {
+          json: jsonFlag,
+          nonInteractive,
+          offset: 0,
+        },
+      });
+      groupId = selectedUpdateGroup[0].group;
     }
 
     const proposedUpdatesToEdit = (

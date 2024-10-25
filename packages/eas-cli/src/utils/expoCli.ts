@@ -1,4 +1,4 @@
-import { ExpoConfig } from '@expo/config-types';
+import { ExpoConfig } from '@expo/config';
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import { boolish } from 'getenv';
@@ -80,7 +80,10 @@ export const shouldUseVersionedExpoCLIWithExplicitPlatforms = memoize(
 export async function expoCommandAsync(
   projectDir: string,
   args: string[],
-  { silent = false }: { silent?: boolean } = {}
+  {
+    silent = false,
+    extraEnv = {},
+  }: { silent?: boolean; extraEnv?: Record<string, string | undefined> } = {}
 ): Promise<void> {
   let expoCliPath;
   try {
@@ -99,6 +102,10 @@ export async function expoCommandAsync(
 
   const spawnPromise = spawnAsync(expoCliPath, args, {
     stdio: ['inherit', 'pipe', 'pipe'], // inherit stdin so user can install a missing expo-cli from inside this command
+    env: {
+      ...process.env,
+      ...extraEnv,
+    },
   });
   const {
     child: { stdout, stderr },

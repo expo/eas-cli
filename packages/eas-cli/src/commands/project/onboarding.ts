@@ -1,4 +1,4 @@
-import { ExpoConfig } from '@expo/config-types';
+import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { AppVersionSource, EasJson } from '@expo/eas-json';
 import chalk from 'chalk';

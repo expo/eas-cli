@@ -1,33 +1,32 @@
-import { ExpoConfig } from '@expo/config';
-
 import ContextField, { ContextOptions } from './ContextField';
 import { createGraphqlClient } from './contextUtils/createGraphqlClient';
 import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
 import { loadServerSideEnvironmentVariablesAsync } from './contextUtils/loadServerSideEnvironmentVariablesAsync';
-import { getPrivateExpoConfig } from '../../project/expoConfig';
+import { getPublicExpoConfig } from '../../project/expoConfig';
 
-export class PrivateProjectConfigContextField extends ContextField<{
-  projectId: string;
-  exp: ExpoConfig;
-  projectDir: string;
-}> {
+type GetServerSideEnvironmentVariablesFn = (
+  maybeEnv?: Record<string, string>
+) => Promise<Record<string, string>>;
+
+export class ServerSideEnvironmentVariablesContextField extends ContextField<GetServerSideEnvironmentVariablesFn> {
   async getValueAsync({
     nonInteractive,
     sessionManager,
     withServerSideEnvironment,
-  }: ContextOptions): Promise<{
-    projectId: string;
-    exp: ExpoConfig;
-    projectDir: string;
-  }> {
+  }: ContextOptions): Promise<GetServerSideEnvironmentVariablesFn> {
     const projectDir = await findProjectDirAndVerifyProjectSetupAsync();
-    const expBefore = getPrivateExpoConfig(projectDir);
-    const projectId = await getProjectIdAsync(sessionManager, expBefore, {
-      nonInteractive,
-    });
-    let serverSideEnvVars: Record<string, string> | undefined;
-    if (withServerSideEnvironment) {
+    return async (maybeEnv?: Record<string, string>) => {
+      if (!withServerSideEnvironment) {
+        throw new Error(
+          'withServerSideEnvironment parameter is required to evaluate ServerSideEnvironmentVariablesContextField'
+        );
+      }
+      const exp = getPublicExpoConfig(projectDir, { env: maybeEnv });
+      const projectId = await getProjectIdAsync(sessionManager, exp, {
+        nonInteractive,
+        env: maybeEnv,
+      });
       const { authenticationInfo } = await sessionManager.ensureLoggedInAsync({
         nonInteractive,
       });
@@ -37,14 +36,7 @@ export class PrivateProjectConfigContextField extends ContextField<{
         projectId,
         graphqlClient,
       });
-      serverSideEnvVars = serverSideEnvironmentVariables;
-    }
-    const exp = getPrivateExpoConfig(projectDir, { env: serverSideEnvVars });
-
-    return {
-      projectId,
-      exp,
-      projectDir,
+      return serverSideEnvironmentVariables;
     };
   }
 }

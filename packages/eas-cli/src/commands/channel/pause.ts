@@ -3,40 +3,32 @@ import chalk from 'chalk';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { selectBranchOnAppAsync } from '../../branch/queries';
-import {
-  getAlwaysTrueBranchMapping,
-  hasEmptyBranchMap,
-  hasStandardBranchMap,
-} from '../../channel/branch-mapping';
 import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { withErrorHandlingAsync } from '../../graphql/client';
 import {
+  PauseUpdateChannelMutation,
+  PauseUpdateChannelMutationVariables,
   UpdateChannelBasicInfoFragment,
-  UpdateChannelBranchMappingMutation,
-  UpdateChannelBranchMappingMutationVariables,
 } from '../../graphql/generated';
-import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import { UpdateChannelBasicInfoFragmentNode } from '../../graphql/types/UpdateChannelBasicInfo';
 import Log from '../../log';
-import { isRollout } from '../../rollout/branch-mapping';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-export async function updateChannelBranchMappingAsync(
+export async function pauseUpdateChannelAsync(
   graphqlClient: ExpoGraphqlClient,
-  { channelId, branchMapping }: UpdateChannelBranchMappingMutationVariables
+  { channelId }: PauseUpdateChannelMutationVariables
 ): Promise<UpdateChannelBasicInfoFragment> {
   const data = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<UpdateChannelBranchMappingMutation, UpdateChannelBranchMappingMutationVariables>(
+      .mutation<PauseUpdateChannelMutation, PauseUpdateChannelMutationVariables>(
         gql`
-          mutation UpdateChannelBranchMapping($channelId: ID!, $branchMapping: String!) {
+          mutation PauseUpdateChannel($channelId: ID!) {
             updateChannel {
-              editUpdateChannel(channelId: $channelId, branchMapping: $branchMapping) {
+              pauseUpdateChannel(channelId: $channelId) {
                 id
                 ...UpdateChannelBasicInfoFragment
               }
@@ -44,19 +36,19 @@ export async function updateChannelBranchMappingAsync(
           }
           ${print(UpdateChannelBasicInfoFragmentNode)}
         `,
-        { channelId, branchMapping }
+        { channelId }
       )
       .toPromise()
   );
-  const channel = data.updateChannel.editUpdateChannel;
+  const channel = data.updateChannel.pauseUpdateChannel;
   if (!channel) {
     throw new Error(`Could not find a channel with id: ${channelId}`);
   }
   return channel;
 }
 
-export default class ChannelEdit extends EasCommand {
-  static override description = 'point a channel at a new branch';
+export default class ChannelPause extends EasCommand {
+  static override description = 'pause a channel to stop it from sending updates';
 
   static override args = [
     {
@@ -81,12 +73,12 @@ export default class ChannelEdit extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       args,
-      flags: { branch: branchFlag, json, 'non-interactive': nonInteractive },
-    } = await this.parse(ChannelEdit);
+      flags: { json, 'non-interactive': nonInteractive },
+    } = await this.parse(ChannelPause);
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(ChannelEdit, {
+    } = await this.getContextAsync(ChannelPause, {
       nonInteractive,
     });
     if (json) {
@@ -104,42 +96,17 @@ export default class ChannelEdit extends EasCommand {
           paginatedQueryOptions: { json, nonInteractive, offset: 0 },
         });
 
-    if (isRollout(existingChannel)) {
-      throw new Error('There is a rollout in progress. Manage it with "channel:rollout" instead.');
-    } else if (!hasStandardBranchMap(existingChannel) && !hasEmptyBranchMap(existingChannel)) {
-      throw new Error('Only standard branch mappings can be edited with this command.');
-    }
-
-    const branch = branchFlag
-      ? await BranchQuery.getBranchByNameAsync(graphqlClient, {
-          appId: projectId,
-          name: branchFlag,
-        })
-      : await selectBranchOnAppAsync(graphqlClient, {
-          projectId,
-          promptTitle: `Which branch would you like ${existingChannel.name} to point at?`,
-          displayTextForListItem: updateBranch => ({ title: updateBranch.name }),
-          paginatedQueryOptions: {
-            json,
-            nonInteractive,
-            offset: 0,
-          },
-        });
-
-    const channel = await updateChannelBranchMappingAsync(graphqlClient, {
+    const channel = await pauseUpdateChannelAsync(graphqlClient, {
       channelId: existingChannel.id,
-      branchMapping: JSON.stringify(getAlwaysTrueBranchMapping(branch.id)),
     });
 
     if (json) {
       printJsonOnlyOutput(channel);
     } else {
-      Log.withTick(
-        chalk`Channel {bold ${channel.name}} is now set to branch {bold ${branch.name}}.\n`
-      );
+      Log.withTick(chalk`Channel {bold ${channel.name}} is now paused.\n`);
       Log.addNewLineIfNone();
       Log.log(
-        chalk`Users with builds on channel {bold ${channel.name}} will now receive the active update on {bold ${branch.name}}.`
+        chalk`Users with builds on channel {bold ${channel.name}} will no longer receive updates.`
       );
     }
   }

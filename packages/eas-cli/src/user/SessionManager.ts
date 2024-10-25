@@ -41,7 +41,7 @@ type SecondFactorDevice = {
   is_primary: boolean;
 };
 
-type LoggedInAuthenticationInfo =
+export type LoggedInAuthenticationInfo =
   | {
       accessToken: string;
       sessionSecret: null;

@@ -79,7 +79,7 @@ export default class BranchDelete extends EasCommand {
   static override description = 'delete a branch';
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -108,7 +108,7 @@ export default class BranchDelete extends EasCommand {
     }
 
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchDelete, { nonInteractive });
     const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
