@@ -47,7 +47,7 @@ describe(EnvironmentVariableGet, () => {
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
       loggedIn: { graphqlClient },
-      privateProjectConfig: { projectId: testProjectId },
+      projectId: testProjectId,
     });
 
     await command.runAsync();
