@@ -663,7 +663,7 @@ export default class UpdatePublish extends EasCommand {
 
     if (
       flags['with-eas-environment-variables-set'] &&
-      Object.values(EnvironmentVariableEnvironment).includes(
+      !Object.values(EnvironmentVariableEnvironment).includes(
         flags['with-eas-environment-variables-set'] as EnvironmentVariableEnvironment
       )
     ) {
@@ -684,7 +684,7 @@ export default class UpdatePublish extends EasCommand {
       updateMessage,
       inputDir: flags['input-dir'],
       skipBundler,
-      clearCache: flags['clear-cache'],
+      clearCache: flags['clear-cache'] ? true : !!flags['with-eas-environment-variables-set'],
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
       rolloutPercentage: flags['rollout-percentage'],

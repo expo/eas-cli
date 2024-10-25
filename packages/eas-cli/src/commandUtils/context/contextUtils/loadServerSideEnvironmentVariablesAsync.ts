@@ -60,6 +60,8 @@ export async function loadServerSideEnvironmentVariablesAsync({
         .join(', ')}. `
     );
   }
+  Log.newLine();
+
   cachedServerSideEnvironmentVariables[environment] = serverEnvVars;
 
   return serverEnvVars;
