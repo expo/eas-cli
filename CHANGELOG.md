@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [12.6.1](https://github.com/expo/eas-cli/releases/tag/v12.6.1) - 2024-10-25
+
+### 🧹 Chores
+
 - Create dynamic logged in context field and clean up erroneous SessionManager context field uses. ([#2648](https://github.com/expo/eas-cli/pull/2648) by [@wschurman](https://github.com/wschurman))
 
 ## [12.6.0](https://github.com/expo/eas-cli/releases/tag/v12.6.0) - 2024-10-21
