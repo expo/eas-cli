@@ -124,9 +124,9 @@ export default class EnvironmentVariablePull extends EasCommand {
     if (skippedSecretVariables.length > 0) {
       Log.addNewLineIfNone();
       Log.warn(
-        `The following variables have the encrypted visibility and were added to .env.local as variables without values: ${skippedSecretVariables.join(
+        `The following variables have the encrypted visibility and can not be read outside of EAS servers. Set their values manually in .env.local: ${skippedSecretVariables.join(
           '\n'
-        )}.`
+        )}`
       );
     }
   }
