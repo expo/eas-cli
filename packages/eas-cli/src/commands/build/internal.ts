@@ -64,6 +64,7 @@ export default class BuildInternal extends EasCommand {
     } = await this.getContextAsync(BuildInternal, {
       nonInteractive: true,
       vcsClientOverride: new GitNoCommitClient(),
+      withServerSideEnvironment: null,
     });
 
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);

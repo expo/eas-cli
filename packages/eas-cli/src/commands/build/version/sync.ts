@@ -73,6 +73,7 @@ export default class BuildVersionSyncView extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(BuildVersionSyncView, {
       nonInteractive: true,
+      withServerSideEnvironment: null,
     });
 
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);

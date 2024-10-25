@@ -12,6 +12,7 @@ import {
   DynamicPublicProjectConfigContextField,
 } from '../../../commandUtils/context/DynamicProjectConfigContextField';
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
+import { ServerSideEnvironmentVariablesContextField } from '../../../commandUtils/context/ServerSideEnvironmentVariablesContextField';
 import VcsClientContextField from '../../../commandUtils/context/VcsClientContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
@@ -231,6 +232,11 @@ function mockTestProject({
         projectDir: projectRoot,
         projectId: configuredProjectId,
       };
+    });
+  jest
+    .spyOn(ServerSideEnvironmentVariablesContextField.prototype, 'getValueAsync')
+    .mockResolvedValue(async () => {
+      return {};
     });
   jest
     .spyOn(DynamicPublicProjectConfigContextField.prototype, 'getValueAsync')

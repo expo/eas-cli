@@ -39,6 +39,7 @@ export default class InitializeBuildCredentials extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(InitializeBuildCredentials, {
       nonInteractive: false,
+      withServerSideEnvironment: null,
     });
 
     const platform = await selectPlatformAsync(flags.platform);

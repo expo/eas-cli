@@ -117,7 +117,7 @@ export default class WorkerDeploy extends EasCommand {
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
       projectDir,
-    } = await this.getContextAsync(WorkerDeploy, flags);
+    } = await this.getContextAsync(WorkerDeploy, { ...flags, withServerSideEnvironment: null });
 
     const projectDist = await resolveExportedProjectAsync(flags, projectDir);
     const { projectId } = await getDynamicPrivateProjectConfigAsync();
