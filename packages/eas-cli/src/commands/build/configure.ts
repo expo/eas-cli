@@ -38,6 +38,7 @@ export default class BuildConfigure extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(BuildConfigure, {
       nonInteractive: false,
+      withServerSideEnvironment: null,
     });
 
     Log.log(

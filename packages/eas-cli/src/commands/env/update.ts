@@ -80,7 +80,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.Analytics,
     ...this.ContextOptions.LoggedIn,
   };
@@ -100,7 +100,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     } = this.validateFlags(flags);
 
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentVariableUpdate, {
       nonInteractive,

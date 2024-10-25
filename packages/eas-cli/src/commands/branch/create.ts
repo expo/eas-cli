@@ -25,7 +25,7 @@ export default class BranchCreate extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.Vcs,
   };
@@ -36,7 +36,7 @@ export default class BranchCreate extends EasCommand {
       flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(BranchCreate);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
       vcsClient,
     } = await this.getContextAsync(BranchCreate, {

@@ -35,7 +35,7 @@ export default class DeviceRename extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -44,7 +44,7 @@ export default class DeviceRename extends EasCommand {
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     let { 'apple-team-id': appleTeamIdentifier, udid, name } = flags;
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(DeviceRename, {
       nonInteractive: paginatedQueryOptions.nonInteractive,

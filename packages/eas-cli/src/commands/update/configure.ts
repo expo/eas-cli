@@ -38,6 +38,7 @@ export default class UpdateConfigure extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(UpdateConfigure, {
       nonInteractive: flags['non-interactive'],
+      withServerSideEnvironment: null,
     });
 
     Log.log(

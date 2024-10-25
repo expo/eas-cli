@@ -71,7 +71,7 @@ export default class EnvironmentValueList extends EasCommand {
   static override hidden = true;
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -101,7 +101,7 @@ export default class EnvironmentValueList extends EasCommand {
       },
     } = await this.parse(EnvironmentValueList);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentValueList, {
       nonInteractive: true,

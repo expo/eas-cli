@@ -33,7 +33,7 @@ export default class UpdateList extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -41,7 +41,7 @@ export default class UpdateList extends EasCommand {
     const { flags } = await this.parse(UpdateList);
     const { branch: branchFlag, all, json: jsonFlag, 'non-interactive': nonInteractive } = flags;
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(UpdateList, {
       nonInteractive,

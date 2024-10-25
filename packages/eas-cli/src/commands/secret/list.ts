@@ -13,13 +13,13 @@ export default class EnvironmentSecretList extends EasCommand {
   static override description = 'list environment secrets available for your current app';
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentSecretList, {
       nonInteractive: true,

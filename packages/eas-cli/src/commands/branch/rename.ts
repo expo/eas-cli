@@ -63,7 +63,7 @@ export default class BranchRename extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectConfig,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -72,7 +72,7 @@ export default class BranchRename extends EasCommand {
       flags: { json: jsonFlag, from: currentName, to: newName, 'non-interactive': nonInteractive },
     } = await this.parse(BranchRename);
     const {
-      privateProjectConfig: { projectId },
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchRename, {
       nonInteractive,
