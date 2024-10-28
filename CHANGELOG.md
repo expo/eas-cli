@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Make email case insensitive during Apple authentication.
+
 ### 🧹 Chores
 
 ## [12.6.1](https://github.com/expo/eas-cli/releases/tag/v12.6.1) - 2024-10-25
