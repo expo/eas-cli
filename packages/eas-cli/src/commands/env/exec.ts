@@ -3,7 +3,7 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EASNonInteractiveFlag } from '../../commandUtils/flags';
+import { EASEnvironmentArg, EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { EnvironmentVariableEnvironment } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
@@ -42,12 +42,7 @@ export default class EnvExec extends EasCommand {
   };
 
   static override args = [
-    {
-      name: 'environment',
-      description:
-        "Environment to pull variables from. One of 'production', 'preview', or 'development'.",
-      required: true,
-    },
+    EASEnvironmentArg,
     {
       name: 'BASH_COMMAND',
       required: true,

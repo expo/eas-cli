@@ -4,7 +4,11 @@ import * as fs from 'fs-extra';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
+import {
+  EASEnvironmentArg,
+  EASEnvironmentFlag,
+  EASNonInteractiveFlag,
+} from '../../commandUtils/flags';
 import {
   EnvironmentSecretType,
   EnvironmentVariableEnvironment,
@@ -29,14 +33,7 @@ export default class EnvironmentVariablePull extends EasCommand {
     ...this.ContextOptions.ProjectDir,
   };
 
-  static override args = [
-    {
-      name: 'environment',
-      description:
-        "Environment to pull variables from. One of 'production', 'preview', or 'development'.",
-      required: false,
-    },
-  ];
+  static override args = [EASEnvironmentArg];
 
   static override flags = {
     ...EASNonInteractiveFlag,

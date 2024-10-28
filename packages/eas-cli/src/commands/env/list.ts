@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
+  EASEnvironmentArg,
   EASMultiEnvironmentFlag,
   EASVariableFormatFlag,
   EASVariableScopeFlag,
@@ -89,14 +90,7 @@ export default class EnvironmentValueList extends EasCommand {
     ...EASVariableScopeFlag,
   };
 
-  static override args = [
-    {
-      name: 'environment',
-      description:
-        "Environment to list variables from. One of 'production', 'preview', or 'development'.",
-      required: false,
-    },
-  ];
+  static override args = [EASEnvironmentArg];
 
   async runAsync(): Promise<void> {
     let {
