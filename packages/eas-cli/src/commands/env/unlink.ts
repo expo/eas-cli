@@ -2,7 +2,11 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASMultiEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
+import {
+  EASEnvironmentArg,
+  EASMultiEnvironmentFlag,
+  EASNonInteractiveFlag,
+} from '../../commandUtils/flags';
 import { EnvironmentVariableEnvironment } from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
@@ -30,8 +34,11 @@ export default class EnvironmentVariableUnlink extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
+  static override args = [EASEnvironmentArg];
+
   async runAsync(): Promise<void> {
     let {
+      args: { environment },
       flags: {
         'variable-name': name,
         'non-interactive': nonInteractive,
@@ -71,6 +78,12 @@ export default class EnvironmentVariableUnlink extends EasCommand {
     }
 
     let explicitSelect = false;
+
+    unlinkEnvironments = unlinkEnvironments
+      ? unlinkEnvironments
+      : environment
+        ? [environment.toUpperCase()]
+        : undefined;
 
     if (!nonInteractive && !unlinkEnvironments) {
       const selectedEnvironments =
