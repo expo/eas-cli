@@ -5,6 +5,7 @@ import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
+  EASEnvironmentArg,
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableScopeFlag,
@@ -52,6 +53,8 @@ export default class EnvironmentVariableCreate extends EasCommand {
 
   static override hidden = true;
 
+  static override args = [EASEnvironmentArg];
+
   static override flags = {
     name: Flags.string({
       description: 'Name of the variable',
@@ -83,7 +86,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(EnvironmentVariableCreate);
+    const { args, flags } = await this.parse(EnvironmentVariableCreate);
 
     const validatedFlags = this.validateFlags(flags);
 
@@ -98,7 +101,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
       force,
       type,
       fileName,
-    } = await this.promptForMissingFlagsAsync(validatedFlags);
+    } = await this.promptForMissingFlagsAsync(validatedFlags, args);
 
     const {
       projectId,
@@ -293,15 +296,18 @@ export default class EnvironmentVariableCreate extends EasCommand {
     }
   }
 
-  private async promptForMissingFlagsAsync({
-    name,
-    value,
-    environment,
-    visibility,
-    'non-interactive': nonInteractive,
-    type,
-    ...rest
-  }: CreateFlags): Promise<
+  private async promptForMissingFlagsAsync(
+    {
+      name,
+      value,
+      environment: environments,
+      visibility,
+      'non-interactive': nonInteractive,
+      type,
+      ...rest
+    }: CreateFlags,
+    { environment }: { environment?: string }
+  ): Promise<
     Required<
       Omit<CreateFlags, 'type' | 'visibility'> & {
         type: EnvironmentSecretType | undefined;
@@ -351,10 +357,16 @@ export default class EnvironmentVariableCreate extends EasCommand {
 
     value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
 
-    if (!environment) {
-      environment = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
+    let newEnvironments = environments
+      ? environments
+      : environment
+        ? [environment.toUpperCase() as EnvironmentVariableEnvironment]
+        : undefined;
 
-      if (!environment || environment.length === 0) {
+    if (!newEnvironments) {
+      newEnvironments = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
+
+      if (!newEnvironments || newEnvironments.length === 0) {
         throw new Error('No environments selected');
       }
     }
@@ -364,7 +376,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
     return {
       name,
       value,
-      environment,
+      environment: newEnvironments,
       visibility: newVisibility,
       link: rest.link ?? false,
       force: rest.force ?? false,
