@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASMultiEnvironmentFlag } from '../../commandUtils/flags';
+import { EASEnvironmentArg, EASMultiEnvironmentFlag } from '../../commandUtils/flags';
 import {
   EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
@@ -38,8 +38,11 @@ export default class EnvironmentVariablePush extends EasCommand {
     }),
   };
 
+  static override args = [EASEnvironmentArg];
+
   async runAsync(): Promise<void> {
     let {
+      args: { environment },
       flags: { environment: environments, path: envPath },
     } = await this.parse(EnvironmentVariablePush);
 
@@ -49,6 +52,12 @@ export default class EnvironmentVariablePush extends EasCommand {
     } = await this.getContextAsync(EnvironmentVariablePush, {
       nonInteractive: false,
     });
+
+    environments = environments
+      ? environments
+      : environment
+        ? [environment.toUpperCase()]
+        : undefined;
 
     if (!environments) {
       environments = await promptVariableEnvironmentAsync({
