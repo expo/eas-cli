@@ -84,16 +84,26 @@ export default class EnvironmentValueList extends EasCommand {
       description: 'Display files content in the output',
       default: false,
     }),
+    ...EASMultiEnvironmentFlag,
     ...EASVariableFormatFlag,
     ...EASVariableScopeFlag,
-    ...EASMultiEnvironmentFlag,
   };
+
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Environment to list variables from. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
 
   async runAsync(): Promise<void> {
     let {
+      args: { environment },
       flags: {
-        environment: environments,
         format,
+        environment: environments,
         scope,
         'include-sensitive': includeSensitive,
         'include-file-content': includeFileContent,
@@ -106,6 +116,12 @@ export default class EnvironmentValueList extends EasCommand {
     } = await this.getContextAsync(EnvironmentValueList, {
       nonInteractive: true,
     });
+
+    environments = environments
+      ? environments
+      : environment
+        ? [environment.toUpperCase()]
+        : undefined;
 
     if (!environments) {
       environments = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
