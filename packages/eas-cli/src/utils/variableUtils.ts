@@ -10,6 +10,12 @@ import {
 } from '../graphql/generated';
 import { EnvironmentVariableWithFileContent } from '../graphql/queries/EnvironmentVariablesQuery';
 
+export function isEnvironment(environment: string): environment is EnvironmentVariableEnvironment {
+  return Object.values(EnvironmentVariableEnvironment).includes(
+    environment as EnvironmentVariableEnvironment
+  );
+}
+
 export function formatVariableName(variable: EnvironmentVariableFragment): string {
   const name = variable.name;
   const scope = variable.scope === EnvironmentVariableScope.Project ? 'project' : 'shared';
