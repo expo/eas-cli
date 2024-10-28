@@ -6,6 +6,7 @@ import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
+  EASEnvironmentArg,
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableScopeFlag,
@@ -79,6 +80,8 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
+  static override args = [EASEnvironmentArg];
+
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.Analytics,
@@ -86,18 +89,23 @@ export default class EnvironmentVariableUpdate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(EnvironmentVariableUpdate);
+    const {
+      args: { environment },
+      flags,
+    } = await this.parse(EnvironmentVariableUpdate);
     const {
       name,
       value: rawValue,
       scope,
       'variable-name': currentName,
-      'variable-environment': currentEnvironment,
+      'variable-environment': variableEnvironment,
       'non-interactive': nonInteractive,
       environment: environments,
       type,
       visibility,
     } = this.validateFlags(flags);
+
+    const currentEnvironment = variableEnvironment?.toUpperCase() ?? environment?.toUpperCase();
 
     const {
       projectId,
