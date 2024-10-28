@@ -110,6 +110,10 @@ export async function prepareJobAsync(
       },
     }),
     loggerLevel: ctx.loggerLevel,
+    // Technically, these are unused, but let's include them here for type consistency.
+    // See: https://github.com/expo/eas-build/pull/454
+    appId: ctx.projectId,
+    initiatingUserId: ctx.user.id,
   };
   return sanitizeBuildJob(job) as Ios.Job;
 }
