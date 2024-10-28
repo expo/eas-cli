@@ -3,6 +3,7 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
+  EASEnvironmentArg,
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
   EasEnvironmentFlagParameters,
@@ -33,6 +34,8 @@ export default class EnvironmentVariableLink extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
+  static override args = [EASEnvironmentArg];
+
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
@@ -40,6 +43,7 @@ export default class EnvironmentVariableLink extends EasCommand {
 
   async runAsync(): Promise<void> {
     let {
+      args: { environment },
       flags: {
         'variable-name': name,
         'variable-environment': currentEnvironment,
@@ -81,6 +85,12 @@ export default class EnvironmentVariableLink extends EasCommand {
     if (!selectedVariable) {
       throw new Error(`Shared variable ${name} doesn't exist`);
     }
+
+    environments = environments
+      ? environments
+      : environment
+        ? [environment.toUpperCase()]
+        : undefined;
 
     let explicitSelect = false;
     if (!nonInteractive && !environments) {
