@@ -4,7 +4,6 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
-  EASEnvironmentArg,
   EASNonInteractiveFlag,
   EASVariableScopeFlag,
   EasEnvironmentFlagParameters,
@@ -40,7 +39,14 @@ export default class EnvironmentVariableDelete extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
-  static override args = [EASEnvironmentArg];
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Current environment of the variable to delete. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
@@ -54,7 +60,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
       'variable-environment': environment,
       'non-interactive': nonInteractive,
       scope,
-    } = this.validateFlags(flags, args);
+    } = this.validateInputs(flags, args);
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -133,7 +139,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
     Log.withTick(`️Deleted variable ${selectedVariable.name}".`);
   }
 
-  private validateFlags(
+  private validateInputs(
     flags: DeleteFlags,
     { environment }: { environment?: string }
   ): DeleteFlags {

@@ -12,13 +12,6 @@ function mapToLowercase<T extends string>(options: T[]): T[] {
   return options.map(option => option.toLowerCase()) as T[];
 }
 
-export const EASEnvironmentArg = {
-  name: 'environment',
-  description:
-    "Environment to pull variables from. One of 'production', 'preview', or 'development'.",
-  required: false,
-};
-
 export const EasNonInteractiveAndJsonFlags = {
   json: Flags.boolean({
     description: 'Enable JSON output, non-JSON messages will be printed to stderr.',

@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASEnvironmentArg, EASMultiEnvironmentFlag } from '../../commandUtils/flags';
+import { EASMultiEnvironmentFlag } from '../../commandUtils/flags';
 import {
   EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
@@ -19,6 +19,7 @@ import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVari
 import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
+import { isEnvironment } from '../../utils/variableUtils';
 
 export default class EnvironmentVariablePush extends EasCommand {
   static override description = 'push env file';
@@ -38,13 +39,19 @@ export default class EnvironmentVariablePush extends EasCommand {
     }),
   };
 
-  static override args = [EASEnvironmentArg];
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Environment to push variables to. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
 
   async runAsync(): Promise<void> {
-    let {
-      args: { environment },
-      flags: { environment: environments, path: envPath },
-    } = await this.parse(EnvironmentVariablePush);
+    const { args, flags } = await this.parse(EnvironmentVariablePush);
+
+    let { environment: environments, path: envPath } = this.parseFlagsAndArgs(flags, args);
 
     const {
       projectId,
@@ -52,12 +59,6 @@ export default class EnvironmentVariablePush extends EasCommand {
     } = await this.getContextAsync(EnvironmentVariablePush, {
       nonInteractive: false,
     });
-
-    environments = environments
-      ? environments
-      : environment
-        ? [environment.toUpperCase()]
-        : undefined;
 
     if (!environments) {
       environments = await promptVariableEnvironmentAsync({
@@ -196,6 +197,24 @@ export default class EnvironmentVariablePush extends EasCommand {
       projectId
     );
     Log.log(`Uploaded env file to ${environments.join(', ').toLocaleLowerCase()}.`);
+  }
+
+  parseFlagsAndArgs(
+    flags: { path: string; environment: EnvironmentVariableEnvironment[] | undefined },
+    { environment }: Record<string, string>
+  ): { environment?: EnvironmentVariableEnvironment[]; path: string } {
+    if (environment && !isEnvironment(environment.toUpperCase())) {
+      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
+    }
+
+    const environments =
+      flags.environment ??
+      (environment ? [environment.toUpperCase() as EnvironmentVariableEnvironment] : undefined);
+
+    return {
+      ...flags,
+      environment: environments,
+    };
   }
 
   private async parseEnvFileAsync(

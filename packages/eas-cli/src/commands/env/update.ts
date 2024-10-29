@@ -6,7 +6,6 @@ import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
-  EASEnvironmentArg,
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableScopeFlag,
@@ -36,7 +35,7 @@ import {
   promptVariableValueAsync,
   promptVariableVisibilityAsync,
 } from '../../utils/prompts';
-import { formatVariableName } from '../../utils/variableUtils';
+import { formatVariableName, isEnvironment } from '../../utils/variableUtils';
 
 type UpdateFlags = {
   name?: string;
@@ -80,7 +79,14 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
-  static override args = [EASEnvironmentArg];
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Current environment of the variable to update. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
@@ -89,23 +95,18 @@ export default class EnvironmentVariableUpdate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const {
-      args: { environment },
-      flags,
-    } = await this.parse(EnvironmentVariableUpdate);
+    const { args, flags } = await this.parse(EnvironmentVariableUpdate);
     const {
       name,
       value: rawValue,
       scope,
       'variable-name': currentName,
-      'variable-environment': variableEnvironment,
+      'variable-environment': currentEnvironment,
       'non-interactive': nonInteractive,
       environment: environments,
       type,
       visibility,
-    } = this.validateFlags(flags);
-
-    const currentEnvironment = variableEnvironment?.toUpperCase() ?? environment?.toUpperCase();
+    } = this.validateFlags(flags, args);
 
     const {
       projectId,
@@ -193,7 +194,10 @@ export default class EnvironmentVariableUpdate extends EasCommand {
 
     Log.withTick(`Updated variable ${chalk.bold(selectedVariable.name)} ${suffix}.`);
   }
-  private validateFlags(flags: UpdateFlags): UpdateFlags {
+  private validateFlags(
+    flags: UpdateFlags,
+    { environment }: { environment?: string }
+  ): UpdateFlags {
     if (flags['non-interactive']) {
       if (!flags['variable-name']) {
         throw new Error(
@@ -203,6 +207,19 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       if (flags['type'] && !flags['value']) {
         throw new Error('Value is required when type is set. Run the command with --value flag.');
       }
+    }
+
+    if (environment) {
+      environment = environment.toUpperCase();
+      if (!isEnvironment(environment)) {
+        throw new Error(
+          "Invalid environment. Use one of 'production', 'preview', or 'development'."
+        );
+      }
+      return {
+        'variable-environment': environment,
+        ...flags,
+      };
     }
 
     return flags;

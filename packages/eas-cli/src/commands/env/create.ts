@@ -5,7 +5,6 @@ import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
-  EASEnvironmentArg,
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableScopeFlag,
@@ -33,7 +32,7 @@ import {
   promptVariableValueAsync,
   promptVariableVisibilityAsync,
 } from '../../utils/prompts';
-import { performForEnvironmentsAsync } from '../../utils/variableUtils';
+import { isEnvironment, performForEnvironmentsAsync } from '../../utils/variableUtils';
 
 type CreateFlags = {
   name?: string;
@@ -53,7 +52,14 @@ export default class EnvironmentVariableCreate extends EasCommand {
 
   static override hidden = true;
 
-  static override args = [EASEnvironmentArg];
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Environment to create the variable in. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
 
   static override flags = {
     name: Flags.string({
@@ -356,6 +362,10 @@ export default class EnvironmentVariableCreate extends EasCommand {
     }
 
     value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
+
+    if (environment && !isEnvironment(environment.toUpperCase())) {
+      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
+    }
 
     let newEnvironments = environments
       ? environments

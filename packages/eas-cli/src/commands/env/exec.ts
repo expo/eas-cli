@@ -3,7 +3,7 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EASEnvironmentArg, EASNonInteractiveFlag } from '../../commandUtils/flags';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { EnvironmentVariableEnvironment } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
@@ -42,9 +42,14 @@ export default class EnvExec extends EasCommand {
   };
 
   static override args = [
-    EASEnvironmentArg,
     {
-      name: 'BASH_COMMAND',
+      name: 'environment',
+      required: true,
+      description:
+        "Environment to execute the command in. One of 'production', 'preview', or 'development'.",
+    },
+    {
+      name: 'bash_command',
       required: true,
       description: 'bash command to execute with the environment variables from the environment',
     },
@@ -79,9 +84,9 @@ export default class EnvExec extends EasCommand {
 
   private sanitizeFlagsAndArgs(
     rawFlags: RawFlags,
-    { BASH_COMMAND, environment }: Record<string, string>
+    { bash_command, environment }: Record<string, string>
   ): ParsedFlags {
-    if (rawFlags['non-interactive'] && (!BASH_COMMAND || !environment)) {
+    if (rawFlags['non-interactive'] && (!bash_command || !environment)) {
       throw new Error(
         "You must specify both environment and bash command when running in non-interactive mode. Run command as `eas env:exec ENVIRONMENT 'bash command'`."
       );
@@ -96,7 +101,7 @@ export default class EnvExec extends EasCommand {
     return {
       nonInteractive: rawFlags['non-interactive'],
       environment,
-      command: BASH_COMMAND,
+      command: bash_command,
     };
   }
 

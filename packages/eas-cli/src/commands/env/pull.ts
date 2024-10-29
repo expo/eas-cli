@@ -4,16 +4,8 @@ import * as fs from 'fs-extra';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import {
-  EASEnvironmentArg,
-  EASEnvironmentFlag,
-  EASNonInteractiveFlag,
-} from '../../commandUtils/flags';
-import {
-  EnvironmentSecretType,
-  EnvironmentVariableEnvironment,
-  EnvironmentVariableVisibility,
-} from '../../graphql/generated';
+import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
+import { EnvironmentSecretType, EnvironmentVariableVisibility } from '../../graphql/generated';
 import {
   EnvironmentVariableWithFileContent,
   EnvironmentVariablesQuery,
@@ -21,6 +13,7 @@ import {
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
+import { isEnvironment } from '../../utils/variableUtils';
 
 export default class EnvironmentVariablePull extends EasCommand {
   static override description = 'pull env file';
@@ -33,7 +26,14 @@ export default class EnvironmentVariablePull extends EasCommand {
     ...this.ContextOptions.ProjectDir,
   };
 
-  static override args = [EASEnvironmentArg];
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Environment to pull variables from. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
 
   static override flags = {
     ...EASNonInteractiveFlag,
@@ -56,7 +56,7 @@ export default class EnvironmentVariablePull extends EasCommand {
       environment = await promptVariableEnvironmentAsync({ nonInteractive });
     }
 
-    if (!Object.values(EnvironmentVariableEnvironment).includes(environment)) {
+    if (!isEnvironment(environment)) {
       throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
     }
 
