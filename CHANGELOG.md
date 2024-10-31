@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add `macos-sonoma-14.6-xcode-16.1` image and `sdk-52` image tag to `eas.schema.json`. ([#2666](https://github.com/expo/eas-cli/pull/2666) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [12.6.2](https://github.com/expo/eas-cli/releases/tag/v12.6.2) - 2024-10-29
 
 ### 🐛 Bug fixes
