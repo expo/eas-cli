@@ -78,3 +78,18 @@ export const EasJsonOnlyFlag = {
     description: 'Enable JSON output, non-JSON messages will be printed to stderr.',
   }),
 };
+
+export const WithEasEnvironmentVariablesSetFlag = {
+  'with-eas-environment-variables-set': Flags.enum({
+    description: 'Environment to use for EAS environment variables',
+    options: [
+      EnvironmentVariableEnvironment.Development,
+      EnvironmentVariableEnvironment.Preview,
+      EnvironmentVariableEnvironment.Production,
+    ].map(env => env.toLowerCase()),
+    // eslint-disable-next-line async-protect/async-suffix
+    parse: async input => input.toUpperCase(),
+    required: false,
+    hidden: true,
+  }),
+};
