@@ -4,12 +4,13 @@ import * as path from 'node:path';
 
 import { EasBuildProjectArchiveUploadError } from '../../build/errors';
 import { makeProjectTarballAsync } from '../../build/utils/repository';
+import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { AccountUploadSessionType, WorkflowProjectSourceType } from '../../graphql/generated';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
-import Log, { learnMore } from '../../log';
+import Log, { learnMore, link } from '../../log';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { uploadAccountScopedFileAtPathToGCSAsync } from '../../uploads';
 import { formatBytes } from '../../utils/files';
@@ -60,7 +61,10 @@ export default class WorkflowRun extends EasCommand {
 
     const yamlConfig = await fs.promises.readFile(path.join(projectDir, args.file), 'utf8');
 
-    const { projectId } = await getDynamicPrivateProjectConfigAsync();
+    const {
+      projectId,
+      exp: { slug: projectName },
+    } = await getDynamicPrivateProjectConfigAsync();
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
 
     const { easJsonBucketKey, projectArchiveBucketKey } = await uploadProjectAsync({
@@ -70,7 +74,7 @@ export default class WorkflowRun extends EasCommand {
       projectDir,
     });
 
-    await WorkflowRunMutation.createWorkflowRunAsync(graphqlClient, {
+    const { id: workflowRunId } = await WorkflowRunMutation.createWorkflowRunAsync(graphqlClient, {
       appId: projectId,
       workflowRevisionInput: {
         fileName: path.basename(args.file),
@@ -84,6 +88,12 @@ export default class WorkflowRun extends EasCommand {
         },
       },
     });
+
+    Log.succeed(
+      `Workflow run created successfully. ${link(
+        getWorkflowRunUrl(account.name, projectName, workflowRunId)
+      )}`
+    );
   }
 }
 
