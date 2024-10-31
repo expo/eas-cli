@@ -81,7 +81,8 @@ export const EasJsonOnlyFlag = {
 
 export const WithEasEnvironmentVariablesSetFlag = {
   'with-eas-environment-variables-set': Flags.enum({
-    description: 'Environment to use for EAS environment variables',
+    description:
+      'Environment to use the server-side defined EAS environment variables for during command execution.',
     options: [
       EnvironmentVariableEnvironment.Development,
       EnvironmentVariableEnvironment.Preview,
