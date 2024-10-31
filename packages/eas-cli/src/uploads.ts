@@ -5,7 +5,7 @@ import promiseRetry from 'promise-retry';
 
 import { ExpoGraphqlClient } from './commandUtils/context/contextUtils/createGraphqlClient';
 import fetch from './fetch';
-import { UploadSessionType } from './graphql/generated';
+import { AccountUploadSessionType, UploadSessionType } from './graphql/generated';
 import { SignedUrl, UploadSessionMutation } from './graphql/mutations/UploadSessionMutation';
 import { ProgressHandler } from './utils/progress';
 
@@ -21,6 +21,29 @@ export async function uploadFileAtPathToGCSAsync(
   handleProgressEvent: ProgressHandler = () => {}
 ): Promise<string> {
   const signedUrl = await UploadSessionMutation.createUploadSessionAsync(graphqlClient, type);
+
+  await uploadWithSignedUrlWithProgressAsync(path, signedUrl, handleProgressEvent);
+  return signedUrl.bucketKey;
+}
+
+export async function uploadAccountScopedFileAtPathToGCSAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    type,
+    accountId,
+    path,
+    handleProgressEvent,
+  }: {
+    type: AccountUploadSessionType;
+    accountId: string;
+    path: string;
+    handleProgressEvent?: ProgressHandler;
+  }
+): Promise<string> {
+  const signedUrl = await UploadSessionMutation.createAccountScopedUploadSessionAsync(
+    graphqlClient,
+    { type, accountID: accountId }
+  );
 
   await uploadWithSignedUrlWithProgressAsync(path, signedUrl, handleProgressEvent);
   return signedUrl.bucketKey;
@@ -90,7 +113,7 @@ async function uploadWithPresignedPostAsync(
 async function uploadWithSignedUrlWithProgressAsync(
   file: string,
   signedUrl: SignedUrl,
-  handleProgressEvent: ProgressHandler
+  handleProgressEvent?: ProgressHandler
 ): Promise<Response> {
   const fileStat = await fs.stat(file);
   const fileSize = fileStat.size;
@@ -107,7 +130,7 @@ async function uploadWithSignedUrlWithProgressAsync(
   let currentSize = 0;
   readStream.addListener('data', (chunk: Buffer) => {
     currentSize += Buffer.byteLength(chunk);
-    handleProgressEvent({
+    handleProgressEvent?.({
       progress: {
         total: fileSize,
         percent: currentSize / fileSize,
@@ -117,10 +140,10 @@ async function uploadWithSignedUrlWithProgressAsync(
   });
   try {
     const response = await uploadPromise;
-    handleProgressEvent({ isComplete: true });
+    handleProgressEvent?.({ isComplete: true });
     return response;
   } catch (error: any) {
-    handleProgressEvent({ isComplete: true, error });
+    handleProgressEvent?.({ isComplete: true, error });
     throw error;
   }
 }
