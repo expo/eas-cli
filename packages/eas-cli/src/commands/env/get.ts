@@ -18,7 +18,7 @@ import {
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptVariableEnvironmentAsync, promptVariableNameAsync } from '../../utils/prompts';
-import { formatVariable, formatVariableValue } from '../../utils/variableUtils';
+import { formatVariable, formatVariableValue, isEnvironment } from '../../utils/variableUtils';
 
 type GetFlags = {
   'variable-name'?: string;
@@ -38,6 +38,15 @@ export default class EnvironmentVariableGet extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Current environment of the variable. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
+
   static override flags = {
     'variable-name': Flags.string({
       description: 'Name of the variable',
@@ -52,7 +61,7 @@ export default class EnvironmentVariableGet extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(EnvironmentVariableGet);
+    const { args, flags } = await this.parse(EnvironmentVariableGet);
 
     let {
       'variable-environment': environment,
@@ -60,7 +69,7 @@ export default class EnvironmentVariableGet extends EasCommand {
       'non-interactive': nonInteractive,
       format,
       scope,
-    } = this.validateFlags(flags);
+    } = this.validateInputs(flags, args);
 
     const {
       projectId,
@@ -117,7 +126,7 @@ export default class EnvironmentVariableGet extends EasCommand {
     }
   }
 
-  private validateFlags(flags: GetFlags): GetFlags {
+  private validateInputs(flags: GetFlags, { environment }: { environment?: string }): GetFlags {
     if (flags['non-interactive']) {
       if (!flags['variable-name']) {
         throw new Error('Variable name is required. Run the command with --variable-name flag.');
@@ -125,9 +134,27 @@ export default class EnvironmentVariableGet extends EasCommand {
       if (!flags.scope) {
         throw new Error('Scope is required. Run the command with --scope flag.');
       }
-      if (!flags['variable-environment']) {
+      if (!(flags['variable-environment'] ?? environment)) {
         throw new Error('Environment is required.');
       }
+    }
+    if (environment && flags['variable-environment']) {
+      throw new Error(
+        "You can't use both --variable-environment flag when environment is passed as an argument. Run `eas env:get --help` for more information."
+      );
+    }
+
+    if (environment) {
+      environment = environment.toUpperCase();
+      if (!isEnvironment(environment)) {
+        throw new Error(
+          "Invalid environment. Use one of 'production', 'preview', or 'development'."
+        );
+      }
+      return {
+        'variable-environment': environment,
+        ...flags,
+      };
     }
     return flags;
   }

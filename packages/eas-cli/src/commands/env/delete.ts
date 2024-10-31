@@ -13,7 +13,7 @@ import { EnvironmentVariableMutation } from '../../graphql/mutations/Environment
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
-import { formatVariableName } from '../../utils/variableUtils';
+import { formatVariableName, isEnvironment } from '../../utils/variableUtils';
 
 type DeleteFlags = {
   'variable-name'?: string;
@@ -39,19 +39,28 @@ export default class EnvironmentVariableDelete extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Current environment of the variable to delete. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
+
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(EnvironmentVariableDelete);
+    const { args, flags } = await this.parse(EnvironmentVariableDelete);
     const {
       'variable-name': name,
       'variable-environment': environment,
       'non-interactive': nonInteractive,
       scope,
-    } = this.validateFlags(flags);
+    } = this.validateInputs(flags, args);
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -130,7 +139,10 @@ export default class EnvironmentVariableDelete extends EasCommand {
     Log.withTick(`️Deleted variable ${selectedVariable.name}".`);
   }
 
-  private validateFlags(flags: DeleteFlags): DeleteFlags {
+  private validateInputs(
+    flags: DeleteFlags,
+    { environment }: { environment?: string }
+  ): DeleteFlags {
     if (flags['non-interactive']) {
       if (!flags['variable-name']) {
         throw new Error(
@@ -139,6 +151,17 @@ export default class EnvironmentVariableDelete extends EasCommand {
           )} flag to fix the issue`
         );
       }
+    }
+
+    if (environment) {
+      environment = environment.toUpperCase();
+
+      if (!isEnvironment(environment)) {
+        throw new Error(
+          "Invalid environment. Use one of 'production', 'preview', or 'development'."
+        );
+      }
+      return { ...flags, 'variable-environment': environment };
     }
 
     return flags;

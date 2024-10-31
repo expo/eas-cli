@@ -18,6 +18,7 @@ import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 import {
   formatVariable,
   formatVariableValue,
+  isEnvironment,
   performForEnvironmentsAsync,
 } from '../../utils/variableUtils';
 
@@ -65,6 +66,15 @@ async function getVariablesForScopeAsync(
       });
 }
 
+type ListFlags = {
+  scope: EnvironmentVariableScope;
+  format: string;
+  environment: EnvironmentVariableEnvironment[] | undefined;
+  'include-sensitive': boolean;
+  'include-file-content': boolean;
+  'non-interactive'?: boolean;
+};
+
 export default class EnvironmentValueList extends EasCommand {
   static override description = 'list environment variables for the current project';
 
@@ -84,22 +94,32 @@ export default class EnvironmentValueList extends EasCommand {
       description: 'Display files content in the output',
       default: false,
     }),
+    ...EASMultiEnvironmentFlag,
     ...EASVariableFormatFlag,
     ...EASVariableScopeFlag,
-    ...EASMultiEnvironmentFlag,
   };
 
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Environment to list the variables from. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
+
   async runAsync(): Promise<void> {
+    const { args, flags } = await this.parse(EnvironmentValueList);
+
     let {
-      flags: {
-        environment: environments,
-        format,
-        scope,
-        'include-sensitive': includeSensitive,
-        'include-file-content': includeFileContent,
-        'non-interactive': nonInteractive,
-      },
-    } = await this.parse(EnvironmentValueList);
+      format,
+      environment: environments,
+      scope,
+      'include-sensitive': includeSensitive,
+      'include-file-content': includeFileContent,
+      'non-interactive': nonInteractive,
+    } = this.validateInputs(flags, args);
+
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -145,5 +165,26 @@ export default class EnvironmentValueList extends EasCommand {
         );
       }
     });
+  }
+
+  private validateInputs(
+    flags: ListFlags,
+    { environment }: Record<string, string>
+  ): ListFlags & { 'non-interactive': boolean } {
+    if (environment && !isEnvironment(environment.toUpperCase())) {
+      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
+    }
+
+    const environments = flags.environment
+      ? flags.environment
+      : environment
+        ? [environment.toUpperCase() as EnvironmentVariableEnvironment]
+        : undefined;
+
+    return {
+      ...flags,
+      'non-interactive': flags['non-interactive'] ?? false,
+      environment: environments,
+    };
   }
 }

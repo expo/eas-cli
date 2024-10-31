@@ -3,24 +3,26 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { EnvironmentVariableEnvironment } from '../../graphql/generated';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
+import { isEnvironment } from '../../utils/variableUtils';
 
 type ParsedFlags =
   | {
       nonInteractive: true;
       environment: EnvironmentVariableEnvironment;
+      command: string;
     }
   | {
       nonInteractive: false;
       environment?: EnvironmentVariableEnvironment;
+      command: string;
     };
 
 interface RawFlags {
-  environment?: EnvironmentVariableEnvironment;
   'non-interactive': boolean;
 }
 
@@ -36,25 +38,27 @@ export default class EnvExec extends EasCommand {
   };
 
   static override flags = {
-    ...EASEnvironmentFlag,
     ...EASNonInteractiveFlag,
   };
 
   static override args = [
     {
-      name: 'BASH_COMMAND',
+      name: 'environment',
+      required: true,
+      description:
+        "Environment to execute the command in. One of 'production', 'preview', or 'development'.",
+    },
+    {
+      name: 'bash_command',
       required: true,
       description: 'bash command to execute with the environment variables from the environment',
     },
   ];
 
   async runAsync(): Promise<void> {
-    const {
-      flags,
-      args: { BASH_COMMAND: command },
-    } = await this.parse(EnvExec);
+    const { flags, args } = await this.parse(EnvExec);
 
-    const parsedFlags = this.sanitizeFlags(flags);
+    const parsedFlags = this.sanitizeFlagsAndArgs(flags, args);
 
     const {
       projectId,
@@ -72,25 +76,32 @@ export default class EnvExec extends EasCommand {
       environment,
     });
 
-    await this.runCommandWithEnvVarsAsync({ command, environmentVariables });
+    await this.runCommandWithEnvVarsAsync({
+      command: parsedFlags.command,
+      environmentVariables,
+    });
   }
 
-  private sanitizeFlags(rawFlags: RawFlags): ParsedFlags {
-    const environment = rawFlags.environment;
-    if (rawFlags['non-interactive']) {
-      if (!environment) {
-        throw new Error(
-          'You must specify an environment when running in non-interactive mode. Use the --environment flag.'
-        );
-      }
-      return {
-        nonInteractive: true,
-        environment,
-      };
+  private sanitizeFlagsAndArgs(
+    rawFlags: RawFlags,
+    { bash_command, environment }: Record<string, string>
+  ): ParsedFlags {
+    if (rawFlags['non-interactive'] && (!bash_command || !environment)) {
+      throw new Error(
+        "You must specify both environment and bash command when running in non-interactive mode. Run command as `eas env:exec ENVIRONMENT 'bash command'`."
+      );
     }
+
+    environment = environment?.toUpperCase();
+
+    if (!isEnvironment(environment)) {
+      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
+    }
+
     return {
-      nonInteractive: false,
-      environment: rawFlags.environment,
+      nonInteractive: rawFlags['non-interactive'],
+      environment,
+      command: bash_command,
     };
   }
 

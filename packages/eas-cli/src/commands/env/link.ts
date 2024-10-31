@@ -14,7 +14,14 @@ import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
-import { formatVariableName } from '../../utils/variableUtils';
+import { formatVariableName, isEnvironment } from '../../utils/variableUtils';
+
+type LinkFlags = {
+  'variable-name'?: string;
+  'variable-environment'?: EnvironmentVariableEnvironment;
+  'non-interactive': boolean;
+  environment?: EnvironmentVariableEnvironment[];
+};
 
 export default class EnvironmentVariableLink extends EasCommand {
   static override description = 'link a shared environment variable to the current project';
@@ -33,20 +40,30 @@ export default class EnvironmentVariableLink extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Environment to pull variables from. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
+
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
+    const { args, flags } = await this.parse(EnvironmentVariableLink);
+
     let {
-      flags: {
-        'variable-name': name,
-        'variable-environment': currentEnvironment,
-        'non-interactive': nonInteractive,
-        environment: environments,
-      },
-    } = await this.parse(EnvironmentVariableLink);
+      'variable-name': name,
+      'variable-environment': currentEnvironment,
+      'non-interactive': nonInteractive,
+      environment: environments,
+    } = this.validateInputs(flags, args);
+
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -154,5 +171,35 @@ export default class EnvironmentVariableLink extends EasCommand {
         Log.warn(err.message);
       }
     }
+  }
+  private validateInputs(flags: LinkFlags, { environment }: Record<string, string>): LinkFlags {
+    environment = environment?.toUpperCase();
+
+    if (environment && !isEnvironment(environment)) {
+      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
+    }
+
+    const environments = flags.environment
+      ? flags.environment
+      : environment
+        ? [environment as EnvironmentVariableEnvironment]
+        : undefined;
+
+    if (flags['non-interactive']) {
+      if (!flags['variable-name']) {
+        throw new Error(
+          `Environment variable needs 'name' to be specified when running in non-interactive mode. Run the command with ${chalk.bold(
+            '--variable-name VARIABLE_NAME'
+          )} flag to fix the issue`
+        );
+      }
+    }
+
+    return {
+      'variable-name': flags['variable-name'],
+      'variable-environment': flags['variable-environment'],
+      'non-interactive': flags['non-interactive'],
+      environment: environments,
+    };
   }
 }

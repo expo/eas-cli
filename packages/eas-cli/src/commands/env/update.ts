@@ -35,7 +35,7 @@ import {
   promptVariableValueAsync,
   promptVariableVisibilityAsync,
 } from '../../utils/prompts';
-import { formatVariableName } from '../../utils/variableUtils';
+import { formatVariableName, isEnvironment } from '../../utils/variableUtils';
 
 type UpdateFlags = {
   name?: string;
@@ -79,6 +79,15 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Current environment of the variable to update. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
+
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.Analytics,
@@ -86,7 +95,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(EnvironmentVariableUpdate);
+    const { args, flags } = await this.parse(EnvironmentVariableUpdate);
     const {
       name,
       value: rawValue,
@@ -97,7 +106,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       environment: environments,
       type,
       visibility,
-    } = this.validateFlags(flags);
+    } = this.validateFlags(flags, args);
 
     const {
       projectId,
@@ -185,7 +194,10 @@ export default class EnvironmentVariableUpdate extends EasCommand {
 
     Log.withTick(`Updated variable ${chalk.bold(selectedVariable.name)} ${suffix}.`);
   }
-  private validateFlags(flags: UpdateFlags): UpdateFlags {
+  private validateFlags(
+    flags: UpdateFlags,
+    { environment }: { environment?: string }
+  ): UpdateFlags {
     if (flags['non-interactive']) {
       if (!flags['variable-name']) {
         throw new Error(
@@ -195,6 +207,19 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       if (flags['type'] && !flags['value']) {
         throw new Error('Value is required when type is set. Run the command with --value flag.');
       }
+    }
+
+    if (environment) {
+      environment = environment.toUpperCase();
+      if (!isEnvironment(environment)) {
+        throw new Error(
+          "Invalid environment. Use one of 'production', 'preview', or 'development'."
+        );
+      }
+      return {
+        'variable-environment': environment,
+        ...flags,
+      };
     }
 
     return flags;

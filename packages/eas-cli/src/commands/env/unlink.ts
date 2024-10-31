@@ -10,7 +10,13 @@ import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
-import { formatVariableName } from '../../utils/variableUtils';
+import { formatVariableName, isEnvironment } from '../../utils/variableUtils';
+
+type UnlinkFlags = {
+  'variable-name'?: string;
+  'non-interactive': boolean;
+  environment?: EnvironmentVariableEnvironment[];
+};
 
 export default class EnvironmentVariableUnlink extends EasCommand {
   static override description = 'unlink a shared environment variable to the current project';
@@ -30,14 +36,24 @@ export default class EnvironmentVariableUnlink extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Environment to unlink the variable from. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
+
   async runAsync(): Promise<void> {
+    const { args, flags } = await this.parse(EnvironmentVariableUnlink);
+
     let {
-      flags: {
-        'variable-name': name,
-        'non-interactive': nonInteractive,
-        environment: unlinkEnvironments,
-      },
-    } = await this.parse(EnvironmentVariableUnlink);
+      'variable-name': name,
+      'non-interactive': nonInteractive,
+      environment: unlinkEnvironments,
+    } = this.validateInputs(flags, args);
+
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -142,5 +158,33 @@ export default class EnvironmentVariableUnlink extends EasCommand {
         );
       }
     }
+  }
+
+  private validateInputs(
+    flags: UnlinkFlags,
+    { environment }: { environment?: string }
+  ): UnlinkFlags {
+    if (flags['non-interactive']) {
+      if (!flags['variable-name']) {
+        throw new Error(
+          'Current name is required in non-interactive mode. Run the command with --variable-name flag.'
+        );
+      }
+    }
+
+    if (environment) {
+      environment = environment.toUpperCase();
+      if (!isEnvironment(environment)) {
+        throw new Error(
+          "Invalid environment. Use one of 'production', 'preview', or 'development'."
+        );
+      }
+      return {
+        environment: [environment],
+        ...flags,
+      };
+    }
+
+    return flags;
   }
 }

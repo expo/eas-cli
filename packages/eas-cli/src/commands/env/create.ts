@@ -32,7 +32,7 @@ import {
   promptVariableValueAsync,
   promptVariableVisibilityAsync,
 } from '../../utils/prompts';
-import { performForEnvironmentsAsync } from '../../utils/variableUtils';
+import { isEnvironment, performForEnvironmentsAsync } from '../../utils/variableUtils';
 
 type CreateFlags = {
   name?: string;
@@ -51,6 +51,15 @@ export default class EnvironmentVariableCreate extends EasCommand {
     'create an environment variable on the current project or owner account';
 
   static override hidden = true;
+
+  static override args = [
+    {
+      name: 'environment',
+      description:
+        "Environment to create the variable in. One of 'production', 'preview', or 'development'.",
+      required: false,
+    },
+  ];
 
   static override flags = {
     name: Flags.string({
@@ -83,7 +92,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(EnvironmentVariableCreate);
+    const { args, flags } = await this.parse(EnvironmentVariableCreate);
 
     const validatedFlags = this.validateFlags(flags);
 
@@ -98,7 +107,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
       force,
       type,
       fileName,
-    } = await this.promptForMissingFlagsAsync(validatedFlags);
+    } = await this.promptForMissingFlagsAsync(validatedFlags, args);
 
     const {
       projectId,
@@ -293,15 +302,18 @@ export default class EnvironmentVariableCreate extends EasCommand {
     }
   }
 
-  private async promptForMissingFlagsAsync({
-    name,
-    value,
-    environment,
-    visibility,
-    'non-interactive': nonInteractive,
-    type,
-    ...rest
-  }: CreateFlags): Promise<
+  private async promptForMissingFlagsAsync(
+    {
+      name,
+      value,
+      environment: environments,
+      visibility,
+      'non-interactive': nonInteractive,
+      type,
+      ...rest
+    }: CreateFlags,
+    { environment }: { environment?: string }
+  ): Promise<
     Required<
       Omit<CreateFlags, 'type' | 'visibility'> & {
         type: EnvironmentSecretType | undefined;
@@ -351,10 +363,20 @@ export default class EnvironmentVariableCreate extends EasCommand {
 
     value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
 
-    if (!environment) {
-      environment = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
+    if (environment && !isEnvironment(environment.toUpperCase())) {
+      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
+    }
 
-      if (!environment || environment.length === 0) {
+    let newEnvironments = environments
+      ? environments
+      : environment
+        ? [environment.toUpperCase() as EnvironmentVariableEnvironment]
+        : undefined;
+
+    if (!newEnvironments) {
+      newEnvironments = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
+
+      if (!newEnvironments || newEnvironments.length === 0) {
         throw new Error('No environments selected');
       }
     }
@@ -364,7 +386,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
     return {
       name,
       value,
-      environment,
+      environment: newEnvironments,
       visibility: newVisibility,
       link: rest.link ?? false,
       force: rest.force ?? false,
