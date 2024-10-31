@@ -89,6 +89,7 @@ export default class WorkflowRun extends EasCommand {
       },
     });
 
+    Log.newLine();
     Log.succeed(
       `Workflow run created successfully. ${link(
         getWorkflowRunUrl(account.name, projectName, workflowRunId)
@@ -140,33 +141,37 @@ async function uploadProjectAsync({
       throw new Error('eas.json is too big. Maximum allowed size is 1MB.');
     }
 
+    const projectArchiveProgressTracker = createProgressTracker({
+      total: projectTarball.size,
+      message: ratio =>
+        `Uploading project archive to EAS (${formatBytes(
+          projectTarball.size * ratio
+        )} / ${formatBytes(projectTarball.size)})`,
+      completedMessage: (duration: string) =>
+        `Uploaded project archive to EAS ${chalk.dim(duration)}`,
+    });
+    const easJsonProgressTracker = createProgressTracker({
+      total: easJsonFileStat.size,
+      message: ratio =>
+        `Uploading eas.json to EAS (${formatBytes(easJsonFileStat.size * ratio)} / ${formatBytes(
+          easJsonFileStat.size
+        )})`,
+      completedMessage: (duration: string) => `Uploaded eas.json to EAS ${chalk.dim(duration)}`,
+    });
+
     projectTarballPath = projectTarball.path;
     const [projectArchiveBucketKey, easJsonBucketKey] = await Promise.all([
       uploadAccountScopedFileAtPathToGCSAsync(graphqlClient, {
         accountId,
         type: AccountUploadSessionType.WorkflowsProjectSources,
         path: projectTarball.path,
-        handleProgressEvent: createProgressTracker({
-          total: projectTarball.size,
-          message: ratio =>
-            `Uploading project archive to EAS (${formatBytes(
-              projectTarball.size * ratio
-            )} / ${formatBytes(projectTarball.size)})`,
-          completedMessage: (duration: string) => `Uploaded to EAS ${chalk.dim(duration)}`,
-        }),
+        handleProgressEvent: projectArchiveProgressTracker,
       }),
       uploadAccountScopedFileAtPathToGCSAsync(graphqlClient, {
         accountId,
         type: AccountUploadSessionType.WorkflowsProjectSources,
         path: easJsonFilePath,
-        handleProgressEvent: createProgressTracker({
-          total: easJsonFileStat.size,
-          message: ratio =>
-            `Uploading eas.json to EAS (${formatBytes(
-              easJsonFileStat.size * ratio
-            )} / ${formatBytes(easJsonFileStat.size)})`,
-          completedMessage: (duration: string) => `Uploaded to EAS ${chalk.dim(duration)}`,
-        }),
+        handleProgressEvent: easJsonProgressTracker,
       }),
     ]);
 
