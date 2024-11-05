@@ -6,11 +6,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Resolve versioned expo config using `npx expo config` command instead of using fixed `@expo/config` version shipped with EAS CLI, if available. ([#2529](https://github.com/expo/eas-cli/pull/2529) by [@szdziedzic](https://github.com/szdziedzic))
-
 ### 🎉 New features
 
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [13.0.0](https://github.com/expo/eas-cli/releases/tag/v13.0.0) - 2024-11-05
+
+### 🛠 Breaking changes
+
+- Resolve versioned expo config using `npx expo config` command instead of using fixed `@expo/config` version shipped with EAS CLI, if available. ([#2529](https://github.com/expo/eas-cli/pull/2529) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 
