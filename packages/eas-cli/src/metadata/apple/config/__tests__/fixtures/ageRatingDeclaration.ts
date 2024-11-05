@@ -1,10 +1,12 @@
-import { AgeRatingDeclaration, KidsAge, Rating } from '@expo/apple-utils';
+import { AgeRatingDeclaration, KidsAgeBand, KoreaRatingOverride, Rating, RatingOverride } from '@expo/apple-utils';
 
 import { AttributesOf } from '../../../../utils/asc';
 
-// @ts-expect-error: Deprecated property `gamblingAndContests` needs to be deleted from the types
+// Note, both `seventeenPlus` and `gamlingAndContests` are deprecated
+type AgeRatingDeclarationProps = Omit<AttributesOf<AgeRatingDeclaration>, 'seventeenPlus' | 'gamblingAndContests'>;
+
 // These attributes is what we get from the API when no questions are answered
-export const emptyAdvisory: AttributesOf<AgeRatingDeclaration> = {
+export const emptyAdvisory: AgeRatingDeclarationProps = {
   alcoholTobaccoOrDrugUseOrReferences: null,
   contests: null,
   gamblingSimulated: null,
@@ -20,11 +22,12 @@ export const emptyAdvisory: AttributesOf<AgeRatingDeclaration> = {
   gambling: false,
   unrestrictedWebAccess: false,
   kidsAgeBand: null,
-  seventeenPlus: false,
+  ageRatingOverride: null,
+  koreaAgeRatingOverride: null,
+  lootBox: null,
 };
 
-// @ts-expect-error: Deprecated property `gamblingAndContests` needs to be deleted from the types
-export const leastRestrictiveAdvisory: AttributesOf<AgeRatingDeclaration> = {
+export const leastRestrictiveAdvisory: AgeRatingDeclarationProps = {
   alcoholTobaccoOrDrugUseOrReferences: Rating.NONE,
   contests: Rating.NONE,
   gamblingSimulated: Rating.NONE,
@@ -40,11 +43,12 @@ export const leastRestrictiveAdvisory: AttributesOf<AgeRatingDeclaration> = {
   gambling: false,
   unrestrictedWebAccess: false,
   kidsAgeBand: null,
-  seventeenPlus: false,
+  ageRatingOverride: RatingOverride.NONE,
+  koreaAgeRatingOverride: KoreaRatingOverride.NONE,
+  lootBox: false,
 };
 
-// @ts-expect-error: Deprecated property `gamblingAndContests` needs to be deleted from the types
-export const mostRestrictiveAdvisory: AttributesOf<AgeRatingDeclaration> = {
+export const mostRestrictiveAdvisory: AgeRatingDeclarationProps = {
   alcoholTobaccoOrDrugUseOrReferences: Rating.FREQUENT_OR_INTENSE,
   contests: Rating.FREQUENT_OR_INTENSE,
   gamblingSimulated: Rating.FREQUENT_OR_INTENSE,
@@ -60,11 +64,12 @@ export const mostRestrictiveAdvisory: AttributesOf<AgeRatingDeclaration> = {
   gambling: true,
   unrestrictedWebAccess: true,
   kidsAgeBand: null,
-  seventeenPlus: true,
+  ageRatingOverride: RatingOverride.SEVENTEEN_PLUS,
+  koreaAgeRatingOverride: KoreaRatingOverride.NINETEEN_PLUS,
+  lootBox: true,
 };
 
-// @ts-expect-error: Deprecated property `gamblingAndContests` needs to be deleted from the types
-export const kidsSixToEightAdvisory: AttributesOf<AgeRatingDeclaration> = {
+export const kidsSixToEightAdvisory: AgeRatingDeclarationProps = {
   alcoholTobaccoOrDrugUseOrReferences: Rating.NONE,
   contests: Rating.NONE,
   gamblingSimulated: Rating.NONE,
@@ -79,6 +84,8 @@ export const kidsSixToEightAdvisory: AttributesOf<AgeRatingDeclaration> = {
   violenceRealisticProlongedGraphicOrSadistic: Rating.NONE,
   gambling: false,
   unrestrictedWebAccess: false,
-  kidsAgeBand: KidsAge.SIX_TO_EIGHT,
-  seventeenPlus: false,
+  kidsAgeBand: KidsAgeBand.SIX_TO_EIGHT,
+  ageRatingOverride: RatingOverride.NONE,
+  koreaAgeRatingOverride: KoreaRatingOverride.NONE,
+  lootBox: false,
 };
