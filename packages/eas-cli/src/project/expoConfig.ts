@@ -63,6 +63,10 @@ async function getExpoConfigInternalAsync(
 
           {
             cwd: projectDir,
+            env: {
+              ...process.env,
+              ...opts.env,
+            },
           }
         );
         exp = JSON.parse(stdout);

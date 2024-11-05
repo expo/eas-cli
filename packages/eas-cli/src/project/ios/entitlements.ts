@@ -36,6 +36,10 @@ export async function getManagedApplicationTargetEntitlementsAsync(
 
         {
           cwd: projectDir,
+          env: {
+            ...process.env,
+            ...env,
+          },
         }
       );
       expWithMods = JSON.parse(stdout);
