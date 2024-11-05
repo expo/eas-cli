@@ -8,7 +8,7 @@
   },
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@expo/apple-utils": "2.0.3",
+    "@expo/apple-utils": "2.1.0",
     "@expo/code-signing-certificates": "0.0.5",
     "@expo/config": "9.0.4",
     "@expo/config-plugins": "8.0.10",
