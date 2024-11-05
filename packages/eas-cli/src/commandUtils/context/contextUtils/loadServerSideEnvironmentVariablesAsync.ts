@@ -48,7 +48,7 @@ export async function loadServerSideEnvironmentVariablesAsync({
     );
   } else {
     Log.log(
-      `No environment variables found for the "${environment.toLowerCase()}" environment on EAS servers.`
+      `No readable environment variables found for the "${environment.toLowerCase()}" environment on EAS servers.`
     );
   }
 

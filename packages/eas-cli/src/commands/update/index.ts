@@ -8,7 +8,10 @@ import { transformFingerprintSource } from '../../build/graphql';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  WithEasEnvironmentVariablesSetFlag,
+} from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
@@ -31,7 +34,6 @@ import {
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
-  defaultPublishPlatforms,
   filterCollectedAssetsByRequestedPlatforms,
   generateEasMetadataAsync,
   getBranchNameForCommandAsync,
@@ -64,7 +66,7 @@ type RawUpdateFlags = {
   branch?: string;
   channel?: string;
   message?: string;
-  platform: string;
+  platform: RequestedPlatform;
   'input-dir': string;
   'skip-bundler': boolean;
   'clear-cache': boolean;
@@ -73,7 +75,7 @@ type RawUpdateFlags = {
   'rollout-percentage'?: number;
   'non-interactive': boolean;
   json: boolean;
-  'with-eas-environment-variables-set'?: string;
+  'with-eas-environment-variables-set': EnvironmentVariableEnvironment | null;
 };
 
 type UpdateFlags = {
@@ -90,7 +92,7 @@ type UpdateFlags = {
   rolloutPercentage?: number;
   json: boolean;
   nonInteractive: boolean;
-  withEasEnvironmentVariablesSet?: EnvironmentVariableEnvironment;
+  withEasEnvironmentVariablesSet: EnvironmentVariableEnvironment | null;
 };
 
 export default class UpdatePublish extends EasCommand {
@@ -133,14 +135,10 @@ export default class UpdatePublish extends EasCommand {
       min: 0,
       max: 100,
     }),
-    platform: Flags.enum({
+    platform: Flags.enum<RequestedPlatform>({
       char: 'p',
-      options: [
-        // TODO: Add web when it's fully supported
-        ...defaultPublishPlatforms,
-        'all',
-      ],
-      default: 'all',
+      options: Object.values(RequestedPlatform), // TODO: Add web when it's fully supported
+      default: RequestedPlatform.All,
       required: false,
     }),
     auto: Flags.boolean({
@@ -152,18 +150,7 @@ export default class UpdatePublish extends EasCommand {
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
     }),
-    'with-eas-environment-variables-set': Flags.enum({
-      description: 'Environment to use for EAS environment variables',
-      options: [
-        EnvironmentVariableEnvironment.Development,
-        EnvironmentVariableEnvironment.Preview,
-        EnvironmentVariableEnvironment.Production,
-      ].map(env => env.toLowerCase()),
-      // eslint-disable-next-line async-protect/async-suffix
-      parse: async input => input.toUpperCase(),
-      required: false,
-      hidden: true,
-    }),
+    ...WithEasEnvironmentVariablesSetFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -202,7 +189,7 @@ export default class UpdatePublish extends EasCommand {
       getServerSideEnvironmentVariablesAsync,
     } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
-      withServerSideEnvironment: withEasEnvironmentVariablesSet ?? null,
+      withServerSideEnvironment: withEasEnvironmentVariablesSet,
     });
 
     if (jsonFlag) {
@@ -661,22 +648,6 @@ export default class UpdatePublish extends EasCommand {
       );
     }
 
-    if (
-      flags['with-eas-environment-variables-set'] &&
-      !Object.values(EnvironmentVariableEnvironment).includes(
-        flags['with-eas-environment-variables-set'] as EnvironmentVariableEnvironment
-      )
-    ) {
-      Errors.error(
-        `--with-eas-environment-variables-set must be one of ${Object.values(
-          EnvironmentVariableEnvironment
-        )
-          .map(env => `"${env.toLocaleLowerCase()}"`)
-          .join(', ')}`,
-        { exit: 1 }
-      );
-    }
-
     return {
       auto,
       branchName,
@@ -685,15 +656,13 @@ export default class UpdatePublish extends EasCommand {
       inputDir: flags['input-dir'],
       skipBundler,
       clearCache: flags['clear-cache'] ? true : !!flags['with-eas-environment-variables-set'],
-      platform: flags.platform as RequestedPlatform,
+      platform: flags.platform,
       privateKeyPath: flags['private-key-path'],
       rolloutPercentage: flags['rollout-percentage'],
       nonInteractive,
       emitMetadata,
       json: flags.json ?? false,
-      withEasEnvironmentVariablesSet: flags[
-        'with-eas-environment-variables-set'
-      ] as EnvironmentVariableEnvironment,
+      withEasEnvironmentVariablesSet: flags['with-eas-environment-variables-set'],
     };
   }
 }

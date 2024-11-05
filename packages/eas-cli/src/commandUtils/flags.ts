@@ -78,3 +78,15 @@ export const EasJsonOnlyFlag = {
     description: 'Enable JSON output, non-JSON messages will be printed to stderr.',
   }),
 };
+
+export const WithEasEnvironmentVariablesSetFlag = {
+  'with-eas-environment-variables-set': Flags.enum<EnvironmentVariableEnvironment | null>({
+    description:
+      'Environment to use the server-side defined EAS environment variables for during command execution.',
+    options: mapToLowercase(Object.values(EnvironmentVariableEnvironment)),
+    parse: upperCaseAsync,
+    required: false,
+    hidden: true,
+    default: null,
+  }),
+};
