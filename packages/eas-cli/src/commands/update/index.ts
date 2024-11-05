@@ -413,7 +413,7 @@ export default class UpdatePublish extends EasCommand {
           fingerprintSource: info.fingerprint
             ? (
                 await maybeUploadFingerprintAsync({
-                  runtimeVersion: info.runtimeVersion,
+                  hash: info.runtimeVersion,
                   fingerprint: info.fingerprint,
                   graphqlClient,
                 })

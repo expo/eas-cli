@@ -16,8 +16,9 @@ import { easCliVersion } from '../utils/easCli';
 
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>,
-  runtimeMetadata: {
+  runtimeAndFingerprintMetadata: {
     runtimeVersion?: string | undefined;
+    fingerprintHash?: string | undefined;
     fingerprintSource?: FingerprintSource | undefined;
   }
 ): Promise<Metadata> {
@@ -30,8 +31,9 @@ export async function collectMetadataAsync<T extends Platform>(
     workflow: ctx.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
-    runtimeVersion: runtimeMetadata?.runtimeVersion,
-    fingerprintSource: runtimeMetadata?.fingerprintSource,
+    runtimeVersion: runtimeAndFingerprintMetadata?.runtimeVersion,
+    fingerprintHash: runtimeAndFingerprintMetadata?.fingerprintHash,
+    fingerprintSource: runtimeAndFingerprintMetadata?.fingerprintSource,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
     ...channelObject,
     distribution,

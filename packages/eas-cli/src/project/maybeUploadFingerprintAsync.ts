@@ -11,12 +11,12 @@ import { uploadFileAtPathToGCSAsync } from '../uploads';
 import { getTmpDirectory } from '../utils/paths';
 
 export async function maybeUploadFingerprintAsync({
-  runtimeVersion,
+  hash,
   fingerprint,
   graphqlClient,
   localBuildMode,
 }: {
-  runtimeVersion: string;
+  hash: string;
   fingerprint: {
     fingerprintSources: object[];
     isDebugFingerprintSource: boolean;
@@ -24,20 +24,20 @@ export async function maybeUploadFingerprintAsync({
   graphqlClient: ExpoGraphqlClient;
   localBuildMode?: LocalBuildMode;
 }): Promise<{
-  runtimeVersion: string;
+  hash: string;
   fingerprintSource?: FingerprintSource;
 }> {
   await fs.mkdirp(getTmpDirectory());
   const fingerprintLocation = path.join(getTmpDirectory(), `${uuidv4()}-runtime-fingerprint.json`);
 
   await fs.writeJSON(fingerprintLocation, {
-    hash: runtimeVersion,
+    hash,
     sources: fingerprint.fingerprintSources,
   });
 
   if (localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
     return {
-      runtimeVersion,
+      hash,
       fingerprintSource: {
         type: FingerprintSourceType.PATH,
         path: fingerprintLocation,
@@ -62,14 +62,14 @@ export async function maybeUploadFingerprintAsync({
 
     Log.warn(errMessage);
     return {
-      runtimeVersion,
+      hash,
     };
   } finally {
     await fs.remove(fingerprintLocation);
   }
 
   return {
-    runtimeVersion,
+    hash,
     fingerprintSource: {
       type: FingerprintSourceType.GCS,
       bucketKey: fingerprintGCSBucketKey,
