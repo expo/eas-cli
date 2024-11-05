@@ -58,7 +58,7 @@ export class OptionalPrivateProjectConfigContextField extends ContextField<
       });
       serverSideEnvVars = serverSideEnvironmentVariables;
     }
-    const exp = getPrivateExpoConfigAsync(projectDir, { env: serverSideEnvVars });
+    const exp = await getPrivateExpoConfigAsync(projectDir, { env: serverSideEnvVars });
     return {
       exp,
       projectDir,

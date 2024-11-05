@@ -48,7 +48,7 @@ export class DynamicPublicProjectConfigContextField extends ContextField<Dynamic
           },
         };
       }
-      const exp = getPublicExpoConfigAsync(projectDir, options);
+      const exp = await getPublicExpoConfigAsync(projectDir, options);
       return {
         exp,
         projectDir,
@@ -89,7 +89,7 @@ export class DynamicPrivateProjectConfigContextField extends ContextField<Dynami
           },
         };
       }
-      const exp = getPrivateExpoConfigAsync(projectDir, options);
+      const exp = await getPrivateExpoConfigAsync(projectDir, options);
       return {
         exp,
         projectDir,
