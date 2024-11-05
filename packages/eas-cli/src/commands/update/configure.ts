@@ -3,7 +3,10 @@ import chalk from 'chalk';
 
 import { easJsonExistsAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASNonInteractiveFlag } from '../../commandUtils/flags';
+import {
+  EASNonInteractiveFlag,
+  WithEasEnvironmentVariablesSetFlag,
+} from '../../commandUtils/flags';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
 import {
@@ -15,12 +18,13 @@ export default class UpdateConfigure extends EasCommand {
   static override description = 'configure the project to support EAS Update';
 
   static override flags = {
-    platform: Flags.enum({
+    platform: Flags.enum<RequestedPlatform>({
       description: 'Platform to configure',
       char: 'p',
-      options: ['android', 'ios', 'all'],
-      default: 'all',
+      options: Object.values(RequestedPlatform),
+      default: RequestedPlatform.All,
     }),
+    ...WithEasEnvironmentVariablesSetFlag,
     ...EASNonInteractiveFlag,
   };
 
@@ -32,13 +36,12 @@ export default class UpdateConfigure extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(UpdateConfigure);
-    const platform = flags.platform as RequestedPlatform;
     const {
       privateProjectConfig: { projectId, exp, projectDir },
       vcsClient,
     } = await this.getContextAsync(UpdateConfigure, {
       nonInteractive: flags['non-interactive'],
-      withServerSideEnvironment: null,
+      withServerSideEnvironment: flags['with-eas-environment-variables-set'],
     });
 
     Log.log(
@@ -51,7 +54,7 @@ export default class UpdateConfigure extends EasCommand {
       exp,
       projectId,
       projectDir,
-      platform,
+      platform: flags['platform'],
       vcsClient,
       env: undefined,
     });
