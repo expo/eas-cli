@@ -1,4 +1,11 @@
-import { AppStoreState, AppStoreVersion, AppVersionState, Platform, ReleaseType, ReviewType } from '@expo/apple-utils';
+import {
+  AppStoreState,
+  AppStoreVersion,
+  AppVersionState,
+  Platform,
+  ReleaseType,
+  ReviewType,
+} from '@expo/apple-utils';
 
 import { AttributesOf } from '../../../../utils/asc';
 

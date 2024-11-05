@@ -1,9 +1,18 @@
-import { AgeRatingDeclaration, KidsAgeBand, KoreaRatingOverride, Rating, RatingOverride } from '@expo/apple-utils';
+import {
+  AgeRatingDeclaration,
+  KidsAgeBand,
+  KoreaRatingOverride,
+  Rating,
+  RatingOverride,
+} from '@expo/apple-utils';
 
 import { AttributesOf } from '../../../../utils/asc';
 
 // Note, both `seventeenPlus` and `gamlingAndContests` are deprecated
-type AgeRatingDeclarationProps = Omit<AttributesOf<AgeRatingDeclaration>, 'seventeenPlus' | 'gamblingAndContests'>;
+type AgeRatingDeclarationProps = Omit<
+  AttributesOf<AgeRatingDeclaration>,
+  'seventeenPlus' | 'gamblingAndContests'
+>;
 
 // These attributes is what we get from the API when no questions are answered
 export const emptyAdvisory: AgeRatingDeclarationProps = {

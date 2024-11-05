@@ -31,7 +31,9 @@ export class AppleConfigWriter {
   }
 
   // Note, both `seventeenPlus` and `gamlingAndContests` are deprecated
-  public setAgeRating(attributes: Omit<AttributesOf<AgeRatingDeclaration>, 'seventeenPlus' | 'gamblingAndContests'>): void {
+  public setAgeRating(
+    attributes: Omit<AttributesOf<AgeRatingDeclaration>, 'seventeenPlus' | 'gamblingAndContests'>
+  ): void {
     this.schema.advisory = {
       ageRatingOverride: attributes.ageRatingOverride ?? RatingOverride.NONE,
       alcoholTobaccoOrDrugUseOrReferences:
