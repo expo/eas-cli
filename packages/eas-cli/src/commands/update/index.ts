@@ -60,7 +60,6 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
-import { isEnvironment } from '../../utils/variableUtils';
 
 type RawUpdateFlags = {
   auto: boolean;
@@ -76,7 +75,7 @@ type RawUpdateFlags = {
   'rollout-percentage'?: number;
   'non-interactive': boolean;
   json: boolean;
-  'with-eas-environment-variables-set'?: string;
+  'with-eas-environment-variables-set': EnvironmentVariableEnvironment | null;
 };
 
 type UpdateFlags = {
@@ -649,20 +648,6 @@ export default class UpdatePublish extends EasCommand {
       );
     }
 
-    if (
-      flags['with-eas-environment-variables-set'] &&
-      !isEnvironment(flags['with-eas-environment-variables-set'])
-    ) {
-      Errors.error(
-        `--with-eas-environment-variables-set must be one of ${Object.values(
-          EnvironmentVariableEnvironment
-        )
-          .map(env => `"${env.toLocaleLowerCase()}"`)
-          .join(', ')}`,
-        { exit: 1 }
-      );
-    }
-
     return {
       auto,
       branchName,
@@ -677,11 +662,7 @@ export default class UpdatePublish extends EasCommand {
       nonInteractive,
       emitMetadata,
       json: flags.json ?? false,
-      withEasEnvironmentVariablesSet: flags['with-eas-environment-variables-set']
-        ? isEnvironment(flags['with-eas-environment-variables-set'])
-          ? flags['with-eas-environment-variables-set']
-          : null
-        : null,
+      withEasEnvironmentVariablesSet: flags['with-eas-environment-variables-set'],
     };
   }
 }

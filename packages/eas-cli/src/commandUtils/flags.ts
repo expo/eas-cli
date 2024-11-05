@@ -80,17 +80,13 @@ export const EasJsonOnlyFlag = {
 };
 
 export const WithEasEnvironmentVariablesSetFlag = {
-  'with-eas-environment-variables-set': Flags.enum({
+  'with-eas-environment-variables-set': Flags.enum<EnvironmentVariableEnvironment | null>({
     description:
       'Environment to use the server-side defined EAS environment variables for during command execution.',
-    options: [
-      EnvironmentVariableEnvironment.Development,
-      EnvironmentVariableEnvironment.Preview,
-      EnvironmentVariableEnvironment.Production,
-    ].map(env => env.toLowerCase()),
-    // eslint-disable-next-line async-protect/async-suffix
-    parse: async input => input.toUpperCase(),
+    options: mapToLowercase(Object.values(EnvironmentVariableEnvironment)),
+    parse: upperCaseAsync,
     required: false,
     hidden: true,
+    default: null,
   }),
 };
