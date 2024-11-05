@@ -3,7 +3,7 @@ import { createGraphqlClient } from './contextUtils/createGraphqlClient';
 import { findProjectDirAndVerifyProjectSetupAsync } from './contextUtils/findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
 import { loadServerSideEnvironmentVariablesAsync } from './contextUtils/loadServerSideEnvironmentVariablesAsync';
-import { getPublicExpoConfig } from '../../project/expoConfig';
+import { getPublicExpoConfigAsync } from '../../project/expoConfig';
 
 type GetServerSideEnvironmentVariablesFn = (
   maybeEnv?: Record<string, string>
@@ -22,7 +22,7 @@ export class ServerSideEnvironmentVariablesContextField extends ContextField<Get
           'withServerSideEnvironment parameter is required to evaluate ServerSideEnvironmentVariablesContextField'
         );
       }
-      const exp = getPublicExpoConfig(projectDir, { env: maybeEnv });
+      const exp = await getPublicExpoConfigAsync(projectDir, { env: maybeEnv });
       const projectId = await getProjectIdAsync(sessionManager, exp, {
         nonInteractive,
         env: maybeEnv,

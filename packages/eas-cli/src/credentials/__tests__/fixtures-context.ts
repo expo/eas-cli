@@ -21,8 +21,9 @@ export function createCtxMock(mockOverride: Record<string, any> = {}): Credentia
     },
     hasAppleCtx: jest.fn(() => true),
     hasProjectContext: true,
-    exp: testAppJson,
+    getExpoConfigAsync: async () => testAppJson,
     projectDir: '.',
+    getProjectIdAsync: async () => 'test-project-id',
   };
   return merge(defaultMock, mockOverride) as any;
 }

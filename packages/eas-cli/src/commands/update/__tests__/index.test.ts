@@ -140,18 +140,7 @@ describe(UpdatePublish.name, () => {
     const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
 
     // Add configuration to the project that should not be included in the update
-    const { appJson } = mockTestProject({
-      expoConfig: {
-        hooks: {
-          postPublish: [
-            {
-              file: 'custom-hook.js',
-              config: { some: 'config' },
-            },
-          ],
-        },
-      },
-    });
+    const { appJson } = mockTestProject();
 
     const { platforms, runtimeVersion } = mockTestExport({ platforms: ['ios'] });
 

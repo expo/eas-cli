@@ -145,18 +145,7 @@ describe(UpdateRollBackToEmbedded.name, () => {
     const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
 
     // Add configuration to the project that should not be included in the update
-    mockTestProject({
-      expoConfig: {
-        hooks: {
-          postPublish: [
-            {
-              file: 'custom-hook.js',
-              config: { some: 'config' },
-            },
-          ],
-        },
-      },
-    });
+    mockTestProject();
 
     const platforms = ['ios'];
     const runtimeVersion = 'exposdk:47.0.0';

@@ -1,8 +1,12 @@
 import { ExpoConfig, getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
+import spawnAsync from '@expo/spawn-async';
 import fs from 'fs-extra';
 import Joi from 'joi';
 import path from 'path';
+
+import { isExpoInstalled } from './projectUtils';
+import Log from '../log';
 
 export type PublicExpoConfig = Omit<
   ExpoConfig,
@@ -37,21 +41,57 @@ export async function createOrModifyExpoConfigAsync(
   }
 }
 
-function getExpoConfigInternal(
+let wasExpoConfigWarnPrinted = false;
+
+async function getExpoConfigInternalAsync(
   projectDir: string,
   opts: ExpoConfigOptionsInternal = {}
-): ExpoConfig {
+): Promise<ExpoConfig> {
   const originalProcessEnv: NodeJS.ProcessEnv = process.env;
   try {
     process.env = {
       ...process.env,
       ...opts.env,
     };
-    const { exp } = getConfig(projectDir, {
-      skipSDKVersionRequirement: true,
-      ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
-      ...(opts.skipPlugins ? { skipPlugins: true } : {}),
-    });
+
+    let exp: ExpoConfig;
+    if (isExpoInstalled(projectDir)) {
+      try {
+        const { stdout } = await spawnAsync(
+          'npx',
+          ['expo', 'config', '--json', ...(opts.isPublicConfig ? ['--type', 'public'] : [])],
+
+          {
+            cwd: projectDir,
+            env: {
+              ...process.env,
+              ...opts.env,
+              EXPO_NO_DOTENV: '1',
+            },
+          }
+        );
+        exp = JSON.parse(stdout);
+      } catch (err: any) {
+        if (!wasExpoConfigWarnPrinted) {
+          Log.warn(
+            `Failed to read the app config from the project using "npx expo config" command: ${err.message}.`
+          );
+          Log.warn('Falling back to the version of "@expo/config" shipped with the EAS CLI.');
+          wasExpoConfigWarnPrinted = true;
+        }
+        exp = getConfig(projectDir, {
+          skipSDKVersionRequirement: true,
+          ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
+          ...(opts.skipPlugins ? { skipPlugins: true } : {}),
+        }).exp;
+      }
+    } else {
+      exp = getConfig(projectDir, {
+        skipSDKVersionRequirement: true,
+        ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
+        ...(opts.skipPlugins ? { skipPlugins: true } : {}),
+      }).exp;
+    }
 
     const { error } = MinimalAppConfigSchema.validate(exp, {
       allowUnknown: true,
@@ -78,10 +118,13 @@ const MinimalAppConfigSchema = Joi.object({
   }),
 });
 
-export function getPrivateExpoConfig(projectDir: string, opts: ExpoConfigOptions = {}): ExpoConfig {
+export async function getPrivateExpoConfigAsync(
+  projectDir: string,
+  opts: ExpoConfigOptions = {}
+): Promise<ExpoConfig> {
   ensureExpoConfigExists(projectDir);
 
-  return getExpoConfigInternal(projectDir, { ...opts, isPublicConfig: false });
+  return await getExpoConfigInternalAsync(projectDir, { ...opts, isPublicConfig: false });
 }
 
 export function ensureExpoConfigExists(projectDir: string): void {
@@ -97,11 +140,11 @@ export function isUsingStaticExpoConfig(projectDir: string): boolean {
   return !!(paths.staticConfigPath?.endsWith('app.json') && !paths.dynamicConfigPath);
 }
 
-export function getPublicExpoConfig(
+export async function getPublicExpoConfigAsync(
   projectDir: string,
   opts: ExpoConfigOptions = {}
-): PublicExpoConfig {
+): Promise<PublicExpoConfig> {
   ensureExpoConfigExists(projectDir);
 
-  return getExpoConfigInternal(projectDir, { ...opts, isPublicConfig: true });
+  return await getExpoConfigInternalAsync(projectDir, { ...opts, isPublicConfig: true });
 }

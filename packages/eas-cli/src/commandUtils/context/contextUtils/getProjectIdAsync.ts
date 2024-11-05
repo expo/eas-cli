@@ -7,7 +7,10 @@ import { findProjectRootAsync } from './findProjectDirAndVerifyProjectSetupAsync
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
-import { createOrModifyExpoConfigAsync, getPrivateExpoConfig } from '../../../project/expoConfig';
+import {
+  createOrModifyExpoConfigAsync,
+  getPrivateExpoConfigAsync,
+} from '../../../project/expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { toAppPrivacy } from '../../../project/projectUtils';
 import SessionManager from '../../../user/SessionManager';
@@ -25,7 +28,7 @@ export async function saveProjectIdToAppConfigAsync(
   options: { env?: Env } = {}
 ): Promise<void> {
   // NOTE(cedric): we disable plugins to avoid writing plugin-generated content to `expo.extra`
-  const exp = getPrivateExpoConfig(projectDir, { skipPlugins: true, ...options });
+  const exp = await getPrivateExpoConfigAsync(projectDir, { skipPlugins: true, ...options });
   const result = await createOrModifyExpoConfigAsync(
     projectDir,
     {
