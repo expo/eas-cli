@@ -1,4 +1,4 @@
-import { Errors, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import { easJsonExistsAsync } from '../../build/configure';
@@ -7,26 +7,12 @@ import {
   EASNonInteractiveFlag,
   WithEasEnvironmentVariablesSetFlag,
 } from '../../commandUtils/flags';
-import { EnvironmentVariableEnvironment } from '../../graphql/generated';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
 import {
   ensureEASUpdateIsConfiguredAsync,
   ensureEASUpdateIsConfiguredInEasJsonAsync,
 } from '../../update/configure';
-import { isEnvironment } from '../../utils/variableUtils';
-
-type RawUpdateConfigureFlags = {
-  platform: RequestedPlatform;
-  'non-interactive': boolean;
-  'with-eas-environment-variables-set'?: string;
-};
-
-type UpdateConfigureFlags = {
-  platform: RequestedPlatform;
-  nonInteractive: boolean;
-  withEasEnvironmentVariablesSet: EnvironmentVariableEnvironment | null;
-};
 
 export default class UpdateConfigure extends EasCommand {
   static override description = 'configure the project to support EAS Update';
@@ -50,13 +36,12 @@ export default class UpdateConfigure extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(UpdateConfigure);
-    const { platform, nonInteractive, withEasEnvironmentVariablesSet } = this.sanitizeFlags(flags);
     const {
       privateProjectConfig: { projectId, exp, projectDir },
       vcsClient,
     } = await this.getContextAsync(UpdateConfigure, {
-      nonInteractive,
-      withServerSideEnvironment: withEasEnvironmentVariablesSet,
+      nonInteractive: flags['non-interactive'],
+      withServerSideEnvironment: flags['with-eas-environment-variables-set'],
     });
 
     Log.log(
@@ -69,7 +54,7 @@ export default class UpdateConfigure extends EasCommand {
       exp,
       projectId,
       projectDir,
-      platform,
+      platform: flags['platform'],
       vcsClient,
       env: undefined,
     });
@@ -88,31 +73,5 @@ export default class UpdateConfigure extends EasCommand {
         learnMoreMessage: 'Learn more about other capabilities of EAS Update',
       })}`
     );
-  }
-
-  private sanitizeFlags(flags: RawUpdateConfigureFlags): UpdateConfigureFlags {
-    if (
-      flags['with-eas-environment-variables-set'] &&
-      !isEnvironment(flags['with-eas-environment-variables-set'])
-    ) {
-      Errors.error(
-        `--with-eas-environment-variables-set must be one of ${Object.values(
-          EnvironmentVariableEnvironment
-        )
-          .map(env => `"${env.toLocaleLowerCase()}"`)
-          .join(', ')}`,
-        { exit: 1 }
-      );
-    }
-
-    return {
-      platform: flags.platform,
-      nonInteractive: flags['non-interactive'],
-      withEasEnvironmentVariablesSet: flags['with-eas-environment-variables-set']
-        ? isEnvironment(flags['with-eas-environment-variables-set'])
-          ? flags['with-eas-environment-variables-set']
-          : null
-        : null,
-    };
   }
 }
