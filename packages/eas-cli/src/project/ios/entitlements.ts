@@ -47,9 +47,9 @@ export async function getManagedApplicationTargetEntitlementsAsync(
     } catch (err: any) {
       if (!wasExpoConfigPluginsWarnPrinted) {
         Log.warn(
-          `Failed to read the app config from the project using npx expo config command: ${err.message}.`
+          `Failed to read the app config from the project using "npx expo config" command: ${err.message}.`
         );
-        Log.warn('Falling back to the version of @expo/config shipped with the EAS CLI.');
+        Log.warn('Falling back to the version of "@expo/config" shipped with the EAS CLI.');
         wasExpoConfigPluginsWarnPrinted = true;
       }
       const { exp } = await getPrebuildConfigAsync(projectDir, { platforms: ['ios'] });

@@ -74,9 +74,9 @@ async function getExpoConfigInternalAsync(
       } catch (err: any) {
         if (!wasExpoConfigWarnPrinted) {
           Log.warn(
-            `Failed to read the app config from the project using npx expo config command: ${err.message}.`
+            `Failed to read the app config from the project using "npx expo config" command: ${err.message}.`
           );
-          Log.warn('Falling back to the version of @expo/config shipped with the EAS CLI.');
+          Log.warn('Falling back to the version of "@expo/config" shipped with the EAS CLI.');
           wasExpoConfigWarnPrinted = true;
         }
         exp = getConfig(projectDir, {
