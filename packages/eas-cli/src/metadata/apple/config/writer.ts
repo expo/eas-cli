@@ -25,7 +25,7 @@ export class AppleConfigWriter {
   /** Get the schema result to write it to the config file */
   public toSchema(): { configVersion: number; apple: Partial<AppleMetadata> } {
     return {
-      configVersion: 1,
+      configVersion: 0,
       apple: this.schema,
     };
   }
