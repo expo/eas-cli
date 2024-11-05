@@ -6,7 +6,9 @@ import {
   AppStoreVersion,
   AppStoreVersionLocalization,
   AppStoreVersionPhasedRelease,
+  KoreaRatingOverride,
   Rating,
+  RatingOverride,
   ReleaseType,
 } from '@expo/apple-utils';
 
@@ -23,31 +25,33 @@ export class AppleConfigWriter {
   /** Get the schema result to write it to the config file */
   public toSchema(): { configVersion: number; apple: Partial<AppleMetadata> } {
     return {
-      configVersion: 0,
+      configVersion: 1,
       apple: this.schema,
     };
   }
 
   public setAgeRating(attributes: AttributesOf<AgeRatingDeclaration>): void {
     this.schema.advisory = {
+      ageRatingOverride: attributes.ageRatingOverride ?? RatingOverride.NONE,
       alcoholTobaccoOrDrugUseOrReferences:
         attributes.alcoholTobaccoOrDrugUseOrReferences ?? Rating.NONE,
       contests: attributes.contests ?? Rating.NONE,
+      gambling: attributes.gambling ?? false,
       gamblingSimulated: attributes.gamblingSimulated ?? Rating.NONE,
       horrorOrFearThemes: attributes.horrorOrFearThemes ?? Rating.NONE,
+      kidsAgeBand: attributes.kidsAgeBand ?? null,
+      koreaAgeRatingOverride: attributes.koreaAgeRatingOverride ?? KoreaRatingOverride.NONE,
+      lootBox: attributes.lootBox ?? false,
       matureOrSuggestiveThemes: attributes.matureOrSuggestiveThemes ?? Rating.NONE,
       medicalOrTreatmentInformation: attributes.medicalOrTreatmentInformation ?? Rating.NONE,
       profanityOrCrudeHumor: attributes.profanityOrCrudeHumor ?? Rating.NONE,
       sexualContentGraphicAndNudity: attributes.sexualContentGraphicAndNudity ?? Rating.NONE,
       sexualContentOrNudity: attributes.sexualContentOrNudity ?? Rating.NONE,
+      unrestrictedWebAccess: attributes.unrestrictedWebAccess ?? false,
       violenceCartoonOrFantasy: attributes.violenceCartoonOrFantasy ?? Rating.NONE,
       violenceRealistic: attributes.violenceRealistic ?? Rating.NONE,
       violenceRealisticProlongedGraphicOrSadistic:
         attributes.violenceRealisticProlongedGraphicOrSadistic ?? Rating.NONE,
-      gambling: attributes.gambling ?? false,
-      unrestrictedWebAccess: attributes.unrestrictedWebAccess ?? false,
-      kidsAgeBand: attributes.kidsAgeBand ?? null,
-      seventeenPlus: attributes.seventeenPlus ?? false,
     };
   }
 

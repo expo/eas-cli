@@ -13,7 +13,8 @@ export interface AppleMetadata {
   review?: AppleReview;
 }
 
-export type AppleAdvisory = Partial<AgeRatingDeclarationProps>;
+// The omited properties are deprecated
+export type AppleAdvisory = Omit<Partial<AgeRatingDeclarationProps>, 'seventeenPlus' | 'gamblingAndContests'>;
 
 /** Apps can define up to two categories, or categories with up to two subcategories */
 export type AppleCategory = (string | string[])[];

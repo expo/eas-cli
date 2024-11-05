@@ -1,6 +1,20 @@
 {
   "$schema": "http://json-schema.org/draft-06/schema",
   "type": "object",
+  "properties": {
+    "configVersion": {
+      "enum": [0],
+      "description": "The EAS metadata store configuration version"
+    },
+    "apple": {
+      "$ref": "#/definitions/AppleConfig"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "configVersion",
+    "apple"
+  ],
   "definitions": {
     "apple": {
       "AppleKidsAge": {
@@ -323,7 +337,8 @@
           "gambling",
           "unrestrictedWebAccess",
           "kidsAgeBand",
-          "seventeenPlus"
+          "ageRatingOverride",
+          "koreaAgeRatingOverride"
         ],
         "defaultSnippets": [
           {
@@ -442,8 +457,23 @@
           },
           "seventeenPlus": {
             "type": "boolean",
-            "description": "If your app rates 12+ or lower, and you believe its content may not be suitable for children under 17, you can manually set the age rating to 17+.\n@see https://help.apple.com/app-store-connect/#/dev599d50efb",
-            "markdownDescription": "If your app rates 12+ or lower, and you believe its content may not be suitable for children under 17, you can manually set the age rating to 17+.\n\n[Learn more](https://help.apple.com/app-store-connect/#/dev599d50efb)"
+            "deprecated": true,
+            "description": "This property is deprecated, use `ageRatingOverride` instead.",
+            "markdownDescription": "This property is deprecated, use `ageRatingOverride` instead."
+          },
+          "ageRatingOverride": {
+            "$ref": "#/definitions/apple/AppleAgeRatingOverride",
+            "description": "If your app rates 12+ or lower, and you believe its content may not be suitable for children under 17, you can manually set the age rating to 17+.\n\nIf your app will be distributed through alternative app marketplaces or websites in the European Union and you believe your app is [Unrated](https://developer.apple.com/help/app-store-connect/reference/age-ratings), set this to `UNRATED`.\n\n@see https://help.apple.com/app-store-connect/#/dev599d50efb",
+            "markdownDescription": "If your app rates 12+ or lower, and you believe its content may not be suitable for children under 17, you can manually set the age rating to 17+.\n\nIf your app will be distributed through alternative app marketplaces or websites in the European Union and you believe your app is [Unrated](https://developer.apple.com/help/app-store-connect/reference/age-ratings), set this to `UNRATED`.\n\n[Learn more](https://help.apple.com/app-store-connect/#/dev599d50efb)"
+          },
+          "koreaAgeRatingOverride": {
+            "$ref": "#/definitions/apple/AppleKoreaAgeRatingOverride",
+            "description": "If your app rates 12+ or lower, and you believe its content may not be suitable for children under 15 or 19, you can manually set the age rating to 15+ or 19+.\n\nIf your app will be distributed through alternative app marketplaces or websites in the European Union and you believe your app is [Unrated](https://developer.apple.com/help/app-store-connect/reference/age-ratings), set this to `UNRATED`.\n\n@see https://help.apple.com/app-store-connect/#/dev599d50efb",
+            "markdownDescription": "If your app rates 12+ or lower, and you believe its content may not be suitable for children under 15 or 19, you can manually set the age rating to 15+ or 19+.\n\nIf your app will be distributed through alternative app marketplaces or websites in the European Union and you believe your app is [Unrated](https://developer.apple.com/help/app-store-connect/reference/age-ratings), set this to `UNRATED`.\n\n[Learn more](https://help.apple.com/app-store-connect/#/dev599d50efb)"
+          },
+          "lootBox": {
+            "type": "boolean",
+            "description": "Does your app contain purchasable loot boxes? These virtual containers provide players with in-game items, including functional cards or cosmetic modifications, based on random chance."
           }
         }
       },
@@ -565,6 +595,20 @@
             "maxLength": 4000
           }
         }
+      },
+      "AppleAgeRatingOverride": {
+        "enum": [
+          "NONE",
+          "SEVENTEEN_PLUS",
+          "UNRATED"
+        ]
+      },
+      "AppleKoreaAgeRatingOverride": {
+        "enum": [
+          "NONE",
+          "FIFTEEN_PLUS",
+          "NINETEEN_PLUS"
+        ]
       }
     },
     "AppleConfig": {
@@ -775,19 +819,5 @@
         }
       }
     }
-  },
-  "properties": {
-    "configVersion": {
-      "enum": [0],
-      "description": "The EAS metadata store configuration version"
-    },
-    "apple": {
-      "$ref": "#/definitions/AppleConfig"
-    }
-  },
-  "additionalProperties": false,
-  "required": [
-    "configVersion",
-    "apple"
-  ]
+  }
 }
