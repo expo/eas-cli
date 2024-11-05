@@ -360,7 +360,9 @@
               "gambling": false,
               "unrestrictedWebAccess": false,
               "kidsAgeBand": null,
-              "seventeenPlus": false
+              "ageRatingOverride": "NONE",
+              "koreaAgeRatingOverride": "NONE",
+              "lootBox": false
             }
           },
           {
@@ -382,7 +384,9 @@
               "unrestrictedWebAccess": false,
               "gambling": false,
               "kidsAgeBand": null,
-              "seventeenPlus": false
+              "ageRatingOverride": "${13|NONE,SEVENTEEN_PLUS,UNRATED|}",
+              "koreaAgeRatingOverride": "${14|NONE,FIFTEEN_PLUS,NINETEEN_PLUS|}",
+              "lootBox": false
             }
           }
         ],
@@ -458,8 +462,9 @@
           "seventeenPlus": {
             "type": "boolean",
             "deprecated": true,
-            "description": "This property is deprecated, use `ageRatingOverride` instead.",
-            "markdownDescription": "This property is deprecated, use `ageRatingOverride` instead."
+            "deprecationMessage": "This property is deprecated, use `ageRatingOverride` instead.",
+            "description": "If your app rates 12+ or lower, and you believe its content may not be suitable for children under 17, you can manually set the age rating to 17+.\n@see https://help.apple.com/app-store-connect/#/dev599d50efb",
+            "markdownDescription": "If your app rates 12+ or lower, and you believe its content may not be suitable for children under 17, you can manually set the age rating to 17+.\n\n[Learn more](https://help.apple.com/app-store-connect/#/dev599d50efb)"
           },
           "ageRatingOverride": {
             "$ref": "#/definitions/apple/AppleAgeRatingOverride",
