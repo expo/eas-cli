@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [13.0.1](https://github.com/expo/eas-cli/releases/tag/v13.0.1) - 2024-11-05
+
+### 🧹 Chores
+
 - Upgrade EAS Metadata with new properties from App Store. ([#2671](https://github.com/expo/eas-cli/pull/2671) by [@byCedric](https://github.com/byCedric))
 
 ## [13.0.0](https://github.com/expo/eas-cli/releases/tag/v13.0.0) - 2024-11-05
