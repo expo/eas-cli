@@ -66,6 +66,7 @@ async function getExpoConfigInternalAsync(
             env: {
               ...process.env,
               ...opts.env,
+              EXPO_NO_DOTENV: '1',
             },
           }
         );

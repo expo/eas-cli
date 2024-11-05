@@ -39,6 +39,7 @@ export async function getManagedApplicationTargetEntitlementsAsync(
           env: {
             ...process.env,
             ...env,
+            EXPO_NO_DOTENV: '1',
           },
         }
       );
