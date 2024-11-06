@@ -175,27 +175,8 @@ export async function prepareBuildRequestForPlatformAsync<
   }
   assert(projectArchive);
 
-  let runtimeAndFingerprintMetadata: {
-    runtimeVersion?: string | undefined;
-    fingerprintHash?: string | undefined;
-    fingerprintSource?: FingerprintSource | undefined;
-    fingerprint?: {
-      fingerprintSources: object[];
-      isDebugFingerprintSource: boolean;
-    };
-  } = await computeAndMaybeUploadFingerprintFromExpoUpdatesAsync(ctx);
-  if (!runtimeAndFingerprintMetadata?.fingerprint) {
-    const fingerprint = await computeAndMaybeUploadFingerprintWithoutExpoUpdatesAsync(ctx);
-    runtimeAndFingerprintMetadata = {
-      ...runtimeAndFingerprintMetadata,
-      ...fingerprint,
-    };
-  } else {
-    runtimeAndFingerprintMetadata = {
-      ...runtimeAndFingerprintMetadata,
-      fingerprintHash: runtimeAndFingerprintMetadata.runtimeVersion,
-    };
-  }
+  const runtimeAndFingerprintMetadata =
+    await computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync(ctx);
   const metadata = await collectMetadataAsync(ctx, runtimeAndFingerprintMetadata);
   const buildParams = resolveBuildParamsInput(ctx, metadata);
   const job = await builder.prepareJobAsync(ctx, {
@@ -679,6 +660,29 @@ function formatEstimatedWaitTime(estimatedWaitTimeLeftSeconds: number): string {
 
 function formatAccountBillingUrl(accountName: string): string {
   return new URL(`/accounts/${accountName}/settings/billing`, getExpoWebsiteBaseUrl()).toString();
+}
+
+async function computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync<T extends Platform>(
+  ctx: BuildContext<T>
+): Promise<{
+  runtimeVersion?: string | undefined;
+  fingerprintHash?: string | undefined;
+  fingerprintSource?: FingerprintSource | undefined;
+}> {
+  const runtimeAndFingerprintMetadata =
+    await computeAndMaybeUploadFingerprintFromExpoUpdatesAsync(ctx);
+  if (!runtimeAndFingerprintMetadata?.fingerprint) {
+    const fingerprint = await computeAndMaybeUploadFingerprintWithoutExpoUpdatesAsync(ctx);
+    return {
+      ...runtimeAndFingerprintMetadata,
+      ...fingerprint,
+    };
+  } else {
+    return {
+      ...runtimeAndFingerprintMetadata,
+      fingerprintHash: runtimeAndFingerprintMetadata.runtimeVersion,
+    };
+  }
 }
 
 async function computeAndMaybeUploadFingerprintFromExpoUpdatesAsync<T extends Platform>(

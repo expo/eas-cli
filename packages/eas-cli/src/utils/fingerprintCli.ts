@@ -25,7 +25,7 @@ export async function createFingerprintAsync(
   if (options.platform) {
     fingerprintOptions.platforms = [options.platform];
   }
-  if (options.workflow === 'managed') {
+  if (options.workflow === Workflow.MANAGED) {
     fingerprintOptions.ignorePaths = ['android/**/*', 'ios/**/*'];
   }
   if (options.debug) {
