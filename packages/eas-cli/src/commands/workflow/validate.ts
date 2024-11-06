@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
-import yaml from 'js-yaml';
 import path from 'path';
+import * as YAML from 'yaml';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
@@ -30,7 +30,7 @@ export class WorkflowValidate extends EasCommand {
     } catch (error) {
       spinner.fail('Workflow configuration YAML is not valid.');
 
-      if (error instanceof yaml.YAMLException) {
+      if (error instanceof YAML.YAMLParseError) {
         Log.error(`YAML syntax error: ${error.message}`);
       } else if (error instanceof Error) {
         Log.error(error.message);
@@ -38,7 +38,7 @@ export class WorkflowValidate extends EasCommand {
         Log.error(`Unexpected error: ${String(error)}`);
       }
 
-      throw error;
+      process.exit(1);
     }
   }
 }
@@ -65,16 +65,30 @@ async function validateYAMLAsync(filePath: string): Promise<void> {
 
   try {
     const fileContents = await fs.readFile(filePath, 'utf8');
-    const parsedYaml = yaml.load(fileContents);
 
+    // First check if the file is empty or only contains whitespace
+    if (!fileContents.trim()) {
+      throw new Error('YAML file is empty or contains only comments.');
+    }
+
+    const parsedYaml = YAML.parse(fileContents);
+
+    // Check if the parsed result is empty or null
     if (
+      parsedYaml === null ||
       parsedYaml === undefined ||
-      (typeof parsedYaml === 'object' && Object.keys(parsedYaml!).length === 0)
+      (typeof parsedYaml === 'object' && Object.keys(parsedYaml).length === 0)
     ) {
       throw new Error('YAML file is empty or contains only comments.');
     }
   } catch (error) {
-    if (error instanceof yaml.YAMLException || error instanceof Error) {
+    if (
+      error instanceof Error &&
+      error.message === 'YAML file is empty or contains only comments.'
+    ) {
+      throw error;
+    }
+    if (error instanceof YAML.YAMLParseError || error instanceof Error) {
       throw new Error(`YAML parsing error: ${error.message}`);
     } else {
       throw new Error(`YAML parsing error: ${String(error)}`);
