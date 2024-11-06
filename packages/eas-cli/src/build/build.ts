@@ -66,6 +66,7 @@ import { maybeUploadFingerprintAsync } from '../project/maybeUploadFingerprintAs
 import { resolveRuntimeVersionAsync } from '../project/resolveRuntimeVersionAsync';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
+import { createFingerprintAsync } from '../utils/fingerprintCli';
 import { printJsonOnlyOutput } from '../utils/json';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';
@@ -174,8 +175,9 @@ export async function prepareBuildRequestForPlatformAsync<
   }
   assert(projectArchive);
 
-  const runtimeMetadata = await createAndMaybeUploadFingerprintAsync(ctx);
-  const metadata = await collectMetadataAsync(ctx, runtimeMetadata);
+  const runtimeAndFingerprintMetadata =
+    await computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync(ctx);
+  const metadata = await collectMetadataAsync(ctx, runtimeAndFingerprintMetadata);
   const buildParams = resolveBuildParamsInput(ctx, metadata);
   const job = await builder.prepareJobAsync(ctx, {
     projectArchive,
@@ -660,11 +662,38 @@ function formatAccountBillingUrl(accountName: string): string {
   return new URL(`/accounts/${accountName}/settings/billing`, getExpoWebsiteBaseUrl()).toString();
 }
 
-async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
+async function computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync<T extends Platform>(
+  ctx: BuildContext<T>
+): Promise<{
+  runtimeVersion?: string | undefined;
+  fingerprintHash?: string | undefined;
+  fingerprintSource?: FingerprintSource | undefined;
+}> {
+  const runtimeAndFingerprintMetadata =
+    await computeAndMaybeUploadFingerprintFromExpoUpdatesAsync(ctx);
+  if (!runtimeAndFingerprintMetadata?.fingerprint) {
+    const fingerprint = await computeAndMaybeUploadFingerprintWithoutExpoUpdatesAsync(ctx);
+    return {
+      ...runtimeAndFingerprintMetadata,
+      ...fingerprint,
+    };
+  } else {
+    return {
+      ...runtimeAndFingerprintMetadata,
+      fingerprintHash: runtimeAndFingerprintMetadata.runtimeVersion,
+    };
+  }
+}
+
+async function computeAndMaybeUploadFingerprintFromExpoUpdatesAsync<T extends Platform>(
   ctx: BuildContext<T>
 ): Promise<{
   runtimeVersion?: string;
   fingerprintSource?: FingerprintSource;
+  fingerprint?: {
+    fingerprintSources: object[];
+    isDebugFingerprintSource: boolean;
+  };
 }> {
   const resolvedRuntimeVersion = await resolveRuntimeVersionAsync({
     exp: ctx.exp,
@@ -689,10 +718,45 @@ async function createAndMaybeUploadFingerprintAsync<T extends Platform>(
     };
   }
 
-  return await maybeUploadFingerprintAsync({
-    runtimeVersion: resolvedRuntimeVersion.runtimeVersion,
+  const uploadedFingerprint = await maybeUploadFingerprintAsync({
+    hash: resolvedRuntimeVersion.runtimeVersion,
     fingerprint: resolvedRuntimeVersion.fingerprint,
     graphqlClient: ctx.graphqlClient,
     localBuildMode: ctx.localBuildOptions.localBuildMode,
   });
+  return {
+    runtimeVersion: uploadedFingerprint.hash,
+    fingerprintSource: uploadedFingerprint.fingerprintSource,
+    fingerprint: resolvedRuntimeVersion.fingerprint,
+  };
+}
+
+async function computeAndMaybeUploadFingerprintWithoutExpoUpdatesAsync<T extends Platform>(
+  ctx: BuildContext<T>,
+  { debug }: { debug?: boolean } = {}
+): Promise<{
+  fingerprintHash?: string;
+  fingerprintSource?: FingerprintSource;
+}> {
+  const fingerprint = await createFingerprintAsync(ctx.projectDir, {
+    workflow: ctx.workflow,
+    platform: ctx.platform,
+    env: ctx.env,
+  });
+  if (!fingerprint) {
+    return {};
+  }
+  const uploadedFingerprint = await maybeUploadFingerprintAsync({
+    hash: fingerprint.hash,
+    fingerprint: {
+      fingerprintSources: fingerprint.sources,
+      isDebugFingerprintSource: debug ?? false,
+    },
+    graphqlClient: ctx.graphqlClient,
+    localBuildMode: ctx.localBuildOptions.localBuildMode,
+  });
+  return {
+    fingerprintHash: uploadedFingerprint.hash,
+    fingerprintSource: uploadedFingerprint.fingerprintSource,
+  };
 }
