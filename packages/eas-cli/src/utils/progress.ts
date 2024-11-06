@@ -1,8 +1,8 @@
 import chalk from 'chalk';
+import { randomUUID } from 'node:crypto';
 
 import { endTimer, formatMilliseconds, startTimer } from './timer';
 import { Ora, ora } from '../ora';
-import { randomUUID } from 'node:crypto';
 
 export type Progress = {
   total: number;
