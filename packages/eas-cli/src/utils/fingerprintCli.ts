@@ -1,6 +1,9 @@
 import { Env, Workflow } from '@expo/eas-build-job';
 import { silent as silentResolveFrom } from 'resolve-from';
 
+import Log from '../log';
+import { ora } from '../ora';
+
 export async function createFingerprintAsync(
   projectDir: string,
   options: {
@@ -15,22 +18,39 @@ export async function createFingerprintAsync(
   sources: object[];
   isDebugSource: boolean;
 } | null> {
-  // @expo/fingerprint is exported in the expo package for SDK 52+
-  const fingerprintPath = silentResolveFrom(projectDir, 'expo/fingerprint');
-  if (!fingerprintPath) {
-    return null;
+  const timeoutId = setTimeout(() => {
+    Log.log('⌛️ Computing project fingerprint taking longer than expected...');
+    Log.log('⏩ To skip this step, set the environment variable: EAS_SKIP_AUTO_FINGERPRINT=1');
+  }, 5000);
+
+  const spinner = ora(`Computing project fingerprint`).start();
+  try {
+    // @expo/fingerprint is exported in the expo package for SDK 52+
+    const fingerprintPath = silentResolveFrom(projectDir, 'expo/fingerprint');
+    if (!fingerprintPath) {
+      return null;
+    }
+    const Fingerprint = require(fingerprintPath);
+    const fingerprintOptions: Record<string, any> = {};
+    if (options.platform) {
+      fingerprintOptions.platforms = [options.platform];
+    }
+    if (options.workflow === Workflow.MANAGED) {
+      fingerprintOptions.ignorePaths = ['android/**/*', 'ios/**/*'];
+    }
+    if (options.debug) {
+      fingerprintOptions.debug = true;
+    }
+    // eslint-disable-next-line @typescript-eslint/return-await
+    const fingerprint = await Fingerprint.createFingerprintAsync(projectDir, fingerprintOptions);
+    spinner.succeed(`Computed project fingerprint`);
+    return fingerprint;
+  } catch (e) {
+    spinner.fail(`Failed to compute project fingerprint`);
+    Log.log('⏩ To skip this step, set the environment variable: EAS_SKIP_AUTO_FINGERPRINT=1');
+    throw e;
+  } finally {
+    // Clear the timeout if the operation finishes before the time limit
+    clearTimeout(timeoutId);
   }
-  const Fingerprint = require(fingerprintPath);
-  const fingerprintOptions: Record<string, any> = {};
-  if (options.platform) {
-    fingerprintOptions.platforms = [options.platform];
-  }
-  if (options.workflow === Workflow.MANAGED) {
-    fingerprintOptions.ignorePaths = ['android/**/*', 'ios/**/*'];
-  }
-  if (options.debug) {
-    fingerprintOptions.debug = true;
-  }
-  // eslint-disable-next-line @typescript-eslint/return-await
-  return await Fingerprint.createFingerprintAsync(projectDir, fingerprintOptions);
 }
