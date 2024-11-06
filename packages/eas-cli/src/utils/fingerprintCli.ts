@@ -18,6 +18,11 @@ export async function createFingerprintAsync(
   sources: object[];
   isDebugSource: boolean;
 } | null> {
+  if (process.env.EAS_SKIP_AUTO_FINGERPRINT) {
+    Log.log('Skipping project fingerprint');
+    return null;
+  }
+
   const timeoutId = setTimeout(() => {
     Log.log('⌛️ Computing project fingerprint taking longer than expected...');
     Log.log('⏩ To skip this step, set the environment variable: EAS_SKIP_AUTO_FINGERPRINT=1');
