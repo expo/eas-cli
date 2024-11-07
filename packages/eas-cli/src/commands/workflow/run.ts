@@ -22,6 +22,10 @@ export default class WorkflowRun extends EasCommand {
 
   static override args = [{ name: 'file', description: 'Path to the workflow file to run' }];
 
+static override flags = {
+  ...EasNonInteractiveFlag,
+}
+
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
