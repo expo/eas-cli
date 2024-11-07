@@ -50,3 +50,16 @@ export function getUpdateGroupUrl(
     getExpoWebsiteBaseUrl()
   ).toString();
 }
+
+export function getWorkflowRunUrl(
+  accountName: string,
+  projectName: string,
+  workflowRunId: string
+): string {
+  return new URL(
+    `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
+      projectName
+    )}/workflows/${workflowRunId}`,
+    getExpoWebsiteBaseUrl()
+  ).toString();
+}

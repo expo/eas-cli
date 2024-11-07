@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { randomUUID } from 'node:crypto';
 
 import { endTimer, formatMilliseconds, startTimer } from './timer';
 import { Ora, ora } from '../ora';
@@ -29,7 +30,7 @@ export function createProgressTracker({
   let transferredSoFar = 0;
   let current = 0;
 
-  const timerLabel = String(Date.now());
+  const timerLabel = String(randomUUID());
 
   const getMessage = (v: number, total: number): string => {
     const ratio = Math.min(Math.max(v, 0), 1);
