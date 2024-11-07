@@ -1,9 +1,9 @@
-import chalk from 'chalk';
 import fs from 'node:fs';
 import * as path from 'node:path';
 
 import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { WorkflowProjectSourceType } from '../../graphql/generated';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
 import Log, { link } from '../../log';
@@ -13,8 +13,6 @@ import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccou
 
 export default class WorkflowRun extends EasCommand {
   static override description = 'Run an EAS workflow';
-  static override aliases = ['workflow:run'];
-  static override usage = [chalk`workflow:run {dim [options]}`];
 
   // TODO(@sjchmiela): Keep command hidden until workflows are live
   static override hidden = true;
@@ -22,9 +20,9 @@ export default class WorkflowRun extends EasCommand {
 
   static override args = [{ name: 'file', description: 'Path to the workflow file to run' }];
 
-static override flags = {
-  ...EasNonInteractiveFlag,
-}
+  static override flags = {
+    ...EASNonInteractiveFlag,
+  };
 
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
@@ -48,7 +46,14 @@ static override flags = {
       withServerSideEnvironment: null,
     });
 
-    const yamlConfig = await fs.promises.readFile(path.join(projectDir, args.file), 'utf8');
+    let yamlConfig: string;
+    try {
+      yamlConfig = await fs.promises.readFile(path.join(projectDir, args.file), 'utf8');
+    } catch (err) {
+      Log.error('Failed to read workflow file.');
+
+      throw err;
+    }
 
     const {
       projectId,
@@ -60,44 +65,51 @@ static override flags = {
     let easJsonBucketKey: string;
 
     try {
-      [{ projectArchiveBucketKey }, { easJsonBucketKey }] = await Promise.all([
-        uploadAccountScopedProjectSourceAsync({
-          graphqlClient,
-          vcsClient,
-          accountId: account.id,
-        }),
-        uploadAccountScopedEasJsonAsync({
-          graphqlClient,
-          accountId: account.id,
-          projectDir,
-        }),
-      ]);
+      ({ projectArchiveBucketKey } = await uploadAccountScopedProjectSourceAsync({
+        graphqlClient,
+        vcsClient,
+        accountId: account.id,
+      }));
+      ({ easJsonBucketKey } = await uploadAccountScopedEasJsonAsync({
+        graphqlClient,
+        accountId: account.id,
+        projectDir,
+      }));
     } catch (err) {
       Log.error('Failed to upload project sources.');
 
       throw err;
     }
 
-    const { id: workflowRunId } = await WorkflowRunMutation.createWorkflowRunAsync(graphqlClient, {
-      appId: projectId,
-      workflowRevisionInput: {
-        fileName: path.basename(args.file),
-        yamlConfig,
-      },
-      workflowRunInput: {
-        projectSource: {
-          type: WorkflowProjectSourceType.Gcs,
-          projectArchiveBucketKey,
-          easJsonBucketKey,
-        },
-      },
-    });
+    try {
+      const { id: workflowRunId } = await WorkflowRunMutation.createWorkflowRunAsync(
+        graphqlClient,
+        {
+          appId: projectId,
+          workflowRevisionInput: {
+            fileName: path.basename(args.file),
+            yamlConfig,
+          },
+          workflowRunInput: {
+            projectSource: {
+              type: WorkflowProjectSourceType.Gcs,
+              projectArchiveBucketKey,
+              easJsonBucketKey,
+            },
+          },
+        }
+      );
 
-    Log.newLine();
-    Log.succeed(
-      `Workflow started successfully. ${link(
-        getWorkflowRunUrl(account.name, projectName, workflowRunId)
-      )}`
-    );
+      Log.newLine();
+      Log.succeed(
+        `Workflow started successfully. ${link(
+          getWorkflowRunUrl(account.name, projectName, workflowRunId)
+        )}`
+      );
+    } catch (err) {
+      Log.error('Failed to start the workflow with the API.');
+
+      throw err;
+    }
   }
 }
