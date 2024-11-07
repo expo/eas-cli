@@ -86,6 +86,7 @@
     "untildify": "4.0.0",
     "uuid": "9.0.1",
     "wrap-ansi": "7.0.0",
+    "yaml": "2.6.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
