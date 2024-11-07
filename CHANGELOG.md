@@ -8,11 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Compute fingerprint for builds with SDK 52 and higher ([#2663](https://github.com/expo/eas-cli/pull/2663) by [@quinlanj](https://github.com/quinlanj))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [13.1.0](https://github.com/expo/eas-cli/releases/tag/v13.1.0) - 2024-11-07
+
+### 🎉 New features
+
+- Compute fingerprint for builds with SDK 52 and higher ([#2663](https://github.com/expo/eas-cli/pull/2663) by [@quinlanj](https://github.com/quinlanj))
 
 ## [13.0.1](https://github.com/expo/eas-cli/releases/tag/v13.0.1) - 2024-11-05
 
