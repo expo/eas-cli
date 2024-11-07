@@ -18,6 +18,12 @@ export async function createFingerprintAsync(
   sources: object[];
   isDebugSource: boolean;
 } | null> {
+  // @expo/fingerprint is exported in the expo package for SDK 52+
+  const fingerprintPath = silentResolveFrom(projectDir, 'expo/fingerprint');
+  if (!fingerprintPath) {
+    return null;
+  }
+
   if (process.env.EAS_SKIP_AUTO_FINGERPRINT) {
     Log.log('Skipping project fingerprint');
     return null;
@@ -30,11 +36,6 @@ export async function createFingerprintAsync(
 
   const spinner = ora(`Computing project fingerprint`).start();
   try {
-    // @expo/fingerprint is exported in the expo package for SDK 52+
-    const fingerprintPath = silentResolveFrom(projectDir, 'expo/fingerprint');
-    if (!fingerprintPath) {
-      return null;
-    }
     const Fingerprint = require(fingerprintPath);
     const fingerprintOptions: Record<string, any> = {};
     if (options.platform) {
@@ -46,7 +47,6 @@ export async function createFingerprintAsync(
     if (options.debug) {
       fingerprintOptions.debug = true;
     }
-    // eslint-disable-next-line @typescript-eslint/return-await
     const fingerprint = await Fingerprint.createFingerprintAsync(projectDir, fingerprintOptions);
     spinner.succeed(`Computed project fingerprint`);
     return fingerprint;
@@ -57,5 +57,6 @@ export async function createFingerprintAsync(
   } finally {
     // Clear the timeout if the operation finishes before the time limit
     clearTimeout(timeoutId);
+    spinner.stop();
   }
 }
