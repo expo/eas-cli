@@ -30,7 +30,7 @@ export async function createFingerprintAsync(
   }
 
   const timeoutId = setTimeout(() => {
-    Log.log('⌛️ Computing project fingerprint taking longer than expected...');
+    Log.log('⌛️ Computing the project fingerprint is taking longer than expected...');
     Log.log('⏩ To skip this step, set the environment variable: EAS_SKIP_AUTO_FINGERPRINT=1');
   }, 5000);
 
