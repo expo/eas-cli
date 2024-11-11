@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add EAS_SKIP_AUTO_FINGERPRINT to skip fingerprint computation on build ([#2675](https://github.com/expo/eas-cli/pull/2675) by [@quinlanj](https://github.com/quinlanj))
+- Default build-logger-level to debug when EXPO_DEBUG is set. ([#2676](https://github.com/expo/eas-cli/pull/2676) by [@wschurman](https://github.com/wschurman))
 
 ### 🐛 Bug fixes
 

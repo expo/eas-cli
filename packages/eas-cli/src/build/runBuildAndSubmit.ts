@@ -381,7 +381,7 @@ async function prepareAndStartBuildAsync({
     vcsClient,
     getDynamicPrivateProjectConfigAsync,
     customBuildConfigMetadata,
-    buildLoggerLevel: flags.buildLoggerLevel,
+    buildLoggerLevel: flags.buildLoggerLevel ?? (Log.isDebug ? LoggerLevel.DEBUG : undefined),
     freezeCredentials: flags.freezeCredentials,
     repack: flags.repack,
     env,
