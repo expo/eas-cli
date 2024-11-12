@@ -182,6 +182,9 @@
       },
       "webhook": {
         "description": "manage webhooks"
+      },
+      "workflow": {
+        "description": "manage workflows"
       }
     },
     "warn-if-update-available": {

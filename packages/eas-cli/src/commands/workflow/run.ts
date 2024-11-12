@@ -16,10 +16,6 @@ import { WorkflowFile } from '../../utils/workflowFile';
 export default class WorkflowRun extends EasCommand {
   static override description = 'Run an EAS workflow';
 
-  // TODO(@sjchmiela): Keep command hidden until workflows are live
-  static override hidden = true;
-  static override state = 'beta';
-
   static override args = [{ name: 'file', description: 'Path to the workflow file to run' }];
 
   static override flags = {
@@ -35,8 +31,6 @@ export default class WorkflowRun extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(WorkflowRun);
-
-    Log.warn('Workflows are in beta and subject to breaking changes.');
 
     const {
       getDynamicPrivateProjectConfigAsync,
