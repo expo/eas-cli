@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Added `eas workflow` commands.
+- Added `eas workflow` commands. ([#2650](https://github.com/expo/eas-cli/pull/2650), [#2669](https://github.com/expo/eas-cli/pull/2669), [#2678](https://github.com/expo/eas-cli/pull/2678) by [@jonsamp](https://github.com/jonsamp) and [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🐛 Bug fixes
 
