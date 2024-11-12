@@ -19,6 +19,7 @@ import { SubmissionContext, createSubmissionContextAsync } from '../../submit/co
 import IosSubmitCommand from '../../submit/ios/IosSubmitCommand';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import GitNoCommitClient from '../../vcs/clients/gitNoCommit';
+import NoVcsClient from '../../vcs/clients/noVcs';
 
 /**
  * This command will be run on the EAS workers.
@@ -64,7 +65,7 @@ export default class SubmitInternal extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(SubmitInternal, {
       nonInteractive: true,
-      vcsClientOverride: new GitNoCommitClient(),
+      vcsClientOverride: process.env.EAS_NO_VCS ? new NoVcsClient() : new GitNoCommitClient(),
       withServerSideEnvironment: null,
     });
 
