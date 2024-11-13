@@ -21,6 +21,7 @@ jobs:
 `;
 
 export class WorkflowCreate extends EasCommand {
+  static override hidden = true;
   static override description = 'create a new workflow configuration YAML file';
 
   static override args = [
