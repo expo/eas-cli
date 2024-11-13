@@ -6,7 +6,7 @@ import prompts from 'prompts';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 
-const WORKFLOWS_DIR = '.eas/workflows';
+const WORKFLOWS_DIR = path.join('.eas', 'workflows');
 const DEFAULT_WORKFLOW_NAME = 'workflow.yml';
 const HELLO_WORLD_TEMPLATE = `name: Hello World
 
