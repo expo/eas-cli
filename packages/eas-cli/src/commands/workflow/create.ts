@@ -31,7 +31,9 @@ export class WorkflowCreate extends EasCommand {
       required: false,
     },
   ];
-
+  static override contextDefinition = {
+    ...this.ContextOptions.ProjectDir,
+  }
   async runAsync(): Promise<void> {
     const {
       args: { name: argFileName },
