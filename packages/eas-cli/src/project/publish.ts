@@ -50,7 +50,7 @@ import { truthy } from '../utils/expodash/filter';
 import groupBy from '../utils/expodash/groupBy';
 import mapMapAsync from '../utils/expodash/mapMapAsync';
 import uniqBy from '../utils/expodash/uniqBy';
-import { createFingerprintsByKeyAsync } from '../utils/fingerprintCli';
+import { FingerprintOptions, createFingerprintsByKeyAsync } from '../utils/fingerprintCli';
 import { Client } from '../vcs/vcs';
 
 // update publish does not currently support web
@@ -908,12 +908,12 @@ export async function maybeCalculateFingerprintForRuntimeVersionInfoObjectsWitho
     runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping.filter(
       infoGroup => !infoGroup.fingerprintHash
     );
-  const fingerprintOptionsByRuntimeAndPlatform = new Map();
+  const fingerprintOptionsByRuntimeAndPlatform = new Map<string, FingerprintOptions>();
   for (const infoGroup of runtimesToComputeFingerprintsFor) {
     for (const platform of infoGroup.platforms) {
       const runtimeAndPlatform = `${infoGroup.runtimeVersion}-${platform}`;
       const options = {
-        platform,
+        platforms: [platform],
         workflow: workflowsByPlatform[platform],
         projectDir,
         env,

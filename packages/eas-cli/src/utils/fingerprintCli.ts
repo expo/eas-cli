@@ -5,15 +5,17 @@ import mapMapAsync from './expodash/mapMapAsync';
 import Log from '../log';
 import { ora } from '../ora';
 
+export type FingerprintOptions = {
+  workflow: Workflow;
+  platforms: string[];
+  debug?: boolean;
+  env: Env | undefined;
+  cwd?: string;
+};
+
 export async function createFingerprintAsync(
   projectDir: string,
-  options: {
-    workflow: Workflow;
-    platforms: string[];
-    debug?: boolean;
-    env: Env | undefined;
-    cwd?: string;
-  }
+  options: FingerprintOptions
 ): Promise<{
   hash: string;
   sources: object[];
@@ -58,13 +60,7 @@ export async function createFingerprintAsync(
 async function createFingerprintWithoutLoggingAsync(
   projectDir: string,
   fingerprintPath: string,
-  options: {
-    workflow: Workflow;
-    platforms: string[];
-    debug?: boolean;
-    env: Env | undefined;
-    cwd?: string;
-  }
+  options: FingerprintOptions
 ): Promise<{
   hash: string;
   sources: object[];
@@ -99,10 +95,7 @@ async function createFingerprintWithoutLoggingAsync(
  */
 export async function createFingerprintsByKeyAsync(
   projectDir: string,
-  fingerprintOptionsByKey: Map<
-    string,
-    { workflow: Workflow; platforms: string[]; debug?: boolean; env: Env | undefined }
-  >
+  fingerprintOptionsByKey: Map<string, FingerprintOptions>
 ): Promise<
   Map<
     string,
