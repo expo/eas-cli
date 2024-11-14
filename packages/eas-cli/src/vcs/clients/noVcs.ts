@@ -18,6 +18,6 @@ export default class NoVcsClient extends Client {
   }
 
   public override canGetLastCommitMessage(): boolean {
-    return true;
+    return false;
   }
 }
