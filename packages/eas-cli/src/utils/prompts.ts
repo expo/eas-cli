@@ -67,7 +67,7 @@ export async function promptVariableVisibilityAsync(
       selected: selectedVisibility === EnvironmentVariableVisibility.Sensitive,
     },
     {
-      title: 'Encrypted',
+      title: 'Secret',
       value: EnvironmentVariableVisibility.Secret,
       selected: selectedVisibility === EnvironmentVariableVisibility.Secret,
     },
