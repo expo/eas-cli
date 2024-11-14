@@ -8,10 +8,7 @@ import { transformFingerprintSource } from '../../build/graphql';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
-import {
-  EasNonInteractiveAndJsonFlags,
-  WithEasEnvironmentVariablesSetFlag,
-} from '../../commandUtils/flags';
+import { EasNonInteractiveAndJsonFlags, EasUpdateEnvironmentFlag } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
@@ -75,7 +72,7 @@ type RawUpdateFlags = {
   'rollout-percentage'?: number;
   'non-interactive': boolean;
   json: boolean;
-  'with-eas-environment-variables-set': EnvironmentVariableEnvironment | null;
+  environment: EnvironmentVariableEnvironment | null;
 };
 
 type UpdateFlags = {
@@ -92,7 +89,7 @@ type UpdateFlags = {
   rolloutPercentage?: number;
   json: boolean;
   nonInteractive: boolean;
-  withEasEnvironmentVariablesSet: EnvironmentVariableEnvironment | null;
+  environment: EnvironmentVariableEnvironment | null;
 };
 
 export default class UpdatePublish extends EasCommand {
@@ -150,7 +147,7 @@ export default class UpdatePublish extends EasCommand {
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
     }),
-    ...WithEasEnvironmentVariablesSetFlag,
+    ...EasUpdateEnvironmentFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -178,7 +175,7 @@ export default class UpdatePublish extends EasCommand {
       branchName: branchNameArg,
       emitMetadata,
       rolloutPercentage,
-      withEasEnvironmentVariablesSet,
+      environment,
     } = this.sanitizeFlags(rawFlags);
 
     const {
@@ -189,7 +186,7 @@ export default class UpdatePublish extends EasCommand {
       getServerSideEnvironmentVariablesAsync,
     } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
-      withServerSideEnvironment: withEasEnvironmentVariablesSet,
+      withServerSideEnvironment: environment,
     });
 
     if (jsonFlag) {
@@ -249,7 +246,7 @@ export default class UpdatePublish extends EasCommand {
           platformFlag: requestedPlatform,
           clearCache,
           extraEnv: {
-            ...(withEasEnvironmentVariablesSet
+            ...(environment
               ? { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' }
               : {}),
           },
@@ -655,14 +652,14 @@ export default class UpdatePublish extends EasCommand {
       updateMessage,
       inputDir: flags['input-dir'],
       skipBundler,
-      clearCache: flags['clear-cache'] ? true : !!flags['with-eas-environment-variables-set'],
+      clearCache: flags['clear-cache'] ? true : !!flags['environment'],
       platform: flags.platform,
       privateKeyPath: flags['private-key-path'],
       rolloutPercentage: flags['rollout-percentage'],
       nonInteractive,
       emitMetadata,
       json: flags.json ?? false,
-      withEasEnvironmentVariablesSet: flags['with-eas-environment-variables-set'],
+      environment: flags['environment'],
     };
   }
 }
