@@ -6,6 +6,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { WorkflowProjectSourceType } from '../../graphql/generated';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
+import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { link } from '../../log';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { uploadAccountScopedEasJsonAsync } from '../../project/uploadAccountScopedEasJsonAsync';
@@ -59,7 +60,19 @@ export default class WorkflowRun extends EasCommand {
       projectId,
       exp: { slug: projectName },
     } = await getDynamicPrivateProjectConfigAsync();
-    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
+    const [account, app] = await Promise.all([
+      getOwnerAccountForProjectIdAsync(graphqlClient, projectId),
+      AppQuery.byIdAsync(graphqlClient, projectId),
+    ]);
+
+    if (!app.githubRepository?.id) {
+      Log.error(
+        `The app is not linked to a GitHub repository. To proceed, link the app to a GitHub repository at ${link(
+          `https://expo.dev/accounts/${account.name}/projects/${projectName}/github`
+        )}`
+      );
+      throw new Error('GitHub repository not found. It is required to run workflows.');
+    }
 
     let projectArchiveBucketKey: string;
     let easJsonBucketKey: string;
