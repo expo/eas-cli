@@ -16,7 +16,7 @@ export namespace WorkflowFile {
   }): Promise<{ yamlConfig: string; filePath: string }> {
     const [yamlFromEasWorkflowsFile, yamlFromFile] = await Promise.allSettled([
       fs.promises.readFile(path.join(projectDir, '.eas', 'workflows', filePath), 'utf8'),
-      fs.promises.readFile(filePath, 'utf8'),
+      fs.promises.readFile(path.join(process.cwd(), filePath), 'utf8'),
     ]);
 
     // We prioritize .eas/workflows/${file} over ${file}, because
@@ -30,7 +30,7 @@ export namespace WorkflowFile {
     } else if (yamlFromFile.status === 'fulfilled') {
       return {
         yamlConfig: yamlFromFile.value,
-        filePath: path.join(projectDir, filePath),
+        filePath: path.join(process.cwd(), filePath),
       };
     }
 
