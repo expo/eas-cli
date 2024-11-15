@@ -1,12 +1,13 @@
+import { CombinedError } from '@urql/core';
 import fs from 'node:fs';
 import * as path from 'node:path';
 
-import { getWorkflowRunUrl } from '../../build/utils/url';
+import { getProjectGitHubSettingsUrl, getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { WorkflowProjectSourceType } from '../../graphql/generated';
+import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
-import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { link } from '../../log';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { uploadAccountScopedEasJsonAsync } from '../../project/uploadAccountScopedEasJsonAsync';
@@ -60,18 +61,50 @@ export default class WorkflowRun extends EasCommand {
       projectId,
       exp: { slug: projectName },
     } = await getDynamicPrivateProjectConfigAsync();
-    const [account, app] = await Promise.all([
-      getOwnerAccountForProjectIdAsync(graphqlClient, projectId),
-      AppQuery.byIdAsync(graphqlClient, projectId),
-    ]);
+    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
 
-    if (!app.githubRepository?.id) {
-      Log.error(
-        `The app is not linked to a GitHub repository. To proceed, link the app to a GitHub repository at ${link(
-          `https://expo.dev/accounts/${account.name}/projects/${projectName}/github`
-        )}`
-      );
-      throw new Error('GitHub repository not found. It is required to run workflows.');
+    try {
+      await WorkflowRevisionMutation.validateWorkflowYamlConfigAsync(graphqlClient, {
+        appId: projectId,
+        yamlConfig,
+      });
+    } catch (err) {
+      if (err instanceof CombinedError) {
+        const validationErrors = err.graphQLErrors.flatMap(e => {
+          return (
+            WorkflowRevisionMutation.ValidationErrorExtensionZ.safeParse(e.extensions).data ?? []
+          );
+        });
+
+        if (validationErrors.length > 0) {
+          Log.error('Workflow file is invalid. Issues:');
+          for (const validationError of validationErrors) {
+            for (const formError of validationError.metadata.formErrors) {
+              Log.error(`- ${formError}`);
+            }
+
+            for (const [field, fieldErrors] of Object.entries(
+              validationError.metadata.fieldErrors
+            )) {
+              Log.error(`- ${field}: ${fieldErrors.join(', ')}`);
+            }
+          }
+        }
+
+        const githubNotFoundError = err.graphQLErrors.find(
+          e => e.extensions.errorCode === 'GITHUB_NOT_FOUND_ERROR'
+        );
+        if (githubNotFoundError) {
+          Log.error(`GitHub repository not found. It is currently required to run workflows.`);
+          Log.error(
+            `Please check that the repository exists and that you have access to it. ${link(
+              getProjectGitHubSettingsUrl(account.name, projectName)
+            )}`
+          );
+        }
+      }
+
+      throw err;
     }
 
     let projectArchiveBucketKey: string;

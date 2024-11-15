@@ -4179,6 +4179,27 @@ export enum Feature {
   Teams = 'TEAMS'
 }
 
+export type Fingerprint = {
+  __typename?: 'Fingerprint';
+  app: App;
+  createdAt: Scalars['DateTime']['output'];
+  debugInfoUrl?: Maybe<Scalars['String']['output']>;
+  hash: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type FingerprintInfo = {
+  fingerprintHash: Scalars['String']['input'];
+  fingerprintSource: FingerprintSourceInput;
+};
+
+export type FingerprintInfoGroup = {
+  android?: InputMaybe<FingerprintInfo>;
+  ios?: InputMaybe<FingerprintInfo>;
+  web?: InputMaybe<FingerprintInfo>;
+};
+
 export type FingerprintSourceInput = {
   bucketKey?: InputMaybe<Scalars['String']['input']>;
   isDebugFingerprint?: InputMaybe<Scalars['Boolean']['input']>;
@@ -4975,6 +4996,7 @@ export type JobRun = {
   createdAt: Scalars['DateTime']['output'];
   displayName?: Maybe<Scalars['String']['output']>;
   endedAt?: Maybe<Scalars['DateTime']['output']>;
+  errors: Array<JobRunError>;
   expiresAt: Scalars['DateTime']['output'];
   gitCommitHash?: Maybe<Scalars['String']['output']>;
   gitCommitMessage?: Maybe<Scalars['String']['output']>;
@@ -4988,6 +5010,14 @@ export type JobRun = {
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: JobRunStatus;
   updateGroups: Array<Array<Update>>;
+};
+
+export type JobRunError = {
+  __typename?: 'JobRunError';
+  buildPhase?: Maybe<Scalars['String']['output']>;
+  docsUrl?: Maybe<Scalars['String']['output']>;
+  errorCode: Scalars['String']['output'];
+  message: Scalars['String']['output'];
 };
 
 export type JobRunMutation = {
@@ -5477,6 +5507,7 @@ export type PublishUpdateGroupInput = {
   awaitingCodeSigningInfo?: InputMaybe<Scalars['Boolean']['input']>;
   branchId: Scalars['String']['input'];
   excludedAssets?: InputMaybe<Array<PartialManifestAsset>>;
+  fingerprintInfoGroup?: InputMaybe<FingerprintInfoGroup>;
   gitCommitHash?: InputMaybe<Scalars['String']['input']>;
   isGitWorkingTreeDirty?: InputMaybe<Scalars['Boolean']['input']>;
   message?: InputMaybe<Scalars['String']['input']>;
@@ -5739,6 +5770,7 @@ export type RootMutation = {
   /** Mutations that modify a websiteNotification */
   websiteNotifications: WebsiteNotificationMutation;
   workflowJob: WorkflowJobMutation;
+  workflowRevision: WorkflowRevisionMutation;
   workflowRun: WorkflowRunMutation;
 };
 
@@ -6535,6 +6567,7 @@ export type Update = ActivityTimelineProjectActivity & {
   createdAt: Scalars['DateTime']['output'];
   deployments: DeploymentResult;
   expoGoSDKVersion?: Maybe<Scalars['String']['output']>;
+  fingerprint?: Maybe<Fingerprint>;
   gitCommitHash?: Maybe<Scalars['String']['output']>;
   group: Scalars['String']['output'];
   id: Scalars['ID']['output'];
@@ -7627,6 +7660,7 @@ export type WorkerDeployment = ActivityTimelineProjectActivity & {
   logs?: Maybe<WorkerDeploymentLogs>;
   requests?: Maybe<WorkerDeploymentRequests>;
   subdomain: Scalars['String']['output'];
+  tier?: Maybe<WorkerDeploymentTier>;
   url: Scalars['String']['output'];
 };
 
@@ -7979,6 +8013,11 @@ export type WorkerDeploymentRequestsTimeseriesEdge = {
   timestamp: Scalars['DateTime']['output'];
 };
 
+export enum WorkerDeploymentTier {
+  Free = 'FREE',
+  Paid = 'PAID'
+}
+
 export type WorkerDeploymentsConnection = {
   __typename?: 'WorkerDeploymentsConnection';
   edges: Array<WorkerDeploymentEdge>;
@@ -8081,6 +8120,7 @@ export enum WorkflowJobType {
   AppleDeviceRegistrationRequest = 'APPLE_DEVICE_REGISTRATION_REQUEST',
   Build = 'BUILD',
   Custom = 'CUSTOM',
+  GetBuild = 'GET_BUILD',
   MaestroTest = 'MAESTRO_TEST',
   RequireApproval = 'REQUIRE_APPROVAL',
   Submission = 'SUBMISSION',
@@ -8127,6 +8167,17 @@ export type WorkflowRevisionEdge = {
 
 export type WorkflowRevisionInput = {
   fileName: Scalars['String']['input'];
+  yamlConfig: Scalars['String']['input'];
+};
+
+export type WorkflowRevisionMutation = {
+  __typename?: 'WorkflowRevisionMutation';
+  validateWorkflowYamlConfig: Scalars['Boolean']['output'];
+};
+
+
+export type WorkflowRevisionMutationValidateWorkflowYamlConfigArgs = {
+  appId: Scalars['ID']['input'];
   yamlConfig: Scalars['String']['input'];
 };
 
@@ -8966,6 +9017,14 @@ export type DeleteWebhookMutationVariables = Exact<{
 
 
 export type DeleteWebhookMutation = { __typename?: 'RootMutation', webhook: { __typename?: 'WebhookMutation', deleteWebhook: { __typename?: 'DeleteWebhookResult', id: string } } };
+
+export type ValidateWorkflowYamlConfigMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  yamlConfig: Scalars['String']['input'];
+}>;
+
+
+export type ValidateWorkflowYamlConfigMutation = { __typename?: 'RootMutation', workflowRevision: { __typename?: 'WorkflowRevisionMutation', validateWorkflowYamlConfig: boolean } };
 
 export type CreateWorkflowRunMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
