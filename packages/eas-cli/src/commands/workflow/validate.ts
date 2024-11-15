@@ -55,10 +55,10 @@ export class WorkflowValidate extends EasCommand {
     const spinner = ora().start('Validating the workflow YAML file…');
 
     try {
-      const workflowFileContents = await WorkflowFile.readWorkflowFileContentsAsync(
+      const workflowFileContents = await WorkflowFile.readWorkflowFileContentsAsync({
         projectDir,
-        filePath
-      );
+        filePath,
+      });
       Log.log(`Using workflow file from ${workflowFileContents.filePath}`);
 
       const parsedYaml = YAML.parse(workflowFileContents.yamlConfig);

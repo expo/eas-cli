@@ -7,10 +7,13 @@ import { WorkflowRevisionMutation } from '../graphql/mutations/WorkflowRevisionM
 import Log, { link } from '../log';
 
 export namespace WorkflowFile {
-  export async function readWorkflowFileContentsAsync(
-    projectDir: string,
-    filePath: string
-  ): Promise<{ yamlConfig: string; filePath: string }> {
+  export async function readWorkflowFileContentsAsync({
+    projectDir,
+    filePath,
+  }: {
+    projectDir: string;
+    filePath: string;
+  }): Promise<{ yamlConfig: string; filePath: string }> {
     const [yamlFromEasWorkflowsFile, yamlFromFile] = await Promise.allSettled([
       fs.promises.readFile(path.join(projectDir, '.eas', 'workflows', filePath), 'utf8'),
       fs.promises.readFile(filePath, 'utf8'),
@@ -22,12 +25,12 @@ export namespace WorkflowFile {
     if (yamlFromEasWorkflowsFile.status === 'fulfilled') {
       return {
         yamlConfig: yamlFromEasWorkflowsFile.value,
-        filePath: path.relative(projectDir, path.join('.eas', 'workflows', filePath)),
+        filePath: path.join(projectDir, '.eas', 'workflows', filePath),
       };
     } else if (yamlFromFile.status === 'fulfilled') {
       return {
         yamlConfig: yamlFromFile.value,
-        filePath: path.relative(projectDir, filePath),
+        filePath: path.join(projectDir, filePath),
       };
     }
 

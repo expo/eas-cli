@@ -50,10 +50,10 @@ export default class WorkflowRun extends EasCommand {
 
     let yamlConfig: string;
     try {
-      const workflowFileContents = await WorkflowFile.readWorkflowFileContentsAsync(
+      const workflowFileContents = await WorkflowFile.readWorkflowFileContentsAsync({
         projectDir,
-        args.file
-      );
+        filePath: args.file,
+      });
       Log.log(`Using workflow file from ${workflowFileContents.filePath}`);
       yamlConfig = workflowFileContents.yamlConfig;
     } catch (err) {
