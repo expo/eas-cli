@@ -3,10 +3,7 @@ import chalk from 'chalk';
 
 import { easJsonExistsAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
-import {
-  EASNonInteractiveFlag,
-  WithEasEnvironmentVariablesSetFlag,
-} from '../../commandUtils/flags';
+import { EASNonInteractiveFlag, EasUpdateEnvironmentFlag } from '../../commandUtils/flags';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
 import {
@@ -24,7 +21,7 @@ export default class UpdateConfigure extends EasCommand {
       options: Object.values(RequestedPlatform),
       default: RequestedPlatform.All,
     }),
-    ...WithEasEnvironmentVariablesSetFlag,
+    ...EasUpdateEnvironmentFlag,
     ...EASNonInteractiveFlag,
   };
 
@@ -41,7 +38,7 @@ export default class UpdateConfigure extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(UpdateConfigure, {
       nonInteractive: flags['non-interactive'],
-      withServerSideEnvironment: flags['with-eas-environment-variables-set'],
+      withServerSideEnvironment: flags['environment'],
     });
 
     Log.log(
