@@ -42,22 +42,13 @@ export async function loadServerSideEnvironmentVariablesAsync({
 
   if (Object.keys(serverEnvVars).length > 0) {
     Log.log(
-      `Environment variables loaded from the "${environment.toLowerCase()}" environment on EAS servers: ${Object.keys(
+      `Environment variables with visibility "Plain text" and "Sensitive" loaded from the "${environment.toLowerCase()}" environment on EAS servers: ${Object.keys(
         serverEnvVars
       ).join(', ')}.`
     );
   } else {
     Log.log(
-      `No readable environment variables found for the "${environment.toLowerCase()}" environment on EAS servers.`
-    );
-  }
-
-  const encryptedEnvVars = environmentVariables.filter(({ name, value }) => name && !value);
-  if (encryptedEnvVars.length > 0) {
-    Log.warn(
-      `Some environment variables defined in the "${environment.toLowerCase()}" environment on EAS servers are of "encrypted" type and cannot be read outside of the EAS servers (including EAS CLI): ${encryptedEnvVars
-        .map(({ name }) => name)
-        .join(', ')}. `
+      `No environment variables with visibility "Plain text" and "Sensitive" found for the "${environment.toLowerCase()}" environment on EAS servers.`
     );
   }
   Log.newLine();
