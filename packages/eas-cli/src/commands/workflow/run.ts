@@ -50,7 +50,27 @@ export default class WorkflowRun extends EasCommand {
 
     let yamlConfig: string;
     try {
-      yamlConfig = await fs.promises.readFile(path.join(projectDir, args.file), 'utf8');
+      const [easWorkflowsFilePath, filePath] = [
+        path.join(projectDir, '.eas', 'workflows', args.file),
+        path.join(projectDir, args.file),
+      ];
+      const [yamlFromEasWorkflowsFile, yamlFromFile] = await Promise.allSettled([
+        fs.promises.readFile(easWorkflowsFilePath, 'utf8'),
+        fs.promises.readFile(filePath, 'utf8'),
+      ]);
+
+      // We prioritize .eas/workflows/${file} over ${file}, because
+      // in the worst case we'll try to read .eas/workflows/.eas/workflows/test.yml,
+      // which is likely not to exist.
+      if (yamlFromEasWorkflowsFile.status === 'fulfilled') {
+        yamlConfig = yamlFromEasWorkflowsFile.value;
+        Log.log(`Using workflow file from ${path.relative(projectDir, easWorkflowsFilePath)}`);
+      } else if (yamlFromFile.status === 'fulfilled') {
+        yamlConfig = yamlFromFile.value;
+        Log.log(`Using workflow file from ${path.relative(projectDir, filePath)}`);
+      } else {
+        throw yamlFromFile.reason;
+      }
     } catch (err) {
       Log.error('Failed to read workflow file.');
 
