@@ -83,24 +83,13 @@ async function resolveEnvVarsAsync({
 
     if (Object.keys(serverEnvVars).length > 0) {
       Log.log(
-        `Environment variables loaded from the "${environment.toLowerCase()}" environment on EAS servers: ${Object.keys(
+        `Environment variables with visibility "Plain text" and "Sensitive" loaded from the "${environment.toLowerCase()}" environment on EAS servers: ${Object.keys(
           serverEnvVars
         ).join(', ')}.`
       );
     } else {
       Log.log(
-        `No environment variables found for the "${environment.toLowerCase()}" environment on EAS servers.`
-      );
-    }
-
-    const encryptedEnvVars = environmentVariables.filter(({ name, value }) => name && !value);
-    if (encryptedEnvVars.length > 0) {
-      Log.warn(
-        `Some environment variables defined in the "${environment.toLowerCase()}" environment on EAS servers are of "encrypted" type and cannot be read outside of the EAS servers (including EAS CLI): ${encryptedEnvVars
-          .map(({ name }) => name)
-          .join(
-            ', '
-          )}. However, they will be available during the build process happening on the EAS servers. This can lead to potential configuration mismatches between the local development environment and the build environment if the encrypted environment variables are used to resolve the app config.`
+        `No environment variables with visibility "Plain text" and "Sensitive" found for the "${environment.toLowerCase()}" environment on EAS servers.`
       );
     }
 
@@ -109,10 +98,6 @@ async function resolveEnvVarsAsync({
         `Environment variables loaded from the "${buildProfileName}" build profile "env" configuration: ${
           buildProfile.env && Object.keys(buildProfile.env).join(', ')
         }.`
-      );
-    } else {
-      Log.log(
-        `No environment variables specified in the "${buildProfileName}" build profile "env" configuration.`
       );
     }
 
