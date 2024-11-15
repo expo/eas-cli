@@ -1,8 +1,7 @@
 import { CombinedError } from '@urql/core';
-import fs from 'node:fs';
 import * as path from 'node:path';
 
-import { getProjectGitHubSettingsUrl, getWorkflowRunUrl } from '../../build/utils/url';
+import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { WorkflowProjectSourceType } from '../../graphql/generated';
@@ -12,6 +11,7 @@ import Log, { link } from '../../log';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { uploadAccountScopedEasJsonAsync } from '../../project/uploadAccountScopedEasJsonAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccountScopedProjectSourceAsync';
+import { WorkflowFile } from '../../utils/workflowFile';
 
 export default class WorkflowRun extends EasCommand {
   static override description = 'Run an EAS workflow';
@@ -50,27 +50,12 @@ export default class WorkflowRun extends EasCommand {
 
     let yamlConfig: string;
     try {
-      const [easWorkflowsFilePath, filePath] = [
-        path.join(projectDir, '.eas', 'workflows', args.file),
-        path.join(projectDir, args.file),
-      ];
-      const [yamlFromEasWorkflowsFile, yamlFromFile] = await Promise.allSettled([
-        fs.promises.readFile(easWorkflowsFilePath, 'utf8'),
-        fs.promises.readFile(filePath, 'utf8'),
-      ]);
-
-      // We prioritize .eas/workflows/${file} over ${file}, because
-      // in the worst case we'll try to read .eas/workflows/.eas/workflows/test.yml,
-      // which is likely not to exist.
-      if (yamlFromEasWorkflowsFile.status === 'fulfilled') {
-        yamlConfig = yamlFromEasWorkflowsFile.value;
-        Log.log(`Using workflow file from ${path.relative(projectDir, easWorkflowsFilePath)}`);
-      } else if (yamlFromFile.status === 'fulfilled') {
-        yamlConfig = yamlFromFile.value;
-        Log.log(`Using workflow file from ${path.relative(projectDir, filePath)}`);
-      } else {
-        throw yamlFromFile.reason;
-      }
+      const workflowFileContents = await WorkflowFile.readWorkflowFileContentsAsync(
+        projectDir,
+        args.file
+      );
+      Log.log(`Using workflow file from ${workflowFileContents.filePath}`);
+      yamlConfig = workflowFileContents.yamlConfig;
     } catch (err) {
       Log.error('Failed to read workflow file.');
 
@@ -88,43 +73,16 @@ export default class WorkflowRun extends EasCommand {
         appId: projectId,
         yamlConfig,
       });
-    } catch (err) {
-      if (err instanceof CombinedError) {
-        const validationErrors = err.graphQLErrors.flatMap(e => {
-          return (
-            WorkflowRevisionMutation.ValidationErrorExtensionZ.safeParse(e.extensions).data ?? []
-          );
+    } catch (error) {
+      if (error instanceof CombinedError) {
+        WorkflowFile.maybePrintWorkflowFileValidationErrors({
+          error,
+          accountName: account.name,
+          projectName,
         });
 
-        if (validationErrors.length > 0) {
-          Log.error('Workflow file is invalid. Issues:');
-          for (const validationError of validationErrors) {
-            for (const formError of validationError.metadata.formErrors) {
-              Log.error(`- ${formError}`);
-            }
-
-            for (const [field, fieldErrors] of Object.entries(
-              validationError.metadata.fieldErrors
-            )) {
-              Log.error(`- ${field}: ${fieldErrors.join(', ')}`);
-            }
-          }
-        }
-
-        const githubNotFoundError = err.graphQLErrors.find(
-          e => e.extensions.errorCode === 'GITHUB_NOT_FOUND_ERROR'
-        );
-        if (githubNotFoundError) {
-          Log.error(`GitHub repository not found. It is currently required to run workflows.`);
-          Log.error(
-            `Please check that the repository exists and that you have access to it. ${link(
-              getProjectGitHubSettingsUrl(account.name, projectName)
-            )}`
-          );
-        }
+        throw error;
       }
-
-      throw err;
     }
 
     let projectArchiveBucketKey: string;
