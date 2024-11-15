@@ -75,12 +75,12 @@ interface ListArgs {
   scope: EnvironmentVariableScope;
   format: string;
   environment: EnvironmentVariableEnvironment;
-  'include-sensitive': boolean;
-  'include-file-content': boolean;
-  'non-interactive': boolean;
+  includeSensitive: boolean;
+  includeFileContent: boolean;
+  nonInteractive: boolean;
 }
 
-export default class EnvironmentValueList extends EasCommand {
+export default class EnvList extends EasCommand {
   static override description = 'list environment variables for the current project';
 
   static override hidden = true;
@@ -115,21 +115,15 @@ export default class EnvironmentValueList extends EasCommand {
   ];
 
   async runAsync(): Promise<void> {
-    const { args, flags } = await this.parse(EnvironmentValueList);
+    const { args, flags } = await this.parse(EnvList);
 
-    const {
-      environment,
-      format,
-      scope,
-      'include-sensitive': includeSensitive,
-      'include-file-content': includeFileContent,
-      'non-interactive': nonInteractive,
-    } = await this.sanitizeInputsAsync(flags, args);
+    const { environment, format, scope, includeFileContent, includeSensitive, nonInteractive } =
+      await this.sanitizeInputsAsync(flags, args);
 
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentValueList, {
+    } = await this.getContextAsync(EnvList, {
       nonInteractive,
     });
 
@@ -175,14 +169,21 @@ export default class EnvironmentValueList extends EasCommand {
       throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
     }
 
-    const environment = flags.environment
+    const environmentFromNonInteractiveInputs = flags.environment
       ? flags.environment
       : environmentInput
         ? (environmentInput.toUpperCase() as EnvironmentVariableEnvironment)
-        : await promptVariableEnvironmentAsync({ nonInteractive: flags['non-interactive'] });
+        : null;
+
+    const environment = environmentFromNonInteractiveInputs
+      ? environmentFromNonInteractiveInputs
+      : await promptVariableEnvironmentAsync({ nonInteractive: flags['non-interactive'] });
 
     return {
       ...flags,
+      nonInteractive: flags['non-interactive'],
+      includeFileContent: flags['include-file-content'],
+      includeSensitive: flags['include-sensitive'],
       environment,
     };
   }
