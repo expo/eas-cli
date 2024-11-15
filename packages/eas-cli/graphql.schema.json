@@ -4610,6 +4610,11 @@
             "kind": "OBJECT",
             "name": "WorkerDeployment",
             "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "WorkflowRun",
+            "ofType": null
           }
         ]
       },
@@ -4641,6 +4646,12 @@
           },
           {
             "name": "WORKER",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "WORKFLOW_RUN",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -57933,6 +57944,34 @@
         "description": null,
         "fields": [
           {
+            "name": "activityTimestamp",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "actor",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "INTERFACE",
+              "name": "Actor",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "createdAt",
             "description": null,
             "args": [],
@@ -58138,7 +58177,13 @@
           }
         ],
         "inputFields": null,
-        "interfaces": [],
+        "interfaces": [
+          {
+            "kind": "INTERFACE",
+            "name": "ActivityTimelineProjectActivity",
+            "ofType": null
+          }
+        ],
         "enumValues": null,
         "possibleTypes": null
       },

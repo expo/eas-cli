@@ -767,7 +767,8 @@ export enum ActivityTimelineProjectActivityType {
   Build = 'BUILD',
   Submission = 'SUBMISSION',
   Update = 'UPDATE',
-  Worker = 'WORKER'
+  Worker = 'WORKER',
+  WorkflowRun = 'WORKFLOW_RUN'
 }
 
 /** A regular user, SSO user, or robot that can authenticate with Expo services and be a member of accounts. */
@@ -8197,8 +8198,10 @@ export type WorkflowRevisionsConnection = {
   pageInfo: PageInfo;
 };
 
-export type WorkflowRun = {
+export type WorkflowRun = ActivityTimelineProjectActivity & {
   __typename?: 'WorkflowRun';
+  activityTimestamp: Scalars['DateTime']['output'];
+  actor?: Maybe<Actor>;
   createdAt: Scalars['DateTime']['output'];
   gitCommitHash?: Maybe<Scalars['String']['output']>;
   gitCommitMessage?: Maybe<Scalars['String']['output']>;
