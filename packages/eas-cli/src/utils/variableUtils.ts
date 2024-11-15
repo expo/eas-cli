@@ -38,15 +38,15 @@ export function formatVariableValue(variable: EnvironmentVariableWithFileContent
   }
 
   if (variable.visibility === EnvironmentVariableVisibility.Sensitive) {
-    return '***** (This is a sensitive env variable. To access it, run command with --include-sensitive flag. Learn more.)';
+    return '*****(Sensitive)';
   }
 
   if (variable.visibility === EnvironmentVariableVisibility.Secret) {
-    return "***** (This is a secret env variable that can only be accessed on EAS builder and can't be read in any UI. Learn more.)";
+    return '*****(Secret)';
   }
 
   if (variable.type === EnvironmentSecretType.FileBase64) {
-    return '***** (This is a file env variable. To access it, run command with --include-file-content flag. Learn more.)';
+    return '(File type variable)';
   }
 
   return '*****';
@@ -62,20 +62,33 @@ export async function performForEnvironmentsAsync(
 
 export function formatVariable(variable: EnvironmentVariableWithFileContent): string {
   return formatFields([
-    { label: 'ID', value: variable.id },
     { label: 'Name', value: variable.name },
     { label: 'Value', value: formatVariableValue(variable) },
-    { label: 'Scope', value: variable.scope },
-    { label: 'Visibility', value: variable.visibility ?? '' },
     {
-      label: 'Environments',
-      value: variable.environments ? variable.environments.join(', ') : '-',
+      label: 'Scope',
+      value: variable.scope === EnvironmentVariableScope.Project ? 'Project' : 'Account',
     },
     {
-      label: 'type',
-      value: variable.type === EnvironmentSecretType.FileBase64 ? 'file' : 'string',
+      label: 'Visibility',
+      value: variable.visibility ? visibilityToVisibilityName[variable.visibility] : '',
+    },
+    {
+      label: 'Environments',
+      value: variable.environments
+        ? variable.environments.map(env => env.toLowerCase()).join(', ')
+        : '-',
+    },
+    {
+      label: 'Type',
+      value: variable.type === EnvironmentSecretType.FileBase64 ? 'File' : 'String',
     },
     { label: 'Created at', value: dateFormat(variable.createdAt, 'mmm dd HH:MM:ss') },
     { label: 'Updated at', value: dateFormat(variable.updatedAt, 'mmm dd HH:MM:ss') },
   ]);
 }
+
+const visibilityToVisibilityName: Record<EnvironmentVariableVisibility, string> = {
+  [EnvironmentVariableVisibility.Public]: 'Plain text',
+  [EnvironmentVariableVisibility.Sensitive]: 'Sensitive',
+  [EnvironmentVariableVisibility.Secret]: 'Secret',
+};

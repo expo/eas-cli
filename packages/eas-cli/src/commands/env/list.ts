@@ -4,7 +4,8 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
-  EASMultiEnvironmentFlag,
+  EASEnvironmentFlag,
+  EASNonInteractiveFlag,
   EASVariableFormatFlag,
   EASVariableScopeFlag,
 } from '../../commandUtils/flags';
@@ -15,12 +16,7 @@ import {
 } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
-import {
-  formatVariable,
-  formatVariableValue,
-  isEnvironment,
-  performForEnvironmentsAsync,
-} from '../../utils/variableUtils';
+import { formatVariable, formatVariableValue, isEnvironment } from '../../utils/variableUtils';
 
 async function getVariablesForScopeAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -66,14 +62,23 @@ async function getVariablesForScopeAsync(
       });
 }
 
-type ListFlags = {
+interface RawListFlags {
   scope: EnvironmentVariableScope;
   format: string;
-  environment: EnvironmentVariableEnvironment[] | undefined;
+  environment?: EnvironmentVariableEnvironment;
   'include-sensitive': boolean;
   'include-file-content': boolean;
-  'non-interactive'?: boolean;
-};
+  'non-interactive': boolean;
+}
+
+interface ListArgs {
+  scope: EnvironmentVariableScope;
+  format: string;
+  environment: EnvironmentVariableEnvironment;
+  'include-sensitive': boolean;
+  'include-file-content': boolean;
+  'non-interactive': boolean;
+}
 
 export default class EnvironmentValueList extends EasCommand {
   static override description = 'list environment variables for the current project';
@@ -94,9 +99,10 @@ export default class EnvironmentValueList extends EasCommand {
       description: 'Display files content in the output',
       default: false,
     }),
-    ...EASMultiEnvironmentFlag,
+    ...EASEnvironmentFlag,
     ...EASVariableFormatFlag,
     ...EASVariableScopeFlag,
+    ...EASNonInteractiveFlag,
   };
 
   static override args = [
@@ -111,80 +117,73 @@ export default class EnvironmentValueList extends EasCommand {
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(EnvironmentValueList);
 
-    let {
+    const {
+      environment,
       format,
-      environment: environments,
       scope,
       'include-sensitive': includeSensitive,
       'include-file-content': includeFileContent,
       'non-interactive': nonInteractive,
-    } = this.validateInputs(flags, args);
+    } = await this.sanitizeInputsAsync(flags, args);
 
     const {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvironmentValueList, {
-      nonInteractive: true,
+      nonInteractive,
     });
 
-    if (!environments) {
-      environments = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
+    const variables = await getVariablesForScopeAsync(graphqlClient, {
+      scope,
+      includingSensitive: includeSensitive,
+      includeFileContent,
+      environment,
+      projectId,
+    });
+
+    Log.addNewLineIfNone();
+    if (environment) {
+      Log.log(chalk.bold(`Environment: ${environment.toLocaleLowerCase()}`));
     }
 
-    await performForEnvironmentsAsync(environments, async environment => {
-      const variables = await getVariablesForScopeAsync(graphqlClient, {
-        scope,
-        includingSensitive: includeSensitive,
-        includeFileContent,
-        environment,
-        projectId,
-      });
+    if (variables.length === 0) {
+      Log.log('No variables found for this environment.');
+      return;
+    }
 
-      Log.addNewLineIfNone();
-      if (environment) {
-        Log.log(chalk.bold(`Environment: ${environment.toLocaleLowerCase()}`));
+    if (format === 'short') {
+      for (const variable of variables) {
+        Log.log(`${chalk.bold(variable.name)}=${formatVariableValue(variable)}`);
       }
-
-      if (variables.length === 0) {
-        Log.log('No variables found for this environment.');
-        return;
-      }
-
-      if (format === 'short') {
-        for (const variable of variables) {
-          Log.log(`${chalk.bold(variable.name)}=${formatVariableValue(variable)}`);
-        }
+    } else {
+      if (scope === EnvironmentVariableScope.Shared) {
+        Log.log(chalk.bold('Shared variables for this account:'));
       } else {
-        if (scope === EnvironmentVariableScope.Shared) {
-          Log.log(chalk.bold('Shared variables for this account:'));
-        } else {
-          Log.log(chalk.bold(`Variables for this project:`));
-        }
-        Log.log(
-          variables.map(variable => formatVariable(variable)).join(`\n\n${chalk.dim('———')}\n\n`)
-        );
+        Log.log(chalk.bold(`Variables for this project:`));
       }
-    });
+      Log.log(
+        variables.map(variable => formatVariable(variable)).join(`\n\n${chalk.dim('———')}\n\n`)
+      );
+    }
   }
 
-  private validateInputs(
-    flags: ListFlags,
-    { environment }: Record<string, string>
-  ): ListFlags & { 'non-interactive': boolean } {
-    if (environment && !isEnvironment(environment.toUpperCase())) {
+  private async sanitizeInputsAsync(
+    flags: RawListFlags,
+    { environment: environmentInput }: Record<string, string>
+  ): Promise<ListArgs> {
+    if (environmentInput && !isEnvironment(environmentInput.toUpperCase())) {
       throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
     }
 
-    const environments = flags.environment
+    const environment = flags.environment
       ? flags.environment
-      : environment
-        ? [environment.toUpperCase() as EnvironmentVariableEnvironment]
-        : undefined;
+      : environmentInput
+        ? (environmentInput.toUpperCase() as EnvironmentVariableEnvironment)
+        : await promptVariableEnvironmentAsync({ nonInteractive: flags['non-interactive'] });
 
     return {
       ...flags,
-      'non-interactive': flags['non-interactive'] ?? false,
-      environment: environments,
+      environment,
     };
   }
 }

@@ -25,11 +25,9 @@ export const EasNonInteractiveAndJsonFlags = {
 export const EasEnvironmentFlagParameters = {
   description: "Environment variable's environment",
   parse: upperCaseAsync,
-  options: mapToLowercase([
-    EnvironmentVariableEnvironment.Development,
-    EnvironmentVariableEnvironment.Preview,
-    EnvironmentVariableEnvironment.Production,
-  ]),
+  options: mapToLowercase(Object.values(EnvironmentVariableEnvironment)),
+  required: false,
+  hidden: true,
 };
 
 export const EASEnvironmentFlag = {
