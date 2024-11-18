@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import fs from 'fs/promises';
+import fsExtra from 'fs-extra';
 import path from 'path';
 import prompts from 'prompts';
 
@@ -110,16 +111,11 @@ export class WorkflowCreate extends EasCommand {
 
     const filePath = path.join(projectDir, '.eas', 'workflows', fileName);
 
-    try {
-      await fs.access(filePath);
+    if (await fsExtra.pathExists(filePath)) {
       throw new Error(`Workflow file already exists: ${filePath}`);
-    } catch (error) {
-      if ((error as any)?.code === 'ENOENT') {
-        await fs.writeFile(filePath, HELLO_WORLD_TEMPLATE);
-        Log.withTick(`Created ${chalk.bold(filePath)}`);
-      } else {
-        throw error;
-      }
     }
+
+    await fs.writeFile(filePath, HELLO_WORLD_TEMPLATE);
+    Log.withTick(`Created ${chalk.bold(filePath)}`);
   }
 }
