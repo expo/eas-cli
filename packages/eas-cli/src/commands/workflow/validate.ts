@@ -11,7 +11,6 @@ import { WorkflowFile } from '../../utils/workflowFile';
 
 export class WorkflowValidate extends EasCommand {
   static override description = 'validate a workflow configuration yaml file';
-  static override hidden = true;
 
   static override args = [
     {

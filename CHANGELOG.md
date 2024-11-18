@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Added `eas workflow` commands.
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
