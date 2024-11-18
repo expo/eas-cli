@@ -97,7 +97,7 @@ export class WorkflowValidate extends EasCommand {
         Log.error(`Unexpected error: ${String(error)}`);
       }
 
-      process.exit(1);
+      throw error;
     }
   }
 }
