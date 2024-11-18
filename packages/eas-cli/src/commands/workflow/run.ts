@@ -1,15 +1,17 @@
-import fs from 'node:fs';
+import { CombinedError } from '@urql/core';
 import * as path from 'node:path';
 
 import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { WorkflowProjectSourceType } from '../../graphql/generated';
+import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
 import Log, { link } from '../../log';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { uploadAccountScopedEasJsonAsync } from '../../project/uploadAccountScopedEasJsonAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccountScopedProjectSourceAsync';
+import { WorkflowFile } from '../../utils/workflowFile';
 
 export default class WorkflowRun extends EasCommand {
   static override description = 'Run an EAS workflow';
@@ -48,7 +50,12 @@ export default class WorkflowRun extends EasCommand {
 
     let yamlConfig: string;
     try {
-      yamlConfig = await fs.promises.readFile(path.join(projectDir, args.file), 'utf8');
+      const workflowFileContents = await WorkflowFile.readWorkflowFileContentsAsync({
+        projectDir,
+        filePath: args.file,
+      });
+      Log.log(`Using workflow file from ${workflowFileContents.filePath}`);
+      yamlConfig = workflowFileContents.yamlConfig;
     } catch (err) {
       Log.error('Failed to read workflow file.');
 
@@ -60,6 +67,23 @@ export default class WorkflowRun extends EasCommand {
       exp: { slug: projectName },
     } = await getDynamicPrivateProjectConfigAsync();
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
+
+    try {
+      await WorkflowRevisionMutation.validateWorkflowYamlConfigAsync(graphqlClient, {
+        appId: projectId,
+        yamlConfig,
+      });
+    } catch (error) {
+      if (error instanceof CombinedError) {
+        WorkflowFile.maybePrintWorkflowFileValidationErrors({
+          error,
+          accountName: account.name,
+          projectName,
+        });
+
+        throw error;
+      }
+    }
 
     let projectArchiveBucketKey: string;
     let easJsonBucketKey: string;

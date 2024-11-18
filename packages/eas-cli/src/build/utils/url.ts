@@ -63,3 +63,12 @@ export function getWorkflowRunUrl(
     getExpoWebsiteBaseUrl()
   ).toString();
 }
+
+export function getProjectGitHubSettingsUrl(accountName: string, projectName: string): string {
+  return new URL(
+    `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
+      projectName
+    )}/github`,
+    getExpoWebsiteBaseUrl()
+  ).toString();
+}
