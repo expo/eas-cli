@@ -75,4 +75,11 @@ export namespace WorkflowFile {
       );
     }
   }
+
+  export function validateYamlExtension(fileName: string): void {
+    const fileExtension = path.extname(fileName).toLowerCase();
+    if (fileExtension !== '.yml' && fileExtension !== '.yaml') {
+      throw new Error('File must have a .yml or .yaml extension');
+    }
+  }
 }

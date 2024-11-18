@@ -4,9 +4,10 @@ import path from 'path';
 import prompts from 'prompts';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import Log from '../../log';
+import { WorkflowFile } from '../../utils/workflowFile';
 
-const WORKFLOWS_DIR = path.join('.eas', 'workflows');
 const DEFAULT_WORKFLOW_NAME = 'workflow.yml';
 const HELLO_WORLD_TEMPLATE = `name: Hello World
 
@@ -15,13 +16,13 @@ on:
     branches: ['*']
 
 jobs:
-  Hello World:
+  hello_world:
     steps:
+      - uses: eas/checkout
       - run: echo "Hello, World"
 `;
 
 export class WorkflowCreate extends EasCommand {
-  static override hidden = true;
   static override description = 'create a new workflow configuration YAML file';
 
   static override args = [
@@ -31,13 +32,24 @@ export class WorkflowCreate extends EasCommand {
       required: false,
     },
   ];
+
+  static override flags = {
+    ...EASNonInteractiveFlag,
+  };
+
   static override contextDefinition = {
     ...this.ContextOptions.ProjectDir,
-  }
+  };
+
   async runAsync(): Promise<void> {
     const {
       args: { name: argFileName },
+      flags,
     } = await this.parse(WorkflowCreate);
+
+    const { projectDir } = await this.getContextAsync(WorkflowCreate, {
+      nonInteractive: flags['non-interactive'],
+    });
 
     let fileName = argFileName;
 
@@ -49,7 +61,7 @@ export class WorkflowCreate extends EasCommand {
         initial: DEFAULT_WORKFLOW_NAME,
         validate: value => {
           try {
-            this.validateYamlExtension(value);
+            WorkflowFile.validateYamlExtension(value);
             return true;
           } catch (error) {
             return error instanceof Error ? error.message : 'Invalid file name';
@@ -66,35 +78,37 @@ export class WorkflowCreate extends EasCommand {
     }
 
     try {
-      await this.ensureWorkflowsDirectoryExistsAsync();
-      await this.createWorkflowFileAsync(fileName);
-      Log.withTick(`Created ${chalk.bold(path.join(WORKFLOWS_DIR, fileName))}`);
+      await this.ensureWorkflowsDirectoryExistsAsync({ projectDir });
+      await this.createWorkflowFileAsync({ fileName, projectDir });
     } catch (error) {
       Log.error('Failed to create workflow file.');
       throw error;
     }
   }
 
-  private validateYamlExtension(fileName: string): void {
-    const fileExtension = path.extname(fileName).toLowerCase();
-    if (fileExtension !== '.yml' && fileExtension !== '.yaml') {
-      throw new Error('File must have a .yml or .yaml extension');
-    }
-  }
-
-  private async ensureWorkflowsDirectoryExistsAsync(): Promise<void> {
+  private async ensureWorkflowsDirectoryExistsAsync({
+    projectDir,
+  }: {
+    projectDir: string;
+  }): Promise<void> {
     try {
-      await fs.access(WORKFLOWS_DIR);
+      await fs.access(path.join(projectDir, '.eas', 'workflows'));
     } catch {
-      await fs.mkdir(WORKFLOWS_DIR, { recursive: true });
-      Log.withTick(`Created directory ${chalk.bold(WORKFLOWS_DIR)}`);
+      await fs.mkdir(path.join(projectDir, '.eas', 'workflows'), { recursive: true });
+      Log.withTick(`Created directory ${chalk.bold(path.join(projectDir, '.eas', 'workflows'))}`);
     }
   }
 
-  private async createWorkflowFileAsync(fileName: string): Promise<void> {
-    this.validateYamlExtension(fileName);
+  private async createWorkflowFileAsync({
+    fileName,
+    projectDir,
+  }: {
+    fileName: string;
+    projectDir: string;
+  }): Promise<void> {
+    WorkflowFile.validateYamlExtension(fileName);
 
-    const filePath = path.join(WORKFLOWS_DIR, fileName);
+    const filePath = path.join(projectDir, '.eas', 'workflows', fileName);
 
     try {
       await fs.access(filePath);
@@ -102,6 +116,7 @@ export class WorkflowCreate extends EasCommand {
     } catch (error) {
       if ((error as any)?.code === 'ENOENT') {
         await fs.writeFile(filePath, HELLO_WORLD_TEMPLATE);
+        Log.withTick(`Created ${chalk.bold(filePath)}`);
       } else {
         throw error;
       }
