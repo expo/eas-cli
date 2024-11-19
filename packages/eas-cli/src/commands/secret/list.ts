@@ -11,6 +11,7 @@ import formatFields from '../../utils/formatFields';
 
 export default class EnvironmentSecretList extends EasCommand {
   static override description = 'list environment secrets available for your current app';
+  static override hidden = true;
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
@@ -18,6 +19,9 @@ export default class EnvironmentSecretList extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    Log.warn('This command is deprecated. Use eas env:list instead.');
+    Log.newLine();
+
     const {
       projectId,
       loggedIn: { graphqlClient },
