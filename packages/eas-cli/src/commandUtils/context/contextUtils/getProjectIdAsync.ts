@@ -12,7 +12,6 @@ import {
   getPrivateExpoConfigAsync,
 } from '../../../project/expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import { toAppPrivacy } from '../../../project/projectUtils';
 import SessionManager from '../../../user/SessionManager';
 import { Actor, getActorUsername } from '../../../user/User';
 
@@ -197,7 +196,6 @@ export async function validateOrSetProjectIdAsync({
     {
       accountName: getAccountNameForEASProjectSync(exp, actor),
       projectName: exp.slug,
-      privacy: toAppPrivacy(exp.privacy),
     },
     {
       nonInteractive: options.nonInteractive,

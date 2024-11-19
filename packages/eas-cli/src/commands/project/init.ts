@@ -15,7 +15,6 @@ import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import { toAppPrivacy } from '../../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../../prompts';
 import { Actor } from '../../user/User';
 
@@ -337,7 +336,7 @@ export default class ProjectInit extends EasCommand {
       createdProjectId = await AppMutation.createAppAsync(graphqlClient, {
         accountId: account.id,
         projectName,
-        privacy: toAppPrivacy(exp.privacy) ?? AppPrivacy.Public,
+        privacy: AppPrivacy.Unlisted,
       });
       spinner.succeed(`Created ${chalk.bold(projectLink)}`);
     } catch (err) {

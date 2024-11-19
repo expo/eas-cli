@@ -21,7 +21,6 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
   projectInfo: {
     accountName: string;
     projectName: string;
-    privacy?: AppPrivacy;
   },
   options: {
     nonInteractive: boolean;
@@ -90,7 +89,7 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
     const id = await AppMutation.createAppAsync(graphqlClient, {
       accountId: account.id,
       projectName,
-      privacy: projectInfo.privacy ?? AppPrivacy.Public,
+      privacy: AppPrivacy.Unlisted,
     });
     spinner.succeed(`Created ${chalk.bold(projectLink)} on Expo`);
     return id;

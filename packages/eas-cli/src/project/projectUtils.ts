@@ -7,7 +7,7 @@ import semver from 'semver';
 
 import { getEASUpdateURL } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { AccountFragment, AppPrivacy } from '../graphql/generated';
+import { AccountFragment } from '../graphql/generated';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import Log, { learnMore } from '../log';
 import { Actor } from '../user/User';
@@ -30,16 +30,6 @@ export function getUsername(exp: ExpoConfig, user: Actor): string | undefined {
       return undefined;
   }
 }
-
-export const toAppPrivacy = (privacy: ExpoConfig['privacy']): AppPrivacy => {
-  if (privacy === 'public') {
-    return AppPrivacy.Public;
-  } else if (privacy === 'hidden') {
-    return AppPrivacy.Hidden;
-  } else {
-    return AppPrivacy.Unlisted;
-  }
-};
 
 /**
  * Return a useful name describing the project config.

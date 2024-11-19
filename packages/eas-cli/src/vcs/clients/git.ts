@@ -60,7 +60,7 @@ export default class GitClient extends Client {
     Log.warn('EAS requires you to use a git repository for your project.');
 
     const cwd = process.cwd();
-    const repoRoot = PackageManagerUtils.findWorkspaceRoot(cwd) ?? cwd;
+    const repoRoot = PackageManagerUtils.resolveWorkspaceRoot(cwd) ?? cwd;
     const confirmInit = await confirmAsync({
       message: `Would you like us to run 'git init' in ${
         this.maybeCwdOverride ?? repoRoot
