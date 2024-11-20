@@ -36,6 +36,7 @@ export const UpdateFragmentNode = gql`
       id
     }
     fingerprint {
+      id
       hash
       source {
         type
