@@ -671,7 +671,7 @@ async function computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync<T extends
 }> {
   const runtimeAndFingerprintMetadata =
     await computeAndMaybeUploadFingerprintFromExpoUpdatesAsync(ctx);
-  if (!runtimeAndFingerprintMetadata?.fingerprint) {
+  if (!runtimeAndFingerprintMetadata?.fingerprintHash) {
     const fingerprint = await computeAndMaybeUploadFingerprintWithoutExpoUpdatesAsync(ctx);
     return {
       ...runtimeAndFingerprintMetadata,
@@ -690,10 +690,7 @@ async function computeAndMaybeUploadFingerprintFromExpoUpdatesAsync<T extends Pl
 ): Promise<{
   runtimeVersion?: string;
   fingerprintSource?: FingerprintSource;
-  fingerprint?: {
-    fingerprintSources: object[];
-    isDebugFingerprintSource: boolean;
-  };
+  fingerprintHash?: string;
 }> {
   const resolvedRuntimeVersion = await resolveRuntimeVersionAsync({
     exp: ctx.exp,
@@ -727,7 +724,7 @@ async function computeAndMaybeUploadFingerprintFromExpoUpdatesAsync<T extends Pl
   return {
     runtimeVersion: uploadedFingerprint.hash,
     fingerprintSource: uploadedFingerprint.fingerprintSource,
-    fingerprint: resolvedRuntimeVersion.fingerprint,
+    fingerprintHash: resolvedRuntimeVersion.fingerprintHash ?? undefined,
   };
 }
 
@@ -740,7 +737,7 @@ async function computeAndMaybeUploadFingerprintWithoutExpoUpdatesAsync<T extends
 }> {
   const fingerprint = await createFingerprintAsync(ctx.projectDir, {
     workflow: ctx.workflow,
-    platform: ctx.platform,
+    platforms: [ctx.platform],
     env: ctx.env,
   });
   if (!fingerprint) {

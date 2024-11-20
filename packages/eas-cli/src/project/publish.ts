@@ -1,6 +1,6 @@
 import { ExpoConfig, Platform as ExpoConfigPlatform } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
-import { Env, Workflow } from '@expo/eas-build-job';
+import { Env, FingerprintSource, Platform, Workflow } from '@expo/eas-build-job';
 import JsonFile from '@expo/json-file';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -12,6 +12,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import promiseLimit from 'promise-limit';
 
+import { maybeUploadFingerprintAsync } from './maybeUploadFingerprintAsync';
 import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from './projectUtils';
 import { resolveRuntimeVersionUsingCLIAsync } from './resolveRuntimeVersionAsync';
 import { selectBranchOnAppAsync } from '../branch/queries';
@@ -47,7 +48,9 @@ import { ExpoUpdatesCLIModuleNotFoundError } from '../utils/expoUpdatesCli';
 import chunk from '../utils/expodash/chunk';
 import { truthy } from '../utils/expodash/filter';
 import groupBy from '../utils/expodash/groupBy';
+import mapMapAsync from '../utils/expodash/mapMapAsync';
 import uniqBy from '../utils/expodash/uniqBy';
+import { FingerprintOptions, createFingerprintsByKeyAsync } from '../utils/fingerprintCli';
 import { Client } from '../vcs/vcs';
 
 // update publish does not currently support web
@@ -728,6 +731,16 @@ export type RuntimeVersionInfo = {
     fingerprintSources: object[];
     isDebugFingerprintSource: boolean;
   } | null;
+  fingerprintHash: string | null;
+};
+
+type FingerprintInfoGroup = {
+  [key in UpdatePublishPlatform]?: FingerprintInfo;
+};
+
+type FingerprintInfo = {
+  fingerprintHash: string;
+  fingerprintSource: FingerprintSource;
 };
 
 export async function getRuntimeVersionInfoObjectsAsync({
@@ -782,6 +795,7 @@ async function getRuntimeVersionInfoForPlatformAsync({
     fingerprintSources: object[];
     isDebugFingerprintSource: boolean;
   } | null;
+  fingerprintHash: string | null;
 }> {
   if (await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir)) {
     try {
@@ -833,6 +847,7 @@ async function getRuntimeVersionInfoForPlatformAsync({
   return {
     runtimeVersion: resolvedRuntimeVersion,
     fingerprint: null,
+    fingerprintHash: null,
   };
 }
 
@@ -858,9 +873,119 @@ export function getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersion
           runtimeVersionInfoObjects.map(
             runtimeVersionInfoObject => runtimeVersionInfoObject.runtimeVersionInfo.fingerprint
           )[0] ?? null,
+        fingerprintHash:
+          runtimeVersionInfoObjects.map(
+            runtimeVersionInfoObject => runtimeVersionInfoObject.runtimeVersionInfo.fingerprintHash
+          )[0] ?? null,
       };
     }
   );
+}
+
+export async function maybeCalculateFingerprintForRuntimeVersionInfoObjectsWithoutExpoUpdatesAsync({
+  projectDir,
+  graphqlClient,
+  runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping,
+  workflowsByPlatform,
+  env,
+}: {
+  projectDir: string;
+  graphqlClient: ExpoGraphqlClient;
+  runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping: (RuntimeVersionInfo & {
+    platforms: UpdatePublishPlatform[];
+    fingerprintSource: FingerprintSource | null;
+  })[];
+  workflowsByPlatform: Record<Platform, Workflow>;
+  env: Env | undefined;
+}): Promise<
+  (RuntimeVersionInfo & {
+    platforms: UpdatePublishPlatform[];
+    fingerprintSource: FingerprintSource | null;
+    fingerprintInfoGroup: FingerprintInfoGroup;
+  })[]
+> {
+  const runtimesToComputeFingerprintsFor =
+    runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping.filter(
+      infoGroup => !infoGroup.fingerprintHash
+    );
+  const fingerprintOptionsByRuntimeAndPlatform = new Map<string, FingerprintOptions>();
+  for (const infoGroup of runtimesToComputeFingerprintsFor) {
+    for (const platform of infoGroup.platforms) {
+      const runtimeAndPlatform = `${infoGroup.runtimeVersion}-${platform}`;
+      const options = {
+        platforms: [platform],
+        workflow: workflowsByPlatform[platform],
+        projectDir,
+        env,
+      };
+      fingerprintOptionsByRuntimeAndPlatform.set(runtimeAndPlatform, options);
+    }
+  }
+  const fingerprintsByRuntimeAndPlatform = await createFingerprintsByKeyAsync(
+    projectDir,
+    fingerprintOptionsByRuntimeAndPlatform
+  );
+  const uploadedFingerprintsByRuntimeAndPlatform = await mapMapAsync(
+    fingerprintsByRuntimeAndPlatform,
+    async fingerprint => {
+      return {
+        ...fingerprint,
+        uploadedSource: (
+          await maybeUploadFingerprintAsync({
+            hash: fingerprint.hash,
+            fingerprint: {
+              fingerprintSources: fingerprint.sources,
+              isDebugFingerprintSource: fingerprint.isDebugSource,
+            },
+            graphqlClient,
+          })
+        ).fingerprintSource,
+      };
+    }
+  );
+  const runtimesWithComputedFingerprint = runtimesToComputeFingerprintsFor.map(runtimeInfo => {
+    const fingerprintInfoGroup: FingerprintInfoGroup = {};
+    for (const platform of runtimeInfo.platforms) {
+      const runtimeAndPlatform = `${runtimeInfo.runtimeVersion}-${platform}`;
+      const fingerprint = uploadedFingerprintsByRuntimeAndPlatform.get(runtimeAndPlatform);
+      if (fingerprint && fingerprint.uploadedSource) {
+        fingerprintInfoGroup[platform] = {
+          fingerprintHash: fingerprint.hash,
+          fingerprintSource: fingerprint.uploadedSource,
+        };
+      }
+    }
+    return {
+      ...runtimeInfo,
+      fingerprintInfoGroup,
+    };
+  });
+
+  // These are runtimes whose fingerprint has already been computed and uploaded with EAS Update fingerprint runtime policy
+  const runtimesWithPreviouslyComputedFingerprints =
+    runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping
+      .filter(
+        (
+          infoGroup
+        ): infoGroup is RuntimeVersionInfo & {
+          platforms: UpdatePublishPlatform[];
+          fingerprintSource: FingerprintSource;
+          fingerprintHash: string;
+        } => !!infoGroup.fingerprintHash && !!infoGroup.fingerprintSource
+      )
+      .map(infoGroup => {
+        const platform = infoGroup.platforms[0];
+        return {
+          ...infoGroup,
+          fingerprintInfoGroup: {
+            [platform]: {
+              fingerprintHash: infoGroup.fingerprintHash,
+              fingerprintSource: infoGroup.fingerprintSource,
+            },
+          },
+        };
+      });
+  return [...runtimesWithComputedFingerprint, ...runtimesWithPreviouslyComputedFingerprints];
 }
 
 export const platformDisplayNames: Record<UpdatePublishPlatform, string> = {
@@ -871,21 +996,6 @@ export const platformDisplayNames: Record<UpdatePublishPlatform, string> = {
 export const updatePublishPlatformToAppPlatform: Record<UpdatePublishPlatform, AppPlatform> = {
   android: AppPlatform.Android,
   ios: AppPlatform.Ios,
-};
-
-const mapMapAsync = async function <K, V, M>(
-  map: ReadonlyMap<K, V>,
-  mapper: (value: V, key: K) => Promise<M>
-): Promise<Map<K, M>> {
-  const resultingMap: Map<K, M> = new Map();
-  await Promise.all(
-    Array.from(map.keys()).map(async k => {
-      const initialValue = map.get(k) as V;
-      const result = await mapper(initialValue, k);
-      resultingMap.set(k, result);
-    })
-  );
-  return resultingMap;
 };
 
 export async function getRuntimeToUpdateRolloutInfoGroupMappingAsync(

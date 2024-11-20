@@ -13,6 +13,7 @@ import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
   EnvironmentVariableEnvironment,
+  FingerprintInfoGroup,
   PublishUpdateGroupInput,
   StatuspageServiceName,
   UpdateInfoGroup,
@@ -39,6 +40,7 @@ import {
   getRuntimeVersionInfoObjectsAsync,
   getUpdateMessageForCommandAsync,
   isUploadedAssetCountAboveWarningThreshold,
+  maybeCalculateFingerprintForRuntimeVersionInfoObjectsWithoutExpoUpdatesAsync,
   platformDisplayNames,
   resolveInputDirectoryAsync,
   uploadAssetsAsync,
@@ -403,22 +405,33 @@ export default class UpdatePublish extends EasCommand {
       branchName,
     });
 
-    const runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping = await Promise.all(
-      runtimeToPlatformsAndFingerprintInfoMapping.map(async info => {
-        return {
-          ...info,
-          fingerprintSource: info.fingerprint
-            ? (
-                await maybeUploadFingerprintAsync({
-                  hash: info.runtimeVersion,
-                  fingerprint: info.fingerprint,
-                  graphqlClient,
-                })
-              ).fingerprintSource ?? null
-            : null,
-        };
-      })
-    );
+    const runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMappingFromExpoUpdates =
+      await Promise.all(
+        runtimeToPlatformsAndFingerprintInfoMapping.map(async info => {
+          return {
+            ...info,
+            fingerprintSource: info.fingerprint
+              ? (
+                  await maybeUploadFingerprintAsync({
+                    hash: info.runtimeVersion,
+                    fingerprint: info.fingerprint,
+                    graphqlClient,
+                  })
+                ).fingerprintSource ?? null
+              : null,
+          };
+        })
+      );
+
+    const runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping =
+      await maybeCalculateFingerprintForRuntimeVersionInfoObjectsWithoutExpoUpdatesAsync({
+        projectDir,
+        graphqlClient,
+        runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping:
+          runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMappingFromExpoUpdates,
+        workflowsByPlatform: workflows,
+        env: undefined,
+      });
 
     const runtimeVersionToRolloutInfoGroup =
       rolloutPercentage !== undefined
@@ -436,7 +449,7 @@ export default class UpdatePublish extends EasCommand {
     // Sort the updates into different groups based on their platform specific runtime versions
     const updateGroups: PublishUpdateGroupInput[] =
       runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping.map(
-        ({ runtimeVersion, platforms, fingerprintSource }) => {
+        ({ runtimeVersion, platforms, fingerprintSource, fingerprintInfoGroup }) => {
           const localUpdateInfoGroup = Object.fromEntries(
             platforms.map(platform => [
               platform,
@@ -455,6 +468,18 @@ export default class UpdatePublish extends EasCommand {
                 ])
               )
             : null;
+          const transformedFingerprintInfoGroup = Object.entries(fingerprintInfoGroup).reduce(
+            (prev, [platform, fingerprintInfo]) => {
+              return {
+                ...prev,
+                [platform]: {
+                  ...fingerprintInfo,
+                  fingerprintSource: transformFingerprintSource(fingerprintInfo.fingerprintSource),
+                },
+              };
+            },
+            {} as FingerprintInfoGroup
+          );
 
           return {
             branchId,
@@ -463,6 +488,7 @@ export default class UpdatePublish extends EasCommand {
             runtimeFingerprintSource: fingerprintSource
               ? transformFingerprintSource(fingerprintSource)
               : null,
+            fingerprintInfoGroup: transformedFingerprintInfoGroup,
             runtimeVersion,
             message: updateMessage,
             gitCommitHash,

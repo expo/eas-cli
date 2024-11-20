@@ -27,6 +27,7 @@ export async function resolveRuntimeVersionUsingCLIAsync({
     fingerprintSources: object[];
     isDebugFingerprintSource: boolean;
   } | null;
+  fingerprintHash: string | null;
 }> {
   Log.debug('Using expo-updates runtimeversion:resolve CLI for runtime version resolution');
 
@@ -52,6 +53,9 @@ export async function resolveRuntimeVersionUsingCLIAsync({
           isDebugFingerprintSource: useDebugFingerprintSource,
         }
       : null,
+    fingerprintHash: runtimeVersionResult.fingerprintSources
+      ? runtimeVersionResult.runtimeVersion
+      : null,
   };
 }
 
@@ -75,6 +79,7 @@ export async function resolveRuntimeVersionAsync({
     fingerprintSources: object[];
     isDebugFingerprintSource: boolean;
   } | null;
+  fingerprintHash: string | null;
 } | null> {
   if (!(await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir))) {
     // fall back to the previous behavior (using the @expo/config-plugins eas-cli dependency rather
@@ -82,6 +87,7 @@ export async function resolveRuntimeVersionAsync({
     return {
       runtimeVersion: await Updates.getRuntimeVersionNullableAsync(projectDir, exp, platform),
       fingerprint: null,
+      fingerprintHash: null,
     };
   }
 
