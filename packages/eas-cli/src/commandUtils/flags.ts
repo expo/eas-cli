@@ -52,9 +52,9 @@ export const EASVariableFormatFlag = {
 };
 
 export const EASVariableVisibilityFlag = {
-  visibility: Flags.enum<'plaintext' | 'sensitive' | 'encrypted'>({
+  visibility: Flags.enum<'plaintext' | 'sensitive' | 'secret'>({
     description: 'Visibility of the variable',
-    options: ['plaintext', 'sensitive', 'encrypted'],
+    options: ['plaintext', 'sensitive', 'secret'],
   }),
 };
 
