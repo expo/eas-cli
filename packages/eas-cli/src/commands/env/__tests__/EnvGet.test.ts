@@ -12,14 +12,14 @@ import {
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
 import { promptVariableEnvironmentAsync, promptVariableNameAsync } from '../../../utils/prompts';
-import EnvironmentVariableGet from '../get';
+import EnvGet from '../get';
 
 jest.mock('../../../graphql/mutations/EnvironmentVariableMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../utils/prompts');
 
-describe(EnvironmentVariableGet, () => {
+describe(EnvGet, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
   const mockConfig = {} as unknown as Config;
   const mockVariables: EnvironmentVariableFragment[] = [
@@ -42,7 +42,7 @@ describe(EnvironmentVariableGet, () => {
       .mockResolvedValueOnce(mockVariables);
     jest.spyOn(Log, 'log').mockImplementation(() => {});
 
-    const command = new EnvironmentVariableGet(['--variable-name', 'TEST_VAR_1'], mockConfig);
+    const command = new EnvGet(['--variable-name', 'TEST_VAR_1'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -68,7 +68,7 @@ describe(EnvironmentVariableGet, () => {
     const errorMessage =
       "Variable name is required. Run the command with '--variable-name VARIABLE_NAME' flag";
 
-    const command = new EnvironmentVariableGet([], mockConfig);
+    const command = new EnvGet([], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -85,7 +85,7 @@ describe(EnvironmentVariableGet, () => {
       .mockResolvedValueOnce(EnvironmentVariableEnvironment.Production);
     jest.mocked(promptVariableNameAsync).mockResolvedValueOnce('TEST_VAR_1');
 
-    const command = new EnvironmentVariableGet([], mockConfig);
+    const command = new EnvGet([], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({

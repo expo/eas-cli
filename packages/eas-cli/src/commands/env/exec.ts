@@ -28,7 +28,7 @@ interface RawFlags {
 
 export default class EnvExec extends EasCommand {
   static override description =
-    'execute a bash command with environment variables from the selected environment';
+    'execute a command with environment variables from the selected environment';
 
   static override hidden = true;
 

@@ -85,8 +85,8 @@ interface ListFlags {
   'non-interactive': boolean;
 }
 
-export default class EnvironmentValueList extends EasCommand {
-  static override description = 'list environment variables for the current project';
+export default class EnvList extends EasCommand {
+  static override description = 'list environment variables for the current project or account';
 
   static override hidden = true;
 
@@ -119,7 +119,7 @@ export default class EnvironmentValueList extends EasCommand {
   ];
 
   async runAsync(): Promise<void> {
-    const { args, flags } = await this.parse(EnvironmentValueList);
+    const { args, flags } = await this.parse(EnvList);
 
     let {
       format,
@@ -133,7 +133,7 @@ export default class EnvironmentValueList extends EasCommand {
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentValueList, {
+    } = await this.getContextAsync(EnvList, {
       nonInteractive: true,
     });
 

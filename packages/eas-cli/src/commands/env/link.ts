@@ -23,7 +23,7 @@ type LinkFlags = {
   environment?: EnvironmentVariableEnvironment[];
 };
 
-export default class EnvironmentVariableLink extends EasCommand {
+export default class EnvLink extends EasCommand {
   static override description = 'link an account-wide environment variable to the current project';
 
   // for now we only roll out global account-wide env variables so this should stay hidden
@@ -56,7 +56,7 @@ export default class EnvironmentVariableLink extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { args, flags } = await this.parse(EnvironmentVariableLink);
+    const { args, flags } = await this.parse(EnvLink);
 
     let {
       'variable-name': name,
@@ -68,7 +68,7 @@ export default class EnvironmentVariableLink extends EasCommand {
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentVariableLink, {
+    } = await this.getContextAsync(EnvLink, {
       nonInteractive,
     });
 

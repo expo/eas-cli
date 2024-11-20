@@ -13,7 +13,7 @@ import {
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
-import EnvironmentVariableList from '../list';
+import EnvList from '../list';
 
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../graphql/queries/AppQuery');
@@ -44,7 +44,7 @@ const mockVariables: EnvironmentVariableFragment[] = [
   },
 ];
 
-describe(EnvironmentVariableList, () => {
+describe(EnvList, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
   const mockConfig = {} as unknown as Config;
 
@@ -56,7 +56,7 @@ describe(EnvironmentVariableList, () => {
   it('lists project environment variables successfully', async () => {
     jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce(mockVariables);
 
-    const command = new EnvironmentVariableList([], mockConfig);
+    const command = new EnvList([], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -77,7 +77,7 @@ describe(EnvironmentVariableList, () => {
   it('lists project environment variables in specified environments', async () => {
     jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce(mockVariables);
 
-    const command = new EnvironmentVariableList(['--environment', 'production'], mockConfig);
+    const command = new EnvList(['--environment', 'production'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -100,7 +100,7 @@ describe(EnvironmentVariableList, () => {
       .mocked(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync)
       .mockResolvedValueOnce(mockVariables);
 
-    const command = new EnvironmentVariableList(['--include-sensitive'], mockConfig);
+    const command = new EnvList(['--include-sensitive'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -124,7 +124,7 @@ describe(EnvironmentVariableList, () => {
   it('lists account-wide environment variables successfully', async () => {
     jest.mocked(EnvironmentVariablesQuery.sharedAsync).mockResolvedValueOnce(mockVariables);
 
-    const command = new EnvironmentVariableList(['--scope', 'account'], mockConfig);
+    const command = new EnvList(['--scope', 'account'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -147,10 +147,7 @@ describe(EnvironmentVariableList, () => {
       .mocked(EnvironmentVariablesQuery.sharedWithSensitiveAsync)
       .mockResolvedValueOnce(mockVariables);
 
-    const command = new EnvironmentVariableList(
-      ['--include-sensitive', '--scope', 'account'],
-      mockConfig
-    );
+    const command = new EnvList(['--include-sensitive', '--scope', 'account'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({

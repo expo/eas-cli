@@ -37,8 +37,9 @@ interface GetFlags {
   scope: EnvironmentVariableScope;
 }
 
-export default class EnvironmentVariableGet extends EasCommand {
-  static override description = 'get environment variable';
+export default class EnvGet extends EasCommand {
+  static override description =
+    'get information about an environment variable for the current project or account';
 
   static override hidden = true;
 
@@ -70,7 +71,7 @@ export default class EnvironmentVariableGet extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { args, flags } = await this.parse(EnvironmentVariableGet);
+    const { args, flags } = await this.parse(EnvGet);
 
     let {
       'variable-environment': environment,
@@ -83,7 +84,7 @@ export default class EnvironmentVariableGet extends EasCommand {
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentVariableGet, {
+    } = await this.getContextAsync(EnvGet, {
       nonInteractive,
     });
 

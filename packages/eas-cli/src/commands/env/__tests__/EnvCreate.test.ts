@@ -19,14 +19,14 @@ import {
   promptVariableTypeAsync,
   promptVariableValueAsync,
 } from '../../../utils/prompts';
-import EnvironmentVariableCreate from '../create';
+import EnvCreate from '../create';
 
 jest.mock('../../../graphql/mutations/EnvironmentVariableMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../utils/prompts');
 
-describe(EnvironmentVariableCreate, () => {
+describe(EnvCreate, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
   const mockConfig = {} as unknown as Config;
   const variableId = 'testId';
@@ -74,7 +74,7 @@ describe(EnvironmentVariableCreate, () => {
 
   describe('in interactive mode', () => {
     it('creates a project variable', async () => {
-      const command = new EnvironmentVariableCreate(
+      const command = new EnvCreate(
         [
           '--name',
           'VarName',
@@ -110,7 +110,7 @@ describe(EnvironmentVariableCreate, () => {
     });
 
     it('updates an existing variable in the same environment', async () => {
-      const command = new EnvironmentVariableCreate(
+      const command = new EnvCreate(
         [
           '--name',
           'VarName',
@@ -172,7 +172,7 @@ describe(EnvironmentVariableCreate, () => {
     });
 
     it('creates an account-wide variable', async () => {
-      const command = new EnvironmentVariableCreate(
+      const command = new EnvCreate(
         [
           '--name',
           'VarName',
@@ -208,7 +208,7 @@ describe(EnvironmentVariableCreate, () => {
     });
 
     it('throws if an account-wide variable already exists', async () => {
-      const command = new EnvironmentVariableCreate(
+      const command = new EnvCreate(
         [
           '--name',
           'VarName',
@@ -243,7 +243,7 @@ describe(EnvironmentVariableCreate, () => {
     });
 
     it('updates if an account-wide variable already exists and --force flag is set', async () => {
-      const command = new EnvironmentVariableCreate(
+      const command = new EnvCreate(
         [
           '--name',
           'VarName',
@@ -289,7 +289,7 @@ describe(EnvironmentVariableCreate, () => {
     });
 
     it('creates an account-wide variable and links it', async () => {
-      const command = new EnvironmentVariableCreate(
+      const command = new EnvCreate(
         [
           '--name',
           'VarName',
@@ -343,7 +343,7 @@ describe(EnvironmentVariableCreate, () => {
     });
 
     it('prompts for missing arguments', async () => {
-      const command = new EnvironmentVariableCreate([], mockConfig);
+      const command = new EnvCreate([], mockConfig);
 
       jest.mocked(promptVariableNameAsync).mockImplementation(async () => 'VarName');
       jest.mocked(promptVariableValueAsync).mockImplementation(async () => 'VarValue');

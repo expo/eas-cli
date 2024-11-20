@@ -59,9 +59,8 @@ interface CreateFlags {
   'non-interactive': boolean;
 }
 
-export default class EnvironmentVariableCreate extends EasCommand {
-  static override description =
-    'create an environment variable on the current project or owner account';
+export default class EnvCreate extends EasCommand {
+  static override description = 'create an environment variable for the current project or account';
 
   static override hidden = true;
 
@@ -106,7 +105,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { args, flags } = await this.parse(EnvironmentVariableCreate);
+    const { args, flags } = await this.parse(EnvCreate);
 
     const validatedFlags = this.sanitizeFlags(flags);
 
@@ -126,7 +125,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentVariableCreate, {
+    } = await this.getContextAsync(EnvCreate, {
       nonInteractive,
     });
 

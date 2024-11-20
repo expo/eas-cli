@@ -62,9 +62,8 @@ interface UpdateFlags {
   'non-interactive': boolean;
 }
 
-export default class EnvironmentVariableUpdate extends EasCommand {
-  static override description =
-    'update an environment variable on the current project or owner account';
+export default class EnvUpdate extends EasCommand {
+  static override description = 'update an environment variable on the current project or account';
 
   static override hidden = true;
 
@@ -108,7 +107,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { args, flags } = await this.parse(EnvironmentVariableUpdate);
+    const { args, flags } = await this.parse(EnvUpdate);
     const {
       name,
       value: rawValue,
@@ -124,7 +123,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentVariableUpdate, {
+    } = await this.getContextAsync(EnvUpdate, {
       nonInteractive,
     });
 
