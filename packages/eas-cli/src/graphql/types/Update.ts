@@ -35,5 +35,14 @@ export const UpdateFragmentNode = gql`
     rolloutControlUpdate {
       id
     }
+    fingerprint {
+      id
+      hash
+      source {
+        type
+        bucketKey
+        isDebugFingerprint
+      }
+    }
   }
 `;

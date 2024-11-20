@@ -118,6 +118,27 @@ export async function republishAsync({
           updateInfoGroup: Object.fromEntries(
             updatesToPublish.map(update => [update.platform, JSON.parse(update.manifestFragment)])
           ),
+          fingerprintInfoGroup: Object.fromEntries(
+            updatesToPublish.map(update => {
+              const fingerprint = update.fingerprint;
+              if (!fingerprint) {
+                return [update.platform, undefined];
+              }
+              return [
+                update.platform,
+                {
+                  fingerprintHash: fingerprint.hash,
+                  fingerprintSource: fingerprint.source
+                    ? {
+                        type: fingerprint.source.type,
+                        bucketKey: fingerprint.source.bucketKey,
+                        isDebugFingerprint: fingerprint.source.isDebugFingerprint,
+                      }
+                    : undefined,
+                },
+              ];
+            })
+          ),
         };
 
     updatesRepublished = await PublishMutation.publishUpdateGroupAsync(graphqlClient, [
