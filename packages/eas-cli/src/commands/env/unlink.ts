@@ -18,7 +18,7 @@ type UnlinkFlags = {
   environment?: EnvironmentVariableEnvironment[];
 };
 
-export default class EnvironmentVariableUnlink extends EasCommand {
+export default class EnvUnlink extends EasCommand {
   static override description =
     'unlink an account-wide environment variable from the current project';
 
@@ -48,7 +48,7 @@ export default class EnvironmentVariableUnlink extends EasCommand {
   ];
 
   async runAsync(): Promise<void> {
-    const { args, flags } = await this.parse(EnvironmentVariableUnlink);
+    const { args, flags } = await this.parse(EnvUnlink);
 
     let {
       'variable-name': name,
@@ -59,7 +59,7 @@ export default class EnvironmentVariableUnlink extends EasCommand {
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentVariableUnlink, {
+    } = await this.getContextAsync(EnvUnlink, {
       nonInteractive,
     });
 

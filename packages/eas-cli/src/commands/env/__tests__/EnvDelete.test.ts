@@ -8,14 +8,14 @@ import { EnvironmentVariableMutation } from '../../../graphql/mutations/Environm
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
 import { promptAsync, toggleConfirmAsync } from '../../../prompts';
-import EnvironmentVariableDelete from '../delete';
+import EnvDelete from '../delete';
 
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../graphql/mutations/EnvironmentVariableMutation');
 jest.mock('../../../prompts');
 jest.mock('../../../log');
 
-describe(EnvironmentVariableDelete, () => {
+describe(EnvDelete, () => {
   const projectId = 'test-project-id';
   const variableId = '1';
   const graphqlClient = {};
@@ -40,7 +40,7 @@ describe(EnvironmentVariableDelete, () => {
     ];
     (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue(mockVariables);
 
-    const command = new EnvironmentVariableDelete(
+    const command = new EnvDelete(
       [
         '--variable-name',
         'TEST_VARIABLE',
@@ -66,7 +66,7 @@ describe(EnvironmentVariableDelete, () => {
     (promptAsync as jest.Mock).mockResolvedValue({ variable: mockVariables[0] });
     (toggleConfirmAsync as jest.Mock).mockResolvedValue(true);
 
-    const command = new EnvironmentVariableDelete([], mockConfig);
+    const command = new EnvDelete([], mockConfig);
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
     await command.runAsync();
@@ -82,10 +82,7 @@ describe(EnvironmentVariableDelete, () => {
     ];
     (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue(mockVariables);
 
-    const command = new EnvironmentVariableDelete(
-      ['--variable-name', 'NON_EXISTENT_VARIABLE'],
-      mockConfig
-    );
+    const command = new EnvDelete(['--variable-name', 'NON_EXISTENT_VARIABLE'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
@@ -99,7 +96,7 @@ describe(EnvironmentVariableDelete, () => {
     ];
     (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue(mockVariables);
 
-    const command = new EnvironmentVariableDelete(['--variable-name', 'TEST_VARIABLE'], mockConfig);
+    const command = new EnvDelete(['--variable-name', 'TEST_VARIABLE'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
@@ -116,7 +113,7 @@ describe(EnvironmentVariableDelete, () => {
     (promptAsync as jest.Mock).mockResolvedValue({ variable: mockVariables[0] });
     (toggleConfirmAsync as jest.Mock).mockResolvedValue(false);
 
-    const command = new EnvironmentVariableDelete(['--non-interactive'], mockConfig);
+    const command = new EnvDelete(['--non-interactive'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);

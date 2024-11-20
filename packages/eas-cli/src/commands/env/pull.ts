@@ -15,8 +15,9 @@ import { confirmAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 import { isEnvironment } from '../../utils/variableUtils';
 
-export default class EnvironmentVariablePull extends EasCommand {
-  static override description = 'pull env file';
+export default class EnvPull extends EasCommand {
+  static override description =
+    'pull environment variables for the selected environment to .env file';
 
   static override hidden = true;
 
@@ -48,7 +49,7 @@ export default class EnvironmentVariablePull extends EasCommand {
     let {
       args: { environment: argEnvironment },
       flags: { environment: flagEnvironment, path: targetPath, 'non-interactive': nonInteractive },
-    } = await this.parse(EnvironmentVariablePull);
+    } = await this.parse(EnvPull);
 
     let environment = flagEnvironment?.toUpperCase() ?? argEnvironment?.toUpperCase();
 
@@ -64,7 +65,7 @@ export default class EnvironmentVariablePull extends EasCommand {
       projectId,
       loggedIn: { graphqlClient },
       projectDir,
-    } = await this.getContextAsync(EnvironmentVariablePull, {
+    } = await this.getContextAsync(EnvPull, {
       nonInteractive,
     });
 

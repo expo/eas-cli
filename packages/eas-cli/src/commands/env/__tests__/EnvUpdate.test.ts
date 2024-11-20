@@ -12,7 +12,7 @@ import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
 import { promptAsync, toggleConfirmAsync } from '../../../prompts';
-import EnvironmentVariableUpdate from '../update';
+import EnvUpdate from '../update';
 
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../graphql/mutations/EnvironmentVariableMutation');
@@ -20,7 +20,7 @@ jest.mock('../../../prompts');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../log');
 
-describe(EnvironmentVariableUpdate, () => {
+describe(EnvUpdate, () => {
   const projectId = 'test-project-id';
   const variableId = '1';
   const graphqlClient = {};
@@ -47,7 +47,7 @@ describe(EnvironmentVariableUpdate, () => {
     (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue(mockVariables);
     (EnvironmentVariableMutation.updateAsync as jest.Mock).mockResolvedValue(mockVariables[0]);
 
-    const command = new EnvironmentVariableUpdate(
+    const command = new EnvUpdate(
       [
         '--variable-name',
         'TEST_VARIABLE',
@@ -93,7 +93,7 @@ describe(EnvironmentVariableUpdate, () => {
     (EnvironmentVariablesQuery.sharedAsync as jest.Mock).mockResolvedValue(mockVariables);
     (EnvironmentVariableMutation.updateAsync as jest.Mock).mockResolvedValue(mockVariables[0]);
 
-    const command = new EnvironmentVariableUpdate(
+    const command = new EnvUpdate(
       [
         '--variable-name',
         'TEST_VARIABLE',
@@ -135,7 +135,7 @@ describe(EnvironmentVariableUpdate, () => {
     (promptAsync as jest.Mock).mockResolvedValue({ name: mockVariables[0].name });
     (toggleConfirmAsync as jest.Mock).mockResolvedValue(true);
 
-    const command = new EnvironmentVariableUpdate([], mockConfig);
+    const command = new EnvUpdate([], mockConfig);
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
     await command.runAsync();
@@ -154,10 +154,7 @@ describe(EnvironmentVariableUpdate, () => {
     const mockVariables: never[] = [];
     (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue(mockVariables);
 
-    const command = new EnvironmentVariableUpdate(
-      ['--variable-name', 'NON_EXISTENT_VARIABLE'],
-      mockConfig
-    );
+    const command = new EnvUpdate(['--variable-name', 'NON_EXISTENT_VARIABLE'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);

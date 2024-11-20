@@ -11,7 +11,7 @@ import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
 import { promptAsync, selectAsync, toggleConfirmAsync } from '../../../prompts';
-import EnvironmentVariableLink from '../link';
+import EnvUnlink from '../unlink';
 
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../graphql/mutations/EnvironmentVariableMutation');
@@ -19,7 +19,7 @@ jest.mock('../../../prompts');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../log');
 
-describe(EnvironmentVariableLink, () => {
+describe(EnvUnlink, () => {
   const projectId = 'test-project-id';
   const variableId = '1';
   const graphqlClient = {};
@@ -30,7 +30,7 @@ describe(EnvironmentVariableLink, () => {
   };
 
   const successMessage = (env: EnvironmentVariableEnvironment): string =>
-    `Linked variable ${chalk.bold('TEST_VARIABLE')} to project ${chalk.bold(
+    `Unlinked variable ${chalk.bold('TEST_VARIABLE')} from project ${chalk.bold(
       '@testuser/testpp'
     )} in ${env.toLocaleLowerCase()}.`;
 
@@ -39,21 +39,22 @@ describe(EnvironmentVariableLink, () => {
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
   });
 
-  it('links an account-wide variable to the current project in non-interactive mode', async () => {
+  it('unlinks an account-wide variable from the current project in non-interactive mode', async () => {
     const mockVariables = [
       {
         id: variableId,
         name: 'TEST_VARIABLE',
         scope: EnvironmentVariableScope.Shared,
         environments: [EnvironmentVariableEnvironment.Development],
+        linkedEnvironments: [EnvironmentVariableEnvironment.Development],
       },
     ];
     (EnvironmentVariablesQuery.sharedAsync as jest.Mock).mockResolvedValue(mockVariables);
-    (EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync as jest.Mock).mockResolvedValue(
-      mockVariables[0]
-    );
+    (
+      EnvironmentVariableMutation.unlinkSharedEnvironmentVariableAsync as jest.Mock
+    ).mockResolvedValue(mockVariables[0]);
 
-    const command = new EnvironmentVariableLink(
+    const command = new EnvUnlink(
       ['--variable-name', 'TEST_VARIABLE', '--non-interactive'],
       mockConfig
     );
@@ -65,7 +66,7 @@ describe(EnvironmentVariableLink, () => {
       appId: projectId,
       filterNames: ['TEST_VARIABLE'],
     });
-    expect(EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync).toHaveBeenCalledWith(
+    expect(EnvironmentVariableMutation.unlinkSharedEnvironmentVariableAsync).toHaveBeenCalledWith(
       graphqlClient,
       variableId,
       projectId
@@ -75,21 +76,22 @@ describe(EnvironmentVariableLink, () => {
     );
   });
 
-  it('links an account-wide variable to the current project to a specified environment', async () => {
+  it('unlinks an account-wide variable from the current project in a specified environment', async () => {
     const mockVariables = [
       {
         id: variableId,
         name: 'TEST_VARIABLE',
         scope: EnvironmentVariableScope.Shared,
         environments: [EnvironmentVariableEnvironment.Development],
+        linkedEnvironments: [EnvironmentVariableEnvironment.Production],
       },
     ];
     (EnvironmentVariablesQuery.sharedAsync as jest.Mock).mockResolvedValue(mockVariables);
-    (EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync as jest.Mock).mockResolvedValue(
-      mockVariables[0]
-    );
+    (
+      EnvironmentVariableMutation.unlinkSharedEnvironmentVariableAsync as jest.Mock
+    ).mockResolvedValue(mockVariables[0]);
 
-    const command = new EnvironmentVariableLink(
+    const command = new EnvUnlink(
       ['--variable-name', 'TEST_VARIABLE', '--environment', 'production', '--non-interactive'],
       mockConfig
     );
@@ -97,69 +99,18 @@ describe(EnvironmentVariableLink, () => {
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
     await command.run();
 
+    expect(Log.withTick).toHaveBeenCalledWith(
+      successMessage(EnvironmentVariableEnvironment.Production)
+    );
     expect(EnvironmentVariablesQuery.sharedAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: projectId,
       filterNames: ['TEST_VARIABLE'],
     });
-    expect(EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync).toHaveBeenCalledWith(
+    expect(EnvironmentVariableMutation.unlinkSharedEnvironmentVariableAsync).toHaveBeenCalledWith(
       graphqlClient,
       variableId,
       projectId,
       EnvironmentVariableEnvironment.Production
-    );
-    expect(Log.withTick).toHaveBeenCalledWith(
-      successMessage(EnvironmentVariableEnvironment.Production)
-    );
-  });
-
-  it('uses --variable-environment to select the variable with ambigous name', async () => {
-    const mockVariables = [
-      {
-        id: variableId,
-        name: 'TEST_VARIABLE',
-        scope: EnvironmentVariableScope.Shared,
-        environments: [EnvironmentVariableEnvironment.Preview],
-      },
-      {
-        id: 'other-id',
-        name: 'TEST_VARIABLE',
-        scope: EnvironmentVariableScope.Shared,
-        environments: [EnvironmentVariableEnvironment.Development],
-      },
-    ];
-    (EnvironmentVariablesQuery.sharedAsync as jest.Mock).mockImplementation(
-      (_client, { environment }) => {
-        return mockVariables.filter(v => v.environments.includes(environment));
-      }
-    );
-    (EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync as jest.Mock).mockResolvedValue(
-      mockVariables[0]
-    );
-    (toggleConfirmAsync as jest.Mock).mockResolvedValue(true);
-
-    const command = new EnvironmentVariableLink(
-      [
-        '--variable-name',
-        'TEST_VARIABLE',
-        '--variable-environment',
-        'development',
-        '--environment',
-        'production',
-      ],
-      mockConfig
-    );
-    // @ts-expect-error
-    jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
-    await command.runAsync();
-
-    expect(EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync).toHaveBeenCalledWith(
-      graphqlClient,
-      'other-id',
-      projectId,
-      EnvironmentVariableEnvironment.Production
-    );
-    expect(Log.withTick).toHaveBeenCalledWith(
-      successMessage(EnvironmentVariableEnvironment.Production)
     );
   });
 
@@ -170,29 +121,33 @@ describe(EnvironmentVariableLink, () => {
         name: 'TEST_VARIABLE',
         scope: EnvironmentVariableScope.Shared,
         environments: [EnvironmentVariableEnvironment.Preview],
+        linkedEnvironments: [EnvironmentVariableEnvironment.Preview],
       },
       {
         id: 'other-id',
         name: 'TEST_VARIABLE',
         scope: EnvironmentVariableScope.Shared,
         environments: [EnvironmentVariableEnvironment.Development],
+        linkedEnvironments: [EnvironmentVariableEnvironment.Development],
       },
     ];
     (EnvironmentVariablesQuery.sharedAsync as jest.Mock).mockResolvedValue(mockVariables);
-    (EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync as jest.Mock).mockResolvedValue(
-      mockVariables[0]
-    );
+    (
+      EnvironmentVariableMutation.unlinkSharedEnvironmentVariableAsync as jest.Mock
+    ).mockResolvedValue(mockVariables[0]);
     (selectAsync as jest.Mock).mockResolvedValue(mockVariables[0]);
-    (promptAsync as jest.Mock).mockResolvedValue({ environments: mockVariables[0].environments });
+    (promptAsync as jest.Mock).mockResolvedValue({
+      environments: [],
+    });
     (toggleConfirmAsync as jest.Mock).mockResolvedValue(true);
 
-    const command = new EnvironmentVariableLink([], mockConfig);
+    const command = new EnvUnlink([], mockConfig);
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
     await command.runAsync();
 
     expect(selectAsync).toHaveBeenCalled();
-    expect(EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync).toHaveBeenCalledWith(
+    expect(EnvironmentVariableMutation.unlinkSharedEnvironmentVariableAsync).toHaveBeenCalledWith(
       graphqlClient,
       variableId,
       projectId,
@@ -207,10 +162,7 @@ describe(EnvironmentVariableLink, () => {
     const mockVariables: never[] = [];
     (EnvironmentVariablesQuery.sharedAsync as jest.Mock).mockResolvedValue(mockVariables);
 
-    const command = new EnvironmentVariableLink(
-      ['--variable-name', 'NON_EXISTENT_VARIABLE'],
-      mockConfig
-    );
+    const command = new EnvUnlink(['--variable-name', 'NON_EXISTENT_VARIABLE'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
@@ -239,7 +191,7 @@ describe(EnvironmentVariableLink, () => {
     });
     (toggleConfirmAsync as jest.Mock).mockResolvedValue(true);
 
-    const command = new EnvironmentVariableLink([], mockConfig);
+    const command = new EnvUnlink([], mockConfig);
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
     await command.runAsync();
@@ -263,10 +215,7 @@ describe(EnvironmentVariableLink, () => {
     const mockVariables: never[] = [];
     (EnvironmentVariablesQuery.sharedAsync as jest.Mock).mockResolvedValue(mockVariables);
 
-    const command = new EnvironmentVariableLink(
-      ['--variable-name', 'NON_EXISTENT_VARIABLE'],
-      mockConfig
-    );
+    const command = new EnvUnlink(['--variable-name', 'NON_EXISTENT_VARIABLE'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);

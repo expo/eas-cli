@@ -30,8 +30,8 @@ interface RawDeleteFlags {
   scope: EASEnvironmentVariableScopeFlagValue;
 }
 
-export default class EnvironmentVariableDelete extends EasCommand {
-  static override description = 'delete an environment variable by name';
+export default class EnvDelete extends EasCommand {
+  static override description = 'delete an environment variable for the current project or account';
 
   static override hidden = true;
 
@@ -62,7 +62,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { args, flags } = await this.parse(EnvironmentVariableDelete);
+    const { args, flags } = await this.parse(EnvDelete);
     const {
       'variable-name': name,
       'variable-environment': environment,
@@ -72,7 +72,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentVariableDelete, {
+    } = await this.getContextAsync(EnvDelete, {
       nonInteractive,
     });
 

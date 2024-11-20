@@ -21,8 +21,9 @@ import { confirmAsync, promptAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 import { isEnvironment } from '../../utils/variableUtils';
 
-export default class EnvironmentVariablePush extends EasCommand {
-  static override description = 'push env file';
+export default class EnvPush extends EasCommand {
+  static override description =
+    'push environment variables from .env file to the selected environment';
 
   static override hidden = true;
 
@@ -49,14 +50,14 @@ export default class EnvironmentVariablePush extends EasCommand {
   ];
 
   async runAsync(): Promise<void> {
-    const { args, flags } = await this.parse(EnvironmentVariablePush);
+    const { args, flags } = await this.parse(EnvPush);
 
     let { environment: environments, path: envPath } = this.parseFlagsAndArgs(flags, args);
 
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvironmentVariablePush, {
+    } = await this.getContextAsync(EnvPush, {
       nonInteractive: false,
     });
 
