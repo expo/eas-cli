@@ -83,7 +83,7 @@ describe(EnvironmentVariableCreate, () => {
           '--environment',
           'production',
           '--visibility',
-          'encrypted',
+          'secret',
         ],
         mockConfig
       );
@@ -119,7 +119,7 @@ describe(EnvironmentVariableCreate, () => {
           '--environment',
           'production',
           '--visibility',
-          'encrypted',
+          'secret',
         ],
         mockConfig
       );

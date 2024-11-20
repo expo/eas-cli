@@ -40,7 +40,7 @@ type CreateFlags = {
   link?: boolean;
   force?: boolean;
   type?: 'string' | 'file';
-  visibility?: 'plaintext' | 'sensitive' | 'encrypted';
+  visibility?: 'plaintext' | 'sensitive' | 'secret';
   scope?: EnvironmentVariableScope;
   environment?: EnvironmentVariableEnvironment[];
   'non-interactive': boolean;

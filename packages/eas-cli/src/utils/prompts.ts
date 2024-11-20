@@ -32,14 +32,14 @@ export async function promptVariableTypeAsync(
 }
 
 export function parseVisibility(
-  stringVisibility: 'plaintext' | 'sensitive' | 'encrypted'
+  stringVisibility: 'plaintext' | 'sensitive' | 'secret'
 ): EnvironmentVariableVisibility {
   switch (stringVisibility) {
     case 'plaintext':
       return EnvironmentVariableVisibility.Public;
     case 'sensitive':
       return EnvironmentVariableVisibility.Sensitive;
-    case 'encrypted':
+    case 'secret':
       return EnvironmentVariableVisibility.Secret;
     default:
       throw new Error(`Invalid visibility: ${stringVisibility}`);
