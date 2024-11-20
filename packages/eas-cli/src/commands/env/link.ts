@@ -24,8 +24,9 @@ type LinkFlags = {
 };
 
 export default class EnvironmentVariableLink extends EasCommand {
-  static override description = 'link a shared environment variable to the current project';
+  static override description = 'link an account-wide environment variable to the current project';
 
+  // for now we only roll out global account-wide env variables so this should stay hidden
   static override hidden = true;
 
   static override flags = {
@@ -87,7 +88,7 @@ export default class EnvironmentVariableLink extends EasCommand {
         );
       }
       selectedVariable = await selectAsync(
-        'Select shared variable',
+        'Select account-wide variable',
         variables.map(variable => ({
           title: formatVariableName(variable),
           value: variable,
@@ -172,7 +173,7 @@ export default class EnvironmentVariableLink extends EasCommand {
       }
     }
   }
-  private validateInputs(flags: LinkFlags, { environment }: Record<string, string>): LinkFlags {
+  private validateInputs(flags: LinkFlags, { environment }: { environment?: string }): LinkFlags {
     environment = environment?.toUpperCase();
 
     if (environment && !isEnvironment(environment)) {
@@ -196,9 +197,7 @@ export default class EnvironmentVariableLink extends EasCommand {
     }
 
     return {
-      'variable-name': flags['variable-name'],
-      'variable-environment': flags['variable-environment'],
-      'non-interactive': flags['non-interactive'],
+      ...flags,
       environment: environments,
     };
   }

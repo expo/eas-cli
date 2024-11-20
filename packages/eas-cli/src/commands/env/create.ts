@@ -5,9 +5,10 @@ import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
+  EASEnvironmentVariableScopeFlag,
+  EASEnvironmentVariableScopeFlagValue,
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
-  EASVariableScopeFlag,
   EASVariableVisibilityFlag,
 } from '../../commandUtils/flags';
 import {
@@ -34,17 +35,29 @@ import {
 } from '../../utils/prompts';
 import { isEnvironment, performForEnvironmentsAsync } from '../../utils/variableUtils';
 
-type CreateFlags = {
+interface RawCreateFlags {
   name?: string;
   value?: string;
   link?: boolean;
   force?: boolean;
   type?: 'string' | 'file';
   visibility?: 'plaintext' | 'sensitive' | 'secret';
-  scope?: EnvironmentVariableScope;
+  scope: EASEnvironmentVariableScopeFlagValue;
   environment?: EnvironmentVariableEnvironment[];
   'non-interactive': boolean;
-};
+}
+
+interface CreateFlags {
+  name?: string;
+  value?: string;
+  link?: boolean;
+  force?: boolean;
+  type?: 'string' | 'file';
+  visibility?: 'plaintext' | 'sensitive' | 'secret';
+  scope: EnvironmentVariableScope;
+  environment?: EnvironmentVariableEnvironment[];
+  'non-interactive': boolean;
+}
 
 export default class EnvironmentVariableCreate extends EasCommand {
   static override description =
@@ -69,7 +82,8 @@ export default class EnvironmentVariableCreate extends EasCommand {
       description: 'Text value or the variable',
     }),
     link: Flags.boolean({
-      description: 'Link shared variable to the current project',
+      description: 'Link account-wide variable to the current project',
+      hidden: true, // every account-wide variable is global for now so it's not user facing
     }),
     force: Flags.boolean({
       description: 'Overwrite existing variable',
@@ -80,7 +94,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
       options: ['string', 'file'],
     }),
     ...EASVariableVisibilityFlag,
-    ...EASVariableScopeFlag,
+    ...EASEnvironmentVariableScopeFlag,
     ...EASMultiEnvironmentFlag,
     ...EASNonInteractiveFlag,
   };
@@ -94,7 +108,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(EnvironmentVariableCreate);
 
-    const validatedFlags = this.validateFlags(flags);
+    const validatedFlags = this.sanitizeFlags(flags);
 
     const {
       name,
@@ -147,12 +161,12 @@ export default class EnvironmentVariableCreate extends EasCommand {
           await this.promptForOverwriteAsync({
             nonInteractive,
             force,
-            message: `Shared variable with ${name} name already exists on this account.`,
+            message: `Account-wide variable with ${name} name already exists on this account.`,
             suggestion: 'Do you want to unlink it first?',
           });
 
           Log.withTick(
-            `Unlinking shared variable ${chalk.bold(name)} on project ${chalk.bold(
+            `Unlinking account-wide variable ${chalk.bold(name)} on project ${chalk.bold(
               projectDisplayName
             )}.`
           );
@@ -216,8 +230,8 @@ export default class EnvironmentVariableCreate extends EasCommand {
           overwrite = true;
         } else {
           throw new Error(
-            `Shared variable with ${name} name already exists on this account.\n` +
-              `Use a different name or delete the existing variable on website or by using eas env:delete --name ${name} --scope shared command.`
+            `Account-wide variable with ${name} name already exists on this account.\n` +
+              `Use a different name or delete the existing variable on website or by using the "eas env:delete --name ${name} --scope account" command.`
           );
         }
       }
@@ -256,7 +270,7 @@ export default class EnvironmentVariableCreate extends EasCommand {
 
       if (link) {
         Log.withTick(
-          `Linking shared variable ${chalk.bold(name)} to project ${chalk.bold(
+          `Linking account-wide variable ${chalk.bold(name)} to project ${chalk.bold(
             projectDisplayName
           )}.`
         );
@@ -271,7 +285,9 @@ export default class EnvironmentVariableCreate extends EasCommand {
         });
 
         Log.withTick(
-          `Linked shared variable ${chalk.bold(name)} to project ${chalk.bold(projectDisplayName)}.`
+          `Linked account-wide variable ${chalk.bold(name)} to project ${chalk.bold(
+            projectDisplayName
+          )}.`
         );
       }
     }
@@ -390,7 +406,6 @@ export default class EnvironmentVariableCreate extends EasCommand {
       visibility: newVisibility,
       link: rest.link ?? false,
       force: rest.force ?? false,
-      scope: rest.scope ?? EnvironmentVariableScope.Project,
       'non-interactive': nonInteractive,
       type: newType,
       fileName,
@@ -398,24 +413,25 @@ export default class EnvironmentVariableCreate extends EasCommand {
     };
   }
 
-  private validateFlags(flags: CreateFlags & { type?: string; visibility?: string }): CreateFlags {
-    if (flags.scope !== EnvironmentVariableScope.Shared && flags.link) {
+  private sanitizeFlags(flags: RawCreateFlags): CreateFlags {
+    if (flags.scope !== 'account' && flags.link) {
       throw new Error(
-        `Unexpected argument: --link can only be used when creating shared variables`
+        `Unexpected argument: --link can only be used when creating account-wide variables`
       );
     }
 
-    if (
-      flags.scope === EnvironmentVariableScope.Shared &&
-      flags.environment &&
-      !flags.link &&
-      flags['non-interactive']
-    ) {
+    if (flags.scope === 'account' && flags.environment && !flags.link && flags['non-interactive']) {
       throw new Error(
         'Unexpected argument: --environment in non-interactive mode can only be used with --link flag.'
       );
     }
 
-    return flags;
+    return {
+      ...flags,
+      scope:
+        flags.scope === 'account'
+          ? EnvironmentVariableScope.Shared
+          : EnvironmentVariableScope.Project,
+    };
   }
 }

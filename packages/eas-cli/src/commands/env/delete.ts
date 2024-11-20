@@ -4,8 +4,9 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
+  EASEnvironmentVariableScopeFlag,
+  EASEnvironmentVariableScopeFlagValue,
   EASNonInteractiveFlag,
-  EASVariableScopeFlag,
   EasEnvironmentFlagParameters,
 } from '../../commandUtils/flags';
 import { EnvironmentVariableEnvironment, EnvironmentVariableScope } from '../../graphql/generated';
@@ -15,12 +16,19 @@ import Log from '../../log';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
 import { formatVariableName, isEnvironment } from '../../utils/variableUtils';
 
-type DeleteFlags = {
+interface DeleteFlags {
   'variable-name'?: string;
   'variable-environment'?: EnvironmentVariableEnvironment;
   'non-interactive': boolean;
-  scope?: EnvironmentVariableScope;
-};
+  scope: EnvironmentVariableScope;
+}
+
+interface RawDeleteFlags {
+  'variable-name'?: string;
+  'variable-environment'?: EnvironmentVariableEnvironment;
+  'non-interactive': boolean;
+  scope: EASEnvironmentVariableScopeFlagValue;
+}
 
 export default class EnvironmentVariableDelete extends EasCommand {
   static override description = 'delete an environment variable by name';
@@ -35,7 +43,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
       ...EasEnvironmentFlagParameters,
       description: 'Current environment of the variable to delete',
     }),
-    ...EASVariableScopeFlag,
+    ...EASEnvironmentVariableScopeFlag,
     ...EASNonInteractiveFlag,
   };
 
@@ -60,7 +68,7 @@ export default class EnvironmentVariableDelete extends EasCommand {
       'variable-environment': environment,
       'non-interactive': nonInteractive,
       scope,
-    } = this.validateInputs(flags, args);
+    } = this.sanitizeInputs(flags, args);
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -139,8 +147,8 @@ export default class EnvironmentVariableDelete extends EasCommand {
     Log.withTick(`️Deleted variable ${selectedVariable.name}".`);
   }
 
-  private validateInputs(
-    flags: DeleteFlags,
+  private sanitizeInputs(
+    flags: RawDeleteFlags,
     { environment }: { environment?: string }
   ): DeleteFlags {
     if (flags['non-interactive']) {
@@ -153,6 +161,11 @@ export default class EnvironmentVariableDelete extends EasCommand {
       }
     }
 
+    const scope =
+      flags.scope === 'account'
+        ? EnvironmentVariableScope.Shared
+        : EnvironmentVariableScope.Project;
+
     if (environment) {
       environment = environment.toUpperCase();
 
@@ -161,9 +174,9 @@ export default class EnvironmentVariableDelete extends EasCommand {
           "Invalid environment. Use one of 'production', 'preview', or 'development'."
         );
       }
-      return { ...flags, 'variable-environment': environment };
+      return { ...flags, 'variable-environment': environment, scope };
     }
 
-    return flags;
+    return { ...flags, scope };
   }
 }

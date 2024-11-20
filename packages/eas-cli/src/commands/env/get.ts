@@ -4,9 +4,10 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
+  EASEnvironmentVariableScopeFlag,
+  EASEnvironmentVariableScopeFlagValue,
   EASNonInteractiveFlag,
   EASVariableFormatFlag,
-  EASVariableScopeFlag,
   EasEnvironmentFlagParameters,
 } from '../../commandUtils/flags';
 import {
@@ -20,13 +21,21 @@ import Log from '../../log';
 import { promptVariableEnvironmentAsync, promptVariableNameAsync } from '../../utils/prompts';
 import { formatVariable, formatVariableValue, isEnvironment } from '../../utils/variableUtils';
 
-type GetFlags = {
+interface RawGetFlags {
+  'variable-name'?: string;
+  'variable-environment'?: EnvironmentVariableEnvironment;
+  'non-interactive': boolean;
+  format?: string;
+  scope: EASEnvironmentVariableScopeFlagValue;
+}
+
+interface GetFlags {
   'variable-name'?: string;
   'variable-environment'?: EnvironmentVariableEnvironment;
   'non-interactive': boolean;
   format?: string;
   scope: EnvironmentVariableScope;
-};
+}
 
 export default class EnvironmentVariableGet extends EasCommand {
   static override description = 'get environment variable';
@@ -56,7 +65,7 @@ export default class EnvironmentVariableGet extends EasCommand {
       description: 'Current environment of the variable',
     }),
     ...EASVariableFormatFlag,
-    ...EASVariableScopeFlag,
+    ...EASEnvironmentVariableScopeFlag,
     ...EASNonInteractiveFlag,
   };
 
@@ -69,7 +78,7 @@ export default class EnvironmentVariableGet extends EasCommand {
       'non-interactive': nonInteractive,
       format,
       scope,
-    } = this.validateInputs(flags, args);
+    } = this.sanitizeInputs(flags, args);
 
     const {
       projectId,
@@ -126,7 +135,7 @@ export default class EnvironmentVariableGet extends EasCommand {
     }
   }
 
-  private validateInputs(flags: GetFlags, { environment }: { environment?: string }): GetFlags {
+  private sanitizeInputs(flags: RawGetFlags, { environment }: { environment?: string }): GetFlags {
     if (flags['non-interactive']) {
       if (!flags['variable-name']) {
         throw new Error('Variable name is required. Run the command with --variable-name flag.');
@@ -144,6 +153,10 @@ export default class EnvironmentVariableGet extends EasCommand {
       );
     }
 
+    const scope =
+      flags.scope === 'account'
+        ? EnvironmentVariableScope.Shared
+        : EnvironmentVariableScope.Project;
     if (environment) {
       environment = environment.toUpperCase();
       if (!isEnvironment(environment)) {
@@ -152,11 +165,12 @@ export default class EnvironmentVariableGet extends EasCommand {
         );
       }
       return {
-        'variable-environment': environment,
         ...flags,
+        'variable-environment': environment,
+        scope,
       };
     }
-    return flags;
+    return { ...flags, scope };
   }
 }
 

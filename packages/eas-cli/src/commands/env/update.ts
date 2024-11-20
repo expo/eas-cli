@@ -6,9 +6,10 @@ import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
+  EASEnvironmentVariableScopeFlag,
+  EASEnvironmentVariableScopeFlagValue,
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
-  EASVariableScopeFlag,
   EASVariableVisibilityFlag,
   EasEnvironmentFlagParameters,
 } from '../../commandUtils/flags';
@@ -37,17 +38,29 @@ import {
 } from '../../utils/prompts';
 import { formatVariableName, isEnvironment } from '../../utils/variableUtils';
 
-type UpdateFlags = {
+interface RawUpdateFlags {
   name?: string;
   value?: string;
-  scope?: EnvironmentVariableScope;
+  scope: EASEnvironmentVariableScopeFlagValue;
   environment?: EnvironmentVariableEnvironment[];
   visibility?: 'plaintext' | 'sensitive' | 'secret';
   type?: 'string' | 'file';
   'variable-name'?: string;
   'variable-environment'?: EnvironmentVariableEnvironment;
   'non-interactive': boolean;
-};
+}
+
+interface UpdateFlags {
+  name?: string;
+  value?: string;
+  scope: EnvironmentVariableScope;
+  environment?: EnvironmentVariableEnvironment[];
+  visibility?: 'plaintext' | 'sensitive' | 'secret';
+  type?: 'string' | 'file';
+  'variable-name'?: string;
+  'variable-environment'?: EnvironmentVariableEnvironment;
+  'non-interactive': boolean;
+}
 
 export default class EnvironmentVariableUpdate extends EasCommand {
   static override description =
@@ -74,7 +87,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       options: ['string', 'file'],
     }),
     ...EASVariableVisibilityFlag,
-    ...EASVariableScopeFlag,
+    ...EASEnvironmentVariableScopeFlag,
     ...EASMultiEnvironmentFlag,
     ...EASNonInteractiveFlag,
   };
@@ -106,7 +119,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       environment: environments,
       type,
       visibility,
-    } = this.validateFlags(flags, args);
+    } = this.sanitizeInputs(flags, args);
 
     const {
       projectId,
@@ -177,6 +190,7 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       visibility,
       'non-interactive': nonInteractive,
       type,
+      scope,
     });
 
     const variable = await EnvironmentVariableMutation.updateAsync(graphqlClient, {
@@ -194,8 +208,8 @@ export default class EnvironmentVariableUpdate extends EasCommand {
 
     Log.withTick(`Updated variable ${chalk.bold(selectedVariable.name)} ${suffix}.`);
   }
-  private validateFlags(
-    flags: UpdateFlags,
+  private sanitizeInputs(
+    flags: RawUpdateFlags,
     { environment }: { environment?: string }
   ): UpdateFlags {
     if (flags['non-interactive']) {
@@ -209,6 +223,11 @@ export default class EnvironmentVariableUpdate extends EasCommand {
       }
     }
 
+    const scope =
+      flags.scope === 'account'
+        ? EnvironmentVariableScope.Shared
+        : EnvironmentVariableScope.Project;
+
     if (environment) {
       environment = environment.toUpperCase();
       if (!isEnvironment(environment)) {
@@ -217,12 +236,13 @@ export default class EnvironmentVariableUpdate extends EasCommand {
         );
       }
       return {
-        'variable-environment': environment,
         ...flags,
+        'variable-environment': environment,
+        scope,
       };
     }
 
-    return flags;
+    return { ...flags, scope };
   }
 
   private async promptForMissingFlagsAsync(
@@ -328,15 +348,14 @@ export default class EnvironmentVariableUpdate extends EasCommand {
     }
 
     return {
+      ...rest,
       name,
       value,
       environment: environments,
       visibility: newVisibility,
-      scope: rest.scope ?? EnvironmentVariableScope.Project,
       'non-interactive': nonInteractive,
       type: newType,
       fileName,
-      ...rest,
     };
   }
 }

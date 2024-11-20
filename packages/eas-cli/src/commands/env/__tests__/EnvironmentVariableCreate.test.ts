@@ -171,7 +171,7 @@ describe(EnvironmentVariableCreate, () => {
       });
     });
 
-    it('creates a shared variable', async () => {
+    it('creates an account-wide variable', async () => {
       const command = new EnvironmentVariableCreate(
         [
           '--name',
@@ -181,7 +181,7 @@ describe(EnvironmentVariableCreate, () => {
           '--environment',
           'production',
           '--scope',
-          'shared',
+          'account',
         ],
         mockConfig
       );
@@ -207,7 +207,7 @@ describe(EnvironmentVariableCreate, () => {
       );
     });
 
-    it('throws if a shared variable already exists', async () => {
+    it('throws if an account-wide variable already exists', async () => {
       const command = new EnvironmentVariableCreate(
         [
           '--name',
@@ -217,7 +217,7 @@ describe(EnvironmentVariableCreate, () => {
           '--environment',
           'production',
           '--scope',
-          'shared',
+          'account',
         ],
         mockConfig
       );
@@ -242,7 +242,7 @@ describe(EnvironmentVariableCreate, () => {
       await expect(command.runAsync()).rejects.toThrow();
     });
 
-    it('updates if a shared variable already exists and --force flag is set', async () => {
+    it('updates if an account-wide variable already exists and --force flag is set', async () => {
       const command = new EnvironmentVariableCreate(
         [
           '--name',
@@ -253,7 +253,7 @@ describe(EnvironmentVariableCreate, () => {
           'production',
           '--force',
           '--scope',
-          'shared',
+          'account',
         ],
         mockConfig
       );
@@ -288,7 +288,7 @@ describe(EnvironmentVariableCreate, () => {
       });
     });
 
-    it('creates a shared variable and links it', async () => {
+    it('creates an account-wide variable and links it', async () => {
       const command = new EnvironmentVariableCreate(
         [
           '--name',
@@ -300,7 +300,7 @@ describe(EnvironmentVariableCreate, () => {
           '--environment',
           'development',
           '--scope',
-          'shared',
+          'account',
           '--link',
         ],
         mockConfig
