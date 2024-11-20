@@ -39,7 +39,7 @@ describe(EnvironmentVariableLink, () => {
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
   });
 
-  it('links a shared variable to the current project in non-interactive mode', async () => {
+  it('links an account-wide variable to the current project in non-interactive mode', async () => {
     const mockVariables = [
       {
         id: variableId,
@@ -75,7 +75,7 @@ describe(EnvironmentVariableLink, () => {
     );
   });
 
-  it('links a shared variable to the current project to a specified environment', async () => {
+  it('links an account-wide variable to the current project to a specified environment', async () => {
     const mockVariables = [
       {
         id: variableId,
@@ -215,7 +215,7 @@ describe(EnvironmentVariableLink, () => {
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
     await expect(command.runAsync()).rejects.toThrow(
-      "Shared variable NON_EXISTENT_VARIABLE doesn't exist"
+      "Account-wide variable NON_EXISTENT_VARIABLE doesn't exist"
     );
   });
 
@@ -271,7 +271,7 @@ describe(EnvironmentVariableLink, () => {
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
     await expect(command.runAsync()).rejects.toThrow(
-      "Shared variable NON_EXISTENT_VARIABLE doesn't exist"
+      "Account-wide variable NON_EXISTENT_VARIABLE doesn't exist"
     );
   });
 });

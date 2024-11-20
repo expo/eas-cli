@@ -106,12 +106,12 @@ export default class EnvironmentVariablePush extends EasCommand {
         const existingDifferentSharedVariablesNames = existingDifferentSharedVariables.map(
           variable => variable.name
         );
-        Log.error('Shared variables cannot be overwritten by eas env:push command.');
+        Log.error('Account-wide variables cannot be overwritten by eas env:push command.');
         Log.error('Remove them from the env file or unlink them from the project to continue:');
         existingDifferentSharedVariablesNames.forEach(name => {
           Log.error(`- ${name}`);
         });
-        throw new Error('Shared variables cannot be overwritten by eas env:push command');
+        throw new Error('Account-wide variables cannot be overwritten by eas env:push command');
       }
 
       if (existingDifferentVariables.length > 0) {

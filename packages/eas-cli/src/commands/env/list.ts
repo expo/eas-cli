@@ -4,9 +4,10 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
+  EASEnvironmentVariableScopeFlag,
+  EASEnvironmentVariableScopeFlagValue,
   EASMultiEnvironmentFlag,
   EASVariableFormatFlag,
-  EASVariableScopeFlag,
 } from '../../commandUtils/flags';
 import { EnvironmentVariableEnvironment, EnvironmentVariableScope } from '../../graphql/generated';
 import {
@@ -66,14 +67,23 @@ async function getVariablesForScopeAsync(
       });
 }
 
-type ListFlags = {
-  scope: EnvironmentVariableScope;
+interface RawListFlags {
+  scope: EASEnvironmentVariableScopeFlagValue;
   format: string;
   environment: EnvironmentVariableEnvironment[] | undefined;
   'include-sensitive': boolean;
   'include-file-content': boolean;
   'non-interactive'?: boolean;
-};
+}
+
+interface ListFlags {
+  scope: EnvironmentVariableScope;
+  format: string;
+  environment: EnvironmentVariableEnvironment[] | undefined;
+  'include-sensitive': boolean;
+  'include-file-content': boolean;
+  'non-interactive': boolean;
+}
 
 export default class EnvironmentValueList extends EasCommand {
   static override description = 'list environment variables for the current project';
@@ -96,7 +106,7 @@ export default class EnvironmentValueList extends EasCommand {
     }),
     ...EASMultiEnvironmentFlag,
     ...EASVariableFormatFlag,
-    ...EASVariableScopeFlag,
+    ...EASEnvironmentVariableScopeFlag,
   };
 
   static override args = [
@@ -118,7 +128,7 @@ export default class EnvironmentValueList extends EasCommand {
       'include-sensitive': includeSensitive,
       'include-file-content': includeFileContent,
       'non-interactive': nonInteractive,
-    } = this.validateInputs(flags, args);
+    } = this.sanitizeInputs(flags, args);
 
     const {
       projectId,
@@ -156,7 +166,7 @@ export default class EnvironmentValueList extends EasCommand {
         }
       } else {
         if (scope === EnvironmentVariableScope.Shared) {
-          Log.log(chalk.bold('Shared variables for this account:'));
+          Log.log(chalk.bold('Account-wide variables for this account:'));
         } else {
           Log.log(chalk.bold(`Variables for this project:`));
         }
@@ -167,10 +177,10 @@ export default class EnvironmentValueList extends EasCommand {
     });
   }
 
-  private validateInputs(
-    flags: ListFlags,
-    { environment }: Record<string, string>
-  ): ListFlags & { 'non-interactive': boolean } {
+  private sanitizeInputs(
+    flags: RawListFlags,
+    { environment }: { environment?: string }
+  ): ListFlags {
     if (environment && !isEnvironment(environment.toUpperCase())) {
       throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
     }
@@ -185,6 +195,10 @@ export default class EnvironmentValueList extends EasCommand {
       ...flags,
       'non-interactive': flags['non-interactive'] ?? false,
       environment: environments,
+      scope:
+        flags.scope === 'account'
+          ? EnvironmentVariableScope.Shared
+          : EnvironmentVariableScope.Project,
     };
   }
 }

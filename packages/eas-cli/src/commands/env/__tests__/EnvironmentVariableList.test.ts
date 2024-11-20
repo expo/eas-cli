@@ -121,10 +121,10 @@ describe(EnvironmentVariableList, () => {
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
   });
 
-  it('lists shared environment variables successfully', async () => {
+  it('lists account-wide environment variables successfully', async () => {
     jest.mocked(EnvironmentVariablesQuery.sharedAsync).mockResolvedValueOnce(mockVariables);
 
-    const command = new EnvironmentVariableList(['--scope', 'shared'], mockConfig);
+    const command = new EnvironmentVariableList(['--scope', 'account'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -142,13 +142,13 @@ describe(EnvironmentVariableList, () => {
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
   });
 
-  it('lists shared environment variables including sensitive values', async () => {
+  it('lists account-wide environment variables including sensitive values', async () => {
     jest
       .mocked(EnvironmentVariablesQuery.sharedWithSensitiveAsync)
       .mockResolvedValueOnce(mockVariables);
 
     const command = new EnvironmentVariableList(
-      ['--include-sensitive', '--scope', 'shared'],
+      ['--include-sensitive', '--scope', 'account'],
       mockConfig
     );
 

@@ -81,7 +81,7 @@ describe(EnvironmentVariableUpdate, () => {
     );
   });
 
-  it('updates a shared variable by selected name in non-interactive mode', async () => {
+  it('updates an account-wide variable by selected name in non-interactive mode', async () => {
     const mockVariables = [
       {
         id: variableId,
@@ -107,7 +107,7 @@ describe(EnvironmentVariableUpdate, () => {
         '--environment',
         'production',
         '--scope',
-        'shared',
+        'account',
       ],
       mockConfig
     );

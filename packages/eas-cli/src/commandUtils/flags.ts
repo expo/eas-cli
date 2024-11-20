@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import { EnvironmentVariableEnvironment, EnvironmentVariableScope } from '../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../graphql/generated';
 
 // NOTE: not exactly true, but, provided mapToLowercase and upperCaseAsync
 // are used in tandem, it saves on unnecessary typying in commands
@@ -58,12 +58,13 @@ export const EASVariableVisibilityFlag = {
   }),
 };
 
-export const EASVariableScopeFlag = {
-  scope: Flags.enum<EnvironmentVariableScope>({
+export type EASEnvironmentVariableScopeFlagValue = 'project' | 'account';
+
+export const EASEnvironmentVariableScopeFlag = {
+  scope: Flags.enum<EASEnvironmentVariableScopeFlagValue>({
     description: 'Scope for the variable',
-    options: mapToLowercase([EnvironmentVariableScope.Shared, EnvironmentVariableScope.Project]),
-    parse: upperCaseAsync,
-    default: EnvironmentVariableScope.Project,
+    options: ['project', 'account'],
+    default: 'project',
   }),
 };
 

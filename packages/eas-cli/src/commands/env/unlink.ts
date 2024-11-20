@@ -19,8 +19,10 @@ type UnlinkFlags = {
 };
 
 export default class EnvironmentVariableUnlink extends EasCommand {
-  static override description = 'unlink a shared environment variable to the current project';
+  static override description =
+    'unlink an account-wide environment variable from the current project';
 
+  // for now we only roll out global account-wide env variables so this should stay hidden
   static override hidden = true;
 
   static override flags = {
@@ -74,7 +76,7 @@ export default class EnvironmentVariableUnlink extends EasCommand {
         throw new Error("Multiple variables found, please select one using '--variable-name'");
       }
       selectedVariable = await selectAsync(
-        'Select shared variable',
+        'Select account-wide variable',
         variables.map(variable => ({
           title: formatVariableName(variable),
           value: variable,
@@ -83,7 +85,7 @@ export default class EnvironmentVariableUnlink extends EasCommand {
     }
 
     if (!selectedVariable) {
-      throw new Error(`Shared variable ${name} doesn't exist`);
+      throw new Error(`Account-wide variable ${name} doesn't exist`);
     }
 
     let explicitSelect = false;
