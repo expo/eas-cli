@@ -38,8 +38,7 @@ interface GetFlags {
 }
 
 export default class EnvGet extends EasCommand {
-  static override description =
-    'get information about an environment variable for the current project or account';
+  static override description = 'view an environment variable for the current project or account';
 
   static override hidden = true;
 

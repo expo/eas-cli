@@ -1,0 +1,3 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EnvDelete cancels deletion when user does not confirm 1`] = `"Environment variable needs 'name' to be specified when running in non-interactive mode. Run the command with [1m--variable-name VARIABLE_NAME[22m flag to fix the issue"`;
