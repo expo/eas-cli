@@ -97,7 +97,7 @@ export default class EnvironmentVariableLink extends EasCommand {
     }
 
     if (!selectedVariable) {
-      throw new Error(`Shared variable ${name} doesn't exist`);
+      throw new Error(`Account-wide variable ${name} doesn't exist`);
     }
 
     let explicitSelect = false;

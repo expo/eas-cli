@@ -64,7 +64,6 @@ export const EASEnvironmentVariableScopeFlag = {
   scope: Flags.enum<EASEnvironmentVariableScopeFlagValue>({
     description: 'Scope for the variable',
     options: ['project', 'account'],
-    parse: upperCaseAsync,
     default: 'project',
   }),
 };
