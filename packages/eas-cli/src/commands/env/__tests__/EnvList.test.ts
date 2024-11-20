@@ -53,31 +53,13 @@ describe(EnvironmentVariableList, () => {
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
   });
 
-  it('lists project environment variables successfully', async () => {
-    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce(mockVariables);
-
-    const command = new EnvironmentVariableList([], mockConfig);
-
-    // @ts-expect-error
-    jest.spyOn(command, 'getContextAsync').mockReturnValue({
-      loggedIn: { graphqlClient },
-      projectId: testProjectId,
-    });
-    await command.runAsync();
-
-    expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: testProjectId,
-      environment: undefined,
-      includeFileContent: false,
-    });
-    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
-    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
-  });
-
   it('lists project environment variables in specified environments', async () => {
     jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce(mockVariables);
 
-    const command = new EnvironmentVariableList(['--environment', 'production'], mockConfig);
+    const command = new EnvironmentVariableList(
+      ['--environment', 'production', '--non-interactive'],
+      mockConfig
+    );
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -100,7 +82,10 @@ describe(EnvironmentVariableList, () => {
       .mocked(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync)
       .mockResolvedValueOnce(mockVariables);
 
-    const command = new EnvironmentVariableList(['--include-sensitive'], mockConfig);
+    const command = new EnvironmentVariableList(
+      ['--include-sensitive', '--environment', 'production', '--non-interactive'],
+      mockConfig
+    );
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -113,7 +98,7 @@ describe(EnvironmentVariableList, () => {
       graphqlClient,
       {
         appId: testProjectId,
-        environment: undefined,
+        environment: EnvironmentVariableEnvironment.Production,
         includeFileContent: false,
       }
     );
@@ -124,7 +109,10 @@ describe(EnvironmentVariableList, () => {
   it('lists shared environment variables successfully', async () => {
     jest.mocked(EnvironmentVariablesQuery.sharedAsync).mockResolvedValueOnce(mockVariables);
 
-    const command = new EnvironmentVariableList(['--scope', 'shared'], mockConfig);
+    const command = new EnvironmentVariableList(
+      ['--scope', 'shared', '--non-interactive', '--environment', 'production'],
+      mockConfig
+    );
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -135,7 +123,7 @@ describe(EnvironmentVariableList, () => {
 
     expect(EnvironmentVariablesQuery.sharedAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
-      environment: undefined,
+      environment: EnvironmentVariableEnvironment.Production,
       includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
@@ -148,7 +136,14 @@ describe(EnvironmentVariableList, () => {
       .mockResolvedValueOnce(mockVariables);
 
     const command = new EnvironmentVariableList(
-      ['--include-sensitive', '--scope', 'shared'],
+      [
+        '--include-sensitive',
+        '--scope',
+        'shared',
+        '--non-interactive',
+        '--environment',
+        'production',
+      ],
       mockConfig
     );
 
@@ -161,7 +156,7 @@ describe(EnvironmentVariableList, () => {
 
     expect(EnvironmentVariablesQuery.sharedWithSensitiveAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
-      environment: undefined,
+      environment: EnvironmentVariableEnvironment.Production,
       includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
