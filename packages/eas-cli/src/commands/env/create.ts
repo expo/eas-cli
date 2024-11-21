@@ -252,6 +252,7 @@ export default class EnvCreate extends EasCommand {
                 value,
                 visibility,
                 environments,
+                isGlobal: true, // TODO: every account-wide variable is global for now so it's not user facing
                 type: type ?? EnvironmentSecretType.String,
               },
               ownerAccount.id
@@ -416,12 +417,6 @@ export default class EnvCreate extends EasCommand {
     if (flags.scope !== 'account' && flags.link) {
       throw new Error(
         `Unexpected argument: --link can only be used when creating account-wide variables`
-      );
-    }
-
-    if (flags.scope === 'account' && flags.environment && !flags.link && flags['non-interactive']) {
-      throw new Error(
-        'Unexpected argument: --environment in non-interactive mode can only be used with --link flag.'
       );
     }
 

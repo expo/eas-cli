@@ -199,6 +199,7 @@ describe(EnvCreate, () => {
         {
           name: 'VarName',
           value: 'VarValue',
+          isGlobal: true,
           environments: [EnvironmentVariableEnvironment.Production],
           visibility: EnvironmentVariableVisibility.Public,
           type: EnvironmentSecretType.String,
@@ -324,6 +325,7 @@ describe(EnvCreate, () => {
             EnvironmentVariableEnvironment.Development,
           ],
           visibility: EnvironmentVariableVisibility.Public,
+          isGlobal: true,
           type: EnvironmentSecretType.String,
         },
         testAccountId
