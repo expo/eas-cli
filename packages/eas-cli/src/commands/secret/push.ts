@@ -24,6 +24,7 @@ import intersection from '../../utils/expodash/intersection';
 
 export default class EnvironmentSecretPush extends EasCommand {
   static override description = 'read environment secrets from env file and store on the server';
+  static override hidden = true;
 
   static override flags = {
     scope: Flags.enum({
@@ -47,6 +48,9 @@ export default class EnvironmentSecretPush extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    Log.warn('This command is deprecated. Use eas env:push instead.');
+    Log.newLine();
+
     const {
       flags: { scope, force, 'env-file': maybeEnvFilePath, 'non-interactive': nonInteractive },
     } = await this.parse(EnvironmentSecretPush);

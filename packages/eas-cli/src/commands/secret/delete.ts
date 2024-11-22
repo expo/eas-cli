@@ -13,6 +13,7 @@ import { promptAsync, toggleConfirmAsync } from '../../prompts';
 
 export default class EnvironmentSecretDelete extends EasCommand {
   static override description = 'delete an environment secret by ID';
+  static override hidden = true;
 
   static override flags = {
     id: Flags.string({
@@ -27,6 +28,9 @@ export default class EnvironmentSecretDelete extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    Log.warn('This command is deprecated. Use eas env:delete instead.');
+    Log.newLine();
+
     let {
       flags: { id, 'non-interactive': nonInteractive },
     } = await this.parse(EnvironmentSecretDelete);

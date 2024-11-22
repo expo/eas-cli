@@ -25,6 +25,7 @@ import { promptAsync, selectAsync } from '../../prompts';
 export default class EnvironmentSecretCreate extends EasCommand {
   static override description =
     'create an environment secret on the current project or owner account';
+  static override hidden = true;
 
   static override flags = {
     scope: Flags.enum({
@@ -55,6 +56,9 @@ export default class EnvironmentSecretCreate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    Log.warn('This command is deprecated. Use eas env:create instead.');
+    Log.newLine();
+
     let {
       flags: {
         name,
