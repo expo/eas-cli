@@ -88,8 +88,6 @@ interface ListFlags {
 export default class EnvList extends EasCommand {
   static override description = 'list environment variables for the current project or account';
 
-  static override hidden = true;
-
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,

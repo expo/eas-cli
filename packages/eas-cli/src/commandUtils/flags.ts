@@ -87,7 +87,6 @@ export const EasUpdateEnvironmentFlag = {
     options: mapToLowercase(Object.values(EnvironmentVariableEnvironment)),
     parse: upperCaseAsync,
     required: false,
-    hidden: true,
     default: null,
   }),
 };
