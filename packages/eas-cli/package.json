@@ -177,6 +177,9 @@
       "secret": {
         "description": "manage project and account secrets"
       },
+      "env": {
+        "description": "manage project and account environment variables"
+      },
       "update": {
         "description": "manage individual updates"
       },
