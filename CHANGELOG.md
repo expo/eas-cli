@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Calculate fingerprint on each update. ([#2687](https://github.com/expo/eas-cli/pull/2687) by [@quinlanj](https://github.com/quinlanj))
 - Calculate fingerprint on each update republish. ([#2708](https://github.com/expo/eas-cli/pull/2708) by [@quinlanj](https://github.com/quinlanj))
+- Add `eas env` commands. ([#2711](https://github.com/expo/eas-cli/pull/2711) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 

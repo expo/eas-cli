@@ -25,8 +25,6 @@ export default class EnvPush extends EasCommand {
   static override description =
     'push environment variables from .env file to the selected environment';
 
-  static override hidden = true;
-
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,

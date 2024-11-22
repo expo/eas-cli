@@ -30,8 +30,6 @@ export default class EnvExec extends EasCommand {
   static override description =
     'execute a command with environment variables from the selected environment';
 
-  static override hidden = true;
-
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,

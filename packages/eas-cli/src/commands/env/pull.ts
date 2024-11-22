@@ -19,8 +19,6 @@ export default class EnvPull extends EasCommand {
   static override description =
     'pull environment variables for the selected environment to .env file';
 
-  static override hidden = true;
-
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,

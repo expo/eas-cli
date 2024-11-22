@@ -33,8 +33,6 @@ interface RawDeleteFlags {
 export default class EnvDelete extends EasCommand {
   static override description = 'delete an environment variable for the current project or account';
 
-  static override hidden = true;
-
   static override flags = {
     'variable-name': Flags.string({
       description: 'Name of the variable to delete',
