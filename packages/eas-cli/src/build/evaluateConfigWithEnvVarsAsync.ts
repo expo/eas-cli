@@ -54,9 +54,10 @@ async function resolveEnvVarsAsync({
   projectId: string;
 }): Promise<Env> {
   const environment =
-    buildProfile.environment?.toUpperCase() ?? process.env.EAS_CURRENT_ENVIRONMENT;
+    buildProfile.environment?.toUpperCase() ??
+    resolveSuggestedEnvironmentForBuildProfileConfiguration(buildProfile);
 
-  if (!environment || !isEnvironment(environment)) {
+  if (!isEnvironment(environment)) {
     Log.log(
       `Loaded "env" configuration for the "${buildProfileName}" profile: ${
         buildProfile.env && Object.keys(buildProfile.env).length > 0
@@ -128,5 +129,29 @@ async function resolveEnvVarsAsync({
       'This can possibly be a bug in EAS/EAS CLI. Report it here: https://github.com/expo/eas-cli/issues'
     );
     return { ...buildProfile.env };
+  }
+}
+
+function resolveSuggestedEnvironmentForBuildProfileConfiguration(
+  buildProfile: BuildProfile
+): EnvironmentVariableEnvironment {
+  const setEnvironmentMessage =
+    'Set the "environment" field in the build profile if you want to specify the environment manually.';
+  if (buildProfile.distribution === 'store') {
+    Log.log(
+      `We detected that you are building for the "store" distribution. Resolving the environment for environment variables used during the build to "production". ${setEnvironmentMessage}`
+    );
+    return EnvironmentVariableEnvironment.Production;
+  } else {
+    if (buildProfile.developmentClient) {
+      Log.log(
+        `We detected that you are building the development client. Resolving the environment for environment variables used during the build to "development". ${setEnvironmentMessage}`
+      );
+      return EnvironmentVariableEnvironment.Development;
+    }
+    Log.log(
+      `We detected that you are building for the "internal" distribution. Resolving the environment for environment variables used during the build to "preview". ${setEnvironmentMessage}`
+    );
+    return EnvironmentVariableEnvironment.Preview;
   }
 }
