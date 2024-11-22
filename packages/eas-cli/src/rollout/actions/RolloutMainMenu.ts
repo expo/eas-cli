@@ -54,7 +54,7 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
     await this.runActionAsync(ctx, menuOption);
   }
 
-  async runActionAsync(ctx: EASUpdateContext, menuAction: MainMenuActions): Promise<null> {
+  private async runActionAsync(ctx: EASUpdateContext, menuAction: MainMenuActions): Promise<null> {
     const { channelName } = this.options;
     switch (menuAction) {
       case MainMenuActions.CREATE_NEW: {
@@ -87,13 +87,15 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
     }
   }
 
-  async selectRolloutAsync(ctx: EASUpdateContext): Promise<UpdateChannelBasicInfoFragment | null> {
+  private async selectRolloutAsync(
+    ctx: EASUpdateContext
+  ): Promise<UpdateChannelBasicInfoFragment | null> {
     const selectRollout = new SelectRollout();
     const channelInfo = await selectRollout.runAsync(ctx);
     return channelInfo;
   }
 
-  async selectChannelToRolloutAsync(
+  private async selectChannelToRolloutAsync(
     ctx: EASUpdateContext
   ): Promise<UpdateChannelBasicInfoFragment> {
     let hasSomeChannel = false;
@@ -113,7 +115,7 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
     return channelInfo;
   }
 
-  async resolveChannelNameAsync(
+  private async resolveChannelNameAsync(
     ctx: EASUpdateContext,
     channelName: string
   ): Promise<UpdateChannelBasicInfoFragment> {
@@ -124,7 +126,7 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
     });
   }
 
-  toMainMenuAction(action: RolloutActions): MainMenuActions {
+  private toMainMenuAction(action: RolloutActions): MainMenuActions {
     if (action === MainMenuActions.CREATE_NEW) {
       return MainMenuActions.CREATE_NEW;
     } else if (
@@ -138,7 +140,7 @@ export class RolloutMainMenu implements EASUpdateAction<void> {
     }
   }
 
-  async promptMenuActionAsync(): Promise<MainMenuActions> {
+  private async promptMenuActionAsync(): Promise<MainMenuActions> {
     const menuOptions = [MainMenuActions.CREATE_NEW, MainMenuActions.MANAGE_EXISTING];
     const { menuOption: selectedMenuOption } = await promptAsync({
       type: 'select',

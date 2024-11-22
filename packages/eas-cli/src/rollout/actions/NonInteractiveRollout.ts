@@ -91,7 +91,7 @@ export class NonInteractiveRollout implements EASUpdateAction<void> {
     }
   }
 
-  async runActionAsync(
+  private async runActionAsync(
     ctx: EASUpdateContext,
     action: RolloutActions,
     channelObject: UpdateChannelObject
@@ -108,7 +108,7 @@ export class NonInteractiveRollout implements EASUpdateAction<void> {
     }
   }
 
-  viewRollout(channelObject: UpdateChannelObject): UpdateChannelObject {
+  private viewRollout(channelObject: UpdateChannelObject): UpdateChannelObject {
     if (!this.options.json) {
       printRollout(channelObject);
       Log.warn('For formatted output, add the --json flag to your command.');
@@ -116,7 +116,7 @@ export class NonInteractiveRollout implements EASUpdateAction<void> {
     return channelObject;
   }
 
-  async getJsonAsync({
+  private async getJsonAsync({
     originalChannelObject,
     updatedChannelObject,
   }: {
@@ -134,7 +134,9 @@ export class NonInteractiveRollout implements EASUpdateAction<void> {
     };
   }
 
-  async getRolloutJsonAsync(channelObject: UpdateChannelObject): Promise<JSONRolloutOutput> {
+  private async getRolloutJsonAsync(
+    channelObject: UpdateChannelObject
+  ): Promise<JSONRolloutOutput> {
     const rollout = getRollout(channelObject);
     return {
       defaultBranch: rollout.defaultBranch,
@@ -145,7 +147,7 @@ export class NonInteractiveRollout implements EASUpdateAction<void> {
     };
   }
 
-  getRuntimeVersion(channelInfo: UpdateChannelBasicInfoFragment): string | undefined {
+  private getRuntimeVersion(channelInfo: UpdateChannelBasicInfoFragment): string | undefined {
     if (isRollout(channelInfo)) {
       const updatedRolloutInfo = getRolloutInfo(channelInfo);
       if (isConstrainedRolloutInfo(updatedRolloutInfo)) {
@@ -155,7 +157,7 @@ export class NonInteractiveRollout implements EASUpdateAction<void> {
     return undefined;
   }
 
-  async getChannelObjectAsync(
+  private async getChannelObjectAsync(
     ctx: EASUpdateContext,
     { channelName, runtimeVersion }: { channelName: string; runtimeVersion?: string }
   ): Promise<UpdateChannelObject> {

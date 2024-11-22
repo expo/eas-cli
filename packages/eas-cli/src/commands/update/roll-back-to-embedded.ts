@@ -1,5 +1,4 @@
 import { Platform as PublishPlatform } from '@expo/config';
-import { Workflow } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
 import nullthrows from 'nullthrows';
 
@@ -12,10 +11,12 @@ import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
   PublishUpdateGroupInput,
+  RuntimeFragment,
   StatuspageServiceName,
   UpdatePublishMutation,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
+import { RuntimeQuery } from '../../graphql/queries/RuntimeQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
@@ -29,10 +30,8 @@ import {
   defaultPublishPlatforms,
   getBranchNameForCommandAsync,
   getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects,
-  getRuntimeVersionInfoObjectsAsync,
   getUpdateMessageForCommandAsync,
 } from '../../project/publish';
-import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
 import { getUpdateJsonInfosForUpdates } from '../../update/utils';
 import {
@@ -45,12 +44,13 @@ import {
 import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { Connection, QueryParams, selectPaginatedAsync } from '../../utils/relay';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
 type RawUpdateFlags = {
-  auto: boolean;
   branch?: string;
   channel?: string;
+  'runtime-version'?: string;
   message?: string;
   platform: string;
   'private-key-path'?: string;
@@ -59,10 +59,10 @@ type RawUpdateFlags = {
 };
 
 type UpdateFlags = {
-  auto: boolean;
   platform: RequestedPlatform;
   branchName?: string;
   channelName?: string;
+  runtimeVersion?: string;
   updateMessage?: string;
   privateKeyPath?: string;
   json: boolean;
@@ -81,6 +81,10 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       description: 'Channel that the published rollback to embedded update should affect',
       required: false,
     }),
+    'runtime-version': Flags.string({
+      description: 'Runtime version that the rollback to embedded update should target',
+      required: false,
+    }),
     message: Flags.string({
       description: 'A short message describing the rollback to embedded update',
       required: false,
@@ -94,11 +98,6 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       ],
       default: 'all',
       required: false,
-    }),
-    auto: Flags.boolean({
-      description:
-        'Use the current git branch and commit message for the EAS branch and update message',
-      default: false,
     }),
     'private-key-path': Flags.string({
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
@@ -117,10 +116,10 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     const { flags: rawFlags } = await this.parse(UpdateRollBackToEmbedded);
     const paginatedQueryOptions = getPaginatedQueryOptions(rawFlags);
     const {
-      auto: autoFlag,
       platform: platformFlag,
       channelName: channelNameArg,
       updateMessage: updateMessageArg,
+      runtimeVersion: runtimeVersionArg,
       privateKeyPath,
       json: jsonFlag,
       nonInteractive,
@@ -171,14 +170,14 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       projectId,
       channelNameArg,
       branchNameArg,
-      autoFlag,
+      autoFlag: false,
       nonInteractive,
       paginatedQueryOptions,
     });
 
     const updateMessage = await getUpdateMessageForCommandAsync(vcsClient, {
       updateMessageArg,
-      autoFlag,
+      autoFlag: false,
       nonInteractive,
       jsonFlag,
     });
@@ -186,28 +185,33 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     const realizedPlatforms: UpdatePublishPlatform[] =
       platformFlag === 'all' ? defaultPublishPlatforms : [platformFlag];
 
-    const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
+    const { branch } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
       branchName,
     });
 
-    const gitCommitHash = await vcsClient.getCommitHashAsync();
-    const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
+    const selectedRuntime =
+      runtimeVersionArg ??
+      (
+        await UpdateRollBackToEmbedded.selectRuntimeAsync(graphqlClient, {
+          appId: projectId,
+          branchName,
+        })
+      )?.version;
+    if (!selectedRuntime) {
+      Errors.error('Must select a runtime or provide the --runtimeVersion flag', { exit: 1 });
+    }
 
-    const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
-    const runtimeVersionInfoObjects = await getRuntimeVersionInfoObjectsAsync({
-      exp,
-      platforms: realizedPlatforms,
-      projectDir,
-      workflows: {
-        ...workflows,
-        web: Workflow.UNKNOWN,
-      },
-      env: undefined,
-    });
     const runtimeToPlatformsAndFingerprintInfoMapping =
       getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects(
-        runtimeVersionInfoObjects
+        realizedPlatforms.map(platform => ({
+          platform,
+          runtimeVersionInfo: {
+            runtimeVersion: selectedRuntime,
+            fingerprint: null,
+            fingerprintHash: null,
+          },
+        }))
       );
 
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];
@@ -215,10 +219,8 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     try {
       newUpdates = await this.publishRollbacksAsync({
         graphqlClient,
-        isGitWorkingTreeDirty,
-        gitCommitHash,
         updateMessage,
-        branchId,
+        branchId: branch.id,
         codeSigningInfo,
         runtimeToPlatformsAndFingerprintInfoMapping,
         realizedPlatforms,
@@ -232,13 +234,6 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     if (jsonFlag) {
       printJsonOnlyOutput(getUpdateJsonInfosForUpdates(newUpdates));
     } else {
-      if (new Set(newUpdates.map(update => update.group)).size > 1) {
-        Log.addNewLineIfNone();
-        Log.log(
-          '👉 Since multiple runtime versions are defined, multiple update groups have been published.'
-        );
-      }
-
       Log.addNewLineIfNone();
 
       for (const runtime of uniqBy(
@@ -276,14 +271,6 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
               : []),
             ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
             { label: 'Message', value: updateMessage ?? '' },
-            ...(gitCommitHash
-              ? [
-                  {
-                    label: 'Commit',
-                    value: `${gitCommitHash}${isGitWorkingTreeDirty ? '*' : ''}`,
-                  },
-                ]
-              : []),
             { label: 'EAS Dashboard', value: updateGroupLink },
           ])
         );
@@ -294,8 +281,6 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
 
   private async publishRollbacksAsync({
     graphqlClient,
-    isGitWorkingTreeDirty,
-    gitCommitHash,
     updateMessage,
     branchId,
     codeSigningInfo,
@@ -303,8 +288,6 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     realizedPlatforms,
   }: {
     graphqlClient: ExpoGraphqlClient;
-    isGitWorkingTreeDirty: boolean | undefined;
-    gitCommitHash: string | undefined;
     updateMessage: string | undefined;
     branchId: string;
     codeSigningInfo: CodeSigningInfo | undefined;
@@ -329,8 +312,6 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
           rollBackToEmbeddedInfoGroup: localRollbackInfoGroup,
           runtimeVersion,
           message: updateMessage,
-          gitCommitHash,
-          isGitWorkingTreeDirty,
           awaitingCodeSigningInfo: !!codeSigningInfo,
         };
       }
@@ -381,22 +362,63 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     return newUpdates;
   }
 
+  private static async selectRuntimeAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      branchName,
+      batchSize = 5,
+    }: {
+      appId: string;
+      branchName: string;
+      batchSize?: number;
+    }
+  ): Promise<RuntimeFragment | null> {
+    const queryAsync = async (queryParams: QueryParams): Promise<Connection<RuntimeFragment>> => {
+      return await RuntimeQuery.getRuntimesOnBranchAsync(graphqlClient, {
+        appId,
+        name: branchName,
+        first: queryParams.first,
+        after: queryParams.after,
+        last: queryParams.last,
+        before: queryParams.before,
+      });
+    };
+    const getTitleAsync = async (runtime: RuntimeFragment): Promise<string> => {
+      return runtime.version;
+    };
+    return await selectPaginatedAsync({
+      queryAsync,
+      getTitleAsync,
+      printedType: 'target runtime',
+      pageSize: batchSize,
+    });
+  }
+
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
     const nonInteractive = flags['non-interactive'] ?? false;
 
-    const { auto, branch: branchName, channel: channelName, message: updateMessage } = flags;
-    if (nonInteractive && !auto && !(updateMessage && (branchName || channelName))) {
+    const {
+      branch: branchName,
+      channel: channelName,
+      message: updateMessage,
+      'runtime-version': runtimeVersion,
+    } = flags;
+    if (nonInteractive && !(updateMessage && (branchName || channelName))) {
       Errors.error(
-        '--branch and --message, or --channel and --message are required when updating in non-interactive mode unless --auto is specified',
+        '--branch and --message, or --channel and --message are required in non-interactive mode',
         { exit: 1 }
       );
     }
+    if (nonInteractive && !runtimeVersion) {
+      Errors.error('--runtimeVersion is required in non-interactive mode', { exit: 1 });
+    }
 
     return {
-      auto,
       branchName,
       channelName,
       updateMessage,
+      runtimeVersion,
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
       nonInteractive,

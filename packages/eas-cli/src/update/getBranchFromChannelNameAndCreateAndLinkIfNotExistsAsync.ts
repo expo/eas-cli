@@ -34,7 +34,7 @@ export async function getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
       throw error;
     }
 
-    const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
+    const { branch } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
       branchName: channelName,
     });
@@ -43,7 +43,7 @@ export async function getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
     } = await createChannelOnAppAsync(graphqlClient, {
       appId: projectId,
       channelName,
-      branchId,
+      branchId: branch.id,
     });
 
     if (!newChannel) {
@@ -52,7 +52,7 @@ export async function getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
       );
     }
 
-    branchInfo = { branchId, branchName: channelName };
+    branchInfo = { branchId: branch.id, branchName: channelName };
   }
 
   return branchInfo;

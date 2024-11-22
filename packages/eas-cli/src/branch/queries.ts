@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { BranchNotFoundError } from './utils';
@@ -8,10 +9,11 @@ import { withErrorHandlingAsync } from '../graphql/client';
 import {
   CreateUpdateBranchForAppMutation,
   CreateUpdateBranchForAppMutationVariables,
-  UpdateBranch,
+  UpdateBranchBasicInfoFragment,
   UpdateBranchFragment,
 } from '../graphql/generated';
 import { BranchQuery } from '../graphql/queries/BranchQuery';
+import { UpdateBranchBasicInfoFragmentNode } from '../graphql/types/UpdateBranchBasicInfo';
 import Log from '../log';
 import { formatBranch, getBranchDescription } from '../update/utils';
 import { printJsonOnlyOutput } from '../utils/json';
@@ -126,7 +128,7 @@ function renderPageOfBranches(
 export async function createUpdateBranchOnAppAsync(
   graphqlClient: ExpoGraphqlClient,
   { appId, name }: CreateUpdateBranchForAppMutationVariables
-): Promise<Pick<UpdateBranch, 'id' | 'name'>> {
+): Promise<UpdateBranchBasicInfoFragment> {
   const result = await withErrorHandlingAsync(
     graphqlClient
       .mutation<CreateUpdateBranchForAppMutation, CreateUpdateBranchForAppMutationVariables>(
@@ -135,15 +137,17 @@ export async function createUpdateBranchOnAppAsync(
             updateBranch {
               createUpdateBranchForApp(appId: $appId, name: $name) {
                 id
-                name
+                ...UpdateBranchBasicInfoFragment
               }
             }
           }
+          ${print(UpdateBranchBasicInfoFragmentNode)}
         `,
         {
           appId,
           name,
-        }
+        },
+        { additionalTypenames: ['UpdateBranch'] }
       )
       .toPromise()
   );
@@ -163,22 +167,21 @@ export async function ensureBranchExistsAsync(
     appId: string;
     branchName: string;
   }
-): Promise<{ branchId: string; createdBranch: boolean }> {
+): Promise<{ branch: UpdateBranchBasicInfoFragment; createdBranch: boolean }> {
   try {
     const updateBranch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
       appId,
       name: branchName,
     });
 
-    const { id } = updateBranch;
-    return { branchId: id, createdBranch: false };
+    return { branch: updateBranch, createdBranch: false };
   } catch (error) {
     if (error instanceof BranchNotFoundError) {
       const newUpdateBranch = await createUpdateBranchOnAppAsync(graphqlClient, {
         appId,
         name: branchName,
       });
-      return { branchId: newUpdateBranch.id, createdBranch: true };
+      return { branch: newUpdateBranch, createdBranch: true };
     } else {
       throw error;
     }

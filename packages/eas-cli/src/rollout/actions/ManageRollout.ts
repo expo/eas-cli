@@ -61,7 +61,7 @@ export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
     }
   }
 
-  async selectActionAsync(): Promise<ManageRolloutActions> {
+  private async selectActionAsync(): Promise<ManageRolloutActions> {
     const manageOptions = [ManageRolloutActions.EDIT, ManageRolloutActions.END];
     if (this.options.callingAction) {
       manageOptions.push(ManageRolloutActions.GO_BACK);
@@ -78,7 +78,7 @@ export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
     return selectedManageOption;
   }
 
-  async getChannelObjectAsync(ctx: EASUpdateContext): Promise<UpdateChannelObject> {
+  private async getChannelObjectAsync(ctx: EASUpdateContext): Promise<UpdateChannelObject> {
     const { graphqlClient, app } = ctx;
     const { projectId } = app;
     if (!isRollout(this.channelInfo)) {

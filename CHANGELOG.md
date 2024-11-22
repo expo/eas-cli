@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Change behavior of roll-back-to-embedded to not use current project state. ([#2722](https://github.com/expo/eas-cli/pull/2722) by [@wschurman](https://github.com/wschurman))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes

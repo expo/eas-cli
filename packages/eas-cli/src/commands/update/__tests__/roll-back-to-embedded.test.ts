@@ -1,5 +1,4 @@
 import { AppJSONConfig, ExpoConfig, PackageJSONConfig, getConfig } from '@expo/config';
-import { Updates } from '@expo/config-plugins';
 import { vol } from 'memfs';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -82,16 +81,23 @@ describe(UpdateRollBackToEmbedded.name, () => {
     );
   });
 
-  it('creates a roll back to embedded with --non-interactive, --branch, and --message', async () => {
-    const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
+  it('creates a roll back to embedded with --non-interactive, --branch, --message, and --runtime-version', async () => {
+    const flags = [
+      '--non-interactive',
+      '--branch=branch123',
+      '--message=abc',
+      '--runtime-version=exposdk:47.0.0',
+    ];
 
     mockTestProject();
     const platforms = ['android', 'ios'];
     const runtimeVersion = 'exposdk:47.0.0';
-    jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
-      branchId: 'branch123',
+      branch: {
+        id: 'branch123',
+        name: 'wat',
+      },
       createdBranch: false,
     });
 
@@ -104,19 +110,26 @@ describe(UpdateRollBackToEmbedded.name, () => {
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
   });
 
-  it('creates a roll back to embedded with --non-interactive, --channel, and --message', async () => {
-    const flags = ['--non-interactive', '--channel=channel123', '--message=abc'];
+  it('creates a roll back to embedded with --non-interactive, --channel, --message, and --runtime-version', async () => {
+    const flags = [
+      '--non-interactive',
+      '--channel=channel123',
+      '--message=abc',
+      '--runtime-version=exposdk:47.0.0',
+    ];
 
     const { projectId } = mockTestProject();
     const platforms = ['android', 'ios'];
     const runtimeVersion = 'exposdk:47.0.0';
-    jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
     jest
       .mocked(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync)
       .mockResolvedValue({ branchId: updateStub.branch.id, branchName: 'branchFromChannel' });
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
-      branchId: 'branch123',
+      branch: {
+        id: 'branch123',
+        name: 'wat',
+      },
       createdBranch: false,
     });
 
@@ -142,18 +155,25 @@ describe(UpdateRollBackToEmbedded.name, () => {
   });
 
   it('creates a roll back to embedded with the public expo config', async () => {
-    const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
+    const flags = [
+      '--non-interactive',
+      '--branch=branch123',
+      '--message=abc',
+      '--runtime-version=exposdk:47.0.0',
+    ];
 
     // Add configuration to the project that should not be included in the update
     mockTestProject();
 
     const platforms = ['ios'];
     const runtimeVersion = 'exposdk:47.0.0';
-    jest.mocked(Updates.getRuntimeVersionAsync).mockResolvedValue(runtimeVersion);
 
     // Mock an existing branch, so we don't create a new one
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
-      branchId: 'branch123',
+      branch: {
+        id: 'branch123',
+        name: 'wat',
+      },
       createdBranch: false,
     });
 

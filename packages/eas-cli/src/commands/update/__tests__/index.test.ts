@@ -88,7 +88,10 @@ describe(UpdatePublish.name, () => {
     const { platforms, runtimeVersion } = mockTestExport();
 
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
-      branchId: 'branch123',
+      branch: {
+        id: 'branch123',
+        name: 'wat',
+      },
       createdBranch: false,
     });
 
@@ -111,7 +114,10 @@ describe(UpdatePublish.name, () => {
       .mocked(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync)
       .mockResolvedValue({ branchId: 'branch123', branchName: 'branchFromChannel' });
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
-      branchId: 'branch123',
+      branch: {
+        id: 'branch123',
+        name: 'wat',
+      },
       createdBranch: false,
     });
 
@@ -146,7 +152,10 @@ describe(UpdatePublish.name, () => {
 
     // Mock an existing branch, so we don't create a new one
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
-      branchId: 'branch123',
+      branch: {
+        id: 'branch123',
+        name: 'wat',
+      },
       createdBranch: false,
     });
 

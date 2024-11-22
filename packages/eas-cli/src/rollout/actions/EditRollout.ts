@@ -86,7 +86,7 @@ export class EditRollout implements EASUpdateAction<UpdateChannelBasicInfoFragme
     return newChannelInfo;
   }
 
-  async confirmEditAsync(ctx: EASUpdateContext): Promise<boolean> {
+  private async confirmEditAsync(ctx: EASUpdateContext): Promise<boolean> {
     const { nonInteractive } = ctx;
     if (nonInteractive) {
       return true;
@@ -96,7 +96,7 @@ export class EditRollout implements EASUpdateAction<UpdateChannelBasicInfoFragme
     });
   }
 
-  async getChannelObjectAsync(ctx: EASUpdateContext): Promise<UpdateChannelObject> {
+  private async getChannelObjectAsync(ctx: EASUpdateContext): Promise<UpdateChannelObject> {
     const { graphqlClient, app } = ctx;
     const { projectId } = app;
     if (!isRollout(this.channelInfo)) {
