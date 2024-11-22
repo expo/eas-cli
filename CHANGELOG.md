@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Improve logging in `eas env:pull`. ([#2720](https://github.com/expo/eas-cli/pull/2720) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [13.4.0](https://github.com/expo/eas-cli/releases/tag/v13.4.0) - 2024-11-22
 
 ### 🎉 New features
