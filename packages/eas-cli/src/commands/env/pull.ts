@@ -116,7 +116,7 @@ export default class EnvPull extends EasCommand {
             return `${variable.name}=${currentEnvLocal[variable.name]}`;
           }
           skippedSecretVariables.push(variable.name);
-          return `# ${variable.name}=***** (secret variables are not available for reading)`;
+          return `# ${variable.name}=***** (secret)`;
         }
         if (variable.type === EnvironmentSecretType.FileBase64 && variable.valueWithFileContent) {
           const filePath = path.join(envDir, variable.name);
@@ -130,20 +130,20 @@ export default class EnvPull extends EasCommand {
     await fs.writeFile(targetPath, filePrefix + envFileContentLines.join('\n'));
 
     Log.log(
-      `Pulled environment variables from ${environment.toLowerCase()} environment to ${targetPath}.`
+      `Pulled plain text and sensitive environment variables from "${environment.toLowerCase()}" environment to ${targetPath}.`
     );
 
     if (overridenSecretVariables.length > 0) {
       Log.addNewLineIfNone();
-      Log.log(`Reused local values for following secrets: ${overridenSecretVariables.join('\n')}`);
+      Log.log(`Reused local values for following secrets: ${overridenSecretVariables.join('\n')}.`);
     }
 
     if (skippedSecretVariables.length > 0) {
       Log.addNewLineIfNone();
-      Log.warn(
-        `The following variables have the secret visibility and can not be read outside of EAS servers. Set their values manually in .env.local: ${skippedSecretVariables.join(
-          '\n'
-        )}`
+      Log.log(
+        `The following variables have the secret visibility and can't be read outside of EAS servers. Set their values manually in your .env file: ${skippedSecretVariables.join(
+          ', '
+        )}.`
       );
     }
   }
