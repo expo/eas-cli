@@ -55,10 +55,9 @@ async function resolveEnvVarsAsync({
 }): Promise<Env> {
   const environment =
     buildProfile.environment?.toUpperCase() ??
-    process.env.EAS_CURRENT_ENVIRONMENT ??
     resolveSuggestedEnvironmentForBuildProfileConfiguration(buildProfile);
 
-  if (!environment || !isEnvironment(environment)) {
+  if (!isEnvironment(environment)) {
     Log.log(
       `Loaded "env" configuration for the "${buildProfileName}" profile: ${
         buildProfile.env && Object.keys(buildProfile.env).length > 0
@@ -137,7 +136,7 @@ function resolveSuggestedEnvironmentForBuildProfileConfiguration(
   buildProfile: BuildProfile
 ): EnvironmentVariableEnvironment {
   const setEnvironmentMessage =
-    'Set the environment using the "environment" field in the build profile configuration if you want to use a specific environment.';
+    'Set the "environment" field in the build profile if you want to specify the environment manually.';
   if (buildProfile.distribution === 'store') {
     Log.log(
       `We detected that you are building for the "store" distribution. Resolving the environment for environment variables used during the build to "production". ${setEnvironmentMessage}`
