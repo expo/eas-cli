@@ -15,6 +15,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Deprecate `eas secret` commands. ([#2705](https://github.com/expo/eas-cli/pull/2705) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [13.3.0](https://github.com/expo/eas-cli/releases/tag/v13.3.0) - 2024-11-18
 
 ### 🎉 New features
