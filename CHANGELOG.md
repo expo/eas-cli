@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add `eas env` commands. ([#2711](https://github.com/expo/eas-cli/pull/2711) by [@szdziedzic](https://github.com/szdziedzic))
 - Add `--environment` flag to `eas update` command. ([#2711](https://github.com/expo/eas-cli/pull/2711) by [@szdziedzic](https://github.com/szdziedzic))
 - Load readable environment variables from EAS servers on every build. ([#2644](https://github.com/expo/eas-cli/pull/2644) by [@szdziedzic](https://github.com/szdziedzic))
+- Add environment field to `eas.schema.json`. ([#2719](https://github.com/expo/eas-cli/pull/2719) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 

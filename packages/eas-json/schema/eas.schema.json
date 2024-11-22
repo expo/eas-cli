@@ -202,6 +202,11 @@
           "description": "Custom workflow file name that will be used to run this build. You can also specify this property on platform level for platform-specific workflows. Learn more: https://docs.expo.dev/custom-builds/get-started/",
           "type": "string"
         },
+        "environment": {
+          "description": "Environment to use for the server-side defined EAS environment variables during build process and command execution. Learn more: https://docs.expo.dev/eas/environment-variables/",
+          "markdownDescription": "Environment to use for the server-side defined EAS environment variables during build process and command execution. [Learn more](https://docs.expo.dev/eas/environment-variables/)",
+          "enum": ["production", "preview", "development"]
+        },
         "android": {
           "$ref": "#/definitions/BuildProfileAndroid"
         },

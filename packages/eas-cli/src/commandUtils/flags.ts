@@ -83,7 +83,7 @@ export const EasJsonOnlyFlag = {
 export const EasUpdateEnvironmentFlag = {
   environment: Flags.enum<EnvironmentVariableEnvironment | null>({
     description:
-      'Environment to use the server-side defined EAS environment variables for during command execution.',
+      'Environment to use for the server-side defined EAS environment variables during command execution.',
     options: mapToLowercase(Object.values(EnvironmentVariableEnvironment)),
     parse: upperCaseAsync,
     required: false,
