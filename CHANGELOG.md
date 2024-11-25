@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [13.4.2](https://github.com/expo/eas-cli/releases/tag/v13.4.2) - 2024-11-25
+
+### 🧹 Chores
+
 - Upgrade `@expo` packages to SDK 52 versions. ([#2706](https://github.com/expo/eas-cli/pull/2706) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [13.4.1](https://github.com/expo/eas-cli/releases/tag/v13.4.1) - 2024-11-22
