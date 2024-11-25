@@ -1310,8 +1310,9 @@ export type App = Project & {
    * @deprecated Classic updates have been deprecated.
    */
   playStoreUrl?: Maybe<Scalars['String']['output']>;
-  /** @deprecated Use 'privacySetting' instead. */
+  /** @deprecated No longer supported */
   privacy: Scalars['String']['output'];
+  /** @deprecated No longer supported */
   privacySetting: AppPrivacy;
   /**
    * Whether there have been any classic update publishes
@@ -1746,7 +1747,6 @@ export type AppInfoInput = {
 export type AppInput = {
   accountId: Scalars['ID']['input'];
   appInfo?: InputMaybe<AppInfoInput>;
-  privacy: AppPrivacy;
   projectName: Scalars['String']['input'];
 };
 
@@ -2098,7 +2098,6 @@ export type AppWithGithubRepositoryInput = {
   accountId: Scalars['ID']['input'];
   appInfo?: InputMaybe<AppInfoInput>;
   installationIdentifier?: InputMaybe<Scalars['String']['input']>;
-  privacy: AppPrivacy;
   projectName: Scalars['String']['input'];
 };
 
@@ -2690,6 +2689,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   error?: Maybe<BuildError>;
   estimatedWaitTimeLeftSeconds?: Maybe<Scalars['Int']['output']>;
   expirationDate?: Maybe<Scalars['DateTime']['output']>;
+  fingerprint?: Maybe<Fingerprint>;
   gitCommitHash?: Maybe<Scalars['String']['output']>;
   gitCommitMessage?: Maybe<Scalars['String']['output']>;
   gitRef?: Maybe<Scalars['String']['output']>;
@@ -2723,6 +2723,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   reactNativeVersion?: Maybe<Scalars['String']['output']>;
   releaseChannel?: Maybe<Scalars['String']['output']>;
   requiredPackageManager?: Maybe<Scalars['String']['output']>;
+  resolvedEnvironment?: Maybe<EnvironmentVariableEnvironment>;
   /**
    * The builder resource class requested by the developer
    * @deprecated Use resourceClassDisplayName instead
