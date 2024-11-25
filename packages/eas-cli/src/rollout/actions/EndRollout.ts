@@ -87,7 +87,7 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     return await this.performOutcomeAsync(ctx, rollout, outcome);
   }
 
-  async getChannelObjectAsync(ctx: EASUpdateContext): Promise<UpdateChannelObject> {
+  private async getChannelObjectAsync(ctx: EASUpdateContext): Promise<UpdateChannelObject> {
     const { graphqlClient, app } = ctx;
     const { projectId } = app;
     if (!isRollout(this.channelInfo)) {
@@ -107,7 +107,7 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     });
   }
 
-  async selectOutcomeAsync(rollout: Rollout<UpdateBranchObject>): Promise<EndOutcome> {
+  private async selectOutcomeAsync(rollout: Rollout<UpdateBranchObject>): Promise<EndOutcome> {
     const { rolledOutBranch, percentRolledOut, defaultBranch } = rollout;
     const rolledOutUpdateGroup = rolledOutBranch.updateGroups[0];
     const defaultUpdateGroup = defaultBranch.updateGroups[0];
@@ -144,7 +144,7 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     return selectedOutcome;
   }
 
-  async performOutcomeAsync(
+  private async performOutcomeAsync(
     ctx: EASUpdateContext,
     rollout: Rollout<UpdateBranchObject>,
     outcome: EndOutcome
@@ -185,7 +185,7 @@ export class EndRollout implements EASUpdateAction<UpdateChannelBasicInfoFragmen
     return newChannelInfo;
   }
 
-  async confirmOutcomeAsync(
+  private async confirmOutcomeAsync(
     ctx: EASUpdateContext,
     selectedOutcome: EndOutcome,
     rollout: Rollout<UpdateBranchObject>

@@ -27,7 +27,7 @@ export class SelectRuntime implements EASUpdateAction<string | null> {
       : `runtime`;
   }
 
-  warnNoRuntime(): void {
+  private warnNoRuntime(): void {
     if (this.options.anotherBranchToIntersectRuntimesBy) {
       const intersectBranchName = this.options.anotherBranchToIntersectRuntimesBy.name;
       Log.warn(
@@ -42,7 +42,7 @@ export class SelectRuntime implements EASUpdateAction<string | null> {
     }
   }
 
-  formatCantFindRuntime(): string {
+  private formatCantFindRuntime(): string {
     return `🕵️ Not finding the update you were looking for? ${learnMore(
       'https://expo.fyi/eas-update-rollouts'
     )}`;
@@ -104,7 +104,7 @@ export class SelectRuntime implements EASUpdateAction<string | null> {
     return selectedRuntime.version;
   }
 
-  async getNewestRuntimeAsync(
+  private async getNewestRuntimeAsync(
     graphqlClient: ExpoGraphqlClient,
     {
       appId,
@@ -126,7 +126,7 @@ export class SelectRuntime implements EASUpdateAction<string | null> {
     });
   }
 
-  async displayLatestUpdateGroupAsync({
+  private async displayLatestUpdateGroupAsync({
     graphqlClient,
     appId,
     branchName,
@@ -153,7 +153,7 @@ export class SelectRuntime implements EASUpdateAction<string | null> {
     return formatRuntimeWithUpdateGroup(updateGroups[0], runtime, branchName);
   }
 
-  async selectRuntimesAsync(
+  private async selectRuntimesAsync(
     graphqlClient: ExpoGraphqlClient,
     {
       appId,

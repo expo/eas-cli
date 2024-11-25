@@ -149,7 +149,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     return newChannelInfo;
   }
 
-  async confirmCreationAsync(ctx: EASUpdateContext): Promise<boolean> {
+  private async confirmCreationAsync(ctx: EASUpdateContext): Promise<boolean> {
     const { nonInteractive } = ctx;
     if (nonInteractive) {
       return true;
@@ -159,7 +159,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     });
   }
 
-  async getChannelObjectAsync(
+  private async getChannelObjectAsync(
     ctx: EASUpdateContext,
     runtimeVersion: string
   ): Promise<UpdateChannelObject> {
@@ -172,7 +172,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     });
   }
 
-  async getLatestUpdateGroupOnBranchAsync(
+  private async getLatestUpdateGroupOnBranchAsync(
     ctx: EASUpdateContext,
     branchInfo: UpdateBranchBasicInfoFragment,
     runtimeVersion: string
@@ -195,7 +195,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     return updateGroups[0] ?? null;
   }
 
-  async selectRuntimeVersionAsync(
+  private async selectRuntimeVersionAsync(
     ctx: EASUpdateContext,
     branchToRollout: UpdateBranchBasicInfoFragment,
     defaultBranchId: string
@@ -223,7 +223,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     );
   }
 
-  async selectRuntimeVersionFromAlternativeSourceAsync(
+  private async selectRuntimeVersionFromAlternativeSourceAsync(
     ctx: EASUpdateContext,
     branchToRollout: UpdateBranchBasicInfoFragment,
     defaultBranch: UpdateBranchBasicInfoFragment
@@ -271,7 +271,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     );
   }
 
-  async selectRuntimeVersionFromProjectConfigAsync(ctx: EASUpdateContext): Promise<string> {
+  private async selectRuntimeVersionFromProjectConfigAsync(ctx: EASUpdateContext): Promise<string> {
     const platforms: ('ios' | 'android')[] = ['ios', 'android'];
     const workflows = await resolveWorkflowPerPlatformAsync(ctx.app.projectDir, ctx.vcsClient);
     const runtimes = (
@@ -313,7 +313,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     return selectedRuntime;
   }
 
-  async selectBranchAsync(
+  private async selectBranchAsync(
     ctx: EASUpdateContext,
     defaultBranchId: string
   ): Promise<UpdateBranchBasicInfoFragment> {
@@ -333,7 +333,7 @@ export class CreateRollout implements EASUpdateAction<UpdateChannelBasicInfoFrag
     return branchInfo;
   }
 
-  async resolveBranchNameAsync(
+  private async resolveBranchNameAsync(
     ctx: EASUpdateContext,
     branchName: string
   ): Promise<UpdateBranchBasicInfoFragment> {

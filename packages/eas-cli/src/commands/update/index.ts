@@ -400,7 +400,7 @@ export default class UpdatePublish extends EasCommand {
         runtimeVersionInfoObjects
       );
 
-    const { branchId } = await ensureBranchExistsAsync(graphqlClient, {
+    const { branch } = await ensureBranchExistsAsync(graphqlClient, {
       appId: projectId,
       branchName,
     });
@@ -482,7 +482,7 @@ export default class UpdatePublish extends EasCommand {
           );
 
           return {
-            branchId,
+            branchId: branch.id,
             updateInfoGroup: localUpdateInfoGroup,
             rolloutInfoGroup: localRolloutInfoGroup,
             runtimeFingerprintSource: fingerprintSource
