@@ -225,7 +225,7 @@ describe(getProjectIdAsync, () => {
     jest.mocked(getConfig).mockReturnValue({ exp: { name: 'test', slug: 'test' } } as any);
     jest.mocked(modifyConfigAsync).mockResolvedValue({
       type: 'success',
-      config: { expo: { name: 'test', slug: 'test', extra: { eas: { projectId: '2345' } } } },
+      config: { name: 'test', slug: 'test', extra: { eas: { projectId: '2345' } } },
     });
     jest
       .mocked(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync)

@@ -3,6 +3,7 @@ import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import { EasJsonAccessor } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
+import nullthrows from 'nullthrows';
 import semver from 'semver';
 
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from './android/UpdatesModule';
@@ -149,7 +150,7 @@ async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
       return {
         projectChanged: true,
         // TODO(cedric): fix return type of `modifyConfigAsync` to avoid `null` for type === success repsonses
-        exp: result.config?.expo!,
+        exp: nullthrows(result.config, 'Expected config to be defined'),
       };
 
     case 'warn':

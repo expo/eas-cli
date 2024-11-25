@@ -2,7 +2,7 @@ import chalk from 'chalk';
 
 import { getProjectDashboardUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { AppPrivacy, Role } from '../graphql/generated';
+import { Role } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import { link } from '../log';
@@ -21,7 +21,6 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
   projectInfo: {
     accountName: string;
     projectName: string;
-    privacy?: AppPrivacy;
   },
   options: {
     nonInteractive: boolean;
@@ -90,7 +89,6 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
     const id = await AppMutation.createAppAsync(graphqlClient, {
       accountId: account.id,
       projectName,
-      privacy: projectInfo.privacy ?? AppPrivacy.Public,
     });
     spinner.succeed(`Created ${chalk.bold(projectLink)} on Expo`);
     return id;

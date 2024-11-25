@@ -8,14 +8,13 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../../commandUtils/context/contextUtils/getProjectIdAsync';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
-import { AppPrivacy, Role } from '../../graphql/generated';
+import { Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import { toAppPrivacy } from '../../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../../prompts';
 import { Actor } from '../../user/User';
 
@@ -337,7 +336,6 @@ export default class ProjectInit extends EasCommand {
       createdProjectId = await AppMutation.createAppAsync(graphqlClient, {
         accountId: account.id,
         projectName,
-        privacy: toAppPrivacy(exp.privacy) ?? AppPrivacy.Public,
       });
       spinner.succeed(`Created ${chalk.bold(projectLink)}`);
     } catch (err) {

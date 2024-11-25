@@ -42,7 +42,7 @@ async function ensureEasCliIsNotInDependenciesAsync(projectDir: string): Promise
     consoleWarn(`Found ${chalk.bold('eas-cli')} in your project dependencies.`);
   }
 
-  const maybeRepoRoot = PackageManagerUtils.findWorkspaceRoot(projectDir) ?? projectDir;
+  const maybeRepoRoot = PackageManagerUtils.resolveWorkspaceRoot(projectDir) ?? projectDir;
   if (maybeRepoRoot !== projectDir && (await isEasCliInDependenciesAsync(maybeRepoRoot))) {
     printCliVersionWarning = true;
     consoleWarn(`Found ${chalk.bold('eas-cli')} in your monorepo dependencies.`);
