@@ -27,23 +27,27 @@ export async function checkGoogleServicesFileAsync<T extends Platform>(
   if (!googleServicesFilePath) {
     return;
   }
+  const googleServicesEnvVar =
+    ctx.platform === Platform.ANDROID
+      ? ctx.env.GOOGLE_SERVICES_JSON
+      : ctx.env.GOOGLE_SERVICES_INFO_PLIST;
   const rootDir = path.normalize(await ctx.vcsClient.getRootPathAsync());
   const absGoogleServicesFilePath = path.resolve(ctx.projectDir, googleServicesFilePath);
   if (
     (await fs.pathExists(absGoogleServicesFilePath)) &&
     (!isInsideDirectory(absGoogleServicesFilePath, rootDir) ||
-      (await ctx.vcsClient.isFileIgnoredAsync(path.relative(rootDir, absGoogleServicesFilePath))))
+      (await ctx.vcsClient.isFileIgnoredAsync(
+        path.relative(rootDir, absGoogleServicesFilePath)
+      ))) &&
+    !googleServicesEnvVar
   ) {
     Log.warn(
       `File specified via "${ctx.platform}.googleServicesFile" field in your app.json is not checked in to your repository and won't be uploaded to the builder.`
     );
     Log.warn(
-      `Use EAS Secret to pass all values that you don't want to include in your version control. ${learnMore(
-        'https://docs.expo.dev/build-reference/variables/#using-secrets-in-environment-variables'
+      `Use EAS file environment variables with secret or sensitive visibility to pass all values that you don't want to include in your version control to build process. ${learnMore(
+        'https://docs.expo.dev/eas/environment-variables/#file-environment-variables'
       )}`
-    );
-    Log.warn(
-      `If you are using that file for compatibility with the classic build service (expo build) you can silence this warning by setting your build profile's env.GOOGLE_SERVICES_FILE in eas.json to any non-empty string.`
     );
     Log.newLine();
   }
