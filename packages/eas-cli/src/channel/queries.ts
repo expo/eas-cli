@@ -19,7 +19,7 @@ import {
 import { BranchQuery, UpdateBranchOnChannelObject } from '../graphql/queries/BranchQuery';
 import { ChannelQuery, UpdateChannelObject } from '../graphql/queries/ChannelQuery';
 import { UpdateChannelBasicInfoFragmentNode } from '../graphql/types/UpdateChannelBasicInfo';
-import Log from '../log';
+import Log, { learnMore } from '../log';
 import { getDisplayNameForProjectIdAsync } from '../project/projectUtils';
 import formatFields from '../utils/formatFields';
 import { printJsonOnlyOutput } from '../utils/json';
@@ -303,7 +303,6 @@ export async function doesChannelExistAsync(
 }
 
 /**
- *
  * Creates a channel and links it to a branch with the same name.
  *
  * @param appId the app ID, also known as the project ID
@@ -319,7 +318,7 @@ export async function createAndLinkChannelAsync(
   }: { appId: string; channelName: string; shouldPrintJson?: boolean }
 ): Promise<ChannelBasicInfo> {
   let branchId: string;
-  let branchMessage: string;
+  let hasCreatedBranch = false;
 
   try {
     const branch = await BranchQuery.getBranchByNameAsync(graphqlClient, {
@@ -327,7 +326,6 @@ export async function createAndLinkChannelAsync(
       name: channelName,
     });
     branchId = branch.id;
-    branchMessage = `We found a branch with the same name`;
   } catch (error) {
     if (error instanceof BranchNotFoundError) {
       const newBranch = await createUpdateBranchOnAppAsync(graphqlClient, {
@@ -335,7 +333,7 @@ export async function createAndLinkChannelAsync(
         name: channelName,
       });
       branchId = newBranch.id;
-      branchMessage = `We also went ahead and made a branch with the same name`;
+      hasCreatedBranch = true;
     } else {
       throw error;
     }
@@ -358,26 +356,25 @@ export async function createAndLinkChannelAsync(
   if (shouldPrintJson) {
     printJsonOnlyOutput(newChannel);
   } else {
+    const projectDisplayName = await getDisplayNameForProjectIdAsync(graphqlClient, appId);
+    const learnMoreLink = learnMore('https://docs.expo.dev/eas-update/eas-cli/');
+
     Log.addNewLineIfNone();
-    Log.withTick(
-      `Created a new channel on project ${chalk.bold(
-        await getDisplayNameForProjectIdAsync(graphqlClient, appId)
-      )}`
-    );
-    Log.log(
-      formatFields([
-        { label: 'Name', value: newChannel.name },
-        { label: 'ID', value: newChannel.id },
-      ])
-    );
-    Log.addNewLineIfNone();
-    Log.withTick(`${branchMessage} and have pointed the channel at it.`);
-    Log.log(
-      formatFields([
-        { label: 'Name', value: newChannel.name },
-        { label: 'ID', value: branchId },
-      ])
-    );
+    if (hasCreatedBranch) {
+      Log.withTick(
+        `Created update channel ${chalk.bold(`"${newChannel.name}"`)} and branch ${chalk.bold(
+          `"${newChannel.name}"`
+        )} on ${chalk.bold(projectDisplayName)} project. ${learnMoreLink}`
+      );
+    } else {
+      Log.withTick(
+        `Created update channel ${chalk.bold(`"${newChannel.name}"`)} on ${chalk.bold(
+          projectDisplayName
+        )} project and connected it with existing ${chalk.bold(
+          `"${newChannel.name}"`
+        )} branch. ${learnMoreLink}`
+      );
+    }
   }
   return newChannel;
 }
