@@ -38,7 +38,12 @@ export async function fetchBuildsAsync({
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
-  filters?: { statuses?: BuildStatus[]; platform?: RequestedPlatform; profile?: string };
+  filters?: {
+    statuses?: BuildStatus[];
+    platform?: RequestedPlatform;
+    profile?: string;
+    hasFingerprint?: boolean;
+  };
 }): Promise<BuildFragment[]> {
   let builds: BuildFragment[];
   const queryFilters: InputMaybe<BuildFilter> = {};
@@ -47,6 +52,9 @@ export async function fetchBuildsAsync({
   }
   if (filters?.profile) {
     queryFilters['buildProfile'] = filters.profile;
+  }
+  if (filters?.hasFingerprint) {
+    queryFilters['hasFingerprint'] = filters.hasFingerprint;
   }
   if (!filters?.statuses) {
     builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {

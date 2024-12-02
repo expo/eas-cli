@@ -5,15 +5,22 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { withErrorHandlingAsync } from '../client';
 import {
   BuildFragment,
+  BuildWithFingerprintFragment,
   BuildWithSubmissionsFragment,
   BuildsByIdQuery,
   BuildsByIdQueryVariables,
+  BuildsWithFingerprintByIdQuery,
+  BuildsWithFingerprintByIdQueryVariables,
   BuildsWithSubmissionsByIdQuery,
   BuildsWithSubmissionsByIdQueryVariables,
   ViewBuildsOnAppQuery,
   ViewBuildsOnAppQueryVariables,
 } from '../generated';
-import { BuildFragmentNode, BuildFragmentWithSubmissionsNode } from '../types/Build';
+import {
+  BuildFragmentNode,
+  BuildFragmentWithFingerprintNode,
+  BuildFragmentWithSubmissionsNode,
+} from '../types/Build';
 
 export const BuildQuery = {
   async byIdAsync(
@@ -64,6 +71,36 @@ export const BuildQuery = {
               }
             }
             ${print(BuildFragmentWithSubmissionsNode)}
+          `,
+          { buildId },
+          {
+            requestPolicy: useCache ? 'cache-first' : 'network-only',
+            additionalTypenames: ['Build'],
+          }
+        )
+        .toPromise()
+    );
+
+    return data.builds.byId;
+  },
+  async withFingerprintByIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    buildId: string,
+    { useCache = true }: { useCache?: boolean } = {}
+  ): Promise<BuildWithFingerprintFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<BuildsWithFingerprintByIdQuery, BuildsWithFingerprintByIdQueryVariables>(
+          gql`
+            query BuildsWithFingerprintByIdQuery($buildId: ID!) {
+              builds {
+                byId(buildId: $buildId) {
+                  id
+                  ...BuildWithFingerprintFragment
+                }
+              }
+            }
+            ${print(BuildFragmentWithFingerprintNode)}
           `,
           { buildId },
           {
