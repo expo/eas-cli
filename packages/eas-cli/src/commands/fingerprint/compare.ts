@@ -237,19 +237,19 @@ function getFilePathSourceFields({
 }): FormatFieldsItem {
   if (sourceType === 'dir') {
     if (op === 'added') {
-      return { label: 'new directory:', value: filePath };
+      return { label: 'new directory', value: filePath };
     } else if (op === 'removed') {
-      return { label: 'removed directory:', value: filePath };
+      return { label: 'removed directory', value: filePath };
     } else if (op === 'changed') {
-      return { label: 'modified directory:', value: filePath };
+      return { label: 'modified directory', value: filePath };
     }
   } else if (sourceType === 'file') {
     if (op === 'added') {
-      return { label: 'new file:', value: filePath };
+      return { label: 'new file', value: filePath };
     } else if (op === 'removed') {
-      return { label: 'removed file:', value: filePath };
+      return { label: 'removed file', value: filePath };
     } else if (op === 'changed') {
-      return { label: 'modified file:', value: filePath };
+      return { label: 'modified file', value: filePath };
     }
   }
   throw new Error(`Unsupported source and op: ${sourceType}, ${op}`);
@@ -277,11 +277,11 @@ function printContentSource({
   Log.newLine();
   const prettyContentId = PRETTY_CONTENT_ID[contentsId] ?? contentsId;
   if (op === 'added') {
-    Log.log(`${chalk.dim('📝 new content')}: ${prettyContentId}`);
+    Log.log(`${chalk.dim('📝 New content')}: ${prettyContentId}`);
   } else if (op === 'removed') {
-    Log.log(`${chalk.dim('📝 removed content')}: ${prettyContentId}`);
+    Log.log(`${chalk.dim('📝 Removed content')}: ${prettyContentId}`);
   } else if (op === 'changed') {
-    Log.log(`${chalk.dim('📝 modified content')}: ${prettyContentId}`);
+    Log.log(`${chalk.dim('📝 Modified content')}: ${prettyContentId}`);
   }
   printContentsDiff(contentsBefore ?? '', contentsAfter ?? '');
 }
@@ -300,7 +300,7 @@ function printContentsDiff(contents1: string | Buffer, contents2: string | Buffe
     ? JSON.stringify(JSON.parse(stringifiedContents2), null, 2)
     : stringifiedContents2;
 
-  abridgedDiff(prettifiedContents1, prettifiedContents2);
+  abridgedDiff(prettifiedContents1, prettifiedContents2, 0);
 }
 
 function isJSON(str: string): boolean {
