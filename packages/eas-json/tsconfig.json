@@ -10,7 +10,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "strict": true,
-    "target": "ES2021",
+    "target": "ES2022",
     "outDir": "build",
     "rootDir": "src",
     "typeRoots": ["../../node_modules/@types", "../../ts-declarations", "./node_modules/@types"]

@@ -2,6 +2,7 @@ import { Env, Workflow } from '@expo/eas-build-job';
 import { silent as silentResolveFrom } from 'resolve-from';
 
 import mapMapAsync from './expodash/mapMapAsync';
+import { Fingerprint, FingerprintDiffItem } from './fingerprint';
 import Log from '../log';
 import { ora } from '../ora';
 
@@ -13,14 +14,30 @@ export type FingerprintOptions = {
   cwd?: string;
 };
 
+export function diffFingerprint(
+  projectDir: string,
+  fingerprint1: Fingerprint,
+  fingerprint2: Fingerprint
+): FingerprintDiffItem[] | null {
+  // @expo/fingerprint is exported in the expo package for SDK 52+
+  const fingerprintPath = silentResolveFrom(projectDir, 'expo/fingerprint');
+  if (!fingerprintPath) {
+    return null;
+  }
+
+  const Fingerprint = require(fingerprintPath);
+  return Fingerprint.diffFingerprints(fingerprint1, fingerprint2);
+}
+
 export async function createFingerprintAsync(
   projectDir: string,
   options: FingerprintOptions
-): Promise<{
-  hash: string;
-  sources: object[];
-  isDebugSource: boolean;
-} | null> {
+): Promise<
+  | (Fingerprint & {
+      isDebugSource: boolean;
+    })
+  | null
+> {
   // @expo/fingerprint is exported in the expo package for SDK 52+
   const fingerprintPath = silentResolveFrom(projectDir, 'expo/fingerprint');
   if (!fingerprintPath) {
@@ -61,11 +78,11 @@ async function createFingerprintWithoutLoggingAsync(
   projectDir: string,
   fingerprintPath: string,
   options: FingerprintOptions
-): Promise<{
-  hash: string;
-  sources: object[];
-  isDebugSource: boolean;
-}> {
+): Promise<
+  Fingerprint & {
+    isDebugSource: boolean;
+  }
+> {
   const Fingerprint = require(fingerprintPath);
   const fingerprintOptions: Record<string, any> = {};
   if (options.platforms) {
@@ -99,9 +116,7 @@ export async function createFingerprintsByKeyAsync(
 ): Promise<
   Map<
     string,
-    {
-      hash: string;
-      sources: object[];
+    Fingerprint & {
       isDebugSource: boolean;
     }
   >

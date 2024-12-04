@@ -711,6 +711,7 @@ export type AccountSsoConfigurationPublicDataQueryPublicDataByAccountNameArgs = 
 };
 
 export enum AccountUploadSessionType {
+  ProfileImageUpload = 'PROFILE_IMAGE_UPLOAD',
   WorkflowsProjectSources = 'WORKFLOWS_PROJECT_SOURCES'
 }
 
@@ -2048,6 +2049,10 @@ export type AppUpdatesConnection = {
   pageInfo: PageInfo;
 };
 
+export enum AppUploadSessionType {
+  ProfileImageUpload = 'PROFILE_IMAGE_UPLOAD'
+}
+
 /** Represents Play Store/App Store version of an application */
 export type AppVersion = {
   __typename?: 'AppVersion';
@@ -2866,6 +2871,7 @@ export type BuildFilter = {
   channel?: InputMaybe<Scalars['String']['input']>;
   distribution?: InputMaybe<DistributionType>;
   gitCommitHash?: InputMaybe<Scalars['String']['input']>;
+  hasFingerprint?: InputMaybe<Scalars['Boolean']['input']>;
   platform?: InputMaybe<AppPlatform>;
   runtimeVersion?: InputMaybe<Scalars['String']['input']>;
   sdkVersion?: InputMaybe<Scalars['String']['input']>;
@@ -2877,6 +2883,7 @@ export type BuildFilterInput = {
   channel?: InputMaybe<Scalars['String']['input']>;
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
   distributions?: InputMaybe<Array<DistributionType>>;
+  hasFingerprint?: InputMaybe<Scalars['Boolean']['input']>;
   platforms?: InputMaybe<Array<AppPlatform>>;
   releaseChannel?: InputMaybe<Scalars['String']['input']>;
   runtimeVersion?: InputMaybe<Scalars['String']['input']>;
@@ -6857,6 +6864,8 @@ export type UploadSession = {
   __typename?: 'UploadSession';
   /** Create an Upload Session for a specific account */
   createAccountScopedUploadSession: Scalars['JSONObject']['output'];
+  /** Create an Upload Session for a specific app */
+  createAppScopedUploadSession: Scalars['JSONObject']['output'];
   /** Create an Upload Session */
   createUploadSession: Scalars['JSONObject']['output'];
 };
@@ -6865,6 +6874,12 @@ export type UploadSession = {
 export type UploadSessionCreateAccountScopedUploadSessionArgs = {
   accountID: Scalars['ID']['input'];
   type: AccountUploadSessionType;
+};
+
+
+export type UploadSessionCreateAppScopedUploadSessionArgs = {
+  appID: Scalars['ID']['input'];
+  type: AppUploadSessionType;
 };
 
 
@@ -9120,6 +9135,13 @@ export type BuildsWithSubmissionsByIdQueryVariables = Exact<{
 
 export type BuildsWithSubmissionsByIdQuery = { __typename?: 'RootQuery', builds: { __typename?: 'BuildQuery', byId: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, submissions: Array<{ __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: SubmissionAndroidTrack, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }>, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string } } } };
 
+export type BuildsWithFingerprintByIdQueryVariables = Exact<{
+  buildId: Scalars['ID']['input'];
+}>;
+
+
+export type BuildsWithFingerprintByIdQuery = { __typename?: 'RootQuery', builds: { __typename?: 'BuildQuery', byId: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null } | null, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string } } } };
+
 export type ViewBuildsOnAppQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   offset: Scalars['Int']['input'];
@@ -9321,11 +9343,15 @@ export type BuildFragment = { __typename?: 'Build', id: string, status: BuildSta
 
 export type BuildWithSubmissionsFragment = { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, submissions: Array<{ __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: SubmissionAndroidTrack, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }>, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string } };
 
+export type BuildWithFingerprintFragment = { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null } | null, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string } };
+
 export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any };
 
 export type EnvironmentVariableFragment = { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType };
 
 export type EnvironmentVariableWithSecretFragment = { __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility: EnvironmentVariableVisibility, type: EnvironmentSecretType };
+
+export type FingerprintFragment = { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null };
 
 export type RuntimeFragment = { __typename?: 'Runtime', id: string, version: string };
 

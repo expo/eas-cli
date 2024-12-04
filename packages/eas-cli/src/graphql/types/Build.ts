@@ -1,6 +1,7 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import { FingerprintFragmentNode } from './Fingerprint';
 import { SubmissionFragmentNode } from './Submission';
 
 export const BuildFragmentNode = gql`
@@ -69,6 +70,20 @@ export const BuildFragmentWithSubmissionsNode = gql`
     submissions {
       id
       ...SubmissionFragment
+    }
+  }
+`;
+
+export const BuildFragmentWithFingerprintNode = gql`
+  ${print(FingerprintFragmentNode)}
+  ${print(BuildFragmentNode)}
+
+  fragment BuildWithFingerprintFragment on Build {
+    id
+    ...BuildFragment
+    fingerprint {
+      id
+      ...FingerprintFragment
     }
   }
 `;
