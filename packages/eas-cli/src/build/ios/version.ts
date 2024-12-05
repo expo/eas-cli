@@ -109,14 +109,14 @@ function validateShortVersion({
 }): void {
   if (shortVersion && !SHORT_VERSION_REGEX.test(shortVersion)) {
     if (workflow === Workflow.MANAGED) {
-      throw new Error(
-        `The required format for "version" field from app.json/app.config.ts is one to three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: ${shortVersion}. Edit the "version" field in your app.json/app.config.ts to match the required format. ${learnMore(
+      Log.warn(
+        `The required format for "version" field from app.json/app.config.ts for App Store iOS builds is one to three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: ${shortVersion}. Edit the "version" field in your app.json/app.config.ts to match the format required by Apple. ${learnMore(
           'https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleshortversionstring'
         )}`
       );
     } else {
-      throw new Error(
-        `The required format for "CFBundleShortVersionString" in Info.plist is one to three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: ${shortVersion}. Edit the "CFBundleShortVersionString" in your Info.plist to match the required format. ${learnMore(
+      Log.warn(
+        `The required format for "CFBundleShortVersionString" in Info.plist for App Store iOS builds is one to three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: ${shortVersion}. Edit the "CFBundleShortVersionString" in your Info.plist to match the format required by Apple. ${learnMore(
           'https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleshortversionstring'
         )}`
       );
