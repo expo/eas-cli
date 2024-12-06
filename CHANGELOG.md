@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Print warning instead of throwing an error when validating `CFBundleShortVersionString` against App Store requirements. ([#2741](https://github.com/expo/eas-cli/pull/2741) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [14.0.1](https://github.com/expo/eas-cli/releases/tag/v14.0.1) - 2024-12-06
 
 ### 🧹 Chores
