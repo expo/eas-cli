@@ -7,7 +7,7 @@ import Log from '../log';
 import { ora } from '../ora';
 
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
-const PLUGIN_PACKAGE_VERSION = '1.0.144';
+const PLUGIN_PACKAGE_VERSION = '1.0.152';
 
 export enum LocalBuildMode {
   /**
