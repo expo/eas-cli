@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Update `@expo/config` and `@expo/config-plugins` to fix `eas build` command for bare iOS projects on Windows. ([#2744](https://github.com/expo/eas-cli/pull/2744) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 - Fix outdated gitignored Google services file warning. ([#2730](https://github.com/expo/eas-cli/pull/2730) by [@szdziedzic](https://github.com/szdziedzic))
