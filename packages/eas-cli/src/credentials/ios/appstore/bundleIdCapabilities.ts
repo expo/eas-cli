@@ -94,11 +94,10 @@ export async function syncCapabilitiesForEntitlementsAsync(
     entitlements
   );
 
-  const { disabledCapabilityNames, request: modifiedRequest } = getCapabilitiesToDisable(
-    bundleId,
-    remainingCapabilities,
-    request
-  );
+  const { disabledCapabilityNames, request: modifiedRequest } = process.env
+    .EXPO_SKIP_DISABLE_CAPABILITIES
+    ? { disabledCapabilityNames: [], request }
+    : getCapabilitiesToDisable(bundleId, remainingCapabilities, request);
 
   if (modifiedRequest.length) {
     Log.debug(`Patch Request:`, inspect(modifiedRequest, { depth: null, colors: true }));
