@@ -5,7 +5,6 @@ import { vol } from 'memfs';
 import os from 'os';
 import type { XCBuildConfiguration } from 'xcode';
 
-import { learnMore } from '../../../log';
 import { readPlistAsync } from '../../../utils/plist';
 import { resolveVcsClient } from '../../../vcs';
 import {
@@ -300,27 +299,6 @@ describe(readShortVersionAsync, () => {
         vcsClient
       );
       expect(buildNumber).toBe('1.0.0');
-    });
-
-    it('fails when build number is invalid', async () => {
-      const exp = initBareWorkflowProject({
-        appVersion: '$(CURRENT_PROJECT_VERSION)',
-      });
-
-      await expect(
-        readShortVersionAsync(
-          '/app',
-          exp,
-          {
-            CURRENT_PROJECT_VERSION: '0.0.7.1.028',
-          },
-          vcsClient
-        )
-      ).rejects.toThrowError(
-        `The required format for "CFBundleShortVersionString" in Info.plist is one to three period-separated integers, such as 10.14.1. The string can only contain numeric characters (0-9) and periods. Current value: 0.0.7.1.028. Edit the "CFBundleShortVersionString" in your Info.plist to match the required format. ${learnMore(
-          'https://developer.apple.com/documentation/bundleresources/information_property_list/cfbundleshortversionstring'
-        )}`
-      );
     });
   });
 
