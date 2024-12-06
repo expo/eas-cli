@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Bump `@expo/apple-utils` to improve error handling and input validation and change auth headers. ([#2745](https://github.com/expo/eas-cli/pull/2745) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [14.0.0](https://github.com/expo/eas-cli/releases/tag/v14.0.0) - 2024-12-06
 
 ### 🛠 Breaking changes
