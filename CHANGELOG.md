@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Change update message to allow faster copy and paste. ([#2661](https://github.com/expo/eas-cli/pull/2661) by [@jonluca](https://github.com/jonluca))
 - Allow using `$schema` field in `eas.json`. ([#2624](https://github.com/expo/eas-cli/pull/2624) by [@saiichihashimoto](https://github.com/saiichihashimoto))
 
 ## [14.0.2](https://github.com/expo/eas-cli/releases/tag/v14.0.2) - 2024-12-06
