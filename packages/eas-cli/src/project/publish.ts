@@ -634,7 +634,13 @@ export async function getBranchNameForCommandAsync({
   }
 
   if (autoFlag) {
-    return await getDefaultBranchNameAsync(vcsClient);
+    const defaultBranchNameFromVcs = await getDefaultBranchNameAsync(vcsClient);
+    if (!defaultBranchNameFromVcs) {
+      throw new Error(
+        'Must supply --branch or --channel for branch name as auto-detection of branch name via --auto is not supported when no VCS is present.'
+      );
+    }
+    return defaultBranchNameFromVcs;
   } else if (nonInteractive) {
     throw new Error('Must supply --channel, --branch or --auto when in non-interactive mode.');
   } else {
@@ -658,7 +664,7 @@ export async function getBranchNameForCommandAsync({
         type: 'text',
         name: 'name',
         message: 'No branches found. Provide a branch name:',
-        initial: await getDefaultBranchNameAsync(vcsClient),
+        initial: (await getDefaultBranchNameAsync(vcsClient)) ?? undefined,
         validate: value => (value ? true : 'Branch name may not be empty.'),
       });
       branchName = name;
