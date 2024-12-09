@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Add link to FYI page mentioning the workaround for Apple SMS 2FA issue. ([#2752](https://github.com/expo/eas-cli/pull/2752) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [14.0.3](https://github.com/expo/eas-cli/releases/tag/v14.0.3) - 2024-12-09
 
 ### 🐛 Bug fixes
