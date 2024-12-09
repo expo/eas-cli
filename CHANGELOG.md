@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Bump `@expo/apple-utils` to fix sending two-factor authentication codes via SMS. ([#2750](https://github.com/expo/eas-cli/pull/2750) by [@EvanBacon](https://github.com/EvanBacon))
+- Upgrade @expo/multipart-body-parser. ([#2751](https://github.com/expo/eas-cli/pull/2751) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
 

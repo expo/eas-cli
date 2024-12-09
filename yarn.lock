@@ -1528,14 +1528,12 @@
     "@types/bunyan" "^1.8.11"
     bunyan "^1.8.15"
 
-"@expo/multipart-body-parser@1.1.0":
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/@expo/multipart-body-parser/-/multipart-body-parser-1.1.0.tgz#ba402b3047cf14ef17b4d785ec030dd6474ae6e4"
-  integrity sha512-XOaS79wFIJgx0J7oUzRb+kZsnZmFqGpisu0r8RPO3b0wjbW7xpWgiXmRR4RavKeGiVAPauZOi4vad7cJ3KCspg==
+"@expo/multipart-body-parser@2.0.0":
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/@expo/multipart-body-parser/-/multipart-body-parser-2.0.0.tgz#dcd2034f3bbc29b9a6fa6ff31e5ba0caea0a2b38"
+  integrity sha512-yS/wsqlj0d8ZKETEN7ro3dZtjdMhpte8wp+xUzjUQC3jizxcE0E62xgvGquJObiYUMGoCF5qRYr2t78STPEaSw==
   dependencies:
-    dicer "^0.3.1"
-    nullthrows "^1.1.1"
-    structured-headers "^0.4.1"
+    multipasta "^0.2.5"
 
 "@expo/osascript@2.1.4":
   version "2.1.4"
@@ -6123,13 +6121,6 @@ dezalgo@^1.0.0:
   dependencies:
     asap "^2.0.0"
     wrappy "1"
-
-dicer@^0.3.1:
-  version "0.3.1"
-  resolved "https://registry.yarnpkg.com/dicer/-/dicer-0.3.1.tgz#abf28921e3475bc5e801e74e0159fd94f927ba97"
-  integrity sha512-ObioMtXnmjYs3aRtpIJt9rgQSPCIhKVkFPip+E9GUDyWl8N435znUxK/JfNwGZJ2wnn5JKQ7Ly3vOK5Q5dylGA==
-  dependencies:
-    streamsearch "^1.1.0"
 
 diff-sequences@^29.2.0:
   version "29.2.0"
@@ -10750,6 +10741,11 @@ multimatch@5.0.0, multimatch@^5.0.0:
     arrify "^2.0.1"
     minimatch "^3.0.4"
 
+multipasta@^0.2.5:
+  version "0.2.5"
+  resolved "https://registry.yarnpkg.com/multipasta/-/multipasta-0.2.5.tgz#fb3564c4c619b73f98e72e2a4bbd4f7fba153edf"
+  integrity sha512-c8eMDb1WwZcE02WVjHoOmUVk7fnKU/RmUcosHACglrWAuPQsEJv+E8430sXj6jNc1jHw0zrS16aCjQh4BcEb4A==
+
 mute-stream@0.0.8:
   version "0.0.8"
   resolved "https://registry.yarnpkg.com/mute-stream/-/mute-stream-0.0.8.tgz#1630c42b2251ff81e2a283de96a5497ea92e5e0d"
@@ -13473,11 +13469,6 @@ strong-log-transformer@2.1.0, strong-log-transformer@^2.1.0:
     duplexer "^0.1.1"
     minimist "^1.2.0"
     through "^2.3.4"
-
-structured-headers@^0.4.1:
-  version "0.4.1"
-  resolved "https://registry.yarnpkg.com/structured-headers/-/structured-headers-0.4.1.tgz#77abd9410622c6926261c09b9d16cf10592694d1"
-  integrity sha512-0MP/Cxx5SzeeZ10p/bZI0S6MpgD+yxAhi1BOQ34jgnMXsCq3j1t6tQnZu+KdlL7dvJTLT3g9xN8tl10TqgFMcg==
 
 subscriptions-transport-ws@0.9.18:
   version "0.9.18"
