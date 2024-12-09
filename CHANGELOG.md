@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Remove random branch name generation for --auto branch name non-vcs fallback. ([#2747](https://github.com/expo/eas-cli/pull/2747) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 ## [14.0.3](https://github.com/expo/eas-cli/releases/tag/v14.0.3) - 2024-12-09
