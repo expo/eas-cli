@@ -35,7 +35,7 @@ export class SetUpTargetBuildCredentials {
           bundleIdentifier: app.bundleIdentifier,
           projectName: app.projectName,
         },
-        { entitlements }
+        { entitlements, usesBroadcastPushNotifications: ctx.usesBroadcastPushNotifications }
       );
     }
     try {
