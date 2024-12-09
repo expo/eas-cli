@@ -516,10 +516,8 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     capability: CapabilityType.PUSH_NOTIFICATIONS,
     validateOptions: validateDevProdString,
     getOptions(entitlement, _entitlementsJson, { usesBroadcastPushNotifications }) {
-      Log.log('usesBroadcastPushNotifications', usesBroadcastPushNotifications);
       const option = entitlement ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF;
       if (option === CapabilityTypeOption.ON && usesBroadcastPushNotifications) {
-        Log.log('Using broadcast push notifications');
         return CapabilityTypePushNotificationsOption.PUSH_NOTIFICATION_FEATURE_BROADCAST;
       }
       return option;
