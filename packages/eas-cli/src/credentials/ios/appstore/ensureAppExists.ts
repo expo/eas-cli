@@ -12,6 +12,7 @@ import { ora } from '../../../ora';
 
 export interface IosCapabilitiesOptions {
   entitlements: JSONObject;
+  usesBroadcastPushNotifications: boolean;
 }
 
 export interface AppLookupParams {
@@ -93,7 +94,7 @@ export async function ensureBundleIdExistsWithNameAsync(
 
 export async function syncCapabilitiesAsync(
   bundleId: BundleId,
-  { entitlements }: IosCapabilitiesOptions
+  { entitlements, ...rest }: IosCapabilitiesOptions
 ): Promise<void> {
   const spinner = ora(`Syncing capabilities`).start();
 
@@ -105,7 +106,8 @@ export async function syncCapabilitiesAsync(
   try {
     const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
-      entitlements
+      entitlements,
+      rest
     );
     const results =
       [buildMessage('Enabled', enabled), buildMessage('Disabled', disabled)]
@@ -119,7 +121,7 @@ export async function syncCapabilitiesAsync(
   }
 
   // Always run this after syncing the capabilities...
-  await syncCapabilityIdentifiersAsync(bundleId, { entitlements });
+  await syncCapabilityIdentifiersAsync(bundleId, { entitlements, ...rest });
 }
 
 const buildMessage = (title: string, items: string[]): string =>

@@ -32,6 +32,7 @@ export class CredentialsContext {
   public readonly analytics: Analytics;
   public readonly vcsClient: Client;
   public readonly easJsonCliConfig?: EasJson['cli'];
+  public readonly usesBroadcastPushNotifications: boolean;
 
   private shouldAskAuthenticateAppStore: boolean = true;
 
@@ -61,6 +62,8 @@ export class CredentialsContext {
     this.nonInteractive = options.nonInteractive ?? false;
     this.projectInfo = options.projectInfo;
     this.freezeCredentials = options.freezeCredentials ?? false;
+    this.usesBroadcastPushNotifications =
+      options.projectInfo?.exp.ios?.usesBroadcastPushNotifications ?? false;
   }
 
   get hasProjectContext(): boolean {
