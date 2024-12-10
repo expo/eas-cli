@@ -45,7 +45,9 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       id: 'XXX',
     } as any;
 
-    await syncCapabilitiesForEntitlementsAsync(bundleId, entitlements);
+    await syncCapabilitiesForEntitlementsAsync(bundleId, entitlements, {
+      usesBroadcastPushNotifications: false,
+    });
 
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
       {
@@ -62,63 +64,70 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       id: 'XXX',
     } as any;
 
-    const results = await syncCapabilitiesForEntitlementsAsync(bundleId, {
-      'com.apple.developer.healthkit': true,
-      //   'com.apple.developer.healthkit.access': [],
-      'com.apple.developer.in-app-payments': ['merchant.com.example.development'],
-      'com.apple.developer.icloud-container-identifiers': [],
-      'com.apple.developer.ClassKit-environment': 'development',
-      'com.apple.developer.default-data-protection':
-        'NSFileProtectionCompleteUntilFirstUserAuthentication',
-      'com.apple.developer.networking.networkextension': ['dns-proxy'],
-      'com.apple.developer.networking.vpn.api': ['allow-vpn'],
-      'com.apple.developer.networking.HotspotConfiguration': true,
-      'com.apple.developer.kernel.extended-virtual-addressing': true,
-      'com.apple.developer.homekit': true,
-      'com.apple.developer.networking.multipath': true,
-      'com.apple.external-accessory.wireless-configuration': true,
-      'inter-app-audio': true,
-      'com.apple.developer.pass-type-identifiers': ['$(TeamIdentifierPrefix)*'],
-      'com.apple.developer.user-fonts': ['app-usage'],
-      'com.apple.developer.devicecheck.appattest-environment': 'development',
-      'com.apple.developer.nfc.readersession.formats': ['NDEF', 'TAG'],
-      'com.apple.developer.applesignin': ['Default'],
-      'com.apple.developer.siri': true,
-      'com.apple.developer.networking.wifi-info': true,
-      'com.apple.developer.usernotifications.communication': true,
-      'com.apple.developer.usernotifications.time-sensitive': true,
-      'com.apple.developer.group-session': true,
-      'com.apple.developer.family-controls': true,
-      'com.apple.developer.authentication-services.autofill-credential-provider': true,
-      //   'com.apple.developer.game-center': true,
-      'com.apple.security.application-groups': [
-        'group.CY-A5149AC2-49FC-11E7-B3F3-0335A16FFB8D.com.cydia.Extender',
-      ],
+    const results = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      {
+        'com.apple.developer.healthkit': true,
+        //   'com.apple.developer.healthkit.access': [],
+        'com.apple.developer.in-app-payments': ['merchant.com.example.development'],
+        'com.apple.developer.icloud-container-identifiers': [],
+        'com.apple.developer.ClassKit-environment': 'development',
+        'com.apple.developer.default-data-protection':
+          'NSFileProtectionCompleteUntilFirstUserAuthentication',
+        'com.apple.developer.networking.networkextension': ['dns-proxy'],
+        'com.apple.developer.networking.vpn.api': ['allow-vpn'],
+        'com.apple.developer.networking.HotspotConfiguration': true,
+        'com.apple.developer.kernel.extended-virtual-addressing': true,
+        'com.apple.developer.homekit': true,
+        'com.apple.developer.networking.multipath': true,
+        'com.apple.external-accessory.wireless-configuration': true,
+        'inter-app-audio': true,
+        'com.apple.developer.pass-type-identifiers': ['$(TeamIdentifierPrefix)*'],
+        'com.apple.developer.user-fonts': ['app-usage'],
+        'com.apple.developer.devicecheck.appattest-environment': 'development',
+        'com.apple.developer.nfc.readersession.formats': ['NDEF', 'TAG'],
+        'com.apple.developer.applesignin': ['Default'],
+        'com.apple.developer.siri': true,
+        'com.apple.developer.networking.wifi-info': true,
+        'com.apple.developer.usernotifications.communication': true,
+        'com.apple.developer.usernotifications.time-sensitive': true,
+        'com.apple.developer.group-session': true,
+        'com.apple.developer.family-controls': true,
+        'com.apple.developer.authentication-services.autofill-credential-provider': true,
+        //   'com.apple.developer.game-center': true,
+        'com.apple.security.application-groups': [
+          'group.CY-A5149AC2-49FC-11E7-B3F3-0335A16FFB8D.com.cydia.Extender',
+        ],
 
-      'com.apple.developer.fileprovider.testing-mode': true,
-      'com.apple.developer.healthkit.recalibrate-estimates': true,
-      'com.apple.developer.maps': true,
-      'com.apple.developer.user-management': true,
-      'com.apple.developer.networking.custom-protocol': true,
-      'com.apple.developer.system-extension.install': true,
-      'com.apple.developer.push-to-talk': true,
-      'com.apple.developer.driverkit.transport.usb': true,
-      'com.apple.developer.kernel.increased-memory-limit': true,
-      'com.apple.developer.driverkit.communicates-with-drivers': true,
-      'com.apple.developer.media-device-discovery-extension': true,
-      'com.apple.developer.driverkit.allow-third-party-userclients': true,
-      'com.apple.developer.weatherkit': true,
-      'com.apple.developer.on-demand-install-capable': true,
-      'com.apple.developer.driverkit.family.scsicontroller': true,
-      'com.apple.developer.driverkit.family.serial': true,
-      'com.apple.developer.driverkit.family.networking': true,
-      'com.apple.developer.driverkit.family.hid.eventservice': true,
-      'com.apple.developer.driverkit.family.hid.device': true,
-      'com.apple.developer.driverkit': true,
-      'com.apple.developer.driverkit.transport.hid': true,
-      'com.apple.developer.driverkit.family.audio': true,
-      'com.apple.developer.shared-with-you': true,
-    });
+        'com.apple.developer.fileprovider.testing-mode': true,
+        'com.apple.developer.healthkit.recalibrate-estimates': true,
+        'com.apple.developer.maps': true,
+        'com.apple.developer.user-management': true,
+        'com.apple.developer.networking.custom-protocol': true,
+        'com.apple.developer.system-extension.install': true,
+        'com.apple.developer.push-to-talk': true,
+        'com.apple.developer.driverkit.transport.usb': true,
+        'com.apple.developer.kernel.increased-memory-limit': true,
+        'com.apple.developer.driverkit.communicates-with-drivers': true,
+        'com.apple.developer.media-device-discovery-extension': true,
+        'com.apple.developer.driverkit.allow-third-party-userclients': true,
+        'com.apple.developer.weatherkit': true,
+        'com.apple.developer.on-demand-install-capable': true,
+        'com.apple.developer.driverkit.family.scsicontroller': true,
+        'com.apple.developer.driverkit.family.serial': true,
+        'com.apple.developer.driverkit.family.networking': true,
+        'com.apple.developer.driverkit.family.hid.eventservice': true,
+        'com.apple.developer.driverkit.family.hid.device': true,
+        'com.apple.developer.driverkit': true,
+        'com.apple.developer.driverkit.transport.hid': true,
+        'com.apple.developer.driverkit.family.audio': true,
+        'com.apple.developer.shared-with-you': true,
+        'aps-environment': 'production',
+      },
+      {
+        usesBroadcastPushNotifications: false,
+      }
+    );
 
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
       { capabilityType: 'HEALTHKIT', option: 'ON' },
@@ -251,6 +260,10 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
         capabilityType: 'SHARED_WITH_YOU',
         option: 'ON',
       },
+      {
+        capabilityType: 'PUSH_NOTIFICATIONS',
+        option: 'ON',
+      },
     ]);
 
     expect(results.enabled).toMatchInlineSnapshot(`
@@ -304,6 +317,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
         "DriverKit Transport HID (development)",
         "DriverKit Family Audio (development)",
         "Shared with You",
+        "Push Notifications",
       ]
     `);
     expect(results.disabled).toStrictEqual([]);
@@ -318,9 +332,15 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       id: 'XXX',
     } as any;
 
-    const results = await syncCapabilitiesForEntitlementsAsync(bundleId, {
-      'com.apple.developer.healthkit': true,
-    });
+    const results = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      {
+        'com.apple.developer.healthkit': true,
+      },
+      {
+        usesBroadcastPushNotifications: false,
+      }
+    );
 
     expect(bundleId.updateBundleIdCapabilityAsync).not.toBeCalled();
 
@@ -344,9 +364,15 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
     } as any;
 
     await expect(
-      syncCapabilitiesForEntitlementsAsync(bundleId, {
-        'com.apple.developer.healthkit': true,
-      })
+      syncCapabilitiesForEntitlementsAsync(
+        bundleId,
+        {
+          'com.apple.developer.healthkit': true,
+        },
+        {
+          usesBroadcastPushNotifications: false,
+        }
+      )
     ).rejects.toThrowError(
       `https://developer-mdn.apple.com/account/resources/identifiers/bundleId/edit/XXX333`
     );
@@ -361,9 +387,15 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       id: 'XXX',
     } as any;
 
-    const results = await syncCapabilitiesForEntitlementsAsync(bundleId, {
-      'com.apple.developer.healthkit': true,
-    });
+    const results = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      {
+        'com.apple.developer.healthkit': true,
+      },
+      {
+        usesBroadcastPushNotifications: false,
+      }
+    );
 
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
       { capabilityType: 'HEALTHKIT', option: 'ON' },
@@ -382,9 +414,15 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       id: 'XXX',
     } as any;
 
-    const results = await syncCapabilitiesForEntitlementsAsync(bundleId, {
-      'com.apple.developer.healthkit': true,
-    });
+    const results = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      {
+        'com.apple.developer.healthkit': true,
+      },
+      {
+        usesBroadcastPushNotifications: false,
+      }
+    );
 
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
       { capabilityType: 'HEALTHKIT', option: 'ON' },
@@ -406,7 +444,13 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       id: 'XXX',
     } as any;
 
-    const results = await syncCapabilitiesForEntitlementsAsync(bundleId, {});
+    const results = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      {},
+      {
+        usesBroadcastPushNotifications: false,
+      }
+    );
 
     expect(bundleId.updateBundleIdCapabilityAsync).not.toBeCalled();
 
@@ -423,9 +467,15 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       id: 'XXX',
     } as any;
 
-    const results = await syncCapabilitiesForEntitlementsAsync(bundleId, {
-      'com.apple.developer.healthkit': true,
-    });
+    const results = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      {
+        'com.apple.developer.healthkit': true,
+      },
+      {
+        usesBroadcastPushNotifications: false,
+      }
+    );
 
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
       { capabilityType: 'HEALTHKIT', option: 'ON' },
@@ -433,5 +483,165 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
 
     expect(results.enabled).toStrictEqual(['HealthKit']);
     expect(results.disabled).toStrictEqual([]);
+  });
+
+  it('enables push notifications capability with broadcast option when the capability is disabled and usesBroadcastPushNotifications is true', async () => {
+    const bundleId = {
+      getBundleIdCapabilitiesAsync: jest.fn(() => []),
+      updateBundleIdCapabilityAsync: jest.fn(),
+      id: 'XXX',
+    } as any;
+
+    const results = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      {
+        'aps-environment': 'production',
+      },
+      {
+        usesBroadcastPushNotifications: true,
+      }
+    );
+
+    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+      { capabilityType: 'PUSH_NOTIFICATIONS', option: 'PUSH_NOTIFICATION_FEATURE_BROADCAST' },
+    ]);
+
+    expect(results.enabled).toStrictEqual(['Push Notifications']);
+    expect(results.disabled).toStrictEqual([]);
+  });
+
+  it('updates push notifications capability with broadcast option when the capability is enabled without settings and usesBroadcastPushNotifications is true', async () => {
+    const bundleId = {
+      getBundleIdCapabilitiesAsync: jest.fn(() => [
+        new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', { settings: null }),
+      ]),
+      updateBundleIdCapabilityAsync: jest.fn(),
+      id: 'XXX',
+    } as any;
+
+    const results = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      {
+        'aps-environment': 'production',
+      },
+      {
+        usesBroadcastPushNotifications: true,
+      }
+    );
+
+    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+      { capabilityType: 'PUSH_NOTIFICATIONS', option: 'PUSH_NOTIFICATION_FEATURE_BROADCAST' },
+    ]);
+
+    expect(results.enabled).toStrictEqual(['Push Notifications']);
+    expect(results.disabled).toStrictEqual([]);
+  });
+
+  it('disables push notifications capability', async () => {
+    const bundleId = {
+      getBundleIdCapabilitiesAsync: jest.fn(() => [
+        new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', { settings: null }),
+      ]),
+      updateBundleIdCapabilityAsync: jest.fn(),
+      id: 'XXX',
+    } as any;
+
+    const results = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      {},
+      {
+        usesBroadcastPushNotifications: true,
+      }
+    );
+
+    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+      { capabilityType: 'PUSH_NOTIFICATIONS', option: 'OFF' },
+    ]);
+
+    expect(results.disabled).toStrictEqual(['Push Notifications']);
+    expect(results.enabled).toStrictEqual([]);
+  });
+
+  it('does nothing when push notifications capability is enabled with broadcast options and usesBroadcastPushNotifications is true', async () => {
+    const bundleId = {
+      getBundleIdCapabilitiesAsync: jest.fn(() => [
+        new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', {
+          settings: [],
+        }),
+      ]),
+      updateBundleIdCapabilityAsync: jest.fn(),
+      id: 'XXX',
+    } as any;
+
+    const results = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      {
+        'aps-environment': 'production',
+      },
+      {
+        usesBroadcastPushNotifications: true,
+      }
+    );
+
+    expect(bundleId.updateBundleIdCapabilityAsync).not.toBeCalled();
+
+    expect(results.disabled).toStrictEqual([]);
+    expect(results.enabled).toStrictEqual([]);
+  });
+
+  it('does nothing when push notifications capability is enabled without broadcast options and usesBroadcastPushNotifications is false', async () => {
+    const bundleId = {
+      getBundleIdCapabilitiesAsync: jest.fn(() => [
+        new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', {
+          settings: null,
+        }),
+      ]),
+      updateBundleIdCapabilityAsync: jest.fn(),
+      id: 'XXX',
+    } as any;
+
+    const results = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      {
+        'aps-environment': 'production',
+      },
+      {
+        usesBroadcastPushNotifications: false,
+      }
+    );
+
+    expect(bundleId.updateBundleIdCapabilityAsync).not.toBeCalled();
+
+    expect(results.disabled).toStrictEqual([]);
+    expect(results.enabled).toStrictEqual([]);
+  });
+
+  it('updates push notifications capability without broadcast options when it is enabled and usesBroadcastPushNotifications is false', async () => {
+    const bundleId = {
+      getBundleIdCapabilitiesAsync: jest.fn(() => [
+        new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', {
+          settings: [],
+        }),
+      ]),
+      updateBundleIdCapabilityAsync: jest.fn(),
+      id: 'XXX',
+    } as any;
+
+    const results = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      {
+        'aps-environment': 'production',
+      },
+      {
+        usesBroadcastPushNotifications: false,
+      }
+    );
+
+    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+      { capabilityType: 'PUSH_NOTIFICATIONS', option: 'ON' },
+    ]);
+
+    expect(results.disabled).toStrictEqual([]);
+    expect(results.enabled).toStrictEqual(['Push Notifications']);
   });
 });
