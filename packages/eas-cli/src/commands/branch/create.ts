@@ -58,7 +58,7 @@ export default class BranchCreate extends EasCommand {
         type: 'text',
         name: 'name',
         message: 'Provide a branch name:',
-        initial: await getDefaultBranchNameAsync(vcsClient),
+        initial: (await getDefaultBranchNameAsync(vcsClient)) ?? undefined,
         validate: value => (value ? true : validationMessage),
       }));
     }
