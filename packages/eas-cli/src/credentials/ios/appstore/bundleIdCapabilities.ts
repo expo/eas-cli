@@ -6,6 +6,7 @@ import {
   CapabilityType,
   CapabilityTypeDataProtectionOption,
   CapabilityTypeOption,
+  CapabilityTypePushNotificationsOption,
   CloudContainer,
   MerchantId,
 } from '@expo/apple-utils';
@@ -19,7 +20,10 @@ export const EXPO_NO_CAPABILITY_SYNC = getenv.boolish('EXPO_NO_CAPABILITY_SYNC',
 
 type GetOptionsMethod<T extends CapabilityType = any> = (
   entitlement: JSONValue,
-  entitlementsJson: JSONObject
+  entitlementsJson: JSONObject,
+  additionalOptions: {
+    usesBroadcastPushNotifications?: boolean;
+  }
 ) => CapabilityOptionMap[T];
 
 const validateBooleanOptions = (options: any): boolean => {
@@ -78,7 +82,10 @@ const getDefinedOptions: GetOptionsMethod = entitlement => {
  */
 export async function syncCapabilitiesForEntitlementsAsync(
   bundleId: BundleId,
-  entitlements: JSONObject = {}
+  entitlements: JSONObject = {},
+  additionalOptions: {
+    usesBroadcastPushNotifications: boolean;
+  }
 ): Promise<{ enabled: string[]; disabled: string[] }> {
   if (EXPO_NO_CAPABILITY_SYNC) {
     return { enabled: [], disabled: [] };
@@ -91,7 +98,8 @@ export async function syncCapabilitiesForEntitlementsAsync(
 
   const { enabledCapabilityNames, request, remainingCapabilities } = getCapabilitiesToEnable(
     currentCapabilities,
-    entitlements
+    entitlements,
+    additionalOptions
   );
 
   const { disabledCapabilityNames, request: modifiedRequest } = getCapabilitiesToDisable(
@@ -125,9 +133,25 @@ interface CapabilitiesRequest {
   option: any;
 }
 
+function shouldSkipPushNotificationsCapabilityUpdate(
+  existing: BundleIdCapability,
+  additionalOptions: {
+    usesBroadcastPushNotifications: boolean;
+  }
+): boolean {
+  // For push notifications, we should always update the capabaility if
+  // - settings are not defined in the existing capability, but usesBroadcastPushNotifications is enabled (we want to add settings for this capability)
+  // - settings are defined in the existing capability, but usesBroadcastPushNotifications is disabled (we want to remove settings for this capability)
+  const noSettingsAttributes = existing.attributes.settings == null;
+  return !noSettingsAttributes === additionalOptions.usesBroadcastPushNotifications;
+}
+
 function getCapabilitiesToEnable(
   currentCapabilities: BundleIdCapability[],
-  entitlements: JSONObject
+  entitlements: JSONObject,
+  additionalOptions: {
+    usesBroadcastPushNotifications: boolean;
+  }
 ): {
   enabledCapabilityNames: string[];
   request: CapabilitiesRequest[];
@@ -156,7 +180,17 @@ function getCapabilitiesToEnable(
     // Only skip if the existing capability is a simple boolean value,
     // if it has more complex settings then we should always update it.
     // If the `existing.attributes.settings` object is defined, then we can determine that it has extra configuration.
-    if (existing && existing?.attributes.settings == null) {
+    // For push notifications, we should always update the capabaility if
+    // - settings are not defined in the existing capability, but usesBroadcastPushNotifications is enabled (we want to add settings for this capability)
+    // - settings are defined in the existing capability, but usesBroadcastPushNotifications is disabled (we want to remove settings for this capability)
+    const isPushNotificationsCapability =
+      staticCapabilityInfo.capability === CapabilityType.PUSH_NOTIFICATIONS;
+    if (
+      existing &&
+      ((!isPushNotificationsCapability && existing.attributes.settings == null) ||
+        (isPushNotificationsCapability &&
+          shouldSkipPushNotificationsCapabilityUpdate(existing, additionalOptions)))
+    ) {
       // Remove the item from the list of capabilities so we don't disable it.
       remainingCapabilities.splice(existingIndex, 1);
       if (Log.isDebug) {
@@ -173,7 +207,7 @@ function getCapabilitiesToEnable(
 
     enabledCapabilityNames.push(staticCapabilityInfo.name);
 
-    const option = staticCapabilityInfo.getOptions(value, entitlements);
+    const option = staticCapabilityInfo.getOptions(value, entitlements, additionalOptions);
 
     request.push({
       capabilityType: staticCapabilityInfo.capability,
@@ -488,7 +522,13 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     entitlement: 'aps-environment',
     capability: CapabilityType.PUSH_NOTIFICATIONS,
     validateOptions: validateDevProdString,
-    getOptions: getDefinedOptions,
+    getOptions(entitlement, _entitlementsJson, { usesBroadcastPushNotifications }) {
+      const option = entitlement ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF;
+      if (option === CapabilityTypeOption.ON && usesBroadcastPushNotifications) {
+        return CapabilityTypePushNotificationsOption.PUSH_NOTIFICATION_FEATURE_BROADCAST;
+      }
+      return option;
+    },
   },
   {
     name: 'Wallet',
