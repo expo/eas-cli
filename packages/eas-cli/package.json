@@ -17,7 +17,7 @@
     "@expo/env": "^0.4.0",
     "@expo/json-file": "8.3.3",
     "@expo/logger": "1.0.117",
-    "@expo/multipart-body-parser": "1.1.0",
+    "@expo/multipart-body-parser": "2.0.0",
     "@expo/osascript": "2.1.4",
     "@expo/package-manager": "1.6.1",
     "@expo/pkcs12": "0.1.3",
