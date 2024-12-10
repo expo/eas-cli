@@ -8,9 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add support for enabeling broadcast Push Notifications capability option, by setting `ios.usesBroadcastPushNotifications` to `true` in app config. ([#2748](https://github.com/expo/eas-cli/pull/2748) by [@szdziedzic](https://github.com/szdziedzic))
-
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [14.1.0](https://github.com/expo/eas-cli/releases/tag/v14.1.0) - 2024-12-10
+
+### 🎉 New features
+
+- Add support for enabeling broadcast Push Notifications capability option, by setting `ios.usesBroadcastPushNotifications` to `true` in app config. ([#2748](https://github.com/expo/eas-cli/pull/2748) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 
