@@ -133,6 +133,19 @@ interface CapabilitiesRequest {
   option: any;
 }
 
+function shouldSkipPushNotificationsCapabilityUpdate(
+  existing: BundleIdCapability,
+  additionalOptions: {
+    usesBroadcastPushNotifications: boolean;
+  }
+): boolean {
+  // For push notifications, we should always update the capabaility if
+  // - settings are not defined in the existing capability, but usesBroadcastPushNotifications is enabled (we want to add settings for this capability)
+  // - settings are defined in the existing capability, but usesBroadcastPushNotifications is disabled (we want to remove settings for this capability)
+  const noSettingsAttributes = existing.attributes.settings == null;
+  return !noSettingsAttributes === additionalOptions.usesBroadcastPushNotifications;
+}
+
 function getCapabilitiesToEnable(
   currentCapabilities: BundleIdCapability[],
   entitlements: JSONObject,
@@ -172,17 +185,11 @@ function getCapabilitiesToEnable(
     // - settings are defined in the existing capability, but usesBroadcastPushNotifications is disabled (we want to remove settings for this capability)
     const isPushNotificationsCapability =
       staticCapabilityInfo.capability === CapabilityType.PUSH_NOTIFICATIONS;
-    const noSettingsAttributes = existing?.attributes.settings == null;
-    const hasBroadcastPushNotificationsDisabledBothLocalAndRemote =
-      !additionalOptions.usesBroadcastPushNotifications && noSettingsAttributes;
-    const hasBroadcastPushNotificationsEnabledBothLocalAndRemote =
-      additionalOptions.usesBroadcastPushNotifications && !noSettingsAttributes;
     if (
       existing &&
-      ((noSettingsAttributes && !isPushNotificationsCapability) ||
+      ((!isPushNotificationsCapability && existing.attributes.settings == null) ||
         (isPushNotificationsCapability &&
-          (hasBroadcastPushNotificationsDisabledBothLocalAndRemote ||
-            hasBroadcastPushNotificationsEnabledBothLocalAndRemote)))
+          shouldSkipPushNotificationsCapabilityUpdate(existing, additionalOptions)))
     ) {
       // Remove the item from the list of capabilities so we don't disable it.
       remainingCapabilities.splice(existingIndex, 1);
