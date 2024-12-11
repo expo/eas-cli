@@ -158,29 +158,20 @@ export default class EnvExec extends EasCommand {
         environment,
       });
 
-    const secretEnvironmentVariables = environmentVariablesQueryResult.filter(
-      ({ value }) => !value
-    );
-    if (secretEnvironmentVariables.length > 0) {
-      Log.warn(`The following environment variables are secret and cannot be downloaded locally:`);
-      for (const { name } of secretEnvironmentVariables) {
-        Log.warn(`- ${name}`);
-      }
-      Log.warn('Proceeding with the rest of the environment variables.');
-      Log.newLine();
-    }
-
     const nonSecretEnvironmentVariables = environmentVariablesQueryResult.filter(
       ({ value }) => !!value
     );
-    if (nonSecretEnvironmentVariables.length === 0) {
-      throw new Error('No readable environment variables found for the selected environment.');
-    }
-    Log.log(
-      `Loaded environment variables for the selected environment "${environment.toLowerCase()}":`
-    );
-    for (const { name } of nonSecretEnvironmentVariables) {
-      Log.log(`- ${name}`);
+
+    if (nonSecretEnvironmentVariables.length > 0) {
+      Log.log(
+        `Environment variables with visibility "Plain text" and "Sensitive" loaded from the "${environment.toLowerCase()}" environment on EAS: ${nonSecretEnvironmentVariables
+          .map(e => e.name)
+          .join(', ')}.`
+      );
+    } else {
+      Log.log(
+        `No environment variables with visibility "Plain text" and "Sensitive" found for the "${environment.toLowerCase()}" environment on EAS servers.`
+      );
     }
     Log.newLine();
 
