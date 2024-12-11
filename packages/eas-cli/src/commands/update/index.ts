@@ -494,6 +494,7 @@ export default class UpdatePublish extends EasCommand {
             gitCommitHash,
             isGitWorkingTreeDirty,
             awaitingCodeSigningInfo: !!codeSigningInfo,
+            environment: environment ?? null,
           };
         }
       );
