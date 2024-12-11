@@ -48,7 +48,7 @@ interface DeployFlags {
 
 interface RawDeployFlags {
   'non-interactive': boolean;
-  environment?: string;
+  environment?: EnvironmentVariableEnvironment;
   json: boolean;
   prod: boolean;
   alias?: string;
@@ -96,10 +96,7 @@ export default class WorkerDeploy extends EasCommand {
       description: 'Outputs a tarball of the new deployment instead of uploading it.',
       default: false,
     }),
-    environment: {
-      ...EASEnvironmentFlag.environment,
-      description: 'Deploy with EAS Environment Variables matching the specified environment.',
-    },
+    ...EASEnvironmentFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -398,6 +395,7 @@ export default class WorkerDeploy extends EasCommand {
       aliasName: flags.alias?.trim().toLowerCase(),
       deploymentIdentifier: flags.id?.trim(),
       exportDir: flags['export-dir'],
+      environment: flags['environment'],
       dryRun: flags['dry-run'],
     };
   }
