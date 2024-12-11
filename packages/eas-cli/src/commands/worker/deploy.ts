@@ -275,10 +275,12 @@ export default class WorkerDeploy extends EasCommand {
       );
 
       if (flags.dryRun) {
-        const dryRunPath = 'deploy.tar.gz';
-        await fs.promises.copyFile(tarPath, dryRunPath);
+        const DRY_RUN_OUTPUT_PATH = 'deploy.tar.gz';
+        await fs.promises.copyFile(tarPath, DRY_RUN_OUTPUT_PATH);
         progress.succeed('Saved deploy.tar.gz tarball');
-        if (flags.json) printJsonOnlyOutput({ tarPath: dryRunPath });
+        if (flags.json) {
+          printJsonOnlyOutput({ tarPath: DRY_RUN_OUTPUT_PATH });
+        }
         return;
       }
 
