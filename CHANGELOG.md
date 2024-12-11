@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Remove random branch name generation for --auto branch name non-vcs fallback. ([#2747](https://github.com/expo/eas-cli/pull/2747) by [@wschurman](https://github.com/wschurman))
 - Upgrade @expo/multipart-body-parser. ([#2751](https://github.com/expo/eas-cli/pull/2751) by [@wschurman](https://github.com/wschurman))
+- Pass env var flag to worker deployments. ([#2763](https://github.com/expo/eas-cli/pull/2763) by [@kadikraman](https://github.com/kadikraman))
 
 ### 🧹 Chores
 
