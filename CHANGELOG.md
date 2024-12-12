@@ -18,6 +18,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Fix provider account switching. ([#2767](https://github.com/expo/eas-cli/pull/2767) by [@EvanBacon](https://github.com/EvanBacon))
+
 ## [14.1.0](https://github.com/expo/eas-cli/releases/tag/v14.1.0) - 2024-12-10
 
 ### 🎉 New features
