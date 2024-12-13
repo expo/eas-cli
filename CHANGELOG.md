@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [14.2.0](https://github.com/expo/eas-cli/releases/tag/v14.2.0) - 2024-12-13
+
+### 🎉 New features
+
 - Add `eas deploy --dry-run` flag to output tarball. ([#2761](https://github.com/expo/eas-cli/pull/2761) by [@kitten](https://github.com/kitten))
 
 ### 🐛 Bug fixes
