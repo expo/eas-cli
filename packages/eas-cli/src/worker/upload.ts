@@ -109,20 +109,21 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
         return retry(error);
       }
 
+      const body = await response.json().catch(() => null);
+      const errorMessage = body?.error ?? `Upload of "${filePath}" failed: ${response.statusText}`;
+
       if (
         response.status === 408 ||
         response.status === 409 ||
         response.status === 429 ||
         (response.status >= 500 && response.status <= 599)
       ) {
-        const message = `Upload of "${filePath}" failed: ${response.statusText}`;
-        const text = await response.text().catch(() => null);
-        return retry(new Error(text ? `${message}\n${text}` : message));
+        return retry(new Error(errorMessage));
       } else if (response.status === 413) {
         const message = `Upload of "${filePath}" failed: File size exceeded the upload limit`;
         throw new Error(message);
       } else if (!response.ok) {
-        throw new Error(`Upload of "${filePath}" failed: ${response.statusText}`);
+        throw new Error(errorMessage);
       }
 
       return {
