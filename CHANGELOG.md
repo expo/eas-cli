@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Show `eas deploy` upload error messages. ([#2771](https://github.com/expo/eas-cli/pull/2771) by [@kadikraman](https://github.com/kadikraman))
+
 ### 🧹 Chores
 
 ## [14.2.0](https://github.com/expo/eas-cli/releases/tag/v14.2.0) - 2024-12-13
@@ -24,7 +26,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - Upgrade @expo/multipart-body-parser. ([#2751](https://github.com/expo/eas-cli/pull/2751) by [@wschurman](https://github.com/wschurman))
 - Pass env var flag to worker deployments. ([#2763](https://github.com/expo/eas-cli/pull/2763) by [@kadikraman](https://github.com/kadikraman))
 - Fix request for switching providers when doing Apple auth. ([#2769](https://github.com/expo/eas-cli/pull/2769) by [@szdziedzic](https://github.com/szdziedzic))
-- Show upload error message.
 
 ### 🧹 Chores
 
