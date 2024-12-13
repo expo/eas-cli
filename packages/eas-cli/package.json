@@ -1,19 +1,19 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "14.1.0",
+  "version": "14.2.0",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
   },
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@expo/apple-utils": "2.1.4",
+    "@expo/apple-utils": "2.1.5",
     "@expo/code-signing-certificates": "0.0.5",
     "@expo/config": "10.0.6",
     "@expo/config-plugins": "9.0.12",
-    "@expo/eas-build-job": "1.0.151",
-    "@expo/eas-json": "14.0.3",
+    "@expo/eas-build-job": "1.0.154",
+    "@expo/eas-json": "14.2.0",
     "@expo/env": "^0.4.0",
     "@expo/json-file": "8.3.3",
     "@expo/logger": "1.0.117",
@@ -28,7 +28,7 @@
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.7.2",
-    "@expo/steps": "1.0.151",
+    "@expo/steps": "1.0.154",
     "@expo/timeago.js": "1.0.0",
     "@oclif/core": "^1.26.2",
     "@oclif/plugin-autocomplete": "^2.3.10",

@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [14.2.0](https://github.com/expo/eas-cli/releases/tag/v14.2.0) - 2024-12-13
+
+### 🎉 New features
+
 - Add `eas deploy --dry-run` flag to output tarball. ([#2761](https://github.com/expo/eas-cli/pull/2761) by [@kitten](https://github.com/kitten))
 
 ### 🐛 Bug fixes
@@ -15,9 +23,12 @@ This is the log of notable changes to EAS CLI and related packages.
 - Remove random branch name generation for --auto branch name non-vcs fallback. ([#2747](https://github.com/expo/eas-cli/pull/2747) by [@wschurman](https://github.com/wschurman))
 - Upgrade @expo/multipart-body-parser. ([#2751](https://github.com/expo/eas-cli/pull/2751) by [@wschurman](https://github.com/wschurman))
 - Pass env var flag to worker deployments. ([#2763](https://github.com/expo/eas-cli/pull/2763) by [@kadikraman](https://github.com/kadikraman))
+- Fix request for switching providers when doing Apple auth. ([#2769](https://github.com/expo/eas-cli/pull/2769) by [@szdziedzic](https://github.com/szdziedzic))
 - Show upload error message.
 
 ### 🧹 Chores
+
+- Improve logging and validation in `eas env:exec` command. ([#2762](https://github.com/expo/eas-cli/pull/2762) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [14.1.0](https://github.com/expo/eas-cli/releases/tag/v14.1.0) - 2024-12-10
 
