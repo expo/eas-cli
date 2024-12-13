@@ -18,6 +18,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Improve logging and validation in `eas env:exec` command. ([#2762](https://github.com/expo/eas-cli/pull/2762) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [14.1.0](https://github.com/expo/eas-cli/releases/tag/v14.1.0) - 2024-12-10
 
 ### 🎉 New features
