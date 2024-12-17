@@ -27,6 +27,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add `eas deploy --dry-run` flag to output tarball. ([#2761](https://github.com/expo/eas-cli/pull/2761) by [@kitten](https://github.com/kitten))
+- Allow specifying credentials for android builds. ([#2775](https://github.com/expo/eas-cli/pull/2775) by [@khamilowicz](https://github.com/khamilowicz))
 
 ### 🐛 Bug fixes
 
