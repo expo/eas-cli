@@ -101,6 +101,14 @@ const AndroidBuildProfileSchema = PlatformBuildProfileSchema.concat(
       Joi.boolean(),
       Joi.string().valid('version', 'versionCode')
     ),
+
+    keystoreName: Joi.when('credentialsSource', {
+      is: 'remote',
+      then: Joi.string(),
+      otherwise: Joi.forbidden().messages({
+        'any.unknown': 'keystoreName is not allowed when credentialsSource is not remote',
+      }),
+    }),
   })
 );
 

@@ -129,6 +129,32 @@ test('valid eas.json with specified environment', async () => {
   });
 });
 
+test('valid eas.json with specified keystoreName', async () => {
+  const keystoreName = 'this-is-a-keystore-name';
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      development: {
+        android: {
+          keystoreName,
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'development'
+  );
+
+  expect(androidProfile).toEqual(
+    expect.objectContaining({
+      keystoreName,
+    })
+  );
+});
+
 test('valid eas.json with top level withoutCredentials property', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
