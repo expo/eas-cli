@@ -31,6 +31,7 @@ export function transformJob(job: Ios.Job): IosJobInput {
     experimental: job.experimental,
     mode: transformBuildMode(job.mode),
     customBuildConfig: job.customBuildConfig,
+    environment: job.environment,
     loggerLevel: job.loggerLevel
       ? loggerLevelToGraphQLWorkerLoggerLevel[job.loggerLevel]
       : undefined,
