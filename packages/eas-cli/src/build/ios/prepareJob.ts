@@ -88,6 +88,7 @@ export async function prepareJobAsync(
     buildConfiguration: buildProfile.buildConfiguration,
     applicationArchivePath: buildProfile.applicationArchivePath ?? buildProfile.artifactPath,
     buildArtifactPaths: buildProfile.buildArtifactPaths,
+    environment: ctx.buildProfile.environment,
     username,
     ...(ctx.ios.buildNumberOverride && {
       version: {
