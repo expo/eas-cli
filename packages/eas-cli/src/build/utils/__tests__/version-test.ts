@@ -1,7 +1,8 @@
-import { bumpAppVersionAsync, getVersionConfigTarget } from '../version';
 import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
+
 import { updateAppJsonConfigAsync } from '../appJson';
+import { bumpAppVersionAsync, getVersionConfigTarget } from '../version';
 
 jest.mock('../appJson', () => ({
   __esModule: true,

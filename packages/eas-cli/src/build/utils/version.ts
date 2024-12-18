@@ -1,8 +1,8 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
+import { Platform } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 import semver from 'semver';
-import { Platform } from '@expo/eas-build-job';
 
 import { updateAppJsonConfigAsync } from './appJson';
 import Log from '../../log';
