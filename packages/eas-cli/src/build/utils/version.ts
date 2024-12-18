@@ -2,6 +2,7 @@ import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 import semver from 'semver';
+import { Platform } from '@expo/eas-build-job';
 
 import { updateAppJsonConfigAsync } from './appJson';
 import Log from '../../log';
@@ -18,21 +19,25 @@ export async function bumpAppVersionAsync({
   appVersion,
   projectDir,
   exp,
+  platform,
 }: {
   appVersion: string;
   projectDir: string;
   exp: ExpoConfig;
+  platform: Platform;
 }): Promise<void> {
+  const { fieldName, versionUpdater } = getVersionConfigTarget({ exp, platform });
+
   let bumpedAppVersion: string;
   if (semver.valid(appVersion)) {
     bumpedAppVersion = nullthrows(semver.inc(appVersion, 'patch'));
     Log.log(
-      `Bumping ${chalk.bold('expo.version')} from ${chalk.bold(appVersion)} to ${chalk.bold(
+      `Bumping ${chalk.bold(fieldName)} from ${chalk.bold(appVersion)} to ${chalk.bold(
         bumpedAppVersion
       )}`
     );
   } else {
-    Log.log(`${chalk.bold('expo.version')} = ${chalk.bold(appVersion)} is not a valid semver`);
+    Log.log(`${chalk.bold(fieldName)} = ${chalk.bold(appVersion)} is not a valid semver`);
     bumpedAppVersion = (
       await promptAsync({
         type: 'text',
@@ -42,6 +47,56 @@ export async function bumpAppVersionAsync({
     ).bumpedAppVersion;
   }
   await updateAppJsonConfigAsync({ projectDir, exp }, config => {
-    config.version = bumpedAppVersion;
+    versionUpdater(config, bumpedAppVersion);
   });
+}
+
+/**
+ * Get the target version field from ExpoConfig based on the platform.
+ */
+export function getVersionConfigTarget({
+  exp,
+  platform,
+}: {
+  exp: ExpoConfig;
+  platform: Platform;
+}): {
+  fieldName: string;
+  versionGetter: (config: ExpoConfig) => string | undefined;
+  versionUpdater: (config: ExpoConfig, version: string) => ExpoConfig;
+} {
+  // @ts-expect-error: Resolve type errors after upgrading `@expo/config`
+  if (platform === Platform.ANDROID && typeof exp.android?.version === 'string') {
+    return {
+      fieldName: 'expo.android.version',
+      // @ts-expect-error: Resolve type errors after upgrading `@expo/config`
+      versionGetter: config => config.android?.version,
+      versionUpdater: (config, version) => {
+        // @ts-expect-error: Resolve type errors after upgrading `@expo/config`
+        config.android = { ...config.android, version };
+        return config;
+      },
+    };
+    // @ts-expect-error: Resolve type errors after upgrading `@expo/config`
+  } else if (platform === Platform.IOS && typeof exp.ios?.version === 'string') {
+    return {
+      fieldName: 'expo.ios.version',
+      // @ts-expect-error: Resolve type errors after upgrading `@expo/config`
+      versionGetter: config => config.ios?.version,
+      versionUpdater: (config, version) => {
+        // @ts-expect-error: Resolve type errors after upgrading `@expo/config`
+        config.ios = { ...config.ios, version };
+        return config;
+      },
+    };
+  }
+
+  return {
+    fieldName: 'expo.version',
+    versionGetter: config => config.version,
+    versionUpdater: (config, version) => {
+      config.version = version;
+      return config;
+    },
+  };
 }
