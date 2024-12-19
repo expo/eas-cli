@@ -114,7 +114,7 @@ export default class WorkerDeploy extends EasCommand {
       enableJsonOutput();
     }
 
-    Log.warn('EAS Worker Deployments are in beta and subject to breaking changes.');
+    Log.warn('EAS Hosting is still in beta and subject to changes.');
 
     const {
       getDynamicPrivateProjectConfigAsync,
@@ -426,7 +426,7 @@ async function resolveExportedProjectAsync(
 
   if (!exportDirStat?.isDirectory()) {
     throw new Error(
-      `No "${flags.exportDir}/" folder found. Prepare your project for deployment with "npx expo export --platform web"`
+      `No "${flags.exportDir}/" folder found. Export your app with "npx expo export --platform web"`
     );
   }
 
@@ -451,7 +451,8 @@ function logExportedProjectInfo(
   // Only show the timestamp for exports older than 1 minute
   if (project.modifiedAt && Date.now() - project.modifiedAt.getTime() > 60_000) {
     modifiedAgo = ` - exported ${formatTimeAgo(project.modifiedAt)}`;
+    Log.warn(`> Project export: ${project.type}${modifiedAgo}}`);
+  } else {
+    Log.log(chalk`{dim > Project export: ${project.type}}`);
   }
-
-  Log.log(chalk`{dim > Project export: ${project.type}${modifiedAgo}}`);
 }
