@@ -130,6 +130,7 @@ export default class IosSubmitter extends BaseSubmitter<
       ascAppIdentifier,
       appleIdUsername,
       isVerboseFastlaneEnabled,
+      whatToTest: this.ctx.whatToTest,
       ...(appSpecificPassword ? this.formatAppSpecificPassword(appSpecificPassword) : null),
       ...(ascApiKeyResult?.result ? this.formatAscApiKeyResult(ascApiKeyResult.result) : null),
     };
