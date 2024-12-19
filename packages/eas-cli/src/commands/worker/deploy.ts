@@ -114,7 +114,7 @@ export default class WorkerDeploy extends EasCommand {
       enableJsonOutput();
     }
 
-    Log.warn('EAS Worker Deployments are in beta and subject to breaking changes.');
+    Log.warn('EAS Hosting is still in beta and subject to changes.');
 
     const {
       getDynamicPrivateProjectConfigAsync,
