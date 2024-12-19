@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Show `eas deploy` upload error messages. ([#2771](https://github.com/expo/eas-cli/pull/2771) by [@kadikraman](https://github.com/kadikraman))
+- Prevent EAS CLI dependencies check from running repeatedly. ([#2781](https://github.com/expo/eas-cli/pull/2781) by [@kitten](https://github.com/kitten))
 
 ### 🧹 Chores
 

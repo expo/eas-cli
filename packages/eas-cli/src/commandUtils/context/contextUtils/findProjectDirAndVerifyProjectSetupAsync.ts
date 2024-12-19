@@ -103,6 +103,8 @@ export async function findProjectRootAsync({
   }
 }
 
+let ranEnsureEasCliIsNotInDependencies = false;
+
 /**
  * Determine the project root directory and ensure some constraints about the project setup
  * like CLI version and dependencies.
@@ -113,6 +115,9 @@ export async function findProjectRootAsync({
 export async function findProjectDirAndVerifyProjectSetupAsync(): Promise<string> {
   const projectDir = await findProjectRootAsync();
   await applyCliConfigAsync(projectDir);
-  await ensureEasCliIsNotInDependenciesAsync(projectDir);
+  if (!ranEnsureEasCliIsNotInDependencies) {
+    ranEnsureEasCliIsNotInDependencies = true;
+    await ensureEasCliIsNotInDependenciesAsync(projectDir);
+  }
   return projectDir;
 }
