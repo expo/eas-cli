@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Update log output for `worker` deploy and alias commands. ([#2780](https://github.com/expo/eas-cli/pull/2780) by [@kitten](https://github.com/kitten))
+
 ## [14.2.0](https://github.com/expo/eas-cli/releases/tag/v14.2.0) - 2024-12-13
 
 ### 🎉 New features
