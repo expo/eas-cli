@@ -121,10 +121,13 @@ export async function createManifestAsync(
   // Maybe load EAS Environment Variables (based on `--environment` arg)
   let conflictingVariableNames: string[] | undefined;
   if (params.environment) {
-    const loadedVariables = await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
-      appId: params.projectId,
-      environment: params.environment,
-    });
+    const loadedVariables = await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(
+      graphqlClient,
+      {
+        appId: params.projectId,
+        environment: params.environment,
+      }
+    );
     // Load EAS Env vars into `env` object, keeping track of conflicts
     conflictingVariableNames = [];
     for (const variable of loadedVariables) {
