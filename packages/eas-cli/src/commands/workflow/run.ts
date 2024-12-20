@@ -81,6 +81,7 @@ export default class WorkflowRun extends EasCommand {
 
     let projectArchiveBucketKey: string;
     let easJsonBucketKey: string;
+    let packageJsonBucketKey: string;
 
     try {
       ({ projectArchiveBucketKey } = await uploadAccountScopedProjectSourceAsync({
@@ -92,6 +93,12 @@ export default class WorkflowRun extends EasCommand {
         graphqlClient,
         accountId: account.id,
         filePath: path.join(projectDir, 'eas.json'),
+        maxSizeBytes: 1024 * 1024,
+      }));
+      ({ fileBucketKey: packageJsonBucketKey } = await uploadAccountScopedFileAsync({
+        graphqlClient,
+        accountId: account.id,
+        filePath: path.join(projectDir, 'package.json'),
         maxSizeBytes: 1024 * 1024,
       }));
     } catch (err) {
@@ -114,6 +121,7 @@ export default class WorkflowRun extends EasCommand {
               type: WorkflowProjectSourceType.Gcs,
               projectArchiveBucketKey,
               easJsonBucketKey,
+              packageJsonBucketKey,
             },
           },
         }
