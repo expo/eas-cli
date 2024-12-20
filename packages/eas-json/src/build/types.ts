@@ -93,6 +93,8 @@ export interface AndroidBuildProfile extends PlatformBuildProfile {
 
   // versions
   autoIncrement?: AndroidVersionAutoIncrement;
+
+  keystoreName?: string;
 }
 
 export interface IosBuildProfile extends PlatformBuildProfile {

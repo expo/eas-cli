@@ -151,6 +151,7 @@ async function ensureAndroidCredentialsAsync(
     ctx.android.gradleContext
   );
   const provider = new AndroidCredentialsProvider(ctx.credentialsCtx, {
+    name: ctx.buildProfile.keystoreName,
     app: {
       account: nullthrows(
         ctx.user.accounts.find(a => a.name === ctx.accountName),
