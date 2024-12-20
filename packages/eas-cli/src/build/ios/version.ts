@@ -21,7 +21,11 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import { readPlistAsync, writePlistAsync } from '../../utils/plist';
 import { Client } from '../../vcs/vcs';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
-import { bumpAppVersionAsync, ensureStaticConfigExists } from '../utils/version';
+import {
+  bumpAppVersionAsync,
+  ensureStaticConfigExists,
+  getVersionConfigTarget,
+} from '../utils/version';
 
 const SHORT_VERSION_REGEX = /^\d+(\.\d+){0,2}$/;
 
@@ -48,9 +52,11 @@ export async function bumpVersionAsync({
   ensureStaticConfigExists(projectDir);
   await bumpVersionInAppJsonAsync({ bumpStrategy, projectDir, exp });
   Log.log('Updated versions in app.json');
+  const { versionGetter } = getVersionConfigTarget({ exp, platform: Platform.IOS });
+  const version = versionGetter(exp);
   await updateNativeVersionsAsync({
     projectDir,
-    version: exp.version,
+    version,
     buildNumber: exp.ios?.buildNumber,
     targets,
   });
@@ -73,7 +79,7 @@ export async function bumpVersionInAppJsonAsync({
   Log.addNewLineIfNone();
   if (bumpStrategy === BumpStrategy.APP_VERSION) {
     const appVersion = IOSConfig.Version.getVersion(exp);
-    await bumpAppVersionAsync({ appVersion, projectDir, exp });
+    await bumpAppVersionAsync({ appVersion, projectDir, exp, platform: Platform.IOS });
   } else {
     const buildNumber = IOSConfig.Version.getBuildNumber(exp);
     if (isValidBuildNumber(buildNumber)) {
@@ -141,8 +147,10 @@ export async function readShortVersionAsync(
     validateShortVersion({ shortVersion, workflow });
     return shortVersion;
   } else {
-    validateShortVersion({ shortVersion: exp.version, workflow });
-    return exp.version;
+    const { versionGetter } = getVersionConfigTarget({ exp, platform: Platform.IOS });
+    const shortVersion = versionGetter(exp);
+    validateShortVersion({ shortVersion, workflow });
+    return shortVersion;
   }
 }
 
