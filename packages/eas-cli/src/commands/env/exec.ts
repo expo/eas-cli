@@ -107,10 +107,17 @@ export default class EnvExec extends EasCommand {
       throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
     }
 
+    const firstChar = bash_command[0];
+    const lastChar = bash_command[bash_command.length - 1];
+    const cleanCommand =
+      (firstChar === '"' && lastChar === '"') || (firstChar === "'" && lastChar === "'")
+        ? bash_command.slice(1, -1)
+        : bash_command;
+
     return {
       nonInteractive: rawFlags['non-interactive'],
       environment,
-      command: bash_command,
+      command: cleanCommand,
     };
   }
 
@@ -149,7 +156,8 @@ export default class EnvExec extends EasCommand {
     environmentVariables: Record<string, string>;
   }): Promise<void> {
     Log.log(`Running command: ${chalk.bold(command)}`);
-    const spawnPromise = spawnAsync('bash', ['-c', command], {
+    const spawnPromise = spawnAsync(command, [], {
+      shell: true,
       stdio: ['inherit', 'pipe', 'pipe'],
       env: {
         ...process.env,
