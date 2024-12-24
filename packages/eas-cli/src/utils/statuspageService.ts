@@ -42,13 +42,13 @@ function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
 
   if (service.incidents.length > 0) {
     const [currentIncident] = service.incidents;
-    Log.warn(`Reason: ${currentIncident.name}`);
+    Log.warn(`Reason: ${currentIncident.name}.`);
   }
 
   Log.warn(
     `All information on service status and incidents available at ${link(
       'https://status.expo.dev/'
-    )}.`
+    )}`
   );
   Log.newLine();
 }

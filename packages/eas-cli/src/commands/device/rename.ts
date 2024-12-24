@@ -105,12 +105,12 @@ export default class DeviceRename extends EasCommand {
     chosenDevice: AppleDevice | AppleDeviceQueryResult,
     newDeviceName: string
   ): Promise<void> {
-    const removalSpinner = ora(`Renaming Apple device on Expo`).start();
+    const removalSpinner = ora(`Renaming Apple device on EAS`).start();
     try {
       await AppleDeviceMutation.updateAppleDeviceAsync(graphqlClient, chosenDevice.id, {
         name: newDeviceName,
       });
-      removalSpinner.succeed('Renamed Apple device on Expo');
+      removalSpinner.succeed('Renamed Apple device on EAS');
     } catch (err) {
       removalSpinner.fail();
       throw err;

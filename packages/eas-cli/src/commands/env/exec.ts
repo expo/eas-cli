@@ -170,7 +170,7 @@ export default class EnvExec extends EasCommand {
       );
     } else {
       Log.log(
-        `No environment variables with visibility "Plain text" and "Sensitive" found for the "${environment.toLowerCase()}" environment on EAS servers.`
+        `No environment variables with visibility "Plain text" and "Sensitive" found for the "${environment.toLowerCase()}" environment on EAS.`
       );
     }
     Log.newLine();

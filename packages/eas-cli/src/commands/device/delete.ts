@@ -147,10 +147,10 @@ export default class DeviceDelete extends EasCommand {
     graphqlClient: ExpoGraphqlClient,
     chosenDevice: AppleDevice | AppleDeviceQueryResult
   ): Promise<void> {
-    const removalSpinner = ora(`Removing Apple device on Expo`).start();
+    const removalSpinner = ora(`Removing Apple device on EAS`).start();
     try {
       await AppleDeviceMutation.deleteAppleDeviceAsync(graphqlClient, chosenDevice.id);
-      removalSpinner.succeed('Removed Apple device from Expo');
+      removalSpinner.succeed('Removed Apple device from EAS');
     } catch (err) {
       removalSpinner.fail();
       throw err;
