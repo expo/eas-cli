@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Upload `package.json` when uploading workflow sources. ([#2786](https://github.com/expo/eas-cli/pull/2786) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🐛 Bug fixes
 
 - Show `eas deploy` upload error messages. ([#2771](https://github.com/expo/eas-cli/pull/2771) by [@kadikraman](https://github.com/kadikraman))

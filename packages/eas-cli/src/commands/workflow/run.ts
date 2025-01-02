@@ -9,7 +9,7 @@ import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisi
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
 import Log, { link } from '../../log';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
-import { uploadAccountScopedEasJsonAsync } from '../../project/uploadAccountScopedEasJsonAsync';
+import { uploadAccountScopedFileAsync } from '../../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccountScopedProjectSourceAsync';
 import { WorkflowFile } from '../../utils/workflowFile';
 
@@ -81,6 +81,7 @@ export default class WorkflowRun extends EasCommand {
 
     let projectArchiveBucketKey: string;
     let easJsonBucketKey: string;
+    let packageJsonBucketKey: string;
 
     try {
       ({ projectArchiveBucketKey } = await uploadAccountScopedProjectSourceAsync({
@@ -88,10 +89,17 @@ export default class WorkflowRun extends EasCommand {
         vcsClient,
         accountId: account.id,
       }));
-      ({ easJsonBucketKey } = await uploadAccountScopedEasJsonAsync({
+      ({ fileBucketKey: easJsonBucketKey } = await uploadAccountScopedFileAsync({
         graphqlClient,
         accountId: account.id,
-        projectDir,
+        filePath: path.join(projectDir, 'eas.json'),
+        maxSizeBytes: 1024 * 1024,
+      }));
+      ({ fileBucketKey: packageJsonBucketKey } = await uploadAccountScopedFileAsync({
+        graphqlClient,
+        accountId: account.id,
+        filePath: path.join(projectDir, 'package.json'),
+        maxSizeBytes: 1024 * 1024,
       }));
     } catch (err) {
       Log.error('Failed to upload project sources.');
@@ -113,6 +121,7 @@ export default class WorkflowRun extends EasCommand {
               type: WorkflowProjectSourceType.Gcs,
               projectArchiveBucketKey,
               easJsonBucketKey,
+              packageJsonBucketKey,
             },
           },
         }
