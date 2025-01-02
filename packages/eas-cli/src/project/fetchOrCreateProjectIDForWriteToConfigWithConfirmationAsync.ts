@@ -84,13 +84,13 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
   const projectDashboardUrl = getProjectDashboardUrl(accountName, projectName);
   const projectLink = link(projectDashboardUrl, { text: projectFullName });
 
-  const spinner = ora(`Creating ${chalk.bold(projectFullName)} on Expo`).start();
+  const spinner = ora(`Creating ${chalk.bold(projectFullName)} on EAS`).start();
   try {
     const id = await AppMutation.createAppAsync(graphqlClient, {
       accountId: account.id,
       projectName,
     });
-    spinner.succeed(`Created ${chalk.bold(projectLink)} on Expo`);
+    spinner.succeed(`Created ${chalk.bold(projectLink)} on EAS`);
     return id;
   } catch (err) {
     spinner.fail();

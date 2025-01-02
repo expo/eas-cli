@@ -42,13 +42,13 @@ export async function loadServerSideEnvironmentVariablesAsync({
 
   if (Object.keys(serverEnvVars).length > 0) {
     Log.log(
-      `Environment variables with visibility "Plain text" and "Sensitive" loaded from the "${environment.toLowerCase()}" environment on EAS servers: ${Object.keys(
+      `Environment variables with visibility "Plain text" and "Sensitive" loaded from the "${environment.toLowerCase()}" environment on EAS: ${Object.keys(
         serverEnvVars
       ).join(', ')}.`
     );
   } else {
     Log.log(
-      `No environment variables with visibility "Plain text" and "Sensitive" found for the "${environment.toLowerCase()}" environment on EAS servers.`
+      `No environment variables with visibility "Plain text" and "Sensitive" found for the "${environment.toLowerCase()}" environment on EAS.`
     );
   }
   Log.newLine();
