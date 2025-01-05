@@ -133,6 +133,8 @@ export type Account = {
   id: Scalars['ID']['output'];
   isCurrent: Scalars['Boolean']['output'];
   isDisabled: Scalars['Boolean']['output'];
+  /** Whether an Account plan falls into AppDevDomainName's free or paid tier */
+  isFreeAppDevDomainTier: Scalars['Boolean']['output'];
   /** Whether this account has SSO enabled. Can be queried by all members. */
   isSSOEnabled: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
@@ -143,6 +145,7 @@ export type Account = {
   owner?: Maybe<User>;
   /** Owning UserActor of this account if personal account */
   ownerUserActor?: Maybe<UserActor>;
+  profileImageUrl: Scalars['String']['output'];
   pushSecurityEnabled: Scalars['Boolean']['output'];
   /** @deprecated Legacy access tokens are deprecated */
   requiresAccessTokenForPushSecurity: Scalars['Boolean']['output'];
@@ -1366,6 +1369,8 @@ export type App = Project & {
   /** EAS updates owned by an app */
   updates: Array<Update>;
   updatesPaginated: AppUpdatesConnection;
+  /** Project query object for querying EAS usage metrics */
+  usageMetrics: AppUsageMetrics;
   /** @deprecated Use ownerAccount.name instead */
   username: Scalars['String']['output'];
   /** @deprecated No longer supported */
@@ -2052,6 +2057,44 @@ export type AppUpdatesConnection = {
 export enum AppUploadSessionType {
   ProfileImageUpload = 'PROFILE_IMAGE_UPLOAD'
 }
+
+export type AppUsageMetric = {
+  __typename?: 'AppUsageMetric';
+  id: Scalars['ID']['output'];
+  metricType: UsageMetricType;
+  serviceMetric: EasServiceMetric;
+  timestamp: Scalars['DateTime']['output'];
+  value: Scalars['Float']['output'];
+};
+
+export type AppUsageMetricTotal = {
+  __typename?: 'AppUsageMetricTotal';
+  billingPeriod: BillingPeriod;
+  id: Scalars['ID']['output'];
+  planMetrics: Array<EstimatedUsage>;
+  /** Total cost of overages, in cents */
+  totalCost: Scalars['Float']['output'];
+};
+
+export type AppUsageMetrics = {
+  __typename?: 'AppUsageMetrics';
+  byBillingPeriod: AppUsageMetricTotal;
+  metricsForServiceMetric: Array<AppUsageMetric>;
+};
+
+
+export type AppUsageMetricsByBillingPeriodArgs = {
+  date: Scalars['DateTime']['input'];
+  service?: InputMaybe<EasService>;
+};
+
+
+export type AppUsageMetricsMetricsForServiceMetricArgs = {
+  filterParams?: InputMaybe<Scalars['JSONObject']['input']>;
+  granularity: UsageMetricsGranularity;
+  serviceMetric: EasServiceMetric;
+  timespan: UsageMetricsTimespan;
+};
 
 /** Represents Play Store/App Store version of an application */
 export type AppVersion = {
@@ -3294,6 +3337,7 @@ export enum CrashSampleFor {
 }
 
 export type CrashesFilters = {
+  crashKind?: InputMaybe<Array<WorkerDeploymentCrashKind>>;
   name?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -3344,6 +3388,11 @@ export type CreateEnvironmentVariableInput = {
   type?: InputMaybe<EnvironmentSecretType>;
   value: Scalars['String']['input'];
   visibility: EnvironmentVariableVisibility;
+};
+
+export type CreateFingerprintInput = {
+  hash: Scalars['String']['input'];
+  source?: InputMaybe<FingerprintSourceInput>;
 };
 
 export type CreateGitHubAppInstallationInput = {
@@ -4197,6 +4246,18 @@ export type FingerprintInfoGroup = {
   android?: InputMaybe<FingerprintInfo>;
   ios?: InputMaybe<FingerprintInfo>;
   web?: InputMaybe<FingerprintInfo>;
+};
+
+export type FingerprintMutation = {
+  __typename?: 'FingerprintMutation';
+  /** Create an fingeprint for an App */
+  createOrGetExistingFingerprint: Fingerprint;
+};
+
+
+export type FingerprintMutationCreateOrGetExistingFingerprintArgs = {
+  appId: Scalars['ID']['input'];
+  fingerprintData: CreateFingerprintInput;
 };
 
 export type FingerprintSource = {
@@ -5512,6 +5573,7 @@ export type PublicArtifacts = {
 export type PublishUpdateGroupInput = {
   awaitingCodeSigningInfo?: InputMaybe<Scalars['Boolean']['input']>;
   branchId: Scalars['String']['input'];
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   excludedAssets?: InputMaybe<Array<PartialManifestAsset>>;
   fingerprintInfoGroup?: InputMaybe<FingerprintInfoGroup>;
   gitCommitHash?: InputMaybe<Scalars['String']['input']>;
@@ -5541,6 +5603,7 @@ export type RequestsFilters = {
   hasCustomDomainOrigin?: InputMaybe<Scalars['Boolean']['input']>;
   isAsset?: InputMaybe<Scalars['Boolean']['input']>;
   isCrash?: InputMaybe<Scalars['Boolean']['input']>;
+  isLimitExceeded?: InputMaybe<Scalars['Boolean']['input']>;
   isVerifiedBot?: InputMaybe<Scalars['Boolean']['input']>;
   method?: InputMaybe<Array<RequestMethod>>;
   os?: InputMaybe<Array<UserAgentOs>>;
@@ -5617,8 +5680,11 @@ export type Robot = Actor & {
    */
   featureGates: Scalars['JSONObject']['output'];
   firstName?: Maybe<Scalars['String']['output']>;
+  /** GitHub App Installations that manage this actor */
+  githubAppInstallations: Array<GitHubAppInstallation>;
   id: Scalars['ID']['output'];
   isExpoAdmin: Scalars['Boolean']['output'];
+  isManagedByGitHubApp: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
 };
 
@@ -5731,6 +5797,8 @@ export type RootMutation = {
   environmentSecret: EnvironmentSecretMutation;
   /** Mutations that create and delete EnvironmentVariables */
   environmentVariable: EnvironmentVariableMutation;
+  /** Mutations that modify App fingerprints */
+  fingerprint: FingerprintMutation;
   /** Mutations that utilize services facilitated by the GitHub App */
   githubApp: GitHubAppMutation;
   /** Mutations for GitHub App installations */
@@ -6383,7 +6451,7 @@ export enum SubmissionAndroidTrack {
 }
 
 export type SubmissionArchiveSourceInput = {
-  /** Required if the archive source type is GCS_BUILD_APPLICATION_ARCHIVE or GCS_SUBMIT_ARCHIVE */
+  /** Required if the archive source type is GCS_BUILD_APPLICATION_ARCHIVE, GCS_BUILD_APPLICATION_ARCHIVE_ORCHESTRATOR or GCS_SUBMIT_ARCHIVE */
   bucketKey?: InputMaybe<Scalars['String']['input']>;
   type: SubmissionArchiveSourceType;
   /** Required if the archive source type is URL */
@@ -6392,6 +6460,7 @@ export type SubmissionArchiveSourceInput = {
 
 export enum SubmissionArchiveSourceType {
   GcsBuildApplicationArchive = 'GCS_BUILD_APPLICATION_ARCHIVE',
+  GcsBuildApplicationArchiveOrchestrator = 'GCS_BUILD_APPLICATION_ARCHIVE_ORCHESTRATOR',
   GcsSubmitArchive = 'GCS_SUBMIT_ARCHIVE',
   Url = 'URL'
 }
@@ -6549,6 +6618,7 @@ export type Update = ActivityTimelineProjectActivity & {
   codeSigningInfo?: Maybe<CodeSigningInfo>;
   createdAt: Scalars['DateTime']['output'];
   deployments: DeploymentResult;
+  environment?: Maybe<EnvironmentVariableEnvironment>;
   expoGoSDKVersion?: Maybe<Scalars['String']['output']>;
   fingerprint?: Maybe<Fingerprint>;
   gitCommitHash?: Maybe<Scalars['String']['output']>;
@@ -7641,6 +7711,7 @@ export type WorkerDeployment = ActivityTimelineProjectActivity & {
   activityTimestamp: Scalars['DateTime']['output'];
   actor?: Maybe<Actor>;
   aliases?: Maybe<Array<WorkerDeploymentAlias>>;
+  app: App;
   crashes?: Maybe<WorkerDeploymentCrashes>;
   createdAt: Scalars['DateTime']['output'];
   deploymentDomain: Scalars['String']['output'];
@@ -7651,7 +7722,6 @@ export type WorkerDeployment = ActivityTimelineProjectActivity & {
   logs?: Maybe<WorkerDeploymentLogs>;
   requests?: Maybe<WorkerDeploymentRequests>;
   subdomain: Scalars['String']['output'];
-  tier?: Maybe<WorkerDeploymentTier>;
   url: Scalars['String']['output'];
 };
 
@@ -7705,9 +7775,19 @@ export type WorkerDeploymentCrashEdge = {
   request?: Maybe<WorkerDeploymentRequestNode>;
 };
 
+export enum WorkerDeploymentCrashKind {
+  ExceededCpu = 'EXCEEDED_CPU',
+  ExceededMemory = 'EXCEEDED_MEMORY',
+  ExceededSubrequests = 'EXCEEDED_SUBREQUESTS',
+  Generic = 'GENERIC',
+  Internal = 'INTERNAL',
+  ResponseStreamDisconnected = 'RESPONSE_STREAM_DISCONNECTED'
+}
+
 export type WorkerDeploymentCrashNode = {
   __typename?: 'WorkerDeploymentCrashNode';
   crashHash: Scalars['ID']['output'];
+  crashKind: WorkerDeploymentCrashKind;
   crashTimestamp: Scalars['DateTime']['output'];
   deploymentIdentifier: Scalars['String']['output'];
   firstStackLine?: Maybe<Scalars['String']['output']>;
@@ -7819,6 +7899,7 @@ export type WorkerDeploymentRequestNode = {
   hasCustomDomainOrigin: Scalars['Boolean']['output'];
   isAsset: Scalars['Boolean']['output'];
   isCrash: Scalars['Boolean']['output'];
+  isLimitExceeded: Scalars['Boolean']['output'];
   isRejected: Scalars['Boolean']['output'];
   isStaleIfError: Scalars['Boolean']['output'];
   isStaleWhileRevalidate: Scalars['Boolean']['output'];
@@ -7929,6 +8010,8 @@ export type WorkerDeploymentRequestsAggregationNode = {
   durationP50: Scalars['Float']['output'];
   durationP90: Scalars['Float']['output'];
   durationP99: Scalars['Float']['output'];
+  limitExceededPerMs?: Maybe<Scalars['Float']['output']>;
+  limitExceededSum: Scalars['Int']['output'];
   requestsPerMs?: Maybe<Scalars['Float']['output']>;
   requestsSum: Scalars['Int']['output'];
   sampleRate?: Maybe<Scalars['Float']['output']>;
@@ -8003,11 +8086,6 @@ export type WorkerDeploymentRequestsTimeseriesEdge = {
   node?: Maybe<WorkerDeploymentRequestsAggregationNode>;
   timestamp: Scalars['DateTime']['output'];
 };
-
-export enum WorkerDeploymentTier {
-  Free = 'FREE',
-  Paid = 'PAID'
-}
 
 export type WorkerDeploymentsConnection = {
   __typename?: 'WorkerDeploymentsConnection';
@@ -8112,6 +8190,7 @@ export enum WorkflowJobType {
   AppleDeviceRegistrationRequest = 'APPLE_DEVICE_REGISTRATION_REQUEST',
   Build = 'BUILD',
   Custom = 'CUSTOM',
+  Deploy = 'DEPLOY',
   GetBuild = 'GET_BUILD',
   MaestroTest = 'MAESTRO_TEST',
   RequireApproval = 'REQUIRE_APPROVAL',
@@ -8121,6 +8200,7 @@ export enum WorkflowJobType {
 
 export type WorkflowProjectSourceInput = {
   easJsonBucketKey: Scalars['String']['input'];
+  packageJsonBucketKey?: InputMaybe<Scalars['String']['input']>;
   projectArchiveBucketKey: Scalars['String']['input'];
   type: WorkflowProjectSourceType;
 };
@@ -8925,6 +9005,14 @@ export type CreateBulkEnvironmentVariablesForAppMutationVariables = Exact<{
 
 
 export type CreateBulkEnvironmentVariablesForAppMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createBulkEnvironmentVariablesForApp: Array<{ __typename?: 'EnvironmentVariable', id: string }> } };
+
+export type CreateFingeprintMutationVariables = Exact<{
+  fingerprintData: CreateFingerprintInput;
+  appId: Scalars['ID']['input'];
+}>;
+
+
+export type CreateFingeprintMutation = { __typename?: 'RootMutation', fingerprint: { __typename?: 'FingerprintMutation', createOrGetExistingFingerprint: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null } } };
 
 export type CreateKeystoreGenerationUrlMutationVariables = Exact<{ [key: string]: never; }>;
 
