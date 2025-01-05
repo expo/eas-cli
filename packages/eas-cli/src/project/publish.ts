@@ -923,6 +923,7 @@ export async function maybeCalculateFingerprintForRuntimeVersionInfoObjectsWitho
         workflow: workflowsByPlatform[platform],
         projectDir,
         env,
+        debug: true,
       };
       fingerprintOptionsByRuntimeAndPlatform.set(runtimeAndPlatform, options);
     }

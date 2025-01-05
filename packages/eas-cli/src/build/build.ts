@@ -672,7 +672,9 @@ async function computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync<T extends
   const runtimeAndFingerprintMetadata =
     await computeAndMaybeUploadFingerprintFromExpoUpdatesAsync(ctx);
   if (!runtimeAndFingerprintMetadata?.fingerprintHash) {
-    const fingerprint = await computeAndMaybeUploadFingerprintWithoutExpoUpdatesAsync(ctx);
+    const fingerprint = await computeAndMaybeUploadFingerprintWithoutExpoUpdatesAsync(ctx, {
+      debug: true,
+    });
     return {
       ...runtimeAndFingerprintMetadata,
       ...fingerprint,
@@ -739,6 +741,7 @@ async function computeAndMaybeUploadFingerprintWithoutExpoUpdatesAsync<T extends
     workflow: ctx.workflow,
     platforms: [ctx.platform],
     env: ctx.env,
+    debug,
   });
   if (!fingerprint) {
     return {};

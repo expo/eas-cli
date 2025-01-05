@@ -83,11 +83,12 @@ export default class FingerprintCompare extends EasCommand {
     const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
     const buildPlatform = buildWithFingerprint.platform;
     const workflow = workflows[appPlatformToPlatform(buildPlatform)];
+    const isDebug = true;
 
     const projectFingerprint = await createFingerprintAsync(projectDir, {
       workflow,
       platforms: [appPlatformToString(buildPlatform)],
-      debug: true,
+      debug: isDebug,
       env: undefined,
     });
     if (!projectFingerprint) {
