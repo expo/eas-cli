@@ -95,6 +95,7 @@
     "@graphql-codegen/introspection": "4.0.0",
     "@graphql-codegen/typescript": "4.0.1",
     "@graphql-codegen/typescript-operations": "4.0.1",
+    "@tsconfig/node18": "18.2.4",
     "@types/cli-progress": "3.11.5",
     "@types/dateformat": "3.0.1",
     "@types/diff": "6.0.0",

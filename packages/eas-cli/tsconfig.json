@@ -1,16 +1,15 @@
 {
+  "extends": "@tsconfig/node18/tsconfig.json",
   "compilerOptions": {
     "declaration": true,
     "importHelpers": true,
     "module": "commonjs",
-    "esModuleInterop": true,
+    "moduleResolution": "node",
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "strict": true,
-    "target": "ES2022",
     "outDir": "build",
     "rootDir": "src",
     "typeRoots": ["../../ts-declarations", "../../node_modules/@types", "./node_modules/@types"]
