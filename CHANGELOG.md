@@ -18,6 +18,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Update log output for `worker` deploy and alias commands. ([#2780](https://github.com/expo/eas-cli/pull/2780) by [@kitten](https://github.com/kitten))
 - Update various messages wording. ([#2790](https://github.com/expo/eas-cli/pull/2790) by [@simek](https://github.com/simek))
+- Use node18 as tsconfig base. ([#2736](https://github.com/expo/eas-cli/pull/2739) by [@quinlanj](https://github.com/quinlanj))
 
 ## [14.2.0](https://github.com/expo/eas-cli/releases/tag/v14.2.0) - 2024-12-13
 
