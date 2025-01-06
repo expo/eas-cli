@@ -53,9 +53,10 @@ export default class EnvExec extends EasCommand {
     },
   ];
 
+  private isNonInteractive: boolean = false;
+
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(EnvExec);
-
     const parsedFlags = this.sanitizeFlagsAndArgs(flags, args);
 
     const {
@@ -65,6 +66,8 @@ export default class EnvExec extends EasCommand {
       nonInteractive: parsedFlags.nonInteractive,
     });
 
+    this.isNonInteractive = parsedFlags.nonInteractive;
+
     const environment =
       parsedFlags.environment ??
       (await promptVariableEnvironmentAsync({ nonInteractive: parsedFlags.nonInteractive }));
@@ -72,12 +75,20 @@ export default class EnvExec extends EasCommand {
       graphqlClient,
       projectId,
       environment,
+      nonInteractive: parsedFlags.nonInteractive,
     });
 
-    await this.runCommandWithEnvVarsAsync({
-      command: parsedFlags.command,
-      environmentVariables,
-    });
+    if (parsedFlags.nonInteractive) {
+      await this.runCommandNonInteractiveWithEnvVarsAsync({
+        command: parsedFlags.command,
+        environmentVariables,
+      });
+    } else {
+      await this.runCommandWithEnvVarsAsync({
+        command: parsedFlags.command,
+        environmentVariables,
+      });
+    }
   }
 
   private sanitizeFlagsAndArgs(
@@ -101,6 +112,33 @@ export default class EnvExec extends EasCommand {
       environment,
       command: bash_command,
     };
+  }
+
+  private async runCommandNonInteractiveWithEnvVarsAsync({
+    command,
+    environmentVariables,
+  }: {
+    command: string;
+    environmentVariables: Record<string, string>;
+  }): Promise<void> {
+    await spawnAsync('bash', ['-c', command], {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        ...environmentVariables,
+      },
+    });
+  }
+
+  // eslint-disable-next-line async-protect/async-suffix
+  protected override async catch(err: Error): Promise<any> {
+    // when in non-interactive, make the behavior of this command a pure passthrough, outputting only the subprocess' stdout and stderr and exiting with the
+    // sub-command's exit status
+    if (this.isNonInteractive) {
+      process.exitCode = process.exitCode ?? (err as any).status ?? 1;
+    } else {
+      await super.catch(err);
+    }
   }
 
   private async runCommandWithEnvVarsAsync({
@@ -147,10 +185,12 @@ export default class EnvExec extends EasCommand {
     graphqlClient,
     projectId,
     environment,
+    nonInteractive,
   }: {
     graphqlClient: ExpoGraphqlClient;
     projectId: string;
     environment: EnvironmentVariableEnvironment;
+    nonInteractive: boolean;
   }): Promise<Record<string, string>> {
     const environmentVariablesQueryResult =
       await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
@@ -162,18 +202,20 @@ export default class EnvExec extends EasCommand {
       ({ value }) => !!value
     );
 
-    if (nonSecretEnvironmentVariables.length > 0) {
-      Log.log(
-        `Environment variables with visibility "Plain text" and "Sensitive" loaded from the "${environment.toLowerCase()}" environment on EAS: ${nonSecretEnvironmentVariables
-          .map(e => e.name)
-          .join(', ')}.`
-      );
-    } else {
-      Log.log(
-        `No environment variables with visibility "Plain text" and "Sensitive" found for the "${environment.toLowerCase()}" environment on EAS.`
-      );
+    if (!nonInteractive) {
+      if (nonSecretEnvironmentVariables.length > 0) {
+        Log.log(
+          `Environment variables with visibility "Plain text" and "Sensitive" loaded from the "${environment.toLowerCase()}" environment on EAS: ${nonSecretEnvironmentVariables
+            .map(e => e.name)
+            .join(', ')}.`
+        );
+      } else {
+        Log.log(
+          `No environment variables with visibility "Plain text" and "Sensitive" found for the "${environment.toLowerCase()}" environment on EAS.`
+        );
+      }
+      Log.newLine();
     }
-    Log.newLine();
 
     const environmentVariables: Record<string, string> = {};
     for (const { name, value } of nonSecretEnvironmentVariables) {
