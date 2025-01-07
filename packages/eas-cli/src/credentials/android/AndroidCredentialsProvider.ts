@@ -15,6 +15,7 @@ export interface AndroidCredentials {
 
 interface Options {
   app: AppLookupParams;
+  name?: string;
 }
 
 export default class AndroidCredentialsProvider {
@@ -37,7 +38,7 @@ export default class AndroidCredentialsProvider {
   }
 
   private async getRemoteAsync(): Promise<AndroidCredentials> {
-    const setupBuildCredentialsAction = new SetUpBuildCredentials({ app: this.options.app });
+    const setupBuildCredentialsAction = new SetUpBuildCredentials(this.options);
     const buildCredentials = await setupBuildCredentialsAction.runAsync(this.ctx);
     return this.toAndroidCredentials(buildCredentials);
   }
