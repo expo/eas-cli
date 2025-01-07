@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [14.3.0](https://github.com/expo/eas-cli/releases/tag/v14.3.0) - 2025-01-07
+
+### 🎉 New features
+
 - Upload `package.json` when uploading workflow sources. ([#2786](https://github.com/expo/eas-cli/pull/2786) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🐛 Bug fixes
