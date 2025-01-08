@@ -7,10 +7,12 @@ import { fetchBuildsAsync, formatBuild } from '../../commandUtils/builds';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { AppPlatform, BuildStatus } from '../../graphql/generated';
+import { FingerprintMutation } from '../../graphql/mutations/FingerprintMutation';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
+import { maybeUploadFingerprintAsync } from '../../project/maybeUploadFingerprintAsync';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { selectAsync } from '../../prompts';
@@ -94,6 +96,20 @@ export default class FingerprintCompare extends EasCommand {
       Log.error('Project fingerprints can only be computed for projects with SDK 52 or higher');
       return;
     }
+
+    const uploadedFingerprint = await maybeUploadFingerprintAsync({
+      hash: fingerprint.hash,
+      fingerprint: {
+        fingerprintSources: fingerprint.sources,
+        isDebugFingerprintSource: Log.isDebug,
+      },
+      graphqlClient,
+    });
+    await FingerprintMutation.createFingerprintAsync(graphqlClient, projectId, {
+      hash: uploadedFingerprint.hash,
+      source: uploadedFingerprint.fingerprintSource,
+    });
+
     if (fingerprint.hash === projectFingerprint.hash) {
       Log.log(`✅ Project fingerprint matches build`);
       return;

@@ -24,6 +24,7 @@ export type Scalars = {
   JSON: { input: any; output: any; }
   JSONObject: { input: any; output: any; }
   WorkerDeploymentIdentifier: { input: any; output: any; }
+  WorkerDeploymentRequestID: { input: any; output: any; }
 };
 
 export type AcceptUserInvitationResult = {
@@ -725,12 +726,7 @@ export type AccountUsageEasBuildMetadata = {
   waiverType?: Maybe<EasBuildWaiverType>;
 };
 
-export type AccountUsageEasJobsMetadata = {
-  __typename?: 'AccountUsageEASJobsMetadata';
-  resourceClassDisplayName: Scalars['String']['output'];
-};
-
-export type AccountUsageMetadata = AccountUsageEasBuildMetadata | AccountUsageEasJobsMetadata;
+export type AccountUsageMetadata = AccountUsageEasBuildMetadata;
 
 export type AccountUsageMetric = {
   __typename?: 'AccountUsageMetric';
@@ -1254,6 +1250,7 @@ export type App = Project & {
   environmentVariables: Array<EnvironmentVariable>;
   /** Environment variables for an app with decrypted secret values */
   environmentVariablesIncludingSensitive: Array<EnvironmentVariableWithSecret>;
+  fingerprintsPaginated: AppFingerprintsConnection;
   fullName: Scalars['String']['output'];
   githubBuildTriggers: Array<GitHubBuildTrigger>;
   githubJobRunTriggers: Array<GitHubJobRunTrigger>;
@@ -1481,6 +1478,16 @@ export type AppEnvironmentVariablesArgs = {
 export type AppEnvironmentVariablesIncludingSensitiveArgs = {
   environment?: InputMaybe<EnvironmentVariableEnvironment>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppFingerprintsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<FingerprintFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -1735,6 +1742,18 @@ export type AppDevDomainNameMutationAssignDevDomainNameArgs = {
 export type AppDevDomainNameMutationChangeDevDomainNameArgs = {
   appId: Scalars['ID']['input'];
   name: Scalars['DevDomainName']['input'];
+};
+
+export type AppFingerprintEdge = {
+  __typename?: 'AppFingerprintEdge';
+  cursor: Scalars['String']['output'];
+  node: Fingerprint;
+};
+
+export type AppFingerprintsConnection = {
+  __typename?: 'AppFingerprintsConnection';
+  edges: Array<AppFingerprintEdge>;
+  pageInfo: PageInfo;
 };
 
 export type AppIcon = {
@@ -3390,6 +3409,11 @@ export type CreateEnvironmentVariableInput = {
   visibility: EnvironmentVariableVisibility;
 };
 
+export type CreateFingerprintInput = {
+  hash: Scalars['String']['input'];
+  source?: InputMaybe<FingerprintSourceInput>;
+};
+
 export type CreateGitHubAppInstallationInput = {
   accountId: Scalars['ID']['input'];
   installationIdentifier: Scalars['Int']['input'];
@@ -3962,6 +3986,9 @@ export enum EntityTypeName {
   IosAppCredentialsEntity = 'IosAppCredentialsEntity',
   UserInvitationEntity = 'UserInvitationEntity',
   UserPermissionEntity = 'UserPermissionEntity',
+  WorkerCustomDomainEntity = 'WorkerCustomDomainEntity',
+  WorkerDeploymentAliasEntity = 'WorkerDeploymentAliasEntity',
+  WorkerEntity = 'WorkerEntity',
   WorkflowEntity = 'WorkflowEntity',
   WorkflowRevisionEntity = 'WorkflowRevisionEntity'
 }
@@ -4232,6 +4259,10 @@ export type Fingerprint = {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+export type FingerprintFilterInput = {
+  hashes?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
 export type FingerprintInfo = {
   fingerprintHash: Scalars['String']['input'];
   fingerprintSource: FingerprintSourceInput;
@@ -4241,6 +4272,18 @@ export type FingerprintInfoGroup = {
   android?: InputMaybe<FingerprintInfo>;
   ios?: InputMaybe<FingerprintInfo>;
   web?: InputMaybe<FingerprintInfo>;
+};
+
+export type FingerprintMutation = {
+  __typename?: 'FingerprintMutation';
+  /** Create or get an existing fingerprint for an App */
+  createOrGetExistingFingerprint: Fingerprint;
+};
+
+
+export type FingerprintMutationCreateOrGetExistingFingerprintArgs = {
+  appId: Scalars['ID']['input'];
+  fingerprintData: CreateFingerprintInput;
 };
 
 export type FingerprintSource = {
@@ -5591,6 +5634,7 @@ export type RequestsFilters = {
   method?: InputMaybe<Array<RequestMethod>>;
   os?: InputMaybe<Array<UserAgentOs>>;
   pathname?: InputMaybe<Scalars['String']['input']>;
+  requestId?: InputMaybe<Array<Scalars['WorkerDeploymentRequestID']['input']>>;
   responseType?: InputMaybe<Array<ResponseType>>;
   status?: InputMaybe<Array<Scalars['Int']['input']>>;
   statusType?: InputMaybe<Array<ResponseStatusType>>;
@@ -5780,6 +5824,8 @@ export type RootMutation = {
   environmentSecret: EnvironmentSecretMutation;
   /** Mutations that create and delete EnvironmentVariables */
   environmentVariable: EnvironmentVariableMutation;
+  /** Mutations that modify App fingerprints */
+  fingerprint: FingerprintMutation;
   /** Mutations that utilize services facilitated by the GitHub App */
   githubApp: GitHubAppMutation;
   /** Mutations for GitHub App installations */
@@ -7890,6 +7936,7 @@ export type WorkerDeploymentRequestNode = {
   os?: Maybe<UserAgentOs>;
   pathname: Scalars['String']['output'];
   region?: Maybe<Scalars['String']['output']>;
+  requestId: Scalars['WorkerDeploymentRequestID']['output'];
   requestTimestamp: Scalars['DateTime']['output'];
   responseType: ResponseType;
   scriptName: Scalars['String']['output'];
@@ -8266,6 +8313,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   pullRequestNumber?: Maybe<Scalars['Int']['output']>;
   requestedGitRef?: Maybe<Scalars['String']['output']>;
   status: WorkflowRunStatus;
+  triggerEventType: WorkflowRunTriggerEventType;
   updatedAt: Scalars['DateTime']['output'];
   workflow: Workflow;
   workflowRevision?: Maybe<WorkflowRevision>;
@@ -8323,6 +8371,11 @@ export enum WorkflowRunStatus {
   New = 'NEW',
   PendingCancel = 'PENDING_CANCEL',
   Success = 'SUCCESS'
+}
+
+export enum WorkflowRunTriggerEventType {
+  Github = 'GITHUB',
+  Manual = 'MANUAL'
 }
 
 export type WorkflowRunsConnection = {
@@ -8986,6 +9039,14 @@ export type CreateBulkEnvironmentVariablesForAppMutationVariables = Exact<{
 
 
 export type CreateBulkEnvironmentVariablesForAppMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createBulkEnvironmentVariablesForApp: Array<{ __typename?: 'EnvironmentVariable', id: string }> } };
+
+export type CreateFingeprintMutationVariables = Exact<{
+  fingerprintData: CreateFingerprintInput;
+  appId: Scalars['ID']['input'];
+}>;
+
+
+export type CreateFingeprintMutation = { __typename?: 'RootMutation', fingerprint: { __typename?: 'FingerprintMutation', createOrGetExistingFingerprint: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null } } };
 
 export type CreateKeystoreGenerationUrlMutationVariables = Exact<{ [key: string]: never; }>;
 
