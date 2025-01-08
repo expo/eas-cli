@@ -1,4 +1,4 @@
-import { get as getEnv } from '@expo/env';
+import { parseProjectEnv } from '@expo/env';
 import { Gzip, GzipOptions } from 'minizlib';
 import { HashOptions, createHash, randomBytes } from 'node:crypto';
 import fs, { createWriteStream } from 'node:fs';
@@ -114,10 +114,8 @@ export async function createManifestAsync(
   params: CreateManifestParams,
   graphqlClient: ExpoGraphqlClient
 ): Promise<CreateManifestResult> {
-  // NOTE: This is required for the .env resolution
-  process.env.NODE_ENV = 'production';
   // Resolve .env file variables
-  const env: Record<string, string | undefined> = getEnv(params.projectDir).env;
+  const { env } = parseProjectEnv(params.projectDir, { mode: 'production' });
   // Maybe load EAS Environment Variables (based on `--environment` arg)
   let conflictingVariableNames: string[] | undefined;
   if (params.environment) {

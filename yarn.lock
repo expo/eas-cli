@@ -1475,10 +1475,10 @@
     semver "^7.6.2"
     zod "^3.23.8"
 
-"@expo/env@^0.4.0":
-  version "0.4.0"
-  resolved "https://registry.yarnpkg.com/@expo/env/-/env-0.4.0.tgz#1ff3a15084566d12ca92cb67e5b0a9796a9f0aa7"
-  integrity sha512-g2JYFqck3xKIwJyK+8LxZ2ENZPWtRgjFWpeht9abnKgzXVXBeSNECFBkg+WQjQocSIdxXhEWM6hz4ZAe7Tc4ng==
+"@expo/env@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@expo/env/-/env-1.0.0.tgz#8e22894fae04ba6dc41fe0f1351a4973d410273a"
+  integrity sha512-43R5rxlaLJQOWunyfnQEpgHJCsSLCUWDoU/wJNABEYkHdt1Sjrlf+ieH3MG1f/RZYE+1Wss3sYiO9oPps1aMNg==
   dependencies:
     chalk "^4.0.0"
     debug "^4.3.4"
