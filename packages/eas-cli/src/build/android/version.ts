@@ -208,8 +208,10 @@ export async function resolveRemoteVersionCodeAsync(
     currentBuildVersion = remoteVersions.buildVersion;
   } else {
     if (localVersions.appBuildVersion) {
-      Log.warn(
-        'No remote versions are configured for this project, versionCode will be initialized based on the value from the local project.'
+      Log.log(
+        chalk.green(
+          'No remote versions are configured for this project, versionCode will be initialized based on the value from the local project.'
+        )
       );
       currentBuildVersion = localVersions.appBuildVersion;
     } else {
