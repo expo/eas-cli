@@ -263,8 +263,8 @@ export default class WorkerDeploy extends EasCommand {
       );
       if (manifestResult.conflictingVariableNames?.length) {
         Log.warn(
-          '> The following environment variables were loaded both from local .env files as well as EAS environment variables, ' +
-            ' and will be set to the EAS environment variable values instead: ' +
+          '> The following environment variables were present in local .env files as well as EAS environment variables. ' +
+            'In case of conflict, the EAS environment variable values will be used: ' +
             manifestResult.conflictingVariableNames.join(' ')
         );
       }
