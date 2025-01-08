@@ -1,4 +1,4 @@
-import { get as getEnv } from '@expo/env';
+import { parseProjectEnv } from '@expo/env';
 import { Gzip, GzipOptions } from 'minizlib';
 import { HashOptions, createHash, randomBytes } from 'node:crypto';
 import fs, { createWriteStream } from 'node:fs';
@@ -98,6 +98,11 @@ export interface Manifest {
   env: Record<string, string | undefined>;
 }
 
+export interface CreateManifestResult {
+  conflictingVariableNames: string[] | undefined;
+  manifest: Manifest;
+}
+
 interface CreateManifestParams {
   projectId: string;
   projectDir: string;
@@ -108,23 +113,32 @@ interface CreateManifestParams {
 export async function createManifestAsync(
   params: CreateManifestParams,
   graphqlClient: ExpoGraphqlClient
-): Promise<Manifest> {
-  let env: Record<string, string | undefined>;
+): Promise<CreateManifestResult> {
+  // Resolve .env file variables
+  const { env } = parseProjectEnv(params.projectDir, { mode: 'production' });
+  // Maybe load EAS Environment Variables (based on `--environment` arg)
+  let conflictingVariableNames: string[] | undefined;
   if (params.environment) {
-    env = Object.fromEntries(
-      (
-        await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(graphqlClient, {
-          appId: params.projectId,
-          environment: params.environment,
-        })
-      ).map(variable => [variable.name, variable.value ?? undefined])
+    const loadedVariables = await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(
+      graphqlClient,
+      {
+        appId: params.projectId,
+        environment: params.environment,
+      }
     );
-  } else {
-    // NOTE: This is required for the .env resolution
-    process.env.NODE_ENV = 'production';
-    env = getEnv(params.projectDir).env;
+    // Load EAS Env vars into `env` object, keeping track of conflicts
+    conflictingVariableNames = [];
+    for (const variable of loadedVariables) {
+      if (variable.value != null) {
+        if (env[variable.name] != null) {
+          conflictingVariableNames.push(variable.name);
+        }
+        env[variable.name] = variable.value;
+      }
+    }
   }
-  return { env };
+  const manifest: Manifest = { env };
+  return { conflictingVariableNames, manifest };
 }
 
 interface WorkerFileEntry {

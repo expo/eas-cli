@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Load `.env` variables even when `--environment` is specified for `deploy` command. Conflicts will be highlighted by a warning message. ([#2783](https://github.com/expo/eas-cli/pull/2783) by [@kitten](https://github.com/kitten))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

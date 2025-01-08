@@ -253,7 +253,7 @@ export default class WorkerDeploy extends EasCommand {
     let progress = ora('Preparing project').start();
 
     try {
-      const manifest = await WorkerAssets.createManifestAsync(
+      const manifestResult = await WorkerAssets.createManifestAsync(
         {
           environment: flags.environment,
           projectDir,
@@ -261,13 +261,20 @@ export default class WorkerDeploy extends EasCommand {
         },
         graphqlClient
       );
+      if (manifestResult.conflictingVariableNames?.length) {
+        Log.warn(
+          '> The following environment variables were present in local .env files as well as EAS environment variables. ' +
+            'In case of conflict, the EAS environment variable values will be used: ' +
+            manifestResult.conflictingVariableNames.join(' ')
+        );
+      }
       assetMap = await WorkerAssets.createAssetMapAsync(
         projectDist.type === 'server' ? projectDist.clientPath : projectDist.path
       );
       tarPath = await WorkerAssets.packFilesIterableAsync(
         emitWorkerTarballAsync({
           assetMap,
-          manifest,
+          manifest: manifestResult.manifest,
         })
       );
 
