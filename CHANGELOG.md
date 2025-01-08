@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [14.3.1](https://github.com/expo/eas-cli/releases/tag/v14.3.1) - 2025-01-08
+
+### 🧹 Chores
+
 - Bump `@expo/package-manager@1.7.0` to support Bun text-based lock files. ([#2801](https://github.com/expo/eas-cli/pull/2801) by [@kudo](https://github.com/kudo))
 
 ## [14.3.0](https://github.com/expo/eas-cli/releases/tag/v14.3.0) - 2025-01-07
