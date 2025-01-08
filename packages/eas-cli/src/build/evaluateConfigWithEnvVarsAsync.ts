@@ -84,13 +84,13 @@ async function resolveEnvVarsAsync({
 
     if (Object.keys(serverEnvVars).length > 0) {
       Log.log(
-        `Environment variables with visibility "Plain text" and "Sensitive" loaded from the "${environment.toLowerCase()}" environment on EAS servers: ${Object.keys(
+        `Environment variables with visibility "Plain text" and "Sensitive" loaded from the "${environment.toLowerCase()}" environment on EAS: ${Object.keys(
           serverEnvVars
         ).join(', ')}.`
       );
     } else {
       Log.log(
-        `No environment variables with visibility "Plain text" and "Sensitive" found for the "${environment.toLowerCase()}" environment on EAS servers.`
+        `No environment variables with visibility "Plain text" and "Sensitive" found for the "${environment.toLowerCase()}" environment on EAS.`
       );
     }
 
@@ -112,7 +112,7 @@ async function resolveEnvVarsAsync({
       );
       if (overlappingKeys.length > 0) {
         Log.warn(
-          `The following environment variables are defined in both the "${buildProfileName}" build profile "env" configuration and the "${environment.toLowerCase()}" environment on EAS servers: ${overlappingKeys.join(
+          `The following environment variables are defined in both the "${buildProfileName}" build profile "env" configuration and the "${environment.toLowerCase()}" environment on EAS: ${overlappingKeys.join(
             ', '
           )}. The values from the build profile configuration will be used.`
         );
@@ -135,23 +135,18 @@ async function resolveEnvVarsAsync({
 function resolveSuggestedEnvironmentForBuildProfileConfiguration(
   buildProfile: BuildProfile
 ): EnvironmentVariableEnvironment {
-  const setEnvironmentMessage =
-    'Set the "environment" field in the build profile if you want to specify the environment manually.';
-  if (buildProfile.distribution === 'store') {
-    Log.log(
-      `We detected that you are building for the "store" distribution. Resolving the environment for environment variables used during the build to "production". ${setEnvironmentMessage}`
-    );
-    return EnvironmentVariableEnvironment.Production;
-  } else {
-    if (buildProfile.developmentClient) {
-      Log.log(
-        `We detected that you are building the development client. Resolving the environment for environment variables used during the build to "development". ${setEnvironmentMessage}`
-      );
-      return EnvironmentVariableEnvironment.Development;
-    }
-    Log.log(
-      `We detected that you are building for the "internal" distribution. Resolving the environment for environment variables used during the build to "preview". ${setEnvironmentMessage}`
-    );
-    return EnvironmentVariableEnvironment.Preview;
-  }
+  const environment =
+    buildProfile.distribution === 'store'
+      ? EnvironmentVariableEnvironment.Production
+      : buildProfile.developmentClient
+        ? EnvironmentVariableEnvironment.Development
+        : EnvironmentVariableEnvironment.Preview;
+
+  Log.log(
+    `Resolved "${environment.toLowerCase()}" environment for the build. ${learnMore(
+      'https://docs.expo.dev/eas/environment-variables/#setting-the-environment-for-your-builds'
+    )}`
+  );
+
+  return environment;
 }
