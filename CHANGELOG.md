@@ -8,13 +8,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Load `.env` variables even when `--environment` is specified for `deploy` command. Conflicts will be highlighted by a warning message. ([#2783](https://github.com/expo/eas-cli/pull/2783) by [@kitten](https://github.com/kitten))
-- Silence all non-command output in non-interactive mode of eas env:exec. ([#2800](https://github.com/expo/eas-cli/pull/2800) by [@wschurman](https://github.com/wschurman))
-- Unhide `deploy` and `deploy:alias` commands ([#2807](https://github.com/expo/eas-cli/pull/2807) by [@kitten](https://github.com/kitten))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [14.4.0](https://github.com/expo/eas-cli/releases/tag/v14.4.0) - 2025-01-09
+
+### 🎉 New features
+
+- Load `.env` variables even when `--environment` is specified for `deploy` command. Conflicts will be highlighted by a warning message. ([#2783](https://github.com/expo/eas-cli/pull/2783) by [@kitten](https://github.com/kitten))
+- Silence all non-command output in non-interactive mode of eas env:exec. ([#2800](https://github.com/expo/eas-cli/pull/2800) by [@wschurman](https://github.com/wschurman))
+- Unhide `deploy` and `deploy:alias` commands ([#2807](https://github.com/expo/eas-cli/pull/2807) by [@kitten](https://github.com/kitten))
 
 ## [14.3.1](https://github.com/expo/eas-cli/releases/tag/v14.3.1) - 2025-01-08
 
