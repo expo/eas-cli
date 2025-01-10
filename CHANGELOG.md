@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Enable shell execution for env:exec commands. ([#2788](https://github.com/expo/eas-cli/pull/2788) by [@tharakadesilva](https://github.com/tharakadesilva))
+
 ### 🧹 Chores
 
 - Make automatic env resolution message shorter. ([#2806](https://github.com/expo/eas-cli/pull/2806) by [@szdziedzic](https://github.com/szdziedzic))

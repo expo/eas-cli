@@ -121,22 +121,6 @@ export default class EnvExec extends EasCommand {
     };
   }
 
-  private async runCommandNonInteractiveWithEnvVarsAsync({
-    command,
-    environmentVariables,
-  }: {
-    command: string;
-    environmentVariables: Record<string, string>;
-  }): Promise<void> {
-    await spawnAsync('bash', ['-c', command], {
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        ...environmentVariables,
-      },
-    });
-  }
-
   // eslint-disable-next-line async-protect/async-suffix
   protected override async catch(err: Error): Promise<any> {
     // when in non-interactive, make the behavior of this command a pure passthrough, outputting only the subprocess' stdout and stderr and exiting with the
@@ -146,6 +130,23 @@ export default class EnvExec extends EasCommand {
     } else {
       await super.catch(err);
     }
+  }
+
+  private async runCommandNonInteractiveWithEnvVarsAsync({
+    command,
+    environmentVariables,
+  }: {
+    command: string;
+    environmentVariables: Record<string, string>;
+  }): Promise<void> {
+    await spawnAsync(command, [], {
+      shell: true,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        ...environmentVariables,
+      },
+    });
   }
 
   private async runCommandWithEnvVarsAsync({
