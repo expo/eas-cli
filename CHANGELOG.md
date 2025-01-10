@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Make automatic env resolution message shorter. ([#2806](https://github.com/expo/eas-cli/pull/2806) by [@szdziedzic](https://github.com/szdziedzic))
+- Make "No remote versions are configured" message green instead of yellow. ([#2805](https://github.com/expo/eas-cli/pull/2805) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [14.4.0](https://github.com/expo/eas-cli/releases/tag/v14.4.0) - 2025-01-09
 

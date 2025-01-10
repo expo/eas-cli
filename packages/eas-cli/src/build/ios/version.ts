@@ -334,8 +334,10 @@ export async function resolveRemoteBuildNumberAsync(
     currentBuildVersion = remoteVersions.buildVersion;
   } else {
     if (localBuildNumber) {
-      Log.warn(
-        'No remote versions are configured for this project, buildNumber will be initialized based on the value from the local project.'
+      Log.log(
+        chalk.green(
+          'No remote versions are configured for this project, buildNumber will be initialized based on the value from the local project.'
+        )
       );
       currentBuildVersion = localBuildNumber;
     } else {
