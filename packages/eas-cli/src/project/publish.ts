@@ -733,11 +733,11 @@ export const defaultPublishPlatforms: UpdatePublishPlatform[] = ['android', 'ios
 
 export type RuntimeVersionInfo = {
   runtimeVersion: string;
-  fingerprint: {
+  expoUpdatesRuntimeFingerprint: {
     fingerprintSources: object[];
     isDebugFingerprintSource: boolean;
   } | null;
-  fingerprintHash: string | null;
+  expoUpdatesRuntimeFingerprintHash: string | null;
 };
 
 type FingerprintInfoGroup = {
@@ -797,11 +797,11 @@ async function getRuntimeVersionInfoForPlatformAsync({
   env: Env | undefined;
 }): Promise<{
   runtimeVersion: string;
-  fingerprint: {
+  expoUpdatesRuntimeFingerprint: {
     fingerprintSources: object[];
     isDebugFingerprintSource: boolean;
   } | null;
-  fingerprintHash: string | null;
+  expoUpdatesRuntimeFingerprintHash: string | null;
 }> {
   if (await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir)) {
     try {
@@ -852,8 +852,8 @@ async function getRuntimeVersionInfoForPlatformAsync({
 
   return {
     runtimeVersion: resolvedRuntimeVersion,
-    fingerprint: null,
-    fingerprintHash: null,
+    expoUpdatesRuntimeFingerprint: null,
+    expoUpdatesRuntimeFingerprintHash: null,
   };
 }
 
@@ -875,13 +875,15 @@ export function getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersion
         platforms: runtimeVersionInfoObjects.map(
           runtimeVersionInfoObject => runtimeVersionInfoObject.platform
         ),
-        fingerprint:
+        expoUpdatesRuntimeFingerprint:
           runtimeVersionInfoObjects.map(
-            runtimeVersionInfoObject => runtimeVersionInfoObject.runtimeVersionInfo.fingerprint
+            runtimeVersionInfoObject =>
+              runtimeVersionInfoObject.runtimeVersionInfo.expoUpdatesRuntimeFingerprint
           )[0] ?? null,
-        fingerprintHash:
+        expoUpdatesRuntimeFingerprintHash:
           runtimeVersionInfoObjects.map(
-            runtimeVersionInfoObject => runtimeVersionInfoObject.runtimeVersionInfo.fingerprintHash
+            runtimeVersionInfoObject =>
+              runtimeVersionInfoObject.runtimeVersionInfo.expoUpdatesRuntimeFingerprintHash
           )[0] ?? null,
       };
     }
@@ -899,20 +901,20 @@ export async function maybeCalculateFingerprintForRuntimeVersionInfoObjectsWitho
   graphqlClient: ExpoGraphqlClient;
   runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping: (RuntimeVersionInfo & {
     platforms: UpdatePublishPlatform[];
-    fingerprintSource: FingerprintSource | null;
+    expoUpdatesRuntimeFingerprintSource: FingerprintSource | null;
   })[];
   workflowsByPlatform: Record<Platform, Workflow>;
   env: Env | undefined;
 }): Promise<
   (RuntimeVersionInfo & {
     platforms: UpdatePublishPlatform[];
-    fingerprintSource: FingerprintSource | null;
+    expoUpdatesRuntimeFingerprintSource: FingerprintSource | null;
     fingerprintInfoGroup: FingerprintInfoGroup;
   })[]
 > {
   const runtimesToComputeFingerprintsFor =
     runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping.filter(
-      infoGroup => !infoGroup.fingerprintHash
+      infoGroup => !infoGroup.expoUpdatesRuntimeFingerprintHash
     );
   const fingerprintOptionsByRuntimeAndPlatform = new Map<string, FingerprintOptions>();
   for (const infoGroup of runtimesToComputeFingerprintsFor) {
@@ -975,9 +977,11 @@ export async function maybeCalculateFingerprintForRuntimeVersionInfoObjectsWitho
           infoGroup
         ): infoGroup is RuntimeVersionInfo & {
           platforms: UpdatePublishPlatform[];
-          fingerprintSource: FingerprintSource;
-          fingerprintHash: string;
-        } => !!infoGroup.fingerprintHash && !!infoGroup.fingerprintSource
+          expoUpdatesRuntimeFingerprintSource: FingerprintSource;
+          expoUpdatesRuntimeFingerprintHash: string;
+        } =>
+          !!infoGroup.expoUpdatesRuntimeFingerprintHash &&
+          !!infoGroup.expoUpdatesRuntimeFingerprintSource
       )
       .map(infoGroup => {
         const platform = infoGroup.platforms[0];
@@ -985,8 +989,8 @@ export async function maybeCalculateFingerprintForRuntimeVersionInfoObjectsWitho
           ...infoGroup,
           fingerprintInfoGroup: {
             [platform]: {
-              fingerprintHash: infoGroup.fingerprintHash,
-              fingerprintSource: infoGroup.fingerprintSource,
+              fingerprintHash: infoGroup.expoUpdatesRuntimeFingerprintHash,
+              fingerprintSource: infoGroup.expoUpdatesRuntimeFingerprintSource,
             },
           },
         };

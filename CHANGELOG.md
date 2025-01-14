@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Make variable naming more explicit, remove deprecated runtimeFingerprintSource uses. ([#2816](https://github.com/expo/eas-cli/pull/2816) by [@wschurman](https://github.com/wschurman))
+
 ## [14.4.1](https://github.com/expo/eas-cli/releases/tag/v14.4.1) - 2025-01-15
 
 ### 🐛 Bug fixes

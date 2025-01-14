@@ -709,7 +709,10 @@ async function computeAndMaybeUploadFingerprintFromExpoUpdatesAsync<T extends Pl
    * It's ok for fingerprintSources or runtimeVersion to be empty
    * fingerprintSources only exist if the project is using runtimeVersion.policy: fingerprint
    */
-  if (!resolvedRuntimeVersion.fingerprint || !resolvedRuntimeVersion.runtimeVersion) {
+  if (
+    !resolvedRuntimeVersion.expoUpdatesRuntimeFingerprint ||
+    !resolvedRuntimeVersion.runtimeVersion
+  ) {
     return {
       runtimeVersion: resolvedRuntimeVersion.runtimeVersion ?? undefined,
     };
@@ -717,14 +720,14 @@ async function computeAndMaybeUploadFingerprintFromExpoUpdatesAsync<T extends Pl
 
   const uploadedFingerprint = await maybeUploadFingerprintAsync({
     hash: resolvedRuntimeVersion.runtimeVersion,
-    fingerprint: resolvedRuntimeVersion.fingerprint,
+    fingerprint: resolvedRuntimeVersion.expoUpdatesRuntimeFingerprint,
     graphqlClient: ctx.graphqlClient,
     localBuildMode: ctx.localBuildOptions.localBuildMode,
   });
   return {
     runtimeVersion: uploadedFingerprint.hash,
     fingerprintSource: uploadedFingerprint.fingerprintSource,
-    fingerprintHash: resolvedRuntimeVersion.fingerprintHash ?? undefined,
+    fingerprintHash: resolvedRuntimeVersion.expoUpdatesRuntimeFingerprintHash ?? undefined,
   };
 }
 

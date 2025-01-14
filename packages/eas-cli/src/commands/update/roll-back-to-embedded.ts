@@ -208,8 +208,8 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
           platform,
           runtimeVersionInfo: {
             runtimeVersion: selectedRuntime,
-            fingerprint: null,
-            fingerprintHash: null,
+            expoUpdatesRuntimeFingerprint: null,
+            expoUpdatesRuntimeFingerprintHash: null,
           },
         }))
       );
