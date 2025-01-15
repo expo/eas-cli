@@ -62,6 +62,9 @@ export default class BuildList extends EasCommand {
       aliases: ['gitCommitHash'],
       description: 'Filter only builds created with the specified git commit hash',
     }),
+    'fingerprint-hash': Flags.string({
+      description: 'Filter only builds with the specified fingerprint hash',
+    }),
     ...EasPaginatedQueryFlags,
     limit: getLimitFlagWithCustomValues({ defaultTo: 10, limit: BUILDS_LIMIT }),
     ...EasNonInteractiveAndJsonFlags,
@@ -130,6 +133,7 @@ export default class BuildList extends EasCommand {
         buildProfile: flags['build-profile'],
         gitCommitHash: flags['git-commit-hash'],
         simulator: flags.simulator,
+        fingerprintHash: flags['fingerprint-hash'],
       },
       paginatedQueryOptions,
     });

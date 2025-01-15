@@ -139,6 +139,7 @@ export type Account = {
   /** Whether this account has SSO enabled. Can be queried by all members. */
   isSSOEnabled: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
+  logRocketOrganization?: Maybe<LogRocketOrganization>;
   name: Scalars['String']['output'];
   /** Offers set on this account */
   offers?: Maybe<Array<Offer>>;
@@ -1300,6 +1301,7 @@ export type App = Project & {
   likeCount: Scalars['Int']['output'];
   /** @deprecated 'likes' have been deprecated. */
   likedBy: Array<Maybe<User>>;
+  logRocketProject?: Maybe<LogRocketProject>;
   name: Scalars['String']['output'];
   ownerAccount: Account;
   /** @deprecated No longer supported */
@@ -2932,6 +2934,7 @@ export type BuildFilter = {
   buildProfile?: InputMaybe<Scalars['String']['input']>;
   channel?: InputMaybe<Scalars['String']['input']>;
   distribution?: InputMaybe<DistributionType>;
+  fingerprintHash?: InputMaybe<Scalars['String']['input']>;
   gitCommitHash?: InputMaybe<Scalars['String']['input']>;
   hasFingerprint?: InputMaybe<Scalars['Boolean']['input']>;
   platform?: InputMaybe<AppPlatform>;
@@ -2945,6 +2948,7 @@ export type BuildFilterInput = {
   channel?: InputMaybe<Scalars['String']['input']>;
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
   distributions?: InputMaybe<Array<DistributionType>>;
+  fingerprintHash?: InputMaybe<Scalars['String']['input']>;
   hasFingerprint?: InputMaybe<Scalars['Boolean']['input']>;
   platforms?: InputMaybe<Array<AppPlatform>>;
   releaseChannel?: InputMaybe<Scalars['String']['input']>;
@@ -3664,6 +3668,16 @@ export type DeleteIosAppCredentialsResult = {
   id: Scalars['ID']['output'];
 };
 
+export type DeleteLogRocketOrganizationResult = {
+  __typename?: 'DeleteLogRocketOrganizationResult';
+  accountId: Scalars['ID']['output'];
+};
+
+export type DeleteLogRocketProjectResult = {
+  __typename?: 'DeleteLogRocketProjectResult';
+  id: Scalars['ID']['output'];
+};
+
 export type DeleteRobotResult = {
   __typename?: 'DeleteRobotResult';
   id: Scalars['ID']['output'];
@@ -4251,12 +4265,40 @@ export enum Feature {
 export type Fingerprint = {
   __typename?: 'Fingerprint';
   app: App;
+  builds: AppBuildsConnection;
   createdAt: Scalars['DateTime']['output'];
   debugInfoUrl?: Maybe<Scalars['String']['output']>;
   hash: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   source?: Maybe<FingerprintSource>;
   updatedAt: Scalars['DateTime']['output'];
+  updates: AppUpdatesConnection;
+};
+
+
+export type FingerprintBuildsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<FingerprintBuildsFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type FingerprintUpdatesArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type FingerprintBuildsFilterInput = {
+  channel?: InputMaybe<Scalars['String']['input']>;
+  developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
+  distributions?: InputMaybe<Array<DistributionType>>;
+  platforms?: InputMaybe<Array<AppPlatform>>;
+  releaseChannel?: InputMaybe<Scalars['String']['input']>;
+  simulator?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export type FingerprintFilterInput = {
@@ -4311,6 +4353,22 @@ export type FutureSubscription = {
   planId: Scalars['String']['output'];
   recurringCents?: Maybe<Scalars['Int']['output']>;
   startDate: Scalars['DateTime']['output'];
+};
+
+export type GenerateLogRocketOrganizationLinkResult = {
+  __typename?: 'GenerateLogRocketOrganizationLinkResult';
+  url: Scalars['String']['output'];
+};
+
+export type GenerateLogRocketOrganizationLinkingUrlInput = {
+  accountId: Scalars['ID']['input'];
+  callbackUrl: Scalars['String']['input'];
+};
+
+export type GenerateLogRocketReplayTokenResult = {
+  __typename?: 'GenerateLogRocketReplayTokenResult';
+  orgSlug: Scalars['String']['output'];
+  replayToken: Scalars['String']['output'];
 };
 
 export type GetSignedAssetUploadSpecificationsResult = {
@@ -5193,6 +5251,15 @@ export type LineDataset = {
   label: Scalars['String']['output'];
 };
 
+export type LinkLogRocketOrganizationToExpoAccountInput = {
+  accountId: Scalars['ID']['input'];
+  client_id: Scalars['String']['input'];
+  client_secret: Scalars['String']['input'];
+  orgName: Scalars['String']['input'];
+  orgSlug: Scalars['String']['input'];
+  state: Scalars['String']['input'];
+};
+
 export type LinkSharedEnvironmentVariableInput = {
   appId: Scalars['ID']['input'];
   environment?: InputMaybe<EnvironmentVariableEnvironment>;
@@ -5203,6 +5270,76 @@ export type LogNameTypeMapping = {
   __typename?: 'LogNameTypeMapping';
   publicName: Scalars['String']['output'];
   typeName: EntityTypeName;
+};
+
+export type LogRocketOrganization = {
+  __typename?: 'LogRocketOrganization';
+  account: Account;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  orgName: Scalars['String']['output'];
+  orgSlug: Scalars['String']['output'];
+};
+
+export type LogRocketOrganizationMutation = {
+  __typename?: 'LogRocketOrganizationMutation';
+  /** Delete a LogRocket organization by ID */
+  deleteLogRocketOrganization: DeleteLogRocketOrganizationResult;
+  /** Generate a LogRocket linking URL */
+  generateLogRocketOrganizationLinkingURL: GenerateLogRocketOrganizationLinkResult;
+  /** Generate a LogRocket replay token for an organization */
+  generateLogRocketReplayToken: GenerateLogRocketReplayTokenResult;
+  /** Link a LogRocket organization to an Expo account */
+  linkLogRocketOrganizationToExpoAccount: LogRocketOrganization;
+};
+
+
+export type LogRocketOrganizationMutationDeleteLogRocketOrganizationArgs = {
+  accountId: Scalars['ID']['input'];
+};
+
+
+export type LogRocketOrganizationMutationGenerateLogRocketOrganizationLinkingUrlArgs = {
+  input: GenerateLogRocketOrganizationLinkingUrlInput;
+};
+
+
+export type LogRocketOrganizationMutationGenerateLogRocketReplayTokenArgs = {
+  accountId: Scalars['ID']['input'];
+};
+
+
+export type LogRocketOrganizationMutationLinkLogRocketOrganizationToExpoAccountArgs = {
+  input: LinkLogRocketOrganizationToExpoAccountInput;
+};
+
+export type LogRocketProject = {
+  __typename?: 'LogRocketProject';
+  app: App;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  logRocketOrgId: Scalars['ID']['output'];
+  logRocketProjectSlug: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type LogRocketProjectMutation = {
+  __typename?: 'LogRocketProjectMutation';
+  /** Create a LogRocket project */
+  createLogRocketProject: LogRocketProject;
+  /** Delete a LogRocket project by ID */
+  deleteLogRocketProject: DeleteLogRocketProjectResult;
+};
+
+
+export type LogRocketProjectMutationCreateLogRocketProjectArgs = {
+  appId: Scalars['ID']['input'];
+  logRocketProjectSlug: Scalars['String']['input'];
+};
+
+
+export type LogRocketProjectMutationDeleteLogRocketProjectArgs = {
+  logRocketProjectId: Scalars['ID']['input'];
 };
 
 export type LogsTimespan = {
@@ -5848,6 +5985,10 @@ export type RootMutation = {
   /** Mutations that modify an EAS Build */
   jobRun: JobRunMutation;
   keystoreGenerationUrl: KeystoreGenerationUrlMutation;
+  /** Mutations for LogRocket organizations */
+  logRocketOrganization: LogRocketOrganizationMutation;
+  /** Mutations for LogRocket projects */
+  logRocketProject: LogRocketProjectMutation;
   /** Mutations that modify the currently authenticated User */
   me: MeMutation;
   /** Mutations that modify a NotificationSubscription */
@@ -8312,6 +8453,8 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   name: Scalars['String']['output'];
   pullRequestNumber?: Maybe<Scalars['Int']['output']>;
   requestedGitRef?: Maybe<Scalars['String']['output']>;
+  retriedWorkflowRun?: Maybe<WorkflowRun>;
+  retries: Array<WorkflowRun>;
   status: WorkflowRunStatus;
   triggerEventType: WorkflowRunTriggerEventType;
   updatedAt: Scalars['DateTime']['output'];
@@ -8339,6 +8482,7 @@ export type WorkflowRunMutation = {
   __typename?: 'WorkflowRunMutation';
   cancelWorkflowRun: WorkflowRun;
   createWorkflowRun: WorkflowRun;
+  retryWorkflowRun: WorkflowRun;
 };
 
 
@@ -8351,6 +8495,11 @@ export type WorkflowRunMutationCreateWorkflowRunArgs = {
   appId: Scalars['ID']['input'];
   workflowRevisionInput: WorkflowRevisionInput;
   workflowRunInput: WorkflowRunInput;
+};
+
+
+export type WorkflowRunMutationRetryWorkflowRunArgs = {
+  workflowRunId: Scalars['ID']['input'];
 };
 
 export type WorkflowRunQuery = {
