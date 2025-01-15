@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [14.4.1](https://github.com/expo/eas-cli/releases/tag/v14.4.1) - 2025-01-15
+
+### 🐛 Bug fixes
+
 - Enable shell execution for env:exec commands. ([#2788](https://github.com/expo/eas-cli/pull/2788) by [@tharakadesilva](https://github.com/tharakadesilva))
 
 ### 🧹 Chores
