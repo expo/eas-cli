@@ -17,6 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Make automatic env resolution message shorter. ([#2806](https://github.com/expo/eas-cli/pull/2806) by [@szdziedzic](https://github.com/szdziedzic))
 - Make "No remote versions are configured" message green instead of yellow. ([#2805](https://github.com/expo/eas-cli/pull/2805) by [@szdziedzic](https://github.com/szdziedzic))
 - Upload local fingerprint on `eas fingerprint:compare`. ([#2808](https://github.com/expo/eas-cli/pull/2808) by [@quinlanj](https://github.com/quinlanj))
+- Upgrade `eas-cli-local-build-plugin` to `1.0.163` to support Bun's new text-based lock file in local builds. ([#2817](https://github.com/expo/eas-cli/pull/2817) by [@shiroyasha9](https://github.com/shiroyasha9))
 
 ## [14.4.0](https://github.com/expo/eas-cli/releases/tag/v14.4.0) - 2025-01-09
 
