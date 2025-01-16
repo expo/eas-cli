@@ -2902,7 +2902,7 @@ export type BuildArtifacts = {
   applicationArchiveUrl?: Maybe<Scalars['String']['output']>;
   buildArtifactsUrl?: Maybe<Scalars['String']['output']>;
   buildUrl?: Maybe<Scalars['String']['output']>;
-  /** @deprecated Use 'runtime.fingerprintDebugInfoUrl' instead. */
+  /** @deprecated Use 'runtime.fingerprint.debugInfoUrl' instead. */
   fingerprintUrl?: Maybe<Scalars['String']['output']>;
   xcodeBuildLogsUrl?: Maybe<Scalars['String']['output']>;
 };
@@ -5744,7 +5744,6 @@ export type PublishUpdateGroupInput = {
   message?: InputMaybe<Scalars['String']['input']>;
   rollBackToEmbeddedInfoGroup?: InputMaybe<UpdateRollBackToEmbeddedGroup>;
   rolloutInfoGroup?: InputMaybe<UpdateRolloutInfoGroup>;
-  runtimeFingerprintSource?: InputMaybe<FingerprintSourceInput>;
   runtimeVersion: Scalars['String']['input'];
   turtleJobRunId?: InputMaybe<Scalars['String']['input']>;
   updateInfoGroup?: InputMaybe<UpdateInfoGroup>;
@@ -6182,7 +6181,7 @@ export type Runtime = {
   builds: AppBuildsConnection;
   createdAt: Scalars['DateTime']['output'];
   deployments: DeploymentsConnection;
-  fingerprintDebugInfoUrl?: Maybe<Scalars['String']['output']>;
+  fingerprint?: Maybe<Fingerprint>;
   firstBuildCreatedAt?: Maybe<Scalars['DateTime']['output']>;
   id: Scalars['ID']['output'];
   updatedAt: Scalars['DateTime']['output'];
@@ -9498,6 +9497,18 @@ export type EnvironmentVariablesSharedWithSensitiveQueryVariables = Exact<{
 
 
 export type EnvironmentVariablesSharedWithSensitiveQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariablesIncludingSensitive: Array<{ __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility: EnvironmentVariableVisibility, type: EnvironmentSecretType, valueWithFileContent?: string | null }> } } } };
+
+export type FingerprintsByAppIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  fingerprintFilter?: InputMaybe<FingerprintFilterInput>;
+}>;
+
+
+export type FingerprintsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fingerprintsPaginated: { __typename?: 'AppFingerprintsConnection', edges: Array<{ __typename?: 'AppFingerprintEdge', node: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
 
 export type GoogleServiceAccountKeyByIdQueryVariables = Exact<{
   ascApiKeyId: Scalars['ID']['input'];
