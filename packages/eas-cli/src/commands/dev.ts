@@ -90,7 +90,7 @@ export default class Dev extends EasCommand {
     if (builds.length !== 0) {
       const build = builds[0];
       Log.succeed(
-        `🎯 Found successful build with matching fingerprint on EAS servers: ${build.artifacts?.buildUrl}. Running it...`
+        `🎯 Found successful build with matching fingerprint on EAS servers. Running it...`
       );
 
       if (build.artifacts?.applicationArchiveUrl) {
