@@ -71,6 +71,7 @@ export const FingerprintQuery = {
                   ) {
                     edges {
                       node {
+                        id
                         ...FingerprintFragment
                       }
                     }
