@@ -68,7 +68,7 @@ export default class WorkerDeploy extends EasCommand {
   static override description = 'Deploy your Expo web build';
   static override aliases = ['deploy'];
   static override usage = [chalk`deploy {dim [options]}`, `deploy --prod`];
-  static override state = 'beta';
+  static override state = 'preview';
 
   static override flags = {
     prod: Flags.boolean({

@@ -35,7 +35,7 @@ interface RawDeployAliasFlags {
 export default class WorkerAlias extends EasCommand {
   static override description = 'Assign deployment aliases';
   static override aliases = ['deploy:alias', 'deploy:promote'];
-  static override state = 'beta';
+  static override state = 'preview';
 
   static override flags = {
     prod: Flags.boolean({
@@ -70,7 +70,7 @@ export default class WorkerAlias extends EasCommand {
       enableJsonOutput();
     }
 
-    Log.warn('EAS Hosting is still in beta and subject to changes.');
+    Log.warn('EAS Hosting is still in preview and subject to changes.');
 
     const {
       getDynamicPrivateProjectConfigAsync,
