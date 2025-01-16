@@ -410,11 +410,11 @@ export default class UpdatePublish extends EasCommand {
         runtimeToPlatformsAndFingerprintInfoMapping.map(async info => {
           return {
             ...info,
-            fingerprintSource: info.fingerprint
+            expoUpdatesRuntimeFingerprintSource: info.expoUpdatesRuntimeFingerprint
               ? (
                   await maybeUploadFingerprintAsync({
                     hash: info.runtimeVersion,
-                    fingerprint: info.fingerprint,
+                    fingerprint: info.expoUpdatesRuntimeFingerprint,
                     graphqlClient,
                   })
                 ).fingerprintSource ?? null
@@ -449,7 +449,7 @@ export default class UpdatePublish extends EasCommand {
     // Sort the updates into different groups based on their platform specific runtime versions
     const updateGroups: PublishUpdateGroupInput[] =
       runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping.map(
-        ({ runtimeVersion, platforms, fingerprintSource, fingerprintInfoGroup }) => {
+        ({ runtimeVersion, platforms, fingerprintInfoGroup }) => {
           const localUpdateInfoGroup = Object.fromEntries(
             platforms.map(platform => [
               platform,
@@ -485,9 +485,6 @@ export default class UpdatePublish extends EasCommand {
             branchId: branch.id,
             updateInfoGroup: localUpdateInfoGroup,
             rolloutInfoGroup: localRolloutInfoGroup,
-            runtimeFingerprintSource: fingerprintSource
-              ? transformFingerprintSource(fingerprintSource)
-              : null,
             fingerprintInfoGroup: transformedFingerprintInfoGroup,
             runtimeVersion,
             message: updateMessage,

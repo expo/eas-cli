@@ -23,11 +23,11 @@ export async function resolveRuntimeVersionUsingCLIAsync({
   cwd?: string;
 }): Promise<{
   runtimeVersion: string | null;
-  fingerprint: {
+  expoUpdatesRuntimeFingerprint: {
     fingerprintSources: object[];
     isDebugFingerprintSource: boolean;
   } | null;
-  fingerprintHash: string | null;
+  expoUpdatesRuntimeFingerprintHash: string | null;
 }> {
   Log.debug('Using expo-updates runtimeversion:resolve CLI for runtime version resolution');
 
@@ -47,13 +47,13 @@ export async function resolveRuntimeVersionUsingCLIAsync({
 
   return {
     runtimeVersion: runtimeVersionResult.runtimeVersion ?? null,
-    fingerprint: runtimeVersionResult.fingerprintSources
+    expoUpdatesRuntimeFingerprint: runtimeVersionResult.fingerprintSources
       ? {
           fingerprintSources: runtimeVersionResult.fingerprintSources,
           isDebugFingerprintSource: useDebugFingerprintSource,
         }
       : null,
-    fingerprintHash: runtimeVersionResult.fingerprintSources
+    expoUpdatesRuntimeFingerprintHash: runtimeVersionResult.fingerprintSources
       ? runtimeVersionResult.runtimeVersion
       : null,
   };
@@ -75,19 +75,19 @@ export async function resolveRuntimeVersionAsync({
   cwd?: string;
 }): Promise<{
   runtimeVersion: string | null;
-  fingerprint: {
+  expoUpdatesRuntimeFingerprint: {
     fingerprintSources: object[];
     isDebugFingerprintSource: boolean;
   } | null;
-  fingerprintHash: string | null;
+  expoUpdatesRuntimeFingerprintHash: string | null;
 } | null> {
   if (!(await isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync(projectDir))) {
     // fall back to the previous behavior (using the @expo/config-plugins eas-cli dependency rather
     // than the versioned @expo/config-plugins dependency in the project)
     return {
       runtimeVersion: await Updates.getRuntimeVersionNullableAsync(projectDir, exp, platform),
-      fingerprint: null,
-      fingerprintHash: null,
+      expoUpdatesRuntimeFingerprint: null,
+      expoUpdatesRuntimeFingerprintHash: null,
     };
   }
 
