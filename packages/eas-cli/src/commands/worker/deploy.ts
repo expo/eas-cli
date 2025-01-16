@@ -455,7 +455,7 @@ function logExportedProjectInfo(
   // Only show the timestamp for exports older than 1 minute
   if (project.modifiedAt && Date.now() - project.modifiedAt.getTime() > 60_000) {
     modifiedAgo = ` - exported ${formatTimeAgo(project.modifiedAt)}`;
-    Log.warn(`> Project export: ${project.type}${modifiedAgo}}`);
+    Log.warn(`> Project export: ${project.type}${modifiedAgo}`);
   } else {
     Log.log(chalk`{dim > Project export: ${project.type}}`);
   }
