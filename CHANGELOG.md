@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+- Fix logs typos in the `eas deploy` command. ([#2822](https://github.com/expo/eas-cli/pull/2822) by [@kadikraman](https://github.com/kadikraman))
+
 
 ## [14.4.1](https://github.com/expo/eas-cli/releases/tag/v14.4.1) - 2025-01-15
 
