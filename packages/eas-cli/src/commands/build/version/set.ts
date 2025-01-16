@@ -25,6 +25,16 @@ import { promptAsync } from '../../../prompts';
 export default class BuildVersionSetView extends EasCommand {
   static override description = 'update version of an app';
 
+  // Add an arg to get the build version the user wants the app to be set to
+  static override args = [
+    {
+      name: 'version',
+      description:
+        'Version to set. Not providing this argument will cause the cli to prompt for it.',
+      required: false,
+    },
+  ];
+
   static override flags = {
     platform: Flags.enum({
       char: 'p',
@@ -46,7 +56,7 @@ export default class BuildVersionSetView extends EasCommand {
   };
 
   public async runAsync(): Promise<void> {
-    const { flags } = await this.parse(BuildVersionSetView);
+    const { args, flags } = await this.parse(BuildVersionSetView);
     const {
       loggedIn: { graphqlClient },
       getDynamicPrivateProjectConfigAsync,
@@ -94,6 +104,24 @@ export default class BuildVersionSetView extends EasCommand {
       toAppPlatform(platform),
       applicationIdentifier
     );
+
+    if (args.version && !isValidVersionCode(args.version) && !isValidBuildNumber(args.version)) {
+      Log.error(
+        `Invalid value: ${
+          platform === Platform.ANDROID ? VERSION_CODE_REQUIREMENTS : BUILD_NUMBER_REQUIREMENTS
+        }`
+      );
+      return;
+    }
+    if (args.version && remoteVersions?.buildVersion === args.version) {
+      Log.log(
+        `Version is already set to ${args.version} for project ${chalk.bold(
+          displayName
+        )} with ${getApplicationIdentifierName(platform)} "${applicationIdentifier}".`
+      );
+      return;
+    }
+
     const currentStateMessage = remoteVersions?.buildVersion
       ? `Project ${chalk.bold(displayName)} with ${getApplicationIdentifierName(
           platform
@@ -106,29 +134,41 @@ export default class BuildVersionSetView extends EasCommand {
           platform
         )} configured.`;
 
-    const versionPromptMessage = remoteVersions?.buildVersion
-      ? `What version would you like to set?`
-      : `What version would you like to initialize it with?`;
-    Log.log(currentStateMessage);
+    let buildVersion = args.version;
+    if (!buildVersion) {
+      const versionPromptMessage = remoteVersions?.buildVersion
+        ? `What version would you like to set?`
+        : `What version would you like to initialize it with?`;
+      Log.log(currentStateMessage);
+      const { version } = await promptAsync({
+        type: platform === Platform.ANDROID ? 'number' : 'text',
+        name: 'version',
+        message: versionPromptMessage,
+        validate:
+          platform === Platform.ANDROID
+            ? value => isValidVersionCode(value) || `Invalid value: ${VERSION_CODE_REQUIREMENTS}.`
+            : value => isValidBuildNumber(value) || `Invalid value: ${BUILD_NUMBER_REQUIREMENTS}.`,
+      });
+      buildVersion = version;
+    }
 
-    const { version } = await promptAsync({
-      type: platform === Platform.ANDROID ? 'number' : 'text',
-      name: 'version',
-      message: versionPromptMessage,
-      validate:
-        platform === Platform.ANDROID
-          ? value => isValidVersionCode(value) || `Invalid value: ${VERSION_CODE_REQUIREMENTS}.`
-          : value => isValidBuildNumber(value) || `Invalid value: ${BUILD_NUMBER_REQUIREMENTS}.`,
-    });
     await AppVersionMutation.createAppVersionAsync(graphqlClient, {
       appId: projectId,
       platform: toAppPlatform(platform),
       applicationIdentifier,
       storeVersion: exp.version ?? '1.0.0',
-      buildVersion: String(version),
+      buildVersion: String(buildVersion),
       runtimeVersion:
         (await getRuntimeVersionNullableAsync(projectDir, exp, platform)) ?? undefined,
     });
+
+    Log.log(
+      `Set ${getBuildVersionName(platform)} for project ${chalk.bold(
+        displayName
+      )} with ${getApplicationIdentifierName(
+        platform
+      )} "${applicationIdentifier}" to ${buildVersion}.`
+    );
   }
 }
 
