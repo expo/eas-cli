@@ -34,7 +34,7 @@ interface RawDeployAliasFlags {
 
 export default class WorkerAlias extends EasCommand {
   static override description = 'Assign deployment aliases';
-  static override aliases = ['deploy:alias', 'deploy:promote'];
+  static override aliases = ['worker:alias', 'deploy:promote'];
   static override state = 'preview';
 
   static override flags = {
