@@ -83,6 +83,7 @@ export default class BuildDev extends EasCommand {
         status: BuildStatus.Finished,
         simulator: platform === Platform.IOS ? true : undefined,
         distribution: DistributionType.Internal,
+        developmentClient: true,
       },
       offset: 0,
       limit: 1,
