@@ -2,23 +2,23 @@ import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, CredentialsSource } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 
-import { runBuildAndSubmitAsync } from '../build/runBuildAndSubmit';
-import EasCommand from '../commandUtils/EasCommand';
+import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
+import EasCommand from '../../commandUtils/EasCommand';
 import {
   BuildStatus,
   DistributionType,
   EnvironmentVariableEnvironment,
-} from '../graphql/generated';
-import { BuildQuery } from '../graphql/queries/BuildQuery';
-import { toAppPlatform } from '../graphql/types/AppPlatform';
-import Log from '../log';
-import { RequestedPlatform } from '../platform';
-import { resolveWorkflowAsync } from '../project/workflow';
-import { runAsync } from '../run/run';
-import { downloadAndMaybeExtractAppAsync } from '../utils/download';
-import { createFingerprintAsync } from '../utils/fingerprintCli';
+} from '../../graphql/generated';
+import { BuildQuery } from '../../graphql/queries/BuildQuery';
+import { toAppPlatform } from '../../graphql/types/AppPlatform';
+import Log from '../../log';
+import { RequestedPlatform } from '../../platform';
+import { resolveWorkflowAsync } from '../../project/workflow';
+import { runAsync } from '../../run/run';
+import { downloadAndMaybeExtractAppAsync } from '../../utils/download';
+import { createFingerprintAsync } from '../../utils/fingerprintCli';
 
-export default class Dev extends EasCommand {
+export default class BuildDev extends EasCommand {
   static override description =
     'run dev client simulator/emulator build with matching fingerprint or create a new one';
 
@@ -41,7 +41,7 @@ export default class Dev extends EasCommand {
   };
 
   protected override async runAsync(): Promise<any> {
-    const { flags } = await this.parse(Dev);
+    const { flags } = await this.parse(BuildDev);
 
     const {
       loggedIn: { actor, graphqlClient },
@@ -51,7 +51,7 @@ export default class Dev extends EasCommand {
       vcsClient,
       getServerSideEnvironmentVariablesAsync,
       projectId,
-    } = await this.getContextAsync(Dev, {
+    } = await this.getContextAsync(BuildDev, {
       nonInteractive: false,
       withServerSideEnvironment: EnvironmentVariableEnvironment.Development,
     });
