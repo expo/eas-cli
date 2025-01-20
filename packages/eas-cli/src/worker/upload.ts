@@ -4,6 +4,7 @@ import mime from 'mime';
 import { Gzip } from 'minizlib';
 import fetch, { Headers, HeadersInit, RequestInit, Response } from 'node-fetch';
 import fs, { createReadStream } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import promiseRetry from 'promise-retry';
 
@@ -77,7 +78,19 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
     );
   }
 
-  const contentType = mime.getType(path.basename(params.filePath));
+  let contentType = mime.getType(path.basename(params.filePath));
+
+  if (!contentType) {
+    const fileContent = await readFile(filePath, 'utf-8');
+    try {
+      // check if file is valid JSON without an extension, e.g. for the apple app site association file
+      const parsedData = JSON.parse(fileContent);
+      if (parsedData) {
+        contentType = 'application/json';
+      }
+    } catch {}
+  }
+
   return await promiseRetry(
     async retry => {
       const headers = new Headers(headersInit);
