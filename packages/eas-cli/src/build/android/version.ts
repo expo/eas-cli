@@ -99,7 +99,7 @@ export async function maybeResolveVersionsAsync(
   exp: ExpoConfig,
   buildProfile: BuildProfile<Platform.ANDROID>,
   vcsClient: Client
-): Promise<{ appVersion?: string; appBuildVersion?: string, isVersionInitialized?: boolean }> {
+): Promise<{ appVersion?: string; appBuildVersion?: string; isVersionInitialized?: boolean }> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   if (workflow === Workflow.GENERIC) {
     const buildGradle = await getAppBuildGradleAsync(projectDir);
@@ -113,7 +113,11 @@ export async function maybeResolveVersionsAsync(
           resolveConfigValue(buildGradle, 'versionName', parsedGradleCommand?.flavor) ?? '1.0.0',
         appBuildVersion:
           resolveConfigValue(buildGradle, 'versionCode', parsedGradleCommand?.flavor) ?? '1',
-        isVersionInitialized: !resolveConfigValue(buildGradle, 'versionCode', parsedGradleCommand?.flavor),
+        isVersionInitialized: !resolveConfigValue(
+          buildGradle,
+          'versionCode',
+          parsedGradleCommand?.flavor
+        ),
       };
     } catch {
       return {};
@@ -226,7 +230,10 @@ export async function resolveRemoteVersionCodeAsync(
   }
   if (!buildProfile.autoIncrement && remoteVersions?.buildVersion) {
     return currentBuildVersion;
-  } else if ((!buildProfile.autoIncrement && !remoteVersions?.buildVersion) || shouldInitializeVersionCode) {
+  } else if (
+    (!buildProfile.autoIncrement && !remoteVersions?.buildVersion) ||
+    shouldInitializeVersionCode
+  ) {
     const spinner = ora(
       `Initializing versionCode with ${chalk.bold(currentBuildVersion)}.`
     ).start();

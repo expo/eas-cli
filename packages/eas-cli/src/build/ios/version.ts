@@ -351,7 +351,10 @@ export async function resolveRemoteBuildNumberAsync(
   }
   if (!buildProfile.autoIncrement && remoteVersions?.buildVersion) {
     return currentBuildVersion;
-  } else if ((!buildProfile.autoIncrement && !remoteVersions?.buildVersion) || shouldInitializeBuildNumber) {
+  } else if (
+    (!buildProfile.autoIncrement && !remoteVersions?.buildVersion) ||
+    shouldInitializeBuildNumber
+  ) {
     const spinner = ora(
       `Initializing buildNumber with ${chalk.bold(currentBuildVersion)}.`
     ).start();

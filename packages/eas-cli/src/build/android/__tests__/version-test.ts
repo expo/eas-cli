@@ -1,26 +1,27 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
+import { AndroidBuildProfile } from '@expo/eas-json/build/build/types';
 import assert from 'assert';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
 import path from 'path';
+import { instance, mock } from 'ts-mockito';
 
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { AppVersionMutation } from '../../../graphql/mutations/AppVersionMutation';
+import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { getAppBuildGradleAsync, resolveConfigValue } from '../../../project/android/gradleUtils';
 import { resolveVcsClient } from '../../../vcs';
+import { Client } from '../../../vcs/vcs';
 import {
   BumpStrategy,
   bumpVersionAsync,
   bumpVersionInAppJsonAsync,
-  maybeResolveVersionsAsync, resolveRemoteVersionCodeAsync,
+  maybeResolveVersionsAsync,
+  resolveRemoteVersionCodeAsync,
 } from '../version';
-import {ExpoGraphqlClient} from "../../../commandUtils/context/contextUtils/createGraphqlClient";
-import {AndroidBuildProfile} from "@expo/eas-json/build/build/types";
-import {Client} from "../../../vcs/vcs";
-import {AppVersionQuery} from "../../../graphql/queries/AppVersionQuery";
-import {AppVersionMutation} from "../../../graphql/mutations/AppVersionMutation";
-import {instance, mock} from "ts-mockito";
 
 const fsReal = jest.requireActual('fs').promises as typeof fs;
 jest.mock('fs');
@@ -246,7 +247,7 @@ describe(resolveRemoteVersionCodeAsync, () => {
     vcsClientMock.getRootPathAsync = async () => '/app';
     jest.mocked(AppVersionQuery.latestVersionAsync).mockResolvedValue({
       buildVersion: '11',
-      storeVersion: '1.2.3'
+      storeVersion: '1.2.3',
     });
     const createAppVersionAsyncSpy = jest.spyOn(AppVersionMutation, 'createAppVersionAsync');
     const exp = initBareWorkflowProject();
@@ -258,11 +259,11 @@ describe(resolveRemoteVersionCodeAsync, () => {
       applicationId: 'fakeApplicationId',
       buildProfile: {} as AndroidBuildProfile,
       vcsClient: vcsClientMock,
-    })
+    });
 
     expect(result).toBe('11');
     expect(createAppVersionAsyncSpy).not.toHaveBeenCalled();
-  })
+  });
 
   it('initializes versionCode from local files when remote version not set, autoIncrement=false', async () => {
     const graphQLClientMock = instance(mock<ExpoGraphqlClient>());
@@ -270,7 +271,7 @@ describe(resolveRemoteVersionCodeAsync, () => {
     vcsClientMock.getRootPathAsync = async () => '/app';
     jest.mocked(AppVersionQuery.latestVersionAsync).mockResolvedValue(null);
     const createAppVersionAsyncSpy = jest.spyOn(AppVersionMutation, 'createAppVersionAsync');
-    const exp = initBareWorkflowProject({versionCode: 22, versionName: '2.3.4'});
+    const exp = initBareWorkflowProject({ versionCode: 22, versionName: '2.3.4' });
 
     const result = await resolveRemoteVersionCodeAsync(graphQLClientMock, {
       projectDir: '/app',
@@ -279,13 +280,13 @@ describe(resolveRemoteVersionCodeAsync, () => {
       applicationId: 'fakeApplicationId',
       buildProfile: {} as AndroidBuildProfile,
       vcsClient: vcsClientMock,
-    })
+    });
 
     expect(result).toBe('22');
     expect(createAppVersionAsyncSpy).toHaveBeenCalled();
     expect(createAppVersionAsyncSpy.mock.calls[0][1].storeVersion).toBe('2.3.4');
     expect(createAppVersionAsyncSpy.mock.calls[0][1].buildVersion).toBe('22');
-  })
+  });
 
   it('initializes versionCode starting with 1 when remote version not set and not set in local files, autoIncrement=false', async () => {
     const graphQLClientMock = instance(mock<ExpoGraphqlClient>());
@@ -293,7 +294,7 @@ describe(resolveRemoteVersionCodeAsync, () => {
     vcsClientMock.getRootPathAsync = async () => '/app';
     jest.mocked(AppVersionQuery.latestVersionAsync).mockResolvedValue(null);
     const createAppVersionAsyncSpy = jest.spyOn(AppVersionMutation, 'createAppVersionAsync');
-    const exp = initBareWorkflowProject({versionCode: null, versionName: null});
+    const exp = initBareWorkflowProject({ versionCode: null, versionName: null });
 
     const result = await resolveRemoteVersionCodeAsync(graphQLClientMock, {
       projectDir: '/app',
@@ -302,13 +303,13 @@ describe(resolveRemoteVersionCodeAsync, () => {
       applicationId: 'fakeApplicationId',
       buildProfile: {} as AndroidBuildProfile,
       vcsClient: vcsClientMock,
-    })
+    });
 
     expect(result).toBe('1');
     expect(createAppVersionAsyncSpy).toHaveBeenCalled();
     expect(createAppVersionAsyncSpy.mock.calls[0][1].storeVersion).toBe('1.0.0');
     expect(createAppVersionAsyncSpy.mock.calls[0][1].buildVersion).toBe('1');
-  })
+  });
 
   it('increments versionCode from local files when remote version not set, autoIncrement=true', async () => {
     const graphQLClientMock = instance(mock<ExpoGraphqlClient>());
@@ -316,22 +317,22 @@ describe(resolveRemoteVersionCodeAsync, () => {
     vcsClientMock.getRootPathAsync = async () => '/app';
     jest.mocked(AppVersionQuery.latestVersionAsync).mockResolvedValue(null);
     const createAppVersionAsyncSpy = jest.spyOn(AppVersionMutation, 'createAppVersionAsync');
-    const exp = initBareWorkflowProject({versionCode: 22, versionName: '2.3.4'});
+    const exp = initBareWorkflowProject({ versionCode: 22, versionName: '2.3.4' });
 
     const result = await resolveRemoteVersionCodeAsync(graphQLClientMock, {
       projectDir: '/app',
       projectId: 'fakeProjectId',
       exp,
       applicationId: 'fakeApplicationId',
-      buildProfile: {autoIncrement: true} as AndroidBuildProfile,
+      buildProfile: { autoIncrement: true } as AndroidBuildProfile,
       vcsClient: vcsClientMock,
-    })
+    });
 
     expect(result).toBe('23');
     expect(createAppVersionAsyncSpy).toHaveBeenCalled();
     expect(createAppVersionAsyncSpy.mock.calls[0][1].storeVersion).toBe('2.3.4');
     expect(createAppVersionAsyncSpy.mock.calls[0][1].buildVersion).toBe('23');
-  })
+  });
 
   it('initializes versionCode starting with 1 when remote version not set and not set in local files, autoIncrement=true', async () => {
     const graphQLClientMock = instance(mock<ExpoGraphqlClient>());
@@ -339,23 +340,23 @@ describe(resolveRemoteVersionCodeAsync, () => {
     vcsClientMock.getRootPathAsync = async () => '/app';
     jest.mocked(AppVersionQuery.latestVersionAsync).mockResolvedValue(null);
     const createAppVersionAsyncSpy = jest.spyOn(AppVersionMutation, 'createAppVersionAsync');
-    const exp = initBareWorkflowProject({versionCode: null, versionName: null});
+    const exp = initBareWorkflowProject({ versionCode: null, versionName: null });
 
     const result = await resolveRemoteVersionCodeAsync(graphQLClientMock, {
       projectDir: '/app',
       projectId: 'fakeProjectId',
       exp,
       applicationId: 'fakeApplicationId',
-      buildProfile: {autoIncrement: true} as AndroidBuildProfile,
+      buildProfile: { autoIncrement: true } as AndroidBuildProfile,
       vcsClient: vcsClientMock,
-    })
+    });
 
     expect(result).toBe('1');
     expect(createAppVersionAsyncSpy).toHaveBeenCalled();
     expect(createAppVersionAsyncSpy.mock.calls[0][1].storeVersion).toBe('1.0.0');
     expect(createAppVersionAsyncSpy.mock.calls[0][1].buildVersion).toBe('1');
-  })
-})
+  });
+});
 
 function initBareWorkflowProject({
   versionCode = 123,
