@@ -15,9 +15,30 @@ import {
   getInfoPlistPath,
   readBuildNumberAsync,
   readShortVersionAsync,
+  resolveRemoteBuildNumberAsync,
 } from '../version';
+import { Target } from '../../../credentials/ios/types'
+import {ExpoGraphqlClient} from "../../../commandUtils/context/contextUtils/createGraphqlClient";
+import {IosBuildProfile} from "@expo/eas-json/build/build/types";
+import {Client} from "../../../vcs/vcs";
+import {AppVersionQuery} from "../../../graphql/queries/AppVersionQuery";
+import {AppVersionMutation} from "../../../graphql/mutations/AppVersionMutation";
+import {instance, mock} from "ts-mockito";
 
 jest.mock('fs');
+jest.mock('../../../commandUtils/context/contextUtils/createGraphqlClient');
+jest.mock('../../../vcs/vcs');
+jest.mock('../../../graphql/queries/AppVersionQuery');
+jest.mock('../../../graphql/mutations/AppVersionMutation');
+jest.mock('../../../ora', () => ({
+  ora: jest.fn().mockImplementation(() => ({
+    start: jest.fn().mockImplementation(() => ({
+      succeed: jest.fn(),
+      stop: jest.fn(),
+      fail: jest.fn(),
+    })),
+  })),
+}));
 
 const vcsClient = resolveVcsClient();
 
@@ -358,6 +379,128 @@ describe(getInfoPlistPath, () => {
     expect(plistPath).toBe('/app/ios/qwert/NotInfo.plist');
   });
 });
+
+describe(resolveRemoteBuildNumberAsync, () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('uses current remote buildNumber when remote version set, autoIncrement=false', async () => {
+    const graphQLClientMock = instance(mock<ExpoGraphqlClient>());
+    const vcsClientMock = instance(mock<Client>());
+    vcsClientMock.getRootPathAsync = async () => '/app';
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockResolvedValue({
+      buildVersion: '11',
+      storeVersion: '1.2.3'
+    });
+    const createAppVersionAsyncSpy = jest.spyOn(AppVersionMutation, 'createAppVersionAsync');
+    const exp = initBareWorkflowProject();
+
+    const result = await resolveRemoteBuildNumberAsync(graphQLClientMock, {
+      projectDir: '/app',
+      projectId: 'fakeProjectId',
+      exp,
+      applicationTarget: {} as Target,
+      buildProfile: {} as IosBuildProfile,
+      vcsClient: vcsClientMock,
+    })
+
+    expect(result).toBe('11');
+    expect(createAppVersionAsyncSpy).not.toHaveBeenCalled();
+  })
+
+  it('initializes buildNumber from local files when remote version not set, autoIncrement=false', async () => {
+    const graphQLClientMock = instance(mock<ExpoGraphqlClient>());
+    const vcsClientMock = instance(mock<Client>());
+    vcsClientMock.getRootPathAsync = async () => '/app';
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockResolvedValue(null);
+    const createAppVersionAsyncSpy = jest.spyOn(AppVersionMutation, 'createAppVersionAsync');
+    const exp = initBareWorkflowProject({buildNumber: '22', appVersion: '2.3.4'});
+
+    const result = await resolveRemoteBuildNumberAsync(graphQLClientMock, {
+      projectDir: '/app',
+      projectId: 'fakeProjectId',
+      exp,
+      applicationTarget: {} as Target,
+      buildProfile: {} as IosBuildProfile,
+      vcsClient: vcsClientMock,
+    })
+
+    expect(result).toBe('22');
+    expect(createAppVersionAsyncSpy).toHaveBeenCalled();
+    expect(createAppVersionAsyncSpy.mock.calls[0][1].storeVersion).toBe('2.3.4');
+    expect(createAppVersionAsyncSpy.mock.calls[0][1].buildVersion).toBe('22');
+  })
+
+  it('initializes buildNumber starting with 1 when remote version not set and local version is 1, autoIncrement=false', async () => {
+    const graphQLClientMock = instance(mock<ExpoGraphqlClient>());
+    const vcsClientMock = instance(mock<Client>());
+    vcsClientMock.getRootPathAsync = async () => '/app';
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockResolvedValue(null);
+    const createAppVersionAsyncSpy = jest.spyOn(AppVersionMutation, 'createAppVersionAsync');
+    const exp = initBareWorkflowProject({buildNumber: '1', appVersion: '1.0.0'});
+
+    const result = await resolveRemoteBuildNumberAsync(graphQLClientMock, {
+      projectDir: '/app',
+      projectId: 'fakeProjectId',
+      exp,
+      applicationTarget: {} as Target,
+      buildProfile: {} as IosBuildProfile,
+      vcsClient: vcsClientMock,
+    })
+
+    expect(result).toBe('1');
+    expect(createAppVersionAsyncSpy).toHaveBeenCalled();
+    expect(createAppVersionAsyncSpy.mock.calls[0][1].storeVersion).toBe('1.0.0');
+    expect(createAppVersionAsyncSpy.mock.calls[0][1].buildVersion).toBe('1');
+  })
+
+  it('increments buildNumber from local files when remote version not set, autoIncrement=true', async () => {
+    const graphQLClientMock = instance(mock<ExpoGraphqlClient>());
+    const vcsClientMock = instance(mock<Client>());
+    vcsClientMock.getRootPathAsync = async () => '/app';
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockResolvedValue(null);
+    const createAppVersionAsyncSpy = jest.spyOn(AppVersionMutation, 'createAppVersionAsync');
+    const exp = initBareWorkflowProject({buildNumber: '22', appVersion: '2.3.4'});
+
+    const result = await resolveRemoteBuildNumberAsync(graphQLClientMock, {
+      projectDir: '/app',
+      projectId: 'fakeProjectId',
+      exp,
+      applicationTarget: {} as Target,
+      buildProfile: {autoIncrement: true} as IosBuildProfile,
+      vcsClient: vcsClientMock,
+    })
+
+    expect(result).toBe('23');
+    expect(createAppVersionAsyncSpy).toHaveBeenCalled();
+    expect(createAppVersionAsyncSpy.mock.calls[0][1].storeVersion).toBe('2.3.4');
+    expect(createAppVersionAsyncSpy.mock.calls[0][1].buildVersion).toBe('23');
+  })
+
+  it('initializes buildNumber starting with 1 when remote version not set and local version is 1, autoIncrement=true', async () => {
+    const graphQLClientMock = instance(mock<ExpoGraphqlClient>());
+    const vcsClientMock = instance(mock<Client>());
+    vcsClientMock.getRootPathAsync = async () => '/app';
+    jest.mocked(AppVersionQuery.latestVersionAsync).mockResolvedValue(null);
+    const createAppVersionAsyncSpy = jest.spyOn(AppVersionMutation, 'createAppVersionAsync');
+    const exp = initBareWorkflowProject({buildNumber: '1', appVersion: '1.0.0'});
+
+    const result = await resolveRemoteBuildNumberAsync(graphQLClientMock, {
+      projectDir: '/app',
+      projectId: 'fakeProjectId',
+      exp,
+      applicationTarget: {} as Target,
+      buildProfile: {autoIncrement: true} as IosBuildProfile,
+      vcsClient: vcsClientMock,
+    })
+
+    expect(result).toBe('1');
+    expect(createAppVersionAsyncSpy).toHaveBeenCalled();
+    expect(createAppVersionAsyncSpy.mock.calls[0][1].storeVersion).toBe('1.0.0');
+    expect(createAppVersionAsyncSpy.mock.calls[0][1].buildVersion).toBe('1');
+  })
+})
 
 function initBareWorkflowProject({
   appVersion = '1.0.0',
