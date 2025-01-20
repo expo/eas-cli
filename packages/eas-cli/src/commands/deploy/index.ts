@@ -65,10 +65,10 @@ interface DeployInProgressParams {
 }
 
 export default class WorkerDeploy extends EasCommand {
-  static override description = 'Deploy your Expo web build';
-  static override aliases = ['deploy'];
+  static override description = 'Deploy your Expo Router web build and API Routes.';
+  static override aliases = ['worker:deploy'];
   static override usage = [chalk`deploy {dim [options]}`, `deploy --prod`];
-  static override state = 'beta';
+  static override state = 'preview';
 
   static override flags = {
     prod: Flags.boolean({
@@ -111,7 +111,7 @@ export default class WorkerDeploy extends EasCommand {
       enableJsonOutput();
     }
 
-    Log.warn('EAS Hosting is still in beta and subject to changes.');
+    Log.warn('EAS Hosting is still in preview and subject to changes.');
 
     const {
       getDynamicPrivateProjectConfigAsync,
@@ -455,7 +455,7 @@ function logExportedProjectInfo(
   // Only show the timestamp for exports older than 1 minute
   if (project.modifiedAt && Date.now() - project.modifiedAt.getTime() > 60_000) {
     modifiedAgo = ` - exported ${formatTimeAgo(project.modifiedAt)}`;
-    Log.warn(`> Project export: ${project.type}${modifiedAgo}}`);
+    Log.warn(`> Project export: ${project.type}${modifiedAgo}`);
   } else {
     Log.log(chalk`{dim > Project export: ${project.type}}`);
   }

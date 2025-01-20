@@ -8,6 +8,19 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Allow filtering by `--fingerprint_hash` in `eas build:list` command. ([#2818](https://github.com/expo/eas-cli/pull/2818) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+- Fix logs typos in the `eas deploy` command. ([#2822](https://github.com/expo/eas-cli/pull/2822) by [@kadikraman](https://github.com/kadikraman))
+- Make `deploy` the top level command for hosting. ([#2824](https://github.com/expo/eas-cli/pull/2824) by [@kadikraman](https://github.com/kadikraman))
+
+
+- Make variable naming more explicit, remove deprecated runtimeFingerprintSource uses. ([#2816](https://github.com/expo/eas-cli/pull/2816) by [@wschurman](https://github.com/wschurman))
+
+## [14.4.1](https://github.com/expo/eas-cli/releases/tag/v14.4.1) - 2025-01-15
+
 ### 🐛 Bug fixes
 
 - Enable shell execution for env:exec commands. ([#2788](https://github.com/expo/eas-cli/pull/2788) by [@tharakadesilva](https://github.com/tharakadesilva))
@@ -17,6 +30,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Make automatic env resolution message shorter. ([#2806](https://github.com/expo/eas-cli/pull/2806) by [@szdziedzic](https://github.com/szdziedzic))
 - Make "No remote versions are configured" message green instead of yellow. ([#2805](https://github.com/expo/eas-cli/pull/2805) by [@szdziedzic](https://github.com/szdziedzic))
 - Upload local fingerprint on `eas fingerprint:compare`. ([#2808](https://github.com/expo/eas-cli/pull/2808) by [@quinlanj](https://github.com/quinlanj))
+- Upgrade `eas-cli-local-build-plugin` to `1.0.163` to support Bun's new text-based lock file in local builds. ([#2817](https://github.com/expo/eas-cli/pull/2817) by [@shiroyasha9](https://github.com/shiroyasha9))
 
 ## [14.4.0](https://github.com/expo/eas-cli/releases/tag/v14.4.0) - 2025-01-09
 
