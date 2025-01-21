@@ -208,13 +208,14 @@ async function promptUsernameAsync(): Promise<string> {
   // the default value for quicker authentication.
   const lastAppleId = await getCachedUsernameAsync();
 
-  const { username } = await promptAsync({
+  let { username } = await promptAsync({
     type: 'text',
     name: 'username',
     message: `Apple ID:`,
     validate: (val: string) => val !== '',
     initial: lastAppleId ?? undefined,
   });
+  username = username.replace(/[\x00-\x1F]/gi, '');
 
   if (username && username !== lastAppleId) {
     await cacheUsernameAsync(username);
