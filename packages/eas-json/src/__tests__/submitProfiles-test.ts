@@ -343,7 +343,11 @@ test('valid profile with extension chain exceeding 5 - too long', async () => {
   });
 
   const accessor = EasJsonAccessor.fromProjectPath('/project');
-  await expect(EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'extension5')).rejects.toThrow('Too long chain of profile extensions, make sure "extends" keys do not make a cycle');
+  await expect(
+    EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'extension5')
+  ).rejects.toThrow(
+    'Too long chain of profile extensions, make sure "extends" keys do not make a cycle'
+  );
 });
 
 test('ios config with with invalid appleId', async () => {

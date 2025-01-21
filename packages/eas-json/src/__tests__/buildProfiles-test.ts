@@ -414,7 +414,11 @@ test('valid profile with extension chain exceeding 5 - too long', async () => {
   });
 
   const accessor = EasJsonAccessor.fromProjectPath('/project');
-  await expect(EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'extension5')).rejects.toThrow('Too long chain of profile extensions, make sure "extends" keys do not make a cycle');
+  await expect(
+    EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'extension5')
+  ).rejects.toThrow(
+    'Too long chain of profile extensions, make sure "extends" keys do not make a cycle'
+  );
 });
 
 test('valid profile extending other profile with platform specific envs', async () => {
