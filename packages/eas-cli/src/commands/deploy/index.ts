@@ -175,7 +175,7 @@ export default class WorkerDeploy extends EasCommand {
       } else if (!response.ok) {
         throw new Error(`Upload failed! (${response.statusText})`);
       } else {
-        const json = await response.json();
+        const json: any = await response.json(); // TODO: remove any
         if (!json.success || !json.result || typeof json.result !== 'object') {
           throw new Error(json.message ? `Upload failed: ${json.message}` : 'Upload failed!');
         }

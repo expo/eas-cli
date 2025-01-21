@@ -1,11 +1,20 @@
-import * as https from 'https';
-import createHttpsProxyAgent from 'https-proxy-agent';
 import mime from 'mime';
 import { Gzip } from 'minizlib';
-import fetch, { Headers, HeadersInit, RequestInit, Response } from 'node-fetch';
 import fs, { createReadStream } from 'node:fs';
 import path from 'node:path';
+import { Readable } from 'node:stream';
 import promiseRetry from 'promise-retry';
+import {
+  Agent,
+  type Dispatcher,
+  Headers,
+  type HeadersInit,
+  type RequestInit,
+  type Response,
+  fetch,
+} from 'undici';
+
+import { sharedProxyAgent } from '../fetch';
 
 const MAX_RETRIES = 4;
 const MAX_CONCURRENCY = 10;
@@ -43,21 +52,33 @@ export interface UploadResult {
   response: Response;
 }
 
-let sharedAgent: https.Agent | undefined;
-const getAgent = (): https.Agent => {
-  if (sharedAgent) {
-    return sharedAgent;
-  } else if (process.env.https_proxy) {
-    return (sharedAgent = createHttpsProxyAgent(process.env.https_proxy));
+let sharedDispatcher: Dispatcher | null = null;
+const getDispatcher = (): Dispatcher => {
+  if (sharedDispatcher) {
+    return sharedDispatcher;
+  } else if (sharedProxyAgent) {
+    return (sharedDispatcher = sharedProxyAgent);
   } else {
-    return (sharedAgent = new https.Agent({
-      keepAlive: true,
-      maxSockets: MAX_CONCURRENCY,
-      maxTotalSockets: MAX_CONCURRENCY,
-      scheduling: 'lifo',
-      timeout: 4_000,
-    }));
+    return (sharedDispatcher = new Agent({ pipelining: 0 }));
   }
+
+  // if (sharedAgent) return sharedAgent;
+  // if (sharedProxyAgent) return (sharedAgent = sharedProxyAgent);
+  // return (sharedAgent = )
+
+  // if (sharedAgent) {
+  //   return sharedAgent;
+  // } else if (process.env.https_proxy) {
+  //   return (sharedAgent = createHttpsProxyAgent(process.env.https_proxy));
+  // } else {
+  //   return (sharedAgent = new https.Agent({
+  //     keepAlive: true,
+  //     maxSockets: MAX_CONCURRENCY,
+  //     maxTotalSockets: MAX_CONCURRENCY,
+  //     scheduling: 'lifo',
+  //     timeout: 4_000,
+  //   }));
+  // }
 };
 
 export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
@@ -85,12 +106,12 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
         headers.set('content-type', contentType);
       }
 
-      let bodyStream: NodeJS.ReadableStream = createReadStream(filePath);
+      let bodyStream = createReadStream(filePath);
       if (compress && isCompressible(contentType, stat.size)) {
         const gzip = new Gzip({ portable: true });
         bodyStream.on('error', error => gzip.emit('error', error));
-        // @ts-expect-error: Gzip implements a Readable-like interface
-        bodyStream = bodyStream.pipe(gzip) as NodeJS.ReadableStream;
+        // @ts-expect-error
+        bodyStream = bodyStream.pipe(gzip); // TODO: validate this works!
         headers.set('content-encoding', 'gzip');
       }
 
@@ -99,18 +120,18 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
         response = await fetch(params.url, {
           ...requestInit,
           method,
-          body: bodyStream,
+          body: Readable.toWeb(bodyStream),
           headers,
-          agent: getAgent(),
-          // @ts-expect-error: Internal types don't match
+          dispatcher: getDispatcher(),
           signal,
+          duplex: 'half',
         });
       } catch (error) {
         return retry(error);
       }
 
       const getErrorMessageAsync = async (): Promise<string> => {
-        const body = await response.json().catch(() => null);
+        const body: any = await response.json().catch(() => null); // TODO: remove any
         return body?.error ?? `Upload of "${filePath}" failed: ${response.statusText}`;
       };
 
@@ -148,18 +169,18 @@ export async function callUploadApiAsync(url: string | URL, init?: RequestInit):
     try {
       response = await fetch(url, {
         ...init,
-        agent: getAgent(),
+        dispatcher: getDispatcher(),
       });
     } catch (error) {
       return retry(error);
     }
     if (response.status >= 500 && response.status <= 599) {
-      retry(new Error(`Deployment failed: ${response.statusText}`));
+      return retry(new Error(`Deployment failed: ${response.statusText}`));
     }
     try {
       return await response.json();
     } catch (error) {
-      retry(error);
+      return retry(error);
     }
   });
 }

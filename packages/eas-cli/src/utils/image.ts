@@ -1,4 +1,5 @@
 import fs from 'fs-extra';
+import { Readable } from 'node:stream';
 import { Metadata, PNG } from 'pngjs';
 
 import fetch from '../fetch';
@@ -72,7 +73,11 @@ export async function isPNGAsync(imagePathOrURL: string): Promise<boolean> {
 async function getImageStreamAsync(imagePathOrURL: string): Promise<NodeJS.ReadableStream> {
   if (isURL(imagePathOrURL)) {
     const response = await fetch(imagePathOrURL);
-    return response.body;
+    if (!response.body) {
+      throw new Error(`Image request did not return a response body`);
+    }
+
+    return Readable.fromWeb(response.body);
   } else {
     return fs.createReadStream(imagePathOrURL);
   }

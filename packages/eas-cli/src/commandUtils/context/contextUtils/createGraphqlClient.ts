@@ -11,10 +11,10 @@ import {
 } from '@urql/core';
 import { retryExchange } from '@urql/exchange-retry';
 import { DocumentNode } from 'graphql';
-import fetch from 'node-fetch';
+import { fetch } from 'undici';
 
 import { getExpoApiBaseUrl } from '../../../api';
-import { httpsProxyAgent } from '../../../fetch';
+import { sharedProxyAgent } from '../../../fetch';
 
 export interface ExpoGraphqlClient extends Client {
   query<Data = any, Variables extends AnyVariables = AnyVariables>(
@@ -54,7 +54,7 @@ export function createGraphqlClient(authInfo: {
         headers['expo-session'] = authInfo.sessionSecret;
       }
       return {
-        ...(httpsProxyAgent ? { agent: httpsProxyAgent } : {}),
+        ...(sharedProxyAgent ? { agent: sharedProxyAgent } : {}),
         headers,
       };
     },

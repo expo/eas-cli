@@ -1,6 +1,8 @@
 import spawnAsync from '@expo/spawn-async';
 import glob from 'fast-glob';
 import fs from 'fs-extra';
+import { Readable } from 'node:stream';
+import { ReadableStream } from 'node:stream/web';
 import path from 'path';
 import { Stream } from 'stream';
 import { extract } from 'tar';
@@ -10,14 +12,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { formatBytes } from './files';
 import { getTmpDirectory } from './paths';
 import { ProgressHandler, createProgressTracker } from './progress';
-import fetch, { RequestInit, Response } from '../fetch';
+import fetch, { type RequestInit, Response } from '../fetch';
 import { AppPlatform } from '../graphql/generated';
 import Log from '../log';
 import { promptAsync } from '../prompts';
 
 const pipeline = promisify(Stream.pipeline);
 
-function wrapFetchWithProgress(): (
+/** @internal - Exposed for testing only */
+export function wrapFetchWithProgress(): (
   url: string,
   init: RequestInit,
   progressHandler: ProgressHandler
@@ -26,47 +29,68 @@ function wrapFetchWithProgress(): (
   return async (url: string, init: RequestInit, progressHandler: ProgressHandler) => {
     const response = await fetch(url, init);
 
-    if (response.ok) {
-      const totalDownloadSize = response.headers.get('Content-Length');
-      const total = Number(totalDownloadSize);
-
-      if (!totalDownloadSize || isNaN(total) || total < 0) {
-        Log.warn(
-          'Progress callback not supported for network request because "Content-Length" header missing or invalid in response from URL:',
-          url.toString()
-        );
-        return response;
-      }
-
-      let length = 0;
-      const onProgress = (chunkLength?: number): void => {
-        if (chunkLength) {
-          length += chunkLength;
-        }
-
-        const progress = length / total;
-
-        if (!didProgressBarFinish) {
-          progressHandler({
-            progress: { total, percent: progress, transferred: length },
-            isComplete: total === length,
-          });
-          if (total === length) {
-            didProgressBarFinish = true;
-          }
-        }
-      };
-
-      response.body.on('data', chunk => {
-        onProgress(chunk.length);
-      });
-
-      response.body.on('end', () => {
-        onProgress();
-      });
+    // Abort if the request failed, or if no response body is available
+    if (!response.ok || !response.body) {
+      return response;
     }
 
-    return response;
+    // Calculate total progress size
+    const contentLength = response.headers.get('Content-Length');
+    const progressTotal = contentLength ? parseInt(contentLength, 10) : undefined;
+
+    if (!progressTotal || isNaN(progressTotal) || progressTotal < 0) {
+      // TODO: add debug logging explaining it bailed out due to faulty server response
+      return response;
+    }
+
+    // Prepare progress coutner and handler
+    let progressLength = 0;
+    const onProgress = (chunkSize = 0): void => {
+      progressLength += chunkSize;
+
+      if (!didProgressBarFinish) {
+        if (progressLength === progressTotal) {
+          didProgressBarFinish = true;
+        }
+
+        progressHandler({
+          isComplete: progressLength === progressTotal,
+          progress: {
+            total: progressTotal,
+            percent: progressLength / progressTotal,
+            transferred: progressLength,
+          },
+        });
+      }
+    };
+
+    // Create a new body-wrapping stream that monitors progression
+    const bodyReader = response.body.getReader();
+    const bodyWithProgress = new ReadableStream({
+      start(controller) {
+        // Notify the stream is starting, and read the first chunk
+        onProgress();
+        next();
+
+        function next(): void {
+          void bodyReader.read().then(({ done, value }) => {
+            // Close the controller when the stream is done
+            if (done) {
+              controller.close();
+              return;
+            }
+
+            // Update progression
+            onProgress(Buffer.byteLength(value));
+            // Continue the stream and read the next chunk
+            controller.enqueue(value);
+            next();
+          });
+        }
+      },
+    });
+
+    return new Response(bodyWithProgress, response);
   };
 }
 
@@ -82,7 +106,7 @@ async function downloadFileWithProgressTrackerAsync(
     const response = await wrapFetchWithProgress()(
       url,
       {
-        timeout: 1000 * 60 * 5, // 5 minutes
+        signal: AbortSignal.timeout(1000 * 60 * 5), // 5 minutes
       },
       createProgressTracker({
         message: progressTrackerMessage,
@@ -93,8 +117,11 @@ async function downloadFileWithProgressTrackerAsync(
     if (!response.ok) {
       throw new Error(`Failed to download file from ${url}`);
     }
+    if (!response.body) {
+      throw new Error(`Failed to download file, no response body returned ${url}`);
+    }
 
-    await pipeline(response.body, fs.createWriteStream(outputPath));
+    await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(outputPath));
   } catch (error: any) {
     if (await fs.pathExists(outputPath)) {
       await fs.remove(outputPath);
