@@ -169,7 +169,7 @@ test('ios config with ascApiKey fields set to env var', async () => {
   }
 });
 
-test('valid profile extending other profile', async () => {
+test('valid profile with extension chain not exceeding 5', async () => {
   await fs.writeJson('/project/eas.json', {
     submit: {
       base: {
@@ -179,7 +179,7 @@ test('valid profile extending other profile', async () => {
           appleTeamId: 'AB32CZE81F',
         },
       },
-      extension: {
+      extension1: {
         extends: 'base',
         ios: {
           appleTeamId: 'AB32CZE81F',
@@ -188,15 +188,57 @@ test('valid profile extending other profile', async () => {
           ascApiKeyId: 'AB32CZE81F',
         },
       },
+      extension2: {
+        extends: 'extension1',
+        ios: {
+          appleTeamId: 'AB32CZE81E',
+          ascApiKeyPath: './path-ABCD.p8',
+          ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
+          ascApiKeyId: 'AB32CZE81E',
+        },
+      },
+      extension3: {
+        extends: 'extension2',
+        ios: {
+          appleTeamId: 'AB32CZE81D',
+          ascApiKeyPath: './path-ABCD.p8',
+          ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
+          ascApiKeyId: 'AB32CZE81D',
+        },
+      },
+      extension4: {
+        extends: 'extension3',
+        ios: {
+          appleTeamId: 'AB32CZE81C',
+          ascApiKeyPath: './path-ABCD.p8',
+          ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
+          ascApiKeyId: 'AB32CZE81C',
+        },
+      },
     },
   });
 
   const accessor = EasJsonAccessor.fromProjectPath('/project');
   const baseProfile = await EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'base');
-  const extendedProfile = await EasJsonUtils.getSubmitProfileAsync(
+  const extendedProfile1 = await EasJsonUtils.getSubmitProfileAsync(
     accessor,
     Platform.IOS,
-    'extension'
+    'extension1'
+  );
+  const extendedProfile2 = await EasJsonUtils.getSubmitProfileAsync(
+    accessor,
+    Platform.IOS,
+    'extension2'
+  );
+  const extendedProfile3 = await EasJsonUtils.getSubmitProfileAsync(
+    accessor,
+    Platform.IOS,
+    'extension3'
+  );
+  const extendedProfile4 = await EasJsonUtils.getSubmitProfileAsync(
+    accessor,
+    Platform.IOS,
+    'extension4'
   );
   expect(baseProfile).toEqual({
     language: 'en-US',
@@ -204,7 +246,7 @@ test('valid profile extending other profile', async () => {
     ascAppId: '1223423523',
     appleTeamId: 'AB32CZE81F',
   });
-  expect(extendedProfile).toEqual({
+  expect(extendedProfile1).toEqual({
     language: 'en-US',
     appleId: 'some@email.com',
     ascAppId: '1223423523',
@@ -213,6 +255,95 @@ test('valid profile extending other profile', async () => {
     ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
     ascApiKeyId: 'AB32CZE81F',
   });
+  expect(extendedProfile2).toEqual({
+    language: 'en-US',
+    appleId: 'some@email.com',
+    ascAppId: '1223423523',
+    appleTeamId: 'AB32CZE81E',
+    ascApiKeyPath: './path-ABCD.p8',
+    ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
+    ascApiKeyId: 'AB32CZE81E',
+  });
+  expect(extendedProfile3).toEqual({
+    language: 'en-US',
+    appleId: 'some@email.com',
+    ascAppId: '1223423523',
+    appleTeamId: 'AB32CZE81D',
+    ascApiKeyPath: './path-ABCD.p8',
+    ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
+    ascApiKeyId: 'AB32CZE81D',
+  });
+  expect(extendedProfile4).toEqual({
+    language: 'en-US',
+    appleId: 'some@email.com',
+    ascAppId: '1223423523',
+    appleTeamId: 'AB32CZE81C',
+    ascApiKeyPath: './path-ABCD.p8',
+    ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
+    ascApiKeyId: 'AB32CZE81C',
+  });
+});
+
+test('valid profile with extension chain exceeding 5 - too long', async () => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      base: {
+        ios: {
+          appleId: 'some@email.com',
+          ascAppId: '1223423523',
+          appleTeamId: 'AB32CZE81F',
+        },
+      },
+      extension1: {
+        extends: 'base',
+        ios: {
+          appleTeamId: 'AB32CZE81F',
+          ascApiKeyPath: './path-ABCD.p8',
+          ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
+          ascApiKeyId: 'AB32CZE81F',
+        },
+      },
+      extension2: {
+        extends: 'extension1',
+        ios: {
+          appleTeamId: 'AB32CZE81E',
+          ascApiKeyPath: './path-ABCD.p8',
+          ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
+          ascApiKeyId: 'AB32CZE81E',
+        },
+      },
+      extension3: {
+        extends: 'extension2',
+        ios: {
+          appleTeamId: 'AB32CZE81D',
+          ascApiKeyPath: './path-ABCD.p8',
+          ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
+          ascApiKeyId: 'AB32CZE81D',
+        },
+      },
+      extension4: {
+        extends: 'extension3',
+        ios: {
+          appleTeamId: 'AB32CZE81C',
+          ascApiKeyPath: './path-ABCD.p8',
+          ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
+          ascApiKeyId: 'AB32CZE81C',
+        },
+      },
+      extension5: {
+        extends: 'extension4',
+        ios: {
+          appleTeamId: 'AB32CZE81B',
+          ascApiKeyPath: './path-ABCD.p8',
+          ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
+          ascApiKeyId: 'AB32CZE81B',
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  await expect(EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'extension5')).rejects.toThrow('Too long chain of profile extensions, make sure "extends" keys do not make a cycle');
 });
 
 test('ios config with with invalid appleId', async () => {
