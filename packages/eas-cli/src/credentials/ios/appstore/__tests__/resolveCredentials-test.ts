@@ -1,11 +1,26 @@
+import { JsonFileCache } from '@expo/apple-utils';
+import * as fs from 'fs-extra';
 import { vol } from 'memfs';
 
 import { promptAsync } from '../../../../prompts';
 import { AppleTeamType } from '../authenticateTypes';
-import { resolveAppleTeamAsync, resolveAscApiKeyAsync } from '../resolveCredentials';
+import * as Keychain from '../keychain';
+import {
+  resolveAppleTeamAsync,
+  resolveAscApiKeyAsync,
+  resolveUserCredentialsAsync,
+} from '../resolveCredentials';
 
 jest.mock('../../../../prompts');
 jest.mock('fs');
+jest.mock('@expo/apple-utils', () => {
+  return {
+    getCacheAsync: jest.fn(),
+    usernameCachePath: jest.fn(),
+    ...jest.requireActual('@expo/apple-utils'),
+  };
+});
+jest.mock('../keychain');
 
 const testAscApiKey = {
   keyP8: 'test-key-p8',
@@ -87,5 +102,142 @@ describe(resolveAppleTeamAsync, () => {
       name: undefined,
       inHouse: true,
     });
+  });
+});
+
+describe(resolveUserCredentialsAsync, () => {
+  let KeychainMock: any;
+  beforeAll(() => {
+    JsonFileCache.getCacheAsync = jest.fn().mockImplementation(async (filePath: string) => {
+      const content = await fs.readFile(filePath, 'utf-8');
+      return content ? JSON.parse(content) : null;
+    });
+    KeychainMock = jest.mocked(Keychain);
+  });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    KeychainMock.EXPO_NO_KEYCHAIN = '';
+  });
+
+  it('uses credentials resolved from options', async () => {
+    const result = await resolveUserCredentialsAsync({
+      username: 'fakeUsername',
+      password: 'fakePassword',
+    });
+    expect(result).toMatchObject({
+      username: 'fakeUsername',
+      password: 'fakePassword',
+    });
+  });
+
+  it('uses credentials resolved from environment', async () => {
+    process.env.EXPO_APPLE_ID = 'fakeUsername';
+    process.env.EXPO_APPLE_PASSWORD = 'fakePassword';
+
+    const result = await resolveUserCredentialsAsync({});
+    expect(result).toMatchObject({
+      username: 'fakeUsername',
+      password: 'fakePassword',
+    });
+  });
+
+  it('uses credentials from prompt, does not update cache if they match', async () => {
+    vol.fromJSON({
+      './.app-store/auth/username.json': `
+      {
+        "username": "fakeUsername"
+      }
+      `,
+    });
+    jest.mocked(promptAsync).mockResolvedValueOnce({ username: 'fakeUsername' });
+    JsonFileCache.usernameCachePath = jest.fn().mockReturnValue('./.app-store/auth/username.json');
+    const cacheAsyncSpy = jest.spyOn(JsonFileCache, 'cacheAsync');
+
+    const result = await resolveUserCredentialsAsync({});
+    expect(result).toMatchObject({
+      username: 'fakeUsername',
+    });
+    expect(cacheAsyncSpy).not.toHaveBeenCalled();
+  });
+
+  it("uses credentials from prompt, updates cache if they don't match", async () => {
+    vol.fromJSON({
+      './.app-store/auth/username.json': `
+      {
+        "username": "fakeUsername"
+      }
+      `,
+    });
+    jest.mocked(promptAsync).mockResolvedValueOnce({ username: 'newFakeUsername' });
+    JsonFileCache.usernameCachePath = jest.fn().mockReturnValue('./.app-store/auth/username.json');
+    const cacheAsyncSpy = jest.spyOn(JsonFileCache, 'cacheAsync');
+
+    expect(JSON.parse(await fs.readFile('./.app-store/auth/username.json', 'utf-8'))).toMatchObject(
+      { username: 'fakeUsername' }
+    );
+    const result = await resolveUserCredentialsAsync({});
+    expect(result).toMatchObject({
+      username: 'newFakeUsername',
+    });
+    expect(cacheAsyncSpy).toHaveBeenCalledWith('./.app-store/auth/username.json', {
+      username: 'newFakeUsername',
+    });
+    expect(JSON.parse(await fs.readFile('./.app-store/auth/username.json', 'utf-8'))).toMatchObject(
+      { username: 'newFakeUsername' }
+    );
+  });
+
+  it("uses credentials from prompt, doesn't read or update cache if EXPO_NO_KEYCHAIN is set", async () => {
+    vol.fromJSON({
+      './.app-store/auth/username.json': `
+      {
+        "username": "fakeUsername"
+      }
+      `,
+    });
+    jest.mocked(promptAsync).mockResolvedValueOnce({ username: 'newFakeUsername' });
+    JsonFileCache.usernameCachePath = jest.fn().mockReturnValue('./.app-store/auth/username.json');
+    KeychainMock.EXPO_NO_KEYCHAIN = 'true';
+    const getCacheAsyncSpy = jest.spyOn(JsonFileCache, 'getCacheAsync');
+    const cacheAsyncSpy = jest.spyOn(JsonFileCache, 'cacheAsync');
+
+    expect(JSON.parse(await fs.readFile('./.app-store/auth/username.json', 'utf-8'))).toMatchObject(
+      { username: 'fakeUsername' }
+    );
+    const result = await resolveUserCredentialsAsync({});
+    expect(result).toMatchObject({
+      username: 'newFakeUsername',
+    });
+    expect(getCacheAsyncSpy).not.toHaveBeenCalled();
+    expect(cacheAsyncSpy).not.toHaveBeenCalled();
+    await expect(fs.access('./.app-store/auth/username.json')).rejects.toThrow();
+  });
+
+  it('clears credentials from prompt if malformed before using and updating cache', async () => {
+    vol.fromJSON({
+      './.app-store/auth/username.json': `
+      {
+        "username": "fakeUsername"
+      }
+      `,
+    });
+    jest.mocked(promptAsync).mockResolvedValueOnce({ username: '\x17newFake\x01Username\x1F' });
+    JsonFileCache.usernameCachePath = jest.fn().mockReturnValue('./.app-store/auth/username.json');
+    const cacheAsyncSpy = jest.spyOn(JsonFileCache, 'cacheAsync');
+
+    expect(JSON.parse(await fs.readFile('./.app-store/auth/username.json', 'utf-8'))).toMatchObject(
+      { username: 'fakeUsername' }
+    );
+    const result = await resolveUserCredentialsAsync({});
+    expect(result).toMatchObject({
+      username: 'newFakeUsername',
+    });
+    expect(cacheAsyncSpy).toHaveBeenCalled();
+    expect(cacheAsyncSpy).toHaveBeenCalledWith('./.app-store/auth/username.json', {
+      username: 'newFakeUsername',
+    });
+    expect(JSON.parse(await fs.readFile('./.app-store/auth/username.json', 'utf-8'))).toMatchObject(
+      { username: 'newFakeUsername' }
+    );
   });
 });
