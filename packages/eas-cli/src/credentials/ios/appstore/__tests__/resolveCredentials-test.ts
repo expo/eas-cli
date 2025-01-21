@@ -232,7 +232,6 @@ describe(resolveUserCredentialsAsync, () => {
     expect(result).toMatchObject({
       username: 'newFakeUsername',
     });
-    expect(cacheAsyncSpy).toHaveBeenCalled();
     expect(cacheAsyncSpy).toHaveBeenCalledWith('./.app-store/auth/username.json', {
       username: 'newFakeUsername',
     });
