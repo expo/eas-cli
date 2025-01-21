@@ -4,6 +4,7 @@ import mime from 'mime';
 import { Gzip } from 'minizlib';
 import fetch, { Headers, HeadersInit, RequestInit, Response } from 'node-fetch';
 import fs, { createReadStream } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import promiseRetry from 'promise-retry';
 
@@ -26,6 +27,24 @@ const isCompressible = (contentType: string | null, size: number): boolean => {
   } else {
     return true;
   }
+};
+
+const getContentTypeAsync = async (filePath: string): Promise<string | null> => {
+  let contentType = mime.getType(path.basename(filePath));
+
+  if (!contentType) {
+    const fileContent = await readFile(filePath, 'utf-8');
+    try {
+      // check if file is valid JSON without an extension, e.g. for the apple app site association file
+      const parsedData = JSON.parse(fileContent);
+
+      if (parsedData) {
+        contentType = 'application/json';
+      }
+    } catch {}
+  }
+
+  return contentType;
 };
 
 export interface UploadParams extends Omit<RequestInit, 'signal' | 'body'> {
@@ -70,14 +89,15 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
     headers: headersInit,
     ...requestInit
   } = params;
-  const stat = await fs.promises.stat(params.filePath);
+  const stat = await fs.promises.stat(filePath);
   if (stat.size > MAX_UPLOAD_SIZE) {
     throw new Error(
-      `Upload of "${params.filePath}" aborted: File size is greater than the upload limit (>500MB)`
+      `Upload of "${filePath}" aborted: File size is greater than the upload limit (>500MB)`
     );
   }
 
-  const contentType = mime.getType(path.basename(params.filePath));
+  const contentType = await getContentTypeAsync(filePath);
+
   return await promiseRetry(
     async retry => {
       const headers = new Headers(headersInit);

@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Allow filtering by `--fingerprint_hash` in `eas build:list` command. ([#2818](https://github.com/expo/eas-cli/pull/2818) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
+- Ensure that the AASA file is served with content type application/json ([#2829](https://github.com/expo/eas-cli/pull/2829) by [@kadikraman](https://github.com/kadikraman))
 
 ### 🧹 Chores
 - Fix logs typos in the `eas deploy` command. ([#2822](https://github.com/expo/eas-cli/pull/2822) by [@kadikraman](https://github.com/kadikraman))
