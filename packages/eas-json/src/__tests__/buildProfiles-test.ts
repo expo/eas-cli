@@ -301,37 +301,120 @@ test('valid profile for internal distribution on Android', async () => {
   });
 });
 
-test('valid profile extending other profile', async () => {
+test('valid profile with extension chain not exceeding 5', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {
       base: {
         node: '12.0.0',
       },
-      extension: {
+      extension1: {
         extends: 'base',
         distribution: 'internal',
         node: '13.0.0',
+      },
+      extension2: {
+        extends: 'extension1',
+        distribution: 'internal',
+        node: '14.0.0',
+      },
+      extension3: {
+        extends: 'extension2',
+        distribution: 'internal',
+        node: '15.0.0',
+      },
+      extension4: {
+        extends: 'extension3',
+        distribution: 'internal',
+        node: '16.0.0',
       },
     },
   });
 
   const accessor = EasJsonAccessor.fromProjectPath('/project');
   const baseProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'base');
-  const extendedProfile = await EasJsonUtils.getBuildProfileAsync(
+  const extendedProfile1 = await EasJsonUtils.getBuildProfileAsync(
     accessor,
     Platform.ANDROID,
-    'extension'
+    'extension1'
+  );
+  const extendedProfile2 = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'extension2'
+  );
+  const extendedProfile3 = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'extension3'
+  );
+  const extendedProfile4 = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'extension4'
   );
   expect(baseProfile).toEqual({
     distribution: 'store',
     credentialsSource: 'remote',
     node: '12.0.0',
   });
-  expect(extendedProfile).toEqual({
+  expect(extendedProfile1).toEqual({
     distribution: 'internal',
     credentialsSource: 'remote',
     node: '13.0.0',
   });
+  expect(extendedProfile2).toEqual({
+    distribution: 'internal',
+    credentialsSource: 'remote',
+    node: '14.0.0',
+  });
+  expect(extendedProfile3).toEqual({
+    distribution: 'internal',
+    credentialsSource: 'remote',
+    node: '15.0.0',
+  });
+  expect(extendedProfile4).toEqual({
+    distribution: 'internal',
+    credentialsSource: 'remote',
+    node: '16.0.0',
+  });
+});
+
+test('valid profile with extension chain exceeding 5 - too long', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      base: {
+        node: '12.0.0',
+      },
+      extension1: {
+        extends: 'base',
+        distribution: 'internal',
+        node: '13.0.0',
+      },
+      extension2: {
+        extends: 'extension1',
+        distribution: 'internal',
+        node: '14.0.0',
+      },
+      extension3: {
+        extends: 'extension2',
+        distribution: 'internal',
+        node: '15.0.0',
+      },
+      extension4: {
+        extends: 'extension3',
+        distribution: 'internal',
+        node: '16.0.0',
+      },
+      extension5: {
+        extends: 'extension4',
+        distribution: 'internal',
+        node: '17.0.0',
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  await expect(EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'extension5')).rejects.toThrow('Too long chain of profile extensions, make sure "extends" keys do not make a cycle');
 });
 
 test('valid profile extending other profile with platform specific envs', async () => {
