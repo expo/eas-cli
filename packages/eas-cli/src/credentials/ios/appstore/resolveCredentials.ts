@@ -208,13 +208,18 @@ async function promptUsernameAsync(): Promise<string> {
   // the default value for quicker authentication.
   const lastAppleId = await getCachedUsernameAsync();
 
-  const { username } = await promptAsync({
+  let { username } = await promptAsync({
     type: 'text',
     name: 'username',
     message: `Apple ID:`,
     validate: (val: string) => val !== '',
     initial: lastAppleId ?? undefined,
   });
+  // https://github.com/expo/eas-cli/issues/2254
+  // user got an invalid unprintable character in their username, which was saved to cache and used to prefill the prompt
+  // which made them accept the prefilled value not knowing it contains the character and fail to log in
+  // this replace makes sure no such characters are used or cached
+  username = username.replace(/[\x00-\x1F]/gi, '');
 
   if (username && username !== lastAppleId) {
     await cacheUsernameAsync(username);
