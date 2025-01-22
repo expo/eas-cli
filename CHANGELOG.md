@@ -16,7 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 - Fix logs typos in the `eas deploy` command. ([#2822](https://github.com/expo/eas-cli/pull/2822) by [@kadikraman](https://github.com/kadikraman))
 - Make `deploy` the top level command for hosting. ([#2824](https://github.com/expo/eas-cli/pull/2824) by [@kadikraman](https://github.com/kadikraman))
-
+- Allow longer submit profile extension chain (up to 5, same as build profile) ([#2831](https://github.com/expo/eas-cli/pull/2831) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 - Make variable naming more explicit, remove deprecated runtimeFingerprintSource uses. ([#2816](https://github.com/expo/eas-cli/pull/2816) by [@wschurman](https://github.com/wschurman))
 
