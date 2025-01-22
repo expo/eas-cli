@@ -99,12 +99,12 @@ export default class BuildInspect extends EasCommand {
       await this.copyToOutputDirAsync(tmpWorkingdir, outputDirectory);
     } else {
       try {
-        await runBuildAndSubmitAsync(
+        await runBuildAndSubmitAsync({
           graphqlClient,
           analytics,
           vcsClient,
           projectDir,
-          {
+          flags: {
             nonInteractive: false,
             freezeCredentials: false,
             wait: true,
@@ -124,8 +124,8 @@ export default class BuildInspect extends EasCommand {
             repack: false,
           },
           actor,
-          getDynamicPrivateProjectConfigAsync
-        );
+          getDynamicPrivateProjectConfigAsync,
+        });
         if (!flags.verbose) {
           Log.log(chalk.green('Build successful'));
         }

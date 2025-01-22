@@ -158,15 +158,15 @@ export default class Build extends EasCommand {
 
     const flagsWithPlatform = await this.ensurePlatformSelectedAsync(flags);
 
-    await runBuildAndSubmitAsync(
+    await runBuildAndSubmitAsync({
       graphqlClient,
       analytics,
       vcsClient,
       projectDir,
-      flagsWithPlatform,
+      flags: flagsWithPlatform,
       actor,
-      getDynamicPrivateProjectConfigAsync
-    );
+      getDynamicPrivateProjectConfigAsync,
+    });
   }
 
   private sanitizeFlags(

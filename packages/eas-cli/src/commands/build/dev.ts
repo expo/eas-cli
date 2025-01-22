@@ -61,8 +61,10 @@ export default class BuildDev extends EasCommand {
       Errors.error('iOS builds are only supported on macOS.', { exit: 1 });
     }
 
-    const env = await getServerSideEnvironmentVariablesAsync();
-    const workflow = await resolveWorkflowAsync(projectDir, platform, vcsClient);
+    const [env, workflow] = await Promise.all([
+      getServerSideEnvironmentVariablesAsync(),
+      resolveWorkflowAsync(projectDir, platform, vcsClient),
+    ]);
 
     const fingerprint = await createFingerprintAsync(projectDir, {
       env,
@@ -120,12 +122,12 @@ export default class BuildDev extends EasCommand {
       developmentClient: true,
     };
 
-    await runBuildAndSubmitAsync(
+    await runBuildAndSubmitAsync({
       graphqlClient,
       analytics,
       vcsClient,
       projectDir,
-      {
+      flags: {
         requestedPlatform: flags.platform,
         nonInteractive: false,
         freezeCredentials: false,
@@ -138,7 +140,7 @@ export default class BuildDev extends EasCommand {
       },
       actor,
       getDynamicPrivateProjectConfigAsync,
-      [
+      buildProfilesOverride: [
         platform === Platform.ANDROID
           ? {
               platform: Platform.ANDROID,
@@ -151,8 +153,8 @@ export default class BuildDev extends EasCommand {
               profileName: '__internal-dev-client__',
             },
       ],
-      true,
-      env
-    );
+      downloadSimBuildAutoConfirm: true,
+      envOverride: env,
+    });
   }
 }

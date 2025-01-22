@@ -99,18 +99,29 @@ export interface BuildFlags {
   repack: boolean;
 }
 
-export async function runBuildAndSubmitAsync(
-  graphqlClient: ExpoGraphqlClient,
-  analytics: Analytics,
-  vcsClient: Client,
-  projectDir: string,
-  flags: BuildFlags,
-  actor: Actor,
-  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn,
-  buildProfilesOverride?: ProfileData<'build'>[],
-  downloadSimBuildAutoConfirm?: boolean,
-  envOverride?: Env
-): Promise<{
+export async function runBuildAndSubmitAsync({
+  graphqlClient,
+  analytics,
+  vcsClient,
+  projectDir,
+  flags,
+  actor,
+  getDynamicPrivateProjectConfigAsync,
+  buildProfilesOverride,
+  downloadSimBuildAutoConfirm,
+  envOverride,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  analytics: Analytics;
+  vcsClient: Client;
+  projectDir: string;
+  flags: BuildFlags;
+  actor: Actor;
+  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
+  buildProfilesOverride?: ProfileData<'build'>[];
+  downloadSimBuildAutoConfirm?: boolean;
+  envOverride?: Env;
+}): Promise<{
   buildIds: string[];
 }> {
   await vcsClient.ensureRepoExistsAsync();
