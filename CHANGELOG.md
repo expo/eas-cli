@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 - Ensure that the AASA file is served with content type application/json ([#2829](https://github.com/expo/eas-cli/pull/2829) by [@kadikraman](https://github.com/kadikraman))
+- Ensure that the AppleID provided in prompt or saved to cache does not contain invalid unprintable characters ([#2830](https://github.com/expo/eas-cli/pull/2830) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 
 ### 🧹 Chores
 - Fix logs typos in the `eas deploy` command. ([#2822](https://github.com/expo/eas-cli/pull/2822) by [@kadikraman](https://github.com/kadikraman))
