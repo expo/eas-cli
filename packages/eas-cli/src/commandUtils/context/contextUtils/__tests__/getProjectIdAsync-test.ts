@@ -78,7 +78,12 @@ describe(getProjectIdAsync, () => {
 
   it('gets the project ID from app config if exists', async () => {
     jest.mocked(getConfig).mockReturnValue({
-      exp: { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
+      exp: {
+        sdkVersion: '52.0.0',
+        name: 'test',
+        slug: 'test',
+        extra: { eas: { projectId: '1234' } },
+      },
     } as any);
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
       id: '1234',
@@ -91,7 +96,7 @@ describe(getProjectIdAsync, () => {
     await expect(
       getProjectIdAsync(
         sessionManager,
-        { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
+        { sdkVersion: '52.0.0', name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
         { nonInteractive: false }
       )
     ).resolves.toEqual('1234');
@@ -99,7 +104,13 @@ describe(getProjectIdAsync, () => {
 
   it('throws when the owner is out of sync', async () => {
     jest.mocked(getConfig).mockReturnValue({
-      exp: { name: 'test', slug: 'test', owner: 'wat', extra: { eas: { projectId: '1234' } } },
+      exp: {
+        sdkVersion: '54.0.0',
+        name: 'test',
+        slug: 'test',
+        owner: 'wat',
+        extra: { eas: { projectId: '1234' } },
+      },
     } as any);
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
       id: '1234',
@@ -112,7 +123,13 @@ describe(getProjectIdAsync, () => {
     await expect(
       getProjectIdAsync(
         sessionManager,
-        { name: 'test', slug: 'test', owner: 'wat', extra: { eas: { projectId: '1234' } } },
+        {
+          sdkVersion: '52.0.0',
+          name: 'test',
+          slug: 'test',
+          owner: 'wat',
+          extra: { eas: { projectId: '1234' } },
+        },
         { nonInteractive: false }
       )
     ).rejects.toThrow(
@@ -122,83 +139,143 @@ describe(getProjectIdAsync, () => {
     );
   });
 
-  it('throws when the owner is not specified and is different than logged in user', async () => {
-    jest.mocked(getConfig).mockReturnValue({
-      exp: { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
-    } as any);
-    jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
-      id: '1234',
-      fullName: '@totallybrent/test',
-      name: 'test',
-      slug: 'test',
-      ownerAccount: { name: 'totallybrent' } as any,
+  describe('when sdkVersion is less than 53', () => {
+    it('throws when the owner is not specified and is different than logged in user', async () => {
+      jest.mocked(getConfig).mockReturnValue({
+        exp: {
+          sdkVersion: '52.0.0',
+          name: 'test',
+          slug: 'test',
+          extra: { eas: { projectId: '1234' } },
+        },
+      } as any);
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '1234',
+        fullName: '@totallybrent/test',
+        name: 'test',
+        slug: 'test',
+        ownerAccount: { name: 'totallybrent' } as any,
+      });
+
+      await expect(
+        getProjectIdAsync(
+          sessionManager,
+          {
+            sdkVersion: '52.0.0',
+            name: 'test',
+            slug: 'test',
+            extra: { eas: { projectId: '1234' } },
+          },
+          { nonInteractive: false }
+        )
+      ).rejects.toThrow(
+        `Project config: Owner of project identified by "extra.eas.projectId" (totallybrent) does not match the logged in user (notnotbrent) and the "owner" field is not specified. To ensure all libraries work correctly, "owner": "totallybrent" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
+          'https://expo.fyi/eas-project-id'
+        )}`
+      );
     });
 
-    await expect(
-      getProjectIdAsync(
-        sessionManager,
-        { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
-        { nonInteractive: false }
-      )
-    ).rejects.toThrow(
-      `Project config: Owner of project identified by "extra.eas.projectId" (totallybrent) does not match the logged in user (notnotbrent) and the "owner" field is not specified. To ensure all libraries work correctly, "owner": "totallybrent" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
-        'https://expo.fyi/eas-project-id'
-      )}`
-    );
+    it('throws when the owner is not specified and is different than logged in user which is a robot', async () => {
+      const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
+        actor: {
+          __typename: 'Robot',
+          id: 'robot_id',
+          accounts: [
+            {
+              id: 'account_id_1',
+              name: 'notnotbrent',
+              users: [{ role: Role.Admin, actor: { id: 'robot_id' } }],
+            },
+            {
+              id: 'account_id_2',
+              name: 'dominik',
+              users: [{ role: Role.ViewOnly, actor: { id: 'robot_id' } }],
+            },
+          ],
+          isExpoAdmin: false,
+          featureGates: {},
+        },
+        authenticationInfo: { accessToken: 'fake', sessionSecret: null },
+      });
+      const sessionManagerRobot = instance(sessionManagerMock);
+
+      jest.mocked(getConfig).mockReturnValue({
+        exp: {
+          sdkVersion: '52.0.0',
+          name: 'test',
+          slug: 'test',
+          extra: { eas: { projectId: '1234' } },
+        },
+      } as any);
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '1234',
+        fullName: '@totallybrent/test',
+        name: 'test',
+        slug: 'test',
+        ownerAccount: { name: 'totallybrent' } as any,
+      });
+
+      await expect(
+        getProjectIdAsync(
+          sessionManagerRobot,
+          {
+            sdkVersion: '52.0.0',
+            name: 'test',
+            slug: 'test',
+            extra: { eas: { projectId: '1234' } },
+          },
+          { nonInteractive: false }
+        )
+      ).rejects.toThrow(
+        `Project config: Owner of project identified by "extra.eas.projectId" (totallybrent) must be specified in "owner" field when using a robot access token. To ensure all libraries work correctly, "owner": "totallybrent" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
+          'https://expo.fyi/eas-project-id'
+        )}`
+      );
+    });
   });
 
-  it('throws when the owner is not specified and is different than logged in user which is a robot', async () => {
-    const sessionManagerMock = mock<SessionManager>();
-    when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
-      actor: {
-        __typename: 'Robot',
-        id: 'robot_id',
-        accounts: [
-          {
-            id: 'account_id_1',
-            name: 'notnotbrent',
-            users: [{ role: Role.Admin, actor: { id: 'robot_id' } }],
-          },
-          {
-            id: 'account_id_2',
-            name: 'dominik',
-            users: [{ role: Role.ViewOnly, actor: { id: 'robot_id' } }],
-          },
-        ],
-        isExpoAdmin: false,
-        featureGates: {},
-      },
-      authenticationInfo: { accessToken: 'fake', sessionSecret: null },
-    });
-    const sessionManagerRobot = instance(sessionManagerMock);
+  describe('when sdkVersion is 53 or higher', () => {
+    it('does not throw when the owner is not specified', async () => {
+      jest.mocked(getConfig).mockReturnValue({
+        exp: {
+          sdkVersion: '53.0.0',
+          name: 'test',
+          slug: 'test',
+          extra: { eas: { projectId: '1234' } },
+        },
+      } as any);
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '1234',
+        fullName: '@totallybrent/test',
+        name: 'test',
+        slug: 'test',
+        ownerAccount: { name: 'totallybrent' } as any,
+      });
 
-    jest.mocked(getConfig).mockReturnValue({
-      exp: { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
-    } as any);
-    jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
-      id: '1234',
-      fullName: '@totallybrent/test',
-      name: 'test',
-      slug: 'test',
-      ownerAccount: { name: 'totallybrent' } as any,
+      await expect(
+        getProjectIdAsync(
+          sessionManager,
+          {
+            sdkVersion: '53.0.0',
+            name: 'test',
+            slug: 'test',
+            extra: { eas: { projectId: '1234' } },
+          },
+          { nonInteractive: false }
+        )
+      ).resolves.not.toThrow();
     });
-
-    await expect(
-      getProjectIdAsync(
-        sessionManagerRobot,
-        { name: 'test', slug: 'test', extra: { eas: { projectId: '1234' } } },
-        { nonInteractive: false }
-      )
-    ).rejects.toThrow(
-      `Project config: Owner of project identified by "extra.eas.projectId" (totallybrent) must be specified in "owner" field when using a robot access token. To ensure all libraries work correctly, "owner": "totallybrent" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
-        'https://expo.fyi/eas-project-id'
-      )}`
-    );
   });
 
   it('throws when the slug is out of sync', async () => {
     jest.mocked(getConfig).mockReturnValue({
-      exp: { name: 'test', slug: 'wat', extra: { eas: { projectId: '1234' } } },
+      exp: {
+        sdkVersion: '52.0.0',
+        name: 'test',
+        slug: 'wat',
+        extra: { eas: { projectId: '1234' } },
+      },
     } as any);
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
       id: '1234',
@@ -211,7 +288,7 @@ describe(getProjectIdAsync, () => {
     await expect(
       getProjectIdAsync(
         sessionManager,
-        { name: 'test', slug: 'wat', extra: { eas: { projectId: '1234' } } },
+        { sdkVersion: '52.0.0', name: 'test', slug: 'wat', extra: { eas: { projectId: '1234' } } },
         { nonInteractive: false }
       )
     ).rejects.toThrow(
@@ -222,10 +299,17 @@ describe(getProjectIdAsync, () => {
   });
 
   it('fetches the project ID when not in app config, and sets it in the config', async () => {
-    jest.mocked(getConfig).mockReturnValue({ exp: { name: 'test', slug: 'test' } } as any);
+    jest
+      .mocked(getConfig)
+      .mockReturnValue({ exp: { sdkVersion: '52.0.0', name: 'test', slug: 'test' } } as any);
     jest.mocked(modifyConfigAsync).mockResolvedValue({
       type: 'success',
-      config: { name: 'test', slug: 'test', extra: { eas: { projectId: '2345' } } },
+      config: {
+        sdkVersion: '52.0.0',
+        name: 'test',
+        slug: 'test',
+        extra: { eas: { projectId: '2345' } },
+      },
     });
     jest
       .mocked(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync)
@@ -233,7 +317,7 @@ describe(getProjectIdAsync, () => {
 
     const projectId = await getProjectIdAsync(
       sessionManager,
-      { name: 'test', slug: 'test' },
+      { sdkVersion: '52.0.0', name: 'test', slug: 'test' },
       {
         nonInteractive: false,
       }
@@ -252,7 +336,9 @@ describe(getProjectIdAsync, () => {
   });
 
   it('throws if writing the ID back to the config fails', async () => {
-    jest.mocked(getConfig).mockReturnValue({ exp: { name: 'test', slug: 'test' } } as any);
+    jest
+      .mocked(getConfig)
+      .mockReturnValue({ exp: { sdkVersion: '52.0.0', name: 'test', slug: 'test' } } as any);
     jest.mocked(modifyConfigAsync).mockResolvedValue({
       type: 'fail',
       config: null,
@@ -262,13 +348,22 @@ describe(getProjectIdAsync, () => {
       .mockImplementation(async () => '4567');
 
     await expect(
-      getProjectIdAsync(sessionManager, { name: 'test', slug: 'test' }, { nonInteractive: false })
+      getProjectIdAsync(
+        sessionManager,
+        { sdkVersion: '52.0.0', name: 'test', slug: 'test' },
+        { nonInteractive: false }
+      )
     ).rejects.toThrow();
   });
 
   it('throws if extra.eas.projectId is not a string', async () => {
     jest.mocked(getConfig).mockReturnValue({
-      exp: { name: 'test', slug: 'test', extra: { eas: { projectId: 1234 } } },
+      exp: {
+        sdkVersion: '52.0.0',
+        name: 'test',
+        slug: 'test',
+        extra: { eas: { projectId: 1234 } },
+      },
     } as any);
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
       id: '1234',
@@ -281,7 +376,7 @@ describe(getProjectIdAsync, () => {
     await expect(
       getProjectIdAsync(
         sessionManager,
-        { name: 'test', slug: 'wat', extra: { eas: { projectId: 1234 } } },
+        { sdkVersion: '52.0.0', name: 'test', slug: 'wat', extra: { eas: { projectId: 1234 } } },
         { nonInteractive: false }
       )
     ).rejects.toThrow(
