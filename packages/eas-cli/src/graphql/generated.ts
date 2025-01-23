@@ -1090,6 +1090,7 @@ export type AndroidJobInput = {
   cache?: InputMaybe<BuildCacheInput>;
   customBuildConfig?: InputMaybe<CustomBuildConfigInput>;
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   experimental?: InputMaybe<Scalars['JSONObject']['input']>;
   gradleCommand?: InputMaybe<Scalars['String']['input']>;
   loggerLevel?: InputMaybe<WorkerLoggerLevel>;
@@ -1601,6 +1602,7 @@ export type AppUpdatesArgs = {
 export type AppUpdatesPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<UpdateFilterInput>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -2902,7 +2904,7 @@ export type BuildArtifacts = {
   applicationArchiveUrl?: Maybe<Scalars['String']['output']>;
   buildArtifactsUrl?: Maybe<Scalars['String']['output']>;
   buildUrl?: Maybe<Scalars['String']['output']>;
-  /** @deprecated Use 'runtime.fingerprintDebugInfoUrl' instead. */
+  /** @deprecated Use 'runtime.fingerprint.debugInfoUrl' instead. */
   fingerprintUrl?: Maybe<Scalars['String']['output']>;
   xcodeBuildLogsUrl?: Maybe<Scalars['String']['output']>;
 };
@@ -2933,6 +2935,7 @@ export type BuildFilter = {
   appVersion?: InputMaybe<Scalars['String']['input']>;
   buildProfile?: InputMaybe<Scalars['String']['input']>;
   channel?: InputMaybe<Scalars['String']['input']>;
+  developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
   distribution?: InputMaybe<DistributionType>;
   fingerprintHash?: InputMaybe<Scalars['String']['input']>;
   gitCommitHash?: InputMaybe<Scalars['String']['input']>;
@@ -4384,6 +4387,7 @@ export enum GitHubAppEnvironment {
 
 export type GitHubAppInstallation = {
   __typename?: 'GitHubAppInstallation';
+  /** The Expo account that owns the installation entity. */
   account: Account;
   actor?: Maybe<Actor>;
   id: Scalars['ID']['output'];
@@ -4403,10 +4407,17 @@ export type GitHubAppInstallationAccessibleRepository = {
   url: Scalars['String']['output'];
 };
 
+export enum GitHubAppInstallationAccountType {
+  Organization = 'ORGANIZATION',
+  User = 'USER'
+}
+
 export type GitHubAppInstallationMetadata = {
   __typename?: 'GitHubAppInstallationMetadata';
   githubAccountAvatarUrl?: Maybe<Scalars['String']['output']>;
+  /** The login of the GitHub account that owns the installation. Not the display name. */
   githubAccountName?: Maybe<Scalars['String']['output']>;
+  githubAccountType?: Maybe<GitHubAppInstallationAccountType>;
   installationStatus: GitHubAppInstallationStatus;
 };
 
@@ -5050,6 +5061,7 @@ export type IosJobInput = {
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
   /** @deprecated */
   distribution?: InputMaybe<DistributionType>;
+  environment?: InputMaybe<EnvironmentVariableEnvironment>;
   experimental?: InputMaybe<Scalars['JSONObject']['input']>;
   loggerLevel?: InputMaybe<WorkerLoggerLevel>;
   mode?: InputMaybe<BuildMode>;
@@ -5744,7 +5756,6 @@ export type PublishUpdateGroupInput = {
   message?: InputMaybe<Scalars['String']['input']>;
   rollBackToEmbeddedInfoGroup?: InputMaybe<UpdateRollBackToEmbeddedGroup>;
   rolloutInfoGroup?: InputMaybe<UpdateRolloutInfoGroup>;
-  runtimeFingerprintSource?: InputMaybe<FingerprintSourceInput>;
   runtimeVersion: Scalars['String']['input'];
   turtleJobRunId?: InputMaybe<Scalars['String']['input']>;
   updateInfoGroup?: InputMaybe<UpdateInfoGroup>;
@@ -6182,7 +6193,7 @@ export type Runtime = {
   builds: AppBuildsConnection;
   createdAt: Scalars['DateTime']['output'];
   deployments: DeploymentsConnection;
-  fingerprintDebugInfoUrl?: Maybe<Scalars['String']['output']>;
+  fingerprint?: Maybe<Fingerprint>;
   firstBuildCreatedAt?: Maybe<Scalars['DateTime']['output']>;
   id: Scalars['ID']['output'];
   updatedAt: Scalars['DateTime']['output'];
@@ -6982,6 +6993,12 @@ export type UpdateEnvironmentVariableInput = {
   type?: InputMaybe<EnvironmentSecretType>;
   value?: InputMaybe<Scalars['String']['input']>;
   visibility?: InputMaybe<EnvironmentVariableVisibility>;
+};
+
+export type UpdateFilterInput = {
+  fingerprintHash?: InputMaybe<Scalars['String']['input']>;
+  hasFingerprint?: InputMaybe<Scalars['Boolean']['input']>;
+  runtimeVersion?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type UpdateGitHubBuildTriggerInput = {
@@ -8499,6 +8516,7 @@ export type WorkflowRunMutationCreateWorkflowRunArgs = {
 
 
 export type WorkflowRunMutationRetryWorkflowRunArgs = {
+  fromFailedJobs?: InputMaybe<Scalars['Boolean']['input']>;
   workflowRunId: Scalars['ID']['input'];
 };
 
