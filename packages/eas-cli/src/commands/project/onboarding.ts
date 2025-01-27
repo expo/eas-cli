@@ -162,7 +162,10 @@ export default class Onboarding extends EasCommand {
       cloneMethod,
     });
 
-    const vcsClient = new GitClient(finalTargetProjectDirectory);
+    const vcsClient = new GitClient({
+      maybeCwdOverride: finalTargetProjectDirectory,
+      requireCommit: false,
+    });
     if (!app.githubRepository) {
       await fs.remove(path.join(finalTargetProjectDirectory, '.git'));
       await runCommandAsync({

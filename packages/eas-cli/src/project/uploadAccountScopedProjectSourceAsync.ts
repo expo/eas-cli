@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import fs from 'node:fs';
+// import fs from 'node:fs';
 
 import { makeProjectTarballAsync } from '../build/utils/repository';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -36,6 +36,8 @@ export async function uploadAccountScopedProjectSourceAsync({
     const projectTarball = await makeProjectTarballAsync(vcsClient);
     projectTarballPath = projectTarball.path;
 
+    throw new Error('bail out');
+
     if (projectTarball.size > 1024 * 1024 * 100) {
       Log.warn(
         `Your project archive is ${formatBytes(
@@ -68,7 +70,7 @@ export async function uploadAccountScopedProjectSourceAsync({
     return { projectArchiveBucketKey };
   } finally {
     if (projectTarballPath) {
-      await fs.promises.rm(projectTarballPath);
+      // await fs.promises.rm(projectTarballPath);
     }
   }
 }

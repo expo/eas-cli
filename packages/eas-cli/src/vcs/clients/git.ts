@@ -17,8 +17,13 @@ import {
 import { Client } from '../vcs';
 
 export default class GitClient extends Client {
-  constructor(private readonly maybeCwdOverride?: string) {
+  private readonly maybeCwdOverride?: string;
+  private readonly requireCommit: boolean;
+
+  constructor(options: { maybeCwdOverride?: string; requireCommit: boolean }) {
     super();
+    this.maybeCwdOverride = options.maybeCwdOverride;
+    this.requireCommit = options.requireCommit;
   }
 
   public override async ensureRepoExistsAsync(): Promise<void> {
@@ -119,10 +124,6 @@ export default class GitClient extends Client {
     }
   }
 
-  public override async isCommitRequiredAsync(): Promise<boolean> {
-    return await this.hasUncommittedChangesAsync();
-  }
-
   public override async showChangedFilesAsync(): Promise<void> {
     const gitStatusOutput = await gitStatusAsync({
       showUntracked: true,
@@ -144,12 +145,21 @@ export default class GitClient extends Client {
     ).stdout.trim();
   }
 
+  public override async isCommitRequiredAsync(): Promise<boolean> {
+    if (!this.requireCommit) {
+      return false;
+    }
+
+    return await this.hasUncommittedChangesAsync();
+  }
+
   public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
-    if (await this.hasUncommittedChangesAsync()) {
+    if (await this.isCommitRequiredAsync()) {
       // it should already be checked before this function is called, but in case it wasn't
       // we want to ensure that any changes were introduced by call to `setGitCaseSensitivityAsync`
       throw new Error('You have some uncommitted changes in your repository.');
     }
+
     let gitRepoUri;
     if (process.platform === 'win32') {
       // getRootDirectoryAsync() will return C:/path/to/repo on Windows and path
@@ -367,7 +377,7 @@ export async function isGitCaseSensitiveAsync(
   }
 }
 
-async function setGitCaseSensitivityAsync(
+export async function setGitCaseSensitivityAsync(
   enable: boolean | undefined,
   cwd: string | undefined
 ): Promise<void> {
