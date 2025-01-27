@@ -1,6 +1,7 @@
-import { App, BundleId } from '@expo/apple-utils';
+import { App, BundleId, RequestContext } from '@expo/apple-utils';
 import { JSONObject } from '@expo/json-file';
 import chalk from 'chalk';
+import { randomBytes } from 'node:crypto';
 
 import { getRequestContext, isUserAuthCtx } from './authenticate';
 import { AuthCtx, UserAuthCtx } from './authenticateTypes';
@@ -188,7 +189,7 @@ export async function ensureAppExistsAsync(
       /**
        * **Does not support App Store Connect API (CI).**
        */
-      app = await App.createAsync(context, {
+      app = await createAppAsync(context, {
         bundleId: bundleIdentifier,
         name,
         primaryLocale: language,
@@ -214,4 +215,78 @@ export async function ensureAppExistsAsync(
     `Prepared App Store Connect for ${chalk.bold(name)} ${chalk.dim(bundleIdentifier)}`
   );
   return app;
+}
+
+function sanitizeName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+async function createAppAsync(
+  context: RequestContext,
+  props: {
+    bundleId: string;
+    name: string;
+    primaryLocale?: string;
+    companyName?: string;
+    sku?: string;
+  },
+  retryCount = 0
+): Promise<App> {
+  try {
+    /**
+     * **Does not support App Store Connect API (CI).**
+     */
+    return await App.createAsync(context, props);
+  } catch (error) {
+    if (retryCount >= 3) {
+      throw error;
+    }
+
+    if (error instanceof Error) {
+      if (
+        // Name is invalid
+        error.message.match(
+          /App Name contains certain Unicode(.*)characters that are not permitted/
+        )
+        // UnexpectedAppleResponse: An attribute value has invalid characters. - App Name contains certain Unicode symbols, emoticons, diacritics, special characters, or private use characters that are not permitted.
+        // Name is taken
+      ) {
+        // Sanitize the name and try again.
+        return await createAppAsync(
+          context,
+          {
+            ...props,
+            name: sanitizeName(props.name),
+          },
+          retryCount + 1
+        );
+      }
+
+      if (
+        // UnexpectedAppleResponse: The provided entity includes an attribute with a value that has already been used on a different account. - The App Name you entered is already being used. If you have trademark rights to
+        // this name and would like it released for your use, submit a claim.
+        'code' in error &&
+        error.code === 'APP_CREATE_NAME_UNAVAILABLE'
+      ) {
+        const generatedName = props.name + ` (${randomBytes(3).toString('hex')})`;
+        Log.warn(
+          `App name "${props.name}" is already taken. Using generated name "${generatedName}" which can be changed later from https://appstoreconnect.apple.com.`
+        );
+        // Sanitize the name and try again.
+        return await createAppAsync(
+          context,
+          {
+            ...props,
+            name: generatedName,
+          },
+          retryCount + 1
+        );
+      }
+    }
+
+    throw error;
+  }
 }
