@@ -377,7 +377,7 @@ export async function isGitCaseSensitiveAsync(
   }
 }
 
-export async function setGitCaseSensitivityAsync(
+async function setGitCaseSensitivityAsync(
   enable: boolean | undefined,
   cwd: string | undefined
 ): Promise<void> {
