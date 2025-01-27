@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Automatically create internal TestFlight group in EAS Submit command. ([#2839](https://github.com/expo/eas-cli/pull/2839) by [@evanbacon](https://github.com/evanbacon))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
