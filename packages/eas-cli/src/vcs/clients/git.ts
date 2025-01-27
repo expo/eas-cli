@@ -14,6 +14,7 @@ import {
   gitStatusAsync,
   isGitInstalledAsync,
 } from '../git';
+import { makeShallowCopyAsync } from '../local';
 import { Client } from '../vcs';
 
 export default class GitClient extends Client {
@@ -160,34 +161,51 @@ export default class GitClient extends Client {
       throw new Error('You have some uncommitted changes in your repository.');
     }
 
+    const rootPath = await this.getRootPathAsync();
+
     let gitRepoUri;
     if (process.platform === 'win32') {
       // getRootDirectoryAsync() will return C:/path/to/repo on Windows and path
       // prefix should be file:///
-      gitRepoUri = `file:///${await this.getRootPathAsync()}`;
+      gitRepoUri = `file:///${rootPath}`;
     } else {
       // getRootDirectoryAsync() will /path/to/repo, and path prefix should be
       // file:/// so only file:// needs to be prepended
-      gitRepoUri = `file://${await this.getRootPathAsync()}`;
+      gitRepoUri = `file://${rootPath}`;
     }
+
+    // Remember uncommited changes before case sensitivity change
+    // for later comparison so we log to the user only the files
+    // that were marked as changed after the case sensitivity change.
+    const uncommittedChanges = await gitStatusAsync({
+      showUntracked: true,
+      cwd: this.maybeCwdOverride,
+    });
+
     const isCaseSensitive = await isGitCaseSensitiveAsync(this.maybeCwdOverride);
     await setGitCaseSensitivityAsync(true, this.maybeCwdOverride);
     try {
-      if (await this.hasUncommittedChangesAsync()) {
+      const uncommitedChangesAfterCaseSensitivityChange = await gitStatusAsync({
+        showUntracked: true,
+        cwd: this.maybeCwdOverride,
+      });
+      if (uncommitedChangesAfterCaseSensitivityChange !== uncommittedChanges) {
         Log.error('Detected inconsistent filename casing between your local filesystem and git.');
-        Log.error('This will likely cause your build to fail. Impacted files:');
-        await spawnAsync('git', ['status', '--short'], {
-          stdio: 'inherit',
-          cwd: this.maybeCwdOverride,
-        });
+        Log.error('This will likely cause your job to fail. Impacted files:');
+        const baseUncommitedChanges = new Set(uncommittedChanges.split('\n'));
+        for (const changedFile of uncommitedChangesAfterCaseSensitivityChange.split('\n')) {
+          if (!baseUncommitedChanges.has(changedFile)) {
+            Log.error(changedFile);
+          }
+        }
         Log.newLine();
-        Log.error(
+        throw new Error(
           `Error: Resolve filename casing inconsistencies before proceeding. ${learnMore(
             'https://expo.fyi/macos-ignorecase'
           )}`
         );
-        throw new Error('You have some uncommitted changes in your repository.');
       }
+
       await spawnAsync(
         'git',
         ['clone', '--no-hardlinks', '--depth', '1', gitRepoUri, destinationPath],
@@ -198,6 +216,11 @@ export default class GitClient extends Client {
     } finally {
       await setGitCaseSensitivityAsync(isCaseSensitive, this.maybeCwdOverride);
     }
+
+    // After we create the shallow Git copy, we copy the files
+    // again. This way we include the changed and untracked files
+    // (`git clone` only copies the committed changes).
+    await makeShallowCopyAsync(rootPath, destinationPath);
   }
 
   public override async getCommitHashAsync(): Promise<string | undefined> {
