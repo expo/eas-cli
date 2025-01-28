@@ -4,36 +4,18 @@ import Log from '../../../log';
 import { ora } from '../../../ora';
 import { confirmAsync } from '../../../prompts';
 
+// The name of the internal TestFlight group, this should probably never change.
 const AUTO_GROUP_NAME = 'Team (Expo)';
 
 export async function ensureTestFlightGroupExistsAsync(app: App): Promise<void> {
-  // Ensure the app has an internal TestFlight group with access to all builds and app managers added.
-  // TODO: Should we expose this feature somehow?
-  const max = false;
-
   const group = await ensureInternalGroupAsync(app);
+  const users = await User.getAsync(app.context);
+  const admins = users.filter(user => user.attributes.roles?.includes(UserRole.ADMIN));
 
-  const admins = await User.getAsync(
-    app.context,
-    !max
-      ? undefined
-      : // Querying all visible apps for all users can be expensive so we only do it when there's a chance we may need to reconcile.
-        {
-          query: {
-            includes: ['visibleApps'],
-          },
-        }
-  );
-
-  await addAllUsersToInternalGroupAsync(
-    app,
-    group,
-    max ? admins : admins.filter(user => user.attributes.roles?.includes(UserRole.ADMIN)),
-    max
-  );
+  await addAllUsersToInternalGroupAsync(group, admins);
 }
 
-export async function ensureInternalGroupAsync(app: App): Promise<BetaGroup> {
+async function ensureInternalGroupAsync(app: App): Promise<BetaGroup> {
   const groups = await app.getBetaGroupsAsync({
     query: {
       includes: ['betaTesters'],
@@ -41,7 +23,6 @@ export async function ensureInternalGroupAsync(app: App): Promise<BetaGroup> {
   });
 
   let betaGroup = groups.find(group => group.attributes.name === AUTO_GROUP_NAME);
-
   if (!betaGroup) {
     const spinner = ora().start('Creating TestFlight group...');
 
@@ -97,12 +78,7 @@ export async function ensureInternalGroupAsync(app: App): Promise<BetaGroup> {
   return betaGroup;
 }
 
-export async function addAllUsersToInternalGroupAsync(
-  app: App,
-  group: BetaGroup,
-  users: User[],
-  shouldAddUsers = true
-): Promise<void> {
+async function addAllUsersToInternalGroupAsync(group: BetaGroup, users: User[]): Promise<void> {
   let emails = users
     .map(user => ({
       email: user.attributes.email ?? '',
@@ -111,11 +87,13 @@ export async function addAllUsersToInternalGroupAsync(
     }))
     .filter(user => user.email);
 
+  // Filter out existing beta testers.
   if (group.attributes.betaTesters) {
     emails = emails.filter(user => {
       return !group.attributes.betaTesters!.find(tester => tester.attributes.email === user.email);
     });
   }
+
   if (!emails.length) {
     // No new users to add to the internal group.
     Log.debug('No new users to add to internal group');
@@ -126,43 +104,6 @@ export async function addAllUsersToInternalGroupAsync(
   Log.debug(`Users: ${emails.map(user => user.email).join(', ')}`);
 
   const data = await group.createBulkBetaTesterAssignmentsAsync(emails);
-
-  const needsQualification = data.attributes.betaTesters.filter(tester => {
-    if (tester.assignmentResult === 'NOT_QUALIFIED_FOR_INTERNAL_GROUP') {
-      return true;
-    }
-    return false;
-  });
-
-  // Reconcile users that need qualification (non-admins).
-  if (needsQualification.length) {
-    Log.debug('Some users need to be qualified for internal group.');
-    Log.debug(needsQualification);
-
-    const matchingUsers = users.filter(user => {
-      return needsQualification.find(tester => tester.email === user.attributes.email);
-    });
-
-    if (shouldAddUsers) {
-      Log.debug('Matching users:', matchingUsers);
-
-      await Promise.all(
-        matchingUsers.map(user => {
-          if (!user.attributes.visibleApps) {
-            // Shouldn't happen. But this prevents removing all apps from a user accidentally.
-            throw new Error('User is missing visibleApps attribute');
-          }
-
-          return user.updateAsync(user.attributes, {
-            visibleApps: [...user.attributes.visibleApps!.map(app => app.id), app.id],
-          });
-        })
-      );
-
-      await addAllUsersToInternalGroupAsync(app, group, users, false);
-      return;
-    }
-  }
 
   const success = data.attributes.betaTesters.every(tester => {
     if (tester.assignmentResult === 'FAILED') {
