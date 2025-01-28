@@ -121,6 +121,7 @@ async function createAppStoreConnectAppAsync(
 
   try {
     // Ensure the app has an internal TestFlight group with access to all builds and app managers added.
+    // TODO: Should we expose this feature somehow?
     const max = false;
 
     const group = await ensureInternalGroupAsync(app);
@@ -146,7 +147,7 @@ async function createAppStoreConnectAppAsync(
   } catch (error: any) {
     // This process is not critical to the app submission so we shouldn't let it fail the entire process.
     Log.error(
-      'Failed to create an internal TestFlight group. This can be done manually in App Store Connect.'
+      'Failed to create an internal TestFlight group. This can be done manually in the App Store Connect website.'
     );
     Log.error(error);
 
