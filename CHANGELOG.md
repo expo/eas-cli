@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Prompt to set non-exempt encryption status for the iOS app to support faster store submissions. ([#2843](https://github.com/expo/eas-cli/pull/2843) by [@EvanBacon](https://github.com/EvanBacon))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
