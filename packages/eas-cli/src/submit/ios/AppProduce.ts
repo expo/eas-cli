@@ -9,6 +9,7 @@ import {
   ensureBundleIdExistsWithNameAsync,
 } from '../../credentials/ios/appstore/ensureAppExists';
 import Log from '../../log';
+import { ora } from '../../ora';
 import { getBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { SubmissionContext } from '../context';
@@ -118,36 +119,74 @@ async function createAppStoreConnectAppAsync(
     throw error;
   }
 
-  // Ensure the app has an internal TestFlight group with access to all builds and app managers added.
-  const max = false;
+  try {
+    // Ensure the app has an internal TestFlight group with access to all builds and app managers added.
+    const max = false;
 
-  const group = await ensureInternalGroupAsync(app);
+    const group = await ensureInternalGroupAsync(app);
 
-  const admins = await User.getAsync(
-    app.context,
-    !max
-      ? undefined
-      : // Querying all visible apps for all users can be expensive so we only do it when there's a chance we may need to reconcile.
-        {
-          query: {
-            includes: ['visibleApps'],
-          },
-        }
-  );
+    const admins = await User.getAsync(
+      app.context,
+      !max
+        ? undefined
+        : // Querying all visible apps for all users can be expensive so we only do it when there's a chance we may need to reconcile.
+          {
+            query: {
+              includes: ['visibleApps'],
+            },
+          }
+    );
 
-  await addAllUsersToInternalGroupAsync(
-    app,
-    group,
-    max ? admins : admins.filter(user => user.attributes.roles?.includes(UserRole.ADMIN)),
-    max
-  );
+    await addAllUsersToInternalGroupAsync(
+      app,
+      group,
+      max ? admins : admins.filter(user => user.attributes.roles?.includes(UserRole.ADMIN)),
+      max
+    );
+  } catch (error: any) {
+    // This process is not critical to the app submission so we shouldn't let it fail the entire process.
+    Log.error(
+      'Failed to create an internal TestFlight group. This can be done manually in App Store Connect.'
+    );
+    Log.error(error);
+
+    // Debug
+    // throw error;
+  }
+
+  // process.exit(0);
 
   return {
     ascAppIdentifier: app.id,
   };
 }
 
-const AUTO_GROUP_NAME = 'Internal (Expo)';
+const AUTO_GROUP_NAME = 'Team (Expo)';
+
+async function pollRetryAsync<T>(
+  fn: () => Promise<T>,
+  {
+    shouldRetry,
+    retries = 10,
+    // 25 seconds was the minium interval I calculated when measuring against 5 second intervals.
+    interval = 25000,
+  }: { shouldRetry?: (error: Error) => boolean; retries?: number; interval?: number } = {}
+): Promise<T> {
+  let lastError: Error | null = null;
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      if (shouldRetry && !shouldRetry(error)) {
+        throw error;
+      }
+      lastError = error;
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-throw-literal
+  throw lastError;
+}
 
 async function ensureInternalGroupAsync(app: App): Promise<BetaGroup> {
   const groups = await app.getBetaGroupsAsync({
@@ -159,14 +198,43 @@ async function ensureInternalGroupAsync(app: App): Promise<BetaGroup> {
   let betaGroup = groups.find(group => group.attributes.name === AUTO_GROUP_NAME);
 
   if (!betaGroup) {
-    betaGroup = await app.createBetaGroupAsync({
-      name: AUTO_GROUP_NAME,
-      publicLinkEnabled: false,
-      publicLinkLimitEnabled: false,
-      isInternalGroup: true,
-      // Automatically add latest builds to the group without needing to run the command.
-      hasAccessToAllBuilds: true,
-    });
+    const spinner = ora().start('Creating TestFlight group...');
+
+    try {
+      // Apple throw an error if you create the group too quickly after creating the app. We'll retry a few times.
+      await pollRetryAsync(
+        async () => {
+          betaGroup = await app.createBetaGroupAsync({
+            name: AUTO_GROUP_NAME,
+            publicLinkEnabled: false,
+            publicLinkLimitEnabled: false,
+            isInternalGroup: true,
+            // Automatically add latest builds to the group without needing to run the command.
+            hasAccessToAllBuilds: true,
+          });
+        },
+        {
+          shouldRetry(error) {
+            if (isAppleError(error)) {
+              spinner.text = `TestFlight not ready, retrying in 25 seconds...`;
+
+              return error.data.errors.some(
+                error => error.code === 'ENTITY_ERROR.RELATIONSHIP.INVALID'
+              );
+            }
+            return false;
+          },
+        }
+      );
+      spinner.succeed(`TestFlight group created: ${AUTO_GROUP_NAME}`);
+    } catch (error: any) {
+      spinner.fail('Failed to create TestFlight group...');
+
+      throw error;
+    }
+  }
+  if (!betaGroup) {
+    throw new Error('Failed to create internal TestFlight group');
   }
 
   // `hasAccessToAllBuilds` is a newer feature that allows the group to automatically have access to all builds. This cannot be patched so we need to recreate the group.
@@ -179,13 +247,6 @@ async function ensureInternalGroupAsync(app: App): Promise<BetaGroup> {
       await BetaGroup.deleteAsync(app.context, { id: betaGroup.id });
       return await ensureInternalGroupAsync(app);
     }
-  }
-
-  if (!betaGroup.attributes.isInternalGroup || !betaGroup.attributes.feedbackEnabled) {
-    await betaGroup.updateAsync({
-      isInternalGroup: true,
-      feedbackEnabled: true,
-    });
   }
 
   return betaGroup;
@@ -228,6 +289,7 @@ async function addAllUsersToInternalGroupAsync(
 
   Log.debug(`Adding ${emails.length} users to internal group: ${group.attributes.name}`);
   Log.debug(`Users: ${emails.map(user => user.email).join(', ')}`);
+
   const data = await group.createBulkBetaTesterAssignmentsAsync(emails);
 
   const needsQualification = data.attributes.betaTesters.filter(tester => {
@@ -269,7 +331,7 @@ async function addAllUsersToInternalGroupAsync(
 
   const success = data.attributes.betaTesters.every(tester => {
     if (tester.assignmentResult === 'FAILED') {
-      if (tester.errors) {
+      if (tester.errors && Array.isArray(tester.errors) && tester.errors.length) {
         if (
           tester.errors.length === 1 &&
           tester.errors[0].key === 'Halliday.tester.already.exists'
@@ -277,7 +339,9 @@ async function addAllUsersToInternalGroupAsync(
           return true;
         }
         for (const error of tester.errors) {
-          Log.error(`Failed to add ${tester.email}: ${error.key}`);
+          Log.error(
+            `Error adding user ${tester.email} to TestFlight group "${group.attributes.name}": ${error.key}`
+          );
         }
       }
       return false;
@@ -289,6 +353,43 @@ async function addAllUsersToInternalGroupAsync(
   });
 
   if (!success) {
-    Log.error('Failed to add all TestFlight users to internal group.');
+    const groupUrl = await getTestFlightGroupUrlAsync(group);
+
+    Log.error(
+      `Unable to add all developers to TestFlight internal group "${
+        group.attributes.name
+      }". You can add them manually in App Store Connect. ${groupUrl ?? ''}`
+    );
   }
+}
+
+async function getTestFlightGroupUrlAsync(group: BetaGroup): Promise<string | null> {
+  if (group.context.providerId) {
+    try {
+      const session = await Session.getSessionForProviderIdAsync(group.context.providerId);
+
+      return `https://appstoreconnect.apple.com/teams/${session.provider.publicProviderId}/apps/6741088859/testflight/groups/${group.id}`;
+    } catch (error) {
+      // Avoid crashing if we can't get the session.
+      Log.debug('Failed to get session for provider ID', error);
+    }
+  }
+  return null;
+}
+
+function isAppleError(error: any): error is {
+  data: {
+    errors: {
+      id: string;
+      status: string;
+      /** 'ENTITY_ERROR.ATTRIBUTE.INVALID.INVALID_CHARACTERS' */
+      code: string;
+      /** 'An attribute value has invalid characters.' */
+      title: string;
+      /** 'App Name contains certain Unicode symbols, emoticons, diacritics, special characters, or private use characters that are not permitted.' */
+      detail: string;
+    }[];
+  };
+} {
+  return 'data' in error && 'errors' in error.data && Array.isArray(error.data.errors);
 }
