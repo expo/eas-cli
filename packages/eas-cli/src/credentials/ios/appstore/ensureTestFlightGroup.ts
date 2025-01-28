@@ -7,6 +7,10 @@ import { confirmAsync } from '../../../prompts';
 // The name of the internal TestFlight group, this should probably never change.
 const AUTO_GROUP_NAME = 'Team (Expo)';
 
+/**
+ * Ensure a TestFlight internal group with access to all builds exists for the app and has all admin users invited to it.
+ * This allows users to instantly access their builds from TestFlight after it finishes processing.
+ */
 export async function ensureTestFlightGroupExistsAsync(app: App): Promise<void> {
   const group = await ensureInternalGroupAsync(app);
   const users = await User.getAsync(app.context);
@@ -80,23 +84,24 @@ async function ensureInternalGroupAsync(app: App): Promise<BetaGroup> {
 
 async function addAllUsersToInternalGroupAsync(group: BetaGroup, users: User[]): Promise<void> {
   let emails = users
+    .filter(user => user.attributes.email)
     .map(user => ({
-      email: user.attributes.email ?? '',
+      email: user.attributes.email!,
       firstName: user.attributes.firstName ?? '',
       lastName: user.attributes.lastName ?? '',
-    }))
-    .filter(user => user.email);
+    }));
 
+  const { betaTesters } = group.attributes;
   // Filter out existing beta testers.
-  if (group.attributes.betaTesters) {
-    emails = emails.filter(user => {
-      return !group.attributes.betaTesters!.find(tester => tester.attributes.email === user.email);
-    });
+  if (betaTesters) {
+    emails = emails.filter(
+      user => !betaTesters.find(tester => tester.attributes.email === user.email)
+    );
   }
 
   if (!emails.length) {
     // No new users to add to the internal group.
-    Log.debug('No new users to add to internal group');
+    Log.debug(`All current admins are already added to the group: ${group.attributes.name}`);
     return;
   }
 
@@ -132,7 +137,7 @@ async function addAllUsersToInternalGroupAsync(group: BetaGroup, users: User[]):
     const groupUrl = await getTestFlightGroupUrlAsync(group);
 
     Log.error(
-      `Unable to add all developers to TestFlight internal group "${
+      `Unable to add all admins to TestFlight group "${
         group.attributes.name
       }". You can add them manually in App Store Connect. ${groupUrl ?? ''}`
     );
