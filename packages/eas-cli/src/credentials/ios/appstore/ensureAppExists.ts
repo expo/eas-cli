@@ -218,10 +218,14 @@ export async function ensureAppExistsAsync(
 }
 
 function sanitizeName(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim();
+  return (
+    name
+      // Replace emojis with a `-`
+      .replace(/[\p{Emoji}]/gu, '-')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+  );
 }
 
 async function createAppAsync(
@@ -244,22 +248,26 @@ async function createAppAsync(
     if (retryCount >= 3) {
       throw error;
     }
-
-    if (error instanceof Error) {
+    if (error instanceof Error && 'code' in error && typeof error.code === 'string') {
       if (
         // Name is invalid
-        error.message.match(
-          /App Name contains certain Unicode(.*)characters that are not permitted/
-        )
+        error.code === 'APP_CREATE_NAME_INVALID'
         // UnexpectedAppleResponse: An attribute value has invalid characters. - App Name contains certain Unicode symbols, emoticons, diacritics, special characters, or private use characters that are not permitted.
         // Name is taken
       ) {
+        const sanitizedName = sanitizeName(props.name);
+        if (sanitizedName === props.name) {
+          throw error;
+        }
+        Log.warn(
+          `App name "${props.name}" contains invalid characters. Using sanitized name "${sanitizedName}" which can be changed later from https://appstoreconnect.apple.com.`
+        );
         // Sanitize the name and try again.
         return await createAppAsync(
           context,
           {
             ...props,
-            name: sanitizeName(props.name),
+            name: sanitizedName,
           },
           retryCount + 1
         );
@@ -268,7 +276,6 @@ async function createAppAsync(
       if (
         // UnexpectedAppleResponse: The provided entity includes an attribute with a value that has already been used on a different account. - The App Name you entered is already being used. If you have trademark rights to
         // this name and would like it released for your use, submit a claim.
-        'code' in error &&
         error.code === 'APP_CREATE_NAME_UNAVAILABLE'
       ) {
         const generatedName = props.name + ` (${randomBytes(3).toString('hex')})`;
