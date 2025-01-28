@@ -10,6 +10,7 @@ import { IosCredentials } from '../../credentials/ios/types';
 import { BuildParamsInput } from '../../graphql/generated';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
+import { ensureNonExemptEncryptionIsDefinedForManagedProjectAsync } from '../../project/ios/exemptEncryption';
 import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { findApplicationTarget, resolveTargetsAsync } from '../../project/ios/target';
 import { BuildRequestSender, JobData, prepareBuildRequestForPlatformAsync } from '../build';
@@ -28,6 +29,7 @@ export async function createIosContextAsync(
 
   if (ctx.workflow === Workflow.MANAGED) {
     await ensureBundleIdentifierIsDefinedForManagedProjectAsync(ctx);
+    await ensureNonExemptEncryptionIsDefinedForManagedProjectAsync(ctx);
   }
 
   checkNodeEnvVariable(ctx);
