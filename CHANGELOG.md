@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Sanitize and generate names for EAS Submit to prevent failures due to invalid characters or taken names.
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
