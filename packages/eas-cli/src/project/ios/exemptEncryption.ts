@@ -136,41 +136,61 @@ async function configureNonExemptEncryptionAsync({
     )}`
   );
 
-  const { onlyExemptEncryption } = await promptAsync({
+  let { onlyExemptEncryption } = await promptAsync({
     name: 'onlyExemptEncryption',
     type: 'confirm',
-    message: `iOS app only uses standard/exempt encryption? Selecting 'No' will require annual self-classification reports for the US government.`,
+    message: `iOS app only uses standard/exempt encryption? `,
     // message: `Does your app use non-exempt encryption?`,
     initial: true,
   });
 
-  const rawStaticConfig = readAppJson(paths.staticConfigPath);
+  if (!onlyExemptEncryption) {
+    const { confirm } = await promptAsync({
+      name: 'confirm',
+      type: 'confirm',
+      message: `Are you sure your app uses non-exempt encryption? Selecting 'Yes' will require annual self-classification reports for the US government.`,
+      initial: true,
+    });
+
+    if (!confirm) {
+      Log.warn(
+        `Set "ios.infoPlist.ITSAppUsesNonExemptEncryption" in the app config to release Apple builds faster. Setting to false and continuing.`
+      );
+      onlyExemptEncryption = true;
+    }
+  }
 
   const ITSAppUsesNonExemptEncryption = !onlyExemptEncryption;
-  if (rawStaticConfig.expo) {
-    rawStaticConfig.expo = {
-      ...rawStaticConfig.expo,
-      ios: {
-        ...rawStaticConfig.expo?.ios,
+
+  // Only set this value if the answer is no, this enables developers to see the more in-depth prompt in App Store Connect. They can set the value manually in the app.json to avoid the EAS prompt in subsequent builds.
+  if (ITSAppUsesNonExemptEncryption === false) {
+    const rawStaticConfig = readAppJson(paths.staticConfigPath);
+
+    if (rawStaticConfig.expo) {
+      rawStaticConfig.expo = {
+        ...rawStaticConfig.expo,
+        ios: {
+          ...rawStaticConfig.expo?.ios,
+          infoPlist: {
+            ...rawStaticConfig.expo?.ios?.infoPlist,
+            ITSAppUsesNonExemptEncryption,
+          },
+        },
+      };
+    } else {
+      rawStaticConfig.ios = {
+        ...rawStaticConfig.ios,
         infoPlist: {
-          ...rawStaticConfig.expo?.ios?.infoPlist,
+          ...rawStaticConfig.ios?.infoPlist,
           ITSAppUsesNonExemptEncryption,
         },
-      },
-    };
-  } else {
-    rawStaticConfig.ios = {
-      ...rawStaticConfig.ios,
-      infoPlist: {
-        ...rawStaticConfig.ios?.infoPlist,
-        ITSAppUsesNonExemptEncryption,
-      },
+      };
+    }
+    await fs.writeJson(paths.staticConfigPath, rawStaticConfig, { spaces: 2 });
+
+    exp.ios = {
+      ...exp.ios,
+      infoPlist: { ...exp.ios?.infoPlist, ITSAppUsesNonExemptEncryption },
     };
   }
-  await fs.writeJson(paths.staticConfigPath, rawStaticConfig, { spaces: 2 });
-
-  exp.ios = {
-    ...exp.ios,
-    infoPlist: { ...exp.ios?.infoPlist, ITSAppUsesNonExemptEncryption },
-  };
 }
