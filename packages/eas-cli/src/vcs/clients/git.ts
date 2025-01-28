@@ -2,6 +2,7 @@ import * as PackageManagerUtils from '@expo/package-manager';
 import spawnAsync from '@expo/spawn-async';
 import { Errors } from '@oclif/core';
 import chalk from 'chalk';
+import fs from 'fs-extra';
 import path from 'path';
 
 import Log, { learnMore } from '../../log';
@@ -14,7 +15,7 @@ import {
   gitStatusAsync,
   isGitInstalledAsync,
 } from '../git';
-import { EASIGNORE_FILENAME, makeShallowCopyAsync } from '../local';
+import { EASIGNORE_FILENAME, Ignore, makeShallowCopyAsync } from '../local';
 import { Client } from '../vcs';
 
 export default class GitClient extends Client {
@@ -185,19 +186,32 @@ export default class GitClient extends Client {
         { cwd: rootPath }
       );
 
-      const trackedFilesWeShouldHaveIgnored = (
-        await spawnAsync(
-          'git',
-          ['ls-files', '--exclude-from', EASIGNORE_FILENAME, '--ignored', '--cached', '-z'],
-          { cwd: destinationPath }
-        )
-      ).stdout
-        .split('\0')
-        // ls-files' output is terminated by a null character
-        .filter(file => file !== '');
+      const sourceEasignorePath = path.join(rootPath, EASIGNORE_FILENAME);
+      if (await fs.exists(sourceEasignorePath)) {
+        const cachedFilesWeShouldHaveIgnored = (
+          await spawnAsync(
+            'git',
+            [
+              'ls-files',
+              '--exclude-from',
+              sourceEasignorePath,
+              // `--ignored --cached` makes git print files that should be
+              // ignored by rules from `--exclude-from`, but instead are currently cached.
+              '--ignored',
+              '--cached',
+              // separates file names with null characters
+              '-z',
+            ],
+            { cwd: destinationPath }
+          )
+        ).stdout
+          .split('\0')
+          // ls-files' output is terminated by a null character
+          .filter(file => file !== '');
 
-      for (const file of trackedFilesWeShouldHaveIgnored) {
-        await spawnAsync('rm', [file], { cwd: destinationPath });
+        await Promise.all(
+          cachedFilesWeShouldHaveIgnored.map(file => fs.rm(path.join(destinationPath, file)))
+        );
       }
     } finally {
       await setGitCaseSensitivityAsync(isCaseSensitive, rootPath);
@@ -271,10 +285,24 @@ export default class GitClient extends Client {
   }
 
   public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
+    const rootPath = await this.getRootPathAsync();
+    const easIgnorePath = path.join(rootPath, EASIGNORE_FILENAME);
+    if (await fs.exists(easIgnorePath)) {
+      const ignore = new Ignore(rootPath);
+      const wouldNotBeCopiedToClone = ignore.ignores(filePath);
+      const wouldBeDeletedFromClone =
+        (
+          await spawnAsync(
+            'git',
+            ['ls-files', '--exclude-from', easIgnorePath, '--ignored', '--cached', filePath],
+            { cwd: rootPath }
+          )
+        ).stdout.trim() !== '';
+      return wouldNotBeCopiedToClone && wouldBeDeletedFromClone;
+    }
+
     try {
-      await spawnAsync('git', ['check-ignore', '-q', filePath], {
-        cwd: this.maybeCwdOverride ?? path.normalize(await this.getRootPathAsync()),
-      });
+      await spawnAsync('git', ['check-ignore', '-q', filePath], { cwd: rootPath });
       return true;
     } catch {
       return false;
