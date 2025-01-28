@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Sanitize and generate names for EAS Submit to prevent failures due to invalid characters or taken names.
+- Sanitize and generate names for EAS Submit to prevent failures due to invalid characters or taken names. ([#2842](https://github.com/expo/eas-cli/pull/2842) by [@evanbacon](https://github.com/evanbacon))
 
 ### 🐛 Bug fixes
 
