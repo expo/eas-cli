@@ -14,7 +14,7 @@ import {
   gitStatusAsync,
   isGitInstalledAsync,
 } from '../git';
-import { makeShallowCopyAsync } from '../local';
+import { EASIGNORE_FILENAME, makeShallowCopyAsync } from '../local';
 import { Client } from '../vcs';
 
 export default class GitClient extends Client {
@@ -184,6 +184,21 @@ export default class GitClient extends Client {
         ['clone', '--no-hardlinks', '--depth', '1', gitRepoUri, destinationPath],
         { cwd: rootPath }
       );
+
+      const trackedFilesWeShouldHaveIgnored = (
+        await spawnAsync(
+          'git',
+          ['ls-files', '--exclude-from', EASIGNORE_FILENAME, '--ignored', '--cached', '-z'],
+          { cwd: destinationPath }
+        )
+      ).stdout
+        .split('\0')
+        // ls-files' output is terminated by a null character
+        .filter(file => file !== '');
+
+      for (const file of trackedFilesWeShouldHaveIgnored) {
+        await spawnAsync('rm', [file], { cwd: destinationPath });
+      }
     } finally {
       await setGitCaseSensitivityAsync(isCaseSensitive, rootPath);
     }
