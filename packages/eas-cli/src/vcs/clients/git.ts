@@ -174,47 +174,18 @@ export default class GitClient extends Client {
       gitRepoUri = `file://${rootPath}`;
     }
 
-    // Remember uncommited changes before case sensitivity change
-    // for later comparison so we log to the user only the files
-    // that were marked as changed after the case sensitivity change.
-    const uncommittedChanges = await gitStatusAsync({
-      showUntracked: true,
-      cwd: this.maybeCwdOverride,
-    });
+    await assertEnablingGitCaseSensitivityDoesNotCauseNewUncommittedChangesAsync(rootPath);
 
-    const isCaseSensitive = await isGitCaseSensitiveAsync(this.maybeCwdOverride);
-    await setGitCaseSensitivityAsync(true, this.maybeCwdOverride);
+    const isCaseSensitive = await isGitCaseSensitiveAsync(rootPath);
     try {
-      const uncommitedChangesAfterCaseSensitivityChange = await gitStatusAsync({
-        showUntracked: true,
-        cwd: this.maybeCwdOverride,
-      });
-      if (uncommitedChangesAfterCaseSensitivityChange !== uncommittedChanges) {
-        Log.error('Detected inconsistent filename casing between your local filesystem and git.');
-        Log.error('This will likely cause your job to fail. Impacted files:');
-        const baseUncommitedChanges = new Set(uncommittedChanges.split('\n'));
-        for (const changedFile of uncommitedChangesAfterCaseSensitivityChange.split('\n')) {
-          if (!baseUncommitedChanges.has(changedFile)) {
-            Log.error(changedFile);
-          }
-        }
-        Log.newLine();
-        throw new Error(
-          `Error: Resolve filename casing inconsistencies before proceeding. ${learnMore(
-            'https://expo.fyi/macos-ignorecase'
-          )}`
-        );
-      }
-
+      await setGitCaseSensitivityAsync(true, rootPath);
       await spawnAsync(
         'git',
         ['clone', '--no-hardlinks', '--depth', '1', gitRepoUri, destinationPath],
-        {
-          cwd: this.maybeCwdOverride,
-        }
+        { cwd: rootPath }
       );
     } finally {
-      await setGitCaseSensitivityAsync(isCaseSensitive, this.maybeCwdOverride);
+      await setGitCaseSensitivityAsync(isCaseSensitive, rootPath);
     }
 
     // After we create the shallow Git copy, we copy the files
@@ -417,5 +388,53 @@ async function setGitCaseSensitivityAsync(
     await spawnAsync('git', ['config', 'core.ignorecase', String(!enable)], {
       cwd,
     });
+  }
+}
+
+async function assertEnablingGitCaseSensitivityDoesNotCauseNewUncommittedChangesAsync(
+  cwd: string
+): Promise<void> {
+  // Remember uncommited changes before case sensitivity change
+  // for later comparison so we log to the user only the files
+  // that were marked as changed after the case sensitivity change.
+  const uncommittedChangesBeforeCaseSensitivityChange = await gitStatusAsync({
+    showUntracked: true,
+    cwd,
+  });
+
+  const isCaseSensitive = await isGitCaseSensitiveAsync(cwd);
+  await setGitCaseSensitivityAsync(true, cwd);
+  try {
+    const uncommitedChangesAfterCaseSensitivityChange = await gitStatusAsync({
+      showUntracked: true,
+      cwd,
+    });
+
+    if (
+      uncommitedChangesAfterCaseSensitivityChange !== uncommittedChangesBeforeCaseSensitivityChange
+    ) {
+      const baseUncommitedChangesSet = new Set(
+        uncommittedChangesBeforeCaseSensitivityChange.split('\n')
+      );
+
+      const errorMessage = [
+        'Detected inconsistent filename casing between your local filesystem and git.',
+        'This will likely cause your job to fail. Impacted files:',
+        ...uncommitedChangesAfterCaseSensitivityChange.split('\n').flatMap(changedFile => {
+          // This file was changed before the case sensitivity change too.
+          if (baseUncommitedChangesSet.has(changedFile)) {
+            return [];
+          }
+          return [changedFile];
+        }),
+        `Resolve filename casing inconsistencies before proceeding. ${learnMore(
+          'https://expo.fyi/macos-ignorecase'
+        )}`,
+      ];
+
+      throw new Error(errorMessage.join('\n'));
+    }
+  } finally {
+    await setGitCaseSensitivityAsync(isCaseSensitive, cwd);
   }
 }
