@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Make new autoIncremented builds start at nr 1 by default ([#2828](https://github.com/expo/eas-cli/pull/2828) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
+
 ## [14.5.0](https://github.com/expo/eas-cli/releases/tag/v14.5.0) - 2025-01-22
 
 ### 🎉 New features
