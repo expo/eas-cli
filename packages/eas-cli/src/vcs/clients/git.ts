@@ -19,7 +19,7 @@ import { Client } from '../vcs';
 
 export default class GitClient extends Client {
   private readonly maybeCwdOverride?: string;
-  private readonly requireCommit: boolean;
+  public requireCommit: boolean;
 
   constructor(options: { maybeCwdOverride?: string; requireCommit: boolean }) {
     super();
