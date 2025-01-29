@@ -5,5 +5,19 @@ export const FingerprintFragmentNode = gql`
     id
     hash
     debugInfoUrl
+    builds(first: 1) {
+      edges {
+        node {
+          ...BuildFragment
+        }
+      }
+    }
+    updates(first: 1) {
+      edges {
+        node {
+          ...UpdateFragment
+        }
+      }
+    }
   }
 `;

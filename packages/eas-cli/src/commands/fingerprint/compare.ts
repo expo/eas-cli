@@ -6,7 +6,12 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { fetchBuildsAsync, formatBuild } from '../../commandUtils/builds';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { AppPlatform, BuildStatus, FingerprintFragment } from '../../graphql/generated';
+import {
+  AppPlatform,
+  BuildFragment,
+  BuildStatus,
+  FingerprintFragment,
+} from '../../graphql/generated';
 import { FingerprintMutation } from '../../graphql/mutations/FingerprintMutation';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { FingerprintQuery } from '../../graphql/queries/FingerprintQuery';
@@ -32,9 +37,27 @@ export interface FingerprintCompareFlags {
   json: boolean;
 }
 
+enum FingerprintOriginType {
+  Build = 'build',
+  Hash = 'hash',
+  Project = 'project',
+}
+
+type FingerprintOrigin = {
+  type: FingerprintOriginType;
+  build?: BuildFragment;
+};
+
 export default class FingerprintCompare extends EasCommand {
   static override description = 'compare fingerprints of the current project, builds and updates';
   static override strict = false;
+
+  static override examples = [
+    '$ eas fingerprint:compare \t # Compare fingerprints in interactive mode',
+    '$ eas fingerprint:compare c71a7d475aa6f75291bc93cd74aef395c3c94eee \t # Compare fingerprint against local directory',
+    '$ eas fingerprint:compare c71a7d475aa6f75291bc93cd74aef395c3c94eee f0d6a916e73f401d428e6e006e07b12453317ba2 \t # Compare provided fingerprints',
+    '$ eas fingerprint:compare --build-id 82bc6456-611a-48cb-8db4-5f9eb2ca1003 \t # Compare fingerprint from build against local directory',
+  ];
 
   static override args = [
     {
@@ -89,18 +112,14 @@ export default class FingerprintCompare extends EasCommand {
       projectId,
       sanitizedFlagsAndArgs
     );
-    const {
-      fingerprint: firstFingerprint,
-      platforms: platformsFromFirstFingerprint,
-      origin: firstFingerprintOrigin,
-    } = firstFingerprintInfo;
+    const { fingerprint: firstFingerprint, origin: firstFingerprintOrigin } = firstFingerprintInfo;
 
     const secondFingerprintInfo = await getSecondFingerprintInfoAsync(
       graphqlClient,
       projectDir,
       projectId,
       vcsClient,
-      platformsFromFirstFingerprint,
+      firstFingerprintInfo,
       sanitizedFlagsAndArgs
     );
     const { fingerprint: secondFingerprint, origin: secondFingerprintOrigin } =
@@ -109,14 +128,14 @@ export default class FingerprintCompare extends EasCommand {
     if (firstFingerprint.hash === secondFingerprint.hash) {
       Log.log(
         `✅ ${capitalizeFirstLetter(
-          firstFingerprintOrigin
+          prettyPrintFingerprint(firstFingerprint, firstFingerprintOrigin)
         )} matches fingerprint from ${secondFingerprintOrigin}`
       );
       return;
     } else {
       Log.log(
         `🔄 ${capitalizeFirstLetter(
-          firstFingerprintOrigin
+          prettyPrintFingerprint(firstFingerprint, firstFingerprintOrigin)
         )} differs from ${secondFingerprintOrigin}`
       );
     }
@@ -174,6 +193,13 @@ export default class FingerprintCompare extends EasCommand {
   }
 }
 
+function prettyPrintFingerprint(fingerprint: Fingerprint, origin: FingerprintOrigin): string {
+  if (origin.type === FingerprintOriginType.Hash) {
+    return `fingerprint ${fingerprint.hash} from hash`;
+  }
+  return `fingerprint ${fingerprint.hash} from ${origin.type}`;
+}
+
 function capitalizeFirstLetter(string: string): string {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
@@ -182,18 +208,28 @@ async function getFirstFingerprintInfoAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
   { buildId: buildIdFromArg, hash1, nonInteractive }: FingerprintCompareFlags
-): Promise<{ fingerprint: Fingerprint; platforms: AppPlatform[]; origin: string }> {
+): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
   if (hash1) {
     const fingerprintFragment = await getFingerprintFragmentFromHashAsync(
       graphqlClient,
       projectId,
       hash1
     );
-    const fingerprint = await getFingerprintAsync(fingerprintFragment);
+    const fingerprint = await getFingerprintFromFingerprintFragmentAsync(fingerprintFragment);
+    let platforms;
+    const fingerprintBuilds = fingerprintFragment.builds?.edges.map(edge => edge.node) ?? [];
+    const fingerprintUpdates = fingerprintFragment.updates?.edges.map(edge => edge.node) ?? [];
+    if (fingerprintBuilds.length > 0) {
+      platforms = [fingerprintBuilds[0].platform];
+    } else if (fingerprintUpdates.length > 0) {
+      platforms = [stringToAppPlatform(fingerprintUpdates[0].platform)];
+    }
     return {
       fingerprint,
-      platforms: inferPlatformsFromSource(fingerprint),
-      origin: `hash ${hash1}`,
+      platforms,
+      origin: {
+        type: FingerprintOriginType.Hash,
+      },
     };
   }
 
@@ -208,7 +244,7 @@ async function getFirstFingerprintInfoAsync(
       filters: { hasFingerprint: true },
     });
     if (!buildId) {
-      throw new Error(); // exit, explanation already printed in prompt
+      throw new Error('Must select build with fingerprint for comparison.');
     }
   }
 
@@ -220,9 +256,12 @@ async function getFirstFingerprintInfoAsync(
     throw new Error(`Fingerprint source for build ${buildId} was not computed.`);
   }
   return {
-    fingerprint: await getFingerprintAsync(buildWithFingerprint.fingerprint),
+    fingerprint: await getFingerprintFromFingerprintFragmentAsync(buildWithFingerprint.fingerprint),
     platforms: [buildWithFingerprint.platform],
-    origin: 'build',
+    origin: {
+      type: FingerprintOriginType.Build,
+      build: buildWithFingerprint,
+    },
   };
 }
 
@@ -231,9 +270,13 @@ async function getSecondFingerprintInfoAsync(
   projectDir: string,
   projectId: string,
   vcsClient: Client,
-  firstFingerprintPlatforms: AppPlatform[],
+  firstFingerprintInfo: {
+    fingerprint: Fingerprint;
+    platforms?: AppPlatform[];
+    origin: FingerprintOrigin;
+  },
   { hash2 }: FingerprintCompareFlags
-): Promise<{ fingerprint: Fingerprint; origin: string }> {
+): Promise<{ fingerprint: Fingerprint; origin: FingerprintOrigin }> {
   if (hash2) {
     const fingerprintFragment = await getFingerprintFragmentFromHashAsync(
       graphqlClient,
@@ -243,7 +286,17 @@ async function getSecondFingerprintInfoAsync(
     if (!fingerprintFragment) {
       throw new Error(`Fingerprint with hash ${hash2} was not uploaded.`);
     }
-    return { fingerprint: await getFingerprintAsync(fingerprintFragment), origin: `hash ${hash2}` };
+    return {
+      fingerprint: await getFingerprintFromFingerprintFragmentAsync(fingerprintFragment),
+      origin: { type: FingerprintOriginType.Hash },
+    };
+  }
+
+  const firstFingerprintPlatforms = firstFingerprintInfo.platforms;
+  if (!firstFingerprintPlatforms) {
+    throw new Error(
+      `Cannot compare the local directory against the provided fingerprint hash "${firstFingerprintInfo.fingerprint.hash}" because the associated platform could not be determined. Ensure the fingerprint is linked to a build or update to identify the platform.`
+    );
   }
 
   const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
@@ -275,7 +328,7 @@ async function getSecondFingerprintInfoAsync(
     source: uploadedFingerprint.fingerprintSource,
   });
 
-  return { fingerprint: projectFingerprint, origin: 'project' };
+  return { fingerprint: projectFingerprint, origin: { type: FingerprintOriginType.Project } };
 }
 
 async function getFingerprintFragmentFromHashAsync(
@@ -283,18 +336,20 @@ async function getFingerprintFragmentFromHashAsync(
   projectId: string,
   hash: string
 ): Promise<FingerprintFragment> {
-  const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
   const fingerprint = await FingerprintQuery.byHashAsync(graphqlClient, {
     appId: projectId,
     hash,
   });
   if (!fingerprint) {
+    const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
     throw new Error(`Fingerprint with hash ${hash} was not uploaded for ${displayName}.`);
   }
   return fingerprint;
 }
 
-async function getFingerprintAsync(fingerprintFragment: FingerprintFragment): Promise<Fingerprint> {
+async function getFingerprintFromFingerprintFragmentAsync(
+  fingerprintFragment: FingerprintFragment
+): Promise<Fingerprint> {
   const fingerprintDebugUrl = fingerprintFragment.debugInfoUrl;
   if (!fingerprintDebugUrl) {
     throw new Error(
@@ -334,24 +389,6 @@ function getFingerprintOptionsFromWorkflow(
     .map(platform => `${appPlatformToString(platform)}/**/*`);
 
   return { ignorePaths };
-}
-
-function inferPlatformsFromSource(fingerprint: Fingerprint): AppPlatform[] {
-  const sources = fingerprint.sources;
-  const platforms = [];
-  const containsAndroidReasons = sources.some(source => {
-    return source.reasons.some(reason => /android/i.test(reason));
-  });
-  if (containsAndroidReasons) {
-    platforms.push(AppPlatform.Android);
-  }
-  const containsIOSReasons = sources.some(source => {
-    return source.reasons.some(reason => /ios/i.test(reason));
-  });
-  if (containsIOSReasons) {
-    platforms.push(AppPlatform.Ios);
-  }
-  return platforms;
 }
 
 function printContentDiff(diff: FingerprintDiffItem): void {
@@ -529,6 +566,17 @@ function appPlatformToString(platform: AppPlatform): string {
       return 'android';
     case AppPlatform.Ios:
       return 'ios';
+    default:
+      throw new Error(`Unsupported platform: ${platform}`);
+  }
+}
+
+function stringToAppPlatform(platform: string): AppPlatform {
+  switch (platform) {
+    case 'android':
+      return AppPlatform.Android;
+    case 'ios':
+      return AppPlatform.Ios;
     default:
       throw new Error(`Unsupported platform: ${platform}`);
   }
