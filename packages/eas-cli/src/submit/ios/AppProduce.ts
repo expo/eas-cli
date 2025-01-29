@@ -1,6 +1,5 @@
-import { App, RequestContext, Session, User } from '@expo/apple-utils';
+import { RequestContext, Session, User } from '@expo/apple-utils';
 import { Platform } from '@expo/eas-build-job';
-import chalk from 'chalk';
 
 import { sanitizeLanguage } from './utils/language';
 import { getRequestContext } from '../../credentials/ios/appstore/authenticate';
@@ -86,38 +85,13 @@ async function createAppStoreConnectAppAsync(
     );
   }
 
-  let app: App | null = null;
-
-  try {
-    app = await ensureAppExistsAsync(userAuthCtx, {
-      name: appName,
-      language,
-      companyName,
-      bundleIdentifier: bundleId,
-      sku,
-    });
-  } catch (error: any) {
-    if (
-      // Name is invalid
-      error.message.match(
-        /App Name contains certain Unicode(.*)characters that are not permitted/
-      ) ||
-      // UnexpectedAppleResponse: An attribute value has invalid characters. - App Name contains certain Unicode symbols, emoticons, diacritics, special characters, or private use characters that are not permitted.
-      // Name is taken
-      error.message.match(/The App Name you entered is already being used/)
-      // UnexpectedAppleResponse: The provided entity includes an attribute with a value that has already been used on a different account. - The App Name you entered is already being used. If you have trademark rights to
-      // this name and would like it released for your use, submit a claim.
-    ) {
-      Log.addNewLineIfNone();
-      Log.warn(
-        `Change the name in your app config, or use a custom name with the ${chalk.bold(
-          '--app-name'
-        )} flag`
-      );
-      Log.newLine();
-    }
-    throw error;
-  }
+  const app = await ensureAppExistsAsync(userAuthCtx, {
+    name: appName,
+    language,
+    companyName,
+    bundleIdentifier: bundleId,
+    sku,
+  });
 
   try {
     await ensureTestFlightGroupExistsAsync(app);
