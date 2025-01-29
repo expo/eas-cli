@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Prompt to set non-exempt encryption status for the iOS app to support faster store submissions. ([#2843](https://github.com/expo/eas-cli/pull/2843) by [@EvanBacon](https://github.com/EvanBacon))
+- Automatically create internal TestFlight group in EAS Submit command. ([#2839](https://github.com/expo/eas-cli/pull/2839) by [@evanbacon](https://github.com/evanbacon))
 - Sanitize and generate names for EAS Submit to prevent failures due to invalid characters or taken names. ([#2842](https://github.com/expo/eas-cli/pull/2842) by [@evanbacon](https://github.com/evanbacon))
 
 ### 🐛 Bug fixes

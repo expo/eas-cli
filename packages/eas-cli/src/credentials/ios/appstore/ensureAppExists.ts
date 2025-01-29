@@ -317,7 +317,7 @@ export async function createAppAsync(
   }
 }
 
-function isAppleError(error: any): error is {
+export function isAppleError(error: any): error is {
   data: {
     errors: {
       id: string;

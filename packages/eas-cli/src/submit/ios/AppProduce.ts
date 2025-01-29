@@ -7,6 +7,7 @@ import {
   ensureAppExistsAsync,
   ensureBundleIdExistsWithNameAsync,
 } from '../../credentials/ios/appstore/ensureAppExists';
+import { ensureTestFlightGroupExistsAsync } from '../../credentials/ios/appstore/ensureTestFlightGroup';
 import Log from '../../log';
 import { getBundleIdentifierAsync } from '../../project/ios/bundleIdentifier';
 import { promptAsync } from '../../prompts';
@@ -91,6 +92,16 @@ async function createAppStoreConnectAppAsync(
     bundleIdentifier: bundleId,
     sku,
   });
+
+  try {
+    await ensureTestFlightGroupExistsAsync(app);
+  } catch (error: any) {
+    // This process is not critical to the app submission so we shouldn't let it fail the entire process.
+    Log.error(
+      'Failed to create an internal TestFlight group. This can be done manually in the App Store Connect website.'
+    );
+    Log.error(error);
+  }
 
   return {
     ascAppIdentifier: app.id,

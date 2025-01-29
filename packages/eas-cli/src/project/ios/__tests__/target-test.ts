@@ -29,7 +29,7 @@ describe(getApplePlatformFromSdkRoot, () => {
   // Update `getApplePlatformFromSdkRoot` to be compatible with new Apple Platforms
   test('all enumerations work with the function', () => {
     expect(Object.values(ApplePlatform).sort()).toEqual(
-      [ApplePlatform.IOS, ApplePlatform.TV_OS, ApplePlatform.MAC_OS].sort()
+      [ApplePlatform.IOS, ApplePlatform.TV_OS, ApplePlatform.MAC_OS, ApplePlatform.VISION_OS].sort()
     );
   });
   test('existing SDKs work with the function', () => {
