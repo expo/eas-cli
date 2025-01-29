@@ -61,7 +61,7 @@ async function configureNonExemptEncryptionAsync({
 
     if (!confirm) {
       Log.warn(
-        `Set "ios.infoPlist.ITSAppUsesNonExemptEncryption" in the app config to release Apple builds faster. Setting to false and continuing.`
+        chalk`Set {bold ios.infoPlist.ITSAppUsesNonExemptEncryption} in ${description} to release Apple builds faster.`
       );
       onlyExemptEncryption = true;
     }
