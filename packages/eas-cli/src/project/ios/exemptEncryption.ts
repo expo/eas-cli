@@ -1,10 +1,4 @@
-import {
-  ExpoConfig,
-  getConfigFilePaths,
-  getProjectConfigDescription,
-  modifyConfigAsync,
-} from '@expo/config';
-import assert from 'assert';
+import { ExpoConfig, getProjectConfigDescription, modifyConfigAsync } from '@expo/config';
 import chalk from 'chalk';
 
 import Log, { learnMore } from '../../log';
@@ -43,24 +37,12 @@ async function configureNonExemptEncryptionAsync({
   exp: ExpoConfig;
   nonInteractive: boolean;
 }): Promise<void> {
-  const paths = getConfigFilePaths(projectDir);
   const description = getProjectConfigDescription(projectDir);
   if (nonInteractive) {
     Log.warn(
       chalk`${description} is missing {bold ios.infoPlist.ITSAppUsesNonExemptEncryption} boolean. Manual configuration is required in App Store Connect before the app can be tested.`
     );
   }
-
-  if (paths.dynamicConfigPath) {
-    Log.warn(
-      chalk`${description} is missing {bold ios.infoPlist.ITSAppUsesNonExemptEncryption} boolean and it cannot be updated automatically. You will need to configure non-exempt encryption status in App Store Connect for this build. {dim Learn more: ${learnMore(
-        'https://developer.apple.com/documentation/Security/complying-with-encryption-export-regulations'
-      )}}`
-    );
-    return;
-  }
-
-  assert(paths.staticConfigPath, 'app.json must exist');
 
   let onlyExemptEncryption = await confirmAsync({
     message: `iOS app only uses standard/exempt encryption? ${chalk.dim(
@@ -126,7 +108,7 @@ async function configureNonExemptEncryptionAsync({
       },
     };
 
-    Log.log(chalk.cyan(`Add the following to your Expo config`));
+    Log.log(chalk.cyan(`Add the following to ${description}:`));
     Log.log();
     Log.log(JSON.stringify(edits, null, 2));
     Log.log();
