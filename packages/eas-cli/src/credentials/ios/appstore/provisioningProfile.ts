@@ -30,6 +30,7 @@ function resolveProfileType(
     case ApplePlatform.TV_OS:
       return resolveProfileTypeAppleTv(profileClass, isEnterprise);
     case ApplePlatform.MAC_OS:
+    case ApplePlatform.VISION_OS:
       throw new Error(`${applePlatform} profiles are not supported`);
   }
 }
