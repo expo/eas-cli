@@ -1,5 +1,6 @@
 import { App, BetaGroup, Session, User, UserRole } from '@expo/apple-utils';
 
+import { isAppleError } from './ensureAppExists';
 import Log from '../../../log';
 import { ora } from '../../../ora';
 import { confirmAsync } from '../../../prompts';
@@ -92,15 +93,17 @@ async function addAllUsersToInternalGroupAsync(group: BetaGroup, users: User[]):
     }));
 
   const { betaTesters } = group.attributes;
+  const existingEmails = betaTesters?.map(tester => tester.attributes.email).filter(Boolean) ?? [];
   // Filter out existing beta testers.
   if (betaTesters) {
     emails = emails.filter(
-      user => !betaTesters.find(tester => tester.attributes.email === user.email)
+      user => !existingEmails.find(existingEmail => existingEmail === user.email)
     );
   }
 
+  // No new users to add to the internal group.
   if (!emails.length) {
-    // No new users to add to the internal group.
+    // No need to log which users are here on subsequent runs as devs already know the drill at this point.
     Log.debug(`All current admins are already added to the group: ${group.attributes.name}`);
     return;
   }
@@ -141,6 +144,15 @@ async function addAllUsersToInternalGroupAsync(group: BetaGroup, users: User[]):
         group.attributes.name
       }". You can add them manually in App Store Connect. ${groupUrl ?? ''}`
     );
+  } else {
+    Log.log(
+      `TestFlight access enabled for: ` +
+        data.attributes.betaTesters
+          .map(tester => tester.email)
+          .filter(Boolean)
+          .join(', ')
+    );
+    // TODO: When we have more TestFlight functionality, we can link to it from here.
   }
 }
 
@@ -156,23 +168,6 @@ async function getTestFlightGroupUrlAsync(group: BetaGroup): Promise<string | nu
     }
   }
   return null;
-}
-
-function isAppleError(error: any): error is {
-  data: {
-    errors: {
-      id: string;
-      status: string;
-      /** 'ENTITY_ERROR.ATTRIBUTE.INVALID.INVALID_CHARACTERS' */
-      code: string;
-      /** 'An attribute value has invalid characters.' */
-      title: string;
-      /** 'App Name contains certain Unicode symbols, emoticons, diacritics, special characters, or private use characters that are not permitted.' */
-      detail: string;
-    }[];
-  };
-} {
-  return 'data' in error && 'errors' in error.data && Array.isArray(error.data.errors);
 }
 
 async function pollRetryAsync<T>(
