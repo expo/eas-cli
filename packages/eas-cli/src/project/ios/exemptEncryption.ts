@@ -1,7 +1,7 @@
 import {
   ExpoConfig,
-  getProjectConfigDescription,
   getConfigFilePaths,
+  getProjectConfigDescription,
   modifyConfigAsync,
 } from '@expo/config';
 import assert from 'assert';
