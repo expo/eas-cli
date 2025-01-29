@@ -12,3 +12,6 @@ if (process.env.TMPDIR) {
 (fs.realpath as any).native = jest.fn();
 
 module.exports = fs;
+
+// Ensure requiring node:fs returns the mock too. This is needed for expo/config and expo/json-file.
+jest.mock('node:fs', () => fs);
