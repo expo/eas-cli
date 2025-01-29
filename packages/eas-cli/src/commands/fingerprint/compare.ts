@@ -26,7 +26,7 @@ import { Fingerprint, FingerprintDiffItem } from '../../utils/fingerprint';
 import { createFingerprintAsync, diffFingerprint } from '../../utils/fingerprintCli';
 import { abridgedDiff } from '../../utils/fingerprintDiff';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
-import { enableJsonOutput } from '../../utils/json';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { Client } from '../../vcs/vcs';
 
 export interface FingerprintCompareFlags {
@@ -125,19 +125,27 @@ export default class FingerprintCompare extends EasCommand {
     const { fingerprint: secondFingerprint, origin: secondFingerprintOrigin } =
       secondFingerprintInfo;
 
-    if (firstFingerprint.hash === secondFingerprint.hash) {
-      Log.log(
-        `✅ ${capitalizeFirstLetter(
-          prettyPrintFingerprint(firstFingerprint, firstFingerprintOrigin)
-        )} matches fingerprint from ${secondFingerprintOrigin}`
-      );
-      return;
+    if (!json) {
+      if (firstFingerprint.hash === secondFingerprint.hash) {
+        Log.log(
+          `✅ ${capitalizeFirstLetter(
+            prettyPrintFingerprint(firstFingerprint, firstFingerprintOrigin)
+          )} matches fingerprint from ${prettyPrintFingerprint(
+            secondFingerprint,
+            secondFingerprintOrigin
+          )}`
+        );
+        return;
+      } else {
+        Log.log(
+          `🔄 ${capitalizeFirstLetter(
+            prettyPrintFingerprint(firstFingerprint, firstFingerprintOrigin)
+          )} differs from ${prettyPrintFingerprint(secondFingerprint, secondFingerprintOrigin)}`
+        );
+      }
     } else {
-      Log.log(
-        `🔄 ${capitalizeFirstLetter(
-          prettyPrintFingerprint(firstFingerprint, firstFingerprintOrigin)
-        )} differs from ${secondFingerprintOrigin}`
-      );
+      printJsonOnlyOutput({ fingerprint1: firstFingerprint, fingerprint2: secondFingerprint });
+      return;
     }
 
     const fingerprintDiffs = diffFingerprint(projectDir, firstFingerprint, secondFingerprint);
