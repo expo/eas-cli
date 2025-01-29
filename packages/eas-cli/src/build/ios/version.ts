@@ -330,6 +330,7 @@ export async function resolveRemoteBuildNumberAsync(
     vcsClient
   );
   let currentBuildVersion: string;
+  let shouldInitializeBuildNumber = false;
   if (remoteVersions?.buildVersion) {
     currentBuildVersion = remoteVersions.buildVersion;
   } else {
@@ -340,6 +341,7 @@ export async function resolveRemoteBuildNumberAsync(
         )
       );
       currentBuildVersion = localBuildNumber;
+      shouldInitializeBuildNumber = localBuildNumber === '1';
     } else {
       Log.error(
         `Remote versions are not configured and EAS CLI was not able to read the current version from your project. Use "eas build:version:set" to initialize remote versions.`
@@ -349,7 +351,10 @@ export async function resolveRemoteBuildNumberAsync(
   }
   if (!buildProfile.autoIncrement && remoteVersions?.buildVersion) {
     return currentBuildVersion;
-  } else if (!buildProfile.autoIncrement && !remoteVersions?.buildVersion) {
+  } else if (
+    (!buildProfile.autoIncrement && !remoteVersions?.buildVersion) ||
+    shouldInitializeBuildNumber
+  ) {
     const spinner = ora(
       `Initializing buildNumber with ${chalk.bold(currentBuildVersion)}.`
     ).start();
