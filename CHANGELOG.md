@@ -12,7 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Skip non-exempt check in non-interactive mode.
+- Skip non-exempt check in non-interactive mode. ([#2849](https://github.com/expo/eas-cli/pull/2849) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🧹 Chores
 
