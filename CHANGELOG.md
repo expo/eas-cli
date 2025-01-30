@@ -8,13 +8,19 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [14.7.0](https://github.com/expo/eas-cli/releases/tag/v14.7.0) - 2025-01-30
+
+### 🎉 New features
+
 - Add `--submit` and `-s` as aliases for `--auto-submit` flag. ([#2846](https://github.com/expo/eas-cli/pull/2846) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 
 - Skip non-exempt check in non-interactive mode. ([#2849](https://github.com/expo/eas-cli/pull/2849) by [@EvanBacon](https://github.com/EvanBacon))
-
-### 🧹 Chores
 
 ## [14.6.0](https://github.com/expo/eas-cli/releases/tag/v14.6.0) - 2025-01-30
 
