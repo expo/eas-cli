@@ -107,7 +107,6 @@ export async function runBuildAndSubmitAsync({
   flags,
   actor,
   getDynamicPrivateProjectConfigAsync,
-  buildProfilesOverride,
   downloadSimBuildAutoConfirm,
   envOverride,
 }: {
@@ -118,7 +117,6 @@ export async function runBuildAndSubmitAsync({
   flags: BuildFlags;
   actor: Actor;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
-  buildProfilesOverride?: ProfileData<'build'>[];
   downloadSimBuildAutoConfirm?: boolean;
   envOverride?: Env;
 }): Promise<{
@@ -137,15 +135,13 @@ export async function runBuildAndSubmitAsync({
     (await EasJsonUtils.getCliConfigAsync(easJsonAccessor)) ?? {};
 
   const platforms = toPlatforms(flags.requestedPlatform);
-  const buildProfiles =
-    buildProfilesOverride ??
-    (await getProfilesAsync({
-      type: 'build',
-      easJsonAccessor,
-      platforms,
-      profileName: flags.profile ?? undefined,
-      projectDir,
-    }));
+  const buildProfiles = await getProfilesAsync({
+    type: 'build',
+    easJsonAccessor,
+    platforms,
+    profileName: flags.profile ?? undefined,
+    projectDir,
+  });
 
   for (const buildProfile of buildProfiles) {
     if (buildProfile.profile.image && ['default', 'stable'].includes(buildProfile.profile.image)) {

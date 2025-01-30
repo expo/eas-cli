@@ -1,32 +1,43 @@
 import { Platform } from '@expo/eas-build-job';
-import { BuildProfile, CredentialsSource } from '@expo/eas-json';
+import { BuildProfile, EasJsonAccessor } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 
-import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
-import EasCommand from '../../commandUtils/EasCommand';
 import {
-  BuildStatus,
-  DistributionType,
-  EnvironmentVariableEnvironment,
-} from '../../graphql/generated';
+  createBuildProfileAsync,
+  doesBuildProfileExistAsync,
+  ensureProjectConfiguredAsync,
+} from '../../build/configure';
+import { evaluateConfigWithEnvVarsAsync } from '../../build/evaluateConfigWithEnvVarsAsync';
+import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
+import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
+import EasCommand from '../../commandUtils/EasCommand';
+import { BuildStatus, DistributionType } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import Log from '../../log';
 import { RequestedPlatform } from '../../platform';
 import { resolveWorkflowAsync } from '../../project/workflow';
+import { confirmAsync, promptAsync } from '../../prompts';
 import { runAsync } from '../../run/run';
 import { downloadAndMaybeExtractAppAsync } from '../../utils/download';
 import { createFingerprintAsync } from '../../utils/fingerprintCli';
+import { ProfileData, getProfilesAsync } from '../../utils/profiles';
+
+const DEFAULT_EAS_BUILD_RUN_PROFILE_NAME = 'development-simulator';
 
 export default class BuildDev extends EasCommand {
   static override description =
     'run dev client simulator/emulator build with matching fingerprint or create a new one';
 
   static override flags = {
-    platform: Flags.enum<RequestedPlatform.Ios | RequestedPlatform.Android>({
+    platform: Flags.enum<Platform.IOS | Platform.ANDROID>({
       char: 'p',
-      options: [RequestedPlatform.Android, RequestedPlatform.Ios],
-      required: true,
+      options: [Platform.IOS, Platform.ANDROID],
+    }),
+    profile: Flags.string({
+      char: 'e',
+      description: `Name of the build profile from eas.json. It must be a profile allowing to create emulator/simulator internal distribution dev client builds. The "${DEFAULT_EAS_BUILD_RUN_PROFILE_NAME}" build profile will be selected by default.`,
+      helpValue: 'PROFILE_NAME',
     }),
   };
 
@@ -36,7 +47,6 @@ export default class BuildDev extends EasCommand {
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Vcs,
     ...this.ContextOptions.Analytics,
-    ...this.ContextOptions.ServerSideEnvironmentVariables,
     ...this.ContextOptions.ProjectId,
   };
 
@@ -49,22 +59,40 @@ export default class BuildDev extends EasCommand {
       projectDir,
       analytics,
       vcsClient,
-      getServerSideEnvironmentVariablesAsync,
       projectId,
     } = await this.getContextAsync(BuildDev, {
       nonInteractive: false,
-      withServerSideEnvironment: EnvironmentVariableEnvironment.Development,
+      withServerSideEnvironment: null,
     });
 
-    const platform = flags.platform === RequestedPlatform.Android ? Platform.ANDROID : Platform.IOS;
+    const platform = await this.selectPlatformAsync(flags.platform);
     if (process.platform !== 'darwin' && platform === Platform.IOS) {
-      Errors.error('iOS builds are only supported on macOS.', { exit: 1 });
+      Errors.error('Running iOS builds in simulator is only supported on macOS.', { exit: 1 });
     }
 
-    const [env, workflow] = await Promise.all([
-      getServerSideEnvironmentVariablesAsync(),
-      resolveWorkflowAsync(projectDir, platform, vcsClient),
-    ]);
+    await vcsClient.ensureRepoExistsAsync();
+    await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
+    await ensureProjectConfiguredAsync({
+      projectDir,
+      nonInteractive: false,
+      vcsClient,
+    });
+
+    const buildProfile = await this.ensureValidBuildRunProfileExistsAsync({
+      projectDir,
+      platform,
+      selectedBuildProfileName: flags.profile,
+    });
+
+    const workflow = await resolveWorkflowAsync(projectDir, platform, vcsClient);
+
+    const { env } = await evaluateConfigWithEnvVarsAsync({
+      buildProfile: buildProfile.profile,
+      buildProfileName: buildProfile.profileName,
+      graphqlClient,
+      getProjectConfig: getDynamicPrivateProjectConfigAsync,
+      opts: { env: buildProfile.profile.env },
+    });
 
     const fingerprint = await createFingerprintAsync(projectDir, {
       env,
@@ -84,7 +112,7 @@ export default class BuildDev extends EasCommand {
         fingerprintHash: fingerprint.hash,
         status: BuildStatus.Finished,
         simulator: platform === Platform.IOS ? true : undefined,
-        distribution: DistributionType.Internal,
+        distribution: platform === Platform.ANDROID ? DistributionType.Internal : undefined,
         developmentClient: true,
       },
       offset: 0,
@@ -109,18 +137,6 @@ export default class BuildDev extends EasCommand {
     }
 
     Log.log('🚀 No successful build with matching fingerprint found. Starting a new build...');
-    const androidBuildProfile: BuildProfile<Platform.ANDROID> = {
-      credentialsSource: CredentialsSource.LOCAL,
-      distribution: 'internal',
-      withoutCredentials: true,
-      developmentClient: true,
-    };
-    const iosBuildProfile: BuildProfile<Platform.IOS> = {
-      credentialsSource: CredentialsSource.LOCAL,
-      distribution: 'internal',
-      simulator: true,
-      developmentClient: true,
-    };
 
     await runBuildAndSubmitAsync({
       graphqlClient,
@@ -128,7 +144,8 @@ export default class BuildDev extends EasCommand {
       vcsClient,
       projectDir,
       flags: {
-        requestedPlatform: flags.platform,
+        requestedPlatform:
+          platform === Platform.ANDROID ? RequestedPlatform.Android : RequestedPlatform.Ios,
         nonInteractive: false,
         freezeCredentials: false,
         wait: true,
@@ -137,24 +154,136 @@ export default class BuildDev extends EasCommand {
         autoSubmit: false,
         localBuildOptions: {},
         repack: false,
+        profile: flags.profile ?? DEFAULT_EAS_BUILD_RUN_PROFILE_NAME,
       },
       actor,
       getDynamicPrivateProjectConfigAsync,
-      buildProfilesOverride: [
-        platform === Platform.ANDROID
-          ? {
-              platform: Platform.ANDROID,
-              profile: androidBuildProfile,
-              profileName: '__internal-dev-client__',
-            }
-          : {
-              platform: Platform.IOS,
-              profile: iosBuildProfile,
-              profileName: '__internal-dev-client__',
-            },
-      ],
       downloadSimBuildAutoConfirm: true,
       envOverride: env,
     });
+  }
+
+  private async selectPlatformAsync(platform?: Platform): Promise<Platform> {
+    if (platform) {
+      return platform;
+    }
+    const { resolvedPlatform } = await promptAsync({
+      type: 'select',
+      message: 'Select platform',
+      name: 'resolvedPlatform',
+      choices: [
+        { title: 'Android', value: Platform.ANDROID },
+        { title: 'iOS', value: Platform.IOS },
+      ],
+    });
+    return resolvedPlatform;
+  }
+
+  private async validateBuildRunProfileAsync({
+    platform,
+    buildProfile,
+    buildProfileName,
+  }: {
+    platform: Platform;
+    buildProfile: BuildProfile;
+    buildProfileName: string;
+  }): Promise<void> {
+    if (buildProfile.developmentClient !== true) {
+      Errors.error(
+        `Profile "${buildProfileName}" must specify "developmentClient: true" to create a dev client build. Select a different profile or update the profile in eas.json.`,
+        { exit: 1 }
+      );
+    }
+    if (buildProfile.distribution !== 'internal') {
+      Errors.error(
+        `Profile "${buildProfileName}" must specify "distribution: internal" in order to work with eas build:dev command. Select a different profile or update the profile in eas.json.`,
+        { exit: 1 }
+      );
+    }
+
+    if (platform === Platform.IOS) {
+      const iosProfile = buildProfile as BuildProfile<Platform.IOS>;
+      if (iosProfile.simulator !== true && iosProfile.withoutCredentials !== true) {
+        Errors.error(
+          `Profile "${buildProfileName}" must specify "ios.simulator: true" or "withoutCredentials: true" to create an iOS simulator build. Select a different profile or update the profile in eas.json.`,
+          { exit: 1 }
+        );
+      }
+    } else {
+      const androidProfile = buildProfile as BuildProfile<Platform.ANDROID>;
+      if (
+        androidProfile.distribution !== 'internal' &&
+        androidProfile.withoutCredentials !== true
+      ) {
+        Errors.error(
+          `Profile "${buildProfileName}" must specify "distribution: internal" or "withoutCredentials: true" to create an Android emulator build. Select a different profile or update the profile in eas.json.`,
+          { exit: 1 }
+        );
+      }
+    }
+  }
+
+  private async ensureValidBuildRunProfileExistsAsync({
+    projectDir,
+    platform,
+    selectedBuildProfileName,
+  }: {
+    projectDir: string;
+    platform: Platform;
+    selectedBuildProfileName?: string;
+  }): Promise<ProfileData<'build'>> {
+    if (
+      !!selectedBuildProfileName ||
+      (await doesBuildProfileExistAsync({
+        projectDir,
+        profileName: DEFAULT_EAS_BUILD_RUN_PROFILE_NAME,
+      }))
+    ) {
+      const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+      const [buildProfile] = await getProfilesAsync({
+        type: 'build',
+        easJsonAccessor,
+        platforms: [platform],
+        profileName: selectedBuildProfileName ?? DEFAULT_EAS_BUILD_RUN_PROFILE_NAME,
+        projectDir,
+      });
+      await this.validateBuildRunProfileAsync({
+        buildProfileName: selectedBuildProfileName ?? DEFAULT_EAS_BUILD_RUN_PROFILE_NAME,
+        platform,
+        buildProfile: buildProfile.profile,
+      });
+    } else {
+      const createBuildProfile = await confirmAsync({
+        message: `We want to go ahead and generate "${DEFAULT_EAS_BUILD_RUN_PROFILE_NAME}" build profile for you, that matches eas build:dev criteria. Do you want to proceed?`,
+      });
+      if (!createBuildProfile) {
+        Errors.error(
+          'Come back later or specify different build compliant with eas build:dev requirements by using "--profile" flag.',
+          { exit: 1 }
+        );
+      }
+      await createBuildProfileAsync({
+        projectDir,
+        profileName: DEFAULT_EAS_BUILD_RUN_PROFILE_NAME,
+        profileContents: {
+          developmentClient: true,
+          distribution: 'internal',
+          ios: {
+            simulator: true,
+          },
+          environment: 'development',
+        },
+      });
+    }
+
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+    const [buildProfile] = await getProfilesAsync({
+      type: 'build',
+      easJsonAccessor,
+      platforms: [platform],
+      profileName: selectedBuildProfileName ?? DEFAULT_EAS_BUILD_RUN_PROFILE_NAME,
+      projectDir,
+    });
+    return buildProfile;
   }
 }
