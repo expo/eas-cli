@@ -78,10 +78,12 @@ export default class Build extends EasCommand {
       description: 'Clear cache before the build',
     }),
     'auto-submit': Flags.boolean({
+      char: 's',
       default: false,
       description:
         'Submit on build complete using the submit profile with the same name as the build profile',
       exclusive: ['auto-submit-with-profile'],
+      aliases: ['submit'],
     }),
     'auto-submit-with-profile': Flags.string({
       description: 'Submit on build complete using the submit profile with provided name',
