@@ -22,6 +22,7 @@ import { runAsync } from '../../run/run';
 import { downloadAndMaybeExtractAppAsync } from '../../utils/download';
 import { createFingerprintAsync } from '../../utils/fingerprintCli';
 import { ProfileData, getProfilesAsync } from '../../utils/profiles';
+import { Client } from '../../vcs/vcs';
 
 const DEFAULT_EAS_BUILD_RUN_PROFILE_NAME = 'development-simulator';
 
@@ -84,6 +85,7 @@ export default class BuildDev extends EasCommand {
       projectDir,
       platform,
       selectedBuildProfileName: flags.profile,
+      vcsClient,
     });
 
     const workflow = await resolveWorkflowAsync(projectDir, platform, vcsClient);
@@ -229,10 +231,12 @@ export default class BuildDev extends EasCommand {
     projectDir,
     platform,
     selectedBuildProfileName,
+    vcsClient,
   }: {
     projectDir: string;
     platform: Platform;
     selectedBuildProfileName?: string;
+    vcsClient: Client;
   }): Promise<ProfileData<'build'>> {
     if (
       !!selectedBuildProfileName ||
@@ -275,6 +279,8 @@ export default class BuildDev extends EasCommand {
           },
           environment: 'development',
         },
+        nonInteractive: false,
+        vcsClient,
       });
     }
 

@@ -77,10 +77,14 @@ export async function createBuildProfileAsync({
   projectDir,
   profileName,
   profileContents,
+  vcsClient,
+  nonInteractive,
 }: {
   projectDir: string;
   profileName: string;
   profileContents: Record<string, any>;
+  vcsClient: Client;
+  nonInteractive: boolean;
 }): Promise<void> {
   const spinner = ora(`Adding "${profileName}" build profile to ${chalk.bold('eas.json')}`).start();
   try {
@@ -100,6 +104,17 @@ export async function createBuildProfileAsync({
     spinner.succeed(
       `Successfully added "${profileName}" build profile to ${chalk.bold('eas.json')}.`
     );
+
+    if (await vcsClient.isCommitRequiredAsync()) {
+      Log.newLine();
+      await reviewAndCommitChangesAsync(
+        vcsClient,
+        `Add "${profileName}" build profile to eas.json`,
+        {
+          nonInteractive,
+        }
+      );
+    }
   } catch (error) {
     spinner.fail(
       `We were not able to configure "${profileName}" build profile inside of ${chalk.bold(
