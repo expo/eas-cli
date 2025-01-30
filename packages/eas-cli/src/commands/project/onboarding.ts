@@ -285,12 +285,12 @@ export default class Onboarding extends EasCommand {
     } else {
       Log.log('🚀 Now we are going to trigger your first build');
       Log.log();
-      const { buildIds } = await runBuildAndSubmitAsync(
+      const { buildIds } = await runBuildAndSubmitAsync({
         graphqlClient,
         analytics,
         vcsClient,
-        finalTargetProjectDirectory,
-        {
+        projectDir: finalTargetProjectDirectory,
+        flags: {
           nonInteractive: true,
           requestedPlatform:
             platform === Platform.ANDROID ? RequestedPlatform.Android : RequestedPlatform.Ios,
@@ -307,8 +307,9 @@ export default class Onboarding extends EasCommand {
           repack: true,
         },
         actor,
-        getDynamicProjectConfigFn
-      );
+        // eslint-disable-next-line async-protect/async-suffix
+        getDynamicPrivateProjectConfigAsync: getDynamicProjectConfigFn,
+      });
       const buildId = buildIds[0];
       Log.log();
       Log.log('🚀 You can now go back to the website to continue:');

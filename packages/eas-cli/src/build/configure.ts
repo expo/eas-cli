@@ -4,6 +4,7 @@ import fs from 'fs-extra';
 
 import { maybeBailOnRepoStatusAsync, reviewAndCommitChangesAsync } from './utils/repository';
 import Log, { learnMore } from '../log';
+import { ora } from '../ora';
 import { easCliVersion } from '../utils/easCli';
 import { Client } from '../vcs/vcs';
 
@@ -49,6 +50,78 @@ async function configureAsync({
     await reviewAndCommitChangesAsync(vcsClient, 'Configure EAS Build', {
       nonInteractive,
     });
+  }
+}
+
+export async function doesBuildProfileExistAsync({
+  projectDir,
+  profileName,
+}: {
+  projectDir: string;
+  profileName: string;
+}): Promise<boolean> {
+  try {
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+    const easJson = await easJsonAccessor.readRawJsonAsync();
+    if (!easJson.build?.[profileName]) {
+      return false;
+    }
+    return true;
+  } catch (error) {
+    Log.error(`We were unable to read ${chalk.bold('eas.json')} contents. Error: ${error}.`);
+    throw error;
+  }
+}
+
+export async function createBuildProfileAsync({
+  projectDir,
+  profileName,
+  profileContents,
+  vcsClient,
+  nonInteractive,
+}: {
+  projectDir: string;
+  profileName: string;
+  profileContents: Record<string, any>;
+  vcsClient: Client;
+  nonInteractive: boolean;
+}): Promise<void> {
+  const spinner = ora(`Adding "${profileName}" build profile to ${chalk.bold('eas.json')}`).start();
+  try {
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+    await easJsonAccessor.readRawJsonAsync();
+
+    easJsonAccessor.patch(easJsonRawObject => {
+      return {
+        ...easJsonRawObject,
+        build: {
+          ...easJsonRawObject.build,
+          [profileName]: profileContents,
+        },
+      };
+    });
+    await easJsonAccessor.writeAsync();
+    spinner.succeed(
+      `Successfully added "${profileName}" build profile to ${chalk.bold('eas.json')}.`
+    );
+
+    if (await vcsClient.isCommitRequiredAsync()) {
+      Log.newLine();
+      await reviewAndCommitChangesAsync(
+        vcsClient,
+        `Add "${profileName}" build profile to eas.json`,
+        {
+          nonInteractive,
+        }
+      );
+    }
+  } catch (error) {
+    spinner.fail(
+      `We were not able to configure "${profileName}" build profile inside of ${chalk.bold(
+        'eas.json'
+      )}. Error: ${error}.`
+    );
+    throw error;
   }
 }
 

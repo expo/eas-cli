@@ -70,12 +70,12 @@ export default class BuildInternal extends EasCommand {
 
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 
-    await runBuildAndSubmitAsync(
+    await runBuildAndSubmitAsync({
       graphqlClient,
       analytics,
       vcsClient,
       projectDir,
-      {
+      flags: {
         requestedPlatform: flags.platform as RequestedPlatform,
         profile: flags.profile,
         nonInteractive: true,
@@ -91,7 +91,7 @@ export default class BuildInternal extends EasCommand {
         repack: false,
       },
       actor,
-      getDynamicPrivateProjectConfigAsync
-    );
+      getDynamicPrivateProjectConfigAsync,
+    });
   }
 }

@@ -99,15 +99,27 @@ export interface BuildFlags {
   repack: boolean;
 }
 
-export async function runBuildAndSubmitAsync(
-  graphqlClient: ExpoGraphqlClient,
-  analytics: Analytics,
-  vcsClient: Client,
-  projectDir: string,
-  flags: BuildFlags,
-  actor: Actor,
-  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn
-): Promise<{
+export async function runBuildAndSubmitAsync({
+  graphqlClient,
+  analytics,
+  vcsClient,
+  projectDir,
+  flags,
+  actor,
+  getDynamicPrivateProjectConfigAsync,
+  downloadSimBuildAutoConfirm,
+  envOverride,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  analytics: Analytics;
+  vcsClient: Client;
+  projectDir: string;
+  flags: BuildFlags;
+  actor: Actor;
+  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
+  downloadSimBuildAutoConfirm?: boolean;
+  envOverride?: Env;
+}): Promise<{
   buildIds: string[];
 }> {
   await vcsClient.ensureRepoExistsAsync();
@@ -192,13 +204,15 @@ export async function runBuildAndSubmitAsync(
   for (const buildProfile of buildProfiles) {
     const platform = toAppPlatform(buildProfile.platform);
 
-    const { env } = await evaluateConfigWithEnvVarsAsync({
-      buildProfile: buildProfile.profile,
-      buildProfileName: buildProfile.profileName,
-      graphqlClient,
-      getProjectConfig: getDynamicPrivateProjectConfigAsync,
-      opts: { env: buildProfile.profile.env },
-    });
+    const { env } = !envOverride
+      ? await evaluateConfigWithEnvVarsAsync({
+          buildProfile: buildProfile.profile,
+          buildProfileName: buildProfile.profileName,
+          graphqlClient,
+          getProjectConfig: getDynamicPrivateProjectConfigAsync,
+          opts: { env: buildProfile.profile.env },
+        })
+      : { env: envOverride };
 
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
@@ -308,7 +322,7 @@ export async function runBuildAndSubmitAsync(
       [BuildStatus.Errored, BuildStatus.Canceled, BuildStatus.PendingCancel].includes(build?.status)
   );
 
-  await maybeDownloadAndRunSimulatorBuildsAsync(builds, flags);
+  await maybeDownloadAndRunSimulatorBuildsAsync(builds, flags, downloadSimBuildAutoConfirm);
 
   if (haveAllBuildsFailedOrCanceled || !flags.autoSubmit) {
     if (flags.json) {
@@ -542,7 +556,8 @@ async function downloadAndRunAsync(build: BuildFragment): Promise<void> {
 
 async function maybeDownloadAndRunSimulatorBuildsAsync(
   builds: MaybeBuildFragment[],
-  flags: BuildFlags
+  flags: BuildFlags,
+  autoConfirm?: boolean
 ): Promise<void> {
   const simBuilds = builds.filter(truthy).filter(isRunnableOnSimulatorOrEmulator);
 
@@ -550,11 +565,15 @@ async function maybeDownloadAndRunSimulatorBuildsAsync(
     for (const simBuild of simBuilds) {
       if (simBuild.platform === AppPlatform.Android || process.platform === 'darwin') {
         Log.newLine();
-        const confirm = await confirmAsync({
-          message: `Install and run the ${
-            simBuild.platform === AppPlatform.Android ? 'Android' : 'iOS'
-          } build on ${simBuild.platform === AppPlatform.Android ? 'an emulator' : 'a simulator'}?`,
-        });
+        const confirm =
+          autoConfirm ??
+          (await confirmAsync({
+            message: `Install and run the ${
+              simBuild.platform === AppPlatform.Android ? 'Android' : 'iOS'
+            } build on ${
+              simBuild.platform === AppPlatform.Android ? 'an emulator' : 'a simulator'
+            }?`,
+          }));
         if (confirm) {
           await downloadAndRunAsync(simBuild);
         }
