@@ -8,8 +8,8 @@ export const FingerprintFragmentNode = gql`
     builds(first: 1) {
       edges {
         node {
+          id
           ... on Build {
-            id
             platform
           }
         }
