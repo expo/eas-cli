@@ -26,6 +26,8 @@ import { ProfileData, getProfilesAsync } from '../../utils/profiles';
 const DEFAULT_EAS_BUILD_RUN_PROFILE_NAME = 'development-simulator';
 
 export default class BuildDev extends EasCommand {
+  static override hidden: true;
+
   static override description =
     'run dev client simulator/emulator build with matching fingerprint or create a new one';
 
