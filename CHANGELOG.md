@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `--submit` and `-s` as aliases for `--auto-submit` flag. ([#2846](https://github.com/expo/eas-cli/pull/2846) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
