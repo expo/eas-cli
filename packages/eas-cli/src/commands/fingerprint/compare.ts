@@ -125,27 +125,27 @@ export default class FingerprintCompare extends EasCommand {
     const { fingerprint: secondFingerprint, origin: secondFingerprintOrigin } =
       secondFingerprintInfo;
 
-    if (!json) {
-      if (firstFingerprint.hash === secondFingerprint.hash) {
-        Log.log(
-          `✅ ${capitalizeFirstLetter(
-            prettyPrintFingerprint(firstFingerprint, firstFingerprintOrigin)
-          )} matches fingerprint from ${prettyPrintFingerprint(
-            secondFingerprint,
-            secondFingerprintOrigin
-          )}`
-        );
-        return;
-      } else {
-        Log.log(
-          `🔄 ${capitalizeFirstLetter(
-            prettyPrintFingerprint(firstFingerprint, firstFingerprintOrigin)
-          )} differs from ${prettyPrintFingerprint(secondFingerprint, secondFingerprintOrigin)}`
-        );
-      }
-    } else {
+    if (json) {
       printJsonOnlyOutput({ fingerprint1: firstFingerprint, fingerprint2: secondFingerprint });
       return;
+    }
+
+    if (firstFingerprint.hash === secondFingerprint.hash) {
+      Log.log(
+        `✅ ${capitalizeFirstLetter(
+          prettyPrintFingerprint(firstFingerprint, firstFingerprintOrigin)
+        )} matches fingerprint from ${prettyPrintFingerprint(
+          secondFingerprint,
+          secondFingerprintOrigin
+        )}`
+      );
+      return;
+    } else {
+      Log.log(
+        `🔄 ${capitalizeFirstLetter(
+          prettyPrintFingerprint(firstFingerprint, firstFingerprintOrigin)
+        )} differs from ${prettyPrintFingerprint(secondFingerprint, secondFingerprintOrigin)}`
+      );
     }
 
     const fingerprintDiffs = diffFingerprint(projectDir, firstFingerprint, secondFingerprint);
