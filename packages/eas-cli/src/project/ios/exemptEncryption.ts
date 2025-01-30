@@ -42,6 +42,7 @@ async function configureNonExemptEncryptionAsync({
     Log.warn(
       chalk`${description} is missing {bold ios.infoPlist.ITSAppUsesNonExemptEncryption} boolean. Manual configuration is required in App Store Connect before the app can be tested.`
     );
+    return;
   }
 
   let onlyExemptEncryption = await confirmAsync({
