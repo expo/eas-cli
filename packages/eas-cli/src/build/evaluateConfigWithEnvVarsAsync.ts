@@ -1,16 +1,11 @@
 import { Env } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 
+import { isEnvironment } from './utils/environment';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EnvironmentVariableEnvironment } from '../graphql/generated';
 import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
 import Log, { learnMore } from '../log';
-
-function isEnvironment(env: string): env is EnvironmentVariableEnvironment {
-  return Object.values(EnvironmentVariableEnvironment).includes(
-    env as EnvironmentVariableEnvironment
-  );
-}
 
 export async function evaluateConfigWithEnvVarsAsync<Config extends { projectId: string }, Opts>({
   buildProfile,
