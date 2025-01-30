@@ -6924,6 +6924,18 @@
             "deprecationReason": null
           },
           {
+            "name": "environment",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "EnvironmentVariableEnvironment",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "experimental",
             "description": null,
             "type": {
@@ -10367,6 +10379,18 @@
                 "type": {
                   "kind": "SCALAR",
                   "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "filter",
+                "description": null,
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "UpdateFilterInput",
                   "ofType": null
                 },
                 "defaultValue": null,
@@ -19744,7 +19768,7 @@
               "ofType": null
             },
             "isDeprecated": true,
-            "deprecationReason": "Use 'runtime.fingerprintDebugInfoUrl' instead."
+            "deprecationReason": "Use 'runtime.fingerprint.debugInfoUrl' instead."
           },
           {
             "name": "xcodeBuildLogsUrl",
@@ -19981,6 +20005,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "developmentClient",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
               "ofType": null
             },
             "defaultValue": null,
@@ -28069,6 +28105,55 @@
             "deprecationReason": null
           },
           {
+            "name": "deleteBulkEnvironmentVariables",
+            "description": "Bulk delete environment variables",
+            "args": [
+              {
+                "name": "ids",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "LIST",
+                    "name": null,
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "name": null,
+                      "ofType": {
+                        "kind": "SCALAR",
+                        "name": "ID",
+                        "ofType": null
+                      }
+                    }
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "DeleteEnvironmentVariableResult",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "deleteEnvironmentVariable",
             "description": "Delete an environment variable",
             "args": [
@@ -28267,6 +28352,55 @@
                 "kind": "OBJECT",
                 "name": "EnvironmentVariable",
                 "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "updateBulkEnvironmentVariables",
+            "description": "Bulk update environment variables",
+            "args": [
+              {
+                "name": "environmentVariablesData",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "LIST",
+                    "name": null,
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "name": null,
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "UpdateEnvironmentVariableInput",
+                        "ofType": null
+                      }
+                    }
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "EnvironmentVariable",
+                    "ofType": null
+                  }
+                }
               }
             },
             "isDeprecated": false,
@@ -30085,7 +30219,7 @@
         "fields": [
           {
             "name": "account",
-            "description": null,
+            "description": "The Expo account that owns the installation entity.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -30297,6 +30431,29 @@
         "possibleTypes": null
       },
       {
+        "kind": "ENUM",
+        "name": "GitHubAppInstallationAccountType",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "ORGANIZATION",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "USER",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
         "kind": "OBJECT",
         "name": "GitHubAppInstallationMetadata",
         "description": null,
@@ -30315,11 +30472,23 @@
           },
           {
             "name": "githubAccountName",
-            "description": null,
+            "description": "The login of the GitHub account that owns the installation. Not the display name.",
             "args": [],
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "githubAccountType",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "ENUM",
+              "name": "GitHubAppInstallationAccountType",
               "ofType": null
             },
             "isDeprecated": false,
@@ -34868,6 +35037,18 @@
             "deprecationReason": null
           },
           {
+            "name": "environment",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "EnvironmentVariableEnvironment",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "experimental",
             "description": null,
             "type": {
@@ -35704,6 +35885,30 @@
                 "kind": "OBJECT",
                 "name": "App",
                 "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "artifacts",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "WorkflowArtifact",
+                    "ofType": null
+                  }
+                }
               }
             },
             "isDeprecated": false,
@@ -39892,18 +40097,6 @@
             "deprecationReason": null
           },
           {
-            "name": "runtimeFingerprintSource",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "FingerprintSourceInput",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "runtimeVersion",
             "description": null,
             "type": {
@@ -43086,12 +43279,12 @@
             "deprecationReason": null
           },
           {
-            "name": "fingerprintDebugInfoUrl",
+            "name": "fingerprint",
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "String",
+              "kind": "OBJECT",
+              "name": "Fingerprint",
               "ofType": null
             },
             "isDeprecated": false,
@@ -48682,6 +48875,53 @@
             "type": {
               "kind": "ENUM",
               "name": "EnvironmentVariableVisibility",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "UpdateFilterInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "fingerprintHash",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "hasFingerprint",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "runtimeVersion",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -58846,6 +59086,149 @@
       },
       {
         "kind": "OBJECT",
+        "name": "WorkflowArtifact",
+        "description": null,
+        "fields": [
+          {
+            "name": "contentType",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "createdAt",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "downloadUrl",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "fileSizeBytes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "filename",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "jobRun",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "JobRun",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "name",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "updatedAt",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "WorkflowJob",
         "description": null,
         "fields": [
@@ -60368,6 +60751,18 @@
             "description": null,
             "args": [
               {
+                "name": "fromFailedJobs",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "workflowRunId",
                 "description": null,
                 "type": {
@@ -60509,6 +60904,30 @@
         "enumValues": [
           {
             "name": "GITHUB",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "GITHUB_PULL_REQUEST_OPENED",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "GITHUB_PULL_REQUEST_REOPENED",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "GITHUB_PULL_REQUEST_SYNCHRONIZE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "GITHUB_PUSH",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -61642,6 +62061,15 @@
             "deprecationReason": null
           }
         ]
+      },
+      {
+        "name": "oneOf",
+        "description": "Indicates exactly one field must be supplied and this field must not be `null`.",
+        "isRepeatable": false,
+        "locations": [
+          "INPUT_OBJECT"
+        ],
+        "args": []
       },
       {
         "name": "skip",

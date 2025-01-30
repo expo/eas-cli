@@ -7,11 +7,12 @@ import Log from '../log';
 import { ora } from '../ora';
 
 export type FingerprintOptions = {
-  workflow: Workflow;
+  workflow?: Workflow;
   platforms: string[];
   debug?: boolean;
   env: Env | undefined;
   cwd?: string;
+  ignorePaths?: string[];
 };
 
 export function diffFingerprint(
@@ -85,11 +86,19 @@ async function createFingerprintWithoutLoggingAsync(
 > {
   const Fingerprint = require(fingerprintPath);
   const fingerprintOptions: Record<string, any> = {};
+  const ignorePaths = [];
+  if (options.workflow === Workflow.MANAGED) {
+    ignorePaths.push('android/**/*');
+    ignorePaths.push('ios/**/*');
+  }
+  if (options.ignorePaths) {
+    ignorePaths.push(...options.ignorePaths);
+  }
+  if (ignorePaths.length > 0) {
+    fingerprintOptions.ignorePaths = ignorePaths;
+  }
   if (options.platforms) {
     fingerprintOptions.platforms = [...options.platforms];
-  }
-  if (options.workflow === Workflow.MANAGED) {
-    fingerprintOptions.ignorePaths = ['android/**/*', 'ios/**/*'];
   }
   if (options.debug) {
     fingerprintOptions.debug = true;
