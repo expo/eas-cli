@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Account `ios.config.usesNonExemptEncryption` in non-exempt encryption status prompt.
+
 ### 🧹 Chores
 
 ## [14.7.0](https://github.com/expo/eas-cli/releases/tag/v14.7.0) - 2025-01-30
