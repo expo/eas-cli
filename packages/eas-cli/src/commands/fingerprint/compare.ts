@@ -11,10 +11,12 @@ import {
   BuildFragment,
   BuildStatus,
   FingerprintFragment,
+  UpdateFragment,
 } from '../../graphql/generated';
 import { FingerprintMutation } from '../../graphql/mutations/FingerprintMutation';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { FingerprintQuery } from '../../graphql/queries/FingerprintQuery';
+import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
@@ -31,6 +33,7 @@ import { Client } from '../../vcs/vcs';
 
 export interface FingerprintCompareFlags {
   buildId?: string;
+  updateId?: string;
   hash1?: string;
   hash2?: string;
   nonInteractive: boolean;
@@ -39,6 +42,7 @@ export interface FingerprintCompareFlags {
 
 enum FingerprintOriginType {
   Build = 'build',
+  Update = 'update',
   Hash = 'hash',
   Project = 'project',
 }
@@ -46,6 +50,7 @@ enum FingerprintOriginType {
 type FingerprintOrigin = {
   type: FingerprintOriginType;
   build?: BuildFragment;
+  update?: UpdateFragment;
 };
 
 export default class FingerprintCompare extends EasCommand {
@@ -78,6 +83,10 @@ export default class FingerprintCompare extends EasCommand {
       aliases: ['buildId'],
       description: 'Compare the fingerprint with the build with the specified ID',
     }),
+    'update-id': Flags.string({
+      aliases: ['updateId'],
+      description: 'Compare the fingerprint with the update with the specified ID',
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -91,8 +100,13 @@ export default class FingerprintCompare extends EasCommand {
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(FingerprintCompare);
     const { hash1, hash2 } = args;
-    const { json, 'non-interactive': nonInteractive, 'build-id': buildId } = flags;
-    const sanitizedFlagsAndArgs = { json, nonInteractive, buildId, hash1, hash2 };
+    const {
+      json,
+      'non-interactive': nonInteractive,
+      'build-id': buildId,
+      'update-id': updateId,
+    } = flags;
+    const sanitizedFlagsAndArgs = { json, nonInteractive, buildId, updateId, hash1, hash2 };
 
     const {
       projectId,
@@ -202,10 +216,14 @@ export default class FingerprintCompare extends EasCommand {
 }
 
 function prettyPrintFingerprint(fingerprint: Fingerprint, origin: FingerprintOrigin): string {
-  if (origin.type === FingerprintOriginType.Hash) {
-    return `fingerprint ${fingerprint.hash} from hash`;
+  if (origin.type === FingerprintOriginType.Project) {
+    return `fingerprint ${fingerprint.hash} from local directory`;
+  } else if (origin.type === FingerprintOriginType.Update) {
+    return `fingerprint ${fingerprint.hash} from ${origin.update?.platform} ${origin.type}`;
+  } else if (origin.type === FingerprintOriginType.Build) {
+    return `fingerprint ${fingerprint.hash} from ${origin.build?.platform} ${origin.type}`;
   }
-  return `fingerprint ${fingerprint.hash} from ${origin.type}`;
+  return `fingerprint ${fingerprint.hash} from hash`;
 }
 
 function capitalizeFirstLetter(string: string): string {
@@ -215,7 +233,12 @@ function capitalizeFirstLetter(string: string): string {
 async function getFirstFingerprintInfoAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
-  { buildId: buildIdFromArg, hash1, nonInteractive }: FingerprintCompareFlags
+  {
+    buildId: buildIdFromArg,
+    updateId: updateIdFromArg,
+    hash1,
+    nonInteractive,
+  }: FingerprintCompareFlags
 ): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
   if (hash1) {
     const fingerprintFragment = await getFingerprintFragmentFromHashAsync(
@@ -237,6 +260,28 @@ async function getFirstFingerprintInfoAsync(
       platforms,
       origin: {
         type: FingerprintOriginType.Hash,
+      },
+    };
+  }
+
+  if (updateIdFromArg) {
+    const updateWithFingerprint = await UpdateQuery.viewByUpdateAsync(graphqlClient, {
+      updateId: updateIdFromArg,
+    });
+    if (!updateWithFingerprint.fingerprint) {
+      throw new Error(`Fingerprint for update ${updateIdFromArg} was not computed.`);
+    } else if (!updateWithFingerprint.fingerprint.debugInfoUrl) {
+      throw new Error(`Fingerprint source for update ${updateIdFromArg} was not computed.`);
+    }
+
+    return {
+      fingerprint: await getFingerprintFromFingerprintFragmentAsync(
+        updateWithFingerprint.fingerprint
+      ),
+      platforms: [stringToAppPlatform(updateWithFingerprint.platform)],
+      origin: {
+        type: FingerprintOriginType.Update,
+        update: updateWithFingerprint,
       },
     };
   }
@@ -356,7 +401,7 @@ async function getFingerprintFragmentFromHashAsync(
 }
 
 async function getFingerprintFromFingerprintFragmentAsync(
-  fingerprintFragment: FingerprintFragment
+  fingerprintFragment: Pick<FingerprintFragment, 'debugInfoUrl' | 'hash'>
 ): Promise<Fingerprint> {
   const fingerprintDebugUrl = fingerprintFragment.debugInfoUrl;
   if (!fingerprintDebugUrl) {

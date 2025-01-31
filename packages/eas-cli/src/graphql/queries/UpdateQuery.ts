@@ -4,6 +4,8 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  UpdateByIdQuery,
+  UpdateByIdQueryVariables,
   UpdateFragment,
   ViewUpdateGroupsOnAppQuery,
   ViewUpdateGroupsOnAppQueryVariables,
@@ -136,5 +138,31 @@ export const UpdateQuery = {
     }
 
     return response.app.byId.updateGroups;
+  },
+  async viewByUpdateAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { updateId }: UpdateByIdQueryVariables
+  ): Promise<UpdateFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<UpdateByIdQuery, UpdateByIdQueryVariables>(
+          gql`
+            query UpdateByIdQuery($updateId: ID!) {
+              updates {
+                byId(updateId: $updateId) {
+                  id
+                  ...UpdateFragment
+                }
+              }
+            }
+            ${print(UpdateFragmentNode)}
+          `,
+          { updateId },
+          { additionalTypenames: ['Update'] }
+        )
+        .toPromise()
+    );
+
+    return data.updates.byId;
   },
 };
