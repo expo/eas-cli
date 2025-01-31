@@ -288,14 +288,14 @@ async function getFingerprintInfoInteractiveAsync(
 ): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
   const prompt = firstFingerprintInfo
     ? 'Select the second fingerprint to compare against'
-    : 'Select a fingerprint to compare';
+    : 'Select a reference fingerprint for comparison';
   const originType = await selectAsync<FingerprintOriginType>(prompt, [
     ...(firstFingerprintInfo
-      ? [{ title: 'Current project', value: FingerprintOriginType.Project }]
+      ? [{ title: 'Current project fingerprint', value: FingerprintOriginType.Project }]
       : []),
-    { title: 'Build', value: FingerprintOriginType.Build },
-    { title: 'Update', value: FingerprintOriginType.Update },
-    { title: 'Provide a fingerprint hash', value: FingerprintOriginType.Hash },
+    { title: 'Build fingerprint', value: FingerprintOriginType.Build },
+    { title: 'Update fingerprint', value: FingerprintOriginType.Update },
+    { title: 'Enter a fingerprint hash manually', value: FingerprintOriginType.Hash },
   ]);
   if (originType === FingerprintOriginType.Project) {
     if (!firstFingerprintInfo) {
