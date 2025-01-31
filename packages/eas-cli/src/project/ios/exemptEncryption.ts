@@ -17,7 +17,10 @@ export async function ensureNonExemptEncryptionIsDefinedForManagedProjectAsync({
   // TODO: We could add bare workflow support in the future.
   // TODO: We could add wizard support for non-exempt encryption in the future.
 
-  if (exp.ios?.infoPlist?.ITSAppUsesNonExemptEncryption == null) {
+  const ITSAppUsesNonExemptEncryption =
+    exp.ios?.infoPlist?.ITSAppUsesNonExemptEncryption ?? exp.ios?.config?.usesNonExemptEncryption;
+
+  if (ITSAppUsesNonExemptEncryption == null) {
     await configureNonExemptEncryptionAsync({
       projectDir,
       exp,
