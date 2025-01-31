@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Add update support for fingerprint:compare. ([#2850](https://github.com/expo/eas-cli/pull/2850) by [@quinlanj](https://github.com/quinlanj))
+- Add update group id support for fingerprint:compare. ([#2851](https://github.com/expo/eas-cli/pull/2851) by [@quinlanj](https://github.com/quinlanj))
 
 ## [14.7.1](https://github.com/expo/eas-cli/releases/tag/v14.7.1) - 2025-01-31
 
