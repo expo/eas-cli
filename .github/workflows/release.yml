@@ -226,16 +226,3 @@ jobs:
           SLACK_USERNAME: 'EAS CLI CI'
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_FOOTER: ''
-  open-pr-in-universe:
-    name: Open a PR with `@expo/eas-json` bump in universe
-    needs: publish-to-npm
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Open a PR with `@expo/eas-json` version bump in universe
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          repo: expo/universe
-          ref: main
-          workflow: update-eas-json.yml
-          token: ${{ secrets.EXPO_BOT_PAT }}
