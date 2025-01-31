@@ -2,6 +2,7 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
+import { getExpoWebsiteBaseUrl } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
 import { fetchBuildsAsync, formatBuild } from '../../commandUtils/builds';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -14,6 +15,7 @@ import {
   UpdateFragment,
 } from '../../graphql/generated';
 import { FingerprintMutation } from '../../graphql/mutations/FingerprintMutation';
+import { AppQuery } from '../../graphql/queries/AppQuery';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { FingerprintQuery } from '../../graphql/queries/FingerprintQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
@@ -21,7 +23,10 @@ import Log from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import { maybeUploadFingerprintAsync } from '../../project/maybeUploadFingerprintAsync';
-import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
+import {
+  getDisplayNameForProjectIdAsync,
+  getOwnerAccountForProjectIdAsync,
+} from '../../project/projectUtils';
 import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { selectAsync } from '../../prompts';
 import { Fingerprint, FingerprintDiffItem } from '../../utils/fingerprint';
@@ -230,6 +235,27 @@ function capitalizeFirstLetter(string: string): string {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
+async function getFingerprintFromUpdateFragmentAsync(
+  updateWithFingerprint: UpdateFragment
+): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
+  if (!updateWithFingerprint.fingerprint) {
+    throw new Error(`Fingerprint for update ${updateWithFingerprint.id} was not computed.`);
+  } else if (!updateWithFingerprint.fingerprint.debugInfoUrl) {
+    throw new Error(`Fingerprint source for update ${updateWithFingerprint.id} was not computed.`);
+  }
+
+  return {
+    fingerprint: await getFingerprintFromFingerprintFragmentAsync(
+      updateWithFingerprint.fingerprint
+    ),
+    platforms: [stringToAppPlatform(updateWithFingerprint.platform)],
+    origin: {
+      type: FingerprintOriginType.Update,
+      update: updateWithFingerprint,
+    },
+  };
+}
+
 async function getFirstFingerprintInfoAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
@@ -265,25 +291,46 @@ async function getFirstFingerprintInfoAsync(
   }
 
   if (updateIdFromArg) {
+    // Some people may pass in update group id instead of update id, so add interactive support for that
+    try {
+      const maybeUpdateGroupId = updateIdFromArg;
+      const updateGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, {
+        groupId: maybeUpdateGroupId,
+      });
+      if (updateGroup.length === 1) {
+        const update = updateGroup[0];
+        return await getFingerprintFromUpdateFragmentAsync(update);
+      }
+      if (nonInteractive) {
+        const [accountName, project] = await Promise.all([
+          (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name,
+          AppQuery.byIdAsync(graphqlClient, projectId),
+        ]);
+        const updateUrl =
+          getExpoWebsiteBaseUrl() +
+          `/accounts/${accountName}/projects/${project.name}/updates/${updateIdFromArg}`;
+        throw new Error(
+          `Please pass in your update ID from ${updateUrl} or use interactive mode to select the update ID.`
+        );
+      }
+      const update = await selectAsync<UpdateFragment>(
+        'Select a platform to compute the fingerprint from',
+        updateGroup.map(update => ({
+          title: update.platform,
+          value: update,
+        }))
+      );
+      return await getFingerprintFromUpdateFragmentAsync(update);
+    } catch (error: any) {
+      if (!error?.message.includes('Could not find any updates with group ID')) {
+        throw error;
+      }
+    }
+
     const updateWithFingerprint = await UpdateQuery.viewByUpdateAsync(graphqlClient, {
       updateId: updateIdFromArg,
     });
-    if (!updateWithFingerprint.fingerprint) {
-      throw new Error(`Fingerprint for update ${updateIdFromArg} was not computed.`);
-    } else if (!updateWithFingerprint.fingerprint.debugInfoUrl) {
-      throw new Error(`Fingerprint source for update ${updateIdFromArg} was not computed.`);
-    }
-
-    return {
-      fingerprint: await getFingerprintFromFingerprintFragmentAsync(
-        updateWithFingerprint.fingerprint
-      ),
-      platforms: [stringToAppPlatform(updateWithFingerprint.platform)],
-      origin: {
-        type: FingerprintOriginType.Update,
-        update: updateWithFingerprint,
-      },
-    };
+    return await getFingerprintFromUpdateFragmentAsync(updateWithFingerprint);
   }
 
   let buildId: string | null = buildIdFromArg ?? null;
