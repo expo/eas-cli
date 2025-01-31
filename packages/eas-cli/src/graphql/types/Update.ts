@@ -38,6 +38,7 @@ export const UpdateFragmentNode = gql`
     fingerprint {
       id
       hash
+      debugInfoUrl
       source {
         type
         bucketKey
