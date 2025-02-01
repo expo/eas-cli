@@ -164,10 +164,7 @@ export default class FingerprintCompare extends EasCommand {
       Log.log(
         `✅ ${capitalizeFirstLetter(
           prettyPrintFingerprint(firstFingerprint, firstFingerprintOrigin)
-        )} matches fingerprint from ${prettyPrintFingerprint(
-          secondFingerprint,
-          secondFingerprintOrigin
-        )}`
+        )} matches ${prettyPrintFingerprint(secondFingerprint, secondFingerprintOrigin)}`
       );
       return;
     } else {
@@ -322,7 +319,7 @@ async function getFingerprintInfoInteractiveAsync(
   } else if (originType === FingerprintOriginType.Update) {
     const selectedBranch = await selectBranchOnAppAsync(graphqlClient, {
       projectId,
-      promptTitle: 'On which branch would you like search for an update to edit?',
+      promptTitle: 'On which branch would you like search for an update?',
       displayTextForListItem: updateBranch => ({
         title: updateBranch.name,
       }),
@@ -744,11 +741,13 @@ function prettyPrintFingerprint(fingerprint: Fingerprint, origin: FingerprintOri
   if (origin.type === FingerprintOriginType.Project) {
     return `fingerprint ${fingerprint.hash} from local directory`;
   } else if (origin.type === FingerprintOriginType.Update) {
-    return `fingerprint ${fingerprint.hash} from ${origin.update?.platform} ${origin.type}`;
+    return `fingerprint ${fingerprint.hash} from ${
+      origin.update?.platform ? stringToAppPlatform(origin.update?.platform) : ''
+    } ${origin.type}`;
   } else if (origin.type === FingerprintOriginType.Build) {
     return `fingerprint ${fingerprint.hash} from ${origin.build?.platform} ${origin.type}`;
   }
-  return `fingerprint ${fingerprint.hash} from hash`;
+  return `fingerprint ${fingerprint.hash}`;
 }
 
 function capitalizeFirstLetter(string: string): string {
