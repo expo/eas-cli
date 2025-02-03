@@ -25,10 +25,7 @@ import Log from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import { maybeUploadFingerprintAsync } from '../../project/maybeUploadFingerprintAsync';
-import {
-  getDisplayNameForProjectIdAsync,
-  getOwnerAccountForProjectIdAsync,
-} from '../../project/projectUtils';
+import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { promptAsync, selectAsync } from '../../prompts';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
@@ -514,13 +511,10 @@ async function getFingerprintInfoFromUpdateGroupIdOrUpdateIdAsync(
       return await getFingerprintFromUpdateFragmentAsync(update);
     }
     if (nonInteractive) {
-      const [accountName, project] = await Promise.all([
-        (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name,
-        AppQuery.byIdAsync(graphqlClient, projectId),
-      ]);
+      const project = await AppQuery.byIdAsync(graphqlClient, projectId);
       const updateUrl =
         getExpoWebsiteBaseUrl() +
-        `/accounts/${accountName}/projects/${project.name}/updates/${maybeUpdateGroupId}`;
+        `/accounts/${project.ownerAccount.name}/projects/${project.name}/updates/${maybeUpdateGroupId}`;
       throw new Error(
         `Please pass in your update ID from ${updateUrl} or use interactive mode to select the update ID.`
       );
