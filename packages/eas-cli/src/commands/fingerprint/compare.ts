@@ -139,6 +139,8 @@ export default class FingerprintCompare extends EasCommand {
     );
     const { fingerprint: firstFingerprint, origin: firstFingerprintOrigin } = firstFingerprintInfo;
 
+    const isFirstFingerprintSpecifiedByFlagOrArg = hash1 || buildId1 || updateId1;
+    const isSecondFingerprintSpecifiedByFlagOrArg = hash2 || buildId2 || updateId2;
     const secondFingerprintInfo = await getFingerprintInfoAsync(
       graphqlClient,
       projectDir,
@@ -149,6 +151,8 @@ export default class FingerprintCompare extends EasCommand {
         buildId: buildId2,
         updateId: updateId2,
         hash: hash2,
+        useProjectFingerprint:
+          isFirstFingerprintSpecifiedByFlagOrArg && !isSecondFingerprintSpecifiedByFlagOrArg,
       },
       firstFingerprintInfo
     );
@@ -237,8 +241,15 @@ async function getFingerprintInfoAsync(
     buildId,
     updateId,
     hash,
+    useProjectFingerprint,
     nonInteractive,
-  }: { buildId?: string; updateId?: string; hash: string; nonInteractive: boolean },
+  }: {
+    buildId?: string;
+    updateId?: string;
+    hash: string;
+    useProjectFingerprint?: boolean;
+    nonInteractive: boolean;
+  },
   firstFingerprintInfo?: {
     fingerprint: Fingerprint;
     platforms?: AppPlatform[];
@@ -256,6 +267,19 @@ async function getFingerprintInfoAsync(
     );
   } else if (buildId) {
     return await getFingerprintInfoFromBuildIdAsync(graphqlClient, buildId);
+  } else if (useProjectFingerprint) {
+    if (!firstFingerprintInfo) {
+      throw new Error(
+        'First fingerprint must be provided in order to compare against the project.'
+      );
+    }
+    return await getFingerprintInfoFromLocalProjectAsync(
+      graphqlClient,
+      projectDir,
+      projectId,
+      vcsClient,
+      firstFingerprintInfo
+    );
   }
 
   if (nonInteractive) {
