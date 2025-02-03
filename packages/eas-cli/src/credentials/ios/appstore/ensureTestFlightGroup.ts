@@ -13,20 +13,40 @@ const AUTO_GROUP_NAME = 'Team (Expo)';
  * This allows users to instantly access their builds from TestFlight after it finishes processing.
  */
 export async function ensureTestFlightGroupExistsAsync(app: App): Promise<void> {
-  const group = await ensureInternalGroupAsync(app);
-  const users = await User.getAsync(app.context);
-  const admins = users.filter(user => user.attributes.roles?.includes(UserRole.ADMIN));
+  if (process.env.EXPO_SKIP_TESTFLIGHT_SETUP) {
+    Log.debug('EXPO_SKIP_TESTFLIGHT_SETUP is set, skipping TestFlight setup');
+    return;
+  }
 
-  await addAllUsersToInternalGroupAsync(group, admins);
-}
-
-async function ensureInternalGroupAsync(app: App): Promise<BetaGroup> {
   const groups = await app.getBetaGroupsAsync({
     query: {
       includes: ['betaTesters'],
     },
   });
 
+  if (groups.length > 0) {
+    Log.debug(`Found ${groups.length} TestFlight groups`);
+    Log.debug('Skipping creating a new TestFlight group');
+    return;
+  }
+
+  const group = await ensureInternalGroupAsync({
+    app,
+    groups,
+  });
+  const users = await User.getAsync(app.context);
+  const admins = users.filter(user => user.attributes.roles?.includes(UserRole.ADMIN));
+
+  await addAllUsersToInternalGroupAsync(group, admins);
+}
+
+async function ensureInternalGroupAsync({
+  groups,
+  app,
+}: {
+  groups: BetaGroup[];
+  app: App;
+}): Promise<BetaGroup> {
   let betaGroup = groups.find(group => group.attributes.name === AUTO_GROUP_NAME);
   if (!betaGroup) {
     const spinner = ora().start('Creating TestFlight group...');
@@ -74,7 +94,14 @@ async function ensureInternalGroupAsync(app: App): Promise<BetaGroup> {
       })
     ) {
       await BetaGroup.deleteAsync(app.context, { id: betaGroup.id });
-      return await ensureInternalGroupAsync(app);
+      return await ensureInternalGroupAsync({
+        app,
+        groups: await app.getBetaGroupsAsync({
+          query: {
+            includes: ['betaTesters'],
+          },
+        }),
+      });
     }
   }
 
