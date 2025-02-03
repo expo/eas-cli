@@ -7,6 +7,8 @@ import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
+import { ensureApplicationIdIsDefinedForManagedProjectAsync } from '../../project/android/applicationId';
+import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
 import { isExpoUpdatesInstalled, isUsingEASUpdate } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { promptAsync } from '../../prompts';
@@ -36,6 +38,7 @@ export default class BuildConfigure extends EasCommand {
     const {
       privateProjectConfig: { exp, projectId, projectDir },
       vcsClient,
+      loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildConfigure, {
       nonInteractive: false,
       withServerSideEnvironment: null,
@@ -66,6 +69,42 @@ export default class BuildConfigure extends EasCommand {
       nonInteractive: false,
       vcsClient,
     });
+
+    const [androidWorkflow, iosWorkflow] = await Promise.all([
+      resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient),
+      resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient),
+    ]);
+
+    Log.addNewLineIfNone();
+    if (
+      [RequestedPlatform.Android, RequestedPlatform.All].includes(platform) &&
+      androidWorkflow === Workflow.MANAGED
+    ) {
+      await ensureApplicationIdIsDefinedForManagedProjectAsync({
+        graphqlClient,
+        projectDir,
+        projectId,
+        vcsClient,
+        nonInteractive: false,
+        exp,
+      });
+    }
+    Log.addNewLineIfNone();
+    if (
+      [RequestedPlatform.Ios, RequestedPlatform.All].includes(platform) &&
+      iosWorkflow === Workflow.MANAGED
+    ) {
+      await ensureBundleIdentifierIsDefinedForManagedProjectAsync({
+        graphqlClient,
+        projectDir,
+        projectId,
+        vcsClient,
+        nonInteractive: false,
+        exp,
+      });
+    }
+    Log.addNewLineIfNone();
+
     if (didCreateEasJson && isUsingEASUpdate(exp, projectId)) {
       await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
     }
@@ -73,20 +112,23 @@ export default class BuildConfigure extends EasCommand {
     // configure expo-updates
     if (expoUpdatesIsInstalled) {
       if ([RequestedPlatform.Android, RequestedPlatform.All].includes(platform)) {
-        const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
-        if (workflow === Workflow.GENERIC) {
-          await syncAndroidUpdatesConfigurationAsync({ projectDir, exp, workflow, env: undefined });
+        if (androidWorkflow === Workflow.GENERIC) {
+          await syncAndroidUpdatesConfigurationAsync({
+            projectDir,
+            exp,
+            workflow: androidWorkflow,
+            env: undefined,
+          });
         }
       }
 
       if ([RequestedPlatform.Ios, RequestedPlatform.All].includes(platform)) {
-        const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
-        if (workflow === Workflow.GENERIC) {
+        if (iosWorkflow === Workflow.GENERIC) {
           await syncIosUpdatesConfigurationAsync({
             vcsClient,
             projectDir,
             exp,
-            workflow,
+            workflow: iosWorkflow,
             env: undefined,
           });
         }
