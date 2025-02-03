@@ -235,12 +235,9 @@ export default class FingerprintCompare extends EasCommand {
       return;
     }
 
-    const [accountName, project] = await Promise.all([
-      (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name,
-      AppQuery.byIdAsync(graphqlClient, projectId),
-    ]);
+    const project = await AppQuery.byIdAsync(graphqlClient, projectId);
     const fingerprintCompareUrl = new URL(
-      `/accounts/${accountName}/projects/${project.name}/fingerprint/compare`,
+      `/accounts/${project.ownerAccount.name}/projects/${project.name}/fingerprint/compare`,
       getExpoWebsiteBaseUrl()
     );
     fingerprintCompareUrl.searchParams.set('a', firstFingerprintInfo.fingerprint.hash);
