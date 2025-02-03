@@ -3,6 +3,7 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import { getExpoWebsiteBaseUrl } from '../../api';
+import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { fetchBuildsAsync, formatBuild } from '../../commandUtils/builds';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -29,14 +30,13 @@ import {
 } from '../../project/projectUtils';
 import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { promptAsync, selectAsync } from '../../prompts';
+import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 import { Fingerprint, FingerprintDiffItem } from '../../utils/fingerprint';
 import { createFingerprintAsync, diffFingerprint } from '../../utils/fingerprintCli';
 import { abridgedDiff } from '../../utils/fingerprintDiff';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { Client } from '../../vcs/vcs';
-import { selectBranchOnAppAsync } from '../../branch/queries';
-import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
 
 enum FingerprintOriginType {
   Build = 'build',
