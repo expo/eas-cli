@@ -1,6 +1,5 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
-import openBrowserAsync from 'better-opn';
 import chalk from 'chalk';
 
 import { getExpoWebsiteBaseUrl } from '../../api';
@@ -230,19 +229,6 @@ export default class FingerprintCompare extends EasCommand {
     for (const diff of contentDiffs) {
       printContentDiff(diff);
     }
-
-    if (nonInteractive) {
-      return;
-    }
-
-    const project = await AppQuery.byIdAsync(graphqlClient, projectId);
-    const fingerprintCompareUrl = new URL(
-      `/accounts/${project.ownerAccount.name}/projects/${project.name}/fingerprint/compare`,
-      getExpoWebsiteBaseUrl()
-    );
-    fingerprintCompareUrl.searchParams.set('a', firstFingerprintInfo.fingerprint.hash);
-    fingerprintCompareUrl.searchParams.set('b', secondFingerprintInfo.fingerprint.hash);
-    await openBrowserAsync(fingerprintCompareUrl.toString());
   }
 }
 
