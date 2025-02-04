@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Print warning for `NoVcsClient` only once. ([#2863](https://github.com/expo/eas-cli/pull/2863) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 - Add update support for fingerprint:compare. ([#2850](https://github.com/expo/eas-cli/pull/2850) by [@quinlanj](https://github.com/quinlanj))
