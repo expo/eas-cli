@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Popup website in fingerprint:compare. ([#2859](https://github.com/expo/eas-cli/pull/2859) by [@quinlanj](https://github.com/quinlanj))
 - Fix fingerprint:compare URL. ([#2861](https://github.com/expo/eas-cli/pull/2861) by [@quinlanj](https://github.com/quinlanj))
 - Make less gql calls in fingerprint:compare. ([#2860](https://github.com/expo/eas-cli/pull/2860) by [@quinlanj](https://github.com/quinlanj))
+- Add --open flag to fingerprint:compare. ([#2872](https://github.com/expo/eas-cli/pull/2872) by [@quinlanj](https://github.com/quinlanj))
 
 ## [15.0.3](https://github.com/expo/eas-cli/releases/tag/v15.0.3) - 2025-02-04
 
