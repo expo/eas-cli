@@ -6,9 +6,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Use Git to archive projects containing a Git repository. (Previously, Git would only be used if `requireCommit` flag in `eas.json` was set to `true`.) ([#2841](https://github.com/expo/eas-cli/pull/2841) by [@sjchmiela](https://github.com/sjchmiela))
-
 ### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [15.0.0](https://github.com/expo/eas-cli/releases/tag/v15.0.0) - 2025-02-04
+
+### 🛠 Breaking changes
+
+- Use Git to archive projects containing a Git repository. (Previously, Git would only be used if `requireCommit` flag in `eas.json` was set to `true`.) ([#2841](https://github.com/expo/eas-cli/pull/2841) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🐛 Bug fixes
 
