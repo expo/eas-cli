@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Popup website in fingerprint:compare. ([#2859](https://github.com/expo/eas-cli/pull/2859) by [@quinlanj](https://github.com/quinlanj))
+
 ## [15.0.3](https://github.com/expo/eas-cli/releases/tag/v15.0.3) - 2025-02-04
 
 ### 🐛 Bug fixes
