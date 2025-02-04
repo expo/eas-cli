@@ -1,6 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJsonAccessor } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
+import chalk from 'chalk';
 
 import {
   createBuildProfileAsync,
@@ -19,6 +20,7 @@ import Log from '../../log';
 import { RequestedPlatform } from '../../platform';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync } from '../../prompts';
+import { expoCommandAsync } from '../../utils/expoCli';
 import { createFingerprintAsync } from '../../utils/fingerprintCli';
 import { ProfileData, getProfilesAsync } from '../../utils/profiles';
 import { Client } from '../../vcs/vcs';
@@ -122,6 +124,7 @@ export default class BuildDev extends EasCommand {
 
       if (build.artifacts?.applicationArchiveUrl) {
         await downloadAndRunAsync(build);
+        await this.startDevServerAsync({ projectDir, platform });
         return;
       } else {
         Log.warn('Artifacts for this build expired. New build will be started.');
@@ -169,6 +172,7 @@ export default class BuildDev extends EasCommand {
       downloadSimBuildAutoConfirm: true,
       envOverride: env,
     });
+    await this.startDevServerAsync({ projectDir, platform });
   }
 
   private async selectPlatformAsync(platform?: Platform): Promise<Platform> {
@@ -323,5 +327,25 @@ export default class BuildDev extends EasCommand {
       offset: 0,
       limit: 1,
     });
+  }
+
+  private async startDevServerAsync({
+    projectDir,
+    platform,
+  }: {
+    projectDir: string;
+    platform: Platform;
+  }): Promise<void> {
+    Log.newLine();
+    Log.log(
+      `Starting development server: ${chalk.dim(
+        `npx expo start --dev-client ${platform === Platform.IOS ? '--ios' : '--android'}`
+      )}`
+    );
+    await expoCommandAsync(projectDir, [
+      'start',
+      '--dev-client',
+      platform === Platform.IOS ? '--ios' : '--android',
+    ]);
   }
 }
