@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import createIgnore, { Ignore as SingleFileIgnore } from 'ignore';
 import path from 'path';
 
-const EASIGNORE_FILENAME = '.easignore';
+export const EASIGNORE_FILENAME = '.easignore';
 const GITIGNORE_FILENAME = '.gitignore';
 
 const DEFAULT_IGNORE = `

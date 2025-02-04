@@ -12,11 +12,35 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Popup website in fingerprint:compare. ([#2859](https://github.com/expo/eas-cli/pull/2859) by [@quinlanj](https://github.com/quinlanj))
+- Fix fingerprint:compare URL. ([#2861](https://github.com/expo/eas-cli/pull/2861) by [@quinlanj](https://github.com/quinlanj))
+- Make less gql calls in fingerprint:compare. ([#2860](https://github.com/expo/eas-cli/pull/2860) by [@quinlanj](https://github.com/quinlanj))
+
+## [15.0.3](https://github.com/expo/eas-cli/releases/tag/v15.0.3) - 2025-02-04
+
+### 🐛 Bug fixes
+
+- Fixed EAS server environment variables does not pass to `npx expo-updates runtimeversion:resolve` call. ([#2867](https://github.com/expo/eas-cli/pull/2867) by [@kudo](https://github.com/kudo))
+
+## [15.0.2](https://github.com/expo/eas-cli/releases/tag/v15.0.2) - 2025-02-04
+
+## [15.0.1](https://github.com/expo/eas-cli/releases/tag/v15.0.1) - 2025-02-04
+
+## [15.0.0](https://github.com/expo/eas-cli/releases/tag/v15.0.0) - 2025-02-04
+
+### 🛠 Breaking changes
+
+- Use Git to archive projects containing a Git repository. (Previously, Git would only be used if `requireCommit` flag in `eas.json` was set to `true`.) ([#2841](https://github.com/expo/eas-cli/pull/2841) by [@sjchmiela](https://github.com/sjchmiela))
+
+### 🐛 Bug fixes
+
+- Print warning for `NoVcsClient` only once. ([#2863](https://github.com/expo/eas-cli/pull/2863) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🧹 Chores
+
 - Add update support for fingerprint:compare. ([#2850](https://github.com/expo/eas-cli/pull/2850) by [@quinlanj](https://github.com/quinlanj))
 - Add update group id support for fingerprint:compare. ([#2851](https://github.com/expo/eas-cli/pull/2851) by [@quinlanj](https://github.com/quinlanj))
 - Add better interactive support for fingerprint:compare. ([#2854](https://github.com/expo/eas-cli/pull/2854) by [@quinlanj](https://github.com/quinlanj))
-- Popup website in fingerprint:compare. ([#2859](https://github.com/expo/eas-cli/pull/2859) by [@quinlanj](https://github.com/quinlanj))
-- Make less gql calls in fingerprint:compare. ([#2860](https://github.com/expo/eas-cli/pull/2860) by [@quinlanj](https://github.com/quinlanj))
 
 ## [14.7.1](https://github.com/expo/eas-cli/releases/tag/v14.7.1) - 2025-01-31
 

@@ -1,6 +1,9 @@
+import path from 'path';
+
 import { runAppOnAndroidEmulatorAsync } from './android/run';
 import { runAppOnIosSimulatorAsync } from './ios/run';
 import { AppPlatform } from '../graphql/generated';
+import { getEasBuildRunCacheDirectoryPath } from '../utils/paths';
 
 export interface RunArchiveFlags {
   latest?: boolean;
@@ -18,4 +21,15 @@ export async function runAsync(
   } else {
     await runAppOnAndroidEmulatorAsync(simulatorBuildPath);
   }
+}
+
+export function getEasBuildRunCachedAppPath(
+  projectId: string,
+  buildId: string,
+  platform: AppPlatform
+): string {
+  return path.join(
+    getEasBuildRunCacheDirectoryPath(),
+    `${projectId}_${buildId}.${platform === AppPlatform.Ios ? 'app' : 'apk'}`
+  );
 }

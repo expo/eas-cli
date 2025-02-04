@@ -237,6 +237,10 @@ export default class UpdatePublish extends EasCommand {
       jsonFlag,
     });
 
+    const maybeServerEnv = environment
+      ? { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' }
+      : {};
+
     // build bundle and upload assets for a new publish
     if (!skipBundler) {
       const bundleSpinner = ora().start('Exporting...');
@@ -247,11 +251,7 @@ export default class UpdatePublish extends EasCommand {
           exp,
           platformFlag: requestedPlatform,
           clearCache,
-          extraEnv: {
-            ...(environment
-              ? { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' }
-              : {}),
-          },
+          extraEnv: maybeServerEnv,
         });
         bundleSpinner.succeed('Exported bundle(s)');
       } catch (e) {
@@ -393,7 +393,7 @@ export default class UpdatePublish extends EasCommand {
         ...workflows,
         web: Workflow.UNKNOWN,
       },
-      env: undefined,
+      env: maybeServerEnv,
     });
     const runtimeToPlatformsAndFingerprintInfoMapping =
       getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects(

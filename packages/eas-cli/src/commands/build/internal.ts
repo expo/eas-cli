@@ -6,8 +6,7 @@ import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand from '../../commandUtils/EasCommand';
 import { RequestedPlatform } from '../../platform';
 import { enableJsonOutput } from '../../utils/json';
-import GitNoCommitClient from '../../vcs/clients/gitNoCommit';
-import NoVcsClient from '../../vcs/clients/noVcs';
+import GitClient from '../../vcs/clients/git';
 
 /**
  * This command will be run on the EAS Build workers, when building
@@ -64,9 +63,15 @@ export default class BuildInternal extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(BuildInternal, {
       nonInteractive: true,
-      vcsClientOverride: process.env.EAS_NO_VCS ? new NoVcsClient() : new GitNoCommitClient(),
       withServerSideEnvironment: null,
     });
+
+    if (vcsClient instanceof GitClient) {
+      // `build:internal` is run on EAS workers and the repo may have been changed
+      // by pre-install hooks or other scripts. We don't want to require committing changes
+      // to continue the build.
+      vcsClient.requireCommit = false;
+    }
 
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 
