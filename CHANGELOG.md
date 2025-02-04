@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fixed EAS server environment variables does not pass to `npx expo-updates runtimeversion:resolve` call. ([#2867](https://github.com/expo/eas-cli/pull/2867) by [@kudo](https://github.com/kudo))
-
 ### 🧹 Chores
+
+## [15.0.3](https://github.com/expo/eas-cli/releases/tag/v15.0.3) - 2025-02-04
+
+### 🐛 Bug fixes
+
+- Fixed EAS server environment variables does not pass to `npx expo-updates runtimeversion:resolve` call. ([#2867](https://github.com/expo/eas-cli/pull/2867) by [@kudo](https://github.com/kudo))
 
 ## [15.0.2](https://github.com/expo/eas-cli/releases/tag/v15.0.2) - 2025-02-04
 
