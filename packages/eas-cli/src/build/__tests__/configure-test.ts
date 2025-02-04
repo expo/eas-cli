@@ -38,7 +38,7 @@ describe(ensureProjectConfiguredAsync, () => {
       }),
     });
     await expect(fs.pathExists(EasJsonAccessor.formatEasJsonPath('.'))).resolves.toBeTruthy();
-    const vcsClientMock = jest.mocked(new GitClient({ requireCommit: false }));
+    const vcsClientMock = jest.mocked(new GitClient());
     vcsClientMock.showChangedFilesAsync.mockImplementation(async () => {});
     vcsClientMock.isCommitRequiredAsync.mockImplementation(async () => false);
     vcsClientMock.trackFileAsync.mockImplementation(async () => {});
@@ -60,7 +60,7 @@ describe(ensureProjectConfiguredAsync, () => {
       });
     });
     await expect(fs.pathExists(EasJsonAccessor.formatEasJsonPath('.'))).resolves.toBeFalsy();
-    const vcsClientMock = jest.mocked(new GitClient({ requireCommit: false }));
+    const vcsClientMock = jest.mocked(new GitClient());
     vcsClientMock.showChangedFilesAsync.mockImplementation(async () => {});
     vcsClientMock.isCommitRequiredAsync.mockImplementation(async () => false);
     vcsClientMock.trackFileAsync.mockImplementation(async () => {});

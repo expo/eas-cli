@@ -18,7 +18,8 @@ import AndroidSubmitCommand from '../../submit/android/AndroidSubmitCommand';
 import { SubmissionContext, createSubmissionContextAsync } from '../../submit/context';
 import IosSubmitCommand from '../../submit/ios/IosSubmitCommand';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import GitClient from '../../vcs/clients/git';
+import GitNoCommitClient from '../../vcs/clients/gitNoCommit';
+import NoVcsClient from '../../vcs/clients/noVcs';
 
 /**
  * This command will be run on the EAS workers.
@@ -64,15 +65,9 @@ export default class SubmitInternal extends EasCommand {
       vcsClient,
     } = await this.getContextAsync(SubmitInternal, {
       nonInteractive: true,
+      vcsClientOverride: process.env.EAS_NO_VCS ? new NoVcsClient() : new GitNoCommitClient(),
       withServerSideEnvironment: null,
     });
-
-    if (vcsClient instanceof GitClient) {
-      // `build:internal` is run on EAS workers and the repo may have been changed
-      // by pre-install hooks or other scripts. We don't want to require committing changes
-      // to continue the build.
-      vcsClient.requireCommit = false;
-    }
 
     const submissionProfile = await EasJsonUtils.getSubmitProfileAsync(
       EasJsonAccessor.fromProjectPath(projectDir),
