@@ -8,7 +8,7 @@ import {
   ensureProjectConfiguredAsync,
 } from '../../build/configure';
 import { evaluateConfigWithEnvVarsAsync } from '../../build/evaluateConfigWithEnvVarsAsync';
-import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
+import { downloadAndRunAsync, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -19,8 +19,6 @@ import Log from '../../log';
 import { RequestedPlatform } from '../../platform';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync } from '../../prompts';
-import { runAsync } from '../../run/run';
-import { downloadAndMaybeExtractAppAsync } from '../../utils/download';
 import { createFingerprintAsync } from '../../utils/fingerprintCli';
 import { ProfileData, getProfilesAsync } from '../../utils/profiles';
 import { Client } from '../../vcs/vcs';
@@ -123,11 +121,7 @@ export default class BuildDev extends EasCommand {
       );
 
       if (build.artifacts?.applicationArchiveUrl) {
-        const buildPath = await downloadAndMaybeExtractAppAsync(
-          build.artifacts.applicationArchiveUrl,
-          build.platform
-        );
-        await runAsync(buildPath, build.platform);
+        await downloadAndRunAsync(build);
         return;
       } else {
         Log.warn('Artifacts for this build expired. New build will be started.');

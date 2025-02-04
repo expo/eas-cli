@@ -11,6 +11,7 @@ import {
 import { LoggerLevel } from '@expo/logger';
 import assert from 'assert';
 import chalk from 'chalk';
+import { pathExists } from 'fs-extra';
 import nullthrows from 'nullthrows';
 
 import { prepareAndroidBuildAsync } from './android/build';
@@ -62,7 +63,7 @@ import {
   validateBuildProfileVersionSettingsAsync,
 } from '../project/remoteVersionSource';
 import { confirmAsync } from '../prompts';
-import { runAsync } from '../run/run';
+import { getEasBuildRunCachedAppPath, runAsync } from '../run/run';
 import { isRunnableOnSimulatorOrEmulator } from '../run/utils';
 import { createSubmissionContextAsync } from '../submit/context';
 import {
@@ -545,11 +546,21 @@ function exitWithNonZeroCodeIfSomeBuildsFailed(maybeBuilds: (BuildFragment | nul
   }
 }
 
-async function downloadAndRunAsync(build: BuildFragment): Promise<void> {
+export async function downloadAndRunAsync(build: BuildFragment): Promise<void> {
   assert(build.artifacts?.applicationArchiveUrl);
+  const cachedAppPath = getEasBuildRunCachedAppPath(build.project.id, build.id, build.platform);
+
+  if (await pathExists(cachedAppPath)) {
+    Log.newLine();
+    Log.log(`Using cached app...`);
+    await runAsync(cachedAppPath, build.platform);
+    return;
+  }
+
   const buildPath = await downloadAndMaybeExtractAppAsync(
     build.artifacts.applicationArchiveUrl,
-    build.platform
+    build.platform,
+    cachedAppPath
   );
   await runAsync(buildPath, build.platform);
 }
