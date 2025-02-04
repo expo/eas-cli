@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fixed `GitClient` not respecting `.easignore` file. ([#2873](https://github.com/expo/eas-cli/pull/2873) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 - Popup website in fingerprint:compare. ([#2859](https://github.com/expo/eas-cli/pull/2859) by [@quinlanj](https://github.com/quinlanj))
