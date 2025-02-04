@@ -1,7 +1,6 @@
 import chalk from 'chalk';
 
 import GitClient from './clients/git';
-import GitNoCommitClient from './clients/gitNoCommit';
 import NoVcsClient from './clients/noVcs';
 import { Client } from './vcs';
 
@@ -23,8 +22,5 @@ export function resolveVcsClient(requireCommit: boolean = false): Client {
     }
     return new NoVcsClient();
   }
-  if (requireCommit) {
-    return new GitClient();
-  }
-  return new GitNoCommitClient();
+  return new GitClient({ requireCommit });
 }
