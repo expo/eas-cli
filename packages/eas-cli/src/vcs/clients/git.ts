@@ -286,9 +286,21 @@ export default class GitClient extends Client {
 
   public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
     const rootPath = await this.getRootPathAsync();
+
+    let isTracked: boolean;
+    try {
+      await spawnAsync('git', ['ls-files', '--error-unmatch', filePath], {
+        cwd: this.maybeCwdOverride,
+      });
+      isTracked = true;
+    } catch {
+      isTracked = false;
+    }
+
     const easIgnorePath = path.join(rootPath, EASIGNORE_FILENAME);
     if (await fs.exists(easIgnorePath)) {
       const ignore = new Ignore(rootPath);
+      await ignore.initIgnoreAsync();
       const wouldNotBeCopiedToClone = ignore.ignores(filePath);
       const wouldBeDeletedFromClone =
         (
@@ -298,7 +310,16 @@ export default class GitClient extends Client {
             { cwd: rootPath }
           )
         ).stdout.trim() !== '';
-      return wouldNotBeCopiedToClone && wouldBeDeletedFromClone;
+      // File is considered ignored if:
+      // - makeShallowCopyAsync() will not copy it to the clone
+      // AND
+      // - it will not be copied to the clone because it's not tracked
+      // - or it will get copied to the clone, but then will be deleted by .easignore rules
+      return wouldNotBeCopiedToClone && (!isTracked || wouldBeDeletedFromClone);
+    }
+
+    if (isTracked) {
+      return false; // Tracked files aren't ignored even if they match ignore patterns
     }
 
     try {
