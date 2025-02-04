@@ -57,6 +57,11 @@ export const BuildFragmentNode = gql`
     completedAt
     expirationDate
     isForIosSimulator
+    metrics {
+      buildWaitTime
+      buildQueueTime
+      buildDuration
+    }
   }
 `;
 

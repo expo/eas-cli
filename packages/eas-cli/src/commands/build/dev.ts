@@ -11,7 +11,8 @@ import { evaluateConfigWithEnvVarsAsync } from '../../build/evaluateConfigWithEn
 import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
-import { BuildStatus, DistributionType } from '../../graphql/generated';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { BuildFragment, BuildStatus, DistributionType } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import Log from '../../log';
@@ -109,18 +110,11 @@ export default class BuildDev extends EasCommand {
     Log.log(`✨ Calculated fingerprint hash: ${fingerprint.hash}`);
     Log.newLine();
 
-    const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
-      appId: projectId,
-      filter: {
-        platform: toAppPlatform(platform),
-        fingerprintHash: fingerprint.hash,
-        status: BuildStatus.Finished,
-        simulator: platform === Platform.IOS ? true : undefined,
-        distribution: platform === Platform.ANDROID ? DistributionType.Internal : undefined,
-        developmentClient: true,
-      },
-      offset: 0,
-      limit: 1,
+    const builds = await this.getBuildsAsync({
+      graphqlClient,
+      projectId,
+      platform,
+      fingerprint,
     });
     if (builds.length !== 0) {
       const build = builds[0];
@@ -141,6 +135,22 @@ export default class BuildDev extends EasCommand {
     }
 
     Log.log('🚀 No successful build with matching fingerprint found. Starting a new build...');
+
+    const previousBuildsForSelectedProfile = await this.getBuildsAsync({
+      graphqlClient,
+      projectId,
+      platform,
+    });
+    if (
+      previousBuildsForSelectedProfile.length > 0 &&
+      previousBuildsForSelectedProfile[0].metrics?.buildDuration
+    ) {
+      Log.log(
+        `🕒 Previous build for "${buildProfile.profileName}" profile completed in ${Math.floor(
+          previousBuildsForSelectedProfile[0].metrics.buildDuration / 60000
+        )} minutes.`
+      );
+    }
 
     await runBuildAndSubmitAsync({
       graphqlClient,
@@ -293,5 +303,31 @@ export default class BuildDev extends EasCommand {
       projectDir,
     });
     return buildProfile;
+  }
+
+  private async getBuildsAsync({
+    graphqlClient,
+    projectId,
+    platform,
+    fingerprint,
+  }: {
+    graphqlClient: ExpoGraphqlClient;
+    projectId: string;
+    platform: Platform;
+    fingerprint?: { hash: string };
+  }): Promise<BuildFragment[]> {
+    return await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
+      appId: projectId,
+      filter: {
+        platform: toAppPlatform(platform),
+        fingerprintHash: fingerprint?.hash,
+        status: BuildStatus.Finished,
+        simulator: platform === Platform.IOS ? true : undefined,
+        distribution: platform === Platform.ANDROID ? DistributionType.Internal : undefined,
+        developmentClient: true,
+      },
+      offset: 0,
+      limit: 1,
+    });
   }
 }
