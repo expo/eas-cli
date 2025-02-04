@@ -1,7 +1,6 @@
 import { Errors, Flags } from '@oclif/core';
 import assert from 'assert';
 import { pathExists } from 'fs-extra';
-import path from 'path';
 
 import { getLatestBuildAsync, listAndSelectBuildOnAppAsync } from '../../build/queries';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -17,13 +16,12 @@ import Log from '../../log';
 import { appPlatformDisplayNames } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
-import { RunArchiveFlags, runAsync } from '../../run/run';
+import { RunArchiveFlags, getEasBuildRunCachedAppPath, runAsync } from '../../run/run';
 import { isRunnableOnSimulatorOrEmulator } from '../../run/utils';
 import {
   downloadAndMaybeExtractAppAsync,
   extractAppFromLocalArchiveAsync,
 } from '../../utils/download';
-import { getEasBuildRunCacheDirectoryPath } from '../../utils/paths';
 
 interface RawRunFlags {
   latest?: boolean;
@@ -243,17 +241,6 @@ async function maybeGetBuildAsync(
   } else {
     return null;
   }
-}
-
-function getEasBuildRunCachedAppPath(
-  projectId: string,
-  buildId: string,
-  platform: AppPlatform
-): string {
-  return path.join(
-    getEasBuildRunCacheDirectoryPath(),
-    `${projectId}_${buildId}.${platform === AppPlatform.Ios ? 'app' : 'apk'}`
-  );
 }
 
 async function getPathToSimulatorBuildAppAsync(

@@ -2,6 +2,7 @@ import * as PackageManagerUtils from '@expo/package-manager';
 import spawnAsync from '@expo/spawn-async';
 import { Errors } from '@oclif/core';
 import chalk from 'chalk';
+import fs from 'fs-extra';
 import path from 'path';
 
 import Log, { learnMore } from '../../log';
@@ -14,11 +15,17 @@ import {
   gitStatusAsync,
   isGitInstalledAsync,
 } from '../git';
+import { EASIGNORE_FILENAME, Ignore, makeShallowCopyAsync } from '../local';
 import { Client } from '../vcs';
 
 export default class GitClient extends Client {
-  constructor(private readonly maybeCwdOverride?: string) {
+  private readonly maybeCwdOverride?: string;
+  public requireCommit: boolean;
+
+  constructor(options: { maybeCwdOverride?: string; requireCommit: boolean }) {
     super();
+    this.maybeCwdOverride = options.maybeCwdOverride;
+    this.requireCommit = options.requireCommit;
   }
 
   public override async ensureRepoExistsAsync(): Promise<void> {
@@ -119,10 +126,6 @@ export default class GitClient extends Client {
     }
   }
 
-  public override async isCommitRequiredAsync(): Promise<boolean> {
-    return await this.hasUncommittedChangesAsync();
-  }
-
   public override async showChangedFilesAsync(): Promise<void> {
     const gitStatusOutput = await gitStatusAsync({
       showUntracked: true,
@@ -144,50 +147,80 @@ export default class GitClient extends Client {
     ).stdout.trim();
   }
 
+  public override async isCommitRequiredAsync(): Promise<boolean> {
+    if (!this.requireCommit) {
+      return false;
+    }
+
+    return await this.hasUncommittedChangesAsync();
+  }
+
   public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
-    if (await this.hasUncommittedChangesAsync()) {
+    if (await this.isCommitRequiredAsync()) {
       // it should already be checked before this function is called, but in case it wasn't
       // we want to ensure that any changes were introduced by call to `setGitCaseSensitivityAsync`
       throw new Error('You have some uncommitted changes in your repository.');
     }
+
+    const rootPath = await this.getRootPathAsync();
+
     let gitRepoUri;
     if (process.platform === 'win32') {
       // getRootDirectoryAsync() will return C:/path/to/repo on Windows and path
       // prefix should be file:///
-      gitRepoUri = `file:///${await this.getRootPathAsync()}`;
+      gitRepoUri = `file:///${rootPath}`;
     } else {
       // getRootDirectoryAsync() will /path/to/repo, and path prefix should be
       // file:/// so only file:// needs to be prepended
-      gitRepoUri = `file://${await this.getRootPathAsync()}`;
+      gitRepoUri = `file://${rootPath}`;
     }
-    const isCaseSensitive = await isGitCaseSensitiveAsync(this.maybeCwdOverride);
-    await setGitCaseSensitivityAsync(true, this.maybeCwdOverride);
+
+    await assertEnablingGitCaseSensitivityDoesNotCauseNewUncommittedChangesAsync(rootPath);
+
+    const isCaseSensitive = await isGitCaseSensitiveAsync(rootPath);
     try {
-      if (await this.hasUncommittedChangesAsync()) {
-        Log.error('Detected inconsistent filename casing between your local filesystem and git.');
-        Log.error('This will likely cause your build to fail. Impacted files:');
-        await spawnAsync('git', ['status', '--short'], {
-          stdio: 'inherit',
-          cwd: this.maybeCwdOverride,
-        });
-        Log.newLine();
-        Log.error(
-          `Error: Resolve filename casing inconsistencies before proceeding. ${learnMore(
-            'https://expo.fyi/macos-ignorecase'
-          )}`
-        );
-        throw new Error('You have some uncommitted changes in your repository.');
-      }
+      await setGitCaseSensitivityAsync(true, rootPath);
       await spawnAsync(
         'git',
         ['clone', '--no-hardlinks', '--depth', '1', gitRepoUri, destinationPath],
-        {
-          cwd: this.maybeCwdOverride,
-        }
+        { cwd: rootPath }
       );
+
+      const sourceEasignorePath = path.join(rootPath, EASIGNORE_FILENAME);
+      if (await fs.exists(sourceEasignorePath)) {
+        const cachedFilesWeShouldHaveIgnored = (
+          await spawnAsync(
+            'git',
+            [
+              'ls-files',
+              '--exclude-from',
+              sourceEasignorePath,
+              // `--ignored --cached` makes git print files that should be
+              // ignored by rules from `--exclude-from`, but instead are currently cached.
+              '--ignored',
+              '--cached',
+              // separates file names with null characters
+              '-z',
+            ],
+            { cwd: destinationPath }
+          )
+        ).stdout
+          .split('\0')
+          // ls-files' output is terminated by a null character
+          .filter(file => file !== '');
+
+        await Promise.all(
+          cachedFilesWeShouldHaveIgnored.map(file => fs.rm(path.join(destinationPath, file)))
+        );
+      }
     } finally {
-      await setGitCaseSensitivityAsync(isCaseSensitive, this.maybeCwdOverride);
+      await setGitCaseSensitivityAsync(isCaseSensitive, rootPath);
     }
+
+    // After we create the shallow Git copy, we copy the files
+    // again. This way we include the changed and untracked files
+    // (`git clone` only copies the committed changes).
+    await makeShallowCopyAsync(rootPath, destinationPath);
   }
 
   public override async getCommitHashAsync(): Promise<string | undefined> {
@@ -252,10 +285,24 @@ export default class GitClient extends Client {
   }
 
   public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
+    const rootPath = await this.getRootPathAsync();
+    const easIgnorePath = path.join(rootPath, EASIGNORE_FILENAME);
+    if (await fs.exists(easIgnorePath)) {
+      const ignore = new Ignore(rootPath);
+      const wouldNotBeCopiedToClone = ignore.ignores(filePath);
+      const wouldBeDeletedFromClone =
+        (
+          await spawnAsync(
+            'git',
+            ['ls-files', '--exclude-from', easIgnorePath, '--ignored', '--cached', filePath],
+            { cwd: rootPath }
+          )
+        ).stdout.trim() !== '';
+      return wouldNotBeCopiedToClone && wouldBeDeletedFromClone;
+    }
+
     try {
-      await spawnAsync('git', ['check-ignore', '-q', filePath], {
-        cwd: this.maybeCwdOverride ?? path.normalize(await this.getRootPathAsync()),
-      });
+      await spawnAsync('git', ['check-ignore', '-q', filePath], { cwd: rootPath });
       return true;
     } catch {
       return false;
@@ -384,5 +431,53 @@ async function setGitCaseSensitivityAsync(
     await spawnAsync('git', ['config', 'core.ignorecase', String(!enable)], {
       cwd,
     });
+  }
+}
+
+async function assertEnablingGitCaseSensitivityDoesNotCauseNewUncommittedChangesAsync(
+  cwd: string
+): Promise<void> {
+  // Remember uncommited changes before case sensitivity change
+  // for later comparison so we log to the user only the files
+  // that were marked as changed after the case sensitivity change.
+  const uncommittedChangesBeforeCaseSensitivityChange = await gitStatusAsync({
+    showUntracked: true,
+    cwd,
+  });
+
+  const isCaseSensitive = await isGitCaseSensitiveAsync(cwd);
+  await setGitCaseSensitivityAsync(true, cwd);
+  try {
+    const uncommitedChangesAfterCaseSensitivityChange = await gitStatusAsync({
+      showUntracked: true,
+      cwd,
+    });
+
+    if (
+      uncommitedChangesAfterCaseSensitivityChange !== uncommittedChangesBeforeCaseSensitivityChange
+    ) {
+      const baseUncommitedChangesSet = new Set(
+        uncommittedChangesBeforeCaseSensitivityChange.split('\n')
+      );
+
+      const errorMessage = [
+        'Detected inconsistent filename casing between your local filesystem and git.',
+        'This will likely cause your job to fail. Impacted files:',
+        ...uncommitedChangesAfterCaseSensitivityChange.split('\n').flatMap(changedFile => {
+          // This file was changed before the case sensitivity change too.
+          if (baseUncommitedChangesSet.has(changedFile)) {
+            return [];
+          }
+          return [changedFile];
+        }),
+        `Resolve filename casing inconsistencies before proceeding. ${learnMore(
+          'https://expo.fyi/macos-ignorecase'
+        )}`,
+      ];
+
+      throw new Error(errorMessage.join('\n'));
+    }
+  } finally {
+    await setGitCaseSensitivityAsync(isCaseSensitive, cwd);
   }
 }

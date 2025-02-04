@@ -1,6 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJsonAccessor } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
+import chalk from 'chalk';
 
 import {
   createBuildProfileAsync,
@@ -8,18 +9,18 @@ import {
   ensureProjectConfiguredAsync,
 } from '../../build/configure';
 import { evaluateConfigWithEnvVarsAsync } from '../../build/evaluateConfigWithEnvVarsAsync';
-import { runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
+import { downloadAndRunAsync, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
-import { BuildStatus, DistributionType } from '../../graphql/generated';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { BuildFragment, BuildStatus, DistributionType } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import Log from '../../log';
 import { RequestedPlatform } from '../../platform';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync } from '../../prompts';
-import { runAsync } from '../../run/run';
-import { downloadAndMaybeExtractAppAsync } from '../../utils/download';
+import { expoCommandAsync } from '../../utils/expoCli';
 import { createFingerprintAsync } from '../../utils/fingerprintCli';
 import { ProfileData, getProfilesAsync } from '../../utils/profiles';
 import { Client } from '../../vcs/vcs';
@@ -109,18 +110,11 @@ export default class BuildDev extends EasCommand {
     Log.log(`✨ Calculated fingerprint hash: ${fingerprint.hash}`);
     Log.newLine();
 
-    const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
-      appId: projectId,
-      filter: {
-        platform: toAppPlatform(platform),
-        fingerprintHash: fingerprint.hash,
-        status: BuildStatus.Finished,
-        simulator: platform === Platform.IOS ? true : undefined,
-        distribution: platform === Platform.ANDROID ? DistributionType.Internal : undefined,
-        developmentClient: true,
-      },
-      offset: 0,
-      limit: 1,
+    const builds = await this.getBuildsAsync({
+      graphqlClient,
+      projectId,
+      platform,
+      fingerprint,
     });
     if (builds.length !== 0) {
       const build = builds[0];
@@ -129,11 +123,8 @@ export default class BuildDev extends EasCommand {
       );
 
       if (build.artifacts?.applicationArchiveUrl) {
-        const buildPath = await downloadAndMaybeExtractAppAsync(
-          build.artifacts.applicationArchiveUrl,
-          build.platform
-        );
-        await runAsync(buildPath, build.platform);
+        await downloadAndRunAsync(build);
+        await this.startDevServerAsync({ projectDir, platform });
         return;
       } else {
         Log.warn('Artifacts for this build expired. New build will be started.');
@@ -141,6 +132,22 @@ export default class BuildDev extends EasCommand {
     }
 
     Log.log('🚀 No successful build with matching fingerprint found. Starting a new build...');
+
+    const previousBuildsForSelectedProfile = await this.getBuildsAsync({
+      graphqlClient,
+      projectId,
+      platform,
+    });
+    if (
+      previousBuildsForSelectedProfile.length > 0 &&
+      previousBuildsForSelectedProfile[0].metrics?.buildDuration
+    ) {
+      Log.log(
+        `🕒 Previous build for "${buildProfile.profileName}" profile completed in ${Math.floor(
+          previousBuildsForSelectedProfile[0].metrics.buildDuration / 60000
+        )} minutes.`
+      );
+    }
 
     await runBuildAndSubmitAsync({
       graphqlClient,
@@ -165,6 +172,7 @@ export default class BuildDev extends EasCommand {
       downloadSimBuildAutoConfirm: true,
       envOverride: env,
     });
+    await this.startDevServerAsync({ projectDir, platform });
   }
 
   private async selectPlatformAsync(platform?: Platform): Promise<Platform> {
@@ -293,5 +301,51 @@ export default class BuildDev extends EasCommand {
       projectDir,
     });
     return buildProfile;
+  }
+
+  private async getBuildsAsync({
+    graphqlClient,
+    projectId,
+    platform,
+    fingerprint,
+  }: {
+    graphqlClient: ExpoGraphqlClient;
+    projectId: string;
+    platform: Platform;
+    fingerprint?: { hash: string };
+  }): Promise<BuildFragment[]> {
+    return await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
+      appId: projectId,
+      filter: {
+        platform: toAppPlatform(platform),
+        fingerprintHash: fingerprint?.hash,
+        status: BuildStatus.Finished,
+        simulator: platform === Platform.IOS ? true : undefined,
+        distribution: platform === Platform.ANDROID ? DistributionType.Internal : undefined,
+        developmentClient: true,
+      },
+      offset: 0,
+      limit: 1,
+    });
+  }
+
+  private async startDevServerAsync({
+    projectDir,
+    platform,
+  }: {
+    projectDir: string;
+    platform: Platform;
+  }): Promise<void> {
+    Log.newLine();
+    Log.log(
+      `Starting development server: ${chalk.dim(
+        `npx expo start --dev-client ${platform === Platform.IOS ? '--ios' : '--android'}`
+      )}`
+    );
+    await expoCommandAsync(projectDir, [
+      'start',
+      '--dev-client',
+      platform === Platform.IOS ? '--ios' : '--android',
+    ]);
   }
 }
