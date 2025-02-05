@@ -4,7 +4,7 @@ import path from 'path';
 import tar from 'tar';
 import { v4 as uuidv4 } from 'uuid';
 
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { ora } from '../../ora';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { formatBytes } from '../../utils/files';
@@ -167,6 +167,34 @@ export async function makeProjectTarballAsync(vcsClient: Client): Promise<LocalF
   }
 
   return { size, path: tarPath };
+}
+
+export function maybeWarnAboutProjectTarballSize(size: number): void {
+  if (size <= 150 /* MiB */ * 1024 /* KiB */ * 1024 /* B */) {
+    return;
+  }
+
+  Log.warn(
+    `Your project archive is ${formatBytes(
+      size
+    )}. You can reduce its size and the time it takes to upload by excluding files that are unnecessary for the build process in ${chalk.bold(
+      '.easignore'
+    )} file. ${learnMore('https://expo.fyi/eas-build-archive')}`
+  );
+}
+
+const MAX_ALLOWED_PROJECT_TARBALL_SIZE =
+  2 /* GiB */ * 1024 /* MiB */ * 1024 /* KiB */ * 1024; /* B */
+export function assertProjectTarballSizeDoesNotExceedLimit(size: number): void {
+  if (size <= MAX_ALLOWED_PROJECT_TARBALL_SIZE) {
+    return;
+  }
+
+  throw new Error(
+    `Project archive is too big. Maximum allowed size is ${formatBytes(
+      MAX_ALLOWED_PROJECT_TARBALL_SIZE
+    )}.`
+  );
 }
 
 enum ShouldCommitChanges {

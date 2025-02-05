@@ -35,8 +35,10 @@ import { collectMetadataAsync } from './metadata';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import {
   LocalFile,
+  assertProjectTarballSizeDoesNotExceedLimit,
   makeProjectMetadataFileAsync,
   makeProjectTarballAsync,
+  maybeWarnAboutProjectTarballSize,
   reviewAndCommitChangesAsync,
 } from './utils/repository';
 import { BuildEvent } from '../analytics/AnalyticsManager';
@@ -275,19 +277,8 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         );
         const projectTarball = await makeProjectTarballAsync(ctx.vcsClient);
 
-        if (projectTarball.size > 1024 * 1024 * 100) {
-          Log.warn(
-            `Your project archive is ${formatBytes(
-              projectTarball.size
-            )}. You can reduce its size and the time it takes to upload by excluding files that are unnecessary for the build process in ${chalk.bold(
-              '.easignore'
-            )} file. ${learnMore('https://expo.fyi/eas-build-archive')}`
-          );
-        }
-
-        if (projectTarball.size > 2 * 1024 * 1024 * 1024) {
-          throw new Error('Project archive is too big. Maximum allowed size is 2GB.');
-        }
+        maybeWarnAboutProjectTarballSize(projectTarball.size);
+        assertProjectTarballSizeDoesNotExceedLimit(projectTarball.size);
 
         projectTarballPath = projectTarball.path;
         const [bucketKey, { metadataLocation }] = await Promise.all([
