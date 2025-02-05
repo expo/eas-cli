@@ -32,7 +32,13 @@ export function getRootPath(): string {
 export class Ignore {
   private ignoreMapping: (readonly [string, SingleFileIgnore])[] = [];
 
-  constructor(private readonly rootDir: string) {}
+  private constructor(private readonly rootDir: string) {}
+
+  static async createAsync(rootDir: string): Promise<Ignore> {
+    const ignore = new Ignore(rootDir);
+    await ignore.initIgnoreAsync();
+    return ignore;
+  }
 
   public async initIgnoreAsync(): Promise<void> {
     const easIgnorePath = path.join(this.rootDir, EASIGNORE_FILENAME);
@@ -75,8 +81,7 @@ export class Ignore {
 }
 
 export async function makeShallowCopyAsync(src: string, dst: string): Promise<void> {
-  const ignore = new Ignore(src);
-  await ignore.initIgnoreAsync();
+  const ignore = await Ignore.createAsync(src);
   await fs.copy(src, dst, {
     filter: (srcFilePath: string) => {
       if (srcFilePath === src) {
