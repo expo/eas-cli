@@ -1,5 +1,6 @@
 import fg from 'fast-glob';
-import fs from 'fs-extra';
+import fs from 'fs/promises';
+import fsExtra from 'fs-extra';
 import createIgnore, { Ignore as SingleFileIgnore } from 'ignore';
 import path from 'path';
 
@@ -42,10 +43,10 @@ export class Ignore {
 
   public async initIgnoreAsync(): Promise<void> {
     const easIgnorePath = path.join(this.rootDir, EASIGNORE_FILENAME);
-    if (await fs.pathExists(easIgnorePath)) {
+    if (await fsExtra.pathExists(easIgnorePath)) {
       this.ignoreMapping = [
         ['', createIgnore().add(DEFAULT_IGNORE)],
-        ['', createIgnore().add(await fs.readFile(easIgnorePath, 'utf-8'))],
+        ['', createIgnore().add(await fsExtra.readFile(easIgnorePath, 'utf-8'))],
       ];
       return;
     }
@@ -63,7 +64,7 @@ export class Ignore {
       ignoreFilePaths.map(async filePath => {
         return [
           filePath.slice(0, filePath.length - GITIGNORE_FILENAME.length),
-          createIgnore().add(await fs.readFile(path.join(this.rootDir, filePath), 'utf-8')),
+          createIgnore().add(await fsExtra.readFile(path.join(this.rootDir, filePath), 'utf-8')),
         ] as const;
       })
     );
@@ -82,7 +83,10 @@ export class Ignore {
 
 export async function makeShallowCopyAsync(src: string, dst: string): Promise<void> {
   const ignore = await Ignore.createAsync(src);
-  await fs.copy(src, dst, {
+  await fs.cp(src, dst, {
+    recursive: true,
+    // Preserve symlinks without re-resolving them to their original targets
+    verbatimSymlinks: true,
     filter: (srcFilePath: string) => {
       if (srcFilePath === src) {
         return true;
