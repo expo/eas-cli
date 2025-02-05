@@ -223,10 +223,15 @@ export default class GitClient extends Client {
       await setGitCaseSensitivityAsync(isCaseSensitive, rootPath);
     }
 
-    // After we create the shallow Git copy, we copy the files
-    // again. This way we include the changed and untracked files
-    // (`git clone` only copies the committed changes).
-    await makeShallowCopyAsync(rootPath, destinationPath);
+    if (!this.requireCommit) {
+      // After we create the shallow Git copy, we copy the files
+      // again. This way we include the changed and untracked files
+      // (`git clone` only copies the committed changes).
+      //
+      // We only do this if `requireCommit` is false because `requireCommit: true`
+      // setups expect no changes in files (e.g. locked files should remain locked).
+      await makeShallowCopyAsync(rootPath, destinationPath);
+    }
   }
 
   public override async getCommitHashAsync(): Promise<string | undefined> {
