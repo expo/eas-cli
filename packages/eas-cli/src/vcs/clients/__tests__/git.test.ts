@@ -6,20 +6,17 @@ import path from 'path';
 import GitClient from '../git';
 
 describe('git', () => {
-  let repoRoot: string;
-  beforeAll(async () => {
-    repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
-    await spawnAsync('git', ['init'], { cwd: repoRoot });
-  });
-
-  afterAll(async () => {
-    await fs.rm(repoRoot, { recursive: true, force: true });
-  });
-
   describe('GitClient that does not require a commit', () => {
     let vcs: GitClient;
+    let repoRoot: string;
+
+    afterAll(async () => {
+      await fs.rm(repoRoot, { recursive: true, force: true });
+    });
 
     beforeAll(async () => {
+      repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
       vcs = new GitClient({
         requireCommit: false,
         maybeCwdOverride: repoRoot,
@@ -134,5 +131,31 @@ describe('git', () => {
         );
       });
     });
+  });
+
+  it('is able to delete a submodule ignored by .easignore', async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await spawnAsync('git', ['init'], { cwd: repoRoot });
+    const vcs = new GitClient({
+      requireCommit: false,
+      maybeCwdOverride: repoRoot,
+    });
+
+    await spawnAsync(
+      'git',
+      ['submodule', 'add', 'https://github.com/expo/results.git', 'results'],
+      { cwd: repoRoot }
+    );
+    await spawnAsync('git', ['add', 'results'], { cwd: repoRoot });
+    await spawnAsync('git', ['commit', '-m', 'add submodule'], { cwd: repoRoot });
+
+    const repoCloneNonIgnored = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await expect(vcs.makeShallowCopyAsync(repoCloneNonIgnored)).resolves.not.toThrow();
+    await expect(fs.stat(path.join(repoCloneNonIgnored, 'results'))).resolves.not.toThrow();
+
+    await fs.writeFile(`${repoRoot}/.easignore`, 'results');
+    const repoCloneIgnored = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await expect(vcs.makeShallowCopyAsync(repoCloneIgnored)).resolves.not.toThrow();
+    await expect(fs.stat(path.join(repoCloneIgnored, 'results'))).rejects.toThrow('ENOENT');
   });
 });
