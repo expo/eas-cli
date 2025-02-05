@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import fs from 'node:fs';
 
 import {
+  assertProjectTarballSizeDoesNotExceedLimit,
   makeProjectTarballAsync,
   maybeWarnAboutProjectTarballSize,
 } from '../build/utils/repository';
@@ -40,10 +41,7 @@ export async function uploadAccountScopedProjectSourceAsync({
     projectTarballPath = projectTarball.path;
 
     maybeWarnAboutProjectTarballSize(projectTarball.size);
-
-    if (projectTarball.size > 2 * 1024 * 1024 * 1024) {
-      throw new Error('Project archive is too big. Maximum allowed size is 2GB.');
-    }
+    assertProjectTarballSizeDoesNotExceedLimit(projectTarball.size);
 
     const projectArchiveBucketKey = await uploadAccountScopedFileAtPathToGCSAsync(graphqlClient, {
       accountId,

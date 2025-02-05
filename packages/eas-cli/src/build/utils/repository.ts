@@ -183,6 +183,20 @@ export function maybeWarnAboutProjectTarballSize(size: number): void {
   );
 }
 
+const MAX_ALLOWED_PROJECT_TARBALL_SIZE =
+  2 /* GiB */ * 1024 /* MiB */ * 1024 /* KiB */ * 1024; /* B */
+export function assertProjectTarballSizeDoesNotExceedLimit(size: number): void {
+  if (size <= MAX_ALLOWED_PROJECT_TARBALL_SIZE) {
+    return;
+  }
+
+  throw new Error(
+    `Project archive is too big. Maximum allowed size is ${formatBytes(
+      MAX_ALLOWED_PROJECT_TARBALL_SIZE
+    )}.`
+  );
+}
+
 enum ShouldCommitChanges {
   Yes,
   ShowDiffFirst,

@@ -35,6 +35,7 @@ import { collectMetadataAsync } from './metadata';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import {
   LocalFile,
+  assertProjectTarballSizeDoesNotExceedLimit,
   makeProjectMetadataFileAsync,
   makeProjectTarballAsync,
   maybeWarnAboutProjectTarballSize,
@@ -277,10 +278,7 @@ async function uploadProjectAsync<TPlatform extends Platform>(
         const projectTarball = await makeProjectTarballAsync(ctx.vcsClient);
 
         maybeWarnAboutProjectTarballSize(projectTarball.size);
-
-        if (projectTarball.size > 2 * 1024 * 1024 * 1024) {
-          throw new Error('Project archive is too big. Maximum allowed size is 2GB.');
-        }
+        assertProjectTarballSizeDoesNotExceedLimit(projectTarball.size);
 
         projectTarballPath = projectTarball.path;
         const [bucketKey, { metadataLocation }] = await Promise.all([
