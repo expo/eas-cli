@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Do not copy files over onto a cloned Git repository when packing the project archive if `requireCommit` is true. ([#2885](https://github.com/expo/eas-cli/pull/2885) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 ## [15.0.4](https://github.com/expo/eas-cli/releases/tag/v15.0.4) - 2025-02-05
