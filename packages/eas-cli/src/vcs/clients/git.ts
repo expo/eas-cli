@@ -212,6 +212,12 @@ export default class GitClient extends Client {
         await Promise.all(
           cachedFilesWeShouldHaveIgnored.map(file => fs.rm(path.join(destinationPath, file)))
         );
+
+        // Special-case `.git` which `git ls-files` will never consider ignored.
+        const ignore = await Ignore.createAsync(rootPath);
+        if (ignore.ignores('.git')) {
+          await fs.rm(path.join(destinationPath, '.git'), { recursive: true, force: true });
+        }
       }
     } finally {
       await setGitCaseSensitivityAsync(isCaseSensitive, rootPath);
@@ -284,6 +290,7 @@ export default class GitClient extends Client {
     );
   }
 
+  /** NOTE: This method does not support checking whether `.git` is ignored by `.easignore` rules. */
   public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
     const rootPath = await this.getRootPathAsync();
 
@@ -309,6 +316,7 @@ export default class GitClient extends Client {
             { cwd: rootPath }
           )
         ).stdout.trim() !== '';
+
       // File is considered ignored if:
       // - makeShallowCopyAsync() will not copy it to the clone
       // AND

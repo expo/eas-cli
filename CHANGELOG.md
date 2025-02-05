@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Fixed `GitClient` not respecting `.easignore` file. ([#2873](https://github.com/expo/eas-cli/pull/2873) by [@sjchmiela](https://github.com/sjchmiela))
 - Fix symlink support in `makeShallowCopyAsync`. ([#2874](https://github.com/expo/eas-cli/pull/2874) by [@sjchmiela](https://github.com/sjchmiela))
+- Allow excluding `.git` directory from project archive by adding it to `.easignore`. ([#2879](https://github.com/expo/eas-cli/pull/2879) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🧹 Chores
 
