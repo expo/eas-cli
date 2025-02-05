@@ -4,7 +4,7 @@ import path from 'path';
 import tar from 'tar';
 import { v4 as uuidv4 } from 'uuid';
 
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { ora } from '../../ora';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { formatBytes } from '../../utils/files';
@@ -167,6 +167,20 @@ export async function makeProjectTarballAsync(vcsClient: Client): Promise<LocalF
   }
 
   return { size, path: tarPath };
+}
+
+export function maybeWarnAboutProjectTarballSize(size: number): void {
+  if (size <= 1024 * 1024 * 100) {
+    return;
+  }
+
+  Log.warn(
+    `Your project archive is ${formatBytes(
+      size
+    )}. You can reduce its size and the time it takes to upload by excluding files that are unnecessary for the build process in ${chalk.bold(
+      '.easignore'
+    )} file. ${learnMore('https://expo.fyi/eas-build-archive')}`
+  );
 }
 
 enum ShouldCommitChanges {

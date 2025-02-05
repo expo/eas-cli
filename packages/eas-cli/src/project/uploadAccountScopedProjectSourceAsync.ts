@@ -1,7 +1,10 @@
 import chalk from 'chalk';
 import fs from 'node:fs';
 
-import { makeProjectTarballAsync } from '../build/utils/repository';
+import {
+  makeProjectTarballAsync,
+  maybeWarnAboutProjectTarballSize,
+} from '../build/utils/repository';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AccountUploadSessionType } from '../graphql/generated';
 import Log, { learnMore } from '../log';
@@ -36,15 +39,7 @@ export async function uploadAccountScopedProjectSourceAsync({
     const projectTarball = await makeProjectTarballAsync(vcsClient);
     projectTarballPath = projectTarball.path;
 
-    if (projectTarball.size > 1024 * 1024 * 100) {
-      Log.warn(
-        `Your project archive is ${formatBytes(
-          projectTarball.size
-        )}. You can reduce its size and the time it takes to upload by excluding files that are unnecessary for the build process in ${chalk.bold(
-          '.easignore'
-        )} file. ${learnMore('https://expo.fyi/eas-build-archive')}`
-      );
-    }
+    maybeWarnAboutProjectTarballSize(projectTarball.size);
 
     if (projectTarball.size > 2 * 1024 * 1024 * 1024) {
       throw new Error('Project archive is too big. Maximum allowed size is 2GB.');
