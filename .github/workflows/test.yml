@@ -28,6 +28,9 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: yarn install --frozen-lockfile --check-files
       - run: yarn typecheck
+      - run: |
+          git config --global user.email "tester@expo.dev"
+          git config --global user.name "Test"
       - run: yarn test
         if: ${{ !matrix.coverage }}
         env:
