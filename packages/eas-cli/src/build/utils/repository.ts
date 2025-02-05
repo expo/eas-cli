@@ -170,7 +170,7 @@ export async function makeProjectTarballAsync(vcsClient: Client): Promise<LocalF
 }
 
 export function maybeWarnAboutProjectTarballSize(size: number): void {
-  if (size <= 1024 * 1024 * 100) {
+  if (size <= 150 /* MiB */ * 1024 /* KiB */ * 1024 /* B */) {
     return;
   }
 
