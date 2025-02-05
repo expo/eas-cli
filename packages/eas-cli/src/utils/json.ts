@@ -33,6 +33,8 @@ function sanitizeValue(value: any): unknown {
       }
     });
     return result;
+  } else if (value && typeof value === 'string') {
+    return JSON.stringify(value);
   } else {
     return value;
   }
