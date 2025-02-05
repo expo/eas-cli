@@ -12,8 +12,7 @@ export default class NoVcsClient extends Client {
   }
 
   public override async isFileIgnoredAsync(filePath: string): Promise<boolean> {
-    const ignore = new Ignore(getRootPath());
-    await ignore.initIgnoreAsync();
+    const ignore = await Ignore.createAsync(getRootPath());
     return ignore.ignores(filePath);
   }
 
