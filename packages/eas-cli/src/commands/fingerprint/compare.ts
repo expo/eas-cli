@@ -21,7 +21,7 @@ import { AppQuery } from '../../graphql/queries/AppQuery';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { FingerprintQuery } from '../../graphql/queries/FingerprintQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import { maybeUploadFingerprintAsync } from '../../project/maybeUploadFingerprintAsync';
@@ -88,6 +88,9 @@ export default class FingerprintCompare extends EasCommand {
       description: 'Compare the fingerprint with the update with the specified ID',
       multiple: true,
     }),
+    open: Flags.boolean({
+      description: 'Open the fingerprint comparison in the browser',
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -106,6 +109,7 @@ export default class FingerprintCompare extends EasCommand {
       'non-interactive': nonInteractive,
       'build-id': buildIds,
       'update-id': updateIds,
+      open,
     } = flags;
     const [buildId1, buildId2] = buildIds ?? [];
     const [updateId1, updateId2] = updateIds ?? [];
@@ -239,6 +243,16 @@ export default class FingerprintCompare extends EasCommand {
     );
     fingerprintCompareUrl.searchParams.set('a', firstFingerprintInfo.fingerprint.hash);
     fingerprintCompareUrl.searchParams.set('b', secondFingerprintInfo.fingerprint.hash);
+
+    if (!open) {
+      Log.newLine();
+      Log.withInfo(
+        `💡 Use the --open flag to view the comparison in the browser. ${learnMore(
+          fingerprintCompareUrl.toString()
+        )}`
+      );
+      return;
+    }
     await openBrowserAsync(fingerprintCompareUrl.toString());
   }
 }
