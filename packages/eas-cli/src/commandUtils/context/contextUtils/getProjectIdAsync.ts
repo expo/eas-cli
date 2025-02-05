@@ -1,6 +1,7 @@
 import { ExpoConfig, getProjectConfigDescription } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
+import semver from 'semver';
 
 import { ExpoGraphqlClient, createGraphqlClient } from './createGraphqlClient';
 import { findProjectRootAsync } from './findProjectDirAndVerifyProjectSetupAsync';
@@ -127,29 +128,33 @@ export async function validateOrSetProjectIdAsync({
       );
     }
 
-    const actorUsername = getActorUsername(actor);
-    if (!exp.owner && appForProjectId.ownerAccount.name !== actorUsername) {
-      if (actorUsername) {
-        throw new Error(
-          `Project config: Owner of project identified by "extra.eas.projectId" (${
-            appForProjectId.ownerAccount.name
-          }) does not match the logged in user (${actorUsername}) and the "owner" field is not specified. To ensure all libraries work correctly, "owner": "${
-            appForProjectId.ownerAccount.name
-          }" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
-            'https://expo.fyi/eas-project-id'
-          )}`
-        );
-      } else {
-        // robot caller
-        throw new Error(
-          `Project config: Owner of project identified by "extra.eas.projectId" (${
-            appForProjectId.ownerAccount.name
-          }) must be specified in "owner" field when using a robot access token. To ensure all libraries work correctly, "owner": "${
-            appForProjectId.ownerAccount.name
-          }" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
-            'https://expo.fyi/eas-project-id'
-          )}`
-        );
+    const sdkVersion = exp.sdkVersion;
+    // SDK 53 and above no longer require owner field in app config
+    if (sdkVersion && semver.satisfies(sdkVersion, '< 53.0.0')) {
+      const actorUsername = getActorUsername(actor);
+      if (!exp.owner && appForProjectId.ownerAccount.name !== actorUsername) {
+        if (actorUsername) {
+          throw new Error(
+            `Project config: Owner of project identified by "extra.eas.projectId" (${
+              appForProjectId.ownerAccount.name
+            }) does not match the logged in user (${actorUsername}) and the "owner" field is not specified. To ensure all libraries work correctly, "owner": "${
+              appForProjectId.ownerAccount.name
+            }" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
+              'https://expo.fyi/eas-project-id'
+            )}`
+          );
+        } else {
+          // robot caller
+          throw new Error(
+            `Project config: Owner of project identified by "extra.eas.projectId" (${
+              appForProjectId.ownerAccount.name
+            }) must be specified in "owner" field when using a robot access token. To ensure all libraries work correctly, "owner": "${
+              appForProjectId.ownerAccount.name
+            }" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
+              'https://expo.fyi/eas-project-id'
+            )}`
+          );
+        }
       }
     }
 
