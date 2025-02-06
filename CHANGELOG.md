@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Do not copy files over onto a cloned Git repository when packing the project archive if `requireCommit` is true. ([#2885](https://github.com/expo/eas-cli/pull/2885) by [@sjchmiela](https://github.com/sjchmiela))
+- Fix `EISDIR` error when archiving project with submodules ignored. ([#2884](https://github.com/expo/eas-cli/pull/2884) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🧹 Chores
 

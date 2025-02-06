@@ -210,7 +210,11 @@ export default class GitClient extends Client {
           .filter(file => file !== '');
 
         await Promise.all(
-          cachedFilesWeShouldHaveIgnored.map(file => fs.rm(path.join(destinationPath, file)))
+          cachedFilesWeShouldHaveIgnored.map(file =>
+            // `ls-files` does not go over files within submodules. If submodule is
+            // ignored, it is listed as a single path, so we need to `rm -rf` it.
+            fs.rm(path.join(destinationPath, file), { recursive: true, force: true })
+          )
         );
 
         // Special-case `.git` which `git ls-files` will never consider ignored.
