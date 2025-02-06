@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix `EISDIR` error when archiving project with submodules ignored. ([#2884](https://github.com/expo/eas-cli/pull/2884) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 ## [15.0.4](https://github.com/expo/eas-cli/releases/tag/v15.0.4) - 2025-02-05
