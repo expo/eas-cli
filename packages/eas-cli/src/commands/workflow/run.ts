@@ -129,7 +129,7 @@ export default class WorkflowRun extends EasCommand {
 
       Log.newLine();
       Log.succeed(
-        `Workflow started successfully. ${link(
+        `Workflow run started successfully. See logs: ${link(
           getWorkflowRunUrl(account.name, projectName, workflowRunId)
         )}`
       );
