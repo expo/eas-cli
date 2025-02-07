@@ -22,6 +22,7 @@ export interface SubmissionContext<T extends Platform> {
   exp: ExpoConfig;
   nonInteractive: boolean;
   isVerboseFastlaneEnabled: boolean;
+  groups: string[];
   platform: T;
   profile: SubmitProfile<T>;
   projectDir: string;
@@ -48,6 +49,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   env?: Record<string, string>;
   nonInteractive: boolean;
   isVerboseFastlaneEnabled: boolean;
+  groups: string[];
   platform: T;
   profile: SubmitProfile<T>;
   projectDir: string;
