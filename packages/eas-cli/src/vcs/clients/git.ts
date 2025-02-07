@@ -188,6 +188,10 @@ export default class GitClient extends Client {
 
       const sourceEasignorePath = path.join(rootPath, EASIGNORE_FILENAME);
       if (await fs.exists(sourceEasignorePath)) {
+        Log.debug('.easignore exists, deleting files that should be ignored', {
+          sourceEasignorePath,
+        });
+
         const cachedFilesWeShouldHaveIgnored = (
           await spawnAsync(
             'git',
@@ -209,6 +213,10 @@ export default class GitClient extends Client {
           // ls-files' output is terminated by a null character
           .filter(file => file !== '');
 
+        Log.debug('cachedFilesWeShouldHaveIgnored', {
+          cachedFilesWeShouldHaveIgnored,
+        });
+
         await Promise.all(
           cachedFilesWeShouldHaveIgnored.map(file =>
             // `ls-files` does not go over files within submodules. If submodule is
@@ -221,6 +229,9 @@ export default class GitClient extends Client {
         const ignore = await Ignore.createAsync(rootPath);
         if (ignore.ignores('.git')) {
           await fs.rm(path.join(destinationPath, '.git'), { recursive: true, force: true });
+          Log.debug('deleted .git', {
+            destinationPath,
+          });
         }
       }
     } finally {
@@ -228,6 +239,7 @@ export default class GitClient extends Client {
     }
 
     if (!this.requireCommit) {
+      Log.debug('making shallow copy', { requireCommit: this.requireCommit });
       // After we create the shallow Git copy, we copy the files
       // again. This way we include the changed and untracked files
       // (`git clone` only copies the committed changes).
@@ -235,6 +247,8 @@ export default class GitClient extends Client {
       // We only do this if `requireCommit` is false because `requireCommit: true`
       // setups expect no changes in files (e.g. locked files should remain locked).
       await makeShallowCopyAsync(rootPath, destinationPath);
+    } else {
+      Log.debug('not making shallow copy', { requireCommit: this.requireCommit });
     }
   }
 

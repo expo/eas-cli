@@ -4,6 +4,8 @@ import fsExtra from 'fs-extra';
 import createIgnore, { Ignore as SingleFileIgnore } from 'ignore';
 import path from 'path';
 
+import Log from '../log';
+
 export const EASIGNORE_FILENAME = '.easignore';
 const GITIGNORE_FILENAME = '.gitignore';
 
@@ -31,7 +33,7 @@ export function getRootPath(): string {
  * - if .easignore exists, .gitignore files are not used.
  */
 export class Ignore {
-  private ignoreMapping: (readonly [string, SingleFileIgnore])[] = [];
+  public ignoreMapping: (readonly [string, SingleFileIgnore])[] = [];
 
   private constructor(private readonly rootDir: string) {}
 
@@ -48,6 +50,10 @@ export class Ignore {
         ['', createIgnore().add(DEFAULT_IGNORE)],
         ['', createIgnore().add(await fsExtra.readFile(easIgnorePath, 'utf-8'))],
       ];
+
+      Log.debug('initializing ignore mapping with .easignore', {
+        ignoreMapping: this.ignoreMapping,
+      });
       return;
     }
     const ignoreFilePaths = (
@@ -69,6 +75,11 @@ export class Ignore {
       })
     );
     this.ignoreMapping = [['', createIgnore().add(DEFAULT_IGNORE)], ...ignoreMapping];
+
+    Log.debug('initializing ignore mapping with .gitignore files', {
+      ignoreFilePaths,
+      ignoreMapping: this.ignoreMapping,
+    });
   }
 
   public ignores(relativePath: string): boolean {
@@ -82,7 +93,10 @@ export class Ignore {
 }
 
 export async function makeShallowCopyAsync(src: string, dst: string): Promise<void> {
+  Log.debug('makeShallowCopyAsync', { src, dst });
   const ignore = await Ignore.createAsync(src);
+  Log.debug('makeShallowCopyAsync ignoreMapping', { ignoreMapping: ignore.ignoreMapping });
+
   await fs.cp(src, dst, {
     recursive: true,
     // Preserve symlinks without re-resolving them to their original targets
@@ -91,7 +105,15 @@ export async function makeShallowCopyAsync(src: string, dst: string): Promise<vo
       if (srcFilePath === src) {
         return true;
       }
-      return !ignore.ignores(path.relative(src, srcFilePath));
+      const shouldCopyTheItem = !ignore.ignores(path.relative(src, srcFilePath));
+
+      Log.debug(shouldCopyTheItem ? 'copying' : 'skipping', {
+        src,
+        srcFilePath,
+        relative: path.relative(src, srcFilePath),
+      });
+
+      return shouldCopyTheItem;
     },
   });
 }
