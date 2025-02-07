@@ -92,7 +92,14 @@ export class Ignore {
   }
 }
 
-export async function makeShallowCopyAsync(src: string, dst: string): Promise<void> {
+export async function makeShallowCopyAsync(_src: string, dst: string): Promise<void> {
+  let src = _src;
+
+  // eslint-disable-next-line no-underscore-dangle
+  if (process.env.__NORMALIZE === '1') {
+    src = path.normalize(src);
+  }
+
   Log.debug('makeShallowCopyAsync', { src, dst });
   const ignore = await Ignore.createAsync(src);
   Log.debug('makeShallowCopyAsync ignoreMapping', { ignoreMapping: ignore.ignoreMapping });
