@@ -1,5 +1,5 @@
 {
   "npmClient": "yarn",
-  "version": "15.0.5",
+  "version": "15.0.6",
   "$schema": "node_modules/lerna/schemas/lerna-schema.json"
 }
