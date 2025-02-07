@@ -320,7 +320,7 @@ export default class GitClient extends Client {
     let isTracked: boolean;
     try {
       await spawnAsync('git', ['ls-files', '--error-unmatch', filePath], {
-        cwd: this.maybeCwdOverride,
+        cwd: rootPath,
       });
       isTracked = true;
     } catch {
