@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix ignoring files in Git repositories on Windows when `requireCommit` is not enabled. ([#2894](https://github.com/expo/eas-cli/pull/2894) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 ## [15.0.8](https://github.com/expo/eas-cli/releases/tag/v15.0.8) - 2025-02-09
