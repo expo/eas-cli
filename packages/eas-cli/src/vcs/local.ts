@@ -97,7 +97,7 @@ export async function makeShallowCopyAsync(_src: string, dst: string): Promise<v
 
   // eslint-disable-next-line no-underscore-dangle
   if (process.env.__NORMALIZE === '1') {
-    src = path.normalize(src);
+    src = path.toNamespacedPath(path.normalize(src));
   }
 
   Log.debug('makeShallowCopyAsync', { src, dst });
@@ -108,16 +108,27 @@ export async function makeShallowCopyAsync(_src: string, dst: string): Promise<v
     recursive: true,
     // Preserve symlinks without re-resolving them to their original targets
     verbatimSymlinks: true,
-    filter: (srcFilePath: string) => {
+    filter: (_srcFilePath: string) => {
+      let srcFilePath = _srcFilePath;
+
+      // eslint-disable-next-line no-underscore-dangle
+      if (process.env.__NORMALIZE === '1') {
+        // `node:fs` on Windows adds a namespace prefix (e.g. `\\?\`) to the path.
+        // We need to ensure that we compare the right paths (both with prefix),
+        // otherwise the `relativePath` ends up being wrong and causes no files to be ignored.
+        srcFilePath = path.toNamespacedPath(srcFilePath);
+      }
+
       if (srcFilePath === src) {
         return true;
       }
-      const shouldCopyTheItem = !ignore.ignores(path.relative(src, srcFilePath));
+      const relativePath = path.relative(src, srcFilePath);
+      const shouldCopyTheItem = !ignore.ignores(relativePath);
 
       Log.debug(shouldCopyTheItem ? 'copying' : 'skipping', {
         src,
         srcFilePath,
-        relative: path.relative(src, srcFilePath),
+        relativePath,
       });
 
       return shouldCopyTheItem;
