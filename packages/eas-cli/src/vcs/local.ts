@@ -97,7 +97,7 @@ export async function makeShallowCopyAsync(_src: string, dst: string): Promise<v
   // to the `filter` function in `fs.cp`. We need to ensure that we compare the right paths
   // (both with prefix), otherwise the `relativePath` ends up being wrong and causes no files
   // to be ignored.
-  const src = path.toNamespacedPath(_src);
+  const src = path.toNamespacedPath(path.normalize(_src));
 
   Log.debug('makeShallowCopyAsync', { src, dst });
   const ignore = await Ignore.createAsync(src);
