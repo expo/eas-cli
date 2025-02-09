@@ -320,7 +320,7 @@ export default class GitClient extends Client {
     let isTracked: boolean;
     try {
       await spawnAsync('git', ['ls-files', '--error-unmatch', filePath], {
-        cwd: this.maybeCwdOverride,
+        cwd: rootPath,
       });
       isTracked = true;
     } catch {
@@ -329,7 +329,10 @@ export default class GitClient extends Client {
 
     const easIgnorePath = path.join(rootPath, EASIGNORE_FILENAME);
     if (await fs.exists(easIgnorePath)) {
-      const ignore = await Ignore.createAsync(rootPath);
+      const ignore = await Ignore.createAsync(
+        // eslint-disable-next-line no-underscore-dangle
+        process.env.__NORMALIZE === '1' ? path.normalize(rootPath) : rootPath
+      );
       const wouldNotBeCopiedToClone = ignore.ignores(filePath);
       const wouldBeDeletedFromClone =
         (
