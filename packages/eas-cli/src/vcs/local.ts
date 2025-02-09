@@ -93,12 +93,11 @@ export class Ignore {
 }
 
 export async function makeShallowCopyAsync(_src: string, dst: string): Promise<void> {
-  let src = _src;
-
-  // eslint-disable-next-line no-underscore-dangle
-  if (process.env.__NORMALIZE === '1') {
-    src = path.toNamespacedPath(path.normalize(src));
-  }
+  // `node:fs` on Windows adds a namespace prefix (e.g. `\\?\`) to the path provided
+  // to the `filter` function in `fs.cp`. We need to ensure that we compare the right paths
+  // (both with prefix), otherwise the `relativePath` ends up being wrong and causes no files
+  // to be ignored.
+  const src = path.toNamespacedPath(path.normalize(_src));
 
   Log.debug('makeShallowCopyAsync', { src, dst });
   const ignore = await Ignore.createAsync(src);
@@ -109,15 +108,7 @@ export async function makeShallowCopyAsync(_src: string, dst: string): Promise<v
     // Preserve symlinks without re-resolving them to their original targets
     verbatimSymlinks: true,
     filter: (_srcFilePath: string) => {
-      let srcFilePath = _srcFilePath;
-
-      // eslint-disable-next-line no-underscore-dangle
-      if (process.env.__NORMALIZE === '1') {
-        // `node:fs` on Windows adds a namespace prefix (e.g. `\\?\`) to the path.
-        // We need to ensure that we compare the right paths (both with prefix),
-        // otherwise the `relativePath` ends up being wrong and causes no files to be ignored.
-        srcFilePath = path.toNamespacedPath(srcFilePath);
-      }
+      const srcFilePath = path.toNamespacedPath(_srcFilePath);
 
       if (srcFilePath === src) {
         return true;
