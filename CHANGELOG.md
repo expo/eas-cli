@@ -10,7 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix ignoring files in Git repositories on Windows when `requireCommit` is not enabled. ([#2894](https://github.com/expo/eas-cli/pull/2894) by [@sjchmiela](https://github.com/sjchmiela))
+- Fix files not being ignored when creating a tarball on Windows in Git repository in no `requireCommit` mode. ([#2894](https://github.com/expo/eas-cli/pull/2894) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🧹 Chores
 
