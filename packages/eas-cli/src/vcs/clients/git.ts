@@ -329,10 +329,7 @@ export default class GitClient extends Client {
 
     const easIgnorePath = path.join(rootPath, EASIGNORE_FILENAME);
     if (await fs.exists(easIgnorePath)) {
-      const ignore = await Ignore.createAsync(
-        // eslint-disable-next-line no-underscore-dangle
-        process.env.__NORMALIZE === '1' ? path.normalize(rootPath) : rootPath
-      );
+      const ignore = await Ignore.createAsync(rootPath);
       const wouldNotBeCopiedToClone = ignore.ignores(filePath);
       const wouldBeDeletedFromClone =
         (
