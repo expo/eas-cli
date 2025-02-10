@@ -86,7 +86,7 @@ export default class ChannelPause extends EasCommand {
     }
 
     const existingChannel = args.name
-      ? await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
+      ? await ChannelQuery.viewUpdateChannelBasicInfoAsync(graphqlClient, {
           appId: projectId,
           channelName: args.name,
         })

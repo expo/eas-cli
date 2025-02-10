@@ -7,6 +7,8 @@ import { withErrorHandlingAsync } from '../client';
 import {
   UpdateBranchBasicInfoFragment,
   UpdateFragment,
+  ViewUpdateChannelBasicInfoOnAppQuery,
+  ViewUpdateChannelBasicInfoOnAppQueryVariables,
   ViewUpdateChannelOnAppQuery,
   ViewUpdateChannelOnAppQueryVariables,
   ViewUpdateChannelsOnAppQuery,
@@ -41,6 +43,42 @@ export function composeUpdateBranchObject(
 }
 
 export const ChannelQuery = {
+  async viewUpdateChannelBasicInfoAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, channelName }: ViewUpdateChannelBasicInfoOnAppQueryVariables
+  ): Promise<
+    NonNullable<ViewUpdateChannelBasicInfoOnAppQuery['app']['byId']['updateChannelByName']>
+  > {
+    const response = await withErrorHandlingAsync(
+      graphqlClient
+        .query<ViewUpdateChannelBasicInfoOnAppQuery, ViewUpdateChannelBasicInfoOnAppQueryVariables>(
+          gql`
+            query ViewUpdateChannelBasicInfoOnApp($appId: String!, $channelName: String!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  updateChannelByName(name: $channelName) {
+                    id
+                    ...UpdateChannelBasicInfoFragment
+                  }
+                }
+              }
+            }
+            ${print(UpdateChannelBasicInfoFragmentNode)}
+          `,
+          { appId, channelName },
+          { additionalTypenames: ['UpdateChannel', 'UpdateBranch', 'Update'] }
+        )
+        .toPromise()
+    );
+
+    const { updateChannelByName } = response.app.byId;
+    if (!updateChannelByName) {
+      throw new ChannelNotFoundError(`Could not find channel with the name ${channelName}`);
+    }
+
+    return updateChannelByName;
+  },
   async viewUpdateChannelAsync(
     graphqlClient: ExpoGraphqlClient,
     { appId, channelName, filter }: ViewUpdateChannelOnAppQueryVariables
