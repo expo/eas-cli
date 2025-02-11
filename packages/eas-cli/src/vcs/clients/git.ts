@@ -182,7 +182,19 @@ export default class GitClient extends Client {
       await setGitCaseSensitivityAsync(true, rootPath);
       await spawnAsync(
         'git',
-        ['clone', '--no-hardlinks', '--depth', '1', gitRepoUri, destinationPath],
+        [
+          'clone',
+          // If we do not require a commit, we are going to later
+          // copy the working directory into the destination path,
+          // so we can skip the checkout step (which also adds files
+          // that have been removed in the working directory).
+          this.requireCommit ? null : '--no-checkout',
+          '--no-hardlinks',
+          '--depth',
+          '1',
+          gitRepoUri,
+          destinationPath,
+        ].flatMap(e => e ?? []),
         { cwd: rootPath }
       );
 
