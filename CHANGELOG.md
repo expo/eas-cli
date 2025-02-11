@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix files deleted in working directory not being removed from the project archive when `requireCommit` is false. ([#2900](https://github.com/expo/eas-cli/pull/2900) by [@sjchmiela](https://github.com/sjchmiela))
-
 ### 🧹 Chores
+
+## [15.0.10](https://github.com/expo/eas-cli/releases/tag/v15.0.10) - 2025-02-11
+
+### 🐛 Bug fixes
+
+- Fix files deleted in working directory not being removed from the project archive when `requireCommit` is false. ([#2900](https://github.com/expo/eas-cli/pull/2900) by [@sjchmiela](https://github.com/sjchmiela))
 
 ## [15.0.9](https://github.com/expo/eas-cli/releases/tag/v15.0.9) - 2025-02-09
 
