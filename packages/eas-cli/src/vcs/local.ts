@@ -14,14 +14,6 @@ const DEFAULT_IGNORE = `
 node_modules
 `;
 
-export function getRootPath(): string {
-  const rootPath = process.env.EAS_PROJECT_ROOT ?? process.cwd();
-  if (!path.isAbsolute(rootPath)) {
-    return path.resolve(process.cwd(), rootPath);
-  }
-  return rootPath;
-}
-
 /**
  * Ignore wraps the 'ignore' package to support multiple .gitignore files
  * in subdirectories.
