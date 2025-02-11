@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix files deleted in working directory not being removed from the project archive when `requireCommit` is false. ([#2900](https://github.com/expo/eas-cli/pull/2900) by [@sjchmiela](https://github.com/sjchmiela))
+- In `EAS_NO_VCS=1`, ask Git for repository root when `EAS_PROJECT_ROOT` is not set. ([#2901](https://github.com/expo/eas-cli/pull/2901) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🧹 Chores
 
