@@ -8,13 +8,6 @@ import Log from '../log';
 
 export const EASIGNORE_FILENAME = '.easignore';
 const GITIGNORE_FILENAME = '.gitignore';
-export function getRootPath(): string {
-  const rootPath = process.env.EAS_PROJECT_ROOT ?? process.cwd();
-  if (!path.isAbsolute(rootPath)) {
-    return path.resolve(process.cwd(), rootPath);
-  }
-  return rootPath;
-}
 
 /**
  * Ignore wraps the 'ignore' package to support multiple .gitignore files
