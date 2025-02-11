@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fixed `.git` being always unexpectedly removed if you had `requireCommit: true` and `.easignore` present. ([#2925](https://github.com/expo/eas-cli/pull/2925) by [@sjchmiela](https://github.com/sjchmiela))
+- In `EAS_NO_VCS=1`, ask Git for repository root when `EAS_PROJECT_ROOT` is not set. ([#2901](https://github.com/expo/eas-cli/pull/2901) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🧹 Chores
 
