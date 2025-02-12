@@ -52,7 +52,7 @@ export default class ChannelDelete extends EasCommand {
 
     let channelId, channelName;
     if (nameArg) {
-      const { id, name } = await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
+      const { id, name } = await ChannelQuery.viewUpdateChannelBasicInfoAsync(graphqlClient, {
         appId: projectId,
         channelName: nameArg,
       });

@@ -289,7 +289,7 @@ export async function doesChannelExistAsync(
   { appId, channelName }: { appId: string; channelName: string }
 ): Promise<boolean> {
   try {
-    await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
+    await ChannelQuery.viewUpdateChannelBasicInfoAsync(graphqlClient, {
       appId,
       channelName,
     });
