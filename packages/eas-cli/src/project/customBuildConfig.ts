@@ -37,7 +37,7 @@ export async function validateCustomBuildConfigAsync({
     throw new Error(
       `Custom build configuration file ${chalk.bold(
         relativeConfigPath
-      )} is ignored by your version control system. Remove it from the ignore list to successfully create custom build.`
+      )} is ignored by your version control system or .easignore. Remove it from the ignore list to successfully create custom build.`
     );
   }
 
