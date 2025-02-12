@@ -94,7 +94,7 @@ export default class ChannelEdit extends EasCommand {
     }
 
     const existingChannel = args.name
-      ? await ChannelQuery.viewUpdateChannelAsync(graphqlClient, {
+      ? await ChannelQuery.viewUpdateChannelBasicInfoAsync(graphqlClient, {
           appId: projectId,
           channelName: args.name,
         })

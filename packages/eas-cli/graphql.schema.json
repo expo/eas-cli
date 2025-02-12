@@ -60915,12 +60915,6 @@
         "interfaces": null,
         "enumValues": [
           {
-            "name": "GITHUB",
-            "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "GITHUB_PULL_REQUEST_OPENED",
             "description": null,
             "isDeprecated": false,
