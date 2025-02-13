@@ -37,8 +37,6 @@ async function ensureInternalGroupAsync(app: App): Promise<BetaGroup> {
         async () => {
           betaGroup = await app.createBetaGroupAsync({
             name: AUTO_GROUP_NAME,
-            publicLinkEnabled: false,
-            publicLinkLimitEnabled: false,
             isInternalGroup: true,
             // Automatically add latest builds to the group without needing to run the command.
             hasAccessToAllBuilds: true,

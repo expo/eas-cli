@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix internal TestFlight group creation. ([#2906](https://github.com/expo/eas-cli/pull/2906) by [@EvanBacon](https://github.com/EvanBacon))
+
 ### 🧹 Chores
 
 - Narrow amount of data queried for basic update channel operations. ([#2901](https://github.com/expo/eas-cli/pull/2901) by [@wschurman](https://github.com/wschurman))
