@@ -50,7 +50,7 @@ type FingerprintOrigin = {
 };
 
 export default class FingerprintCompare extends EasCommand {
-  static override description = 'compare fingerprints of the current project, builds and updates';
+  static override description = 'compare fingerprints of the current project, builds, and updates';
   static override strict = false;
 
   static override examples = [
