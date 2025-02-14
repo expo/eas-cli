@@ -740,7 +740,7 @@ const PRETTY_CONTENT_ID: Record<string, string> = {
   'expoAutolinkingConfig:android': 'Expo autolinking config (Android)',
   'packageJson:scripts': 'package.json scripts',
   expoConfig: 'Expo app config',
-  'package:react-native': 'React native package.json',
+  'package:react-native': 'React Native package.json',
   'rncoreAutolinkingConfig:ios': 'React Native Community autolinking config (iOS)',
   'rncoreAutolinkingConfig:android': 'React Native Community autolinking config (Android)',
 };
