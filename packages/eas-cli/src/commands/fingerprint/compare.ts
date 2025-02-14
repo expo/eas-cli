@@ -238,7 +238,7 @@ export default class FingerprintCompare extends EasCommand {
 
     const project = await AppQuery.byIdAsync(graphqlClient, projectId);
     const fingerprintCompareUrl = new URL(
-      `/accounts/${project.ownerAccount.name}/projects/${project.name}/fingerprints/compare`,
+      `/accounts/${project.ownerAccount.name.toLowerCase()}/projects/${project.name.toLowerCase()}/fingerprints/compare`,
       getExpoWebsiteBaseUrl()
     );
     fingerprintCompareUrl.searchParams.set('a', firstFingerprintInfo.fingerprint.hash);
@@ -528,7 +528,7 @@ async function getFingerprintInfoFromUpdateGroupIdOrUpdateIdAsync(
       const project = await AppQuery.byIdAsync(graphqlClient, projectId);
       const updateUrl =
         getExpoWebsiteBaseUrl() +
-        `/accounts/${project.ownerAccount.name}/projects/${project.name}/updates/${maybeUpdateGroupId}`;
+        `/accounts/${project.ownerAccount.name.toLowerCase()}/projects/${project.name.toLowerCase()}/updates/${maybeUpdateGroupId}`;
       throw new Error(
         `Please pass in your update ID from ${updateUrl} or use interactive mode to select the update ID.`
       );
@@ -739,7 +739,10 @@ const PRETTY_CONTENT_ID: Record<string, string> = {
   'expoAutolinkingConfig:ios': 'Expo autolinking config (iOS)',
   'expoAutolinkingConfig:android': 'Expo autolinking config (Android)',
   'packageJson:scripts': 'package.json scripts',
-  expoConfig: 'Expo config',
+  expoConfig: 'Expo app config',
+  'package:react-native': 'React native package.json',
+  'rncoreAutolinkingConfig:ios': 'React Native Community autolinking config (iOS)',
+  'rncoreAutolinkingConfig:android': 'React Native Community autolinking config (Android)',
 };
 
 function printContentSource({
