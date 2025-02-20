@@ -13,8 +13,8 @@ const AUTO_GROUP_NAME = 'Team (Expo)';
  * This allows users to instantly access their builds from TestFlight after it finishes processing.
  */
 export async function ensureTestFlightGroupExistsAsync(app: App): Promise<void> {
-  if (process.env.EXPO_SKIP_TESTFLIGHT_SETUP) {
-    Log.debug('EXPO_SKIP_TESTFLIGHT_SETUP is set, skipping TestFlight setup');
+  if (process.env.EAS_NO_AUTO_TESTFLIGHT_SETUP) {
+    Log.debug('EAS_NO_AUTO_TESTFLIGHT_SETUP is set, skipping TestFlight setup');
     return;
   }
 
