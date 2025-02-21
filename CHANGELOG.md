@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Narrow amount of data queried for basic update channel operations. ([#2901](https://github.com/expo/eas-cli/pull/2901) by [@wschurman](https://github.com/wschurman))
 - Fix `eas fingerprint:compare` description. ([#2908](https://github.com/expo/eas-cli/pull/2908) by [@quinlanj](https://github.com/quinlanj))
+- Skip auto-creation of TestFlight group when there are already exisitng TestFlight groups and allow to opt out of the behavior by setting `EAS_NO_AUTO_TESTFLIGHT_SETUP` env var. ([#2856](https://github.com/expo/eas-cli/pull/2856) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [15.0.10](https://github.com/expo/eas-cli/releases/tag/v15.0.10) - 2025-02-11
 
