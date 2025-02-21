@@ -52,8 +52,13 @@ export function abridgedDiff(str1: string, str2: string, contextLines: number = 
 
   const flushChunk = (): void => {
     if (currentChunk.length > 0) {
-      const originalRange = `${startOriginal},${removedLines || 0}`;
-      const modifiedRange = `${startModified},${addedLines || 0}`;
+      const contextLines = currentChunkPriorContext.length + currentChunkAfterContext.length;
+      const originalRange = `${(startOriginal ?? 1) - currentChunkPriorContext.length},${
+        contextLines + removedLines
+      }`;
+      const modifiedRange = `${(startModified ?? 1) - currentChunkPriorContext.length},${
+        contextLines + addedLines
+      }`;
       // `git diff` style header
       output.push(chalk.cyan(`@@ -${originalRange} +${modifiedRange} @@`));
       output.push(...currentChunkPriorContext);
