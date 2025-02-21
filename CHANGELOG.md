@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [15.0.11](https://github.com/expo/eas-cli/releases/tag/v15.0.11) - 2025-02-21
+
+### 🐛 Bug fixes
+
 - Fix internal TestFlight group creation. ([#2906](https://github.com/expo/eas-cli/pull/2906) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🧹 Chores
