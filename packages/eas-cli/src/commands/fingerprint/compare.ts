@@ -238,7 +238,7 @@ export default class FingerprintCompare extends EasCommand {
 
     const project = await AppQuery.byIdAsync(graphqlClient, projectId);
     const fingerprintCompareUrl = new URL(
-      `/accounts/${project.ownerAccount.name.toLowerCase()}/projects/${project.name.toLowerCase()}/fingerprints/compare`,
+      `/accounts/${project.ownerAccount.name}/projects/${project.slug}/fingerprints/compare`,
       getExpoWebsiteBaseUrl()
     );
     fingerprintCompareUrl.searchParams.set('a', firstFingerprintInfo.fingerprint.hash);
@@ -528,7 +528,7 @@ async function getFingerprintInfoFromUpdateGroupIdOrUpdateIdAsync(
       const project = await AppQuery.byIdAsync(graphqlClient, projectId);
       const updateUrl =
         getExpoWebsiteBaseUrl() +
-        `/accounts/${project.ownerAccount.name.toLowerCase()}/projects/${project.name.toLowerCase()}/updates/${maybeUpdateGroupId}`;
+        `/accounts/${project.ownerAccount.name}/projects/${project.slug}/updates/${maybeUpdateGroupId}`;
       throw new Error(
         `Please pass in your update ID from ${updateUrl} or use interactive mode to select the update ID.`
       );
