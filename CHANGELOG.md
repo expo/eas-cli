@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix APNS key creation. ([#2916](https://github.com/expo/eas-cli/pull/2916) by [@EvanBacon](https://github.com/EvanBacon))
-
 ### 🧹 Chores
+
+## [15.0.12](https://github.com/expo/eas-cli/releases/tag/v15.0.12) - 2025-02-22
+
+### 🐛 Bug fixes
+
+- Fix APNS key creation. ([#2916](https://github.com/expo/eas-cli/pull/2916) by [@EvanBacon](https://github.com/EvanBacon))
 
 ## [15.0.11](https://github.com/expo/eas-cli/releases/tag/v15.0.11) - 2025-02-21
 
