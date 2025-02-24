@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Fix `eas fingerprint:compare` URL generation and pretty prints. ([#2909](https://github.com/expo/eas-cli/pull/2909) by [@quinlanj](https://github.com/quinlanj))
+
 ## [15.0.12](https://github.com/expo/eas-cli/releases/tag/v15.0.12) - 2025-02-22
 
 ### 🐛 Bug fixes
