@@ -22,7 +22,7 @@ describe('abridgedDiff', () => {
     abridgedDiff(str1, str2, 1);
 
     const expectedOutput = [
-      'cyan(@@ -2,1 +2,1 @@)',
+      'cyan(@@ -1,3 +1,3 @@)',
       ' gray(Line1)',
       'red(-Line2)',
       'green(+LineX)',
@@ -106,7 +106,7 @@ describe('abridgedDiff', () => {
     abridgedDiff(str1, str2, 1);
 
     const expectedOutput = [
-      'cyan(@@ -3,1 +3,1 @@)',
+      'cyan(@@ -2,3 +2,3 @@)',
       ' gray(Line1)',
       'red(-Line2)',
       'green(+LineX)',
