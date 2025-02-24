@@ -10,13 +10,27 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+- Fix `eas fingerprint:compare` URL generation and pretty prints. ([#2909](https://github.com/expo/eas-cli/pull/2909) by [@quinlanj](https://github.com/quinlanj))
+
+## [15.0.12](https://github.com/expo/eas-cli/releases/tag/v15.0.12) - 2025-02-22
+
+### 🐛 Bug fixes
+
+- Fix APNS key creation. ([#2916](https://github.com/expo/eas-cli/pull/2916) by [@EvanBacon](https://github.com/EvanBacon))
+
+## [15.0.11](https://github.com/expo/eas-cli/releases/tag/v15.0.11) - 2025-02-21
+
+### 🐛 Bug fixes
+
 - Fix internal TestFlight group creation. ([#2906](https://github.com/expo/eas-cli/pull/2906) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🧹 Chores
 
 - Narrow amount of data queried for basic update channel operations. ([#2901](https://github.com/expo/eas-cli/pull/2901) by [@wschurman](https://github.com/wschurman))
 - Fix `eas fingerprint:compare` description. ([#2908](https://github.com/expo/eas-cli/pull/2908) by [@quinlanj](https://github.com/quinlanj))
-- Fix `eas fingerprint:compare` URL generation and pretty prints. ([#2909](https://github.com/expo/eas-cli/pull/2909) by [@quinlanj](https://github.com/quinlanj))
+- Skip auto-creation of TestFlight group when there are already exisitng TestFlight groups and allow to opt out of the behavior by setting `EAS_NO_AUTO_TESTFLIGHT_SETUP` env var. ([#2856](https://github.com/expo/eas-cli/pull/2856) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [15.0.10](https://github.com/expo/eas-cli/releases/tag/v15.0.10) - 2025-02-11
 
