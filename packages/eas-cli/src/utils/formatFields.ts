@@ -10,6 +10,10 @@ export default function formatFields(
   fields: FormatFieldsItem[],
   options: FormatFieldsOptions = { labelFormat: chalk.dim }
 ): string {
+  if (fields.length === 0) {
+    return '';
+  }
+
   const columnWidth = fields.reduce((a, b) => (a.label.length > b.label.length ? a : b)).label
     .length;
 
