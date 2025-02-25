@@ -94,6 +94,8 @@ export interface AndroidBuildProfile extends PlatformBuildProfile {
   // versions
   autoIncrement?: AndroidVersionAutoIncrement;
 
+  dangerouslyOverrideApplicationId?: string;
+
   keystoreName?: string;
 }
 

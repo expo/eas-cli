@@ -102,6 +102,8 @@ const AndroidBuildProfileSchema = PlatformBuildProfileSchema.concat(
       Joi.string().valid('version', 'versionCode')
     ),
 
+    dangerouslyOverrideApplicationId: Joi.string(),
+
     keystoreName: Joi.when('credentialsSource', {
       is: 'remote',
       then: Joi.string(),

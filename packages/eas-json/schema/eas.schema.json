@@ -334,6 +334,10 @@
           "markdownDescription": "[DEPRECATED] Use `applicationArchivePath` instead. Path (or pattern) where EAS Build is going to look for the build artifacts. EAS Build uses the `fast-glob` npm package for pattern matching ([see their README to learn more about the syntax you can use](https://github.com/mrmlnc/fast-glob#pattern-syntax)).",
           "default": "android/app/build/outputs/**/*.{apk,aab}"
         },
+        "dangerouslyOverrideApplicationId": {
+          "type": "string",
+          "description": "If EAS CLI is unable to detect your application ID (such as when using multiple product flavors), you can use this field to specify it manually."
+        },
         "config": {
           "description": "Custom workflow file name that will be used to run this Android build. You can also specify this property on profile levle for platform-agnostic workflows. Learn more: https://docs.expo.dev/custom-builds/get-started/",
           "type": "string"

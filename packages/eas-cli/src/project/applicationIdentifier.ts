@@ -50,6 +50,7 @@ export async function getApplicationIdentifierAsync({
         exp,
         vcsClient,
         nonInteractive,
+        buildProfile: profile,
       });
     }
 
