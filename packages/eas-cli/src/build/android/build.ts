@@ -73,8 +73,10 @@ This means that it will most likely produce an AAB and you will not be able to i
     ctx.projectDir,
     ctx.exp,
     ctx.vcsClient,
-    gradleContext
+    gradleContext,
+    buildProfile
   );
+
   const versionCodeOverride =
     ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
       ? await resolveRemoteVersionCodeAsync(ctx.graphqlClient, {

@@ -1,6 +1,7 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
+import { BuildProfile } from '@expo/eas-json';
 import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -29,6 +30,7 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync({
   exp,
   vcsClient,
   nonInteractive,
+  buildProfile,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
@@ -36,14 +38,21 @@ export async function ensureApplicationIdIsDefinedForManagedProjectAsync({
   exp: ExpoConfig;
   vcsClient: Client;
   nonInteractive: boolean;
+  buildProfile: BuildProfile<Platform.ANDROID>;
 }): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
 
   try {
-    return await getApplicationIdAsync(projectDir, exp, vcsClient, {
-      moduleName: gradleUtils.DEFAULT_MODULE_NAME,
-    });
+    return await getApplicationIdAsync(
+      projectDir,
+      exp,
+      vcsClient,
+      {
+        moduleName: gradleUtils.DEFAULT_MODULE_NAME,
+      },
+      buildProfile
+    );
   } catch {
     return await configureApplicationIdAsync({
       graphqlClient,
@@ -104,10 +113,15 @@ export async function getApplicationIdAsync(
   projectDir: string,
   exp: ExpoConfig,
   vcsClient: Client,
-  gradleContext?: GradleBuildContext
+  gradleContext?: GradleBuildContext,
+  buildProfile?: BuildProfile<Platform.ANDROID>
 ): Promise<string> {
   if (env.overrideAndroidApplicationId) {
     return env.overrideAndroidApplicationId;
+  }
+
+  if (buildProfile?.dangerouslyOverrideApplicationId) {
+    return buildProfile.dangerouslyOverrideApplicationId;
   }
 
   const workflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
