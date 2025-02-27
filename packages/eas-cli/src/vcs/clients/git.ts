@@ -163,6 +163,21 @@ export default class GitClient extends Client {
     }
 
     const rootPath = await this.getRootPathAsync();
+    const sourceEasignorePath = path.join(rootPath, EASIGNORE_FILENAME);
+    const doesEasignoreExist = await fs.exists(sourceEasignorePath);
+    if (this.requireCommit && doesEasignoreExist) {
+      Log.error(
+        `".easignore" file is not supported if you also have "requireCommit" set to "true" in "eas.json".`
+      );
+      Log.error(
+        `Remove "${sourceEasignorePath}" and use ".gitignore" instead. ${learnMore(
+          'https://expo.fyi/eas-build-archive'
+        )}`
+      );
+      throw new Error(
+        `Detected ".easignore" file ${sourceEasignorePath} while in "requireCommit = true" mode.`
+      );
+    }
 
     let gitRepoUri;
     if (process.platform === 'win32') {

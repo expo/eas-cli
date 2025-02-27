@@ -205,4 +205,20 @@ describe('git', () => {
       fs.stat(path.join(requireCommitClone, 'new-tracked-file.txt'))
     ).resolves.not.toThrow();
   });
+
+  it('does not allow .easignore if requireCommit is true', async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await spawnAsync('git', ['init'], { cwd: repoRoot });
+    const vcs = new GitClient({
+      requireCommit: true,
+      maybeCwdOverride: repoRoot,
+    });
+
+    await fs.writeFile(`${repoRoot}/.easignore`, '*easignored*\n');
+
+    await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+    await spawnAsync('git', ['commit', '-m', 'tmp commit'], { cwd: repoRoot });
+
+    await expect(vcs.makeShallowCopyAsync(repoRoot)).rejects.toThrow('Detected ".easignore" file');
+  });
 });
