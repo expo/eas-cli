@@ -65,7 +65,7 @@ interface DeployInProgressParams {
 }
 
 export default class WorkerDeploy extends EasCommand {
-  static override description = 'Deploy your Expo Router web build and API Routes.';
+  static override description = 'deploy your Expo Router web build and API Routes';
   static override aliases = ['worker:deploy'];
   static override usage = [chalk`deploy {dim [options]}`, `deploy --prod`];
   static override state = 'preview';
