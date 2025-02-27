@@ -253,7 +253,9 @@ export default class GitClient extends Client {
         );
 
         // Special-case `.git` which `git ls-files` will never consider ignored.
-        const ignore = await Ignore.createAsync(rootPath);
+        // We don't want to ignore anything by default. We want to know what does
+        // the user want to ignore.
+        const ignore = await Ignore.createForCheckingAsync(rootPath);
         if (ignore.ignores('.git')) {
           await fs.rm(path.join(destinationPath, '.git'), { recursive: true, force: true });
           Log.debug('deleted .git', {
@@ -356,7 +358,7 @@ export default class GitClient extends Client {
 
     const easIgnorePath = path.join(rootPath, EASIGNORE_FILENAME);
     if (await fs.exists(easIgnorePath)) {
-      const ignore = await Ignore.createAsync(rootPath);
+      const ignore = await Ignore.createForCheckingAsync(rootPath);
       const wouldNotBeCopiedToClone = ignore.ignores(filePath);
       const wouldBeDeletedFromClone =
         (
