@@ -18,7 +18,7 @@ describe(Ignore, () => {
       '/root'
     );
 
-    const ignore = await Ignore.createAsync('/root');
+    const ignore = await Ignore.createForCopyingAsync('/root');
     expect(ignore.ignores('aaa')).toBe(true);
     expect(ignore.ignores('bbb')).toBe(false);
     expect(ignore.ignores('dir/aaa')).toBe(true);
@@ -35,7 +35,7 @@ describe(Ignore, () => {
       '/root'
     );
 
-    const ignore = await Ignore.createAsync('/root');
+    const ignore = await Ignore.createForCopyingAsync('/root');
     expect(ignore.ignores('aaa')).toBe(false);
     expect(ignore.ignores('bbb')).toBe(false);
     expect(ignore.ignores('ccc')).toBe(true);
@@ -52,7 +52,7 @@ describe(Ignore, () => {
       '/root'
     );
 
-    const ignore = await Ignore.createAsync('/root');
+    const ignore = await Ignore.createForCopyingAsync('/root');
     expect(ignore.ignores('aaa')).toBe(true);
     expect(ignore.ignores('bbb')).toBe(false);
     expect(ignore.ignores('node_modules/aaa')).toBe(true);
@@ -69,15 +69,35 @@ describe(Ignore, () => {
       '/root'
     );
 
-    const ignore = await Ignore.createAsync('/root');
+    const ignore = await Ignore.createForCopyingAsync('/root');
     expect(ignore.ignores('dir/ccc')).toBe(true);
   });
 
-  it('ignores .git', async () => {
+  it('ignores .git if copying', async () => {
     vol.fromJSON({}, '/root');
 
-    const ignore = await Ignore.createAsync('/root');
+    const ignore = await Ignore.createForCopyingAsync('/root');
     expect(ignore.ignores('.git')).toBe(true);
+  });
+  describe('for checking', () => {
+    it('does not necessarily ignore .git', async () => {
+      vol.fromJSON({}, '/root');
+
+      const ignore = await Ignore.createForCheckingAsync('/root');
+      expect(ignore.ignores('.git')).toBe(false);
+    });
+
+    it('ignores .git if present in .easignore', async () => {
+      vol.fromJSON(
+        {
+          '.easignore': '.git\n',
+        },
+        '/root'
+      );
+
+      const ignore = await Ignore.createForCheckingAsync('/root');
+      expect(ignore.ignores('.git')).toBe(true);
+    });
   });
 
   it('does not throw an error if there is a trailing backslash in the gitignore', async () => {
@@ -88,7 +108,7 @@ describe(Ignore, () => {
       '/root'
     );
 
-    const ignore = await Ignore.createAsync('/root');
+    const ignore = await Ignore.createForCopyingAsync('/root');
     expect(() => ignore.ignores('dir/test')).not.toThrowError();
   });
 });

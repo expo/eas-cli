@@ -163,6 +163,21 @@ export default class GitClient extends Client {
     }
 
     const rootPath = await this.getRootPathAsync();
+    const sourceEasignorePath = path.join(rootPath, EASIGNORE_FILENAME);
+    const doesEasignoreExist = await fs.exists(sourceEasignorePath);
+    if (this.requireCommit && doesEasignoreExist) {
+      Log.error(
+        `".easignore" file is not supported if you also have "requireCommit" set to "true" in "eas.json".`
+      );
+      Log.error(
+        `Remove "${sourceEasignorePath}" and use ".gitignore" instead. ${learnMore(
+          'https://expo.fyi/eas-build-archive'
+        )}`
+      );
+      throw new Error(
+        `Detected ".easignore" file ${sourceEasignorePath} while in "requireCommit = true" mode.`
+      );
+    }
 
     let gitRepoUri;
     if (process.platform === 'win32') {
@@ -238,7 +253,9 @@ export default class GitClient extends Client {
         );
 
         // Special-case `.git` which `git ls-files` will never consider ignored.
-        const ignore = await Ignore.createAsync(rootPath);
+        // We don't want to ignore anything by default. We want to know what does
+        // the user want to ignore.
+        const ignore = await Ignore.createForCheckingAsync(rootPath);
         if (ignore.ignores('.git')) {
           await fs.rm(path.join(destinationPath, '.git'), { recursive: true, force: true });
           Log.debug('deleted .git', {
@@ -341,7 +358,7 @@ export default class GitClient extends Client {
 
     const easIgnorePath = path.join(rootPath, EASIGNORE_FILENAME);
     if (await fs.exists(easIgnorePath)) {
-      const ignore = await Ignore.createAsync(rootPath);
+      const ignore = await Ignore.createForCheckingAsync(rootPath);
       const wouldNotBeCopiedToClone = ignore.ignores(filePath);
       const wouldBeDeletedFromClone =
         (

@@ -157,6 +157,42 @@ describe('git', () => {
       await expect(vcs.makeShallowCopyAsync(repoCloneIgnored)).resolves.not.toThrow();
       await expect(fs.stat(path.join(repoCloneIgnored, 'results'))).rejects.toThrow('ENOENT');
     });
+
+    it('if .git is present in .easignore', async () => {
+      const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      const vcs = new GitClient({
+        requireCommit: false,
+        maybeCwdOverride: repoRoot,
+      });
+
+      await fs.writeFile(`${repoRoot}/.easignore`, '.git\n');
+
+      await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+      await spawnAsync('git', ['commit', '-m', 'temp commit'], { cwd: repoRoot });
+
+      const repoClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(repoClone)).resolves.not.toThrow();
+      await expect(fs.stat(path.join(repoClone, '.git'))).rejects.toThrow('ENOENT');
+    });
+
+    it('if .git is not present in .easignore', async () => {
+      const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      const vcs = new GitClient({
+        requireCommit: false,
+        maybeCwdOverride: repoRoot,
+      });
+
+      await fs.writeFile(`${repoRoot}/.easignore`, '');
+
+      await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+      await spawnAsync('git', ['commit', '-m', 'temp commit'], { cwd: repoRoot });
+
+      const repoClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(repoClone)).resolves.not.toThrow();
+      await expect(fs.readdir(path.join(repoClone, '.git'))).resolves.toBeDefined();
+    });
   });
 
   it('does not include files that have been removed in the working directory', async () => {
@@ -204,5 +240,21 @@ describe('git', () => {
     await expect(
       fs.stat(path.join(requireCommitClone, 'new-tracked-file.txt'))
     ).resolves.not.toThrow();
+  });
+
+  it('does not allow .easignore if requireCommit is true', async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await spawnAsync('git', ['init'], { cwd: repoRoot });
+    const vcs = new GitClient({
+      requireCommit: true,
+      maybeCwdOverride: repoRoot,
+    });
+
+    await fs.writeFile(`${repoRoot}/.easignore`, '*easignored*\n');
+
+    await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+    await spawnAsync('git', ['commit', '-m', 'tmp commit'], { cwd: repoRoot });
+
+    await expect(vcs.makeShallowCopyAsync(repoRoot)).rejects.toThrow('Detected ".easignore" file');
   });
 });

@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fixed `.git` being always unexpectedly removed if you had `requireCommit: true` and `.easignore` present. ([#2925](https://github.com/expo/eas-cli/pull/2925) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 - Fix `eas fingerprint:compare` URL generation and pretty prints. ([#2909](https://github.com/expo/eas-cli/pull/2909) by [@quinlanj](https://github.com/quinlanj))
