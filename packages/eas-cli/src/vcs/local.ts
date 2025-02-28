@@ -8,12 +8,6 @@ import Log from '../log';
 
 export const EASIGNORE_FILENAME = '.easignore';
 const GITIGNORE_FILENAME = '.gitignore';
-
-const DEFAULT_IGNORE = `
-.git
-node_modules
-`;
-
 export function getRootPath(): string {
   const rootPath = process.env.EAS_PROJECT_ROOT ?? process.cwd();
   if (!path.isAbsolute(rootPath)) {
@@ -37,17 +31,31 @@ export class Ignore {
 
   private constructor(private readonly rootDir: string) {}
 
-  static async createAsync(rootDir: string): Promise<Ignore> {
+  static async createForCopyingAsync(rootDir: string): Promise<Ignore> {
     const ignore = new Ignore(rootDir);
-    await ignore.initIgnoreAsync();
+    await ignore.initIgnoreAsync({
+      defaultIgnore: `
+.git
+node_modules
+`,
+    });
     return ignore;
   }
 
-  public async initIgnoreAsync(): Promise<void> {
+  /** Does not include the default .git and node_modules ignore rules. */
+  static async createForCheckingAsync(rootDir: string): Promise<Ignore> {
+    const ignore = new Ignore(rootDir);
+    await ignore.initIgnoreAsync({
+      defaultIgnore: ``,
+    });
+    return ignore;
+  }
+
+  public async initIgnoreAsync({ defaultIgnore }: { defaultIgnore: string }): Promise<void> {
     const easIgnorePath = path.join(this.rootDir, EASIGNORE_FILENAME);
     if (await fsExtra.pathExists(easIgnorePath)) {
       this.ignoreMapping = [
-        ['', createIgnore().add(DEFAULT_IGNORE)],
+        ['', createIgnore().add(defaultIgnore)],
         ['', createIgnore().add(await fsExtra.readFile(easIgnorePath, 'utf-8'))],
       ];
 
@@ -74,7 +82,7 @@ export class Ignore {
         ] as const;
       })
     );
-    this.ignoreMapping = [['', createIgnore().add(DEFAULT_IGNORE)], ...ignoreMapping];
+    this.ignoreMapping = [['', createIgnore().add(defaultIgnore)], ...ignoreMapping];
 
     Log.debug('initializing ignore mapping with .gitignore files', {
       ignoreFilePaths,
@@ -100,7 +108,7 @@ export async function makeShallowCopyAsync(_src: string, dst: string): Promise<v
   const src = path.toNamespacedPath(path.normalize(_src));
 
   Log.debug('makeShallowCopyAsync', { src, dst });
-  const ignore = await Ignore.createAsync(src);
+  const ignore = await Ignore.createForCopyingAsync(src);
   Log.debug('makeShallowCopyAsync ignoreMapping', { ignoreMapping: ignore.ignoreMapping });
 
   await fs.cp(src, dst, {
