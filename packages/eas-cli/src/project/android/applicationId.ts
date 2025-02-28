@@ -75,7 +75,9 @@ export async function getApplicationIdFromBareAsync(
       gradleContext.flavor
     );
     if (applicationIdSuffix) {
-      throw new Error('"applicationIdSuffix" in app/build.gradle is not supported, configure the full application ID under productFlavors.');
+      throw new Error(
+        '"applicationIdSuffix" in app/build.gradle is not supported, configure the full application ID under productFlavors.'
+      );
     }
     const applicationId = gradleUtils.resolveConfigValue(
       buildGradle,
@@ -89,7 +91,9 @@ export async function getApplicationIdFromBareAsync(
     const buildGradle = await fs.readFile(buildGradlePath, 'utf8');
     const matchResult = buildGradle.match(/applicationId ['"](.*)['"]/);
     if (buildGradle.match(/applicationIdSuffix/)) {
-      throw new Error('"applicationIdSuffix" in app/build.gradle is not supported, configure the full application ID under productFlavors.');
+      throw new Error(
+        '"applicationIdSuffix" in app/build.gradle is not supported, configure the full application ID under productFlavors.'
+      );
     }
     if (buildGradle.match(/productFlavors/)) {
       throw new AmbiguousApplicationIdError(
