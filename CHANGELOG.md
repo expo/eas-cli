@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - fix formatFields to handle empty array. ([#2914](https://github.com/expo/eas-cli/pull/2914) by [@quinlanj](https://github.com/quinlanj))
 - fix git diff header in `fingerprint:compare`. ([#2915](https://github.com/expo/eas-cli/pull/2915) by [@quinlanj](https://github.com/quinlanj))
 - amend fingerprint compare url. ([#2923](https://github.com/expo/eas-cli/pull/2923) by [@quinlanj](https://github.com/quinlanj))
+- improve error message for `applicationIdSuffix`. ([#2924](https://github.com/expo/eas-cli/pull/2924) by [@kadikraman](https://github.com/kadikraman))
 
 ## [15.0.12](https://github.com/expo/eas-cli/releases/tag/v15.0.12) - 2025-02-22
 
