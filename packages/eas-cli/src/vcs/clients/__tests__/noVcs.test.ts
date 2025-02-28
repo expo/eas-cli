@@ -11,12 +11,12 @@ describe('noVcs', () => {
     let repoRoot: string;
     let globalEasProjectRoot: string | undefined;
 
-    afterAll(async () => {
+    afterEach(async () => {
       await fs.rm(repoRoot, { recursive: true, force: true });
       process.env.EAS_PROJECT_ROOT = globalEasProjectRoot;
     });
 
-    beforeAll(async () => {
+    beforeEach(async () => {
       repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
 
       vcs = new NoVcsClient({ cwdOverride: repoRoot });
