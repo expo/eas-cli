@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Added support to read platform version from `app.json`. ([#2778](https://github.com/expo/eas-cli/pull/2778) by [@kudo](https://github.com/kudo))
+
 ### 🐛 Bug fixes
 
 - In `EAS_NO_VCS=1`, use Git for repository root when `EAS_PROJECT_ROOT` is not set. ([#2901](https://github.com/expo/eas-cli/pull/2901) by [@sjchmiela](https://github.com/sjchmiela))
