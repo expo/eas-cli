@@ -1,7 +1,7 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "15.0.12",
+  "version": "15.0.13",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
@@ -12,8 +12,8 @@
     "@expo/code-signing-certificates": "0.0.5",
     "@expo/config": "10.0.6",
     "@expo/config-plugins": "9.0.12",
-    "@expo/eas-build-job": "1.0.165",
-    "@expo/eas-json": "15.0.0",
+    "@expo/eas-build-job": "1.0.170",
+    "@expo/eas-json": "15.0.13",
     "@expo/env": "^1.0.0",
     "@expo/json-file": "8.3.3",
     "@expo/logger": "1.0.117",
@@ -28,7 +28,7 @@
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.7.2",
-    "@expo/steps": "1.0.166",
+    "@expo/steps": "1.0.170",
     "@expo/timeago.js": "1.0.0",
     "@oclif/core": "^1.26.2",
     "@oclif/plugin-autocomplete": "^2.3.10",
