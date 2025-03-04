@@ -23,7 +23,6 @@ export default class NoVcsClient extends Client {
     }
 
     // If `EAS_PROJECT_ROOT` is not set, try to get the root path from Git.
-    const resolveRoot = process.cwd();
     try {
       return (
         await spawnAsync('git', ['rev-parse', '--show-toplevel'], {
@@ -38,7 +37,7 @@ export default class NoVcsClient extends Client {
       );
     }
 
-    return path.resolve(resolveRoot, process.env.EAS_PROJECT_ROOT ?? '.');
+    return path.resolve(process.cwd(), process.env.EAS_PROJECT_ROOT ?? '.');
   }
 
   public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
