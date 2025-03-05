@@ -122,6 +122,7 @@ export async function runBuildAndSubmitAsync({
   envOverride?: Env;
 }): Promise<{
   buildIds: string[];
+  buildProfiles?: ProfileData<'build'>[];
 }> {
   await vcsClient.ensureRepoExistsAsync();
   await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
@@ -348,6 +349,7 @@ export async function runBuildAndSubmitAsync({
   }
   return {
     buildIds: startedBuilds.map(({ build }) => build.id),
+    buildProfiles,
   };
 }
 
