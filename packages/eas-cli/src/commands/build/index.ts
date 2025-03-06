@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { EasJsonAccessor, EasJsonUtils, ResourceClass } from '@expo/eas-json';
+import { BuildProfile, EasJsonAccessor, EasJsonUtils, ResourceClass } from '@expo/eas-json';
 import { LoggerLevel } from '@expo/logger';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
@@ -17,6 +17,7 @@ import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform'
 import { selectAsync } from '../../prompts';
 import uniq from '../../utils/expodash/uniq';
 import { enableJsonOutput } from '../../utils/json';
+import { ProfileData } from '../../utils/profiles';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
 interface RawBuildFlags {
@@ -160,7 +161,7 @@ export default class Build extends EasCommand {
 
     const flagsWithPlatform = await this.ensurePlatformSelectedAsync(flags);
 
-    await runBuildAndSubmitAsync({
+    const { buildProfiles } = await runBuildAndSubmitAsync({
       graphqlClient,
       analytics,
       vcsClient,
@@ -168,6 +169,11 @@ export default class Build extends EasCommand {
       flags: flagsWithPlatform,
       actor,
       getDynamicPrivateProjectConfigAsync,
+    });
+
+    this.maybeSuggestUsingEasBuildDev({
+      buildProfiles,
+      nonInteractive: flags.nonInteractive,
     });
   }
 
@@ -267,6 +273,51 @@ export default class Build extends EasCommand {
       ...flags,
       requestedPlatform,
     };
+  }
+
+  private maybeSuggestUsingEasBuildDev({
+    buildProfiles,
+    nonInteractive,
+  }: {
+    buildProfiles: ProfileData<'build'>[] | undefined;
+    nonInteractive: boolean;
+  }): void {
+    // suggest using eas build:dev if the build configuration results in simulator/emulator dev client build
+    if (
+      !nonInteractive &&
+      !process.env.CI &&
+      buildProfiles?.some(({ profile, platform }) => {
+        if (profile.developmentClient !== true) {
+          return false;
+        }
+        if (profile.distribution !== 'internal') {
+          return false;
+        }
+
+        if (platform === Platform.IOS) {
+          const iosProfile = profile as BuildProfile<Platform.IOS>;
+          if (iosProfile.simulator !== true && iosProfile.withoutCredentials !== true) {
+            return false;
+          }
+        } else {
+          const androidProfile = profile as BuildProfile<Platform.ANDROID>;
+          if (
+            androidProfile.distribution !== 'internal' &&
+            androidProfile.withoutCredentials !== true
+          ) {
+            return false;
+          }
+        }
+        return true;
+      })
+    ) {
+      Log.newLine();
+      Log.log(
+        `🔎 TIP: You are using a build configuration that could benefit from using ${chalk.bold(
+          'eas build:dev'
+        )} command. Run it to install and run cached development build, or create a new one if a compatible build doesn't exist yet.`
+      );
+    }
   }
 }
 
