@@ -4,6 +4,7 @@ import { pathExists } from 'fs-extra';
 
 import { getLatestBuildAsync, listAndSelectBuildOnAppAsync } from '../../build/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
 import {
   ExpoGraphqlClient,
   createGraphqlClient,
@@ -80,22 +81,26 @@ export default class Run extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.Vcs,
     ...this.ContextOptions.SessionManagment,
+    ...this.ContextOptions.DynamicProjectConfig,
   };
 
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Run);
     const flags = await this.sanitizeFlagsAsync(rawFlags);
     const queryOptions = getPaginatedQueryOptions(flags);
-    const { projectId, sessionManager } = await this.getContextAsync(Run, {
-      nonInteractive: false,
-    });
+    const { getDynamicPrivateProjectConfigAsync, sessionManager } = await this.getContextAsync(
+      Run,
+      {
+        nonInteractive: false,
+        withServerSideEnvironment: null,
+      }
+    );
 
     const simulatorBuildPath = await getPathToSimulatorBuildAppAsync(
       sessionManager,
-      projectId,
+      getDynamicPrivateProjectConfigAsync,
       flags,
       queryOptions
     );
@@ -195,11 +200,12 @@ function validateChosenBuild(
 async function getBuildFromEASAsync(
   sessionManager: SessionManager,
   flags: RunCommandFlags,
-  projectId: string,
+  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn,
   paginatedQueryOptions: PaginatedQueryOptions
 ): Promise<BuildFragment> {
   const simulator = flags.selectedPlatform === AppPlatform.Ios ? true : undefined;
   const graphqlClient = await ensureLogggedInAsync(sessionManager);
+  const { projectId } = await getDynamicPrivateProjectConfigAsync();
 
   if (flags.runArchiveFlags.id) {
     const build = await BuildQuery.byIdAsync(graphqlClient, flags.runArchiveFlags.id);
@@ -240,16 +246,22 @@ async function getBuildFromEASAsync(
 
 async function getPathToSimulatorBuildAppAsync(
   sessionManager: SessionManager,
-  projectId: string,
+  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn,
   flags: RunCommandFlags,
   queryOptions: PaginatedQueryOptions
 ): Promise<string> {
   const shouldUseBuildFromEAS = !flags.runArchiveFlags.path && !flags.runArchiveFlags.url;
   const maybeBuildFromEAS = shouldUseBuildFromEAS
-    ? await getBuildFromEASAsync(sessionManager, flags, projectId, queryOptions)
+    ? await getBuildFromEASAsync(
+        sessionManager,
+        flags,
+        getDynamicPrivateProjectConfigAsync,
+        queryOptions
+      )
     : null;
 
   if (maybeBuildFromEAS) {
+    const { projectId } = await getDynamicPrivateProjectConfigAsync();
     const cachedAppPath = getEasBuildRunCachedAppPath(
       projectId,
       maybeBuildFromEAS.id,
