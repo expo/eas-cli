@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [15.0.14](https://github.com/expo/eas-cli/releases/tag/v15.0.14) - 2025-03-06
+
+### 🐛 Bug fixes
+
 - In `EAS_NO_VCS=1`, use Git for repository root when `EAS_PROJECT_ROOT` is not set. ([#2901](https://github.com/expo/eas-cli/pull/2901) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🧹 Chores
