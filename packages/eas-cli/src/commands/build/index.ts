@@ -311,9 +311,9 @@ export default class Build extends EasCommand {
         return true;
       })
     ) {
-      Log.addNewLineIfNone();
+      Log.newLine();
       Log.log(
-        `🔎 You are using a build configuration that could benefit from using ${chalk.bold(
+        `🔎 TIP: You are using a build configuration that could benefit from using ${chalk.bold(
           'eas build:dev'
         )} command. Run it to install and run cached development build, or create a new one if a compatible build doesn't exist yet.`
       );

@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Suggest using `eas build:dev` for matching configurations. ([#2929](https://github.com/expo/eas-cli/pull/2929) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [15.0.13](https://github.com/expo/eas-cli/releases/tag/v15.0.13) - 2025-03-04
 
 ### 🐛 Bug fixes
