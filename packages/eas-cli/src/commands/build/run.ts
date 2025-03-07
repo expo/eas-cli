@@ -4,7 +4,11 @@ import { pathExists } from 'fs-extra';
 
 import { getLatestBuildAsync, listAndSelectBuildOnAppAsync } from '../../build/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
+import {
+  ExpoGraphqlClient,
+  createGraphqlClient,
+} from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   EasPaginatedQueryFlags,
   PaginatedQueryOptions,
@@ -18,6 +22,7 @@ import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { RunArchiveFlags, getEasBuildRunCachedAppPath, runAsync } from '../../run/run';
 import { isRunnableOnSimulatorOrEmulator } from '../../run/utils';
+import SessionManager from '../../user/SessionManager';
 import {
   downloadAndMaybeExtractAppAsync,
   extractAppFromLocalArchiveAsync,
@@ -76,25 +81,26 @@ export default class Run extends EasCommand {
   };
 
   static override contextDefinition = {
-    ...this.ContextOptions.LoggedIn,
-    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.Vcs,
+    ...this.ContextOptions.SessionManagment,
+    ...this.ContextOptions.DynamicProjectConfig,
   };
 
   async runAsync(): Promise<void> {
     const { flags: rawFlags } = await this.parse(Run);
     const flags = await this.sanitizeFlagsAsync(rawFlags);
     const queryOptions = getPaginatedQueryOptions(flags);
-    const {
-      loggedIn: { graphqlClient },
-      projectId,
-    } = await this.getContextAsync(Run, {
-      nonInteractive: false,
-    });
+    const { getDynamicPrivateProjectConfigAsync, sessionManager } = await this.getContextAsync(
+      Run,
+      {
+        nonInteractive: false,
+        withServerSideEnvironment: null,
+      }
+    );
 
     const simulatorBuildPath = await getPathToSimulatorBuildAppAsync(
-      graphqlClient,
-      projectId,
+      sessionManager,
+      getDynamicPrivateProjectConfigAsync,
       flags,
       queryOptions
     );
@@ -191,23 +197,32 @@ function validateChosenBuild(
   return maybeBuild;
 }
 
-async function maybeGetBuildAsync(
-  graphqlClient: ExpoGraphqlClient,
+async function getBuildFromEASAsync(
+  sessionManager: SessionManager,
   flags: RunCommandFlags,
-  projectId: string,
+  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn,
   paginatedQueryOptions: PaginatedQueryOptions
-): Promise<BuildFragment | null> {
+): Promise<BuildFragment> {
   const simulator = flags.selectedPlatform === AppPlatform.Ios ? true : undefined;
+  const graphqlClient = await ensureLogggedInAsync(sessionManager);
+  const { projectId } = await getDynamicPrivateProjectConfigAsync();
 
   if (flags.runArchiveFlags.id) {
     const build = await BuildQuery.byIdAsync(graphqlClient, flags.runArchiveFlags.id);
     return validateChosenBuild(build, flags.selectedPlatform);
-  } else if (
-    !flags.runArchiveFlags.id &&
-    !flags.runArchiveFlags.path &&
-    !flags.runArchiveFlags.url &&
-    !flags.runArchiveFlags.latest
-  ) {
+  } else if (flags.runArchiveFlags.latest) {
+    const latestBuild = await getLatestBuildAsync(graphqlClient, {
+      projectId,
+      filter: {
+        platform: flags.selectedPlatform,
+        status: BuildStatus.Finished,
+        buildProfile: flags.profile,
+        simulator,
+      },
+    });
+
+    return validateChosenBuild(latestBuild, flags.selectedPlatform);
+  } else {
     const build = await listAndSelectBuildOnAppAsync(graphqlClient, {
       projectId,
       title: `Select ${appPlatformDisplayNames[flags.selectedPlatform]} ${
@@ -226,35 +241,30 @@ async function maybeGetBuildAsync(
       } build.`,
     });
     return validateChosenBuild(build, flags.selectedPlatform);
-  } else if (flags.runArchiveFlags.latest) {
-    const latestBuild = await getLatestBuildAsync(graphqlClient, {
-      projectId,
-      filter: {
-        platform: flags.selectedPlatform,
-        status: BuildStatus.Finished,
-        buildProfile: flags.profile,
-        simulator,
-      },
-    });
-
-    return validateChosenBuild(latestBuild, flags.selectedPlatform);
-  } else {
-    return null;
   }
 }
 
 async function getPathToSimulatorBuildAppAsync(
-  graphqlClient: ExpoGraphqlClient,
-  projectId: string,
+  sessionManager: SessionManager,
+  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn,
   flags: RunCommandFlags,
   queryOptions: PaginatedQueryOptions
 ): Promise<string> {
-  const maybeBuild = await maybeGetBuildAsync(graphqlClient, flags, projectId, queryOptions);
+  const shouldUseBuildFromEAS = !flags.runArchiveFlags.path && !flags.runArchiveFlags.url;
+  const maybeBuildFromEAS = shouldUseBuildFromEAS
+    ? await getBuildFromEASAsync(
+        sessionManager,
+        flags,
+        getDynamicPrivateProjectConfigAsync,
+        queryOptions
+      )
+    : null;
 
-  if (maybeBuild) {
+  if (maybeBuildFromEAS) {
+    const { projectId } = await getDynamicPrivateProjectConfigAsync();
     const cachedAppPath = getEasBuildRunCachedAppPath(
       projectId,
-      maybeBuild.id,
+      maybeBuildFromEAS.id,
       flags.selectedPlatform
     );
 
@@ -264,12 +274,12 @@ async function getPathToSimulatorBuildAppAsync(
       return cachedAppPath;
     }
 
-    if (!maybeBuild.artifacts?.applicationArchiveUrl) {
+    if (!maybeBuildFromEAS.artifacts?.applicationArchiveUrl) {
       throw new Error('Build does not have an application archive url');
     }
 
     return await downloadAndMaybeExtractAppAsync(
-      maybeBuild.artifacts.applicationArchiveUrl,
+      maybeBuildFromEAS.artifacts.applicationArchiveUrl,
       flags.selectedPlatform,
       cachedAppPath
     );
@@ -289,4 +299,11 @@ async function getPathToSimulatorBuildAppAsync(
   // this should never fail, due to the validation in sanitizeFlagsAsync
   assert(flags.runArchiveFlags.path);
   return flags.runArchiveFlags.path;
+}
+
+async function ensureLogggedInAsync(sessionManager: SessionManager): Promise<ExpoGraphqlClient> {
+  const { authenticationInfo } = await sessionManager.ensureLoggedInAsync({
+    nonInteractive: false,
+  });
+  return createGraphqlClient(authenticationInfo);
 }
