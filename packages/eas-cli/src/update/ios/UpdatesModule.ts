@@ -43,7 +43,7 @@ export async function syncUpdatesConfigurationAsync({
     projectDir,
     exp,
     expoPlist,
-    expoUpdatesPackageVersion,
+    expoUpdatesPackageVersion
   );
   await writeExpoPlistAsync(vcsClient, projectDir, updatedExpoPlist);
 }
