@@ -10,7 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Pass through the updates version to setUpdatesConfigAsync
+- Pass through the updates version to `setUpdatesConfigAsync`, which expects it in order to determine which field values to use. ([#2934](https://github.com/expo/eas-cli/pull/2934) by [@brentvatne](https://github.com/brentvatne)).
 
 ### 🧹 Chores
 
