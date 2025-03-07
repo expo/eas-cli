@@ -3,7 +3,10 @@ import { AndroidConfig, AndroidManifest, XML } from '@expo/config-plugins';
 import { Env, Workflow } from '@expo/eas-build-job';
 
 import { RequestedPlatform } from '../../platform';
-import { getExpoUpdatesPackageVersionIfInstalledAsync, isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from '../../project/projectUtils';
+import {
+  getExpoUpdatesPackageVersionIfInstalledAsync,
+  isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync,
+} from '../../project/projectUtils';
 import { expoUpdatesCommandAsync } from '../../utils/expoUpdatesCli';
 import { ensureValidVersions } from '../utils';
 
