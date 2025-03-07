@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Pass through the updates version to setUpdatesConfigAsync
+
 ### 🧹 Chores
 
 ## [15.0.14](https://github.com/expo/eas-cli/releases/tag/v15.0.14) - 2025-03-06
