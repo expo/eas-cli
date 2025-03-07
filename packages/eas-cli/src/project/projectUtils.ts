@@ -88,7 +88,7 @@ export function isUsingEASUpdate(exp: ExpoConfig, projectId: string): boolean {
   return exp.updates?.url === getEASUpdateURL(projectId);
 }
 
-async function getExpoUpdatesPackageVersionIfInstalledAsync(
+export async function getExpoUpdatesPackageVersionIfInstalledAsync(
   projectDir: string
 ): Promise<string | null> {
   const maybePackageJson = resolveFrom.silent(projectDir, 'expo-updates/package.json');

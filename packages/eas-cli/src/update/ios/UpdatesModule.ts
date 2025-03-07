@@ -3,7 +3,10 @@ import { IOSConfig } from '@expo/config-plugins';
 import { Env, Workflow } from '@expo/eas-build-job';
 
 import { RequestedPlatform } from '../../platform';
-import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from '../../project/projectUtils';
+import {
+  getExpoUpdatesPackageVersionIfInstalledAsync,
+  isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync,
+} from '../../project/projectUtils';
 import { expoUpdatesCommandAsync } from '../../utils/expoUpdatesCli';
 import { readPlistAsync, writePlistAsync } from '../../utils/plist';
 import { Client } from '../../vcs/vcs';
@@ -33,12 +36,14 @@ export async function syncUpdatesConfigurationAsync({
     return;
   }
 
+  const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
   const expoPlist = await readExpoPlistAsync(projectDir);
   // TODO(wschurman): this dependency needs to be updated for fingerprint
   const updatedExpoPlist = await IOSConfig.Updates.setUpdatesConfigAsync(
     projectDir,
     exp,
-    expoPlist
+    expoPlist,
+    expoUpdatesPackageVersion
   );
   await writeExpoPlistAsync(vcsClient, projectDir, updatedExpoPlist);
 }

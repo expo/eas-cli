@@ -3,7 +3,10 @@ import { AndroidConfig, AndroidManifest, XML } from '@expo/config-plugins';
 import { Env, Workflow } from '@expo/eas-build-job';
 
 import { RequestedPlatform } from '../../platform';
-import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from '../../project/projectUtils';
+import {
+  getExpoUpdatesPackageVersionIfInstalledAsync,
+  isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync,
+} from '../../project/projectUtils';
 import { expoUpdatesCommandAsync } from '../../utils/expoUpdatesCli';
 import { ensureValidVersions } from '../utils';
 
@@ -32,13 +35,16 @@ export async function syncUpdatesConfigurationAsync({
     return;
   }
 
+  const expoUpdatesPackageVersion = await getExpoUpdatesPackageVersionIfInstalledAsync(projectDir);
+
   // sync AndroidManifest.xml
   const androidManifestPath = await AndroidConfig.Paths.getAndroidManifestAsync(projectDir);
   const androidManifest = await getAndroidManifestAsync(projectDir);
   const updatedAndroidManifest = await AndroidConfig.Updates.setUpdatesConfigAsync(
     projectDir,
     exp,
-    androidManifest
+    androidManifest,
+    expoUpdatesPackageVersion
   );
   await AndroidConfig.Manifest.writeAndroidManifestAsync(
     androidManifestPath,
