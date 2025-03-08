@@ -425,15 +425,29 @@ async function getFingerprintInfoFromLocalProjectAsync(
     );
   }
 
-  const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
-  const optionsFromWorkflow = getFingerprintOptionsFromWorkflow(
-    firstFingerprintPlatforms,
-    workflows
+  const fingerprint = await getFingerprintInfoFromLocalProjectForPlatformsAsync(
+    graphqlClient,
+    projectDir,
+    projectId,
+    vcsClient,
+    firstFingerprintPlatforms
   );
+  return { fingerprint, origin: { type: FingerprintOriginType.Project } };
+}
+
+export async function getFingerprintInfoFromLocalProjectForPlatformsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  projectDir: string,
+  projectId: string,
+  vcsClient: Client,
+  platforms: AppPlatform[]
+): Promise<Fingerprint> {
+  const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
+  const optionsFromWorkflow = getFingerprintOptionsFromWorkflow(platforms, workflows);
 
   const projectFingerprint = await createFingerprintAsync(projectDir, {
     ...optionsFromWorkflow,
-    platforms: firstFingerprintPlatforms.map(appPlatformToString),
+    platforms: platforms.map(appPlatformToString),
     debug: true,
     env: undefined,
   });
@@ -454,7 +468,7 @@ async function getFingerprintInfoFromLocalProjectAsync(
     source: uploadedFingerprint.fingerprintSource,
   });
 
-  return { fingerprint: projectFingerprint, origin: { type: FingerprintOriginType.Project } };
+  return projectFingerprint;
 }
 
 async function getFingerprintFromUpdateFragmentAsync(
@@ -832,7 +846,7 @@ function appPlatformToString(platform: AppPlatform): string {
   }
 }
 
-function stringToAppPlatform(platform: string): AppPlatform {
+export function stringToAppPlatform(platform: string): AppPlatform {
   switch (platform) {
     case 'android':
       return AppPlatform.Android;
