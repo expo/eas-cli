@@ -15,7 +15,8 @@ export async function getFingerprintInfoFromLocalProjectForPlatformsAsync(
   projectDir: string,
   projectId: string,
   vcsClient: Client,
-  platforms: AppPlatform[]
+  platforms: AppPlatform[],
+  { env }: { env?: Record<string, string> } = {}
 ): Promise<Fingerprint> {
   const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
   const optionsFromWorkflow = getFingerprintOptionsFromWorkflow(platforms, workflows);
@@ -24,7 +25,7 @@ export async function getFingerprintInfoFromLocalProjectForPlatformsAsync(
     ...optionsFromWorkflow,
     platforms: platforms.map(appPlatformToString),
     debug: true,
-    env: undefined,
+    env,
   });
   if (!projectFingerprint) {
     throw new Error('Project fingerprints can only be computed for projects with SDK 52 or higher');
@@ -45,6 +46,7 @@ export async function getFingerprintInfoFromLocalProjectForPlatformsAsync(
 
   return projectFingerprint;
 }
+
 function getFingerprintOptionsFromWorkflow(
   platforms: AppPlatform[],
   workflowsByPlatform: Record<Platform, Workflow>

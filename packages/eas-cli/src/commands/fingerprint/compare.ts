@@ -757,7 +757,7 @@ function isJSON(str: string): boolean {
   }
 }
 
-export async function selectBuildToCompareAsync(
+async function selectBuildToCompareAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
   projectDisplayName: string,

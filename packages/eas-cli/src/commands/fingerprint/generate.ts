@@ -1,6 +1,9 @@
+import { Env, Platform } from '@expo/eas-build-job';
+import { EasJsonAccessor } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 
 import { getExpoWebsiteBaseUrl } from '../../api';
+import { evaluateConfigWithEnvVarsAsync } from '../../build/evaluateConfigWithEnvVarsAsync';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
@@ -12,6 +15,7 @@ import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { link } from '../../log';
 import { promptAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { getProfilesAsync } from '../../utils/profiles';
 
 export default class FingerprintGenerate extends EasCommand {
   static override description = 'generate fingerprints from the current project';
@@ -19,14 +23,19 @@ export default class FingerprintGenerate extends EasCommand {
   static override hidden = true;
 
   static override examples = [
-    '$ eas fingerprint:generate',
-    '$ eas fingerprint:generate --json --non-interactive -p android',
+    '$ eas fingerprint:generate  \t # Generate fingerprint in interactive mode',
+    '$ eas fingerprint:generate --profile preview  \t # Generate a fingerprint using the "preview" build profile',
+    '$ eas fingerprint:generate --json --non-interactive --platform android  \t # Output fingerprint json to stdout',
   ];
 
   static override flags = {
     platform: Flags.enum({
       char: 'p',
       options: ['android', 'ios'],
+    }),
+    profile: Flags.string({
+      char: 'e',
+      description: 'Name of the build profile from eas.json.',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -36,17 +45,24 @@ export default class FingerprintGenerate extends EasCommand {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.Vcs,
+    ...this.ContextOptions.DynamicProjectConfig,
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(FingerprintGenerate);
-    const { json, 'non-interactive': nonInteractive, platform: platformStringFlag } = flags;
+    const {
+      json,
+      'non-interactive': nonInteractive,
+      platform: platformStringFlag,
+      profile: buildProfileName,
+    } = flags;
 
     const {
       projectId,
       privateProjectConfig: { projectDir },
       loggedIn: { graphqlClient },
       vcsClient,
+      getDynamicPrivateProjectConfigAsync,
     } = await this.getContextAsync(FingerprintGenerate, {
       nonInteractive,
       withServerSideEnvironment: null,
@@ -64,12 +80,39 @@ export default class FingerprintGenerate extends EasCommand {
       }
       platform = await selectRequestedPlatformAsync();
     }
+
+    let env: Env | undefined;
+    if (buildProfileName) {
+      const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+      const buildProfile = (
+        await getProfilesAsync({
+          type: 'build',
+          easJsonAccessor,
+          platforms: [appPlatformtoPlatform(platform)],
+          profileName: buildProfileName ?? undefined,
+          projectDir,
+        })
+      )[0];
+      if (!buildProfile) {
+        throw new Error(`Build profile ${buildProfile} not found for platform: ${platform}`);
+      }
+      const configResult = await evaluateConfigWithEnvVarsAsync({
+        buildProfile: buildProfile.profile,
+        buildProfileName: buildProfile.profileName,
+        graphqlClient,
+        getProjectConfig: getDynamicPrivateProjectConfigAsync,
+        opts: { env: buildProfile.profile.env },
+      });
+      env = configResult.env;
+    }
+
     const fingerprint = await getFingerprintInfoFromLocalProjectForPlatformsAsync(
       graphqlClient,
       projectDir,
       projectId,
       vcsClient,
-      [platform]
+      [platform],
+      { env }
     );
 
     if (json) {
@@ -89,7 +132,7 @@ export default class FingerprintGenerate extends EasCommand {
   }
 }
 
-export async function selectRequestedPlatformAsync(): Promise<AppPlatform> {
+async function selectRequestedPlatformAsync(): Promise<AppPlatform> {
   const { requestedPlatform } = await promptAsync({
     type: 'select',
     message: 'Select platform',
@@ -100,4 +143,14 @@ export async function selectRequestedPlatformAsync(): Promise<AppPlatform> {
     ],
   });
   return requestedPlatform;
+}
+
+function appPlatformtoPlatform(appPlatform: AppPlatform): Platform {
+  if (appPlatform === AppPlatform.Android) {
+    return Platform.ANDROID;
+  } else if (appPlatform === AppPlatform.Ios) {
+    return Platform.IOS;
+  } else {
+    throw new Error('Unsupported platform: ' + appPlatform);
+  }
 }
