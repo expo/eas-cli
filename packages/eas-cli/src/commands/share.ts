@@ -145,7 +145,7 @@ async function uploadAppArchiveAsync(
   const fileSize = (await fs.stat(path)).size;
   const bucketKey = await uploadFileAtPathToGCSAsync(
     graphqlClient,
-    UploadSessionType.EasSubmitGcsAppArchive,
+    UploadSessionType.EasShareGcsAppArchive,
     path,
     createProgressTracker({
       total: fileSize,
