@@ -1,42 +1,55 @@
-import { FingerprintSource } from '@expo/eas-build-job';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
-import { CreateFingeprintMutation, FingerprintFragment } from '../generated';
-import { FingerprintFragmentNode } from '../types/Fingerprint';
+import {
+  BuildFragment,
+  BuildMetadataInput,
+  ShareArchiveSourceInput,
+  ShareJobInput,
+  UploadLocalBuildMutation,
+} from '../generated';
+import { BuildFragmentNode } from '../types/Build';
 
 export const ShareBuildMutation = {
   async uploadLocalBuildAsync(
     graphqlClient: ExpoGraphqlClient,
     appId: string,
-    buildSource: {
-      bucketKey: string;
-    },
-    fingerprintData: { hash: string; source?: FingerprintSource }
-  ): Promise<FingerprintFragment> {
+    job: ShareJobInput,
+    artifactSource: ShareArchiveSourceInput,
+    metadata: BuildMetadataInput
+  ): Promise<BuildFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<CreateFingeprintMutation>(
+        .mutation<UploadLocalBuildMutation>(
           gql`
-            mutation CreateFingeprintMutation(
-              $fingerprintData: CreateFingerprintInput!
+            mutation uploadLocalBuildMutation(
               $appId: ID!
+              $jobInput: ShareJobInput!
+              $artifactSource: ShareArchiveSourceInput!
+              $metadata: BuildMetadataInput
             ) {
-              fingerprint {
-                createOrGetExistingFingerprint(fingerprintData: $fingerprintData, appId: $appId) {
-                  id
-                  ...FingerprintFragment
+              build {
+                createShareBuild(
+                  appId: $appId
+                  job: $jobInput
+                  artifactSource: $artifactSource
+                  metadata: $metadata
+                ) {
+                  build {
+                    id
+                    ...BuildFragment
+                  }
                 }
               }
             }
-            ${print(FingerprintFragmentNode)}
+            ${print(BuildFragmentNode)}
           `,
-          { appId, fingerprintData }
+          { appId, jobInput: job, artifactSource, metadata }
         )
         .toPromise()
     );
-    return data.fingerprint.createOrGetExistingFingerprint;
+    return data.build.createShareBuild.build;
   },
 };

@@ -4,11 +4,13 @@ import fg from 'fast-glob';
 import fs from 'fs-extra';
 import path from 'path';
 
+import { getBuildLogsUrl } from '../build/utils/url';
 import EasCommand from '../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EASNonInteractiveFlag } from '../commandUtils/flags';
-import { UploadSessionType } from '../graphql/generated';
+import { DistributionType, ShareArchiveSourceType, UploadSessionType } from '../graphql/generated';
 import { ShareBuildMutation } from '../graphql/mutations/ShareBuildMutation';
+import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { promptAsync } from '../prompts';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
@@ -52,18 +54,15 @@ export default class BuildUpload extends EasCommand {
     Log.log('Uploading your app archive to EAS Share');
     const bucketKey = await uploadAppArchiveAsync(graphqlClient, localBuildPath);
 
-    // @TODO: use Share build mutation
-    const { debugInfoUrl } = await ShareBuildMutation.uploadLocalBuildAsync(
+    const build = await ShareBuildMutation.uploadLocalBuildAsync(
       graphqlClient,
       projectId,
-      { bucketKey },
-      {
-        // @TODO: read the fingerprint from the local build
-        hash: '',
-      }
+      { platform: toAppPlatform(platform), simulator: platform === Platform.IOS },
+      { type: ShareArchiveSourceType.Gcs, bucketKey },
+      { distribution: DistributionType.Internal }
     );
 
-    Log.withTick(`Here is a sharable link of your build: ${debugInfoUrl}`);
+    Log.withTick(`Here is a sharable link of your build: ${getBuildLogsUrl(build)}`);
   }
 
   private async selectPlatformAsync(platform?: Platform): Promise<Platform> {
