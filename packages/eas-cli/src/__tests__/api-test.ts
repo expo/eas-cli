@@ -16,6 +16,7 @@ describe(ApiV2Client, () => {
             stack: 'line 1: hello',
             details: { who: 'world' },
             metadata: { an: 'object' },
+            requestId: 'request-id',
           },
         ],
       });
@@ -37,6 +38,7 @@ describe(ApiV2Client, () => {
     expect(error.expoApiV2ErrorDetails).toEqual({ who: 'world' });
     expect(error.expoApiV2ErrorMetadata).toEqual({ an: 'object' });
     expect(error.expoApiV2ErrorServerStack).toEqual('line 1: hello');
+    expect(error.expoApiV2ErrorRequestId).toEqual('request-id');
   });
 
   it('does not convert non-APIv2 error to ApiV2Error', async () => {
