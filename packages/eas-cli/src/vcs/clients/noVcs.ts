@@ -5,6 +5,8 @@ import Log from '../../log';
 import { Ignore, makeShallowCopyAsync } from '../local';
 import { Client } from '../vcs';
 
+let hasWarnedAboutEasProjectRoot = false;
+
 export default class NoVcsClient extends Client {
   private readonly cwdOverride?: string;
 
@@ -30,11 +32,14 @@ export default class NoVcsClient extends Client {
         })
       ).stdout.trim();
     } catch (err) {
-      Log.warn(`Failed to get Git root path with \`git rev-parse --show-toplevel\`.`, err);
-      Log.warn('Falling back to using current working directory as project root.');
-      Log.warn(
-        'You can set `EAS_PROJECT_ROOT` environment variable to let eas-cli know where your project is located.'
-      );
+      if (!hasWarnedAboutEasProjectRoot) {
+        Log.warn(`Failed to get Git root path with \`git rev-parse --show-toplevel\`.`, err);
+        Log.warn('Falling back to using current working directory as project root.');
+        Log.warn(
+          'You can set `EAS_PROJECT_ROOT` environment variable to let eas-cli know where your project is located.'
+        );
+        hasWarnedAboutEasProjectRoot = true;
+      }
     }
 
     return path.resolve(process.cwd(), process.env.EAS_PROJECT_ROOT ?? '.');
