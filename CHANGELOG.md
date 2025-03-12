@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Pass through the updates version to `setUpdatesConfigAsync`, which expects it in order to determine which field values to use. ([#2934](https://github.com/expo/eas-cli/pull/2934) by [@brentvatne](https://github.com/brentvatne)).
-
 ### 🧹 Chores
+
+## [15.0.15](https://github.com/expo/eas-cli/releases/tag/v15.0.15) - 2025-03-12
+
+### 🐛 Bug fixes
+
+- Pass through the updates version to `setUpdatesConfigAsync`, which expects it in order to determine which field values to use. ([#2934](https://github.com/expo/eas-cli/pull/2934) by [@brentvatne](https://github.com/brentvatne)).
 
 ## [15.0.14](https://github.com/expo/eas-cli/releases/tag/v15.0.14) - 2025-03-06
 
