@@ -145,13 +145,17 @@ export async function republishAsync({
             })
           ),
           rolloutInfoGroup: rolloutPercentage
-            ? await getUpdateRolloutInfoGroupAsync(graphqlClient, {
-                appId: app.projectId,
-                branchName: targetBranchName,
-                runtimeVersion,
-                rolloutPercentage,
-                platforms: updatesToPublish.map(update => update.platform as UpdatePublishPlatform),
-              })
+            ? (
+                await getUpdateRolloutInfoGroupAsync(graphqlClient, {
+                  appId: app.projectId,
+                  branchName: targetBranchName,
+                  runtimeVersion,
+                  rolloutPercentage,
+                  platforms: updatesToPublish.map(
+                    update => update.platform as UpdatePublishPlatform
+                  ),
+                })
+              ).updateRolloutInfoGroup
             : null,
         };
 

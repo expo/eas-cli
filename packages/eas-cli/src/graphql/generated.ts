@@ -118,6 +118,8 @@ export type Account = {
   billingPeriod: BillingPeriod;
   /** (EAS Build) Builds associated with this account */
   builds: Array<Build>;
+  /** Whether this account can enable SSO. */
+  canEnableSSO: Scalars['Boolean']['output'];
   createdAt: Scalars['DateTime']['output'];
   /** Environment secrets for an account */
   environmentSecrets: Array<EnvironmentSecret>;
@@ -144,7 +146,10 @@ export type Account = {
   name: Scalars['String']['output'];
   /** Offers set on this account */
   offers?: Maybe<Array<Offer>>;
-  /** Owning User of this account if personal account */
+  /**
+   * Owning User of this account if personal account
+   * @deprecated Deprecated in favor of ownerUserActor
+   */
   owner?: Maybe<User>;
   /** Owning UserActor of this account if personal account */
   ownerUserActor?: Maybe<UserActor>;
@@ -1220,6 +1225,7 @@ export type AndroidSubmissionConfig = {
 export type AndroidSubmissionConfigInput = {
   applicationIdentifier?: InputMaybe<Scalars['String']['input']>;
   archiveUrl?: InputMaybe<Scalars['String']['input']>;
+  changelog?: InputMaybe<Scalars['String']['input']>;
   changesNotSentForReview?: InputMaybe<Scalars['Boolean']['input']>;
   googleServiceAccountKeyId?: InputMaybe<Scalars['String']['input']>;
   googleServiceAccountKeyJson?: InputMaybe<Scalars['String']['input']>;
@@ -5309,6 +5315,7 @@ export type IosSubmissionConfigInput = {
   ascApiKey?: InputMaybe<AscApiKeyInput>;
   ascApiKeyId?: InputMaybe<Scalars['String']['input']>;
   ascAppIdentifier: Scalars['String']['input'];
+  changelog?: InputMaybe<Scalars['String']['input']>;
   groups?: InputMaybe<Array<Scalars['String']['input']>>;
   isVerboseFastlaneEnabled?: InputMaybe<Scalars['Boolean']['input']>;
 };
@@ -8729,6 +8736,7 @@ export enum WorkflowJobType {
   Deploy = 'DEPLOY',
   Fingerprint = 'FINGERPRINT',
   GetBuild = 'GET_BUILD',
+  MaestroCloud = 'MAESTRO_CLOUD',
   MaestroTest = 'MAESTRO_TEST',
   RequireApproval = 'REQUIRE_APPROVAL',
   Slack = 'SLACK',
@@ -8737,7 +8745,7 @@ export enum WorkflowJobType {
 }
 
 export type WorkflowProjectSourceInput = {
-  easJsonBucketKey: Scalars['String']['input'];
+  easJsonBucketKey?: InputMaybe<Scalars['String']['input']>;
   packageJsonBucketKey?: InputMaybe<Scalars['String']['input']>;
   projectArchiveBucketKey: Scalars['String']['input'];
   type: WorkflowProjectSourceType;
@@ -8812,6 +8820,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   activityTimestamp: Scalars['DateTime']['output'];
   actor?: Maybe<Actor>;
   createdAt: Scalars['DateTime']['output'];
+  durationSeconds?: Maybe<Scalars['Int']['output']>;
   errors: Array<WorkflowRunError>;
   gitCommitHash?: Maybe<Scalars['String']['output']>;
   gitCommitMessage?: Maybe<Scalars['String']['output']>;
@@ -9763,7 +9772,7 @@ export type ViewLatestUpdateOnBranchQueryVariables = Exact<{
 }>;
 
 
-export type ViewLatestUpdateOnBranchQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranchByName?: { __typename?: 'UpdateBranch', id: string, updates: Array<{ __typename?: 'Update', id: string }> } | null } } };
+export type ViewLatestUpdateOnBranchQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranchByName?: { __typename?: 'UpdateBranch', id: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }> } | null } } };
 
 export type BranchesByAppQueryVariables = Exact<{
   appId: Scalars['String']['input'];

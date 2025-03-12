@@ -1068,19 +1068,34 @@ export async function getRuntimeToUpdateRolloutInfoGroupMappingAsync(
       platforms: UpdatePublishPlatform[];
     })[];
   }
-): Promise<Map<string, UpdateRolloutInfoGroup>> {
+): Promise<{
+  runtimeToUpdateRolloutInfoGroupMapping: Map<string, UpdateRolloutInfoGroup>;
+  didAnyRolloutControlUpdatesUseCodeSigning: boolean;
+}> {
   const runtimeToPlatformsMap = new Map(
     runtimeToPlatformsAndFingerprintInfoMapping.map(r => [r.runtimeVersion, r.platforms])
   );
-  return await mapMapAsync(runtimeToPlatformsMap, async (platforms, runtimeVersion) => {
-    return await getUpdateRolloutInfoGroupAsync(graphqlClient, {
-      appId,
-      branchName,
-      rolloutPercentage,
-      runtimeVersion,
-      platforms,
-    });
-  });
+  let didAnyRolloutControlUpdatesUseCodeSigningOuter = false;
+  const runtimeToUpdateRolloutInfoGroupMapping = await mapMapAsync(
+    runtimeToPlatformsMap,
+    async (platforms, runtimeVersion) => {
+      const { updateRolloutInfoGroup, didAnyRolloutControlUpdatesUseCodeSigning } =
+        await getUpdateRolloutInfoGroupAsync(graphqlClient, {
+          appId,
+          branchName,
+          rolloutPercentage,
+          runtimeVersion,
+          platforms,
+        });
+      didAnyRolloutControlUpdatesUseCodeSigningOuter =
+        didAnyRolloutControlUpdatesUseCodeSigningOuter || didAnyRolloutControlUpdatesUseCodeSigning;
+      return updateRolloutInfoGroup;
+    }
+  );
+  return {
+    runtimeToUpdateRolloutInfoGroupMapping,
+    didAnyRolloutControlUpdatesUseCodeSigning: didAnyRolloutControlUpdatesUseCodeSigningOuter,
+  };
 }
 
 export async function getUpdateRolloutInfoGroupAsync(
@@ -1098,27 +1113,32 @@ export async function getUpdateRolloutInfoGroupAsync(
     runtimeVersion: string;
     platforms: UpdatePublishPlatform[];
   }
-): Promise<UpdateRolloutInfoGroup> {
-  return Object.fromEntries(
+): Promise<{
+  updateRolloutInfoGroup: UpdateRolloutInfoGroup;
+  didAnyRolloutControlUpdatesUseCodeSigning: boolean;
+}> {
+  let didAnyRolloutControlUpdatesUseCodeSigning = false;
+  const updateRolloutInfoGroup = Object.fromEntries(
     await Promise.all(
       platforms.map<Promise<[string, UpdateRolloutInfo]>>(async platform => {
-        const updateIdForPlatform = await BranchQuery.getLatestUpdateIdOnBranchAsync(
-          graphqlClient,
-          {
-            appId,
-            branchName,
-            runtimeVersion,
-            platform: updatePublishPlatformToAppPlatform[platform],
-          }
-        );
-        if (!updateIdForPlatform) {
+        const updateForPlatform = await BranchQuery.getLatestUpdateOnBranchAsync(graphqlClient, {
+          appId,
+          branchName,
+          runtimeVersion,
+          platform: updatePublishPlatformToAppPlatform[platform],
+        });
+        if (!updateForPlatform) {
           throw new Error(
             `No updates on branch ${branchName} for platform ${platform} and runtimeVersion ${runtimeVersion} to roll out from.`
           );
         }
 
-        return [platform, { rolloutPercentage, rolloutControlUpdateId: updateIdForPlatform }];
+        didAnyRolloutControlUpdatesUseCodeSigning =
+          didAnyRolloutControlUpdatesUseCodeSigning || !!updateForPlatform.codeSigningInfo;
+
+        return [platform, { rolloutPercentage, rolloutControlUpdateId: updateForPlatform.id }];
       })
     )
   );
+  return { updateRolloutInfoGroup, didAnyRolloutControlUpdatesUseCodeSigning };
 }

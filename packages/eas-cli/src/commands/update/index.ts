@@ -449,7 +449,7 @@ export default class UpdatePublish extends EasCommand {
         env: undefined,
       });
 
-    const runtimeVersionToRolloutInfoGroup =
+    const runtimeToUpdateRolloutInfoGroupMappingResult =
       rolloutPercentage !== undefined
         ? await getRuntimeToUpdateRolloutInfoGroupMappingAsync(graphqlClient, {
             appId: projectId,
@@ -458,6 +458,15 @@ export default class UpdatePublish extends EasCommand {
             runtimeToPlatformsAndFingerprintInfoMapping,
           })
         : undefined;
+    const runtimeVersionToRolloutInfoGroup =
+      runtimeToUpdateRolloutInfoGroupMappingResult?.runtimeToUpdateRolloutInfoGroupMapping;
+
+    if (
+      runtimeToUpdateRolloutInfoGroupMappingResult?.didAnyRolloutControlUpdatesUseCodeSigning &&
+      !codeSigningInfo
+    ) {
+      throw new Error('Must code sign new rollout update since control update is also signed');
+    }
 
     const gitCommitHash = await vcsClient.getCommitHashAsync();
     const isGitWorkingTreeDirty = await vcsClient.hasUncommittedChangesAsync();
