@@ -242,7 +242,7 @@ describe('git', () => {
     ).resolves.not.toThrow();
   });
 
-  it('does not allow .easignore if requireCommit is true', async () => {
+  it('adheres to .easignore if requireCommit is true', async () => {
     const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
     await spawnAsync('git', ['init'], { cwd: repoRoot });
     const vcs = new GitClient({
@@ -251,10 +251,18 @@ describe('git', () => {
     });
 
     await fs.writeFile(`${repoRoot}/.easignore`, '*easignored*\n');
+    await fs.writeFile(`${repoRoot}/.gitignore`, '*gitignored*\n');
 
+    await fs.writeFile(`${repoRoot}/easignored-file.txt`, 'file');
+    await fs.writeFile(`${repoRoot}/nonignored-file.txt`, 'file');
+    await fs.writeFile(`${repoRoot}/gitignored-file.txt`, 'file');
     await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
     await spawnAsync('git', ['commit', '-m', 'tmp commit'], { cwd: repoRoot });
 
-    await expect(vcs.makeShallowCopyAsync(repoRoot)).rejects.toThrow('Detected ".easignore" file');
+    const copyRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await expect(vcs.makeShallowCopyAsync(copyRoot)).resolves.not.toThrow();
+    await expect(fs.stat(path.join(copyRoot, 'easignored-file.txt'))).rejects.toThrow('ENOENT');
+    await expect(fs.stat(path.join(copyRoot, 'gitignored-file.txt'))).rejects.toThrow('ENOENT');
+    await expect(fs.stat(path.join(copyRoot, 'nonignored-file.txt'))).resolves.not.toThrow();
   });
 });
