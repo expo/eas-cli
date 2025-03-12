@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Added support to read platform version from `app.json`. ([#2778](https://github.com/expo/eas-cli/pull/2778) by [@kudo](https://github.com/kudo))
+
 ### 🐛 Bug fixes
 
 - Use correct logic to determine whether artifacts have expired in `eas build:run` command. ([#2931](https://github.com/expo/eas-cli/pull/2931) by [@szdziedzic](https://github.com/szdziedzic))
