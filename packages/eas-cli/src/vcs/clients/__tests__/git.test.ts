@@ -3,7 +3,9 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
+import Log from '../../../log';
 import GitClient from '../git';
+// import getenv from 'getenv';
 
 describe('git', () => {
   describe('GitClient that does not require a commit', () => {
@@ -242,27 +244,91 @@ describe('git', () => {
     ).resolves.not.toThrow();
   });
 
-  it('adheres to .easignore if requireCommit is true', async () => {
-    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
-    await spawnAsync('git', ['init'], { cwd: repoRoot });
-    const vcs = new GitClient({
-      requireCommit: true,
-      maybeCwdOverride: repoRoot,
+  describe('when requireCommit is true', () => {
+    it('adheres to .easignore', async () => {
+      const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      const vcs = new GitClient({
+        requireCommit: true,
+        maybeCwdOverride: repoRoot,
+      });
+
+      const warn = jest.spyOn(Log, 'warn');
+
+      await fs.writeFile(`${repoRoot}/.easignore`, '*easignored*\n');
+      await fs.writeFile(`${repoRoot}/.gitignore`, '*gitignored*\n');
+
+      await fs.writeFile(`${repoRoot}/easignored-file.txt`, 'file');
+      await fs.writeFile(`${repoRoot}/nonignored-file.txt`, 'file');
+      await fs.writeFile(`${repoRoot}/gitignored-file.txt`, 'file');
+      await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+      await spawnAsync('git', ['commit', '-m', 'tmp commit'], { cwd: repoRoot });
+
+      const copyRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(copyRoot)).resolves.not.toThrow();
+
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('.easignore'));
+
+      await expect(fs.stat(path.join(copyRoot, 'easignored-file.txt'))).rejects.toThrow('ENOENT');
+      await expect(fs.stat(path.join(copyRoot, 'gitignored-file.txt'))).rejects.toThrow('ENOENT');
+      await expect(fs.stat(path.join(copyRoot, 'nonignored-file.txt'))).resolves.not.toThrow();
     });
 
-    await fs.writeFile(`${repoRoot}/.easignore`, '*easignored*\n');
-    await fs.writeFile(`${repoRoot}/.gitignore`, '*gitignored*\n');
+    it('prints a warning only once if .easignore exists', async () => {
+      const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      const vcs = new GitClient({
+        requireCommit: true,
+        maybeCwdOverride: repoRoot,
+      });
 
-    await fs.writeFile(`${repoRoot}/easignored-file.txt`, 'file');
-    await fs.writeFile(`${repoRoot}/nonignored-file.txt`, 'file');
-    await fs.writeFile(`${repoRoot}/gitignored-file.txt`, 'file');
-    await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
-    await spawnAsync('git', ['commit', '-m', 'tmp commit'], { cwd: repoRoot });
+      const warn = jest.spyOn(Log, 'warn');
 
-    const copyRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
-    await expect(vcs.makeShallowCopyAsync(copyRoot)).resolves.not.toThrow();
-    await expect(fs.stat(path.join(copyRoot, 'easignored-file.txt'))).rejects.toThrow('ENOENT');
-    await expect(fs.stat(path.join(copyRoot, 'gitignored-file.txt'))).rejects.toThrow('ENOENT');
-    await expect(fs.stat(path.join(copyRoot, 'nonignored-file.txt'))).resolves.not.toThrow();
+      await fs.writeFile(`${repoRoot}/.easignore`, '*easignored*\n');
+      await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+      await spawnAsync('git', ['commit', '-m', 'tmp commit'], { cwd: repoRoot });
+
+      const copyRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(copyRoot)).resolves.not.toThrow();
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('.easignore'));
+
+      const anotherCopyRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(anotherCopyRoot)).resolves.not.toThrow();
+
+      expect(warn).toHaveBeenCalledTimes(1);
+    });
+
+    describe('when EAS_SUPPRESS_REQUIRE_COMMIT_EASIGNORE_WARNING is set', () => {
+      beforeAll(() => {
+        process.env.EAS_SUPPRESS_REQUIRE_COMMIT_EASIGNORE_WARNING = '1';
+      });
+
+      afterAll(() => {
+        delete process.env.EAS_SUPPRESS_REQUIRE_COMMIT_EASIGNORE_WARNING;
+      });
+
+      it('does not print a warning', async () => {
+        const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+        await spawnAsync('git', ['init'], { cwd: repoRoot });
+        const vcs = new GitClient({
+          requireCommit: true,
+          maybeCwdOverride: repoRoot,
+        });
+
+        const warn = jest.spyOn(Log, 'warn');
+        warn.mockClear();
+
+        await fs.writeFile(`${repoRoot}/.easignore`, '*easignored*\n');
+        await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+        await spawnAsync('git', ['commit', '-m', 'tmp commit'], { cwd: repoRoot });
+
+        const copyRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+        await expect(vcs.makeShallowCopyAsync(copyRoot)).resolves.not.toThrow();
+
+        expect(warn).toHaveBeenCalledTimes(0);
+      });
+    });
   });
 });
