@@ -6,6 +6,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Add support for `.easignore` when `requireCommit` is set to `true`.
+  - Up to 15.0.0, if `requireCommit` was `true`, `.easignore` was silently ignored.
+  - Versions 15.0.0-15.0.13 started using `.easignore` to skip files from being bundled into a tarball when `requireCommit` was `true`. This was an unexpected change in behavior.
+  - To clear this up, versions 15.0.13-15.0.15 were erroring if `.easignore` was present when `requireCommit` was `true`.
+  - `eas-cli@16.0.0` formalizes the 15.0.0-15.0.13 behavior by adhering to `.easignore` even when `requireCommit` is set to `true`.
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes

@@ -3,6 +3,7 @@ import spawnAsync from '@expo/spawn-async';
 import { Errors } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'fs-extra';
+import { boolish } from 'getenv';
 import path from 'path';
 
 import Log, { learnMore } from '../../log';
@@ -165,17 +166,10 @@ export default class GitClient extends Client {
     const rootPath = await this.getRootPathAsync();
     const sourceEasignorePath = path.join(rootPath, EASIGNORE_FILENAME);
     const doesEasignoreExist = await fs.exists(sourceEasignorePath);
-    if (this.requireCommit && doesEasignoreExist) {
-      Log.error(
-        `".easignore" file is not supported if you also have "requireCommit" set to "true" in "eas.json".`
-      );
-      Log.error(
-        `Remove "${sourceEasignorePath}" and use ".gitignore" instead. ${learnMore(
-          'https://expo.fyi/eas-build-archive'
-        )}`
-      );
-      throw new Error(
-        `Detected ".easignore" file ${sourceEasignorePath} while in "requireCommit = true" mode.`
+    const shouldSuppressWarning = boolish('EAS_SUPPRESS_REQUIRE_COMMIT_EASIGNORE_WARNING', false);
+    if (this.requireCommit && doesEasignoreExist && !shouldSuppressWarning) {
+      Log.warn(
+        `You have "requireCommit: true" in "eas.json" and also ".easignore". If ".easignore" does remove files, note that the repository checked out in EAS will not longer be Git-clean.`
       );
     }
 
