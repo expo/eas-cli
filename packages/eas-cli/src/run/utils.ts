@@ -5,7 +5,7 @@ function isAab(build: BuildFragment): boolean {
 }
 
 function didArtifactsExpire(build: BuildFragment): boolean {
-  return new Date().getTime() - new Date(build.completedAt).getTime() > 30 * 24 * 60 * 60 * 1000; // 30 days
+  return new Date().getTime() > new Date(build.expirationDate).getTime();
 }
 
 export function isRunnableOnSimulatorOrEmulator(build: BuildFragment): boolean {
