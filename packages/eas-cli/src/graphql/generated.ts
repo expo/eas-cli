@@ -147,10 +147,12 @@ export type Account = {
   owner?: Maybe<User>;
   /** Owning UserActor of this account if personal account */
   ownerUserActor?: Maybe<UserActor>;
+  pendingSentryInstallation?: Maybe<PendingSentryInstallation>;
   profileImageUrl: Scalars['String']['output'];
   pushSecurityEnabled: Scalars['Boolean']['output'];
   /** @deprecated Legacy access tokens are deprecated */
   requiresAccessTokenForPushSecurity: Scalars['Boolean']['output'];
+  sentryInstallation?: Maybe<SentryInstallation>;
   /** Snacks associated with this account */
   snacks: Array<Snack>;
   /** SSO configuration for this account */
@@ -1053,9 +1055,12 @@ export type AndroidFcmInput = {
 
 export type AndroidFcmMutation = {
   __typename?: 'AndroidFcmMutation';
-  /** Create an FCM credential */
+  /**
+   * Create an FCM V0/Legacy credential
+   * @deprecated FCM Legacy credentials are no longer supported by Google. Use createFcmV1Credential instead.
+   */
   createAndroidFcm: AndroidFcm;
-  /** Delete an FCM credential */
+  /** Delete an FCM V0/Legacy credential */
   deleteAndroidFcm: DeleteAndroidFcmResult;
 };
 
@@ -1342,6 +1347,7 @@ export type App = Project & {
    * @deprecated Classic updates have been deprecated.
    */
   sdkVersion: Scalars['String']['output'];
+  sentryProject?: Maybe<SentryProject>;
   slug: Scalars['String']['output'];
   /** EAS Submissions associated with this app */
   submissions: Array<Submission>;
@@ -1525,6 +1531,7 @@ export type AppLikedByArgs = {
 export type AppRuntimesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<RuntimeFilterInput>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -2749,6 +2756,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   /** @deprecated Use 'updateChannel' field instead. */
   channel?: Maybe<Scalars['String']['output']>;
   childBuild?: Maybe<Build>;
+  cliVersion?: Maybe<Scalars['String']['output']>;
   completedAt?: Maybe<Scalars['DateTime']['output']>;
   createdAt: Scalars['DateTime']['output'];
   customNodeVersion?: Maybe<Scalars['String']['output']>;
@@ -2764,6 +2772,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   gitCommitHash?: Maybe<Scalars['String']['output']>;
   gitCommitMessage?: Maybe<Scalars['String']['output']>;
   gitRef?: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use 'githubRepository' field instead */
   githubRepositoryOwnerAndName?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   /** Queue position is 1-indexed */
@@ -3020,6 +3029,7 @@ export type BuildMetrics = {
 export enum BuildMode {
   Build = 'BUILD',
   Custom = 'CUSTOM',
+  Local = 'LOCAL',
   Repack = 'REPACK',
   Resign = 'RESIGN'
 }
@@ -3037,6 +3047,8 @@ export type BuildMutation = {
   createAndroidBuild: CreateBuildResult;
   /** Create an iOS build */
   createIosBuild: CreateBuildResult;
+  /** Create an local build */
+  createShareBuild: CreateBuildResult;
   /** Delete an EAS Build build */
   deleteBuild: Build;
   /** Retry an Android EAS Build */
@@ -3070,6 +3082,14 @@ export type BuildMutationCreateIosBuildArgs = {
   appId: Scalars['ID']['input'];
   buildParams?: InputMaybe<BuildParamsInput>;
   job: IosJobInput;
+  metadata?: InputMaybe<BuildMetadataInput>;
+};
+
+
+export type BuildMutationCreateShareBuildArgs = {
+  appId: Scalars['ID']['input'];
+  artifactSource: ShareArchiveSourceInput;
+  job: ShareJobInput;
   metadata?: InputMaybe<BuildMetadataInput>;
 };
 
@@ -3472,6 +3492,12 @@ export type CreateIosSubmissionInput = {
   submittedBuildId?: InputMaybe<Scalars['ID']['input']>;
 };
 
+export type CreateSentryProjectInput = {
+  appId: Scalars['ID']['input'];
+  sentryProjectId: Scalars['String']['input'];
+  sentryProjectSlug: Scalars['String']['input'];
+};
+
 export type CreateSharedEnvironmentVariableInput = {
   environments?: InputMaybe<Array<EnvironmentVariableEnvironment>>;
   fileName?: InputMaybe<Scalars['String']['input']>;
@@ -3688,6 +3714,11 @@ export type DeleteRobotResult = {
 
 export type DeleteSsoUserResult = {
   __typename?: 'DeleteSSOUserResult';
+  id: Scalars['ID']['output'];
+};
+
+export type DeleteSentryProjectResult = {
+  __typename?: 'DeleteSentryProjectResult';
   id: Scalars['ID']['output'];
 };
 
@@ -4001,6 +4032,8 @@ export enum EntityTypeName {
   CustomerEntity = 'CustomerEntity',
   GoogleServiceAccountKeyEntity = 'GoogleServiceAccountKeyEntity',
   IosAppCredentialsEntity = 'IosAppCredentialsEntity',
+  LogRocketOrganizationEntity = 'LogRocketOrganizationEntity',
+  LogRocketProjectEntity = 'LogRocketProjectEntity',
   UserInvitationEntity = 'UserInvitationEntity',
   UserPermissionEntity = 'UserPermissionEntity',
   WorkerCustomDomainEntity = 'WorkerCustomDomainEntity',
@@ -4386,6 +4419,13 @@ export type GenerateLogRocketReplayTokenResult = {
   __typename?: 'GenerateLogRocketReplayTokenResult';
   orgSlug: Scalars['String']['output'];
   replayToken: Scalars['String']['output'];
+};
+
+export type GenerateSentryTokenResult = {
+  __typename?: 'GenerateSentryTokenResult';
+  installationId: Scalars['ID']['output'];
+  orgSlug: Scalars['String']['output'];
+  token: Scalars['String']['output'];
 };
 
 export type GetSignedAssetUploadSpecificationsResult = {
@@ -5287,6 +5327,13 @@ export type LinkLogRocketOrganizationToExpoAccountInput = {
   state: Scalars['String']['input'];
 };
 
+export type LinkSentryInstallationToExpoAccountInput = {
+  accountId: Scalars['ID']['input'];
+  code: Scalars['String']['input'];
+  installationId: Scalars['ID']['input'];
+  sentryOrgSlug: Scalars['String']['input'];
+};
+
 export type LinkSharedEnvironmentVariableInput = {
   appId: Scalars['ID']['input'];
   environment?: InputMaybe<EnvironmentVariableEnvironment>;
@@ -5695,6 +5742,15 @@ export type PaymentDetails = {
   id: Scalars['ID']['output'];
 };
 
+export type PendingSentryInstallation = {
+  __typename?: 'PendingSentryInstallation';
+  account: Account;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  installationId: Scalars['String']['output'];
+  orgSlug: Scalars['String']['output'];
+};
+
 export enum Permission {
   Admin = 'ADMIN',
   Own = 'OWN',
@@ -5797,6 +5853,7 @@ export type RequestsFilters = {
   method?: InputMaybe<Array<RequestMethod>>;
   os?: InputMaybe<Array<UserAgentOs>>;
   pathname?: InputMaybe<Scalars['String']['input']>;
+  platform?: InputMaybe<Array<UserAgentPlatform>>;
   requestId?: InputMaybe<Array<Scalars['WorkerDeploymentRequestID']['input']>>;
   responseType?: InputMaybe<Array<ResponseType>>;
   status?: InputMaybe<Array<Scalars['Int']['input']>>;
@@ -5945,7 +6002,7 @@ export type RootMutation = {
   androidAppBuildCredentials: AndroidAppBuildCredentialsMutation;
   /** Mutations that modify the credentials for an Android app */
   androidAppCredentials: AndroidAppCredentialsMutation;
-  /** Mutations that modify an FCM credential */
+  /** Mutations that modify an FCM V0/Legacy credential */
   androidFcm: AndroidFcmMutation;
   /** Mutations that modify a Keystore */
   androidKeystore: AndroidKeystoreMutation;
@@ -6021,6 +6078,10 @@ export type RootMutation = {
   notificationSubscription: NotificationSubscriptionMutation;
   /** Mutations that create, update, and delete Robots */
   robot: RobotMutation;
+  /** Mutations for Sentry installations */
+  sentryInstallation: SentryInstallationMutation;
+  /** Mutations for Sentry projects */
+  sentryProject: SentryProjectMutation;
   /** Mutations that modify an EAS Submit submission */
   submission: SubmissionMutation;
   update: UpdateMutation;
@@ -6211,6 +6272,7 @@ export type Runtime = {
   fingerprint?: Maybe<Fingerprint>;
   firstBuildCreatedAt?: Maybe<Scalars['DateTime']['output']>;
   id: Scalars['ID']['output'];
+  isFingerprint: Scalars['Boolean']['output'];
   updatedAt: Scalars['DateTime']['output'];
   updates: AppUpdatesConnection;
   version: Scalars['String']['output'];
@@ -6264,6 +6326,7 @@ export type RuntimeEdge = {
 export type RuntimeFilterInput = {
   /** Only return runtimes shared with this branch */
   branchId?: InputMaybe<Scalars['String']['input']>;
+  runtimeVersions?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 export type RuntimeQuery = {
@@ -6421,6 +6484,86 @@ export enum SecondFactorMethod {
 export type SecondFactorRegenerateBackupCodesResult = {
   __typename?: 'SecondFactorRegenerateBackupCodesResult';
   plaintextBackupCodes: Array<Scalars['String']['output']>;
+};
+
+export type SentryInstallation = {
+  __typename?: 'SentryInstallation';
+  account: Account;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  installationId: Scalars['String']['output'];
+  orgSlug: Scalars['String']['output'];
+};
+
+export type SentryInstallationMutation = {
+  __typename?: 'SentryInstallationMutation';
+  /** Confirm a pending Sentry installation */
+  confirmPendingSentryInstallation: SentryInstallation;
+  /** Generate a Sentry token for an installation */
+  generateSentryToken: GenerateSentryTokenResult;
+  /** Link a Sentry installation to an Expo account */
+  linkSentryInstallationToExpoAccount: PendingSentryInstallation;
+};
+
+
+export type SentryInstallationMutationConfirmPendingSentryInstallationArgs = {
+  installationId: Scalars['ID']['input'];
+};
+
+
+export type SentryInstallationMutationGenerateSentryTokenArgs = {
+  accountId: Scalars['ID']['input'];
+};
+
+
+export type SentryInstallationMutationLinkSentryInstallationToExpoAccountArgs = {
+  input: LinkSentryInstallationToExpoAccountInput;
+};
+
+export type SentryProject = {
+  __typename?: 'SentryProject';
+  app: App;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  sentryInstallationId: Scalars['ID']['output'];
+  sentryProjectId: Scalars['String']['output'];
+  sentryProjectSlug: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type SentryProjectMutation = {
+  __typename?: 'SentryProjectMutation';
+  /** Create a Sentry project */
+  createSentryProject: SentryProject;
+  /** Delete a Sentry project by ID */
+  deleteSentryProject: DeleteSentryProjectResult;
+};
+
+
+export type SentryProjectMutationCreateSentryProjectArgs = {
+  input: CreateSentryProjectInput;
+};
+
+
+export type SentryProjectMutationDeleteSentryProjectArgs = {
+  sentryProjectId: Scalars['ID']['input'];
+};
+
+export type ShareArchiveSourceInput = {
+  bucketKey?: InputMaybe<Scalars['String']['input']>;
+  type?: InputMaybe<ShareArchiveSourceType>;
+};
+
+export enum ShareArchiveSourceType {
+  Gcs = 'GCS'
+}
+
+export type ShareJobInput = {
+  developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
+  experimental?: InputMaybe<Scalars['JSONObject']['input']>;
+  platform: AppPlatform;
+  simulator?: InputMaybe<Scalars['Boolean']['input']>;
+  triggeredBy?: InputMaybe<BuildTrigger>;
 };
 
 export type Snack = Project & {
@@ -7162,6 +7305,7 @@ export enum UploadSessionType {
   EasBuildGcsProjectSources = 'EAS_BUILD_GCS_PROJECT_SOURCES',
   /** @deprecated Use EAS_BUILD_GCS_PROJECT_SOURCES instead. */
   EasBuildProjectSources = 'EAS_BUILD_PROJECT_SOURCES',
+  EasShareGcsAppArchive = 'EAS_SHARE_GCS_APP_ARCHIVE',
   /** @deprecated Use EAS_SUBMIT_GCS_APP_ARCHIVE instead. */
   EasSubmitAppArchive = 'EAS_SUBMIT_APP_ARCHIVE',
   EasSubmitGcsAppArchive = 'EAS_SUBMIT_GCS_APP_ARCHIVE',
@@ -7490,6 +7634,13 @@ export enum UserAgentOs {
   Linux = 'LINUX',
   MacOs = 'MAC_OS',
   Windows = 'WINDOWS'
+}
+
+export enum UserAgentPlatform {
+  Android = 'ANDROID',
+  Apple = 'APPLE',
+  Unknown = 'UNKNOWN',
+  Web = 'WEB'
 }
 
 export type UserAppPinMutation = {
@@ -8108,6 +8259,7 @@ export type WorkerDeploymentRequestNode = {
   method: Scalars['String']['output'];
   os?: Maybe<UserAgentOs>;
   pathname: Scalars['String']['output'];
+  platform: UserAgentPlatform;
   region?: Maybe<Scalars['String']['output']>;
   requestId: Scalars['WorkerDeploymentRequestID']['output'];
   requestTimestamp: Scalars['DateTime']['output'];
@@ -8126,6 +8278,8 @@ export type WorkerDeploymentRequests = {
   byCountry: Array<WorkerDeploymentRequestsCountryEdge>;
   byMethod: Array<WorkerDeploymentRequestsMethodEdge>;
   byOS: Array<WorkerDeploymentRequestsOperatingSystemEdge>;
+  byPathname: Array<WorkerDeploymentRequestsPathnameEdge>;
+  byPlatform: Array<WorkerDeploymentRequestsPlatformEdge>;
   byResponseType: Array<WorkerDeploymentRequestsResponseTypeEdge>;
   byStatusType: Array<WorkerDeploymentRequestsStatusTypeEdge>;
   interval: Scalars['Int']['output'];
@@ -8167,6 +8321,18 @@ export type WorkerDeploymentRequestsByMethodArgs = {
 
 
 export type WorkerDeploymentRequestsByOsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<RequestsOrderBy>;
+};
+
+
+export type WorkerDeploymentRequestsByPathnameArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<RequestsOrderBy>;
+};
+
+
+export type WorkerDeploymentRequestsByPlatformArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<RequestsOrderBy>;
 };
@@ -8262,6 +8428,18 @@ export type WorkerDeploymentRequestsOperatingSystemEdge = {
   os?: Maybe<UserAgentOs>;
 };
 
+export type WorkerDeploymentRequestsPathnameEdge = {
+  __typename?: 'WorkerDeploymentRequestsPathnameEdge';
+  node: WorkerDeploymentRequestsAggregationNode;
+  pathname: Scalars['String']['output'];
+};
+
+export type WorkerDeploymentRequestsPlatformEdge = {
+  __typename?: 'WorkerDeploymentRequestsPlatformEdge';
+  node: WorkerDeploymentRequestsAggregationNode;
+  platform: UserAgentPlatform;
+};
+
 export type WorkerDeploymentRequestsResponseTypeEdge = {
   __typename?: 'WorkerDeploymentRequestsResponseTypeEdge';
   node: WorkerDeploymentRequestsAggregationNode;
@@ -8282,6 +8460,8 @@ export type WorkerDeploymentRequestsTimeseriesEdge = {
   byCountry: Array<WorkerDeploymentRequestsCountryEdge>;
   byMethod: Array<WorkerDeploymentRequestsMethodEdge>;
   byOS: Array<WorkerDeploymentRequestsOperatingSystemEdge>;
+  byPathname: Array<WorkerDeploymentRequestsPathnameEdge>;
+  byPlatform: Array<WorkerDeploymentRequestsPlatformEdge>;
   byResponseType: Array<WorkerDeploymentRequestsResponseTypeEdge>;
   byStatusType: Array<WorkerDeploymentRequestsStatusTypeEdge>;
   node?: Maybe<WorkerDeploymentRequestsAggregationNode>;
@@ -8405,6 +8585,7 @@ export enum WorkflowJobType {
   Build = 'BUILD',
   Custom = 'CUSTOM',
   Deploy = 'DEPLOY',
+  Fingerprint = 'FINGERPRINT',
   GetBuild = 'GET_BUILD',
   MaestroTest = 'MAESTRO_TEST',
   RequireApproval = 'REQUIRE_APPROVAL',
@@ -8503,6 +8684,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   sourceExpiresAt?: Maybe<Scalars['DateTime']['output']>;
   status: WorkflowRunStatus;
   triggerEventType: WorkflowRunTriggerEventType;
+  triggeringLabelName?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
   workflow: Workflow;
   workflowRevision?: Maybe<WorkflowRevision>;
@@ -8570,6 +8752,7 @@ export enum WorkflowRunStatus {
 }
 
 export enum WorkflowRunTriggerEventType {
+  GithubPullRequestLabeled = 'GITHUB_PULL_REQUEST_LABELED',
   GithubPullRequestOpened = 'GITHUB_PULL_REQUEST_OPENED',
   GithubPullRequestReopened = 'GITHUB_PULL_REQUEST_REOPENED',
   GithubPullRequestSynchronize = 'GITHUB_PULL_REQUEST_SYNCHRONIZE',
@@ -9281,6 +9464,16 @@ export type SetRolloutPercentageMutationVariables = Exact<{
 
 
 export type SetRolloutPercentageMutation = { __typename?: 'RootMutation', update: { __typename?: 'UpdateMutation', setRolloutPercentage: { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, rolloutPercentage?: number | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null } } };
+
+export type UploadLocalBuildMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  jobInput: ShareJobInput;
+  artifactSource: ShareArchiveSourceInput;
+  metadata?: InputMaybe<BuildMetadataInput>;
+}>;
+
+
+export type UploadLocalBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', createShareBuild: { __typename?: 'CreateBuildResult', build: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string }, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } } } };
 
 export type CreateAndroidSubmissionMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
