@@ -4,12 +4,14 @@ import {
   getFingerprintInfoFromLocalProjectForPlatformsAsync,
   stringToAppPlatform,
 } from './compare';
+import { getExpoWebsiteBaseUrl } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { AppPlatform } from '../../graphql/generated';
-import Log from '../../log';
+import { AppQuery } from '../../graphql/queries/AppQuery';
+import Log, { link } from '../../log';
 import { promptAsync } from '../../prompts';
-import { enableJsonOutput } from '../../utils/json';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class FingerprintGenerate extends EasCommand {
   static override description = 'generate fingerprints from the current project';
@@ -50,9 +52,15 @@ export default class FingerprintGenerate extends EasCommand {
       enableJsonOutput();
     }
 
-    const platform = platformStringFlag
-      ? stringToAppPlatform(platformStringFlag)
-      : await selectRequestedPlatformAsync();
+    let platform: AppPlatform;
+    if (platformStringFlag) {
+      platform = stringToAppPlatform(platformStringFlag);
+    } else {
+      if (nonInteractive) {
+        throw new Error('Platform must be specified in non-interactive mode with the --p flag');
+      }
+      platform = await selectRequestedPlatformAsync();
+    }
     const fingerprint = await getFingerprintInfoFromLocalProjectForPlatformsAsync(
       graphqlClient,
       projectDir,
@@ -61,7 +69,20 @@ export default class FingerprintGenerate extends EasCommand {
       [platform]
     );
 
-    Log.log(`Fingerprint generated: ${fingerprint.hash}`);
+    if (json) {
+      printJsonOnlyOutput(fingerprint);
+      return;
+    }
+
+    Log.log(`✅ Fingerprint generated: ${fingerprint.hash}`);
+
+    const project = await AppQuery.byIdAsync(graphqlClient, projectId);
+    const fingerprintUrl = new URL(
+      `/accounts/${project.ownerAccount.name}/projects/${project.slug}/fingerprints/${fingerprint.hash}`,
+      getExpoWebsiteBaseUrl()
+    );
+    Log.log(`🔍 View the fingerprint at ${link(fingerprintUrl.toString())}`);
+    Log.log(`💡 If you want to see the entire fingerprint output, pass in the --json flag.`);
   }
 }
 
