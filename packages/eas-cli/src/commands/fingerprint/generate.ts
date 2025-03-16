@@ -18,7 +18,10 @@ export default class FingerprintGenerate extends EasCommand {
   static override strict = false;
   static override hidden = true;
 
-  static override examples = ['$ eas fingerprint:compare TODO'];
+  static override examples = [
+    '$ eas fingerprint:generate',
+    '$ eas fingerprint:generate --json --non-interactive -p android',
+  ];
 
   static override flags = {
     platform: Flags.enum({
