@@ -46,6 +46,7 @@ import { withAnalyticsAsync } from '../analytics/common';
 import { getExpoWebsiteBaseUrl } from '../api';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../commandUtils/errors';
+import { createFingerprintAsync } from '../fingerprint/cli';
 import {
   AppPlatform,
   BuildFragment,
@@ -68,7 +69,6 @@ import { maybeUploadFingerprintAsync } from '../project/maybeUploadFingerprintAs
 import { resolveRuntimeVersionAsync } from '../project/resolveRuntimeVersionAsync';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
 import { formatBytes } from '../utils/files';
-import { createFingerprintAsync } from '../utils/fingerprintCli';
 import { printJsonOnlyOutput } from '../utils/json';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';

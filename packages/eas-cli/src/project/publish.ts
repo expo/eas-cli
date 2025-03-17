@@ -50,8 +50,8 @@ import { truthy } from '../utils/expodash/filter';
 import groupBy from '../utils/expodash/groupBy';
 import mapMapAsync from '../utils/expodash/mapMapAsync';
 import uniqBy from '../utils/expodash/uniqBy';
-import { FingerprintOptions, createFingerprintsByKeyAsync } from '../utils/fingerprintCli';
 import { Client } from '../vcs/vcs';
+import { createFingerprintsByKeyAsync, FingerprintOptions } from '../fingerprint/cli';
 
 // update publish does not currently support web
 export type UpdatePublishPlatform = 'ios' | 'android';

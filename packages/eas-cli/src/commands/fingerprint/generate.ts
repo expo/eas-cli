@@ -1,12 +1,12 @@
 import { Flags } from '@oclif/core';
 
-import {
-  getFingerprintInfoFromLocalProjectForPlatformsAsync,
-  stringToAppPlatform,
-} from './compare';
 import { getExpoWebsiteBaseUrl } from '../../api';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  getFingerprintInfoFromLocalProjectForPlatformsAsync,
+  stringToAppPlatform,
+} from '../../fingerprint/utils';
 import { AppPlatform } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { link } from '../../log';
