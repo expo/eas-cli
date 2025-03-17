@@ -6,6 +6,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Add support for `.easignore` when `requireCommit` is set to `true`. ([#2942](https://github.com/expo/eas-cli/pull/2942) by [@sjchmiela](https://github.com/sjchmiela))
+  - Up to 15.0.0, if `requireCommit` was `true`, `.easignore` was silently ignored.
+  - Versions 15.0.0-15.0.13 started using `.easignore` to skip files from being bundled into a tarball when `requireCommit` was `true`. This was an unexpected change in behavior.
+  - To clear this up, versions 15.0.13-15.0.15 were erroring if `.easignore` was present when `requireCommit` was `true`.
+  - `eas-cli@16.0.0` formalizes the 15.0.0-15.0.13 behavior by adhering to `.easignore` even when `requireCommit` is set to `true`.
+  - If you know what you're doing and you want to suppress a warning printed, you can do so by setting `EAS_SUPPRESS_REQUIRE_COMMIT_EASIGNORE_WARNING` environment variable to `true`.
+
 ### 🎉 New features
 
 - Add requestId to ApiV2Error. ([#2941](https://github.com/expo/eas-cli/pull/2941) by [@wschurman](https://github.com/wschurman))
