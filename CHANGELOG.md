@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add requestId to ApiV2Error. ([#2941](https://github.com/expo/eas-cli/pull/2941) by [@wschurman](https://github.com/wschurman))
+- Release `eas fingerprint:generate` in hidden mode ([#2937](https://github.com/expo/eas-cli/pull/2937) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🐛 Bug fixes
 
