@@ -5,7 +5,6 @@ import path from 'path';
 
 import Log from '../../../log';
 import GitClient from '../git';
-// import getenv from 'getenv';
 
 describe('git', () => {
   describe('GitClient that does not require a commit', () => {
