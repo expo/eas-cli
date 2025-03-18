@@ -46,12 +46,9 @@ export default class BuildUpload extends EasCommand {
     });
 
     const platform = await this.selectPlatformAsync(flags.platform);
-    const localBuildPath = await resolveLocalBuildPathAsync({
-      platform,
-      buildPath,
-    });
+    const localBuildPath = await resolveLocalBuildPathAsync(platform, buildPath);
 
-    Log.log('Uploading your app archive to EAS Share');
+    Log.log('Uploading your app archive to EAS');
     const bucketKey = await uploadAppArchiveAsync(graphqlClient, localBuildPath);
 
     const build = await ShareBuildMutation.uploadLocalBuildAsync(
@@ -82,30 +79,54 @@ export default class BuildUpload extends EasCommand {
   }
 }
 
-async function resolveLocalBuildPathAsync({
-  platform,
-  buildPath,
-}: {
-  platform: Platform;
-  buildPath?: string;
-}): Promise<string> {
+async function resolveLocalBuildPathAsync(
+  platform: Platform,
+  inputBuildPath?: string
+): Promise<string> {
   const applicationArchivePatternOrPath =
-    buildPath ?? platform === Platform.ANDROID
+    inputBuildPath ?? platform === Platform.ANDROID
       ? 'android/app/build/outputs/**/*.{apk,aab}'
       : 'ios/build/Build/Products/*simulator/*.app';
 
-  const applicationArchives = await findArtifactsAsync({
+  let applicationArchives = await findArtifactsAsync({
     rootDir: process.cwd(),
     patternOrPath: applicationArchivePatternOrPath,
   });
 
-  const count = applicationArchives.length;
-  Log.log(
-    `Found ${count} application archive${count > 1 ? 's' : ''}:\n- ${applicationArchives.join(
-      '\n- '
-    )}`
-  );
-  return applicationArchives[0];
+  if (applicationArchives.length === 0 && !inputBuildPath) {
+    Log.warn(`No application archives found at ${applicationArchivePatternOrPath}.`);
+    const { path } = await promptAsync({
+      type: 'text',
+      name: 'path',
+      message: 'Provide a path to the application archive:',
+      validate: value => (value ? true : 'Path may not be empty.'),
+    });
+    applicationArchives = await findArtifactsAsync({
+      rootDir: process.cwd(),
+      patternOrPath: path,
+    });
+  }
+
+  if (applicationArchives.length === 1) {
+    return applicationArchives[0];
+  }
+
+  if (applicationArchives.length > 1) {
+    const { path } = await promptAsync({
+      type: 'select',
+      name: 'path',
+      message: 'Found multiple application archives. Select one:',
+      choices: applicationArchives.map(archivePath => {
+        return {
+          title: archivePath,
+          value: archivePath,
+        };
+      }),
+    });
+    return path;
+  }
+
+  throw new Error(`Found no application archives at ${inputBuildPath}.`);
 }
 
 async function findArtifactsAsync({
@@ -120,9 +141,6 @@ async function findArtifactsAsync({
       ? [patternOrPath]
       : []
     : await fg(patternOrPath, { cwd: rootDir, onlyFiles: false });
-  if (files.length === 0) {
-    throw new Error(`Found no application archives for "${patternOrPath}".`);
-  }
 
   return files.map(filePath => {
     // User may provide an absolute path as input in which case

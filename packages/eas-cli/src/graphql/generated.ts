@@ -7297,6 +7297,7 @@ export type UploadSessionCreateAppScopedUploadSessionArgs = {
 
 
 export type UploadSessionCreateUploadSessionArgs = {
+  filename?: InputMaybe<Scalars['String']['input']>;
   type: UploadSessionType;
 };
 
@@ -7670,7 +7671,9 @@ export type UserAuditLog = {
   targetEntityMutationType: TargetEntityMutationType;
   targetEntityTypeName: UserEntityTypeName;
   targetEntityTypePublicName: Scalars['String']['output'];
+  /** @deprecated Use userActor instead */
   user: User;
+  userActor: UserActor;
   websiteMessage: Scalars['String']['output'];
 };
 
@@ -9497,6 +9500,7 @@ export type CreateIosSubmissionMutation = { __typename?: 'RootMutation', submiss
 
 export type CreateUploadSessionMutationVariables = Exact<{
   type: UploadSessionType;
+  filename?: InputMaybe<Scalars['String']['input']>;
 }>;
 
 
