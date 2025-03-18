@@ -1,5 +1,5 @@
+import { abridgedDiff } from '../../fingerprint/diff';
 import Log from '../../log';
-import { abridgedDiff } from '../fingerprintDiff';
 
 jest.mock('chalk', () => ({
   red: jest.fn(text => `red(${text})`),

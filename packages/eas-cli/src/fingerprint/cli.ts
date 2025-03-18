@@ -1,10 +1,10 @@
 import { Env, Workflow } from '@expo/eas-build-job';
 import { silent as silentResolveFrom } from 'resolve-from';
 
-import mapMapAsync from './expodash/mapMapAsync';
-import { Fingerprint, FingerprintDiffItem } from './fingerprint';
+import { Fingerprint, FingerprintDiffItem } from './types';
 import Log from '../log';
 import { ora } from '../ora';
+import mapMapAsync from '../utils/expodash/mapMapAsync';
 
 export type FingerprintOptions = {
   workflow?: Workflow;

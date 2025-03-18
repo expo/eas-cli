@@ -19,6 +19,7 @@ import { selectBranchOnAppAsync } from '../branch/queries';
 import { getDefaultBranchNameAsync } from '../branch/utils';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
+import { FingerprintOptions, createFingerprintsByKeyAsync } from '../fingerprint/cli';
 import {
   AppPlatform,
   AssetMetadataStatus,
@@ -50,7 +51,6 @@ import { truthy } from '../utils/expodash/filter';
 import groupBy from '../utils/expodash/groupBy';
 import mapMapAsync from '../utils/expodash/mapMapAsync';
 import uniqBy from '../utils/expodash/uniqBy';
-import { FingerprintOptions, createFingerprintsByKeyAsync } from '../utils/fingerprintCli';
 import { Client } from '../vcs/vcs';
 
 // update publish does not currently support web

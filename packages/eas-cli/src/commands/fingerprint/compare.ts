@@ -1,4 +1,3 @@
-import { Platform, Workflow } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 import openBrowserAsync from 'better-opn';
 import chalk from 'chalk';
@@ -9,6 +8,13 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { fetchBuildsAsync, formatBuild } from '../../commandUtils/builds';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { diffFingerprint } from '../../fingerprint/cli';
+import { abridgedDiff } from '../../fingerprint/diff';
+import { Fingerprint, FingerprintDiffItem } from '../../fingerprint/types';
+import {
+  getFingerprintInfoFromLocalProjectForPlatformsAsync,
+  stringToAppPlatform,
+} from '../../fingerprint/utils';
 import {
   AppPlatform,
   BuildFragment,
@@ -16,7 +22,6 @@ import {
   FingerprintFragment,
   UpdateFragment,
 } from '../../graphql/generated';
-import { FingerprintMutation } from '../../graphql/mutations/FingerprintMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { FingerprintQuery } from '../../graphql/queries/FingerprintQuery';
@@ -24,14 +29,9 @@ import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log, { learnMore } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
-import { maybeUploadFingerprintAsync } from '../../project/maybeUploadFingerprintAsync';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
-import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { promptAsync, selectAsync } from '../../prompts';
 import { selectUpdateGroupOnBranchAsync } from '../../update/queries';
-import { Fingerprint, FingerprintDiffItem } from '../../utils/fingerprint';
-import { createFingerprintAsync, diffFingerprint } from '../../utils/fingerprintCli';
-import { abridgedDiff } from '../../utils/fingerprintDiff';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { Client } from '../../vcs/vcs';
@@ -425,36 +425,14 @@ async function getFingerprintInfoFromLocalProjectAsync(
     );
   }
 
-  const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
-  const optionsFromWorkflow = getFingerprintOptionsFromWorkflow(
-    firstFingerprintPlatforms,
-    workflows
-  );
-
-  const projectFingerprint = await createFingerprintAsync(projectDir, {
-    ...optionsFromWorkflow,
-    platforms: firstFingerprintPlatforms.map(appPlatformToString),
-    debug: true,
-    env: undefined,
-  });
-  if (!projectFingerprint) {
-    throw new Error('Project fingerprints can only be computed for projects with SDK 52 or higher');
-  }
-
-  const uploadedFingerprint = await maybeUploadFingerprintAsync({
-    hash: projectFingerprint.hash,
-    fingerprint: {
-      fingerprintSources: projectFingerprint.sources,
-      isDebugFingerprintSource: Log.isDebug,
-    },
+  const fingerprint = await getFingerprintInfoFromLocalProjectForPlatformsAsync(
     graphqlClient,
-  });
-  await FingerprintMutation.createFingerprintAsync(graphqlClient, projectId, {
-    hash: uploadedFingerprint.hash,
-    source: uploadedFingerprint.fingerprintSource,
-  });
-
-  return { fingerprint: projectFingerprint, origin: { type: FingerprintOriginType.Project } };
+    projectDir,
+    projectId,
+    vcsClient,
+    firstFingerprintPlatforms
+  );
+  return { fingerprint, origin: { type: FingerprintOriginType.Project } };
 }
 
 async function getFingerprintFromUpdateFragmentAsync(
@@ -599,37 +577,6 @@ async function getFingerprintFromFingerprintFragmentAsync(
   }
   const fingerprintResponse = await fetch(fingerprintDebugUrl);
   return (await fingerprintResponse.json()) as Fingerprint;
-}
-
-function getFingerprintOptionsFromWorkflow(
-  platforms: AppPlatform[],
-  workflowsByPlatform: Record<Platform, Workflow>
-): { workflow?: Workflow; ignorePaths?: string[] } {
-  if (platforms.length === 0) {
-    throw new Error('Could not determine platform from fingerprint sources');
-  }
-
-  // Single platform case
-  if (platforms.length === 1) {
-    const platform = platforms[0];
-    return { workflow: workflowsByPlatform[appPlatformToPlatform(platform)] };
-  }
-
-  // Multiple platforms case
-  const workflows = platforms.map(platform => workflowsByPlatform[appPlatformToPlatform(platform)]);
-
-  // If all workflows are the same, return the common workflow
-  const [firstWorkflow, ...restWorkflows] = workflows;
-  if (restWorkflows.every(workflow => workflow === firstWorkflow)) {
-    return { workflow: firstWorkflow };
-  }
-
-  // Generate ignorePaths for mixed workflows
-  const ignorePaths = platforms
-    .filter(platform => workflowsByPlatform[appPlatformToPlatform(platform)] === Workflow.MANAGED)
-    .map(platform => `${appPlatformToString(platform)}/**/*`);
-
-  return { ignorePaths };
 }
 
 function printContentDiff(diff: FingerprintDiffItem): void {
@@ -807,39 +754,6 @@ function isJSON(str: string): boolean {
     return true;
   } catch {
     return false;
-  }
-}
-
-function appPlatformToPlatform(platform: AppPlatform): Platform {
-  switch (platform) {
-    case AppPlatform.Android:
-      return Platform.ANDROID;
-    case AppPlatform.Ios:
-      return Platform.IOS;
-    default:
-      throw new Error(`Unsupported platform: ${platform}`);
-  }
-}
-
-function appPlatformToString(platform: AppPlatform): string {
-  switch (platform) {
-    case AppPlatform.Android:
-      return 'android';
-    case AppPlatform.Ios:
-      return 'ios';
-    default:
-      throw new Error(`Unsupported platform: ${platform}`);
-  }
-}
-
-function stringToAppPlatform(platform: string): AppPlatform {
-  switch (platform) {
-    case 'android':
-      return AppPlatform.Android;
-    case 'ios':
-      return AppPlatform.Ios;
-    default:
-      throw new Error(`Unsupported platform: ${platform}`);
   }
 }
 

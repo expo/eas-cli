@@ -13,6 +13,7 @@ import { downloadAndRunAsync, runBuildAndSubmitAsync } from '../../build/runBuil
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { createFingerprintAsync } from '../../fingerprint/cli';
 import { BuildFragment, BuildStatus, DistributionType } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
@@ -21,7 +22,6 @@ import { RequestedPlatform } from '../../platform';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { expoCommandAsync } from '../../utils/expoCli';
-import { createFingerprintAsync } from '../../utils/fingerprintCli';
 import { ProfileData, getProfilesAsync } from '../../utils/profiles';
 import { Client } from '../../vcs/vcs';
 
