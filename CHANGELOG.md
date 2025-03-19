@@ -6,6 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [16.0.0](https://github.com/expo/eas-cli/releases/tag/v16.0.0) - 2025-03-19
+
+### 🛠 Breaking changes
+
 - Add support for `.easignore` when `requireCommit` is set to `true`. ([#2942](https://github.com/expo/eas-cli/pull/2942) by [@sjchmiela](https://github.com/sjchmiela))
   - Up to 15.0.0, if `requireCommit` was `true`, `.easignore` was silently ignored.
   - Versions 15.0.0-15.0.13 started using `.easignore` to skip files from being bundled into a tarball when `requireCommit` was `true`. This was an unexpected change in behavior.
@@ -21,8 +31,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Use correct logic to determine whether artifacts have expired in `eas build:run` command. ([#2931](https://github.com/expo/eas-cli/pull/2931) by [@szdziedzic](https://github.com/szdziedzic))
-
-### 🧹 Chores
 
 ## [15.0.15](https://github.com/expo/eas-cli/releases/tag/v15.0.15) - 2025-03-12
 
