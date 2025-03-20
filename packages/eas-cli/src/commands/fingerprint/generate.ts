@@ -16,7 +16,6 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 export default class FingerprintGenerate extends EasCommand {
   static override description = 'generate fingerprints from the current project';
   static override strict = false;
-  static override hidden = true;
 
   static override examples = [
     '$ eas fingerprint:generate  \t # Generate fingerprint in interactive mode',
