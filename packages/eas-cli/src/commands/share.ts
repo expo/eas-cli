@@ -2,6 +2,7 @@ import { Platform } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 import fg from 'fast-glob';
 import fs from 'fs-extra';
+import StreamZip from 'node-stream-zip';
 import path from 'path';
 
 import { getBuildLogsUrl } from '../build/utils/url';
@@ -9,6 +10,7 @@ import EasCommand from '../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EASNonInteractiveFlag } from '../commandUtils/flags';
 import { DistributionType, ShareArchiveSourceType, UploadSessionType } from '../graphql/generated';
+import { FingerprintMutation } from '../graphql/mutations/FingerprintMutation';
 import { ShareBuildMutation } from '../graphql/mutations/ShareBuildMutation';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
@@ -48,15 +50,25 @@ export default class BuildUpload extends EasCommand {
     const platform = await this.selectPlatformAsync(flags.platform);
     const localBuildPath = await resolveLocalBuildPathAsync(platform, buildPath);
 
+    const { fingerprintHash, developmentClient, simulator } = await extractAppMetadataAsync(
+      localBuildPath,
+      platform
+    );
+    if (fingerprintHash) {
+      await FingerprintMutation.createFingerprintAsync(graphqlClient, projectId, {
+        hash: fingerprintHash,
+      });
+    }
+
     Log.log('Uploading your app archive to EAS');
     const bucketKey = await uploadAppArchiveAsync(graphqlClient, localBuildPath);
 
     const build = await ShareBuildMutation.uploadLocalBuildAsync(
       graphqlClient,
       projectId,
-      { platform: toAppPlatform(platform), simulator: platform === Platform.IOS },
+      { platform: toAppPlatform(platform), simulator },
       { type: ShareArchiveSourceType.Gcs, bucketKey },
-      { distribution: DistributionType.Internal }
+      { distribution: DistributionType.Internal, fingerprintHash, developmentClient }
     );
 
     Log.withTick(`Here is a sharable link of your build: ${getBuildLogsUrl(build)}`);
@@ -84,9 +96,10 @@ async function resolveLocalBuildPathAsync(
   inputBuildPath?: string
 ): Promise<string> {
   const applicationArchivePatternOrPath =
-    inputBuildPath ?? platform === Platform.ANDROID
+    inputBuildPath ??
+    (platform === Platform.ANDROID
       ? 'android/app/build/outputs/**/*.{apk,aab}'
-      : 'ios/build/Build/Products/*simulator/*.app';
+      : 'ios/build/Build/Products/*simulator/*.app');
 
   let applicationArchives = await findArtifactsAsync({
     rootDir: process.cwd(),
@@ -171,4 +184,65 @@ async function uploadAppArchiveAsync(
     })
   );
   return bucketKey;
+}
+
+type AppMetadata = {
+  fingerprintHash?: string;
+  developmentClient: boolean;
+  simulator: boolean;
+};
+
+async function extractAppMetadataAsync(
+  buildPath: string,
+  platform: Platform
+): Promise<AppMetadata> {
+  let developmentClient = false;
+  let fingerprintHash: string | undefined;
+  let simulator = platform === Platform.IOS;
+
+  let basePath = platform === Platform.ANDROID ? 'assets/' : buildPath;
+  const fingerprintFilePath =
+    platform === Platform.ANDROID ? 'fingerprint' : 'EXUpdates.bundle/fingerprint';
+  const devMenuBundlePath =
+    platform === Platform.ANDROID ? 'EXDevMenuApp.android.js' : 'EXDevMenu.bundle';
+
+  const buildExtension = path.extname(buildPath);
+  // check extension if, .apk, .ipa [] = .aab
+  if (['.apk', '.ipa'].includes(buildExtension)) {
+    const zip = new StreamZip.async({ file: buildPath });
+    try {
+      if (buildExtension === '.ipa') {
+        const entries = await zip.entries();
+        basePath =
+          Object.keys(entries).find(
+            entry => entry.startsWith('Payload/') && entry.endsWith('.app/')
+          ) ?? basePath;
+      }
+
+      developmentClient = Boolean(await zip.entry(path.join(basePath, devMenuBundlePath)));
+      if (await zip.entry(path.join(basePath, fingerprintFilePath))) {
+        fingerprintHash = (await zip.entryData(path.join(basePath, fingerprintFilePath))).toString(
+          'utf-8'
+        );
+      }
+    } catch (err) {
+      Log.error(`Error reading ${buildExtension}: ${err}`);
+    } finally {
+      await zip.close();
+    }
+  } else if (buildExtension === '.app') {
+    developmentClient = await fs.exists(path.join(basePath, devMenuBundlePath));
+
+    if (await fs.exists(path.join(basePath, fingerprintFilePath))) {
+      fingerprintHash = await fs.readFile(path.join(basePath, fingerprintFilePath), 'utf8');
+    }
+  } else {
+    //TODO: extract from .tar
+  }
+
+  return {
+    developmentClient,
+    fingerprintHash,
+    simulator,
+  };
 }

@@ -50957,6 +50957,18 @@
             "description": "Create an Upload Session",
             "args": [
               {
+                "name": "filename",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "type",
                 "description": null,
                 "type": {
@@ -53572,6 +53584,22 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "User",
+                "ofType": null
+              }
+            },
+            "isDeprecated": true,
+            "deprecationReason": "Use userActor instead"
+          },
+          {
+            "name": "userActor",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "INTERFACE",
+                "name": "UserActor",
                 "ofType": null
               }
             },
