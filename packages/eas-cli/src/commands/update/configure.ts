@@ -54,6 +54,7 @@ export default class UpdateConfigure extends EasCommand {
       platform: flags['platform'],
       vcsClient,
       env: undefined,
+      forceNativeConfigSync: true,
     });
 
     await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
