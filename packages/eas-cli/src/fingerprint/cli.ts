@@ -104,19 +104,20 @@ async function createFingerprintWithoutLoggingAsync(
     fingerprintOptions.debug = true;
   }
 
-  return await withTemporaryEnv(options.env ?? {}, () =>
+  return await withTemporaryEnvAsync(options.env ?? {}, () =>
     Fingerprint.createFingerprintAsync(projectDir, fingerprintOptions)
   );
 }
 
-function withTemporaryEnv(envVars: Env, fn: () => Promise<any>): Promise<any> {
+async function withTemporaryEnvAsync(envVars: Env, fn: () => Promise<any>): Promise<any> {
   const originalEnv = { ...process.env };
-
   Object.assign(process.env, envVars);
 
-  return fn().finally(() => {
+  try {
+    return await fn();
+  } finally {
     process.env = originalEnv;
-  });
+  }
 }
 
 /**
