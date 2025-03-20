@@ -559,91 +559,88 @@ export default class UpdatePublish extends EasCommand {
     }
     if (jsonFlag) {
       printJsonOnlyOutput(getUpdateJsonInfosForUpdates(newUpdates));
-    } else {
-      if (new Set(newUpdates.map(update => update.group)).size > 1) {
-        Log.addNewLineIfNone();
-        Log.log(
-          '👉 Since multiple runtime versions are defined, multiple update groups have been published.'
+      return;
+    }
+
+    if (new Set(newUpdates.map(update => update.group)).size > 1) {
+      Log.addNewLineIfNone();
+      Log.log(
+        '👉 Since multiple runtime versions are defined, multiple update groups have been published.'
+      );
+    }
+
+    Log.addNewLineIfNone();
+
+    for (const runtime of uniqBy(
+      runtimeToPlatformsAndFingerprintInfoMapping,
+      version => version.runtimeVersion
+    )) {
+      const newUpdatesForRuntimeVersion = newUpdates.filter(
+        update => update.runtimeVersion === runtime.runtimeVersion
+      );
+      if (newUpdatesForRuntimeVersion.length === 0) {
+        throw new Error(
+          `Publish response is missing updates with runtime ${runtime.runtimeVersion}.`
         );
       }
+      const platforms = newUpdatesForRuntimeVersion.map(update => update.platform);
+      const newAndroidUpdate = newUpdatesForRuntimeVersion.find(
+        update => update.platform === 'android'
+      );
+      const newIosUpdate = newUpdatesForRuntimeVersion.find(update => update.platform === 'ios');
+      const updateGroupId = newUpdatesForRuntimeVersion[0].group;
 
+      const projectName = exp.slug;
+      const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
+      const updateGroupUrl = getUpdateGroupUrl(accountName, projectName, updateGroupId);
+      const updateGroupLink = link(updateGroupUrl, { dim: false });
+
+      Log.log(
+        formatFields([
+          { label: 'Branch', value: branchName },
+          { label: 'Runtime version', value: runtime.runtimeVersion },
+          { label: 'Platform', value: platforms.join(', ') },
+          { label: 'Update group ID', value: updateGroupId },
+          ...(newAndroidUpdate ? [{ label: 'Android update ID', value: newAndroidUpdate.id }] : []),
+          ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
+          ...(newAndroidUpdate?.rolloutControlUpdate
+            ? [
+                {
+                  label: 'Android Rollout',
+                  value: `${newAndroidUpdate.rolloutPercentage}% (Base update ID: ${newAndroidUpdate.rolloutControlUpdate.id})`,
+                },
+              ]
+            : []),
+          ...(newIosUpdate?.rolloutControlUpdate
+            ? [
+                {
+                  label: 'iOS Rollout',
+                  value: `${newIosUpdate.rolloutPercentage}% (Base update ID: ${newIosUpdate.rolloutControlUpdate.id})`,
+                },
+              ]
+            : []),
+          { label: 'Message', value: updateMessage ?? '' },
+          ...(gitCommitHash
+            ? [
+                {
+                  label: 'Commit',
+                  value: `${gitCommitHash}${isGitWorkingTreeDirty ? '*' : ''}`,
+                },
+              ]
+            : []),
+          { label: 'EAS Dashboard', value: updateGroupLink },
+        ])
+      );
       Log.addNewLineIfNone();
-
-      for (const runtime of uniqBy(
-        runtimeToPlatformsAndFingerprintInfoMapping,
-        version => version.runtimeVersion
-      )) {
-        const newUpdatesForRuntimeVersion = newUpdates.filter(
-          update => update.runtimeVersion === runtime.runtimeVersion
-        );
-        if (newUpdatesForRuntimeVersion.length === 0) {
-          throw new Error(
-            `Publish response is missing updates with runtime ${runtime.runtimeVersion}.`
-          );
-        }
-        const platforms = newUpdatesForRuntimeVersion.map(update => update.platform);
-        const newAndroidUpdate = newUpdatesForRuntimeVersion.find(
-          update => update.platform === 'android'
-        );
-        const newIosUpdate = newUpdatesForRuntimeVersion.find(update => update.platform === 'ios');
-        const updateGroupId = newUpdatesForRuntimeVersion[0].group;
-
-        const projectName = exp.slug;
-        const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
-        const updateGroupUrl = getUpdateGroupUrl(accountName, projectName, updateGroupId);
-        const updateGroupLink = link(updateGroupUrl, { dim: false });
-
-        Log.log(
-          formatFields([
-            { label: 'Branch', value: branchName },
-            { label: 'Runtime version', value: runtime.runtimeVersion },
-            { label: 'Platform', value: platforms.join(', ') },
-            { label: 'Update group ID', value: updateGroupId },
-            ...(newAndroidUpdate
-              ? [{ label: 'Android update ID', value: newAndroidUpdate.id }]
-              : []),
-            ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
-            ...(newAndroidUpdate?.rolloutControlUpdate
-              ? [
-                  {
-                    label: 'Android Rollout',
-                    value: `${newAndroidUpdate.rolloutPercentage}% (Base update ID: ${newAndroidUpdate.rolloutControlUpdate.id})`,
-                  },
-                ]
-              : []),
-            ...(newIosUpdate?.rolloutControlUpdate
-              ? [
-                  {
-                    label: 'iOS Rollout',
-                    value: `${newIosUpdate.rolloutPercentage}% (Base update ID: ${newIosUpdate.rolloutControlUpdate.id})`,
-                  },
-                ]
-              : []),
-            { label: 'Message', value: updateMessage ?? '' },
-            ...(gitCommitHash
-              ? [
-                  {
-                    label: 'Commit',
-                    value: `${gitCommitHash}${isGitWorkingTreeDirty ? '*' : ''}`,
-                  },
-                ]
-              : []),
-            { label: 'EAS Dashboard', value: updateGroupLink },
-          ])
+      if (isUploadedAssetCountAboveWarningThreshold(uploadedAssetCount, assetLimitPerUpdateGroup)) {
+        Log.warn(
+          `This update group contains ${uploadedAssetCount} assets and is nearing the server cap of ${assetLimitPerUpdateGroup}.\n` +
+            `${learnMore('https://docs.expo.dev/eas-update/optimize-assets/', {
+              learnMoreMessage: 'Consider optimizing your usage of assets',
+              dim: false,
+            })}.`
         );
         Log.addNewLineIfNone();
-        if (
-          isUploadedAssetCountAboveWarningThreshold(uploadedAssetCount, assetLimitPerUpdateGroup)
-        ) {
-          Log.warn(
-            `This update group contains ${uploadedAssetCount} assets and is nearing the server cap of ${assetLimitPerUpdateGroup}.\n` +
-              `${learnMore('https://docs.expo.dev/eas-update/optimize-assets/', {
-                learnMoreMessage: 'Consider optimizing your usage of assets',
-                dim: false,
-              })}.`
-          );
-          Log.addNewLineIfNone();
-        }
       }
     }
   }
