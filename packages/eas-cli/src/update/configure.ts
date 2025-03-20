@@ -409,15 +409,13 @@ export async function ensureEASUpdateIsConfiguredAsync({
       workflows,
     });
 
-  if (projectChanged || !hasExpoUpdates) {
-    await ensureEASUpdateIsConfiguredNativelyAsync(vcsClient, {
-      exp: expWithUpdates,
-      projectDir,
-      platform,
-      workflows,
-      env,
-    });
-  }
+  await ensureEASUpdateIsConfiguredNativelyAsync(vcsClient, {
+    exp: expWithUpdates,
+    projectDir,
+    platform,
+    workflows,
+    env,
+  });
 
   if (projectChanged) {
     Log.addNewLineIfNone();
