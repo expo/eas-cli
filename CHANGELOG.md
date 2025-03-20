@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Make `eas update:configure` re-apply configuration from app.json /app.config.js when run multiple times. ([#2957](https://github.com/expo/eas-cli/pull/2957) by [@brentvatne](https://github.com/brentvatne))
-
 ### 🧹 Chores
+
+## [16.0.1](https://github.com/expo/eas-cli/releases/tag/v16.0.1) - 2025-03-20
+
+### 🐛 Bug fixes
+
+- Make `eas update:configure` re-apply configuration from app.json /app.config.js when run multiple times. ([#2957](https://github.com/expo/eas-cli/pull/2957) by [@brentvatne](https://github.com/brentvatne))
 
 ## [16.0.0](https://github.com/expo/eas-cli/releases/tag/v16.0.0) - 2025-03-19
 
