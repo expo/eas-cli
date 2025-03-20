@@ -371,6 +371,7 @@ export async function ensureEASUpdateIsConfiguredAsync({
   vcsClient,
   platform,
   env,
+  forceNativeConfigSync,
 }: {
   exp: ExpoConfig;
   projectId: string;
@@ -378,6 +379,7 @@ export async function ensureEASUpdateIsConfiguredAsync({
   vcsClient: Client;
   platform: RequestedPlatform | null;
   env: Env | undefined;
+  forceNativeConfigSync?: boolean;
 }): Promise<void> {
   const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
     projectDir,
@@ -409,7 +411,7 @@ export async function ensureEASUpdateIsConfiguredAsync({
       workflows,
     });
 
-  if (projectChanged || !hasExpoUpdates) {
+  if (forceNativeConfigSync || projectChanged || !hasExpoUpdates) {
     await ensureEASUpdateIsConfiguredNativelyAsync(vcsClient, {
       exp: expWithUpdates,
       projectDir,
