@@ -4,6 +4,7 @@ import fg from 'fast-glob';
 import fs from 'fs-extra';
 import StreamZip from 'node-stream-zip';
 import path from 'path';
+import tar from 'tar';
 
 import { getBuildLogsUrl } from '../build/utils/url';
 import EasCommand from '../commandUtils/EasCommand';
@@ -198,17 +199,16 @@ async function extractAppMetadataAsync(
 ): Promise<AppMetadata> {
   let developmentClient = false;
   let fingerprintHash: string | undefined;
-  let simulator = platform === Platform.IOS;
+  const simulator = platform === Platform.IOS;
 
   let basePath = platform === Platform.ANDROID ? 'assets/' : buildPath;
   const fingerprintFilePath =
     platform === Platform.ANDROID ? 'fingerprint' : 'EXUpdates.bundle/fingerprint';
   const devMenuBundlePath =
-    platform === Platform.ANDROID ? 'EXDevMenuApp.android.js' : 'EXDevMenu.bundle';
+    platform === Platform.ANDROID ? 'EXDevMenuApp.android.js' : 'EXDevMenu.bundle/';
 
   const buildExtension = path.extname(buildPath);
-  // check extension if, .apk, .ipa [] = .aab
-  if (['.apk', '.ipa'].includes(buildExtension)) {
+  if (['.apk', '.ipa', '.aab'].includes(buildExtension)) {
     const zip = new StreamZip.async({ file: buildPath });
     try {
       if (buildExtension === '.ipa') {
@@ -237,7 +237,37 @@ async function extractAppMetadataAsync(
       fingerprintHash = await fs.readFile(path.join(basePath, fingerprintFilePath), 'utf8');
     }
   } else {
-    //TODO: extract from .tar
+    // Use tar to list files in the archive
+    try {
+      let fingerprintHashPromise: Promise<string> | undefined;
+      await tar.list({
+        file: buildPath,
+        // eslint-disable-next-line async-protect/async-suffix
+        onentry: entry => {
+          if (entry.path.endsWith(devMenuBundlePath)) {
+            developmentClient = true;
+          }
+          if (entry.path.endsWith(fingerprintFilePath)) {
+            fingerprintHashPromise = new Promise<string>(async (resolve, reject) => {
+              try {
+                let content = '';
+                for await (const chunk of entry) {
+                  content += chunk.toString('utf8');
+                }
+                resolve(content);
+              } catch (error) {
+                reject(error);
+              }
+            });
+          }
+        },
+      });
+      if (fingerprintHashPromise !== undefined) {
+        fingerprintHash = await fingerprintHashPromise;
+      }
+    } catch (err) {
+      Log.error(`Error reading ${buildExtension}: ${err}`);
+    }
   }
 
   return {
