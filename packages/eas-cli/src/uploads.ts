@@ -20,7 +20,11 @@ export async function uploadFileAtPathToGCSAsync(
   path: string,
   handleProgressEvent: ProgressHandler = () => {}
 ): Promise<string> {
-  const signedUrl = await UploadSessionMutation.createUploadSessionAsync(graphqlClient, type);
+  const signedUrl = await UploadSessionMutation.createUploadSessionAsync(
+    graphqlClient,
+    type,
+    type === UploadSessionType.EasShareGcsAppArchive ? path : undefined
+  );
 
   await uploadWithSignedUrlWithProgressAsync(path, signedUrl, handleProgressEvent);
   return signedUrl.bucketKey;
