@@ -6,8 +6,12 @@ import { getExpoWebsiteBaseUrl } from '../../api';
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { fetchBuildsAsync, formatBuild } from '../../commandUtils/builds';
+import { GetServerSideEnvironmentVariablesFn } from '../../commandUtils/context/ServerSideEnvironmentVariablesContextField';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasEnvironmentFlagParameters,
+  EasNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { diffFingerprint } from '../../fingerprint/cli';
 import { abridgedDiff } from '../../fingerprint/diff';
 import { Fingerprint, FingerprintDiffItem } from '../../fingerprint/types';
@@ -19,6 +23,7 @@ import {
   AppPlatform,
   BuildFragment,
   BuildStatus,
+  EnvironmentVariableEnvironment,
   FingerprintFragment,
   UpdateFragment,
 } from '../../graphql/generated';
@@ -58,6 +63,7 @@ export default class FingerprintCompare extends EasCommand {
     '$ eas fingerprint:compare <FINGERPRINT-HASH> \t # Compare fingerprint against local directory',
     '$ eas fingerprint:compare <FINGERPRINT-HASH-1> <FINGERPRINT-HASH-2> \t # Compare provided fingerprints',
     '$ eas fingerprint:compare --build-id <BUILD-ID> \t # Compare fingerprint from build against local directory',
+    '$ eas fingerprint:compare --build-id <BUILD-ID> --environment production \t # Compare fingerprint from build against local directory with the "production" environment',
     '$ eas fingerprint:compare --build-id <BUILD-ID-1> --build-id <BUILD-ID-2>\t # Compare fingerprint from a build against another build',
     '$ eas fingerprint:compare --build-id <BUILD-ID> --update-id <UPDATE-ID>\t # Compare fingerprint from build against fingerprint from update',
     '$ eas fingerprint:compare <FINGERPRINT-HASH> --update-id <UPDATE-ID> \t # Compare fingerprint from update against provided fingerprint',
@@ -91,6 +97,11 @@ export default class FingerprintCompare extends EasCommand {
     open: Flags.boolean({
       description: 'Open the fingerprint comparison in the browser',
     }),
+    environment: Flags.enum<EnvironmentVariableEnvironment>({
+      ...EasEnvironmentFlagParameters,
+      description:
+        'If generating a fingerprint from the local directory, use the specified environment.',
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -99,6 +110,7 @@ export default class FingerprintCompare extends EasCommand {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.Vcs,
+    ...this.ContextOptions.ServerSideEnvironmentVariables,
   };
 
   async runAsync(): Promise<void> {
@@ -110,6 +122,7 @@ export default class FingerprintCompare extends EasCommand {
       'build-id': buildIds,
       'update-id': updateIds,
       open,
+      environment,
     } = flags;
     const [buildId1, buildId2] = buildIds ?? [];
     const [updateId1, updateId2] = updateIds ?? [];
@@ -119,9 +132,10 @@ export default class FingerprintCompare extends EasCommand {
       privateProjectConfig: { projectDir },
       loggedIn: { graphqlClient },
       vcsClient,
+      getServerSideEnvironmentVariablesAsync,
     } = await this.getContextAsync(FingerprintCompare, {
       nonInteractive,
-      withServerSideEnvironment: null,
+      withServerSideEnvironment: environment ?? null,
     });
     if (json) {
       enableJsonOutput();
@@ -132,6 +146,7 @@ export default class FingerprintCompare extends EasCommand {
       projectDir,
       projectId,
       vcsClient,
+      getServerSideEnvironmentVariablesAsync,
       {
         nonInteractive,
         buildId: buildId1,
@@ -148,6 +163,7 @@ export default class FingerprintCompare extends EasCommand {
       projectDir,
       projectId,
       vcsClient,
+      getServerSideEnvironmentVariablesAsync,
       {
         nonInteractive,
         buildId: buildId2,
@@ -155,6 +171,7 @@ export default class FingerprintCompare extends EasCommand {
         hash: hash2,
         useProjectFingerprint:
           isFirstFingerprintSpecifiedByFlagOrArg && !isSecondFingerprintSpecifiedByFlagOrArg,
+        environmentForProjectFingerprint: environment,
       },
       firstFingerprintInfo
     );
@@ -260,17 +277,20 @@ async function getFingerprintInfoAsync(
   projectDir: string,
   projectId: string,
   vcsClient: Client,
+  getServerSideEnvironmentVariablesAsync: GetServerSideEnvironmentVariablesFn,
   {
     buildId,
     updateId,
     hash,
     useProjectFingerprint,
+    environmentForProjectFingerprint,
     nonInteractive,
   }: {
     buildId?: string;
     updateId?: string;
     hash: string;
     useProjectFingerprint?: boolean;
+    environmentForProjectFingerprint?: string;
     nonInteractive: boolean;
   },
   firstFingerprintInfo?: {
@@ -296,13 +316,15 @@ async function getFingerprintInfoAsync(
         'First fingerprint must be provided in order to compare against the project.'
       );
     }
-    return await getFingerprintInfoFromLocalProjectAsync(
+    return await getFingerprintInfoFromLocalProjectAsync({
       graphqlClient,
       projectDir,
       projectId,
       vcsClient,
-      firstFingerprintInfo
-    );
+      getServerSideEnvironmentVariablesAsync,
+      firstFingerprintInfo,
+      environment: environmentForProjectFingerprint,
+    });
   }
 
   if (nonInteractive) {
@@ -310,26 +332,38 @@ async function getFingerprintInfoAsync(
       'Insufficent arguments provided for fingerprint comparison in non-interactive mode'
     );
   }
-  return await getFingerprintInfoInteractiveAsync(
+  return await getFingerprintInfoInteractiveAsync({
     graphqlClient,
     projectDir,
     projectId,
     vcsClient,
-    firstFingerprintInfo
-  );
+    getServerSideEnvironmentVariablesAsync,
+    firstFingerprintInfo,
+    environmentForProjectFingerprint,
+  });
 }
 
-async function getFingerprintInfoInteractiveAsync(
-  graphqlClient: ExpoGraphqlClient,
-  projectDir: string,
-  projectId: string,
-  vcsClient: Client,
+async function getFingerprintInfoInteractiveAsync({
+  graphqlClient,
+  projectDir,
+  projectId,
+  vcsClient,
+  getServerSideEnvironmentVariablesAsync,
+  firstFingerprintInfo,
+  environmentForProjectFingerprint,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  projectDir: string;
+  projectId: string;
+  vcsClient: Client;
+  getServerSideEnvironmentVariablesAsync: GetServerSideEnvironmentVariablesFn;
   firstFingerprintInfo?: {
     fingerprint: Fingerprint;
     platforms?: AppPlatform[];
     origin: FingerprintOrigin;
-  }
-): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
+  };
+  environmentForProjectFingerprint?: string;
+}): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
   const prompt = firstFingerprintInfo
     ? 'Select the second fingerprint to compare against'
     : 'Select a reference fingerprint for comparison';
@@ -347,13 +381,15 @@ async function getFingerprintInfoInteractiveAsync(
         'First fingerprint must be provided in order to compare against the project.'
       );
     }
-    return await getFingerprintInfoFromLocalProjectAsync(
+    return await getFingerprintInfoFromLocalProjectAsync({
       graphqlClient,
       projectDir,
       projectId,
       vcsClient,
-      firstFingerprintInfo
-    );
+      getServerSideEnvironmentVariablesAsync,
+      firstFingerprintInfo,
+      environment: environmentForProjectFingerprint,
+    });
   } else if (originType === FingerprintOriginType.Build) {
     const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
     const buildId = await selectBuildToCompareAsync(graphqlClient, projectId, displayName, {
@@ -407,30 +443,47 @@ async function getFingerprintInfoInteractiveAsync(
   }
 }
 
-async function getFingerprintInfoFromLocalProjectAsync(
-  graphqlClient: ExpoGraphqlClient,
-  projectDir: string,
-  projectId: string,
-  vcsClient: Client,
+async function getFingerprintInfoFromLocalProjectAsync({
+  graphqlClient,
+  projectDir,
+  projectId,
+  vcsClient,
+  getServerSideEnvironmentVariablesAsync,
+  firstFingerprintInfo,
+  environment,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  projectDir: string;
+  projectId: string;
+  vcsClient: Client;
+  getServerSideEnvironmentVariablesAsync: GetServerSideEnvironmentVariablesFn;
   firstFingerprintInfo: {
     fingerprint: Fingerprint;
     platforms?: AppPlatform[];
     origin: FingerprintOrigin;
-  }
-): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
+  };
+  environment?: string;
+}): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
   const firstFingerprintPlatforms = firstFingerprintInfo.platforms;
-  if (!firstFingerprintPlatforms) {
+  if (!firstFingerprintPlatforms || firstFingerprintPlatforms.length === 0) {
     throw new Error(
       `Cannot compare the local directory against the provided fingerprint hash "${firstFingerprintInfo.fingerprint.hash}" because the associated platform could not be determined. Ensure the fingerprint is linked to a build or update to identify the platform.`
     );
   }
 
+  if (environment) {
+    Log.log(`🔧 Using environment: ${environment}`);
+  }
+  const env = environment
+    ? { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' }
+    : undefined;
   const fingerprint = await getFingerprintInfoFromLocalProjectForPlatformsAsync(
     graphqlClient,
     projectDir,
     projectId,
     vcsClient,
-    firstFingerprintPlatforms
+    firstFingerprintPlatforms,
+    { env }
   );
   return { fingerprint, origin: { type: FingerprintOriginType.Project } };
 }
