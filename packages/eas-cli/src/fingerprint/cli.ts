@@ -103,8 +103,21 @@ async function createFingerprintWithoutLoggingAsync(
   if (options.debug) {
     fingerprintOptions.debug = true;
   }
-  // eslint-disable-next-line @typescript-eslint/return-await
-  return await Fingerprint.createFingerprintAsync(projectDir, fingerprintOptions);
+
+  return await withTemporaryEnvAsync(options.env ?? {}, () =>
+    Fingerprint.createFingerprintAsync(projectDir, fingerprintOptions)
+  );
+}
+
+async function withTemporaryEnvAsync(envVars: Env, fn: () => Promise<any>): Promise<any> {
+  const originalEnv = { ...process.env };
+  Object.assign(process.env, envVars);
+
+  try {
+    return await fn();
+  } finally {
+    process.env = originalEnv;
+  }
 }
 
 /**
