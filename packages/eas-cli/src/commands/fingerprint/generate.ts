@@ -1,4 +1,3 @@
-import { Env } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 
 import { getExpoWebsiteBaseUrl } from '../../api';
