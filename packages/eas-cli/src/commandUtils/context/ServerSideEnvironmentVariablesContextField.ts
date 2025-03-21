@@ -5,7 +5,7 @@ import { getProjectIdAsync } from './contextUtils/getProjectIdAsync';
 import { loadServerSideEnvironmentVariablesAsync } from './contextUtils/loadServerSideEnvironmentVariablesAsync';
 import { getPublicExpoConfigAsync } from '../../project/expoConfig';
 
-type GetServerSideEnvironmentVariablesFn = (
+export type GetServerSideEnvironmentVariablesFn = (
   maybeEnv?: Record<string, string>
 ) => Promise<Record<string, string>>;
 
