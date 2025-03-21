@@ -75,13 +75,9 @@ export default class FingerprintGenerate extends EasCommand {
       platform = await selectRequestedPlatformAsync();
     }
 
-    let env: Env | undefined;
-    if (environment) {
-      env = environment
-        ? { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' }
-        : {};
-    }
-
+    const env = environment
+      ? { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' }
+      : undefined;
     const fingerprint = await getFingerprintInfoFromLocalProjectForPlatformsAsync(
       graphqlClient,
       projectDir,
