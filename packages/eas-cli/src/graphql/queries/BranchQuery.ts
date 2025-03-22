@@ -12,6 +12,7 @@ import {
   BranchesByAppQueryVariables,
   UpdateBranchBasicInfoFragment,
   UpdateBranchFragment,
+  UpdateFragment,
   ViewBranchQuery,
   ViewBranchQueryVariables,
   ViewBranchesOnUpdateChannelQuery,
@@ -63,7 +64,7 @@ export const BranchQuery = {
     }
     return updateBranchByName;
   },
-  async getLatestUpdateIdOnBranchAsync(
+  async getLatestUpdateOnBranchAsync(
     graphqlClient: ExpoGraphqlClient,
     {
       appId,
@@ -71,7 +72,7 @@ export const BranchQuery = {
       platform,
       runtimeVersion,
     }: { appId: string; branchName: string; platform: AppPlatform; runtimeVersion: string }
-  ): Promise<string | null> {
+  ): Promise<UpdateFragment | null> {
     const response = await withErrorHandlingAsync(
       graphqlClient
         .query<ViewLatestUpdateOnBranchQuery, ViewLatestUpdateOnBranchQueryVariables>(
@@ -93,11 +94,13 @@ export const BranchQuery = {
                       filter: { platform: $platform, runtimeVersions: [$runtimeVersion] }
                     ) {
                       id
+                      ...UpdateFragment
                     }
                   }
                 }
               }
             }
+            ${print(UpdateFragmentNode)}
           `,
           {
             appId,
@@ -117,7 +120,7 @@ export const BranchQuery = {
     if (!latestUpdate) {
       return null;
     }
-    return latestUpdate.id;
+    return latestUpdate;
   },
   async listBranchesOnAppAsync(
     graphqlClient: ExpoGraphqlClient,

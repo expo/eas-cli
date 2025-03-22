@@ -1023,32 +1023,50 @@ export async function getRuntimeToUpdateRolloutInfoGroupMappingAsync(
       platforms: UpdatePublishPlatform[];
     })[];
   }
-): Promise<Map<string, UpdateRolloutInfoGroup>> {
+): Promise<{
+  runtimeToUpdateRolloutInfoGroupMapping: Map<string, UpdateRolloutInfoGroup>;
+  didAnyRolloutControlUpdatesUseCodeSigning: boolean;
+}> {
   const runtimeToPlatformsMap = new Map(
     runtimeToPlatformsAndFingerprintInfoMapping.map(r => [r.runtimeVersion, r.platforms])
   );
-  return await mapMapAsync(runtimeToPlatformsMap, async (platforms, runtimeVersion) => {
-    return Object.fromEntries(
-      await Promise.all(
-        platforms.map<Promise<[string, UpdateRolloutInfo]>>(async platform => {
-          const updateIdForPlatform = await BranchQuery.getLatestUpdateIdOnBranchAsync(
-            graphqlClient,
-            {
-              appId,
-              branchName,
-              runtimeVersion,
-              platform: updatePublishPlatformToAppPlatform[platform],
-            }
-          );
-          if (!updateIdForPlatform) {
-            throw new Error(
-              `No updates on branch ${branchName} for platform ${platform} and runtimeVersion ${runtimeVersion} to roll out from.`
-            );
-          }
 
-          return [platform, { rolloutPercentage, rolloutControlUpdateId: updateIdForPlatform }];
-        })
-      )
-    );
-  });
+  let didAnyRolloutControlUpdatesUseCodeSigning = false;
+  const runtimeToUpdateRolloutInfoGroupMapping = await mapMapAsync(
+    runtimeToPlatformsMap,
+    async (platforms, runtimeVersion) => {
+      return Object.fromEntries(
+        await Promise.all(
+          platforms.map<Promise<[string, UpdateRolloutInfo]>>(async platform => {
+            const updateIdForPlatform = await BranchQuery.getLatestUpdateOnBranchAsync(
+              graphqlClient,
+              {
+                appId,
+                branchName,
+                runtimeVersion,
+                platform: updatePublishPlatformToAppPlatform[platform],
+              }
+            );
+            if (!updateIdForPlatform) {
+              throw new Error(
+                `No updates on branch ${branchName} for platform ${platform} and runtimeVersion ${runtimeVersion} to roll out from.`
+              );
+            }
+            didAnyRolloutControlUpdatesUseCodeSigning =
+              didAnyRolloutControlUpdatesUseCodeSigning || !!updateIdForPlatform.codeSigningInfo;
+
+            return [
+              platform,
+              { rolloutPercentage, rolloutControlUpdateId: updateIdForPlatform.id },
+            ];
+          })
+        )
+      );
+    }
+  );
+
+  return {
+    runtimeToUpdateRolloutInfoGroupMapping,
+    didAnyRolloutControlUpdatesUseCodeSigning,
+  };
 }
