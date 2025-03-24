@@ -31,7 +31,7 @@ export const ShareBuildMutation = {
               $metadata: BuildMetadataInput
             ) {
               build {
-                createShareBuild(
+                shareLocalBuild(
                   appId: $appId
                   job: $jobInput
                   artifactSource: $artifactSource
@@ -50,6 +50,6 @@ export const ShareBuildMutation = {
         )
         .toPromise()
     );
-    return data.build.createShareBuild.build;
+    return data.build.shareLocalBuild.build;
   },
 };
