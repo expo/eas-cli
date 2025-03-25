@@ -1473,10 +1473,10 @@
     slugify "^1.3.4"
     sucrase "3.35.0"
 
-"@expo/eas-build-job@1.0.172":
-  version "1.0.172"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.172.tgz#860e75fac492b0804f5c79e6c7dfc57092c0962f"
-  integrity sha512-fcNgOm/wANZXB0ZVoPfj/gITwRKWCb9wVx7hlUJGEm6UEs9iD8cISvNINOAKjuht9J5XAwV+IWoKpsD82aYVpg==
+"@expo/eas-build-job@1.0.173":
+  version "1.0.173"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.173.tgz#e19e0563743cc947fb5419fbeb063f03aed2a796"
+  integrity sha512-OtayVwXQaQEjJkpeKYvB4N6lsXVX+QSEz5okNx/d+8esI2KCjxOy/hzaqKBTovkxRlmWgE3XLw8RhrjAaBY2Gw==
   dependencies:
     "@expo/logger" "1.0.117"
     joi "^17.13.1"
@@ -1653,12 +1653,12 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.172":
-  version "1.0.172"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.172.tgz#eddeccdd00a54faaca682b950d9fa85f202e05f5"
-  integrity sha512-gnsNspKRJigu0pQpDqICmfuZDjLM2EHjcgQ+OGmSUh6+laviUVTU5XYGo96ePKljFTK3w+WoT/TTm6a47MU7LA==
+"@expo/steps@1.0.173":
+  version "1.0.173"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.173.tgz#157bf104d3137012bf82b106d5bd0227fd6f67f1"
+  integrity sha512-XT8+FsZWIzwK+/TGnPrHe0HMQrzRGjTsjVDx8Yt922tL5TkX69XeB/twA0PcPWBLMxq+JiKtFm68yPTPqjIMNg==
   dependencies:
-    "@expo/eas-build-job" "1.0.172"
+    "@expo/eas-build-job" "1.0.173"
     "@expo/logger" "1.0.117"
     "@expo/spawn-async" "^1.7.2"
     arg "^5.0.2"
