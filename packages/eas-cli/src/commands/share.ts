@@ -30,6 +30,9 @@ export default class BuildUpload extends EasCommand {
     'build-path': Flags.string({
       description: 'Path for the local build',
     }),
+    fingerprint: Flags.string({
+      description: 'Fingerprint hash of the local build',
+    }),
     ...EASNonInteractiveFlag,
   };
 
@@ -40,7 +43,7 @@ export default class BuildUpload extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildUpload);
-    const { 'build-path': buildPath } = flags;
+    const { 'build-path': buildPath, fingerprint: manualFingerprintHash } = flags;
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -51,13 +54,30 @@ export default class BuildUpload extends EasCommand {
     const platform = await this.selectPlatformAsync(flags.platform);
     const localBuildPath = await resolveLocalBuildPathAsync(platform, buildPath);
 
-    const { fingerprintHash, developmentClient, simulator } = await extractAppMetadataAsync(
-      localBuildPath,
-      platform
-    );
-    if (fingerprintHash) {
+    const {
+      fingerprintHash: buildFingerprintHash,
+      developmentClient,
+      simulator,
+    } = await extractAppMetadataAsync(localBuildPath, platform);
+
+    let fingerprint = manualFingerprintHash ?? buildFingerprintHash;
+    if (fingerprint) {
+      if (
+        manualFingerprintHash &&
+        buildFingerprintHash &&
+        manualFingerprintHash !== buildFingerprintHash
+      ) {
+        const selectedAnswer = await promptAsync({
+          name: 'fingerprint',
+          message: `The provided fingerprint hash ${manualFingerprintHash} does not match the fingerprint hash of the build ${buildFingerprintHash}. Which fingerprint do you want to use?`,
+          type: 'select',
+          choices: [{ title: manualFingerprintHash }, { title: buildFingerprintHash }],
+        });
+        fingerprint = String(selectedAnswer.fingerprint);
+      }
+
       await FingerprintMutation.createFingerprintAsync(graphqlClient, projectId, {
-        hash: fingerprintHash,
+        hash: fingerprint,
       });
     }
 
@@ -69,7 +89,7 @@ export default class BuildUpload extends EasCommand {
       projectId,
       { platform: toAppPlatform(platform), simulator },
       { type: ShareArchiveSourceType.Gcs, bucketKey },
-      { distribution: DistributionType.Internal, fingerprintHash, developmentClient }
+      { distribution: DistributionType.Internal, fingerprintHash: fingerprint, developmentClient }
     );
 
     Log.withTick(`Here is a sharable link of your build: ${getBuildLogsUrl(build)}`);
