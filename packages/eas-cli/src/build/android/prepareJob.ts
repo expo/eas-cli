@@ -73,6 +73,7 @@ export async function prepareJobAsync(
     builderEnvironment: {
       image: buildProfile.image,
       node: buildProfile.node,
+      corepack: buildProfile.corepack,
       pnpm: buildProfile.pnpm,
       bun: buildProfile.bun,
       yarn: buildProfile.yarn,
