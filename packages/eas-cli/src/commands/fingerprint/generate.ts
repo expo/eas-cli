@@ -74,6 +74,9 @@ export default class FingerprintGenerate extends EasCommand {
       platform = await selectRequestedPlatformAsync();
     }
 
+    if (environment) {
+      Log.log(`🔧 Using environment: ${environment}`);
+    }
     const env = environment
       ? { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' }
       : undefined;
