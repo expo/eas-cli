@@ -28,7 +28,7 @@ export default class FingerprintGenerate extends EasCommand {
 
   static override examples = [
     '$ eas fingerprint:generate  \t # Generate fingerprint in interactive mode',
-    '$ eas fingerprint:generate --profile preview  \t # Generate a fingerprint using the "preview" build profile',
+    '$ eas fingerprint:generate --build-profile preview  \t # Generate a fingerprint using the "preview" build profile',
     '$ eas fingerprint:generate --environment preview  \t # Generate a fingerprint using the "preview" environment',
     '$ eas fingerprint:generate --json --non-interactive --platform android  \t # Output fingerprint json to stdout',
   ];
@@ -41,9 +41,9 @@ export default class FingerprintGenerate extends EasCommand {
     ...EASEnvironmentFlag,
     environment: Flags.enum<EnvironmentVariableEnvironment>({
       ...EasEnvironmentFlagParameters,
-      exclusive: ['profile'],
+      exclusive: ['build-profile'],
     }),
-    profile: Flags.string({
+    'build-profile': Flags.string({
       char: 'e',
       description: 'Name of the build profile from eas.json.',
       exclusive: ['environment'],
@@ -67,7 +67,7 @@ export default class FingerprintGenerate extends EasCommand {
       'non-interactive': nonInteractive,
       platform: platformStringFlag,
       environment,
-      profile: buildProfileName,
+      'build-profile': buildProfileName,
     } = flags;
 
     const {
