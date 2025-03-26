@@ -144,6 +144,12 @@
           "description": "The version of Node.js to use for the build. See: https://nodejs.org/en/about/releases/",
           "markdownDescription": "The exact version of [Node.js](https://nodejs.org/en/about/releases/) to use for the build."
         },
+        "corepack": {
+          "type": "boolean",
+          "description": "If set to true, corepack will be enabled at the beginning of the build process. Learn more: https://nodejs.org/api/corepack.html",
+          "markdownDescription": "If set to true, [corepack](https://nodejs.org/api/corepack.html) will be enabled at the beginning of the build process.",
+          "default": false
+        },
         "yarn": {
           "type": "string",
           "description": "The version of Yarn to use for the build. See: https://www.npmjs.com/package/yarn",

@@ -35,6 +35,7 @@ export interface CommonBuildProfile {
   // build environment
   env?: Record<string, string>;
   node?: string;
+  corepack?: boolean;
   pnpm?: string;
   bun?: string;
   yarn?: string;

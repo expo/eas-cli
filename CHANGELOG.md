@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add environment flag to `eas fingerprint:generate`. ([#2951](https://github.com/expo/eas-cli/pull/2951) by [@quinlanj](https://github.com/quinlanj))
+- Add `corepack` field to `eas.json`. ([#2964](https://github.com/expo/eas-cli/pull/2964) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 
