@@ -1,17 +1,26 @@
+import { Env } from '@expo/eas-build-job';
+import { EasJsonAccessor } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 
 import { getExpoWebsiteBaseUrl } from '../../api';
+import { evaluateConfigWithEnvVarsAsync } from '../../build/evaluateConfigWithEnvVarsAsync';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASEnvironmentFlag, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
+  EASEnvironmentFlag,
+  EasEnvironmentFlagParameters,
+  EasNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
+import {
+  appPlatformToPlatform,
   getFingerprintInfoFromLocalProjectForPlatformsAsync,
   stringToAppPlatform,
 } from '../../fingerprint/utils';
-import { AppPlatform } from '../../graphql/generated';
+import { AppPlatform, EnvironmentVariableEnvironment } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { link } from '../../log';
 import { promptAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { getProfilesAsync } from '../../utils/profiles';
 
 export default class FingerprintGenerate extends EasCommand {
   static override description = 'generate fingerprints from the current project';
@@ -19,7 +28,8 @@ export default class FingerprintGenerate extends EasCommand {
 
   static override examples = [
     '$ eas fingerprint:generate  \t # Generate fingerprint in interactive mode',
-    '$ eas fingerprint:generate --profile preview  \t # Generate a fingerprint using the "preview" build profile',
+    '$ eas fingerprint:generate --build-profile preview  \t # Generate a fingerprint using the "preview" build profile',
+    '$ eas fingerprint:generate --environment preview  \t # Generate a fingerprint using the "preview" environment',
     '$ eas fingerprint:generate --json --non-interactive --platform android  \t # Output fingerprint json to stdout',
   ];
 
@@ -29,6 +39,15 @@ export default class FingerprintGenerate extends EasCommand {
       options: ['android', 'ios'],
     }),
     ...EASEnvironmentFlag,
+    environment: Flags.enum<EnvironmentVariableEnvironment>({
+      ...EasEnvironmentFlagParameters,
+      exclusive: ['build-profile'],
+    }),
+    'build-profile': Flags.string({
+      char: 'e',
+      description: 'Name of the build profile from eas.json.',
+      exclusive: ['environment'],
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -38,6 +57,7 @@ export default class FingerprintGenerate extends EasCommand {
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.Vcs,
     ...this.ContextOptions.ServerSideEnvironmentVariables,
+    ...this.ContextOptions.DynamicProjectConfig,
   };
 
   async runAsync(): Promise<void> {
@@ -47,6 +67,7 @@ export default class FingerprintGenerate extends EasCommand {
       'non-interactive': nonInteractive,
       platform: platformStringFlag,
       environment,
+      'build-profile': buildProfileName,
     } = flags;
 
     const {
@@ -55,6 +76,7 @@ export default class FingerprintGenerate extends EasCommand {
       loggedIn: { graphqlClient },
       vcsClient,
       getServerSideEnvironmentVariablesAsync,
+      getDynamicPrivateProjectConfigAsync,
     } = await this.getContextAsync(FingerprintGenerate, {
       nonInteractive,
       withServerSideEnvironment: environment ?? null,
@@ -73,12 +95,35 @@ export default class FingerprintGenerate extends EasCommand {
       platform = await selectRequestedPlatformAsync();
     }
 
+    let env: Env | undefined = undefined;
     if (environment) {
       Log.log(`🔧 Using environment: ${environment}`);
+      env = { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' };
+    } else if (buildProfileName) {
+      Log.log(`🔧 Using build profile: ${buildProfileName}`);
+      const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+      const buildProfile = (
+        await getProfilesAsync({
+          type: 'build',
+          easJsonAccessor,
+          platforms: [appPlatformToPlatform(platform)],
+          profileName: buildProfileName ?? undefined,
+          projectDir,
+        })
+      )[0];
+      if (!buildProfile) {
+        throw new Error(`Build profile ${buildProfile} not found for platform: ${platform}`);
+      }
+      const configResult = await evaluateConfigWithEnvVarsAsync({
+        buildProfile: buildProfile.profile,
+        buildProfileName: buildProfile.profileName,
+        graphqlClient,
+        getProjectConfig: getDynamicPrivateProjectConfigAsync,
+        opts: { env: buildProfile.profile.env },
+      });
+      env = configResult.env;
     }
-    const env = environment
-      ? { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' }
-      : undefined;
+
     const fingerprint = await getFingerprintInfoFromLocalProjectForPlatformsAsync(
       graphqlClient,
       projectDir,
