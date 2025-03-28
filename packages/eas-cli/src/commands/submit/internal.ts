@@ -89,7 +89,6 @@ export default class SubmitInternal extends EasCommand {
       },
       nonInteractive: true,
       isVerboseFastlaneEnabled: false,
-      groups: [],
       actor,
       graphqlClient,
       analytics,

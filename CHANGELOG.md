@@ -140,6 +140,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Add environment flag to `eas fingerprint:compare`. ([#2954](https://github.com/expo/eas-cli/pull/2954) by [@quinlanj](https://github.com/quinlanj))
 - Add build-profile flag to `eas fingerprint:generate`. ([#2966](https://github.com/expo/eas-cli/pull/2966) by [@quinlanj](https://github.com/quinlanj))
+- Add groups option to eas submit command. ([#2891](https://github.com/expo/eas-cli/pull/2891) by [@khamilowicz](https://github.com/khamilowicz))
+
+### 🐛 Bug fixes
 
 ### 🧹 Chores
 
@@ -1867,7 +1870,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add `eas build:run` command which runs iOS simulator builds from the CLI. ([#1447](https://github.com/expo/eas-cli/pull/1447) by [@szdziedzic](https://github.com/szdziedzic))
 - Add feature gate support. ([#1475](https://github.com/expo/eas-cli/pull/1475) by [@wschurman](https://github.com/wschurman))
 - Warn about outdated build deployment when configuring EAS Update. ([#1467](https://github.com/expo/eas-cli/pull/1467) by [@fiberjw](https://github.com/fiberjw))
-- Add groups option to eas submit command. ([#2891](https://github.com/expo/eas-cli/pull/2891) by [@khamilowicz](https://github.com/khamilowicz))
 
 ### 🧹 Chores
 

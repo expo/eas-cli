@@ -350,6 +350,28 @@ test('valid profile with extension chain exceeding 5 - too long', async () => {
   );
 });
 
+test('ios config with with groups field', async () => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      release: {
+        ios: {
+          appleId: 'some@email.com',
+          ascAppId: '1223423523',
+          appleTeamId: 'AB32CZE81F',
+          ascApiKeyPath: './path-ABCD.p8',
+          ascApiKeyIssuerId: 'b4d78f58-48c6-4f2c-96cb-94d8cd76970a',
+          ascApiKeyId: 'AB32CZE81F',
+          groups: ['group1', 'group2'],
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const profile = await EasJsonUtils.getSubmitProfileAsync(accessor, Platform.IOS, 'release');
+  expect(profile.groups).toEqual(['group1', 'group2']);
+});
+
 test('ios config with with invalid appleId', async () => {
   await fs.writeJson('/project/eas.json', {
     submit: {
@@ -520,6 +542,29 @@ test.each([
     releaseStatus,
     changesNotSentForReview: false,
   });
+});
+
+test('android config with groups field shoud throw an error', async () => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      production: {
+        android: {
+          serviceAccountKeyPath: './path.json',
+          track: 'beta',
+          releaseStatus: AndroidReleaseStatus.completed,
+          groups: ['group1', 'group2'],
+        },
+      },
+    },
+  });
+
+  const promise = EasJsonUtils.getSubmitProfileAsync(
+    EasJsonAccessor.fromProjectPath('/project'),
+    Platform.ANDROID,
+    'production'
+  );
+
+  await expect(promise).rejects.toThrow(/"submit.production.android.groups" is not allowed/);
 });
 
 test.each([

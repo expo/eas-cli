@@ -34,6 +34,7 @@ export const UnresolvedIosSubmitProfileSchema = Joi.object({
   appName: Joi.string(),
   bundleIdentifier: Joi.string(),
   metadataPath: Joi.string(),
+  groups: Joi.array().items(Joi.string()),
 });
 
 // more strict version after resolving all of the values
@@ -72,6 +73,7 @@ export const ResolvedIosSubmitProfileSchema = Joi.object({
   appName: Joi.string(),
   bundleIdentifier: Joi.string(),
   metadataPath: Joi.string(),
+  groups: Joi.array().items(Joi.string()),
 });
 
 export const UnresolvedSubmitProfileSchema = Joi.object({

@@ -92,7 +92,7 @@ export default class Submit extends EasCommand {
       description: 'Enable verbose logging for the submission process',
     }),
     groups: Flags.string({
-      description: 'Testing groups to send the build to (iOS only).',
+      description: 'Testing groups to send the build to (iOS only)',
       multiple: true,
       char: 'g',
     }),
@@ -147,7 +147,7 @@ export default class Submit extends EasCommand {
         archiveFlags: flagsWithPlatform.archiveFlags,
         nonInteractive: flagsWithPlatform.nonInteractive,
         isVerboseFastlaneEnabled: flagsWithPlatform.isVerboseFastlaneEnabled,
-        groups: flagsWithPlatform.groups ?? [],
+        groups: flagsWithPlatform.groups,
         actor,
         graphqlClient,
         analytics,

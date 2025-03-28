@@ -49,7 +49,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   env?: Record<string, string>;
   nonInteractive: boolean;
   isVerboseFastlaneEnabled: boolean;
-  groups: string[];
+  groups?: string[];
   platform: T;
   profile: SubmitProfile<T>;
   projectDir: string;
@@ -72,6 +72,9 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     graphqlClient,
     analytics,
     vcsClient,
+    profile,
+    groups: groupsFromParams,
+    platform,
   } = params;
   const { env, ...rest } = params;
   const projectName = exp.slug;
@@ -90,6 +93,12 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     });
   }
 
+  let groups: string[] = [];
+
+  if (platform === Platform.IOS) {
+    groups = groupsFromParams ?? (profile as SubmitProfile<Platform.IOS>).groups ?? [];
+  }
+
   const analyticsEventProperties = {
     tracking_id: uuidv4(),
     platform: params.platform,
@@ -103,6 +112,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     ...rest,
     accountName: account.name,
     credentialsCtx,
+    groups,
     projectName,
     user: actor,
     analyticsEventProperties,
