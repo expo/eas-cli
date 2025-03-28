@@ -524,7 +524,6 @@ async function prepareAndStartSubmissionAsync({
     exp: buildCtx.exp,
     vcsClient: buildCtx.vcsClient,
     isVerboseFastlaneEnabled: false,
-    groups: [],
     specifiedProfile: selectedSubmitProfileName,
   });
 

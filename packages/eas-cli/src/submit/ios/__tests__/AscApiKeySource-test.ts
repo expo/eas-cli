@@ -58,7 +58,6 @@ async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platfor
     },
     nonInteractive: true,
     isVerboseFastlaneEnabled: false,
-    groups: [],
     actor: mockJester,
     graphqlClient,
     analytics,
