@@ -5205,6 +5205,7 @@ export type IosSubmissionConfigInput = {
   ascApiKey?: InputMaybe<AscApiKeyInput>;
   ascApiKeyId?: InputMaybe<Scalars['String']['input']>;
   ascAppIdentifier: Scalars['String']['input'];
+  groups?: InputMaybe<Array<Scalars['String']['input']>>;
   isVerboseFastlaneEnabled?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
