@@ -6,32 +6,32 @@ import { withErrorHandlingAsync } from '../client';
 import {
   BuildFragment,
   BuildMetadataInput,
-  ShareArchiveSourceInput,
-  ShareJobInput,
-  UploadLocalBuildMutation,
+  CreateLocalBuildMutation,
+  LocalBuildArchiveSourceInput,
+  LocalBuildJobInput,
 } from '../generated';
 import { BuildFragmentNode } from '../types/Build';
 
-export const ShareBuildMutation = {
-  async uploadLocalBuildAsync(
+export const LocalBuildMutation = {
+  async createLocalBuildAsync(
     graphqlClient: ExpoGraphqlClient,
     appId: string,
-    job: ShareJobInput,
-    artifactSource: ShareArchiveSourceInput,
+    job: LocalBuildJobInput,
+    artifactSource: LocalBuildArchiveSourceInput,
     metadata: BuildMetadataInput
   ): Promise<BuildFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<UploadLocalBuildMutation>(
+        .mutation<CreateLocalBuildMutation>(
           gql`
-            mutation uploadLocalBuildMutation(
+            mutation createLocalBuildMutation(
               $appId: ID!
-              $jobInput: ShareJobInput!
-              $artifactSource: ShareArchiveSourceInput!
+              $jobInput: LocalBuildJobInput!
+              $artifactSource: LocalBuildArchiveSourceInput!
               $metadata: BuildMetadataInput
             ) {
               build {
-                shareLocalBuild(
+                createLocalBuild(
                   appId: $appId
                   job: $jobInput
                   artifactSource: $artifactSource
@@ -50,6 +50,6 @@ export const ShareBuildMutation = {
         )
         .toPromise()
     );
-    return data.build.shareLocalBuild.build;
+    return data.build.createLocalBuild.build;
   },
 };

@@ -10,9 +10,13 @@ import { getBuildLogsUrl } from '../build/utils/url';
 import EasCommand from '../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EASNonInteractiveFlag } from '../commandUtils/flags';
-import { DistributionType, ShareArchiveSourceType, UploadSessionType } from '../graphql/generated';
+import {
+  DistributionType,
+  LocalBuildArchiveSourceType,
+  UploadSessionType,
+} from '../graphql/generated';
 import { FingerprintMutation } from '../graphql/mutations/FingerprintMutation';
-import { ShareBuildMutation } from '../graphql/mutations/ShareBuildMutation';
+import { LocalBuildMutation } from '../graphql/mutations/LocalBuildMutation';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { promptAsync } from '../prompts';
@@ -84,11 +88,11 @@ export default class BuildUpload extends EasCommand {
     Log.log('Uploading your app archive to EAS');
     const bucketKey = await uploadAppArchiveAsync(graphqlClient, localBuildPath);
 
-    const build = await ShareBuildMutation.uploadLocalBuildAsync(
+    const build = await LocalBuildMutation.createLocalBuildAsync(
       graphqlClient,
       projectId,
       { platform: toAppPlatform(platform), simulator },
-      { type: ShareArchiveSourceType.Gcs, bucketKey },
+      { type: LocalBuildArchiveSourceType.Gcs, bucketKey },
       { distribution: DistributionType.Internal, fingerprintHash: fingerprint, developmentClient }
     );
 
