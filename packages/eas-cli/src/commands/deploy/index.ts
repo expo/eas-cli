@@ -1,5 +1,6 @@
 import { format as formatTimeAgo } from '@expo/timeago.js';
 import { Flags } from '@oclif/core';
+import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
 import fs from 'node:fs';
 import * as path from 'node:path';
@@ -299,6 +300,25 @@ export default class WorkerDeploy extends EasCommand {
       progress.succeed('Created deployment');
     } catch (error: any) {
       progress.fail('Failed to create deployment');
+
+      if (
+        flags.isProduction &&
+        error instanceof CombinedError &&
+        error.graphQLErrors.some(err => {
+          return (
+            err.extensions?.errorCode === 'UNAUTHORIZED_ERROR' &&
+            err.message.includes('AppDevDomainNameEntity') &&
+            err.message.includes('CREATE')
+          );
+        })
+      ) {
+        throw new Error(
+          `You have specified the new deployment should be a production deployment, but a production domain has not been set up yet for this app.\n\nRun ${chalk.bold(
+            'eas deploy --prod'
+          )} as an app admin on your machine to set up a production domain and then try again.`
+        );
+      }
+
       throw error;
     }
 
