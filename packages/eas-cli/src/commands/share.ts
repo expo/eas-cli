@@ -75,7 +75,10 @@ export default class BuildUpload extends EasCommand {
           name: 'fingerprint',
           message: `The provided fingerprint hash ${manualFingerprintHash} does not match the fingerprint hash of the build ${buildFingerprintHash}. Which fingerprint do you want to use?`,
           type: 'select',
-          choices: [{ title: manualFingerprintHash }, { title: buildFingerprintHash }],
+          choices: [
+            { title: manualFingerprintHash, value: manualFingerprintHash },
+            { title: buildFingerprintHash, value: buildFingerprintHash },
+          ],
         });
         fingerprint = String(selectedAnswer.fingerprint);
       }
