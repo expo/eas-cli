@@ -5,11 +5,13 @@ import chalk from 'chalk';
 import fs from 'node:fs';
 import * as path from 'node:path';
 
+import { getHostingDeploymentsUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { EnvironmentVariableEnvironment } from '../../graphql/generated';
-import Log from '../../log';
+import Log, { link } from '../../log';
 import { ora } from '../../ora';
+import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { createProgressTracker } from '../../utils/progress';
 import * as WorkerAssets from '../../worker/assets';
@@ -121,7 +123,10 @@ export default class WorkerDeploy extends EasCommand {
     } = await this.getContextAsync(WorkerDeploy, { ...flags, withServerSideEnvironment: null });
 
     const projectDist = await resolveExportedProjectAsync(flags, projectDir);
-    const { projectId } = await getDynamicPrivateProjectConfigAsync();
+    const { projectId, exp } = await getDynamicPrivateProjectConfigAsync();
+
+    const projectName = exp.slug;
+    const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
 
     logExportedProjectInfo(projectDist);
 
@@ -315,7 +320,14 @@ export default class WorkerDeploy extends EasCommand {
         throw new Error(
           `You have specified the new deployment should be a production deployment, but a production domain has not been set up yet for this app.\n\nRun ${chalk.bold(
             'eas deploy --prod'
-          )} as an app admin on your machine to set up a production domain and then try again.`
+          )} as an app admin on your machine or promote an existing deployment to production on the ${link(
+            getHostingDeploymentsUrl(accountName, projectName),
+            {
+              dim: false,
+              text: 'Hosting Dashboard',
+              fallback: `Hosting Dashboard (${getHostingDeploymentsUrl(accountName, projectName)})`,
+            }
+          )} to set up a production domain and then try again.`
         );
       }
 
