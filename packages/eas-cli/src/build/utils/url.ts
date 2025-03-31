@@ -72,3 +72,12 @@ export function getProjectGitHubSettingsUrl(accountName: string, projectName: st
     getExpoWebsiteBaseUrl()
   ).toString();
 }
+
+export function getHostingDeploymentsUrl(accountName: string, projectName: string): string {
+  return new URL(
+    `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
+      projectName
+    )}/hosting/deployments`,
+    getExpoWebsiteBaseUrl()
+  ).toString();
+}
