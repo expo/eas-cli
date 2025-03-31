@@ -107,7 +107,7 @@ async function getAuthTokenStringAsync(auth: TelemetryContext['auth']): Promise<
   }
 
   if (typeof auth.context.token === 'object') {
-    return auth.context.token.getToken();
+    return await auth.context.token.getToken();
   }
 
   return auth.context.token;
