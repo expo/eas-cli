@@ -66,7 +66,7 @@ jobs:
           destination_branch: 'main'
           pr_title: 'Upgrade eas-build dependencies'
           pr_body: ':arrow_up: Upgrades [`eas-build`](https://github.com/expo/eas-build) dependencies.'
-          pr_reviewer: 'szdziedzic,radoslawkrzemien,sjchmiela,khamilowicz'
+          pr_reviewer: 'radoslawkrzemien,sjchmiela,khamilowicz'
           github_token: ${{ secrets.EXPO_BOT_PAT }}
 
       - uses: actions/github-script@v3
