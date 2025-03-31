@@ -8,7 +8,7 @@ import { createAppleTasks } from './apple/tasks';
 import { getAppStoreAuthAsync } from './auth';
 import { createAppleWriter, getStaticConfigFilePath } from './config/resolve';
 import { MetadataDownloadError, MetadataValidationError } from './errors';
-import { subscribeTelemetry } from './utils/telemetry';
+import { subscribeTelemetryAsync } from './utils/telemetry';
 import { Analytics, MetadataEvent } from '../analytics/AnalyticsManager';
 import { CredentialsContext } from '../credentials/context';
 import Log from '../log';
@@ -51,7 +51,7 @@ export async function downloadMetadataAsync({
     profile,
   });
 
-  const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
+  const { unsubscribeTelemetry, executionId } = await subscribeTelemetryAsync(
     analytics,
     MetadataEvent.APPLE_METADATA_DOWNLOAD,
     { app, auth }
