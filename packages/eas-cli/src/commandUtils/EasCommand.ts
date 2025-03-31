@@ -27,7 +27,7 @@ import {
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
 import { EnvironmentVariableEnvironment } from '../graphql/generated';
-import Log from '../log';
+import Log, { link } from '../log';
 import SessionManager from '../user/SessionManager';
 import { Client } from '../vcs/vcs';
 
@@ -264,6 +264,16 @@ export default abstract class EasCommand extends Command {
           const defaultMsg = `${messageLine}${requestIdLine}`;
 
           if (graphQLError.extensions?.errorCode === 'UNAUTHORIZED_ERROR') {
+            if (defaultMsg.includes('ScopedAccountActorViewerContext') && process.env.EAS_BUILD) {
+              // We're in EAS, authenticated with a scoped account actor access token.
+              // We may have not added the scoped actor privacy rule to the right place yet.
+              return `${chalk.bold(
+                `You don't have the required permissions to perform this operation.`
+              )}\n\nWe are in the process of migrating EAS to a more granular permissioning system. If you believe what you're doing is a legitimate operation you should be able to perform, report this to us at ${link(
+                'https://expo.dev/contact'
+              )}\n\nOriginal error message: ${defaultMsg}`;
+            }
+
             return `${chalk.bold(
               `You don't have the required permissions to perform this operation.`
             )}\n\nThis can sometimes happen if you are logged in as incorrect user.\nRun ${chalk.bold(
