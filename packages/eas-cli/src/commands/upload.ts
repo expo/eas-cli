@@ -208,8 +208,8 @@ async function uploadAppArchiveAsync(
     path,
     createProgressTracker({
       total: fileSize,
-      message: 'Uploading to EAS Share',
-      completedMessage: 'Uploaded to EAS Share',
+      message: 'Uploading to EAS',
+      completedMessage: 'Uploaded to EAS',
     })
   );
   return bucketKey;
