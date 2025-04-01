@@ -1730,6 +1730,22 @@
             "deprecationReason": null
           },
           {
+            "name": "hasBuilds",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -21807,6 +21823,18 @@
             "deprecationReason": null
           },
           {
+            "name": "buildMode",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "ENUM",
+              "name": "BuildMode",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "distribution",
             "description": null,
             "args": [],
@@ -36168,6 +36196,26 @@
             "deprecationReason": null
           },
           {
+            "name": "groups",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "isVerboseFastlaneEnabled",
             "description": null,
             "type": {
@@ -50348,6 +50396,39 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "DeleteUpdateGroupResult",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "scheduleUpdateGroupDeletion",
+            "description": "Delete an EAS update group in the background",
+            "args": [
+              {
+                "name": "group",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "BackgroundJobReceipt",
                 "ofType": null
               }
             },
