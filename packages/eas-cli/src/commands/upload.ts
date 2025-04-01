@@ -229,24 +229,16 @@ async function extractAppMetadataAsync(
   let fingerprintHash: string | undefined;
   const simulator = platform === Platform.IOS;
 
-  let basePath = platform === Platform.ANDROID ? 'assets/' : buildPath;
+  const basePath = platform === Platform.ANDROID ? 'assets/' : buildPath;
   const fingerprintFilePath =
     platform === Platform.ANDROID ? 'fingerprint' : 'EXUpdates.bundle/fingerprint';
   const devMenuBundlePath =
     platform === Platform.ANDROID ? 'EXDevMenuApp.android.js' : 'EXDevMenu.bundle/';
 
   const buildExtension = path.extname(buildPath);
-  if (['.apk', '.ipa', '.aab'].includes(buildExtension)) {
+  if (['.apk', '.aab'].includes(buildExtension)) {
     const zip = new StreamZip.async({ file: buildPath });
     try {
-      if (buildExtension === '.ipa') {
-        const entries = await zip.entries();
-        basePath =
-          Object.keys(entries).find(
-            entry => entry.startsWith('Payload/') && entry.endsWith('.app/')
-          ) ?? basePath;
-      }
-
       developmentClient = Boolean(await zip.entry(path.join(basePath, devMenuBundlePath)));
       if (await zip.entry(path.join(basePath, fingerprintFilePath))) {
         fingerprintHash = (await zip.entryData(path.join(basePath, fingerprintFilePath))).toString(
