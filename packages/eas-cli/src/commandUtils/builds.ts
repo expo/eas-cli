@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { ExpoGraphqlClient } from './context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
   Build,
@@ -8,7 +9,6 @@ import {
   BuildStatus,
   InputMaybe,
 } from '../graphql/generated';
-import { ExpoGraphqlClient } from './context/contextUtils/createGraphqlClient';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { RequestedPlatform, appPlatformEmojis } from '../platform';
 
