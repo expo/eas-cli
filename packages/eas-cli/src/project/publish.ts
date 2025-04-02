@@ -23,6 +23,7 @@ import { FingerprintOptions, createFingerprintsByKeyAsync } from '../fingerprint
 import {
   AppPlatform,
   AssetMetadataStatus,
+  BuildFragment,
   PartialManifestAsset,
   UpdateRolloutInfo,
   UpdateRolloutInfoGroup,
@@ -52,6 +53,7 @@ import groupBy from '../utils/expodash/groupBy';
 import mapMapAsync from '../utils/expodash/mapMapAsync';
 import uniqBy from '../utils/expodash/uniqBy';
 import { Client } from '../vcs/vcs';
+import { fetchBuildsAsync } from '../commandUtils/builds';
 
 // update publish does not currently support web
 export type UpdatePublishPlatform = 'ios' | 'android';
@@ -996,6 +998,48 @@ export async function maybeCalculateFingerprintForRuntimeVersionInfoObjectsWitho
         };
       });
   return [...runtimesWithComputedFingerprint, ...runtimesWithPreviouslyComputedFingerprints];
+}
+
+export async function findCompatibleBuildsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  appId: string,
+  runtimeToPlatformsAndFingerprintInfoMapping: {
+    runtimeVersion: string;
+    platforms: UpdatePublishPlatform[];
+    fingerprintInfoGroup: FingerprintInfoGroup;
+  }
+): Promise<{
+  runtimeVersion: string;
+  platforms: UpdatePublishPlatform[];
+  fingerprintInfoGroupWithCompatibleBuilds: {
+    android?: (FingerprintInfo & { build?: BuildFragment }) | undefined;
+    ios?: (FingerprintInfo & { build?: BuildFragment }) | undefined;
+  };
+}> {
+  const { fingerprintInfoGroup } = runtimeToPlatformsAndFingerprintInfoMapping;
+  const entriesPromises = Object.entries(fingerprintInfoGroup).map(
+    async ([platform, fingerprintInfo]) => {
+      const build = (
+        await fetchBuildsAsync({
+          graphqlClient,
+          projectId: appId,
+          filters: {
+            fingerprintHash: fingerprintInfo.fingerprintHash,
+          },
+        })
+      )[0] as BuildFragment | undefined;
+      return [platform, { ...fingerprintInfo, build }];
+    }
+  );
+  const entries = await Promise.all(entriesPromises);
+  const fingerprintInfoGroupWithCompatibleBuilds = Object.fromEntries(entries) as {
+    android?: (FingerprintInfo & { build?: BuildFragment }) | undefined;
+    ios?: (FingerprintInfo & { build?: BuildFragment }) | undefined;
+  };
+  return {
+    ...runtimeToPlatformsAndFingerprintInfoMapping,
+    fingerprintInfoGroupWithCompatibleBuilds,
+  };
 }
 
 export const platformDisplayNames: Record<UpdatePublishPlatform, string> = {

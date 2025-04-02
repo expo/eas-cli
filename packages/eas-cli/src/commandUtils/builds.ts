@@ -1,6 +1,5 @@
 import chalk from 'chalk';
 
-import { ExpoGraphqlClient } from './context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
   Build,
@@ -9,6 +8,7 @@ import {
   BuildStatus,
   InputMaybe,
 } from '../graphql/generated';
+import { ExpoGraphqlClient } from './context/contextUtils/createGraphqlClient';
 import { BuildQuery } from '../graphql/queries/BuildQuery';
 import { RequestedPlatform, appPlatformEmojis } from '../platform';
 
@@ -43,6 +43,7 @@ export async function fetchBuildsAsync({
     platform?: RequestedPlatform;
     profile?: string;
     hasFingerprint?: boolean;
+    fingerprintHash?: string;
   };
 }): Promise<BuildFragment[]> {
   let builds: BuildFragment[];
@@ -55,6 +56,9 @@ export async function fetchBuildsAsync({
   }
   if (filters?.hasFingerprint) {
     queryFilters['hasFingerprint'] = filters.hasFingerprint;
+  }
+  if (filters?.fingerprintHash) {
+    queryFilters['fingerprintHash'] = filters.fingerprintHash;
   }
   if (!filters?.statuses) {
     builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {

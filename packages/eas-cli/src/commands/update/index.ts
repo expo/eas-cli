@@ -3,6 +3,7 @@ import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import { getExpoWebsiteBaseUrl } from '../../api';
 import { ensureBranchExistsAsync } from '../../branch/queries';
 import { transformFingerprintSource } from '../../build/graphql';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
@@ -13,7 +14,7 @@ import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
   EnvironmentVariableEnvironment,
-  FingerprintInfoGroup,
+  FingerprintInfoGroup as GraphqlFingerprintInfoGroup,
   PublishUpdateGroupInput,
   StatuspageServiceName,
   UpdateInfoGroup,
@@ -21,6 +22,7 @@ import {
   UpdateRolloutInfoGroup,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
+import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
@@ -33,6 +35,7 @@ import {
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
   filterCollectedAssetsByRequestedPlatforms,
+  findCompatibleBuildsAsync,
   generateEasMetadataAsync,
   getBranchNameForCommandAsync,
   getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects,
@@ -478,7 +481,7 @@ export default class UpdatePublish extends EasCommand {
                 },
               };
             },
-            {} as FingerprintInfoGroup
+            {} as GraphqlFingerprintInfoGroup
           );
 
           return {
@@ -571,6 +574,12 @@ export default class UpdatePublish extends EasCommand {
 
     Log.addNewLineIfNone();
 
+    const runtimeToCompatibleBuilds = await Promise.all(
+      runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping.map(obj =>
+        findCompatibleBuildsAsync(graphqlClient, projectId, obj)
+      )
+    );
+
     for (const runtime of uniqBy(
       runtimeToPlatformsAndFingerprintInfoMapping,
       version => version.runtimeVersion
@@ -642,6 +651,51 @@ export default class UpdatePublish extends EasCommand {
         );
         Log.addNewLineIfNone();
       }
+
+      const fingerprintsWithoutCompatibleBuilds = runtimeToCompatibleBuilds.find(
+        ({ runtimeVersion }) => runtimeVersion === runtime.runtimeVersion
+      )?.fingerprintInfoGroupWithCompatibleBuilds;
+      if (fingerprintsWithoutCompatibleBuilds) {
+        const missingBuilds = Object.entries(fingerprintsWithoutCompatibleBuilds).filter(
+          ([_platform, fingerprintInfo]) => !fingerprintInfo.build
+        );
+        if (missingBuilds.length > 0) {
+          const project = await AppQuery.byIdAsync(graphqlClient, projectId);
+          Log.warn('No compatible builds found for the following fingerprints:');
+          for (const [platform, fingerprintInfo] of missingBuilds) {
+            const fingerprintUrl = new URL(
+              `/accounts/${project.ownerAccount.name}/projects/${project.slug}/fingerprints/${fingerprintInfo.fingerprintHash}`,
+              getExpoWebsiteBaseUrl()
+            );
+            Log.warn(
+              formatFields(
+                [
+                  {
+                    label: `${this.prettyPlatform(platform)} fingerprint`,
+                    value: fingerprintInfo.fingerprintHash,
+                  },
+                  { label: 'URL', value: fingerprintUrl.toString() },
+                ],
+                {
+                  labelFormat: label => `    ${chalk.dim(label)}:`,
+                }
+              )
+            );
+            Log.addNewLineIfNone();
+          }
+        }
+      }
+    }
+  }
+
+  private prettyPlatform(updatePlatform: string): string {
+    switch (updatePlatform) {
+      case 'android':
+        return 'Android';
+      case 'ios':
+        return 'iOS';
+      default:
+        return updatePlatform;
     }
   }
 
