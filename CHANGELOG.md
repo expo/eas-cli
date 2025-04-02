@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Remove hidden flag from `eas fingerprint:generate`. ([#2965](https://github.com/expo/eas-cli/pull/2965) by [@quinlanj](https://github.com/quinlanj))
+- Refactor `eas update` command to improve code readability. ([#2976](https://github.com/expo/eas-cli/pull/2976) by [@quinlanj](https://github.com/quinlanj))
 
 ## [16.1.0](https://github.com/expo/eas-cli/releases/tag/v16.1.0) - 2025-03-26
 
