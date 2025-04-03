@@ -131,6 +131,7 @@ export type Account = {
   googleServiceAccountKeys: Array<GoogleServiceAccountKey>;
   /** Android credentials for account */
   googleServiceAccountKeysPaginated: AccountGoogleServiceAccountKeysConnection;
+  hasBuilds: Scalars['Boolean']['output'];
   id: Scalars['ID']['output'];
   isCurrent: Scalars['Boolean']['output'];
   isDisabled: Scalars['Boolean']['output'];
@@ -3185,6 +3186,7 @@ export enum BuildPriority {
 export type BuildPublicData = {
   __typename?: 'BuildPublicData';
   artifacts: PublicArtifacts;
+  buildMode?: Maybe<BuildMode>;
   distribution?: Maybe<DistributionType>;
   id: Scalars['ID']['output'];
   isForIosSimulator: Scalars['Boolean']['output'];
@@ -5205,6 +5207,7 @@ export type IosSubmissionConfigInput = {
   ascApiKey?: InputMaybe<AscApiKeyInput>;
   ascApiKeyId?: InputMaybe<Scalars['String']['input']>;
   ascAppIdentifier: Scalars['String']['input'];
+  groups?: InputMaybe<Array<Scalars['String']['input']>>;
   isVerboseFastlaneEnabled?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
@@ -7197,6 +7200,8 @@ export type UpdateMutation = {
   __typename?: 'UpdateMutation';
   /** Delete an EAS update group */
   deleteUpdateGroup: DeleteUpdateGroupResult;
+  /** Delete an EAS update group in the background */
+  scheduleUpdateGroupDeletion: BackgroundJobReceipt;
   /** Set code signing info for an update */
   setCodeSigningInfo: Update;
   /** Set rollout percentage for an update */
@@ -7205,6 +7210,11 @@ export type UpdateMutation = {
 
 
 export type UpdateMutationDeleteUpdateGroupArgs = {
+  group: Scalars['ID']['input'];
+};
+
+
+export type UpdateMutationScheduleUpdateGroupDeletionArgs = {
   group: Scalars['ID']['input'];
 };
 
@@ -8870,12 +8880,12 @@ export type AppInfoQueryVariables = Exact<{
 
 export type AppInfoQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string } } };
 
-export type DeleteUpdateGroupMutationVariables = Exact<{
+export type ScheduleUpdateGroupDeletionMutationVariables = Exact<{
   group: Scalars['ID']['input'];
 }>;
 
 
-export type DeleteUpdateGroupMutation = { __typename?: 'RootMutation', update: { __typename?: 'UpdateMutation', deleteUpdateGroup: { __typename?: 'DeleteUpdateGroupResult', group: string } } };
+export type ScheduleUpdateGroupDeletionMutation = { __typename?: 'RootMutation', update: { __typename?: 'UpdateMutation', scheduleUpdateGroupDeletion: { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any } } };
 
 export type CreateAndroidAppBuildCredentialsMutationVariables = Exact<{
   androidAppBuildCredentialsInput: AndroidAppBuildCredentialsInput;
@@ -9572,6 +9582,13 @@ export type LatestAppVersionQueryVariables = Exact<{
 
 export type LatestAppVersionQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, latestAppVersionByPlatformAndApplicationIdentifier?: { __typename?: 'AppVersion', id: string, storeVersion: string, buildVersion: string } | null } } };
 
+export type BackgroundJobReceiptByIdQueryVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type BackgroundJobReceiptByIdQuery = { __typename?: 'RootQuery', backgroundJobReceipt: { __typename?: 'BackgroundJobReceiptQuery', byId: { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any } } };
+
 export type ViewBranchQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   name: Scalars['String']['input'];
@@ -9864,6 +9881,8 @@ export type WebhookByIdQuery = { __typename?: 'RootQuery', webhook: { __typename
 export type AccountFragment = { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> };
 
 export type AppFragment = { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', githubRepoOwnerName: string, githubRepoName: string } } | null };
+
+export type BackgroundJobReceiptDataFragment = { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any };
 
 export type BuildFragment = { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string }, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null };
 

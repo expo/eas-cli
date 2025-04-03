@@ -3,6 +3,7 @@ import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import { getExpoWebsiteBaseUrl } from '../../api';
 import { ensureBranchExistsAsync } from '../../branch/queries';
 import { transformFingerprintSource } from '../../build/graphql';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
@@ -13,7 +14,7 @@ import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
   EnvironmentVariableEnvironment,
-  FingerprintInfoGroup,
+  FingerprintInfoGroup as GraphqlFingerprintInfoGroup,
   PublishUpdateGroupInput,
   StatuspageServiceName,
   UpdateInfoGroup,
@@ -21,6 +22,7 @@ import {
   UpdateRolloutInfoGroup,
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
+import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
@@ -33,6 +35,7 @@ import {
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
   filterCollectedAssetsByRequestedPlatforms,
+  findCompatibleBuildsAsync,
   generateEasMetadataAsync,
   getBranchNameForCommandAsync,
   getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects,
@@ -478,7 +481,7 @@ export default class UpdatePublish extends EasCommand {
                 },
               };
             },
-            {} as FingerprintInfoGroup
+            {} as GraphqlFingerprintInfoGroup
           );
 
           return {
@@ -559,92 +562,140 @@ export default class UpdatePublish extends EasCommand {
     }
     if (jsonFlag) {
       printJsonOnlyOutput(getUpdateJsonInfosForUpdates(newUpdates));
-    } else {
-      if (new Set(newUpdates.map(update => update.group)).size > 1) {
-        Log.addNewLineIfNone();
-        Log.log(
-          '👉 Since multiple runtime versions are defined, multiple update groups have been published.'
-        );
-      }
+      return;
+    }
 
+    if (new Set(newUpdates.map(update => update.group)).size > 1) {
       Log.addNewLineIfNone();
+      Log.log(
+        '👉 Since multiple runtime versions are defined, multiple update groups have been published.'
+      );
+    }
 
-      for (const runtime of uniqBy(
-        runtimeToPlatformsAndFingerprintInfoMapping,
-        version => version.runtimeVersion
-      )) {
-        const newUpdatesForRuntimeVersion = newUpdates.filter(
-          update => update.runtimeVersion === runtime.runtimeVersion
+    Log.addNewLineIfNone();
+
+    const runtimeToCompatibleBuilds = await Promise.all(
+      runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping.map(obj =>
+        findCompatibleBuildsAsync(graphqlClient, projectId, obj)
+      )
+    );
+
+    for (const runtime of uniqBy(
+      runtimeToPlatformsAndFingerprintInfoMapping,
+      version => version.runtimeVersion
+    )) {
+      const newUpdatesForRuntimeVersion = newUpdates.filter(
+        update => update.runtimeVersion === runtime.runtimeVersion
+      );
+      if (newUpdatesForRuntimeVersion.length === 0) {
+        throw new Error(
+          `Publish response is missing updates with runtime ${runtime.runtimeVersion}.`
         );
-        if (newUpdatesForRuntimeVersion.length === 0) {
-          throw new Error(
-            `Publish response is missing updates with runtime ${runtime.runtimeVersion}.`
-          );
-        }
-        const platforms = newUpdatesForRuntimeVersion.map(update => update.platform);
-        const newAndroidUpdate = newUpdatesForRuntimeVersion.find(
-          update => update.platform === 'android'
-        );
-        const newIosUpdate = newUpdatesForRuntimeVersion.find(update => update.platform === 'ios');
-        const updateGroupId = newUpdatesForRuntimeVersion[0].group;
+      }
+      const platforms = newUpdatesForRuntimeVersion.map(update => update.platform);
+      const newAndroidUpdate = newUpdatesForRuntimeVersion.find(
+        update => update.platform === 'android'
+      );
+      const newIosUpdate = newUpdatesForRuntimeVersion.find(update => update.platform === 'ios');
+      const updateGroupId = newUpdatesForRuntimeVersion[0].group;
 
-        const projectName = exp.slug;
-        const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
-        const updateGroupUrl = getUpdateGroupUrl(accountName, projectName, updateGroupId);
-        const updateGroupLink = link(updateGroupUrl, { dim: false });
+      const projectName = exp.slug;
+      const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
+      const updateGroupUrl = getUpdateGroupUrl(accountName, projectName, updateGroupId);
+      const updateGroupLink = link(updateGroupUrl, { dim: false });
 
-        Log.log(
-          formatFields([
-            { label: 'Branch', value: branchName },
-            { label: 'Runtime version', value: runtime.runtimeVersion },
-            { label: 'Platform', value: platforms.join(', ') },
-            { label: 'Update group ID', value: updateGroupId },
-            ...(newAndroidUpdate
-              ? [{ label: 'Android update ID', value: newAndroidUpdate.id }]
-              : []),
-            ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
-            ...(newAndroidUpdate?.rolloutControlUpdate
-              ? [
-                  {
-                    label: 'Android Rollout',
-                    value: `${newAndroidUpdate.rolloutPercentage}% (Base update ID: ${newAndroidUpdate.rolloutControlUpdate.id})`,
-                  },
-                ]
-              : []),
-            ...(newIosUpdate?.rolloutControlUpdate
-              ? [
-                  {
-                    label: 'iOS Rollout',
-                    value: `${newIosUpdate.rolloutPercentage}% (Base update ID: ${newIosUpdate.rolloutControlUpdate.id})`,
-                  },
-                ]
-              : []),
-            { label: 'Message', value: updateMessage ?? '' },
-            ...(gitCommitHash
-              ? [
-                  {
-                    label: 'Commit',
-                    value: `${gitCommitHash}${isGitWorkingTreeDirty ? '*' : ''}`,
-                  },
-                ]
-              : []),
-            { label: 'EAS Dashboard', value: updateGroupLink },
-          ])
+      Log.log(
+        formatFields([
+          { label: 'Branch', value: branchName },
+          { label: 'Runtime version', value: runtime.runtimeVersion },
+          { label: 'Platform', value: platforms.join(', ') },
+          { label: 'Update group ID', value: updateGroupId },
+          ...(newAndroidUpdate ? [{ label: 'Android update ID', value: newAndroidUpdate.id }] : []),
+          ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
+          ...(newAndroidUpdate?.rolloutControlUpdate
+            ? [
+                {
+                  label: 'Android Rollout',
+                  value: `${newAndroidUpdate.rolloutPercentage}% (Base update ID: ${newAndroidUpdate.rolloutControlUpdate.id})`,
+                },
+              ]
+            : []),
+          ...(newIosUpdate?.rolloutControlUpdate
+            ? [
+                {
+                  label: 'iOS Rollout',
+                  value: `${newIosUpdate.rolloutPercentage}% (Base update ID: ${newIosUpdate.rolloutControlUpdate.id})`,
+                },
+              ]
+            : []),
+          { label: 'Message', value: updateMessage ?? '' },
+          ...(gitCommitHash
+            ? [
+                {
+                  label: 'Commit',
+                  value: `${gitCommitHash}${isGitWorkingTreeDirty ? '*' : ''}`,
+                },
+              ]
+            : []),
+          { label: 'EAS Dashboard', value: updateGroupLink },
+        ])
+      );
+      Log.addNewLineIfNone();
+      if (isUploadedAssetCountAboveWarningThreshold(uploadedAssetCount, assetLimitPerUpdateGroup)) {
+        Log.warn(
+          `This update group contains ${uploadedAssetCount} assets and is nearing the server cap of ${assetLimitPerUpdateGroup}.\n` +
+            `${learnMore('https://docs.expo.dev/eas-update/optimize-assets/', {
+              learnMoreMessage: 'Consider optimizing your usage of assets',
+              dim: false,
+            })}.`
         );
         Log.addNewLineIfNone();
-        if (
-          isUploadedAssetCountAboveWarningThreshold(uploadedAssetCount, assetLimitPerUpdateGroup)
-        ) {
-          Log.warn(
-            `This update group contains ${uploadedAssetCount} assets and is nearing the server cap of ${assetLimitPerUpdateGroup}.\n` +
-              `${learnMore('https://docs.expo.dev/eas-update/optimize-assets/', {
-                learnMoreMessage: 'Consider optimizing your usage of assets',
-                dim: false,
-              })}.`
-          );
-          Log.addNewLineIfNone();
+      }
+
+      const fingerprintsWithoutCompatibleBuilds = runtimeToCompatibleBuilds.find(
+        ({ runtimeVersion }) => runtimeVersion === runtime.runtimeVersion
+      )?.fingerprintInfoGroupWithCompatibleBuilds;
+      if (fingerprintsWithoutCompatibleBuilds) {
+        const missingBuilds = Object.entries(fingerprintsWithoutCompatibleBuilds).filter(
+          ([_platform, fingerprintInfo]) => !fingerprintInfo.build
+        );
+        if (missingBuilds.length > 0) {
+          const project = await AppQuery.byIdAsync(graphqlClient, projectId);
+          Log.warn('No compatible builds found for the following fingerprints:');
+          for (const [platform, fingerprintInfo] of missingBuilds) {
+            const fingerprintUrl = new URL(
+              `/accounts/${project.ownerAccount.name}/projects/${project.slug}/fingerprints/${fingerprintInfo.fingerprintHash}`,
+              getExpoWebsiteBaseUrl()
+            );
+            Log.warn(
+              formatFields(
+                [
+                  {
+                    label: `${this.prettyPlatform(platform)} fingerprint`,
+                    value: fingerprintInfo.fingerprintHash,
+                  },
+                  { label: 'URL', value: fingerprintUrl.toString() },
+                ],
+                {
+                  labelFormat: label => `    ${chalk.dim(label)}:`,
+                }
+              )
+            );
+            Log.addNewLineIfNone();
+          }
         }
       }
+    }
+  }
+
+  private prettyPlatform(updatePlatform: string): string {
+    switch (updatePlatform) {
+      case 'android':
+        return 'Android';
+      case 'ios':
+        return 'iOS';
+      default:
+        return updatePlatform;
     }
   }
 

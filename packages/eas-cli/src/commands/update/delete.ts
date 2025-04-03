@@ -6,37 +6,43 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { withErrorHandlingAsync } from '../../graphql/client';
 import {
-  DeleteUpdateGroupMutation,
-  UpdateMutationDeleteUpdateGroupArgs,
+  BackgroundJobReceiptDataFragment,
+  ScheduleUpdateGroupDeletionMutation,
+  ScheduleUpdateGroupDeletionMutationVariables,
 } from '../../graphql/generated';
+import { BackgroundJobReceiptNode } from '../../graphql/types/BackgroundJobReceipt';
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { pollForBackgroundJobReceiptAsync } from '../../utils/pollForBackgroundJobReceiptAsync';
 
-async function deleteUpdateGroupAsync(
+async function scheduleUpdateGroupDeletionAsync(
   graphqlClient: ExpoGraphqlClient,
   {
     group,
   }: {
     group: string;
   }
-): Promise<DeleteUpdateGroupMutation> {
-  return await withErrorHandlingAsync(
+): Promise<BackgroundJobReceiptDataFragment> {
+  const result = await withErrorHandlingAsync(
     graphqlClient
-      .mutation<DeleteUpdateGroupMutation, UpdateMutationDeleteUpdateGroupArgs>(
+      .mutation<ScheduleUpdateGroupDeletionMutation, ScheduleUpdateGroupDeletionMutationVariables>(
         gql`
-          mutation DeleteUpdateGroup($group: ID!) {
+          mutation ScheduleUpdateGroupDeletion($group: ID!) {
             update {
-              deleteUpdateGroup(group: $group) {
-                group
+              scheduleUpdateGroupDeletion(group: $group) {
+                id
+                ...BackgroundJobReceiptData
               }
             }
           }
+          ${BackgroundJobReceiptNode}
         `,
         { group }
       )
       .toPromise()
   );
+  return result.update.scheduleUpdateGroupDeletion;
 }
 
 export default class UpdateDelete extends EasCommand {
@@ -90,7 +96,9 @@ export default class UpdateDelete extends EasCommand {
       }
     }
 
-    await deleteUpdateGroupAsync(graphqlClient, { group });
+    const receipt = await scheduleUpdateGroupDeletionAsync(graphqlClient, { group });
+    const successfulReceipt = await pollForBackgroundJobReceiptAsync(graphqlClient, receipt);
+    Log.debug('Deletion result', { successfulReceipt });
 
     if (jsonFlag) {
       printJsonOnlyOutput({ group });

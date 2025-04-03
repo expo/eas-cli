@@ -12855,6 +12855,11 @@ set-function-name@^2.0.2:
     functions-have-names "^1.2.3"
     has-property-descriptors "^1.0.2"
 
+set-interval-async@3.0.3:
+  version "3.0.3"
+  resolved "https://registry.yarnpkg.com/set-interval-async/-/set-interval-async-3.0.3.tgz#99dd13098eebc2bf1ad0b22e03fe25c516b982c3"
+  integrity sha512-o4DyBv6mko+A9cH3QKek4SAAT5UyJRkfdTi6JHii6ZCKUYFun8SwgBmQrOXd158JOwBQzA+BnO8BvT64xuCaSw==
+
 setimmediate@^1.0.5:
   version "1.0.5"
   resolved "https://registry.yarnpkg.com/setimmediate/-/setimmediate-1.0.5.tgz#290cbb232e306942d7d7ea9b83732ab7856f8285"

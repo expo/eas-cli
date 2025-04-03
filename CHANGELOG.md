@@ -8,15 +8,24 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add environment flag to `eas fingerprint:compare`. ([#2954](https://github.com/expo/eas-cli/pull/2954) by [@quinlanj](https://github.com/quinlanj))
-- Add build-profile flag to `eas fingerprint:generate`. ([#2966](https://github.com/expo/eas-cli/pull/2966) by [@quinlanj](https://github.com/quinlanj))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
 
 - Bump `@expo/apple-utils` to use async JWT API. ([#2973](https://github.com/expo/eas-cli/pull/2973) by [@EvanBacon](https://github.com/EvanBacon))
+
+## [16.2.0](https://github.com/expo/eas-cli/releases/tag/v16.2.0) - 2025-04-03
+
+### 🎉 New features
+
+- Add environment flag to `eas fingerprint:compare`. ([#2954](https://github.com/expo/eas-cli/pull/2954) by [@quinlanj](https://github.com/quinlanj))
+- Add build-profile flag to `eas fingerprint:generate`. ([#2966](https://github.com/expo/eas-cli/pull/2966) by [@quinlanj](https://github.com/quinlanj))
+
+### 🧹 Chores
+
 - Remove hidden flag from `eas fingerprint:generate`. ([#2965](https://github.com/expo/eas-cli/pull/2965) by [@quinlanj](https://github.com/quinlanj))
+- Refactor `eas update` command to improve code readability. ([#2976](https://github.com/expo/eas-cli/pull/2976) by [@quinlanj](https://github.com/quinlanj))
+- `eas update`: add warning if no build exists with fingerprint. ([#2977](https://github.com/expo/eas-cli/pull/2977) by [@quinlanj](https://github.com/quinlanj))
 
 ## [16.1.0](https://github.com/expo/eas-cli/releases/tag/v16.1.0) - 2025-03-26
 

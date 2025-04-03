@@ -43,6 +43,7 @@ export async function fetchBuildsAsync({
     platform?: RequestedPlatform;
     profile?: string;
     hasFingerprint?: boolean;
+    fingerprintHash?: string;
   };
 }): Promise<BuildFragment[]> {
   let builds: BuildFragment[];
@@ -55,6 +56,9 @@ export async function fetchBuildsAsync({
   }
   if (filters?.hasFingerprint) {
     queryFilters['hasFingerprint'] = filters.hasFingerprint;
+  }
+  if (filters?.fingerprintHash) {
+    queryFilters['fingerprintHash'] = filters.fingerprintHash;
   }
   if (!filters?.statuses) {
     builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
