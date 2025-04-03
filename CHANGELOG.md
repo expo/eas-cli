@@ -8,10 +8,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [16.2.0](https://github.com/expo/eas-cli/releases/tag/v16.2.0) - 2025-04-03
+
+### 🎉 New features
+
 - Add environment flag to `eas fingerprint:compare`. ([#2954](https://github.com/expo/eas-cli/pull/2954) by [@quinlanj](https://github.com/quinlanj))
 - Add build-profile flag to `eas fingerprint:generate`. ([#2966](https://github.com/expo/eas-cli/pull/2966) by [@quinlanj](https://github.com/quinlanj))
-
-### 🐛 Bug fixes
 
 ### 🧹 Chores
 
