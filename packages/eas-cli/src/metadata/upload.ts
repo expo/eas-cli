@@ -7,7 +7,7 @@ import { getAppStoreAuthAsync } from './auth';
 import { createAppleReader, loadConfigAsync } from './config/resolve';
 import { MetadataConfig } from './config/schema';
 import { MetadataUploadError, MetadataValidationError, logMetadataValidationError } from './errors';
-import { subscribeTelemetry } from './utils/telemetry';
+import { subscribeTelemetryAsync } from './utils/telemetry';
 import { Analytics, MetadataEvent } from '../analytics/AnalyticsManager';
 import { CredentialsContext } from '../credentials/context';
 import Log from '../log';
@@ -38,7 +38,7 @@ export async function uploadMetadataAsync({
     profile,
   });
 
-  const { unsubscribeTelemetry, executionId } = subscribeTelemetry(
+  const { unsubscribeTelemetry, executionId } = await subscribeTelemetryAsync(
     analytics,
     MetadataEvent.APPLE_METADATA_UPLOAD,
     { app, auth }

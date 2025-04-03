@@ -65,7 +65,7 @@ async function ensureInternalGroupAsync({
         {
           shouldRetry(error) {
             if (isAppleError(error)) {
-              spinner.text = `TestFlight not ready, retrying in 25 seconds...`;
+              spinner.text = `TestFlight still preparing, retrying in 10 seconds...`;
 
               return error.data.errors.some(
                 error => error.code === 'ENTITY_ERROR.RELATIONSHIP.INVALID'
@@ -199,9 +199,10 @@ async function pollRetryAsync<T>(
   fn: () => Promise<T>,
   {
     shouldRetry,
-    retries = 10,
+    retries = 15,
     // 25 seconds was the minium interval I calculated when measuring against 5 second intervals.
-    interval = 25000,
+    // Switching to 10 seconds to account for days where Apple APIs are faster.
+    interval = 10000,
   }: { shouldRetry?: (error: Error) => boolean; retries?: number; interval?: number } = {}
 ): Promise<T> {
   let lastError: Error | null = null;
