@@ -1,5 +1,6 @@
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
+import fg from 'fast-glob';
 import semver from 'semver';
 
 import Log from '../../log';
@@ -30,6 +31,45 @@ export async function getXcodeVersionAsync(): Promise<string | undefined> {
     // not installed
     return undefined;
   }
+}
+
+type XcodeBuildSettings = {
+  action: string;
+  buildSettings: {
+    BUILD_DIR: string;
+    CONFIGURATION_BUILD_DIR: string;
+    EXECUTABLE_FOLDER_PATH: string;
+    PRODUCT_BUNDLE_IDENTIFIER: string;
+    TARGET_BUILD_DIR: string;
+    UNLOCALIZED_RESOURCES_FOLDER_PATH: string;
+  };
+  target: string;
+};
+
+export async function getXcodeBuildSettingsAsync(
+  xcworkspacePath: string,
+  scheme: string
+): Promise<XcodeBuildSettings[]> {
+  const { stdout } = await spawnAsync('xcodebuild', [
+    '-workspace',
+    xcworkspacePath,
+    '-scheme',
+    scheme,
+    '-showBuildSettings',
+    '-json',
+  ]);
+  return JSON.parse(stdout);
+}
+
+export async function resolveXcodeProjectAsync(projectRoot: string): Promise<string | undefined> {
+  const ignoredPaths = ['**/@(Carthage|Pods|vendor|node_modules)/**'];
+  const paths = await fg(`ios/*.xcworkspace`, {
+    cwd: projectRoot,
+    onlyDirectories: true,
+    ignore: ignoredPaths,
+  });
+
+  return paths[0];
 }
 
 export async function openAppStoreAsync(appId: string): Promise<void> {

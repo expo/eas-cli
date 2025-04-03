@@ -1,3 +1,4 @@
+import { IOSConfig } from '@expo/config-plugins';
 import { Platform } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 import fg from 'fast-glob';
@@ -20,6 +21,7 @@ import { LocalBuildMutation } from '../graphql/mutations/LocalBuildMutation';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { promptAsync } from '../prompts';
+import * as xcode from '../run/ios/xcode';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
 import { createProgressTracker } from '../utils/progress';
 
@@ -124,15 +126,29 @@ async function resolveLocalBuildPathAsync(
   platform: Platform,
   inputBuildPath?: string
 ): Promise<string> {
-  const applicationArchivePatternOrPath =
-    inputBuildPath ??
-    (platform === Platform.ANDROID
-      ? 'android/app/build/outputs/**/*.{apk,aab}'
-      : 'ios/build/Build/Products/*simulator/*.app');
+  const rootDir = process.cwd();
+  let applicationArchivePatternOrPath: string[] = [];
+
+  if (inputBuildPath) {
+    applicationArchivePatternOrPath.push(inputBuildPath);
+  } else if (platform === Platform.ANDROID) {
+    applicationArchivePatternOrPath.push('android/app/build/outputs/**/*.{apk,aab}');
+  } else {
+    const xcworkspacePath = await xcode.resolveXcodeProjectAsync(rootDir);
+    const schemes = IOSConfig.BuildScheme.getRunnableSchemesFromXcodeproj(rootDir);
+    if (xcworkspacePath && schemes.length > 0) {
+      for (const scheme of schemes) {
+        const buildSettings = await xcode.getXcodeBuildSettingsAsync(xcworkspacePath, scheme.name);
+        applicationArchivePatternOrPath = applicationArchivePatternOrPath.concat(
+          buildSettings.map(({ buildSettings }) => `${buildSettings.BUILD_DIR}/**/*.app`)
+        );
+      }
+    }
+  }
 
   let applicationArchives = await findArtifactsAsync({
-    rootDir: process.cwd(),
-    patternOrPath: applicationArchivePatternOrPath,
+    rootDir,
+    patternOrPathArray: applicationArchivePatternOrPath,
   });
 
   if (applicationArchives.length === 0 && !inputBuildPath) {
@@ -144,8 +160,8 @@ async function resolveLocalBuildPathAsync(
       validate: value => (value ? true : 'Path may not be empty.'),
     });
     applicationArchives = await findArtifactsAsync({
-      rootDir: process.cwd(),
-      patternOrPath: path,
+      rootDir,
+      patternOrPathArray: [path],
     });
   }
 
@@ -173,16 +189,23 @@ async function resolveLocalBuildPathAsync(
 
 async function findArtifactsAsync({
   rootDir,
-  patternOrPath,
+  patternOrPathArray,
 }: {
   rootDir: string;
-  patternOrPath: string;
+  patternOrPathArray: string[];
 }): Promise<string[]> {
-  const files: string[] = path.isAbsolute(patternOrPath)
-    ? (await fs.pathExists(patternOrPath))
-      ? [patternOrPath]
-      : []
-    : await fg(patternOrPath, { cwd: rootDir, onlyFiles: false });
+  const files: string[] = [];
+  for (const patternOrPath of patternOrPathArray) {
+    if (path.isAbsolute(patternOrPath) && (await fs.pathExists(patternOrPath))) {
+      files.push(patternOrPath);
+    } else {
+      const filesFound = await fg(patternOrPath, {
+        cwd: rootDir,
+        onlyFiles: false,
+      });
+      files.push(...filesFound);
+    }
+  }
 
   return files.map(filePath => {
     // User may provide an absolute path as input in which case
