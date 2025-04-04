@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [16.2.1](https://github.com/expo/eas-cli/releases/tag/v16.2.1) - 2025-04-04
+
+### 🧹 Chores
+
 - Bump `@expo/apple-utils` to use async JWT API. ([#2973](https://github.com/expo/eas-cli/pull/2973) by [@EvanBacon](https://github.com/EvanBacon))
 
 ## [16.2.0](https://github.com/expo/eas-cli/releases/tag/v16.2.0) - 2025-04-03
