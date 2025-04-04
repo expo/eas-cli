@@ -20,20 +20,22 @@ export interface SignedUrl {
 export const UploadSessionMutation = {
   async createUploadSessionAsync(
     graphqlClient: ExpoGraphqlClient,
-    type: UploadSessionType
+    type: UploadSessionType,
+    filename?: string
   ): Promise<SignedUrl> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<CreateUploadSessionMutation, CreateUploadSessionMutationVariables>(
           gql`
-            mutation CreateUploadSessionMutation($type: UploadSessionType!) {
+            mutation CreateUploadSessionMutation($type: UploadSessionType!, $filename: String) {
               uploadSession {
-                createUploadSession(type: $type)
+                createUploadSession(type: $type, filename: $filename)
               }
             }
           `,
           {
             type,
+            filename,
           }
         )
         .toPromise()
