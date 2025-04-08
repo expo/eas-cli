@@ -8,6 +8,7 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { AppPlatform, BuildFragment, BuildStatus, DistributionType } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
+import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { getEasBuildRunCachedAppPath } from '../../run/run';
@@ -50,17 +51,14 @@ export default class Download extends EasCommand {
       enableJsonOutput();
     }
 
-    const selectedPlatform = await resolvePlatformAsync(nonInteractive, platform);
+    const selectedPlatform = await resolvePlatformAsync({ nonInteractive, platform });
     const build = await this.getBuildAsync(graphqlClient, projectId, selectedPlatform, fingerprint);
-    const buildPath = await this.getPathToBuildAppAsync(build, selectedPlatform);
+    const buildArtifactPath = await this.getPathToBuildArtifactAsync(build, selectedPlatform);
     if (jsonFlag) {
-      const jsonResults: { path?: string } = {};
-      if (buildPath) {
-        jsonResults.path = buildPath;
-      }
+      const jsonResults = { path: buildArtifactPath };
       printJsonOnlyOutput(jsonResults);
     } else {
-      Log.log(`Build downloaded at ${chalk.bold(buildPath)}`);
+      Log.log(`Build downloaded to ${chalk.bold(buildArtifactPath)}`);
     }
   }
 
@@ -93,12 +91,16 @@ export default class Download extends EasCommand {
     return builds[0];
   }
 
-  async getPathToBuildAppAsync(build: BuildFragment, platform: AppPlatform): Promise<string> {
-    const cachedAppPath = getEasBuildRunCachedAppPath(build.project.id, build.id, platform);
-    if (await pathExists(cachedAppPath)) {
+  async getPathToBuildArtifactAsync(build: BuildFragment, platform: AppPlatform): Promise<string> {
+    const cachedBuildArtifactPath = getEasBuildRunCachedAppPath(
+      build.project.id,
+      build.id,
+      platform
+    );
+    if (await pathExists(cachedBuildArtifactPath)) {
       Log.newLine();
-      Log.log(`Using cached app...`);
-      return cachedAppPath;
+      Log.log(`Using cached build...`);
+      return cachedBuildArtifactPath;
     }
 
     if (!build.artifacts?.applicationArchiveUrl) {
@@ -108,21 +110,24 @@ export default class Download extends EasCommand {
     return await downloadAndMaybeExtractAppAsync(
       build.artifacts.applicationArchiveUrl,
       platform,
-      cachedAppPath
+      cachedBuildArtifactPath
     );
   }
 }
 
-async function resolvePlatformAsync(
-  nonInteractive: boolean,
-  platform?: string
-): Promise<AppPlatform> {
+async function resolvePlatformAsync({
+  nonInteractive,
+  platform,
+}: {
+  nonInteractive: boolean;
+  platform?: Platform;
+}): Promise<AppPlatform> {
   if (nonInteractive && !platform) {
     throw new Error('Platform must be provided in non-interactive mode');
   }
 
-  if (platform && Object.values(AppPlatform).includes(platform.toUpperCase() as AppPlatform)) {
-    return platform.toUpperCase() as AppPlatform;
+  if (platform) {
+    return toAppPlatform(platform);
   }
 
   const { selectedPlatform } = await promptAsync({
