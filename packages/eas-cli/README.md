@@ -70,6 +70,7 @@ eas --help COMMAND
 * [`eas build:configure`](#eas-buildconfigure)
 * [`eas build:delete [BUILD_ID]`](#eas-builddelete-build_id)
 * [`eas build:dev`](#eas-builddev)
+* [`eas build:download`](#eas-builddownload)
 * [`eas build:inspect`](#eas-buildinspect)
 * [`eas build:list`](#eas-buildlist)
 * [`eas build:resign`](#eas-buildresign)
@@ -458,6 +459,26 @@ DESCRIPTION
 ```
 
 _See code: [packages/eas-cli/src/commands/build/dev.ts](https://github.com/expo/eas-cli/blob/v16.2.2/packages/eas-cli/src/commands/build/dev.ts)_
+
+## `eas build:download`
+
+download a simulator/emulator build with matching fingerprint
+
+```
+USAGE
+  $ eas build:download [-p ios|android] [-e <value>]
+
+FLAGS
+  --dev-client=<value>              Filter only dev-client builds.
+  --fingerprint=<value>             (required) Fingerprint hash of the build to run.
+  --non-interactive                 Run the command in non-interactive mode.
+  -p, --platform=(ios|android)
+
+DESCRIPTION
+  download a simulator/emulator build with matching fingerprint
+```
+
+_See code: [packages/eas-cli/src/commands/build/download.ts](https://github.com/expo/eas-cli/blob/v16.2.2/packages/eas-cli/src/commands/build/download.ts)_
 
 ## `eas build:inspect`
 
