@@ -6,6 +6,7 @@ import fs from 'fs-extra';
 import StreamZip from 'node-stream-zip';
 import path from 'path';
 import tar from 'tar';
+import { v4 as uuidv4 } from 'uuid';
 
 import { getBuildLogsUrl } from '../build/utils/url';
 import EasCommand from '../commandUtils/EasCommand';
@@ -23,6 +24,7 @@ import Log from '../log';
 import { promptAsync } from '../prompts';
 import * as xcode from '../run/ios/xcode';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
+import { getTmpDirectory } from '../utils/paths';
 import { createProgressTracker } from '../utils/progress';
 
 export default class BuildUpload extends EasCommand {
@@ -90,6 +92,9 @@ export default class BuildUpload extends EasCommand {
         hash: fingerprint,
       });
     }
+
+    Log.log(`Using build ${localBuildPath}`);
+    Log.log(`Fingerprint hash: ${fingerprint ?? 'Unknown'}`);
 
     Log.log('Uploading your app archive to EAS');
     const bucketKey = await uploadAppArchiveAsync(graphqlClient, localBuildPath);
@@ -194,20 +199,20 @@ async function findArtifactsAsync({
   rootDir: string;
   patternOrPathArray: string[];
 }): Promise<string[]> {
-  const files: string[] = [];
+  const files = new Set<string>();
   for (const patternOrPath of patternOrPathArray) {
     if (path.isAbsolute(patternOrPath) && (await fs.pathExists(patternOrPath))) {
-      files.push(patternOrPath);
+      files.add(patternOrPath);
     } else {
       const filesFound = await fg(patternOrPath, {
         cwd: rootDir,
         onlyFiles: false,
       });
-      files.push(...filesFound);
+      filesFound.forEach(file => files.add(file));
     }
   }
 
-  return files.map(filePath => {
+  return [...files].map(filePath => {
     // User may provide an absolute path as input in which case
     // fg will return an absolute path.
     if (path.isAbsolute(filePath)) {
@@ -222,13 +227,25 @@ async function findArtifactsAsync({
 
 async function uploadAppArchiveAsync(
   graphqlClient: ExpoGraphqlClient,
-  path: string
+  originalPath: string
 ): Promise<string> {
-  const fileSize = (await fs.stat(path)).size;
+  let filePath = originalPath;
+  if ((await fs.stat(filePath)).isDirectory()) {
+    await fs.mkdirp(getTmpDirectory());
+    const tarPath = path.join(getTmpDirectory(), `${uuidv4()}.tar.gz`);
+    const parentPath = path.dirname(originalPath);
+    const folderName = path.basename(originalPath);
+    try {
+      await tar.create({ cwd: parentPath, file: tarPath, gzip: true }, [folderName]);
+    } finally {
+    }
+    filePath = tarPath;
+  }
+  const fileSize = (await fs.stat(filePath)).size;
   const bucketKey = await uploadFileAtPathToGCSAsync(
     graphqlClient,
     UploadSessionType.EasShareGcsAppArchive,
-    path,
+    filePath,
     createProgressTracker({
       total: fileSize,
       message: 'Uploading to EAS',
