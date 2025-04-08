@@ -12,7 +12,7 @@ import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { getEasBuildRunCachedAppPath } from '../../run/run';
 import { downloadAndMaybeExtractAppAsync } from '../../utils/download';
-import { printJsonOnlyOutput } from '../../utils/json';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class Download extends EasCommand {
   static override description = 'download builds for a given fingerprint hash';
@@ -35,25 +35,25 @@ export default class Download extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(Download);
-
-    const selectedPlatform = await resolvePlatformAsync(flags.platform);
+    const {
+      flags: { json: jsonFlag, 'non-interactive': nonInteractive, platform, fingerprint },
+    } = await this.parse(Download);
 
     const {
       loggedIn: { graphqlClient },
       projectId,
     } = await this.getContextAsync(Download, {
-      nonInteractive: false,
+      nonInteractive,
     });
 
-    const build = await this.getBuildAsync(
-      graphqlClient,
-      projectId,
-      selectedPlatform,
-      flags.fingerprint
-    );
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
+
+    const selectedPlatform = await resolvePlatformAsync(nonInteractive, platform);
+    const build = await this.getBuildAsync(graphqlClient, projectId, selectedPlatform, fingerprint);
     const buildPath = await this.getPathToBuildAppAsync(build, selectedPlatform);
-    if (flags.json) {
+    if (jsonFlag) {
       const jsonResults: { path?: string } = {};
       if (buildPath) {
         jsonResults.path = buildPath;
@@ -113,7 +113,14 @@ export default class Download extends EasCommand {
   }
 }
 
-async function resolvePlatformAsync(platform?: string): Promise<AppPlatform> {
+async function resolvePlatformAsync(
+  nonInteractive: boolean,
+  platform?: string
+): Promise<AppPlatform> {
+  if (nonInteractive && !platform) {
+    throw new Error('Platform must be provided in non-interactive mode');
+  }
+
   if (platform && Object.values(AppPlatform).includes(platform.toUpperCase() as AppPlatform)) {
     return platform.toUpperCase() as AppPlatform;
   }
