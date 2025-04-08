@@ -235,10 +235,7 @@ async function uploadAppArchiveAsync(
     const tarPath = path.join(getTmpDirectory(), `${uuidv4()}.tar.gz`);
     const parentPath = path.dirname(originalPath);
     const folderName = path.basename(originalPath);
-    try {
-      await tar.create({ cwd: parentPath, file: tarPath, gzip: true }, [folderName]);
-    } finally {
-    }
+    await tar.create({ cwd: parentPath, file: tarPath, gzip: true }, [folderName]);
     filePath = tarPath;
   }
   const fileSize = (await fs.stat(filePath)).size;
