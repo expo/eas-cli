@@ -16,7 +16,7 @@ import { downloadAndMaybeExtractAppAsync } from '../../utils/download';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class Download extends EasCommand {
-  static override description = 'download builds for a given fingerprint hash';
+  static override description = 'download simulator/emulator builds for a given fingerprint hash';
 
   static override flags = {
     fingerprint: Flags.string({
@@ -26,6 +26,9 @@ export default class Download extends EasCommand {
     platform: Flags.enum<Platform.IOS | Platform.ANDROID>({
       char: 'p',
       options: [Platform.IOS, Platform.ANDROID],
+    }),
+    'dev-client': Flags.boolean({
+      description: 'Filter only dev-client builds.',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -37,7 +40,13 @@ export default class Download extends EasCommand {
 
   async runAsync(): Promise<void> {
     const {
-      flags: { json: jsonFlag, 'non-interactive': nonInteractive, platform, fingerprint },
+      flags: {
+        json: jsonFlag,
+        platform,
+        fingerprint,
+        'dev-client': developmentClient,
+        'non-interactive': nonInteractive,
+      },
     } = await this.parse(Download);
 
     const {
@@ -52,7 +61,13 @@ export default class Download extends EasCommand {
     }
 
     const selectedPlatform = await resolvePlatformAsync({ nonInteractive, platform });
-    const build = await this.getBuildAsync(graphqlClient, projectId, selectedPlatform, fingerprint);
+    const build = await this.getBuildAsync({
+      graphqlClient,
+      projectId,
+      platform: selectedPlatform,
+      fingerprintHash: fingerprint,
+      developmentClient,
+    });
     const buildArtifactPath = await this.getPathToBuildArtifactAsync(build, selectedPlatform);
     if (jsonFlag) {
       const jsonResults = { path: buildArtifactPath };
@@ -62,12 +77,19 @@ export default class Download extends EasCommand {
     }
   }
 
-  private async getBuildAsync(
-    graphqlClient: ExpoGraphqlClient,
-    projectId: string,
-    platform: AppPlatform,
-    fingerprintHash: string
-  ): Promise<BuildFragment> {
+  private async getBuildAsync({
+    graphqlClient,
+    projectId,
+    platform,
+    fingerprintHash,
+    developmentClient,
+  }: {
+    graphqlClient: ExpoGraphqlClient;
+    projectId: string;
+    platform: AppPlatform;
+    fingerprintHash: string;
+    developmentClient: boolean;
+  }): Promise<BuildFragment> {
     const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
       appId: projectId,
       filter: {
@@ -76,7 +98,7 @@ export default class Download extends EasCommand {
         status: BuildStatus.Finished,
         simulator: platform === AppPlatform.Ios ? true : undefined,
         distribution: platform === AppPlatform.Android ? DistributionType.Internal : undefined,
-        developmentClient: true,
+        developmentClient,
       },
       offset: 0,
       limit: 1,
