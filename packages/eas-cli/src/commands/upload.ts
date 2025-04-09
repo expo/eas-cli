@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getBuildLogsUrl } from '../build/utils/url';
 import EasCommand from '../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { EASNonInteractiveFlag } from '../commandUtils/flags';
+import { EasNonInteractiveAndJsonFlags } from '../commandUtils/flags';
 import {
   DistributionType,
   LocalBuildArchiveSourceType,
@@ -24,6 +24,7 @@ import Log from '../log';
 import { promptAsync } from '../prompts';
 import * as xcode from '../run/ios/xcode';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
+import { enableJsonOutput, printJsonOnlyOutput } from '../utils/json';
 import { getTmpDirectory } from '../utils/paths';
 import { createProgressTracker } from '../utils/progress';
 
@@ -42,7 +43,7 @@ export default class BuildUpload extends EasCommand {
     fingerprint: Flags.string({
       description: 'Fingerprint hash of the local build',
     }),
-    ...EASNonInteractiveFlag,
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
@@ -52,16 +53,29 @@ export default class BuildUpload extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildUpload);
-    const { 'build-path': buildPath, fingerprint: manualFingerprintHash } = flags;
+    const {
+      'build-path': buildPath,
+      fingerprint: manualFingerprintHash,
+      json: jsonFlag,
+      'non-interactive': nonInteractive,
+    } = flags;
     const {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildUpload, {
-      nonInteractive: false,
+      nonInteractive,
     });
 
-    const platform = await this.selectPlatformAsync(flags.platform);
-    const localBuildPath = await resolveLocalBuildPathAsync(platform, buildPath);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
+
+    const platform = await this.selectPlatformAsync({ platform: flags.platform, nonInteractive });
+    const localBuildPath = await resolveLocalBuildPathAsync({
+      platform,
+      inputBuildPath: buildPath,
+      nonInteractive,
+    });
 
     const {
       fingerprintHash: buildFingerprintHash,
@@ -74,7 +88,8 @@ export default class BuildUpload extends EasCommand {
       if (
         manualFingerprintHash &&
         buildFingerprintHash &&
-        manualFingerprintHash !== buildFingerprintHash
+        manualFingerprintHash !== buildFingerprintHash &&
+        !nonInteractive
       ) {
         const selectedAnswer = await promptAsync({
           name: 'fingerprint',
@@ -107,10 +122,24 @@ export default class BuildUpload extends EasCommand {
       { distribution: DistributionType.Internal, fingerprintHash: fingerprint, developmentClient }
     );
 
-    Log.withTick(`Here is a sharable link of your build: ${getBuildLogsUrl(build)}`);
+    if (jsonFlag) {
+      printJsonOnlyOutput({ url: getBuildLogsUrl(build) });
+    } else {
+      Log.withTick(`Shareable link to the build: ${getBuildLogsUrl(build)}`);
+    }
   }
 
-  private async selectPlatformAsync(platform?: Platform): Promise<Platform> {
+  private async selectPlatformAsync({
+    nonInteractive,
+    platform,
+  }: {
+    nonInteractive: boolean;
+    platform?: Platform;
+  }): Promise<Platform> {
+    if (nonInteractive && !platform) {
+      throw new Error('Platform must be provided in non-interactive mode');
+    }
+
     if (platform) {
       return platform;
     }
@@ -127,10 +156,15 @@ export default class BuildUpload extends EasCommand {
   }
 }
 
-async function resolveLocalBuildPathAsync(
-  platform: Platform,
-  inputBuildPath?: string
-): Promise<string> {
+async function resolveLocalBuildPathAsync({
+  platform,
+  inputBuildPath,
+  nonInteractive,
+}: {
+  platform: Platform;
+  inputBuildPath?: string;
+  nonInteractive: boolean;
+}): Promise<string> {
   const rootDir = process.cwd();
   let applicationArchivePatternOrPath: string[] = [];
 
@@ -156,7 +190,7 @@ async function resolveLocalBuildPathAsync(
     patternOrPathArray: applicationArchivePatternOrPath,
   });
 
-  if (applicationArchives.length === 0 && !inputBuildPath) {
+  if (applicationArchives.length === 0 && !nonInteractive && !inputBuildPath) {
     Log.warn(`No application archives found at ${applicationArchivePatternOrPath}.`);
     const { path } = await promptAsync({
       type: 'text',
@@ -175,6 +209,10 @@ async function resolveLocalBuildPathAsync(
   }
 
   if (applicationArchives.length > 1) {
+    if (nonInteractive) {
+      return applicationArchives[0];
+    }
+
     const { path } = await promptAsync({
       type: 'select',
       name: 'path',
