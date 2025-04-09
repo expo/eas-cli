@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `eas upload` command. ([#2932](https://github.com/expo/eas-cli/pull/2932), [#2981](https://github.com/expo/eas-cli/pull/2981), [#2983](https://github.com/expo/eas-cli/pull/2983) by [@gabrieldonadel](https://github.com/gabrieldonadel))
 - Add `eas build:download` command. ([#2982](https://github.com/expo/eas-cli/pull/2982) by [@gabrieldonadel](https://github.com/gabrieldonadel))
 
 ### 🐛 Bug fixes

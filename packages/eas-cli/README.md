@@ -132,6 +132,7 @@ eas --help COMMAND
 * [`eas update:roll-back-to-embedded`](#eas-updateroll-back-to-embedded)
 * [`eas update:rollback`](#eas-updaterollback)
 * [`eas update:view GROUPID`](#eas-updateview-groupid)
+* [`eas upload`](#eas-upload)
 * [`eas webhook:create`](#eas-webhookcreate)
 * [`eas webhook:delete [ID]`](#eas-webhookdelete-id)
 * [`eas webhook:list`](#eas-webhooklist)
@@ -472,6 +473,7 @@ FLAGS
   --dev-client=<value>              Filter only dev-client builds.
   --fingerprint=<value>             (required) Fingerprint hash of the build to run.
   --non-interactive                 Run the command in non-interactive mode.
+  --json                            Enable JSON output, non-JSON messages will be printed to stderr.
   -p, --platform=(ios|android)
 
 DESCRIPTION
@@ -1887,6 +1889,28 @@ DESCRIPTION
 ```
 
 _See code: [packages/eas-cli/src/commands/update/view.ts](https://github.com/expo/eas-cli/blob/v16.2.2/packages/eas-cli/src/commands/update/view.ts)_
+
+## `eas upload`
+
+uploads a local build to EAS
+
+```
+USAGE
+  $ eas upload [-p ios|android] [--build-path <value>] [--fingerprint  <value>]
+
+FLAGS
+  --build-path=<value>              Path to the build artifact.
+  --dev-client=<value>              Filter only dev-client builds.
+  --fingerprint=<value>             Manual fingerprint hash to include in the build.
+  --non-interactive                 Run the command in non-interactive mode.
+  --json                            Enable JSON output, non-JSON messages will be printed to stderr.
+  -p, --platform=(ios|android)
+
+DESCRIPTION
+  upload a local build and generates a sharable link
+```
+
+_See code: [packages/eas-cli/src/commands/build/download.ts](https://github.com/expo/eas-cli/blob/v16.2.2/packages/eas-cli/src/commands/build/download.ts)_
 
 ## `eas webhook:create`
 
