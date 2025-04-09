@@ -124,9 +124,11 @@ export default class BuildUpload extends EasCommand {
 
     if (jsonFlag) {
       printJsonOnlyOutput({ url: getBuildLogsUrl(build) });
-    } else {
-      Log.withTick(`Shareable link to the build: ${getBuildLogsUrl(build)}`);
-    }
+      return;
+    } 
+    
+    Log.withTick(`Shareable link to the build: ${getBuildLogsUrl(build)}`);
+    
   }
 
   private async selectPlatformAsync({
