@@ -1,4 +1,5 @@
 import * as fs from 'fs-extra';
+import chalk from 'chalk';
 import path from 'path';
 
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
@@ -383,6 +384,53 @@ describe(EnvPull, () => {
       expect(Log.log).toHaveBeenCalledWith(
         expect.stringContaining('Reused local values for following secrets: SECRET_KEY')
       );
+    });
+  });
+
+  describe('diff output', () => {
+    it('shows added, changed, unchanged, and removed variables', async () => {
+      jest.mocked(fs.pathExists).mockResolvedValue(true);
+      jest.mocked(fs.readFile).mockResolvedValue(Buffer.from('file-value').toString('base64'));
+
+      const command = new EnvPull([], mockConfig);
+      const diffLog = await command.diffLogAsync(
+        [
+          {
+            ...mockEnvironmentVariables[0],
+            name: 'NEW_VAR',
+            value: 'new-value',
+          },
+          {
+            ...mockEnvironmentVariables[0],
+            name: 'UNCHANGED_VAR',
+            value: 'same-value',
+          },
+          {
+            ...mockEnvironmentVariables[0],
+            name: 'CHANGED_VAR',
+            value: 'new-value',
+          },
+          {
+            ...mockEnvironmentVariables[3],
+            name: 'FILE_VAR',
+            valueWithFileContent: Buffer.from('file-value').toString('base64'),
+          },
+        ],
+        {
+          UNCHANGED_VAR: 'same-value',
+          CHANGED_VAR: 'old-value',
+          FILE_VAR: '/old/file',
+          REMOVED_VAR: 'old-value',
+        }
+      );
+
+      expect(diffLog).toEqual([
+        chalk.green('+ NEW_VAR'),
+        '  UNCHANGED_VAR',
+        chalk.yellow('~ CHANGED_VAR'),
+        '  FILE_VAR',
+        chalk.red('- REMOVED_VAR'),
+      ]);
     });
   });
 });

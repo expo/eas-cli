@@ -1,4 +1,5 @@
 import { Args, Flags } from '@oclif/core';
+import chalk from 'chalk';
 import dotenv from 'dotenv';
 import * as fs from 'fs-extra';
 import path from 'path';
@@ -40,6 +41,30 @@ export default class EnvPull extends EasCommand {
       default: '.env.local',
     }),
   };
+
+  async isVariableEqualAsync(
+    currentEnvValue: string | undefined,
+    newVariable: EnvironmentVariableWithFileContent
+  ): Promise<boolean> {
+    if (newVariable.visibility === EnvironmentVariableVisibility.Secret) {
+      return true;
+    }
+
+    if (
+      newVariable.type === EnvironmentSecretType.FileBase64 &&
+      newVariable.valueWithFileContent &&
+      currentEnvValue
+    ) {
+      if (!(await fs.pathExists(currentEnvValue))) {
+        return false;
+      }
+
+      const fileContent = await fs.readFile(currentEnvValue, 'base64');
+      return fileContent === newVariable.valueWithFileContent;
+    }
+
+    return currentEnvValue === newVariable.value;
+  }
 
   async runAsync(): Promise<void> {
     let {
@@ -103,6 +128,8 @@ export default class EnvPull extends EasCommand {
       await fs.mkdir(envDir, { recursive: true });
     }
 
+    const diffLog = await this.diffLogAsync(environmentVariables, currentEnvLocal);
+
     const skippedSecretVariables: string[] = [];
     const overridenSecretVariables: string[] = [];
 
@@ -144,5 +171,38 @@ export default class EnvPull extends EasCommand {
         )}.`
       );
     }
+
+    Log.addNewLineIfNone();
+    for (const line of diffLog) {
+      Log.log(line);
+    }
+  }
+
+  async diffLogAsync(
+    environmentVariables: EnvironmentVariableWithFileContent[],
+    currentEnvLocal: Record<string, string>
+  ): Promise<string[]> {
+    const allVariableNames = new Set([
+      ...environmentVariables.map(variable => variable.name),
+      ...Object.keys(currentEnvLocal),
+    ]);
+    const diffLog: string[] = [];
+
+    for (const variableName of allVariableNames) {
+      const newVariable = environmentVariables.find(variable => variable.name === variableName);
+      if (newVariable) {
+        if (!Object.hasOwn(currentEnvLocal, variableName)) {
+          diffLog.push(chalk.green(`+ ${variableName}`));
+        } else if (await this.isVariableEqualAsync(currentEnvLocal[variableName], newVariable)) {
+          diffLog.push(`  ${variableName}`);
+        } else {
+          diffLog.push(chalk.yellow(`~ ${variableName}`));
+        }
+      } else {
+        diffLog.push(chalk.red(`- ${variableName}`));
+      }
+    }
+
+    return diffLog;
   }
 }

@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add diff output to `eas env:pull`. ([#2984](https://github.com/expo/eas-cli/pull/2984) by [@khamilowicz](https://github.com/khamilowicz))
+
 - [eas-cli] Support drill-down from event lists in observe:session. ([#3987](https://github.com/expo/eas-cli/pull/3987) by [@douglowder](https://github.com/douglowder))
 
 ### 🐛 Bug fixes
