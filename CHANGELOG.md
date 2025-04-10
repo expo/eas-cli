@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add diff to `eas env:pull` command. ([#2984](https://github.com/expo/eas-cli/pull/2984) by [@khamilowicz](https://github.com/khamilowicz))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
