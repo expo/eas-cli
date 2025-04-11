@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [16.3.1](https://github.com/expo/eas-cli/releases/tag/v16.3.1) - 2025-04-11
+
+### 🧹 Chores
+
 - Add `--no-dev-client` flag for `build:download` command. ([#2985](https://github.com/expo/eas-cli/pull/2985) by [@gabrieldonadel](https://github.com/gabrieldonadel))
 
 ## [16.3.0](https://github.com/expo/eas-cli/releases/tag/v16.3.0) - 2025-04-09
