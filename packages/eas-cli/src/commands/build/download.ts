@@ -29,6 +29,7 @@ export default class Download extends EasCommand {
     }),
     'dev-client': Flags.boolean({
       description: 'Filter only dev-client builds.',
+      allowNo: true,
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
