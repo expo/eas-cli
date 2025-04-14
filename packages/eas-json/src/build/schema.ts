@@ -141,7 +141,7 @@ const IosBuildProfileSchema = PlatformBuildProfileSchema.concat(
 
 export const BuildProfileSchema = CommonBuildProfileSchema.concat(
   Joi.object({
-    extends: Joi.string(),
+    extends: Joi.alternatives(Joi.string(), Joi.array().items(Joi.string())),
     android: AndroidBuildProfileSchema,
     ios: IosBuildProfileSchema,
   })

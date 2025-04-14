@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Allow extending with multiple build and submit profiles ([#2987](https://github.com/expo/eas-cli/pull/2987) by [@khamilowicz](https://github.com/khamilowicz))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

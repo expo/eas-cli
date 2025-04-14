@@ -64,16 +64,22 @@ function resolveProfile<T extends Platform>({
     }
   }
 
-  const { extends: baseProfileName, ...rest } = profile;
+  let { extends: baseProfileNames, ...rest } = profile;
   const platformProfile = rest[platform] as SubmitProfile<T> | undefined;
-  if (baseProfileName) {
-    const baseProfile = resolveProfile({
-      easJson,
-      platform,
-      profileName: baseProfileName,
-      depth: depth + 1,
-    });
-    return mergeProfiles(baseProfile, platformProfile);
+  if (baseProfileNames) {
+    if (!Array.isArray(baseProfileNames)) {
+      baseProfileNames = [baseProfileNames];
+    }
+
+    return baseProfileNames.reduce((mergedProfile, baseProfileName) => {
+      const currentProfile = resolveProfile({
+        easJson,
+        platform,
+        profileName: baseProfileName,
+        depth: depth + 1,
+      });
+      return mergeProfiles(currentProfile, mergedProfile);
+    }, platformProfile);
   } else {
     return platformProfile;
   }

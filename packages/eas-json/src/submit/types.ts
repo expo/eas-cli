@@ -52,7 +52,7 @@ export type SubmitProfile<TPlatform extends Platform = Platform> =
   TPlatform extends Platform.ANDROID ? AndroidSubmitProfile : IosSubmitProfile;
 
 export interface EasJsonSubmitProfile {
-  extends?: string;
+  extends?: string | string[];
   [Platform.ANDROID]?: AndroidSubmitProfile;
   [Platform.IOS]?: IosSubmitProfile;
 }

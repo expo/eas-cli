@@ -379,6 +379,54 @@ test('valid profile with extension chain not exceeding 5', async () => {
   });
 });
 
+test('valid profile with extensions list', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      base: {
+        node: '12.0.0',
+      },
+      extension1: {
+        extends: ['base', 'extension2', 'extension3'],
+        credentialsSource: 'remote',
+        env: {
+          SOME_ENV: 'ext1',
+        },
+      },
+      extension2: {
+        distribution: 'store',
+        node: '14.0.0',
+      },
+      extension3: {
+        distribution: 'internal',
+        node: '15.0.0',
+        config: 'extension3.yml',
+        env: {
+          SOME_ENV: 'ext1',
+          OTHER_ENV: 'ext3',
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const extendedProfile1 = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'extension1'
+  );
+
+  expect(extendedProfile1).toEqual({
+    credentialsSource: 'remote',
+    distribution: 'store',
+    node: '12.0.0',
+    config: 'extension3.yml',
+    env: {
+      SOME_ENV: 'ext1',
+      OTHER_ENV: 'ext3',
+    },
+  });
+});
+
 test('valid profile with extension chain exceeding 5 - too long', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {

@@ -54,14 +54,20 @@ function resolveProfile({
     }
   }
 
-  const { extends: baseProfileName, ...rest } = profile;
-  if (baseProfileName) {
-    const baseProfile = resolveProfile({
-      easJson,
-      profileName: baseProfileName,
-      depth: depth + 1,
-    });
-    return mergeProfiles(baseProfile, rest);
+  let { extends: baseProfileNames, ...rest } = profile;
+  if (baseProfileNames) {
+    if (!Array.isArray(baseProfileNames)) {
+      baseProfileNames = [baseProfileNames];
+    }
+
+    return baseProfileNames.reduce((mergedProfile, baseProfileName) => {
+      const currentProfile = resolveProfile({
+        easJson,
+        profileName: baseProfileName,
+        depth: depth + 1,
+      });
+      return mergeProfiles(currentProfile, mergedProfile);
+    }, rest);
   } else {
     return rest;
   }
