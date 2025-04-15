@@ -24,6 +24,7 @@ import Log from '../log';
 import { promptAsync } from '../prompts';
 import * as xcode from '../run/ios/xcode';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
+import { fromNow } from '../utils/date';
 import { enableJsonOutput, printJsonOnlyOutput } from '../utils/json';
 import { getTmpDirectory } from '../utils/paths';
 import { createProgressTracker } from '../utils/progress';
@@ -210,22 +211,33 @@ async function resolveLocalBuildPathAsync({
   }
 
   if (applicationArchives.length > 1) {
+    // sort by modification time
+    const applicationArchivesInfo = await Promise.all(
+      applicationArchives.map(async archivePath => ({
+        path: archivePath,
+        stat: await fs.stat(archivePath),
+      }))
+    );
+    applicationArchivesInfo.sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
+
     if (nonInteractive) {
-      return applicationArchives[0];
+      return applicationArchivesInfo[0].path;
     }
 
-    const { path } = await promptAsync({
+    const { selectedPath } = await promptAsync({
       type: 'select',
-      name: 'path',
+      name: 'selectedPath',
       message: 'Found multiple application archives. Select one:',
-      choices: applicationArchives.map(archivePath => {
+      choices: applicationArchivesInfo.map(archive => {
         return {
-          title: archivePath,
-          value: archivePath,
+          title: `${
+            archive.path.startsWith(rootDir) ? path.relative(rootDir, archive.path) : archive.path
+          } (${fromNow(archive.stat.mtime)} ago)`,
+          value: archive.path,
         };
       }),
     });
-    return path;
+    return selectedPath;
   }
 
   throw new Error(`Found no application archives at ${inputBuildPath}.`);
