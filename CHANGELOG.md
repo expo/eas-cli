@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Update upload command to display build info. ([#2990](https://github.com/expo/eas-cli/pull/2990) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+- change launch asset file extension. ([#2991](https://github.com/expo/eas-cli/pull/2991) by [@quinlanj](https://github.com/quinlanj))
 
 ## [16.3.1](https://github.com/expo/eas-cli/releases/tag/v16.3.1) - 2025-04-11
 
