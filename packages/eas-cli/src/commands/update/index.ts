@@ -13,6 +13,7 @@ import { EasNonInteractiveAndJsonFlags, EasUpdateEnvironmentFlag } from '../../c
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
+  AssetMapSourceInput,
   EnvironmentVariableEnvironment,
   FingerprintInfoGroup as GraphqlFingerprintInfoGroup,
   PublishUpdateGroupInput,
@@ -26,6 +27,7 @@ import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { learnMore, link } from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
+import { maybeUploadAssetMapAsync } from '../../project/maybeUploadAssetMapAsync';
 import { maybeUploadFingerprintAsync } from '../../project/maybeUploadFingerprintAsync';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
@@ -271,9 +273,14 @@ export default class UpdatePublish extends EasCommand {
     let uploadedAssetCount = 0;
     let assetLimitPerUpdateGroup = 0;
     let realizedPlatforms: UpdatePublishPlatform[] = [];
+    let assetMapSource: AssetMapSourceInput | null = null;
 
     try {
-      const collectedAssets = await collectAssetsAsync(distRoot);
+      const [collectedAssets, maybeAssetMapSource] = await Promise.all([
+        collectAssetsAsync(distRoot),
+        maybeUploadAssetMapAsync(distRoot, graphqlClient),
+      ]);
+      assetMapSource = maybeAssetMapSource;
       const assets = filterCollectedAssetsByRequestedPlatforms(collectedAssets, requestedPlatform);
       realizedPlatforms = Object.keys(assets) as UpdatePublishPlatform[];
 
@@ -484,11 +491,16 @@ export default class UpdatePublish extends EasCommand {
             {} as GraphqlFingerprintInfoGroup
           );
 
+          const assetMapGroup = assetMapSource
+            ? Object.fromEntries(platforms.map(platform => [platform, assetMapSource]))
+            : null;
+
           return {
             branchId: branch.id,
             updateInfoGroup: localUpdateInfoGroup,
             rolloutInfoGroup: localRolloutInfoGroup,
             fingerprintInfoGroup: transformedFingerprintInfoGroup,
+            assetMapGroup,
             runtimeVersion,
             message: updateMessage,
             gitCommitHash,
