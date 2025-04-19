@@ -169,6 +169,57 @@ test('ios config with ascApiKey fields set to env var', async () => {
   }
 });
 
+test('valid profile with extensions list', async () => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      base: {
+        ios: {
+          appleId: 'some@email.com',
+          ascAppId: '1223423523',
+          appleTeamId: 'AB32CZE81A',
+        },
+      },
+      extension1: {
+        extends: ['base', 'extension2', 'extension3'],
+        ios: {
+          ascApiKeyId: 'AB32CZE81F',
+          appleTeamId: 'AB32CZE81F',
+        },
+      },
+      extension2: {
+        ios: {
+          ascApiKeyPath: './path-ABCD.p8',
+          appleTeamId: 'AB32CZE81E',
+          ascAppId: '123',
+        },
+      },
+      extension3: {
+        ios: {
+          appleTeamId: 'AB32CZE81G',
+          ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const extendedProfile1 = await EasJsonUtils.getSubmitProfileAsync(
+    accessor,
+    Platform.IOS,
+    'extension1'
+  );
+
+  expect(extendedProfile1).toEqual({
+    language: 'en-US',
+    appleId: 'some@email.com',
+    ascAppId: '1223423523',
+    appleTeamId: 'AB32CZE81F',
+    ascApiKeyPath: './path-ABCD.p8',
+    ascApiKeyIssuerId: '2af70a7a-2ac5-44d4-924e-ae97a7ca9333',
+    ascApiKeyId: 'AB32CZE81F',
+  });
+});
+
 test('valid profile with extension chain not exceeding 5', async () => {
   await fs.writeJson('/project/eas.json', {
     submit: {

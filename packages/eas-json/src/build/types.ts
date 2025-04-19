@@ -122,7 +122,7 @@ export type BuildProfile<TPlatform extends Platform = Platform> = TPlatform exte
   : IosBuildProfile;
 
 export interface EasJsonBuildProfile extends Partial<CommonBuildProfile> {
-  extends?: string;
+  extends?: string | string[];
   [Platform.ANDROID]?: Partial<AndroidBuildProfile>;
   [Platform.IOS]?: Partial<IosBuildProfile>;
 }

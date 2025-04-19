@@ -75,7 +75,7 @@ export const ResolvedIosSubmitProfileSchema = Joi.object({
 });
 
 export const UnresolvedSubmitProfileSchema = Joi.object({
-  extends: Joi.string(),
+  extends: Joi.alternatives(Joi.string(), Joi.array().items(Joi.string())),
   android: AndroidSubmitProfileSchema,
   ios: UnresolvedIosSubmitProfileSchema,
 });
