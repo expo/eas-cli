@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 ### 🐛 Bug fixes
+- Add `sdk-52` alias to the list or supported android images. ([#2989](https://github.com/expo/eas-cli/pull/2989) by [@kadikraman](https://github.com/kadikraman))
 
 ### 🧹 Chores
 
