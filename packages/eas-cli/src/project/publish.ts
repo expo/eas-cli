@@ -94,7 +94,7 @@ type UpdateInfoGroup = {
 };
 
 // Partial copy of `@expo/dev-server` `BundleAssetWithFileHashes`
-type AssetMap = Record<
+export type AssetMap = Record<
   string,
   {
     httpServerLocation: string;
