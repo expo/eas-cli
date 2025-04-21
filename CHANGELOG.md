@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- upload assetmap.json when publishing update. ([#2994](https://github.com/expo/eas-cli/pull/2994) by [@quinlanj](https://github.com/quinlanj))
+
 ## [16.3.2](https://github.com/expo/eas-cli/releases/tag/v16.3.2) - 2025-04-17
 
 ### 🧹 Chores
