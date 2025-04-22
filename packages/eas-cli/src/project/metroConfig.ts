@@ -16,10 +16,11 @@ export async function validateMetroConfigForManagedWorkflowAsync(
   }
 
   const metroConfig = await loadConfigAsync(ctx.projectDir);
-  const hasHashAssetFilesPlugin = metroConfig.transformer?.assetPlugins?.find((plugin: string) =>
-    plugin.match(/expo-asset[/|\\]tools[/|\\]hashAssetFiles/)
-  );
-  if (!hasHashAssetFilesPlugin) {
+  
+  // This is a custom property that we inject to ensure cache invalidation between projects.
+  const isExtendingExpoMetroConfig = metroConfig.transformer.hasOwnProperty('_expoRelativeProjectRoot');
+
+  if (!isExtendingExpoMetroConfig) {
     Log.warn(
       `It looks like that you are using a custom ${chalk.bold(
         'metro.config.js'
