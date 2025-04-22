@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Detect when expo metro config is used. ([#2996](https://github.com/expo/eas-cli/pull/2996) by [@kadikraman](https://github.com/kadikraman))
+
 ### 🧹 Chores
 
 - upload assetmap.json when publishing update. ([#2994](https://github.com/expo/eas-cli/pull/2994) by [@quinlanj](https://github.com/quinlanj))
