@@ -16,10 +16,18 @@ export async function validateMetroConfigForManagedWorkflowAsync(
   }
 
   const metroConfig = await loadConfigAsync(ctx.projectDir);
+
+  // SDK <50 | plugins whose presence can be used to determine if the config is extending Expo's Metro config
   const hasHashAssetFilesPlugin = metroConfig.transformer?.assetPlugins?.find((plugin: string) =>
     plugin.match(/expo-asset[/|\\]tools[/|\\]hashAssetFiles/)
   );
-  if (!hasHashAssetFilesPlugin) {
+
+  // SDK >=51 | this is a custom property that we inject to ensure cache invalidation between projects.
+  const isExtendingExpoMetroConfig = metroConfig.transformer.hasOwnProperty(
+    '_expoRelativeProjectRoot'
+  );
+
+  if (!isExtendingExpoMetroConfig && !hasHashAssetFilesPlugin) {
     Log.warn(
       `It looks like that you are using a custom ${chalk.bold(
         'metro.config.js'
