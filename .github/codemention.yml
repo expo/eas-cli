@@ -18,3 +18,7 @@ rules:
     mentions: ['bycedric']
   - patterns: ['packages/eas-cli/src/commands/metadata/**']
     mentions: ['bycedric']
+  - patterns: ['packages/eas-cli/src/worker/**']
+    mentions: ['kitten', 'kadikraman']
+  - patterns: ['packages/eas-cli/src/commands/deploy/**']
+    mentions: ['kitten', 'kadikraman']
