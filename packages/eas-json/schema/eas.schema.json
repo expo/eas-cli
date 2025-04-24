@@ -243,6 +243,7 @@
               "enum": [
                 "auto",
                 "latest",
+                "sdk-52",
                 "sdk-51",
                 "sdk-50",
                 "sdk-49",
@@ -255,6 +256,7 @@
               "markdownEnumDescriptions": [
                 "When using this option the build image is selected automatically based on the project configuration, detected Expo SDK and React Native versions.",
                 "The latest Android image currently available. It is resolved to `ubuntu-22.04-jdk-17-ndk-r26b`. The `latest` to image mapping will be updated as new images are released.",
+                "The recommended image for SDK 52 builds",
                 "The recommended image for SDK 51 builds",
                 "The recommended image for SDK 50 builds",
                 "The recommended image for SDK 49 builds"
