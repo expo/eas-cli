@@ -138,8 +138,9 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
           // why a request was blocked by looking up a WAF event via the "Ray ID" here:
           // https://dash.cloudflare.com/e6f39f67f543faa6038768e8f37e4234/expo.app/security/events
           let message = `CDN firewall has aborted the upload with ${response.statusText}.`;
-          if (rayId)
+          if (rayId) {
             message += `\nReport this error quoting Request ID ${rayId}`;
+          }
           return `Upload of "${filePath}" failed: ${message}`;
         } else {
           const json = await response.json().catch(() => null);
