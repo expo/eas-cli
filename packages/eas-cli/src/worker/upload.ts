@@ -149,7 +149,6 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
 
       if (
         response.status === 408 ||
-        response.status === 408 ||
         response.status === 409 ||
         response.status === 429 ||
         (response.status >= 500 && response.status <= 599)
