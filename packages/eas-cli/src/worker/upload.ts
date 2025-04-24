@@ -130,11 +130,25 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
       }
 
       const getErrorMessageAsync = async (): Promise<string> => {
-        const body = await response.json().catch(() => null);
-        return body?.error ?? `Upload of "${filePath}" failed: ${response.statusText}`;
+        const rayId = response.headers.get('cf-ray');
+        const contentType = response.headers.get('Content-Type');
+        if (contentType?.startsWith('text/html')) {
+          // NOTE(@kitten): We've received a CDN error most likely. There's not much we can do
+          // except for quoting the Request ID, so a user can send it to us. We can check
+          // why a request was blocked by looking up a WAF event via the "Ray ID" here:
+          // https://dash.cloudflare.com/e6f39f67f543faa6038768e8f37e4234/expo.app/security/events
+          let message = `CDN firewall has aborted the upload with ${response.statusText}.`;
+          if (rayId)
+            message += `\nReport this error quoting Request ID ${rayId}`;
+          return `Upload of "${filePath}" failed: ${message}`;
+        } else {
+          const json = await response.json().catch(() => null);
+          return json?.error ?? `Upload of "${filePath}" failed: ${response.statusText}`;
+        }
       };
 
       if (
+        response.status === 408 ||
         response.status === 408 ||
         response.status === 409 ||
         response.status === 429 ||
