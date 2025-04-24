@@ -72,7 +72,10 @@ export async function prepareJobAsync(
       bundler: buildProfile.bundler,
       cocoapods: buildProfile.cocoapods,
       fastlane: buildProfile.fastlane,
-      env: buildProfile.env,
+      env: {
+        ...buildProfile.env,
+        ...(ctx.isVerboseLoggingEnabled ? { EAS_VERBOSE: '1' } : {}),
+      },
     },
     cache: {
       ...cacheDefaults,

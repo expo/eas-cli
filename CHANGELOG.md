@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+-- Add `--verbose-logs` flag for `build` command ([#3000](https://github.com/expo/eas-cli/pull/3000) by [@khamilowicz](https://github.com/khamilowicz))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

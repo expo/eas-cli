@@ -63,5 +63,6 @@ export interface BuildContext<T extends Platform> {
   vcsClient: Client;
   loggerLevel?: LoggerLevel;
   repack: boolean;
+  isVerboseLoggingEnabled: boolean;
   env: Record<string, string>;
 }
