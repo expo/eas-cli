@@ -9,6 +9,13 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [16.3.3](https://github.com/expo/eas-cli/releases/tag/v16.3.3) - 2025-04-24
+
+### 🐛 Bug fixes
+
 - Add `sdk-52` alias to the list or supported android images. ([#2989](https://github.com/expo/eas-cli/pull/2989) by [@kadikraman](https://github.com/kadikraman))
 - Detect when expo metro config is used. ([#2996](https://github.com/expo/eas-cli/pull/2996) by [@kadikraman](https://github.com/kadikraman))
 
