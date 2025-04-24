@@ -424,7 +424,7 @@ describe(collectAssetsAsync, () => {
     expect(await collectAssetsAsync(inputDir)).toEqual({
       android: {
         launchAsset: {
-          fileExtension: '.bundle',
+          fileExtension: '.js',
           contentType: 'application/javascript',
           path: `${inputDir}/bundles/android.js`,
         },
@@ -432,7 +432,7 @@ describe(collectAssetsAsync, () => {
       },
       ios: {
         launchAsset: {
-          fileExtension: '.bundle',
+          fileExtension: '.js',
           contentType: 'application/javascript',
           path: `${inputDir}/bundles/ios.js`,
         },
@@ -440,7 +440,7 @@ describe(collectAssetsAsync, () => {
       },
       web: {
         launchAsset: {
-          fileExtension: '.bundle',
+          fileExtension: '.js',
           contentType: 'application/javascript',
           path: `${inputDir}/bundles/web.js`,
         },

@@ -2550,6 +2550,21 @@ export type AscApiKeyInput = {
   keyP8: Scalars['String']['input'];
 };
 
+export type AssetMapGroup = {
+  android?: InputMaybe<AssetMapSourceInput>;
+  ios?: InputMaybe<AssetMapSourceInput>;
+  web?: InputMaybe<AssetMapSourceInput>;
+};
+
+export type AssetMapSourceInput = {
+  bucketKey?: InputMaybe<Scalars['String']['input']>;
+  type?: InputMaybe<AssetMapSourceType>;
+};
+
+export enum AssetMapSourceType {
+  Gcs = 'GCS'
+}
+
 export type AssetMetadataResult = {
   __typename?: 'AssetMetadataResult';
   status: AssetMetadataStatus;
@@ -2667,6 +2682,11 @@ export enum AuthProviderIdentifier {
   OneLogin = 'ONE_LOGIN',
   StubIdp = 'STUB_IDP'
 }
+
+export type AverageMetrics = {
+  __typename?: 'AverageMetrics';
+  averageDownloadSize: Scalars['Int']['output'];
+};
 
 export type BackgroundJobReceipt = {
   __typename?: 'BackgroundJobReceipt';
@@ -5818,7 +5838,6 @@ export enum ProjectArchiveSourceType {
   Gcs = 'GCS',
   Git = 'GIT',
   None = 'NONE',
-  S3 = 'S3',
   Url = 'URL'
 }
 
@@ -5849,6 +5868,7 @@ export type PublicArtifacts = {
 };
 
 export type PublishUpdateGroupInput = {
+  assetMapGroup?: InputMaybe<AssetMapGroup>;
   awaitingCodeSigningInfo?: InputMaybe<Scalars['Boolean']['input']>;
   branchId: Scalars['String']['input'];
   environment?: InputMaybe<EnvironmentVariableEnvironment>;
@@ -6965,6 +6985,7 @@ export type Update = ActivityTimelineProjectActivity & {
   activityTimestamp: Scalars['DateTime']['output'];
   actor?: Maybe<Actor>;
   app: App;
+  assetMapUrl?: Maybe<Scalars['String']['output']>;
   awaitingCodeSigningInfo: Scalars['Boolean']['output'];
   branch: UpdateBranch;
   branchId: Scalars['ID']['output'];
@@ -7206,6 +7227,7 @@ export type UpdateInfoGroup = {
 
 export type UpdateInsights = {
   __typename?: 'UpdateInsights';
+  averageMetrics: AverageMetrics;
   cumulativeMetrics: CumulativeMetrics;
   id: Scalars['ID']['output'];
   totalUniqueUsers: Scalars['Int']['output'];
@@ -7223,7 +7245,10 @@ export type UpdateInsightsTotalUniqueUsersArgs = {
 
 export type UpdateMutation = {
   __typename?: 'UpdateMutation';
-  /** Delete an EAS update group */
+  /**
+   * Delete an EAS update group
+   * @deprecated Use scheduleUpdateGroupDeletion instead
+   */
   deleteUpdateGroup: DeleteUpdateGroupResult;
   /** Delete an EAS update group in the background */
   scheduleUpdateGroupDeletion: BackgroundJobReceipt;
@@ -7333,6 +7358,7 @@ export enum UploadSessionType {
   /** @deprecated Use EAS_SUBMIT_GCS_APP_ARCHIVE instead. */
   EasSubmitAppArchive = 'EAS_SUBMIT_APP_ARCHIVE',
   EasSubmitGcsAppArchive = 'EAS_SUBMIT_GCS_APP_ARCHIVE',
+  EasUpdateAssetsMetadata = 'EAS_UPDATE_ASSETS_METADATA',
   EasUpdateFingerprint = 'EAS_UPDATE_FINGERPRINT'
 }
 
@@ -8434,7 +8460,7 @@ export type WorkerDeploymentRequestsCacheStatusEdge = {
 
 export type WorkerDeploymentRequestsContinentEdge = {
   __typename?: 'WorkerDeploymentRequestsContinentEdge';
-  continent: ContinentCode;
+  continent?: Maybe<ContinentCode>;
   node: WorkerDeploymentRequestsAggregationNode;
 };
 
@@ -8617,6 +8643,7 @@ export enum WorkflowJobType {
   GetBuild = 'GET_BUILD',
   MaestroTest = 'MAESTRO_TEST',
   RequireApproval = 'REQUIRE_APPROVAL',
+  Slack = 'SLACK',
   Submission = 'SUBMISSION',
   Update = 'UPDATE'
 }
@@ -9465,6 +9492,16 @@ export type CreateKeystoreGenerationUrlMutationVariables = Exact<{ [key: string]
 
 export type CreateKeystoreGenerationUrlMutation = { __typename?: 'RootMutation', keystoreGenerationUrl: { __typename?: 'KeystoreGenerationUrlMutation', createKeystoreGenerationUrl: { __typename?: 'KeystoreGenerationUrl', id: string, url: string } } };
 
+export type CreateLocalBuildMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  jobInput: LocalBuildJobInput;
+  artifactSource: LocalBuildArchiveSourceInput;
+  metadata?: InputMaybe<BuildMetadataInput>;
+}>;
+
+
+export type CreateLocalBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', createLocalBuild: { __typename?: 'CreateBuildResult', build: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string }, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } } } };
+
 export type GetSignedUploadMutationVariables = Exact<{
   contentTypes: Array<Scalars['String']['input']> | Scalars['String']['input'];
 }>;
@@ -9494,16 +9531,6 @@ export type SetRolloutPercentageMutationVariables = Exact<{
 
 
 export type SetRolloutPercentageMutation = { __typename?: 'RootMutation', update: { __typename?: 'UpdateMutation', setRolloutPercentage: { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, rolloutPercentage?: number | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null } } };
-
-export type CreateLocalBuildMutationVariables = Exact<{
-  appId: Scalars['ID']['input'];
-  jobInput: LocalBuildJobInput;
-  artifactSource: LocalBuildArchiveSourceInput;
-  metadata?: InputMaybe<BuildMetadataInput>;
-}>;
-
-
-export type CreateLocalBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', createLocalBuild: { __typename?: 'CreateBuildResult', build: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string }, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } } } };
 
 export type CreateAndroidSubmissionMutationVariables = Exact<{
   appId: Scalars['ID']['input'];

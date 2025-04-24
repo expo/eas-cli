@@ -94,7 +94,7 @@ type UpdateInfoGroup = {
 };
 
 // Partial copy of `@expo/dev-server` `BundleAssetWithFileHashes`
-type AssetMap = Record<
+export type AssetMap = Record<
   string,
   {
     httpServerLocation: string;
@@ -374,7 +374,7 @@ export function filterCollectedAssetsByRequestedPlatforms(
 }
 
 /** Try to load the asset map for logging the names of assets published */
-export async function loadAssetMapAsync(distRoot: string): Promise<AssetMap | null> {
+async function loadAssetMapAsync(distRoot: string): Promise<AssetMap | null> {
   const assetMapPath = path.join(distRoot, 'assetmap.json');
 
   if (!(await fs.pathExists(assetMapPath))) {
@@ -421,7 +421,8 @@ export async function collectAssetsAsync(dir: string): Promise<CollectedAssets> 
   for (const platform of Object.keys(metadata.fileMetadata) as ExpoConfigPlatform[]) {
     collectedAssets[platform] = {
       launchAsset: {
-        fileExtension: '.bundle',
+        // path.extname() returns an empty string when there's no extension so we use || to fall back to .bundle
+        fileExtension: path.extname(metadata.fileMetadata[platform].bundle) || '.bundle',
         contentType: 'application/javascript',
         path: path.resolve(dir, metadata.fileMetadata[platform].bundle),
       },
