@@ -5,11 +5,13 @@
   "author": "Expo <support@expo.dev>",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
+    "@expo/config": "10.0.6",
     "@babel/code-frame": "7.23.5",
-    "@expo/config-plugins": "9.0.12",
     "@expo/spawn-async": "^1.7.2",
     "chalk": "4.1.2",
+    "figures": "3.2.0",
     "fs-extra": "11.2.0",
+    "getenv": "1.0.0",
     "log-symbols": "4.1.0",
     "semver": "7.5.2",
     "terminal-link": "2.1.1",
@@ -19,6 +21,7 @@
     "@tsconfig/node18": "18.2.4",
     "@types/babel__code-frame": "7.0.3",
     "@types/fs-extra": "11.0.4",
+    "@types/getenv": "^1.0.0",
     "memfs": "3.4.13",
     "rimraf": "3.0.2",
     "typescript": "5.3.3"

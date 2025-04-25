@@ -1,4 +1,4 @@
-import { ModPlatform } from '@expo/config-plugins';
+import { Platform } from '@expo/config';
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -19,7 +19,7 @@ async function resolveRemoteBuildCacheAsync({
   runOptions,
 }: {
   projectRoot: string;
-  platform: ModPlatform;
+  platform: Platform;
   fingerprintHash: string;
   runOptions: RunOptions;
 }): Promise<string | null> {
@@ -75,7 +75,7 @@ async function uploadEASRemoteBuildCacheAsync({
 }: {
   projectRoot: string;
   runOptions: RunOptions;
-  platform: ModPlatform;
+  platform: Platform;
   fingerprintHash: string;
   buildPath?: string;
 }): Promise<string | null> {
