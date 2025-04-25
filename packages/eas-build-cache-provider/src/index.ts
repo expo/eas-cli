@@ -7,6 +7,7 @@ import path from 'path';
 import { isDevClientBuild, isSpawnResultError } from './helpers';
 import Log from './log';
 
+// import from '@expo/config';
 type CalculateFingerprintHashProps = any;
 type RemoteBuildCachePlugin = any;
 type RunOptions = any;
