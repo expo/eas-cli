@@ -78,7 +78,10 @@ export async function prepareJobAsync(
       bun: buildProfile.bun,
       yarn: buildProfile.yarn,
       ndk: buildProfile.ndk,
-      env: buildProfile.env,
+      env: {
+        ...buildProfile.env,
+        ...(ctx.isVerboseLoggingEnabled ? { EAS_VERBOSE: '1' } : {}),
+      },
     },
     cache: {
       ...cacheDefaults,

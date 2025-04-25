@@ -98,6 +98,7 @@ export interface BuildFlags {
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
   repack: boolean;
+  isVerboseLoggingEnabled?: boolean;
 }
 
 export async function runBuildAndSubmitAsync({
@@ -401,6 +402,7 @@ async function prepareAndStartBuildAsync({
     buildLoggerLevel: flags.buildLoggerLevel ?? (Log.isDebug ? LoggerLevel.DEBUG : undefined),
     freezeCredentials: flags.freezeCredentials,
     repack: flags.repack,
+    isVerboseLoggingEnabled: flags.isVerboseLoggingEnabled ?? false,
     env,
   });
 
