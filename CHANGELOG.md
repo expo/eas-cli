@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 -- Add `--verbose-logs` flag for `build` command ([#3000](https://github.com/expo/eas-cli/pull/3000) by [@khamilowicz](https://github.com/khamilowicz))
 
+- Add `eas-build-cache-provider` package. ([#3002](https://github.com/expo/eas-cli/pull/3002) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
