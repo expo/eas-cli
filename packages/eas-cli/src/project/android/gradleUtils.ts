@@ -2,6 +2,8 @@ import { AndroidConfig } from '@expo/config-plugins';
 import fs from 'fs-extra';
 import g2js from 'gradle-to-js/lib/parser';
 
+import Log, { learnMore } from '../../log';
+
 // represents gradle command
 // e.g. for `:app:buildExampleDebug` -> { moduleName: app, flavor: example, buildType: debug }
 interface GradleCommand {
@@ -82,7 +84,7 @@ export function parseGradleCommand(cmd: string, buildGradle: AppBuildGradle): Gr
   const [moduleName, taskName] =
     splitCmd.length > 1 ? [splitCmd[0], splitCmd[1]] : [undefined, splitCmd[0]];
 
-  const matchResult = taskName.match(/(build|bundle|assemble|package)(.*)(Release|Debug)/);
+  const matchResult = taskName.match(/(build|bundle|assemble|package)(.*)([A-Z][a-z]+)/);
   if (!matchResult) {
     throw new Error(`Failed to parse gradle command: ${cmd}`);
   }
@@ -104,9 +106,21 @@ export function parseGradleCommand(cmd: string, buildGradle: AppBuildGradle): Gr
       throw new Error(`flavor ${firstLetter.toLowerCase().concat(rest)} is not defined`);
     }
   }
+
+  const buildType = matchResult[3]
+    ? matchResult[3].charAt(0).toLowerCase() + matchResult[3].slice(1)
+    : undefined;
+
+  if (buildType && !['debug', 'release'].includes(buildType)) {
+    Log.warn(
+      `Custom gradle command "${cmd}" has non-standard build type: "${buildType}". Expected "release" or "debug". Ensure it is spelled correctly and build.gradle is configured correctly.`
+    );
+    Log.warn(learnMore('https://developer.android.com/build/build-variants#build-types'));
+  }
+
   return {
     moduleName,
     flavor,
-    buildType: matchResult[3] ? matchResult[3].toLowerCase() : undefined,
+    buildType,
   };
 }
