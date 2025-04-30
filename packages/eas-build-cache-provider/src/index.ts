@@ -1,4 +1,9 @@
-import { Platform } from '@expo/config';
+import {
+  Platform,
+  CalculateFingerprintHashProps,
+  RemoteBuildCachePlugin,
+  RunOptions,
+} from '@expo/config';
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -6,11 +11,6 @@ import path from 'path';
 
 import { isDevClientBuild, isSpawnResultError } from './helpers';
 import Log from './log';
-
-// import from '@expo/config';
-type CalculateFingerprintHashProps = any;
-type RemoteBuildCachePlugin = any;
-type RunOptions = any;
 
 async function resolveRemoteBuildCacheAsync({
   projectRoot,
