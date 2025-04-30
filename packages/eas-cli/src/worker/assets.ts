@@ -142,18 +142,20 @@ export async function createManifestAsync(
 }
 
 interface RawSourceMap {
-    version: number;
-    sources: string[];
-    names: string[];
-    sourceRoot?: string;
-    sourcesContent?: string[];
-    mappings: string;
-    file: string;
+  version: number;
+  sources: string[];
+  names: string[];
+  sourceRoot?: string;
+  sourcesContent?: string[];
+  mappings: string;
+  file: string;
 }
 
 const sourceMapExtensionRe = /\.map$/;
 
-async function normalizeSourceMap(file: RecursiveFileEntry): Promise<WorkerFileEntry | undefined> {
+async function normalizeSourceMapAsync(
+  file: RecursiveFileEntry
+): Promise<WorkerFileEntry | undefined> {
   // This logic normalizes source maps like Wrangler does
   // See: https://github.com/cloudflare/workers-sdk/blob/508a1a3/packages/wrangler/src/deployment-bundle/source-maps.ts#L31-L63
   const data = await fs.promises.readFile(file.path, 'utf-8');
@@ -195,15 +197,18 @@ interface WorkerFileEntry {
 /** Reads worker files while normalizing sourcemaps and providing normalized paths */
 async function* listWorkerFilesAsync(workerPath: string): AsyncGenerator<WorkerFileEntry> {
   for await (const file of listFilesRecursively(workerPath)) {
-    if (sourceMapExtensionRe.test(file.normalizedPath)) {
-      const normalizedSourceMap = await normalizeSourceMap(file);
-      if (normalizedSourceMap) yield normalizedSourceMap;
+    if (file.normalizedPath.endsWith('.map')) {
+      const normalizedSourceMap = await normalizeSourceMapAsync(file);
+      if (normalizedSourceMap) {
+        yield normalizedSourceMap;
+      }
+    } else {
+      yield {
+        normalizedPath: file.normalizedPath,
+        path: file.path,
+        data: await fs.promises.readFile(file.path),
+      };
     }
-    yield {
-      normalizedPath: file.normalizedPath,
-      path: file.path,
-      data: await fs.promises.readFile(file.path),
-    };
   }
 }
 
