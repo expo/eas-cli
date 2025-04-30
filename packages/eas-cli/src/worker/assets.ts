@@ -141,6 +141,51 @@ export async function createManifestAsync(
   return { conflictingVariableNames, manifest };
 }
 
+interface RawSourceMap {
+    version: number;
+    sources: string[];
+    names: string[];
+    sourceRoot?: string;
+    sourcesContent?: string[];
+    mappings: string;
+    file: string;
+}
+
+const sourceMapExtensionRe = /\.map$/;
+
+async function normalizeSourceMap(file: RecursiveFileEntry): Promise<WorkerFileEntry | undefined> {
+  // This logic normalizes source maps like Wrangler does
+  // See: https://github.com/cloudflare/workers-sdk/blob/508a1a3/packages/wrangler/src/deployment-bundle/source-maps.ts#L31-L63
+  const data = await fs.promises.readFile(file.path, 'utf-8');
+  try {
+    const map = JSON.parse(data) as RawSourceMap;
+    if (typeof map !== 'object' || !map) {
+      return undefined;
+    }
+    let sources = map.sources || [];
+    if (Array.isArray(map.sources)) {
+      // Remote null-byte prefixes from virtual file names
+      sources = map.sources.map(sourceName =>
+        sourceName.charCodeAt(0) === 0 ? sourceName.slice(1) : sourceName
+      );
+    }
+    return {
+      normalizedPath: file.normalizedPath,
+      path: file.path,
+      data: JSON.stringify({
+        version: 3,
+        file: file.normalizedPath.replace(sourceMapExtensionRe, ''),
+        sourcesContent: sources.map(() => null),
+        sources,
+        names: map.names,
+        mappings: map.mappings,
+      }),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 interface WorkerFileEntry {
   normalizedPath: string;
   path: string;
@@ -150,6 +195,10 @@ interface WorkerFileEntry {
 /** Reads worker files while normalizing sourcemaps and providing normalized paths */
 async function* listWorkerFilesAsync(workerPath: string): AsyncGenerator<WorkerFileEntry> {
   for await (const file of listFilesRecursively(workerPath)) {
+    if (sourceMapExtensionRe.test(file.normalizedPath)) {
+      const normalizedSourceMap = await normalizeSourceMap(file);
+      if (normalizedSourceMap) yield normalizedSourceMap;
+    }
     yield {
       normalizedPath: file.normalizedPath,
       path: file.path,
