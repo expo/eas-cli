@@ -1,6 +1,6 @@
 import {
-  Platform,
   CalculateFingerprintHashProps,
+  Platform,
   RemoteBuildCachePlugin,
   RunOptions,
 } from '@expo/config';

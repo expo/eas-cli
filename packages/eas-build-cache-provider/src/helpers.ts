@@ -1,4 +1,4 @@
-import { getPackageJson, RunOptions } from '@expo/config';
+import { RunOptions, getPackageJson } from '@expo/config';
 import { SpawnResult } from '@expo/spawn-async';
 
 export function isSpawnResultError(obj: any): obj is Error & SpawnResult {
