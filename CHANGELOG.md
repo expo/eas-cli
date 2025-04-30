@@ -16,6 +16,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Read remote build cache provider types from `@expo/config`. ([#3005](https://github.com/expo/eas-cli/pull/3005) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+
 ## [16.3.3](https://github.com/expo/eas-cli/releases/tag/v16.3.3) - 2025-04-24
 
 ### 🐛 Bug fixes
