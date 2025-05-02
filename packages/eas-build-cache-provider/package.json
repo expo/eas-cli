@@ -5,7 +5,7 @@
   "author": "Expo <support@expo.dev>",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {
-    "@expo/config": "10.0.6",
+    "@expo/config": "11.0.6",
     "@babel/code-frame": "7.23.5",
     "@expo/spawn-async": "^1.7.2",
     "chalk": "4.1.2",
