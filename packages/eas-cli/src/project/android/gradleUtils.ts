@@ -82,7 +82,7 @@ export function parseGradleCommand(cmd: string, buildGradle: AppBuildGradle): Gr
   const [moduleName, taskName] =
     splitCmd.length > 1 ? [splitCmd[0], splitCmd[1]] : [undefined, splitCmd[0]];
 
-  const matchResult = taskName.match(/(build|bundle|assemble|package)(.*)(Release|Debug)/);
+  const matchResult = taskName.match(/(build|bundle|assemble|package)(.*)([A-Z][a-z]+)/);
   if (!matchResult) {
     throw new Error(`Failed to parse gradle command: ${cmd}`);
   }
@@ -104,9 +104,14 @@ export function parseGradleCommand(cmd: string, buildGradle: AppBuildGradle): Gr
       throw new Error(`flavor ${firstLetter.toLowerCase().concat(rest)} is not defined`);
     }
   }
+
+  const buildType = matchResult[3]
+    ? matchResult[3].charAt(0).toLowerCase() + matchResult[3].slice(1)
+    : undefined;
+
   return {
     moduleName,
     flavor,
-    buildType: matchResult[3] ? matchResult[3].toLowerCase() : undefined,
+    buildType,
   };
 }

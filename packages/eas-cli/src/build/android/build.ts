@@ -1,6 +1,7 @@
 import { Android, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { AppVersionSource } from '@expo/eas-json';
 import chalk from 'chalk';
+import getenv from 'getenv';
 import nullthrows from 'nullthrows';
 
 import { transformJob } from './graphql';
@@ -12,7 +13,7 @@ import AndroidCredentialsProvider, {
 } from '../../credentials/android/AndroidCredentialsProvider';
 import { BuildParamsInput } from '../../graphql/generated';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
-import Log from '../../log';
+import Log, { learnMore } from '../../log';
 import {
   ensureApplicationIdIsDefinedForManagedProjectAsync,
   getApplicationIdAsync,
@@ -64,6 +65,10 @@ This means that it will most likely produce an AAB and you will not be able to i
     buildProfile,
     ctx.vcsClient
   );
+
+  if (gradleContext?.buildType) {
+    maybeWarnAboutNonStandardBuildType({ buildProfile, buildType: gradleContext.buildType });
+  }
 
   if (ctx.workflow === Workflow.MANAGED) {
     await ensureApplicationIdIsDefinedForManagedProjectAsync(ctx);
@@ -167,4 +172,39 @@ async function ensureAndroidCredentialsAsync(
     credentials: await provider.getCredentialsAsync(credentialsSource),
     source: credentialsSource,
   };
+}
+
+export function maybeWarnAboutNonStandardBuildType({
+  buildProfile,
+  buildType,
+}: {
+  buildProfile: Pick<CommonContext<Platform.ANDROID>['buildProfile'], 'gradleCommand'>;
+  buildType: string;
+}): void {
+  const shouldSuppressWarning = getenv.boolish('EAS_BUILD_NO_GRADLE_BUILD_TYPE_WARNING', false);
+
+  if (shouldSuppressWarning) {
+    return;
+  }
+
+  const knownValidBuildTypes = ['debug', 'release'];
+  if (!knownValidBuildTypes.includes(buildType)) {
+    Log.warn(
+      `Custom gradle command "${chalk.bold(
+        buildProfile.gradleCommand
+      )}" has non-standard build type: "${chalk.bold(
+        buildType
+      )}". Expected the command to end with "${chalk.bold('...Debug')}" or "${chalk.bold(
+        '...Release'
+      )}"`
+    );
+    Log.warn(
+      `Ensure the command is spelled correctly and ${chalk.bold(
+        'build.gradle'
+      )} is configured correctly. To suppress this warning, set ${chalk.bold(
+        'EAS_BUILD_NO_GRADLE_BUILD_TYPE_WARNING=true'
+      )}.`
+    );
+    Log.warn(learnMore('https://developer.android.com/build/build-variants#build-types'));
+  }
 }

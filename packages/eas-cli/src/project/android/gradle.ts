@@ -9,6 +9,7 @@ import { Client } from '../../vcs/vcs';
 export interface GradleBuildContext {
   moduleName?: string;
   flavor?: string;
+  buildType?: string;
 }
 
 export async function resolveGradleBuildContextAsync(
@@ -32,9 +33,11 @@ export async function resolveGradleBuildContextAsync(
             `Building modules different than "${gradleUtils.DEFAULT_MODULE_NAME}" might result in unexpected behavior.`
           );
         }
+
         return {
           moduleName: parsedGradleCommand?.moduleName ?? gradleUtils.DEFAULT_MODULE_NAME,
           flavor: parsedGradleCommand?.flavor,
+          buildType: parsedGradleCommand?.buildType,
         };
       } else {
         return { moduleName: gradleUtils.DEFAULT_MODULE_NAME };

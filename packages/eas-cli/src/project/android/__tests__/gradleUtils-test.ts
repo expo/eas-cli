@@ -144,6 +144,12 @@ describe(parseGradleCommand, () => {
     });
     expect(result).toEqual({ moduleName: 'app', flavor: 'example', buildType: 'release' });
   });
+  test('parsing :app:buildExampleStage', async () => {
+    const result = parseGradleCommand(':app:buildExampleStage', {
+      android: { productFlavors: { example: {} } },
+    });
+    expect(result).toEqual({ moduleName: 'app', flavor: 'example', buildType: 'stage' });
+  });
   test('parsing :app:buildExampleDebug when flavor is named with uper-case', async () => {
     const result = parseGradleCommand(':app:buildExampleRelease', {
       android: { productFlavors: { Example: {} } },
