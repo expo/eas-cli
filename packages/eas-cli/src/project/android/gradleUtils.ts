@@ -1,5 +1,6 @@
 import { AndroidConfig } from '@expo/config-plugins';
 import fs from 'fs-extra';
+import getenv from 'getenv';
 import g2js from 'gradle-to-js/lib/parser';
 
 import Log, { learnMore } from '../../log';
@@ -111,9 +112,13 @@ export function parseGradleCommand(cmd: string, buildGradle: AppBuildGradle): Gr
     ? matchResult[3].charAt(0).toLowerCase() + matchResult[3].slice(1)
     : undefined;
 
-  if (buildType && !['debug', 'release'].includes(buildType)) {
+  if (
+    buildType &&
+    !['debug', 'release'].includes(buildType) &&
+    !getenv.boolish('EAS_BUILD_NO_GRADLE_BUILD_TYPE_WARNING', false)
+  ) {
     Log.warn(
-      `Custom gradle command "${cmd}" has non-standard build type: "${buildType}". Expected "release" or "debug". Ensure it is spelled correctly and build.gradle is configured correctly.`
+      `Custom gradle command "${cmd}" has non-standard build type: "${buildType}". Expected "release" or "debug". Ensure it is spelled correctly and build.gradle is configured correctly. To suppress this warning, set EAS_BUILD_NO_GRADLE_BUILD_TYPE_WARNING=true.`
     );
     Log.warn(learnMore('https://developer.android.com/build/build-variants#build-types'));
   }
