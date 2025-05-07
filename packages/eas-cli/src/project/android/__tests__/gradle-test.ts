@@ -69,7 +69,7 @@ describe(resolveGradleBuildContextAsync, () => {
         } as any,
         vcsClient
       );
-      expect(gradleContext).toEqual({ moduleName: 'app', flavor: 'abc' });
+      expect(gradleContext).toEqual({ moduleName: 'app', flavor: 'abc', buildType: 'release' });
     });
 
     it('returns undefined if build.gradle does not exist', async () => {
