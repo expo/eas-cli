@@ -8,16 +8,14 @@ To use the EAS remote build provider plugin, install the `eas-build-cache-provid
 npm install --save-dev eas-build-cache-provider
 ```
 
-Then, update your **app.json** to include the `remoteBuildCache` property and its provider under `experiments`:
+Then, update your **app.json** to include the `buildCacheProvider` property and its provider under `experiments`:
 
 ```json
 {
   "expo": {
     ...
     "experiments": {
-      "remoteBuildCache": {
-        "provider": "eas-build-cache-provider"
-      }
+      "buildCacheProvider": "eas"
     }
   }
 }

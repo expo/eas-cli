@@ -1,8 +1,8 @@
 import {
+  BuildCacheProviderPlugin,
   CalculateFingerprintHashProps,
-  Platform,
-  RemoteBuildCachePlugin,
-  RunOptions,
+  ResolveBuildCacheProps,
+  UploadBuildCacheProps,
 } from '@expo/config';
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
@@ -12,17 +12,12 @@ import path from 'path';
 import { isDevClientBuild, isSpawnResultError } from './helpers';
 import Log from './log';
 
-async function resolveRemoteBuildCacheAsync({
+async function resolveBuildCacheAsync({
   projectRoot,
   platform,
   fingerprintHash,
   runOptions,
-}: {
-  projectRoot: string;
-  platform: Platform;
-  fingerprintHash: string;
-  runOptions: RunOptions;
-}): Promise<string | null> {
+}: ResolveBuildCacheProps): Promise<string | null> {
   const easJsonPath = path.join(projectRoot, 'eas.json');
   if (!(await fs.exists(easJsonPath))) {
     Log.debug('eas.json not found, skip checking for remote builds');
@@ -60,25 +55,19 @@ async function resolveRemoteBuildCacheAsync({
     // @TODO(2025-04-11): remove this in a future release
     if (isSpawnResultError(error) && error.stderr.includes('command build:download not found')) {
       Log.warn(
-        `To take advantage of remote build cache, upgrade your eas-cli installation to latest.`
+        `To take advantage of EAS build cache provider, upgrade your eas-cli installation to latest.`
       );
     }
     return null;
   }
 }
 
-async function uploadEASRemoteBuildCacheAsync({
+async function uploadBuildCacheAsync({
   projectRoot,
   platform,
   fingerprintHash,
   buildPath,
-}: {
-  projectRoot: string;
-  runOptions: RunOptions;
-  platform: Platform;
-  fingerprintHash: string;
-  buildPath?: string;
-}): Promise<string | null> {
+}: UploadBuildCacheProps): Promise<string | null> {
   const easJsonPath = path.join(projectRoot, 'eas.json');
   if (!(await fs.exists(easJsonPath))) {
     Log.debug('eas.json not found, skip uploading builds');
@@ -86,7 +75,7 @@ async function uploadEASRemoteBuildCacheAsync({
   }
 
   try {
-    Log.log(chalk`{whiteBright \u203A} {bold Uploading build to remote cache}`);
+    Log.log(chalk`{whiteBright \u203A} {bold Uploading build to EAS}`);
     const results = await spawnAsync(
       'npx',
       [
@@ -138,10 +127,10 @@ async function calculateEASFingerprintHashAsync({
   return null;
 }
 
-const EASRemoteBuildCacheProvider: RemoteBuildCachePlugin = {
-  resolveRemoteBuildCache: resolveRemoteBuildCacheAsync,
-  uploadRemoteBuildCache: uploadEASRemoteBuildCacheAsync,
+const EASBuildCacheProvider: BuildCacheProviderPlugin = {
+  resolveBuildCache: resolveBuildCacheAsync,
+  uploadBuildCache: uploadBuildCacheAsync,
   calculateFingerprintHash: calculateEASFingerprintHashAsync,
 };
 
-export default EASRemoteBuildCacheProvider;
+export default EASBuildCacheProvider;
