@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Update `eas-build-cache-provider` function names to use `buildCacheProvider` key. ([#3002](https://github.com/expo/eas-cli/pull/3002) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+
 ## [16.4.1](https://github.com/expo/eas-cli/releases/tag/v16.4.1) - 2025-05-07
 
 ### 🧹 Chores
