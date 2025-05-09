@@ -1410,14 +1410,14 @@
     xcode "^3.0.1"
     xml2js "0.6.0"
 
-"@expo/config-plugins@~10.0.0":
-  version "10.0.0"
-  resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-10.0.0.tgz#5ea58f9c12d1d06b6c43c9fb9e7163bb4954d04f"
-  integrity sha512-VAGMjQoBFKwyXGzVcAptqY68LGx1pZr8c+4e82h6E1elenjeVBt1CBaWHC/kiAw2Akr2nkdUVd85nIaC81m1ow==
+"@expo/config-plugins@~10.0.2":
+  version "10.0.2"
+  resolved "https://registry.yarnpkg.com/@expo/config-plugins/-/config-plugins-10.0.2.tgz#040867991e9c8c527b4f5c13a47bcf040a7479fe"
+  integrity sha512-TzUn3pPdpwCS0yYaSlZOClgDmCX8N4I2lfgitX5oStqmvpPtB+vqtdyqsVM02fQ2tlJIAqwBW+NHaHqqy8Jv7g==
   dependencies:
-    "@expo/config-types" "^53.0.2"
-    "@expo/json-file" "~9.1.3"
-    "@expo/plist" "^0.3.3"
+    "@expo/config-types" "^53.0.3"
+    "@expo/json-file" "~9.1.4"
+    "@expo/plist" "^0.3.4"
     "@expo/sdk-runtime-versions" "^1.0.0"
     chalk "^4.1.2"
     debug "^4.3.5"
@@ -1455,10 +1455,10 @@
   resolved "https://registry.yarnpkg.com/@expo/config-types/-/config-types-52.0.1.tgz#327af1b72a3a9d4556f41e083e0e284dd8198b96"
   integrity sha512-vD8ZetyKV7U29lR6+NJohYeoLYTH+eNYXJeNiSOrWCz0witJYY11meMmEnpEaVbN89EfC6uauSUOa6wihtbyPQ==
 
-"@expo/config-types@^53.0.2":
-  version "53.0.3"
-  resolved "https://registry.yarnpkg.com/@expo/config-types/-/config-types-53.0.3.tgz#d083d9b095972e89eee96c41d085feb5b92d2749"
-  integrity sha512-V1e6CiM4TXtGxG/W2Msjp/QOx/vikLo5IUGMvEMjgAglBfGYx3PXfqsUb5aZDt6kqA3bDDwFuZoS5vNm/SYwSg==
+"@expo/config-types@^53.0.3", "@expo/config-types@^53.0.4":
+  version "53.0.4"
+  resolved "https://registry.yarnpkg.com/@expo/config-types/-/config-types-53.0.4.tgz#fe64fac734531ae883d18529b32586c23ffb1ceb"
+  integrity sha512-0s+9vFx83WIToEr0Iwy4CcmiUXa5BgwBmEjylBB2eojX5XAMm9mJvw9KpjAb8m7zq2G0Q6bRbeufkzgbipuNQg==
 
 "@expo/config@10.0.6":
   version "10.0.6"
@@ -1479,15 +1479,15 @@
     slugify "^1.3.4"
     sucrase "3.35.0"
 
-"@expo/config@11.0.6":
-  version "11.0.6"
-  resolved "https://registry.yarnpkg.com/@expo/config/-/config-11.0.6.tgz#934efecf3393e0d47d00cadd511095b2255c3262"
-  integrity sha512-lmBP4kbNFiDLZoxPNuaN/UanFzns0+PxJA1eimOAHa6aFSAHTl48AHozbJ6UARbvig/TVTzLfGpoxv2Ih03iYQ==
+"@expo/config@11.0.10":
+  version "11.0.10"
+  resolved "https://registry.yarnpkg.com/@expo/config/-/config-11.0.10.tgz#559d9425a4e0de4fab96ccac01ff40f5cebbc04b"
+  integrity sha512-8S8Krr/c5lnl0eF03tA2UGY9rGBhZcbWKz2UWw5dpL/+zstwUmog8oyuuC8aRcn7GiTQLlbBkxcMeT8sOGlhbA==
   dependencies:
     "@babel/code-frame" "~7.10.4"
-    "@expo/config-plugins" "~10.0.0"
-    "@expo/config-types" "^53.0.2"
-    "@expo/json-file" "^9.1.3"
+    "@expo/config-plugins" "~10.0.2"
+    "@expo/config-types" "^53.0.4"
+    "@expo/json-file" "^9.1.4"
     deepmerge "^4.3.1"
     getenv "^1.0.0"
     glob "^10.4.2"
@@ -1572,10 +1572,10 @@
     json5 "^2.2.3"
     write-file-atomic "^2.3.0"
 
-"@expo/json-file@^9.1.3", "@expo/json-file@~9.1.3":
-  version "9.1.3"
-  resolved "https://registry.yarnpkg.com/@expo/json-file/-/json-file-9.1.3.tgz#7e40658345e694c33641cf5750ac08d42cf00c84"
-  integrity sha512-u+5OxD589x+BkR3CerGKshz7OTX23xFAkKWH0Vu2uG0nNrHwAC+RMafvehiP3+xnDrFwuK+oGtZJpg6+fW3bHw==
+"@expo/json-file@^9.1.4", "@expo/json-file@~9.1.4":
+  version "9.1.4"
+  resolved "https://registry.yarnpkg.com/@expo/json-file/-/json-file-9.1.4.tgz#e719d092c08afb3234643f9285e57c6a24989327"
+  integrity sha512-7Bv86X27fPERGhw8aJEZvRcH9sk+9BenDnEmrI3ZpywKodYSBgc8lX9Y32faNVQ/p0YbDK9zdJ0BfAKNAOyi0A==
   dependencies:
     "@babel/code-frame" "~7.10.4"
     json5 "^2.2.3"
@@ -1637,10 +1637,10 @@
     base64-js "^1.2.3"
     xmlbuilder "^14.0.0"
 
-"@expo/plist@^0.3.3":
-  version "0.3.3"
-  resolved "https://registry.yarnpkg.com/@expo/plist/-/plist-0.3.3.tgz#fe2da503d7e6a411161e11c79ecab629c256161d"
-  integrity sha512-tpokZlWbeMm8UwW5311XyEv4tELGysZYkzq+f+LOgi9DRcGPmGPtcQ+aD1dZv4JZkld82AnTUWu0sfWDZdwpNA==
+"@expo/plist@^0.3.4":
+  version "0.3.4"
+  resolved "https://registry.yarnpkg.com/@expo/plist/-/plist-0.3.4.tgz#0c48eeff2158cf26c5c9ed4f681d24997ccfbeca"
+  integrity sha512-MhBLaUJNe9FQDDU2xhSNS4SAolr6K2wuyi4+A79vYuXLkAoICsbTwcGEQJN5jPY6D9izO/jsXh5k0h+mIWQMdw==
   dependencies:
     "@xmldom/xmldom" "^0.8.8"
     base64-js "^1.2.3"
