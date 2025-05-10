@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Add missing sourcemap normalization to EAS Hosting worker deployment uploads. ([#3004](https://github.com/expo/eas-cli/pull/3004) by [@kitten](https://github.com/kitten))
+
 ### 🧹 Chores
 
 - Update `eas-build-cache-provider` function names to use `buildCacheProvider` key. ([#3002](https://github.com/expo/eas-cli/pull/3002) by [@gabrieldonadel](https://github.com/gabrieldonadel))
