@@ -125,11 +125,12 @@ export default class IosSubmitter extends BaseSubmitter<
   ): IosSubmissionConfigInput {
     const { appSpecificPassword, ascApiKeyResult } = credentials;
     const { appleIdUsername, ascAppIdentifier } = options;
-    const { isVerboseFastlaneEnabled } = this.ctx;
+    const { isVerboseFastlaneEnabled, groups } = this.ctx;
     return {
       ascAppIdentifier,
       appleIdUsername,
       isVerboseFastlaneEnabled,
+      groups,
       ...(appSpecificPassword ? this.formatAppSpecificPassword(appSpecificPassword) : null),
       ...(ascApiKeyResult?.result ? this.formatAscApiKeyResult(ascApiKeyResult.result) : null),
     };
