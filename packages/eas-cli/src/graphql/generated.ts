@@ -557,6 +557,8 @@ export type AccountMutation = {
   changePlan: Account;
   /** Add specified account Permissions for Actor. Actor must already have at least one permission on the account. */
   grantActorPermissions: Account;
+  /** Remove profile image for the account. Do nothing if there's no profile image associated. */
+  removeProfileImage: Account;
   /** Rename this account and the primary user's username if this account is a personal account */
   rename: Account;
   /** Requests a refund for the specified charge by requesting a manual refund from support */
@@ -595,6 +597,11 @@ export type AccountMutationGrantActorPermissionsArgs = {
   accountID: Scalars['ID']['input'];
   actorID: Scalars['ID']['input'];
   permissions?: InputMaybe<Array<InputMaybe<Permission>>>;
+};
+
+
+export type AccountMutationRemoveProfileImageArgs = {
+  accountID: Scalars['ID']['input'];
 };
 
 
@@ -1821,10 +1828,10 @@ export type AppMutation = {
   __typename?: 'AppMutation';
   /** Create an app */
   createApp: App;
-  /** Create an app and GitHub repository if user desire to */
-  createAppAndGithubRepository: CreateAppAndGithubRepositoryResponse;
   /** @deprecated No longer supported */
   grantAccess?: Maybe<App>;
+  /** Remove profile image (icon) for the app. Do nothing if there's no profile image associated. */
+  removeProfileImage: App;
   /** Delete an App. Returns the ID of the background job receipt. Use BackgroundJobReceiptQuery to get the status of the job. */
   scheduleAppDeletion: BackgroundJobReceipt;
   /** Set display info for app */
@@ -1841,14 +1848,14 @@ export type AppMutationCreateAppArgs = {
 };
 
 
-export type AppMutationCreateAppAndGithubRepositoryArgs = {
-  appInput: AppWithGithubRepositoryInput;
-};
-
-
 export type AppMutationGrantAccessArgs = {
   accessLevel?: InputMaybe<Scalars['String']['input']>;
   toUser: Scalars['ID']['input'];
+};
+
+
+export type AppMutationRemoveProfileImageArgs = {
+  appId: Scalars['ID']['input'];
 };
 
 
@@ -2550,6 +2557,16 @@ export type AscApiKeyInput = {
   keyP8: Scalars['String']['input'];
 };
 
+export type Asset = {
+  __typename?: 'Asset';
+  contentType: Scalars['String']['output'];
+  fileSHA256: Scalars['String']['output'];
+  fileSize: Scalars['Int']['output'];
+  finalFileSize?: Maybe<Scalars['Int']['output']>;
+  id: Scalars['ID']['output'];
+  storageKey: Scalars['String']['output'];
+};
+
 export type AssetMapGroup = {
   android?: InputMaybe<AssetMapSourceInput>;
   ios?: InputMaybe<AssetMapSourceInput>;
@@ -2593,13 +2610,35 @@ export type AssetMutationGetSignedAssetUploadSpecificationsArgs = {
 /** Check to see if assets with given storageKeys exist */
 export type AssetQuery = {
   __typename?: 'AssetQuery';
+  byStorageKeys: Array<Asset>;
   metadata: Array<AssetMetadataResult>;
+  signedUrls: Array<AssetSignedUrlResult>;
+};
+
+
+/** Check to see if assets with given storageKeys exist */
+export type AssetQueryByStorageKeysArgs = {
+  storageKeys: Array<Scalars['String']['input']>;
 };
 
 
 /** Check to see if assets with given storageKeys exist */
 export type AssetQueryMetadataArgs = {
   storageKeys: Array<Scalars['String']['input']>;
+};
+
+
+/** Check to see if assets with given storageKeys exist */
+export type AssetQuerySignedUrlsArgs = {
+  storageKeys: Array<Scalars['String']['input']>;
+  updateId: Scalars['ID']['input'];
+};
+
+export type AssetSignedUrlResult = {
+  __typename?: 'AssetSignedUrlResult';
+  headers?: Maybe<Scalars['JSON']['output']>;
+  storageKey: Scalars['String']['output'];
+  url: Scalars['String']['output'];
 };
 
 export type AuditLog = {
@@ -2683,9 +2722,11 @@ export enum AuthProviderIdentifier {
   StubIdp = 'STUB_IDP'
 }
 
-export type AverageMetrics = {
-  __typename?: 'AverageMetrics';
-  averageDownloadSize: Scalars['Int']['output'];
+export type AverageAssetMetrics = {
+  __typename?: 'AverageAssetMetrics';
+  averageDownloadSizeBytes: Scalars['Int']['output'];
+  count: Scalars['Int']['output'];
+  storageKey: Scalars['String']['output'];
 };
 
 export type BackgroundJobReceipt = {
@@ -3437,12 +3478,6 @@ export type CreateAndroidSubmissionInput = {
   submittedBuildId?: InputMaybe<Scalars['ID']['input']>;
 };
 
-export type CreateAppAndGithubRepositoryResponse = {
-  __typename?: 'CreateAppAndGithubRepositoryResponse';
-  app: App;
-  cloneUrl?: Maybe<Scalars['String']['output']>;
-};
-
 export type CreateBuildResult = {
   __typename?: 'CreateBuildResult';
   build: Build;
@@ -3542,6 +3577,12 @@ export type CreateSubmissionResult = {
   __typename?: 'CreateSubmissionResult';
   /** Created submission */
   submission: Submission;
+};
+
+export type CumulativeAverageMetrics = {
+  __typename?: 'CumulativeAverageMetrics';
+  averageUpdatePayloadBytes: Scalars['Int']['output'];
+  launchAssetCount: Scalars['Int']['output'];
 };
 
 export type CumulativeMetrics = {
@@ -4007,6 +4048,7 @@ export enum EasServiceMetric {
   AssetsRequests = 'ASSETS_REQUESTS',
   BandwidthUsage = 'BANDWIDTH_USAGE',
   Builds = 'BUILDS',
+  LocalBuilds = 'LOCAL_BUILDS',
   ManifestRequests = 'MANIFEST_REQUESTS',
   RunTime = 'RUN_TIME',
   UniqueUpdaters = 'UNIQUE_UPDATERS',
@@ -5897,6 +5939,7 @@ export enum RequestMethod {
 export type RequestsFilters = {
   cacheStatus?: InputMaybe<Array<ResponseCacheStatus>>;
   continent?: InputMaybe<Array<ContinentCode>>;
+  country?: InputMaybe<Array<Scalars['String']['input']>>;
   hasCustomDomainOrigin?: InputMaybe<Scalars['Boolean']['input']>;
   isAsset?: InputMaybe<Scalars['Boolean']['input']>;
   isCrash?: InputMaybe<Scalars['Boolean']['input']>;
@@ -6303,6 +6346,7 @@ export type RootQueryAppByAppIdArgs = {
 
 export type RootQueryUpdatesByGroupArgs = {
   group: Scalars['ID']['input'];
+  platform?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -7227,7 +7271,8 @@ export type UpdateInfoGroup = {
 
 export type UpdateInsights = {
   __typename?: 'UpdateInsights';
-  averageMetrics: AverageMetrics;
+  averageAssetMetrics: Array<AverageAssetMetrics>;
+  cumulativeAverageMetrics: CumulativeAverageMetrics;
   cumulativeMetrics: CumulativeMetrics;
   id: Scalars['ID']['output'];
   totalUniqueUsers: Scalars['Int']['output'];
@@ -7814,7 +7859,12 @@ export enum UserEntityTypeName {
 export type UserInvitation = {
   __typename?: 'UserInvitation';
   accountName: Scalars['String']['output'];
-  /** If the invite is for a personal team, the profile photo of account owner */
+  /** The profile image URL of the account owner */
+  accountProfileImageUrl: Scalars['String']['output'];
+  /**
+   * If the invite is for a personal team, the profile photo of account owner
+   * @deprecated Use accountProfileImageUrl
+   */
   accountProfilePhoto?: Maybe<Scalars['String']['output']>;
   created: Scalars['DateTime']['output'];
   /** Email to which this invitation was sent */
@@ -7891,6 +7941,7 @@ export type UserInvitationMutationResendUserInvitationArgs = {
 export type UserInvitationPublicData = {
   __typename?: 'UserInvitationPublicData';
   accountName: Scalars['String']['output'];
+  accountProfileImageUrl: Scalars['String']['output'];
   accountProfilePhoto?: Maybe<Scalars['String']['output']>;
   created: Scalars['DateTime']['output'];
   email: Scalars['String']['output'];
@@ -8126,6 +8177,8 @@ export type WorkerDeployment = ActivityTimelineProjectActivity & {
   initiatingActor?: Maybe<Actor>;
   logs?: Maybe<WorkerDeploymentLogs>;
   requests?: Maybe<WorkerDeploymentRequests>;
+  signedAssetsURL: Scalars['String']['output'];
+  signedDeploymentURL: Scalars['String']['output'];
   subdomain: Scalars['String']['output'];
   url: Scalars['String']['output'];
 };
@@ -9940,6 +9993,13 @@ export type WebhookByIdQueryVariables = Exact<{
 
 
 export type WebhookByIdQuery = { __typename?: 'RootQuery', webhook: { __typename?: 'WebhookQuery', byId: { __typename?: 'Webhook', id: string, event: WebhookType, url: string, createdAt: any, updatedAt: any } } };
+
+export type WorkflowRunByIdQueryVariables = Exact<{
+  workflowRunId: Scalars['ID']['input'];
+}>;
+
+
+export type WorkflowRunByIdQuery = { __typename?: 'RootQuery', workflowRuns: { __typename?: 'WorkflowRunQuery', byId: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus } } };
 
 export type AccountFragment = { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> };
 
