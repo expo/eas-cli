@@ -29,7 +29,7 @@ const EXIT_CODES = {
 };
 
 export default class WorkflowRun extends EasCommand {
-  static override description = 'Run an EAS workflow';
+  static override description = 'run an EAS workflow';
 
   static override args = [{ name: 'file', description: 'Path to the workflow file to run' }];
 
