@@ -23,9 +23,9 @@ import { sleepAsync } from '../../utils/promise';
 import { WorkflowFile } from '../../utils/workflowFile';
 
 const EXIT_CODES = {
-  WORKFLOW_FAILED: 1,
-  WORKFLOW_CANCELED: 2,
-  WAIT_ABORTED: 3,
+  WORKFLOW_FAILED: 11,
+  WORKFLOW_CANCELED: 12,
+  WAIT_ABORTED: 13,
 };
 
 export default class WorkflowRun extends EasCommand {
@@ -38,7 +38,7 @@ export default class WorkflowRun extends EasCommand {
     wait: Flags.boolean({
       default: false,
       allowNo: true,
-      description: 'Exit codes: 0 = success, 1 = failure, 2 = canceled, 3 = wait aborted.',
+      description: 'Exit codes: 0 = success, 11 = failure, 12 = canceled, 13 = wait aborted.',
       summary: 'Wait for workflow run to complete',
     }),
   };
