@@ -32,7 +32,8 @@ export default class WorkflowRun extends EasCommand {
     wait: Flags.boolean({
       default: false,
       allowNo: true,
-      description: 'Wait for workflow run to complete',
+      description: 'Exit codes: 0 = success, 1 = failure, 2 = canceled.',
+      summary: 'Wait for workflow run to complete',
     }),
   };
 
