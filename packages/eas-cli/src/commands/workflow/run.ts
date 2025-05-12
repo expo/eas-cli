@@ -22,6 +22,12 @@ import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccou
 import { sleepAsync } from '../../utils/promise';
 import { WorkflowFile } from '../../utils/workflowFile';
 
+const EXIT_CODES = {
+  WORKFLOW_FAILED: 1,
+  WORKFLOW_CANCELED: 2,
+  WAIT_ABORTED: 3,
+};
+
 export default class WorkflowRun extends EasCommand {
   static override description = 'Run an EAS workflow';
 
@@ -32,7 +38,7 @@ export default class WorkflowRun extends EasCommand {
     wait: Flags.boolean({
       default: false,
       allowNo: true,
-      description: 'Exit codes: 0 = success, 1 = failure, 2 = canceled.',
+      description: 'Exit codes: 0 = success, 1 = failure, 2 = canceled, 3 = wait aborted.',
       summary: 'Wait for workflow run to complete',
     }),
   };
@@ -160,9 +166,9 @@ export default class WorkflowRun extends EasCommand {
     });
 
     if (status === WorkflowRunStatus.Failure) {
-      process.exit(1);
+      process.exit(EXIT_CODES.WORKFLOW_FAILED);
     } else if (status === WorkflowRunStatus.Canceled) {
-      process.exit(2);
+      process.exit(EXIT_CODES.WORKFLOW_CANCELED);
     }
   }
 }
@@ -175,11 +181,15 @@ async function waitForWorkflowRunToEndAsync(
 
   const spinner = ora('Currently waiting for workflow run to start.').start();
 
+  let failedFetchesCount = 0;
+
   while (true) {
     try {
       const workflowRun = await WorkflowRunQuery.byIdAsync(graphqlClient, workflowRunId, {
         useCache: false,
       });
+
+      failedFetchesCount = 0;
 
       switch (workflowRun.status) {
         case WorkflowRunStatus.InProgress:
@@ -204,6 +214,13 @@ async function waitForWorkflowRunToEndAsync(
       }
     } catch {
       spinner.text = '⚠ Failed to fetch the workflow run status. Check your network connection.';
+
+      failedFetchesCount += 1;
+
+      if (failedFetchesCount > 6) {
+        spinner.fail('Failed to fetch the workflow run status 6 times in a row. Aborting wait.');
+        process.exit(EXIT_CODES.WAIT_ABORTED);
+      }
     }
 
     await sleepAsync(10 /* seconds */ * 1000 /* milliseconds */);
