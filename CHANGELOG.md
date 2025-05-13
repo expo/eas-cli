@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add `--wait`/`--no-wait` flag to `eas workflow:run`. ([#3012](https://github.com/expo/eas-cli/pull/3012) by [@sjchmiela](https://github.com/sjchmiela))
+- Add `--json` flag to `eas workflow:run`. ([#3013](https://github.com/expo/eas-cli/pull/3013) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🐛 Bug fixes
 

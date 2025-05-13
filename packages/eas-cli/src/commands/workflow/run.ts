@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EASNonInteractiveFlag } from '../../commandUtils/flags';
+import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
 import {
   WorkflowProjectSourceType,
   WorkflowRunByIdQuery,
@@ -19,6 +19,7 @@ import { ora } from '../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { uploadAccountScopedFileAsync } from '../../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccountScopedProjectSourceAsync';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
 import { WorkflowFile } from '../../utils/workflowFile';
 
@@ -41,6 +42,7 @@ export default class WorkflowRun extends EasCommand {
       description: 'Exit codes: 0 = success, 11 = failure, 12 = canceled, 13 = wait aborted.',
       summary: 'Wait for workflow run to complete',
     }),
+    ...EasJsonOnlyFlag,
   };
 
   static override contextDefinition = {
@@ -52,6 +54,10 @@ export default class WorkflowRun extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(WorkflowRun);
+
+    if (flags.json) {
+      enableJsonOutput();
+    }
 
     const {
       getDynamicPrivateProjectConfigAsync,
@@ -157,6 +163,14 @@ export default class WorkflowRun extends EasCommand {
 
     if (!flags.wait) {
       Log.succeed('Workflow run started successfully.');
+
+      if (flags.json) {
+        printJsonOnlyOutput({
+          id: workflowRunId,
+          url: getWorkflowRunUrl(account.name, projectName, workflowRunId),
+        });
+      }
+
       process.exit(0);
     }
 
@@ -164,6 +178,17 @@ export default class WorkflowRun extends EasCommand {
     const { status } = await waitForWorkflowRunToEndAsync(graphqlClient, {
       workflowRunId,
     });
+
+    if (flags.json) {
+      const workflowRun = await WorkflowRunQuery.withJobsByIdAsync(graphqlClient, workflowRunId, {
+        useCache: false,
+      });
+
+      printJsonOnlyOutput({
+        ...workflowRun,
+        url: getWorkflowRunUrl(account.name, projectName, workflowRunId),
+      });
+    }
 
     if (status === WorkflowRunStatus.Failure) {
       process.exit(EXIT_CODES.WORKFLOW_FAILED);
