@@ -38,6 +38,7 @@
     "ajv": "8.11.0",
     "ajv-formats": "2.1.1",
     "better-opn": "3.0.2",
+    "bplist-parser": "^0.3.0",
     "chalk": "4.1.2",
     "cli-progress": "3.12.0",
     "dateformat": "4.6.3",

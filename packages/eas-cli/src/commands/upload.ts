@@ -27,6 +27,7 @@ import { uploadFileAtPathToGCSAsync } from '../uploads';
 import { fromNow } from '../utils/date';
 import { enableJsonOutput, printJsonOnlyOutput } from '../utils/json';
 import { getTmpDirectory } from '../utils/paths';
+import { parseBinaryPlistBuffer } from '../utils/plist';
 import { createProgressTracker } from '../utils/progress';
 
 export default class BuildUpload extends EasCommand {
@@ -303,6 +304,10 @@ async function uploadAppArchiveAsync(
   return bucketKey;
 }
 
+async function isSimulatorAppAsync(infoPlist: any): Promise<boolean> {
+  return infoPlist?.DTPlatformName?.includes('simulator');
+}
+
 type AppMetadata = {
   fingerprintHash?: string;
   developmentClient: boolean;
@@ -315,7 +320,8 @@ async function extractAppMetadataAsync(
 ): Promise<AppMetadata> {
   let developmentClient = false;
   let fingerprintHash: string | undefined;
-  const simulator = platform === Platform.IOS;
+  // By default, we assume the iOS apps are for simulators
+  let simulator = platform === Platform.IOS;
 
   const basePath = platform === Platform.ANDROID ? 'assets/' : buildPath;
   const fingerprintFilePath =
@@ -340,14 +346,51 @@ async function extractAppMetadataAsync(
     }
   } else if (buildExtension === '.app') {
     developmentClient = await fs.exists(path.join(basePath, devMenuBundlePath));
+    if (await fs.exists(path.join(basePath, 'Info.plist'))) {
+      const infoPlistBuffer = await fs.readFile(path.join(basePath, 'Info.plist'));
+      const infoPlist = parseBinaryPlistBuffer(infoPlistBuffer);
+      simulator = await isSimulatorAppAsync(infoPlist);
+    }
 
     if (await fs.exists(path.join(basePath, fingerprintFilePath))) {
       fingerprintHash = await fs.readFile(path.join(basePath, fingerprintFilePath), 'utf8');
+    }
+  } else if (buildExtension === '.ipa') {
+    const zip = new StreamZip.async({ file: buildPath });
+    try {
+      const entries = await zip.entries();
+      const entriesKeys = Object.keys(entries);
+
+      await Promise.all(
+        entriesKeys.map(async path => {
+          const infoPlistRegex = /^Payload\/[^/]+\.app\/Info\.plist$/;
+          if (infoPlistRegex.test(path)) {
+            const infoPlistBuffer = await zip.entryData(entries[path]);
+            const infoPlist = parseBinaryPlistBuffer(infoPlistBuffer);
+            simulator = await isSimulatorAppAsync(infoPlist);
+            return;
+          }
+
+          if (path.includes('/EXDevMenu.bundle')) {
+            developmentClient = true;
+            return;
+          }
+
+          if (path.includes('EXUpdates.bundle/fingerprint')) {
+            fingerprintHash = (await zip.entryData(entries[path])).toString('utf-8');
+          }
+        })
+      );
+    } catch (err) {
+      Log.error(`Error reading ${buildExtension}: ${err}`);
+    } finally {
+      await zip.close();
     }
   } else {
     // Use tar to list files in the archive
     try {
       let fingerprintHashPromise: Promise<string> | undefined;
+      let infoPlistPromise: Promise<Buffer> | undefined;
       await tar.list({
         file: buildPath,
         // eslint-disable-next-line async-protect/async-suffix
@@ -368,10 +411,28 @@ async function extractAppMetadataAsync(
               }
             });
           }
+          if (entry.path.endsWith('Info.plist')) {
+            infoPlistPromise = new Promise<Buffer>(async (resolve, reject) => {
+              try {
+                const chunks: Buffer[] = [];
+                for await (const chunk of entry) {
+                  chunks.push(chunk);
+                }
+                const content = Buffer.concat(chunks);
+                resolve(content);
+              } catch (error) {
+                reject(error);
+              }
+            });
+          }
         },
       });
       if (fingerprintHashPromise !== undefined) {
         fingerprintHash = await fingerprintHashPromise;
+      }
+      if (infoPlistPromise !== undefined) {
+        const infoPlist = parseBinaryPlistBuffer(await infoPlistPromise);
+        simulator = await isSimulatorAppAsync(infoPlist);
       }
     } catch (err) {
       Log.error(`Error reading ${buildExtension}: ${err}`);
