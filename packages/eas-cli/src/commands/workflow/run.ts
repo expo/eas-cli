@@ -164,10 +164,12 @@ export default class WorkflowRun extends EasCommand {
     if (!flags.wait) {
       Log.succeed('Workflow run started successfully.');
 
-      printJsonOnlyOutput({
-        id: workflowRunId,
-        url: getWorkflowRunUrl(account.name, projectName, workflowRunId),
-      });
+      if (flags.json) {
+        printJsonOnlyOutput({
+          id: workflowRunId,
+          url: getWorkflowRunUrl(account.name, projectName, workflowRunId),
+        });
+      }
 
       process.exit(0);
     }
