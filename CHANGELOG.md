@@ -8,11 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add support for uploading iOS internal distribution local builds. ([#3014](https://github.com/expo/eas-cli/pull/3014) by [@gabrieldonadel](https://github.com/gabrieldonadel))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [16.6.0](https://github.com/expo/eas-cli/releases/tag/v16.6.0) - 2025-05-14
+
+### 🎉 New features
+
+- Add support for uploading iOS internal distribution local builds. ([#3014](https://github.com/expo/eas-cli/pull/3014) by [@gabrieldonadel](https://github.com/gabrieldonadel))
 
 ## [16.5.0](https://github.com/expo/eas-cli/releases/tag/v16.5.0) - 2025-05-13
 
