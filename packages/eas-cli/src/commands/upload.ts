@@ -13,6 +13,7 @@ import EasCommand from '../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../commandUtils/flags';
 import {
+  BuildMetadataInput,
   DistributionType,
   LocalBuildArchiveSourceType,
   UploadSessionType,
@@ -83,6 +84,7 @@ export default class BuildUpload extends EasCommand {
       fingerprintHash: buildFingerprintHash,
       developmentClient,
       simulator,
+      ...otherMetadata
     } = await extractAppMetadataAsync(localBuildPath, platform);
 
     let fingerprint = manualFingerprintHash ?? buildFingerprintHash;
@@ -121,7 +123,12 @@ export default class BuildUpload extends EasCommand {
       projectId,
       { platform: toAppPlatform(platform), simulator },
       { type: LocalBuildArchiveSourceType.Gcs, bucketKey },
-      { distribution: DistributionType.Internal, fingerprintHash: fingerprint, developmentClient }
+      {
+        distribution: DistributionType.Internal,
+        fingerprintHash: fingerprint,
+        developmentClient,
+        ...otherMetadata,
+      }
     );
 
     if (jsonFlag) {
@@ -304,24 +311,33 @@ async function uploadAppArchiveAsync(
   return bucketKey;
 }
 
-async function isSimulatorAppAsync(infoPlist: any): Promise<boolean> {
-  return infoPlist?.DTPlatformName?.includes('simulator');
-}
-
-type AppMetadata = {
-  fingerprintHash?: string;
-  developmentClient: boolean;
+function getInfoPlistMetadata(infoPlist: any): {
+  appName?: string;
+  appIdentifier?: string;
   simulator: boolean;
-};
+} {
+  const appName = infoPlist?.CFBundleDisplayName ?? infoPlist?.CFBundleName;
+  const appIdentifier = infoPlist?.CFBundleIdentifier;
+  const simulator = infoPlist?.DTPlatformName?.includes('simulator');
+
+  return {
+    appName,
+    appIdentifier,
+    simulator,
+  };
+}
 
 async function extractAppMetadataAsync(
   buildPath: string,
   platform: Platform
-): Promise<AppMetadata> {
+): Promise<{ developmentClient: boolean; simulator: boolean } & BuildMetadataInput> {
   let developmentClient = false;
   let fingerprintHash: string | undefined;
+
   // By default, we assume the iOS apps are for simulators
   let simulator = platform === Platform.IOS;
+  let appName: string | undefined;
+  let appIdentifier: string | undefined;
 
   const basePath = platform === Platform.ANDROID ? 'assets/' : buildPath;
   const fingerprintFilePath =
@@ -349,7 +365,7 @@ async function extractAppMetadataAsync(
     if (await fs.exists(path.join(basePath, 'Info.plist'))) {
       const infoPlistBuffer = await fs.readFile(path.join(basePath, 'Info.plist'));
       const infoPlist = parseBinaryPlistBuffer(infoPlistBuffer);
-      simulator = await isSimulatorAppAsync(infoPlist);
+      ({ simulator, appIdentifier, appName } = getInfoPlistMetadata(infoPlist));
     }
 
     if (await fs.exists(path.join(basePath, fingerprintFilePath))) {
@@ -367,7 +383,7 @@ async function extractAppMetadataAsync(
           if (infoPlistRegex.test(path)) {
             const infoPlistBuffer = await zip.entryData(entries[path]);
             const infoPlist = parseBinaryPlistBuffer(infoPlistBuffer);
-            simulator = await isSimulatorAppAsync(infoPlist);
+            ({ simulator, appIdentifier, appName } = getInfoPlistMetadata(infoPlist));
             return;
           }
 
@@ -432,7 +448,7 @@ async function extractAppMetadataAsync(
       }
       if (infoPlistPromise !== undefined) {
         const infoPlist = parseBinaryPlistBuffer(await infoPlistPromise);
-        simulator = await isSimulatorAppAsync(infoPlist);
+        ({ simulator, appIdentifier, appName } = getInfoPlistMetadata(infoPlist));
       }
     } catch (err) {
       Log.error(`Error reading ${buildExtension}: ${err}`);
@@ -443,5 +459,7 @@ async function extractAppMetadataAsync(
     developmentClient,
     fingerprintHash,
     simulator,
+    appName,
+    appIdentifier,
   };
 }
