@@ -104,7 +104,7 @@ export default class GitClient extends Client {
     commitAllFiles?: boolean;
     nonInteractive: boolean;
   }): Promise<void> {
-    await ensureGitConfiguredAsync({ nonInteractive });
+    await this.ensureGitConfiguredAsync({ nonInteractive });
 
     try {
       if (commitAllFiles) {
@@ -391,74 +391,84 @@ export default class GitClient extends Client {
   public override canGetLastCommitMessage(): boolean {
     return true;
   }
-}
 
-async function ensureGitConfiguredAsync({
-  nonInteractive,
-}: {
-  nonInteractive: boolean;
-}): Promise<void> {
-  let usernameConfigured = true;
-  let emailConfigured = true;
-  try {
-    await spawnAsync('git', ['config', '--get', 'user.name']);
-  } catch (err: any) {
-    Log.debug(err);
-    usernameConfigured = false;
-  }
-  try {
-    await spawnAsync('git', ['config', '--get', 'user.email']);
-  } catch (err: any) {
-    Log.debug(err);
-    emailConfigured = false;
-  }
-  if (usernameConfigured && emailConfigured) {
-    return;
-  }
-
-  Log.warn(
-    `You need to configure Git with your ${[
-      !usernameConfigured && 'username (user.name)',
-      !emailConfigured && 'email address (user.email)',
-    ]
-      .filter(i => i)
-      .join(' and ')}`
-  );
-  if (nonInteractive) {
-    throw new Error('Git cannot be configured automatically in non-interactive mode');
-  }
-  if (!usernameConfigured) {
-    const { username } = await promptAsync({
-      type: 'text',
-      name: 'username',
-      message: 'Username:',
-      validate: (input: string) => input !== '',
-    });
-    const spinner = ora(
-      `Running ${chalk.bold(`git config --local user.name ${username}`)}`
-    ).start();
+  private async ensureGitConfiguredAsync({
+    nonInteractive,
+  }: {
+    nonInteractive: boolean;
+  }): Promise<void> {
+    let usernameConfigured = true;
+    let emailConfigured = true;
     try {
-      await spawnAsync('git', ['config', '--local', 'user.name', username]);
-      spinner.succeed();
+      await spawnAsync('git', ['config', '--get', 'user.name'], {
+        cwd: this.maybeCwdOverride,
+      });
     } catch (err: any) {
-      spinner.fail();
-      throw err;
+      Log.debug(err);
+      usernameConfigured = false;
     }
-  }
-  if (!emailConfigured) {
-    const { email } = await promptAsync({
-      type: 'text',
-      name: 'email',
-      message: 'Email address:',
-      validate: (input: string) => input !== '',
-    });
-    const spinner = ora(`Running ${chalk.bold(`git config --local user.email ${email}`)}`).start();
     try {
-      await spawnAsync('git', ['config', '--local', 'user.email', email]);
-      spinner.succeed();
+      await spawnAsync('git', ['config', '--get', 'user.email'], {
+        cwd: this.maybeCwdOverride,
+      });
     } catch (err: any) {
-      spinner.fail();
-      throw err;
+      Log.debug(err);
+      emailConfigured = false;
+    }
+    if (usernameConfigured && emailConfigured) {
+      return;
+    }
+
+    Log.warn(
+      `You need to configure Git with your ${[
+        !usernameConfigured && 'username (user.name)',
+        !emailConfigured && 'email address (user.email)',
+      ]
+        .filter(i => i)
+        .join(' and ')}`
+    );
+    if (nonInteractive) {
+      throw new Error('Git cannot be configured automatically in non-interactive mode');
+    }
+    if (!usernameConfigured) {
+      const { username } = await promptAsync({
+        type: 'text',
+        name: 'username',
+        message: 'Username:',
+        validate: (input: string) => input !== '',
+      });
+      const spinner = ora(
+        `Running ${chalk.bold(`git config --local user.name ${username}`)}`
+      ).start();
+      try {
+        await spawnAsync('git', ['config', '--local', 'user.name', username], {
+          cwd: this.maybeCwdOverride,
+        });
+        spinner.succeed();
+      } catch (err: any) {
+        spinner.fail();
+        throw err;
+      }
+    }
+    if (!emailConfigured) {
+      const { email } = await promptAsync({
+        type: 'text',
+        name: 'email',
+        message: 'Email address:',
+        validate: (input: string) => input !== '',
+      });
+      const spinner = ora(
+        `Running ${chalk.bold(`git config --local user.email ${email}`)}`
+      ).start();
+      try {
+        await spawnAsync('git', ['config', '--local', 'user.email', email], {
+          cwd: this.maybeCwdOverride,
+        });
+        spinner.succeed();
+      } catch (err: any) {
+        spinner.fail();
+        throw err;
+      }
     }
   }
 }
