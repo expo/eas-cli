@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Onboarding: add cwd to spawned git process. ([#3015](https://github.com/expo/eas-cli/pull/3015) by [@quinlanj](https://github.com/quinlanj))
-
 ### 🧹 Chores
+
+## [16.6.1](https://github.com/expo/eas-cli/releases/tag/v16.6.1) - 2025-05-14
+
+### 🐛 Bug fixes
+
+- Onboarding: add cwd to spawned git process. ([#3015](https://github.com/expo/eas-cli/pull/3015) by [@quinlanj](https://github.com/quinlanj))
 
 ## [16.6.0](https://github.com/expo/eas-cli/releases/tag/v16.6.0) - 2025-05-14
 
