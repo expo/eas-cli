@@ -9,7 +9,10 @@ import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios
 import { LocalBuildMode } from './local';
 import { BuildDistributionType } from './types';
 import Log from '../log';
-import { getUsername, isExpoUpdatesInstalled } from '../project/projectUtils';
+import {
+  getUsernameForBuildMetadataAndBuildJob,
+  isExpoUpdatesInstalled,
+} from '../project/projectUtils';
 import { readChannelSafelyAsync as readAndroidChannelSafelyAsync } from '../update/android/UpdatesModule';
 import { readChannelSafelyAsync as readIosChannelSafelyAsync } from '../update/ios/UpdatesModule';
 import { easCliVersion } from '../utils/easCli';
@@ -48,7 +51,7 @@ export async function collectMetadataAsync<T extends Platform>(
       ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL
         ? false
         : await ctx.vcsClient.hasUncommittedChangesAsync(),
-    username: getUsername(ctx.exp, ctx.user),
+    username: getUsernameForBuildMetadataAndBuildJob(ctx.user),
     message: ctx.message,
     ...(ctx.platform === Platform.IOS && {
       iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(
