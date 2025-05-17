@@ -180,7 +180,7 @@ export async function validateOrSetProjectIdAsync({
 
   Log.warn('EAS project not configured.');
 
-  const getAccountNameForEASProjectSync = (exp: ExpoConfig, user: Actor): string => {
+  const getDefaultAccountNameForEASProject = (exp: ExpoConfig, user: Actor): string => {
     if (exp.owner) {
       return exp.owner;
     }
@@ -191,7 +191,7 @@ export async function validateOrSetProjectIdAsync({
         return user.username;
       case 'Robot':
         throw new Error(
-          'The "owner" manifest property is required when using robot users. See: https://docs.expo.dev/versions/latest/config/app/#owner'
+          'Must configure EAS project by running "eas init" before using a robot user to manage the project.'
         );
     }
   };
@@ -199,7 +199,7 @@ export async function validateOrSetProjectIdAsync({
   const projectId = await fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync(
     graphqlClient,
     {
-      accountName: getAccountNameForEASProjectSync(exp, actor),
+      accountName: getDefaultAccountNameForEASProject(exp, actor),
       projectName: exp.slug,
     },
     {

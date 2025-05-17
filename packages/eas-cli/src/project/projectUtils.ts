@@ -13,19 +13,13 @@ import Log, { learnMore } from '../log';
 import { Actor } from '../user/User';
 import { expoCommandAsync } from '../utils/expoCli';
 
-export function getUsername(exp: ExpoConfig, user: Actor): string | undefined {
+export function getUsernameForBuildMetadataAndBuildJob(user: Actor): string | undefined {
   switch (user.__typename) {
     case 'User':
       return user.username;
     case 'SSOUser':
       return user.username;
     case 'Robot':
-      // owner field is necessary to run `expo prebuild`
-      if (!exp.owner) {
-        throw new Error(
-          'The "owner" manifest property is required when using robot users. See: https://docs.expo.dev/versions/latest/config/app/#owner'
-        );
-      }
       // robot users don't have usernames
       return undefined;
   }
