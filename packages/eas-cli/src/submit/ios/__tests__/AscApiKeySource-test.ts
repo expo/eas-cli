@@ -251,6 +251,7 @@ describe(getAscApiKeyResultAsync, () => {
       },
       nonInteractive: true,
       isVerboseFastlaneEnabled: false,
+      groups: [],
       actor: mockJester,
       graphqlClient,
       analytics,
