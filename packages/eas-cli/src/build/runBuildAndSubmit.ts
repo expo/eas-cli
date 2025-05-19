@@ -230,6 +230,7 @@ export async function runBuildAndSubmitAsync({
       getDynamicPrivateProjectConfigAsync,
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
       env,
+      easJsonAccessor,
     });
     if (maybeBuild) {
       startedBuilds.push({ build: maybeBuild, buildProfile });
@@ -367,6 +368,7 @@ async function prepareAndStartBuildAsync({
   getDynamicPrivateProjectConfigAsync,
   customBuildConfigMetadata,
   env,
+  easJsonAccessor,
 }: {
   projectDir: string;
   flags: BuildFlags;
@@ -379,6 +381,7 @@ async function prepareAndStartBuildAsync({
   vcsClient: Client;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
+  easJsonAccessor: EasJsonAccessor;
   env: Env;
 }): Promise<{ build: BuildFragment | undefined; buildCtx: BuildContext<Platform> }> {
   const buildCtx = await createBuildContextAsync({
@@ -426,8 +429,18 @@ async function prepareAndStartBuildAsync({
       nonInteractive: flags.nonInteractive,
       buildProfile,
       env: buildProfile.profile.env,
+      easJsonAccessor,
     });
-    if (isUsingEASUpdate(buildCtx.exp, buildCtx.projectId)) {
+    const easJsonUpdateConfig: EasJson['update'] =
+      (await EasJsonUtils.getUpdateConfigAsync(easJsonAccessor)) ?? {};
+
+    if (
+      isUsingEASUpdate(
+        buildCtx.exp,
+        buildCtx.projectId,
+        easJsonUpdateConfig.manifestHostOverride ?? null
+      )
+    ) {
       const doesChannelExist = await doesChannelExistAsync(graphqlClient, {
         appId: buildCtx.projectId,
         channelName: buildProfile.profile.channel,
@@ -606,6 +619,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
   nonInteractive,
   sdkVersion,
   env,
+  easJsonAccessor,
 }: {
   exp: ExpoConfig;
   projectId: string;
@@ -615,6 +629,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
   nonInteractive: boolean;
   sdkVersion?: string;
   env: Env | undefined;
+  easJsonAccessor: EasJsonAccessor;
 }): Promise<void> {
   if (isExpoUpdatesInstalledOrAvailable(projectDir, sdkVersion)) {
     return;
@@ -636,6 +651,9 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
       message: `Would you like to install the "expo-updates" package and configure EAS Update now?`,
     });
     if (installExpoUpdates) {
+      const easJsonUpdateConfig: EasJson['update'] =
+        (await EasJsonUtils.getUpdateConfigAsync(easJsonAccessor)) ?? {};
+
       await ensureEASUpdateIsConfiguredAsync({
         exp,
         projectId,
@@ -643,6 +661,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
         platform: RequestedPlatform.All,
         vcsClient,
         env,
+        manifestHostOverride: easJsonUpdateConfig.manifestHostOverride ?? null,
       });
       Log.withTick('Installed expo-updates and configured EAS Update.');
       throw new Error('Command must be re-run to pick up new updates configuration.');

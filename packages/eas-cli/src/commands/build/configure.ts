@@ -1,4 +1,5 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
+import { EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -66,8 +67,13 @@ export default class BuildConfigure extends EasCommand {
       nonInteractive: false,
       vcsClient,
     });
-    if (didCreateEasJson && isUsingEASUpdate(exp, projectId)) {
-      await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
+    if (didCreateEasJson) {
+      const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+      const easJsonUpdateConfig: EasJson['update'] =
+        (await EasJsonUtils.getUpdateConfigAsync(easJsonAccessor)) ?? {};
+      if (isUsingEASUpdate(exp, projectId, easJsonUpdateConfig.manifestHostOverride ?? null)) {
+        await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
+      }
     }
 
     // configure expo-updates

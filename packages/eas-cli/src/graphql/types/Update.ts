@@ -45,5 +45,7 @@ export const UpdateFragmentNode = gql`
         isDebugFingerprint
       }
     }
+    manifestHostOverride
+    assetHostOverride
   }
 `;

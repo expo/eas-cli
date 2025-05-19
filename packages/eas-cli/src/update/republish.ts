@@ -57,7 +57,9 @@ export async function republishAsync({
     update.groupId === arbitraryUpdate.groupId &&
     update.branchId === arbitraryUpdate.branchId &&
     update.branchName === arbitraryUpdate.branchName &&
-    update.runtimeVersion === arbitraryUpdate.runtimeVersion;
+    update.runtimeVersion === arbitraryUpdate.runtimeVersion &&
+    update.manifestHostOverride === arbitraryUpdate.manifestHostOverride &&
+    update.assetHostOverride === arbitraryUpdate.assetHostOverride;
   assert(
     updatesToPublish.every(isSameGroup),
     'All updates being republished must belong to the same update group'
@@ -149,6 +151,8 @@ export async function republishAsync({
         ...objectToMergeIn,
         gitCommitHash: updatesToPublish[0].gitCommitHash,
         awaitingCodeSigningInfo: !!codeSigningInfo,
+        manifestHostOverride: updatesToPublish[0].manifestHostOverride,
+        assetHostOverride: updatesToPublish[0].assetHostOverride,
       },
     ]);
 

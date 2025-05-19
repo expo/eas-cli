@@ -98,17 +98,19 @@ async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
   projectDir,
   platform,
   workflows,
+  manifestHostOverride,
 }: {
   exp: ExpoConfig;
   projectId: string;
   projectDir: string;
   platform: RequestedPlatform;
   workflows: Record<Platform, Workflow>;
+  manifestHostOverride: string | null;
 }): Promise<{ projectChanged: boolean; exp: ExpoConfig }> {
   const modifyConfig: Partial<ExpoConfig> = {};
 
-  if (exp.updates?.url !== getEASUpdateURL(projectId)) {
-    modifyConfig.updates = { url: getEASUpdateURL(projectId) };
+  if (exp.updates?.url !== getEASUpdateURL(projectId, manifestHostOverride)) {
+    modifyConfig.updates = { url: getEASUpdateURL(projectId, manifestHostOverride) };
   }
 
   let androidRuntimeVersion = exp.android?.runtimeVersion ?? exp.runtimeVersion;
@@ -372,6 +374,7 @@ export async function ensureEASUpdateIsConfiguredAsync({
   platform,
   env,
   forceNativeConfigSync,
+  manifestHostOverride,
 }: {
   exp: ExpoConfig;
   projectId: string;
@@ -380,6 +383,7 @@ export async function ensureEASUpdateIsConfiguredAsync({
   platform: RequestedPlatform | null;
   env: Env | undefined;
   forceNativeConfigSync?: boolean;
+  manifestHostOverride: string | null;
 }): Promise<void> {
   const hasExpoUpdates = isExpoUpdatesInstalledOrAvailable(
     projectDir,
@@ -409,6 +413,7 @@ export async function ensureEASUpdateIsConfiguredAsync({
       projectId,
       platform,
       workflows,
+      manifestHostOverride,
     });
 
   if (forceNativeConfigSync || projectChanged || !hasExpoUpdates) {

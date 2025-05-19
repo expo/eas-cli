@@ -78,8 +78,12 @@ export function isExpoUpdatesInstalledOrAvailable(
   return isExpoUpdatesInstalled(projectDir);
 }
 
-export function isUsingEASUpdate(exp: ExpoConfig, projectId: string): boolean {
-  return exp.updates?.url === getEASUpdateURL(projectId);
+export function isUsingEASUpdate(
+  exp: ExpoConfig,
+  projectId: string,
+  manifestHostOverride: string | null
+): boolean {
+  return exp.updates?.url === getEASUpdateURL(projectId, manifestHostOverride);
 }
 
 export async function getExpoUpdatesPackageVersionIfInstalledAsync(
