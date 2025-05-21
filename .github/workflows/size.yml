@@ -13,6 +13,9 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: 20
+      - name: Copy correct yarn image
+        run: |
+          cp .yarn/releases/yarn-4.9.1.cjs /usr/local/bin/yarn
       - uses: preactjs/compressed-size-action@v2
         with:
           build-script: 'build:tarballs:linux'
