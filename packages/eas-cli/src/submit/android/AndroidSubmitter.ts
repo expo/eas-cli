@@ -27,7 +27,7 @@ import {
 export interface AndroidSubmissionOptions
   extends Pick<
     AndroidSubmissionConfigInput,
-    'track' | 'releaseStatus' | 'changesNotSentForReview' | 'rollout'
+    'track' | 'releaseStatus' | 'changesNotSentForReview' | 'rollout' | 'changelog'
   > {
   projectId: string;
   archiveSource: ArchiveSource;
@@ -106,12 +106,13 @@ export default class AndroidSubmitter extends BaseSubmitter<
     options: AndroidSubmissionOptions,
     { serviceAccountKeyResult }: ResolvedSourceOptions
   ): AndroidSubmissionConfigInput {
-    const { track, releaseStatus, changesNotSentForReview, rollout } = options;
+    const { track, releaseStatus, changesNotSentForReview, rollout, changelog } = options;
     return {
       track,
       changesNotSentForReview,
       releaseStatus,
       rollout,
+      changelog,
       isVerboseFastlaneEnabled: this.ctx.isVerboseFastlaneEnabled,
       ...serviceAccountKeyResult.result,
     };

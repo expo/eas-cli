@@ -26,6 +26,7 @@ import { maybeWarnAboutEasOutagesAsync } from '../utils/statuspageService';
 interface RawCommandFlags {
   platform?: string;
   profile?: string;
+  changelog?: string;
   latest?: boolean;
   id?: string;
   path?: string;
@@ -40,6 +41,7 @@ interface RawCommandFlags {
 interface CommandFlags {
   requestedPlatform: RequestedPlatform;
   profile?: string;
+  changelog?: string;
   archiveFlags: SubmitArchiveFlags;
   verbose: boolean;
   wait: boolean;
@@ -77,6 +79,9 @@ export default class Submit extends EasCommand {
     url: Flags.string({
       description: 'App archive url',
       exclusive: ['latest', 'id', 'path'],
+    }),
+    changelog: Flags.string({
+      description: `This submission's release notes.`,
     }),
     verbose: Flags.boolean({
       description: 'Always print logs from EAS Submit',
@@ -155,6 +160,7 @@ export default class Submit extends EasCommand {
         exp,
         projectId,
         vcsClient,
+        changelog: flagsWithPlatform.changelog,
         specifiedProfile: flagsWithPlatform.profile,
       });
 
@@ -194,6 +200,7 @@ export default class Submit extends EasCommand {
       'non-interactive': nonInteractive,
       'verbose-fastlane': isVerboseFastlaneEnabled,
       groups,
+      changelog,
       ...archiveFlags
     } = flags;
 
@@ -214,6 +221,7 @@ export default class Submit extends EasCommand {
       wait,
       profile,
       nonInteractive,
+      changelog,
       isVerboseFastlaneEnabled,
       groups,
     };
