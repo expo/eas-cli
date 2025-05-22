@@ -23,4 +23,4 @@ jobs:
           pattern: './packages/eas-cli/dist/*.tar.gz'
           compression: 'none'
           strip-hash: "v\\d+.\\d+.\\d+-\\w+-"
-          clean-script: 'clean'
+          # clean-script: 'clean'
