@@ -1402,6 +1402,7 @@ export type App = Project & {
   workerDeploymentsCrashes?: Maybe<WorkerDeploymentCrashes>;
   workerDeploymentsRequest: WorkerDeploymentRequestEdge;
   workerDeploymentsRequests?: Maybe<WorkerDeploymentRequests>;
+  workflowRunGitBranchesPaginated: AppWorkflowRunGitBranchesConnection;
   workflowRunsPaginated: AppWorkflowRunsConnection;
   workflows: Array<Workflow>;
 };
@@ -1689,9 +1690,20 @@ export type AppWorkerDeploymentsRequestsArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
+export type AppWorkflowRunGitBranchesPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<WorkflowRunGitBranchFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkflowRunsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<WorkflowRunFilterInput>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -2193,6 +2205,24 @@ export type AppWorkflowRunEdge = {
   __typename?: 'AppWorkflowRunEdge';
   cursor: Scalars['String']['output'];
   node: WorkflowRun;
+};
+
+export type AppWorkflowRunGitBranchEdge = {
+  __typename?: 'AppWorkflowRunGitBranchEdge';
+  cursor: Scalars['String']['output'];
+  node: AppWorkflowRunGitBranchNode;
+};
+
+export type AppWorkflowRunGitBranchNode = {
+  __typename?: 'AppWorkflowRunGitBranchNode';
+  lastRunAt: Scalars['DateTime']['output'];
+  name: Scalars['String']['output'];
+};
+
+export type AppWorkflowRunGitBranchesConnection = {
+  __typename?: 'AppWorkflowRunGitBranchesConnection';
+  edges: Array<AppWorkflowRunGitBranchEdge>;
+  pageInfo: PageInfo;
 };
 
 export type AppWorkflowRunsConnection = {
@@ -5910,6 +5940,7 @@ export type PublicArtifacts = {
 };
 
 export type PublishUpdateGroupInput = {
+  assetHostOverride?: InputMaybe<Scalars['String']['input']>;
   assetMapGroup?: InputMaybe<AssetMapGroup>;
   awaitingCodeSigningInfo?: InputMaybe<Scalars['Boolean']['input']>;
   branchId: Scalars['String']['input'];
@@ -5918,6 +5949,7 @@ export type PublishUpdateGroupInput = {
   fingerprintInfoGroup?: InputMaybe<FingerprintInfoGroup>;
   gitCommitHash?: InputMaybe<Scalars['String']['input']>;
   isGitWorkingTreeDirty?: InputMaybe<Scalars['Boolean']['input']>;
+  manifestHostOverride?: InputMaybe<Scalars['String']['input']>;
   message?: InputMaybe<Scalars['String']['input']>;
   rollBackToEmbeddedInfoGroup?: InputMaybe<UpdateRollBackToEmbeddedGroup>;
   rolloutInfoGroup?: InputMaybe<UpdateRolloutInfoGroup>;
@@ -7029,6 +7061,7 @@ export type Update = ActivityTimelineProjectActivity & {
   activityTimestamp: Scalars['DateTime']['output'];
   actor?: Maybe<Actor>;
   app: App;
+  assetHostOverride?: Maybe<Scalars['String']['output']>;
   assetMapUrl?: Maybe<Scalars['String']['output']>;
   awaitingCodeSigningInfo: Scalars['Boolean']['output'];
   branch: UpdateBranch;
@@ -7048,6 +7081,7 @@ export type Update = ActivityTimelineProjectActivity & {
   isRollBackToEmbedded: Scalars['Boolean']['output'];
   jobRun?: Maybe<JobRun>;
   manifestFragment: Scalars['String']['output'];
+  manifestHostOverride?: Maybe<Scalars['String']['output']>;
   manifestPermalink: Scalars['String']['output'];
   message?: Maybe<Scalars['String']['output']>;
   platform: Scalars['String']['output'];
@@ -8371,6 +8405,7 @@ export type WorkerDeploymentRequestNode = {
   requestId: Scalars['WorkerDeploymentRequestID']['output'];
   requestTimestamp: Scalars['DateTime']['output'];
   responseType: ResponseType;
+  routerPath?: Maybe<Scalars['String']['output']>;
   scriptName: Scalars['String']['output'];
   search?: Maybe<Scalars['String']['output']>;
   status: Scalars['Int']['output'];
@@ -8702,7 +8737,7 @@ export enum WorkflowJobType {
 }
 
 export type WorkflowProjectSourceInput = {
-  easJsonBucketKey: Scalars['String']['input'];
+  easJsonBucketKey?: InputMaybe<Scalars['String']['input']>;
   packageJsonBucketKey?: InputMaybe<Scalars['String']['input']>;
   projectArchiveBucketKey: Scalars['String']['input'];
   type: WorkflowProjectSourceType;
@@ -8782,7 +8817,6 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   gitCommitMessage?: Maybe<Scalars['String']['output']>;
   githubRepository?: Maybe<GitHubRepository>;
   id: Scalars['ID']['output'];
-  initiatingUser?: Maybe<User>;
   jobs: Array<WorkflowJob>;
   name: Scalars['String']['output'];
   pullRequestNumber?: Maybe<Scalars['Int']['output']>;
@@ -8809,6 +8843,14 @@ export type WorkflowRunError = {
   __typename?: 'WorkflowRunError';
   message: Scalars['String']['output'];
   title?: Maybe<Scalars['String']['output']>;
+};
+
+export type WorkflowRunFilterInput = {
+  requestedGitRef?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type WorkflowRunGitBranchFilterInput = {
+  searchTerm?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type WorkflowRunInput = {
