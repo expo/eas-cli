@@ -1,5 +1,7 @@
 import { Flags } from '@oclif/core';
 import { CombinedError } from '@urql/core';
+import chalk from 'chalk';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { getWorkflowRunUrl } from '../../build/utils/url';
@@ -107,8 +109,11 @@ export default class WorkflowRun extends EasCommand {
     }
 
     let projectArchiveBucketKey: string;
-    let easJsonBucketKey: string;
-    let packageJsonBucketKey: string;
+    let easJsonBucketKey: string | null = null;
+    let packageJsonBucketKey: string | null = null;
+
+    const easJsonPath = path.join(projectDir, 'eas.json');
+    const packageJsonPath = path.join(projectDir, 'package.json');
 
     try {
       ({ projectArchiveBucketKey } = await uploadAccountScopedProjectSourceAsync({
@@ -116,18 +121,40 @@ export default class WorkflowRun extends EasCommand {
         vcsClient,
         accountId: account.id,
       }));
-      ({ fileBucketKey: easJsonBucketKey } = await uploadAccountScopedFileAsync({
-        graphqlClient,
-        accountId: account.id,
-        filePath: path.join(projectDir, 'eas.json'),
-        maxSizeBytes: 1024 * 1024,
-      }));
-      ({ fileBucketKey: packageJsonBucketKey } = await uploadAccountScopedFileAsync({
-        graphqlClient,
-        accountId: account.id,
-        filePath: path.join(projectDir, 'package.json'),
-        maxSizeBytes: 1024 * 1024,
-      }));
+
+      if (await fileExistsAsync(easJsonPath)) {
+        ({ fileBucketKey: easJsonBucketKey } = await uploadAccountScopedFileAsync({
+          graphqlClient,
+          accountId: account.id,
+          filePath: easJsonPath,
+          maxSizeBytes: 1024 * 1024,
+        }));
+      } else {
+        Log.warn(
+          `No ${chalk.bold('eas.json')} found in the project directory. Running ${chalk.bold(
+            'type: build'
+          )} jobs will not work. Run ${chalk.bold(
+            'eas build:configure'
+          )} to configure your project for builds.`
+        );
+      }
+
+      if (await fileExistsAsync(packageJsonPath)) {
+        ({ fileBucketKey: packageJsonBucketKey } = await uploadAccountScopedFileAsync({
+          graphqlClient,
+          accountId: account.id,
+          filePath: packageJsonPath,
+          maxSizeBytes: 1024 * 1024,
+        }));
+      } else {
+        Log.warn(
+          `No ${chalk.bold(
+            'package.json'
+          )} found in the project directory. It is used to automatically infer best job configuration for your project. You may want to define ${chalk.bold(
+            'image'
+          )} property in your workflow to specify the image to use.`
+        );
+      }
     } catch (err) {
       Log.error('Failed to upload project sources.');
 
@@ -250,4 +277,11 @@ async function waitForWorkflowRunToEndAsync(
 
     await sleepAsync(10 /* seconds */ * 1000 /* milliseconds */);
   }
+}
+
+async function fileExistsAsync(filePath: string): Promise<boolean> {
+  return await fs.promises
+    .access(filePath, fs.constants.F_OK)
+    .then(() => true)
+    .catch(() => false);
 }
