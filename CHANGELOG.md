@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [16.6.2](https://github.com/expo/eas-cli/releases/tag/v16.6.2) - 2025-05-23
+
+### 🧹 Chores
+
 - Further no longer require owner field for SDK >= 53 or canary. ([#3017](https://github.com/expo/eas-cli/pull/3017) by [@wschurman](https://github.com/wschurman))
 
 ## [16.6.1](https://github.com/expo/eas-cli/releases/tag/v16.6.1) - 2025-05-14
