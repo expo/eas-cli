@@ -1,3 +1,4 @@
+import { EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -47,6 +48,10 @@ export default class UpdateConfigure extends EasCommand {
 
     await vcsClient.ensureRepoExistsAsync();
 
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+    const easJsonUpdateConfig: EasJson['update'] =
+      (await EasJsonUtils.getUpdateConfigAsync(easJsonAccessor)) ?? {};
+
     await ensureEASUpdateIsConfiguredAsync({
       exp,
       projectId,
@@ -55,6 +60,7 @@ export default class UpdateConfigure extends EasCommand {
       vcsClient,
       env: undefined,
       forceNativeConfigSync: true,
+      manifestHostOverride: easJsonUpdateConfig.manifestHostOverride ?? null,
     });
 
     await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);

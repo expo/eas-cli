@@ -95,7 +95,11 @@ export function getExpoWebsiteBaseUrl(): string {
   }
 }
 
-export function getEASUpdateURL(projectId: string): string {
+export function getEASUpdateURL(projectId: string, manifestHostOverride: string | null): string {
+  if (manifestHostOverride) {
+    return new URL(projectId, `https://${manifestHostOverride}`).href;
+  }
+
   if (process.env.EXPO_STAGING) {
     return new URL(projectId, `https://staging-u.expo.dev`).href;
   } else if (process.env.EXPO_LOCAL) {

@@ -1,4 +1,5 @@
 import { Platform as PublishPlatform } from '@expo/config';
+import { EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import nullthrows from 'nullthrows';
 
@@ -148,6 +149,10 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+    const easJsonUpdateConfig: EasJson['update'] =
+      (await EasJsonUtils.getUpdateConfigAsync(easJsonAccessor)) ?? {};
+
     await ensureEASUpdateIsConfiguredAsync({
       exp: expPossiblyWithoutEasUpdateConfigured,
       platform: platformFlag,
@@ -155,6 +160,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       projectId,
       vcsClient,
       env: undefined,
+      manifestHostOverride: easJsonUpdateConfig.manifestHostOverride ?? null,
     });
 
     // check that the expo-updates package version supports roll back to embedded

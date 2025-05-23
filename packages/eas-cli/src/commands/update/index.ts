@@ -1,4 +1,5 @@
 import { Workflow } from '@expo/eas-build-job';
+import { EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -211,6 +212,10 @@ export default class UpdatePublish extends EasCommand {
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
+    const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+    const easJsonUpdateConfig: EasJson['update'] =
+      (await EasJsonUtils.getUpdateConfigAsync(easJsonAccessor)) ?? {};
+
     await ensureEASUpdateIsConfiguredAsync({
       exp: expPossiblyWithoutEasUpdateConfigured,
       platform: requestedPlatform,
@@ -218,6 +223,7 @@ export default class UpdatePublish extends EasCommand {
       projectId,
       vcsClient,
       env: undefined,
+      manifestHostOverride: easJsonUpdateConfig.manifestHostOverride ?? null,
     });
 
     const { exp } = await getDynamicPublicProjectConfigAsync();
@@ -507,6 +513,8 @@ export default class UpdatePublish extends EasCommand {
             isGitWorkingTreeDirty,
             awaitingCodeSigningInfo: !!codeSigningInfo,
             environment: environment ?? null,
+            manifestHostOverride: easJsonUpdateConfig.manifestHostOverride ?? null,
+            assetHostOverride: easJsonUpdateConfig.assetHostOverride ?? null,
           };
         }
       );

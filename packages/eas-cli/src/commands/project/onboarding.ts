@@ -401,7 +401,7 @@ async function configureProjectFromBareDefaultExpoTemplateAsync({
   const bundleIdentifier = `com.${userPrefix}${stripInvalidCharactersForBundleIdentifier(
     app.ownerAccount.name
   )}.${slugPrefix}${stripInvalidCharactersForBundleIdentifier(app.slug)}`;
-  const updateUrl = getEASUpdateURL(app.id);
+  const updateUrl = getEASUpdateURL(app.id, /* manifestHostOverride */ null);
 
   const easBuildGitHubConfig = {
     android: {

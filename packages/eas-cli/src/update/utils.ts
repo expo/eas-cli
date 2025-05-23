@@ -3,7 +3,6 @@ import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
 
-import { getEASUpdateURL } from '../api';
 import {
   Robot,
   SsoUser,
@@ -269,14 +268,4 @@ export function getBranchDescription(branch: UpdateBranchFragment): FormattedBra
       }),
     },
   };
-}
-
-export async function checkEASUpdateURLIsSetAsync(
-  exp: ExpoConfig,
-  projectId: string
-): Promise<boolean> {
-  const configuredURL = exp.updates?.url;
-  const expectedURL = getEASUpdateURL(projectId);
-
-  return configuredURL === expectedURL;
 }

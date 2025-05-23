@@ -14,4 +14,8 @@ export const EasJsonSchema = Joi.object({
   }),
   build: Joi.object().pattern(Joi.string(), BuildProfileSchema),
   submit: Joi.object().pattern(Joi.string(), UnresolvedSubmitProfileSchema),
+  update: Joi.object({
+    assetHostOverride: Joi.string(),
+    manifestHostOverride: Joi.string(),
+  }),
 });
