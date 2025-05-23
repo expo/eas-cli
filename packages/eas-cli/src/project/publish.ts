@@ -1073,27 +1073,52 @@ export async function getRuntimeToUpdateRolloutInfoGroupMappingAsync(
     runtimeToPlatformsAndFingerprintInfoMapping.map(r => [r.runtimeVersion, r.platforms])
   );
   return await mapMapAsync(runtimeToPlatformsMap, async (platforms, runtimeVersion) => {
-    return Object.fromEntries(
-      await Promise.all(
-        platforms.map<Promise<[string, UpdateRolloutInfo]>>(async platform => {
-          const updateIdForPlatform = await BranchQuery.getLatestUpdateIdOnBranchAsync(
-            graphqlClient,
-            {
-              appId,
-              branchName,
-              runtimeVersion,
-              platform: updatePublishPlatformToAppPlatform[platform],
-            }
-          );
-          if (!updateIdForPlatform) {
-            throw new Error(
-              `No updates on branch ${branchName} for platform ${platform} and runtimeVersion ${runtimeVersion} to roll out from.`
-            );
-          }
-
-          return [platform, { rolloutPercentage, rolloutControlUpdateId: updateIdForPlatform }];
-        })
-      )
-    );
+    return await getUpdateRolloutInfoGroupAsync(graphqlClient, {
+      appId,
+      branchName,
+      rolloutPercentage,
+      runtimeVersion,
+      platforms,
+    });
   });
+}
+
+export async function getUpdateRolloutInfoGroupAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    appId,
+    branchName,
+    rolloutPercentage,
+    runtimeVersion,
+    platforms,
+  }: {
+    appId: string;
+    branchName: string;
+    rolloutPercentage: number;
+    runtimeVersion: string;
+    platforms: UpdatePublishPlatform[];
+  }
+): Promise<UpdateRolloutInfoGroup> {
+  return Object.fromEntries(
+    await Promise.all(
+      platforms.map<Promise<[string, UpdateRolloutInfo]>>(async platform => {
+        const updateIdForPlatform = await BranchQuery.getLatestUpdateIdOnBranchAsync(
+          graphqlClient,
+          {
+            appId,
+            branchName,
+            runtimeVersion,
+            platform: updatePublishPlatformToAppPlatform[platform],
+          }
+        );
+        if (!updateIdForPlatform) {
+          throw new Error(
+            `No updates on branch ${branchName} for platform ${platform} and runtimeVersion ${runtimeVersion} to roll out from.`
+          );
+        }
+
+        return [platform, { rolloutPercentage, rolloutControlUpdateId: updateIdForPlatform }];
+      })
+    )
+  );
 }

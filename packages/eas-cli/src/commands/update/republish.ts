@@ -31,6 +31,7 @@ type UpdateRepublishRawFlags = {
   'private-key-path'?: string;
   'non-interactive': boolean;
   json?: boolean;
+  'rollout-percentage'?: number;
 };
 
 type UpdateRepublishFlags = {
@@ -44,6 +45,7 @@ type UpdateRepublishFlags = {
   privateKeyPath?: string;
   nonInteractive: boolean;
   json: boolean;
+  rolloutPercentage?: number;
 };
 
 export default class UpdateRepublish extends EasCommand {
@@ -85,6 +87,12 @@ export default class UpdateRepublish extends EasCommand {
     'private-key-path': Flags.string({
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
+    }),
+    'rollout-percentage': Flags.integer({
+      description: `Percentage of users this update should be immediately available to. Users not in the rollout will be served the previous latest update on the branch, even if that update is itself being rolled out. The specified number must be an integer between 1 and 100. When not specified, this defaults to 100.`,
+      required: false,
+      min: 0,
+      max: 100,
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -163,6 +171,7 @@ export default class UpdateRepublish extends EasCommand {
       updateMessage,
       codeSigningInfo,
       json: flags.json,
+      rolloutPercentage: flags.rolloutPercentage,
     });
   }
 
@@ -191,6 +200,7 @@ export default class UpdateRepublish extends EasCommand {
       platform,
       updateMessage: rawFlags.message,
       privateKeyPath,
+      rolloutPercentage: rawFlags['rollout-percentage'],
       json: rawFlags.json ?? false,
       nonInteractive,
     };

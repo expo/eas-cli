@@ -10,6 +10,7 @@ import { PublishMutation } from '../graphql/mutations/PublishMutation';
 import Log, { link } from '../log';
 import { ora } from '../ora';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
+import { UpdatePublishPlatform, getUpdateRolloutInfoGroupAsync } from '../project/publish';
 import {
   CodeSigningInfo,
   checkDirectiveBodyAgainstUpdateInfoGroup,
@@ -39,6 +40,7 @@ export async function republishAsync({
   updateMessage,
   codeSigningInfo,
   json,
+  rolloutPercentage,
 }: {
   graphqlClient: ExpoGraphqlClient;
   app: { exp: ExpoConfig; projectId: string };
@@ -47,6 +49,7 @@ export async function republishAsync({
   updateMessage: string;
   codeSigningInfo?: CodeSigningInfo;
   json?: boolean;
+  rolloutPercentage?: number;
 }): Promise<void> {
   const { branchName: targetBranchName, branchId: targetBranchId } = targetBranch;
 
@@ -141,6 +144,15 @@ export async function republishAsync({
               ];
             })
           ),
+          rolloutInfoGroup: rolloutPercentage
+            ? await getUpdateRolloutInfoGroupAsync(graphqlClient, {
+                appId: app.projectId,
+                branchName: targetBranchName,
+                runtimeVersion,
+                rolloutPercentage,
+                platforms: updatesToPublish.map(update => update.platform as UpdatePublishPlatform),
+              })
+            : null,
         };
 
     updatesRepublished = await PublishMutation.publishUpdateGroupAsync(graphqlClient, [
@@ -229,6 +241,22 @@ export async function republishAsync({
         : []),
       ...(updatesRepublishedByPlatform.ios
         ? [{ label: 'iOS update ID', value: updatesRepublishedByPlatform.ios.id }]
+        : []),
+      ...(updatesRepublishedByPlatform.android?.rolloutControlUpdate
+        ? [
+            {
+              label: 'Android Rollout',
+              value: `${updatesRepublishedByPlatform.android?.rolloutPercentage}% (Base update ID: ${updatesRepublishedByPlatform.android?.rolloutControlUpdate.id})`,
+            },
+          ]
+        : []),
+      ...(updatesRepublishedByPlatform.ios?.rolloutControlUpdate
+        ? [
+            {
+              label: 'iOS Rollout',
+              value: `${updatesRepublishedByPlatform.ios?.rolloutPercentage}% (Base update ID: ${updatesRepublishedByPlatform.ios?.rolloutControlUpdate.id})`,
+            },
+          ]
         : []),
       { label: 'Message', value: updateMessage },
       { label: 'EAS Dashboard', value: link(updateGroupUrl, { dim: false }) },
