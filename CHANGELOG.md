@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add workflow:list and workflow-run:list. ([#3030](https://github.com/expo/eas-cli/pull/3030) by [@douglowder](https://github.com/douglowder))
 - Add support for manifest host and asset host overriding for EAS Update. ([#3021](https://github.com/expo/eas-cli/pull/3021) by [@wschurman](https://github.com/wschurman))
 
 ### 🐛 Bug fixes
