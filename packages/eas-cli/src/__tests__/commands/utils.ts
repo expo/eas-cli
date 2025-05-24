@@ -7,7 +7,12 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { ContextInput, ContextOutput } from '../../commandUtils/EasCommand';
 import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
-import { AppFragment, Role } from '../../graphql/generated';
+import {
+  AppFragment,
+  AppWorkflowRunsFragment,
+  Role,
+  WorkflowRunStatus,
+} from '../../graphql/generated';
 
 export function getMockEasJson(): EasJson {
   return {
@@ -81,7 +86,9 @@ export function mockCommandContext<
     if (contextKey === 'loggedIn') {
       result.loggedIn = {};
     }
-
+    if (contextKey === 'projectId') {
+      result.projectId = overrides.projectId ?? mockProjectId;
+    }
     if (contextKey === 'projectDir') {
       result.projectDir = projectDir;
     }
@@ -165,6 +172,68 @@ export function withLocalVersionSource(easJson: EasJson): EasJson {
     cli: {
       ...easJson.cli,
       appVersionSource: AppVersionSource.LOCAL,
+    },
+  };
+}
+
+export function getMockEmptyAppWorkflowRunsFragment(): AppWorkflowRunsFragment {
+  return getMockAppWorkflowRunsFragment();
+}
+
+export function getMockAppWorkflowRunsFragment(
+  params?:
+    | undefined
+    | {
+        successes?: number;
+        failures?: number;
+        pending?: number;
+      }
+): AppWorkflowRunsFragment {
+  const { successes = 0, failures = 0, pending = 0 } = params ?? {};
+  const edges: AppWorkflowRunsFragment['runs']['edges'] = [];
+  for (let i = 0; i < successes; i++) {
+    edges.push({
+      node: {
+        id: `success-${i}`,
+        status: WorkflowRunStatus.Success,
+        createdAt: '2022-01-01T00:00:00.000Z',
+        workflow: {
+          name: 'build',
+          id: 'build',
+        },
+      },
+    });
+  }
+  for (let i = 0; i < failures; i++) {
+    edges.push({
+      node: {
+        id: `failure-${i}`,
+        status: WorkflowRunStatus.Failure,
+        createdAt: '2022-01-01T00:00:00.000Z',
+        workflow: {
+          name: 'build',
+          id: 'build',
+        },
+      },
+    });
+  }
+  for (let i = 0; i < pending; i++) {
+    edges.push({
+      node: {
+        id: `pending-${i}`,
+        status: WorkflowRunStatus.InProgress,
+        createdAt: '2022-01-01T00:00:00.000Z',
+        workflow: {
+          name: 'build',
+          id: 'build',
+        },
+      },
+    });
+  }
+  return {
+    id: mockProjectId,
+    runs: {
+      edges,
     },
   };
 }
