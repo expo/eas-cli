@@ -513,6 +513,8 @@
         },
         "track": {
           "type": "string",
+          "minLength": 1,
+          "maxLength": 50,
           "description": "The track of the application to use. Learn more: https://support.google.com/googleplay/android-developer/answer/9859348?hl=en",
           "markdownDescription": "The [track of the application](https://support.google.com/googleplay/android-developer/answer/9859348?hl=en) to use.",
           "markdownEnumDescriptions": [
