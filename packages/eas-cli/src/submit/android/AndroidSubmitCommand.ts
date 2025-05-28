@@ -64,7 +64,6 @@ export default class AndroidSubmitCommand {
 
     return {
       projectId: this.ctx.projectId,
-      changelog: this.ctx.changelog,
       track: track.enforceValue(),
       releaseStatus: releaseStatus.enforceValue(),
       rollout: rollout.enforceValue(),

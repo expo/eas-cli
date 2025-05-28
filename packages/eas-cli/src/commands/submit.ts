@@ -81,7 +81,7 @@ export default class Submit extends EasCommand {
       exclusive: ['latest', 'id', 'path'],
     }),
     changelog: Flags.string({
-      description: `This submission's release notes.`,
+      description: `The changelog for this submission. Maps to "Release Notes" in Play Console, and "What to test" in TestFlight.`,
     }),
     verbose: Flags.boolean({
       description: 'Always print logs from EAS Submit',
