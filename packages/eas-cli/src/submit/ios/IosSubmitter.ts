@@ -27,13 +27,12 @@ import {
 } from '../utils/summary';
 
 export interface IosSubmissionOptions
-  extends Pick<IosSubmissionConfigInput, 'appleIdUsername' | 'ascAppIdentifier'> {
+  extends Pick<IosSubmissionConfigInput, 'appleIdUsername' | 'ascAppIdentifier' | 'changelog'> {
   projectId: string;
   archiveSource: ArchiveSource;
   appSpecificPasswordSource?: AppSpecificPasswordSource;
   ascApiKeySource?: AscApiKeySource;
   isVerboseFastlaneEnabled?: boolean;
-  changelog?: string;
 }
 
 interface ResolvedSourceOptions {
@@ -125,12 +124,13 @@ export default class IosSubmitter extends BaseSubmitter<
     { credentials }: ResolvedSourceOptions
   ): IosSubmissionConfigInput {
     const { appSpecificPassword, ascApiKeyResult } = credentials;
-    const { appleIdUsername, ascAppIdentifier } = options;
+    const { appleIdUsername, ascAppIdentifier, changelog } = options;
     const { isVerboseFastlaneEnabled } = this.ctx;
     return {
       ascAppIdentifier,
       appleIdUsername,
       isVerboseFastlaneEnabled,
+      changelog,
       ...(appSpecificPassword ? this.formatAppSpecificPassword(appSpecificPassword) : null),
       ...(ascApiKeyResult?.result ? this.formatAscApiKeyResult(ascApiKeyResult.result) : null),
     };
