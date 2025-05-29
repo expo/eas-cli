@@ -9,7 +9,15 @@ import { App, Target } from '../../types';
 import { displayIosCredentials } from '../printCredentials';
 
 jest.mock('../../../../log');
-jest.mock('chalk', () => ({ bold: jest.fn(log => log), cyan: { bold: jest.fn(log => log) } }));
+jest.mock('chalk', () => ({
+  red: jest.fn(text => `red(${text})`),
+  blue: jest.fn(text => `blue(${text})`),
+  yellow: jest.fn(text => `yellow(${text})`),
+  green: jest.fn(text => `green(${text})`),
+  gray: jest.fn(text => `gray(${text})`),
+  bold: jest.fn(log => log),
+  cyan: { bold: jest.fn(log => log) },
+}));
 
 jest.mock('../../api/graphql/queries/IosAppCredentialsQuery');
 mockdate.set(new Date('4/20/2021'));
