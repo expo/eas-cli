@@ -5,7 +5,7 @@ import {
   mockProjectId,
   mockTestCommand,
 } from './utils';
-import ProjectWorkflowRunList from '../../commands/workflow-run/list';
+import ProjectWorkflowRunList from '../../commands/workflow/runs';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log from '../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -81,9 +81,11 @@ describe(ProjectWorkflowRunList, () => {
   {
     "id": "failure-0",
     "status": "FAILURE",
-    "createdAt": "2022-01-01T00:00:00.000Z",
+    "startedAt": "2022-01-01T00:00:00.000Z",
+    "finishedAt": "2022-01-01T00:00:00.000Z",
     "workflowId": "build",
-    "workflowName": "build"
+    "workflowName": "build",
+    "workflowFileName": "build.yml"
   }
 ]`);
   });
