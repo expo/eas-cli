@@ -34,7 +34,7 @@ describe(WorkflowRunList, () => {
     });
     jest
       .mocked(AppQuery.byIdWorkflowRunsAsync)
-      .mockResolvedValue(getMockEmptyAppWorkflowRunsFragment());
+      .mockResolvedValue(getMockEmptyAppWorkflowRunsFragment().runs);
     const cmd = mockTestCommand(WorkflowRunList, [], ctx);
     await cmd.run();
     expect(AppQuery.byIdWorkflowRunsAsync).toHaveBeenCalledWith(
@@ -51,7 +51,7 @@ describe(WorkflowRunList, () => {
     });
     jest
       .mocked(AppQuery.byIdWorkflowRunsAsync)
-      .mockResolvedValue(getMockEmptyAppWorkflowRunsFragment());
+      .mockResolvedValue(getMockEmptyAppWorkflowRunsFragment().runs);
     const cmd = mockTestCommand(WorkflowRunList, ['--limit', '100'], ctx);
     await cmd.run();
     expect(AppQuery.byIdWorkflowRunsAsync).toHaveBeenCalledWith(
@@ -68,7 +68,7 @@ describe(WorkflowRunList, () => {
     });
     jest
       .mocked(AppQuery.byIdWorkflowRunsAsync)
-      .mockResolvedValue(getMockAppWorkflowRunsFragment({ successes: 2, failures: 1 }));
+      .mockResolvedValue(getMockAppWorkflowRunsFragment({ successes: 2, failures: 1 }).runs);
     const cmd = mockTestCommand(WorkflowRunList, ['--status', 'FAILURE', '--json'], ctx);
     await cmd.run();
     expect(AppQuery.byIdWorkflowRunsAsync).toHaveBeenCalledWith(
