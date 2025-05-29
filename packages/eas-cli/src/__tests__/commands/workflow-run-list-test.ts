@@ -5,9 +5,8 @@ import {
   mockProjectId,
   mockTestCommand,
 } from './utils';
-import ProjectWorkflowRunList from '../../commands/workflow/runs';
+import WorkflowRunList from '../../commands/workflow/runs';
 import { AppQuery } from '../../graphql/queries/AppQuery';
-import Log from '../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 jest.mock('../../build/android/version');
@@ -25,18 +24,18 @@ jest.mock('../../log');
 jest.mock('../../prompts');
 jest.mock('../../utils/json');
 
-describe(ProjectWorkflowRunList, () => {
+describe(WorkflowRunList, () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
   test('list workflow runs with default params', async () => {
-    const ctx = mockCommandContext(ProjectWorkflowRunList, {
+    const ctx = mockCommandContext(WorkflowRunList, {
       projectId: mockProjectId,
     });
     jest
       .mocked(AppQuery.byIdWorkflowRunsAsync)
       .mockResolvedValue(getMockEmptyAppWorkflowRunsFragment());
-    const cmd = mockTestCommand(ProjectWorkflowRunList, [], ctx);
+    const cmd = mockTestCommand(WorkflowRunList, [], ctx);
     await cmd.run();
     expect(AppQuery.byIdWorkflowRunsAsync).toHaveBeenCalledWith(
       ctx.loggedIn.graphqlClient,
@@ -47,13 +46,13 @@ describe(ProjectWorkflowRunList, () => {
     expect(printJsonOnlyOutput).not.toHaveBeenCalled();
   });
   test('list workflow runs with custom limit', async () => {
-    const ctx = mockCommandContext(ProjectWorkflowRunList, {
+    const ctx = mockCommandContext(WorkflowRunList, {
       projectId: mockProjectId,
     });
     jest
       .mocked(AppQuery.byIdWorkflowRunsAsync)
       .mockResolvedValue(getMockEmptyAppWorkflowRunsFragment());
-    const cmd = mockTestCommand(ProjectWorkflowRunList, ['--limit', '100'], ctx);
+    const cmd = mockTestCommand(WorkflowRunList, ['--limit', '100'], ctx);
     await cmd.run();
     expect(AppQuery.byIdWorkflowRunsAsync).toHaveBeenCalledWith(
       ctx.loggedIn.graphqlClient,
@@ -64,29 +63,29 @@ describe(ProjectWorkflowRunList, () => {
     expect(printJsonOnlyOutput).not.toHaveBeenCalled();
   });
   test('list workflow runs and select failures, get json output', async () => {
-    const ctx = mockCommandContext(ProjectWorkflowRunList, {
+    const ctx = mockCommandContext(WorkflowRunList, {
       projectId: mockProjectId,
     });
     jest
       .mocked(AppQuery.byIdWorkflowRunsAsync)
       .mockResolvedValue(getMockAppWorkflowRunsFragment({ successes: 2, failures: 1 }));
-    const cmd = mockTestCommand(ProjectWorkflowRunList, ['--status', 'FAILURE', '--json'], ctx);
+    const cmd = mockTestCommand(WorkflowRunList, ['--status', 'FAILURE', '--json'], ctx);
     await cmd.run();
     expect(AppQuery.byIdWorkflowRunsAsync).toHaveBeenCalledWith(
       ctx.loggedIn.graphqlClient,
       mockProjectId,
       10
     );
-    expect(Log.log).toHaveBeenLastCalledWith(`[
-  {
-    "id": "failure-0",
-    "status": "FAILURE",
-    "startedAt": "2022-01-01T00:00:00.000Z",
-    "finishedAt": "2022-01-01T00:00:00.000Z",
-    "workflowId": "build",
-    "workflowName": "build",
-    "workflowFileName": "build.yml"
-  }
-]`);
+    expect(printJsonOnlyOutput).toHaveBeenCalledWith([
+      {
+        id: 'failure-0',
+        status: 'FAILURE',
+        startedAt: '2022-01-01T00:00:00.000Z',
+        finishedAt: '2022-01-01T00:00:00.000Z',
+        workflowId: 'build',
+        workflowName: 'build',
+        workflowFileName: 'build.yml',
+      },
+    ]);
   });
 });

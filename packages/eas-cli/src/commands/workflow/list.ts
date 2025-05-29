@@ -3,6 +3,7 @@ import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export type WorkflowResult = {
   id: string;
@@ -12,7 +13,7 @@ export type WorkflowResult = {
   updatedAt: string | null;
 };
 
-export default class ProjectWorkflowList extends EasCommand {
+export default class WorkflowList extends EasCommand {
   static override description = 'List workflows for the current project';
 
   static override flags = {
@@ -25,20 +26,17 @@ export default class ProjectWorkflowList extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(ProjectWorkflowList);
+    const { flags } = await this.parse(WorkflowList);
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(ProjectWorkflowList, {
+    } = await this.getContextAsync(WorkflowList, {
       nonInteractive: true,
     });
 
-    const byId = await AppQuery.byIdWorkflowsAsync(graphqlClient, projectId);
-    if (!byId) {
-      throw new Error(`Could not find project with id: ${projectId}`);
-    }
+    const workflows = await AppQuery.byIdWorkflowsAsync(graphqlClient, projectId);
 
-    const result: WorkflowResult[] = byId.workflows.map(workflow => ({
+    const result: WorkflowResult[] = workflows.map(workflow => ({
       id: workflow.id,
       name: workflow.name,
       fileName: workflow.fileName,
@@ -47,7 +45,8 @@ export default class ProjectWorkflowList extends EasCommand {
     }));
 
     if (flags.json) {
-      Log.log(JSON.stringify(result, null, 2));
+      enableJsonOutput();
+      printJsonOnlyOutput(result);
       return;
     }
 
