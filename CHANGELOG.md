@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add support for manifest host and asset host overriding for EAS Update. ([#3021](https://github.com/expo/eas-cli/pull/3021) by [@wschurman](https://github.com/wschurman))
+- Add rollout flag to update:republish. ([#3029](https://github.com/expo/eas-cli/pull/3029) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🐛 Bug fixes
 
