@@ -7,6 +7,7 @@ import { AppWorkflowRunsFragment, WorkflowRunStatus } from '../../graphql/genera
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export type WorkflowRunResult = {
   id: string;
@@ -23,17 +24,13 @@ export type WorkflowRunResult = {
 function processWorkflowRuns(
   runs: AppWorkflowRunsFragment['runs'],
   params: {
-    workflowId?: string | undefined;
     workflowFileName?: string | undefined;
     status?: string | undefined;
   }
 ): WorkflowRunResult[] {
-  const { workflowId, workflowFileName, status } = params;
+  const { workflowFileName, status } = params;
   return runs.edges
     .filter(edge => {
-      if (workflowId && edge.node.workflow.id !== workflowId) {
-        return false;
-      }
       if (workflowFileName && edge.node.workflow.fileName !== workflowFileName) {
         return false;
       }
@@ -59,24 +56,17 @@ function processWorkflowRuns(
     });
 }
 
-export default class ProjectWorkflowRunList extends EasCommand {
+export default class WorkflowRunList extends EasCommand {
   static override description =
     'list recent workflow runs for this project, with their IDs, statuses, and timestamps';
 
   static override flags = {
-    /*
-    workflowId: Flags.string({
-      description:
-        'If present, filter the returned runs to select those for the specified workflow ID',
-      required: false,
-    }),
-     */
     workflow: Flags.string({
       description:
         'If present, filter the returned runs to select those for the specified workflow file name',
       required: false,
     }),
-    status: Flags.string({
+    status: Flags.enum({
       description: 'If present, filter the returned runs to select those with the specified status',
       required: false,
       options: Object.values(WorkflowRunStatus),
@@ -91,28 +81,25 @@ export default class ProjectWorkflowRunList extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(ProjectWorkflowRunList);
+    const { flags } = await this.parse(WorkflowRunList);
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(ProjectWorkflowRunList, {
+    } = await this.getContextAsync(WorkflowRunList, {
       nonInteractive: true,
     });
 
-    // const workflowId = flags.workflowId;
     const workflowFileName = flags.workflow;
     const status = flags.status;
     const limit = flags.limit ?? 10;
 
-    const byId = await AppQuery.byIdWorkflowRunsAsync(graphqlClient, projectId, limit);
-    if (!byId) {
-      throw new Error(`Could not find project with id: ${projectId}`);
-    }
+    const runs = await AppQuery.byIdWorkflowRunsAsync(graphqlClient, projectId, limit);
 
-    const result = processWorkflowRuns(byId.runs, { /* workflowId, */ workflowFileName, status });
+    const result = processWorkflowRuns(runs, { workflowFileName, status });
 
     if (flags.json) {
-      Log.log(JSON.stringify(result, null, 2));
+      enableJsonOutput();
+      printJsonOnlyOutput(result);
       return;
     }
 
