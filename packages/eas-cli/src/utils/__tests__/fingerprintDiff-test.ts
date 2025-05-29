@@ -3,6 +3,8 @@ import Log from '../../log';
 
 jest.mock('chalk', () => ({
   red: jest.fn(text => `red(${text})`),
+  blue: jest.fn(text => `blue(${text})`),
+  yellow: jest.fn(text => `yellow(${text})`),
   green: jest.fn(text => `green(${text})`),
   gray: jest.fn(text => `gray(${text})`),
   cyan: jest.fn(text => `cyan(${text})`),
