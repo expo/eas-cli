@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix some unit tests by updating mocks. ([#3035](https://github.com/expo/eas-cli/pull/3035) by [@douglowder](https://github.com/douglowder))
+
 ### 🧹 Chores
 
 ## [16.7.0](https://github.com/expo/eas-cli/releases/tag/v16.7.0) - 2025-05-29
