@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [eas-cli] Add workflow:list and workflow-run:list. ([#3030](https://github.com/expo/eas-cli/pull/3030) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Add workflow:list and workflow:runs. ([#3030](https://github.com/expo/eas-cli/pull/3030) by [@douglowder](https://github.com/douglowder))
 
 ### 🐛 Bug fixes
 

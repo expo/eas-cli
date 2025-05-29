@@ -13,19 +13,28 @@ export type WorkflowRunResult = {
   status: string;
   gitCommitMessage?: string | null;
   gitCommitHash?: string | null;
-  createdAt: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
   workflowId: string;
   workflowName: string | null;
+  workflowFileName: string | null;
 };
 
-function formatWorkflowRuns(
+function processWorkflowRuns(
   runs: AppWorkflowRunsFragment['runs'],
-  workflowId?: string | undefined,
-  status?: string | undefined
+  params: {
+    workflowId?: string | undefined;
+    workflowFileName?: string | undefined;
+    status?: string | undefined;
+  }
 ): WorkflowRunResult[] {
+  const { workflowId, workflowFileName, status } = params;
   return runs.edges
     .filter(edge => {
       if (workflowId && edge.node.workflow.id !== workflowId) {
+        return false;
+      }
+      if (workflowFileName && edge.node.workflow.fileName !== workflowFileName) {
         return false;
       }
       if (status && edge.node.status !== status) {
@@ -34,25 +43,37 @@ function formatWorkflowRuns(
       return true;
     })
     .map(edge => {
+      const finishedAt =
+        edge.node.status === WorkflowRunStatus.InProgress ? null : edge.node.updatedAt;
       return {
         id: edge.node.id,
         status: edge.node.status,
         gitCommitMessage: edge.node.gitCommitMessage,
         gitCommitHash: edge.node.gitCommitHash,
-        createdAt: edge.node.createdAt,
+        startedAt: edge.node.createdAt,
+        finishedAt,
         workflowId: edge.node.workflow.id,
         workflowName: edge.node.workflow.name ?? null,
+        workflowFileName: edge.node.workflow.fileName ?? null,
       };
     });
 }
 
 export default class ProjectWorkflowRunList extends EasCommand {
-  static override description = 'List workflow runs for the current project';
+  static override description =
+    'list recent workflow runs for this project, with their IDs, statuses, and timestamps';
 
   static override flags = {
+    /*
     workflowId: Flags.string({
       description:
         'If present, filter the returned runs to select those for the specified workflow ID',
+      required: false,
+    }),
+     */
+    workflow: Flags.string({
+      description:
+        'If present, filter the returned runs to select those for the specified workflow file name',
       required: false,
     }),
     status: Flags.string({
@@ -78,7 +99,8 @@ export default class ProjectWorkflowRunList extends EasCommand {
       nonInteractive: true,
     });
 
-    const workflowId = flags.workflowId;
+    // const workflowId = flags.workflowId;
+    const workflowFileName = flags.workflow;
     const status = flags.status;
     const limit = flags.limit ?? 10;
 
@@ -87,7 +109,7 @@ export default class ProjectWorkflowRunList extends EasCommand {
       throw new Error(`Could not find project with id: ${projectId}`);
     }
 
-    const result = formatWorkflowRuns(byId.runs, workflowId, status);
+    const result = processWorkflowRuns(byId.runs, { /* workflowId, */ workflowFileName, status });
 
     if (flags.json) {
       Log.log(JSON.stringify(result, null, 2));
@@ -98,13 +120,13 @@ export default class ProjectWorkflowRunList extends EasCommand {
     result.forEach(run => {
       Log.log(
         formatFields([
-          { label: 'ID', value: run.id },
+          { label: 'Run ID', value: run.id },
+          { label: 'Workflow', value: run.workflowFileName ?? '-' },
           { label: 'Status', value: run.status },
+          { label: 'Started At', value: run.startedAt ?? '-' },
+          { label: 'Finished At', value: run.finishedAt ?? '-' },
           { label: 'Git Commit Message', value: run.gitCommitMessage ?? 'null' },
           { label: 'Git Commit Hash', value: run.gitCommitHash ?? 'null' },
-          { label: 'Created At', value: run.createdAt ?? 'null' },
-          { label: 'Workflow ID', value: run.workflowId ?? 'null' },
-          { label: 'Workflow Name', value: run.workflowName ?? 'null' },
         ])
       );
       Log.addNewLineIfNone();

@@ -48,9 +48,11 @@ export const AppWorkflowRunsFragmentNode = gql`
           gitCommitMessage
           gitCommitHash
           createdAt
+          updatedAt
           workflow {
             id
             name
+            fileName
           }
         }
       }

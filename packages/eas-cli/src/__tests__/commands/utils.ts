@@ -197,9 +197,11 @@ export function getMockAppWorkflowRunsFragment(
         id: `success-${i}`,
         status: WorkflowRunStatus.Success,
         createdAt: '2022-01-01T00:00:00.000Z',
+        updatedAt: '2022-01-01T00:00:00.000Z',
         workflow: {
           name: 'build',
           id: 'build',
+          fileName: 'build.yml',
         },
       },
     });
@@ -210,9 +212,11 @@ export function getMockAppWorkflowRunsFragment(
         id: `failure-${i}`,
         status: WorkflowRunStatus.Failure,
         createdAt: '2022-01-01T00:00:00.000Z',
+        updatedAt: '2022-01-01T00:00:00.000Z',
         workflow: {
           name: 'build',
           id: 'build',
+          fileName: 'build.yml',
         },
       },
     });
@@ -223,9 +227,11 @@ export function getMockAppWorkflowRunsFragment(
         id: `pending-${i}`,
         status: WorkflowRunStatus.InProgress,
         createdAt: '2022-01-01T00:00:00.000Z',
+        updatedAt: '2022-01-01T00:00:00.000Z',
         workflow: {
           name: 'build',
           id: 'build',
+          fileName: 'build.yml',
         },
       },
     });
