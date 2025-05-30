@@ -18,6 +18,7 @@ export const testUpdateBranch1: UpdateBranchObject = {
         isRollBackToEmbedded: false,
         manifestPermalink: 'https://u.expo.dev/update/bbe3e63a-f620-4603-8c4d-258f3e51590d',
         gitCommitHash: 'e91c5bb733eff675dd8a3722ed5d4f885a4b10ce',
+        isGitWorkingTreeDirty: false,
         actor: {
           __typename: 'User',
           id: '026ace2b-c1f8-4a02-818d-6b52c100bdf2',
@@ -43,6 +44,7 @@ export const testUpdateBranch1: UpdateBranchObject = {
         isRollBackToEmbedded: false,
         manifestPermalink: 'https://u.expo.dev/update/db22401b-d321-4629-a068-21d6d1f19c02',
         gitCommitHash: 'e91c5bb733eff675dd8a3722ed5d4f885a4b10ce',
+        isGitWorkingTreeDirty: false,
         actor: {
           __typename: 'User',
           id: '026ace2b-c1f8-4a02-818d-6b52c100bdf2',
@@ -78,6 +80,7 @@ export const testUpdateBranch2: UpdateBranchObject = {
         isRollBackToEmbedded: false,
         manifestPermalink: 'https://u.expo.dev/update/f04aafc1-0bf5-4548-8c35-726b467e7c40',
         gitCommitHash: 'e91c5bb733eff675dd8a3722ed5d4f885a4b10ce',
+        isGitWorkingTreeDirty: false,
         actor: {
           __typename: 'User',
           id: '026ace2b-c1f8-4a02-818d-6b52c100bdf2',
@@ -103,6 +106,7 @@ export const testUpdateBranch2: UpdateBranchObject = {
         isRollBackToEmbedded: false,
         manifestPermalink: 'https://u.expo.dev/update/d8d15786-2727-407f-bf3e-f4bda7e397d9',
         gitCommitHash: 'e91c5bb733eff675dd8a3722ed5d4f885a4b10ce',
+        isGitWorkingTreeDirty: false,
         actor: {
           __typename: 'User',
           id: '026ace2b-c1f8-4a02-818d-6b52c100bdf2',
