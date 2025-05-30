@@ -3,55 +3,55 @@ import { Flags } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
-import { AppWorkflowRunsFragment, WorkflowRunStatus } from '../../graphql/generated';
+import { WorkflowRun, WorkflowRunStatus } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
+import { WorkflowQuery } from '../../graphql/queries/WorkflowQuery';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export type WorkflowRunResult = {
-  id: string;
-  status: string;
+  id: string | null;
+  status: string | null;
   gitCommitMessage?: string | null;
   gitCommitHash?: string | null;
   startedAt: string | null;
   finishedAt: string | null;
-  workflowId: string;
+  workflowId: string | null;
   workflowName: string | null;
   workflowFileName: string | null;
 };
 
 function processWorkflowRuns(
-  runs: AppWorkflowRunsFragment['runs'],
+  runs: Partial<WorkflowRun>[],
   params: {
     workflowFileName?: string | undefined;
     status?: string | undefined;
   }
 ): WorkflowRunResult[] {
   const { workflowFileName, status } = params;
-  return runs.edges
-    .filter(edge => {
-      if (workflowFileName && edge.node.workflow.fileName !== workflowFileName) {
+  return runs
+    .filter(run => {
+      if (workflowFileName && run.workflow?.fileName !== workflowFileName) {
         return false;
       }
-      if (status && edge.node.status !== status) {
+      if (status && run.status !== status) {
         return false;
       }
       return true;
     })
-    .map(edge => {
-      const finishedAt =
-        edge.node.status === WorkflowRunStatus.InProgress ? null : edge.node.updatedAt;
+    .map(run => {
+      const finishedAt = run.status === WorkflowRunStatus.InProgress ? null : run.updatedAt;
       return {
-        id: edge.node.id,
-        status: edge.node.status,
-        gitCommitMessage: edge.node.gitCommitMessage,
-        gitCommitHash: edge.node.gitCommitHash,
-        startedAt: edge.node.createdAt,
+        id: run.id ?? null,
+        status: run.status ?? null,
+        gitCommitMessage: run.gitCommitMessage ?? null,
+        gitCommitHash: run.gitCommitHash ?? null,
+        startedAt: run.createdAt ?? null,
         finishedAt,
-        workflowId: edge.node.workflow.id,
-        workflowName: edge.node.workflow.name ?? null,
-        workflowFileName: edge.node.workflow.fileName ?? null,
+        workflowId: run.workflow?.id ?? null,
+        workflowName: run.workflow?.name ?? null,
+        workflowFileName: run.workflow?.fileName ?? null,
       };
     });
 }
@@ -63,7 +63,7 @@ export default class WorkflowRunList extends EasCommand {
   static override flags = {
     workflow: Flags.string({
       description:
-        'If present, filter the returned runs to select those for the specified workflow file name',
+        'If present, the query will only return runs for the specified workflow file name',
       required: false,
     }),
     status: Flags.enum({
@@ -93,7 +93,24 @@ export default class WorkflowRunList extends EasCommand {
     const status = flags.status;
     const limit = flags.limit ?? 10;
 
-    const runs = await AppQuery.byIdWorkflowRunsAsync(graphqlClient, projectId, limit);
+    let runs: Partial<WorkflowRun>[] = [];
+    if (workflowFileName) {
+      const workflows = await AppQuery.byIdWorkflowsAsync(graphqlClient, projectId);
+      const workflowsFiltered = workflows.filter(
+        workflow => workflow.fileName === workflowFileName
+      );
+      if (workflowsFiltered.length > 1) {
+        throw new Error(`Found multiple workflows with the same file name: ${workflowFileName}`);
+      }
+      if (!workflowsFiltered.length || !workflowsFiltered[0].id) {
+        Log.warn(`No workflows found with file name: ${workflowFileName}`);
+      } else {
+        const workflowId = workflowsFiltered[0].id;
+        runs = await WorkflowQuery.byIdRunsAsync(graphqlClient, workflowId ?? '', limit);
+      }
+    } else {
+      runs = await AppQuery.byIdWorkflowRunsAsync(graphqlClient, projectId, limit);
+    }
 
     const result = processWorkflowRuns(runs, { workflowFileName, status });
 
@@ -107,9 +124,9 @@ export default class WorkflowRunList extends EasCommand {
     result.forEach(run => {
       Log.log(
         formatFields([
-          { label: 'Run ID', value: run.id },
+          { label: 'Run ID', value: run.id ?? '-' },
           { label: 'Workflow', value: run.workflowFileName ?? '-' },
-          { label: 'Status', value: run.status },
+          { label: 'Status', value: run.status ?? '-' },
           { label: 'Started At', value: run.startedAt ?? '-' },
           { label: 'Finished At', value: run.finishedAt ?? '-' },
           { label: 'Git Commit Message', value: run.gitCommitMessage ?? 'null' },

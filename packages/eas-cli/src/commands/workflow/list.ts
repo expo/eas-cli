@@ -6,7 +6,7 @@ import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export type WorkflowResult = {
-  id: string;
+  id: string | null;
   name?: string | null | undefined;
   fileName: string | null;
   createdAt: string | null;
@@ -37,11 +37,11 @@ export default class WorkflowList extends EasCommand {
     const workflows = await AppQuery.byIdWorkflowsAsync(graphqlClient, projectId);
 
     const result: WorkflowResult[] = workflows.map(workflow => ({
-      id: workflow.id,
-      name: workflow.name,
-      fileName: workflow.fileName,
-      createdAt: workflow.createdAt,
-      updatedAt: workflow.updatedAt,
+      id: workflow.id ?? null,
+      name: workflow.name ?? null,
+      fileName: workflow.fileName ?? null,
+      createdAt: workflow.createdAt ?? null,
+      updatedAt: workflow.updatedAt ?? null,
     }));
 
     if (flags.json) {
@@ -54,11 +54,11 @@ export default class WorkflowList extends EasCommand {
     result.forEach(workflow => {
       Log.log(
         formatFields([
-          { label: 'ID', value: workflow.id },
-          { label: 'Name', value: workflow.name ?? 'null' },
-          { label: 'File name', value: workflow.fileName ?? 'null' },
-          { label: 'Created At', value: workflow.createdAt ?? 'null' },
-          { label: 'Updated At', value: workflow.updatedAt ?? 'null' },
+          { label: 'ID', value: workflow.id ?? '-' },
+          { label: 'Name', value: workflow.name ?? '-' },
+          { label: 'File name', value: workflow.fileName ?? '-' },
+          { label: 'Created At', value: workflow.createdAt ?? '-' },
+          { label: 'Updated At', value: workflow.updatedAt ?? '-' },
         ])
       );
       Log.addNewLineIfNone();

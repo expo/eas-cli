@@ -7,12 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { ContextInput, ContextOutput } from '../../commandUtils/EasCommand';
 import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
-import {
-  AppFragment,
-  AppWorkflowRunsFragment,
-  Role,
-  WorkflowRunStatus,
-} from '../../graphql/generated';
+import { AppFragment, Role, WorkflowRun, WorkflowRunStatus } from '../../graphql/generated';
 
 export function getMockEasJson(): EasJson {
   return {
@@ -176,11 +171,11 @@ export function withLocalVersionSource(easJson: EasJson): EasJson {
   };
 }
 
-export function getMockEmptyAppWorkflowRunsFragment(): AppWorkflowRunsFragment {
-  return getMockAppWorkflowRunsFragment();
+export function getMockEmptyWorkflowRunsFragment(): Partial<WorkflowRun>[] {
+  return getMockWorkflowRunsFragment();
 }
 
-export function getMockAppWorkflowRunsFragment(
+export function getMockWorkflowRunsFragment(
   params?:
     | undefined
     | {
@@ -188,58 +183,53 @@ export function getMockAppWorkflowRunsFragment(
         failures?: number;
         pending?: number;
       }
-): AppWorkflowRunsFragment {
+): any[] {
   const { successes = 0, failures = 0, pending = 0 } = params ?? {};
-  const edges: AppWorkflowRunsFragment['runs']['edges'] = [];
+  const runs: any[] = [];
   for (let i = 0; i < successes; i++) {
-    edges.push({
-      node: {
-        id: `success-${i}`,
-        status: WorkflowRunStatus.Success,
-        createdAt: '2022-01-01T00:00:00.000Z',
-        updatedAt: '2022-01-01T00:00:00.000Z',
-        workflow: {
-          name: 'build',
-          id: 'build',
-          fileName: 'build.yml',
-        },
+    runs.push({
+      id: `success-${i}`,
+      status: WorkflowRunStatus.Success,
+      createdAt: '2022-01-01T00:00:00.000Z',
+      updatedAt: '2022-01-01T00:00:00.000Z',
+      gitCommitHash: '1234567890',
+      gitCommitMessage: 'commit message',
+      workflow: {
+        name: 'build',
+        id: 'build',
+        fileName: 'build.yml',
       },
     });
   }
   for (let i = 0; i < failures; i++) {
-    edges.push({
-      node: {
-        id: `failure-${i}`,
-        status: WorkflowRunStatus.Failure,
-        createdAt: '2022-01-01T00:00:00.000Z',
-        updatedAt: '2022-01-01T00:00:00.000Z',
-        workflow: {
-          name: 'build',
-          id: 'build',
-          fileName: 'build.yml',
-        },
+    runs.push({
+      id: `failure-${i}`,
+      status: WorkflowRunStatus.Failure,
+      createdAt: '2022-01-01T00:00:00.000Z',
+      updatedAt: '2022-01-01T00:00:00.000Z',
+      gitCommitHash: '1234567890',
+      gitCommitMessage: 'commit message',
+      workflow: {
+        name: 'build',
+        id: 'build',
+        fileName: 'build.yml',
       },
     });
   }
   for (let i = 0; i < pending; i++) {
-    edges.push({
-      node: {
-        id: `pending-${i}`,
-        status: WorkflowRunStatus.InProgress,
-        createdAt: '2022-01-01T00:00:00.000Z',
-        updatedAt: '2022-01-01T00:00:00.000Z',
-        workflow: {
-          name: 'build',
-          id: 'build',
-          fileName: 'build.yml',
-        },
+    runs.push({
+      id: `pending-${i}`,
+      status: WorkflowRunStatus.InProgress,
+      createdAt: '2022-01-01T00:00:00.000Z',
+      updatedAt: '2022-01-01T00:00:00.000Z',
+      gitCommitHash: '1234567890',
+      gitCommitMessage: 'commit message',
+      workflow: {
+        name: 'build',
+        id: 'build',
+        fileName: 'build.yml',
       },
     });
   }
-  return {
-    id: mockProjectId,
-    runs: {
-      edges,
-    },
-  };
+  return runs;
 }
