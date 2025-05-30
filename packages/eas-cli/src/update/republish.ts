@@ -162,6 +162,8 @@ export async function republishAsync({
         message: updateMessage,
         ...objectToMergeIn,
         gitCommitHash: updatesToPublish[0].gitCommitHash,
+        isGitWorkingTreeDirty: updatesToPublish[0].isGitWorkingTreeDirty,
+        environment: updatesToPublish[0].environment,
         awaitingCodeSigningInfo: !!codeSigningInfo,
         manifestHostOverride: updatesToPublish[0].manifestHostOverride,
         assetHostOverride: updatesToPublish[0].assetHostOverride,
