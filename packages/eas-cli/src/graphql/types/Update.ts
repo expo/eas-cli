@@ -12,6 +12,8 @@ export const UpdateFragmentNode = gql`
     isRollBackToEmbedded
     manifestPermalink
     gitCommitHash
+    isGitWorkingTreeDirty
+    environment
     actor {
       __typename
       id
