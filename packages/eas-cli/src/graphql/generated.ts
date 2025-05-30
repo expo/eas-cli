@@ -118,6 +118,8 @@ export type Account = {
   billingPeriod: BillingPeriod;
   /** (EAS Build) Builds associated with this account */
   builds: Array<Build>;
+  /** Whether this account can enable SSO. */
+  canEnableSSO: Scalars['Boolean']['output'];
   createdAt: Scalars['DateTime']['output'];
   /** Environment secrets for an account */
   environmentSecrets: Array<EnvironmentSecret>;
@@ -144,7 +146,10 @@ export type Account = {
   name: Scalars['String']['output'];
   /** Offers set on this account */
   offers?: Maybe<Array<Offer>>;
-  /** Owning User of this account if personal account */
+  /**
+   * Owning User of this account if personal account
+   * @deprecated Deprecated in favor of ownerUserActor
+   */
   owner?: Maybe<User>;
   /** Owning UserActor of this account if personal account */
   ownerUserActor?: Maybe<UserActor>;
@@ -1220,6 +1225,7 @@ export type AndroidSubmissionConfig = {
 export type AndroidSubmissionConfigInput = {
   applicationIdentifier?: InputMaybe<Scalars['String']['input']>;
   archiveUrl?: InputMaybe<Scalars['String']['input']>;
+  changelog?: InputMaybe<Scalars['String']['input']>;
   changesNotSentForReview?: InputMaybe<Scalars['Boolean']['input']>;
   googleServiceAccountKeyId?: InputMaybe<Scalars['String']['input']>;
   googleServiceAccountKeyJson?: InputMaybe<Scalars['String']['input']>;
@@ -5309,6 +5315,7 @@ export type IosSubmissionConfigInput = {
   ascApiKey?: InputMaybe<AscApiKeyInput>;
   ascApiKeyId?: InputMaybe<Scalars['String']['input']>;
   ascAppIdentifier: Scalars['String']['input'];
+  changelog?: InputMaybe<Scalars['String']['input']>;
   groups?: InputMaybe<Array<Scalars['String']['input']>>;
   isVerboseFastlaneEnabled?: InputMaybe<Scalars['Boolean']['input']>;
 };
@@ -8729,6 +8736,7 @@ export enum WorkflowJobType {
   Deploy = 'DEPLOY',
   Fingerprint = 'FINGERPRINT',
   GetBuild = 'GET_BUILD',
+  MaestroCloud = 'MAESTRO_CLOUD',
   MaestroTest = 'MAESTRO_TEST',
   RequireApproval = 'REQUIRE_APPROVAL',
   Slack = 'SLACK',
@@ -8737,7 +8745,7 @@ export enum WorkflowJobType {
 }
 
 export type WorkflowProjectSourceInput = {
-  easJsonBucketKey: Scalars['String']['input'];
+  easJsonBucketKey?: InputMaybe<Scalars['String']['input']>;
   packageJsonBucketKey?: InputMaybe<Scalars['String']['input']>;
   projectArchiveBucketKey: Scalars['String']['input'];
   type: WorkflowProjectSourceType;
@@ -8812,6 +8820,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   activityTimestamp: Scalars['DateTime']['output'];
   actor?: Maybe<Actor>;
   createdAt: Scalars['DateTime']['output'];
+  durationSeconds?: Maybe<Scalars['Int']['output']>;
   errors: Array<WorkflowRunError>;
   gitCommitHash?: Maybe<Scalars['String']['output']>;
   gitCommitMessage?: Maybe<Scalars['String']['output']>;
@@ -9724,6 +9733,21 @@ export type AppByFullNameQueryVariables = Exact<{
 
 export type AppByFullNameQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byFullName: { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', githubRepoOwnerName: string, githubRepoName: string } } | null } } };
 
+export type AppByIdWorkflowsQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+}>;
+
+
+export type AppByIdWorkflowsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, workflows: Array<{ __typename?: 'Workflow', id: string, name?: string | null, fileName: string, createdAt: any, updatedAt: any }> } } };
+
+export type AppByIdWorkflowRunsQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  limit: Scalars['Int']['input'];
+}>;
+
+
+export type AppByIdWorkflowRunsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, runs: { __typename?: 'AppWorkflowRunsConnection', edges: Array<{ __typename?: 'AppWorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } } } };
+
 export type AppStoreConnectApiKeyByIdQueryVariables = Exact<{
   ascApiKeyId: Scalars['ID']['input'];
 }>;
@@ -10036,6 +10060,14 @@ export type WebhookByIdQueryVariables = Exact<{
 
 export type WebhookByIdQuery = { __typename?: 'RootQuery', webhook: { __typename?: 'WebhookQuery', byId: { __typename?: 'Webhook', id: string, event: WebhookType, url: string, createdAt: any, updatedAt: any } } };
 
+export type WorkflowRunsForWorkflowIdQueryVariables = Exact<{
+  workflowId: Scalars['ID']['input'];
+  limit: Scalars['Int']['input'];
+}>;
+
+
+export type WorkflowRunsForWorkflowIdQuery = { __typename?: 'RootQuery', workflows: { __typename?: 'WorkflowQuery', byId: { __typename?: 'Workflow', id: string, runs: { __typename?: 'WorkflowRunsConnection', edges: Array<{ __typename?: 'WorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } } } };
+
 export type WorkflowRunByIdQueryVariables = Exact<{
   workflowRunId: Scalars['ID']['input'];
 }>;
@@ -10053,6 +10085,10 @@ export type WorkflowRunByIdWithJobsQuery = { __typename?: 'RootQuery', workflowR
 export type AccountFragment = { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> };
 
 export type AppFragment = { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', githubRepoOwnerName: string, githubRepoName: string } } | null };
+
+export type AppWorkflowsFragment = { __typename?: 'App', id: string, workflows: Array<{ __typename?: 'Workflow', id: string, name?: string | null, fileName: string, createdAt: any, updatedAt: any }> };
+
+export type AppWorkflowRunsFragment = { __typename?: 'App', id: string, runs: { __typename?: 'AppWorkflowRunsConnection', edges: Array<{ __typename?: 'AppWorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } };
 
 export type BackgroundJobReceiptDataFragment = { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any };
 
@@ -10085,6 +10121,8 @@ export type UpdateBranchBasicInfoFragment = { __typename?: 'UpdateBranch', id: s
 export type UpdateChannelBasicInfoFragment = { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string };
 
 export type WebhookFragment = { __typename?: 'Webhook', id: string, event: WebhookType, url: string, createdAt: any, updatedAt: any };
+
+export type WorkflowRunsFragment = { __typename?: 'Workflow', id: string, runs: { __typename?: 'WorkflowRunsConnection', edges: Array<{ __typename?: 'WorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } };
 
 export type AndroidAppBuildCredentialsFragment = { __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null, md5CertificateFingerprint?: string | null, sha1CertificateFingerprint?: string | null, sha256CertificateFingerprint?: string | null, createdAt: any, updatedAt: any } | null };
 

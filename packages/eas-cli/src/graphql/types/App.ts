@@ -23,3 +23,39 @@ export const AppFragmentNode = gql`
   }
   ${AccountFragmentNode}
 `;
+
+export const AppWorkflowsFragmentNode = gql`
+  fragment AppWorkflowsFragment on App {
+    id
+    workflows {
+      id
+      name
+      fileName
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const AppWorkflowRunsFragmentNode = gql`
+  fragment AppWorkflowRunsFragment on App {
+    id
+    runs: workflowRunsPaginated(last: $limit) {
+      edges {
+        node {
+          id
+          status
+          gitCommitMessage
+          gitCommitHash
+          createdAt
+          updatedAt
+          workflow {
+            id
+            name
+            fileName
+          }
+        }
+      }
+    }
+  }
+`;
