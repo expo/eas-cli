@@ -11,8 +11,8 @@ import {
   AppByIdWorkflowRunsQuery,
   AppByIdWorkflowsQuery,
   AppFragment,
-  AppWorkflowRunsFragment,
-  AppWorkflowsFragment,
+  Workflow,
+  WorkflowRun,
 } from '../generated';
 import {
   AppFragmentNode,
@@ -76,7 +76,7 @@ export const AppQuery = {
   async byIdWorkflowsAsync(
     graphqlClient: ExpoGraphqlClient,
     appId: string
-  ): Promise<AppWorkflowsFragment['workflows']> {
+  ): Promise<Partial<Workflow>[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AppByIdWorkflowsQuery>(
@@ -97,13 +97,13 @@ export const AppQuery = {
         .toPromise()
     );
     assert(data.app, 'GraphQL: `app` not defined in server response');
-    return data.app.byId.workflows;
+    return (data.app.byId.workflows as Partial<Workflow>[]) ?? [];
   },
   async byIdWorkflowRunsAsync(
     graphqlClient: ExpoGraphqlClient,
     appId: string,
     limit?: number
-  ): Promise<AppWorkflowRunsFragment['runs']> {
+  ): Promise<Partial<WorkflowRun>[]> {
     validateLimit(limit);
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -125,7 +125,7 @@ export const AppQuery = {
         .toPromise()
     );
     assert(data.app, 'GraphQL: `app` not defined in server response');
-    return data.app.byId.runs;
+    return data.app.byId.runs.edges.map(edge => edge.node as Partial<WorkflowRun>) ?? [];
   },
 };
 
