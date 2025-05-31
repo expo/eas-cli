@@ -8737,7 +8737,7 @@ export enum WorkflowJobType {
 }
 
 export type WorkflowProjectSourceInput = {
-  easJsonBucketKey: Scalars['String']['input'];
+  easJsonBucketKey?: InputMaybe<Scalars['String']['input']>;
   packageJsonBucketKey?: InputMaybe<Scalars['String']['input']>;
   projectArchiveBucketKey: Scalars['String']['input'];
   type: WorkflowProjectSourceType;
