@@ -35,6 +35,7 @@ const updateStub: UpdateFragment = {
   runtimeVersion: 'exposdk:47.0.0',
   platform: 'ios',
   gitCommitHash: 'commit',
+  isGitWorkingTreeDirty: false,
   manifestFragment: JSON.stringify({ fake: 'manifest' }),
   isRollBackToEmbedded: false,
   manifestPermalink: 'https://expo.dev/fake/manifest/link',
