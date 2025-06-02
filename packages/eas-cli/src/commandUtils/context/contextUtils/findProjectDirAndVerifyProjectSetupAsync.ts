@@ -2,6 +2,7 @@ import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import * as PackageManagerUtils from '@expo/package-manager';
 import chalk from 'chalk';
 import fs from 'fs-extra';
+import getenv from 'getenv';
 import path from 'path';
 import pkgDir from 'pkg-dir';
 import semver from 'semver';
@@ -13,7 +14,14 @@ import { resolveVcsClient } from '../../../vcs';
 async function applyCliConfigAsync(projectDir: string): Promise<void> {
   const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   const config = await EasJsonUtils.getCliConfigAsync(easJsonAccessor);
-  if (config?.version && !semver.satisfies(easCliVersion, config.version)) {
+
+  const shouldSkipVersionCheck = getenv.boolish('EAS_SKIP_CLI_VERSION_CHECK', false);
+
+  if (
+    !shouldSkipVersionCheck &&
+    config?.version &&
+    !semver.satisfies(easCliVersion, config.version)
+  ) {
     throw new Error(
       `You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint defined in eas.json (${
         config.version
