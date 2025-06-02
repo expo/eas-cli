@@ -22,11 +22,9 @@ export interface EasJson {
     requireCommit?: boolean;
     appVersionSource?: AppVersionSource;
     promptToConfigurePushNotifications?: boolean;
+    updateAssetHostOverride?: string;
+    updateManifestHostOverride?: string;
   };
   build?: { [profileName: string]: EasJsonBuildProfile };
   submit?: { [profileName: string]: EasJsonSubmitProfile };
-  update?: {
-    assetHostOverride?: string;
-    manifestHostOverride?: string;
-  };
 }

@@ -431,14 +431,14 @@ async function prepareAndStartBuildAsync({
       env: buildProfile.profile.env,
       easJsonAccessor,
     });
-    const easJsonUpdateConfig: EasJson['update'] =
-      (await EasJsonUtils.getUpdateConfigAsync(easJsonAccessor)) ?? {};
+    const easJsonCliConfig: EasJson['cli'] =
+      (await EasJsonUtils.getCliConfigAsync(easJsonAccessor)) ?? {};
 
     if (
       isUsingEASUpdate(
         buildCtx.exp,
         buildCtx.projectId,
-        easJsonUpdateConfig.manifestHostOverride ?? null
+        easJsonCliConfig.updateManifestHostOverride ?? null
       )
     ) {
       const doesChannelExist = await doesChannelExistAsync(graphqlClient, {
@@ -651,8 +651,8 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
       message: `Would you like to install the "expo-updates" package and configure EAS Update now?`,
     });
     if (installExpoUpdates) {
-      const easJsonUpdateConfig: EasJson['update'] =
-        (await EasJsonUtils.getUpdateConfigAsync(easJsonAccessor)) ?? {};
+      const easJsonCliConfig: EasJson['cli'] =
+        (await EasJsonUtils.getCliConfigAsync(easJsonAccessor)) ?? {};
 
       await ensureEASUpdateIsConfiguredAsync({
         exp,
@@ -661,7 +661,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
         platform: RequestedPlatform.All,
         vcsClient,
         env,
-        manifestHostOverride: easJsonUpdateConfig.manifestHostOverride ?? null,
+        manifestHostOverride: easJsonCliConfig.updateManifestHostOverride ?? null,
       });
       Log.withTick('Installed expo-updates and configured EAS Update.');
       throw new Error('Command must be re-run to pick up new updates configuration.');
