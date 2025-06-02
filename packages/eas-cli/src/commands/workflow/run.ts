@@ -131,7 +131,7 @@ export default class WorkflowRun extends EasCommand {
         }));
       } else {
         Log.warn(
-          `No ${chalk.bold('eas.json')} found in the project directory. Running ${chalk.bold(
+          `⚠ No ${chalk.bold('eas.json')} found in the project directory. Running ${chalk.bold(
             'type: build'
           )} jobs will not work. Run ${chalk.bold(
             'eas build:configure'
@@ -148,7 +148,7 @@ export default class WorkflowRun extends EasCommand {
         }));
       } else {
         Log.warn(
-          `No ${chalk.bold(
+          `⚠ No ${chalk.bold(
             'package.json'
           )} found in the project directory. It is used to automatically infer best job configuration for your project. You may want to define ${chalk.bold(
             'image'
