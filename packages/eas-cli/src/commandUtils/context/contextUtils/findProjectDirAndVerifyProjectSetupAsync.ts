@@ -120,8 +120,12 @@ let ranEnsureEasCliIsNotInDependencies = false;
  *
  * @deprecated Should not be used outside of context functions.
  */
-export async function findProjectDirAndVerifyProjectSetupAsync(): Promise<string> {
-  const projectDir = await findProjectRootAsync();
+export async function findProjectDirAndVerifyProjectSetupAsync({
+  cwd,
+}: {
+  cwd?: string;
+} = {}): Promise<string> {
+  const projectDir = await findProjectRootAsync({ cwd });
   await applyCliConfigAsync(projectDir);
   if (!ranEnsureEasCliIsNotInDependencies) {
     ranEnsureEasCliIsNotInDependencies = true;
