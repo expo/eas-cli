@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Fix some unit tests by updating mocks. ([#3035](https://github.com/expo/eas-cli/pull/3035) by [@douglowder](https://github.com/douglowder))
 - Fix update republishing not including environment or git info. ([#3036](https://github.com/expo/eas-cli/pull/3036) by [@wschurman](https://github.com/wschurman))
+- Do not require `eas.json` or `package.json` files when creating new workflow runs. ([#3028](https://github.com/expo/eas-cli/pull/3028) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🧹 Chores
 
