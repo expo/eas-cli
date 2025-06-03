@@ -1,4 +1,3 @@
-/* eslint-disable graphql/template-strings */
 import assert from 'assert';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
@@ -136,7 +135,7 @@ export const WorkflowRunQuery = {
     graphqlClient: ExpoGraphqlClient,
     appId: string,
     fileName: string,
-    status: WorkflowRunStatus,
+    status?: WorkflowRunStatus,
     limit?: number
   ): Promise<WorkflowRunFragment[]> {
     validateLimit(limit);
@@ -147,7 +146,7 @@ export const WorkflowRunQuery = {
             query WorkflowRunsForAppIdFileNameAndStatusQuery(
               $appId: ID!
               $fileName: String!
-              $status: WorkflowRunStatus!
+              $status: WorkflowRunStatus
               $limit: Int!
             ) {
               workflows {

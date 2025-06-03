@@ -10,50 +10,33 @@ import Log from '../../log';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-export type WorkflowRunResult = {
-  id: string | null;
-  status: string | null;
-  gitCommitMessage?: string | null;
-  gitCommitHash?: string | null;
-  startedAt: string | null;
-  finishedAt: string | null;
-  workflowId: string | null;
+type WorkflowRunResult = {
+  id: string;
+  status: string;
+  gitCommitMessage: string | null;
+  gitCommitHash: string | null;
+  startedAt: string;
+  finishedAt: string;
+  workflowId: string;
   workflowName: string | null;
-  workflowFileName: string | null;
+  workflowFileName: string;
 };
 
-function processWorkflowRuns(
-  runs: WorkflowRunFragment[],
-  params: {
-    workflowFileName?: string | undefined;
-    status?: string | undefined;
-  }
-): WorkflowRunResult[] {
-  const { workflowFileName, status } = params;
-  return runs
-    .filter(run => {
-      if (workflowFileName && run.workflow?.fileName !== workflowFileName) {
-        return false;
-      }
-      if (status && run.status !== status) {
-        return false;
-      }
-      return true;
-    })
-    .map(run => {
-      const finishedAt = run.status === WorkflowRunStatus.InProgress ? null : run.updatedAt;
-      return {
-        id: run.id ?? null,
-        status: run.status ?? null,
-        gitCommitMessage: run.gitCommitMessage ?? null,
-        gitCommitHash: run.gitCommitHash ?? null,
-        startedAt: run.createdAt ?? null,
-        finishedAt,
-        workflowId: run.workflow?.id ?? null,
-        workflowName: run.workflow?.name ?? null,
-        workflowFileName: run.workflow?.fileName ?? null,
-      };
-    });
+function processWorkflowRuns(runs: WorkflowRunFragment[]): WorkflowRunResult[] {
+  return runs.map(run => {
+    const finishedAt = run.status === WorkflowRunStatus.InProgress ? null : run.updatedAt;
+    return {
+      id: run.id,
+      status: run.status,
+      gitCommitMessage: run.gitCommitMessage ?? null,
+      gitCommitHash: run.gitCommitHash ?? null,
+      startedAt: run.createdAt,
+      finishedAt,
+      workflowId: run.workflow.id,
+      workflowName: run.workflow.name ?? null,
+      workflowFileName: run.workflow.fileName,
+    };
+  });
 }
 
 export default class WorkflowRunList extends EasCommand {
@@ -93,7 +76,7 @@ export default class WorkflowRunList extends EasCommand {
     const status = flags.status;
     const limit = flags.limit ?? 10;
 
-    let runs: WorkflowRunFragment[] = [];
+    let runs: WorkflowRunFragment[];
     if (workflowFileName) {
       if (status) {
         runs = await WorkflowRunQuery.byAppIdFileNameAndStatusAsync(
@@ -136,11 +119,11 @@ export default class WorkflowRunList extends EasCommand {
     result.forEach(run => {
       Log.log(
         formatFields([
-          { label: 'Run ID', value: run.id ?? '-' },
-          { label: 'Workflow', value: run.workflowFileName ?? '-' },
-          { label: 'Status', value: run.status ?? '-' },
-          { label: 'Started At', value: run.startedAt ?? '-' },
-          { label: 'Finished At', value: run.finishedAt ?? '-' },
+          { label: 'Run ID', value: run.id },
+          { label: 'Workflow', value: run.workflowFileName },
+          { label: 'Status', value: run.status },
+          { label: 'Started At', value: run.startedAt },
+          { label: 'Finished At', value: run.finishedAt },
           { label: 'Git Commit Message', value: run.gitCommitMessage ?? 'null' },
           { label: 'Git Commit Hash', value: run.gitCommitHash ?? 'null' },
         ])

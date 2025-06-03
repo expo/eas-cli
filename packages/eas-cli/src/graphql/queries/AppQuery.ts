@@ -140,7 +140,7 @@ export const AppQuery = {
   async byIdWorkflowRunsFilteredByStatusAsync(
     graphqlClient: ExpoGraphqlClient,
     appId: string,
-    status: WorkflowRunStatus,
+    status?: WorkflowRunStatus,
     limit?: number
   ): Promise<WorkflowRunFragment[]> {
     validateLimit(limit);
@@ -150,7 +150,7 @@ export const AppQuery = {
           gql`
             query AppByIdWorkflowRunsFilteredByStatusQuery(
               $appId: String!
-              $status: WorkflowRunStatus!
+              $status: WorkflowRunStatus
               $limit: Int!
             ) {
               app {
