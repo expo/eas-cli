@@ -131,6 +131,41 @@ describe(getAppBuildGradleAsync, () => {
       },
     });
   });
+
+  test('parsing build.gradle with flavor dimensions as array', async () => {
+    vol.fromJSON(
+      {
+        'android/app/build.gradle': await fsReal.promises.readFile(
+          path.join(__dirname, 'fixtures/multiflavor-with-dimensions-array-build.gradle'),
+          'utf-8'
+        ),
+      },
+      '/test'
+    );
+    const buildGradle = await getAppBuildGradleAsync('/test');
+    expect(
+      pick(buildGradle?.android ?? {}, ['defaultConfig', 'flavorDimensions', 'productFlavors'])
+    ).toEqual({
+      defaultConfig: {
+        applicationId: 'com.testapp',
+        minSdkVersion: 'rootProject.ext.minSdkVersion',
+        targetSdkVersion: 'rootProject.ext.targetSdkVersion',
+        versionCode: '1',
+        versionName: '1.0',
+      },
+      flavorDimensions: ['version'],
+      productFlavors: {
+        development: {
+          applicationId: 'com.amanhimself.multiflavor',
+          dimension: 'version',
+        },
+        production: {
+          applicationId: 'com.amanhimself.multiflavor.dark',
+          dimension: 'version',
+        },
+      },
+    });
+  });
 });
 
 describe(parseGradleCommand, () => {
@@ -171,6 +206,12 @@ describe(parseGradleCommand, () => {
   test('parsing without module name specified', async () => {
     const result = parseGradleCommand('bundleRelease --console verbose', {});
     expect(result).toEqual({ buildType: 'release' });
+  });
+  test('parsing with array flavor dimensions', async () => {
+    const result = parseGradleCommand(':app:buildExampleRelease', {
+      android: { flavorDimensions: ['version'], productFlavors: { example: {} } },
+    });
+    expect(result).toEqual({ moduleName: 'app', flavor: 'example', buildType: 'release' });
   });
 });
 
