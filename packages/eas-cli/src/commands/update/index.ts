@@ -213,8 +213,8 @@ export default class UpdatePublish extends EasCommand {
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    const easJsonUpdateConfig: EasJson['update'] =
-      (await EasJsonUtils.getUpdateConfigAsync(easJsonAccessor)) ?? {};
+    const easJsonCliConfig: EasJson['cli'] =
+      (await EasJsonUtils.getCliConfigAsync(easJsonAccessor)) ?? {};
 
     await ensureEASUpdateIsConfiguredAsync({
       exp: expPossiblyWithoutEasUpdateConfigured,
@@ -223,7 +223,7 @@ export default class UpdatePublish extends EasCommand {
       projectId,
       vcsClient,
       env: undefined,
-      manifestHostOverride: easJsonUpdateConfig.manifestHostOverride ?? null,
+      manifestHostOverride: easJsonCliConfig.updateManifestHostOverride ?? null,
     });
 
     const { exp } = await getDynamicPublicProjectConfigAsync();
@@ -513,8 +513,8 @@ export default class UpdatePublish extends EasCommand {
             isGitWorkingTreeDirty,
             awaitingCodeSigningInfo: !!codeSigningInfo,
             environment: environment ?? null,
-            manifestHostOverride: easJsonUpdateConfig.manifestHostOverride ?? null,
-            assetHostOverride: easJsonUpdateConfig.assetHostOverride ?? null,
+            manifestHostOverride: easJsonCliConfig.updateManifestHostOverride ?? null,
+            assetHostOverride: easJsonCliConfig.updateAssetHostOverride ?? null,
           };
         }
       );

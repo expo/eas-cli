@@ -150,8 +150,8 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    const easJsonUpdateConfig: EasJson['update'] =
-      (await EasJsonUtils.getUpdateConfigAsync(easJsonAccessor)) ?? {};
+    const easJsonCliConfig: EasJson['cli'] =
+      (await EasJsonUtils.getCliConfigAsync(easJsonAccessor)) ?? {};
 
     await ensureEASUpdateIsConfiguredAsync({
       exp: expPossiblyWithoutEasUpdateConfigured,
@@ -160,7 +160,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       projectId,
       vcsClient,
       env: undefined,
-      manifestHostOverride: easJsonUpdateConfig.manifestHostOverride ?? null,
+      manifestHostOverride: easJsonCliConfig.updateManifestHostOverride ?? null,
     });
 
     // check that the expo-updates package version supports roll back to embedded

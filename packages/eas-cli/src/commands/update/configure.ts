@@ -49,8 +49,8 @@ export default class UpdateConfigure extends EasCommand {
     await vcsClient.ensureRepoExistsAsync();
 
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-    const easJsonUpdateConfig: EasJson['update'] =
-      (await EasJsonUtils.getUpdateConfigAsync(easJsonAccessor)) ?? {};
+    const easJsonCliConfig: EasJson['cli'] =
+      (await EasJsonUtils.getCliConfigAsync(easJsonAccessor)) ?? {};
 
     await ensureEASUpdateIsConfiguredAsync({
       exp,
@@ -60,7 +60,7 @@ export default class UpdateConfigure extends EasCommand {
       vcsClient,
       env: undefined,
       forceNativeConfigSync: true,
-      manifestHostOverride: easJsonUpdateConfig.manifestHostOverride ?? null,
+      manifestHostOverride: easJsonCliConfig.updateManifestHostOverride ?? null,
     });
 
     await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);

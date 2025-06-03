@@ -69,9 +69,9 @@ export default class BuildConfigure extends EasCommand {
     });
     if (didCreateEasJson) {
       const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-      const easJsonUpdateConfig: EasJson['update'] =
-        (await EasJsonUtils.getUpdateConfigAsync(easJsonAccessor)) ?? {};
-      if (isUsingEASUpdate(exp, projectId, easJsonUpdateConfig.manifestHostOverride ?? null)) {
+      const easJsonCliConfig: EasJson['cli'] =
+        (await EasJsonUtils.getCliConfigAsync(easJsonAccessor)) ?? {};
+      if (isUsingEASUpdate(exp, projectId, easJsonCliConfig.updateManifestHostOverride ?? null)) {
         await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
       }
     }

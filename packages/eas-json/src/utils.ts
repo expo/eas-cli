@@ -102,20 +102,6 @@ export class EasJsonUtils {
     }
   }
 
-  public static async getUpdateConfigAsync(
-    accessor: EasJsonAccessor
-  ): Promise<EasJson['update'] | null> {
-    try {
-      const easJson = await accessor.readAsync();
-      return easJson.update ?? null;
-    } catch (err: any) {
-      if (err instanceof MissingEasJsonError) {
-        return null;
-      }
-      throw err;
-    }
-  }
-
   public static async getSubmitProfileNamesAsync(accessor: EasJsonAccessor): Promise<string[]> {
     const easJson = await accessor.readAsync();
     return Object.keys(easJson?.submit ?? {});
