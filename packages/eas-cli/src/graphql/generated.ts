@@ -1709,7 +1709,7 @@ export type AppWorkflowRunGitBranchesPaginatedArgs = {
 export type AppWorkflowRunsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
-  filter?: InputMaybe<WorkflowRunFilterInput>;
+  filter?: InputMaybe<AppWorkflowRunFilterInput>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -2211,6 +2211,11 @@ export type AppWorkflowRunEdge = {
   __typename?: 'AppWorkflowRunEdge';
   cursor: Scalars['String']['output'];
   node: WorkflowRun;
+};
+
+export type AppWorkflowRunFilterInput = {
+  requestedGitRef?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<WorkflowRunStatus>;
 };
 
 export type AppWorkflowRunGitBranchEdge = {
@@ -8656,6 +8661,7 @@ export type WorkflowRevisionsPaginatedArgs = {
 export type WorkflowRunsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<WorkflowRunFilterInput>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -8755,14 +8761,21 @@ export enum WorkflowProjectSourceType {
   Gcs = 'GCS'
 }
 
-/** Look up Workflow by ID */
 export type WorkflowQuery = {
   __typename?: 'WorkflowQuery';
+  /** Look up Workflow by app ID and file name */
+  byAppIdAndFileName: Workflow;
+  /** Look up Workflow by ID */
   byId: Workflow;
 };
 
 
-/** Look up Workflow by ID */
+export type WorkflowQueryByAppIdAndFileNameArgs = {
+  appId: Scalars['ID']['input'];
+  fileName: Scalars['String']['input'];
+};
+
+
 export type WorkflowQueryByIdArgs = {
   workflowId: Scalars['ID']['input'];
 };
@@ -8856,6 +8869,7 @@ export type WorkflowRunError = {
 
 export type WorkflowRunFilterInput = {
   requestedGitRef?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<WorkflowRunStatus>;
 };
 
 export type WorkflowRunGitBranchFilterInput = {
@@ -8907,7 +8921,6 @@ export enum WorkflowRunStatus {
   Failure = 'FAILURE',
   InProgress = 'IN_PROGRESS',
   New = 'NEW',
-  PendingCancel = 'PENDING_CANCEL',
   Success = 'SUCCESS'
 }
 
@@ -9748,6 +9761,15 @@ export type AppByIdWorkflowRunsQueryVariables = Exact<{
 
 export type AppByIdWorkflowRunsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, runs: { __typename?: 'AppWorkflowRunsConnection', edges: Array<{ __typename?: 'AppWorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } } } };
 
+export type AppByIdWorkflowRunsFilteredByStatusQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  status: WorkflowRunStatus;
+  limit: Scalars['Int']['input'];
+}>;
+
+
+export type AppByIdWorkflowRunsFilteredByStatusQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, runs: { __typename?: 'AppWorkflowRunsConnection', edges: Array<{ __typename?: 'AppWorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } } } };
+
 export type AppStoreConnectApiKeyByIdQueryVariables = Exact<{
   ascApiKeyId: Scalars['ID']['input'];
 }>;
@@ -10060,14 +10082,6 @@ export type WebhookByIdQueryVariables = Exact<{
 
 export type WebhookByIdQuery = { __typename?: 'RootQuery', webhook: { __typename?: 'WebhookQuery', byId: { __typename?: 'Webhook', id: string, event: WebhookType, url: string, createdAt: any, updatedAt: any } } };
 
-export type WorkflowRunsForWorkflowIdQueryVariables = Exact<{
-  workflowId: Scalars['ID']['input'];
-  limit: Scalars['Int']['input'];
-}>;
-
-
-export type WorkflowRunsForWorkflowIdQuery = { __typename?: 'RootQuery', workflows: { __typename?: 'WorkflowQuery', byId: { __typename?: 'Workflow', id: string, runs: { __typename?: 'WorkflowRunsConnection', edges: Array<{ __typename?: 'WorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } } } };
-
 export type WorkflowRunByIdQueryVariables = Exact<{
   workflowRunId: Scalars['ID']['input'];
 }>;
@@ -10082,13 +10096,28 @@ export type WorkflowRunByIdWithJobsQueryVariables = Exact<{
 
 export type WorkflowRunByIdWithJobsQuery = { __typename?: 'RootQuery', workflowRuns: { __typename?: 'WorkflowRunQuery', byId: { __typename?: 'WorkflowRun', id: string, name: string, status: WorkflowRunStatus, createdAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string }, jobs: Array<{ __typename?: 'WorkflowJob', id: string, key: string, name: string, type: WorkflowJobType, status: WorkflowJobStatus, outputs: any, createdAt: any }> } } };
 
+export type WorkflowRunsForAppIdAndFileNameQueryVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  fileName: Scalars['String']['input'];
+  limit: Scalars['Int']['input'];
+}>;
+
+
+export type WorkflowRunsForAppIdAndFileNameQuery = { __typename?: 'RootQuery', workflows: { __typename?: 'WorkflowQuery', byAppIdAndFileName: { __typename?: 'Workflow', id: string, runs: { __typename?: 'WorkflowRunsConnection', edges: Array<{ __typename?: 'WorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } } } };
+
+export type WorkflowRunsForAppIdFileNameAndStatusQueryVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  fileName: Scalars['String']['input'];
+  status: WorkflowRunStatus;
+  limit: Scalars['Int']['input'];
+}>;
+
+
+export type WorkflowRunsForAppIdFileNameAndStatusQuery = { __typename?: 'RootQuery', workflows: { __typename?: 'WorkflowQuery', byAppIdAndFileName: { __typename?: 'Workflow', id: string, runs: { __typename?: 'WorkflowRunsConnection', edges: Array<{ __typename?: 'WorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } } } };
+
 export type AccountFragment = { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> };
 
 export type AppFragment = { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', githubRepoOwnerName: string, githubRepoName: string } } | null };
-
-export type AppWorkflowsFragment = { __typename?: 'App', id: string, workflows: Array<{ __typename?: 'Workflow', id: string, name?: string | null, fileName: string, createdAt: any, updatedAt: any }> };
-
-export type AppWorkflowRunsFragment = { __typename?: 'App', id: string, runs: { __typename?: 'AppWorkflowRunsConnection', edges: Array<{ __typename?: 'AppWorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } };
 
 export type BackgroundJobReceiptDataFragment = { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any };
 
@@ -10122,7 +10151,9 @@ export type UpdateChannelBasicInfoFragment = { __typename?: 'UpdateChannel', id:
 
 export type WebhookFragment = { __typename?: 'Webhook', id: string, event: WebhookType, url: string, createdAt: any, updatedAt: any };
 
-export type WorkflowRunsFragment = { __typename?: 'Workflow', id: string, runs: { __typename?: 'WorkflowRunsConnection', edges: Array<{ __typename?: 'WorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } };
+export type WorkflowFragment = { __typename?: 'Workflow', id: string, name?: string | null, fileName: string, createdAt: any, updatedAt: any };
+
+export type WorkflowRunFragment = { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } };
 
 export type AndroidAppBuildCredentialsFragment = { __typename?: 'AndroidAppBuildCredentials', id: string, isDefault: boolean, isLegacy: boolean, name: string, androidKeystore?: { __typename?: 'AndroidKeystore', id: string, type: AndroidKeystoreType, keystore: string, keystorePassword: string, keyAlias: string, keyPassword?: string | null, md5CertificateFingerprint?: string | null, sha1CertificateFingerprint?: string | null, sha256CertificateFingerprint?: string | null, createdAt: any, updatedAt: any } | null };
 

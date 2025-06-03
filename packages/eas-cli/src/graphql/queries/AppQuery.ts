@@ -8,17 +8,17 @@ import { withErrorHandlingAsync } from '../client';
 import {
   AppByFullNameQuery,
   AppByIdQuery,
+  AppByIdWorkflowRunsFilteredByStatusQuery,
   AppByIdWorkflowRunsQuery,
   AppByIdWorkflowsQuery,
   AppFragment,
-  Workflow,
-  WorkflowRun,
+  WorkflowFragment,
+  WorkflowRunFragment,
+  WorkflowRunStatus,
 } from '../generated';
-import {
-  AppFragmentNode,
-  AppWorkflowRunsFragmentNode,
-  AppWorkflowsFragmentNode,
-} from '../types/App';
+import { AppFragmentNode } from '../types/App';
+import { WorkflowFragmentNode } from '../types/Workflow';
+import { WorkflowRunFragmentNode } from '../types/WorkflowRun';
 
 export const AppQuery = {
   async byIdAsync(graphqlClient: ExpoGraphqlClient, projectId: string): Promise<AppFragment> {
@@ -76,7 +76,7 @@ export const AppQuery = {
   async byIdWorkflowsAsync(
     graphqlClient: ExpoGraphqlClient,
     appId: string
-  ): Promise<Partial<Workflow>[]> {
+  ): Promise<WorkflowFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AppByIdWorkflowsQuery>(
@@ -85,11 +85,14 @@ export const AppQuery = {
               app {
                 byId(appId: $appId) {
                   id
-                  ...AppWorkflowsFragment
+                  workflows {
+                    id
+                    ...WorkflowFragment
+                  }
                 }
               }
             }
-            ${print(AppWorkflowsFragmentNode)}
+            ${print(WorkflowFragmentNode)}
           `,
           { appId },
           { additionalTypenames: ['App'] }
@@ -97,13 +100,13 @@ export const AppQuery = {
         .toPromise()
     );
     assert(data.app, 'GraphQL: `app` not defined in server response');
-    return (data.app.byId.workflows as Partial<Workflow>[]) ?? [];
+    return data.app.byId.workflows;
   },
   async byIdWorkflowRunsAsync(
     graphqlClient: ExpoGraphqlClient,
     appId: string,
     limit?: number
-  ): Promise<Partial<WorkflowRun>[]> {
+  ): Promise<WorkflowRunFragment[]> {
     validateLimit(limit);
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -113,11 +116,18 @@ export const AppQuery = {
               app {
                 byId(appId: $appId) {
                   id
-                  ...AppWorkflowRunsFragment
+                  runs: workflowRunsPaginated(last: $limit) {
+                    edges {
+                      node {
+                        id
+                        ...WorkflowRunFragment
+                      }
+                    }
+                  }
                 }
               }
             }
-            ${print(AppWorkflowRunsFragmentNode)}
+            ${print(WorkflowRunFragmentNode)}
           `,
           { appId, limit },
           { additionalTypenames: ['App'] }
@@ -125,7 +135,47 @@ export const AppQuery = {
         .toPromise()
     );
     assert(data.app, 'GraphQL: `app` not defined in server response');
-    return data.app.byId.runs.edges.map(edge => edge.node as Partial<WorkflowRun>) ?? [];
+    return data.app.byId.runs.edges.map(edge => edge.node);
+  },
+  async byIdWorkflowRunsFilteredByStatusAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appId: string,
+    status: WorkflowRunStatus,
+    limit?: number
+  ): Promise<WorkflowRunFragment[]> {
+    validateLimit(limit);
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppByIdWorkflowRunsFilteredByStatusQuery>(
+          gql`
+            query AppByIdWorkflowRunsFilteredByStatusQuery(
+              $appId: String!
+              $status: WorkflowRunStatus!
+              $limit: Int!
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  runs: workflowRunsPaginated(last: $limit, filter: { status: $status }) {
+                    edges {
+                      node {
+                        id
+                        ...WorkflowRunFragment
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            ${print(WorkflowRunFragmentNode)}
+          `,
+          { appId, status, limit },
+          { additionalTypenames: ['App'] }
+        )
+        .toPromise()
+    );
+    assert(data.app, 'GraphQL: `app` not defined in server response');
+    return data.app.byId.runs.edges.map(edge => edge.node);
   },
 };
 

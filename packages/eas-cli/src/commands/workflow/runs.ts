@@ -3,9 +3,9 @@ import { Flags } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
-import { WorkflowRun, WorkflowRunStatus } from '../../graphql/generated';
+import { WorkflowRunFragment, WorkflowRunStatus } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
-import { WorkflowQuery } from '../../graphql/queries/WorkflowQuery';
+import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -23,7 +23,7 @@ export type WorkflowRunResult = {
 };
 
 function processWorkflowRuns(
-  runs: Partial<WorkflowRun>[],
+  runs: WorkflowRunFragment[],
   params: {
     workflowFileName?: string | undefined;
     status?: string | undefined;
@@ -93,23 +93,35 @@ export default class WorkflowRunList extends EasCommand {
     const status = flags.status;
     const limit = flags.limit ?? 10;
 
-    let runs: Partial<WorkflowRun>[] = [];
+    let runs: WorkflowRunFragment[] = [];
     if (workflowFileName) {
-      const workflows = await AppQuery.byIdWorkflowsAsync(graphqlClient, projectId);
-      const workflowsFiltered = workflows.filter(
-        workflow => workflow.fileName === workflowFileName
-      );
-      if (workflowsFiltered.length > 1) {
-        throw new Error(`Found multiple workflows with the same file name: ${workflowFileName}`);
-      }
-      if (!workflowsFiltered.length || !workflowsFiltered[0].id) {
-        Log.warn(`No workflows found with file name: ${workflowFileName}`);
+      if (status) {
+        runs = await WorkflowRunQuery.byAppIdFileNameAndStatusAsync(
+          graphqlClient,
+          projectId,
+          workflowFileName,
+          status,
+          limit
+        );
       } else {
-        const workflowId = workflowsFiltered[0].id;
-        runs = await WorkflowQuery.byIdRunsAsync(graphqlClient, workflowId ?? '', limit);
+        runs = await WorkflowRunQuery.byAppIdAndFileNameAsync(
+          graphqlClient,
+          projectId,
+          workflowFileName,
+          limit
+        );
       }
     } else {
-      runs = await AppQuery.byIdWorkflowRunsAsync(graphqlClient, projectId, limit);
+      if (status) {
+        runs = await AppQuery.byIdWorkflowRunsFilteredByStatusAsync(
+          graphqlClient,
+          projectId,
+          status,
+          limit
+        );
+      } else {
+        runs = await AppQuery.byIdWorkflowRunsAsync(graphqlClient, projectId, limit);
+      }
     }
 
     const result = processWorkflowRuns(runs, { workflowFileName, status });

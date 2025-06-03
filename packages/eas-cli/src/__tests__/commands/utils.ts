@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { ContextInput, ContextOutput } from '../../commandUtils/EasCommand';
 import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
-import { AppFragment, Role, WorkflowRun, WorkflowRunStatus } from '../../graphql/generated';
+import { AppFragment, Role, WorkflowRunFragment, WorkflowRunStatus } from '../../graphql/generated';
 
 export function getMockEasJson(): EasJson {
   return {
@@ -171,7 +171,7 @@ export function withLocalVersionSource(easJson: EasJson): EasJson {
   };
 }
 
-export function getMockEmptyWorkflowRunsFragment(): Partial<WorkflowRun>[] {
+export function getMockEmptyWorkflowRunsFragment(): WorkflowRunFragment[] {
   return getMockWorkflowRunsFragment();
 }
 
@@ -183,7 +183,7 @@ export function getMockWorkflowRunsFragment(
         failures?: number;
         pending?: number;
       }
-): any[] {
+): WorkflowRunFragment[] {
   const { successes = 0, failures = 0, pending = 0 } = params ?? {};
   const runs: any[] = [];
   for (let i = 0; i < successes; i++) {

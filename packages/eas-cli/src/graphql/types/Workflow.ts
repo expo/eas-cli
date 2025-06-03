@@ -1,24 +1,11 @@
 import gql from 'graphql-tag';
 
-export const WorkflowRunsFragmentNode = gql`
-  fragment WorkflowRunsFragment on Workflow {
+export const WorkflowFragmentNode = gql`
+  fragment WorkflowFragment on Workflow {
     id
-    runs: runsPaginated(last: $limit) {
-      edges {
-        node {
-          id
-          status
-          gitCommitMessage
-          gitCommitHash
-          createdAt
-          updatedAt
-          workflow {
-            id
-            name
-            fileName
-          }
-        }
-      }
-    }
+    name
+    fileName
+    createdAt
+    updatedAt
   }
 `;
