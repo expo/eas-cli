@@ -9753,17 +9753,9 @@ export type AppByIdWorkflowsQueryVariables = Exact<{
 
 export type AppByIdWorkflowsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, workflows: Array<{ __typename?: 'Workflow', id: string, name?: string | null, fileName: string, createdAt: any, updatedAt: any }> } } };
 
-export type AppByIdWorkflowRunsQueryVariables = Exact<{
-  appId: Scalars['String']['input'];
-  limit: Scalars['Int']['input'];
-}>;
-
-
-export type AppByIdWorkflowRunsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, runs: { __typename?: 'AppWorkflowRunsConnection', edges: Array<{ __typename?: 'AppWorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } } } };
-
 export type AppByIdWorkflowRunsFilteredByStatusQueryVariables = Exact<{
   appId: Scalars['String']['input'];
-  status: WorkflowRunStatus;
+  status?: InputMaybe<WorkflowRunStatus>;
   limit: Scalars['Int']['input'];
 }>;
 
@@ -10096,19 +10088,10 @@ export type WorkflowRunByIdWithJobsQueryVariables = Exact<{
 
 export type WorkflowRunByIdWithJobsQuery = { __typename?: 'RootQuery', workflowRuns: { __typename?: 'WorkflowRunQuery', byId: { __typename?: 'WorkflowRun', id: string, name: string, status: WorkflowRunStatus, createdAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string }, jobs: Array<{ __typename?: 'WorkflowJob', id: string, key: string, name: string, type: WorkflowJobType, status: WorkflowJobStatus, outputs: any, createdAt: any }> } } };
 
-export type WorkflowRunsForAppIdAndFileNameQueryVariables = Exact<{
-  appId: Scalars['ID']['input'];
-  fileName: Scalars['String']['input'];
-  limit: Scalars['Int']['input'];
-}>;
-
-
-export type WorkflowRunsForAppIdAndFileNameQuery = { __typename?: 'RootQuery', workflows: { __typename?: 'WorkflowQuery', byAppIdAndFileName: { __typename?: 'Workflow', id: string, runs: { __typename?: 'WorkflowRunsConnection', edges: Array<{ __typename?: 'WorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string } } }> } } } };
-
 export type WorkflowRunsForAppIdFileNameAndStatusQueryVariables = Exact<{
   appId: Scalars['ID']['input'];
   fileName: Scalars['String']['input'];
-  status: WorkflowRunStatus;
+  status?: InputMaybe<WorkflowRunStatus>;
   limit: Scalars['Int']['input'];
 }>;
 

@@ -11,7 +11,6 @@ import {
   WorkflowRunByIdWithJobsQueryVariables,
   WorkflowRunFragment,
   WorkflowRunStatus,
-  WorkflowRunsForAppIdAndFileNameQuery,
   WorkflowRunsForAppIdFileNameAndStatusQuery,
 } from '../generated';
 import { WorkflowRunFragmentNode } from '../types/WorkflowRun';
@@ -90,46 +89,6 @@ export const WorkflowRunQuery = {
         .toPromise()
     );
     return data.workflowRuns.byId;
-  },
-  async byAppIdAndFileNameAsync(
-    graphqlClient: ExpoGraphqlClient,
-    appId: string,
-    fileName: string,
-    limit?: number
-  ): Promise<WorkflowRunFragment[]> {
-    validateLimit(limit);
-    const data = await withErrorHandlingAsync(
-      graphqlClient
-        .query<WorkflowRunsForAppIdAndFileNameQuery>(
-          gql`
-            query WorkflowRunsForAppIdAndFileNameQuery(
-              $appId: ID!
-              $fileName: String!
-              $limit: Int!
-            ) {
-              workflows {
-                byAppIdAndFileName(appId: $appId, fileName: $fileName) {
-                  id
-                  runs: runsPaginated(last: $limit) {
-                    edges {
-                      node {
-                        id
-                        ...WorkflowRunFragment
-                      }
-                    }
-                  }
-                }
-              }
-            }
-            ${print(WorkflowRunFragmentNode)}
-          `,
-          { appId, fileName, limit },
-          { additionalTypenames: ['Workflow'] }
-        )
-        .toPromise()
-    );
-    assert(data.workflows, 'GraphQL: `workflows` not defined in server response');
-    return data.workflows.byAppIdAndFileName.runs.edges.map(edge => edge.node);
   },
   async byAppIdFileNameAndStatusAsync(
     graphqlClient: ExpoGraphqlClient,

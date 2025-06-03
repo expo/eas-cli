@@ -71,6 +71,9 @@ export default class WorkflowRunList extends EasCommand {
     } = await this.getContextAsync(WorkflowRunList, {
       nonInteractive: true,
     });
+    if (flags.json) {
+      enableJsonOutput();
+    }
 
     const workflowFileName = flags.workflow;
     const status = flags.status;
@@ -78,39 +81,25 @@ export default class WorkflowRunList extends EasCommand {
 
     let runs: WorkflowRunFragment[];
     if (workflowFileName) {
-      if (status) {
-        runs = await WorkflowRunQuery.byAppIdFileNameAndStatusAsync(
-          graphqlClient,
-          projectId,
-          workflowFileName,
-          status,
-          limit
-        );
-      } else {
-        runs = await WorkflowRunQuery.byAppIdAndFileNameAsync(
-          graphqlClient,
-          projectId,
-          workflowFileName,
-          limit
-        );
-      }
+      runs = await WorkflowRunQuery.byAppIdFileNameAndStatusAsync(
+        graphqlClient,
+        projectId,
+        workflowFileName,
+        status,
+        limit
+      );
     } else {
-      if (status) {
-        runs = await AppQuery.byIdWorkflowRunsFilteredByStatusAsync(
-          graphqlClient,
-          projectId,
-          status,
-          limit
-        );
-      } else {
-        runs = await AppQuery.byIdWorkflowRunsAsync(graphqlClient, projectId, limit);
-      }
+      runs = await AppQuery.byIdWorkflowRunsFilteredByStatusAsync(
+        graphqlClient,
+        projectId,
+        status,
+        limit
+      );
     }
 
-    const result = processWorkflowRuns(runs, { workflowFileName, status });
+    const result = processWorkflowRuns(runs);
 
     if (flags.json) {
-      enableJsonOutput();
       printJsonOnlyOutput(result);
       return;
     }

@@ -5,12 +5,12 @@ import Log from '../../log';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-export type WorkflowResult = {
-  id: string | null;
+type WorkflowResult = {
+  id: string;
   name?: string | null | undefined;
-  fileName: string | null;
-  createdAt: string | null;
-  updatedAt: string | null;
+  fileName: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export default class WorkflowList extends EasCommand {
@@ -33,19 +33,21 @@ export default class WorkflowList extends EasCommand {
     } = await this.getContextAsync(WorkflowList, {
       nonInteractive: true,
     });
+    if (flags.json) {
+      enableJsonOutput();
+    }
 
     const workflows = await AppQuery.byIdWorkflowsAsync(graphqlClient, projectId);
 
     const result: WorkflowResult[] = workflows.map(workflow => ({
-      id: workflow.id ?? null,
-      name: workflow.name ?? null,
-      fileName: workflow.fileName ?? null,
-      createdAt: workflow.createdAt ?? null,
-      updatedAt: workflow.updatedAt ?? null,
+      id: workflow.id,
+      name: workflow.name,
+      fileName: workflow.fileName,
+      createdAt: workflow.createdAt,
+      updatedAt: workflow.updatedAt,
     }));
 
     if (flags.json) {
-      enableJsonOutput();
       printJsonOnlyOutput(result);
       return;
     }
@@ -54,11 +56,11 @@ export default class WorkflowList extends EasCommand {
     result.forEach(workflow => {
       Log.log(
         formatFields([
-          { label: 'ID', value: workflow.id ?? '-' },
+          { label: 'ID', value: workflow.id },
           { label: 'Name', value: workflow.name ?? '-' },
-          { label: 'File name', value: workflow.fileName ?? '-' },
-          { label: 'Created At', value: workflow.createdAt ?? '-' },
-          { label: 'Updated At', value: workflow.updatedAt ?? '-' },
+          { label: 'File name', value: workflow.fileName },
+          { label: 'Created At', value: workflow.createdAt },
+          { label: 'Updated At', value: workflow.updatedAt },
         ])
       );
       Log.addNewLineIfNone();

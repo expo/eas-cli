@@ -36,13 +36,14 @@ describe(WorkflowRunList, () => {
       projectId: mockProjectId,
     });
     jest
-      .mocked(AppQuery.byIdWorkflowRunsAsync)
+      .mocked(AppQuery.byIdWorkflowRunsFilteredByStatusAsync)
       .mockResolvedValue(getMockEmptyWorkflowRunsFragment());
     const cmd = mockTestCommand(WorkflowRunList, [], ctx);
     await cmd.run();
-    expect(AppQuery.byIdWorkflowRunsAsync).toHaveBeenCalledWith(
+    expect(AppQuery.byIdWorkflowRunsFilteredByStatusAsync).toHaveBeenCalledWith(
       ctx.loggedIn.graphqlClient,
       mockProjectId,
+      undefined,
       10
     );
     expect(enableJsonOutput).not.toHaveBeenCalled();
@@ -53,13 +54,14 @@ describe(WorkflowRunList, () => {
       projectId: mockProjectId,
     });
     jest
-      .mocked(AppQuery.byIdWorkflowRunsAsync)
+      .mocked(AppQuery.byIdWorkflowRunsFilteredByStatusAsync)
       .mockResolvedValue(getMockEmptyWorkflowRunsFragment());
     const cmd = mockTestCommand(WorkflowRunList, ['--limit', '100'], ctx);
     await cmd.run();
-    expect(AppQuery.byIdWorkflowRunsAsync).toHaveBeenCalledWith(
+    expect(AppQuery.byIdWorkflowRunsFilteredByStatusAsync).toHaveBeenCalledWith(
       ctx.loggedIn.graphqlClient,
       mockProjectId,
+      undefined,
       100
     );
     expect(enableJsonOutput).not.toHaveBeenCalled();
@@ -69,7 +71,7 @@ describe(WorkflowRunList, () => {
     const ctx = mockCommandContext(WorkflowRunList, {
       projectId: mockProjectId,
     });
-    jest.mocked(WorkflowRunQuery.byAppIdAndFileNameAsync).mockResolvedValue([
+    jest.mocked(WorkflowRunQuery.byAppIdFileNameAndStatusAsync).mockResolvedValue([
       {
         id: 'build',
         status: WorkflowRunStatus.Success,
@@ -86,10 +88,11 @@ describe(WorkflowRunList, () => {
     ]);
     const cmd = mockTestCommand(WorkflowRunList, ['--workflow', 'build.yml'], ctx);
     await cmd.run();
-    expect(WorkflowRunQuery.byAppIdAndFileNameAsync).toHaveBeenCalledWith(
+    expect(WorkflowRunQuery.byAppIdFileNameAndStatusAsync).toHaveBeenCalledWith(
       ctx.loggedIn.graphqlClient,
       mockProjectId,
       'build.yml',
+      undefined,
       10
     );
     expect(enableJsonOutput).not.toHaveBeenCalled();
@@ -101,7 +104,7 @@ describe(WorkflowRunList, () => {
     });
     jest
       .mocked(AppQuery.byIdWorkflowRunsFilteredByStatusAsync)
-      .mockResolvedValue(getMockWorkflowRunsFragment({ successes: 2, failures: 1 }));
+      .mockResolvedValue(getMockWorkflowRunsFragment({ failures: 1 }));
     const cmd = mockTestCommand(WorkflowRunList, ['--status', 'FAILURE', '--json'], ctx);
     await cmd.run();
     expect(AppQuery.byIdWorkflowRunsFilteredByStatusAsync).toHaveBeenCalledWith(

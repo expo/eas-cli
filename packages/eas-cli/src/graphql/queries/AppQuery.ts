@@ -9,7 +9,6 @@ import {
   AppByFullNameQuery,
   AppByIdQuery,
   AppByIdWorkflowRunsFilteredByStatusQuery,
-  AppByIdWorkflowRunsQuery,
   AppByIdWorkflowsQuery,
   AppFragment,
   WorkflowFragment,
@@ -101,41 +100,6 @@ export const AppQuery = {
     );
     assert(data.app, 'GraphQL: `app` not defined in server response');
     return data.app.byId.workflows;
-  },
-  async byIdWorkflowRunsAsync(
-    graphqlClient: ExpoGraphqlClient,
-    appId: string,
-    limit?: number
-  ): Promise<WorkflowRunFragment[]> {
-    validateLimit(limit);
-    const data = await withErrorHandlingAsync(
-      graphqlClient
-        .query<AppByIdWorkflowRunsQuery>(
-          gql`
-            query AppByIdWorkflowRunsQuery($appId: String!, $limit: Int!) {
-              app {
-                byId(appId: $appId) {
-                  id
-                  runs: workflowRunsPaginated(last: $limit) {
-                    edges {
-                      node {
-                        id
-                        ...WorkflowRunFragment
-                      }
-                    }
-                  }
-                }
-              }
-            }
-            ${print(WorkflowRunFragmentNode)}
-          `,
-          { appId, limit },
-          { additionalTypenames: ['App'] }
-        )
-        .toPromise()
-    );
-    assert(data.app, 'GraphQL: `app` not defined in server response');
-    return data.app.byId.runs.edges.map(edge => edge.node);
   },
   async byIdWorkflowRunsFilteredByStatusAsync(
     graphqlClient: ExpoGraphqlClient,
