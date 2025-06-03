@@ -20,7 +20,14 @@ interface Config {
 interface AppBuildGradle {
   android?: {
     defaultConfig?: Config;
-    flavorDimensions?: string; // e.g. '"dimension1", "dimension2"'
+    /**
+     * If defined as `flavorDimensions = ['dimension1', 'dimension2']`,
+     * this will be an array of strings (`['dimension1', 'dimension2']`).
+     *
+     * If defined as `flavorDimensions "dimension1", "dimension2"`,
+     * this will be a string (`"dimension1", "dimension2"`).
+     */
+    flavorDimensions?: string | string[];
     productFlavors?: Record<string, Config>;
   };
 }
@@ -65,7 +72,11 @@ export function resolveConfigValue(
  * the flavor name
  **/
 export function parseGradleCommand(cmd: string, buildGradle: AppBuildGradle): GradleCommand {
-  const hasFlavorDimensions = (buildGradle.android?.flavorDimensions ?? '').split(',').length > 1;
+  const flavorDimensions =
+    typeof buildGradle.android?.flavorDimensions === 'string'
+      ? buildGradle.android.flavorDimensions.split(',')
+      : buildGradle.android?.flavorDimensions;
+  const hasFlavorDimensions = flavorDimensions && flavorDimensions.length > 1;
   if (hasFlavorDimensions) {
     throw new Error('flavorDimensions in build.gradle are not supported yet');
   }

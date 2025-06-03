@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Add support for array `flavorDimensions` (`flavorDimensions = ['version']`). ([#3043](https://github.com/expo/eas-cli/pull/3043) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 ## [16.7.1](https://github.com/expo/eas-cli/releases/tag/v16.7.1) - 2025-06-03
