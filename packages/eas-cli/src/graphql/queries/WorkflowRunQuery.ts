@@ -111,7 +111,7 @@ export const WorkflowRunQuery = {
               workflows {
                 byAppIdAndFileName(appId: $appId, fileName: $fileName) {
                   id
-                  runs: runsPaginated(last: $limit, filter: { status: $status }) {
+                  runs: runsPaginated(first: $limit, filter: { status: $status }) {
                     edges {
                       node {
                         id

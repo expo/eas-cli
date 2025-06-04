@@ -120,7 +120,7 @@ export const AppQuery = {
               app {
                 byId(appId: $appId) {
                   id
-                  runs: workflowRunsPaginated(last: $limit, filter: { status: $status }) {
+                  runs: workflowRunsPaginated(first: $limit, filter: { status: $status }) {
                     edges {
                       node {
                         id

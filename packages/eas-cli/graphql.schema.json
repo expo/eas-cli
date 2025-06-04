@@ -18518,6 +18518,12 @@
         "interfaces": null,
         "enumValues": [
           {
+            "name": "GENERIC",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "GOOGLE_WS",
             "description": null,
             "isDeprecated": false,
@@ -30386,6 +30392,22 @@
             "deprecationReason": null
           },
           {
+            "name": "buildCount",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "builds",
             "description": null,
             "args": [
@@ -30530,6 +30552,22 @@
               "kind": "OBJECT",
               "name": "FingerprintSource",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "updateCount",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -62310,6 +62348,12 @@
           },
           {
             "name": "DEPLOY",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "DOC",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null

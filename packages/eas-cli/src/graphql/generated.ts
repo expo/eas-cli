@@ -2756,6 +2756,7 @@ export enum AuthProtocolType {
 }
 
 export enum AuthProviderIdentifier {
+  Generic = 'GENERIC',
   GoogleWs = 'GOOGLE_WS',
   MsEntraId = 'MS_ENTRA_ID',
   Okta = 'OKTA',
@@ -4427,12 +4428,14 @@ export enum Feature {
 export type Fingerprint = {
   __typename?: 'Fingerprint';
   app: App;
+  buildCount: Scalars['Int']['output'];
   builds: AppBuildsConnection;
   createdAt: Scalars['DateTime']['output'];
   debugInfoUrl?: Maybe<Scalars['String']['output']>;
   hash: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   source?: Maybe<FingerprintSource>;
+  updateCount: Scalars['Int']['output'];
   updatedAt: Scalars['DateTime']['output'];
   updates: AppUpdatesConnection;
 };
@@ -8740,6 +8743,7 @@ export enum WorkflowJobType {
   Build = 'BUILD',
   Custom = 'CUSTOM',
   Deploy = 'DEPLOY',
+  Doc = 'DOC',
   Fingerprint = 'FINGERPRINT',
   GetBuild = 'GET_BUILD',
   MaestroCloud = 'MAESTRO_CLOUD',
