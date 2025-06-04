@@ -164,7 +164,6 @@ export default class BuildDev extends EasCommand {
         json: false,
         autoSubmit: false,
         localBuildOptions: {},
-        repack: false,
         profile: flags.profile ?? DEFAULT_EAS_BUILD_RUN_PROFILE_NAME,
       },
       actor,

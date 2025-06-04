@@ -4647,8 +4647,6 @@ export type GitHubBuildInput = {
   environment?: InputMaybe<EnvironmentVariableEnvironment>;
   gitRef: Scalars['String']['input'];
   platform: AppPlatform;
-  /** Repack the golden dev client build instead of running full build process. Used for onboarding. Do not use outside of onboarding flow, as for now it's only created with this specific use case in mind. */
-  repack?: InputMaybe<Scalars['Boolean']['input']>;
   submitProfile?: InputMaybe<Scalars['String']['input']>;
 };
 

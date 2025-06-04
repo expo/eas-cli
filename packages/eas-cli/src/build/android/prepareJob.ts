@@ -57,9 +57,7 @@ export async function prepareJobAsync(
     : undefined;
 
   let buildMode;
-  if (ctx.repack) {
-    buildMode = BuildMode.REPACK;
-  } else if (buildProfile.config) {
+  if (buildProfile.config) {
     buildMode = BuildMode.CUSTOM;
   } else {
     buildMode = BuildMode.BUILD;
@@ -112,11 +110,6 @@ export async function prepareJobAsync(
     ...(maybeCustomBuildConfigPath && {
       customBuildConfig: {
         path: maybeCustomBuildConfigPath,
-      },
-    }),
-    ...(ctx.repack && {
-      customBuildConfig: {
-        path: '__eas/repack.yml',
       },
     }),
     loggerLevel: ctx.loggerLevel,

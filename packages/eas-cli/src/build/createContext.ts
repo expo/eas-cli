@@ -42,7 +42,6 @@ export async function createBuildContextAsync<T extends Platform>({
   customBuildConfigMetadata,
   buildLoggerLevel,
   freezeCredentials,
-  repack,
   isVerboseLoggingEnabled,
   env,
 }: {
@@ -65,7 +64,6 @@ export async function createBuildContextAsync<T extends Platform>({
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
-  repack: boolean;
   isVerboseLoggingEnabled: boolean;
   env: Record<string, string>;
 }): Promise<BuildContext<T>> {
@@ -152,7 +150,6 @@ export async function createBuildContextAsync<T extends Platform>({
     developmentClient,
     requiredPackageManager,
     loggerLevel: buildLoggerLevel,
-    repack,
     isVerboseLoggingEnabled,
     env,
   };

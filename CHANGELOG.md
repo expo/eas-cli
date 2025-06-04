@@ -31,6 +31,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Change location of EAS Update host override config. ([#3042](https://github.com/expo/eas-cli/pull/3042) by [@wschurman](https://github.com/wschurman))
+- Removed repack support. ([#3044](https://github.com/expo/eas-cli/pull/3044) by [@kudo](https://github.com/kudo))
 
 ## [16.7.2](https://github.com/expo/eas-cli/releases/tag/v16.7.2) - 2025-06-03
 
