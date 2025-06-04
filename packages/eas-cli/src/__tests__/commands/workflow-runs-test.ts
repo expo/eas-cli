@@ -6,10 +6,10 @@ import {
   mockTestCommand,
 } from './utils';
 import WorkflowRunList from '../../commands/workflow/runs';
-import { AppQuery } from '../../graphql/queries/AppQuery';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import { WorkflowRunStatus } from '../../graphql/generated';
+import { AppQuery } from '../../graphql/queries/AppQuery';
+import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 jest.mock('../../build/android/version');
 jest.mock('../../build/ios/version');
