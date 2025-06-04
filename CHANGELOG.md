@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Ensure workflow:runs returns most recent runs. ([#3045](https://github.com/expo/eas-cli/pull/3045) by [@douglowder](https://github.com/douglowder))
+
 ### 🧹 Chores
 
 ## [16.8.0](https://github.com/expo/eas-cli/releases/tag/v16.8.0) - 2025-06-04
