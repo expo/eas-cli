@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { ContextInput, ContextOutput } from '../../commandUtils/EasCommand';
 import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
-import { AppFragment, Role } from '../../graphql/generated';
+import { AppFragment, Role, WorkflowRunFragment, WorkflowRunStatus } from '../../graphql/generated';
 
 export function getMockEasJson(): EasJson {
   return {
@@ -81,7 +81,9 @@ export function mockCommandContext<
     if (contextKey === 'loggedIn') {
       result.loggedIn = {};
     }
-
+    if (contextKey === 'projectId') {
+      result.projectId = overrides.projectId ?? mockProjectId;
+    }
     if (contextKey === 'projectDir') {
       result.projectDir = projectDir;
     }
@@ -167,4 +169,67 @@ export function withLocalVersionSource(easJson: EasJson): EasJson {
       appVersionSource: AppVersionSource.LOCAL,
     },
   };
+}
+
+export function getMockEmptyWorkflowRunsFragment(): WorkflowRunFragment[] {
+  return getMockWorkflowRunsFragment();
+}
+
+export function getMockWorkflowRunsFragment(
+  params?:
+    | undefined
+    | {
+        successes?: number;
+        failures?: number;
+        pending?: number;
+      }
+): WorkflowRunFragment[] {
+  const { successes = 0, failures = 0, pending = 0 } = params ?? {};
+  const runs: any[] = [];
+  for (let i = 0; i < successes; i++) {
+    runs.push({
+      id: `success-${i}`,
+      status: WorkflowRunStatus.Success,
+      createdAt: '2022-01-01T00:00:00.000Z',
+      updatedAt: '2022-01-01T00:00:00.000Z',
+      gitCommitHash: '1234567890',
+      gitCommitMessage: 'commit message',
+      workflow: {
+        name: 'build',
+        id: 'build',
+        fileName: 'build.yml',
+      },
+    });
+  }
+  for (let i = 0; i < failures; i++) {
+    runs.push({
+      id: `failure-${i}`,
+      status: WorkflowRunStatus.Failure,
+      createdAt: '2022-01-01T00:00:00.000Z',
+      updatedAt: '2022-01-01T00:00:00.000Z',
+      gitCommitHash: '1234567890',
+      gitCommitMessage: 'commit message',
+      workflow: {
+        name: 'build',
+        id: 'build',
+        fileName: 'build.yml',
+      },
+    });
+  }
+  for (let i = 0; i < pending; i++) {
+    runs.push({
+      id: `pending-${i}`,
+      status: WorkflowRunStatus.InProgress,
+      createdAt: '2022-01-01T00:00:00.000Z',
+      updatedAt: '2022-01-01T00:00:00.000Z',
+      gitCommitHash: '1234567890',
+      gitCommitMessage: 'commit message',
+      workflow: {
+        name: 'build',
+        id: 'build',
+        fileName: 'build.yml',
+      },
+    });
+  }
+  return runs;
 }

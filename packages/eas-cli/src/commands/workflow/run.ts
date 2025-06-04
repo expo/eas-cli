@@ -252,7 +252,6 @@ async function waitForWorkflowRunToEndAsync(
           spinner.warn('Workflow run is waiting for action.');
           break;
 
-        case WorkflowRunStatus.PendingCancel:
         case WorkflowRunStatus.Canceled:
           spinner.warn('Workflow run has been canceled.');
           return workflowRun;
