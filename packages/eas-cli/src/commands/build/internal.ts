@@ -93,7 +93,6 @@ export default class BuildInternal extends EasCommand {
           localBuildMode: LocalBuildMode.INTERNAL,
         },
         submitProfile: flags['auto-submit-with-profile'] ?? flags.profile,
-        repack: false,
       },
       actor,
       getDynamicPrivateProjectConfigAsync,

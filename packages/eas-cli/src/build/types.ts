@@ -35,5 +35,4 @@ export interface BuildFlags {
   message?: string;
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
-  repack: boolean;
 }
