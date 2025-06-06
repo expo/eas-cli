@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `groups` option to the `submit` command. ([#2891](https://github.com/expo/eas-cli/pull/2891) by [@khamilowicz](https://github.com/khamilowicz))
+
 ### 🐛 Bug fixes
 
 - [eas-cli] Ensure workflow:runs returns most recent runs. ([#3045](https://github.com/expo/eas-cli/pull/3045) by [@douglowder](https://github.com/douglowder))
@@ -140,7 +142,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Add environment flag to `eas fingerprint:compare`. ([#2954](https://github.com/expo/eas-cli/pull/2954) by [@quinlanj](https://github.com/quinlanj))
 - Add build-profile flag to `eas fingerprint:generate`. ([#2966](https://github.com/expo/eas-cli/pull/2966) by [@quinlanj](https://github.com/quinlanj))
-- Add groups option to eas submit command. ([#2891](https://github.com/expo/eas-cli/pull/2891) by [@khamilowicz](https://github.com/khamilowicz))
 
 ### 🐛 Bug fixes
 
