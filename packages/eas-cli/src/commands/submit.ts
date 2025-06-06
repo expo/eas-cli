@@ -92,7 +92,8 @@ export default class Submit extends EasCommand {
       description: 'Enable verbose logging for the submission process',
     }),
     groups: Flags.string({
-      description: 'Testing groups to send the build to (iOS only)',
+      description:
+        'Internal TestFlight testing groups to add the build to (iOS only). Learn more: https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers',
       multiple: true,
       char: 'g',
     }),

@@ -606,8 +606,8 @@
         },
         "groups": {
           "type": "array",
-          "description": "Testing groups to send the build to.",
-          "markdownDescription": "Testing groups to send the build to."
+          "description": "Internal TestFlight testing groups to add the build to (iOS only). Learn more: https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers",
+          "markdownDescription": "Internal TestFlight testing groups to add the build to (iOS only). [Learn more](https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers)"
         },
         "metadataPath": {
           "type": "string",
