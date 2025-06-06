@@ -34,6 +34,7 @@ interface RawCommandFlags {
   wait: boolean;
   'non-interactive': boolean;
   'verbose-fastlane': boolean;
+  groups?: string[];
 }
 
 interface CommandFlags {
@@ -44,6 +45,7 @@ interface CommandFlags {
   wait: boolean;
   nonInteractive: boolean;
   isVerboseFastlaneEnabled: boolean;
+  groups?: string[];
 }
 
 export default class Submit extends EasCommand {
@@ -88,6 +90,12 @@ export default class Submit extends EasCommand {
     'verbose-fastlane': Flags.boolean({
       default: false,
       description: 'Enable verbose logging for the submission process',
+    }),
+    groups: Flags.string({
+      description:
+        'Internal TestFlight testing groups to add the build to (iOS only). Learn more: https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers',
+      multiple: true,
+      char: 'g',
     }),
     'non-interactive': Flags.boolean({
       default: false,
@@ -140,6 +148,7 @@ export default class Submit extends EasCommand {
         archiveFlags: flagsWithPlatform.archiveFlags,
         nonInteractive: flagsWithPlatform.nonInteractive,
         isVerboseFastlaneEnabled: flagsWithPlatform.isVerboseFastlaneEnabled,
+        groups: flagsWithPlatform.groups,
         actor,
         graphqlClient,
         analytics,
@@ -184,6 +193,7 @@ export default class Submit extends EasCommand {
       profile,
       'non-interactive': nonInteractive,
       'verbose-fastlane': isVerboseFastlaneEnabled,
+      groups,
       ...archiveFlags
     } = flags;
 
@@ -205,6 +215,7 @@ export default class Submit extends EasCommand {
       profile,
       nonInteractive,
       isVerboseFastlaneEnabled,
+      groups,
     };
   }
 

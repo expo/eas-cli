@@ -273,7 +273,7 @@ export async function runBuildAndSubmitAsync({
           ({ platform }) => toAppPlatform(platform) === startedBuild.build.platform
         )
       ).profile;
-      const submission = await prepareAndStartSubmissionAsync({
+      const submission = await prepareAndStartAutoSubmissionAsync({
         build: startedBuild.build,
         buildCtx: nullthrows(buildCtxByPlatform[startedBuild.build.platform]),
         moreBuilds: startedBuilds.length > 1,
@@ -505,7 +505,7 @@ async function startBuildAsync(ctx: BuildContext<Platform>): Promise<BuildFragme
   return await sendBuildRequestAsync();
 }
 
-async function prepareAndStartSubmissionAsync({
+async function prepareAndStartAutoSubmissionAsync({
   build,
   buildCtx,
   moreBuilds,
@@ -540,6 +540,7 @@ async function prepareAndStartSubmissionAsync({
     vcsClient: buildCtx.vcsClient,
     isVerboseFastlaneEnabled: false,
     specifiedProfile: selectedSubmitProfileName,
+    groups: undefined, // use groups from submit profile
   });
 
   if (moreBuilds) {

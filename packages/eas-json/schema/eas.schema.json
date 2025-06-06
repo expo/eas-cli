@@ -604,6 +604,11 @@
           "type": "string",
           "description": "The Bundle identifier that will be used when accessing submit credentials managed by Expo, it does not have any effect if you are using local credentials. In most cases this value will be autodetected, but if you have multiple Xcode schemes and targets, this value might be necessary."
         },
+        "groups": {
+          "type": "array",
+          "description": "Internal TestFlight testing groups to add the build to (iOS only). Learn more: https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers",
+          "markdownDescription": "Internal TestFlight testing groups to add the build to (iOS only). [Learn more](https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers)"
+        },
         "metadataPath": {
           "type": "string",
           "description": "The path to your store configuration file. Learn more: https://docs.expo.dev/eas-metadata/introduction/",

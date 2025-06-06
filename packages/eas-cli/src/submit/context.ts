@@ -22,6 +22,7 @@ export interface SubmissionContext<T extends Platform> {
   exp: ExpoConfig;
   nonInteractive: boolean;
   isVerboseFastlaneEnabled: boolean;
+  groups: T extends Platform.IOS ? string[] : undefined;
   platform: T;
   profile: SubmitProfile<T>;
   projectDir: string;
@@ -48,6 +49,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   env?: Record<string, string>;
   nonInteractive: boolean;
   isVerboseFastlaneEnabled: boolean;
+  groups: string[] | undefined;
   platform: T;
   profile: SubmitProfile<T>;
   projectDir: string;
@@ -70,6 +72,9 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     graphqlClient,
     analytics,
     vcsClient,
+    profile,
+    groups: groupsFromParams,
+    platform,
   } = params;
   const { env, ...rest } = params;
   const projectName = exp.slug;
@@ -88,6 +93,16 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     });
   }
 
+  let groups;
+
+  if (platform === Platform.IOS) {
+    groups = (groupsFromParams ??
+      (profile as SubmitProfile<Platform.IOS>).groups ??
+      []) as T extends Platform.IOS ? string[] : undefined;
+  } else {
+    groups = undefined as T extends Platform.IOS ? string[] : undefined;
+  }
+
   const analyticsEventProperties = {
     tracking_id: uuidv4(),
     platform: params.platform,
@@ -101,6 +116,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     ...rest,
     accountName: account.name,
     credentialsCtx,
+    groups,
     projectName,
     user: actor,
     analyticsEventProperties,

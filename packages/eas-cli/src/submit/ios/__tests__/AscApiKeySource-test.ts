@@ -64,6 +64,7 @@ async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platfor
     exp: testProject.appJSON.expo,
     projectId,
     vcsClient,
+    groups: undefined,
   });
 }
 
@@ -251,6 +252,7 @@ describe(getAscApiKeyResultAsync, () => {
       },
       nonInteractive: true,
       isVerboseFastlaneEnabled: false,
+      groups: [],
       actor: mockJester,
       graphqlClient,
       analytics,
