@@ -17,6 +17,7 @@ export const AndroidSubmitProfileSchema = Joi.object({
     then: Joi.required(),
     otherwise: Joi.forbidden(),
   }),
+  changelog: Joi.string(),
 });
 
 // it is less strict submission schema allowing for magic syntax like "$ASC_API_KEY_PATH"
@@ -33,6 +34,7 @@ export const UnresolvedIosSubmitProfileSchema = Joi.object({
   companyName: Joi.string(),
   appName: Joi.string(),
   bundleIdentifier: Joi.string(),
+  changelog: Joi.string(),
   metadataPath: Joi.string(),
 });
 
@@ -71,6 +73,7 @@ export const ResolvedIosSubmitProfileSchema = Joi.object({
   companyName: Joi.string(),
   appName: Joi.string(),
   bundleIdentifier: Joi.string(),
+  changelog: Joi.string(),
   metadataPath: Joi.string(),
 });
 

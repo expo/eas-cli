@@ -74,6 +74,7 @@ export default class IosSubmitCommand {
 
     return {
       projectId: this.ctx.projectId,
+      changelog: this.ctx.changelog,
       ascAppIdentifier: ascAppIdentifier.enforceValue(),
       archiveSource,
       ...(maybeAppSpecificPasswordSource
