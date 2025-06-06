@@ -8,13 +8,19 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [16.9.0](https://github.com/expo/eas-cli/releases/tag/v16.9.0) - 2025-06-06
+
+### 🎉 New features
+
 - Add `groups` option to the `submit` command. ([#2891](https://github.com/expo/eas-cli/pull/2891) by [@khamilowicz](https://github.com/khamilowicz))
 
 ### 🐛 Bug fixes
 
 - [eas-cli] Ensure workflow:runs returns most recent runs. ([#3045](https://github.com/expo/eas-cli/pull/3045) by [@douglowder](https://github.com/douglowder))
-
-### 🧹 Chores
 
 ## [16.8.0](https://github.com/expo/eas-cli/releases/tag/v16.8.0) - 2025-06-04
 
