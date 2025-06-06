@@ -96,6 +96,7 @@ export default class SubmitInternal extends EasCommand {
       projectId,
       vcsClient,
       specifiedProfile: flags.profile,
+      groups: undefined, // use groups from submit profile
     });
 
     let config;

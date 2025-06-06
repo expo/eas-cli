@@ -22,7 +22,7 @@ export interface SubmissionContext<T extends Platform> {
   exp: ExpoConfig;
   nonInteractive: boolean;
   isVerboseFastlaneEnabled: boolean;
-  groups: string[];
+  groups: T extends Platform.IOS ? string[] : undefined;
   platform: T;
   profile: SubmitProfile<T>;
   projectDir: string;
@@ -49,7 +49,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   env?: Record<string, string>;
   nonInteractive: boolean;
   isVerboseFastlaneEnabled: boolean;
-  groups?: string[];
+  groups: string[] | undefined;
   platform: T;
   profile: SubmitProfile<T>;
   projectDir: string;
@@ -93,10 +93,14 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
     });
   }
 
-  let groups: string[] = [];
+  let groups;
 
   if (platform === Platform.IOS) {
-    groups = groupsFromParams ?? (profile as SubmitProfile<Platform.IOS>).groups ?? [];
+    groups = (groupsFromParams ??
+      (profile as SubmitProfile<Platform.IOS>).groups ??
+      []) as T extends Platform.IOS ? string[] : undefined;
+  } else {
+    groups = undefined as T extends Platform.IOS ? string[] : undefined;
   }
 
   const analyticsEventProperties = {

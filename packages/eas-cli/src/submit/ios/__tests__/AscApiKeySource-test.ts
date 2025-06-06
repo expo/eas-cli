@@ -64,6 +64,7 @@ async function getIosSubmissionContextAsync(): Promise<SubmissionContext<Platfor
     exp: testProject.appJSON.expo,
     projectId,
     vcsClient,
+    groups: undefined,
   });
 }
 
