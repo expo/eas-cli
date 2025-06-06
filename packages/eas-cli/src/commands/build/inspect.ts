@@ -121,7 +121,6 @@ export default class BuildInspect extends EasCommand {
               workingdir: tmpWorkingdir,
               artifactsDir: path.join(tmpWorkingdir, 'artifacts'),
             },
-            repack: false,
           },
           actor,
           getDynamicPrivateProjectConfigAsync,

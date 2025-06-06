@@ -38,7 +38,6 @@ interface RawBuildFlags {
   'build-logger-level'?: LoggerLevel;
   'freeze-credentials': boolean;
   'verbose-logs'?: boolean;
-  repack: boolean;
 }
 
 export default class Build extends EasCommand {
@@ -113,11 +112,6 @@ export default class Build extends EasCommand {
     'freeze-credentials': Flags.boolean({
       default: false,
       description: 'Prevent the build from updating credentials in non-interactive mode',
-    }),
-    repack: Flags.boolean({
-      default: false,
-      hidden: true,
-      description: 'Use the golden dev client build repack flow as it works for onboarding',
     }),
     'verbose-logs': Flags.boolean({
       default: false,
@@ -244,7 +238,6 @@ export default class Build extends EasCommand {
       buildLoggerLevel: flags['build-logger-level'],
       freezeCredentials: flags['freeze-credentials'],
       isVerboseLoggingEnabled: flags['verbose-logs'],
-      repack: flags.repack,
     };
   }
 
