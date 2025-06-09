@@ -1,23 +1,12 @@
-import { Flags } from '@oclif/core';
-
 import EasCommand from '../../commandUtils/EasCommand';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
 import Log from '../../log';
 
 export default class WorkflowRunCancel extends EasCommand {
   static override description =
-    'cancel a workflow run. You can only cancel runs that are in progress or waiting for action.';
+    'Cancel one or more workflow runs. Pass in the --all flag to cancel all runs that have not yet completed.';
 
-  static override args = [
-    { name: 'id', description: 'ID of the workflow run to cancel', required: true },
-  ];
-
-  static override flags = {
-    all: Flags.boolean({
-      description: 'If present, all workflow runs that are IN_PROCESS will be canceled.',
-      required: false,
-    }),
-  };
+  static override strict = false;
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
@@ -25,23 +14,45 @@ export default class WorkflowRunCancel extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags, args } = await this.parse(WorkflowRunCancel);
+    const { argv } = await this.parse(WorkflowRunCancel);
     const {
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(WorkflowRunCancel, {
       nonInteractive: true,
     });
 
-    const workflowRunId = args.id;
-    const all = flags.all ?? false;
+    // Custom parsing of argv
+    const tokens = [...argv];
+    const workflowRunIds: Set<string> = new Set();
+    if (tokens.length === 0) {
+      throw new Error('Must provide at least one workflow run ID, or the --all flag');
+    }
 
-    await WorkflowRunMutation.cancelWorkflowRunAsync(graphqlClient, {
-      workflowRunId,
-    });
+    let all = false;
+    while (tokens.length > 0) {
+      const token = tokens.shift();
+      if (token === '--all') {
+        all = true;
+      } else {
+        workflowRunIds.add(token as unknown as string);
+      }
+    }
+    if (all && workflowRunIds.size > 0) {
+      throw new Error('Cannot provide workflow run IDs when using the --all flag');
+    }
 
     Log.addNewLineIfNone();
-    Log.log(`Flag --all was set to ${all}.`);
-    Log.log(`Workflow run ${workflowRunId} has been canceled.`);
+    for (const workflowRunId of workflowRunIds) {
+      try {
+        await WorkflowRunMutation.cancelWorkflowRunAsync(graphqlClient, {
+          workflowRunId,
+        });
+
+        Log.log(`Workflow run ${workflowRunId} has been canceled.`);
+      } catch (e: any) {
+        Log.error(`Failed to cancel workflow run ${workflowRunId}: ${e}`);
+      }
+    }
     Log.addNewLineIfNone();
   }
 }
