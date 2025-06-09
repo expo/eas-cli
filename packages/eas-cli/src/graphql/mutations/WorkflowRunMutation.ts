@@ -3,6 +3,8 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  CancelWorkflowRunMutation,
+  CancelWorkflowRunMutationVariables,
   CreateWorkflowRunMutation,
   CreateWorkflowRunMutationVariables,
   WorkflowRevisionInput,
@@ -51,5 +53,32 @@ export namespace WorkflowRunMutation {
         .toPromise()
     );
     return { id: data.workflowRun.createWorkflowRun.id };
+  }
+  export async function cancelWorkflowRunAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      workflowRunId,
+    }: {
+      workflowRunId: string;
+    }
+  ): Promise<void> {
+    await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<CancelWorkflowRunMutation, CancelWorkflowRunMutationVariables>(
+          gql`
+            mutation CancelWorkflowRun($workflowRunId: ID!) {
+              workflowRun {
+                cancelWorkflowRun(workflowRunId: $workflowRunId) {
+                  id
+                }
+              }
+            }
+          `,
+          {
+            workflowRunId,
+          }
+        )
+        .toPromise()
+    );
   }
 }

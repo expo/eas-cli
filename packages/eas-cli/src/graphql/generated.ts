@@ -9743,6 +9743,13 @@ export type CreateWorkflowRunMutationVariables = Exact<{
 
 export type CreateWorkflowRunMutation = { __typename?: 'RootMutation', workflowRun: { __typename?: 'WorkflowRunMutation', createWorkflowRun: { __typename?: 'WorkflowRun', id: string } } };
 
+export type CancelWorkflowRunMutationVariables = Exact<{
+  workflowRunId: Scalars['ID']['input'];
+}>;
+
+
+export type CancelWorkflowRunMutation = { __typename?: 'RootMutation', workflowRun: { __typename?: 'WorkflowRunMutation', cancelWorkflowRun: { __typename?: 'WorkflowRun', id: string } } };
+
 export type AppByIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
 }>;
