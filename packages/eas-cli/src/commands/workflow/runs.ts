@@ -10,7 +10,7 @@ import Log from '../../log';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-type WorkflowRunResult = {
+export type WorkflowRunResult = {
   id: string;
   status: string;
   gitCommitMessage: string | null;

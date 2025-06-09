@@ -1,10 +1,13 @@
+import fs from 'fs';
+
+import { WorkflowRunResult } from './runs';
 import EasCommand from '../../commandUtils/EasCommand';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
 import Log from '../../log';
 
 export default class WorkflowRunCancel extends EasCommand {
   static override description =
-    'Cancel one or more workflow runs. Pass in the --all flag to cancel all runs that have not yet completed.';
+    'Cancel one or more workflow runs. Pass in the --fromJson flag to cancel all runs from a JSON file created with `eas workflow:runs --json`.';
 
   static override strict = false;
 
@@ -28,17 +31,32 @@ export default class WorkflowRunCancel extends EasCommand {
       throw new Error('Must provide at least one workflow run ID, or the --all flag');
     }
 
-    let all = false;
+    let jsonFile: string | null = null;
     while (tokens.length > 0) {
       const token = tokens.shift();
-      if (token === '--all') {
-        all = true;
+      if (token === '--fromJson') {
+        if (!tokens.length) {
+          throw new Error('Must provide a JSON file path when using the --fromJson flag');
+        }
+        jsonFile = tokens.shift() as unknown as string;
       } else {
         workflowRunIds.add(token as unknown as string);
       }
     }
-    if (all && workflowRunIds.size > 0) {
-      throw new Error('Cannot provide workflow run IDs when using the --all flag');
+    if (jsonFile && workflowRunIds.size > 0) {
+      throw new Error('Cannot provide workflow run IDs when using the --fromJson flag');
+    }
+
+    if (jsonFile) {
+      const json = await fs.promises.readFile(jsonFile, 'utf8');
+      const runs: WorkflowRunResult[] = JSON.parse(json);
+      for (const run of runs) {
+        if (run.status !== 'IN_PROGRESS') {
+          Log.warn(`Skipping workflow run ${run.id} because it is not in progress`);
+          continue;
+        }
+        workflowRunIds.add(run.id);
+      }
     }
 
     Log.addNewLineIfNone();
