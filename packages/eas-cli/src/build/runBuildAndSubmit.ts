@@ -97,7 +97,6 @@ export interface BuildFlags {
   message?: string;
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
-  repack: boolean;
   isVerboseLoggingEnabled?: boolean;
 }
 
@@ -404,7 +403,6 @@ async function prepareAndStartBuildAsync({
     customBuildConfigMetadata,
     buildLoggerLevel: flags.buildLoggerLevel ?? (Log.isDebug ? LoggerLevel.DEBUG : undefined),
     freezeCredentials: flags.freezeCredentials,
-    repack: flags.repack,
     isVerboseLoggingEnabled: flags.isVerboseLoggingEnabled ?? false,
     env,
   });

@@ -121,6 +121,7 @@ export type Account = {
   /** Whether this account can enable SSO. */
   canEnableSSO: Scalars['Boolean']['output'];
   createdAt: Scalars['DateTime']['output'];
+  displayName?: Maybe<Scalars['String']['output']>;
   /** Environment secrets for an account */
   environmentSecrets: Array<EnvironmentSecret>;
   /** Environment variables for an account */
@@ -570,6 +571,8 @@ export type AccountMutation = {
   requestRefund?: Maybe<Scalars['Boolean']['output']>;
   /** Revoke specified Permissions for Actor. Actor must already have at least one permission on the account. */
   revokeActorPermissions: Account;
+  /** Set the display name for the account. */
+  setDisplayName: Account;
   /** Require authorization to send push notifications for experiences owned by this account */
   setPushSecurityEnabled: Account;
 };
@@ -628,6 +631,12 @@ export type AccountMutationRevokeActorPermissionsArgs = {
   accountID: Scalars['ID']['input'];
   actorID: Scalars['ID']['input'];
   permissions?: InputMaybe<Array<InputMaybe<Permission>>>;
+};
+
+
+export type AccountMutationSetDisplayNameArgs = {
+  accountID: Scalars['ID']['input'];
+  displayName: Scalars['String']['input'];
 };
 
 
@@ -4647,8 +4656,6 @@ export type GitHubBuildInput = {
   environment?: InputMaybe<EnvironmentVariableEnvironment>;
   gitRef: Scalars['String']['input'];
   platform: AppPlatform;
-  /** Repack the golden dev client build instead of running full build process. Used for onboarding. Do not use outside of onboarding flow, as for now it's only created with this specific use case in mind. */
-  repack?: InputMaybe<Scalars['Boolean']['input']>;
   submitProfile?: InputMaybe<Scalars['String']['input']>;
 };
 
