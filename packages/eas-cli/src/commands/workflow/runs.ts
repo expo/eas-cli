@@ -3,41 +3,13 @@ import { Flags } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
+import { processWorkflowRuns } from '../../commandUtils/workflows';
 import { WorkflowRunFragment, WorkflowRunStatus } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-
-type WorkflowRunResult = {
-  id: string;
-  status: string;
-  gitCommitMessage: string | null;
-  gitCommitHash: string | null;
-  startedAt: string;
-  finishedAt: string;
-  workflowId: string;
-  workflowName: string | null;
-  workflowFileName: string;
-};
-
-function processWorkflowRuns(runs: WorkflowRunFragment[]): WorkflowRunResult[] {
-  return runs.map(run => {
-    const finishedAt = run.status === WorkflowRunStatus.InProgress ? null : run.updatedAt;
-    return {
-      id: run.id,
-      status: run.status,
-      gitCommitMessage: run.gitCommitMessage ?? null,
-      gitCommitHash: run.gitCommitHash ?? null,
-      startedAt: run.createdAt,
-      finishedAt,
-      workflowId: run.workflow.id,
-      workflowName: run.workflow.name ?? null,
-      workflowFileName: run.workflow.fileName,
-    };
-  });
-}
 
 export default class WorkflowRunList extends EasCommand {
   static override description =
