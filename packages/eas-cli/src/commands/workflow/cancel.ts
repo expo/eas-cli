@@ -1,13 +1,14 @@
-import fs from 'fs';
-
-import { WorkflowRunResult } from './runs';
 import EasCommand from '../../commandUtils/EasCommand';
+import { processWorkflowRuns } from '../../commandUtils/workflows';
+import { WorkflowRunStatus } from '../../graphql/generated';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
+import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log from '../../log';
+import { promptAsync } from '../../prompts';
 
 export default class WorkflowRunCancel extends EasCommand {
   static override description =
-    'Cancel one or more workflow runs. Pass in the --fromJson flag to cancel all runs from a JSON file created with `eas workflow:runs --json`.';
+    'Cancel one or more workflow runs. If no workflow run IDs are provided, you will be prompted to select IN_PROGRESS runs to cancel.';
 
   static override strict = false;
 
@@ -19,6 +20,7 @@ export default class WorkflowRunCancel extends EasCommand {
   async runAsync(): Promise<void> {
     const { argv } = await this.parse(WorkflowRunCancel);
     const {
+      projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(WorkflowRunCancel, {
       nonInteractive: true,
@@ -27,35 +29,40 @@ export default class WorkflowRunCancel extends EasCommand {
     // Custom parsing of argv
     const tokens = [...argv];
     const workflowRunIds: Set<string> = new Set();
-    if (tokens.length === 0) {
-      throw new Error('Must provide at least one workflow run ID, or the --all flag');
-    }
-
-    let jsonFile: string | null = null;
-    while (tokens.length > 0) {
-      const token = tokens.shift();
-      if (token === '--fromJson') {
-        if (!tokens.length) {
-          throw new Error('Must provide a JSON file path when using the --fromJson flag');
-        }
-        jsonFile = tokens.shift() as unknown as string;
-      } else {
-        workflowRunIds.add(token as unknown as string);
+    if (tokens.length > 0) {
+      tokens.forEach(token => {
+        workflowRunIds.add(token);
+      });
+    } else {
+      // Run the workflow run list query and select runs to cancel
+      const queryResult = await AppQuery.byIdWorkflowRunsFilteredByStatusAsync(
+        graphqlClient,
+        projectId,
+        WorkflowRunStatus.InProgress,
+        50
+      );
+      const runs = processWorkflowRuns(queryResult);
+      if (runs.length === 0) {
+        Log.warn('No workflow runs to cancel');
+        return;
       }
-    }
-    if (jsonFile && workflowRunIds.size > 0) {
-      throw new Error('Cannot provide workflow run IDs when using the --fromJson flag');
-    }
-
-    if (jsonFile) {
-      const json = await fs.promises.readFile(jsonFile, 'utf8');
-      const runs: WorkflowRunResult[] = JSON.parse(json);
-      for (const run of runs) {
-        if (run.status !== 'IN_PROGRESS') {
-          Log.warn(`Skipping workflow run ${run.id} because it is not in progress`);
-          continue;
-        }
-        workflowRunIds.add(run.id);
+      const answers = await promptAsync({
+        type: 'multiselect',
+        name: 'selectedRuns',
+        message: 'Select IN_PROGRESS workflow runs to cancel',
+        choices: runs.map(run => ({
+          title: `${run.id} - ${run.workflowFileName}, ${run.gitCommitMessage ?? ''}, ${
+            run.startedAt
+          }`,
+          value: run.id,
+        })),
+      });
+      answers.selectedRuns.forEach((id: string) => {
+        workflowRunIds.add(id);
+      });
+      if (workflowRunIds.size === 0) {
+        Log.warn('No workflow runs to cancel');
+        return;
       }
     }
 

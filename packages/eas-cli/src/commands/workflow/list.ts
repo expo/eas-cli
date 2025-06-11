@@ -1,17 +1,10 @@
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
+import { WorkflowResult } from '../../commandUtils/workflows';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-
-type WorkflowResult = {
-  id: string;
-  name?: string | null | undefined;
-  fileName: string;
-  createdAt: string;
-  updatedAt: string;
-};
 
 export default class WorkflowList extends EasCommand {
   static override description = 'List workflows for the current project';
