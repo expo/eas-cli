@@ -1111,12 +1111,6 @@ export async function getUpdateRolloutInfoGroupAsync(
             platform: updatePublishPlatformToAppPlatform[platform],
           }
         );
-        if (!updateIdForPlatform) {
-          throw new Error(
-            `No updates on branch ${branchName} for platform ${platform} and runtimeVersion ${runtimeVersion} to roll out from.`
-          );
-        }
-
         return [platform, { rolloutPercentage, rolloutControlUpdateId: updateIdForPlatform }];
       })
     )

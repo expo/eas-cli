@@ -6246,7 +6246,7 @@ export type RootMutation = {
   webhook: WebhookMutation;
   /** Mutations that modify a websiteNotification */
   websiteNotifications: WebsiteNotificationMutation;
-  workflowJob: WorkflowJobMutation;
+  workflowJobApproval: WorkflowJobApprovalMutation;
   workflowRevision: WorkflowRevisionMutation;
   workflowRun: WorkflowRunMutation;
 };
@@ -7399,7 +7399,7 @@ export type UpdateRollBackToEmbeddedGroup = {
 };
 
 export type UpdateRolloutInfo = {
-  rolloutControlUpdateId: Scalars['ID']['input'];
+  rolloutControlUpdateId?: InputMaybe<Scalars['ID']['input']>;
   rolloutPercentage: Scalars['Int']['input'];
 };
 
@@ -8691,6 +8691,7 @@ export type WorkflowArtifact = {
 
 export type WorkflowJob = {
   __typename?: 'WorkflowJob';
+  approvals: Array<WorkflowJobApproval>;
   createdAt: Scalars['DateTime']['output'];
   credentialsAppleDeviceRegistrationRequest?: Maybe<AppleDeviceRegistrationRequest>;
   errors: Array<WorkflowJobError>;
@@ -8708,20 +8709,31 @@ export type WorkflowJob = {
   workflowRun: WorkflowRun;
 };
 
+export type WorkflowJobApproval = {
+  __typename?: 'WorkflowJobApproval';
+  createdAt: Scalars['DateTime']['output'];
+  decision: WorkflowJobReviewDecision;
+  id: Scalars['ID']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+  userActor?: Maybe<UserActor>;
+  workflowJob: WorkflowJob;
+};
+
+export type WorkflowJobApprovalMutation = {
+  __typename?: 'WorkflowJobApprovalMutation';
+  setWorkflowJobApprovalDecision: WorkflowJobApproval;
+};
+
+
+export type WorkflowJobApprovalMutationSetWorkflowJobApprovalDecisionArgs = {
+  decision: WorkflowJobReviewDecision;
+  workflowJobId: Scalars['ID']['input'];
+};
+
 export type WorkflowJobError = {
   __typename?: 'WorkflowJobError';
   message: Scalars['String']['output'];
   title: Scalars['String']['output'];
-};
-
-export type WorkflowJobMutation = {
-  __typename?: 'WorkflowJobMutation';
-  approveWorkflowJob: Scalars['ID']['output'];
-};
-
-
-export type WorkflowJobMutationApproveWorkflowJobArgs = {
-  workflowJobId: Scalars['ID']['input'];
 };
 
 export type WorkflowJobQuery = {
@@ -8733,6 +8745,11 @@ export type WorkflowJobQuery = {
 export type WorkflowJobQueryByIdArgs = {
   workflowJobId: Scalars['ID']['input'];
 };
+
+export enum WorkflowJobReviewDecision {
+  Approved = 'APPROVED',
+  Rejected = 'REJECTED'
+}
 
 export enum WorkflowJobStatus {
   ActionRequired = 'ACTION_REQUIRED',
