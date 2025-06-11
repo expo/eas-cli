@@ -1,4 +1,5 @@
 import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { processWorkflowRuns } from '../../commandUtils/workflows';
 import { WorkflowRunStatus } from '../../graphql/generated';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
@@ -16,9 +17,27 @@ export default class WorkflowRunCancel extends EasCommand {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
+  static override flags = {
+    ...EASNonInteractiveFlag,
+  };
 
   async runAsync(): Promise<void> {
     const { argv } = await this.parse(WorkflowRunCancel);
+    let nonInteractive = false;
+    const workflowRunIds: Set<string> = new Set();
+
+    // Custom parsing of argv
+    const tokens: string[] = [...argv];
+    while (tokens.length > 0) {
+      const token = tokens.shift();
+      if (token === '--non-interactive') {
+        nonInteractive = true;
+        continue;
+      } else if (token) {
+        workflowRunIds.add(token);
+      }
+    }
+
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -26,18 +45,10 @@ export default class WorkflowRunCancel extends EasCommand {
       nonInteractive,
     });
 
-    // Custom parsing of argv
-    const tokens = [...argv];
-    const workflowRunIds: Set<string> = new Set();
-    if (tokens.length > 0) {
-      tokens.forEach(token => {
-        workflowRunIds.add(token);
-      });
-    } else {
+    if (workflowRunIds.size === 0) {
       if (nonInteractive) {
-        throw new Error('Must supply workflow run IDs as arguments when in non-interactive mode`);
+        throw new Error('Must supply workflow run IDs as arguments when in non-interactive mode');
       }
-
       // Run the workflow run list query and select runs to cancel
       const queryResult = await AppQuery.byIdWorkflowRunsFilteredByStatusAsync(
         graphqlClient,
