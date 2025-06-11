@@ -23,7 +23,7 @@ export default class WorkflowRunCancel extends EasCommand {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(WorkflowRunCancel, {
-      nonInteractive: true,
+      nonInteractive,
     });
 
     // Custom parsing of argv
@@ -34,6 +34,10 @@ export default class WorkflowRunCancel extends EasCommand {
         workflowRunIds.add(token);
       });
     } else {
+      if (nonInteractive) {
+        throw new Error('Must supply workflow run IDs as arguments when in non-interactive mode`);
+      }
+
       // Run the workflow run list query and select runs to cancel
       const queryResult = await AppQuery.byIdWorkflowRunsFilteredByStatusAsync(
         graphqlClient,
