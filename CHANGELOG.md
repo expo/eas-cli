@@ -8,9 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [eas-cli] Add workflow:cancel. ([#3048](https://github.com/expo/eas-cli/pull/3048) by [@douglowder](https://github.com/douglowder))
-
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [16.10.0](https://github.com/expo/eas-cli/releases/tag/v16.10.0) - 2025-06-12
+
+### 🎉 New features
+
+- [eas-cli] Add workflow:cancel. ([#3048](https://github.com/expo/eas-cli/pull/3048) by [@douglowder](https://github.com/douglowder))
 
 ### 🧹 Chores
 
