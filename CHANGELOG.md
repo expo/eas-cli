@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Allow rolling out update on empty branch. ([#3050](https://github.com/expo/eas-cli/pull/3050) by [@wschurman](https://github.com/wschurman))
+
 ## [16.10.0](https://github.com/expo/eas-cli/releases/tag/v16.10.0) - 2025-06-12
 
 ### 🎉 New features
@@ -21,7 +23,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Removed repack support. ([#3044](https://github.com/expo/eas-cli/pull/3044) by [@kudo](https://github.com/kudo))
-- Allow rolling out update on empty branch. ([#3050](https://github.com/expo/eas-cli/pull/3050) by [@wschurman](https://github.com/wschurman))
 
 ## [16.9.0](https://github.com/expo/eas-cli/releases/tag/v16.9.0) - 2025-06-06
 
