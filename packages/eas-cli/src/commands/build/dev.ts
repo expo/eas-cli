@@ -115,6 +115,7 @@ export default class BuildDev extends EasCommand {
       projectId,
       platform,
       fingerprint,
+      profile: buildProfile.profileName,
     });
     if (builds.length !== 0) {
       const build = builds[0];
@@ -137,6 +138,7 @@ export default class BuildDev extends EasCommand {
       graphqlClient,
       projectId,
       platform,
+      profile: buildProfile.profileName,
     });
     if (
       previousBuildsForSelectedProfile.length > 0 &&
@@ -307,11 +309,13 @@ export default class BuildDev extends EasCommand {
     projectId,
     platform,
     fingerprint,
+    profile,
   }: {
     graphqlClient: ExpoGraphqlClient;
     projectId: string;
     platform: Platform;
     fingerprint?: { hash: string };
+    profile?: string;
   }): Promise<BuildFragment[]> {
     return await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
       appId: projectId,
@@ -322,6 +326,7 @@ export default class BuildDev extends EasCommand {
         simulator: platform === Platform.IOS ? true : undefined,
         distribution: platform === Platform.ANDROID ? DistributionType.Internal : undefined,
         developmentClient: true,
+        buildProfile: profile,
       },
       offset: 0,
       limit: 1,
