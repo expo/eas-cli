@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fixed `eas build:dev` command to correctly use passed build profile. ([#3053](https://github.com/expo/eas-cli/pull/3053) by [@sebryu](https://github.com/sebryu))
+
 ### 🧹 Chores
 
 - Allow rolling out update on empty branch. ([#3050](https://github.com/expo/eas-cli/pull/3050) by [@wschurman](https://github.com/wschurman))
