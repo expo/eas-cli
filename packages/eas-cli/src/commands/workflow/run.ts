@@ -3,6 +3,7 @@ import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import slash from 'slash';
 
 import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -115,6 +116,10 @@ export default class WorkflowRun extends EasCommand {
     const easJsonPath = path.join(projectDir, 'eas.json');
     const packageJsonPath = path.join(projectDir, 'package.json');
 
+    const projectRootDirectory = slash(
+      path.relative(await vcsClient.getRootPathAsync(), projectDir) || '.'
+    );
+
     try {
       ({ projectArchiveBucketKey } = await uploadAccountScopedProjectSourceAsync({
         graphqlClient,
@@ -176,6 +181,7 @@ export default class WorkflowRun extends EasCommand {
             projectArchiveBucketKey,
             easJsonBucketKey,
             packageJsonBucketKey,
+            projectRootDirectory,
           },
         },
       }));
