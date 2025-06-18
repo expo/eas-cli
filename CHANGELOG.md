@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fixed monorepo support in `workflow:run` if a project is not connected to a GitHub repository. ([#3058](https://github.com/expo/eas-cli/pull/3058) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 ## [16.10.1](https://github.com/expo/eas-cli/releases/tag/v16.10.1) - 2025-06-13
