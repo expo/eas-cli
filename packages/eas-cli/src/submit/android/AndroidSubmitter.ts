@@ -112,7 +112,6 @@ export default class AndroidSubmitter extends BaseSubmitter<
       changesNotSentForReview,
       releaseStatus,
       rollout,
-      changelog: this.ctx.changelog,
       isVerboseFastlaneEnabled: this.ctx.isVerboseFastlaneEnabled,
       ...serviceAccountKeyResult.result,
     };

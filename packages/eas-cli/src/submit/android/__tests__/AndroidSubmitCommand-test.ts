@@ -165,7 +165,6 @@ describe(AndroidSubmitCommand, () => {
         nonInteractive: false,
         isVerboseFastlaneEnabled: false,
         groups: [],
-        changelog: 'my changelog',
         actor: mockJester,
         graphqlClient,
         analytics,
@@ -187,7 +186,6 @@ describe(AndroidSubmitCommand, () => {
           track: SubmissionAndroidTrack.Internal,
           changesNotSentForReview: false,
           isVerboseFastlaneEnabled: false,
-          changelog: 'my changelog',
         },
       });
     });

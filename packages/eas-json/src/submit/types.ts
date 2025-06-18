@@ -20,7 +20,6 @@ export interface AndroidSubmitProfile {
   releaseStatus: AndroidReleaseStatus;
   changesNotSentForReview: boolean;
   applicationId?: string;
-  changelog?: string;
   rollout?: number;
 }
 
@@ -40,7 +39,6 @@ export interface IosSubmitProfile {
   companyName?: string;
   appName?: string;
   bundleIdentifier?: string;
-  changelog?: string;
   metadataPath?: string;
   groups?: string[];
 }

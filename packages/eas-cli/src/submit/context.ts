@@ -33,7 +33,7 @@ export interface SubmissionContext<T extends Platform> {
   analytics: Analytics;
   vcsClient: Client;
   applicationIdentifierOverride?: string;
-  changelog?: string;
+  whatToTest?: string;
   specifiedProfile?: string;
 }
 
@@ -61,7 +61,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   exp: ExpoConfig;
   projectId: string;
   vcsClient: Client;
-  changelog?: string;
+  whatToTest?: string;
   specifiedProfile?: string;
 }): Promise<SubmissionContext<T>> {
   const {

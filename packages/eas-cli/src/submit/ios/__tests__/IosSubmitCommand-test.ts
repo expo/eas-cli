@@ -177,7 +177,7 @@ describe(IosSubmitCommand, () => {
         nonInteractive: false,
         isVerboseFastlaneEnabled: false,
         groups: ['Test'],
-        changelog: 'my changelog',
+        whatToTest: 'my changelog',
         actor: mockJester,
         graphqlClient,
         analytics,
