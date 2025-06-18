@@ -177,6 +177,7 @@ describe(IosSubmitCommand, () => {
         nonInteractive: false,
         isVerboseFastlaneEnabled: false,
         groups: ['Test'],
+        whatToTest: 'my changelog',
         actor: mockJester,
         graphqlClient,
         analytics,
@@ -197,6 +198,7 @@ describe(IosSubmitCommand, () => {
           ascAppIdentifier: '12345678',
           isVerboseFastlaneEnabled: false,
           groups: ['Test'],
+          changelog: 'my changelog',
         },
         submittedBuildId: undefined,
       });

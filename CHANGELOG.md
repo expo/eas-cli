@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `--what-to-test` option to the `submit` command. ([#3023](https://github.com/expo/eas-cli/pull/3023) by [@vonovak](https://github.com/vonovak))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
