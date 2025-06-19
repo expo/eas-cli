@@ -7,6 +7,8 @@ import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class WorkflowList extends EasCommand {
+  static override hidden = true;
+
   static override description = 'List workflows for the current project';
 
   static override flags = {
