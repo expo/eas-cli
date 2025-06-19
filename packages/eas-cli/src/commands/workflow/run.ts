@@ -195,7 +195,7 @@ export default class WorkflowRun extends EasCommand {
     }
 
     if (!flags.wait) {
-      Log.succeed('Workflow run started successfully.');
+      // Log.succeed('Workflow run started successfully.');
 
       if (flags.json) {
         printJsonOnlyOutput({
