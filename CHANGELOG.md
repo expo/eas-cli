@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Align text of messages from `build` and `workflow:run`. ([#3061](https://github.com/expo/eas-cli/pull/3061) by [@douglowder](https://github.com/douglowder))
+
 ### 🧹 Chores
 
 ## [16.12.0](https://github.com/expo/eas-cli/releases/tag/v16.12.0) - 2025-06-20
