@@ -8772,6 +8772,7 @@ export enum WorkflowJobType {
   GetBuild = 'GET_BUILD',
   MaestroCloud = 'MAESTRO_CLOUD',
   MaestroTest = 'MAESTRO_TEST',
+  Repack = 'REPACK',
   RequireApproval = 'REQUIRE_APPROVAL',
   Slack = 'SLACK',
   Submission = 'SUBMISSION',
@@ -8782,6 +8783,7 @@ export type WorkflowProjectSourceInput = {
   easJsonBucketKey?: InputMaybe<Scalars['String']['input']>;
   packageJsonBucketKey?: InputMaybe<Scalars['String']['input']>;
   projectArchiveBucketKey: Scalars['String']['input'];
+  projectRootDirectory?: InputMaybe<Scalars['String']['input']>;
   type: WorkflowProjectSourceType;
 };
 
