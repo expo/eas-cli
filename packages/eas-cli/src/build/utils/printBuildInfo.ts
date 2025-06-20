@@ -43,14 +43,14 @@ const errorCodeToErrorMessageOverride: Record<string, (build: BuildFragment) => 
 
 export function printLogsUrls(builds: BuildFragment[]): void {
   if (builds.length === 1) {
-    Log.log(`Build details: ${link(getBuildLogsUrl(builds[0]))}`);
+    Log.log(`See logs: ${link(getBuildLogsUrl(builds[0]))}`);
   } else {
     builds.forEach(build => {
       const logsUrl = getBuildLogsUrl(build);
       Log.log(
-        `${appPlatformEmojis[build.platform]} ${
+        `See ${appPlatformEmojis[build.platform]} ${
           appPlatformDisplayNames[build.platform]
-        } build details: ${link(logsUrl)}`
+        } logs: ${link(logsUrl)}`
       );
     });
   }
