@@ -138,7 +138,7 @@ export default class UpdateRepublish extends EasCommand {
       );
     }
 
-    if (rawFlags.platform === 'all') {
+    if (rawFlags.platform !== 'all') {
       Log.withTick(`The republished update group will appear only on: ${rawFlags.platform}`);
     } else {
       const platformsFromUpdates = updatesToPublish.map(update => update.platform);
