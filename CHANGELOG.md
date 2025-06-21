@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Allow selecting package manager when doing onboarding. ([#2402](https://github.com/expo/eas-cli/pull/2402) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🐛 Bug fixes
 
 - Hide `workflow:list`. ([#3060](https://github.com/expo/eas-cli/pull/3060) by [@douglowder](https://github.com/douglowder))
