@@ -17,6 +17,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          release_name: Release ${{ github.ref }}
           tag_name: ${{ github.ref }}
           draft: true
   build-linux:
@@ -28,7 +29,10 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: 20
-      - run: yarn install --frozen-lockfile --check-files
+      - name: Copy correct yarn image
+        run: |
+          cp .yarn/releases/yarn-4.9.1.cjs /usr/local/bin/yarn
+      - run: yarn install --frozen-lockfile
       - run: yarn build
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
@@ -69,10 +73,13 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: 20
+      - name: Copy correct yarn image
+        run: |
+          cp .yarn/releases/yarn-4.9.1.cjs /usr/local/bin/yarn
       - run: brew install python-setuptools
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
-      - run: yarn install --frozen-lockfile --check-files
+      - run: yarn install --frozen-lockfile
       - run: yarn build
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
@@ -112,6 +119,9 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: 20
+      - name: Copy correct yarn image
+        run: |
+          cp .yarn/releases/yarn-4.9.1.cjs /usr/local/bin/yarn
       - run: yarn install --frozen-lockfile --check-files
       - run: sudo apt-get install nsis
       - run: yarn build
@@ -154,6 +164,9 @@ jobs:
           registry-url: 'https://registry.npmjs.org/'
           scope: 'expo'
           node-version: 20
+      - name: Copy correct yarn image
+        run: |
+          cp .yarn/releases/yarn-4.9.1.cjs /usr/local/bin/yarn
       - name: Install dependencies
         run: yarn install --frozen-lockfile --check-files
       - name: Build

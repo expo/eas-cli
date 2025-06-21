@@ -26,5 +26,8 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: 20
-      - run: yarn install --frozen-lockfile --check-files
+      - name: Copy correct yarn image
+        run: |
+          cp ../.yarn/releases/yarn-4.9.1.cjs /usr/local/bin/yarn
+      - run: yarn install --frozen-lockfile
       - run: yarn typecheck
