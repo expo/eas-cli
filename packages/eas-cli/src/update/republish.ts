@@ -2,15 +2,26 @@ import { ExpoConfig } from '@expo/config';
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 
+import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from './getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
+import {
+  selectRuntimeAndGetLatestUpdateGroupForEachPublishPlatformOnBranchAsync,
+  selectUpdateGroupOnBranchAsync,
+} from './queries';
+import { truncateString as truncateUpdateMessage } from './utils';
+import { selectBranchOnAppAsync } from '../branch/queries';
 import { getUpdateGroupUrl } from '../build/utils/url';
+import { selectChannelOnAppAsync } from '../channel/queries';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { getPaginatedQueryOptions } from '../commandUtils/pagination';
 import fetch from '../fetch';
 import { UpdateFragment, UpdateInfoGroup } from '../graphql/generated';
 import { PublishMutation } from '../graphql/mutations/PublishMutation';
+import { UpdateQuery } from '../graphql/queries/UpdateQuery';
 import Log, { link } from '../log';
 import { ora } from '../ora';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { UpdatePublishPlatform, getUpdateRolloutInfoGroupAsync } from '../project/publish';
+import { promptAsync } from '../prompts';
 import {
   CodeSigningInfo,
   checkDirectiveBodyAgainstUpdateInfoGroup,
@@ -264,4 +275,352 @@ export async function republishAsync({
       { label: 'EAS Dashboard', value: link(updateGroupUrl, { dim: false }) },
     ])
   );
+}
+
+type GetUpdateOrAskForUpdatesOptions = {
+  nonInteractive: boolean;
+  json: boolean;
+  groupId?: string;
+  branchName?: string;
+  channelName?: string;
+};
+
+export async function getUpdateGroupAsync(
+  graphqlClient: ExpoGraphqlClient,
+  groupId: string
+): Promise<UpdateToRepublish[]> {
+  const updateGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, {
+    groupId,
+  });
+
+  return updateGroup.map(update => ({
+    ...update,
+    groupId: update.group,
+    branchId: update.branch.id,
+    branchName: update.branch.name,
+  }));
+}
+
+type AskUpdateGroupForEachPublishPlatformFilteringByRuntimeVersionOptions = {
+  nonInteractive: boolean;
+  json: boolean;
+  branchName?: string;
+  channelName?: string;
+};
+
+export async function askUpdateGroupForEachPublishPlatformFilteringByRuntimeVersionAsync(
+  graphqlClient: ExpoGraphqlClient,
+  projectId: string,
+  options: AskUpdateGroupForEachPublishPlatformFilteringByRuntimeVersionOptions
+): Promise<Record<UpdatePublishPlatform, UpdateToRepublish[] | undefined>> {
+  if (options.nonInteractive) {
+    throw new Error('Must supply --group when in non-interactive mode');
+  }
+
+  if (options.branchName) {
+    return await askUpdateGroupForEachPublishPlatformFromBranchNameFilteringByRuntimeVersionAsync(
+      graphqlClient,
+      {
+        ...options,
+        branchName: options.branchName,
+        projectId,
+      }
+    );
+  }
+
+  if (options.channelName) {
+    return await askUpdateGroupForEachPublishPlatformFromChannelNameFilteringByRuntimeVersionAsync(
+      graphqlClient,
+      {
+        ...options,
+        channelName: options.channelName,
+        projectId,
+      }
+    );
+  }
+
+  const { choice } = await promptAsync({
+    type: 'select',
+    message: 'Find update by branch or channel?',
+    name: 'choice',
+    choices: [
+      { title: 'Branch', value: 'branch' },
+      { title: 'Channel', value: 'channel' },
+    ],
+  });
+
+  if (choice === 'channel') {
+    const { name } = await selectChannelOnAppAsync(graphqlClient, {
+      projectId,
+      selectionPromptTitle: 'Select a channel to view',
+      paginatedQueryOptions: {
+        json: options.json,
+        nonInteractive: options.nonInteractive,
+        offset: 0,
+      },
+    });
+
+    return await askUpdateGroupForEachPublishPlatformFromChannelNameFilteringByRuntimeVersionAsync(
+      graphqlClient,
+      {
+        ...options,
+        channelName: name,
+        projectId,
+      }
+    );
+  } else if (choice === 'branch') {
+    const { name } = await selectBranchOnAppAsync(graphqlClient, {
+      projectId,
+      promptTitle: 'Select branch from which to choose update',
+      displayTextForListItem: updateBranch => ({
+        title: updateBranch.name,
+      }),
+      // discard limit and offset because this query is not their intended target
+      paginatedQueryOptions: {
+        json: options.json,
+        nonInteractive: options.nonInteractive,
+        offset: 0,
+      },
+    });
+
+    return await askUpdateGroupForEachPublishPlatformFromBranchNameFilteringByRuntimeVersionAsync(
+      graphqlClient,
+      {
+        ...options,
+        branchName: name,
+        projectId,
+      }
+    );
+  } else {
+    throw new Error('Must choose update via channel or branch');
+  }
+}
+
+export async function getUpdateGroupOrAskForUpdateGroupAsync(
+  graphqlClient: ExpoGraphqlClient,
+  projectId: string,
+  options: GetUpdateOrAskForUpdatesOptions
+): Promise<UpdateToRepublish[]> {
+  if (options.groupId) {
+    return await getUpdateGroupAsync(graphqlClient, options.groupId);
+  }
+
+  if (options.nonInteractive) {
+    throw new Error('Must supply --group when in non-interactive mode');
+  }
+
+  if (options.branchName) {
+    return await askUpdatesFromBranchNameAsync(graphqlClient, {
+      ...options,
+      branchName: options.branchName,
+      projectId,
+    });
+  }
+
+  if (options.channelName) {
+    return await askUpdatesFromChannelNameAsync(graphqlClient, {
+      ...options,
+      channelName: options.channelName,
+      projectId,
+    });
+  }
+
+  const { choice } = await promptAsync({
+    type: 'select',
+    message: 'Find update by branch or channel?',
+    name: 'choice',
+    choices: [
+      { title: 'Branch', value: 'branch' },
+      { title: 'Channel', value: 'channel' },
+    ],
+  });
+
+  if (choice === 'channel') {
+    const { name } = await selectChannelOnAppAsync(graphqlClient, {
+      projectId,
+      selectionPromptTitle: 'Select a channel to view',
+      paginatedQueryOptions: {
+        json: options.json,
+        nonInteractive: options.nonInteractive,
+        offset: 0,
+      },
+    });
+
+    return await askUpdatesFromChannelNameAsync(graphqlClient, {
+      ...options,
+      channelName: name,
+      projectId,
+    });
+  } else if (choice === 'branch') {
+    const { name } = await selectBranchOnAppAsync(graphqlClient, {
+      projectId,
+      promptTitle: 'Select branch from which to choose update',
+      displayTextForListItem: updateBranch => ({
+        title: updateBranch.name,
+      }),
+      // discard limit and offset because this query is not their intended target
+      paginatedQueryOptions: {
+        json: options.json,
+        nonInteractive: options.nonInteractive,
+        offset: 0,
+      },
+    });
+
+    return await askUpdatesFromBranchNameAsync(graphqlClient, {
+      ...options,
+      branchName: name,
+      projectId,
+    });
+  } else {
+    throw new Error('Must choose update via channel or branch');
+  }
+}
+
+async function askUpdateGroupForEachPublishPlatformFromBranchNameFilteringByRuntimeVersionAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    branchName,
+    json,
+    nonInteractive,
+  }: { projectId: string; branchName: string; json: boolean; nonInteractive: boolean }
+): Promise<Record<UpdatePublishPlatform, UpdateToRepublish[] | undefined>> {
+  const publishPlatformToLatestUpdateGroup =
+    await selectRuntimeAndGetLatestUpdateGroupForEachPublishPlatformOnBranchAsync(graphqlClient, {
+      projectId,
+      branchName,
+      paginatedQueryOptions: getPaginatedQueryOptions({ json, 'non-interactive': nonInteractive }),
+    });
+
+  return {
+    ios: publishPlatformToLatestUpdateGroup.ios?.map(update => ({
+      ...update,
+      groupId: update.group,
+      branchId: update.branch.id,
+      branchName: update.branch.name,
+    })),
+    android: publishPlatformToLatestUpdateGroup.android?.map(update => ({
+      ...update,
+      groupId: update.group,
+      branchId: update.branch.id,
+      branchName: update.branch.name,
+    })),
+  };
+}
+
+async function askUpdatesFromBranchNameAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    branchName,
+    json,
+    nonInteractive,
+  }: { projectId: string; branchName: string; json: boolean; nonInteractive: boolean }
+): Promise<UpdateToRepublish[]> {
+  const updateGroup = await selectUpdateGroupOnBranchAsync(graphqlClient, {
+    projectId,
+    branchName,
+    paginatedQueryOptions: getPaginatedQueryOptions({ json, 'non-interactive': nonInteractive }),
+  });
+
+  return updateGroup.map(update => ({
+    ...update,
+    groupId: update.group,
+    branchId: update.branch.id,
+    branchName: update.branch.name,
+  }));
+}
+
+async function askUpdateGroupForEachPublishPlatformFromChannelNameFilteringByRuntimeVersionAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    channelName,
+    json,
+    nonInteractive,
+  }: { projectId: string; channelName: string; json: boolean; nonInteractive: boolean }
+): Promise<Record<UpdatePublishPlatform, UpdateToRepublish[] | undefined>> {
+  const { branchName } = await getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
+    graphqlClient,
+    projectId,
+    channelName
+  );
+
+  return await askUpdateGroupForEachPublishPlatformFromBranchNameFilteringByRuntimeVersionAsync(
+    graphqlClient,
+    {
+      projectId,
+      branchName,
+      json,
+      nonInteractive,
+    }
+  );
+}
+
+async function askUpdatesFromChannelNameAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    channelName,
+    json,
+    nonInteractive,
+  }: { projectId: string; channelName: string; json: boolean; nonInteractive: boolean }
+): Promise<UpdateToRepublish[]> {
+  const { branchName } = await getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
+    graphqlClient,
+    projectId,
+    channelName
+  );
+
+  return await askUpdatesFromBranchNameAsync(graphqlClient, {
+    projectId,
+    branchName,
+    json,
+    nonInteractive,
+  });
+}
+
+type GetOrAskUpdateMessageOptions = {
+  updateMessage?: string;
+  nonInteractive: boolean;
+  json: boolean;
+};
+
+/**
+ * Get or ask the user for the update (group) message for the republish
+ */
+export async function getOrAskUpdateMessageAsync(
+  updateGroup: UpdateToRepublish[],
+  options: GetOrAskUpdateMessageOptions
+): Promise<string> {
+  if (options.updateMessage) {
+    return sanitizeUpdateMessage(options.updateMessage);
+  }
+
+  if (options.nonInteractive || options.json) {
+    throw new Error('Must supply --message when in non-interactive mode');
+  }
+
+  // This command only uses a single update group to republish, meaning these values are always identical
+  const oldGroupId = updateGroup[0].groupId;
+  const oldUpdateMessage = updateGroup[0].message;
+
+  const { updateMessage } = await promptAsync({
+    type: 'text',
+    name: 'updateMessage',
+    message: 'Provide an update message.',
+    initial: `Republish "${oldUpdateMessage!}" - group: ${oldGroupId}`,
+    validate: (value: any) => (value ? true : 'Update message may not be empty.'),
+  });
+
+  return sanitizeUpdateMessage(updateMessage);
+}
+
+function sanitizeUpdateMessage(updateMessage: string): string {
+  if (updateMessage !== truncateUpdateMessage(updateMessage, 1024)) {
+    Log.warn('Update message exceeds the allowed 1024 character limit, truncated update message.');
+    return truncateUpdateMessage(updateMessage, 1024);
+  }
+
+  return updateMessage;
 }
