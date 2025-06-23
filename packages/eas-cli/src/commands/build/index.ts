@@ -38,6 +38,7 @@ interface RawBuildFlags {
   'build-logger-level'?: LoggerLevel;
   'freeze-credentials': boolean;
   'verbose-logs'?: boolean;
+  'what-to-test'?: string;
 }
 
 export default class Build extends EasCommand {
@@ -90,6 +91,10 @@ export default class Build extends EasCommand {
       description: 'Submit on build complete using the submit profile with provided name',
       helpValue: 'PROFILE_NAME',
       exclusive: ['auto-submit'],
+    }),
+    'what-to-test': Flags.string({
+      description:
+        'Specify the "What to Test" information for the build in TestFlight (to be used with `auto-submit` flag)',
     }),
     'resource-class': Flags.enum({
       options: Object.values(ResourceClass),
@@ -189,6 +194,13 @@ export default class Build extends EasCommand {
     if (flags.json && !nonInteractive) {
       Errors.error('--json is allowed only when building in non-interactive mode', { exit: 1 });
     }
+    const autoSubmit = flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined;
+    if (flags['what-to-test'] && !autoSubmit) {
+      Errors.error(
+        'The --what-to-test flag can only be used with the --auto-submit or --auto-submit-with-profile flag.',
+        { exit: 1 }
+      );
+    }
 
     const requestedPlatform =
       flags.platform &&
@@ -231,13 +243,14 @@ export default class Build extends EasCommand {
       wait: flags['wait'],
       clearCache: flags['clear-cache'],
       json: flags['json'],
-      autoSubmit: flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined,
+      autoSubmit,
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
       resourceClass: flags['resource-class'],
       message,
       buildLoggerLevel: flags['build-logger-level'],
       freezeCredentials: flags['freeze-credentials'],
       isVerboseLoggingEnabled: flags['verbose-logs'],
+      whatToTest: flags['what-to-test'],
     };
   }
 

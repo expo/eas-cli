@@ -43,6 +43,7 @@ export async function createBuildContextAsync<T extends Platform>({
   buildLoggerLevel,
   freezeCredentials,
   isVerboseLoggingEnabled,
+  whatToTest,
   env,
 }: {
   buildProfileName: string;
@@ -65,6 +66,7 @@ export async function createBuildContextAsync<T extends Platform>({
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
   isVerboseLoggingEnabled: boolean;
+  whatToTest?: string;
   env: Record<string, string>;
 }): Promise<BuildContext<T>> {
   const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
@@ -152,6 +154,7 @@ export async function createBuildContextAsync<T extends Platform>({
     loggerLevel: buildLoggerLevel,
     isVerboseLoggingEnabled,
     env,
+    whatToTest,
   };
   if (platform === Platform.ANDROID) {
     const common = commonContext as CommonContext<Platform.ANDROID>;
