@@ -28,11 +28,11 @@ const androidResourceClassToBuildResourceClassMapping: Record<
   [ResourceClass.MEDIUM]: BuildResourceClass.AndroidMedium,
 };
 
-export async function resolveBuildResourceClassAsync<T extends Platform>(
+export function resolveBuildResourceClass<T extends Platform>(
   profile: BuildProfile<T>,
   platform: Platform,
   resourceClassFlag?: ResourceClass
-): Promise<BuildResourceClass> {
+): BuildResourceClass {
   const profileResourceClass = profile.resourceClass;
 
   if (profileResourceClass && resourceClassFlag && resourceClassFlag !== profileResourceClass) {
