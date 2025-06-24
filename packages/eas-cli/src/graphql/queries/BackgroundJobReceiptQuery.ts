@@ -30,6 +30,7 @@ export const BackgroundJobReceiptQuery = {
           { id: backgroundJobReceiptId },
           {
             additionalTypenames: ['BackgroundJobReceipt'],
+            requestPolicy: 'network-only',
           }
         )
         .toPromise()

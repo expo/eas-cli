@@ -79,7 +79,7 @@ export default class UpdateDelete extends EasCommand {
     }
 
     if (!nonInteractive) {
-      const shouldAbort = await confirmAsync({
+      const shouldContinue = await confirmAsync({
         message:
           `🚨${chalk.red('CAUTION')}🚨\n\n` +
           `${chalk.yellow(`This will delete all of the updates in group "${group}".`)} ${chalk.red(
@@ -87,10 +87,10 @@ export default class UpdateDelete extends EasCommand {
           )}\n\n` +
           `If you want to revert to a previous publish, you should use 'update --republish' targeted at the last working update group instead.\n\n` +
           `An update group should only be deleted in an emergency like an accidental publish of a secret. In this case user 'update --republish' to revert to the last working update group first and then proceed with the deletion. Deleting an update group when it is the latest publish can lead to inconsistent caching behavior by clients.\n\n` +
-          `Would you like to abort?`,
+          `Would you like to continue?`,
       });
 
-      if (shouldAbort) {
+      if (!shouldContinue) {
         Log.log('Aborted.');
         return;
       }

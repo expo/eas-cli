@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix bug in log during update:republish. ([#3067](https://github.com/expo/eas-cli/pull/3067) by [@wschurman](https://github.com/wschurman))
+Fix update group deletion. ([#3069](https://github.com/expo/eas-cli/pull/3069) by [@wschurman](https://github.com/wschurman))
 
 ### 🧹 Chores
 
