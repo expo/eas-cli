@@ -94,7 +94,7 @@ export default class Build extends EasCommand {
     }),
     'what-to-test': Flags.string({
       description:
-        'Specify the "What to Test" information for the build in TestFlight (to be used with `auto-submit` flag)',
+        'Specify the "What to Test" information for the build in TestFlight (iOS-only). To be used with the `auto-submit` flag',
     }),
     'resource-class': Flags.enum({
       options: Object.values(ResourceClass),
