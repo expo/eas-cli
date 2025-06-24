@@ -98,6 +98,7 @@ export interface BuildFlags {
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
   isVerboseLoggingEnabled?: boolean;
+  whatToTest?: string;
 }
 
 export async function runBuildAndSubmitAsync({
@@ -404,6 +405,7 @@ async function prepareAndStartBuildAsync({
     buildLoggerLevel: flags.buildLoggerLevel ?? (Log.isDebug ? LoggerLevel.DEBUG : undefined),
     freezeCredentials: flags.freezeCredentials,
     isVerboseLoggingEnabled: flags.isVerboseLoggingEnabled ?? false,
+    whatToTest: flags.whatToTest,
     env,
   });
 
@@ -539,6 +541,7 @@ async function prepareAndStartAutoSubmissionAsync({
     isVerboseFastlaneEnabled: false,
     specifiedProfile: selectedSubmitProfileName,
     groups: undefined, // use groups from submit profile
+    whatToTest: buildCtx.whatToTest,
   });
 
   if (moreBuilds) {

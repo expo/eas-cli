@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `--what-to-test` option to `build` command. ([#3065](https://github.com/expo/eas-cli/pull/3065) by [@vonovak](https://github.com/vonovak))
+
 ### 🐛 Bug fixes
 
 - Hide `workflow:list`. ([#3060](https://github.com/expo/eas-cli/pull/3060) by [@douglowder](https://github.com/douglowder))
