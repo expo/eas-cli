@@ -115,6 +115,7 @@ export default class SubmitInternal extends EasCommand {
       const configInput: z.input<typeof SubmissionConfig.Ios.SchemaZ> = {
         ascAppIdentifier: iosConfig.ascAppIdentifier,
         isVerboseFastlaneEnabled: iosConfig.isVerboseFastlaneEnabled ?? undefined,
+        groups: iosConfig.groups ?? undefined,
         ...(ascApiKeyJson
           ? { ascApiJsonKey: ascApiKeyJson }
           : {
