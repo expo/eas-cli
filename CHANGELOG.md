@@ -102,6 +102,8 @@ Fix update group deletion. ([#3069](https://github.com/expo/eas-cli/pull/3069) b
 
 ### 🧹 Chores
 
+- Move yarn version to 4.9.1. ([#3022](https://github.com/expo/eas-cli/pull/3022) by [@douglowder](https://github.com/douglowder))
+
 - Further no longer require owner field for SDK >= 53 or canary. ([#3017](https://github.com/expo/eas-cli/pull/3017) by [@wschurman](https://github.com/wschurman))
 
 ## [16.6.1](https://github.com/expo/eas-cli/releases/tag/v16.6.1) - 2025-05-14

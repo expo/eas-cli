@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: ['18', '20', '22']
+        node: ['20', '22']
         include:
           - node: '20'
             coverage: true
@@ -26,7 +26,10 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: ${{ matrix.node }}
-      - run: yarn install --frozen-lockfile --check-files
+      - name: Copy correct yarn image
+        run: |
+          cp .yarn/releases/yarn-4.9.1.cjs /usr/local/bin/yarn
+      - run: yarn install --frozen-lockfile
       - run: yarn typecheck
       - run: |
           git config --global user.email "tester@expo.dev"
@@ -42,13 +45,17 @@ jobs:
           # Remove this whenever we solved those OOM errors.
           NODE_OPTIONS: --max-old-space-size=8192
       - run: yarn lint --max-warnings=0
-      - run: yarn install --frozen-lockfile --check-files
+      - run: yarn install --frozen-lockfile
         working-directory: ./scripts
       - uses: codecov/codecov-action@v1
         if: ${{ matrix.coverage }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-      - run: yarn lint-changelog
+      - name: Lint changelog
+        working-directory: scripts
+        run: |
+          yarn install --frozen-lockfile
+          yarn lint-changelog
 
   notify-slack:
     runs-on: ubuntu-latest
