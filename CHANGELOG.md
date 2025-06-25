@@ -10,10 +10,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [16.13.1](https://github.com/expo/eas-cli/releases/tag/v16.13.1) - 2025-06-25
+
+### 🐛 Bug fixes
+
 - Fix bug in log during update:republish. ([#3067](https://github.com/expo/eas-cli/pull/3067) by [@wschurman](https://github.com/wschurman))
 Fix update group deletion. ([#3069](https://github.com/expo/eas-cli/pull/3069) by [@wschurman](https://github.com/wschurman))
-
-### 🧹 Chores
 
 ## [16.13.0](https://github.com/expo/eas-cli/releases/tag/v16.13.0) - 2025-06-24
 
