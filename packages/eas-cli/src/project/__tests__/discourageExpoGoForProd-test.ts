@@ -4,7 +4,7 @@ import resolveFrom from 'resolve-from';
 
 import type { ProfileData } from '../../utils/profiles';
 import { resolveVcsClient } from '../../vcs';
-import { detectExpoGoProdBuildAsync } from '../discourageExpoGoForProd';
+import { detectExpoGoProdBuildAsync } from '../discourageExpoGoForProdAsync';
 
 jest.mock('getenv');
 jest.mock('resolve-from');
@@ -29,7 +29,10 @@ describe(detectExpoGoProdBuildAsync, () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(getenv.boolish).mockReturnValue(false);
-    jest.mocked(resolveFrom.silent).mockReturnValue(undefined); // expo-dev-client is not installed
+    jest.mocked(resolveFrom).mockImplementation(() => {
+      // expo-dev-client is not installed
+      throw new Error('Module not found');
+    });
   });
 
   describe('should return false', () => {
@@ -45,7 +48,7 @@ describe(detectExpoGoProdBuildAsync, () => {
     });
 
     it('when expo-dev-client is installed - that signals a development build', async () => {
-      jest.mocked(resolveFrom.silent).mockReturnValue('/path/to/expo-dev-client/package.json');
+      jest.mocked(resolveFrom).mockReturnValue('/path/to/expo-dev-client/package.json');
       const buildProfiles = [createMockBuildProfile('production')];
 
       const result = await detectExpoGoProdBuildAsync(buildProfiles, projectDir, vcsClient);

@@ -49,7 +49,7 @@ import {
   CustomBuildConfigMetadata,
   validateCustomBuildConfigAsync,
 } from '../project/customBuildConfig';
-import { discourageExpoGoForProd } from '../project/discourageExpoGoForProd';
+import { discourageExpoGoForProdAsync } from '../project/discourageExpoGoForProdAsync';
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
 import {
@@ -149,7 +149,7 @@ export async function runBuildAndSubmitAsync({
     projectDir,
   });
 
-  discourageExpoGoForProd(buildProfiles, projectDir, vcsClient);
+  await discourageExpoGoForProdAsync(buildProfiles, projectDir, vcsClient);
 
   for (const buildProfile of buildProfiles) {
     if (buildProfile.profile.image && ['default', 'stable'].includes(buildProfile.profile.image)) {
