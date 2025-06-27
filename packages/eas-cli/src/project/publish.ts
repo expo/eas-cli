@@ -1099,6 +1099,7 @@ export async function getUpdateRolloutInfoGroupAsync(
     platforms: UpdatePublishPlatform[];
   }
 ): Promise<UpdateRolloutInfoGroup> {
+  // note that this could return control updates in different update groups if the update groups only have a single platform
   return Object.fromEntries(
     await Promise.all(
       platforms.map<Promise<[string, UpdateRolloutInfo]>>(async platform => {
