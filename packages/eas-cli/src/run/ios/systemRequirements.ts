@@ -70,7 +70,7 @@ async function assertSimulatorAppInstalledAsync(): Promise<void> {
   const simulatorAppId = await getSimulatorAppIdAsync();
   if (!simulatorAppId) {
     throw new Error(
-      `Can't determine id of Simulator app; the Simulator is most likely not installed on this machine. Run 'sudo xcode-select -s /Applications/Xcode.app'`
+      `Can't determine id of Simulator app; the Simulator is most likely not installed on this machine. Run 'sudo xcode-select -s /Applications/Xcode.app/Contents/Developer'`
     );
   }
 
