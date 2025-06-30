@@ -500,11 +500,7 @@ async function handleSingleBuildProgressAsync(
         if (build.priority !== BuildPriority.High) {
           Log.newLine();
           Log.log('Start builds sooner in the priority queue.');
-          Log.log(
-            `Sign up for EAS Production or Enterprise at ${link(
-              formatAccountBillingUrl(accountName)
-            )}`
-          );
+          Log.log(`Sign up for a paid plan at ${link(formatAccountBillingUrl(accountName))}`);
         }
 
         Log.newLine();
