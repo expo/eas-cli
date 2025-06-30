@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix suggested command to switch Xcode Developer Tools. ([#3079](https://github.com/expo/eas-cli/pull/3079) by [@rolfb](https://github.com/rolfb))
+
 ### 🧹 Chores
 
 ## [16.13.2](https://github.com/expo/eas-cli/releases/tag/v16.13.2) - 2025-06-27
