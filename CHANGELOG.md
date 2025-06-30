@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Reword how paid plans are described ([#3082](https://github.com/expo/eas-cli/pull/3082) by [@ide](https://github.com/ide))
+
 ## [16.13.2](https://github.com/expo/eas-cli/releases/tag/v16.13.2) - 2025-06-27
 
 ### 🧹 Chores
