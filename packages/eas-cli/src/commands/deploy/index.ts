@@ -27,6 +27,8 @@ import {
   getDeploymentUrlFromFullName,
 } from '../../worker/utils/logs';
 
+const MAX_UPLOAD_SIZE = 5e8; // 5MB
+
 const isDirectory = (directoryPath: string): Promise<boolean> =>
   fs.promises
     .stat(directoryPath)
@@ -269,7 +271,8 @@ export default class WorkerDeploy extends EasCommand {
         );
       }
       assetFiles = await WorkerAssets.collectAssetsAsync(
-        projectDist.type === 'server' ? projectDist.clientPath : projectDist.path
+        projectDist.type === 'server' ? projectDist.clientPath : projectDist.path,
+        { maxFileSize: MAX_UPLOAD_SIZE }
       );
       tarPath = await WorkerAssets.packFilesIterableAsync(
         emitWorkerTarballAsync({
