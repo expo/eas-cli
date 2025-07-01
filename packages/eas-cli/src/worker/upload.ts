@@ -1,45 +1,27 @@
 import * as https from 'https';
 import createHttpsProxyAgent from 'https-proxy-agent';
-import mime from 'mime';
-import fetch, { Headers, RequestInit, Response } from 'node-fetch';
-import fs, { createReadStream } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
+import fetch, { BodyInit, Headers, HeadersInit, RequestInit, Response } from 'node-fetch';
+import fs from 'node:fs';
 import promiseRetry from 'promise-retry';
+
+import { AssetFileEntry } from './assets';
 
 const MAX_RETRIES = 4;
 const MAX_CONCURRENCY = 10;
-const MIN_RETRY_TIMEOUT = 100;
-const MAX_UPLOAD_SIZE = 5e8; // 5MB
 
-const getContentTypeAsync = async (filePath: string): Promise<string | null> => {
-  let contentType = mime.getType(path.basename(filePath));
+export type UploadPayload =
+  | { filePath: string }
+  | { asset: AssetFileEntry } /*| { multipart: AssetFileEntry }*/;
 
-  if (!contentType) {
-    const fileContent = await readFile(filePath, 'utf-8');
-    try {
-      // check if file is valid JSON without an extension, e.g. for the apple app site association file
-      const parsedData = JSON.parse(fileContent);
-
-      if (parsedData) {
-        contentType = 'application/json';
-      }
-    } catch {}
-  }
-
-  return contentType;
-};
-
-export interface UploadParams extends Omit<RequestInit, 'signal' | 'body'> {
-  filePath: string;
-  url: string;
+export interface UploadRequestInit {
+  url: string | URL;
   method: string;
-  body?: undefined;
+  headers?: HeadersInit;
   signal?: AbortSignal;
 }
 
 export interface UploadResult {
-  params: UploadParams;
+  payload: UploadPayload;
   response: Response;
 }
 
@@ -60,30 +42,43 @@ const getAgent = (): https.Agent => {
   }
 };
 
-export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
-  const { filePath, signal, method = 'POST', url, headers: headersInit, ...requestInit } = params;
-  const stat = await fs.promises.stat(filePath);
-  if (stat.size > MAX_UPLOAD_SIZE) {
-    throw new Error(
-      `Upload of "${filePath}" aborted: File size is greater than the upload limit (>500MB)`
-    );
-  }
-
-  const contentType = await getContentTypeAsync(filePath);
-
+export async function uploadAsync(
+  init: UploadRequestInit,
+  payload: UploadPayload
+): Promise<UploadResult> {
   return await promiseRetry(
     async retry => {
-      const headers = new Headers(headersInit);
-      if (contentType) {
-        headers.set('content-type', contentType);
+      const headers = new Headers(init.headers);
+
+      const url = new URL(`${init.url}`);
+      let errorPrefix: string;
+      let body: BodyInit | undefined;
+      if ('asset' in payload) {
+        const { asset } = payload;
+        errorPrefix = `Upload of "${asset.normalizedPath}" failed`;
+        if (asset.type) {
+          headers.set('content-type', asset.type);
+        }
+        if (asset.size) {
+          headers.set('content-length', `${asset.size}`);
+        }
+        body = fs.createReadStream(asset.path);
+        // if we're uploading a single asset, append the SHA-512 hash to its pathname
+        if (!url.pathname.endsWith('/')) {
+          url.pathname += '/';
+        }
+        url.pathname += asset.sha512;
+      } else if ('filePath' in payload) {
+        const { filePath } = payload;
+        errorPrefix = 'Worker deployment failed';
+        body = fs.createReadStream(filePath);
       }
 
       let response: Response;
       try {
-        response = await fetch(params.url, {
-          ...requestInit,
-          method,
-          body: createReadStream(filePath),
+        response = await fetch(url, {
+          method: init.method,
+          body,
           headers,
           agent: getAgent(),
           // @ts-expect-error: Internal types don't match
@@ -105,10 +100,10 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
           if (rayId) {
             message += `\nReport this error quoting Request ID ${rayId}`;
           }
-          return `Upload of "${filePath}" failed: ${message}`;
+          return `${errorPrefix}: ${message}`;
         } else {
           const json = await response.json().catch(() => null);
-          return json?.error ?? `Upload of "${filePath}" failed: ${response.statusText}`;
+          return json?.error ?? `${errorPrefix}: ${response.statusText}`;
         }
       };
 
@@ -120,22 +115,21 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
       ) {
         return retry(new Error(await getErrorMessageAsync()));
       } else if (response.status === 413) {
-        const message = `Upload of "${filePath}" failed: File size exceeded the upload limit`;
+        const message = `${errorPrefix!}: File size exceeded the upload limit`;
         throw new Error(message);
       } else if (!response.ok) {
         throw new Error(await getErrorMessageAsync());
       }
 
       return {
-        params,
+        payload,
         response,
       };
     },
     {
       retries: MAX_RETRIES,
-      minTimeout: MIN_RETRY_TIMEOUT,
-      randomize: true,
-      factor: 2,
+      minTimeout: 50,
+      randomize: false,
     }
   );
 }
@@ -163,28 +157,30 @@ export async function callUploadApiAsync(url: string | URL, init?: RequestInit):
 }
 
 export interface UploadPending {
-  params: UploadParams;
+  payload: UploadPayload;
 }
 
 export type BatchUploadSignal = UploadResult | UploadPending;
 
 export async function* batchUploadAsync(
-  uploads: readonly UploadParams[]
+  init: UploadRequestInit,
+  payloads: UploadPayload[]
 ): AsyncGenerator<BatchUploadSignal> {
   const controller = new AbortController();
   const queue = new Set<Promise<UploadResult>>();
+  const initWithSignal = { ...init, signal: controller.signal };
   try {
     let index = 0;
-    while (index < uploads.length || queue.size > 0) {
-      while (queue.size < MAX_CONCURRENCY && index < uploads.length) {
-        const uploadParams = uploads[index++];
+    while (index < payloads.length || queue.size > 0) {
+      while (queue.size < MAX_CONCURRENCY && index < payloads.length) {
+        const payload = payloads[index++];
         let uploadPromise: Promise<UploadResult>;
         queue.add(
-          (uploadPromise = uploadAsync({ ...uploadParams, signal: controller.signal }).finally(() =>
-            queue.delete(uploadPromise)
-          ))
+          (uploadPromise = uploadAsync(initWithSignal, payload).finally(() => {
+            queue.delete(uploadPromise);
+          }))
         );
-        yield { params: uploadParams };
+        yield { payload };
       }
       yield await Promise.race(queue);
     }
