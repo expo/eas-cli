@@ -95,6 +95,7 @@ async function determineMimeTypeAsync(filePath: string): Promise<string | null> 
 
 interface AssetMapOptions {
   hashOptions?: HashOptions;
+  maxFileSize: number;
 }
 
 export interface AssetFileEntry {
@@ -107,12 +108,17 @@ export interface AssetFileEntry {
 
 /** Collects assets from a given target path */
 export async function collectAssetsAsync(
-  assetPath?: string,
-  options?: AssetMapOptions
+  assetPath: string | undefined,
+  options: AssetMapOptions
 ): Promise<AssetFileEntry[]> {
   const assets: AssetFileEntry[] = [];
   if (assetPath) {
     for await (const file of listFilesRecursively(assetPath)) {
+      if (file.size > options.maxFileSize) {
+        throw new Error(
+          `Upload of "${file.normalizedPath}" aborted: File size is greater than the upload limit (>500MB)`
+        );
+      }
       const sha512$ = computeSha512HashAsync(file.path, options?.hashOptions);
       const contentType$ = determineMimeTypeAsync(file.path);
       assets.push({
