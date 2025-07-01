@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Implement new EAS Hosting asset upload protocol, which improves performance by grouping files into batched upload API calls ([#3085](https://github.com/expo/eas-cli/pull/3085) by [@kitten](https://github.com/kitten))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
