@@ -305,20 +305,22 @@ async function ensureEASUpdateIsConfiguredNativelyAsync(
 export async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: string): Promise<void> {
   const easJsonPath = EasJsonAccessor.formatEasJsonPath(projectDir);
 
+  // Skip if eas.json doesn't exist.
   if (!(await fs.pathExists(easJsonPath))) {
-    Log.warn(
-      `EAS Build is not configured. If you'd like to use EAS Build with EAS Update, run ${chalk.bold(
-        'eas build:configure'
-      )}.`
-    );
     return;
   }
 
+  // Add channel to all build profiles.
   try {
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
     await easJsonAccessor.readRawJsonAsync();
 
     easJsonAccessor.patch(easJsonRawObject => {
+      // If there are no build profiles then we are done.
+      if (!easJsonRawObject.build) {
+        return easJsonRawObject;
+      }
+
       const easBuildProfilesWithChannels = Object.keys(easJsonRawObject.build).reduce(
         (acc, profileNameKey) => {
           const buildProfile = easJsonRawObject.build[profileNameKey];
