@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Remove hidden flag from `eas upload`. ([#3014](https://github.com/expo/eas-cli/pull/3014) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+
 ## [16.13.3](https://github.com/expo/eas-cli/releases/tag/v16.13.3) - 2025-07-01
 
 ### 🐛 Bug fixes
@@ -34,7 +36,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix bug in log during update:republish. ([#3067](https://github.com/expo/eas-cli/pull/3067) by [@wschurman](https://github.com/wschurman))
-Fix update group deletion. ([#3069](https://github.com/expo/eas-cli/pull/3069) by [@wschurman](https://github.com/wschurman))
+- Fix update group deletion. ([#3069](https://github.com/expo/eas-cli/pull/3069) by [@wschurman](https://github.com/wschurman))
 
 ## [16.13.0](https://github.com/expo/eas-cli/releases/tag/v16.13.0) - 2025-06-24
 
