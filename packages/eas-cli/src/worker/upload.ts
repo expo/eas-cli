@@ -97,7 +97,7 @@ export async function uploadAsync(
           body,
           headers,
           agent: getAgent(),
-          signal: (init.signal as any),
+          signal: init.signal as any,
         });
       } catch (error) {
         return retry(error);
