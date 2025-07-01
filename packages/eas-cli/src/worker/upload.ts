@@ -1,7 +1,7 @@
 import * as https from 'https';
 import createHttpsProxyAgent from 'https-proxy-agent';
 import mime from 'mime';
-import fetch, { Headers, HeadersInit, RequestInit, Response } from 'node-fetch';
+import fetch, { Headers, RequestInit, Response } from 'node-fetch';
 import fs, { createReadStream } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -33,8 +33,7 @@ const getContentTypeAsync = async (filePath: string): Promise<string | null> => 
 export interface UploadParams extends Omit<RequestInit, 'signal' | 'body'> {
   filePath: string;
   url: string;
-  method?: string;
-  headers?: HeadersInit;
+  method: string;
   body?: undefined;
   signal?: AbortSignal;
 }

@@ -164,10 +164,8 @@ export default class WorkerDeploy extends EasCommand {
     ): Promise<DeployInProgressParams> {
       const { response } = await uploadAsync({
         url: uploadUrl,
+        method: 'POST',
         filePath: tarPath,
-        headers: {
-          accept: 'application/json',
-        },
       });
       if (response.status === 413) {
         throw new Error(
@@ -206,7 +204,11 @@ export default class WorkerDeploy extends EasCommand {
       const uploadParams = assetFiles.map(asset => {
         const uploadURL = new URL(`/asset/${asset.sha512}`, deployParams.baseURL);
         uploadURL.searchParams.set('token', deployParams.token);
-        return { url: uploadURL.toString(), filePath: asset.path };
+        return {
+          url: uploadURL.toString(),
+          method: 'POST',
+          filePath: asset.path,
+        };
       });
 
       const progress = {
