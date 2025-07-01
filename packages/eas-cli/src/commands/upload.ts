@@ -33,7 +33,6 @@ import { createProgressTracker } from '../utils/progress';
 
 export default class BuildUpload extends EasCommand {
   static override description = 'upload a local build and generate a sharable link';
-  static override hidden = true;
 
   static override flags = {
     platform: Flags.enum<Platform.IOS | Platform.ANDROID>({
