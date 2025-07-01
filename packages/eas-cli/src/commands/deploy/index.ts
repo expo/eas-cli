@@ -20,7 +20,12 @@ import {
   assignWorkerDeploymentProductionAsync,
   getSignedDeploymentUrlAsync,
 } from '../../worker/deployment';
-import { batchUploadAsync, callUploadApiAsync, uploadAsync } from '../../worker/upload';
+import {
+  UploadPayload,
+  batchUploadAsync,
+  callUploadApiAsync,
+  uploadAsync,
+} from '../../worker/upload';
 import {
   formatWorkerDeploymentJson,
   formatWorkerDeploymentTable,
@@ -210,7 +215,32 @@ export default class WorkerDeploy extends EasCommand {
       const uploadInit = { baseURL, method: 'POST' };
       uploadInit.baseURL.searchParams.set('token', deployParams.token);
 
-      const uploadPayloads = assetFiles.map(asset => ({ asset }));
+      const uploadPayloads: UploadPayload[] = [];
+      if (deployParams.upload) {
+        const assetsBySHA512 = assetFiles.reduce((map, asset) => {
+          map.set(asset.sha512, asset);
+          return map;
+        }, new Map<string, WorkerAssets.AssetFileEntry>());
+        const payloads = deployParams.upload
+          .map(instruction =>
+            instruction.sha512.map(sha512 => {
+              const asset = assetsBySHA512.get(sha512);
+              if (!asset) {
+                // NOTE(@kitten): This should never happen
+                throw new Error(
+                  `Uploading assets failed: API instructed us to upload an asset that does not exist`
+                );
+              }
+              return asset;
+            })
+          )
+          .filter(assets => assets && assets.length > 0)
+          .map(assets => (assets.length > 1 ? { multipart: assets } : { asset: assets[0] }));
+        uploadPayloads.push(...payloads);
+      } else {
+        // NOTE(@kitten): Legacy format which uploads assets one-by-one
+        uploadPayloads.push(...assetFiles.map(asset => ({ asset })));
+      }
 
       const progress = {
         total: uploadPayloads.length,
