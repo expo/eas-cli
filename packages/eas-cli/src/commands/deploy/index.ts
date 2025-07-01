@@ -243,7 +243,9 @@ export default class WorkerDeploy extends EasCommand {
       }
 
       const progress = {
-        total: uploadPayloads.length,
+        total: uploadPayloads.reduce((total, payload) => {
+          return total + ('multipart' in payload ? payload.multipart.length : 1);
+        }, 0),
         pending: 0,
         percent: 0,
         transferred: 0,
@@ -263,11 +265,13 @@ export default class WorkerDeploy extends EasCommand {
 
       try {
         for await (const signal of batchUploadAsync(uploadInit, uploadPayloads)) {
+          const signalTotal = 'multipart' in signal.payload ? signal.payload.multipart.length : 1;
           if ('response' in signal) {
-            progress.pending--;
-            progress.percent = ++progress.transferred / progress.total;
+            progress.pending -= signalTotal;
+            progress.transferred += signalTotal;
+            progress.percent = progress.transferred / progress.total;
           } else {
-            progress.pending++;
+            progress.pending += signalTotal;
           }
           updateProgress({ progress });
         }
