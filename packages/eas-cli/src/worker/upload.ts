@@ -2,20 +2,23 @@ import * as https from 'https';
 import createHttpsProxyAgent from 'https-proxy-agent';
 import fetch, { BodyInit, Headers, HeadersInit, RequestInit, Response } from 'node-fetch';
 import fs from 'node:fs';
+import { Readable } from 'node:stream';
 import promiseRetry from 'promise-retry';
 
 import { AssetFileEntry } from './assets';
+import { createMultipartBodyFromFilesAsync, multipartContentType } from './utils/multipart';
 
 const MAX_RETRIES = 4;
 const MAX_CONCURRENCY = 10;
 
 export type UploadPayload =
   | { filePath: string }
-  | { asset: AssetFileEntry } /*| { multipart: AssetFileEntry }*/;
+  | { asset: AssetFileEntry }
+  | { multipart: AssetFileEntry[] };
 
 export interface UploadRequestInit {
-  url: string | URL;
-  method: string;
+  baseURL: string | URL;
+  method?: string;
   headers?: HeadersInit;
   signal?: AbortSignal;
 }
@@ -50,9 +53,10 @@ export async function uploadAsync(
     async retry => {
       const headers = new Headers(init.headers);
 
-      const url = new URL(`${init.url}`);
+      const url = new URL(`${init.baseURL}`);
       let errorPrefix: string;
       let body: BodyInit | undefined;
+      let method = init.method || 'POST';
       if ('asset' in payload) {
         const { asset } = payload;
         errorPrefix = `Upload of "${asset.normalizedPath}" failed`;
@@ -62,22 +66,34 @@ export async function uploadAsync(
         if (asset.size) {
           headers.set('content-length', `${asset.size}`);
         }
+        method = 'POST';
+        url.pathname = `/asset/${asset.sha512}`;
         body = fs.createReadStream(asset.path);
-        // if we're uploading a single asset, append the SHA-512 hash to its pathname
-        if (!url.pathname.endsWith('/')) {
-          url.pathname += '/';
-        }
-        url.pathname += asset.sha512;
       } else if ('filePath' in payload) {
         const { filePath } = payload;
         errorPrefix = 'Worker deployment failed';
         body = fs.createReadStream(filePath);
+      } else if ('multipart' in payload) {
+        const { multipart } = payload;
+        errorPrefix = `Upload of ${multipart.length} assets failed`;
+        headers.set('content-type', multipartContentType);
+        method = 'PATCH';
+        url.pathname = '/asset/batch';
+        const iterator = createMultipartBodyFromFilesAsync(
+          multipart.map(asset => ({
+            name: asset.sha512,
+            filePath: asset.path,
+            contentType: asset.type,
+            contentLength: asset.size,
+          }))
+        );
+        body = Readable.from(iterator);
       }
 
       let response: Response;
       try {
         response = await fetch(url, {
-          method: init.method,
+          method,
           body,
           headers,
           agent: getAgent(),

@@ -29,14 +29,18 @@ async function* createReadStreamAsync(filePath: string): AsyncGenerator<Uint8Arr
 
 const makeFormHeader = (params: {
   name: string;
-  contentType: string;
-  contentLength: number;
+  contentType: string | null;
+  contentLength: number | null;
 }): string => {
   const name = encodeName(params.name);
   let header = BOUNDARY_HYPHEN_CHARS + BOUNDARY_ID + CRLF;
   header += `Content-Disposition: form-data; name="${name}"; filename="${name}"`;
-  header += `${CRLF}Content-Type: ${params.contentType}`;
-  header += `${CRLF}Content-Length: ${params.contentLength}`;
+  if (params.contentType) {
+    header += `${CRLF}Content-Type: ${params.contentType}`;
+  }
+  if (params.contentLength) {
+    header += `${CRLF}Content-Length: ${params.contentLength}`;
+  }
   header += CRLF;
   header += CRLF;
   return header;
@@ -45,7 +49,8 @@ const makeFormHeader = (params: {
 export interface MultipartFileEntry {
   name: string;
   filePath: string;
-  contentType: string;
+  contentType: string | null;
+  contentLength: number | null;
 }
 
 export const multipartContentType = `multipart/form-data; boundary=${BOUNDARY_ID}`;
@@ -55,11 +60,10 @@ export async function* createMultipartBodyFromFilesAsync(
 ): AsyncGenerator<Uint8Array> {
   const encoder = new TextEncoder();
   for await (const entry of entries) {
-    const stats = await fs.promises.stat(entry.filePath);
     const header = makeFormHeader({
       name: entry.name,
       contentType: entry.contentType,
-      contentLength: stats.size,
+      contentLength: entry.contentLength,
     });
     yield encoder.encode(header);
     yield* createReadStreamAsync(entry.filePath);
