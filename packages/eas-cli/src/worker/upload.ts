@@ -97,8 +97,7 @@ export async function uploadAsync(
           body,
           headers,
           agent: getAgent(),
-          // @ts-expect-error: Internal types don't match
-          signal,
+          signal: (init.signal as any),
         });
       } catch (error) {
         return retry(error);
