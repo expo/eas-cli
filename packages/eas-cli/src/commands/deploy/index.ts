@@ -167,7 +167,7 @@ export default class WorkerDeploy extends EasCommand {
       const payload = { filePath: tarPath };
       const { response } = await uploadAsync(
         {
-          url: uploadUrl,
+          baseURL: uploadUrl,
           method: 'POST',
         },
         payload
@@ -206,9 +206,9 @@ export default class WorkerDeploy extends EasCommand {
       assetFiles: WorkerAssets.AssetFileEntry[],
       deployParams: DeployInProgressParams
     ): Promise<void> {
-      const uploadURL = new URL('/asset/', deployParams.baseURL);
-      uploadURL.searchParams.set('token', deployParams.token);
-      const uploadInit = { url: uploadURL, method: 'POST' };
+      const baseURL = new URL('/asset/', deployParams.baseURL);
+      const uploadInit = { baseURL, method: 'POST' };
+      uploadInit.baseURL.searchParams.set('token', deployParams.token);
 
       const uploadPayloads = assetFiles.map(asset => ({ asset }));
 
