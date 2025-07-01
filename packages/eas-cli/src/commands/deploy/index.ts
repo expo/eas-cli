@@ -20,12 +20,7 @@ import {
   assignWorkerDeploymentProductionAsync,
   getSignedDeploymentUrlAsync,
 } from '../../worker/deployment';
-import {
-  UploadParams,
-  batchUploadAsync,
-  callUploadApiAsync,
-  uploadAsync,
-} from '../../worker/upload';
+import { batchUploadAsync, callUploadApiAsync, uploadAsync } from '../../worker/upload';
 import {
   formatWorkerDeploymentJson,
   formatWorkerDeploymentTable,
@@ -60,11 +55,16 @@ interface RawDeployFlags {
   'dry-run': boolean;
 }
 
+interface UploadAssetBatchInstruction {
+  sha512: string[];
+}
+
 interface DeployInProgressParams {
   id: string;
   fullName: string;
   baseURL: string;
   token: string;
+  upload?: UploadAssetBatchInstruction[];
 }
 
 export default class WorkerDeploy extends EasCommand {
@@ -185,34 +185,30 @@ export default class WorkerDeploy extends EasCommand {
         if (!json.success || !json.result || typeof json.result !== 'object') {
           throw new Error(json.message ? `Upload failed: ${json.message}` : 'Upload failed!');
         }
-        const { id, fullName, token } = json.result;
+        const { id, fullName, token, upload } = json.result;
         if (typeof token !== 'string') {
           throw new Error('Upload failed: API failed to return a deployment token');
         } else if (typeof id !== 'string') {
           throw new Error('Upload failed: API failed to return a deployment identifier');
         } else if (typeof fullName !== 'string') {
           throw new Error('Upload failed: API failed to return a script name');
+        } else if (!Array.isArray(upload) && upload !== undefined) {
+          throw new Error('Upload failed: API returned invalid asset upload instructions');
         }
         const baseURL = new URL('/', uploadUrl).toString();
-        return { id, fullName, baseURL, token };
+        return { id, fullName, baseURL, token, upload };
       }
     }
 
     async function uploadAssetsAsync(
-      assetMap: WorkerAssets.AssetMap,
+      assetFiles: WorkerAssets.AssetFileEntry[],
       deployParams: DeployInProgressParams
     ): Promise<void> {
-      const uploadParams: UploadParams[] = [];
-      const assetPath = projectDist.type === 'server' ? projectDist.clientPath : projectDist.path;
-      if (!assetPath) {
-        return;
-      }
-
-      for await (const asset of WorkerAssets.listAssetMapFilesAsync(assetPath, assetMap)) {
+      const uploadParams = assetFiles.map(asset => {
         const uploadURL = new URL(`/asset/${asset.sha512}`, deployParams.baseURL);
         uploadURL.searchParams.set('token', deployParams.token);
-        uploadParams.push({ url: uploadURL.toString(), filePath: asset.path });
-      }
+        return { url: uploadURL.toString(), filePath: asset.path };
+      });
 
       const progress = {
         total: uploadParams.length,
@@ -250,8 +246,8 @@ export default class WorkerDeploy extends EasCommand {
       updateProgress({ isComplete: true });
     }
 
-    let assetMap: WorkerAssets.AssetMap;
     let tarPath: string;
+    let assetFiles: WorkerAssets.AssetFileEntry[];
     let deployResult: DeployInProgressParams;
     let progress = ora('Preparing project').start();
 
@@ -271,12 +267,12 @@ export default class WorkerDeploy extends EasCommand {
             manifestResult.conflictingVariableNames.join(' ')
         );
       }
-      assetMap = await WorkerAssets.createAssetMapAsync(
+      assetFiles = await WorkerAssets.collectAssetsAsync(
         projectDist.type === 'server' ? projectDist.clientPath : projectDist.path
       );
       tarPath = await WorkerAssets.packFilesIterableAsync(
         emitWorkerTarballAsync({
-          assetMap,
+          assetMap: WorkerAssets.assetsToAssetsMap(assetFiles),
           manifest: manifestResult.manifest,
         })
       );
@@ -334,7 +330,7 @@ export default class WorkerDeploy extends EasCommand {
       throw error;
     }
 
-    await uploadAssetsAsync(assetMap, deployResult);
+    await uploadAssetsAsync(assetFiles, deployResult);
     await finalizeDeployAsync(deployResult);
 
     let deploymentAlias: null | Awaited<ReturnType<typeof assignWorkerDeploymentAliasAsync>> = null;
