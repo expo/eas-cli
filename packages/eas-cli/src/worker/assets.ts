@@ -1,4 +1,5 @@
 import { parseProjectEnv } from '@expo/env';
+import mime from 'mime';
 import { Gzip, GzipOptions } from 'minizlib';
 import { HashOptions, createHash, randomBytes } from 'node:crypto';
 import fs, { createWriteStream } from 'node:fs';
@@ -49,6 +50,7 @@ async function computeSha512HashAsync(
 interface RecursiveFileEntry {
   normalizedPath: string;
   path: string;
+  size: number;
 }
 
 /** Lists plain files in base path recursively and outputs normalized paths */
@@ -61,9 +63,12 @@ function listFilesRecursively(basePath: string): AsyncGenerator<RecursiveFileEnt
       if (isIgnoredName(dirent.name)) {
         continue;
       } else if (dirent.isFile()) {
+        const absolutePath = path.resolve(target, dirent.name);
+        const stats = await fs.promises.stat(absolutePath);
         yield {
           normalizedPath,
-          path: path.resolve(target, dirent.name),
+          path: absolutePath,
+          size: stats.size,
         };
       } else if (dirent.isDirectory()) {
         yield* recurseAsync(normalizedPath);
@@ -73,14 +78,31 @@ function listFilesRecursively(basePath: string): AsyncGenerator<RecursiveFileEnt
   return recurseAsync();
 }
 
+async function determineMimeTypeAsync(filePath: string): Promise<string | null> {
+  let contentType = mime.getType(path.basename(filePath));
+  if (!contentType) {
+    const fileContent = await fs.promises.readFile(filePath, 'utf-8');
+    try {
+      // check if file is valid JSON without an extension, e.g. for the apple app site association file
+      const parsedData = JSON.parse(fileContent);
+      if (parsedData) {
+        contentType = 'application/json';
+      }
+    } catch {}
+  }
+  return contentType;
+}
+
 interface AssetMapOptions {
   hashOptions?: HashOptions;
 }
 
 export interface AssetFileEntry {
   normalizedPath: string;
-  sha512: string;
   path: string;
+  size: number;
+  sha512: string;
+  type: string | null;
 }
 
 /** Collects assets from a given target path */
@@ -91,10 +113,14 @@ export async function collectAssetsAsync(
   const assets: AssetFileEntry[] = [];
   if (assetPath) {
     for await (const file of listFilesRecursively(assetPath)) {
+      const sha512$ = computeSha512HashAsync(file.path, options?.hashOptions);
+      const contentType$ = determineMimeTypeAsync(file.path);
       assets.push({
         normalizedPath: file.normalizedPath,
         path: file.path,
-        sha512: await computeSha512HashAsync(file.path, options?.hashOptions),
+        size: file.size,
+        sha512: await sha512$,
+        type: await contentType$,
       });
     }
   }
