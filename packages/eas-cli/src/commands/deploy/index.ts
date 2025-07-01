@@ -165,7 +165,6 @@ export default class WorkerDeploy extends EasCommand {
       const { response } = await uploadAsync({
         url: uploadUrl,
         filePath: tarPath,
-        compress: false,
         headers: {
           accept: 'application/json',
         },

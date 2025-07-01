@@ -1,7 +1,6 @@
 import * as https from 'https';
 import createHttpsProxyAgent from 'https-proxy-agent';
 import mime from 'mime';
-import { Gzip } from 'minizlib';
 import fetch, { Headers, HeadersInit, RequestInit, Response } from 'node-fetch';
 import fs, { createReadStream } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -12,22 +11,6 @@ const MAX_RETRIES = 4;
 const MAX_CONCURRENCY = 10;
 const MIN_RETRY_TIMEOUT = 100;
 const MAX_UPLOAD_SIZE = 5e8; // 5MB
-const MIN_COMPRESSION_SIZE = 5e4; // 50kB
-
-const isCompressible = (contentType: string | null, size: number): boolean => {
-  if (size < MIN_COMPRESSION_SIZE) {
-    // Don't compress small files
-    return false;
-  } else if (contentType && /^(?:audio|video|image)\//i.test(contentType)) {
-    // Never compress images, audio, or videos as they're presumably precompressed
-    return false;
-  } else if (contentType && /^application\//i.test(contentType)) {
-    // Only compress `application/` files if they're marked as XML/JSON/JS
-    return /(?:xml|json5?|javascript)$/i.test(contentType);
-  } else {
-    return true;
-  }
-};
 
 const getContentTypeAsync = async (filePath: string): Promise<string | null> => {
   let contentType = mime.getType(path.basename(filePath));
@@ -49,7 +32,6 @@ const getContentTypeAsync = async (filePath: string): Promise<string | null> => 
 
 export interface UploadParams extends Omit<RequestInit, 'signal' | 'body'> {
   filePath: string;
-  compress?: boolean;
   url: string;
   method?: string;
   headers?: HeadersInit;
@@ -80,15 +62,7 @@ const getAgent = (): https.Agent => {
 };
 
 export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
-  const {
-    filePath,
-    signal,
-    compress,
-    method = 'POST',
-    url,
-    headers: headersInit,
-    ...requestInit
-  } = params;
+  const { filePath, signal, method = 'POST', url, headers: headersInit, ...requestInit } = params;
   const stat = await fs.promises.stat(filePath);
   if (stat.size > MAX_UPLOAD_SIZE) {
     throw new Error(
@@ -105,21 +79,12 @@ export async function uploadAsync(params: UploadParams): Promise<UploadResult> {
         headers.set('content-type', contentType);
       }
 
-      let bodyStream: NodeJS.ReadableStream = createReadStream(filePath);
-      if (compress && isCompressible(contentType, stat.size)) {
-        const gzip = new Gzip({ portable: true });
-        bodyStream.on('error', error => gzip.emit('error', error));
-        // @ts-expect-error: Gzip implements a Readable-like interface
-        bodyStream = bodyStream.pipe(gzip) as NodeJS.ReadableStream;
-        headers.set('content-encoding', 'gzip');
-      }
-
       let response: Response;
       try {
         response = await fetch(params.url, {
           ...requestInit,
           method,
-          body: bodyStream,
+          body: createReadStream(filePath),
           headers,
           agent: getAgent(),
           // @ts-expect-error: Internal types don't match
