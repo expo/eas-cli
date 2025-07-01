@@ -164,11 +164,14 @@ export default class WorkerDeploy extends EasCommand {
       tarPath: string,
       uploadUrl: string
     ): Promise<DeployInProgressParams> {
-      const { response } = await uploadAsync({
-        url: uploadUrl,
-        method: 'POST',
-        filePath: tarPath,
-      });
+      const payload = { filePath: tarPath };
+      const { response } = await uploadAsync(
+        {
+          url: uploadUrl,
+          method: 'POST',
+        },
+        payload
+      );
       if (response.status === 413) {
         throw new Error(
           'Upload failed! (Payload too large)\n' +
@@ -203,18 +206,14 @@ export default class WorkerDeploy extends EasCommand {
       assetFiles: WorkerAssets.AssetFileEntry[],
       deployParams: DeployInProgressParams
     ): Promise<void> {
-      const uploadParams = assetFiles.map(asset => {
-        const uploadURL = new URL(`/asset/${asset.sha512}`, deployParams.baseURL);
-        uploadURL.searchParams.set('token', deployParams.token);
-        return {
-          url: uploadURL.toString(),
-          method: 'POST',
-          filePath: asset.path,
-        };
-      });
+      const uploadURL = new URL('/asset/', deployParams.baseURL);
+      uploadURL.searchParams.set('token', deployParams.token);
+      const uploadInit = { url: uploadURL, method: 'POST' };
+
+      const uploadPayloads = assetFiles.map(asset => ({ asset }));
 
       const progress = {
-        total: uploadParams.length,
+        total: uploadPayloads.length,
         pending: 0,
         percent: 0,
         transferred: 0,
@@ -233,7 +232,7 @@ export default class WorkerDeploy extends EasCommand {
       });
 
       try {
-        for await (const signal of batchUploadAsync(uploadParams)) {
+        for await (const signal of batchUploadAsync(uploadInit, uploadPayloads)) {
           if ('response' in signal) {
             progress.pending--;
             progress.percent = ++progress.transferred / progress.total;
