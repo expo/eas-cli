@@ -24,6 +24,7 @@ const humanReadableServiceName: Record<StatuspageServiceName, string> = {
   [StatuspageServiceName.EasBuild]: 'EAS Build',
   [StatuspageServiceName.EasSubmit]: 'EAS Submit',
   [StatuspageServiceName.EasUpdate]: 'EAS Update',
+  [StatuspageServiceName.EasWorkflows]: 'EAS Workflows',
   [StatuspageServiceName.GithubApiRequests]: 'GitHub API Requests',
   [StatuspageServiceName.GithubWebhooks]: 'Github Webhooks',
 };
