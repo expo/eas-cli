@@ -2,14 +2,15 @@ import * as https from 'https';
 import createHttpsProxyAgent from 'https-proxy-agent';
 import fetch, { BodyInit, Headers, HeadersInit, RequestInit, Response } from 'node-fetch';
 import fs from 'node:fs';
+import os from 'node:os';
 import { Readable } from 'node:stream';
 import promiseRetry from 'promise-retry';
 
 import { AssetFileEntry } from './assets';
 import { createMultipartBodyFromFilesAsync, multipartContentType } from './utils/multipart';
 
+const MAX_CONCURRENCY = Math.min(10, Math.max(os.availableParallelism() * 2, 20));
 const MAX_RETRIES = 4;
-const MAX_CONCURRENCY = 10;
 
 export type UploadPayload =
   | { filePath: string }
