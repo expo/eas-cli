@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Fix suggested command to switch Xcode Developer Tools. ([#3079](https://github.com/expo/eas-cli/pull/3079) by [@rolfb](https://github.com/rolfb))
+- Skip configuring build profiles when running `eas update:configure` if no build profiles exist. ([#3084](https://github.com/expo/eas-cli/pull/3084) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🧹 Chores
 
