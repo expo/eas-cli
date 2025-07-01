@@ -77,21 +77,39 @@ interface AssetMapOptions {
   hashOptions?: HashOptions;
 }
 
+export interface AssetFileEntry {
+  normalizedPath: string;
+  sha512: string;
+  path: string;
+}
+
+/** Collects assets from a given target path */
+export async function collectAssetsAsync(
+  assetPath?: string,
+  options?: AssetMapOptions
+): Promise<AssetFileEntry[]> {
+  const assets: AssetFileEntry[] = [];
+  if (assetPath) {
+    for await (const file of listFilesRecursively(assetPath)) {
+      assets.push({
+        normalizedPath: file.normalizedPath,
+        path: file.path,
+        sha512: await computeSha512HashAsync(file.path, options?.hashOptions),
+      });
+    }
+  }
+  return assets;
+}
+
 /** Mapping of normalized file paths to a SHA512 hash */
 export type AssetMap = Record<string, string>;
 
-/** Creates an asset map of a given target path */
-async function createAssetMapAsync(
-  assetPath?: string,
-  options?: AssetMapOptions
-): Promise<AssetMap> {
-  const map: AssetMap = Object.create(null);
-  if (assetPath) {
-    for await (const file of listFilesRecursively(assetPath)) {
-      map[file.normalizedPath] = await computeSha512HashAsync(file.path, options?.hashOptions);
-    }
-  }
-  return map;
+/** Converts array of asset entries into AssetMap (as sent to deployment-api) */
+export function assetsToAssetsMap(assets: AssetFileEntry[]): AssetMap {
+  return assets.reduce((map, entry) => {
+    map[entry.normalizedPath] = entry.sha512;
+    return map;
+  }, Object.create(null));
 }
 
 export interface Manifest {
@@ -148,7 +166,7 @@ interface WorkerFileEntry {
 }
 
 /** Reads worker files while normalizing sourcemaps and providing normalized paths */
-async function* listWorkerFilesAsync(workerPath: string): AsyncGenerator<WorkerFileEntry> {
+export async function* listWorkerFilesAsync(workerPath: string): AsyncGenerator<WorkerFileEntry> {
   for await (const file of listFilesRecursively(workerPath)) {
     yield {
       normalizedPath: file.normalizedPath,
@@ -158,32 +176,11 @@ async function* listWorkerFilesAsync(workerPath: string): AsyncGenerator<WorkerF
   }
 }
 
-interface AssetFileEntry {
-  normalizedPath: string;
-  sha512: string;
-  path: string;
-}
-
-/** Reads files of an asset maps and enumerates normalized paths and data */
-async function* listAssetMapFilesAsync(
-  assetPath: string,
-  assetMap: AssetMap
-): AsyncGenerator<AssetFileEntry> {
-  for (const normalizedPath in assetMap) {
-    const filePath = path.resolve(assetPath, normalizedPath.split('/').join(path.sep));
-    yield {
-      normalizedPath,
-      path: filePath,
-      sha512: assetMap[normalizedPath],
-    };
-  }
-}
-
 /** Entry of a normalized (gzip-safe) path and file data */
 export type FileEntry = readonly [normalizedPath: string, data: Buffer | string];
 
 /** Packs file entries into a tar.gz file (path to tgz returned) */
-async function packFilesIterableAsync(
+export async function packFilesIterableAsync(
   iterable: Iterable<FileEntry> | AsyncIterable<FileEntry>,
   options?: GzipOptions
 ): Promise<string> {
@@ -199,10 +196,3 @@ async function packFilesIterableAsync(
   await writeTask$;
   return writePath;
 }
-
-export {
-  createAssetMapAsync,
-  listWorkerFilesAsync,
-  listAssetMapFilesAsync,
-  packFilesIterableAsync,
-};
