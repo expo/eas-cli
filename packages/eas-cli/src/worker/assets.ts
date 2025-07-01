@@ -134,12 +134,22 @@ export async function collectAssetsAsync(
 }
 
 /** Mapping of normalized file paths to a SHA512 hash */
-export type AssetMap = Record<string, string>;
+export type AssetMap = Record<
+  string,
+  | string
+  | {
+      sha512: string;
+      size: number;
+    }
+>;
 
 /** Converts array of asset entries into AssetMap (as sent to deployment-api) */
 export function assetsToAssetsMap(assets: AssetFileEntry[]): AssetMap {
   return assets.reduce((map, entry) => {
-    map[entry.normalizedPath] = entry.sha512;
+    map[entry.normalizedPath] = {
+      sha512: entry.sha512,
+      size: entry.size,
+    };
     return map;
   }, Object.create(null));
 }
