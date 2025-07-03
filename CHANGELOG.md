@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Refactor capabilities syncing to avoid provisioning profiles becoming invalid. ([#3088](https://github.com/expo/eas-cli/pull/3088) by [@vonovak](https://github.com/vonovak))
+
 ### 🧹 Chores
 
 ## [16.13.3](https://github.com/expo/eas-cli/releases/tag/v16.13.3) - 2025-07-01
