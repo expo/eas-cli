@@ -12,6 +12,7 @@ import {
 } from '@expo/apple-utils';
 import { JSONObject, JSONValue } from '@expo/json-file';
 import getenv from 'getenv';
+import nullthrows from 'nullthrows';
 import { inspect } from 'util';
 
 import Log from '../../../log';
@@ -78,6 +79,7 @@ const getDefinedOptions: GetOptionsMethod = entitlement => {
  *
  * @param bundleId bundle identifier object
  * @param entitlements JSON representation of the entitlements plist
+ * @param additionalOptions Additional options to consider when syncing capabilities.
  * @returns
  */
 export async function syncCapabilitiesForEntitlementsAsync(
@@ -105,7 +107,8 @@ export async function syncCapabilitiesForEntitlementsAsync(
   const { disabledCapabilityNames, request: modifiedRequest } = getCapabilitiesToDisable(
     bundleId,
     remainingCapabilities,
-    request
+    request,
+    entitlements
   );
 
   if (modifiedRequest.length) {
@@ -139,15 +142,98 @@ function shouldSkipPushNotificationsCapabilityUpdate(
     usesBroadcastPushNotifications: boolean;
   }
 ): boolean {
-  // For push notifications, we should always update the capabaility if
+  // For push notifications, we should always update the capability if
   // - settings are not defined in the existing capability, but usesBroadcastPushNotifications is enabled (we want to add settings for this capability)
   // - settings are defined in the existing capability, but usesBroadcastPushNotifications is disabled (we want to remove settings for this capability)
   const noSettingsAttributes = existing.attributes.settings == null;
   return !noSettingsAttributes === additionalOptions.usesBroadcastPushNotifications;
 }
 
+function shouldSkipIcloudCapabilityUpdate(
+  existing: BundleIdCapability,
+  newOption: CapabilityTypeOption
+): boolean {
+  // For iCloud capabilities, we should skip if:
+  // - the capability is already enabled and has the correct settings
+  // - we want to enable it and it's already enabled with settings
+  const existingEnabled = 'enabled' in existing.attributes && existing.attributes.enabled === true;
+  const newEnabled = newOption === CapabilityTypeOption.ON;
+
+  // If both are enabled and the existing one has settings, skip the update
+  // the settings are defined for only a few capabilities: https://developer.apple.com/documentation/appstoreconnectapi/capabilitysetting
+  if (existingEnabled && newEnabled && existing.attributes.settings) {
+    return true;
+  }
+
+  // If the states don't match, we need to update
+  return existingEnabled === newEnabled;
+}
+
+function shouldPerformRemoteCapabilitySetup(
+  existingRemote: BundleIdCapability | null,
+  staticCapabilityInfo: CapabilityClassifier,
+  entitlementValue: JSONValue,
+  entitlements: JSONObject,
+  additionalOptions: {
+    usesBroadcastPushNotifications: boolean;
+  }
+): 'enable' | 'disable' | 'skip' {
+  if (!existingRemote) {
+    if (entitlementValue === false) {
+      // the value represents a disabled capability (boolean false)
+      // e.g. 'com.apple.developer.networking.wifi-info': false
+      // the remote capability is *already disabled*, so we should skip it
+      return 'skip';
+    }
+    // a new capability not present remotely, so we want to create it
+    return 'enable';
+  }
+  if (existingRemote && entitlementValue === false) {
+    return 'disable';
+  }
+
+  // Only skip if the existing capability is a simple boolean value,
+  // if it has more complex settings then we should update it (except for push notifications, iCloud and perhaps more).
+  // If the `existing.attributes.settings` object is defined, then we can determine that it has extra configuration.
+  // For push notifications, we should always update the capability if
+  // - settings are not defined in the existing capability, but usesBroadcastPushNotifications is enabled (we want to add settings for this capability)
+  // - settings are defined in the existing capability, but usesBroadcastPushNotifications is disabled (we want to remove settings for this capability)
+
+  const isPushNotificationsCapability =
+    staticCapabilityInfo.capability === CapabilityType.PUSH_NOTIFICATIONS;
+
+  if (isPushNotificationsCapability) {
+    return shouldSkipPushNotificationsCapabilityUpdate(existingRemote, additionalOptions)
+      ? 'skip'
+      : 'enable';
+  }
+
+  const newValue = staticCapabilityInfo.getOptions(
+    entitlementValue,
+    entitlements,
+    additionalOptions
+  );
+
+  const needsSpecialHandling =
+    staticCapabilityInfo.capability === CapabilityType.ICLOUD ||
+    staticCapabilityInfo.capability === CapabilityType.APPLE_ID_AUTH;
+  if (needsSpecialHandling) {
+    return shouldSkipIcloudCapabilityUpdate(existingRemote, newValue) ? 'skip' : 'enable';
+  }
+
+  if (
+    staticCapabilityInfo.capability === CapabilityType.DATA_PROTECTION &&
+    existingRemote.attributes.settings?.[0].key === 'DATA_PROTECTION_PERMISSION_LEVEL'
+  ) {
+    const oldValue = existingRemote.attributes.settings[0]?.options?.[0]?.key;
+    return oldValue === newValue ? 'skip' : 'enable';
+  }
+
+  return existingRemote.attributes.settings === null ? 'skip' : 'enable';
+}
+
 function getCapabilitiesToEnable(
-  currentCapabilities: BundleIdCapability[],
+  currentRemoteCapabilities: BundleIdCapability[],
   entitlements: JSONObject,
   additionalOptions: {
     usesBroadcastPushNotifications: boolean;
@@ -159,7 +245,7 @@ function getCapabilitiesToEnable(
 } {
   const enabledCapabilityNames: string[] = [];
   const request: { capabilityType: CapabilityType; option: any }[] = [];
-  const remainingCapabilities = [...currentCapabilities];
+  const remainingCapabilities = [...currentRemoteCapabilities];
   for (const [key, value] of Object.entries(entitlements)) {
     const staticCapabilityInfo = CapabilityMapping.find(
       capability => capability.entitlement === key
@@ -172,47 +258,37 @@ function getCapabilitiesToEnable(
       continue;
     }
 
+    assertValidOptions(staticCapabilityInfo, value);
+
     const existingIndex = remainingCapabilities.findIndex(existing =>
       existing.isType(staticCapabilityInfo.capability)
     );
-    const existing = existingIndex > -1 ? remainingCapabilities[existingIndex] : null;
+    const existingRemote = existingIndex > -1 ? remainingCapabilities[existingIndex] : null;
 
-    // Only skip if the existing capability is a simple boolean value,
-    // if it has more complex settings then we should always update it.
-    // If the `existing.attributes.settings` object is defined, then we can determine that it has extra configuration.
-    // For push notifications, we should always update the capabaility if
-    // - settings are not defined in the existing capability, but usesBroadcastPushNotifications is enabled (we want to add settings for this capability)
-    // - settings are defined in the existing capability, but usesBroadcastPushNotifications is disabled (we want to remove settings for this capability)
-    const isPushNotificationsCapability =
-      staticCapabilityInfo.capability === CapabilityType.PUSH_NOTIFICATIONS;
-    if (
-      existing &&
-      ((!isPushNotificationsCapability && existing.attributes.settings == null) ||
-        (isPushNotificationsCapability &&
-          shouldSkipPushNotificationsCapabilityUpdate(existing, additionalOptions)))
-    ) {
-      // Remove the item from the list of capabilities so we don't disable it.
-      remainingCapabilities.splice(existingIndex, 1);
-      if (Log.isDebug) {
-        Log.log(`Skipping existing capability: ${key} (${staticCapabilityInfo.name})`);
-        Log.log(
-          `Remaining to remove: `,
-          remainingCapabilities.map(({ id }) => id)
-        );
-      }
-      continue;
+    const operation = shouldPerformRemoteCapabilitySetup(
+      existingRemote,
+      staticCapabilityInfo,
+      value,
+      entitlements,
+      additionalOptions
+    );
+
+    if (Log.isDebug) {
+      Log.log(`Will ${operation} remote capability: ${key} (${staticCapabilityInfo.name}.`);
     }
+    if (operation === 'enable') {
+      enabledCapabilityNames.push(staticCapabilityInfo.name);
 
-    assertValidOptions(staticCapabilityInfo, value);
+      const option = staticCapabilityInfo.getOptions(value, entitlements, additionalOptions);
 
-    enabledCapabilityNames.push(staticCapabilityInfo.name);
-
-    const option = staticCapabilityInfo.getOptions(value, entitlements, additionalOptions);
-
-    request.push({
-      capabilityType: staticCapabilityInfo.capability,
-      option,
-    });
+      request.push({
+        capabilityType: staticCapabilityInfo.capability,
+        option,
+      });
+    } else if (operation === 'skip') {
+      // Remove the item from the list of capabilities so we don't disable it in the next step.
+      remainingCapabilities.splice(existingIndex, 1);
+    }
   }
 
   return { enabledCapabilityNames, request, remainingCapabilities };
@@ -231,10 +307,27 @@ export function assertValidOptions(classifier: CapabilityClassifier, value: any)
   }
 }
 
+function getAdjustedCapabilityType(
+  existingCapability: BundleIdCapability,
+  bundleId: BundleId
+): string {
+  let adjustedType: string | undefined = existingCapability.attributes.capabilityType;
+  if (!adjustedType) {
+    if (process.env.NODE_ENV === 'test' && !existingCapability.id.startsWith(`${bundleId.id}_`)) {
+      throw new Error(
+        `Capability ID "${existingCapability.id}" does not start with the bundle ID "${bundleId.id}_". This is likely a test setup issue.`
+      );
+    }
+    adjustedType = existingCapability.id.replace(`${bundleId.id}_`, '');
+  }
+  return adjustedType;
+}
+
 function getCapabilitiesToDisable(
   bundleId: BundleId,
   currentCapabilities: BundleIdCapability[],
-  request: CapabilitiesRequest[]
+  request: CapabilitiesRequest[],
+  entitlements: JSONObject
 ): { disabledCapabilityNames: string[]; request: CapabilitiesRequest[] } {
   if (Log.isDebug) {
     Log.log(
@@ -257,9 +350,13 @@ function getCapabilitiesToDisable(
     }
 
     if (existingCapability.attributes) {
-      let adjustedType: string | undefined = existingCapability.attributes.capabilityType;
-      if (!adjustedType) {
-        adjustedType = existingCapability.id.replace(`${bundleId.id}_`, '');
+      const adjustedType = getAdjustedCapabilityType(existingCapability, bundleId);
+      if (
+        adjustedType === CapabilityType.MDM_MANAGED_ASSOCIATED_DOMAINS &&
+        entitlements[associatedDomainsCapabilityType.entitlement]
+      ) {
+        // MDM Managed Associated Domains is a special case, it should not be disabled if Associated Domains is enabled.
+        continue;
       }
 
       // Only disable capabilities that we handle,
@@ -406,7 +503,7 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     entitlement: 'com.apple.developer.icloud-container-identifiers',
     capability: CapabilityType.ICLOUD,
     validateOptions: validatePrefixedStringArrayOptions('iCloud.'),
-    // Only supports Xcode +6, 5 could be added if needed.
+    // Only supports Xcode +6
     getOptions: getDefinedOptions,
     capabilityIdModel: CloudContainer,
     capabilityIdPrefix: 'iCloud.',
@@ -863,3 +960,7 @@ export const CapabilityMapping: CapabilityClassifier[] = [
   // https://developer-mdn.apple.com/contact/request/exposure-notification-entitlement
   // com.apple.developer.exposure-notification: https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_exposure-notification/
 ];
+
+const associatedDomainsCapabilityType = nullthrows(
+  CapabilityMapping.find(it => it.capability === CapabilityType.ASSOCIATED_DOMAINS)
+);
