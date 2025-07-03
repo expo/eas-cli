@@ -6,6 +6,10 @@ import {
   syncCapabilitiesForEntitlementsAsync,
 } from '../bundleIdCapabilities';
 
+const broadcastNotificationOption = {
+  usesBroadcastPushNotifications: false,
+};
+
 describe(assertValidOptions, () => {
   it(`adds a reason for asserting capability identifiers`, () => {
     const classifier = CapabilityMapping.find(
@@ -42,19 +46,251 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
     const bundleId = {
       getBundleIdCapabilitiesAsync: jest.fn(() => capabilities),
       updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'XXX',
+      id: 'U78L9459DG',
     } as any;
 
-    await syncCapabilitiesForEntitlementsAsync(bundleId, entitlements, {
-      usesBroadcastPushNotifications: false,
-    });
+    const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      entitlements,
+      broadcastNotificationOption
+    );
 
+    expect(enabled).toStrictEqual(['Associated Domains']);
+    expect(disabled).toStrictEqual([]);
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
       {
         capabilityType: 'ASSOCIATED_DOMAINS',
         option: 'ON',
       },
     ]);
+  });
+  describe('capabilities with settings', () => {
+    const ctx = { providerId: 123195, teamId: 'MyteamId' };
+    const capabilities = [
+      {
+        id: 'U78L9459DG_APPLE_ID_AUTH',
+        attributes: {
+          ownerType: 'BUNDLE',
+          settings: [
+            {
+              key: 'APPLE_ID_AUTH_APP_CONSENT',
+              options: [
+                {
+                  key: 'PRIMARY_APP_CONSENT',
+                  inputs: [
+                    {
+                      key: 'SERVER_TO_SERVER_NOTIF_URL',
+                      name: 'Server to Server Notification URL',
+                      description: 'Server to Server Notification URL',
+                      allowedInstances: 'SINGLE',
+                      minInstances: 0,
+                      displayOrder: 0,
+                      maxLimit: 1,
+                      values: [
+                        {
+                          value: 'https://example.com/path/to/endpoint',
+                        },
+                      ],
+                    },
+                  ],
+                  properties: [null],
+                },
+              ],
+            },
+          ],
+          editable: true,
+          inputs: null,
+          enabled: true,
+          responseId: '570fdbea-7996-4ace-8397-e318973d2f36',
+        },
+      },
+      {
+        id: 'U78L9459DG_ICLOUD',
+        attributes: {
+          ownerType: 'BUNDLE',
+          settings: [
+            {
+              key: 'ICLOUD_VERSION',
+              options: [
+                {
+                  key: 'XCODE_6',
+                },
+              ],
+            },
+          ],
+          editable: true,
+          inputs: null,
+          enabled: true,
+          responseId: '570fdbea-7996-4ace-8397-e318973d2f36',
+        },
+      },
+      {
+        id: 'U78L9459DG_DATA_PROTECTION',
+        attributes: {
+          ownerType: 'BUNDLE',
+          settings: [
+            {
+              key: 'DATA_PROTECTION_PERMISSION_LEVEL',
+              options: [
+                {
+                  key: 'COMPLETE_PROTECTION',
+                },
+              ],
+            },
+          ],
+          editable: true,
+          inputs: null,
+          enabled: true,
+          responseId: '570fdbea-7996-4ace-8397-e318973d2f36',
+        },
+      },
+    ].map(({ id, attributes }) => new BundleIdCapability(ctx, id, attributes as any));
+
+    const entitlements = {
+      'com.apple.developer.applesignin': ['Default'],
+      'com.apple.developer.default-data-protection': 'NSFileProtectionComplete',
+      'com.apple.developer.icloud-container-identifiers': ['iCloud.com.vonovak.edfapp'],
+      'com.apple.developer.icloud-services': ['CloudDocuments'],
+      'com.apple.developer.ubiquity-container-identifiers': ['iCloud.com.vonovak.edfapp'],
+      'com.apple.developer.ubiquity-kvstore-identifier':
+        '$(TeamIdentifierPrefix)com.vonovak.edfapp',
+    };
+
+    it('does not sync a capability that is already enabled', async () => {
+      const bundleId = {
+        getBundleIdCapabilitiesAsync: jest.fn(() => capabilities),
+        updateBundleIdCapabilityAsync: jest.fn(),
+        id: 'U78L9459DG',
+      } as any;
+      const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+        bundleId,
+        entitlements,
+        broadcastNotificationOption
+      );
+
+      expect(enabled).toStrictEqual([]);
+      expect(disabled).toStrictEqual([]);
+      expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalled();
+    });
+
+    it('enables capabilities when they are not present', async () => {
+      const bundleId = {
+        getBundleIdCapabilitiesAsync: jest.fn(() => []),
+        updateBundleIdCapabilityAsync: jest.fn(),
+        id: 'U78L9459DG',
+      } as any;
+      const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+        bundleId,
+        entitlements,
+        broadcastNotificationOption
+      );
+
+      expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
+        { capabilityType: 'APPLE_ID_AUTH', option: 'ON' },
+        { capabilityType: 'DATA_PROTECTION', option: 'COMPLETE_PROTECTION' },
+        { capabilityType: 'ICLOUD', option: 'ON' },
+      ]);
+      expect(enabled).toStrictEqual(['Sign In with Apple', 'Data Protection', 'iCloud']);
+      expect(disabled).toStrictEqual([]);
+    });
+
+    it('disables capabilities when no entitlements are provided', async () => {
+      const bundleId = {
+        getBundleIdCapabilitiesAsync: jest.fn(() => capabilities),
+        updateBundleIdCapabilityAsync: jest.fn(),
+        id: 'U78L9459DG',
+      } as any;
+      const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+        bundleId,
+        {}, // no entitlements
+        broadcastNotificationOption
+      );
+
+      expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
+        { capabilityType: 'APPLE_ID_AUTH', option: 'OFF' },
+        { capabilityType: 'ICLOUD', option: 'OFF' },
+        { capabilityType: 'DATA_PROTECTION', option: 'OFF' },
+      ]);
+      expect(enabled).toStrictEqual([]);
+      expect(disabled).toStrictEqual(['Sign In with Apple', 'iCloud', 'Data Protection']);
+    });
+  });
+
+  describe('boolean capabilities: given a bundleId with no capabilities', () => {
+    it('enables boolean capability when set to true', async () => {
+      const bundleId = {
+        getBundleIdCapabilitiesAsync: jest.fn(() => []),
+        updateBundleIdCapabilityAsync: jest.fn(),
+        id: 'XXX',
+      } as any;
+      const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+        bundleId,
+        {
+          'com.apple.developer.networking.wifi-info': true,
+        },
+        broadcastNotificationOption
+      );
+
+      expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
+        { capabilityType: 'ACCESS_WIFI_INFORMATION', option: 'ON' },
+      ]);
+      expect(enabled).toStrictEqual(['Access WiFi Information']);
+      expect(disabled).toStrictEqual([]);
+    });
+
+    it('does not enable a capability when it is set to false', async () => {
+      const bundleId = {
+        getBundleIdCapabilitiesAsync: jest.fn(() => []),
+        updateBundleIdCapabilityAsync: jest.fn(),
+        id: 'XXX',
+      } as any;
+      const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+        bundleId,
+        {
+          'com.apple.developer.networking.wifi-info': false,
+        },
+        broadcastNotificationOption
+      );
+
+      expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalled();
+      expect(enabled).toStrictEqual([]);
+      expect(disabled).toStrictEqual([]);
+    });
+
+    it('given a bundleId with a capability that is enabled, and the entitlement is set to false, the capability is disabled', async () => {
+      const ctx = { providerId: 123195, teamId: 'MyteamId' };
+      const remote = {
+        id: 'UFJ54VZ75A_ACCESS_WIFI_INFORMATION',
+        attributes: {
+          ownerType: 'BUNDLE',
+          settings: null,
+          editable: true,
+          inputs: null,
+          enabled: true,
+          responseId: '31746b7d-4728-49f5-a8f9-a81c0cecabb1',
+        },
+      };
+
+      const capability = new BundleIdCapability(ctx, remote.id, remote.attributes as any);
+      const bundleId = {
+        getBundleIdCapabilitiesAsync: jest.fn(() => [capability]),
+        updateBundleIdCapabilityAsync: jest.fn(),
+        id: 'UFJ54VZ75A',
+      } as any;
+      const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+        bundleId,
+        {
+          'com.apple.developer.networking.wifi-info': false,
+        },
+        broadcastNotificationOption
+      );
+
+      expect(enabled).toStrictEqual([]);
+      expect(disabled).toStrictEqual(['Access WiFi Information']);
+      expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
+        { capabilityType: 'ACCESS_WIFI_INFORMATION', option: 'OFF' },
+      ]);
+    });
   });
 
   it('enables all capabilities', async () => {
@@ -124,9 +360,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
         'com.apple.developer.shared-with-you': true,
         'aps-environment': 'production',
       },
-      {
-        usesBroadcastPushNotifications: false,
-      }
+      broadcastNotificationOption
     );
 
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
@@ -337,9 +571,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       {
         'com.apple.developer.healthkit': true,
       },
-      {
-        usesBroadcastPushNotifications: false,
-      }
+      broadcastNotificationOption
     );
 
     expect(bundleId.updateBundleIdCapabilityAsync).not.toBeCalled();
@@ -369,9 +601,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
         {
           'com.apple.developer.healthkit': true,
         },
-        {
-          usesBroadcastPushNotifications: false,
-        }
+        broadcastNotificationOption
       )
     ).rejects.toThrowError(
       `https://developer-mdn.apple.com/account/resources/identifiers/bundleId/edit/XXX333`
@@ -392,9 +622,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       {
         'com.apple.developer.healthkit': true,
       },
-      {
-        usesBroadcastPushNotifications: false,
-      }
+      broadcastNotificationOption
     );
 
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
@@ -419,9 +647,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       {
         'com.apple.developer.healthkit': true,
       },
-      {
-        usesBroadcastPushNotifications: false,
-      }
+      broadcastNotificationOption
     );
 
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
@@ -447,9 +673,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
     const results = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
       {},
-      {
-        usesBroadcastPushNotifications: false,
-      }
+      broadcastNotificationOption
     );
 
     expect(bundleId.updateBundleIdCapabilityAsync).not.toBeCalled();
@@ -472,9 +696,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       {
         'com.apple.developer.healthkit': true,
       },
-      {
-        usesBroadcastPushNotifications: false,
-      }
+      broadcastNotificationOption
     );
 
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
@@ -605,9 +827,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       {
         'aps-environment': 'production',
       },
-      {
-        usesBroadcastPushNotifications: false,
-      }
+      broadcastNotificationOption
     );
 
     expect(bundleId.updateBundleIdCapabilityAsync).not.toBeCalled();
@@ -632,9 +852,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       {
         'aps-environment': 'production',
       },
-      {
-        usesBroadcastPushNotifications: false,
-      }
+      broadcastNotificationOption
     );
 
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
