@@ -1,14 +1,20 @@
 import { BundleIdCapability } from '@expo/apple-utils';
 
-import {
-  CapabilityMapping,
-  assertValidOptions,
-  syncCapabilitiesForEntitlementsAsync,
-} from '../bundleIdCapabilities';
+import { assertValidOptions, syncCapabilitiesForEntitlementsAsync } from '../bundleIdCapabilities';
+import { CapabilityMapping } from '../capabilityList';
 
-const broadcastNotificationOption = {
+const noBroadcastNotificationOption = {
   usesBroadcastPushNotifications: false,
 };
+
+// Helper function to create reusable bundleId objects for testing
+function createMockBundleId(id: string = 'XXX', capabilities: BundleIdCapability[] = []): any {
+  return {
+    getBundleIdCapabilitiesAsync: jest.fn(() => capabilities),
+    updateBundleIdCapabilityAsync: jest.fn(),
+    id,
+  } as any;
+}
 
 describe(assertValidOptions, () => {
   it(`adds a reason for asserting capability identifiers`, () => {
@@ -17,7 +23,7 @@ describe(assertValidOptions, () => {
     )!;
     expect(() => {
       assertValidOptions(classifier, ['foobar']);
-    }).toThrowError(/Expected an array of strings, where each string is prefixed with "merchant."/);
+    }).toThrow(/Expected an array of strings, where each string is prefixed with "merchant."/);
   });
 });
 
@@ -43,21 +49,17 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       'com.apple.developer.associated-domains': ['applinks:packagename.fr'],
     };
 
-    const bundleId = {
-      getBundleIdCapabilitiesAsync: jest.fn(() => capabilities),
-      updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'U78L9459DG',
-    } as any;
+    const bundleId = createMockBundleId('U78L9459DG', capabilities);
 
     const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
       entitlements,
-      broadcastNotificationOption
+      noBroadcastNotificationOption
     );
 
     expect(enabled).toStrictEqual(['Associated Domains']);
     expect(disabled).toStrictEqual([]);
-    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+    expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
       {
         capabilityType: 'ASSOCIATED_DOMAINS',
         option: 'ON',
@@ -157,32 +159,26 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
     };
 
     it('does not sync a capability that is already enabled', async () => {
-      const bundleId = {
-        getBundleIdCapabilitiesAsync: jest.fn(() => capabilities),
-        updateBundleIdCapabilityAsync: jest.fn(),
-        id: 'U78L9459DG',
-      } as any;
-      const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+      const bundleId = createMockBundleId('U78L9459DG', capabilities);
+      const result = await syncCapabilitiesForEntitlementsAsync(
         bundleId,
         entitlements,
-        broadcastNotificationOption
+        noBroadcastNotificationOption
       );
 
-      expect(enabled).toStrictEqual([]);
-      expect(disabled).toStrictEqual([]);
+      expect(result).toStrictEqual({
+        enabled: [],
+        disabled: [],
+      });
       expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalled();
     });
 
     it('enables capabilities when they are not present', async () => {
-      const bundleId = {
-        getBundleIdCapabilitiesAsync: jest.fn(() => []),
-        updateBundleIdCapabilityAsync: jest.fn(),
-        id: 'U78L9459DG',
-      } as any;
+      const bundleId = createMockBundleId('U78L9459DG', []);
       const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
         bundleId,
         entitlements,
-        broadcastNotificationOption
+        noBroadcastNotificationOption
       );
 
       expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
@@ -195,15 +191,11 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
     });
 
     it('disables capabilities when no entitlements are provided', async () => {
-      const bundleId = {
-        getBundleIdCapabilitiesAsync: jest.fn(() => capabilities),
-        updateBundleIdCapabilityAsync: jest.fn(),
-        id: 'U78L9459DG',
-      } as any;
+      const bundleId = createMockBundleId('U78L9459DG', capabilities);
       const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
         bundleId,
         {}, // no entitlements
-        broadcastNotificationOption
+        noBroadcastNotificationOption
       );
 
       expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
@@ -218,46 +210,42 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
 
   describe('boolean capabilities: given a bundleId with no capabilities', () => {
     it('enables boolean capability when set to true', async () => {
-      const bundleId = {
-        getBundleIdCapabilitiesAsync: jest.fn(() => []),
-        updateBundleIdCapabilityAsync: jest.fn(),
-        id: 'XXX',
-      } as any;
-      const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+      const bundleId = createMockBundleId();
+      const result = await syncCapabilitiesForEntitlementsAsync(
         bundleId,
         {
           'com.apple.developer.networking.wifi-info': true,
         },
-        broadcastNotificationOption
+        noBroadcastNotificationOption
       );
 
       expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
         { capabilityType: 'ACCESS_WIFI_INFORMATION', option: 'ON' },
       ]);
-      expect(enabled).toStrictEqual(['Access WiFi Information']);
-      expect(disabled).toStrictEqual([]);
+      expect(result).toStrictEqual({
+        enabled: ['Access WiFi Information'],
+        disabled: [],
+      });
     });
 
     it('does not enable a capability when it is set to false', async () => {
-      const bundleId = {
-        getBundleIdCapabilitiesAsync: jest.fn(() => []),
-        updateBundleIdCapabilityAsync: jest.fn(),
-        id: 'XXX',
-      } as any;
-      const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+      const bundleId = createMockBundleId();
+      const result = await syncCapabilitiesForEntitlementsAsync(
         bundleId,
         {
           'com.apple.developer.networking.wifi-info': false,
         },
-        broadcastNotificationOption
+        noBroadcastNotificationOption
       );
 
       expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalled();
-      expect(enabled).toStrictEqual([]);
-      expect(disabled).toStrictEqual([]);
+      expect(result).toStrictEqual({
+        enabled: [],
+        disabled: [],
+      });
     });
 
-    it('given a bundleId with a capability that is enabled, and the entitlement is set to false, the capability is disabled', async () => {
+    describe('given a bundleId with a capability that is enabled', () => {
       const ctx = { providerId: 123195, teamId: 'MyteamId' };
       const remote = {
         id: 'UFJ54VZ75A_ACCESS_WIFI_INFORMATION',
@@ -270,35 +258,44 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
           responseId: '31746b7d-4728-49f5-a8f9-a81c0cecabb1',
         },
       };
-
       const capability = new BundleIdCapability(ctx, remote.id, remote.attributes as any);
-      const bundleId = {
-        getBundleIdCapabilitiesAsync: jest.fn(() => [capability]),
-        updateBundleIdCapabilityAsync: jest.fn(),
-        id: 'UFJ54VZ75A',
-      } as any;
-      const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
-        bundleId,
-        {
-          'com.apple.developer.networking.wifi-info': false,
-        },
-        broadcastNotificationOption
-      );
 
-      expect(enabled).toStrictEqual([]);
-      expect(disabled).toStrictEqual(['Access WiFi Information']);
-      expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
-        { capabilityType: 'ACCESS_WIFI_INFORMATION', option: 'OFF' },
-      ]);
+      it('and the entitlement is set to false, the capability is disabled', async () => {
+        const bundleId = createMockBundleId('UFJ54VZ75A', [capability]);
+        const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+          bundleId,
+          {
+            'com.apple.developer.networking.wifi-info': false,
+          },
+          noBroadcastNotificationOption
+        );
+
+        expect(enabled).toStrictEqual([]);
+        expect(disabled).toStrictEqual(['Access WiFi Information']);
+        expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
+          { capabilityType: 'ACCESS_WIFI_INFORMATION', option: 'OFF' },
+        ]);
+      });
+
+      it('and the entitlement is set to true, the capability is skipped', async () => {
+        const bundleId = createMockBundleId('UFJ54VZ75A', [capability]);
+        const { enabled, disabled } = await syncCapabilitiesForEntitlementsAsync(
+          bundleId,
+          {
+            'com.apple.developer.networking.wifi-info': true,
+          },
+          noBroadcastNotificationOption
+        );
+
+        expect(enabled).toStrictEqual([]);
+        expect(disabled).toStrictEqual([]);
+        expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalled();
+      });
     });
   });
 
   it('enables all capabilities', async () => {
-    const bundleId = {
-      getBundleIdCapabilitiesAsync: jest.fn(() => []),
-      updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'XXX',
-    } as any;
+    const bundleId = createMockBundleId();
 
     const results = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
@@ -360,7 +357,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
         'com.apple.developer.shared-with-you': true,
         'aps-environment': 'production',
       },
-      broadcastNotificationOption
+      noBroadcastNotificationOption
     );
 
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
@@ -558,23 +555,19 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
   });
 
   it('skips simple duplicates', async () => {
-    const bundleId = {
-      getBundleIdCapabilitiesAsync: jest.fn(() => [
-        new BundleIdCapability({}, 'XXX_HEALTHKIT', { settings: null }),
-      ]),
-      updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'XXX',
-    } as any;
+    const bundleId = createMockBundleId('XXX', [
+      new BundleIdCapability({}, 'XXX_HEALTHKIT', { settings: null }),
+    ]);
 
     const results = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
       {
         'com.apple.developer.healthkit': true,
       },
-      broadcastNotificationOption
+      noBroadcastNotificationOption
     );
 
-    expect(bundleId.updateBundleIdCapabilityAsync).not.toBeCalled();
+    expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalled();
 
     expect(results.enabled).toStrictEqual([]);
     expect(results.disabled).toStrictEqual([]);
@@ -601,7 +594,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
         {
           'com.apple.developer.healthkit': true,
         },
-        broadcastNotificationOption
+        noBroadcastNotificationOption
       )
     ).rejects.toThrowError(
       `https://developer-mdn.apple.com/account/resources/identifiers/bundleId/edit/XXX333`
@@ -609,23 +602,19 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
   });
 
   it('cannot skip complex duplicates', async () => {
-    const bundleId = {
-      getBundleIdCapabilitiesAsync: jest.fn(() => [
-        new BundleIdCapability({}, 'XXX_HEALTHKIT', { settings: [] }),
-      ]),
-      updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'XXX',
-    } as any;
+    const bundleId = createMockBundleId('XXX', [
+      new BundleIdCapability({}, 'XXX_HEALTHKIT', { settings: [] }),
+    ]);
 
     const results = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
       {
         'com.apple.developer.healthkit': true,
       },
-      broadcastNotificationOption
+      noBroadcastNotificationOption
     );
 
-    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+    expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
       { capabilityType: 'HEALTHKIT', option: 'ON' },
     ]);
 
@@ -634,23 +623,19 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
   });
 
   it('disables some capabilities', async () => {
-    const bundleId = {
-      getBundleIdCapabilitiesAsync: jest.fn(() => [
-        new BundleIdCapability({}, 'XXX_HOMEKIT', { settings: null }),
-      ]),
-      updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'XXX',
-    } as any;
+    const bundleId = createMockBundleId('XXX', [
+      new BundleIdCapability({}, 'XXX_HOMEKIT', { settings: null }),
+    ]);
 
     const results = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
       {
         'com.apple.developer.healthkit': true,
       },
-      broadcastNotificationOption
+      noBroadcastNotificationOption
     );
 
-    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+    expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
       { capabilityType: 'HEALTHKIT', option: 'ON' },
       { capabilityType: 'HOMEKIT', option: 'OFF' },
     ]);
@@ -661,42 +646,34 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
 
   // We don't disable APNS, IAP, or GC
   it('does not disable special capabilities', async () => {
-    const bundleId = {
-      getBundleIdCapabilitiesAsync: jest.fn(() => [
-        new BundleIdCapability({}, 'XXX_IN_APP_PURCHASE', { settings: null }),
-        new BundleIdCapability({}, 'XXX_GAME_CENTER', { settings: null }),
-      ]),
-      updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'XXX',
-    } as any;
+    const bundleId = createMockBundleId('XXX', [
+      new BundleIdCapability({}, 'XXX_IN_APP_PURCHASE', { settings: null }),
+      new BundleIdCapability({}, 'XXX_GAME_CENTER', { settings: null }),
+    ]);
 
     const results = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
       {},
-      broadcastNotificationOption
+      noBroadcastNotificationOption
     );
 
-    expect(bundleId.updateBundleIdCapabilityAsync).not.toBeCalled();
+    expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalledWith();
 
     expect(results.enabled).toStrictEqual([]);
     expect(results.disabled).toStrictEqual([]);
   });
   // Only disable known capabilities
   it('does not disable unhandled capabilities', async () => {
-    const bundleId = {
-      getBundleIdCapabilitiesAsync: jest.fn(() => [
-        new BundleIdCapability({}, 'XXX_UNKNOWN_NEW_THING', { settings: null }),
-      ]),
-      updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'XXX',
-    } as any;
+    const bundleId = createMockBundleId('XXX', [
+      new BundleIdCapability({}, 'XXX_UNKNOWN_NEW_THING', { settings: null }),
+    ]);
 
     const results = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
       {
         'com.apple.developer.healthkit': true,
       },
-      broadcastNotificationOption
+      noBroadcastNotificationOption
     );
 
     expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
@@ -708,11 +685,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
   });
 
   it('enables push notifications capability with broadcast option when the capability is disabled and usesBroadcastPushNotifications is true', async () => {
-    const bundleId = {
-      getBundleIdCapabilitiesAsync: jest.fn(() => []),
-      updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'XXX',
-    } as any;
+    const bundleId = createMockBundleId();
 
     const results = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
@@ -724,7 +697,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       }
     );
 
-    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+    expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
       { capabilityType: 'PUSH_NOTIFICATIONS', option: 'PUSH_NOTIFICATION_FEATURE_BROADCAST' },
     ]);
 
@@ -733,13 +706,9 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
   });
 
   it('updates push notifications capability with broadcast option when the capability is enabled without settings and usesBroadcastPushNotifications is true', async () => {
-    const bundleId = {
-      getBundleIdCapabilitiesAsync: jest.fn(() => [
-        new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', { settings: null }),
-      ]),
-      updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'XXX',
-    } as any;
+    const bundleId = createMockBundleId('XXX', [
+      new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', { settings: null }),
+    ]);
 
     const results = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
@@ -751,7 +720,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       }
     );
 
-    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+    expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
       { capabilityType: 'PUSH_NOTIFICATIONS', option: 'PUSH_NOTIFICATION_FEATURE_BROADCAST' },
     ]);
 
@@ -760,13 +729,9 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
   });
 
   it('disables push notifications capability', async () => {
-    const bundleId = {
-      getBundleIdCapabilitiesAsync: jest.fn(() => [
-        new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', { settings: null }),
-      ]),
-      updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'XXX',
-    } as any;
+    const bundleId = createMockBundleId('XXX', [
+      new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', { settings: null }),
+    ]);
 
     const results = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
@@ -776,7 +741,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       }
     );
 
-    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+    expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
       { capabilityType: 'PUSH_NOTIFICATIONS', option: 'OFF' },
     ]);
 
@@ -785,15 +750,11 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
   });
 
   it('does nothing when push notifications capability is enabled with broadcast options and usesBroadcastPushNotifications is true', async () => {
-    const bundleId = {
-      getBundleIdCapabilitiesAsync: jest.fn(() => [
-        new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', {
-          settings: [],
-        }),
-      ]),
-      updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'XXX',
-    } as any;
+    const bundleId = createMockBundleId('XXX', [
+      new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', {
+        settings: [],
+      }),
+    ]);
 
     const results = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
@@ -812,22 +773,18 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
   });
 
   it('does nothing when push notifications capability is enabled without broadcast options and usesBroadcastPushNotifications is false', async () => {
-    const bundleId = {
-      getBundleIdCapabilitiesAsync: jest.fn(() => [
-        new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', {
-          settings: null,
-        }),
-      ]),
-      updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'XXX',
-    } as any;
+    const bundleId = createMockBundleId('XXX', [
+      new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', {
+        settings: null,
+      }),
+    ]);
 
     const results = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
       {
         'aps-environment': 'production',
       },
-      broadcastNotificationOption
+      noBroadcastNotificationOption
     );
 
     expect(bundleId.updateBundleIdCapabilityAsync).not.toBeCalled();
@@ -837,25 +794,21 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
   });
 
   it('updates push notifications capability without broadcast options when it is enabled and usesBroadcastPushNotifications is false', async () => {
-    const bundleId = {
-      getBundleIdCapabilitiesAsync: jest.fn(() => [
-        new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', {
-          settings: [],
-        }),
-      ]),
-      updateBundleIdCapabilityAsync: jest.fn(),
-      id: 'XXX',
-    } as any;
+    const bundleId = createMockBundleId('XXX', [
+      new BundleIdCapability({}, 'XXX_PUSH_NOTIFICATIONS', {
+        settings: [],
+      }),
+    ]);
 
     const results = await syncCapabilitiesForEntitlementsAsync(
       bundleId,
       {
         'aps-environment': 'production',
       },
-      broadcastNotificationOption
+      noBroadcastNotificationOption
     );
 
-    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+    expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
       { capabilityType: 'PUSH_NOTIFICATIONS', option: 'ON' },
     ]);
 
