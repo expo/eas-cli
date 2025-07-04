@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [16.13.4](https://github.com/expo/eas-cli/releases/tag/v16.13.4) - 2025-07-04
+
+### 🧹 Chores
+
 - Remove hidden flag from `eas upload`. ([#3014](https://github.com/expo/eas-cli/pull/3014) by [@gabrieldonadel](https://github.com/gabrieldonadel))
 
 ## [16.13.3](https://github.com/expo/eas-cli/releases/tag/v16.13.3) - 2025-07-01
