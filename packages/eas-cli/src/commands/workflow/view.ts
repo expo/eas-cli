@@ -1,6 +1,6 @@
 import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasJsonOnlyFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
+import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { WorkflowRunByIdWithJobsQuery } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
