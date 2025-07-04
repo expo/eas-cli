@@ -39,6 +39,7 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
 
   const createdIds: string[] = [];
   const linkedIds: string[] = [];
+  // these are only APPLE_PAY, ICLOUD, APP_GROUPS
   const CapabilityIdMapping = CapabilityMapping.filter(capability => capability.capabilityIdModel);
 
   const updateRequest: UpdateCapabilityRequest = [];
@@ -75,51 +76,53 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
     // A list of server IDs for linking.
     const capabilityIdOpaqueIds = [];
 
+    const capabilitiesWithoutRemoteModels = capabilityIds.filter(
+      localId => existingIds.find(model => model.attributes.identifier === localId) === undefined
+    );
     // Iterate through all the local IDs and see if they exist on the server.
-    for (const localId of capabilityIds) {
-      let remoteIdModel = existingIds.find(model => model.attributes.identifier === localId);
+    for (const localId of capabilitiesWithoutRemoteModels) {
+      let remoteIdModel = undefined;
 
-      // If a remote ID exists, then create it.
-      if (!remoteIdModel) {
-        if (Log.isDebug) {
-          Log.log(`Creating capability ID: ${localId} (${CapabilityModel.type})`);
-        }
-        try {
-          remoteIdModel = await CapabilityModel.createAsync(bundleId.context, {
-            identifier: localId,
-          });
-        } catch (error: any) {
-          // Add a more helpful error message.
-          error.message += `\n\nRemove the value '${localId}' from the array '${classifier.entitlement}' in the iOS project entitlements.\nIf you know that the ID is registered to one of your apps, try again with a different Apple account.`;
-          throw error;
-        }
-        // Create a list of newly created IDs for displaying in the CLI.
-        createdIds.push(localId);
-        if (Log.isDebug) {
-          Log.log(`Created capability ID: ${remoteIdModel.id}`);
-        }
+      if (Log.isDebug) {
+        Log.log(`Creating capability ID: ${localId} (${CapabilityModel.type})`);
+      }
+      try {
+        remoteIdModel = await CapabilityModel.createAsync(bundleId.context, {
+          identifier: localId,
+        });
+      } catch (error: any) {
+        // Add a more helpful error message.
+        error.message += `\n\nRemove the value '${localId}' from the array '${classifier.entitlement}' in the iOS project entitlements.\nIf you know that the ID is registered to one of your apps, try again with a different Apple account.`;
+        throw error;
       }
       if (Log.isDebug) {
-        Log.log(`Linking ID to ${CapabilityModel.type}: ${localId} (${remoteIdModel.id})`);
+        Log.log(`Created capability ID: ${remoteIdModel.id}`);
       }
-      // Create a list of linked IDs for displaying in the CLI.
+      // add to a list of newly created IDs for displaying in the CLI.
+      createdIds.push(localId);
+      // add to a list of linked IDs for displaying in the CLI.
       linkedIds.push(remoteIdModel.attributes.identifier);
       capabilityIdOpaqueIds.push(remoteIdModel.id);
     }
 
-    updateRequest.push({
-      capabilityType: classifier.capability,
-      option: CapabilityTypeOption.ON,
-      relationships: {
-        // One of: `merchantIds`, `appGroups`, `cloudContainers`.
-        [CapabilityModel.type]: capabilityIdOpaqueIds,
-      },
-    });
+    if (capabilityIdOpaqueIds.length) {
+      updateRequest.push({
+        capabilityType: classifier.capability,
+        option: CapabilityTypeOption.ON,
+        relationships: {
+          // One of: `merchantIds`, `appGroups`, `cloudContainers`.
+          [CapabilityModel.type]: capabilityIdOpaqueIds,
+        },
+      });
+    }
   }
 
   if (updateRequest.length) {
     if (Log.isDebug) {
-      Log.log(`Updating bundle identifier with capability identifiers:`, updateRequest);
+      Log.log(
+        `Updating bundle identifier with capability identifiers:`,
+        JSON.stringify(updateRequest, null, 2)
+      );
     }
     await bundleId.updateBundleIdCapabilityAsync(updateRequest);
   } else if (Log.isDebug) {
