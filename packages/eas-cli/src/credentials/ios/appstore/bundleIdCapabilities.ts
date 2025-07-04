@@ -138,7 +138,7 @@ function getCapabilitiesToEnable(
         capabilityType: staticCapabilityInfo.capability,
         option: operation.option,
       });
-    } else if (op === 'skip') {
+    } else if (op === 'skip' && existingIndex >= 0) {
       // Remove the item from the list of capabilities so we don't disable it in the next step.
       remainingCapabilities.splice(existingIndex, 1);
     }
