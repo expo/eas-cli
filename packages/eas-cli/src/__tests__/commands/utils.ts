@@ -190,6 +190,7 @@ export function getMockWorkflowRunsFragment(
     runs.push({
       id: `success-${i}`,
       status: WorkflowRunStatus.Success,
+      errors: [],
       createdAt: '2022-01-01T00:00:00.000Z',
       updatedAt: '2022-01-01T00:00:00.000Z',
       gitCommitHash: '1234567890',
@@ -204,6 +205,7 @@ export function getMockWorkflowRunsFragment(
   for (let i = 0; i < failures; i++) {
     runs.push({
       id: `failure-${i}`,
+      errors: ['Failed'],
       status: WorkflowRunStatus.Failure,
       createdAt: '2022-01-01T00:00:00.000Z',
       updatedAt: '2022-01-01T00:00:00.000Z',
@@ -219,6 +221,7 @@ export function getMockWorkflowRunsFragment(
   for (let i = 0; i < pending; i++) {
     runs.push({
       id: `pending-${i}`,
+      errors: [],
       status: WorkflowRunStatus.InProgress,
       createdAt: '2022-01-01T00:00:00.000Z',
       updatedAt: '2022-01-01T00:00:00.000Z',
