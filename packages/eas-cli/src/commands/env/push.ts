@@ -18,6 +18,7 @@ import {
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
+import uniq from '../../utils/expodash/uniq';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 import { isEnvironment } from '../../utils/variableUtils';
 
@@ -32,6 +33,10 @@ export default class EnvPush extends EasCommand {
 
   static override flags = {
     ...EASMultiEnvironmentFlag,
+    force: Flags.boolean({
+      description: 'Overwrite existing variables without prompting',
+      default: false,
+    }),
     path: Flags.string({
       description: 'Path to the input `.env` file',
       default: '.env.local',
@@ -50,7 +55,7 @@ export default class EnvPush extends EasCommand {
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(EnvPush);
 
-    let { environment: environments, path: envPath } = this.parseFlagsAndArgs(flags, args);
+    let { environment: environments, path: envPath, force } = this.parseFlagsAndArgs(flags, args);
 
     const {
       projectId,
@@ -59,7 +64,7 @@ export default class EnvPush extends EasCommand {
       nonInteractive: false,
     });
 
-    if (!environments) {
+    if (!environments?.length) {
       environments = await promptVariableEnvironmentAsync({
         nonInteractive: false,
         multiple: true,
@@ -101,6 +106,10 @@ export default class EnvPush extends EasCommand {
         variable => variable.scope === EnvironmentVariableScope.Shared
       );
 
+      let variablesToOverwrite: string[] = existingDifferentVariables.map(
+        variable => variable.name
+      );
+
       if (existingDifferentSharedVariables.length > 0) {
         const existingDifferentSharedVariablesNames = existingDifferentSharedVariables.map(
           variable => variable.name
@@ -113,7 +122,7 @@ export default class EnvPush extends EasCommand {
         throw new Error('Account-wide variables cannot be overwritten by eas env:push command');
       }
 
-      if (existingDifferentVariables.length > 0) {
+      if (existingDifferentVariables.length > 0 && !force) {
         Log.warn(`Some variables already exist in the ${displayedEnvironment} environment.`);
         const variableNames = existingDifferentVariables.map(variable => variable.name);
 
@@ -128,15 +137,11 @@ export default class EnvPush extends EasCommand {
           message: confirmationMessage,
         });
 
-        let variablesToOverwrite: string[] = [];
-
         if (!confirm && existingDifferentVariables.length === 0) {
           throw new Error('No new variables to push.');
         }
 
-        if (confirm) {
-          variablesToOverwrite = existingDifferentVariables.map(variable => variable.name);
-        } else {
+        if (!confirm) {
           const promptResult = await promptAsync({
             type: 'multiselect',
             name: 'variablesToOverwrite',
@@ -152,28 +157,35 @@ export default class EnvPush extends EasCommand {
           });
           variablesToOverwrite = promptResult.variablesToOverwrite;
         }
+      }
 
-        for (const existingVariable of existingVariables) {
-          const name = existingVariable.name;
-          if (variablesToOverwrite.includes(name)) {
-            updateVariables[name]['overwrite'] = true;
-          } else {
-            delete updateVariables[name];
+      for (const existingVariable of existingVariables) {
+        const { name } = existingVariable;
+        if (variablesToOverwrite.includes(name)) {
+          updateVariables[name]['overwrite'] = true;
+          updateVariables[name]['environments'] = uniq([
+            ...environments,
+            ...(existingVariable.environments ?? []),
+          ]);
+          if (existingVariable.visibility) {
+            updateVariables[name]['visibility'] = existingVariable.visibility;
           }
+        } else {
+          delete updateVariables[name];
         }
       }
 
-      // Check if any of the sensitive variables already exist in the environment. Prompt the user to overwrite them.
+      // Check if any of the secret variables already exist in the environment. Prompt the user to overwrite them.
       const existingSensitiveVariables = existingVariables.filter(
         variable => variable.visibility !== EnvironmentVariableVisibility.Public
       );
 
-      if (existingSensitiveVariables.length > 0) {
+      if (existingSensitiveVariables.length > 0 && !force) {
         const existingSensitiveVariablesNames = existingSensitiveVariables.map(
           variable => `- ${variable.name}`
         );
         const confirm = await confirmAsync({
-          message: `You are about to overwrite sensitive variables.\n${existingSensitiveVariablesNames.join(
+          message: `You are about to overwrite secret variables.\n${existingSensitiveVariablesNames.join(
             '\n'
           )}\n Do you want to continue?`,
         });
@@ -199,20 +211,28 @@ export default class EnvPush extends EasCommand {
   }
 
   parseFlagsAndArgs(
-    flags: { path: string; environment: EnvironmentVariableEnvironment[] | undefined },
+    flags: {
+      path: string;
+      environment: EnvironmentVariableEnvironment[] | undefined;
+      force: boolean;
+    },
     { environment }: Record<string, string>
-  ): { environment?: EnvironmentVariableEnvironment[]; path: string } {
-    if (environment && !isEnvironment(environment.toUpperCase())) {
+  ): { environment?: EnvironmentVariableEnvironment[]; path: string; force: boolean } {
+    const environments = [...(flags.environment ?? []), environment]
+      .filter(Boolean)
+      .map(e => e.toUpperCase());
+
+    if (environments.some(environment => !isEnvironment(environment))) {
       throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
     }
 
-    const environments =
-      flags.environment ??
-      (environment ? [environment.toUpperCase() as EnvironmentVariableEnvironment] : undefined);
+    if (environments.length === 0 && flags.force) {
+      throw new Error('At least one environment must be specified.');
+    }
 
     return {
       ...flags,
-      environment: environments,
+      environment: environments as EnvironmentVariableEnvironment[],
     };
   }
 
