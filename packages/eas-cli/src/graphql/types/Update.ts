@@ -36,6 +36,7 @@ export const UpdateFragmentNode = gql`
     rolloutPercentage
     rolloutControlUpdate {
       id
+      group
     }
     fingerprint {
       id
