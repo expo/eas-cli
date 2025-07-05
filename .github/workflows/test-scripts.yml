@@ -28,3 +28,4 @@ jobs:
           node-version: 20
       - run: yarn install --frozen-lockfile --check-files
       - run: yarn typecheck
+      - run: yarn --cwd packages/eas-cli generate-graphql-code
