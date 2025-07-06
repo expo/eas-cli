@@ -234,6 +234,7 @@
     "test": "jest",
     "version": "yarn oclif readme && node scripts/patch-readme && git add README.md",
     "generate-graphql-code": "graphql-codegen --config graphql-codegen.yml",
+    "verify-graphql-code": "./scripts/verify-graphql.sh",
     "clean": "rimraf dist build tmp node_modules yarn-error.log"
   },
   "volta": {
