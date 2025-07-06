@@ -84,7 +84,6 @@ export const AppQuery = {
               app {
                 byId(appId: $appId) {
                   id
-                  name
                   workflows {
                     id
                     ...WorkflowFragment
