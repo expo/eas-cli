@@ -1,0 +1,127 @@
+import { getWorkflowRunUrl } from '../../build/utils/url';
+import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
+import { WorkflowRunByIdWithJobsQuery } from '../../graphql/generated';
+import { AppQuery } from '../../graphql/queries/AppQuery';
+import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
+import Log, { link } from '../../log';
+import { promptAsync } from '../../prompts';
+import formatFields from '../../utils/formatFields';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+
+export default class WorkflowView extends EasCommand {
+  static override description =
+    'view details for a workflow run, including jobs. If no run ID is provided, you will be prompted to select from recent workflow runs for the current project.';
+
+  static override flags = {
+    ...EasJsonOnlyFlag,
+    ...EASNonInteractiveFlag,
+  };
+
+  static override args = [{ name: 'id', description: 'ID of the workflow run to view' }];
+
+  static override contextDefinition = {
+    ...this.ContextOptions.ProjectId,
+    ...this.ContextOptions.LoggedIn,
+  };
+
+  async runAsync(): Promise<void> {
+    const { args, flags } = await this.parse(WorkflowView);
+    const nonInteractive = flags['non-interactive'];
+    const {
+      loggedIn: { graphqlClient },
+      projectId,
+    } = await this.getContextAsync(WorkflowView, {
+      nonInteractive,
+    });
+    if (flags.json) {
+      enableJsonOutput();
+    }
+
+    let idToQuery = args.id;
+    if (!idToQuery) {
+      if (nonInteractive) {
+        throw new Error('If non-interactive, this command requires a workflow job ID as argument');
+      }
+      const runs = await AppQuery.byIdWorkflowRunsFilteredByStatusAsync(
+        graphqlClient,
+        projectId,
+        undefined,
+        20
+      );
+      idToQuery = (
+        await promptAsync({
+          type: 'select',
+          name: 'selectedRun',
+          message: 'Select a workflow run:',
+          choices: runs.map(run => ({
+            title: `${run.id} - ${run.workflow.fileName}, ${run.gitCommitMessage ?? ''}, ${
+              run.createdAt
+            }, ${run.status}`,
+            value: run.id,
+          })),
+        })
+      ).selectedRun;
+    }
+
+    type WorkflowRunResult = WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'] & {
+      logURL?: string;
+    };
+    const result: WorkflowRunResult = await WorkflowRunQuery.withJobsByIdAsync(
+      graphqlClient,
+      idToQuery,
+      {
+        useCache: false,
+      }
+    );
+
+    result.jobs.forEach(job => {
+      delete job.turtleJobRun;
+    });
+    result.logURL = getWorkflowRunUrl(
+      result.workflow.app.ownerAccount.name,
+      result.workflow.app.name,
+      result.id
+    );
+
+    if (flags.json) {
+      printJsonOnlyOutput(result);
+      return;
+    }
+
+    Log.log(
+      formatFields([
+        { label: 'Run ID', value: result.id },
+        { label: 'Workflow', value: result.workflow.fileName },
+        {
+          label: 'Git Commit Message',
+          value: result.gitCommitMessage?.split('\n')[0] ?? null ?? 'null',
+        },
+        { label: 'Git Commit Hash', value: result.gitCommitHash ?? 'null' },
+        { label: 'Requested Git Ref', value: result.requestedGitRef ?? 'null' },
+        { label: 'Status', value: result.status },
+        { label: 'Errors', value: result.errors.map(error => error.title).join('\n') },
+        { label: 'Created At', value: result.createdAt },
+        { label: 'Updated At', value: result.updatedAt },
+        { label: 'Log URL', value: link(result.logURL) },
+      ])
+    );
+    Log.addNewLineIfNone();
+    result.jobs.forEach(job => {
+      Log.log(
+        formatFields([
+          { label: 'Job ID', value: job.id },
+          { label: '  Key', value: job.key },
+          { label: '  Name', value: job.name },
+          { label: '  Status', value: job.status },
+          { label: '  Type', value: job.type },
+          { label: '  Created At', value: job.createdAt },
+          { label: '  Updated At', value: job.updatedAt },
+          { label: '  Outputs', value: JSON.stringify(job.outputs, null, 2) },
+          { label: '  Errors', value: job.errors.map(error => error.title).join('\n') },
+        ])
+      );
+      Log.addNewLineIfNone();
+    });
+  }
+}
