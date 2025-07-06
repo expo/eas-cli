@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+- Remove unreleased `link` and `unlink` commands from `eas env`. ([#3092](https://github.com/expo/eas-cli/pull/3092) by [@kadikraman](https://github.com/kadikraman))
 
 ## [16.13.4](https://github.com/expo/eas-cli/releases/tag/v16.13.4) - 2025-07-04
 

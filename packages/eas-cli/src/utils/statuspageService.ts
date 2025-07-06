@@ -26,6 +26,7 @@ const humanReadableServiceName: Record<StatuspageServiceName, string> = {
   [StatuspageServiceName.EasUpdate]: 'EAS Update',
   [StatuspageServiceName.GithubApiRequests]: 'GitHub API Requests',
   [StatuspageServiceName.GithubWebhooks]: 'Github Webhooks',
+  [StatuspageServiceName.EasWorkflows]: 'EAS Workflows',
 };
 
 function warnAboutServiceOutage(service: StatuspageServiceFragment): void {

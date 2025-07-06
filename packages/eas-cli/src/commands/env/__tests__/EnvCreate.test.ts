@@ -289,7 +289,7 @@ describe(EnvCreate, () => {
       });
     });
 
-    it('creates an account-wide variable and links it', async () => {
+    it('creates an account-wide variable', async () => {
       const command = new EnvCreate(
         [
           '--name',
@@ -302,7 +302,6 @@ describe(EnvCreate, () => {
           'development',
           '--scope',
           'account',
-          '--link',
         ],
         mockConfig
       );
@@ -329,18 +328,6 @@ describe(EnvCreate, () => {
           type: EnvironmentSecretType.String,
         },
         testAccountId
-      );
-      expect(EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync).toHaveBeenCalledWith(
-        graphqlClient,
-        'testId',
-        testProjectId,
-        EnvironmentVariableEnvironment.Production
-      );
-      expect(EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync).toHaveBeenCalledWith(
-        graphqlClient,
-        'testId',
-        testProjectId,
-        EnvironmentVariableEnvironment.Development
       );
     });
 

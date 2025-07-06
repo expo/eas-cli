@@ -12,8 +12,6 @@ import {
   EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariableVisibility,
-  LinkSharedEnvironmentVariableMutation,
-  UnlinkSharedEnvironmentVariableMutation,
   UpdateEnvironmentVariableMutation,
 } from '../generated';
 import { EnvironmentVariableFragmentNode } from '../types/EnvironmentVariable';
@@ -37,76 +35,6 @@ export type EnvironmentVariablePushInput = {
 };
 
 export const EnvironmentVariableMutation = {
-  async linkSharedEnvironmentVariableAsync(
-    graphqlClient: ExpoGraphqlClient,
-    environmentVariableId: string,
-    appId: string,
-    environment?: EnvironmentVariableEnvironment
-  ): Promise<EnvironmentVariableFragment> {
-    const data = await withErrorHandlingAsync(
-      graphqlClient
-        .mutation<LinkSharedEnvironmentVariableMutation>(
-          gql`
-            mutation LinkSharedEnvironmentVariable(
-              $appId: ID!
-              $environment: EnvironmentVariableEnvironment
-              $environmentVariableId: ID!
-            ) {
-              environmentVariable {
-                linkSharedEnvironmentVariable(
-                  appId: $appId
-                  environmentVariableId: $environmentVariableId
-                  environment: $environment
-                ) {
-                  id
-                  ...EnvironmentVariableFragment
-                }
-              }
-            }
-            ${print(EnvironmentVariableFragmentNode)}
-          `,
-          { appId, environment, environmentVariableId }
-        )
-        .toPromise()
-    );
-
-    return data.environmentVariable.linkSharedEnvironmentVariable;
-  },
-  async unlinkSharedEnvironmentVariableAsync(
-    graphqlClient: ExpoGraphqlClient,
-    environmentVariableId: string,
-    appId: string,
-    environment?: EnvironmentVariableEnvironment
-  ): Promise<EnvironmentVariableFragment> {
-    const data = await withErrorHandlingAsync(
-      graphqlClient
-        .mutation<UnlinkSharedEnvironmentVariableMutation>(
-          gql`
-            mutation UnlinkSharedEnvironmentVariable(
-              $appId: ID!
-              $environment: EnvironmentVariableEnvironment
-              $environmentVariableId: ID!
-            ) {
-              environmentVariable {
-                unlinkSharedEnvironmentVariable(
-                  appId: $appId
-                  environmentVariableId: $environmentVariableId
-                  environment: $environment
-                ) {
-                  id
-                  ...EnvironmentVariableFragment
-                }
-              }
-            }
-            ${print(EnvironmentVariableFragmentNode)}
-          `,
-          { appId, environment, environmentVariableId }
-        )
-        .toPromise()
-    );
-
-    return data.environmentVariable.unlinkSharedEnvironmentVariable;
-  },
   async createSharedVariableAsync(
     graphqlClient: ExpoGraphqlClient,
     input: CreateVariableArgs,

@@ -33,12 +33,11 @@ import {
   promptVariableValueAsync,
   promptVariableVisibilityAsync,
 } from '../../utils/prompts';
-import { isEnvironment, performForEnvironmentsAsync } from '../../utils/variableUtils';
+import { isEnvironment } from '../../utils/variableUtils';
 
 interface RawCreateFlags {
   name?: string;
   value?: string;
-  link?: boolean;
   force?: boolean;
   type?: 'string' | 'file';
   visibility?: 'plaintext' | 'sensitive' | 'secret';
@@ -50,7 +49,6 @@ interface RawCreateFlags {
 interface CreateFlags {
   name?: string;
   value?: string;
-  link?: boolean;
   force?: boolean;
   type?: 'string' | 'file';
   visibility?: 'plaintext' | 'sensitive' | 'secret';
@@ -77,10 +75,6 @@ export default class EnvCreate extends EasCommand {
     }),
     value: Flags.string({
       description: 'Text value or the variable',
-    }),
-    link: Flags.boolean({
-      description: 'Link account-wide variable to the current project',
-      hidden: true, // every account-wide variable is global for now so it's not user facing
     }),
     force: Flags.boolean({
       description: 'Overwrite existing variable',
@@ -114,7 +108,6 @@ export default class EnvCreate extends EasCommand {
       'non-interactive': nonInteractive,
       environment: environments,
       visibility,
-      link,
       force,
       type,
       fileName,
@@ -153,29 +146,6 @@ export default class EnvCreate extends EasCommand {
             suggestion: 'Do you want to overwrite it?',
           });
           overwrite = true;
-        }
-        if (existingVariable.scope === EnvironmentVariableScope.Shared) {
-          await this.promptForOverwriteAsync({
-            nonInteractive,
-            force,
-            message: `Account-wide variable with ${name} name already exists on this account.`,
-            suggestion: 'Do you want to unlink it first?',
-          });
-
-          Log.withTick(
-            `Unlinking account-wide variable ${chalk.bold(name)} on project ${chalk.bold(
-              projectDisplayName
-            )}.`
-          );
-
-          await performForEnvironmentsAsync(environments, async environment => {
-            await EnvironmentVariableMutation.unlinkSharedEnvironmentVariableAsync(
-              graphqlClient,
-              existingVariable.id,
-              projectId,
-              environment
-            );
-          });
         }
       }
 
@@ -265,29 +235,6 @@ export default class EnvCreate extends EasCommand {
       Log.withTick(
         `Created a new variable ${chalk.bold(name)} on account ${chalk.bold(ownerAccount.name)}.`
       );
-
-      if (link) {
-        Log.withTick(
-          `Linking account-wide variable ${chalk.bold(name)} to project ${chalk.bold(
-            projectDisplayName
-          )}.`
-        );
-
-        await performForEnvironmentsAsync(environments, async environment => {
-          await EnvironmentVariableMutation.linkSharedEnvironmentVariableAsync(
-            graphqlClient,
-            variable.id,
-            projectId,
-            environment
-          );
-        });
-
-        Log.withTick(
-          `Linked account-wide variable ${chalk.bold(name)} to project ${chalk.bold(
-            projectDisplayName
-          )}.`
-        );
-      }
     }
   }
 
@@ -402,7 +349,6 @@ export default class EnvCreate extends EasCommand {
       value,
       environment: newEnvironments,
       visibility: newVisibility,
-      link: rest.link ?? false,
       force: rest.force ?? false,
       'non-interactive': nonInteractive,
       type: newType,
@@ -412,12 +358,6 @@ export default class EnvCreate extends EasCommand {
   }
 
   private sanitizeFlags(flags: RawCreateFlags): CreateFlags {
-    if (flags.scope !== 'account' && flags.link) {
-      throw new Error(
-        `Unexpected argument: --link can only be used when creating account-wide variables`
-      );
-    }
-
     return {
       ...flags,
       scope:
