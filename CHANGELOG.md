@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add workflow:view and workflow:logs commands. ([#3090](https://github.com/expo/eas-cli/pull/3090) by [@douglowder](https://github.com/douglowder))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
