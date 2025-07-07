@@ -10,21 +10,27 @@ import {
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import {
+  AppPlatform,
+  RuntimeFragment,
   UpdateFragment,
   ViewUpdateGroupsOnAppQueryVariables,
   ViewUpdateGroupsOnBranchQueryVariables,
 } from '../graphql/generated';
+import { RuntimeQuery } from '../graphql/queries/RuntimeQuery';
 import { UpdateQuery } from '../graphql/queries/UpdateQuery';
 import Log from '../log';
+import { UpdatePublishPlatform } from '../project/publish';
 import formatFields from '../utils/formatFields';
 import { printJsonOnlyOutput } from '../utils/json';
 import {
   paginatedQueryWithConfirmPromptAsync,
   paginatedQueryWithSelectPromptAsync,
 } from '../utils/queries';
+import { Connection, QueryParams, selectPaginatedAsync } from '../utils/relay';
 
 export const UPDATES_LIMIT = 50;
 export const UPDATE_GROUPS_LIMIT = 25;
+export const RUNTIME_VERSIONS_LIMIT = 25;
 
 export async function listAndRenderUpdateGroupsOnAppAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -98,6 +104,58 @@ export async function listAndRenderUpdateGroupsOnBranchAsync(
       },
     });
   }
+}
+
+export async function selectRuntimeAndGetLatestUpdateGroupForEachPublishPlatformOnBranchAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    branchName,
+    paginatedQueryOptions,
+  }: {
+    projectId: string;
+    branchName: string;
+    paginatedQueryOptions: PaginatedQueryOptions;
+  }
+): Promise<Record<UpdatePublishPlatform, UpdateFragment[] | undefined>> {
+  if (paginatedQueryOptions.nonInteractive) {
+    throw new Error('Unable to select an update in non-interactive mode.');
+  }
+
+  const runtimeVersion = await selectRuntimeOnBranchAsync(graphqlClient, {
+    appId: projectId,
+    branchName,
+  });
+  if (!runtimeVersion) {
+    throw new Error('No runtime version selected.');
+  }
+
+  return {
+    ios: (
+      await queryUpdateGroupsOnBranchAsync(graphqlClient, {
+        appId: projectId,
+        branchName,
+        limit: 1,
+        offset: 0,
+        filter: {
+          runtimeVersions: [runtimeVersion.version],
+          platform: AppPlatform.Ios,
+        },
+      })
+    )[0],
+    android: (
+      await queryUpdateGroupsOnBranchAsync(graphqlClient, {
+        appId: projectId,
+        branchName,
+        limit: 1,
+        offset: 0,
+        filter: {
+          runtimeVersions: [runtimeVersion.version],
+          platform: AppPlatform.Android,
+        },
+      })
+    )[0],
+  };
 }
 
 export async function selectUpdateGroupOnBranchAsync(
@@ -229,4 +287,37 @@ function renderUpdateGroupsOnApp({
       )
       .join(`\n\n${chalk.dim('———')}\n\n`)
   );
+}
+
+export async function selectRuntimeOnBranchAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    appId,
+    branchName,
+    batchSize = 5,
+  }: {
+    appId: string;
+    branchName: string;
+    batchSize?: number;
+  }
+): Promise<RuntimeFragment | null> {
+  const queryAsync = async (queryParams: QueryParams): Promise<Connection<RuntimeFragment>> => {
+    return await RuntimeQuery.getRuntimesOnBranchAsync(graphqlClient, {
+      appId,
+      name: branchName,
+      first: queryParams.first,
+      after: queryParams.after,
+      last: queryParams.last,
+      before: queryParams.before,
+    });
+  };
+  const getTitleAsync = async (runtime: RuntimeFragment): Promise<string> => {
+    return runtime.version;
+  };
+  return await selectPaginatedAsync({
+    queryAsync,
+    getTitleAsync,
+    printedType: 'target runtime',
+    pageSize: batchSize,
+  });
 }

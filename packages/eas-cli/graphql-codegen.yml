@@ -8,6 +8,7 @@ documents:
   - 'src/branch/**/*.ts'
   - 'src/channel/**/*.ts'
   - 'src/worker/**/*.ts'
+  - 'src/update/**/*.ts'
 generates:
   src/graphql/generated.ts:
     plugins:
