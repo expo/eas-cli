@@ -262,21 +262,32 @@ async function createOrGetExistingIosAppCredentialsWithBuildCredentialsAsync(
 
 export async function createOrGetExistingAppleTeamAsync(
   graphqlClient: ExpoGraphqlClient,
-  account: AccountFragment,
+  accountId: string,
   { appleTeamIdentifier, appleTeamName }: { appleTeamIdentifier: string; appleTeamName?: string }
 ): Promise<AppleTeamFragment> {
   const appleTeam = await AppleTeamQuery.getByAppleTeamIdentifierAsync(
     graphqlClient,
-    account.id,
+    accountId,
     appleTeamIdentifier
   );
   if (appleTeam) {
+    const didAppleTeamNameChange =
+      appleTeamName && appleTeam && appleTeamName !== appleTeam.appleTeamName;
+    if (didAppleTeamNameChange) {
+      return await AppleTeamMutation.updateAppleTeamAsync(
+        graphqlClient,
+        {
+          appleTeamName,
+        },
+        appleTeam.id
+      );
+    }
     return appleTeam;
   } else {
     return await AppleTeamMutation.createAppleTeamAsync(
       graphqlClient,
       { appleTeamIdentifier, appleTeamName },
-      account.id
+      accountId
     );
   }
 }
@@ -424,7 +435,7 @@ export async function createDistributionCertificateAsync(
   account: AccountFragment,
   distCert: DistributionCertificate
 ): Promise<AppleDistributionCertificateMutationResult> {
-  const appleTeam = await createOrGetExistingAppleTeamAsync(graphqlClient, account, {
+  const appleTeam = await createOrGetExistingAppleTeamAsync(graphqlClient, account.id, {
     appleTeamIdentifier: distCert.teamId,
     appleTeamName: distCert.teamName,
   });
@@ -456,7 +467,7 @@ export async function createPushKeyAsync(
   account: AccountFragment,
   pushKey: PushKey
 ): Promise<ApplePushKeyFragment> {
-  const appleTeam = await createOrGetExistingAppleTeamAsync(graphqlClient, account, {
+  const appleTeam = await createOrGetExistingAppleTeamAsync(graphqlClient, account.id, {
     appleTeamIdentifier: pushKey.teamId,
     appleTeamName: pushKey.teamName,
   });
@@ -502,7 +513,7 @@ export async function createAscApiKeyAsync(
   ascApiKey: MinimalAscApiKey
 ): Promise<AppStoreConnectApiKeyFragment> {
   const maybeAppleTeam = ascApiKey.teamId
-    ? await createOrGetExistingAppleTeamAsync(graphqlClient, account, {
+    ? await createOrGetExistingAppleTeamAsync(graphqlClient, account.id, {
         appleTeamIdentifier: ascApiKey.teamId,
         appleTeamName: ascApiKey.teamName,
       })

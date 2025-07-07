@@ -7,7 +7,9 @@ import {
   AccountFragment,
   AppleTeamFragment,
   AppleTeamInput,
+  AppleTeamUpdateInput,
   CreateAppleTeamMutation,
+  UpdateAppleTeamMutation,
 } from '../../../../../graphql/generated';
 import { AccountFragmentNode } from '../../../../../graphql/types/Account';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
@@ -49,5 +51,41 @@ export const AppleTeamMutation = {
         .toPromise()
     );
     return data.appleTeam.createAppleTeam;
+  },
+  async updateAppleTeamAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appleTeamInput: AppleTeamUpdateInput,
+    appleTeamEntityId: string
+  ): Promise<AppleTeamMutationResult> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<UpdateAppleTeamMutation>(
+          gql`
+            mutation UpdateAppleTeamMutation(
+              $appleTeamInput: AppleTeamUpdateInput!
+              $appleTeamEntityId: ID!
+            ) {
+              appleTeam {
+                updateAppleTeam(appleTeamUpdateInput: $appleTeamInput, id: $appleTeamEntityId) {
+                  id
+                  ...AppleTeamFragment
+                  account {
+                    id
+                    ...AccountFragment
+                  }
+                }
+              }
+            }
+            ${print(AppleTeamFragmentNode)}
+            ${print(AccountFragmentNode)}
+          `,
+          {
+            appleTeamInput,
+            appleTeamEntityId,
+          }
+        )
+        .toPromise()
+    );
+    return data.appleTeam.updateAppleTeam;
   },
 };

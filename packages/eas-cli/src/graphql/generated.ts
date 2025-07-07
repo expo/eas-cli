@@ -9319,6 +9319,14 @@ export type CreateAppleTeamMutationVariables = Exact<{
 
 export type CreateAppleTeamMutation = { __typename?: 'RootMutation', appleTeam: { __typename?: 'AppleTeamMutation', createAppleTeam: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null, account: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> } } } };
 
+export type UpdateAppleTeamMutationVariables = Exact<{
+  appleTeamInput: AppleTeamUpdateInput;
+  appleTeamEntityId: Scalars['ID']['input'];
+}>;
+
+
+export type UpdateAppleTeamMutation = { __typename?: 'RootMutation', appleTeam: { __typename?: 'AppleTeamMutation', updateAppleTeam: { __typename?: 'AppleTeam', id: string, appleTeamIdentifier: string, appleTeamName?: string | null, account: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> } } } };
+
 export type CreateIosAppBuildCredentialsMutationVariables = Exact<{
   iosAppBuildCredentialsInput: IosAppBuildCredentialsInput;
   iosAppCredentialsId: Scalars['ID']['input'];
