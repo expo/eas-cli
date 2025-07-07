@@ -45,6 +45,12 @@ export default class WorkflowRun extends EasCommand {
       description: 'Exit codes: 0 = success, 11 = failure, 12 = canceled, 13 = wait aborted.',
       summary: 'Wait for workflow run to complete',
     }),
+    input: Flags.string({
+      char: 'F',
+      multiple: true,
+      description: 'Add a string parameter in key=value format',
+      summary: 'Set workflow inputs',
+    }),
     ...EasJsonOnlyFlag,
   };
 
@@ -168,6 +174,8 @@ export default class WorkflowRun extends EasCommand {
 
     let workflowRunId: string;
 
+    const inputs = flags.input ? parseInputs(flags.input) : undefined;
+
     try {
       ({ id: workflowRunId } = await WorkflowRunMutation.createWorkflowRunAsync(graphqlClient, {
         appId: projectId,
@@ -176,6 +184,7 @@ export default class WorkflowRun extends EasCommand {
           yamlConfig,
         },
         workflowRunInput: {
+          inputs,
           projectSource: {
             type: WorkflowProjectSourceType.Gcs,
             projectArchiveBucketKey,
@@ -287,4 +296,26 @@ async function fileExistsAsync(filePath: string): Promise<boolean> {
     .access(filePath, fs.constants.F_OK)
     .then(() => true)
     .catch(() => false);
+}
+
+export function parseInputs(inputFlags: string[]): Record<string, string> {
+  const inputs: Record<string, string> = {};
+
+  for (const inputFlag of inputFlags) {
+    const equalIndex = inputFlag.indexOf('=');
+    if (equalIndex === -1) {
+      throw new Error(`Invalid input format: ${inputFlag}. Expected key=value format.`);
+    }
+
+    const key = inputFlag.substring(0, equalIndex);
+    const value = inputFlag.substring(equalIndex + 1);
+
+    if (!key) {
+      throw new Error(`Invalid input format: ${inputFlag}. Key cannot be empty.`);
+    }
+
+    inputs[key] = value;
+  }
+
+  return inputs;
 }
