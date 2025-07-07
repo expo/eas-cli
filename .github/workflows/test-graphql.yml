@@ -1,0 +1,29 @@
+name: Ensure GraphQL schema and generated code is up-to-date
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/test-graphql.yml
+      - packages/eas-cli/src/**
+  schedule:
+    - cron: '0 8 * * *' # 8:00 AM UTC time every day
+
+concurrency:
+  group: test-graphql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 22
+      - run: yarn install --frozen-lockfile
+      - run: yarn verify-graphql-code
+        working-directory: packages/eas-cli
