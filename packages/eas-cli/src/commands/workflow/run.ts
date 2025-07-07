@@ -47,8 +47,10 @@ export default class WorkflowRun extends EasCommand {
     }),
     input: Flags.string({
       char: 'F',
+      aliases: ['f', 'field'],
       multiple: true,
-      description: 'Add a string parameter in key=value format',
+      description:
+        'Add a parameter in key=value format. Use multiple instances of this flag to set multiple inputs.',
       summary: 'Set workflow inputs',
     }),
     ...EasJsonOnlyFlag,
@@ -174,7 +176,33 @@ export default class WorkflowRun extends EasCommand {
 
     let workflowRunId: string;
 
-    const inputs = flags.input ? parseInputs(flags.input) : undefined;
+    let inputs: Record<string, unknown> | undefined;
+
+    // Check for stdin input
+    const stdinData = await maybeReadStdinAsync();
+
+    const inputsFromFlags = [...(flags.input ?? [])];
+
+    // Validate that both stdin and -F flags are not provided simultaneously
+    if (stdinData && inputsFromFlags.length > 0) {
+      throw new Error(
+        'Cannot use both stdin JSON input and -F flags simultaneously. Please use only one input method.'
+      );
+    }
+
+    if (stdinData) {
+      inputs = parseJsonInputs(stdinData);
+    } else if (inputsFromFlags.length > 0) {
+      inputs = parseInputs(inputsFromFlags);
+    }
+
+    if (inputs) {
+      Log.addNewLineIfNone();
+      Log.log('Provided inputs:');
+      for (const [key, value] of Object.entries(inputs)) {
+        Log.log(`- ${chalk.bold(key)}: ${JSON.stringify(value)}`);
+      }
+    }
 
     try {
       ({ id: workflowRunId } = await WorkflowRunMutation.createWorkflowRunAsync(graphqlClient, {
@@ -318,4 +346,47 @@ export function parseInputs(inputFlags: string[]): Record<string, string> {
   }
 
   return inputs;
+}
+
+export async function maybeReadStdinAsync(): Promise<string | null> {
+  // Check if there's data on stdin
+  if (process.stdin.isTTY) {
+    return null;
+  }
+
+  return await new Promise((resolve, reject) => {
+    let data = '';
+
+    process.stdin.setEncoding('utf8');
+
+    process.stdin.on('readable', () => {
+      let chunk;
+      while ((chunk = process.stdin.read()) !== null) {
+        data += chunk;
+      }
+    });
+
+    process.stdin.on('end', () => {
+      const trimmedData = data.trim();
+      resolve(trimmedData || null);
+    });
+
+    process.stdin.on('error', err => {
+      reject(err);
+    });
+  });
+}
+
+export function parseJsonInputs(jsonString: string): Record<string, string> {
+  try {
+    const parsed = JSON.parse(jsonString);
+
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      throw new Error('JSON input must be an object.');
+    }
+
+    return parsed;
+  } catch (error) {
+    throw new Error(`Invalid JSON input.`, { cause: error });
+  }
 }

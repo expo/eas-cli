@@ -1,4 +1,4 @@
-import { parseInputs } from '../run';
+import { parseInputs, parseJsonInputs } from '../run';
 
 describe('parseInputs', () => {
   it('should parse single key=value pair', () => {
@@ -65,5 +65,58 @@ describe('parseInputs', () => {
       empty: '',
       spaces: 'value with spaces',
     });
+  });
+});
+
+describe('parseJsonInputs', () => {
+  it('should parse simple JSON object', () => {
+    const json = '{"key": "value", "number": 42, "bool": true}';
+    const inputs = parseJsonInputs(json);
+    expect(inputs).toEqual({
+      key: 'value',
+      number: 42,
+      bool: true,
+    });
+  });
+
+  it('should handle complex objects', () => {
+    const json = '{"obj": {"nested": "value"}, "arr": [1, 2, 3]}';
+    const inputs = parseJsonInputs(json);
+    expect(inputs).toEqual({
+      obj: { nested: 'value' },
+      arr: [1, 2, 3],
+    });
+  });
+
+  it('should handle empty object', () => {
+    const json = '{}';
+    const inputs = parseJsonInputs(json);
+    expect(inputs).toEqual({});
+  });
+
+  it('should handle string values with special characters', () => {
+    const json =
+      '{"special": "value with spaces", "equals": "key=value", "quotes": "value\\"with\\"quotes"}';
+    const inputs = parseJsonInputs(json);
+    expect(inputs).toEqual({
+      special: 'value with spaces',
+      equals: 'key=value',
+      quotes: 'value"with"quotes',
+    });
+  });
+
+  it('should throw error for invalid JSON', () => {
+    const invalidJson = '{"invalid": json}';
+    expect(() => parseJsonInputs(invalidJson)).toThrow('Invalid JSON input.');
+  });
+
+  it('should throw error for non-object JSON', () => {
+    expect(() => parseJsonInputs('["array"]')).toThrow('Invalid JSON input.');
+
+    expect(() => parseJsonInputs('"string"')).toThrow('Invalid JSON input.');
+
+    expect(() => parseJsonInputs('42')).toThrow('Invalid JSON input.');
+
+    expect(() => parseJsonInputs('null')).toThrow('Invalid JSON input.');
   });
 });
