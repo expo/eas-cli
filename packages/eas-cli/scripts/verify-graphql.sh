@@ -21,7 +21,7 @@ if cmp -s graphql.schema.json graphql.schema.json.bak; then
         echo "GraphQL generated code is up-to-date"
         exit 0
     else
-        echo "GraphQL code has changed but has not been regenerated. Run `yarn generate-graphql-code` and commit the changes.""
+        echo "GraphQL code has changed but has not been regenerated. Run `yarn generate-graphql-code` and commit the changes."
         exit 1
     fi
 else
