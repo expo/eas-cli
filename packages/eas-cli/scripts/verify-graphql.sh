@@ -16,15 +16,15 @@ cp src/graphql/generated.ts src/graphql/generated.ts.bak
 
 yarn generate-graphql-code
 if cmp -s graphql.schema.json graphql.schema.json.bak; then
-    echo "GraphQL schema is the same"
+    echo "GraphQL schema is up-to-date"
     if cmp -s src/graphql/generated.ts src/graphql/generated.ts.bak; then
-        echo "GraphQL generated code is the same"
+        echo "GraphQL generated code is up-to-date"
         exit 0
     else
-        echo "GraphQL generated code has changed, please commit the changes"
+        echo "GraphQL code has changed but has not been regenerated. Run `yarn generate-graphql-code` and commit the changes.""
         exit 1
     fi
 else
-    echo "GraphQL schema has changed, please commit the changes"
+    echo "GraphQL schema has changed on the server. Run `yarn generate-graphql-code` and commit the changes."
     exit 1
 fi
