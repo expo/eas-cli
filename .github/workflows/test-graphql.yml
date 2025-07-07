@@ -1,4 +1,4 @@
-name: Test GraphQL generation
+name: Ensure GraphQL schema and generated code is up-to-date
 
 on:
   push:
