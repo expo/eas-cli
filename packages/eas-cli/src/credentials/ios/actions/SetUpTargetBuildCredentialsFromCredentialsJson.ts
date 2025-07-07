@@ -46,7 +46,7 @@ export class SetUpTargetBuildCredentialsFromCredentialsJson {
     );
     const appleTeam = await ctx.ios.createOrGetExistingAppleTeamAsync(
       ctx.graphqlClient,
-      this.app.account,
+      this.app.account.id,
       {
         appleTeamIdentifier: appleTeamFromProvisioningProfile.teamId,
         appleTeamName: appleTeamFromProvisioningProfile.teamName,
