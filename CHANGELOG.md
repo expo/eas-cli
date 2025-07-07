@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Remove unreleased `link` and `unlink` commands from `eas env`. ([#3092](https://github.com/expo/eas-cli/pull/3092) by [@kadikraman](https://github.com/kadikraman))
 - Add new CI to verify GraphQL generation. ([#3093](https://github.com/expo/eas-cli/pull/3093) by [@douglowder](https://github.com/douglowder))
+- Update GraphQL generation to look in all src directories. ([#3097](https://github.com/expo/eas-cli/pull/3097) by [@wschurman](https://github.com/wschurman))
 
 ## [16.13.4](https://github.com/expo/eas-cli/releases/tag/v16.13.4) - 2025-07-04
 

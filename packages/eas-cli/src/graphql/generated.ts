@@ -10193,6 +10193,11 @@ export type ScheduleUpdateGroupDeletionMutationVariables = Exact<{
 
 export type ScheduleUpdateGroupDeletionMutation = { __typename?: 'RootMutation', update: { __typename?: 'UpdateMutation', scheduleUpdateGroupDeletion: { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any } } };
 
+export type MeUserActorQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type MeUserActorQuery = { __typename?: 'RootQuery', meUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null };
+
 export type WorkerDeploymentFragment = { __typename?: 'WorkerDeployment', id: string, url: string, deploymentIdentifier: any, deploymentDomain: string, createdAt: any };
 
 export type WorkerDeploymentAliasFragment = { __typename?: 'WorkerDeploymentAlias', id: string, aliasName?: any | null, url: string };

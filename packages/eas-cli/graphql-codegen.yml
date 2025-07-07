@@ -1,14 +1,7 @@
 overwrite: true
 schema: 'https://staging-api.expo.dev/graphql'
 documents:
-  - 'src/graphql/**/!(*.d).{ts,tsx}'
-  - 'src/credentials/ios/api/graphql/**/!(*.d).{ts,tsx}'
-  - 'src/credentials/android/api/graphql/**/!(*.d).{ts,tsx}'
-  - 'src/commands/**/*.ts'
-  - 'src/branch/**/*.ts'
-  - 'src/channel/**/*.ts'
-  - 'src/worker/**/*.ts'
-  - 'src/update/**/*.ts'
+  - 'src/**/!(*.d).ts'
 generates:
   src/graphql/generated.ts:
     plugins:
