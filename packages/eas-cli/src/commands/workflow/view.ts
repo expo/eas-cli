@@ -1,7 +1,11 @@
 import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
-import { selectWorkflowRunIfNeededAsync } from '../../commandUtils/workflows';
+import {
+  WorkflowTriggerType,
+  computeTriggerInfoForWorkflowRun,
+  selectWorkflowRunIfNeededAsync,
+} from '../../commandUtils/workflows';
 import { WorkflowRunByIdWithJobsQuery } from '../../graphql/generated';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log, { link } from '../../log';
@@ -45,6 +49,8 @@ export default class WorkflowView extends EasCommand {
 
     type WorkflowRunResult = WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'] & {
       logURL?: string;
+      triggerType?: WorkflowTriggerType;
+      trigger?: string | null;
     };
     const result: WorkflowRunResult = await WorkflowRunQuery.withJobsByIdAsync(
       graphqlClient,
@@ -53,6 +59,9 @@ export default class WorkflowView extends EasCommand {
         useCache: false,
       }
     );
+    const { triggerType, trigger } = computeTriggerInfoForWorkflowRun(result);
+    result.triggerType = triggerType;
+    result.trigger = trigger;
 
     result.jobs.forEach(job => {
       delete job.turtleJobRun;
@@ -72,12 +81,12 @@ export default class WorkflowView extends EasCommand {
       formatFields([
         { label: 'Run ID', value: result.id },
         { label: 'Workflow', value: result.workflow.fileName },
+        { label: 'Trigger Type', value: result.triggerType },
+        { label: 'Trigger', value: result.trigger ?? 'null' },
         {
           label: 'Git Commit Message',
           value: result.gitCommitMessage?.split('\n')[0] ?? null ?? 'null',
         },
-        { label: 'Git Commit Hash', value: result.gitCommitHash ?? 'null' },
-        { label: 'Requested Git Ref', value: result.requestedGitRef ?? 'null' },
         { label: 'Status', value: result.status },
         { label: 'Errors', value: result.errors.map(error => error.title).join('\n') },
         { label: 'Created At', value: result.createdAt },

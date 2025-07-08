@@ -7,6 +7,17 @@ export const WorkflowRunFragmentNode = gql`
     gitCommitMessage
     gitCommitHash
     requestedGitRef
+    actor {
+      id
+      __typename
+      ... on UserActor {
+        username
+      }
+      ... on Robot {
+        firstName
+      }
+    }
+    triggeringLabelName
     createdAt
     updatedAt
     errors {
