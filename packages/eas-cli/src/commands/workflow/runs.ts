@@ -85,8 +85,9 @@ export default class WorkflowRunList extends EasCommand {
           { label: 'Status', value: run.status },
           { label: 'Started At', value: run.startedAt },
           { label: 'Finished At', value: run.finishedAt },
+          { label: 'Trigger Type', value: run.triggerType },
+          { label: 'Trigger', value: run.trigger ?? 'null' },
           { label: 'Git Commit Message', value: run.gitCommitMessage ?? 'null' },
-          { label: 'Git Commit Hash', value: run.gitCommitHash ?? 'null' },
         ])
       );
       Log.addNewLineIfNone();
