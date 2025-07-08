@@ -9,8 +9,12 @@ export async function resolveAppleTeamIfAuthenticatedAsync(
   if (!ctx.appStore.authCtx) {
     return null;
   }
-  return await ctx.ios.createOrGetExistingAppleTeamAsync(ctx.graphqlClient, app.account, {
-    appleTeamIdentifier: ctx.appStore.authCtx.team.id,
-    appleTeamName: ctx.appStore.authCtx.team.name,
-  });
+  return await ctx.ios.createOrGetExistingAppleTeamAndUpdateNameIfChangedAsync(
+    ctx.graphqlClient,
+    app.account.id,
+    {
+      appleTeamIdentifier: ctx.appStore.authCtx.team.id,
+      appleTeamName: ctx.appStore.authCtx.team.name,
+    }
+  );
 }

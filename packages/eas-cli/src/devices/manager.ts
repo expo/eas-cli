@@ -4,9 +4,8 @@ import chalk from 'chalk';
 import DeviceCreateAction from './actions/create/action';
 import { DeviceManagerContext } from './context';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { AppleTeamMutation } from '../credentials/ios/api/graphql/mutations/AppleTeamMutation';
-import { AppleTeamQuery } from '../credentials/ios/api/graphql/queries/AppleTeamQuery';
-import { AccountFragment, AppleTeamFragment } from '../graphql/generated';
+import { createOrGetExistingAppleTeamAndUpdateNameIfChangedAsync } from '../credentials/ios/api/GraphqlClient';
+import { AccountFragment } from '../graphql/generated';
 import Log from '../log';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
@@ -29,10 +28,14 @@ export default class DeviceManager {
 
     const account = await this.resolveAccountAsync();
     const appleAuthCtx = await this.ctx.appStore.ensureAuthenticatedAsync();
-    const appleTeam = await ensureAppleTeamExistsAsync(this.ctx.graphqlClient, account.id, {
-      appleTeamIdentifier: appleAuthCtx.team.id,
-      appleTeamName: appleAuthCtx.team.name,
-    });
+    const appleTeam = await createOrGetExistingAppleTeamAndUpdateNameIfChangedAsync(
+      this.ctx.graphqlClient,
+      account.id,
+      {
+        appleTeamIdentifier: appleAuthCtx.team.id,
+        appleTeamName: appleAuthCtx.team.name,
+      }
+    );
     const action = new DeviceCreateAction(
       this.ctx.graphqlClient,
       this.ctx.appStore,
@@ -90,29 +93,5 @@ export class AccountResolver {
       choices,
     });
     return account;
-  }
-}
-
-async function ensureAppleTeamExistsAsync(
-  graphqlClient: ExpoGraphqlClient,
-  accountId: string,
-  { appleTeamIdentifier, appleTeamName }: { appleTeamIdentifier: string; appleTeamName?: string }
-): Promise<AppleTeamFragment> {
-  const appleTeam = await AppleTeamQuery.getByAppleTeamIdentifierAsync(
-    graphqlClient,
-    accountId,
-    appleTeamIdentifier
-  );
-  if (appleTeam) {
-    return appleTeam;
-  } else {
-    return await AppleTeamMutation.createAppleTeamAsync(
-      graphqlClient,
-      {
-        appleTeamIdentifier,
-        appleTeamName,
-      },
-      accountId
-    );
   }
 }
