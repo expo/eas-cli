@@ -1,9 +1,12 @@
+import { ExpoGraphqlClient } from './context/contextUtils/createGraphqlClient';
 import {
   WorkflowJobQuery,
   WorkflowRunByIdWithJobsQuery,
   WorkflowRunFragment,
   WorkflowRunStatus,
 } from '../graphql/generated';
+import { AppQuery } from '../graphql/queries/AppQuery';
+import { promptAsync } from '../prompts';
 
 export type WorkflowRunResult = {
   id: string;
@@ -33,7 +36,7 @@ export type WorkflowJobResult =
   | WorkflowRunByIdWithJobsQuery['workflowRuns']['byId']['jobs'][number]
   | WorkflowJobQuery['byId'];
 
-export type WorkflowLogLine = { time: string; msg: string };
+export type WorkflowLogLine = { time: string; msg: string; result?: string; marker?: string };
 export type WorkflowLogs = Map<string, WorkflowLogLine[]>;
 
 export function processWorkflowRuns(runs: WorkflowRunFragment[]): WorkflowRunResult[] {
@@ -68,6 +71,7 @@ export async function processLogsFromJobAsync(
   rawLogs.split('\n').forEach(line => {
     try {
       const parsedLine = JSON.parse(line);
+      const { result, marker } = parsedLine;
       const { buildStepDisplayName, buildStepInternalId, time, msg } = parsedLine;
       const stepId = buildStepDisplayName ?? buildStepInternalId;
       if (stepId) {
@@ -75,9 +79,43 @@ export async function processLogsFromJobAsync(
           logKeys.add(stepId);
           logs.set(stepId, []);
         }
-        logs.get(stepId)?.push({ time, msg });
+        logs.get(stepId)?.push({ time, msg, result, marker });
       }
     } catch {}
   });
   return logs;
+}
+
+export async function selectWorkflowRunIfNeededAsync(
+  graphqlClient: ExpoGraphqlClient,
+  projectId: string,
+  idToQuery?: string
+): Promise<string> {
+  if (idToQuery) {
+    return idToQuery ?? '';
+  }
+  const runs = await AppQuery.byIdWorkflowRunsFilteredByStatusAsync(
+    graphqlClient,
+    projectId,
+    undefined,
+    20
+  );
+  const selectedId = (
+    await promptAsync({
+      type: 'select',
+      name: 'selectedRun',
+      message: 'Select a workflow run:',
+      choices: runs.map(run => {
+        const titleArray = [run.id, run.workflow.fileName, run.status, run.createdAt];
+        if (run.gitCommitMessage?.length) {
+          titleArray.push(run.gitCommitMessage?.split('\n')[0] ?? '');
+        }
+        return {
+          title: titleArray.join(' - '),
+          value: run.id,
+        };
+      }),
+    })
+  ).selectedRun;
+  return selectedId;
 }

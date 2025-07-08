@@ -1,11 +1,10 @@
 import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
+import { selectWorkflowRunIfNeededAsync } from '../../commandUtils/workflows';
 import { WorkflowRunByIdWithJobsQuery } from '../../graphql/generated';
-import { AppQuery } from '../../graphql/queries/AppQuery';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log, { link } from '../../log';
-import { promptAsync } from '../../prompts';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -38,31 +37,11 @@ export default class WorkflowView extends EasCommand {
       enableJsonOutput();
     }
 
-    let idToQuery = args.id;
-    if (!idToQuery) {
-      if (nonInteractive) {
-        throw new Error('If non-interactive, this command requires a workflow job ID as argument');
-      }
-      const runs = await AppQuery.byIdWorkflowRunsFilteredByStatusAsync(
-        graphqlClient,
-        projectId,
-        undefined,
-        20
-      );
-      idToQuery = (
-        await promptAsync({
-          type: 'select',
-          name: 'selectedRun',
-          message: 'Select a workflow run:',
-          choices: runs.map(run => ({
-            title: `${run.id} - ${run.workflow.fileName}, ${run.gitCommitMessage ?? ''}, ${
-              run.createdAt
-            }, ${run.status}`,
-            value: run.id,
-          })),
-        })
-      ).selectedRun;
+    if (nonInteractive && !args.id) {
+      throw new Error('If non-interactive, this command requires a workflow job ID as argument');
     }
+
+    const idToQuery = await selectWorkflowRunIfNeededAsync(graphqlClient, projectId, args.id);
 
     type WorkflowRunResult = WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'] & {
       logURL?: string;
