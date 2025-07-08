@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import DeviceCreateAction from './actions/create/action';
 import { DeviceManagerContext } from './context';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { createOrGetExistingAppleTeamAsync } from '../credentials/ios/api/GraphqlClient';
+import { createOrGetExistingAppleTeamAndUpdateNameIfChangedAsync } from '../credentials/ios/api/GraphqlClient';
 import { AccountFragment } from '../graphql/generated';
 import Log from '../log';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
@@ -28,10 +28,14 @@ export default class DeviceManager {
 
     const account = await this.resolveAccountAsync();
     const appleAuthCtx = await this.ctx.appStore.ensureAuthenticatedAsync();
-    const appleTeam = await createOrGetExistingAppleTeamAsync(this.ctx.graphqlClient, account.id, {
-      appleTeamIdentifier: appleAuthCtx.team.id,
-      appleTeamName: appleAuthCtx.team.name,
-    });
+    const appleTeam = await createOrGetExistingAppleTeamAndUpdateNameIfChangedAsync(
+      this.ctx.graphqlClient,
+      account.id,
+      {
+        appleTeamIdentifier: appleAuthCtx.team.id,
+        appleTeamName: appleAuthCtx.team.name,
+      }
+    );
     const action = new DeviceCreateAction(
       this.ctx.graphqlClient,
       this.ctx.appStore,

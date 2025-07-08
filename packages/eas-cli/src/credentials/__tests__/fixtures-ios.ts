@@ -176,7 +176,7 @@ export function getNewIosApiMock(): { [key in keyof typeof IosGraphqlClient]?: a
     updateIosAppCredentialsAsync: jest.fn(),
     createOrUpdateIosAppBuildCredentialsAsync: jest.fn(),
     getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(),
-    createOrGetExistingAppleTeamAsync: () => testAppleTeam,
+    createOrGetExistingAppleTeamAndUpdateNameIfChangedAsync: () => testAppleTeam,
     createOrGetExistingAppleAppIdentifierAsync: jest.fn(),
     getDevicesForAppleTeamAsync: jest.fn(),
     createProvisioningProfileAsync: jest.fn(),
