@@ -6,8 +6,8 @@ import {
   WorkflowJobResult,
   WorkflowLogLine,
   processLogsFromJobAsync,
+  selectWorkflowRunIfNeededAsync,
 } from '../../commandUtils/workflows';
-import { AppQuery } from '../../graphql/queries/AppQuery';
 import { WorkflowJobQuery } from '../../graphql/queries/WorkflowJobQuery';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log from '../../log';
@@ -22,7 +22,7 @@ export default class WorkflowView extends EasCommand {
   static override flags = {
     ...EasJsonOnlyFlag,
     ...EASNonInteractiveFlag,
-    allSteps: Flags.boolean({
+    'all-steps': Flags.boolean({
       description:
         'Print all logs, rather than prompting for a specific step. This will be automatically set when in non-interactive mode.',
       default: false,
@@ -54,31 +54,11 @@ export default class WorkflowView extends EasCommand {
       enableJsonOutput();
     }
 
-    let idToQuery = args.id;
-    if (!idToQuery) {
-      if (nonInteractive) {
-        throw new Error('If non-interactive, this command requires a workflow job ID as argument');
-      }
-      const runs = await AppQuery.byIdWorkflowRunsFilteredByStatusAsync(
-        graphqlClient,
-        projectId,
-        undefined,
-        20
-      );
-      idToQuery = (
-        await promptAsync({
-          type: 'select',
-          name: 'selectedRun',
-          message: 'Select a workflow run:',
-          choices: runs.map(run => ({
-            title: `${run.id} - ${run.workflow.fileName}, ${run.gitCommitMessage ?? ''}, ${
-              run.createdAt
-            }, ${run.status}`,
-            value: run.id,
-          })),
-        })
-      ).selectedRun;
+    if (nonInteractive && !args.id) {
+      throw new Error('If non-interactive, this command requires a workflow job ID as argument');
     }
+
+    const idToQuery = await selectWorkflowRunIfNeededAsync(graphqlClient, projectId, args.id);
 
     let workflowJobResult;
     let workflowRunResult;
@@ -109,7 +89,7 @@ export default class WorkflowView extends EasCommand {
           name: 'selectedJob',
           message: 'Select a job:',
           choices: workflowRunResult?.jobs.map((job, i) => ({
-            title: job.name,
+            title: `${job.name} - ${job.status}`,
             value: i,
           })),
         })
@@ -147,10 +127,15 @@ export default class WorkflowView extends EasCommand {
           type: 'select',
           name: 'selectedStep',
           message: 'Select a step:',
-          choices: Array.from(logs.keys()).map(step => ({
-            title: step,
-            value: step,
-          })),
+          choices: Array.from(logs.keys()).map(step => {
+            const logLines = logs.get(step);
+            const stepStatus =
+              logLines?.filter(line => line.marker === 'end-step')[0]?.result ?? '';
+            return {
+              title: `${step} - ${stepStatus}`,
+              value: step,
+            };
+          }),
         })
       ).selectedStep ?? '';
 
