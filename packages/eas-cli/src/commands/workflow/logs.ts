@@ -3,15 +3,11 @@ import { Flags } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
 import {
-  WorkflowCommandSelectionContext,
   WorkflowCommandSelectionState,
-  WorkflowJobResult,
+  WorkflowCommandSelectionStateValue,
   WorkflowLogLine,
   WorkflowLogs,
-  processLogsFromJobAsync,
-  workflowJobSelectionAction,
-  workflowRunSelectionAction,
-  workflowStepSelectionAction,
+  executeWorkflowSelectionActionsAsync,
 } from '../../commandUtils/workflows';
 import Log from '../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -56,7 +52,11 @@ export default class WorkflowView extends EasCommand {
     const { args, flags } = await this.parse(WorkflowView);
 
     const nonInteractive = flags['non-interactive'];
-    const allSteps = flags['all-steps'] || nonInteractive;
+    const allSteps = nonInteractive ? true : flags['all-steps'];
+    Log.debug(`allSteps = ${allSteps}`);
+    Log.debug(`nonInteractive = ${nonInteractive}`);
+    Log.debug(`flags.json = ${flags.json}`);
+    Log.debug(`args.id = ${args.id}`);
 
     const {
       loggedIn: { graphqlClient },
@@ -69,92 +69,22 @@ export default class WorkflowView extends EasCommand {
       enableJsonOutput();
     }
 
-    if (nonInteractive && !args.id) {
-      throw new Error('If non-interactive, this command requires a workflow job ID as argument');
+    const finalSelectionState: WorkflowCommandSelectionState =
+      await executeWorkflowSelectionActionsAsync({
+        graphqlClient,
+        projectId,
+        nonInteractive,
+        allSteps,
+        state: WorkflowCommandSelectionStateValue.WORKFLOW_JOB_SELECTION,
+        jobId: args.id,
+      });
+
+    if (finalSelectionState.state === WorkflowCommandSelectionStateValue.ERROR) {
+      Log.error(finalSelectionState.message);
+      return;
     }
 
-    let currentActionSelectionContext: WorkflowCommandSelectionContext = {
-      graphqlClient,
-      projectId,
-      state: WorkflowCommandSelectionState.START,
-      jobId: args.id,
-    };
-
-    if (nonInteractive && !args.id) {
-      currentActionSelectionContext = {
-        ...currentActionSelectionContext,
-        state: WorkflowCommandSelectionState.ERROR,
-        message: 'If non-interactive, this command requires a workflow job ID as argument',
-      };
-    }
-
-    let job: WorkflowJobResult;
-    let logs: WorkflowLogs | null = null;
-
-    while (currentActionSelectionContext.state !== WorkflowCommandSelectionState.FINISH) {
-      if (Log.isDebug) {
-        Log.log(`${currentActionSelectionContext.state}`);
-      }
-      switch (currentActionSelectionContext.state) {
-        case WorkflowCommandSelectionState.START:
-          currentActionSelectionContext = await workflowJobSelectionAction(
-            currentActionSelectionContext
-          );
-          if (currentActionSelectionContext.state === WorkflowCommandSelectionState.ERROR) {
-            if (!nonInteractive) {
-              currentActionSelectionContext = {
-                ...currentActionSelectionContext,
-                state: WorkflowCommandSelectionState.WORKFLOW_RUN_SELECTION,
-                runId: args.id,
-                jobId: undefined,
-              };
-            }
-          }
-          break;
-        case WorkflowCommandSelectionState.WORKFLOW_RUN_SELECTION:
-          currentActionSelectionContext = await workflowRunSelectionAction(
-            currentActionSelectionContext
-          );
-          break;
-        case WorkflowCommandSelectionState.WORKFLOW_JOB_SELECTION:
-          currentActionSelectionContext = await workflowJobSelectionAction(
-            currentActionSelectionContext
-          );
-          break;
-        case WorkflowCommandSelectionState.WORKFLOW_STEP_SELECTION:
-          if (!currentActionSelectionContext.job) {
-            currentActionSelectionContext = {
-              ...currentActionSelectionContext,
-              state: WorkflowCommandSelectionState.ERROR,
-              message: 'No job found',
-            };
-            break;
-          }
-          job = currentActionSelectionContext?.job as unknown as WorkflowJobResult;
-          logs = await processLogsFromJobAsync(job);
-          if (!logs) {
-            currentActionSelectionContext = {
-              ...currentActionSelectionContext,
-              state: WorkflowCommandSelectionState.ERROR,
-              message: 'No logs found',
-            };
-          } else if (allSteps) {
-            currentActionSelectionContext = {
-              ...currentActionSelectionContext,
-              state: WorkflowCommandSelectionState.FINISH,
-            };
-          } else {
-            currentActionSelectionContext = await workflowStepSelectionAction({
-              ...currentActionSelectionContext,
-              logs,
-            });
-          }
-          break;
-        case WorkflowCommandSelectionState.ERROR:
-          Log.error(currentActionSelectionContext.message);
-          return;
-      }
-    }
+    const logs = finalSelectionState?.logs as unknown as WorkflowLogs | null;
     if (allSteps) {
       if (logs) {
         if (flags.json) {
@@ -164,7 +94,7 @@ export default class WorkflowView extends EasCommand {
         }
       }
     } else {
-      const selectedStep = currentActionSelectionContext?.step as unknown as string;
+      const selectedStep = finalSelectionState?.step as unknown as string;
       const logLines = logs?.get(selectedStep);
       if (logLines) {
         if (flags.json) {
