@@ -3,17 +3,31 @@ import { Flags } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
 import {
+  WorkflowCommandSelectionContext,
+  WorkflowCommandSelectionState,
   WorkflowJobResult,
   WorkflowLogLine,
+  WorkflowLogs,
   processLogsFromJobAsync,
-  selectWorkflowRunIfNeededAsync,
+  workflowJobSelectionAction,
+  workflowRunSelectionAction,
+  workflowStepSelectionAction,
 } from '../../commandUtils/workflows';
-import { WorkflowJobQuery } from '../../graphql/queries/WorkflowJobQuery';
-import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log from '../../log';
-import { promptAsync } from '../../prompts';
-import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+
+function printLogsForAllSteps(logs: WorkflowLogs): void {
+  [...logs.keys()].forEach(step => {
+    const logLines = logs.get(step);
+    if (logLines) {
+      Log.log(`Step: ${step}`);
+      logLines.forEach(line => {
+        Log.log(`  ${line.time} ${line.msg}`);
+      });
+    }
+    Log.addNewLineIfNone();
+  });
+}
 
 export default class WorkflowView extends EasCommand {
   static override description =
@@ -41,8 +55,9 @@ export default class WorkflowView extends EasCommand {
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(WorkflowView);
 
-    const allSteps = flags.allSteps;
     const nonInteractive = flags['non-interactive'];
+    const allSteps = flags['all-steps'] || nonInteractive;
+
     const {
       loggedIn: { graphqlClient },
       projectId,
@@ -58,100 +73,110 @@ export default class WorkflowView extends EasCommand {
       throw new Error('If non-interactive, this command requires a workflow job ID as argument');
     }
 
-    const idToQuery = await selectWorkflowRunIfNeededAsync(graphqlClient, projectId, args.id);
+    let currentActionSelectionContext: WorkflowCommandSelectionContext = {
+      graphqlClient,
+      projectId,
+      state: WorkflowCommandSelectionState.START,
+      jobId: args.id,
+    };
 
-    let workflowJobResult;
-    let workflowRunResult;
-    try {
-      workflowJobResult = await WorkflowJobQuery.byIdAsync(graphqlClient, idToQuery, {
-        useCache: false,
-      });
-    } catch {}
-
-    if (!workflowJobResult) {
-      if (nonInteractive) {
-        throw new Error(
-          'Non-interactive mode requires a workflow job ID as argument, and the provided ID does not match a workflow job.'
-        );
-      }
-      workflowRunResult = await WorkflowRunQuery.withJobsByIdAsync(graphqlClient, idToQuery, {
-        useCache: false,
-      });
+    if (nonInteractive && !args.id) {
+      currentActionSelectionContext = {
+        ...currentActionSelectionContext,
+        state: WorkflowCommandSelectionState.ERROR,
+        message: 'If non-interactive, this command requires a workflow job ID as argument',
+      };
     }
 
     let job: WorkflowJobResult;
-    if (workflowJobResult) {
-      job = workflowJobResult;
-    } else {
-      const jobIndex: number = (
-        await promptAsync({
-          type: 'select',
-          name: 'selectedJob',
-          message: 'Select a job:',
-          choices: workflowRunResult?.jobs.map((job, i) => ({
-            title: `${job.name} - ${job.status}`,
-            value: i,
-          })),
-        })
-      ).selectedJob;
-      job = workflowRunResult?.jobs[jobIndex] as WorkflowJobResult;
-    }
+    let logs: WorkflowLogs | null = null;
 
-    const logs = await processLogsFromJobAsync(job);
-    if (!logs) {
-      Log.log('No logs found');
-      return;
-    }
-
-    if (nonInteractive || allSteps) {
-      if (flags.json) {
-        printJsonOnlyOutput(logs);
-        return;
+    while (currentActionSelectionContext.state !== WorkflowCommandSelectionState.FINISH) {
+      if (Log.isDebug) {
+        Log.log(`${currentActionSelectionContext.state}`);
       }
-      [...logs.keys()].forEach(step => {
-        const logLines = logs.get(step);
-        if (logLines) {
-          Log.log(formatFields([{ label: 'Step', value: step }]));
+      switch (currentActionSelectionContext.state) {
+        case WorkflowCommandSelectionState.START:
+          currentActionSelectionContext = await workflowJobSelectionAction(
+            currentActionSelectionContext
+          );
+          if (currentActionSelectionContext.state === WorkflowCommandSelectionState.ERROR) {
+            if (!nonInteractive) {
+              currentActionSelectionContext = {
+                ...currentActionSelectionContext,
+                state: WorkflowCommandSelectionState.WORKFLOW_RUN_SELECTION,
+                runId: args.id,
+                jobId: undefined,
+              };
+            }
+          }
+          break;
+        case WorkflowCommandSelectionState.WORKFLOW_RUN_SELECTION:
+          currentActionSelectionContext = await workflowRunSelectionAction(
+            currentActionSelectionContext
+          );
+          break;
+        case WorkflowCommandSelectionState.WORKFLOW_JOB_SELECTION:
+          currentActionSelectionContext = await workflowJobSelectionAction(
+            currentActionSelectionContext
+          );
+          break;
+        case WorkflowCommandSelectionState.WORKFLOW_STEP_SELECTION:
+          if (!currentActionSelectionContext.job) {
+            currentActionSelectionContext = {
+              ...currentActionSelectionContext,
+              state: WorkflowCommandSelectionState.ERROR,
+              message: 'No job found',
+            };
+            break;
+          }
+          job = currentActionSelectionContext?.job as unknown as WorkflowJobResult;
+          logs = await processLogsFromJobAsync(job);
+          if (!logs) {
+            currentActionSelectionContext = {
+              ...currentActionSelectionContext,
+              state: WorkflowCommandSelectionState.ERROR,
+              message: 'No logs found',
+            };
+          } else if (allSteps) {
+            currentActionSelectionContext = {
+              ...currentActionSelectionContext,
+              state: WorkflowCommandSelectionState.FINISH,
+            };
+          } else {
+            currentActionSelectionContext = await workflowStepSelectionAction({
+              ...currentActionSelectionContext,
+              logs,
+            });
+          }
+          break;
+        case WorkflowCommandSelectionState.ERROR:
+          Log.error(currentActionSelectionContext.message);
+          return;
+      }
+    }
+    if (allSteps) {
+      if (logs) {
+        if (flags.json) {
+          printJsonOnlyOutput(Object.fromEntries(logs));
+        } else {
+          printLogsForAllSteps(logs);
+        }
+      }
+    } else {
+      const selectedStep = currentActionSelectionContext?.step as unknown as string;
+      const logLines = logs?.get(selectedStep);
+      if (logLines) {
+        if (flags.json) {
+          const output: { [key: string]: WorkflowLogLine[] | null } = {};
+          output[selectedStep] = logLines ?? null;
+          printJsonOnlyOutput(output);
+        } else {
           logLines.forEach(line => {
             Log.log(`  ${line.time} ${line.msg}`);
           });
         }
-        Log.addNewLineIfNone();
-      });
-      return;
-    }
-
-    const selectedStep: string =
-      (
-        await promptAsync({
-          type: 'select',
-          name: 'selectedStep',
-          message: 'Select a step:',
-          choices: Array.from(logs.keys()).map(step => {
-            const logLines = logs.get(step);
-            const stepStatus =
-              logLines?.filter(line => line.marker === 'end-step')[0]?.result ?? '';
-            return {
-              title: `${step} - ${stepStatus}`,
-              value: step,
-            };
-          }),
-        })
-      ).selectedStep ?? '';
-
-    const logLines = logs.get(selectedStep);
-
-    if (flags.json) {
-      const output: { [key: string]: WorkflowLogLine[] | null } = {};
-      output[selectedStep] = logLines ?? null;
-      printJsonOnlyOutput(output);
-      return;
-    }
-
-    if (logLines) {
-      logLines.forEach(line => {
-        Log.log(`  ${line.time} ${line.msg}`);
-      });
+      }
     }
   }
 }

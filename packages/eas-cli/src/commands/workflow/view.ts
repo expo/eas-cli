@@ -2,9 +2,10 @@ import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
 import {
+  WorkflowCommandSelectionState,
   WorkflowTriggerType,
   computeTriggerInfoForWorkflowRun,
-  selectWorkflowRunIfNeededAsync,
+  workflowRunSelectionAction,
 } from '../../commandUtils/workflows';
 import { WorkflowRunByIdWithJobsQuery } from '../../graphql/generated';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
@@ -45,7 +46,17 @@ export default class WorkflowView extends EasCommand {
       throw new Error('If non-interactive, this command requires a workflow job ID as argument');
     }
 
-    const idToQuery = await selectWorkflowRunIfNeededAsync(graphqlClient, projectId, args.id);
+    const actionResult = await workflowRunSelectionAction({
+      graphqlClient,
+      projectId,
+      state: WorkflowCommandSelectionState.START,
+      runId: args.id,
+    });
+    if (actionResult.state === WorkflowCommandSelectionState.ERROR) {
+      Log.error(actionResult.message);
+      return;
+    }
+    const idToQuery = actionResult.runId ?? '';
 
     type WorkflowRunResult = WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'] & {
       logURL?: string;
