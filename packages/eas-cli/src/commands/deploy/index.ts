@@ -242,10 +242,17 @@ export default class WorkerDeploy extends EasCommand {
         uploadPayloads.push(...assetFiles.map(asset => ({ asset })));
       }
 
-      const progressTotal = uploadPayloads.reduce((acc, payload) => acc + ('multipart' in payload ? payload.multipart.length : 1), 0);
+      const progressTotal = uploadPayloads.reduce(
+        (acc, payload) => acc + ('multipart' in payload ? payload.multipart.length : 1),
+        0
+      );
       const progressTracker = createProgressBar(`Uploading ${progressTotal} assets`);
       try {
-        for await (const signal of batchUploadAsync(uploadInit, uploadPayloads, progressTracker.update)) {
+        for await (const signal of batchUploadAsync(
+          uploadInit,
+          uploadPayloads,
+          progressTracker.update
+        )) {
           progressTracker.update(signal.progress);
         }
       } catch (error: any) {

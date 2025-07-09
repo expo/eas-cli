@@ -59,7 +59,7 @@ type OnProgressUpdateCallback = (progress: number) => void;
 
 export async function* createMultipartBodyFromFilesAsync(
   entries: MultipartFileEntry[],
-  onProgressUpdate?: OnProgressUpdateCallback,
+  onProgressUpdate?: OnProgressUpdateCallback
 ): AsyncGenerator<Uint8Array> {
   const encoder = new TextEncoder();
   for (let idx = 0; idx < entries.length; idx++) {
