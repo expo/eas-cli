@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { Readable } from 'node:stream';
 import promiseRetry from 'promise-retry';
+import cliProgress from 'cli-progress';
 
 import { AssetFileEntry } from './assets';
 import { createMultipartBodyFromFilesAsync, multipartContentType } from './utils/multipart';
@@ -46,9 +47,12 @@ const getAgent = (): https.Agent => {
   }
 };
 
+type OnProgressUpdateCallback = (progress: number) => void;
+
 export async function uploadAsync(
   init: UploadRequestInit,
-  payload: UploadPayload
+  payload: UploadPayload,
+  onProgressUpdate?: OnProgressUpdateCallback
 ): Promise<UploadResult> {
   return await promiseRetry(
     async retry => {
@@ -86,7 +90,8 @@ export async function uploadAsync(
             filePath: asset.path,
             contentType: asset.type,
             contentLength: asset.size,
-          }))
+          })),
+          onProgressUpdate,
         );
         body = Readable.from(iterator);
       }
@@ -174,31 +179,43 @@ export async function callUploadApiAsync(url: string | URL, init?: RequestInit):
 
 export interface UploadPending {
   payload: UploadPayload;
+  progress: number;
 }
-
-export type BatchUploadSignal = UploadResult | UploadPending;
 
 export async function* batchUploadAsync(
   init: UploadRequestInit,
-  payloads: UploadPayload[]
-): AsyncGenerator<BatchUploadSignal> {
+  payloads: UploadPayload[],
+  onProgressUpdate?: OnProgressUpdateCallback,
+): AsyncGenerator<UploadPending> {
+  const progressTracker = new Array(payloads.length).fill(0);
   const controller = new AbortController();
   const queue = new Set<Promise<UploadResult>>();
   const initWithSignal = { ...init, signal: controller.signal };
+  const getProgressValue = (): number => {
+    const progress = progressTracker.reduce((acc, value) => acc + value, 0);
+    return progress / payloads.length;
+  };
+  const sendProgressUpdate = onProgressUpdate && (() => onProgressUpdate(getProgressValue()));
   try {
     let index = 0;
     while (index < payloads.length || queue.size > 0) {
       while (queue.size < MAX_CONCURRENCY && index < payloads.length) {
-        const payload = payloads[index++];
-        let uploadPromise: Promise<UploadResult>;
-        queue.add(
-          (uploadPromise = uploadAsync(initWithSignal, payload).finally(() => {
-            queue.delete(uploadPromise);
-          }))
-        );
-        yield { payload };
+        const currentIndex = index++;
+        const payload = payloads[currentIndex];
+        const onChildProgressUpdate = sendProgressUpdate && ((progress: number) => {
+          progressTracker[currentIndex] = progress;
+          sendProgressUpdate();
+        });
+        const uploadPromise = uploadAsync(initWithSignal, payload, onChildProgressUpdate).finally(() => {
+          queue.delete(uploadPromise);
+        });
+        queue.add(uploadPromise);
+        yield { payload, progress: getProgressValue() };
       }
-      yield await Promise.race(queue);
+      yield {
+        ...(await Promise.race(queue)),
+        progress: getProgressValue(),
+      };
     }
 
     if (queue.size > 0) {
@@ -209,4 +226,20 @@ export async function* batchUploadAsync(
       throw error;
     }
   }
+}
+
+export function createProgressBar(label = 'Uploading assets') {
+  const queueProgressBar = new cliProgress.SingleBar(
+    { format: `|{bar}| {percentage}% (ETA: {eta}s) ${label}` },
+    cliProgress.Presets.rect
+  );
+  queueProgressBar.start(1, 0);
+  return {
+    update(progress: number) {
+      queueProgressBar.update(progress);
+    },
+    stop() {
+      queueProgressBar.stop();
+    },
+  };
 }
