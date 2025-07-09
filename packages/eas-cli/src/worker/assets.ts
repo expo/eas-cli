@@ -118,9 +118,6 @@ export async function collectAssetsAsync(
         throw new Error(
           `Upload of "${file.normalizedPath}" aborted: File size is greater than the upload limit (>500MB)`
         );
-      } else if (file.size === 0) {
-        // We skip all empty files and choose not to upload them
-        continue;
       }
       const sha512$ = computeSha512HashAsync(file.path, options?.hashOptions);
       const contentType$ = determineMimeTypeAsync(file.path);
