@@ -2,7 +2,7 @@ import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
 import {
-  WorkflowCommandSelectionState,
+  WorkflowCommandSelectionStateValue,
   WorkflowTriggerType,
   computeTriggerInfoForWorkflowRun,
   workflowRunSelectionAction,
@@ -43,16 +43,18 @@ export default class WorkflowView extends EasCommand {
     }
 
     if (nonInteractive && !args.id) {
-      throw new Error('If non-interactive, this command requires a workflow job ID as argument');
+      throw new Error('If non-interactive, this command requires a workflow run ID as argument');
     }
 
     const actionResult = await workflowRunSelectionAction({
       graphqlClient,
       projectId,
-      state: WorkflowCommandSelectionState.START,
+      nonInteractive,
+      allSteps: false,
+      state: WorkflowCommandSelectionStateValue.WORKFLOW_RUN_SELECTION,
       runId: args.id,
     });
-    if (actionResult.state === WorkflowCommandSelectionState.ERROR) {
+    if (actionResult.state === WorkflowCommandSelectionStateValue.ERROR) {
       Log.error(actionResult.message);
       return;
     }

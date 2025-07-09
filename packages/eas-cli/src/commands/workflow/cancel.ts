@@ -1,9 +1,6 @@
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
-import {
-  computePromptInfoForWorkflowRunSelection,
-  processWorkflowRuns,
-} from '../../commandUtils/workflows';
+import { choiceFromWorkflowRun, processWorkflowRuns } from '../../commandUtils/workflows';
 import { WorkflowRunStatus } from '../../graphql/generated';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -68,7 +65,7 @@ export default class WorkflowRunCancel extends EasCommand {
         type: 'multiselect',
         name: 'selectedRuns',
         message: 'Select IN_PROGRESS workflow runs to cancel',
-        choices: runs.map(run => computePromptInfoForWorkflowRunSelection(run)),
+        choices: runs.map(run => choiceFromWorkflowRun(run)),
       });
       answers.selectedRuns.forEach((id: string) => {
         workflowRunIds.add(id);
