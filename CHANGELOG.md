@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add support for providing inputs to new workflow runs. ([#3095](https://github.com/expo/eas-cli/pull/3095)) by [@sjchmiela](https://github.com/sjchmiela)
+- Add support for providing inputs to new workflow runs ([#3095](https://github.com/expo/eas-cli/pull/3095) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🐛 Bug fixes
 
