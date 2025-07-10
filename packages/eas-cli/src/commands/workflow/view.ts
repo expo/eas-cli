@@ -3,10 +3,10 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
 import {
   WorkflowCommandSelectionStateValue,
-  WorkflowTriggerType,
-  computeTriggerInfoForWorkflowRun,
   workflowRunSelectionAction,
-} from '../../commandUtils/workflows';
+} from '../../commandUtils/workflow/stateMachine';
+import { WorkflowTriggerType } from '../../commandUtils/workflow/types';
+import { computeTriggerInfoForWorkflowRun } from '../../commandUtils/workflow/utils';
 import { WorkflowRunByIdWithJobsQuery } from '../../graphql/generated';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log, { link } from '../../log';

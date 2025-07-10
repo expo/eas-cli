@@ -1,6 +1,6 @@
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
-import { choiceFromWorkflowRun, processWorkflowRuns } from '../../commandUtils/workflows';
+import { choiceFromWorkflowRun, processWorkflowRuns } from '../../commandUtils/workflow/utils';
 import { WorkflowRunStatus } from '../../graphql/generated';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
