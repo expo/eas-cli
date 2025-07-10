@@ -29,6 +29,11 @@ import {
   runGitPushAsync,
 } from '../../onboarding/git';
 import { installDependenciesAsync } from '../../onboarding/installDependencies';
+import {
+  PackageManager,
+  getAvailablePackageManagersAsync,
+  getLockfileForPackageManager,
+} from '../../onboarding/packageManagers';
 import { runCommandAsync } from '../../onboarding/runCommand';
 import { RequestedPlatform } from '../../platform';
 import { ExpoConfigOptions, getPrivateExpoConfigAsync } from '../../project/expoConfig';
@@ -181,9 +186,12 @@ export default class Onboarding extends EasCommand {
       });
     }
 
+    const packageManager = await selectPackageManagerAsync();
     await installDependenciesAsync({
       projectDir: finalTargetProjectDirectory,
+      packageManager,
     });
+
     const exp = await getPrivateExpoConfigWithProjectIdAsync({
       projectDir: finalTargetProjectDirectory,
       graphqlClient,
@@ -215,7 +223,7 @@ export default class Onboarding extends EasCommand {
       });
       Log.log();
     }
-    await vcsClient.trackFileAsync('package-lock.json');
+    await vcsClient.trackFileAsync(getLockfileForPackageManager(packageManager));
 
     const shouldSetupCredentials =
       ((platform === Platform.IOS &&
@@ -496,4 +504,26 @@ async function configureProjectFromBareDefaultExpoTemplateAsync({
 
 function stripInvalidCharactersForBundleIdentifier(string: string): string {
   return string.replaceAll(/[^A-Za-z0-9]/g, '');
+}
+
+async function selectPackageManagerAsync(): Promise<PackageManager> {
+  const avilablePackageManagers = await getAvailablePackageManagersAsync();
+
+  let packageManager: PackageManager;
+  if (avilablePackageManagers.length === 1) {
+    packageManager = avilablePackageManagers[0];
+  } else {
+    const { selectedPackageManager } = await promptAsync({
+      type: 'select',
+      name: 'selectedPackageManager',
+      message: '📦 Which package manager would you like to use?',
+      choices: avilablePackageManagers.map(pm => ({
+        title: pm,
+        value: pm,
+      })),
+    });
+    Log.log();
+    packageManager = selectedPackageManager;
+  }
+  return packageManager;
 }
