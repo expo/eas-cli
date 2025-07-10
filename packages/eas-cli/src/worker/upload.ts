@@ -56,6 +56,10 @@ export async function uploadAsync(
 ): Promise<UploadResult> {
   return await promiseRetry(
     async retry => {
+      if (onProgressUpdate) {
+        onProgressUpdate(0);
+      }
+
       const headers = new Headers(init.headers);
 
       const url = new URL(`${init.baseURL}`);
@@ -140,6 +144,8 @@ export async function uploadAsync(
         throw new Error(message);
       } else if (!response.ok) {
         throw new Error(await getErrorMessageAsync());
+      } else if (onProgressUpdate) {
+        onProgressUpdate(1);
       }
 
       return {
@@ -215,6 +221,7 @@ export async function* batchUploadAsync(
         const uploadPromise = uploadAsync(initWithSignal, payload, onChildProgressUpdate).finally(
           () => {
             queue.delete(uploadPromise);
+            progressTracker[currentIndex] = 1;
           }
         );
         queue.add(uploadPromise);
