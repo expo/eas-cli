@@ -1,3 +1,4 @@
+import cliProgress from 'cli-progress';
 import * as https from 'https';
 import createHttpsProxyAgent from 'https-proxy-agent';
 import fetch, { BodyInit, Headers, HeadersInit, RequestInit, Response } from 'node-fetch';
@@ -46,12 +47,19 @@ const getAgent = (): https.Agent => {
   }
 };
 
+type OnProgressUpdateCallback = (progress: number) => void;
+
 export async function uploadAsync(
   init: UploadRequestInit,
-  payload: UploadPayload
+  payload: UploadPayload,
+  onProgressUpdate?: OnProgressUpdateCallback
 ): Promise<UploadResult> {
   return await promiseRetry(
     async retry => {
+      if (onProgressUpdate) {
+        onProgressUpdate(0);
+      }
+
       const headers = new Headers(init.headers);
 
       const url = new URL(`${init.baseURL}`);
@@ -86,7 +94,8 @@ export async function uploadAsync(
             filePath: asset.path,
             contentType: asset.type,
             contentLength: asset.size,
-          }))
+          })),
+          onProgressUpdate
         );
         body = Readable.from(iterator);
       }
@@ -135,6 +144,8 @@ export async function uploadAsync(
         throw new Error(message);
       } else if (!response.ok) {
         throw new Error(await getErrorMessageAsync());
+      } else if (onProgressUpdate) {
+        onProgressUpdate(1);
       }
 
       return {
@@ -174,31 +185,52 @@ export async function callUploadApiAsync(url: string | URL, init?: RequestInit):
 
 export interface UploadPending {
   payload: UploadPayload;
+  progress: number;
 }
-
-export type BatchUploadSignal = UploadResult | UploadPending;
 
 export async function* batchUploadAsync(
   init: UploadRequestInit,
-  payloads: UploadPayload[]
-): AsyncGenerator<BatchUploadSignal> {
+  payloads: UploadPayload[],
+  onProgressUpdate?: OnProgressUpdateCallback
+): AsyncGenerator<UploadPending> {
+  const progressTracker = new Array(payloads.length).fill(0);
   const controller = new AbortController();
   const queue = new Set<Promise<UploadResult>>();
   const initWithSignal = { ...init, signal: controller.signal };
+  const getProgressValue = (): number => {
+    const progress = progressTracker.reduce((acc, value) => acc + value, 0);
+    return progress / payloads.length;
+  };
+  const sendProgressUpdate =
+    onProgressUpdate &&
+    (() => {
+      onProgressUpdate(getProgressValue());
+    });
   try {
     let index = 0;
     while (index < payloads.length || queue.size > 0) {
       while (queue.size < MAX_CONCURRENCY && index < payloads.length) {
-        const payload = payloads[index++];
-        let uploadPromise: Promise<UploadResult>;
-        queue.add(
-          (uploadPromise = uploadAsync(initWithSignal, payload).finally(() => {
+        const currentIndex = index++;
+        const payload = payloads[currentIndex];
+        const onChildProgressUpdate =
+          sendProgressUpdate &&
+          ((progress: number) => {
+            progressTracker[currentIndex] = progress;
+            sendProgressUpdate();
+          });
+        const uploadPromise = uploadAsync(initWithSignal, payload, onChildProgressUpdate).finally(
+          () => {
             queue.delete(uploadPromise);
-          }))
+            progressTracker[currentIndex] = 1;
+          }
         );
-        yield { payload };
+        queue.add(uploadPromise);
+        yield { payload, progress: getProgressValue() };
       }
-      yield await Promise.race(queue);
+      yield {
+        ...(await Promise.race(queue)),
+        progress: getProgressValue(),
+      };
     }
 
     if (queue.size > 0) {
@@ -209,4 +241,25 @@ export async function* batchUploadAsync(
       throw error;
     }
   }
+}
+
+interface UploadProgressBar {
+  update(progress: number): void;
+  stop(): void;
+}
+
+export function createProgressBar(label = 'Uploading assets'): UploadProgressBar {
+  const queueProgressBar = new cliProgress.SingleBar(
+    { format: `|{bar}| {percentage}% ${label}` },
+    cliProgress.Presets.rect
+  );
+  queueProgressBar.start(1, 0);
+  return {
+    update(progress: number) {
+      queueProgressBar.update(progress);
+    },
+    stop() {
+      queueProgressBar.stop();
+    },
+  };
 }

@@ -13,7 +13,6 @@ import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { createProgressTracker } from '../../utils/progress';
 import * as WorkerAssets from '../../worker/assets';
 import {
   assignWorkerDeploymentAliasAsync,
@@ -24,6 +23,7 @@ import {
   UploadPayload,
   batchUploadAsync,
   callUploadApiAsync,
+  createProgressBar,
   uploadAsync,
 } from '../../worker/upload';
 import {
@@ -242,44 +242,25 @@ export default class WorkerDeploy extends EasCommand {
         uploadPayloads.push(...assetFiles.map(asset => ({ asset })));
       }
 
-      const progress = {
-        total: uploadPayloads.reduce((total, payload) => {
-          return total + ('multipart' in payload ? payload.multipart.length : 1);
-        }, 0),
-        pending: 0,
-        percent: 0,
-        transferred: 0,
-      };
-
-      const updateProgress = createProgressTracker({
-        total: progress.total,
-        message(ratio) {
-          const percent = `${Math.floor(ratio * 100)}`;
-          const details = chalk.dim(
-            `(${progress.pending} Pending, ${progress.transferred} Completed, ${progress.total} Total)`
-          );
-          return `Uploading assets: ${percent.padStart(3)}% ${details}`;
-        },
-        completedMessage: 'Uploaded assets',
-      });
-
+      const progressTotal = uploadPayloads.reduce(
+        (acc, payload) => acc + ('multipart' in payload ? payload.multipart.length : 1),
+        0
+      );
+      const progressTracker = createProgressBar(`Uploading ${progressTotal} assets`);
       try {
-        for await (const signal of batchUploadAsync(uploadInit, uploadPayloads)) {
-          const signalTotal = 'multipart' in signal.payload ? signal.payload.multipart.length : 1;
-          if ('response' in signal) {
-            progress.pending -= signalTotal;
-            progress.transferred += signalTotal;
-            progress.percent = progress.transferred / progress.total;
-          } else {
-            progress.pending += signalTotal;
-          }
-          updateProgress({ progress });
+        for await (const signal of batchUploadAsync(
+          uploadInit,
+          uploadPayloads,
+          progressTracker.update
+        )) {
+          progressTracker.update(signal.progress);
         }
       } catch (error: any) {
-        updateProgress({ isComplete: true, error });
+        progressTracker.stop();
         throw error;
+      } finally {
+        progressTracker.stop();
       }
-      updateProgress({ isComplete: true });
     }
 
     let tarPath: string;

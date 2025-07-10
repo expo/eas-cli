@@ -55,11 +55,15 @@ export interface MultipartFileEntry {
 
 export const multipartContentType = `multipart/form-data; boundary=${BOUNDARY_ID}`;
 
+type OnProgressUpdateCallback = (progress: number) => void;
+
 export async function* createMultipartBodyFromFilesAsync(
-  entries: MultipartFileEntry[]
+  entries: MultipartFileEntry[],
+  onProgressUpdate?: OnProgressUpdateCallback
 ): AsyncGenerator<Uint8Array> {
   const encoder = new TextEncoder();
-  for await (const entry of entries) {
+  for (let idx = 0; idx < entries.length; idx++) {
+    const entry = entries[idx];
     const header = makeFormHeader({
       name: entry.name,
       contentType: entry.contentType,
@@ -68,6 +72,9 @@ export async function* createMultipartBodyFromFilesAsync(
     yield encoder.encode(header);
     yield* createReadStreamAsync(entry.filePath);
     yield encoder.encode(CRLF);
+    if (onProgressUpdate) {
+      onProgressUpdate((idx + 1) / entries.length);
+    }
   }
   yield encoder.encode(FORM_FOOTER);
 }
