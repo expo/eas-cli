@@ -13,7 +13,6 @@ import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { createProgressTracker } from '../../utils/progress';
 import * as WorkerAssets from '../../worker/assets';
 import {
   assignWorkerDeploymentAliasAsync,
@@ -21,9 +20,10 @@ import {
   getSignedDeploymentUrlAsync,
 } from '../../worker/deployment';
 import {
-  UploadParams,
+  UploadPayload,
   batchUploadAsync,
   callUploadApiAsync,
+  createProgressBar,
   uploadAsync,
 } from '../../worker/upload';
 import {
@@ -31,6 +31,8 @@ import {
   formatWorkerDeploymentTable,
   getDeploymentUrlFromFullName,
 } from '../../worker/utils/logs';
+
+const MAX_UPLOAD_SIZE = 5e8; // 500MB
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
   fs.promises
@@ -60,11 +62,16 @@ interface RawDeployFlags {
   'dry-run': boolean;
 }
 
+interface UploadAssetBatchInstruction {
+  sha512: string[];
+}
+
 interface DeployInProgressParams {
   id: string;
   fullName: string;
   baseURL: string;
   token: string;
+  upload?: UploadAssetBatchInstruction[];
 }
 
 export default class WorkerDeploy extends EasCommand {
@@ -162,14 +169,14 @@ export default class WorkerDeploy extends EasCommand {
       tarPath: string,
       uploadUrl: string
     ): Promise<DeployInProgressParams> {
-      const { response } = await uploadAsync({
-        url: uploadUrl,
-        filePath: tarPath,
-        compress: false,
-        headers: {
-          accept: 'application/json',
+      const payload = { filePath: tarPath };
+      const { response } = await uploadAsync(
+        {
+          baseURL: uploadUrl,
+          method: 'POST',
         },
-      });
+        payload
+      );
       if (response.status === 413) {
         throw new Error(
           'Upload failed! (Payload too large)\n' +
@@ -185,73 +192,79 @@ export default class WorkerDeploy extends EasCommand {
         if (!json.success || !json.result || typeof json.result !== 'object') {
           throw new Error(json.message ? `Upload failed: ${json.message}` : 'Upload failed!');
         }
-        const { id, fullName, token } = json.result;
+        const { id, fullName, token, upload } = json.result;
         if (typeof token !== 'string') {
           throw new Error('Upload failed: API failed to return a deployment token');
         } else if (typeof id !== 'string') {
           throw new Error('Upload failed: API failed to return a deployment identifier');
         } else if (typeof fullName !== 'string') {
           throw new Error('Upload failed: API failed to return a script name');
+        } else if (!Array.isArray(upload) && upload !== undefined) {
+          throw new Error('Upload failed: API returned invalid asset upload instructions');
         }
         const baseURL = new URL('/', uploadUrl).toString();
-        return { id, fullName, baseURL, token };
+        return { id, fullName, baseURL, token, upload };
       }
     }
 
     async function uploadAssetsAsync(
-      assetMap: WorkerAssets.AssetMap,
+      assetFiles: WorkerAssets.AssetFileEntry[],
       deployParams: DeployInProgressParams
     ): Promise<void> {
-      const uploadParams: UploadParams[] = [];
-      const assetPath = projectDist.type === 'server' ? projectDist.clientPath : projectDist.path;
-      if (!assetPath) {
-        return;
+      const baseURL = new URL('/asset/', deployParams.baseURL);
+      const uploadInit = { baseURL, method: 'POST' };
+      uploadInit.baseURL.searchParams.set('token', deployParams.token);
+
+      const uploadPayloads: UploadPayload[] = [];
+      if (deployParams.upload) {
+        const assetsBySHA512 = assetFiles.reduce((map, asset) => {
+          map.set(asset.sha512, asset);
+          return map;
+        }, new Map<string, WorkerAssets.AssetFileEntry>());
+        const payloads = deployParams.upload
+          .map(instruction =>
+            instruction.sha512.map(sha512 => {
+              const asset = assetsBySHA512.get(sha512);
+              if (!asset) {
+                // NOTE(@kitten): This should never happen
+                throw new Error(
+                  `Uploading assets failed: API instructed us to upload an asset that does not exist`
+                );
+              }
+              return asset;
+            })
+          )
+          .filter(assets => assets && assets.length > 0)
+          .map(assets => (assets.length > 1 ? { multipart: assets } : { asset: assets[0] }));
+        uploadPayloads.push(...payloads);
+      } else {
+        // NOTE(@kitten): Legacy format which uploads assets one-by-one
+        uploadPayloads.push(...assetFiles.map(asset => ({ asset })));
       }
 
-      for await (const asset of WorkerAssets.listAssetMapFilesAsync(assetPath, assetMap)) {
-        const uploadURL = new URL(`/asset/${asset.sha512}`, deployParams.baseURL);
-        uploadURL.searchParams.set('token', deployParams.token);
-        uploadParams.push({ url: uploadURL.toString(), filePath: asset.path });
-      }
-
-      const progress = {
-        total: uploadParams.length,
-        pending: 0,
-        percent: 0,
-        transferred: 0,
-      };
-
-      const updateProgress = createProgressTracker({
-        total: progress.total,
-        message(ratio) {
-          const percent = `${Math.floor(ratio * 100)}`;
-          const details = chalk.dim(
-            `(${progress.pending} Pending, ${progress.transferred} Completed, ${progress.total} Total)`
-          );
-          return `Uploading assets: ${percent.padStart(3)}% ${details}`;
-        },
-        completedMessage: 'Uploaded assets',
-      });
-
+      const progressTotal = uploadPayloads.reduce(
+        (acc, payload) => acc + ('multipart' in payload ? payload.multipart.length : 1),
+        0
+      );
+      const progressTracker = createProgressBar(`Uploading ${progressTotal} assets`);
       try {
-        for await (const signal of batchUploadAsync(uploadParams)) {
-          if ('response' in signal) {
-            progress.pending--;
-            progress.percent = ++progress.transferred / progress.total;
-          } else {
-            progress.pending++;
-          }
-          updateProgress({ progress });
+        for await (const signal of batchUploadAsync(
+          uploadInit,
+          uploadPayloads,
+          progressTracker.update
+        )) {
+          progressTracker.update(signal.progress);
         }
       } catch (error: any) {
-        updateProgress({ isComplete: true, error });
+        progressTracker.stop();
         throw error;
+      } finally {
+        progressTracker.stop();
       }
-      updateProgress({ isComplete: true });
     }
 
-    let assetMap: WorkerAssets.AssetMap;
     let tarPath: string;
+    let assetFiles: WorkerAssets.AssetFileEntry[];
     let deployResult: DeployInProgressParams;
     let progress = ora('Preparing project').start();
 
@@ -271,12 +284,13 @@ export default class WorkerDeploy extends EasCommand {
             manifestResult.conflictingVariableNames.join(' ')
         );
       }
-      assetMap = await WorkerAssets.createAssetMapAsync(
-        projectDist.type === 'server' ? projectDist.clientPath : projectDist.path
+      assetFiles = await WorkerAssets.collectAssetsAsync(
+        projectDist.type === 'server' ? projectDist.clientPath : projectDist.path,
+        { maxFileSize: MAX_UPLOAD_SIZE }
       );
       tarPath = await WorkerAssets.packFilesIterableAsync(
         emitWorkerTarballAsync({
-          assetMap,
+          assetMap: WorkerAssets.assetsToAssetsMap(assetFiles),
           manifest: manifestResult.manifest,
         })
       );
@@ -334,7 +348,7 @@ export default class WorkerDeploy extends EasCommand {
       throw error;
     }
 
-    await uploadAssetsAsync(assetMap, deployResult);
+    await uploadAssetsAsync(assetFiles, deployResult);
     await finalizeDeployAsync(deployResult);
 
     let deploymentAlias: null | Awaited<ReturnType<typeof assignWorkerDeploymentAliasAsync>> = null;

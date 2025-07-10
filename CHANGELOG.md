@@ -8,9 +8,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Implement new EAS Hosting asset upload protocol, which improves performance by grouping files into batched upload API calls ([#3085](https://github.com/expo/eas-cli/pull/3085) by [@kitten](https://github.com/kitten))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+- Update the EAS Hosting worker deployment progress indicator to use a progress bar for asset uploads instead ([#3099](https://github.com/expo/eas-cli/pull/3099) by [@kitten](https://github.com/kitten))
 
 ## [16.14.1](https://github.com/expo/eas-cli/releases/tag/v16.14.1) - 2025-07-08
 
