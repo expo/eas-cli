@@ -5,10 +5,9 @@ import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags
 import {
   WorkflowCommandSelectionState,
   WorkflowCommandSelectionStateValue,
-  WorkflowLogLine,
-  WorkflowLogs,
   executeWorkflowSelectionActionsAsync,
-} from '../../commandUtils/workflows';
+} from '../../commandUtils/workflow/stateMachine';
+import { WorkflowLogLine, WorkflowLogs } from '../../commandUtils/workflow/types';
 import Log from '../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -25,7 +24,7 @@ function printLogsForAllSteps(logs: WorkflowLogs): void {
   });
 }
 
-export default class WorkflowView extends EasCommand {
+export default class WorkflowLogView extends EasCommand {
   static override description =
     'view logs for a workflow run, selecting a job and step to view. You can pass in either a workflow run ID or a job ID. If no ID is passed in, you will be prompted to select from recent workflow runs for the current project.';
 
@@ -49,7 +48,7 @@ export default class WorkflowView extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { args, flags } = await this.parse(WorkflowView);
+    const { args, flags } = await this.parse(WorkflowLogView);
 
     const nonInteractive = flags['non-interactive'];
     const allSteps = nonInteractive ? true : flags['all-steps'];
@@ -61,7 +60,7 @@ export default class WorkflowView extends EasCommand {
     const {
       loggedIn: { graphqlClient },
       projectId,
-    } = await this.getContextAsync(WorkflowView, {
+    } = await this.getContextAsync(WorkflowLogView, {
       nonInteractive,
     });
 
