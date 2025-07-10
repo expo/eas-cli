@@ -250,7 +250,7 @@ interface UploadProgressBar {
 
 export function createProgressBar(label = 'Uploading assets'): UploadProgressBar {
   const queueProgressBar = new cliProgress.SingleBar(
-    { format: `|{bar}| {percentage}% (ETA: {eta}s) ${label}` },
+    { format: `|{bar}| {percentage}% ${label}` },
     cliProgress.Presets.rect
   );
   queueProgressBar.start(1, 0);
