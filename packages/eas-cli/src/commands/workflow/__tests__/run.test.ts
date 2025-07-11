@@ -1,4 +1,4 @@
-import { parseInputs, parseJsonInputs } from '../run';
+import { parseInputs, parseJsonInputs, parseWorkflowInputsFromYaml } from '../run';
 
 describe('parseInputs', () => {
   it('should parse single key=value pair', () => {
@@ -154,7 +154,6 @@ jobs:
       - run: echo "test"
 `;
 
-    const { parseWorkflowInputsFromYaml } = require('../run');
     const inputs = parseWorkflowInputsFromYaml(yamlConfig);
 
     expect(inputs).toEqual({
@@ -201,7 +200,6 @@ jobs:
       - run: echo "test"
 `;
 
-    const { parseWorkflowInputsFromYaml } = require('../run');
     const inputs = parseWorkflowInputsFromYaml(yamlConfig);
 
     expect(inputs).toEqual({});
@@ -210,7 +208,6 @@ jobs:
   it('should handle empty YAML', () => {
     const yamlConfig = '';
 
-    const { parseWorkflowInputsFromYaml } = require('../run');
     const inputs = parseWorkflowInputsFromYaml(yamlConfig);
 
     expect(inputs).toEqual({});
@@ -235,7 +232,6 @@ on:
         required: true
 `;
 
-    const { parseWorkflowInputsFromYaml } = require('../run');
     const inputs = parseWorkflowInputsFromYaml(yamlConfig);
 
     expect(inputs.simple_input).toEqual({

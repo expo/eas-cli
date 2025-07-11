@@ -484,7 +484,7 @@ export const WorkflowDispatchInputZ = z
     required: booleanLike.default(false).describe('Whether the input is required'),
   })
   .and(
-    z.discriminatedUnion('type', [
+    z.union([
       z.object({
         type: z.literal('string').default('string'),
         default: stringLike.optional().describe('Default value for the input'),
@@ -516,6 +516,7 @@ export function parseWorkflowInputsFromYaml(
     const parsed = YAML.parse(yamlConfig);
     return z
       .record(z.string(), WorkflowDispatchInputZ)
+      .default({})
       .parse(parsed?.on?.workflow_dispatch?.inputs);
   } catch (error) {
     Log.warn('Failed to parse workflow inputs from YAML:', error);
