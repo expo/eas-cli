@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   test:
+    name: Ensure GraphQL schema and generated code is up-to-date
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
