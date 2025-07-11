@@ -18,6 +18,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
+          release_name: 'eas-cli@${{ env.EAS_CLI_VERSION }}'
           draft: true
   build-linux:
     name: Build for Linux
@@ -30,6 +31,10 @@ jobs:
           node-version: 20
       - run: yarn install --frozen-lockfile --check-files
       - run: yarn build
+      - name: Ensure GraphQL schema and generated code is up-to-date
+        working-directory: ${{ github.workspace }}/packages/eas-cli
+        run: |
+          yarn verify-graphql-code
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
         run: |
