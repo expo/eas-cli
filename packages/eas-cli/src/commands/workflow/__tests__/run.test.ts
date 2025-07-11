@@ -120,3 +120,128 @@ describe('parseJsonInputs', () => {
     expect(() => parseJsonInputs('null')).toThrow('Invalid JSON input.');
   });
 });
+
+describe('parseWorkflowInputsFromYaml', () => {
+  it('should parse workflow inputs from YAML', () => {
+    const yamlConfig = `
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: string
+        required: true
+        description: "Environment to deploy to"
+      debug:
+        type: boolean
+        default: false
+        description: "Enable debug mode"
+      version:
+        type: number
+        required: true
+        description: "Version number"
+      deployment_type:
+        type: choice
+        options: ["staging", "production"]
+        default: "staging"
+        description: "Type of deployment"
+      target_env:
+        type: environment
+        default: "preview"
+        description: "Target environment"
+jobs:
+  test:
+    steps:
+      - run: echo "test"
+`;
+
+    const { parseWorkflowInputsFromYaml } = require('../run');
+    const inputs = parseWorkflowInputsFromYaml(yamlConfig);
+
+    expect(inputs).toEqual({
+      environment: {
+        type: 'string',
+        required: true,
+        description: 'Environment to deploy to',
+      },
+      debug: {
+        type: 'boolean',
+        required: false,
+        default: false,
+        description: 'Enable debug mode',
+      },
+      version: {
+        type: 'number',
+        required: true,
+        description: 'Version number',
+      },
+      deployment_type: {
+        type: 'choice',
+        required: false,
+        default: 'staging',
+        options: ['staging', 'production'],
+        description: 'Type of deployment',
+      },
+      target_env: {
+        type: 'environment',
+        required: false,
+        default: 'preview',
+        description: 'Target environment',
+      },
+    });
+  });
+
+  it('should handle YAML without workflow_dispatch inputs', () => {
+    const yamlConfig = `
+on:
+  push:
+    branches: [main]
+jobs:
+  test:
+    steps:
+      - run: echo "test"
+`;
+
+    const { parseWorkflowInputsFromYaml } = require('../run');
+    const inputs = parseWorkflowInputsFromYaml(yamlConfig);
+
+    expect(inputs).toEqual({});
+  });
+
+  it('should handle empty YAML', () => {
+    const yamlConfig = '';
+
+    const { parseWorkflowInputsFromYaml } = require('../run');
+    const inputs = parseWorkflowInputsFromYaml(yamlConfig);
+
+    expect(inputs).toEqual({});
+  });
+
+  it('should handle invalid YAML gracefully', () => {
+    const yamlConfig = 'invalid: yaml: content:';
+
+    const { parseWorkflowInputsFromYaml } = require('../run');
+    const inputs = parseWorkflowInputsFromYaml(yamlConfig);
+
+    expect(inputs).toEqual({});
+  });
+
+  it('should default type to string when not specified', () => {
+    const yamlConfig = `
+on:
+  workflow_dispatch:
+    inputs:
+      simple_input:
+        description: "A simple input"
+        required: true
+`;
+
+    const { parseWorkflowInputsFromYaml } = require('../run');
+    const inputs = parseWorkflowInputsFromYaml(yamlConfig);
+
+    expect(inputs.simple_input).toEqual({
+      type: 'string',
+      description: 'A simple input',
+      required: true,
+    });
+  });
+});
