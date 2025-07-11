@@ -7955,6 +7955,8 @@ export type UserInvitationMutation = {
   deleteUserInvitationByToken: RescindUserInvitationResult;
   /** Re-send UserInivitation by ID */
   resendUserInvitation: UserInvitation;
+  /** Update UserInvitation permissions by ID */
+  updateUserInvitationPermissions: UserInvitation;
 };
 
 
@@ -7987,6 +7989,12 @@ export type UserInvitationMutationDeleteUserInvitationByTokenArgs = {
 
 export type UserInvitationMutationResendUserInvitationArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type UserInvitationMutationUpdateUserInvitationPermissionsArgs = {
+  invitationID: Scalars['ID']['input'];
+  permissions: Array<InputMaybe<Permission>>;
 };
 
 /** Publicly visible data for a UserInvitation. */
@@ -8909,6 +8917,7 @@ export type WorkflowRunGitBranchFilterInput = {
 };
 
 export type WorkflowRunInput = {
+  inputs?: InputMaybe<Scalars['JSONObject']['input']>;
   projectSource: WorkflowProjectSourceInput;
 };
 
