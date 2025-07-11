@@ -1,6 +1,6 @@
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
-import { WorkflowResult } from '../../commandUtils/workflows';
+import { WorkflowResult } from '../../commandUtils/workflow/types';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log from '../../log';
 import formatFields from '../../utils/formatFields';

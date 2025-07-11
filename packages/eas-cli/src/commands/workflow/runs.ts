@@ -3,7 +3,7 @@ import { Flags } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
-import { processWorkflowRuns } from '../../commandUtils/workflows';
+import { processWorkflowRuns } from '../../commandUtils/workflow/utils';
 import { WorkflowRunFragment, WorkflowRunStatus } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
@@ -85,8 +85,9 @@ export default class WorkflowRunList extends EasCommand {
           { label: 'Status', value: run.status },
           { label: 'Started At', value: run.startedAt },
           { label: 'Finished At', value: run.finishedAt },
+          { label: 'Trigger Type', value: run.triggerType },
+          { label: 'Trigger', value: run.trigger ?? 'null' },
           { label: 'Git Commit Message', value: run.gitCommitMessage ?? 'null' },
-          { label: 'Git Commit Hash', value: run.gitCommitHash ?? 'null' },
         ])
       );
       Log.addNewLineIfNone();

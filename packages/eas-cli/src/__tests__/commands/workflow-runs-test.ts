@@ -77,6 +77,7 @@ describe(WorkflowRunList, () => {
         status: WorkflowRunStatus.Success,
         createdAt: '2022-01-01T00:00:00.000Z',
         updatedAt: '2022-01-01T00:00:00.000Z',
+        errors: [],
         gitCommitHash: '1234567890',
         gitCommitMessage: 'commit message',
         workflow: {
@@ -119,6 +120,8 @@ describe(WorkflowRunList, () => {
         status: 'FAILURE',
         gitCommitHash: '1234567890',
         gitCommitMessage: 'commit message',
+        trigger: '',
+        triggerType: 'Other',
         startedAt: '2022-01-01T00:00:00.000Z',
         finishedAt: '2022-01-01T00:00:00.000Z',
         workflowId: 'build',
@@ -139,6 +142,7 @@ describe(WorkflowRunList, () => {
         updatedAt: '2022-01-01T00:00:00.000Z',
         gitCommitHash: '1234567890',
         gitCommitMessage: 'commit message',
+        errors: [],
         workflow: {
           id: 'build',
           name: 'build',
@@ -165,6 +169,8 @@ describe(WorkflowRunList, () => {
         status: 'FAILURE',
         gitCommitHash: '1234567890',
         gitCommitMessage: 'commit message',
+        trigger: '',
+        triggerType: 'Other',
         startedAt: '2022-01-01T00:00:00.000Z',
         finishedAt: '2022-01-01T00:00:00.000Z',
         workflowId: 'build',
