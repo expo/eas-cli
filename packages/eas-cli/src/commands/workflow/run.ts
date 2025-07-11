@@ -162,6 +162,41 @@ export default class WorkflowRun extends EasCommand {
       }
     }
 
+    let inputs: Record<string, unknown> | undefined;
+
+    // Check for stdin input
+    const stdinData = await maybeReadStdinAsync();
+
+    const inputsFromFlags = [...(flags.input ?? [])];
+
+    // Validate that both stdin and -F flags are not provided simultaneously
+    if (stdinData && inputsFromFlags.length > 0) {
+      throw new Error(
+        'Cannot use both stdin JSON input and -F flags simultaneously. Please use only one input method.'
+      );
+    }
+
+    if (stdinData) {
+      inputs = parseJsonInputs(stdinData);
+    } else if (inputsFromFlags.length > 0) {
+      inputs = parseInputs(inputsFromFlags);
+    }
+
+    // Parse workflow inputs from YAML and prompt for missing required inputs
+    const inputSpecs = parseWorkflowInputsFromYaml(yamlConfig);
+    if (!flags['non-interactive']) {
+      inputs = await maybePromptForMissingInputsAsync({ inputSpecs, inputs: inputs ?? {} });
+    }
+
+    if (inputs && Object.keys(inputs).length > 0) {
+      Log.addNewLineIfNone();
+      Log.newLine();
+      Log.log('Running with inputs:');
+      for (const [key, value] of Object.entries(inputs)) {
+        Log.log(`- ${chalk.bold(key)}: ${JSON.stringify(value)}`);
+      }
+    }
+
     let projectArchiveBucketKey: string;
     let easJsonBucketKey: string | null = null;
     let packageJsonBucketKey: string | null = null;
@@ -220,41 +255,6 @@ export default class WorkflowRun extends EasCommand {
     }
 
     let workflowRunId: string;
-
-    let inputs: Record<string, unknown> | undefined;
-
-    // Check for stdin input
-    const stdinData = await maybeReadStdinAsync();
-
-    const inputsFromFlags = [...(flags.input ?? [])];
-
-    // Validate that both stdin and -F flags are not provided simultaneously
-    if (stdinData && inputsFromFlags.length > 0) {
-      throw new Error(
-        'Cannot use both stdin JSON input and -F flags simultaneously. Please use only one input method.'
-      );
-    }
-
-    if (stdinData) {
-      inputs = parseJsonInputs(stdinData);
-    } else if (inputsFromFlags.length > 0) {
-      inputs = parseInputs(inputsFromFlags);
-    }
-
-    // Parse workflow inputs from YAML and prompt for missing required inputs
-    const inputSpecs = parseWorkflowInputsFromYaml(yamlConfig);
-    if (!flags['non-interactive']) {
-      inputs = await maybePromptForMissingInputsAsync({ inputSpecs, inputs: inputs ?? {} });
-    }
-
-    if (inputs && Object.keys(inputs).length > 0) {
-      Log.addNewLineIfNone();
-      Log.newLine();
-      Log.log('Running with inputs:');
-      for (const [key, value] of Object.entries(inputs)) {
-        Log.log(`- ${chalk.bold(key)}: ${JSON.stringify(value)}`);
-      }
-    }
 
     try {
       ({ id: workflowRunId } = await WorkflowRunMutation.createWorkflowRunAsync(graphqlClient, {
