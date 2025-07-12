@@ -1,11 +1,8 @@
 import { BundleId, CapabilityTypeOption } from '@expo/apple-utils';
 import { JSONObject } from '@expo/json-file';
 
-import {
-  CapabilityMapping,
-  EXPO_NO_CAPABILITY_SYNC,
-  assertValidOptions,
-} from './bundleIdCapabilities';
+import { EXPO_NO_CAPABILITY_SYNC, assertValidOptions } from './bundleIdCapabilities';
+import { CapabilityMapping } from './capabilityList';
 import Log from '../../../log';
 import { isAppStoreConnectTokenOnlyContext } from '../utils/authType';
 
