@@ -66,6 +66,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       },
     ]);
   });
+
   describe('capabilities with settings', () => {
     const ctx = { providerId: 123195, teamId: 'MyteamId' };
     const capabilities = [
@@ -157,6 +158,25 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       'com.apple.developer.ubiquity-kvstore-identifier':
         '$(TeamIdentifierPrefix)com.vonovak.edfapp',
     };
+
+    it(`given a nonempty set S of remote capabilities, and a local boolean capability that is disabled and not in S, it does not disable any capability from S`, async () => {
+      // this is for an edge case
+      const bundleId = createMockBundleId('U78L9459DG', capabilities);
+      const result = await syncCapabilitiesForEntitlementsAsync(
+        bundleId,
+        {
+          'com.apple.developer.healthkit': false,
+          ...entitlements,
+        },
+        noBroadcastNotificationOption
+      );
+
+      expect(result).toStrictEqual({
+        enabled: [],
+        disabled: [],
+      });
+      expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalled();
+    });
 
     it('does not sync a capability that is already enabled', async () => {
       const bundleId = createMockBundleId('U78L9459DG', capabilities);
