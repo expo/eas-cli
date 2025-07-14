@@ -531,6 +531,7 @@ export enum AccountAppsSortByField {
 }
 
 export type AccountDataInput = {
+  displayName?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
 };
 
@@ -3352,12 +3353,6 @@ export type BuildPublicDataQueryByIdArgs = {
 export type BuildQuery = {
   __typename?: 'BuildQuery';
   /**
-   * Get all builds.
-   * By default, they are sorted from latest to oldest.
-   * Available only for admin users.
-   */
-  all: Array<Build>;
-  /**
    * Get all builds for a specific app.
    * They are sorted from latest to oldest.
    * @deprecated Use App.builds instead
@@ -3365,14 +3360,6 @@ export type BuildQuery = {
   allForApp: Array<Maybe<Build>>;
   /** Look up EAS Build by build ID */
   byId: Build;
-};
-
-
-export type BuildQueryAllArgs = {
-  limit?: InputMaybe<Scalars['Int']['input']>;
-  offset?: InputMaybe<Scalars['Int']['input']>;
-  order?: InputMaybe<Order>;
-  statuses?: InputMaybe<Array<BuildStatus>>;
 };
 
 
