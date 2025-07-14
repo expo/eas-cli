@@ -1,69 +1,21 @@
 import {
-  AppGroup,
   BundleId,
   BundleIdCapability,
-  CapabilityOptionMap,
   CapabilityType,
-  CapabilityTypeDataProtectionOption,
   CapabilityTypeOption,
-  CapabilityTypePushNotificationsOption,
-  CloudContainer,
-  MerchantId,
 } from '@expo/apple-utils';
 import { JSONObject, JSONValue } from '@expo/json-file';
 import getenv from 'getenv';
 import { inspect } from 'util';
 
+import {
+  CapabilityClassifier,
+  CapabilityMapping,
+  associatedDomainsCapabilityType,
+} from './capabilityList';
 import Log from '../../../log';
 
 export const EXPO_NO_CAPABILITY_SYNC = getenv.boolish('EXPO_NO_CAPABILITY_SYNC', false);
-
-type GetOptionsMethod<T extends CapabilityType = any> = (
-  entitlement: JSONValue,
-  entitlementsJson: JSONObject,
-  additionalOptions: {
-    usesBroadcastPushNotifications?: boolean;
-  }
-) => CapabilityOptionMap[T];
-
-const validateBooleanOptions = (options: any): boolean => {
-  return typeof options === 'boolean';
-};
-
-const validatePrefixedStringArrayOptions =
-  (prefix: string) =>
-  (options: any): boolean => {
-    return (
-      Array.isArray(options) &&
-      options.every(option => typeof option === 'string' && option.startsWith(prefix))
-    );
-  };
-
-const validateStringArrayOptions = (options: any): boolean => {
-  return Array.isArray(options) && options.every(option => typeof option === 'string');
-};
-
-const createValidateStringOptions =
-  (allowed: string[]) =>
-  (options: any): boolean => {
-    return allowed.includes(options);
-  };
-
-const createValidateStringArrayOptions =
-  (allowed: string[]) =>
-  (options: any): boolean => {
-    return Array.isArray(options) && options.every(option => allowed.includes(option));
-  };
-
-const validateDevProdString = createValidateStringOptions(['development', 'production']);
-
-const getBooleanOptions: GetOptionsMethod = entitlement => {
-  return entitlement === true ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF;
-};
-
-const getDefinedOptions: GetOptionsMethod = entitlement => {
-  return entitlement ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF;
-};
 
 /**
  * Given an entitlements JSON object, synchronizes the remote capabilities for a bundle identifier.
@@ -78,6 +30,7 @@ const getDefinedOptions: GetOptionsMethod = entitlement => {
  *
  * @param bundleId bundle identifier object
  * @param entitlements JSON representation of the entitlements plist
+ * @param additionalOptions Additional options to consider when syncing capabilities.
  * @returns
  */
 export async function syncCapabilitiesForEntitlementsAsync(
@@ -105,7 +58,8 @@ export async function syncCapabilitiesForEntitlementsAsync(
   const { disabledCapabilityNames, request: modifiedRequest } = getCapabilitiesToDisable(
     bundleId,
     remainingCapabilities,
-    request
+    request,
+    entitlements
   );
 
   if (modifiedRequest.length) {
@@ -139,15 +93,98 @@ function shouldSkipPushNotificationsCapabilityUpdate(
     usesBroadcastPushNotifications: boolean;
   }
 ): boolean {
-  // For push notifications, we should always update the capabaility if
+  // For push notifications, we should always update the capability if
   // - settings are not defined in the existing capability, but usesBroadcastPushNotifications is enabled (we want to add settings for this capability)
   // - settings are defined in the existing capability, but usesBroadcastPushNotifications is disabled (we want to remove settings for this capability)
   const noSettingsAttributes = existing.attributes.settings == null;
   return !noSettingsAttributes === additionalOptions.usesBroadcastPushNotifications;
 }
 
+function shouldSkipIcloudCapabilityUpdate(
+  existing: BundleIdCapability,
+  newOption: CapabilityTypeOption
+): boolean {
+  // For iCloud capabilities, we should skip if:
+  // - the capability is already enabled and has the correct settings
+  // - we want to enable it and it's already enabled with settings
+  const existingEnabled = 'enabled' in existing.attributes && existing.attributes.enabled === true;
+  const newEnabled = newOption === CapabilityTypeOption.ON;
+
+  // If both are enabled and the existing one has settings, skip the update
+  // the settings are defined for only a few capabilities: https://developer.apple.com/documentation/appstoreconnectapi/capabilitysetting
+  if (existingEnabled && newEnabled && existing.attributes.settings) {
+    return true;
+  }
+
+  // If the states don't match, we need to update
+  return existingEnabled === newEnabled;
+}
+
+function shouldPerformRemoteCapabilitySetup(
+  existingRemote: BundleIdCapability | null,
+  staticCapabilityInfo: CapabilityClassifier,
+  entitlementValue: JSONValue,
+  entitlements: JSONObject,
+  additionalOptions: {
+    usesBroadcastPushNotifications: boolean;
+  }
+): 'enable' | 'disable' | 'skip' {
+  if (!existingRemote) {
+    if (entitlementValue === false) {
+      // the value represents a disabled capability (boolean false)
+      // e.g. 'com.apple.developer.networking.wifi-info': false
+      // the remote capability is *already disabled*, so we should skip it
+      return 'skip';
+    }
+    // a new capability not present remotely, so we want to create it
+    return 'enable';
+  }
+  if (existingRemote && entitlementValue === false) {
+    return 'disable';
+  }
+
+  // Only skip if the existing capability is a simple boolean value,
+  // if it has more complex settings then we should update it (except for push notifications, iCloud and perhaps more).
+  // If the `existing.attributes.settings` object is defined, then we can determine that it has extra configuration.
+  // For push notifications, we should always update the capability if
+  // - settings are not defined in the existing capability, but usesBroadcastPushNotifications is enabled (we want to add settings for this capability)
+  // - settings are defined in the existing capability, but usesBroadcastPushNotifications is disabled (we want to remove settings for this capability)
+
+  const isPushNotificationsCapability =
+    staticCapabilityInfo.capability === CapabilityType.PUSH_NOTIFICATIONS;
+
+  if (isPushNotificationsCapability) {
+    return shouldSkipPushNotificationsCapabilityUpdate(existingRemote, additionalOptions)
+      ? 'skip'
+      : 'enable';
+  }
+
+  const newValue = staticCapabilityInfo.getOptions(
+    entitlementValue,
+    entitlements,
+    additionalOptions
+  );
+
+  const needsSpecialHandling =
+    staticCapabilityInfo.capability === CapabilityType.ICLOUD ||
+    staticCapabilityInfo.capability === CapabilityType.APPLE_ID_AUTH;
+  if (needsSpecialHandling) {
+    return shouldSkipIcloudCapabilityUpdate(existingRemote, newValue) ? 'skip' : 'enable';
+  }
+
+  if (
+    staticCapabilityInfo.capability === CapabilityType.DATA_PROTECTION &&
+    existingRemote.attributes.settings?.[0].key === 'DATA_PROTECTION_PERMISSION_LEVEL'
+  ) {
+    const oldValue = existingRemote.attributes.settings[0]?.options?.[0]?.key;
+    return oldValue === newValue ? 'skip' : 'enable';
+  }
+
+  return existingRemote.attributes.settings === null ? 'skip' : 'enable';
+}
+
 function getCapabilitiesToEnable(
-  currentCapabilities: BundleIdCapability[],
+  currentRemoteCapabilities: BundleIdCapability[],
   entitlements: JSONObject,
   additionalOptions: {
     usesBroadcastPushNotifications: boolean;
@@ -159,7 +196,7 @@ function getCapabilitiesToEnable(
 } {
   const enabledCapabilityNames: string[] = [];
   const request: { capabilityType: CapabilityType; option: any }[] = [];
-  const remainingCapabilities = [...currentCapabilities];
+  const remainingCapabilities = [...currentRemoteCapabilities];
   for (const [key, value] of Object.entries(entitlements)) {
     const staticCapabilityInfo = CapabilityMapping.find(
       capability => capability.entitlement === key
@@ -172,47 +209,37 @@ function getCapabilitiesToEnable(
       continue;
     }
 
+    assertValidOptions(staticCapabilityInfo, value);
+
     const existingIndex = remainingCapabilities.findIndex(existing =>
       existing.isType(staticCapabilityInfo.capability)
     );
-    const existing = existingIndex > -1 ? remainingCapabilities[existingIndex] : null;
+    const existingRemote = existingIndex > -1 ? remainingCapabilities[existingIndex] : null;
 
-    // Only skip if the existing capability is a simple boolean value,
-    // if it has more complex settings then we should always update it.
-    // If the `existing.attributes.settings` object is defined, then we can determine that it has extra configuration.
-    // For push notifications, we should always update the capabaility if
-    // - settings are not defined in the existing capability, but usesBroadcastPushNotifications is enabled (we want to add settings for this capability)
-    // - settings are defined in the existing capability, but usesBroadcastPushNotifications is disabled (we want to remove settings for this capability)
-    const isPushNotificationsCapability =
-      staticCapabilityInfo.capability === CapabilityType.PUSH_NOTIFICATIONS;
-    if (
-      existing &&
-      ((!isPushNotificationsCapability && existing.attributes.settings == null) ||
-        (isPushNotificationsCapability &&
-          shouldSkipPushNotificationsCapabilityUpdate(existing, additionalOptions)))
-    ) {
-      // Remove the item from the list of capabilities so we don't disable it.
-      remainingCapabilities.splice(existingIndex, 1);
-      if (Log.isDebug) {
-        Log.log(`Skipping existing capability: ${key} (${staticCapabilityInfo.name})`);
-        Log.log(
-          `Remaining to remove: `,
-          remainingCapabilities.map(({ id }) => id)
-        );
-      }
-      continue;
+    const operation = shouldPerformRemoteCapabilitySetup(
+      existingRemote,
+      staticCapabilityInfo,
+      value,
+      entitlements,
+      additionalOptions
+    );
+
+    if (Log.isDebug) {
+      Log.log(`Will ${operation} remote capability: ${key} (${staticCapabilityInfo.name}.`);
     }
+    if (operation === 'enable') {
+      enabledCapabilityNames.push(staticCapabilityInfo.name);
 
-    assertValidOptions(staticCapabilityInfo, value);
+      const option = staticCapabilityInfo.getOptions(value, entitlements, additionalOptions);
 
-    enabledCapabilityNames.push(staticCapabilityInfo.name);
-
-    const option = staticCapabilityInfo.getOptions(value, entitlements, additionalOptions);
-
-    request.push({
-      capabilityType: staticCapabilityInfo.capability,
-      option,
-    });
+      request.push({
+        capabilityType: staticCapabilityInfo.capability,
+        option,
+      });
+    } else if (operation === 'skip') {
+      // Remove the item from the list of capabilities so we don't disable it in the next step.
+      remainingCapabilities.splice(existingIndex, 1);
+    }
   }
 
   return { enabledCapabilityNames, request, remainingCapabilities };
@@ -234,7 +261,8 @@ export function assertValidOptions(classifier: CapabilityClassifier, value: any)
 function getCapabilitiesToDisable(
   bundleId: BundleId,
   currentCapabilities: BundleIdCapability[],
-  request: CapabilitiesRequest[]
+  request: CapabilitiesRequest[],
+  entitlements: JSONObject
 ): { disabledCapabilityNames: string[]; request: CapabilitiesRequest[] } {
   if (Log.isDebug) {
     Log.log(
@@ -257,9 +285,13 @@ function getCapabilitiesToDisable(
     }
 
     if (existingCapability.attributes) {
-      let adjustedType: string | undefined = existingCapability.attributes.capabilityType;
-      if (!adjustedType) {
-        adjustedType = existingCapability.id.replace(`${bundleId.id}_`, '');
+      const adjustedType = getAdjustedCapabilityType(existingCapability, bundleId);
+      if (
+        adjustedType === CapabilityType.MDM_MANAGED_ASSOCIATED_DOMAINS &&
+        entitlements[associatedDomainsCapabilityType.entitlement]
+      ) {
+        // MDM Managed Associated Domains is a special case, it should not be disabled if Associated Domains is enabled.
+        continue;
       }
 
       // Only disable capabilities that we handle,
@@ -287,579 +319,18 @@ function getCapabilitiesToDisable(
   return { disabledCapabilityNames, request };
 }
 
-type CapabilityClassifier = {
-  name: string;
-  entitlement: string;
-  capability: CapabilityType;
-  validateOptions: (options: any) => boolean;
-  getOptions: GetOptionsMethod;
-  capabilityIdModel?: typeof MerchantId;
-  capabilityIdPrefix?: string;
-  options?: undefined;
-};
-
-// NOTE(Bacon): From manually toggling values in Xcode and checking the git diff and network requests.
-// Last Updated: July 22nd, 2021
-// https://developer-mdn.apple.com/documentation/bundleresources/entitlements
-export const CapabilityMapping: CapabilityClassifier[] = [
-  {
-    name: 'HomeKit',
-    entitlement: 'com.apple.developer.homekit',
-    capability: CapabilityType.HOME_KIT,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    name: 'Hotspot',
-    entitlement: 'com.apple.developer.networking.HotspotConfiguration',
-    capability: CapabilityType.HOT_SPOT,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    name: 'Multipath',
-    entitlement: 'com.apple.developer.networking.multipath',
-    capability: CapabilityType.MULTIPATH,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    name: 'SiriKit',
-    entitlement: 'com.apple.developer.siri',
-    capability: CapabilityType.SIRI_KIT,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    name: 'Wireless Accessory Configuration',
-    entitlement: 'com.apple.external-accessory.wireless-configuration',
-    capability: CapabilityType.WIRELESS_ACCESSORY,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    name: 'Extended Virtual Address Space',
-    entitlement: 'com.apple.developer.kernel.extended-virtual-addressing',
-    capability: CapabilityType.EXTENDED_VIRTUAL_ADDRESSING,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    name: 'Access WiFi Information',
-    entitlement: 'com.apple.developer.networking.wifi-info',
-    capability: CapabilityType.ACCESS_WIFI,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    name: 'Associated Domains',
-    entitlement: 'com.apple.developer.associated-domains',
-    capability: CapabilityType.ASSOCIATED_DOMAINS,
-    validateOptions: validateStringArrayOptions,
-    getOptions: getDefinedOptions,
-  },
-  {
-    name: 'AutoFill Credential Provider',
-    entitlement: 'com.apple.developer.authentication-services.autofill-credential-provider',
-    capability: CapabilityType.AUTO_FILL_CREDENTIAL,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    name: 'HealthKit',
-    entitlement: 'com.apple.developer.healthkit',
-    capability: CapabilityType.HEALTH_KIT,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  //   {
-  //     // ?? -- adds UIRequiredDeviceCapabilities gamekit
-  //     // Always locked on in dev portal
-  //     name: 'Game Center',
-  //     entitlement: 'com.apple.developer.game-center',
-  //     capability: CapabilityType.GAME_CENTER,
-  //     validateOptions: validateBooleanOptions,
-  //     getOptions: getBooleanOptions,
-  //   },
-  {
-    name: 'App Groups',
-    entitlement: 'com.apple.security.application-groups',
-    capability: CapabilityType.APP_GROUP,
-    // Ex: ['group.CY-A5149AC2-49FC-11E7-B3F3-0335A16FFB8D.com.cydia.Extender']
-    validateOptions: validatePrefixedStringArrayOptions('group.'),
-    getOptions: getDefinedOptions,
-    capabilityIdModel: AppGroup,
-    capabilityIdPrefix: 'group.',
-  },
-  {
-    name: 'Apple Pay Payment Processing',
-    entitlement: 'com.apple.developer.in-app-payments',
-    capability: CapabilityType.APPLE_PAY,
-    // Ex: ['merchant.com.example.development']
-    validateOptions: validatePrefixedStringArrayOptions('merchant.'),
-    getOptions: getDefinedOptions,
-    capabilityIdModel: MerchantId,
-    capabilityIdPrefix: 'merchant.',
-  },
-  {
-    name: 'iCloud',
-    entitlement: 'com.apple.developer.icloud-container-identifiers',
-    capability: CapabilityType.ICLOUD,
-    validateOptions: validatePrefixedStringArrayOptions('iCloud.'),
-    // Only supports Xcode +6, 5 could be added if needed.
-    getOptions: getDefinedOptions,
-    capabilityIdModel: CloudContainer,
-    capabilityIdPrefix: 'iCloud.',
-  },
-  {
-    name: 'ClassKit',
-    entitlement: 'com.apple.developer.ClassKit-environment',
-    capability: CapabilityType.CLASS_KIT,
-    validateOptions: validateDevProdString,
-    getOptions: getDefinedOptions,
-  },
-  {
-    name: 'Communication Notifications',
-    entitlement: 'com.apple.developer.usernotifications.communication',
-    capability: CapabilityType.USER_NOTIFICATIONS_COMMUNICATION,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    name: 'Time Sensitive Notifications',
-    entitlement: 'com.apple.developer.usernotifications.time-sensitive',
-    capability: CapabilityType.USER_NOTIFICATIONS_TIME_SENSITIVE,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    name: 'Group Activities',
-    entitlement: 'com.apple.developer.group-session',
-    capability: CapabilityType.GROUP_ACTIVITIES,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    name: 'Family Controls',
-    entitlement: 'com.apple.developer.family-controls',
-    capability: CapabilityType.FAMILY_CONTROLS,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    // https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_default-data-protection
-    name: 'Data Protection',
-    entitlement: 'com.apple.developer.default-data-protection',
-    capability: CapabilityType.DATA_PROTECTION,
-    validateOptions: createValidateStringOptions([
-      'NSFileProtectionCompleteUnlessOpen',
-      'NSFileProtectionCompleteUntilFirstUserAuthentication',
-      'NSFileProtectionNone',
-      'NSFileProtectionComplete',
-    ]),
-    getOptions(entitlement) {
-      if (entitlement === 'NSFileProtectionComplete') {
-        return CapabilityTypeDataProtectionOption.COMPLETE_PROTECTION;
-      } else if (entitlement === 'NSFileProtectionCompleteUnlessOpen') {
-        return CapabilityTypeDataProtectionOption.PROTECTED_UNLESS_OPEN;
-      } else if (entitlement === 'NSFileProtectionCompleteUntilFirstUserAuthentication') {
-        return CapabilityTypeDataProtectionOption.PROTECTED_UNTIL_FIRST_USER_AUTH;
-      }
-      // NSFileProtectionNone isn't documented, not sure how to handle
+function getAdjustedCapabilityType(
+  existingCapability: BundleIdCapability,
+  bundleId: BundleId
+): string {
+  let adjustedType: string | undefined = existingCapability.attributes.capabilityType;
+  if (!adjustedType) {
+    if (process.env.NODE_ENV === 'test' && !existingCapability.id.startsWith(`${bundleId.id}_`)) {
       throw new Error(
-        `iOS entitlement "com.apple.developer.default-data-protection" is using unsupported value "${entitlement}"`
+        `Capability ID "${existingCapability.id}" does not start with the bundle ID "${bundleId.id}_". This is likely a test setup issue.`
       );
-    },
-  },
-  {
-    // Deprecated
-    name: 'Inter-App Audio',
-    entitlement: 'inter-app-audio',
-    capability: CapabilityType.INTER_APP_AUDIO,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    // https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_networking_networkextension
-    name: 'Network Extensions',
-    entitlement: 'com.apple.developer.networking.networkextension',
-    capability: CapabilityType.NETWORK_EXTENSIONS,
-    validateOptions: createValidateStringArrayOptions([
-      'dns-proxy',
-      'app-proxy-provider',
-      'content-filter-provider',
-      'packet-tunnel-provider',
-      'dns-proxy-systemextension',
-      'app-proxy-provider-systemextension',
-      'content-filter-provider-systemextension',
-      'packet-tunnel-provider-systemextension',
-      'dns-settings',
-      'app-push-provider',
-    ]),
-    getOptions: getDefinedOptions,
-  },
-  {
-    // https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_nfc_readersession_formats
-    name: 'NFC Tag Reading',
-    entitlement: 'com.apple.developer.nfc.readersession.formats',
-    capability: CapabilityType.NFC_TAG_READING,
-    // Technically it seems only `TAG` is allowed, but many apps and packages tell users to add `NDEF` as well.
-    validateOptions: createValidateStringArrayOptions(['NDEF', 'TAG']),
-    getOptions: getDefinedOptions,
-  },
-  {
-    name: 'Personal VPN',
-    entitlement: 'com.apple.developer.networking.vpn.api',
-    capability: CapabilityType.PERSONAL_VPN,
-    // Ex: ['allow-vpn']
-    validateOptions: createValidateStringArrayOptions(['allow-vpn']),
-    getOptions: getDefinedOptions,
-  },
-  {
-    // https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_networking_vpn_api
-    name: 'Push Notifications',
-    // com.apple.developer.aps-environment
-    entitlement: 'aps-environment',
-    capability: CapabilityType.PUSH_NOTIFICATIONS,
-    validateOptions: validateDevProdString,
-    getOptions(entitlement, _entitlementsJson, { usesBroadcastPushNotifications }) {
-      const option = entitlement ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF;
-      if (option === CapabilityTypeOption.ON && usesBroadcastPushNotifications) {
-        return CapabilityTypePushNotificationsOption.PUSH_NOTIFICATION_FEATURE_BROADCAST;
-      }
-      return option;
-    },
-  },
-  {
-    name: 'Wallet',
-    entitlement: 'com.apple.developer.pass-type-identifiers',
-    capability: CapabilityType.WALLET,
-    // Ex: ['$(TeamIdentifierPrefix)*']
-    validateOptions: validateStringArrayOptions,
-    getOptions: getDefinedOptions,
-  },
-  {
-    name: 'Sign In with Apple',
-    entitlement: 'com.apple.developer.applesignin',
-    capability: CapabilityType.APPLE_ID_AUTH,
-    // Ex: ['Default']
-    validateOptions: createValidateStringArrayOptions(['Default']),
-    getOptions: getDefinedOptions,
-  },
-  {
-    name: 'Fonts',
-    entitlement: 'com.apple.developer.user-fonts',
-    capability: CapabilityType.FONT_INSTALLATION,
-    validateOptions: createValidateStringArrayOptions(['app-usage', 'system-installation']),
-    getOptions: getDefinedOptions,
-  },
-  {
-    name: 'Apple Pay Later Merchandising',
-    entitlement: 'com.apple.developer.pay-later-merchandising',
-    capability: CapabilityType.APPLE_PAY_LATER_MERCHANDISING,
-    validateOptions: createValidateStringArrayOptions(['payinfour-merchandising']),
-    getOptions: getDefinedOptions,
-  },
-  {
-    name: 'Sensitive Content Analysis',
-    entitlement: 'com.apple.developer.sensitivecontentanalysis.client',
-    capability: CapabilityType.SENSITIVE_CONTENT_ANALYSIS,
-    validateOptions: createValidateStringArrayOptions(['analysis']),
-    getOptions: getDefinedOptions,
-  },
-  {
-    // Not in Xcode
-    // https://developer-mdn.apple.com/documentation/devicecheck/preparing_to_use_the_app_attest_service
-    // https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_devicecheck_appattest-environment
-    name: 'App Attest',
-    entitlement: 'com.apple.developer.devicecheck.appattest-environment',
-    capability: CapabilityType.APP_ATTEST,
-    validateOptions: validateDevProdString,
-    getOptions: getDefinedOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.coremedia.hls.low-latency',
-    name: 'Low Latency HLS',
-    capability: CapabilityType.HLS_LOW_LATENCY,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.associated-domains.mdm-managed',
-    name: 'MDM Managed Associated Domains',
-    capability: CapabilityType.MDM_MANAGED_ASSOCIATED_DOMAINS,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.fileprovider.testing-mode',
-    name: 'FileProvider TestingMode',
-    capability: CapabilityType.FILE_PROVIDER_TESTING_MODE,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.healthkit.recalibrate-estimates',
-    name: 'Recalibrate Estimates',
-    capability: CapabilityType.HEALTH_KIT_RECALIBRATE_ESTIMATES,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.maps',
-    name: 'Maps',
-    capability: CapabilityType.MAPS,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.user-management',
-    name: 'TV Services',
-    capability: CapabilityType.USER_MANAGEMENT,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.networking.custom-protocol',
-    name: 'Custom Network Protocol',
-    capability: CapabilityType.NETWORK_CUSTOM_PROTOCOL,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.system-extension.install',
-    name: 'System Extension',
-    capability: CapabilityType.SYSTEM_EXTENSION_INSTALL,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.push-to-talk',
-    name: 'Push to Talk',
-    capability: CapabilityType.PUSH_TO_TALK,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.driverkit.transport.usb',
-    name: 'DriverKit USB Transport (development)',
-    capability: CapabilityType.DRIVER_KIT_USB_TRANSPORT_PUB,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.kernel.increased-memory-limit',
-    name: 'Increased Memory Limit',
-    capability: CapabilityType.INCREASED_MEMORY_LIMIT,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.driverkit.communicates-with-drivers',
-    name: 'Communicates with Drivers',
-    capability: CapabilityType.DRIVER_KIT_COMMUNICATES_WITH_DRIVERS,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.media-device-discovery-extension',
-    name: 'Media Device Discovery',
-    capability: CapabilityType.MEDIA_DEVICE_DISCOVERY,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.driverkit.allow-third-party-userclients',
-    name: 'DriverKit Allow Third Party UserClients',
-    capability: CapabilityType.DRIVER_KIT_ALLOW_THIRD_PARTY_USER_CLIENTS,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.weatherkit',
-    name: 'WeatherKit',
-    capability: CapabilityType.WEATHER_KIT,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.on-demand-install-capable',
-    name: 'On Demand Install Capable for App Clip Extensions',
-    capability: CapabilityType.ON_DEMAND_INSTALL_EXTENSIONS,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.driverkit.family.scsicontroller',
-    name: 'DriverKit Family SCSIController (development)',
-    capability: CapabilityType.DRIVER_KIT_FAMILY_SCSI_CONTROLLER_PUB,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.driverkit.family.serial',
-    name: 'DriverKit Family Serial (development)',
-    capability: CapabilityType.DRIVER_KIT_FAMILY_SERIAL_PUB,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.driverkit.family.networking',
-    name: 'DriverKit Family Networking (development)',
-    capability: CapabilityType.DRIVER_KIT_FAMILY_NETWORKING_PUB,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.driverkit.family.hid.eventservice',
-    name: 'DriverKit Family HID EventService (development)',
-    capability: CapabilityType.DRIVER_KIT_FAMILY_HID_EVENT_SERVICE_PUB,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.driverkit.family.hid.device',
-    name: 'DriverKit Family HID Device (development)',
-    capability: CapabilityType.DRIVER_KIT_FAMILY_HID_DEVICE_PUB,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.driverkit',
-    name: 'DriverKit for Development',
-    capability: CapabilityType.DRIVER_KIT_PUBLIC,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.driverkit.transport.hid',
-    name: 'DriverKit Transport HID (development)',
-    capability: CapabilityType.DRIVER_KIT_TRANSPORT_HID_PUB,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.driverkit.family.audio',
-    name: 'DriverKit Family Audio (development)',
-    capability: CapabilityType.DRIVER_KIT_FAMILY_AUDIO_PUB,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.shared-with-you',
-    name: 'Shared with You',
-    capability: CapabilityType.SHARED_WITH_YOU,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.shared-with-you.collaboration',
-    name: 'Messages Collaboration',
-    capability: CapabilityType.MESSAGES_COLLABORATION,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.submerged-shallow-depth-and-pressure',
-    name: 'Shallow Depth and Pressure',
-    capability: CapabilityType.SHALLOW_DEPTH_PRESSURE,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.proximity-reader.identity.display',
-    name: 'Tap to Present ID on iPhone (Display Only)',
-    capability: CapabilityType.TAP_TO_DISPLAY_ID,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.proximity-reader.payment.acceptance',
-    name: 'Tap to Pay on iPhone',
-    capability: CapabilityType.TAP_TO_PAY_ON_IPHONE,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.matter.allow-setup-payload',
-    name: 'Matter Allow Setup Payload',
-    capability: CapabilityType.MATTER_ALLOW_SETUP_PAYLOAD,
-    validateOptions: validateBooleanOptions,
-    getOptions: getBooleanOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.journal.allow',
-    name: 'Journaling Suggestions',
-    capability: CapabilityType.JOURNALING_SUGGESTIONS,
-    validateOptions: createValidateStringArrayOptions(['suggestions']),
-    getOptions: getDefinedOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.managed-app-distribution.install-ui',
-    name: 'Managed App Installation UI',
-    capability: CapabilityType.MANAGED_APP_INSTALLATION_UI,
-    validateOptions: createValidateStringArrayOptions(['managed-app']),
-    getOptions: getDefinedOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.networking.slicing.appcategory',
-    name: '5G Network Slicing',
-    capability: CapabilityType.NETWORK_SLICING,
-    validateOptions: createValidateStringArrayOptions([
-      'gaming-6014',
-      'communication-9000',
-      'streaming-9001',
-    ]),
-    getOptions: getDefinedOptions,
-  },
-  {
-    entitlement: 'com.apple.developer.networking.slicing.trafficcategory',
-    name: '5G Network Slicing',
-    capability: CapabilityType.NETWORK_SLICING,
-    validateOptions: createValidateStringArrayOptions([
-      'defaultslice-1',
-      'video-2',
-      'background-3',
-      'voice-4',
-      'callsignaling-5',
-      'responsivedata-6',
-      'avstreaming-7',
-      'responsiveav-8',
-    ]),
-    getOptions: getDefinedOptions,
-  },
-  // VMNET
-
-  // These don't appear to have entitlements, so it's unclear how we can automatically enable / disable them at this time.
-  // TODO: Maybe add a warning about manually enabling features?
-  // ?? -- links `StoreKit.framework`
-  // Always locked on in dev portal
-  //   {
-  //     entitlement: '',
-  //     name: 'In-App Purchase',
-  //     capability: CapabilityType.IN_APP_PURCHASE,
-  //   },
-  //   {
-  //     entitlement: '',
-  //     name: 'HLS Interstitial Previews',
-  //     capability: 'HLS_INTERSTITIAL_PREVIEW',
-  //   },
-
-  // "Game Controllers" doesn't appear in Dev Portal but it does show up in Xcode,
-  // toggling in Xcode causes no network request to be sent.
-  // Therefore it seems that it's a mistake in Xcode,
-  // the key `GCSupportsControllerUserInteraction` just needs to be present in Info.plist
-
-  // "Keychain Sharing" doesn't appear in Dev Portal but it does show up in Xcode,
-  // toggling in Xcode causes no network request to be sent.
-  // Adding to Xcode puts 'keychain-access-groups' into the entitlements so
-  // it's not clear if it needs to be updated.
-
-  // "Contact Notes" requires the user to ask Apple in a form:
-  // https://developer-mdn.apple.com/contact/request/contact-note-field
-  // com.apple.developer.contacts.notes: https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_contacts_notes/
-
-  // "Exposure Notification" requires the user to ask Apple in a form:
-  // https://developer-mdn.apple.com/contact/request/exposure-notification-entitlement
-  // com.apple.developer.exposure-notification: https://developer-mdn.apple.com/documentation/bundleresources/entitlements/com_apple_developer_exposure-notification/
-];
+    }
+    adjustedType = existingCapability.id.replace(`${bundleId.id}_`, '');
+  }
+  return adjustedType;
+}
