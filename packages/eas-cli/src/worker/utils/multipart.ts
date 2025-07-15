@@ -21,29 +21,46 @@ const encodeName = (input: string): string => {
   });
 };
 
-async function* createReadStreamAsync(fileEntry: MultipartFileEntry): AsyncGenerator<Uint8Array> {
-  const handle = await fs.promises.open(fileEntry.path);
-  const hash = createHash('sha512', { encoding: 'hex' });
-  const buffer = new Uint8Array(4096);
+export async function* createReadStreamAsync(fileEntry: MultipartFileEntry): AsyncGenerator<Uint8Array> {
+  let handle: fs.promises.FileHandle | undefined;
   try {
-    let bytesTotal = 0;
-    let read: fs.promises.FileReadResult<Uint8Array>;
+    handle = await fs.promises.open(fileEntry.path);
+    const hash = createHash('sha512');
     // NOTE(@kitten): fs.createReadStream() was previously used here as an async iterator
     // However, if an early 'end' event is emitted, the async iterator may abort too early and cut off file contents
-    while ((read = (await handle.read(buffer))).bytesRead > 0) {
-      bytesTotal += read.bytesRead;
-      if (bytesTotal > fileEntry.size)
+    let bytesTotal = 0;
+    while (bytesTotal < fileEntry.size) {
+      const read = await handle.read();
+      const output = read.buffer.subarray(0, read.bytesRead);
+      bytesTotal += output.byteLength;
+
+      if (bytesTotal > fileEntry.size) {
         throw new RangeError(`Asset "${fileEntry.path}" was modified during the upload (length mismatch)`);
-      hash.update(read.buffer);
-      yield read.buffer;
+      }
+
+      if (output.byteLength) {
+        hash.update(output);
+      }
+
+      if (bytesTotal === fileEntry.size) {
+        const sha512 = hash.digest('hex');
+        if (sha512 !== fileEntry.sha512) {
+          throw new Error(`Asset "${fileEntry.path}" was modified during the upload (checksum mismatch)`);
+        }
+      }
+
+      if (output.byteLength) {
+        yield output;
+      } else {
+        break;
+      }
     }
+
     if (bytesTotal < fileEntry.size) {
       throw new RangeError(`Asset "${fileEntry.path}" was modified during the upload (length mismatch)`);
-    } else if (`${hash.read()}` !== fileEntry.sha512) {
-      throw new Error(`Asset "${fileEntry.path}" was modified during the upload (checksum mismatch)`);
     }
   } finally {
-    await handle.close();
+    await handle?.close();
   }
 }
 
