@@ -89,12 +89,7 @@ export async function uploadAsync(
         method = 'PATCH';
         url.pathname = '/asset/batch';
         const iterator = createMultipartBodyFromFilesAsync(
-          multipart.map(asset => ({
-            name: asset.sha512,
-            filePath: asset.path,
-            contentType: asset.type,
-            contentLength: asset.size,
-          })),
+          multipart,
           onProgressUpdate
         );
         body = Readable.from(iterator);

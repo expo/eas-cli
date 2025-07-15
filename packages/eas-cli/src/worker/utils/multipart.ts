@@ -21,20 +21,20 @@ const encodeName = (input: string): string => {
 };
 
 async function* createReadStreamAsync(fileEntry: MultipartFileEntry): AsyncGenerator<Uint8Array> {
-  const handle = await fs.promises.open(fileEntry.filePath);
+  const handle = await fs.promises.open(fileEntry.path);
   const buffer = Buffer.alloc(4096);
   try {
     let bytesTotal = 0;
     let bytesRead = 0;
     while ((bytesRead = (await handle.read(buffer)).bytesRead) > 0) {
       bytesTotal += bytesRead;
-      if (fileEntry.contentLength != null && bytesTotal > fileEntry.contentLength) {
-        throw new RangeError(`Asset "${fileEntry.filePath}" has changed in length`);
+      if (bytesTotal > fileEntry.size) {
+        throw new RangeError(`Asset "${fileEntry.path}" has changed in length`);
       }
       yield new Uint8Array(buffer, buffer.byteOffset, bytesRead);
     }
-    if (fileEntry.contentLength != null && bytesTotal < fileEntry.contentLength) {
-      throw new RangeError(`Asset "${fileEntry.filePath}" has changed in length`);
+    if (bytesTotal < fileEntry.size) {
+      throw new RangeError(`Asset "${fileEntry.path}" has changed in length`);
     }
   } finally {
     await handle.close();
@@ -61,10 +61,10 @@ const makeFormHeader = (params: {
 };
 
 export interface MultipartFileEntry {
-  name: string;
-  filePath: string;
-  contentType: string | null;
-  contentLength: number | null;
+  sha512: string;
+  path: string;
+  type: string | null;
+  size: number;
 }
 
 export const multipartContentType = `multipart/form-data; boundary=${BOUNDARY_ID}`;
@@ -79,9 +79,9 @@ export async function* createMultipartBodyFromFilesAsync(
   for (let idx = 0; idx < entries.length; idx++) {
     const entry = entries[idx];
     const header = makeFormHeader({
-      name: entry.name,
-      contentType: entry.contentType,
-      contentLength: entry.contentLength,
+      name: entry.sha512,
+      contentType: entry.type,
+      contentLength: entry.size,
     });
     yield encoder.encode(header);
     yield* createReadStreamAsync(entry);
