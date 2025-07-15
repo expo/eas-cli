@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 
 const CRLF = '\r\n';
 const BOUNDARY_HYPHEN_CHARS = '--';
@@ -22,19 +23,22 @@ const encodeName = (input: string): string => {
 
 async function* createReadStreamAsync(fileEntry: MultipartFileEntry): AsyncGenerator<Uint8Array> {
   const handle = await fs.promises.open(fileEntry.path);
-  const buffer = Buffer.alloc(4096);
+  const hash = createHash('sha512', { encoding: 'hex' });
+  const buffer = new Uint8Array(4096);
   try {
     let bytesTotal = 0;
-    let bytesRead = 0;
-    while ((bytesRead = (await handle.read(buffer)).bytesRead) > 0) {
-      bytesTotal += bytesRead;
-      if (bytesTotal > fileEntry.size) {
+    let read: fs.promises.FileReadResult<Uint8Array>;
+    while ((read = (await handle.read(buffer))).bytesRead > 0) {
+      bytesTotal += read.bytesRead;
+      if (bytesTotal > fileEntry.size)
         throw new RangeError(`Asset "${fileEntry.path}" has changed in length`);
-      }
-      yield new Uint8Array(buffer, buffer.byteOffset, bytesRead);
+      hash.update(read.buffer);
+      yield read.buffer;
     }
     if (bytesTotal < fileEntry.size) {
       throw new RangeError(`Asset "${fileEntry.path}" has changed in length`);
+    } else if (`${hash.read()}` !== fileEntry.sha512) {
+      throw new Error(`Asset "${fileEntry.path}" has changed while upload was in progress`);
     }
   } finally {
     await handle.close();
