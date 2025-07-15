@@ -21,9 +21,14 @@ const encodeName = (input: string): string => {
 };
 
 async function* createReadStreamAsync(filePath: string): AsyncGenerator<Uint8Array> {
-  for await (const raw of fs.createReadStream(filePath)) {
-    const chunk = raw as Buffer;
-    yield new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+  const handle = await fs.promises.open(filePath);
+  const buffer = Buffer.alloc(4096);
+  try {
+    let bytesRead = 0;
+    while ((bytesRead = (await handle.read(buffer)).bytesRead) > 0)
+      yield new Uint8Array(buffer, buffer.byteOffset, bytesRead);
+  } finally {
+    await handle.close();
   }
 }
 
