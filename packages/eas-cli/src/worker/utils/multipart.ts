@@ -1,5 +1,5 @@
-import fs from 'node:fs';
 import { createHash } from 'node:crypto';
+import fs from 'node:fs';
 
 const CRLF = '\r\n';
 const BOUNDARY_HYPHEN_CHARS = '--';
@@ -21,7 +21,9 @@ const encodeName = (input: string): string => {
   });
 };
 
-export async function* createReadStreamAsync(fileEntry: MultipartFileEntry): AsyncGenerator<Uint8Array> {
+export async function* createReadStreamAsync(
+  fileEntry: MultipartFileEntry
+): AsyncGenerator<Uint8Array> {
   let handle: fs.promises.FileHandle | undefined;
   try {
     handle = await fs.promises.open(fileEntry.path);
@@ -35,7 +37,9 @@ export async function* createReadStreamAsync(fileEntry: MultipartFileEntry): Asy
       bytesTotal += output.byteLength;
 
       if (bytesTotal > fileEntry.size) {
-        throw new RangeError(`Asset "${fileEntry.path}" was modified during the upload (length mismatch)`);
+        throw new RangeError(
+          `Asset "${fileEntry.path}" was modified during the upload (length mismatch)`
+        );
       }
 
       if (output.byteLength) {
@@ -45,7 +49,9 @@ export async function* createReadStreamAsync(fileEntry: MultipartFileEntry): Asy
       if (bytesTotal === fileEntry.size) {
         const sha512 = hash.digest('hex');
         if (sha512 !== fileEntry.sha512) {
-          throw new Error(`Asset "${fileEntry.path}" was modified during the upload (checksum mismatch)`);
+          throw new Error(
+            `Asset "${fileEntry.path}" was modified during the upload (checksum mismatch)`
+          );
         }
       }
 
@@ -57,7 +63,9 @@ export async function* createReadStreamAsync(fileEntry: MultipartFileEntry): Asy
     }
 
     if (bytesTotal < fileEntry.size) {
-      throw new RangeError(`Asset "${fileEntry.path}" was modified during the upload (length mismatch)`);
+      throw new RangeError(
+        `Asset "${fileEntry.path}" was modified during the upload (length mismatch)`
+      );
     }
   } finally {
     await handle?.close();
