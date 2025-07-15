@@ -20,13 +20,22 @@ const encodeName = (input: string): string => {
   });
 };
 
-async function* createReadStreamAsync(filePath: string): AsyncGenerator<Uint8Array> {
-  const handle = await fs.promises.open(filePath);
+async function* createReadStreamAsync(fileEntry: MultipartFileEntry): AsyncGenerator<Uint8Array> {
+  const handle = await fs.promises.open(fileEntry.filePath);
   const buffer = Buffer.alloc(4096);
   try {
+    let bytesTotal = 0;
     let bytesRead = 0;
-    while ((bytesRead = (await handle.read(buffer)).bytesRead) > 0)
+    while ((bytesRead = (await handle.read(buffer)).bytesRead) > 0) {
+      bytesTotal += bytesRead;
+      if (fileEntry.contentLength != null && bytesTotal > fileEntry.contentLength) {
+        throw new RangeError(`Asset "${fileEntry.filePath}" has changed in length`);
+      }
       yield new Uint8Array(buffer, buffer.byteOffset, bytesRead);
+    }
+    if (fileEntry.contentLength != null && bytesTotal < fileEntry.contentLength) {
+      throw new RangeError(`Asset "${fileEntry.filePath}" has changed in length`);
+    }
   } finally {
     await handle.close();
   }
@@ -75,7 +84,7 @@ export async function* createMultipartBodyFromFilesAsync(
       contentLength: entry.contentLength,
     });
     yield encoder.encode(header);
-    yield* createReadStreamAsync(entry.filePath);
+    yield* createReadStreamAsync(entry);
     yield encoder.encode(CRLF);
     if (onProgressUpdate) {
       onProgressUpdate((idx + 1) / entries.length);
