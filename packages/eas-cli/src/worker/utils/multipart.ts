@@ -28,17 +28,19 @@ async function* createReadStreamAsync(fileEntry: MultipartFileEntry): AsyncGener
   try {
     let bytesTotal = 0;
     let read: fs.promises.FileReadResult<Uint8Array>;
+    // NOTE(@kitten): fs.createReadStream() was previously used here as an async iterator
+    // However, if an early 'end' event is emitted, the async iterator may abort too early and cut off file contents
     while ((read = (await handle.read(buffer))).bytesRead > 0) {
       bytesTotal += read.bytesRead;
       if (bytesTotal > fileEntry.size)
-        throw new RangeError(`Asset "${fileEntry.path}" has changed in length`);
+        throw new RangeError(`Asset "${fileEntry.path}" was modified during the upload (length mismatch)`);
       hash.update(read.buffer);
       yield read.buffer;
     }
     if (bytesTotal < fileEntry.size) {
-      throw new RangeError(`Asset "${fileEntry.path}" has changed in length`);
+      throw new RangeError(`Asset "${fileEntry.path}" was modified during the upload (length mismatch)`);
     } else if (`${hash.read()}` !== fileEntry.sha512) {
-      throw new Error(`Asset "${fileEntry.path}" has changed while upload was in progress`);
+      throw new Error(`Asset "${fileEntry.path}" was modified during the upload (checksum mismatch)`);
     }
   } finally {
     await handle.close();
