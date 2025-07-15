@@ -132,6 +132,7 @@ export type Account = {
   googleServiceAccountKeys: Array<GoogleServiceAccountKey>;
   /** Android credentials for account */
   googleServiceAccountKeysPaginated: AccountGoogleServiceAccountKeysConnection;
+  /** @deprecated No longer needed */
   hasBuilds: Scalars['Boolean']['output'];
   id: Scalars['ID']['output'];
   isCurrent: Scalars['Boolean']['output'];
@@ -6490,7 +6491,10 @@ export type SsoUser = Actor & UserActor & {
   appCount: Scalars['Int']['output'];
   /** @deprecated No longer supported */
   appetizeCode?: Maybe<Scalars['String']['output']>;
-  /** Apps this user has published. If this user is the viewer, this field returns the apps the user has access to. */
+  /**
+   * Apps this user has published. If this user is the viewer, this field returns the apps the user has access to.
+   * @deprecated Use Account.appsPaginated instead
+   */
   apps: Array<App>;
   bestContactEmail?: Maybe<Scalars['String']['output']>;
   created: Scalars['DateTime']['output'];
@@ -7488,7 +7492,10 @@ export type User = Actor & UserActor & {
   appCount: Scalars['Int']['output'];
   /** @deprecated No longer supported */
   appetizeCode?: Maybe<Scalars['String']['output']>;
-  /** Apps this user has published */
+  /**
+   * Apps this user has published
+   * @deprecated Use Account.appsPaginated instead
+   */
   apps: Array<App>;
   bestContactEmail?: Maybe<Scalars['String']['output']>;
   created: Scalars['DateTime']['output'];
@@ -7599,7 +7606,10 @@ export type UserActor = {
   appCount: Scalars['Int']['output'];
   /** @deprecated No longer supported */
   appetizeCode?: Maybe<Scalars['String']['output']>;
-  /** Apps this user has published */
+  /**
+   * Apps this user has published
+   * @deprecated Use Account.appsPaginated instead
+   */
   apps: Array<App>;
   bestContactEmail?: Maybe<Scalars['String']['output']>;
   created: Scalars['DateTime']['output'];
@@ -8329,7 +8339,7 @@ export type WorkerDeploymentCrashesHashEdge = {
   __typename?: 'WorkerDeploymentCrashesHashEdge';
   crashHash: Scalars['ID']['output'];
   node: WorkerDeploymentCrashesAggregationNode;
-  sample: WorkerDeploymentCrashNode;
+  sample?: Maybe<WorkerDeploymentCrashNode>;
   timeseries: Array<WorkerDeploymentCrashesTimeseriesEdge>;
 };
 
@@ -8337,7 +8347,7 @@ export type WorkerDeploymentCrashesNameEdge = {
   __typename?: 'WorkerDeploymentCrashesNameEdge';
   name: Scalars['String']['output'];
   node: WorkerDeploymentCrashesAggregationNode;
-  sample: WorkerDeploymentCrashNode;
+  sample?: Maybe<WorkerDeploymentCrashNode>;
   timeseries: Array<WorkerDeploymentCrashesTimeseriesEdge>;
 };
 

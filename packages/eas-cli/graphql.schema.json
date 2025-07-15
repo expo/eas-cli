@@ -1710,8 +1710,8 @@
                 "ofType": null
               }
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "No longer needed"
           },
           {
             "name": "id",
@@ -45478,8 +45478,8 @@
                 }
               }
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Use Account.appsPaginated instead"
           },
           {
             "name": "bestContactEmail",
@@ -52510,8 +52510,8 @@
                 }
               }
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Use Account.appsPaginated instead"
           },
           {
             "name": "bestContactEmail",
@@ -53394,8 +53394,8 @@
                 }
               }
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Use Account.appsPaginated instead"
           },
           {
             "name": "bestContactEmail",
@@ -58497,13 +58497,9 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "WorkerDeploymentCrashNode",
-                "ofType": null
-              }
+              "kind": "OBJECT",
+              "name": "WorkerDeploymentCrashNode",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -58580,13 +58576,9 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "WorkerDeploymentCrashNode",
-                "ofType": null
-              }
+              "kind": "OBJECT",
+              "name": "WorkerDeploymentCrashNode",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
