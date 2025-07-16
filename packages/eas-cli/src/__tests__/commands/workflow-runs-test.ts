@@ -6,7 +6,7 @@ import {
   mockTestCommand,
 } from './utils';
 import WorkflowRunList from '../../commands/workflow/runs';
-import { WorkflowRunStatus } from '../../graphql/generated';
+import { WorkflowRunStatus, WorkflowRunTriggerEventType } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -75,6 +75,7 @@ describe(WorkflowRunList, () => {
       {
         id: 'build',
         status: WorkflowRunStatus.Success,
+        triggerEventType: WorkflowRunTriggerEventType.Manual,
         createdAt: '2022-01-01T00:00:00.000Z',
         updatedAt: '2022-01-01T00:00:00.000Z',
         errors: [],
@@ -138,6 +139,7 @@ describe(WorkflowRunList, () => {
       {
         id: 'build1',
         status: WorkflowRunStatus.Failure,
+        triggerEventType: WorkflowRunTriggerEventType.Manual,
         createdAt: '2022-01-01T00:00:00.000Z',
         updatedAt: '2022-01-01T00:00:00.000Z',
         gitCommitHash: '1234567890',
@@ -170,7 +172,7 @@ describe(WorkflowRunList, () => {
         gitCommitHash: '1234567890',
         gitCommitMessage: 'commit message',
         trigger: '',
-        triggerType: 'Other',
+        triggerType: 'Manual',
         startedAt: '2022-01-01T00:00:00.000Z',
         finishedAt: '2022-01-01T00:00:00.000Z',
         workflowId: 'build',

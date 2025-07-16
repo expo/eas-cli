@@ -15,6 +15,7 @@ import {
   WorkflowRunByIdWithJobsQuery,
   WorkflowRunFragment,
   WorkflowRunStatus,
+  WorkflowRunTriggerEventType,
 } from '../../graphql/generated';
 
 export function getMockEasJson(): EasJson {
@@ -280,6 +281,7 @@ export function getMockWorkflowRunWithJobsFragment(
   return {
     id,
     status: WorkflowRunStatus.Failure,
+    triggerEventType: WorkflowRunTriggerEventType.Manual,
     createdAt: '2022-01-01T00:00:00.000Z',
     updatedAt: '2022-01-01T00:00:00.000Z',
     gitCommitHash: '1234567890',

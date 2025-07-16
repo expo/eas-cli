@@ -111,6 +111,7 @@ function mockUpdateChannel({
   return {
     id: 'a2a1fa12-9d6a-433a-a432-49c64ef8439f',
     app: {} as App,
+    latestRuntimes: { edges: [], pageInfo: { hasNextPage: false, hasPreviousPage: false } },
     name: channelName ?? 'default-channel-name',
     createdAt: '2022-12-07T02:24:29.786Z',
     appId: '123',
