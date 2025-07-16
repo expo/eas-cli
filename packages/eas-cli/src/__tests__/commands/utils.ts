@@ -7,7 +7,16 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { ContextInput, ContextOutput } from '../../commandUtils/EasCommand';
 import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
-import { AppFragment, Role, WorkflowRunFragment, WorkflowRunStatus } from '../../graphql/generated';
+import {
+  AppFragment,
+  Role,
+  WorkflowJobStatus,
+  WorkflowJobType,
+  WorkflowRunByIdWithJobsQuery,
+  WorkflowRunFragment,
+  WorkflowRunStatus,
+  WorkflowRunTriggerEventType,
+} from '../../graphql/generated';
 
 export function getMockEasJson(): EasJson {
   return {
@@ -182,14 +191,16 @@ export function getMockWorkflowRunsFragment(
         successes?: number;
         failures?: number;
         pending?: number;
+        withJobs?: number;
       }
 ): WorkflowRunFragment[] {
-  const { successes = 0, failures = 0, pending = 0 } = params ?? {};
+  const { successes = 0, failures = 0, pending = 0, withJobs = 0 } = params ?? {};
   const runs: any[] = [];
   for (let i = 0; i < successes; i++) {
     runs.push({
       id: `success-${i}`,
       status: WorkflowRunStatus.Success,
+      errors: [],
       createdAt: '2022-01-01T00:00:00.000Z',
       updatedAt: '2022-01-01T00:00:00.000Z',
       gitCommitHash: '1234567890',
@@ -204,6 +215,7 @@ export function getMockWorkflowRunsFragment(
   for (let i = 0; i < failures; i++) {
     runs.push({
       id: `failure-${i}`,
+      errors: ['Failed'],
       status: WorkflowRunStatus.Failure,
       createdAt: '2022-01-01T00:00:00.000Z',
       updatedAt: '2022-01-01T00:00:00.000Z',
@@ -219,6 +231,7 @@ export function getMockWorkflowRunsFragment(
   for (let i = 0; i < pending; i++) {
     runs.push({
       id: `pending-${i}`,
+      errors: [],
       status: WorkflowRunStatus.InProgress,
       createdAt: '2022-01-01T00:00:00.000Z',
       updatedAt: '2022-01-01T00:00:00.000Z',
@@ -231,5 +244,64 @@ export function getMockWorkflowRunsFragment(
       },
     });
   }
+  for (let i = 0; i < withJobs; i++) {
+    runs.push(getMockWorkflowRunWithJobsFragment());
+  }
   return runs;
+}
+
+export function getMockWorkflowJobFragment(
+  runId?: string
+): WorkflowRunByIdWithJobsQuery['workflowRuns']['byId']['jobs'][number] {
+  return {
+    id: 'job1',
+    key: 'job1',
+    name: 'job1',
+    status: WorkflowJobStatus.Success,
+    type: WorkflowJobType.Build,
+    createdAt: '2022-01-01T00:00:00.000Z',
+    updatedAt: '2022-01-01T00:00:00.000Z',
+    outputs: {},
+    errors: [],
+    workflowRun: {
+      id: runId ?? 'build1',
+    },
+    turtleJobRun: {
+      id: 'job1',
+      logFileUrls: ['https://example.com/log1'],
+      errors: [],
+    },
+  };
+}
+
+export function getMockWorkflowRunWithJobsFragment(
+  runID?: string
+): WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'] {
+  const id = runID ?? 'build1';
+  return {
+    id,
+    status: WorkflowRunStatus.Failure,
+    triggerEventType: WorkflowRunTriggerEventType.Manual,
+    createdAt: '2022-01-01T00:00:00.000Z',
+    updatedAt: '2022-01-01T00:00:00.000Z',
+    gitCommitHash: '1234567890',
+    gitCommitMessage: 'commit message',
+    errors: [],
+    workflow: {
+      id: 'build',
+      name: 'build',
+      fileName: 'build.yml',
+      app: {
+        id: mockProjectId,
+        __typename: 'App',
+        name: 'App',
+        ownerAccount: {
+          id: 'account-id',
+          name: 'account-name',
+          __typename: 'Account',
+        },
+      },
+    },
+    jobs: [getMockWorkflowJobFragment(id)],
+  };
 }

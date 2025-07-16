@@ -6,8 +6,26 @@ export const WorkflowRunFragmentNode = gql`
     status
     gitCommitMessage
     gitCommitHash
+    requestedGitRef
+    actor {
+      id
+      __typename
+      ... on UserActor {
+        username
+      }
+      ... on Robot {
+        firstName
+      }
+    }
+    triggeringLabelName
+    triggerEventType
+    triggeringSchedule
     createdAt
     updatedAt
+    errors {
+      title
+      message
+    }
     workflow {
       id
       name
