@@ -1,7 +1,7 @@
 import { parseProjectEnv } from '@expo/env';
 import mime from 'mime';
 import { Gzip, GzipOptions } from 'minizlib';
-import { HashOptions, createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import fs, { createWriteStream } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -37,11 +37,8 @@ async function createTempWritePathAsync(): Promise<string> {
 }
 
 /** Computes a SHA512 hash for a file */
-async function computeSha512HashAsync(
-  filePath: fs.PathLike,
-  options?: HashOptions
-): Promise<string> {
-  const hash = createHash('sha512', { encoding: 'hex', ...options });
+async function computeSha512HashAsync(filePath: fs.PathLike): Promise<string> {
+  const hash = createHash('sha512', { encoding: 'hex' });
   await pipeline(fs.createReadStream(filePath), hash);
   return `${hash.read()}`;
 }
@@ -94,7 +91,6 @@ async function determineMimeTypeAsync(filePath: string): Promise<string | null> 
 }
 
 interface AssetMapOptions {
-  hashOptions?: HashOptions;
   maxFileSize: number;
 }
 
@@ -119,7 +115,7 @@ export async function collectAssetsAsync(
           `Upload of "${file.normalizedPath}" aborted: File size is greater than the upload limit (>500MB)`
         );
       }
-      const sha512$ = computeSha512HashAsync(file.path, options?.hashOptions);
+      const sha512$ = computeSha512HashAsync(file.path);
       const contentType$ = determineMimeTypeAsync(file.path);
       assets.push({
         normalizedPath: file.normalizedPath,

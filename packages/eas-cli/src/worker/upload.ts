@@ -8,7 +8,11 @@ import { Readable } from 'node:stream';
 import promiseRetry from 'promise-retry';
 
 import { AssetFileEntry } from './assets';
-import { createMultipartBodyFromFilesAsync, multipartContentType } from './utils/multipart';
+import {
+  createMultipartBodyFromFilesAsync,
+  createReadStreamAsync,
+  multipartContentType,
+} from './utils/multipart';
 
 const MAX_CONCURRENCY = Math.min(10, Math.max(os.availableParallelism() * 2, 20));
 const MAX_RETRIES = 4;
@@ -77,7 +81,7 @@ export async function uploadAsync(
         }
         method = 'POST';
         url.pathname = `/asset/${asset.sha512}`;
-        body = fs.createReadStream(asset.path);
+        body = Readable.from(createReadStreamAsync(asset), { objectMode: false });
       } else if ('filePath' in payload) {
         const { filePath } = payload;
         errorPrefix = 'Worker deployment failed';
@@ -88,16 +92,9 @@ export async function uploadAsync(
         headers.set('content-type', multipartContentType);
         method = 'PATCH';
         url.pathname = '/asset/batch';
-        const iterator = createMultipartBodyFromFilesAsync(
-          multipart.map(asset => ({
-            name: asset.sha512,
-            filePath: asset.path,
-            contentType: asset.type,
-            contentLength: asset.size,
-          })),
-          onProgressUpdate
-        );
-        body = Readable.from(iterator);
+        body = Readable.from(createMultipartBodyFromFilesAsync(multipart, onProgressUpdate), {
+          objectMode: false,
+        });
       }
 
       let response: Response;

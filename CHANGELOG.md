@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Refactor capabilities syncing to avoid provisioning profiles becoming invalid. ([#3088](https://github.com/expo/eas-cli/pull/3088) by [@vonovak](https://github.com/vonovak))
+- Avoid corrupted EAS Hosting batch upload bodies and double-check length and checksums while uploading. ([#3103](https://github.com/expo/eas-cli/pull/3103) by [@kitten](https://github.com/kitten))
 
 ### 🧹 Chores
 
