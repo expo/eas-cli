@@ -18,6 +18,8 @@ export const WorkflowRunFragmentNode = gql`
       }
     }
     triggeringLabelName
+    triggerEventType
+    triggeringSchedule
     createdAt
     updatedAt
     errors {

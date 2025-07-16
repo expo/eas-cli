@@ -7,6 +7,7 @@ import { WorkflowJobByIdQuery, WorkflowRunByIdWithJobsQuery } from '../../graphq
 export enum WorkflowTriggerType {
   MANUAL = 'Manual',
   GITHUB = 'GitHub',
+  SCHEDULED = 'Scheduled',
   OTHER = 'Other',
 }
 

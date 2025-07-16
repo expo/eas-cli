@@ -6,7 +6,11 @@ import {
   WorkflowRunResult,
   WorkflowTriggerType,
 } from './types';
-import { WorkflowRunFragment, WorkflowRunStatus } from '../../graphql/generated';
+import {
+  WorkflowRunFragment,
+  WorkflowRunStatus,
+  WorkflowRunTriggerEventType,
+} from '../../graphql/generated';
 import { Choice } from '../../prompts';
 
 export function computeTriggerInfoForWorkflowRun(run: WorkflowRunFragment): {
@@ -17,12 +21,26 @@ export function computeTriggerInfoForWorkflowRun(run: WorkflowRunFragment): {
   let trigger = '';
   if (run.actor?.__typename === 'Robot') {
     if (run.actor.firstName?.startsWith('GitHub App · ')) {
-      triggerType = WorkflowTriggerType.GITHUB;
       trigger = `${run.requestedGitRef ?? ''}@${run.gitCommitHash?.substring(0, 12) ?? ''}`;
     }
   } else if (run.actor?.__typename === 'User') {
-    triggerType = WorkflowTriggerType.MANUAL;
     trigger = run.actor.username;
+  }
+  switch (run.triggerEventType) {
+    case WorkflowRunTriggerEventType.Manual:
+      triggerType = WorkflowTriggerType.MANUAL;
+      break;
+    case WorkflowRunTriggerEventType.GithubPullRequestLabeled:
+    case WorkflowRunTriggerEventType.GithubPullRequestOpened:
+    case WorkflowRunTriggerEventType.GithubPullRequestReopened:
+    case WorkflowRunTriggerEventType.GithubPullRequestSynchronize:
+    case WorkflowRunTriggerEventType.GithubPush:
+      triggerType = WorkflowTriggerType.GITHUB;
+      break;
+    case WorkflowRunTriggerEventType.Schedule:
+      triggerType = WorkflowTriggerType.SCHEDULED;
+      trigger = run.triggeringSchedule ?? '';
+      break;
   }
   return { triggerType, trigger };
 }
