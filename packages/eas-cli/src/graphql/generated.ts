@@ -4031,6 +4031,7 @@ export type DeploymentsMutation = {
   createSignedDeploymentUrl: DeploymentSignedUrlResult;
   deleteAlias: DeleteAliasResult;
   deleteWorkerDeployment: DeleteWorkerDeploymentResult;
+  deleteWorkerDeploymentByIdentifier: DeleteWorkerDeploymentResult;
 };
 
 
@@ -4055,6 +4056,12 @@ export type DeploymentsMutationDeleteAliasArgs = {
 
 export type DeploymentsMutationDeleteWorkerDeploymentArgs = {
   workerDeploymentId: Scalars['ID']['input'];
+};
+
+
+export type DeploymentsMutationDeleteWorkerDeploymentByIdentifierArgs = {
+  appId: Scalars['ID']['input'];
+  deploymentIdentifier: Scalars['ID']['input'];
 };
 
 export type DiscordUser = {
@@ -10276,6 +10283,14 @@ export type AssignAliasMutationVariables = Exact<{
 
 
 export type AssignAliasMutation = { __typename?: 'RootMutation', deployments: { __typename?: 'DeploymentsMutation', assignAlias: { __typename?: 'WorkerDeploymentAlias', id: string, aliasName?: any | null, url: string, workerDeployment: { __typename?: 'WorkerDeployment', id: string, url: string, deploymentIdentifier: any, deploymentDomain: string, createdAt: any } } } };
+
+export type DeleteDeploymentMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  deploymentIdentifier: Scalars['ID']['input'];
+}>;
+
+
+export type DeleteDeploymentMutation = { __typename?: 'RootMutation', deployments: { __typename?: 'DeploymentsMutation', deleteWorkerDeploymentByIdentifier: { __typename?: 'DeleteWorkerDeploymentResult', id: string, deploymentIdentifier: any } } };
 
 export type PaginatedWorkerDeploymentsQueryVariables = Exact<{
   appId: Scalars['String']['input'];
