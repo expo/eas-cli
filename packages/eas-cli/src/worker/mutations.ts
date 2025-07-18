@@ -13,6 +13,7 @@ import {
   AssignDevDomainNameMutationVariables,
   CreateDeploymentUrlMutation,
   CreateDeploymentUrlMutationVariables,
+  DeleteAliasResult,
   DeleteDeploymentMutation,
   DeleteDeploymentMutationVariables,
 } from '../graphql/generated';
@@ -114,6 +115,31 @@ export const DeploymentsMutation = {
     );
 
     return data.deployments.assignAlias;
+  },
+
+  async deleteAliasAsync(
+    graphqlClient: ExpoGraphqlClient,
+    deleteAliasVariables: { appId: string; aliasName: string }
+  ): Promise<DeleteAliasResult> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation(
+          gql`
+            mutation DeleteAlias($appId: ID!, $aliasName: WorkerDeploymentIdentifier) {
+              deployments {
+                deleteAlias(appId: $appId, aliasName: $aliasName) {
+                  id
+                  aliasName
+                }
+              }
+            }
+          `,
+          deleteAliasVariables
+        )
+        .toPromise()
+    );
+
+    return data.deployments.deleteAlias;
   },
 
   async deleteWorkerDeploymentAsync(

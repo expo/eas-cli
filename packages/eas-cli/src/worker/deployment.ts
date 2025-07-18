@@ -5,7 +5,7 @@ import { DeploymentsMutation } from './mutations';
 import { DeploymentsQuery } from './queries';
 import { EXPO_BASE_DOMAIN } from './utils/logs';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { WorkerDeploymentFragment } from '../graphql/generated';
+import { WorkerDeploymentAliasFragment, WorkerDeploymentFragment } from '../graphql/generated';
 import Log from '../log';
 import { promptAsync } from '../prompts';
 import { memoize } from '../utils/expodash/memoize';
@@ -229,6 +229,45 @@ export async function selectWorkerDeploymentOnAppAsync({
       chalk`${deployment.deploymentIdentifier}{dim  - created at: ${new Date(
         deployment.createdAt
       ).toLocaleString()}}`,
+  });
+}
+
+export async function deleteWorkerDeploymentAliasAsync({
+  graphqlClient,
+  appId,
+  aliasName,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  appId: string;
+  aliasName: string;
+}): Promise<{ aliasName?: string; id: string }> {
+  return await DeploymentsMutation.deleteAliasAsync(graphqlClient, {
+    appId,
+    aliasName,
+  });
+}
+
+export async function selectWorkerDeploymentAliasOnAppAsync({
+  graphqlClient,
+  appId,
+  selectTitle,
+  pageSize,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  appId: string;
+  selectTitle?: string;
+  pageSize?: number;
+}): ReturnType<typeof selectPaginatedAsync<WorkerDeploymentAliasFragment>> {
+  return await selectPaginatedAsync({
+    pageSize: pageSize ?? 25,
+    printedType: selectTitle ?? 'worker deployment alias',
+    queryAsync: async queryParams =>
+      await DeploymentsQuery.getAllAliasesPaginatedAsync(graphqlClient, {
+        ...queryParams,
+        appId,
+      }),
+    getTitleAsync: async (alias: WorkerDeploymentAliasFragment) =>
+      chalk`${alias.aliasName ?? 'production'}{dim  - ${alias.url}}`,
   });
 }
 

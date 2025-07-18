@@ -1,20 +1,23 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import EasCommand from '../../commandUtils/EasCommand';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { WorkerDeploymentAliasFragment } from '../../graphql/generated';
-import Log from '../../log';
-import { Ora, ora } from '../../ora';
-import { promptAsync } from '../../prompts';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import EasCommand from '../../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { EasNonInteractiveAndJsonFlags } from '../../../commandUtils/flags';
+import { WorkerDeploymentAliasFragment } from '../../../graphql/generated';
+import Log from '../../../log';
+import { Ora, ora } from '../../../ora';
+import { promptAsync } from '../../../prompts';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import {
   assignWorkerDeploymentAliasAsync,
   assignWorkerDeploymentProductionAsync,
   selectWorkerDeploymentOnAppAsync,
-} from '../../worker/deployment';
-import { formatWorkerDeploymentJson, formatWorkerDeploymentTable } from '../../worker/utils/logs';
+} from '../../../worker/deployment';
+import {
+  formatWorkerDeploymentJson,
+  formatWorkerDeploymentTable,
+} from '../../../worker/utils/logs';
 
 interface DeployAliasFlags {
   nonInteractive: boolean;

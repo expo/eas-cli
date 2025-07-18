@@ -2,6 +2,7 @@ import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { WorkerDeploymentFragmentNode } from './fragments/WorkerDeployment';
+import { WorkerDeploymentAliasFragmentNode } from './fragments/WorkerDeploymentAlias';
 import type { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../graphql/client';
 import {
@@ -9,6 +10,7 @@ import {
   type PaginatedWorkerDeploymentsQueryVariables,
   SuggestedDevDomainNameQuery,
   SuggestedDevDomainNameQueryVariables,
+  type WorkerDeploymentAliasFragment,
   type WorkerDeploymentFragment,
 } from '../graphql/generated';
 import type { Connection } from '../utils/relay';
@@ -85,5 +87,69 @@ export const DeploymentsQuery = {
     );
 
     return data.app.byId.suggestedDevDomainName;
+  },
+
+  async getAllAliasesPaginatedAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      first,
+      after,
+      last,
+      before,
+    }: {
+      appId: string;
+      first?: number;
+      after?: string;
+      last?: number;
+      before?: string;
+    }
+  ): Promise<Connection<WorkerDeploymentAliasFragment>> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query(
+          gql`
+            query PaginatedWorkerDeploymentAliases(
+              $appId: String!
+              $first: Int
+              $after: String
+              $last: Int
+              $before: String
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  workerDeploymentAliases(
+                    first: $first
+                    after: $after
+                    last: $last
+                    before: $before
+                  ) {
+                    pageInfo {
+                      hasNextPage
+                      hasPreviousPage
+                      startCursor
+                      endCursor
+                    }
+                    edges {
+                      cursor
+                      node {
+                        id
+                        ...WorkerDeploymentAliasFragment
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            ${print(WorkerDeploymentAliasFragmentNode)}
+          `,
+          { appId, first, after, last, before },
+          { additionalTypenames: ['WorkerDeploymentAlias'] }
+        )
+        .toPromise()
+    );
+
+    return data.app.byId.workerDeploymentAliases;
   },
 };
