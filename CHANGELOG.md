@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Add workflow:view and workflow:logs commands. ([#3090](https://github.com/expo/eas-cli/pull/3090) by [@douglowder](https://github.com/douglowder))
 - Add support for providing inputs to new workflow runs ([#3095](https://github.com/expo/eas-cli/pull/3095) by [@sjchmiela](https://github.com/sjchmiela))
+- Add deploy:delete for deleting worker deployments ([#3106](https://github.com/expo/eas-cli/pull/3106) by [@kadikraman](https://github.com/kadikraman))
 
 ### 🐛 Bug fixes
 

@@ -231,3 +231,18 @@ export async function selectWorkerDeploymentOnAppAsync({
       ).toLocaleString()}}`,
   });
 }
+
+export async function deleteWorkerDeploymentAsync({
+  graphqlClient,
+  appId,
+  deploymentIdentifier,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  appId: string;
+  deploymentIdentifier: string;
+}): Promise<{ deploymentIdentifier: string; id: string }> {
+  return await DeploymentsMutation.deleteWorkerDeploymentAsync(graphqlClient, {
+    appId,
+    deploymentIdentifier,
+  });
+}
