@@ -4031,6 +4031,7 @@ export type DeploymentsMutation = {
   createSignedDeploymentUrl: DeploymentSignedUrlResult;
   deleteAlias: DeleteAliasResult;
   deleteWorkerDeployment: DeleteWorkerDeploymentResult;
+  deleteWorkerDeploymentByIdentifier: DeleteWorkerDeploymentResult;
 };
 
 
@@ -4055,6 +4056,12 @@ export type DeploymentsMutationDeleteAliasArgs = {
 
 export type DeploymentsMutationDeleteWorkerDeploymentArgs = {
   workerDeploymentId: Scalars['ID']['input'];
+};
+
+
+export type DeploymentsMutationDeleteWorkerDeploymentByIdentifierArgs = {
+  appId: Scalars['ID']['input'];
+  deploymentIdentifier: Scalars['ID']['input'];
 };
 
 export type DiscordUser = {
@@ -10277,6 +10284,14 @@ export type AssignAliasMutationVariables = Exact<{
 
 export type AssignAliasMutation = { __typename?: 'RootMutation', deployments: { __typename?: 'DeploymentsMutation', assignAlias: { __typename?: 'WorkerDeploymentAlias', id: string, aliasName?: any | null, url: string, workerDeployment: { __typename?: 'WorkerDeployment', id: string, url: string, deploymentIdentifier: any, deploymentDomain: string, createdAt: any } } } };
 
+export type DeleteAliasMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  aliasName?: InputMaybe<Scalars['WorkerDeploymentIdentifier']['input']>;
+}>;
+
+
+export type DeleteAliasMutation = { __typename?: 'RootMutation', deployments: { __typename?: 'DeploymentsMutation', deleteAlias: { __typename?: 'DeleteAliasResult', id: string, aliasName?: any | null } } };
+
 export type PaginatedWorkerDeploymentsQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -10294,3 +10309,14 @@ export type SuggestedDevDomainNameQueryVariables = Exact<{
 
 
 export type SuggestedDevDomainNameQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, suggestedDevDomainName: string } } };
+
+export type PaginatedWorkerDeploymentAliasesQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  first?: InputMaybe<Scalars['Int']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type PaginatedWorkerDeploymentAliasesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, workerDeploymentAliases: { __typename?: 'WorkerDeploymentAliasesConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null }, edges: Array<{ __typename?: 'WorkerDeploymentAliasEdge', cursor: string, node: { __typename?: 'WorkerDeploymentAlias', id: string, aliasName?: any | null, url: string } }> } } } };
