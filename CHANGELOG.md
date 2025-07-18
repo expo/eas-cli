@@ -8,12 +8,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add `deploy:delete` for deleting worker deployments ([#3106](https://github.com/expo/eas-cli/pull/3106) by [@kadikraman](https://github.com/kadikraman))
-- Add `deploy:alias:delete` for deleting worker deployment aliases ([#3107](https://github.com/expo/eas-cli/pull/3107) by [@kadikraman](https://github.com/kadikraman))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [16.17.0](https://github.com/expo/eas-cli/releases/tag/v16.17.0) - 2025-07-18
+
+### 🎉 New features
+
+- Add `deploy:delete` for deleting worker deployments ([#3106](https://github.com/expo/eas-cli/pull/3106) by [@kadikraman](https://github.com/kadikraman))
+- Add `deploy:alias:delete` for deleting worker deployment aliases ([#3107](https://github.com/expo/eas-cli/pull/3107) by [@kadikraman](https://github.com/kadikraman))
 
 ## [16.16.0](https://github.com/expo/eas-cli/releases/tag/v16.16.0) - 2025-07-16
 
@@ -22,7 +26,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add workflow:view and workflow:logs commands. ([#3090](https://github.com/expo/eas-cli/pull/3090) by [@douglowder](https://github.com/douglowder))
 - Add support for providing inputs to new workflow runs ([#3095](https://github.com/expo/eas-cli/pull/3095) by [@sjchmiela](https://github.com/sjchmiela))
 
-### 🐛 Bug fixes  
+### 🐛 Bug fixes
 
 - Refactor capabilities syncing to avoid provisioning profiles becoming invalid. ([#3088](https://github.com/expo/eas-cli/pull/3088) by [@vonovak](https://github.com/vonovak))
 - Avoid corrupted EAS Hosting batch upload bodies and double-check length and checksums while uploading. ([#3103](https://github.com/expo/eas-cli/pull/3103) by [@kitten](https://github.com/kitten))
