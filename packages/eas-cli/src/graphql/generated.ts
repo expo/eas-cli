@@ -10292,6 +10292,14 @@ export type DeleteAliasMutationVariables = Exact<{
 
 export type DeleteAliasMutation = { __typename?: 'RootMutation', deployments: { __typename?: 'DeploymentsMutation', deleteAlias: { __typename?: 'DeleteAliasResult', id: string, aliasName?: any | null } } };
 
+export type DeleteDeploymentMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  deploymentIdentifier: Scalars['ID']['input'];
+}>;
+
+
+export type DeleteDeploymentMutation = { __typename?: 'RootMutation', deployments: { __typename?: 'DeploymentsMutation', deleteWorkerDeploymentByIdentifier: { __typename?: 'DeleteWorkerDeploymentResult', id: string, deploymentIdentifier: any } } };
+
 export type PaginatedWorkerDeploymentsQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   first?: InputMaybe<Scalars['Int']['input']>;
