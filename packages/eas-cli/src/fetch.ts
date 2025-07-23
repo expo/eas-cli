@@ -2,7 +2,7 @@ import { Agent } from 'https';
 import createHttpsProxyAgent from 'https-proxy-agent';
 import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
 
-export * from 'node-fetch';
+export { Headers, RequestInfo, RequestInit, Response } from 'node-fetch';
 
 export class RequestError extends Error {
   constructor(
