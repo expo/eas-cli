@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+- Upgrade form-data to 4.0.4 ([#3110](https://github.com/expo/eas-cli/pull/3110) by [@kadikraman](https://github.com/kadikraman))
 
 ## [16.17.0](https://github.com/expo/eas-cli/releases/tag/v16.17.0) - 2025-07-18
 
