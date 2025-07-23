@@ -3460,6 +3460,13 @@ export type ChannelQueryByIdArgs = {
   channelId: Scalars['ID']['input'];
 };
 
+export type ChannelRuntimeCumulativeMetricsOverTimeData = {
+  __typename?: 'ChannelRuntimeCumulativeMetricsOverTimeData';
+  data: LineChartData;
+  metricsAtLastTimestamp: Array<LineDatapoint>;
+  mostPopularUpdates: Array<Update>;
+};
+
 export type ChannelRuntimeEdge = {
   __typename?: 'ChannelRuntimeEdge';
   cursor: Scalars['String']['output'];
@@ -3915,6 +3922,7 @@ export type DeploymentBuildCountArgs = {
 export type DeploymentBuildsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<DeploymentBuildFilterInput>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -3930,6 +3938,10 @@ export type DeploymentBuildEdge = {
   __typename?: 'DeploymentBuildEdge';
   cursor: Scalars['String']['output'];
   node: Build;
+};
+
+export type DeploymentBuildFilterInput = {
+  status?: InputMaybe<BuildStatus>;
 };
 
 /** Represents the connection over the builds edge of a Deployment */
@@ -7218,6 +7230,7 @@ export type UpdateChannel = {
   isPaused: Scalars['Boolean']['output'];
   latestRuntimes: ChannelRuntimesConnection;
   name: Scalars['String']['output'];
+  runtimeInsights: UpdateChannelRuntimeInsights;
   updateBranches: Array<UpdateBranch>;
   updatedAt: Scalars['DateTime']['output'];
 };
@@ -7286,6 +7299,38 @@ export type UpdateChannelMutationPauseUpdateChannelArgs = {
 
 export type UpdateChannelMutationResumeUpdateChannelArgs = {
   channelId: Scalars['ID']['input'];
+};
+
+export type UpdateChannelRuntimeInsights = {
+  __typename?: 'UpdateChannelRuntimeInsights';
+  cumulativeMetricsOverTime: ChannelRuntimeCumulativeMetricsOverTimeData;
+  embeddedUpdateTotalUniqueUsers: Scalars['Int']['output'];
+  id: Scalars['ID']['output'];
+  mostPopularUpdates: Array<Update>;
+  uniqueUsersOverTime: UniqueUsersOverTimeData;
+};
+
+
+export type UpdateChannelRuntimeInsightsCumulativeMetricsOverTimeArgs = {
+  timespan: InsightsTimespan;
+};
+
+
+export type UpdateChannelRuntimeInsightsEmbeddedUpdateTotalUniqueUsersArgs = {
+  runtimeVersion: Scalars['String']['input'];
+  timespan: InsightsTimespan;
+};
+
+
+export type UpdateChannelRuntimeInsightsMostPopularUpdatesArgs = {
+  runtimeVersion: Scalars['String']['input'];
+  timespan: InsightsTimespan;
+};
+
+
+export type UpdateChannelRuntimeInsightsUniqueUsersOverTimeArgs = {
+  runtimeVersion: Scalars['String']['input'];
+  timespan: InsightsTimespan;
 };
 
 export type UpdateDeploymentEdge = {
