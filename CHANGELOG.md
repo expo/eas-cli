@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- SSO Login: print browser url ([#3113](https://github.com/expo/eas-cli/pull/3113) by [@BackSlasher](https://github.com/BackSlasher))
+
 ## [16.17.2](https://github.com/expo/eas-cli/releases/tag/v16.17.2) - 2025-07-23
 
 ## [16.17.1](https://github.com/expo/eas-cli/releases/tag/v16.17.1) - 2025-07-23
