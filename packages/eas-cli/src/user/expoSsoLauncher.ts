@@ -96,7 +96,9 @@ export async function getSessionUsingBrowserAuthFlowAsync({
         );
         const port = address.port;
         const authorizeUrl = buildExpoSsoLoginUrl(port);
-        Log.log(`If your browser doesn't automatically open, visit this link to log in: ${authorizeUrl}`);
+        Log.log(
+          `If your browser doesn't automatically open, visit this link to log in: ${authorizeUrl}`
+        );
         void openBrowserAsync(authorizeUrl);
       });
 
