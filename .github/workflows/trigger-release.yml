@@ -3,7 +3,7 @@ on:
     inputs:
       version:
         type: string
-        required: true
+        required: false
         description: 'Version number for the release'
 
 name: Manually trigger a release
@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      INPUT_VERSION: ${{ github.event.inputs.version }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
@@ -26,4 +27,10 @@ jobs:
           git config --global user.name "Expo CI"
           yarn install --frozen-lockfile --check-files
           yarn build
-          yarn release ${{ github.event.inputs.version }}
+          if [[ "$INPUT_VERSION" == "" ]]; then
+            echo "Releasing with default version"
+            yarn release
+          else
+            echo "Releasing with version $INPUT_VERSION"
+            yarn release $INPUT_VERSION
+          fi
