@@ -1,0 +1,29 @@
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        required: true
+        description: 'Version number for the release'
+
+name: Manually trigger a release
+
+jobs:
+  release:
+    name: Trigger a release
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 22
+      - run: |
+          git fetch
+          git checkout main
+          git config --global user.email "support+ci@expo.io"
+          git config --global user.name "Expo CI"
+          yarn install --frozen-lockfile --check-files
+          yarn build
+          yarn release ${{ github.event.inputs.version }}
