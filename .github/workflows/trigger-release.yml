@@ -5,6 +5,11 @@ on:
         type: string
         required: false
         description: 'Version number for the release'
+      dry_run:
+        type: boolean
+        required: true
+        default: true
+        description: 'Run the release in dry run mode, without pushing any changes'
 
 name: Manually trigger a release
 
@@ -15,13 +20,14 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       INPUT_VERSION: ${{ github.event.inputs.version }}
+      INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: |
-          git fetch --depth=1 origin main
+          git fetch origin main
           git checkout main
           git config --global user.email "support+ci@expo.io"
           git config --global user.name "Expo CI"
