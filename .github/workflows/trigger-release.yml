@@ -1,0 +1,36 @@
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        required: false
+        description: 'Version number for the release'
+
+name: Manually trigger a release
+
+jobs:
+  release:
+    name: Trigger a release
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      INPUT_VERSION: ${{ github.event.inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: |
+          git fetch --depth=1 origin main
+          git checkout main
+          git config --global user.email "support+ci@expo.io"
+          git config --global user.name "Expo CI"
+          yarn install --frozen-lockfile --check-files
+          yarn build
+          if [[ "$INPUT_VERSION" == "" ]]; then
+            echo "Releasing with default version"
+            yarn release
+          else
+            echo "Releasing with version $INPUT_VERSION"
+            yarn release $INPUT_VERSION
+          fi
