@@ -23,11 +23,16 @@ jobs:
       INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: |
-          git fetch origin main
+          # Lerna will not detect changes correctly without having all tags
+          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+          # Checkout the main branch
           git checkout main
           git config --global user.email "support+ci@expo.io"
           git config --global user.name "Expo CI"
