@@ -13,10 +13,10 @@ $SCRIPTS_DIR/bin/run update-local-plugin
 next_version_bump=$($SCRIPTS_DIR/bin/run next-version)
 next_version=${1:-$next_version_bump}
 
-if [[ "$GITHUB_USER" == "Expo CI" && "$GITHUB_EMAIL" == "support+ci@expo.io" ]]; then
+if [[ "$GITHUB_USER" == "Expo CI" && "$GITHUB_EMAIL" == "support+ci@expo.io" && "$INPUT_DRY_RUN" != "true" ]]; then
   echo "Releasing with version $next_version"
   lerna version --yes --exact "$next_version"
 else
-  echo "We are running with a normal GitHub user, so run the script in dry run mode, without committing or pushing any changes."
+  echo "We are running with a normal GitHub user, or the dry run flag is enabled, so run the script in dry run mode, without committing or pushing any changes."
   lerna version --yes --exact "$next_version" --no-push --no-git-tag-version
 fi
