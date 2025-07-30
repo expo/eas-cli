@@ -16,12 +16,12 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       INPUT_VERSION: ${{ github.event.inputs.version }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: |
-          git fetch
+          git fetch --depth=1 origin main
           git checkout main
           git config --global user.email "support+ci@expo.io"
           git config --global user.name "Expo CI"
