@@ -246,9 +246,9 @@ export default class EnvPush extends EasCommand {
         name,
         value,
         environments,
-        visibility: name.startsWith('EXPO_SENSITIVE')
-          ? EnvironmentVariableVisibility.Sensitive
-          : EnvironmentVariableVisibility.Public,
+        visibility: name.startsWith('EXPO_PUBLIC_')
+          ? EnvironmentVariableVisibility.Public
+          : EnvironmentVariableVisibility.Sensitive,
       };
     }
 
