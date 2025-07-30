@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: 22
       - run: |
-          git fetch --depth=1 origin main
+          git fetch origin main
           git checkout main
           git config --global user.email "support+ci@expo.io"
           git config --global user.name "Expo CI"
