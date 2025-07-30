@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Make EXPO_PUBLIC_ env vars plain text, rest sensitive ([#3121](https://github.com/expo/eas-cli/pull/3121) by [@kadikraman](https://github.com/kadikraman))
+
 ### 🧹 Chores
 
 - SSO Login: print browser url ([#3113](https://github.com/expo/eas-cli/pull/3113) by [@BackSlasher](https://github.com/BackSlasher))
