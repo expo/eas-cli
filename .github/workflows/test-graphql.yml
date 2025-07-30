@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/test-graphql.yml
+      - packages/eas-cli/scripts/verify-graphql.sh
       - packages/eas-cli/src/**
   schedule:
     - cron: '0 8 * * *' # 8:00 AM UTC time every day
