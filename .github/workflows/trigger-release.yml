@@ -18,7 +18,7 @@ jobs:
     name: Trigger a release
     runs-on: ubuntu-latest
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.EXPO_BOT_PAT }}
       INPUT_VERSION: ${{ github.event.inputs.version }}
       INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
     steps:
@@ -26,6 +26,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          token: ${{ secrets.EXPO_BOT_PAT }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
