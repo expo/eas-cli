@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Warn in `eas build` when creating a production build from an app that uses Expo Go for development ([#3073](https://github.com/expo/eas-cli/pull/3073) by [@vonovak](https://github.com/vonovak))
+
 ### 🐛 Bug fixes
 
 - Make EXPO_PUBLIC_ env vars plain text, rest sensitive ([#3121](https://github.com/expo/eas-cli/pull/3121) by [@kadikraman](https://github.com/kadikraman))
