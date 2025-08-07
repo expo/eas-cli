@@ -6,6 +6,7 @@ import {
   BuildFragment,
   BuildStatus as GraphQLBuildStatus,
 } from '../../graphql/generated';
+import { link } from '../../log';
 import { appPlatformDisplayNames } from '../../platform';
 import formatFields from '../../utils/formatFields';
 
@@ -81,7 +82,7 @@ export function formatGraphQLBuild(build: BuildFragment): string {
     },
     {
       label: 'Logs',
-      value: getBuildLogsUrl(build),
+      value: link(getBuildLogsUrl(build)),
     },
     {
       label: 'Artifact',
@@ -97,7 +98,28 @@ export function formatGraphQLBuild(build: BuildFragment): string {
             return null;
           case GraphQLBuildStatus.Finished: {
             const url = build.artifacts?.buildUrl;
-            return url ? url : chalk.red('not found');
+            return url ? link(url) : chalk.red('not found');
+          }
+          default:
+            return null;
+        }
+      },
+    },
+    {
+      label: 'Fingerprint',
+      get value() {
+        switch (build.status) {
+          case GraphQLBuildStatus.New:
+          case GraphQLBuildStatus.InQueue:
+          case GraphQLBuildStatus.InProgress:
+            return '<in progress>';
+          case GraphQLBuildStatus.PendingCancel:
+          case GraphQLBuildStatus.Canceled:
+          case GraphQLBuildStatus.Errored:
+            return null;
+          case GraphQLBuildStatus.Finished: {
+            const hash = build.fingerprint?.hash;
+            return hash ? chalk.green(hash) : chalk.red('not found');
           }
           default:
             return null;

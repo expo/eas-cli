@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Show fingerprints in build:view and build:list commands. ([#3137](https://github.com/expo/eas-cli/pull/3137) by [@douglowder](https://github.com/douglowder))
+
 ### 🐛 Bug fixes
 
 - Make EXPO_PUBLIC_ env vars plain text, rest sensitive ([#3121](https://github.com/expo/eas-cli/pull/3121) by [@kadikraman](https://github.com/kadikraman))
