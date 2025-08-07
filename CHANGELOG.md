@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Added support to read platform version from `app.json`. ([#2778](https://github.com/expo/eas-cli/pull/2778) by [@kudo](https://github.com/kudo))
+
 ### 🐛 Bug fixes
 
 - Make EXPO_PUBLIC_ env vars plain text, rest sensitive ([#3121](https://github.com/expo/eas-cli/pull/3121) by [@kadikraman](https://github.com/kadikraman))
