@@ -36,6 +36,10 @@ export default class EnvPush extends EasCommand {
       description: 'Path to the input `.env` file',
       default: '.env.local',
     }),
+    force: Flags.boolean({
+      description: 'Skip confirmation and automatically override existing variables',
+      default: false,
+    }),
   };
 
   static override args = [
@@ -50,7 +54,7 @@ export default class EnvPush extends EasCommand {
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(EnvPush);
 
-    let { environment: environments, path: envPath } = this.parseFlagsAndArgs(flags, args);
+    let { environment: environments, path: envPath, force } = this.parseFlagsAndArgs(flags, args);
 
     const {
       projectId,
@@ -117,40 +121,45 @@ export default class EnvPush extends EasCommand {
         Log.warn(`Some variables already exist in the ${displayedEnvironment} environment.`);
         const variableNames = existingDifferentVariables.map(variable => variable.name);
 
-        const confirmationMessage =
-          variableNames.length > 1
-            ? `The ${variableNames.join(
-                ', '
-              )} environment variables already exist in ${displayedEnvironment} environment. Do you want to override them all?`
-            : `The ${variableNames[0]} environment variable already exists in ${displayedEnvironment} environment. Do you want to override it?`;
-
-        const confirm = await confirmAsync({
-          message: confirmationMessage,
-        });
-
         let variablesToOverwrite: string[] = [];
 
-        if (!confirm && existingDifferentVariables.length === 0) {
-          throw new Error('No new variables to push.');
-        }
-
-        if (confirm) {
+        if (force) {
+          // When --force is used, automatically override all existing variables
+          Log.log('Using --force flag: automatically overriding existing variables.');
           variablesToOverwrite = existingDifferentVariables.map(variable => variable.name);
         } else {
-          const promptResult = await promptAsync({
-            type: 'multiselect',
-            name: 'variablesToOverwrite',
-            message: 'Select variables to overwrite:',
-            // @ts-expect-error property missing from `@types/prompts`
-            optionsPerPage: 20,
-            choices: existingDifferentVariables.map(variable => ({
-              title: `${variable.name}: ${updateVariables[variable.name].value} (was ${
-                variable.value ?? '(secret)'
-              })`,
-              value: variable.name,
-            })),
+          const confirmationMessage =
+            variableNames.length > 1
+              ? `The ${variableNames.join(
+                ', '
+              )} environment variables already exist in ${displayedEnvironment} environment. Do you want to override them all?`
+              : `The ${variableNames[0]} environment variable already exists in ${displayedEnvironment} environment. Do you want to override it?`;
+
+          const confirm = await confirmAsync({
+            message: confirmationMessage,
           });
-          variablesToOverwrite = promptResult.variablesToOverwrite;
+
+          if (!confirm && existingDifferentVariables.length === 0) {
+            throw new Error('No new variables to push.');
+          }
+
+          if (confirm) {
+            variablesToOverwrite = existingDifferentVariables.map(variable => variable.name);
+          } else {
+            const promptResult = await promptAsync({
+              type: 'multiselect',
+              name: 'variablesToOverwrite',
+              message: 'Select variables to overwrite:',
+              // @ts-expect-error property missing from `@types/prompts`
+              optionsPerPage: 20,
+              choices: existingDifferentVariables.map(variable => ({
+                title: `${variable.name}: ${updateVariables[variable.name].value} (was ${variable.value ?? '(secret)'
+                  })`,
+                value: variable.name,
+              })),
+            });
+            variablesToOverwrite = promptResult.variablesToOverwrite;
+          }
         }
 
         for (const existingVariable of existingVariables) {
@@ -168,7 +177,7 @@ export default class EnvPush extends EasCommand {
         variable => variable.visibility !== EnvironmentVariableVisibility.Public
       );
 
-      if (existingSensitiveVariables.length > 0) {
+      if (existingSensitiveVariables.length > 0 && !force) {
         const existingSensitiveVariablesNames = existingSensitiveVariables.map(
           variable => `- ${variable.name}`
         );
@@ -180,6 +189,8 @@ export default class EnvPush extends EasCommand {
         if (!confirm) {
           throw new Error('Aborting...');
         }
+      } else if (existingSensitiveVariables.length > 0 && force) {
+        Log.log('Using --force flag: automatically overriding sensitive variables.');
       }
     }
 
@@ -199,9 +210,9 @@ export default class EnvPush extends EasCommand {
   }
 
   parseFlagsAndArgs(
-    flags: { path: string; environment: EnvironmentVariableEnvironment[] | undefined },
+    flags: { path: string; environment: EnvironmentVariableEnvironment[] | undefined; force: boolean },
     { environment }: Record<string, string>
-  ): { environment?: EnvironmentVariableEnvironment[]; path: string } {
+  ): { environment?: EnvironmentVariableEnvironment[]; path: string; force: boolean } {
     if (environment && !isEnvironment(environment.toUpperCase())) {
       throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
     }
