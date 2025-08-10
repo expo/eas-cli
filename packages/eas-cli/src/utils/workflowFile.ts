@@ -23,8 +23,8 @@ export namespace WorkflowFile {
     // If the input is a relative path (which "deploy-to-production", "deploy-to-production.yml"
     // and ".eas/workflows/deploy-to-production.yml" are), we try to find the file.
     const pathsToSearch = [
-      path.join(projectDir, '.eas', 'workflows', `${filePath}.yml`),
       path.join(projectDir, '.eas', 'workflows', `${filePath}.yaml`),
+      path.join(projectDir, '.eas', 'workflows', `${filePath}.yml`),
       path.join(projectDir, '.eas', 'workflows', filePath),
       path.resolve(filePath),
     ];
