@@ -14,27 +14,34 @@ export namespace WorkflowFile {
     projectDir: string;
     filePath: string;
   }): Promise<{ yamlConfig: string; filePath: string }> {
-    const [yamlFromEasWorkflowsFile, yamlFromFile] = await Promise.allSettled([
-      fs.promises.readFile(path.join(projectDir, '.eas', 'workflows', filePath), 'utf8'),
-      fs.promises.readFile(path.join(process.cwd(), filePath), 'utf8'),
-    ]);
-
-    // We prioritize .eas/workflows/${file} over ${file}, because
-    // in the worst case we'll try to read .eas/workflows/.eas/workflows/test.yml,
-    // which is likely not to exist.
-    if (yamlFromEasWorkflowsFile.status === 'fulfilled') {
-      return {
-        yamlConfig: yamlFromEasWorkflowsFile.value,
-        filePath: path.join(projectDir, '.eas', 'workflows', filePath),
-      };
-    } else if (yamlFromFile.status === 'fulfilled') {
-      return {
-        yamlConfig: yamlFromFile.value,
-        filePath: path.join(process.cwd(), filePath),
-      };
+    // If the input is an absolute path, the user was clear about the file they wanted to run.
+    // We only check that file path.
+    if (path.isAbsolute(filePath)) {
+      return { yamlConfig: await fs.promises.readFile(filePath, 'utf8'), filePath };
     }
 
-    throw yamlFromFile.reason;
+    // If the input is a relative path (which "deploy-to-production", "deploy-to-production.yml"
+    // and ".eas/workflows/deploy-to-production.yml" are), we try to find the file.
+    const pathsToSearch = [
+      path.join(projectDir, '.eas', 'workflows', `${filePath}.yml`),
+      path.join(projectDir, '.eas', 'workflows', `${filePath}.yaml`),
+      path.join(projectDir, '.eas', 'workflows', filePath),
+      path.resolve(filePath),
+    ];
+
+    let lastError: any = null;
+
+    for (const path of pathsToSearch) {
+      try {
+        const yamlConfig = await fs.promises.readFile(path, 'utf8');
+        return { yamlConfig, filePath: path };
+      } catch (err) {
+        lastError = err;
+        continue;
+      }
+    }
+
+    throw lastError;
   }
 
   export function maybePrintWorkflowFileValidationErrors({
