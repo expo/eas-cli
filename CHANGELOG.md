@@ -13,7 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Make EXPO*PUBLIC* env vars plain text, rest sensitive ([#3121](https://github.com/expo/eas-cli/pull/3121) by [@kadikraman](https://github.com/kadikraman))
+- Make `EXPO_PUBLIC_` env vars plain text, rest sensitive ([#3121](https://github.com/expo/eas-cli/pull/3121) by [@kadikraman](https://github.com/kadikraman))
 
 ### 🧹 Chores
 
