@@ -9,10 +9,11 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Show fingerprints in build:view and build:list commands. ([#3137](https://github.com/expo/eas-cli/pull/3137) by [@douglowder](https://github.com/douglowder))
+- Add `eas run` alias for `eas workflow:run`. Accept more inputs for workflow file input. ([#3138](https://github.com/expo/eas-cli/pull/3138) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🐛 Bug fixes
 
-- Make EXPO_PUBLIC_ env vars plain text, rest sensitive ([#3121](https://github.com/expo/eas-cli/pull/3121) by [@kadikraman](https://github.com/kadikraman))
+- Make EXPO*PUBLIC* env vars plain text, rest sensitive ([#3121](https://github.com/expo/eas-cli/pull/3121) by [@kadikraman](https://github.com/kadikraman))
 
 ### 🧹 Chores
 
