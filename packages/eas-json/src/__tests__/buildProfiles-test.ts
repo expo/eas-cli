@@ -610,7 +610,9 @@ test('valid eas.json with missing profile', async () => {
 
   const accessor = EasJsonAccessor.fromProjectPath('/project');
   const promise = EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'debug');
-  await expect(promise).rejects.toThrowError('Missing build profile in eas.json: debug');
+  await expect(promise).rejects.toThrowError(
+    'Missing build profile in eas.json: "debug". Available profiles: ["production"]'
+  );
 });
 
 test('invalid eas.json when using wrong buildType', async () => {
@@ -633,7 +635,9 @@ test('empty json', async () => {
 
   const accessor = EasJsonAccessor.fromProjectPath('/project');
   const promise = EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'production');
-  await expect(promise).rejects.toThrowError('Missing build profile in eas.json: production');
+  await expect(promise).rejects.toThrowError(
+    'Missing build profile in eas.json: "production". Available profiles: []'
+  );
 });
 
 test('invalid semver value', async () => {
