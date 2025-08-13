@@ -3,7 +3,7 @@ import { Platform } from '@expo/eas-build-job';
 import { MissingParentProfileError, MissingProfileError } from '../errors';
 import { EasJson } from '../types';
 import { BuildProfileSchema } from './schema';
-import { BuildProfile, EasJsonBuildProfile } from './types';
+import { BuildProfile, CommonBuildProfile, EasJsonBuildProfile } from './types';
 
 type EasJsonBuildProfileResolved = Omit<EasJsonBuildProfile, 'extends'>;
 
@@ -87,6 +87,15 @@ function mergeProfiles(
       ...update.env,
     };
   }
+
+  if (update?.cache?.disabled) {
+    delete result.ios?.cache;
+    delete result.android?.cache;
+    result.cache = {
+      disabled: true,
+    } as CommonBuildProfile['cache'];
+  }
+
   if (base.android && update.android) {
     result.android = mergeProfiles(
       base.android as EasJsonBuildProfileResolved,

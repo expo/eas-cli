@@ -6,6 +6,7 @@ import { vol } from 'memfs';
 import { EasJsonAccessor } from '../accessor';
 import { InvalidEasJsonError } from '../errors';
 import { EasJsonUtils } from '../utils';
+import { EasJson } from '../types';
 
 jest.mock('fs');
 
@@ -830,21 +831,15 @@ test('valid build profile with caching without paths', async () => {
     'production'
   );
 
-  expect(androidProfile).toEqual({
+  const expected = {
     distribution: 'store',
     credentialsSource: 'remote',
     cache: {
       disabled: false,
     },
-  });
-
-  expect(iosProfile).toEqual({
-    distribution: 'store',
-    credentialsSource: 'remote',
-    cache: {
-      disabled: false,
-    },
-  });
+  };
+  expect(androidProfile).toEqual(expected);
+  expect(iosProfile).toEqual(expected);
 });
 
 test('valid build profile with caching with paths', async () => {
@@ -867,23 +862,17 @@ test('valid build profile with caching with paths', async () => {
     'production'
   );
 
-  expect(androidProfile).toEqual({
+  const expected = {
     distribution: 'store',
     credentialsSource: 'remote',
     cache: {
       disabled: false,
       paths: ['index.ts'],
     },
-  });
+  };
+  expect(androidProfile).toEqual(expected);
 
-  expect(iosProfile).toEqual({
-    distribution: 'store',
-    credentialsSource: 'remote',
-    cache: {
-      disabled: false,
-      paths: ['index.ts'],
-    },
-  });
+  expect(iosProfile).toEqual(expected);
 });
 
 test('valid build profile with caching with customPaths - moved into paths and customPaths removed', async () => {
@@ -906,23 +895,17 @@ test('valid build profile with caching with customPaths - moved into paths and c
     'production'
   );
 
-  expect(androidProfile).toEqual({
+  const expected = {
     distribution: 'store',
     credentialsSource: 'remote',
     cache: {
       disabled: false,
       paths: ['index.ts'],
     },
-  });
+  };
 
-  expect(iosProfile).toEqual({
-    distribution: 'store',
-    credentialsSource: 'remote',
-    cache: {
-      disabled: false,
-      paths: ['index.ts'],
-    },
-  });
+  expect(androidProfile).toEqual(expected);
+  expect(iosProfile).toEqual(expected);
 });
 
 test('invalid build profile with caching with both paths and customPaths - error thrown', async () => {
@@ -951,4 +934,115 @@ test('invalid build profile with caching with both paths and customPaths - error
   await expect(async () => {
     await EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'production');
   }).rejects.toThrow(expectedError);
+});
+
+describe('extensions can disable cache which is present in base', () => {
+  type DeepPartial<T> = T extends object
+    ? {
+        [P in keyof T]?: DeepPartial<T[P]>;
+      }
+    : T;
+
+  it.each([
+    {
+      testName: 'platform-specific setting can be disabled',
+      baseConfig: {
+        ios: {
+          cache: {
+            paths: ['ios-path'],
+          },
+        },
+        android: {
+          cache: {
+            paths: ['android-path'],
+          },
+        },
+      },
+    },
+    {
+      testName: 'platform-common setting can be disabled',
+      baseConfig: {
+        cache: {
+          paths: ['common-path'],
+        },
+      },
+    },
+  ])('$testName', async ({ baseConfig }) => {
+    await fs.writeJson('/project/eas.json', {
+      build: {
+        base: baseConfig,
+        extension1: {
+          extends: 'base',
+          cache: {
+            disabled: true,
+          },
+        },
+      },
+    } satisfies DeepPartial<EasJson>);
+
+    const accessor = EasJsonAccessor.fromProjectPath('/project');
+    const extendedProfileIos1 = await EasJsonUtils.getBuildProfileAsync(
+      accessor,
+      Platform.IOS,
+      'extension1'
+    );
+    const extendedProfileAndroid1 = await EasJsonUtils.getBuildProfileAsync(
+      accessor,
+      Platform.ANDROID,
+      'extension1'
+    );
+
+    const expected = {
+      cache: {
+        disabled: true,
+      },
+      credentialsSource: 'remote',
+      distribution: 'store',
+    };
+    expect(extendedProfileIos1).toEqual(expected);
+    expect(extendedProfileAndroid1).toEqual(expected);
+  });
+
+  test('common setting can be disabled per platform', async () => {
+    await fs.writeJson('/project/eas.json', {
+      build: {
+        base: {
+          cache: {
+            paths: ['common-path'],
+          },
+        },
+        extension1: {
+          extends: 'base',
+          ios: {
+            cache: {
+              disabled: true,
+            },
+          },
+        },
+      },
+    } satisfies DeepPartial<EasJson>);
+
+    const accessor = EasJsonAccessor.fromProjectPath('/project');
+    const extendedProfileIos1 = await EasJsonUtils.getBuildProfileAsync(
+      accessor,
+      Platform.IOS,
+      'extension1'
+    );
+    const extendedProfileAndroid1 = await EasJsonUtils.getBuildProfileAsync(
+      accessor,
+      Platform.ANDROID,
+      'extension1'
+    );
+
+    expect(extendedProfileIos1).toMatchObject({
+      cache: {
+        disabled: true,
+      },
+    });
+    expect(extendedProfileAndroid1).toMatchObject({
+      cache: {
+        paths: ['common-path'],
+      },
+    });
+  });
 });
