@@ -79,8 +79,15 @@ const EXIT_CODES = {
 
 export default class WorkflowRun extends EasCommand {
   static override description = 'run an EAS workflow';
+  static override aliases = ['run'];
 
-  static override args = [{ name: 'file', description: 'Path to the workflow file to run' }];
+  static override args = [
+    {
+      name: 'workflow_file_input',
+      description:
+        'Path to the workflow file to run or a workflow file basename (for a file under `.eas/workflows/[name].yml`)',
+    },
+  ];
 
   static override flags = {
     ...EASNonInteractiveFlag,
@@ -109,7 +116,10 @@ export default class WorkflowRun extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags, args } = await this.parse(WorkflowRun);
+    const {
+      flags,
+      args: { workflow_file_input: workflowFileInput },
+    } = await this.parse(WorkflowRun);
 
     if (flags.json) {
       enableJsonOutput();
@@ -125,14 +135,15 @@ export default class WorkflowRun extends EasCommand {
       withServerSideEnvironment: null,
     });
 
+    let filePath: string;
     let yamlConfig: string;
+
     try {
-      const workflowFileContents = await WorkflowFile.readWorkflowFileContentsAsync({
+      ({ yamlConfig, filePath } = await WorkflowFile.readWorkflowFileContentsAsync({
         projectDir,
-        filePath: args.file,
-      });
-      Log.log(`Using workflow file from ${workflowFileContents.filePath}`);
-      yamlConfig = workflowFileContents.yamlConfig;
+        filePath: workflowFileInput,
+      }));
+      Log.log(`Using workflow file from ${filePath}`);
     } catch (err) {
       Log.error('Failed to read workflow file.');
 
@@ -260,7 +271,7 @@ export default class WorkflowRun extends EasCommand {
       ({ id: workflowRunId } = await WorkflowRunMutation.createWorkflowRunAsync(graphqlClient, {
         appId: projectId,
         workflowRevisionInput: {
-          fileName: path.basename(args.file),
+          fileName: path.basename(filePath),
           yamlConfig,
         },
         workflowRunInput: {
