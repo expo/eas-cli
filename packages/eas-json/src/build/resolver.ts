@@ -47,9 +47,11 @@ function resolveProfile({
   if (!profile) {
     if (depth === 0) {
       throw new MissingProfileError(
-        `Missing build profile in eas.json: "${profileName}". Available profiles: "[${Object.keys(
+        `Missing build profile in eas.json: "${profileName}". Available profiles: [${Object.keys(
           easJson.build ?? {}
-        ).join(', ')}]"`
+        )
+          .map(profile => `"${profile}"`)
+          .join(', ')}]`
       );
     } else {
       throw new MissingParentProfileError(

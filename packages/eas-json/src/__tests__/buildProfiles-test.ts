@@ -611,7 +611,7 @@ test('valid eas.json with missing profile', async () => {
   const accessor = EasJsonAccessor.fromProjectPath('/project');
   const promise = EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'debug');
   await expect(promise).rejects.toThrowError(
-    'Missing build profile in eas.json: "debug". Available profiles: "[production]"'
+    'Missing build profile in eas.json: "debug". Available profiles: ["production"]'
   );
 });
 
@@ -636,7 +636,7 @@ test('empty json', async () => {
   const accessor = EasJsonAccessor.fromProjectPath('/project');
   const promise = EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'production');
   await expect(promise).rejects.toThrowError(
-    'Missing build profile in eas.json: "production". Available profiles: "[]"'
+    'Missing build profile in eas.json: "production". Available profiles: []'
   );
 });
 
