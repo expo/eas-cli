@@ -5,10 +5,16 @@ import { vol } from 'memfs';
 
 import { EasJsonAccessor } from '../accessor';
 import { InvalidEasJsonError } from '../errors';
-import { EasJsonUtils } from '../utils';
 import { EasJson } from '../types';
+import { EasJsonUtils } from '../utils';
 
 jest.mock('fs');
+
+type DeepPartial<T> = T extends object
+  ? {
+      [P in keyof T]?: DeepPartial<T[P]>;
+    }
+  : T;
 
 beforeEach(async () => {
   vol.reset();
@@ -936,14 +942,37 @@ test('invalid build profile with caching with both paths and customPaths - error
   }).rejects.toThrow(expectedError);
 });
 
-describe('extensions can disable cache which is present in base', () => {
-  type DeepPartial<T> = T extends object
-    ? {
-        [P in keyof T]?: DeepPartial<T[P]>;
-      }
-    : T;
+test('platform-specific setting from base can _not_ be overridden by a setting on the common level', async () => {
+  const baseConfig = {
+    ios: {
+      prebuildCommand: 'ios prebuild',
+    },
+    android: {
+      prebuildCommand: 'android prebuild',
+    },
+  };
 
-  it.each([
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      base: baseConfig,
+      extension1: {
+        extends: 'base',
+        prebuildCommand: 'new great prebuild',
+      },
+    },
+  } satisfies DeepPartial<EasJson>);
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+
+  await expect(() =>
+    EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'extension1')
+  ).rejects.toThrow(
+    'Cannot override platform-specific base value "android prebuild" by value "new great prebuild" for key "prebuildCommand". Move the entry out of the "android" object, into the common properties, if you want to override it.'
+  );
+});
+
+describe('extensions can disable cache which is present in base', () => {
+  test.each([
     {
       testName: 'platform-specific setting can be disabled',
       baseConfig: {

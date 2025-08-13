@@ -96,6 +96,23 @@ function mergeProfiles(
     } as CommonBuildProfile['cache'];
   }
 
+  for (const [key, newValue] of Object.entries(update ?? [])) {
+    for (const platform of [Platform.ANDROID, Platform.IOS]) {
+      const platformConfig = base?.[platform];
+      // @ts-expect-error 'string' can't be used to index type...
+      const existingValue = platformConfig?.[key];
+      if (existingValue !== undefined) {
+        throw new Error(
+          `Cannot override platform-specific base value ${JSON.stringify(
+            existingValue
+          )} by value ${JSON.stringify(
+            newValue
+          )} for key "${key}". Move the entry out of the "${platform}" object, into the common properties, if you want to override it.`
+        );
+      }
+    }
+  }
+
   if (base.android && update.android) {
     result.android = mergeProfiles(
       base.android as EasJsonBuildProfileResolved,
