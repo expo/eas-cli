@@ -1,3 +1,4 @@
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'fs/promises';
 import fsExtra from 'fs-extra';
@@ -6,22 +7,14 @@ import prompts from 'prompts';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
+import {
+  WorkflowTemplate,
+  WorkflowTemplateName,
+  workflowTemplates,
+} from '../../commandUtils/workflow/templates';
 import Log from '../../log';
+import { promptAsync } from '../../prompts';
 import { WorkflowFile } from '../../utils/workflowFile';
-
-const DEFAULT_WORKFLOW_NAME = 'workflow.yml';
-const HELLO_WORLD_TEMPLATE = `name: Hello World
-
-on:
-  push:
-    branches: ['*']
-
-jobs:
-  hello_world:
-    steps:
-      - uses: eas/checkout
-      - run: echo "Hello, World"
-`;
 
 export class WorkflowCreate extends EasCommand {
   static override description = 'create a new workflow configuration YAML file';
@@ -36,6 +29,10 @@ export class WorkflowCreate extends EasCommand {
 
   static override flags = {
     ...EASNonInteractiveFlag,
+    template: Flags.enum({
+      description: 'Name of the template to use',
+      options: Object.values(WorkflowTemplateName),
+    }),
   };
 
   static override contextDefinition = {
@@ -54,33 +51,61 @@ export class WorkflowCreate extends EasCommand {
 
     let fileName = argFileName;
 
+    const nonInteractive = flags['non-interactive'];
+    if (nonInteractive && !flags.template) {
+      throw new Error('Template name must be provided in non-interactive mode');
+    }
+
+    let workflowTemplate: WorkflowTemplate;
+    if (flags.template) {
+      workflowTemplate =
+        workflowTemplates.find(template => template.name === flags.template) ??
+        workflowTemplates[0];
+    } else {
+      workflowTemplate = (
+        await promptAsync({
+          type: 'select',
+          name: 'template',
+          message: 'Select a workflow template:',
+          choices: workflowTemplates.map(template => ({
+            title: template.displayName,
+            value: template,
+          })),
+        })
+      ).template;
+    }
+
     if (!fileName) {
-      const response = await prompts({
-        type: 'text',
-        name: 'fileName',
-        message: 'What would you like to name your workflow file?',
-        initial: DEFAULT_WORKFLOW_NAME,
-        validate: value => {
-          try {
-            WorkflowFile.validateYamlExtension(value);
-            return true;
-          } catch (error) {
-            return error instanceof Error ? error.message : 'Invalid file name';
-          }
-        },
-      });
+      if (nonInteractive) {
+        fileName = workflowTemplate.defaultFileName;
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const response = await prompts({
+          type: 'text',
+          name: 'fileName',
+          message: 'What would you like to name your workflow file?',
+          initial: workflowTemplate.defaultFileName,
+          validate: value => {
+            try {
+              WorkflowFile.validateYamlExtension(value);
+              return true;
+            } catch (error) {
+              return error instanceof Error ? error.message : 'Invalid file name';
+            }
+          },
+        });
+        if (!response.fileName) {
+          Log.warn('Workflow creation cancelled.');
+          process.exit(0);
+        }
 
-      if (!response.fileName) {
-        Log.warn('Workflow creation cancelled.');
-        process.exit(0);
+        fileName = response.fileName;
       }
-
-      fileName = response.fileName;
     }
 
     try {
       await this.ensureWorkflowsDirectoryExistsAsync({ projectDir });
-      await this.createWorkflowFileAsync({ fileName, projectDir });
+      await this.createWorkflowFileAsync({ fileName, projectDir, workflowTemplate });
     } catch (error) {
       Log.error('Failed to create workflow file.');
       throw error;
@@ -103,9 +128,11 @@ export class WorkflowCreate extends EasCommand {
   private async createWorkflowFileAsync({
     fileName,
     projectDir,
+    workflowTemplate,
   }: {
     fileName: string;
     projectDir: string;
+    workflowTemplate: { template: string };
   }): Promise<void> {
     WorkflowFile.validateYamlExtension(fileName);
 
@@ -115,7 +142,7 @@ export class WorkflowCreate extends EasCommand {
       throw new Error(`Workflow file already exists: ${filePath}`);
     }
 
-    await fs.writeFile(filePath, HELLO_WORLD_TEMPLATE);
+    await fs.writeFile(filePath, workflowTemplate.template);
     Log.withTick(`Created ${chalk.bold(filePath)}`);
   }
 }
