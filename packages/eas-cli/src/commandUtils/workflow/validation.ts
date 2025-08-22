@@ -102,11 +102,8 @@ async function validateWorkflowBuildJobsAsync(parsedYaml: any, projectDir: strin
   if (buildJobs.length === 0) {
     return;
   }
-  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+  const buildProfileNames = await buildProfileNamesFromProjectAsync(projectDir);
 
-  const buildProfileNames = new Set(
-    easJsonAccessor && (await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor))
-  );
   const invalidBuildJobs = buildJobs.filter(
     job =>
       !buildProfileNames.has(job.value.params.profile) &&
@@ -165,11 +162,22 @@ function validateWorkflowStructure(parsedYaml: any, workflowJsonSchema: any): vo
   }
 }
 
-function parsedYamlFromWorkflowContents(workflowFileContents: {
-  yamlConfig: string;
-}): Promise<any> {
+export function parsedYamlFromWorkflowContents(workflowFileContents: { yamlConfig: string }): any {
   const parsedYaml = YAML.parse(workflowFileContents.yamlConfig);
   return parsedYaml;
+}
+
+export function workflowContentsFromParsedYaml(parsedYaml: any): string {
+  return YAML.stringify(parsedYaml);
+}
+
+export async function buildProfileNamesFromProjectAsync(projectDir: string): Promise<Set<string>> {
+  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+
+  const buildProfileNames = new Set(
+    easJsonAccessor && (await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor))
+  );
+  return buildProfileNames;
 }
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
