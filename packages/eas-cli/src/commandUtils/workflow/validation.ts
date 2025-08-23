@@ -1,4 +1,5 @@
 import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
+import { InvalidEasJsonError, MissingEasJsonError } from '@expo/eas-json/build/errors';
 import { CombinedError } from '@urql/core';
 import * as YAML from 'yaml';
 
@@ -37,21 +38,30 @@ function validateWorkflowIsNotEmpty(parsedYaml: any): void {
 
 export function logWorkflowValidationErrors(
   error: unknown,
-  account: AccountFragment,
-  projectName: string
+  account: AccountFragment | undefined,
+  projectName: string | undefined
 ): void {
-  if (error instanceof YAML.YAMLParseError) {
+  if (error instanceof MissingEasJsonError) {
+    throw new Error(
+      'Workflows require a valid eas.json. Please run "eas build:configure" to create it.'
+    );
+  } else if (error instanceof InvalidEasJsonError) {
+    throw new Error(
+      'Workflows require a valid eas.json. Please fix the errors in your eas.json and try again.\n\n' +
+        error.message
+    );
+  } else if (error instanceof YAML.YAMLParseError) {
     Log.error(`YAML syntax error: ${error.message}`);
   } else if (error instanceof CombinedError) {
     WorkflowFile.maybePrintWorkflowFileValidationErrors({
       error,
-      accountName: account.name,
-      projectName,
+      accountName: account?.name ?? '',
+      projectName: projectName ?? '',
     });
 
     throw error;
   } else if (error instanceof Error) {
-    Log.error(error.message);
+    Log.error(`Error: ${error.message}`);
   } else {
     Log.error(`Unexpected error: ${String(error)}`);
   }
@@ -88,8 +98,14 @@ async function validateWorkflowBuildJobsAsync(parsedYaml: any, projectDir: strin
     };
   });
   const buildJobs = jobs.filter(job => job.value.type === 'build');
+  if (buildJobs.length === 0) {
+    return;
+  }
   const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-  const buildProfileNames = new Set(await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor));
+
+  const buildProfileNames = new Set(
+    easJsonAccessor && (await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor))
+  );
   const invalidBuildJobs = buildJobs.filter(
     job => !buildProfileNames.has(job.value.params.profile)
   );

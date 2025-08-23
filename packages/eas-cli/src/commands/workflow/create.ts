@@ -20,6 +20,7 @@ import Log from '../../log';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { WorkflowFile } from '../../utils/workflowFile';
+import { AccountFragment } from '../../graphql/generated';
 
 export class WorkflowCreate extends EasCommand {
   static override description = 'create a new workflow configuration YAML file';
@@ -56,77 +57,81 @@ export class WorkflowCreate extends EasCommand {
       flags,
     } = await this.parse(WorkflowCreate);
 
-    const {
-      getDynamicPrivateProjectConfigAsync,
-      loggedIn: { graphqlClient },
-      projectDir,
-    } = await this.getContextAsync(WorkflowCreate, {
-      nonInteractive: flags['non-interactive'],
-      withServerSideEnvironment: null,
-    });
-
-    const {
-      projectId,
-      exp: { slug: projectName },
-    } = await getDynamicPrivateProjectConfigAsync();
-
-    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
-
-    let fileName = argFileName;
-
-    const nonInteractive = flags['non-interactive'];
-    if (nonInteractive && !flags.template) {
-      throw new Error('Template name must be provided in non-interactive mode');
-    }
-
-    let workflowTemplate: WorkflowTemplate;
-    if (flags.template) {
-      workflowTemplate =
-        workflowTemplates.find(template => template.name === flags.template) ??
-        workflowTemplates[0];
-    } else {
-      workflowTemplate = (
-        await promptAsync({
-          type: 'select',
-          name: 'template',
-          message: 'Select a workflow template:',
-          choices: workflowTemplates.map(template => ({
-            title: template.displayName,
-            value: template,
-          })),
-        })
-      ).template;
-    }
-
-    if (!fileName) {
-      if (nonInteractive) {
-        fileName = workflowTemplate.defaultFileName;
-      } else {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const response = await prompts({
-          type: 'text',
-          name: 'fileName',
-          message: 'What would you like to name your workflow file?',
-          initial: workflowTemplate.defaultFileName,
-          validate: value => {
-            try {
-              WorkflowFile.validateYamlExtension(value);
-              return true;
-            } catch (error) {
-              return error instanceof Error ? error.message : 'Invalid file name';
-            }
-          },
-        });
-        if (!response.fileName) {
-          Log.warn('Workflow creation cancelled.');
-          process.exit(0);
-        }
-
-        fileName = response.fileName;
-      }
-    }
+    let account: AccountFragment | undefined;
+    let projectName: string | undefined;
 
     try {
+      const {
+        getDynamicPrivateProjectConfigAsync,
+        loggedIn: { graphqlClient },
+        projectDir,
+      } = await this.getContextAsync(WorkflowCreate, {
+        nonInteractive: flags['non-interactive'],
+        withServerSideEnvironment: null,
+      });
+
+      const {
+        projectId,
+        exp: { slug: maybeProjectName },
+      } = await getDynamicPrivateProjectConfigAsync();
+      projectName = maybeProjectName;
+
+      account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
+
+      let fileName = argFileName;
+
+      const nonInteractive = flags['non-interactive'];
+      if (nonInteractive && !flags.template) {
+        throw new Error('Template name must be provided in non-interactive mode');
+      }
+
+      let workflowTemplate: WorkflowTemplate;
+      if (flags.template) {
+        workflowTemplate =
+          workflowTemplates.find(template => template.name === flags.template) ??
+          workflowTemplates[0];
+      } else {
+        workflowTemplate = (
+          await promptAsync({
+            type: 'select',
+            name: 'template',
+            message: 'Select a workflow template:',
+            choices: workflowTemplates.map(template => ({
+              title: template.displayName,
+              value: template,
+            })),
+          })
+        ).template;
+      }
+
+      if (!fileName) {
+        if (nonInteractive) {
+          fileName = workflowTemplate.defaultFileName;
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const response = await prompts({
+            type: 'text',
+            name: 'fileName',
+            message: 'What would you like to name your workflow file?',
+            initial: workflowTemplate.defaultFileName,
+            validate: value => {
+              try {
+                WorkflowFile.validateYamlExtension(value);
+                return true;
+              } catch (error) {
+                return error instanceof Error ? error.message : 'Invalid file name';
+              }
+            },
+          });
+          if (!response.fileName) {
+            Log.warn('Workflow creation cancelled.');
+            process.exit(0);
+          }
+
+          fileName = response.fileName;
+        }
+      }
+
       if (flags.validate) {
         await validateWorkflowFileAsync(
           { yamlConfig: workflowTemplate.template, filePath: fileName },

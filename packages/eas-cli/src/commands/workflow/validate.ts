@@ -4,6 +4,7 @@ import {
   logWorkflowValidationErrors,
   validateWorkflowFileAsync,
 } from '../../commandUtils/workflow/validation';
+import { AccountFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
@@ -27,6 +28,7 @@ export class WorkflowValidate extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -36,24 +38,27 @@ export class WorkflowValidate extends EasCommand {
       flags,
     } = await this.parse(WorkflowValidate);
 
-    const {
-      getDynamicPrivateProjectConfigAsync,
-      loggedIn: { graphqlClient },
-      projectDir,
-    } = await this.getContextAsync(WorkflowValidate, {
-      nonInteractive: flags['non-interactive'],
-      withServerSideEnvironment: null,
-    });
-
-    const {
-      projectId,
-      exp: { slug: projectName },
-    } = await getDynamicPrivateProjectConfigAsync();
-    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
-
+    let account: AccountFragment | undefined;
+    let projectName: string | undefined;
     const spinner = ora().start('Validating the workflow YAML file…');
-
     try {
+      const {
+        getDynamicPrivateProjectConfigAsync,
+        loggedIn: { graphqlClient },
+        projectDir,
+        projectId,
+      } = await this.getContextAsync(WorkflowValidate, {
+        nonInteractive: flags['non-interactive'],
+        withServerSideEnvironment: null,
+      });
+
+      const {
+        exp: { slug: maybeProjectName },
+      } = await getDynamicPrivateProjectConfigAsync();
+      projectName = maybeProjectName;
+
+      account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
+
       const workflowFileContents = await WorkflowFile.readWorkflowFileContentsAsync({
         projectDir,
         filePath,
