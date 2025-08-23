@@ -12,7 +12,12 @@ import {
   WorkflowTemplateName,
   workflowTemplates,
 } from '../../commandUtils/workflow/templates';
+import {
+  logWorkflowValidationErrors,
+  validateWorkflowFileAsync,
+} from '../../commandUtils/workflow/validation';
 import Log from '../../log';
+import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { WorkflowFile } from '../../utils/workflowFile';
 
@@ -33,10 +38,16 @@ export class WorkflowCreate extends EasCommand {
       description: 'Name of the template to use',
       options: Object.values(WorkflowTemplateName),
     }),
+    validate: Flags.boolean({
+      description: 'Validate the workflow file after creation',
+      default: false,
+    }),
   };
 
   static override contextDefinition = {
+    ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
@@ -45,9 +56,21 @@ export class WorkflowCreate extends EasCommand {
       flags,
     } = await this.parse(WorkflowCreate);
 
-    const { projectDir } = await this.getContextAsync(WorkflowCreate, {
+    const {
+      getDynamicPrivateProjectConfigAsync,
+      loggedIn: { graphqlClient },
+      projectDir,
+    } = await this.getContextAsync(WorkflowCreate, {
       nonInteractive: flags['non-interactive'],
+      withServerSideEnvironment: null,
     });
+
+    const {
+      projectId,
+      exp: { slug: projectName },
+    } = await getDynamicPrivateProjectConfigAsync();
+
+    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
 
     let fileName = argFileName;
 
@@ -104,9 +127,18 @@ export class WorkflowCreate extends EasCommand {
     }
 
     try {
+      if (flags.validate) {
+        await validateWorkflowFileAsync(
+          { yamlConfig: workflowTemplate.template, filePath: fileName },
+          projectDir,
+          graphqlClient,
+          projectId
+        );
+      }
       await this.ensureWorkflowsDirectoryExistsAsync({ projectDir });
       await this.createWorkflowFileAsync({ fileName, projectDir, workflowTemplate });
     } catch (error) {
+      logWorkflowValidationErrors(error, account, projectName);
       Log.error('Failed to create workflow file.');
       throw error;
     }
