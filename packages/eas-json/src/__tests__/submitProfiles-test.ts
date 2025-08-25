@@ -100,6 +100,99 @@ test('android config with serviceAccountKeyPath set to env var', async () => {
   }
 });
 
+test('android config without track name', async () => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      production: {
+        android: {
+          serviceAccountKeyPath: './path.json',
+          releaseStatus: 'completed',
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const androidProfile = await EasJsonUtils.getSubmitProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'production'
+  );
+
+  expect(androidProfile).toEqual({
+    serviceAccountKeyPath: './path.json',
+    track: 'internal',
+    releaseStatus: 'completed',
+    changesNotSentForReview: false,
+  });
+});
+
+test('android config with non-empty string track name within 50 characters', async () => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      production: {
+        android: {
+          serviceAccountKeyPath: './path.json',
+          track: 'my-custom-track',
+          releaseStatus: 'completed',
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const androidProfile = await EasJsonUtils.getSubmitProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'production'
+  );
+
+  expect(androidProfile).toEqual({
+    serviceAccountKeyPath: './path.json',
+    track: 'my-custom-track',
+    changesNotSentForReview: false,
+    releaseStatus: 'completed',
+  });
+});
+
+test('android config with non-empty string track name over 50 characters', async () => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      production: {
+        android: {
+          serviceAccountKeyPath: './path.json',
+          track:
+            'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua',
+          releaseStatus: 'completed',
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.ANDROID, 'production');
+
+  await expect(promise).rejects.toThrow(InvalidEasJsonError);
+});
+
+test('android config with empty string track value', async () => {
+  await fs.writeJson('/project/eas.json', {
+    submit: {
+      production: {
+        android: {
+          serviceAccountKeyPath: './path.json',
+          track: '',
+          releaseStatus: 'completed',
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const promise = EasJsonUtils.getSubmitProfileAsync(accessor, Platform.ANDROID, 'production');
+  await expect(promise).rejects.toThrow(InvalidEasJsonError);
+});
+
 test('ios config with all required values', async () => {
   await fs.writeJson('/project/eas.json', {
     submit: {
