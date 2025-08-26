@@ -6,6 +6,9 @@ import terminalLink from 'terminal-link';
 
 type Color = (...text: string[]) => string;
 
+// eslint-disable-next-line import/no-extraneous-dependencies
+const nodeDebug = require('debug')('eas:log:debug') as (...args: any[]) => void;
+
 export default class Log {
   public static readonly isDebug = boolish('EXPO_DEBUG', false);
 
@@ -34,6 +37,8 @@ export default class Log {
   public static debug(...args: any[]): void {
     if (Log.isDebug) {
       Log.consoleLog(...args);
+    } else {
+      nodeDebug(args);
     }
   }
 
