@@ -23,14 +23,14 @@ export async function validateWorkflowFileAsync(
 
   const workflowSchema = await fetchWorkflowSchemaAsync();
 
-  // Check that result passes validation against workflow schema
-  validateWorkflowStructure(parsedYaml, workflowSchema);
-
   // Check that all job types are valid
   validateWorkflowJobTypes(parsedYaml, workflowSchema);
 
   // Check for build jobs that do not match any EAS build profiles
   await validateWorkflowBuildJobsAsync(parsedYaml, projectDir);
+
+  // Check that result passes validation against workflow schema
+  validateWorkflowStructure(parsedYaml, workflowSchema);
 
   // Check for other errors using the server-side validation
   await validateWorkflowOnServerAsync(graphqlClient, projectId, workflowFileContents);
