@@ -2,6 +2,7 @@ export enum WorkflowTemplateName {
   DEVELOPMENT_BUILDS = 'development-builds',
   PUBLISH_PREVIEW_UPDATES = 'publish-preview-updates',
   DEPLOY_TO_PRODUCTION = 'deploy-to-production',
+  MAESTRO_TEST = 'maestro-test',
   CUSTOM = 'custom',
 }
 
@@ -128,6 +129,27 @@ jobs:
       platform: ios
 `;
 
+const MAESTRO_TEST_TEMPLATE = `
+name: e2e-test-android
+
+on:
+  pull_request:
+    branches: ['*'] # Run the E2E test workflow on every pull request.
+jobs:
+  build_android_for_e2e:
+    type: build
+    params:
+      platform: android
+      profile: e2e-test # your eas build profile for E2E test
+
+  maestro_test:
+    needs: [build_android_for_e2e]
+    type: maestro
+    params:
+      build_id: \${{ needs.build_android_for_e2e.outputs.build_id }}
+      flow_path: ['.maestro/home.yml']
+`;
+
 export const workflowTemplates: WorkflowTemplate[] = [
   {
     displayName: 'Custom',
@@ -152,5 +174,11 @@ export const workflowTemplates: WorkflowTemplate[] = [
     name: WorkflowTemplateName.DEPLOY_TO_PRODUCTION,
     defaultFileName: 'deploy-to-production.yml',
     template: DEPLOY_TO_PRODUCTION_TEMPLATE,
+  },
+  {
+    displayName: 'Maestro E2E test',
+    name: WorkflowTemplateName.MAESTRO_TEST,
+    defaultFileName: 'maestro-test.yml',
+    template: MAESTRO_TEST_TEMPLATE,
   },
 ];
