@@ -11,7 +11,7 @@ import { createAndroidContextAsync } from './android/build';
 import { BuildContext, CommonContext } from './context';
 import { createIosContextAsync } from './ios/build';
 import { LocalBuildMode, LocalBuildOptions } from './local';
-import { resolveBuildResourceClassAsync } from './utils/resourceClass';
+import { resolveBuildResourceClass } from './utils/resourceClass';
 import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/AnalyticsManager';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -73,8 +73,12 @@ export async function createBuildContextAsync<T extends Platform>({
     env,
   });
   const projectName = exp.slug;
-  const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
-  const workflow = await resolveWorkflowAsync(projectDir, platform, vcsClient);
+
+  const [account, workflow] = await Promise.all([
+    getOwnerAccountForProjectIdAsync(graphqlClient, projectId),
+    resolveWorkflowAsync(projectDir, platform, vcsClient),
+  ]);
+
   const accountId = account.id;
   const runFromCI = getenv.boolish('CI', false);
   const developmentClient =
@@ -118,12 +122,7 @@ export async function createBuildContextAsync<T extends Platform>({
   };
   analytics.logEvent(BuildEvent.BUILD_COMMAND, analyticsEventProperties);
 
-  const resourceClass = await resolveBuildResourceClassAsync(
-    buildProfile,
-    platform,
-    resourceClassFlag
-  );
-
+  const resourceClass = resolveBuildResourceClass(buildProfile, platform, resourceClassFlag);
   const commonContext: CommonContext<T> = {
     accountName: account.name,
     buildProfile,
