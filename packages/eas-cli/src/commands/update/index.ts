@@ -1,7 +1,10 @@
+import type { ExpoConfig } from '@expo/config';
 import { Workflow } from '@expo/eas-build-job';
 import { EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
+import fs from 'node:fs';
+import path from 'node:path';
 import nullthrows from 'nullthrows';
 
 import { getExpoWebsiteBaseUrl } from '../../api';
@@ -270,6 +273,10 @@ export default class UpdatePublish extends EasCommand {
         throw e;
       }
     }
+
+    // NOTE(@krystofwoldrich): This adds auto generated server url to the app config extras.
+    // This is done in-memory only to avoid breaking updates fingerprint.
+    await readDeployedServerUrlAsync(exp, inputDir);
 
     // After possibly bundling, assert that the input directory can be found.
     const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
@@ -756,5 +763,27 @@ export default class UpdatePublish extends EasCommand {
       json: flags.json ?? false,
       environment: flags['environment'],
     };
+  }
+}
+async function readDeployedServerUrlAsync(exp: ExpoConfig, inputDir: string): Promise<void> {
+  const deploymentPath = path.join(inputDir, 'server-deployment.json');
+  try {
+    const rawContent = await fs.promises.readFile(deploymentPath, 'utf-8');
+    const { serverUrl } = JSON.parse(rawContent);
+    if (!serverUrl) {
+      Log.debug('No auto-deployed server URL found.');
+      return;
+    }
+
+    exp.extra ??= {};
+    exp.extra.router ??= {};
+    exp.extra.router.generatedOrigin = serverUrl;
+    Log.log(`Set origin to ${serverUrl}`);
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      Log.debug('No auto-deployed server URL file found.');
+    } else {
+      Log.error(`Failed to read auto-deployed server URL from ${deploymentPath}.`);
+    }
   }
 }

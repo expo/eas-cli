@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Support native server deployments in EAS Update
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
