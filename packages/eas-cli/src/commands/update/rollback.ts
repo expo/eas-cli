@@ -6,7 +6,8 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { promptAsync } from '../../prompts';
 
 export default class UpdateRollback extends EasCommand {
-  static override description = 'roll back to an embedded update or an existing update';
+  static override description =
+    'Roll back to an embedded update or an existing update. Users wishing to run this command non-interactively should instead execute "eas update:republish" or "eas update:roll-back-to-embedded".';
 
   static override flags = {
     'private-key-path': Flags.string({
