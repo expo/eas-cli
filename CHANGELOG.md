@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Allow update:rollback to be non-interactive. ([#3154](https://github.com/expo/eas-cli/pull/3154) by [@douglowder](https://github.com/douglowder))
+- Better description for update:rollback. ([#3154](https://github.com/expo/eas-cli/pull/3154) by [@douglowder](https://github.com/douglowder))
 
 ### 🐛 Bug fixes
 
