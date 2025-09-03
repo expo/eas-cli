@@ -2,8 +2,6 @@ import { Workflow } from '@expo/eas-build-job';
 import { EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
-import * as os from 'node:os';
-import * as path from 'node:path';
 import nullthrows from 'nullthrows';
 
 import { getExpoWebsiteBaseUrl } from '../../api';
@@ -67,6 +65,7 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
+import { getTemporaryPath, safelyDeletePathAsync } from '../../utils/temporaryPath';
 
 type RawUpdateFlags = {
   auto: boolean;
@@ -169,6 +168,15 @@ export default class UpdatePublish extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    const generatedConfigPath = getTemporaryPath();
+    try {
+      await this.runUnsafeAsync(generatedConfigPath);
+    } finally {
+      await safelyDeletePathAsync(generatedConfigPath);
+    }
+  }
+
+  private async runUnsafeAsync(generatedConfigPath: string): Promise<void> {
     const { flags: rawFlags } = await this.parse(UpdatePublish);
     const paginatedQueryOptions = getPaginatedQueryOptions(rawFlags);
     const {
@@ -253,8 +261,6 @@ export default class UpdatePublish extends EasCommand {
     const maybeServerEnv = environment
       ? { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' }
       : {};
-
-    const generatedConfigPath = getTemporaryPath();
 
     // build bundle and upload assets for a new publish
     if (!skipBundler) {
@@ -770,8 +776,4 @@ export default class UpdatePublish extends EasCommand {
       environment: flags['environment'],
     };
   }
-}
-
-function getTemporaryPath(): string {
-  return path.join(os.tmpdir(), Math.random().toString(36).substring(2));
 }
