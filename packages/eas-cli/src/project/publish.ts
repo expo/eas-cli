@@ -42,6 +42,7 @@ import {
   truncateString as truncateUpdateMessage,
 } from '../update/utils';
 import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
+import { easCliBin } from '../utils/easCli';
 import {
   expoCommandAsync,
   shouldUseVersionedExpoCLI,
@@ -223,6 +224,11 @@ export async function buildBundlesAsync({
     throw new Error('Could not locate package.json');
   }
 
+  const extendedEnv = {
+    ...extraEnv,
+    __EAS_BIN: easCliBin,
+  };
+
   // Legacy global Expo CLI
   if (!shouldUseVersionedExpoCLI(projectDir, exp)) {
     await expoCommandAsync(
@@ -239,7 +245,7 @@ export async function buildBundlesAsync({
         ...(clearCache ? ['--clear'] : []),
       ],
       {
-        extraEnv,
+        extraEnv: extendedEnv,
       }
     );
     return;
@@ -265,7 +271,7 @@ export async function buildBundlesAsync({
         ...(clearCache ? ['--clear'] : []),
       ],
       {
-        extraEnv,
+        extraEnv: extendedEnv,
       }
     );
     return;
@@ -293,7 +299,7 @@ export async function buildBundlesAsync({
       ...(clearCache ? ['--clear'] : []),
     ],
     {
-      extraEnv,
+      extraEnv: extendedEnv,
     }
   );
 }
