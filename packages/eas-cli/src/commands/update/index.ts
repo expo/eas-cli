@@ -1,10 +1,9 @@
-import type { ExpoConfig } from '@expo/config';
 import { Workflow } from '@expo/eas-build-job';
 import { EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
-import fs from 'node:fs';
-import path from 'node:path';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import nullthrows from 'nullthrows';
 
 import { getExpoWebsiteBaseUrl } from '../../api';
@@ -255,6 +254,8 @@ export default class UpdatePublish extends EasCommand {
       ? { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' }
       : {};
 
+    const generatedConfigPath = getTemporaryPath();
+
     // build bundle and upload assets for a new publish
     if (!skipBundler) {
       const bundleSpinner = ora().start('Exporting...');
@@ -265,7 +266,10 @@ export default class UpdatePublish extends EasCommand {
           exp,
           platformFlag: requestedPlatform,
           clearCache,
-          extraEnv: maybeServerEnv,
+          extraEnv: {
+            ...maybeServerEnv,
+            __EXPO_GENERATED_CONFIG_PATH: generatedConfigPath,
+          },
         });
         bundleSpinner.succeed('Exported bundle(s)');
       } catch (e) {
@@ -273,10 +277,6 @@ export default class UpdatePublish extends EasCommand {
         throw e;
       }
     }
-
-    // NOTE(@krystofwoldrich): This adds auto generated server url to the app config extras.
-    // This is done in-memory only to avoid breaking updates fingerprint.
-    await readDeployedServerUrlAsync(exp, inputDir);
 
     // After possibly bundling, assert that the input directory can be found.
     const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
@@ -358,7 +358,13 @@ export default class UpdatePublish extends EasCommand {
 
       uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
       assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
-      unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
+
+      const { exp: expAfterBuild } = await getDynamicPublicProjectConfigAsync({
+        env: {
+          __EXPO_GENERATED_CONFIG_PATH: generatedConfigPath,
+        },
+      });
+      unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, expAfterBuild);
 
       // NOTE(cedric): we assume that bundles are always uploaded, and always are part of
       // `uploadedAssetCount`, perferably we don't assume. For that, we need to refactor the
@@ -765,25 +771,7 @@ export default class UpdatePublish extends EasCommand {
     };
   }
 }
-async function readDeployedServerUrlAsync(exp: ExpoConfig, inputDir: string): Promise<void> {
-  const deploymentPath = path.join(inputDir, 'server-deployment.json');
-  try {
-    const rawContent = await fs.promises.readFile(deploymentPath, 'utf-8');
-    const { serverUrl } = JSON.parse(rawContent);
-    if (!serverUrl) {
-      Log.debug('No auto-deployed server URL found.');
-      return;
-    }
 
-    exp.extra ??= {};
-    exp.extra.router ??= {};
-    exp.extra.router.generatedOrigin = serverUrl;
-    Log.withInfo(`Set origin to ${serverUrl}`);
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
-      Log.debug('No auto-deployed server URL file found.');
-    } else {
-      Log.error(`Failed to read auto-deployed server URL from ${deploymentPath}.`);
-    }
-  }
+function getTemporaryPath(): string {
+  return path.join(os.tmpdir(), Math.random().toString(36).substring(2));
 }
