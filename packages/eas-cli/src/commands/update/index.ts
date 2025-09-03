@@ -778,7 +778,7 @@ async function readDeployedServerUrlAsync(exp: ExpoConfig, inputDir: string): Pr
     exp.extra ??= {};
     exp.extra.router ??= {};
     exp.extra.router.generatedOrigin = serverUrl;
-    Log.log(`Set origin to ${serverUrl}`);
+    Log.withInfo(`Set origin to ${serverUrl}`);
   } catch (error: any) {
     if (error.code === 'ENOENT') {
       Log.debug('No auto-deployed server URL file found.');
