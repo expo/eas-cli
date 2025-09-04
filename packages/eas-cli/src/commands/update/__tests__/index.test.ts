@@ -21,8 +21,9 @@ import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
-import { collectAssetsAsync, uploadAssetsAsync } from '../../../project/publish';
+import { buildBundlesAsync, collectAssetsAsync, uploadAssetsAsync } from '../../../project/publish';
 import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
+import { getTemporaryPath, safelyDeletePathAsync } from '../../../utils/temporaryPath';
 import { resolveVcsClient } from '../../../vcs';
 
 const projectRoot = '/test-project';
@@ -65,6 +66,7 @@ jest.mock('../../../project/publish', () => ({
   resolveInputDirectoryAsync: jest.fn((inputDir = 'dist') => path.join(projectRoot, inputDir)),
   uploadAssetsAsync: jest.fn(),
 }));
+jest.mock('../../../utils/temporaryPath.ts');
 
 describe(UpdatePublish.name, () => {
   afterEach(() => {
@@ -176,6 +178,60 @@ describe(UpdatePublish.name, () => {
     expect(expoConfig).toHaveProperty('slug', appJson.expo.slug);
     // Ensure non-public config is not present
     expect(expoConfig).not.toHaveProperty('hooks');
+  });
+
+  it('creates a new update with a native deployment', async () => {
+    const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
+
+    const { appJson } = mockTestProject();
+    const { platforms, runtimeVersion } = mockTestExport();
+    jest.mocked(buildBundlesAsync).mockImplementation(() => {
+      // Mock config changing during the build
+      // e.g. server url deployment
+      appJson.expo.extra = {
+        ...appJson.expo.extra,
+        afterBuild: 'mocked',
+      };
+
+      return Promise.resolve();
+    });
+
+    // Mock the temporary path for the generated config
+    const mockedGeneratedConfigTmpPath = `/tmp/test-${Math.random().toString(36).substring(2)}`;
+    jest.mocked(getTemporaryPath).mockReturnValueOnce(mockedGeneratedConfigTmpPath);
+
+    // Mock an existing branch, so we don't create a new one
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branch: {
+        id: 'branch123',
+        name: 'wat',
+      },
+      createdBranch: false,
+    });
+
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockResolvedValue(platforms.map(platform => ({ ...updateStub, platform, runtimeVersion })));
+
+    await new UpdatePublish(flags, commandOptions).run();
+
+    // Pull the publish data from the mocked publish function
+    const publishData = jest.mocked(PublishMutation.publishUpdateGroupAsync).mock.calls[0][1][0];
+    // Pull the Expo config from the publish data
+    const expoConfig = nullthrows(publishData.updateInfoGroup).ios!.extra.expoClient;
+
+    expect(getTemporaryPath).toHaveBeenCalledTimes(1);
+    expect(safelyDeletePathAsync).toHaveBeenCalledTimes(1);
+    expect(safelyDeletePathAsync).toHaveBeenCalledWith(mockedGeneratedConfigTmpPath);
+
+    expect(buildBundlesAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extraEnv: expect.objectContaining({
+          __EXPO_GENERATED_CONFIG_PATH: mockedGeneratedConfigTmpPath,
+        }),
+      })
+    );
+    expect(expoConfig?.extra?.afterBuild).toEqual('mocked');
   });
 });
 
