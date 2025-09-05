@@ -27,8 +27,9 @@ import {
 export interface AndroidSubmissionOptions
   extends Pick<
     AndroidSubmissionConfigInput,
-    'track' | 'releaseStatus' | 'changesNotSentForReview' | 'rollout'
+    'releaseStatus' | 'changesNotSentForReview' | 'rollout'
   > {
+  track: string;
   projectId: string;
   archiveSource: ArchiveSource;
   serviceAccountSource: ServiceAccountSource;
