@@ -19,7 +19,7 @@ import { appPlatformDisplayNames } from '../platform';
 export interface SubmissionInput<P extends Platform> {
   projectId: string;
   submissionConfig: P extends Platform.ANDROID
-    ? AndroidSubmissionConfigInput
+    ? AndroidSubmissionConfigInput & { trackName: string }
     : IosSubmissionConfigInput;
   buildId?: string;
   archiveSource?: SubmissionArchiveSourceInput;

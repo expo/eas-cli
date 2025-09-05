@@ -10,7 +10,6 @@ import {
   AndroidSubmissionConfigInput,
   IosSubmissionConfigInput,
   SubmissionAndroidReleaseStatus,
-  SubmissionAndroidTrack,
 } from '../../graphql/generated';
 import { AppStoreConnectApiKeyQuery } from '../../graphql/queries/AppStoreConnectApiKeyQuery';
 import { GoogleServiceAccountKeyQuery } from '../../graphql/queries/GoogleServiceAccountKeyQuery';
@@ -141,12 +140,11 @@ export default class SubmitInternal extends EasCommand {
           graphqlClient,
         })
       );
-      const track = graphQlTrackToConfigTrack[androidConfig.track] ?? androidConfig.track;
 
       const configInput: z.input<typeof SubmissionConfig.Android.SchemaZ> = {
         changesNotSentForReview,
         googleServiceAccountKeyJson,
-        track,
+        track: androidConfig.trackName,
         ...(releaseStatus === SubmissionConfig.Android.ReleaseStatus.IN_PROGRESS
           ? {
               releaseStatus: SubmissionConfig.Android.ReleaseStatus.IN_PROGRESS,
@@ -216,11 +214,4 @@ const graphQlReleaseStatusToConfigReleaseStatus = {
   [SubmissionAndroidReleaseStatus.InProgress]: SubmissionConfig.Android.ReleaseStatus.IN_PROGRESS,
   [SubmissionAndroidReleaseStatus.Completed]: SubmissionConfig.Android.ReleaseStatus.COMPLETED,
   [SubmissionAndroidReleaseStatus.Halted]: SubmissionConfig.Android.ReleaseStatus.HALTED,
-};
-
-const graphQlTrackToConfigTrack = {
-  [SubmissionAndroidTrack.Production]: SubmissionConfig.Android.ReleaseTrack.PRODUCTION,
-  [SubmissionAndroidTrack.Beta]: SubmissionConfig.Android.ReleaseTrack.BETA,
-  [SubmissionAndroidTrack.Alpha]: SubmissionConfig.Android.ReleaseTrack.ALPHA,
-  [SubmissionAndroidTrack.Internal]: SubmissionConfig.Android.ReleaseTrack.INTERNAL,
 };
