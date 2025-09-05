@@ -2007,6 +2007,30 @@
             "deprecationReason": null
           },
           {
+            "name": "ssoAllowedAuthProviders",
+            "description": "Allowed SSO providers for this account",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "ENUM",
+                    "name": "AuthProviderIdentifier",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "ssoConfiguration",
             "description": "SSO configuration for this account",
             "args": [],
@@ -4162,6 +4186,55 @@
                   "ofType": {
                     "kind": "INPUT_OBJECT",
                     "name": "AccountSSOConfigurationData",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "AccountSSOConfiguration",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "updateAccountSSOConfigurationClientSecret",
+            "description": "Update just the client secret of an AccountSSOConfiguration",
+            "args": [
+              {
+                "name": "clientSecret",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
                     "ofType": null
                   }
                 },
@@ -18619,6 +18692,12 @@
         "interfaces": null,
         "enumValues": [
           {
+            "name": "AMAZON_FEDERATE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "GENERIC",
             "description": null,
             "isDeprecated": false,
@@ -20072,8 +20151,8 @@
               "name": "String",
               "ofType": null
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Check logs instead."
           },
           {
             "name": "status",
@@ -21623,6 +21702,18 @@
             "deprecationReason": null
           },
           {
+            "name": "projectMetadataFile",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "ProjectMetadataFileInput",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "reactNativeVersion",
             "description": null,
             "type": {
@@ -21696,18 +21787,6 @@
           },
           {
             "name": "sdkVersion",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "selectedImage",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -41267,6 +41346,49 @@
             "deprecationReason": null
           }
         ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "ProjectMetadataFileInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "bucketKey",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "type",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "ProjectArchiveSourceType",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
         "possibleTypes": null
       },
       {
@@ -63216,6 +63338,12 @@
           },
           {
             "name": "SUBMISSION",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "TESTFLIGHT",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null

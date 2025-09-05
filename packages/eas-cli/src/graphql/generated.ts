@@ -161,6 +161,8 @@ export type Account = {
   sentryInstallation?: Maybe<SentryInstallation>;
   /** Snacks associated with this account */
   snacks: Array<Snack>;
+  /** Allowed SSO providers for this account */
+  ssoAllowedAuthProviders: Array<AuthProviderIdentifier>;
   /** SSO configuration for this account */
   ssoConfiguration?: Maybe<AccountSsoConfiguration>;
   /** Subscription info visible to members that have VIEWER role */
@@ -696,6 +698,8 @@ export type AccountSsoConfigurationMutation = {
   deleteAccountSSOConfiguration: DeleteAccountSsoConfigurationResult;
   /** Update an AccountSSOConfiguration */
   updateAccountSSOConfiguration: AccountSsoConfiguration;
+  /** Update just the client secret of an AccountSSOConfiguration */
+  updateAccountSSOConfigurationClientSecret: AccountSsoConfiguration;
 };
 
 
@@ -712,6 +716,12 @@ export type AccountSsoConfigurationMutationDeleteAccountSsoConfigurationArgs = {
 
 export type AccountSsoConfigurationMutationUpdateAccountSsoConfigurationArgs = {
   accountSSOConfigurationData: AccountSsoConfigurationData;
+  id: Scalars['ID']['input'];
+};
+
+
+export type AccountSsoConfigurationMutationUpdateAccountSsoConfigurationClientSecretArgs = {
+  clientSecret: Scalars['String']['input'];
   id: Scalars['ID']['input'];
 };
 
@@ -2782,6 +2792,7 @@ export enum AuthProtocolType {
 }
 
 export enum AuthProviderIdentifier {
+  AmazonFederate = 'AMAZON_FEDERATE',
   Generic = 'GENERIC',
   GoogleWs = 'GOOGLE_WS',
   MsEntraId = 'MS_ENTRA_ID',
@@ -2947,6 +2958,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   /** @deprecated Use 'runtime' field instead. */
   runtimeVersion?: Maybe<Scalars['String']['output']>;
   sdkVersion?: Maybe<Scalars['String']['output']>;
+  /** @deprecated Check logs instead. */
   selectedImage?: Maybe<Scalars['String']['output']>;
   status: BuildStatus;
   submissions: Array<Submission>;
@@ -3143,6 +3155,7 @@ export type BuildMetadataInput = {
   iosEnterpriseProvisioning?: InputMaybe<BuildIosEnterpriseProvisioning>;
   isGitWorkingTreeDirty?: InputMaybe<Scalars['Boolean']['input']>;
   message?: InputMaybe<Scalars['String']['input']>;
+  projectMetadataFile?: InputMaybe<ProjectMetadataFileInput>;
   reactNativeVersion?: InputMaybe<Scalars['String']['input']>;
   releaseChannel?: InputMaybe<Scalars['String']['input']>;
   requiredPackageManager?: InputMaybe<Scalars['String']['input']>;
@@ -3150,7 +3163,6 @@ export type BuildMetadataInput = {
   runWithNoWaitFlag?: InputMaybe<Scalars['Boolean']['input']>;
   runtimeVersion?: InputMaybe<Scalars['String']['input']>;
   sdkVersion?: InputMaybe<Scalars['String']['input']>;
-  selectedImage?: InputMaybe<Scalars['String']['input']>;
   simulator?: InputMaybe<Scalars['Boolean']['input']>;
   trackingContext?: InputMaybe<Scalars['JSONObject']['input']>;
   username?: InputMaybe<Scalars['String']['input']>;
@@ -5918,6 +5930,11 @@ export enum ProjectArchiveSourceType {
   None = 'NONE',
   Url = 'URL'
 }
+
+export type ProjectMetadataFileInput = {
+  bucketKey: Scalars['String']['input'];
+  type: ProjectArchiveSourceType;
+};
 
 export type ProjectPublicData = {
   __typename?: 'ProjectPublicData';
@@ -8871,6 +8888,7 @@ export enum WorkflowJobType {
   RequireApproval = 'REQUIRE_APPROVAL',
   Slack = 'SLACK',
   Submission = 'SUBMISSION',
+  Testflight = 'TESTFLIGHT',
   Update = 'UPDATE'
 }
 
