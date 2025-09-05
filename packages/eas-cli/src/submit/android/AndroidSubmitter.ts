@@ -10,7 +10,6 @@ import { SubmissionEvent } from '../../analytics/AnalyticsManager';
 import {
   AndroidSubmissionConfigInput,
   SubmissionAndroidReleaseStatus,
-  SubmissionAndroidTrack,
   SubmissionFragment,
 } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
@@ -27,8 +26,9 @@ import {
 export interface AndroidSubmissionOptions
   extends Pick<
     AndroidSubmissionConfigInput,
-    'track' | 'releaseStatus' | 'changesNotSentForReview' | 'rollout'
+    'releaseStatus' | 'changesNotSentForReview' | 'rollout'
   > {
+  track: string;
   projectId: string;
   archiveSource: ArchiveSource;
   serviceAccountSource: ServiceAccountSource;
@@ -105,10 +105,10 @@ export default class AndroidSubmitter extends BaseSubmitter<
   private formatSubmissionConfig(
     options: AndroidSubmissionOptions,
     { serviceAccountKeyResult }: ResolvedSourceOptions
-  ): AndroidSubmissionConfigInput {
+  ): AndroidSubmissionConfigInput & { trackName: string } {
     const { track, releaseStatus, changesNotSentForReview, rollout } = options;
     return {
-      track,
+      trackName: track,
       changesNotSentForReview,
       releaseStatus,
       rollout,
@@ -142,7 +142,7 @@ type SummaryData = {
   projectId: string;
   releaseStatus?: SubmissionAndroidReleaseStatus;
   rollout?: number;
-  track: SubmissionAndroidTrack;
+  track: string;
 } & ArchiveSourceSummaryFields;
 
 const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {

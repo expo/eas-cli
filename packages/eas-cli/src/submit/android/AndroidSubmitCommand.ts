@@ -1,10 +1,10 @@
 import { Platform } from '@expo/eas-build-job';
-import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
+import { AndroidReleaseStatus } from '@expo/eas-json';
 import { Result, result } from '@expo/results';
 
 import AndroidSubmitter, { AndroidSubmissionOptions } from './AndroidSubmitter';
 import { ServiceAccountSource, ServiceAccountSourceType } from './ServiceAccountSource';
-import { SubmissionAndroidReleaseStatus, SubmissionAndroidTrack } from '../../graphql/generated';
+import { SubmissionAndroidReleaseStatus } from '../../graphql/generated';
 import Log from '../../log';
 import {
   AmbiguousApplicationIdError,
@@ -50,12 +50,12 @@ export default class AndroidSubmitCommand {
   private async getAndroidSubmissionOptionsAsync(
     archiveSource: ArchiveSource
   ): Promise<AndroidSubmissionOptions> {
-    const track = this.resolveTrack();
+    const track = this.ctx.profile.track || 'internal';
     const releaseStatus = this.resolveReleaseStatus();
     const rollout = this.resolveRollout();
     const serviceAccountSource = await this.resolveServiceAccountSourceAsync();
 
-    const errored = [track, releaseStatus, serviceAccountSource, rollout].filter(r => !r.ok);
+    const errored = [releaseStatus, serviceAccountSource, rollout].filter(r => !r.ok);
     if (errored.length > 0) {
       const message = errored.map(err => err.reason?.message).join('\n');
       Log.error(message);
@@ -64,7 +64,7 @@ export default class AndroidSubmitCommand {
 
     return {
       projectId: this.ctx.projectId,
-      track: track.enforceValue(),
+      track,
       releaseStatus: releaseStatus.enforceValue(),
       rollout: rollout.enforceValue(),
       archiveSource,
@@ -87,27 +87,6 @@ export default class AndroidSubmitCommand {
       }
       return result(
         new Error(`Failed to resolve applicationId in Android project: ${error.message}.`)
-      );
-    }
-  }
-
-  private resolveTrack(): Result<SubmissionAndroidTrack> {
-    const { track } = this.ctx.profile;
-    if (!track) {
-      return result(SubmissionAndroidTrack.Internal);
-    }
-    const capitalizedTrack = capitalizeFirstLetter(track);
-    if (capitalizedTrack in SubmissionAndroidTrack) {
-      return result(
-        SubmissionAndroidTrack[capitalizedTrack as keyof typeof SubmissionAndroidTrack]
-      );
-    } else {
-      return result(
-        new Error(
-          `Unsupported track: ${track} (valid options: ${Object.keys(AndroidReleaseTrack).join(
-            ', '
-          )})`
-        )
       );
     }
   }

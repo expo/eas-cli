@@ -7,16 +7,9 @@ export enum AndroidReleaseStatus {
   inProgress = 'inProgress',
 }
 
-export enum AndroidReleaseTrack {
-  production = 'production',
-  beta = 'beta',
-  alpha = 'alpha',
-  internal = 'internal',
-}
-
 export interface AndroidSubmitProfile {
   serviceAccountKeyPath?: string;
-  track: AndroidReleaseTrack;
+  track: string;
   releaseStatus: AndroidReleaseStatus;
   changesNotSentForReview: boolean;
   applicationId?: string;
