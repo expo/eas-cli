@@ -10,7 +10,6 @@ import { SubmissionEvent } from '../../analytics/AnalyticsManager';
 import {
   AndroidSubmissionConfigInput,
   SubmissionAndroidReleaseStatus,
-  SubmissionAndroidTrack,
   SubmissionFragment,
 } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
@@ -143,7 +142,7 @@ type SummaryData = {
   projectId: string;
   releaseStatus?: SubmissionAndroidReleaseStatus;
   rollout?: number;
-  track: SubmissionAndroidTrack;
+  track: string;
 } & ArchiveSourceSummaryFields;
 
 const SummaryHumanReadableKeys: Record<keyof SummaryData, string> = {
