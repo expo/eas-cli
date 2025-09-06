@@ -65,6 +65,7 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
+import { getTemporaryPath, safelyDeletePathAsync } from '../../utils/temporaryPath';
 
 type RawUpdateFlags = {
   auto: boolean;
@@ -167,6 +168,15 @@ export default class UpdatePublish extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    const generatedConfigPath = getTemporaryPath();
+    try {
+      await this.runUnsafeAsync(generatedConfigPath);
+    } finally {
+      await safelyDeletePathAsync(generatedConfigPath);
+    }
+  }
+
+  private async runUnsafeAsync(generatedConfigPath: string): Promise<void> {
     const { flags: rawFlags } = await this.parse(UpdatePublish);
     const paginatedQueryOptions = getPaginatedQueryOptions(rawFlags);
     const {
@@ -262,7 +272,10 @@ export default class UpdatePublish extends EasCommand {
           exp,
           platformFlag: requestedPlatform,
           clearCache,
-          extraEnv: maybeServerEnv,
+          extraEnv: {
+            ...maybeServerEnv,
+            __EXPO_GENERATED_CONFIG_PATH: generatedConfigPath,
+          },
         });
         bundleSpinner.succeed('Exported bundle(s)');
       } catch (e) {
@@ -351,7 +364,13 @@ export default class UpdatePublish extends EasCommand {
 
       uploadedAssetCount = uploadResults.uniqueUploadedAssetCount;
       assetLimitPerUpdateGroup = uploadResults.assetLimitPerUpdateGroup;
-      unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, exp);
+
+      const { exp: expAfterBuild } = await getDynamicPublicProjectConfigAsync({
+        env: {
+          __EXPO_GENERATED_CONFIG_PATH: generatedConfigPath,
+        },
+      });
+      unsortedUpdateInfoGroups = await buildUnsortedUpdateInfoGroupAsync(assets, expAfterBuild);
 
       // NOTE(cedric): we assume that bundles are always uploaded, and always are part of
       // `uploadedAssetCount`, perferably we don't assume. For that, we need to refactor the
