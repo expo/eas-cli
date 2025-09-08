@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Improvements to workflow:validate. ([#3165](https://github.com/expo/eas-cli/pull/3165) by [@douglowder](https://github.com/douglowder))
 -  CLI debug log should respect DEBUG=`eas:*`.  ([#3162](https://github.com/expo/eas-cli/pull/3162) by [@douglowder](https://github.com/douglowder))
 - Better description for update:rollback. ([#3154](https://github.com/expo/eas-cli/pull/3154) by [@douglowder](https://github.com/douglowder))
 
