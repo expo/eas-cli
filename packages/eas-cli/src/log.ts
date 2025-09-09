@@ -38,7 +38,7 @@ export default class Log {
     if (Log.isDebug) {
       Log.consoleLog(...args);
     } else {
-      nodeDebug(args);
+      nodeDebug(...args);
     }
   }
 
