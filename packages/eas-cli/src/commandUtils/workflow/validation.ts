@@ -17,6 +17,7 @@ export async function validateWorkflowFileAsync(
   projectId: string
 ): Promise<void> {
   const parsedYaml = parsedYamlFromWorkflowContents(workflowFileContents);
+  Log.debug(`Parsed YAML: ${JSON.stringify(parsedYaml, null, 2)}`);
 
   // Check if the parsed result is empty or null
   validateWorkflowIsNotEmpty(parsedYaml);
@@ -102,11 +103,13 @@ async function validateWorkflowBuildJobsAsync(parsedYaml: any, projectDir: strin
   const invalidBuildJobs = buildJobs.filter(
     job => !buildProfileNames.has(job.value.params.profile)
   );
+
   if (invalidBuildJobs.length > 0) {
+    const invalidBuildProfiles = new Set(invalidBuildJobs.map(job => job.value.params.profile));
     throw new Error(
-      `The following build jobs do not match any EAS build profiles: ${invalidBuildJobs
-        .map(job => job.key)
-        .join(', ')}`
+      `The build jobs in this workflow refer to the following build profiles that are not present in your eas.json file: ${[
+        ...invalidBuildProfiles,
+      ].join(', ')}`
     );
   }
 }
@@ -114,7 +117,7 @@ async function validateWorkflowBuildJobsAsync(parsedYaml: any, projectDir: strin
 function validateWorkflowJobTypes(parsedYaml: any, workflowJsonSchema: any): void {
   const jobs = jobsFromWorkflow(parsedYaml);
   const jobTypes = jobTypesFromWorkflowSchema(workflowJsonSchema);
-  const invalidJobs = jobs.filter(job => !jobTypes.includes(job.value.type));
+  const invalidJobs = jobs.filter(job => job.value.type && !jobTypes.includes(job.value.type));
   if (invalidJobs.length > 0) {
     throw new Error(
       `The following jobs have invalid types: ${invalidJobs
