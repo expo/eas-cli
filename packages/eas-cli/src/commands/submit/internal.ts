@@ -144,7 +144,7 @@ export default class SubmitInternal extends EasCommand {
       const configInput: z.input<typeof SubmissionConfig.Android.SchemaZ> = {
         changesNotSentForReview,
         googleServiceAccountKeyJson,
-        track: androidConfig.trackName,
+        track: androidConfig.track,
         ...(releaseStatus === SubmissionConfig.Android.ReleaseStatus.IN_PROGRESS
           ? {
               releaseStatus: SubmissionConfig.Android.ReleaseStatus.IN_PROGRESS,

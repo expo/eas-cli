@@ -105,10 +105,10 @@ export default class AndroidSubmitter extends BaseSubmitter<
   private formatSubmissionConfig(
     options: AndroidSubmissionOptions,
     { serviceAccountKeyResult }: ResolvedSourceOptions
-  ): AndroidSubmissionConfigInput & { trackName: string } {
+  ): AndroidSubmissionConfigInput {
     const { track, releaseStatus, changesNotSentForReview, rollout } = options;
     return {
-      trackName: track,
+      track,
       changesNotSentForReview,
       releaseStatus,
       rollout,
