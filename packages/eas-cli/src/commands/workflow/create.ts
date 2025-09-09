@@ -39,8 +39,8 @@ export class WorkflowCreate extends EasCommand {
       description: 'Name of the template to use',
       options: Object.values(WorkflowTemplateName),
     }),
-    validate: Flags.boolean({
-      description: 'Validate the workflow file after creation',
+    'skip-validation': Flags.boolean({
+      description: 'If set, the workflow file will not be validated before being created',
       default: false,
     }),
   };
@@ -132,7 +132,7 @@ export class WorkflowCreate extends EasCommand {
         }
       }
 
-      if (flags.validate) {
+      if (!flags['skip-validation']) {
         await validateWorkflowFileAsync(
           { yamlConfig: workflowTemplate.template, filePath: fileName },
           projectDir,
@@ -145,7 +145,6 @@ export class WorkflowCreate extends EasCommand {
     } catch (error) {
       logWorkflowValidationErrors(error, account, projectName);
       Log.error('Failed to create workflow file.');
-      throw error;
     }
   }
 
