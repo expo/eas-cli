@@ -1,9 +1,10 @@
-import { CombinedError } from '@urql/core';
-import * as YAML from 'yaml';
-
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
-import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
+import {
+  logWorkflowValidationErrors,
+  validateWorkflowFileAsync,
+} from '../../commandUtils/workflow/validation';
+import { AccountFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
@@ -27,6 +28,7 @@ export class WorkflowValidate extends EasCommand {
   static override contextDefinition = {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
+    ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -36,67 +38,40 @@ export class WorkflowValidate extends EasCommand {
       flags,
     } = await this.parse(WorkflowValidate);
 
-    const {
-      getDynamicPrivateProjectConfigAsync,
-      loggedIn: { graphqlClient },
-      projectDir,
-    } = await this.getContextAsync(WorkflowValidate, {
-      nonInteractive: flags['non-interactive'],
-      withServerSideEnvironment: null,
-    });
-
-    const {
-      projectId,
-      exp: { slug: projectName },
-    } = await getDynamicPrivateProjectConfigAsync();
-    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
-
+    let account: AccountFragment | undefined;
+    let projectName: string | undefined;
     const spinner = ora().start('Validating the workflow YAML file…');
-
     try {
+      const {
+        getDynamicPrivateProjectConfigAsync,
+        loggedIn: { graphqlClient },
+        projectDir,
+        projectId,
+      } = await this.getContextAsync(WorkflowValidate, {
+        nonInteractive: flags['non-interactive'],
+        withServerSideEnvironment: null,
+      });
+
+      const {
+        exp: { slug: maybeProjectName },
+      } = await getDynamicPrivateProjectConfigAsync();
+      projectName = maybeProjectName;
+
+      account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
+
       const workflowFileContents = await WorkflowFile.readWorkflowFileContentsAsync({
         projectDir,
         filePath,
       });
       Log.log(`Using workflow file from ${workflowFileContents.filePath}`);
 
-      const parsedYaml = YAML.parse(workflowFileContents.yamlConfig);
-
-      // Check if the parsed result is empty or null
-      if (
-        parsedYaml === null ||
-        parsedYaml === undefined ||
-        (typeof parsedYaml === 'object' && Object.keys(parsedYaml).length === 0)
-      ) {
-        throw new Error('YAML file is empty or contains only comments.');
-      }
-
-      await WorkflowRevisionMutation.validateWorkflowYamlConfigAsync(graphqlClient, {
-        appId: projectId,
-        yamlConfig: workflowFileContents.yamlConfig,
-      });
+      await validateWorkflowFileAsync(workflowFileContents, projectDir, graphqlClient, projectId);
 
       spinner.succeed('Workflow configuration YAML is valid.');
     } catch (error) {
       spinner.fail('Workflow configuration YAML is not valid.');
 
-      if (error instanceof YAML.YAMLParseError) {
-        Log.error(`YAML syntax error: ${error.message}`);
-      } else if (error instanceof CombinedError) {
-        WorkflowFile.maybePrintWorkflowFileValidationErrors({
-          error,
-          accountName: account.name,
-          projectName,
-        });
-
-        throw error;
-      } else if (error instanceof Error) {
-        Log.error(error.message);
-      } else {
-        Log.error(`Unexpected error: ${String(error)}`);
-      }
-
-      throw error;
+      logWorkflowValidationErrors(error, account, projectName);
     }
   }
 }
