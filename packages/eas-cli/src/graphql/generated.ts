@@ -23,6 +23,7 @@ export type Scalars = {
   DevDomainName: { input: any; output: any; }
   JSON: { input: any; output: any; }
   JSONObject: { input: any; output: any; }
+  SubmissionAndroidTrack: { input: any; output: any; }
   WorkerDeploymentIdentifier: { input: any; output: any; }
   WorkerDeploymentRequestID: { input: any; output: any; }
 };
@@ -1248,7 +1249,7 @@ export type AndroidSubmissionConfigInput = {
   isVerboseFastlaneEnabled?: InputMaybe<Scalars['Boolean']['input']>;
   releaseStatus?: InputMaybe<SubmissionAndroidReleaseStatus>;
   rollout?: InputMaybe<Scalars['Float']['input']>;
-  track: Scalars['String']['input'];
+  track: Scalars['SubmissionAndroidTrack']['input'];
 };
 
 /** Represents an Exponent App (or Experience in legacy terms) */
