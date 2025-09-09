@@ -28,6 +28,10 @@ jobs:
 
 const DEVELOPMENT_BUILD_TEMPLATE = `name: Create development builds
 
+on:
+  push:
+    branches: ['*']
+
 jobs:
   android_development_build:
     name: Build Android
@@ -50,6 +54,10 @@ jobs:
 `;
 
 const PUBLISH_PREVIEW_UPDATE_TEMPLATE = `name: Publish preview updates
+
+on:
+  push:
+    branches: ['*']
 
 jobs:
   publish_preview_update:
@@ -135,6 +143,7 @@ name: e2e-test-android
 on:
   pull_request:
     branches: ['*'] # Run the E2E test workflow on every pull request.
+
 jobs:
   build_android_for_e2e:
     type: build
