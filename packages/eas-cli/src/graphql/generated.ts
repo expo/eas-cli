@@ -6944,13 +6944,6 @@ export enum SubmissionAndroidReleaseStatus {
   InProgress = 'IN_PROGRESS'
 }
 
-export enum SubmissionAndroidTrack {
-  Alpha = 'ALPHA',
-  Beta = 'BETA',
-  Internal = 'INTERNAL',
-  Production = 'PRODUCTION'
-}
-
 export type SubmissionArchiveSourceInput = {
   /** Required if the archive source type is GCS_BUILD_APPLICATION_ARCHIVE, GCS_BUILD_APPLICATION_ARCHIVE_ORCHESTRATOR or GCS_SUBMIT_ARCHIVE */
   bucketKey?: InputMaybe<Scalars['String']['input']>;
