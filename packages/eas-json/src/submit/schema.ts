@@ -1,12 +1,10 @@
 import Joi from 'joi';
 
-import { AndroidReleaseStatus, AndroidReleaseTrack } from './types';
+import { AndroidReleaseStatus } from './types';
 
 export const AndroidSubmitProfileSchema = Joi.object({
   serviceAccountKeyPath: Joi.string(),
-  track: Joi.string()
-    .valid(...Object.values(AndroidReleaseTrack))
-    .default(AndroidReleaseTrack.internal),
+  track: Joi.string().default('internal'),
   releaseStatus: Joi.string()
     .valid(...Object.values(AndroidReleaseStatus))
     .default(AndroidReleaseStatus.completed),
