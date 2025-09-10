@@ -1539,12 +1539,12 @@
     slugify "^1.3.4"
     sucrase "3.35.0"
 
-"@expo/eas-build-job@1.0.214-alpha.0":
-  version "1.0.214-alpha.0"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.214-alpha.0.tgz#2d3b8c0ff70063aad5b345f69689cb930395089d"
-  integrity sha512-J18LjhG6US51rCUPXZ5o4YlOnN0KOF4vtXNk/vbp0rhAzq+KZDlaGMl0LsA/kFP2sx+8p/iQItjC0S3+2UAIeg==
+"@expo/eas-build-job@1.0.218":
+  version "1.0.218"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.218.tgz#673654a01c544eeb1060e45727ded4bddd4b9515"
+  integrity sha512-Z1zyn865NSe47Z3OWdETCQep3lwlXaj15z3X6gJRUbbE9Zx58PiZQOEURO9YXvwG1jTHdCZ1tkV19g6y6q0rQQ==
   dependencies:
-    "@expo/logger" "1.0.206"
+    "@expo/logger" "1.0.218"
     joi "^17.13.1"
     semver "^7.6.2"
     zod "^3.23.8"
@@ -1610,10 +1610,10 @@
     "@types/bunyan" "^1.8.11"
     bunyan "^1.8.15"
 
-"@expo/logger@1.0.206":
-  version "1.0.206"
-  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.206.tgz#9071be7e00313ca5b8dba3ffd19e2d7044276874"
-  integrity sha512-ehnBq73gCsJ7jQlgb/kjHdAJSeMa+7cvsOoRa03fY1PxWSfgiE47IXXzm5dOsuU6ShMkEUWSEVezbwCCuQhF7Q==
+"@expo/logger@1.0.218":
+  version "1.0.218"
+  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.218.tgz#9e0d46f1f68953f3751edd2436d8e23db5152240"
+  integrity sha512-rUB4Z4pNSh+GckeMJTKF+IqLSpreVzLr6FXuZBzS0ZTie//bVFJVGYtqAB3KRCQmYmvn99+CJTKUyPdaU3kV2A==
   dependencies:
     "@types/bunyan" "^1.8.11"
     bunyan "^1.8.15"
@@ -1744,13 +1744,13 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.214-alpha.0":
-  version "1.0.214-alpha.0"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.214-alpha.0.tgz#f63deda7df60eb8b0f3b29d748eb51e914d1a6e7"
-  integrity sha512-oAvP1fiupYQh8i0dczDdPCd9ovC+2wFCwZBh7ZndFG9pvdnaywceDzQ9bpVRlBEWLUojbEqGuap1p69k0XQzzA==
+"@expo/steps@1.0.218":
+  version "1.0.218"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.218.tgz#6172e99d1f67a9fcc05b535d32adf9391fe1f120"
+  integrity sha512-W63Pf2lkRaOChG1RJ14ljJlZ2w+LBdj2AKe7SoEgeXNfxH6hM6cYKOf4bP/mmcagtT/5wQHP3WP3meF/9W9xJA==
   dependencies:
-    "@expo/eas-build-job" "1.0.214-alpha.0"
-    "@expo/logger" "1.0.206"
+    "@expo/eas-build-job" "1.0.218"
+    "@expo/logger" "1.0.218"
     "@expo/spawn-async" "^1.7.2"
     arg "^5.0.2"
     fs-extra "^11.2.0"
