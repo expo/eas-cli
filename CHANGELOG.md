@@ -8,12 +8,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
--  CLI debug log should respect DEBUG=`eas:*`.  ([#3162](https://github.com/expo/eas-cli/pull/3162) by [@douglowder](https://github.com/douglowder))
-- Better description for update:rollback. ([#3154](https://github.com/expo/eas-cli/pull/3154) by [@douglowder](https://github.com/douglowder))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [16.18.1](https://github.com/expo/eas-cli/releases/tag/v16.18.1) - 2025-09-10
+
+### 🎉 New features
+
+- CLI debug log should respect DEBUG=`eas:*`.  ([#3162](https://github.com/expo/eas-cli/pull/3162) by [@douglowder](https://github.com/douglowder))
+- Better description for update:rollback. ([#3154](https://github.com/expo/eas-cli/pull/3154) by [@douglowder](https://github.com/douglowder))
 
 ## [16.18.0](https://github.com/expo/eas-cli/releases/tag/v16.18.0) - 2025-08-27
 
