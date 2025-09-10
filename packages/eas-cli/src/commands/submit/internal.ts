@@ -141,7 +141,7 @@ export default class SubmitInternal extends EasCommand {
           graphqlClient,
         })
       );
-      const track = graphQlTrackToConfigTrack[androidConfig.track];
+      const track = graphQlTrackToConfigTrack[androidConfig.track] ?? androidConfig.track;
 
       const configInput: z.input<typeof SubmissionConfig.Android.SchemaZ> = {
         changesNotSentForReview,
