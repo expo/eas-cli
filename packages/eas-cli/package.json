@@ -16,7 +16,7 @@
     "@expo/eas-json": "16.18.0",
     "@expo/env": "^1.0.0",
     "@expo/json-file": "8.3.3",
-    "@expo/logger": "1.0.117",
+    "@expo/logger": "1.0.218",
     "@expo/multipart-body-parser": "2.0.0",
     "@expo/osascript": "2.1.4",
     "@expo/package-manager": "1.7.0",

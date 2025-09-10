@@ -1602,14 +1602,6 @@
     "@babel/code-frame" "~7.10.4"
     json5 "^2.2.3"
 
-"@expo/logger@1.0.117":
-  version "1.0.117"
-  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.117.tgz#31e302656f33dd015fdde89ad803d710a0e5b8a2"
-  integrity sha512-tuCT5fmjRjED6HYAf4HgE+UbiHT3JYrkUzUv9FC769goxo4LuuewBNQiDUkeecQTha7aTS5aO2YHlfdipI8gzg==
-  dependencies:
-    "@types/bunyan" "^1.8.11"
-    bunyan "^1.8.15"
-
 "@expo/logger@1.0.218":
   version "1.0.218"
   resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.218.tgz#9e0d46f1f68953f3751edd2436d8e23db5152240"
