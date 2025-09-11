@@ -20223,6 +20223,18 @@
             "deprecationReason": null
           },
           {
+            "name": "waiverType",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "ENUM",
+              "name": "EASBuildWaiverType",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "workerStartedAt",
             "description": null,
             "args": [],
@@ -24343,6 +24355,18 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "SubmissionArchiveSourceInput",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "archiveUrl",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,

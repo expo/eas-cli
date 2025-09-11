@@ -2965,6 +2965,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   submissions: Array<Submission>;
   updateChannel?: Maybe<UpdateChannel>;
   updatedAt: Scalars['DateTime']['output'];
+  waiverType?: Maybe<EasBuildWaiverType>;
   workerStartedAt?: Maybe<Scalars['DateTime']['output']>;
 };
 
@@ -3565,6 +3566,7 @@ export type CreateAndConfigureRepositoryInput = {
 export type CreateAndroidSubmissionInput = {
   appId: Scalars['ID']['input'];
   archiveSource?: InputMaybe<SubmissionArchiveSourceInput>;
+  archiveUrl?: InputMaybe<Scalars['String']['input']>;
   config: AndroidSubmissionConfigInput;
   submittedBuildId?: InputMaybe<Scalars['ID']['input']>;
 };
