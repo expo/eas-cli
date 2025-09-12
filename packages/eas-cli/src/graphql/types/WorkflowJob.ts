@@ -13,6 +13,14 @@ export const WorkflowJobFragmentNode = gql`
     turtleJobRun {
       id
       logFileUrls
+      artifacts {
+        id
+        name
+        contentType
+        fileSizeBytes
+        filename
+        downloadUrl
+      }
       errors {
         errorCode
         message
