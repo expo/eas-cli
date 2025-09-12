@@ -1539,12 +1539,12 @@
     slugify "^1.3.4"
     sucrase "3.35.0"
 
-"@expo/eas-build-job@1.0.173":
-  version "1.0.173"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.173.tgz#e19e0563743cc947fb5419fbeb063f03aed2a796"
-  integrity sha512-OtayVwXQaQEjJkpeKYvB4N6lsXVX+QSEz5okNx/d+8esI2KCjxOy/hzaqKBTovkxRlmWgE3XLw8RhrjAaBY2Gw==
+"@expo/eas-build-job@1.0.218":
+  version "1.0.218"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.218.tgz#673654a01c544eeb1060e45727ded4bddd4b9515"
+  integrity sha512-Z1zyn865NSe47Z3OWdETCQep3lwlXaj15z3X6gJRUbbE9Zx58PiZQOEURO9YXvwG1jTHdCZ1tkV19g6y6q0rQQ==
   dependencies:
-    "@expo/logger" "1.0.117"
+    "@expo/logger" "1.0.218"
     joi "^17.13.1"
     semver "^7.6.2"
     zod "^3.23.8"
@@ -1602,10 +1602,10 @@
     "@babel/code-frame" "~7.10.4"
     json5 "^2.2.3"
 
-"@expo/logger@1.0.117":
-  version "1.0.117"
-  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.117.tgz#31e302656f33dd015fdde89ad803d710a0e5b8a2"
-  integrity sha512-tuCT5fmjRjED6HYAf4HgE+UbiHT3JYrkUzUv9FC769goxo4LuuewBNQiDUkeecQTha7aTS5aO2YHlfdipI8gzg==
+"@expo/logger@1.0.218":
+  version "1.0.218"
+  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.218.tgz#9e0d46f1f68953f3751edd2436d8e23db5152240"
+  integrity sha512-rUB4Z4pNSh+GckeMJTKF+IqLSpreVzLr6FXuZBzS0ZTie//bVFJVGYtqAB3KRCQmYmvn99+CJTKUyPdaU3kV2A==
   dependencies:
     "@types/bunyan" "^1.8.11"
     bunyan "^1.8.15"
@@ -1736,13 +1736,13 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.173":
-  version "1.0.173"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.173.tgz#157bf104d3137012bf82b106d5bd0227fd6f67f1"
-  integrity sha512-XT8+FsZWIzwK+/TGnPrHe0HMQrzRGjTsjVDx8Yt922tL5TkX69XeB/twA0PcPWBLMxq+JiKtFm68yPTPqjIMNg==
+"@expo/steps@1.0.218":
+  version "1.0.218"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.218.tgz#6172e99d1f67a9fcc05b535d32adf9391fe1f120"
+  integrity sha512-W63Pf2lkRaOChG1RJ14ljJlZ2w+LBdj2AKe7SoEgeXNfxH6hM6cYKOf4bP/mmcagtT/5wQHP3WP3meF/9W9xJA==
   dependencies:
-    "@expo/eas-build-job" "1.0.173"
-    "@expo/logger" "1.0.117"
+    "@expo/eas-build-job" "1.0.218"
+    "@expo/logger" "1.0.218"
     "@expo/spawn-async" "^1.7.2"
     arg "^5.0.2"
     fs-extra "^11.2.0"

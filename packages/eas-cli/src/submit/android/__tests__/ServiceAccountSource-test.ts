@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
+import { AndroidReleaseStatus } from '@expo/eas-json';
 import { vol } from 'memfs';
 import { instance, mock } from 'ts-mockito';
 import { v4 as uuidv4 } from 'uuid';
@@ -151,7 +151,7 @@ describe(getServiceAccountKeyResultAsync, () => {
         url: 'http://expo.dev/fake.apk',
       },
       profile: {
-        track: AndroidReleaseTrack.internal,
+        track: 'internal',
         releaseStatus: AndroidReleaseStatus.draft,
         changesNotSentForReview: false,
       },
@@ -195,7 +195,7 @@ describe(getServiceAccountKeyResultAsync, () => {
         url: 'http://expo.dev/fake.apk',
       },
       profile: {
-        track: AndroidReleaseTrack.internal,
+        track: 'internal',
         releaseStatus: AndroidReleaseStatus.draft,
         changesNotSentForReview: false,
       },
@@ -235,7 +235,7 @@ describe(getServiceAccountKeyResultAsync, () => {
         url: 'http://expo.dev/fake.apk',
       },
       profile: {
-        track: AndroidReleaseTrack.internal,
+        track: 'internal',
         releaseStatus: AndroidReleaseStatus.draft,
         changesNotSentForReview: false,
       },

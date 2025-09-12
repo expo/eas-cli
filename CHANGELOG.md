@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Allow any string as Android release `track`, not just the `production`, `internal`, `alpha`, `beta`. ([#3163](https://github.com/expo/eas-cli/pull/3163) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
@@ -16,7 +18,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- CLI debug log should respect DEBUG=`eas:*`.  ([#3162](https://github.com/expo/eas-cli/pull/3162) by [@douglowder](https://github.com/douglowder))
+- CLI debug log should respect DEBUG=`eas:*`. ([#3162](https://github.com/expo/eas-cli/pull/3162) by [@douglowder](https://github.com/douglowder))
 - Better description for update:rollback. ([#3154](https://github.com/expo/eas-cli/pull/3154) by [@douglowder](https://github.com/douglowder))
 
 ## [16.18.0](https://github.com/expo/eas-cli/releases/tag/v16.18.0) - 2025-08-27
@@ -27,7 +29,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Make EXPO_PUBLIC_ env vars plain text, rest sensitive ([#3121](https://github.com/expo/eas-cli/pull/3121) by [@kadikraman](https://github.com/kadikraman))
+- Make `EXPO_PUBLIC_` env vars plain text, rest sensitive ([#3121](https://github.com/expo/eas-cli/pull/3121) by [@kadikraman](https://github.com/kadikraman))
 
 ## [16.17.4](https://github.com/expo/eas-cli/releases/tag/v16.17.4) - 2025-07-31
 

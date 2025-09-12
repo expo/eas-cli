@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { AndroidReleaseStatus, AndroidReleaseTrack } from '@expo/eas-json';
+import { AndroidReleaseStatus } from '@expo/eas-json';
 import { vol } from 'memfs';
 import { instance, mock } from 'ts-mockito';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,7 +14,6 @@ import {
   AppPlatform,
   BuildFragment,
   SubmissionAndroidReleaseStatus,
-  SubmissionAndroidTrack,
   SubmissionArchiveSourceType,
 } from '../../../graphql/generated';
 import { SubmissionMutation } from '../../../graphql/mutations/SubmissionMutation';
@@ -118,7 +117,7 @@ describe(AndroidSubmitCommand, () => {
           url: 'http://expo.dev/fake.apk',
         },
         profile: {
-          track: AndroidReleaseTrack.internal,
+          track: 'internal',
           releaseStatus: AndroidReleaseStatus.draft,
           changesNotSentForReview: false,
         },
@@ -158,7 +157,7 @@ describe(AndroidSubmitCommand, () => {
         },
         profile: {
           serviceAccountKeyPath: '/google-service-account.json',
-          track: AndroidReleaseTrack.internal,
+          track: 'internal',
           releaseStatus: AndroidReleaseStatus.draft,
           changesNotSentForReview: false,
         },
@@ -183,7 +182,7 @@ describe(AndroidSubmitCommand, () => {
         config: {
           googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],
           releaseStatus: SubmissionAndroidReleaseStatus.Draft,
-          track: SubmissionAndroidTrack.Internal,
+          track: 'internal',
           changesNotSentForReview: false,
           isVerboseFastlaneEnabled: false,
         },
@@ -206,7 +205,7 @@ describe(AndroidSubmitCommand, () => {
         },
         profile: {
           serviceAccountKeyPath: '/google-service-account.json',
-          track: AndroidReleaseTrack.internal,
+          track: 'internal',
           releaseStatus: AndroidReleaseStatus.inProgress,
           changesNotSentForReview: false,
         },
@@ -231,7 +230,7 @@ describe(AndroidSubmitCommand, () => {
         config: {
           googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],
           releaseStatus: SubmissionAndroidReleaseStatus.InProgress,
-          track: SubmissionAndroidTrack.Internal,
+          track: 'internal',
           changesNotSentForReview: false,
           isVerboseFastlaneEnabled: false,
         },
@@ -257,7 +256,7 @@ describe(AndroidSubmitCommand, () => {
         },
         profile: {
           serviceAccountKeyPath: '/google-service-account.json',
-          track: AndroidReleaseTrack.internal,
+          track: 'internal',
           releaseStatus: AndroidReleaseStatus.draft,
           changesNotSentForReview: false,
         },
@@ -280,7 +279,7 @@ describe(AndroidSubmitCommand, () => {
         config: {
           googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],
           releaseStatus: SubmissionAndroidReleaseStatus.Draft,
-          track: SubmissionAndroidTrack.Internal,
+          track: 'internal',
           changesNotSentForReview: false,
           isVerboseFastlaneEnabled: false,
         },
@@ -309,7 +308,7 @@ describe(AndroidSubmitCommand, () => {
           .mockImplementation(async (ctx: SubmissionContext<Platform>, _archiveProfile: string) => {
             ctx.profile = {
               serviceAccountKeyPath: '/google-other-service-account.json',
-              track: AndroidReleaseTrack.beta,
+              track: 'beta',
               releaseStatus: AndroidReleaseStatus.draft,
               changesNotSentForReview: false,
               applicationId: 'otherAppId',
@@ -323,7 +322,7 @@ describe(AndroidSubmitCommand, () => {
           archiveFlags: {},
           profile: {
             serviceAccountKeyPath: '/google-service-account.json',
-            track: AndroidReleaseTrack.internal,
+            track: 'internal',
             releaseStatus: AndroidReleaseStatus.draft,
             changesNotSentForReview: false,
           },
@@ -350,7 +349,7 @@ describe(AndroidSubmitCommand, () => {
             config: {
               googleServiceAccountKeyJson: fakeFiles['/google-other-service-account.json'],
               releaseStatus: SubmissionAndroidReleaseStatus.Draft,
-              track: SubmissionAndroidTrack.Beta,
+              track: 'beta',
               changesNotSentForReview: false,
               rollout: undefined,
               isVerboseFastlaneEnabled: false,
@@ -387,7 +386,7 @@ describe(AndroidSubmitCommand, () => {
           archiveFlags: {},
           profile: {
             serviceAccountKeyPath: '/google-service-account.json',
-            track: AndroidReleaseTrack.internal,
+            track: 'internal',
             releaseStatus: AndroidReleaseStatus.draft,
             changesNotSentForReview: false,
           },
@@ -414,7 +413,7 @@ describe(AndroidSubmitCommand, () => {
             config: {
               googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],
               releaseStatus: SubmissionAndroidReleaseStatus.Draft,
-              track: SubmissionAndroidTrack.Internal,
+              track: 'internal',
               changesNotSentForReview: false,
               rollout: undefined,
               isVerboseFastlaneEnabled: false,
@@ -444,7 +443,7 @@ describe(AndroidSubmitCommand, () => {
           .mockImplementation(async (ctx: SubmissionContext<Platform>, _archiveProfile: string) => {
             ctx.profile = {
               serviceAccountKeyPath: '/google-other-service-account.json',
-              track: AndroidReleaseTrack.beta,
+              track: 'beta',
               releaseStatus: AndroidReleaseStatus.draft,
               changesNotSentForReview: false,
               applicationId: 'otherAppId',
@@ -458,7 +457,7 @@ describe(AndroidSubmitCommand, () => {
           archiveFlags: {},
           profile: {
             serviceAccountKeyPath: '/google-service-account.json',
-            track: AndroidReleaseTrack.internal,
+            track: 'internal',
             releaseStatus: AndroidReleaseStatus.draft,
             changesNotSentForReview: false,
           },
@@ -486,7 +485,7 @@ describe(AndroidSubmitCommand, () => {
             config: {
               googleServiceAccountKeyJson: fakeFiles['/google-service-account.json'],
               releaseStatus: SubmissionAndroidReleaseStatus.Draft,
-              track: SubmissionAndroidTrack.Internal,
+              track: 'internal',
               changesNotSentForReview: false,
               rollout: undefined,
               isVerboseFastlaneEnabled: false,
