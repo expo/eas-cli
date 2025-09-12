@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [16.19.1](https://github.com/expo/eas-cli/releases/tag/v16.19.1) - 2025-09-12
+
 ## [16.19.0](https://github.com/expo/eas-cli/releases/tag/v16.19.0) - 2025-09-12
 
 ### 🎉 New features
