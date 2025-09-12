@@ -44,6 +44,21 @@ export const jester2 = {
   featureGates: {},
 };
 
+export const robot: Actor = {
+  __typename: 'Robot',
+  id: 'robot-id',
+  firstName: 'Test Robot',
+  accounts: [
+    {
+      id: 'robot-account-id',
+      name: 'robot-account',
+      users: [],
+    },
+  ],
+  isExpoAdmin: false,
+  featureGates: {},
+};
+
 assert(jester.__typename === 'User');
 export const testUsername = jester.username;
 export const testSlug = 'testApp';
