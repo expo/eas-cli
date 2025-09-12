@@ -98,13 +98,13 @@ export default class New extends EasCommand {
       command: 'git',
       args: ['add', '.'],
     });
-    Log.newLine();
+
     await runCommandAsync({
       cwd: finalTargetProjectDirectory,
       command: 'git',
       args: ['commit', '-m', 'Initial commit'],
     });
-    Log.newLine();
+
     Log.log('🎉 We finished creating your new project.');
     Log.newLine();
   }
