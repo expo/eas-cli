@@ -270,6 +270,7 @@ export function getMockWorkflowJobFragment(
       id: 'job1',
       logFileUrls: ['https://example.com/log1'],
       errors: [],
+      artifacts: [],
     },
   };
 }

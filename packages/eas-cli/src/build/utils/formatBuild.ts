@@ -10,6 +10,14 @@ import { link } from '../../log';
 import { appPlatformDisplayNames } from '../../platform';
 import formatFields from '../../utils/formatFields';
 
+export function buildArtifactFromBuild(build: BuildFragment): string | null {
+  return (
+    build.artifacts?.buildUrl ??
+    build.artifacts?.applicationArchiveUrl ??
+    build.artifacts?.buildArtifactsUrl ??
+    null
+  );
+}
 export function formatGraphQLBuild(build: BuildFragment): string {
   const actor = getActorName(build);
   const fields: { label: string; value?: string | null }[] = [
@@ -97,7 +105,7 @@ export function formatGraphQLBuild(build: BuildFragment): string {
           case GraphQLBuildStatus.Errored:
             return null;
           case GraphQLBuildStatus.Finished: {
-            const url = build.artifacts?.buildUrl;
+            const url = buildArtifactFromBuild(build);
             return url ? link(url) : chalk.red('not found');
           }
           default:
