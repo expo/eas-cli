@@ -448,24 +448,15 @@ export function parseJsonInputs(jsonString: string): Record<string, string> {
 // https://github.com/colinhacks/zod/issues/2985#issuecomment-2230692578
 const booleanLike = z.union([
   z.boolean(),
-  z.number().pipe(z.coerce.boolean()),
-  z.preprocess(val => {
-    if (typeof val === 'string') {
-      if (val.toLowerCase() === 'true') {
-        return true;
-      }
-
-      if (val.toLowerCase() === 'false') {
-        return false;
-      }
-    }
-
-    return val;
-  }, z.boolean()),
+  z.codec(z.number(), z.boolean(), {
+    decode: n => !!n,
+    encode: b => (b ? 1 : 0),
+  }),
+  z.stringbool({ truthy: ['true', 'True'], falsy: ['false', 'False'] }),
 ]);
 
-const stringLike = z
-  .union([
+const stringLike = z.codec(
+  z.union([
     // We're going to coerce numbers and strings into strings.
     z.number(),
     z.string(),
@@ -475,13 +466,26 @@ const stringLike = z
     //   and parses both as JS `true` -- if we stringified that,
     //   we would lose the capital "T" which may not be what the user expects,
     // - nulls - user should do `"null"` or not pass the property at all.
-  ])
-  .pipe(z.coerce.string());
+  ]),
+  z.string(),
+  {
+    decode: value => {
+      if (typeof value === 'string') {
+        return value;
+      }
+      if (typeof value === 'number') {
+        return String(value);
+      }
+      throw new Error(`Cannot convert ${typeof value} to string: ${value}`);
+    },
+    encode: value => value,
+  }
+);
 
 export const WorkflowDispatchInputZ = z
   .object({
     description: stringLike.optional().describe('Description of the input'),
-    required: booleanLike.default(false).describe('Whether the input is required'),
+    required: booleanLike.default(false).describe('Whether the input is required.'),
   })
   .and(
     z.union([
