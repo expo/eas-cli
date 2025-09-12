@@ -1539,15 +1539,15 @@
     slugify "^1.3.4"
     sucrase "3.35.0"
 
-"@expo/eas-build-job@1.0.218":
-  version "1.0.218"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.218.tgz#673654a01c544eeb1060e45727ded4bddd4b9515"
-  integrity sha512-Z1zyn865NSe47Z3OWdETCQep3lwlXaj15z3X6gJRUbbE9Zx58PiZQOEURO9YXvwG1jTHdCZ1tkV19g6y6q0rQQ==
+"@expo/eas-build-job@1.0.221":
+  version "1.0.221"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.221.tgz#a8d251a16da858dd957f50c32f51758b97b6484f"
+  integrity sha512-RIXDOwo+LrqxthmFsho9RtEUtUunuWi/aBbaIXkcJOR8H3ONBVZplY16ypvcCDQO6aGDcsT89An7mXe0UqVRSw==
   dependencies:
-    "@expo/logger" "1.0.218"
+    "@expo/logger" "1.0.221"
     joi "^17.13.1"
     semver "^7.6.2"
-    zod "^3.23.8"
+    zod "^4.1.3"
 
 "@expo/env@^1.0.0":
   version "1.0.0"
@@ -1602,10 +1602,10 @@
     "@babel/code-frame" "~7.10.4"
     json5 "^2.2.3"
 
-"@expo/logger@1.0.218":
-  version "1.0.218"
-  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.218.tgz#9e0d46f1f68953f3751edd2436d8e23db5152240"
-  integrity sha512-rUB4Z4pNSh+GckeMJTKF+IqLSpreVzLr6FXuZBzS0ZTie//bVFJVGYtqAB3KRCQmYmvn99+CJTKUyPdaU3kV2A==
+"@expo/logger@1.0.221":
+  version "1.0.221"
+  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.221.tgz#bd6ef6e03b3c4bf0872843d8b2a83556892178c0"
+  integrity sha512-arNkhzq4Ludz9J7PIYWTVYXuT1bO/A8prR8HYAviKuF6fEZfitemNVriGSetQASOE8Vnv3lmBZv6YIwLiFuv/Q==
   dependencies:
     "@types/bunyan" "^1.8.11"
     bunyan "^1.8.15"
@@ -1736,13 +1736,13 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.218":
-  version "1.0.218"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.218.tgz#6172e99d1f67a9fcc05b535d32adf9391fe1f120"
-  integrity sha512-W63Pf2lkRaOChG1RJ14ljJlZ2w+LBdj2AKe7SoEgeXNfxH6hM6cYKOf4bP/mmcagtT/5wQHP3WP3meF/9W9xJA==
+"@expo/steps@1.0.221":
+  version "1.0.221"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.221.tgz#8f51fe930a07dae1040c17800572005a51e8fd49"
+  integrity sha512-mh7rPIYLdgxCm4Eiju3kiJvXMvFh8VxGj+ywFaA/OOobpaU5LiqLIGSRTU3BC8FmhPiz/HXfrPMYA2cIHOESfA==
   dependencies:
-    "@expo/eas-build-job" "1.0.218"
-    "@expo/logger" "1.0.218"
+    "@expo/eas-build-job" "1.0.221"
+    "@expo/logger" "1.0.221"
     "@expo/spawn-async" "^1.7.2"
     arg "^5.0.2"
     fs-extra "^11.2.0"
@@ -15634,3 +15634,8 @@ zod@^3.23.8:
   version "3.23.8"
   resolved "https://registry.yarnpkg.com/zod/-/zod-3.23.8.tgz#e37b957b5d52079769fb8097099b592f0ef4067d"
   integrity sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==
+
+zod@^4.1.3:
+  version "4.1.8"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-4.1.8.tgz#54f024adc634dd185006a8415da2bdd495b9d92b"
+  integrity sha512-5R1P+WwQqmmMIEACyzSvo4JXHY5WiAFHRMg+zBZKgKS+Q1viRa0C1hmUKtHltoIFKtIdki3pRxkmpP74jnNYHQ==
