@@ -1,12 +1,21 @@
 # Development
 
-Set up an alias for the EAS CLI so you can try it in projects all around your computer. The project is compiled on the fly so you don't need to run a build (watch) command.
+## Getting Started
 
-> The only exception is when you just cloned the repository or there have been changes in `packages/eas-json`. In that case, you'll have to run `yarn build` in the root.
+If this is your first time running `eas-cli` locally, make sure you install and build the packages. In the project root, run:
+
+```sh
+yarn install
+yarn build
+```
+
+From there, set up an alias for the EAS CLI so you can try it in projects all around your computer. The project is compiled on the fly so you don't need to run a build (watch) command.
+
+> The only exception is if there have been changes in `packages/eas-json`. In that case, you'll have to run `yarn build` in the root.
 
 Open your `.zshrc` or other config file and add:
 
-```
+```sh
 alias easd="/PATH/TO/eas-cli/bin/run"
 ```
 
@@ -14,7 +23,7 @@ Then use it with `easd` like `easd build`.
 
 If you're making changes to `packages/eas-json` or prefer/need to work with production code, start the build command in watch mode with:
 
-```
+```sh
 yarn start
 ```
 
@@ -33,7 +42,7 @@ If it is easier for you to work with the code locally with compiler options set 
 
 you can consider using:
 
-```
+```sh
 yarn start-allow-unused
 ```
 
