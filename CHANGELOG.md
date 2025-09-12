@@ -8,11 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Allow any string as Android release `track`, not just the `production`, `internal`, `alpha`, `beta`. ([#3163](https://github.com/expo/eas-cli/pull/3163) by [@sjchmiela](https://github.com/sjchmiela))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [16.19.0](https://github.com/expo/eas-cli/releases/tag/v16.19.0) - 2025-09-12
+
+### 🎉 New features
+
+- Allow any string as Android release `track`, not just the `production`, `internal`, `alpha`, `beta`. ([#3163](https://github.com/expo/eas-cli/pull/3163) by [@sjchmiela](https://github.com/sjchmiela))
 
 ## [16.18.1](https://github.com/expo/eas-cli/releases/tag/v16.18.1) - 2025-09-10
 
