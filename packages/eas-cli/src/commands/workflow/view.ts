@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import { buildArtifactFromBuild } from '../../build/utils/formatBuild';
+import { formatGraphQLBuildArtifacts } from '../../build/utils/formatBuild';
 import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
@@ -8,39 +8,32 @@ import {
   WorkflowCommandSelectionStateValue,
   workflowRunSelectionAction,
 } from '../../commandUtils/workflow/stateMachine';
-import {
-  WorkflowBuildJobOutput,
-  WorkflowCustomJobOutput,
-  WorkflowSubmitJobOutput,
-  WorkflowTestflightJobOutput,
-  WorkflowTriggerType,
-  WorkflowUpdateJobOutput,
-} from '../../commandUtils/workflow/types';
+import { WorkflowTriggerType } from '../../commandUtils/workflow/types';
 import { computeTriggerInfoForWorkflowRun } from '../../commandUtils/workflow/utils';
-import { WorkflowJobType, WorkflowRunByIdWithJobsQuery } from '../../graphql/generated';
+import {
+  BuildArtifacts,
+  BuildFragment,
+  WorkflowArtifact,
+  WorkflowJobType,
+  WorkflowRunByIdWithJobsQuery,
+} from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log, { link } from '../../log';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-type WorkflowArtifact = {
-  id: string;
-  name: string;
-  contentType?: string | null;
-  fileSizeBytes?: number | null;
-  filename: string;
-  downloadUrl?: string | null;
-};
+type ReducedWorkflowArtifact = Omit<
+  WorkflowArtifact,
+  'createdAt' | 'jobRun' | 'storageType' | 'updatedAt'
+>;
 
-type WorkflowOutputWithBuildArtifactURL =
-  WorkflowRunByIdWithJobsQuery['workflowRuns']['byId']['jobs'][number]['outputs'] & {
-    build_artifact_url?: string | null;
-  };
+type WorkflowJobOutput =
+  WorkflowRunByIdWithJobsQuery['workflowRuns']['byId']['jobs'][number]['outputs'];
 
 type WorkflowJobResult = WorkflowRunByIdWithJobsQuery['workflowRuns']['byId']['jobs'][number] & {
-  artifacts?: WorkflowArtifact[] | undefined;
-  output?: WorkflowOutputWithBuildArtifactURL | undefined;
+  artifacts?: ReducedWorkflowArtifact[] | BuildArtifacts | undefined;
+  output?: WorkflowJobOutput | undefined;
 };
 
 type WorkflowRunResult = WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'] & {
@@ -52,91 +45,16 @@ type WorkflowRunResult = WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'] & 
 
 const processedOutputs: (job: WorkflowJobResult) => FormatFieldsItem[] = job => {
   const result: FormatFieldsItem[] = [];
-  switch (job.type) {
-    case WorkflowJobType.GetBuild:
-    case WorkflowJobType.Build: {
-      const buildOutput = job.outputs as WorkflowBuildJobOutput;
-      buildOutput.build_id && result.push({ label: '    Build ID', value: buildOutput.build_id });
-      job.outputs?.build_artifact_url &&
-        result.push({ label: '    Build Artifact URL', value: job.outputs?.build_artifact_url });
-      buildOutput.app_build_version &&
-        result.push({ label: '    App Build Version', value: buildOutput.app_build_version });
-      buildOutput.app_identifier &&
-        result.push({ label: '    App Identifier', value: buildOutput.app_identifier });
-      buildOutput.app_version &&
-        result.push({ label: '    App Version', value: buildOutput.app_version });
-      buildOutput.channel && result.push({ label: '    Channel', value: buildOutput.channel });
-      buildOutput.distribution &&
-        result.push({ label: '    Distribution', value: buildOutput.distribution });
-      buildOutput.fingerprint_hash &&
-        result.push({ label: '    Fingerprint Hash', value: buildOutput.fingerprint_hash });
-      buildOutput.git_commit_hash &&
-        result.push({ label: '    Git Commit Hash', value: buildOutput.git_commit_hash });
-      buildOutput.platform && result.push({ label: '    Platform', value: buildOutput.platform });
-      buildOutput.profile && result.push({ label: '    Profile', value: buildOutput.profile });
-      buildOutput.runtime_version &&
-        result.push({ label: '    Runtime Version', value: buildOutput.runtime_version });
-      buildOutput.sdk_version &&
-        result.push({ label: '    SDK Version', value: buildOutput.sdk_version });
-      buildOutput.simulator &&
-        result.push({ label: '    Simulator', value: buildOutput.simulator });
-      break;
-    }
-    case WorkflowJobType.Submission: {
-      const submissionOutput = job.outputs as WorkflowSubmitJobOutput;
-      submissionOutput.apple_app_id &&
-        result.push({ label: '    Apple App ID', value: submissionOutput.apple_app_id });
-      submissionOutput.ios_bundle_identifier &&
-        result.push({
-          label: '    iOS Bundle Identifier',
-          value: submissionOutput.ios_bundle_identifier,
-        });
-      submissionOutput.android_package_id &&
-        result.push({
-          label: '    Android Package ID',
-          value: submissionOutput.android_package_id,
-        });
-      break;
-    }
-    case WorkflowJobType.Testflight: {
-      const testflightOutput = job.outputs as WorkflowTestflightJobOutput;
-      testflightOutput.apple_app_id &&
-        result.push({ label: '    Apple App ID', value: testflightOutput.apple_app_id });
-      testflightOutput.ios_bundle_identifier &&
-        result.push({
-          label: '    iOS Bundle Identifier',
-          value: testflightOutput.ios_bundle_identifier,
-        });
-      break;
-    }
-    case WorkflowJobType.Update: {
-      const updateOutput = job.outputs as WorkflowUpdateJobOutput;
-      updateOutput.first_update_group_id &&
-        result.push({
-          label: '    First Update Group ID',
-          value: updateOutput.first_update_group_id,
-        });
-      updateOutput.updates_json &&
-        result.push({ label: '    Updates JSON', value: updateOutput.updates_json });
-      break;
-    }
-    case WorkflowJobType.Custom: {
-      const customOutput = job.outputs as WorkflowCustomJobOutput;
-      const keys = customOutput ? Object.keys(customOutput) : [];
-      keys.forEach(key => {
-        result.push({
-          label: `    ${key}`,
-          get value(): string {
-            const value = customOutput[key];
-            return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-          },
-        });
-      });
-      break;
-    }
-    default:
-      break;
-  }
+  const keys = job.outputs ? Object.keys(job.outputs) : [];
+  keys.forEach(key => {
+    result.push({
+      label: `    ${key}`,
+      get value(): string {
+        const value = job.outputs[key];
+        return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+      },
+    });
+  });
   return result;
 };
 
@@ -198,23 +116,19 @@ export default class WorkflowView extends EasCommand {
     result.triggerType = triggerType;
     result.trigger = trigger;
 
-    const buildArtifactUrls = new Map<string, string>();
+    const builds = new Map<string, BuildFragment>();
     for (const job of result.jobs) {
       if (job.outputs?.build_id) {
         const build = await BuildQuery.byIdAsync(graphqlClient, job.outputs.build_id);
-        const artifactUrl = buildArtifactFromBuild(build);
-        artifactUrl && buildArtifactUrls.set(job.outputs.build_id, artifactUrl);
+        builds.set(job.outputs.build_id, build);
       }
     }
     const processedJobs: WorkflowJobResult[] = result.jobs.map(job => {
       const processedJob = job as WorkflowJobResult;
-      processedJob.artifacts = job.turtleJobRun?.artifacts;
-      if (job?.outputs?.build_id && buildArtifactUrls.has(job.outputs.build_id)) {
-        const artifactUrl = buildArtifactUrls.get(job.outputs.build_id) ?? null;
-        processedJob.outputs = {
-          ...job.outputs,
-          build_artifact_url: artifactUrl,
-        };
+      if (job.type === WorkflowJobType.Build) {
+        processedJob.artifacts = builds.get(job.outputs.build_id)?.artifacts ?? undefined;
+      } else {
+        processedJob.artifacts = job.turtleJobRun?.artifacts;
       }
       delete processedJob.turtleJobRun;
       return processedJob;
@@ -275,26 +189,45 @@ export default class WorkflowView extends EasCommand {
           Log.log(formatFields(outputs));
         }
       }
-      if (job.artifacts?.length) {
-        Log.gray(chalk.dim('  Artifacts:'));
-        job.artifacts.forEach(artifact => {
-          Log.log(
-            formatFields([
-              { label: '    ID', value: artifact.id },
-              { label: '    Name', value: artifact.name },
-              { label: '    Content Type', value: artifact?.contentType ?? 'null' },
-              {
-                label: '    File Size Bytes',
-                value: artifact?.fileSizeBytes ? `${artifact.fileSizeBytes}` : 'null',
-              },
-              { label: '    Filename', value: artifact.filename },
-              {
-                label: '    Download URL',
-                value: artifact.downloadUrl ? link(artifact.downloadUrl) : 'null',
-              },
-            ])
-          );
-        });
+      if (job.type === WorkflowJobType.Build) {
+        if (job.outputs?.build_id) {
+          const build = builds.get(job.outputs.build_id);
+          if (build) {
+            Log.gray(chalk.dim('  Artifacts:'));
+            Log.log(
+              formatFields(
+                formatGraphQLBuildArtifacts(build).map(item => {
+                  item.label = `    ${item.label}`;
+                  return item;
+                })
+              )
+            );
+          }
+        }
+      } else {
+        const jobArtifacts = job.artifacts as ReducedWorkflowArtifact[];
+        if (jobArtifacts?.length) {
+          Log.gray(chalk.dim('  Artifacts:'));
+          jobArtifacts.forEach(artifact => {
+            Log.log(
+              formatFields([
+                { label: '    ID', value: artifact.id },
+                { label: '    Name', value: artifact.name },
+                { label: '    Content Type', value: artifact?.contentType ?? 'null' },
+                {
+                  label: '    File Size Bytes',
+                  value: artifact?.fileSizeBytes ? `${artifact.fileSizeBytes}` : 'null',
+                },
+                { label: '    Filename', value: artifact.filename },
+                {
+                  label: '    Download URL',
+                  value: artifact?.downloadUrl ? link(artifact.downloadUrl) : 'null',
+                },
+              ])
+            );
+            Log.addNewLineIfNone();
+          });
+        }
       }
 
       Log.addNewLineIfNone();

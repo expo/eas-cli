@@ -8,16 +8,47 @@ import {
 } from '../../graphql/generated';
 import { link } from '../../log';
 import { appPlatformDisplayNames } from '../../platform';
-import formatFields from '../../utils/formatFields';
+import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
 
-export function buildArtifactFromBuild(build: BuildFragment): string | null {
-  return (
-    build.artifacts?.buildUrl ??
-    build.artifacts?.applicationArchiveUrl ??
-    build.artifacts?.buildArtifactsUrl ??
-    null
-  );
+export function formatGraphQLBuildArtifacts(build: BuildFragment): FormatFieldsItem[] {
+  const fields = [
+    {
+      label: 'Build Archive URL',
+      get value() {
+        switch (build.status) {
+          case GraphQLBuildStatus.InProgress:
+            return '<in progress>';
+          case GraphQLBuildStatus.Finished: {
+            const url = build.artifacts?.buildUrl;
+            return url ? link(url) : chalk.red('not found');
+          }
+          default:
+            return null;
+        }
+      },
+    },
+    {
+      label: 'Build Artifacts URL',
+      get value() {
+        switch (build.status) {
+          case GraphQLBuildStatus.InProgress:
+            return '<in progress>';
+          case GraphQLBuildStatus.Finished: {
+            const url = build.artifacts?.buildArtifactsUrl;
+            return url ? link(url) : chalk.red('not found');
+          }
+          default:
+            return null;
+        }
+      },
+    },
+  ];
+  return fields.filter(({ value }) => value !== undefined && value !== null) as {
+    label: string;
+    value: string;
+  }[];
 }
+
 export function formatGraphQLBuild(build: BuildFragment): string {
   const actor = getActorName(build);
   const fields: { label: string; value?: string | null }[] = [
@@ -92,27 +123,7 @@ export function formatGraphQLBuild(build: BuildFragment): string {
       label: 'Logs',
       value: link(getBuildLogsUrl(build)),
     },
-    {
-      label: 'Artifact',
-      get value() {
-        switch (build.status) {
-          case GraphQLBuildStatus.New:
-          case GraphQLBuildStatus.InQueue:
-          case GraphQLBuildStatus.InProgress:
-            return '<in progress>';
-          case GraphQLBuildStatus.PendingCancel:
-          case GraphQLBuildStatus.Canceled:
-          case GraphQLBuildStatus.Errored:
-            return null;
-          case GraphQLBuildStatus.Finished: {
-            const url = buildArtifactFromBuild(build);
-            return url ? link(url) : chalk.red('not found');
-          }
-          default:
-            return null;
-        }
-      },
-    },
+    ...formatGraphQLBuildArtifacts(build),
     {
       label: 'Fingerprint',
       get value() {
