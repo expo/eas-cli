@@ -8,11 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add artifact URLs to workflow:view. ([#3175](https://github.com/expo/eas-cli/pull/3175) by [@douglowder](https://github.com/douglowder))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [16.19.2](https://github.com/expo/eas-cli/releases/tag/v16.19.2) - 2025-09-15
+
+### 🎉 New features
+
+- Add artifact URLs to workflow:view. ([#3175](https://github.com/expo/eas-cli/pull/3175) by [@douglowder](https://github.com/douglowder))
 
 ## [16.19.1](https://github.com/expo/eas-cli/releases/tag/v16.19.1) - 2025-09-12
 
