@@ -13,17 +13,15 @@ import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
 export function formatGraphQLBuildArtifacts(build: BuildFragment): FormatFieldsItem[] {
   const fields = [
     {
-      label: 'Build Archive URL',
+      label: 'Application Archive URL',
       get value() {
         switch (build.status) {
           case GraphQLBuildStatus.InProgress:
             return '<in progress>';
-          case GraphQLBuildStatus.Finished: {
+          default: {
             const url = build.artifacts?.buildUrl;
-            return url ? link(url) : chalk.red('not found');
+            return url ? link(url) : 'null';
           }
-          default:
-            return null;
         }
       },
     },
@@ -33,12 +31,10 @@ export function formatGraphQLBuildArtifacts(build: BuildFragment): FormatFieldsI
         switch (build.status) {
           case GraphQLBuildStatus.InProgress:
             return '<in progress>';
-          case GraphQLBuildStatus.Finished: {
+          default: {
             const url = build.artifacts?.buildArtifactsUrl;
-            return url ? link(url) : chalk.red('not found');
+            return url ? link(url) : 'null';
           }
-          default:
-            return null;
         }
       },
     },

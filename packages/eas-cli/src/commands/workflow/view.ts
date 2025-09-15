@@ -12,12 +12,10 @@ import { WorkflowTriggerType } from '../../commandUtils/workflow/types';
 import { computeTriggerInfoForWorkflowRun } from '../../commandUtils/workflow/utils';
 import {
   BuildArtifacts,
-  BuildFragment,
   WorkflowArtifact,
   WorkflowJobType,
   WorkflowRunByIdWithJobsQuery,
 } from '../../graphql/generated';
-import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log, { link } from '../../log';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
@@ -116,17 +114,10 @@ export default class WorkflowView extends EasCommand {
     result.triggerType = triggerType;
     result.trigger = trigger;
 
-    const builds = new Map<string, BuildFragment>();
-    for (const job of result.jobs) {
-      if (job.outputs?.build_id) {
-        const build = await BuildQuery.byIdAsync(graphqlClient, job.outputs.build_id);
-        builds.set(job.outputs.build_id, build);
-      }
-    }
     const processedJobs: WorkflowJobResult[] = result.jobs.map(job => {
       const processedJob = job as WorkflowJobResult;
       if (job.type === WorkflowJobType.Build) {
-        processedJob.artifacts = builds.get(job.outputs.build_id)?.artifacts ?? undefined;
+        processedJob.artifacts = job.turtleBuild?.artifacts ?? undefined;
       } else {
         processedJob.artifacts = job.turtleJobRun?.artifacts;
       }
@@ -190,19 +181,16 @@ export default class WorkflowView extends EasCommand {
         }
       }
       if (job.type === WorkflowJobType.Build) {
-        if (job.outputs?.build_id) {
-          const build = builds.get(job.outputs.build_id);
-          if (build) {
-            Log.gray(chalk.dim('  Artifacts:'));
-            Log.log(
-              formatFields(
-                formatGraphQLBuildArtifacts(build).map(item => {
-                  item.label = `    ${item.label}`;
-                  return item;
-                })
-              )
-            );
-          }
+        if (job.turtleBuild?.artifacts) {
+          Log.gray(chalk.dim('  Artifacts:'));
+          Log.log(
+            formatFields(
+              formatGraphQLBuildArtifacts(job.turtleBuild).map(item => {
+                item.label = `    ${item.label}`;
+                return item;
+              })
+            )
+          );
         }
       } else {
         const jobArtifacts = job.artifacts as ReducedWorkflowArtifact[];
