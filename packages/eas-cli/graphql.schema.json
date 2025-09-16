@@ -8133,18 +8133,6 @@
             "deprecationReason": null
           },
           {
-            "name": "archiveUrl",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "changelog",
             "description": null,
             "type": {
@@ -24362,18 +24350,6 @@
             "deprecationReason": null
           },
           {
-            "name": "archiveUrl",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "config",
             "description": null,
             "type": {
@@ -25121,18 +25097,6 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "SubmissionArchiveSourceInput",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "archiveUrl",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -37047,18 +37011,6 @@
           },
           {
             "name": "appleIdUsername",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "archiveUrl",
             "description": null,
             "type": {
               "kind": "SCALAR",
