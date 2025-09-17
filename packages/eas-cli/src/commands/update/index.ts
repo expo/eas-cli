@@ -367,11 +367,13 @@ export default class UpdatePublish extends EasCommand {
       if (uploadedNormalAssetCount === 0) {
         Log.withTick(`Uploading assets skipped - no new assets found`);
       } else {
-        let message = `Uploaded ${uploadedNormalAssetCount} ${uploadedNormalAssetCount === 1 ? 'asset' : 'assets'
-          }`;
+        let message = `Uploaded ${uploadedNormalAssetCount} ${
+          uploadedNormalAssetCount === 1 ? 'asset' : 'assets'
+        }`;
         if (reusedNormalAssetCount > 0) {
-          message += ` (reused ${reusedNormalAssetCount} ${reusedNormalAssetCount === 1 ? 'asset' : 'assets'
-            })`;
+          message += ` (reused ${reusedNormalAssetCount} ${
+            reusedNormalAssetCount === 1 ? 'asset' : 'assets'
+          })`;
         }
         Log.withTick(message);
       }
@@ -426,12 +428,12 @@ export default class UpdatePublish extends EasCommand {
             ...info,
             expoUpdatesRuntimeFingerprintSource: info.expoUpdatesRuntimeFingerprint
               ? (
-                await maybeUploadFingerprintAsync({
-                  hash: info.runtimeVersion,
-                  fingerprint: info.expoUpdatesRuntimeFingerprint,
-                  graphqlClient,
-                })
-              ).fingerprintSource ?? null
+                  await maybeUploadFingerprintAsync({
+                    hash: info.runtimeVersion,
+                    fingerprint: info.expoUpdatesRuntimeFingerprint,
+                    graphqlClient,
+                  })
+                ).fingerprintSource ?? null
               : null,
           };
         })
@@ -450,11 +452,11 @@ export default class UpdatePublish extends EasCommand {
     const runtimeVersionToRolloutInfoGroup =
       rolloutPercentage !== undefined
         ? await getRuntimeToUpdateRolloutInfoGroupMappingAsync(graphqlClient, {
-          appId: projectId,
-          branchName,
-          rolloutPercentage,
-          runtimeToPlatformsAndFingerprintInfoMapping,
-        })
+            appId: projectId,
+            branchName,
+            rolloutPercentage,
+            runtimeToPlatformsAndFingerprintInfoMapping,
+          })
         : undefined;
 
     const gitCommitHash = await vcsClient.getCommitHashAsync();
@@ -476,11 +478,11 @@ export default class UpdatePublish extends EasCommand {
             : null;
           const localRolloutInfoGroup = rolloutInfoGroupForRuntimeVersion
             ? Object.fromEntries(
-              platforms.map(platform => [
-                platform,
-                rolloutInfoGroupForRuntimeVersion[platform as keyof UpdateRolloutInfoGroup],
-              ])
-            )
+                platforms.map(platform => [
+                  platform,
+                  rolloutInfoGroupForRuntimeVersion[platform as keyof UpdateRolloutInfoGroup],
+                ])
+              )
             : null;
           const transformedFingerprintInfoGroup = Object.entries(fingerprintInfoGroup).reduce(
             (prev, [platform, fingerprintInfo]) => {
@@ -550,7 +552,7 @@ export default class UpdatePublish extends EasCommand {
                   manifestBody,
                   nullthrows(
                     nullthrows(updateGroup.updateInfoGroup)[
-                    newUpdate.platform as keyof UpdateInfoGroup
+                      newUpdate.platform as keyof UpdateInfoGroup
                     ]
                   )
                 );
@@ -632,28 +634,28 @@ export default class UpdatePublish extends EasCommand {
           ...(newIosUpdate ? [{ label: 'iOS update ID', value: newIosUpdate.id }] : []),
           ...(newAndroidUpdate?.rolloutControlUpdate
             ? [
-              {
-                label: 'Android Rollout',
-                value: `${newAndroidUpdate.rolloutPercentage}% (Base update ID: ${newAndroidUpdate.rolloutControlUpdate.id})`,
-              },
-            ]
+                {
+                  label: 'Android Rollout',
+                  value: `${newAndroidUpdate.rolloutPercentage}% (Base update ID: ${newAndroidUpdate.rolloutControlUpdate.id})`,
+                },
+              ]
             : []),
           ...(newIosUpdate?.rolloutControlUpdate
             ? [
-              {
-                label: 'iOS Rollout',
-                value: `${newIosUpdate.rolloutPercentage}% (Base update ID: ${newIosUpdate.rolloutControlUpdate.id})`,
-              },
-            ]
+                {
+                  label: 'iOS Rollout',
+                  value: `${newIosUpdate.rolloutPercentage}% (Base update ID: ${newIosUpdate.rolloutControlUpdate.id})`,
+                },
+              ]
             : []),
           { label: 'Message', value: updateMessage ?? '' },
           ...(gitCommitHash
             ? [
-              {
-                label: 'Commit',
-                value: `${gitCommitHash}${isGitWorkingTreeDirty ? '*' : ''}`,
-              },
-            ]
+                {
+                  label: 'Commit',
+                  value: `${gitCommitHash}${isGitWorkingTreeDirty ? '*' : ''}`,
+                },
+              ]
             : []),
           { label: 'EAS Dashboard', value: updateGroupLink },
         ])
@@ -662,10 +664,10 @@ export default class UpdatePublish extends EasCommand {
       if (isUploadedAssetCountAboveWarningThreshold(uploadedAssetCount, assetLimitPerUpdateGroup)) {
         Log.warn(
           `This update group contains ${uploadedAssetCount} assets and is nearing the server cap of ${assetLimitPerUpdateGroup}.\n` +
-          `${learnMore('https://docs.expo.dev/eas-update/optimize-assets/', {
-            learnMoreMessage: 'Consider optimizing your usage of assets',
-            dim: false,
-          })}.`
+            `${learnMore('https://docs.expo.dev/eas-update/optimize-assets/', {
+              learnMoreMessage: 'Consider optimizing your usage of assets',
+              dim: false,
+            })}.`
         );
         Log.addNewLineIfNone();
       }
