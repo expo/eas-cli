@@ -11,6 +11,10 @@ import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 
 const jobTypesWithBuildProfile = new Set(['build', 'repack']);
 
+const buildProfileIsInterpolated = (profileName: string): boolean => {
+  return profileName.includes('${{') && profileName.includes('}}');
+};
+
 export async function validateWorkflowFileAsync(
   workflowFileContents: { yamlConfig: string; filePath: string },
   projectDir: string,
@@ -101,7 +105,10 @@ async function validateWorkflowBuildJobsAsync(parsedYaml: any, projectDir: strin
     easJsonAccessor && (await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor))
   );
   const invalidBuildJobs = buildJobs.filter(
-    job => !buildProfileNames.has(job.value.params.profile)
+    job =>
+      !buildProfileNames.has(job.value.params.profile) &&
+      // If a profile name is interpolated, we can't check if it's valid until the workflow actually runs
+      !buildProfileIsInterpolated(job.value.params.profile)
   );
 
   if (invalidBuildJobs.length > 0) {
