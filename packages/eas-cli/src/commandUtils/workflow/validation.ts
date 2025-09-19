@@ -3,12 +3,13 @@ import { InvalidEasJsonError, MissingEasJsonError } from '@expo/eas-json/build/e
 import { CombinedError } from '@urql/core';
 import * as YAML from 'yaml';
 
-import { AccountFragment } from '../../graphql/generated';
 import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
 import Log from '../../log';
 import { createValidator, getReadableErrors } from '../../metadata/utils/ajv';
 import { WorkflowFile } from '../../utils/workflowFile';
 import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
+
+const jobTypesWithBuildProfile = new Set(['build', 'repack']);
 
 export async function validateWorkflowFileAsync(
   workflowFileContents: { yamlConfig: string; filePath: string },
@@ -42,11 +43,7 @@ export async function validateWorkflowFileAsync(
   await validateWorkflowOnServerAsync(graphqlClient, projectId, workflowFileContents);
 }
 
-export function logWorkflowValidationErrors(
-  error: unknown,
-  account: AccountFragment | undefined,
-  projectName: string | undefined
-): void {
+export function logWorkflowValidationErrors(error: unknown): void {
   if (error instanceof MissingEasJsonError) {
     throw new Error(
       'Workflows require a valid eas.json. Please run "eas build:configure" to create it.'
@@ -61,8 +58,6 @@ export function logWorkflowValidationErrors(
   } else if (error instanceof CombinedError) {
     WorkflowFile.maybePrintWorkflowFileValidationErrors({
       error,
-      accountName: account?.name ?? '',
-      projectName: projectName ?? '',
     });
 
     throw error;
@@ -96,7 +91,7 @@ async function validateWorkflowOnServerAsync(
 
 async function validateWorkflowBuildJobsAsync(parsedYaml: any, projectDir: string): Promise<void> {
   const jobs = jobsFromWorkflow(parsedYaml);
-  const buildJobs = jobs.filter(job => job.value.type === 'build');
+  const buildJobs = jobs.filter(job => jobTypesWithBuildProfile.has(job.value.type));
   if (buildJobs.length === 0) {
     return;
   }

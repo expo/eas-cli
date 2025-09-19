@@ -154,8 +154,6 @@ export default class WorkflowRun extends EasCommand {
       if (error instanceof CombinedError) {
         WorkflowFile.maybePrintWorkflowFileValidationErrors({
           error,
-          accountName: account.name,
-          projectName,
         });
 
         throw error;

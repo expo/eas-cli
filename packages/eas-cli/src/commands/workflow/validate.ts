@@ -4,10 +4,8 @@ import {
   logWorkflowValidationErrors,
   validateWorkflowFileAsync,
 } from '../../commandUtils/workflow/validation';
-import { AccountFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
-import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { WorkflowFile } from '../../utils/workflowFile';
 
 export class WorkflowValidate extends EasCommand {
@@ -38,12 +36,9 @@ export class WorkflowValidate extends EasCommand {
       flags,
     } = await this.parse(WorkflowValidate);
 
-    let account: AccountFragment | undefined;
-    let projectName: string | undefined;
     const spinner = ora().start('Validating the workflow YAML file…');
     try {
       const {
-        getDynamicPrivateProjectConfigAsync,
         loggedIn: { graphqlClient },
         projectDir,
         projectId,
@@ -51,13 +46,6 @@ export class WorkflowValidate extends EasCommand {
         nonInteractive: flags['non-interactive'],
         withServerSideEnvironment: null,
       });
-
-      const {
-        exp: { slug: maybeProjectName },
-      } = await getDynamicPrivateProjectConfigAsync();
-      projectName = maybeProjectName;
-
-      account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
 
       const workflowFileContents = await WorkflowFile.readWorkflowFileContentsAsync({
         projectDir,
@@ -71,7 +59,7 @@ export class WorkflowValidate extends EasCommand {
     } catch (error) {
       spinner.fail('Workflow configuration YAML is not valid.');
 
-      logWorkflowValidationErrors(error, account, projectName);
+      logWorkflowValidationErrors(error);
     }
   }
 }
