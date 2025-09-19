@@ -108,3 +108,7 @@ export function getEASUpdateURL(projectId: string, manifestHostOverride: string 
     return new URL(projectId, `https://u.expo.dev`).href;
   }
 }
+
+export function getExpoApiWorkflowSchemaURL(): string {
+  return getExpoApiBaseUrl() + '/v2/workflows/schema';
+}

@@ -1,8 +1,11 @@
 import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { InvalidEasJsonError, MissingEasJsonError } from '@expo/eas-json/build/errors';
 import { CombinedError } from '@urql/core';
+import { promises as fs } from 'fs';
+import path from 'path';
 import * as YAML from 'yaml';
 
+import { getExpoApiWorkflowSchemaURL } from '../../api';
 import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
 import Log from '../../log';
 import { createValidator, getReadableErrors } from '../../metadata/utils/ajv';
@@ -171,8 +174,16 @@ function parsedYamlFromWorkflowContents(workflowFileContents: {
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 async function fetchWorkflowSchemaAsync(): Promise<any> {
-  const schemaUrl =
-    process.env.EXPO_WORKFLOW_SCHEMA_URL ?? 'https://api.expo.dev/v2/workflows/schema';
+  // EXPO_TESTING_WORKFLOW_SCHEMA_PATH is used only for testing against a different schema
+  if (process.env.EXPO_TESTING_WORKFLOW_SCHEMA_PATH) {
+    const schemaPath = path.resolve(process.env.EXPO_TESTING_WORKFLOW_SCHEMA_PATH);
+    Log.debug(`Loading workflow schema from ${schemaPath}`);
+    const jsonString = await fs.readFile(schemaPath, 'utf-8');
+    const jsonFromFile = JSON.parse(jsonString);
+    return jsonFromFile.data;
+  }
+  // Otherwise, we fetch from <ApiBaseUrl>/v2/workflows/schema
+  const schemaUrl = getExpoApiWorkflowSchemaURL();
   Log.debug(`Fetching workflow schema from ${schemaUrl}`);
   const response = await fetch(schemaUrl);
   if (!response.ok) {
