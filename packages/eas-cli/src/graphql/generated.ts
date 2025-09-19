@@ -1241,7 +1241,6 @@ export type AndroidSubmissionConfig = {
 
 export type AndroidSubmissionConfigInput = {
   applicationIdentifier?: InputMaybe<Scalars['String']['input']>;
-  archiveUrl?: InputMaybe<Scalars['String']['input']>;
   changelog?: InputMaybe<Scalars['String']['input']>;
   changesNotSentForReview?: InputMaybe<Scalars['Boolean']['input']>;
   googleServiceAccountKeyId?: InputMaybe<Scalars['String']['input']>;
@@ -3566,7 +3565,6 @@ export type CreateAndConfigureRepositoryInput = {
 export type CreateAndroidSubmissionInput = {
   appId: Scalars['ID']['input'];
   archiveSource?: InputMaybe<SubmissionArchiveSourceInput>;
-  archiveUrl?: InputMaybe<Scalars['String']['input']>;
   config: AndroidSubmissionConfigInput;
   submittedBuildId?: InputMaybe<Scalars['ID']['input']>;
 };
@@ -3644,7 +3642,6 @@ export type CreateGitHubRepositorySettingsInput = {
 export type CreateIosSubmissionInput = {
   appId: Scalars['ID']['input'];
   archiveSource?: InputMaybe<SubmissionArchiveSourceInput>;
-  archiveUrl?: InputMaybe<Scalars['String']['input']>;
   config: IosSubmissionConfigInput;
   submittedBuildId?: InputMaybe<Scalars['ID']['input']>;
 };
@@ -5324,7 +5321,6 @@ export type IosSubmissionConfig = {
 export type IosSubmissionConfigInput = {
   appleAppSpecificPassword?: InputMaybe<Scalars['String']['input']>;
   appleIdUsername?: InputMaybe<Scalars['String']['input']>;
-  archiveUrl?: InputMaybe<Scalars['String']['input']>;
   ascApiKey?: InputMaybe<AscApiKeyInput>;
   ascApiKeyId?: InputMaybe<Scalars['String']['input']>;
   ascAppIdentifier: Scalars['String']['input'];

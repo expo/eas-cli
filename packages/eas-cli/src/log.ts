@@ -38,7 +38,8 @@ export default class Log {
     if (Log.isDebug) {
       Log.consoleLog(...args);
     } else {
-      nodeDebug(args);
+      Log.updateIsLastLineNewLine(args);
+      nodeDebug(...args);
     }
   }
 

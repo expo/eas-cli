@@ -2,9 +2,8 @@ import { CombinedError } from '@urql/core';
 import fs from 'fs';
 import path from 'path';
 
-import { getProjectGitHubSettingsUrl } from '../build/utils/url';
 import { WorkflowRevisionMutation } from '../graphql/mutations/WorkflowRevisionMutation';
-import Log, { link } from '../log';
+import Log from '../log';
 
 export namespace WorkflowFile {
   export async function readWorkflowFileContentsAsync({
@@ -39,12 +38,8 @@ export namespace WorkflowFile {
 
   export function maybePrintWorkflowFileValidationErrors({
     error,
-    accountName,
-    projectName,
   }: {
     error: CombinedError;
-    accountName: string;
-    projectName: string;
   }): void {
     const validationErrors = error.graphQLErrors.flatMap(e => {
       return WorkflowRevisionMutation.ValidationErrorExtensionZ.safeParse(e.extensions).data ?? [];
@@ -61,18 +56,6 @@ export namespace WorkflowFile {
           Log.error(`- ${field}: ${fieldErrors.join(', ')}`);
         }
       }
-    }
-
-    const githubNotFoundError = error.graphQLErrors.find(
-      e => e.extensions.errorCode === 'GITHUB_NOT_FOUND_ERROR'
-    );
-    if (githubNotFoundError) {
-      Log.error(`GitHub repository not found. It is currently required to run workflows.`);
-      Log.error(
-        `Please check that the repository exists and that you have access to it. ${link(
-          getProjectGitHubSettingsUrl(accountName, projectName)
-        )}`
-      );
     }
   }
 
