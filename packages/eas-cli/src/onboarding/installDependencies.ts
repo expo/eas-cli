@@ -37,3 +37,13 @@ export async function installDependenciesAsync({
     },
   });
 }
+
+export function getLockFileName(packageManager: PackageManager): string {
+  const lockFileNameMap = {
+    yarn: 'yarn.lock',
+    pnpm: 'pnpm-lock.yaml',
+    npm: 'package-lock.json',
+  };
+
+  return lockFileNameMap[packageManager];
+}
