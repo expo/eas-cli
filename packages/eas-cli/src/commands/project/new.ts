@@ -119,5 +119,12 @@ export default class New extends EasCommand {
 
     Log.log('🎉 We finished creating your new project.');
     Log.newLine();
+
+    Log.log('Configuring project for EAS Build...');
+    await runCommandAsync({
+      cwd: finalTargetProjectDirectory,
+      command: 'eas',
+      args: ['init'],
+    });
   }
 }
