@@ -10,14 +10,12 @@ import FeatureGating from '../../../commandUtils/gating/FeatureGating';
 import { jester, robot } from '../../../credentials/__tests__/fixtures-constants';
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../../onboarding/git';
 import {
-  getLockFileName,
   installDependenciesAsync,
   promptForPackageManagerAsync,
 } from '../../../onboarding/installDependencies';
 import { runCommandAsync } from '../../../onboarding/runCommand';
 import { promptAsync } from '../../../prompts';
 import { Actor } from '../../../user/User';
-import GitClient from '../../../vcs/clients/git';
 import New from '../new';
 
 jest.mock('fs');
@@ -26,7 +24,6 @@ jest.mock('../../../onboarding/git');
 jest.mock('../../../onboarding/installDependencies');
 jest.mock('../../../onboarding/runCommand');
 jest.mock('../../../prompts');
-jest.mock('../../../vcs/clients/git');
 jest.mock('../../../ora', () => ({
   ora: () => ({
     start: () => ({ succeed: () => {}, fail: () => {} }),
@@ -99,16 +96,9 @@ describe(New.name, () => {
 
       // Mock package manager selection (default to npm)
       jest.mocked(promptForPackageManagerAsync).mockResolvedValue('npm');
-      jest.mocked(getLockFileName).mockReturnValue('package-lock.json');
 
       // Mock fs operations
       (fs.remove as jest.Mock).mockResolvedValue(undefined);
-
-      // Mock GitClient
-      const mockGitClient = {
-        trackFileAsync: jest.fn().mockResolvedValue(undefined),
-      } as unknown as GitClient;
-      jest.mocked(GitClient).mockImplementation(() => mockGitClient);
     });
 
     it('creates a new project with SSH clone method', async () => {
@@ -167,19 +157,6 @@ describe(New.name, () => {
       });
     });
 
-    it('tracks package-lock.json file', async () => {
-      const mockTrackFileAsync = jest.fn().mockResolvedValue(undefined);
-      const mockGitClient = {
-        trackFileAsync: mockTrackFileAsync,
-      } as unknown as GitClient;
-      jest.mocked(GitClient).mockImplementation(() => mockGitClient);
-
-      const command = new New([targetProjectDir], commandOptions);
-      await command.run();
-
-      expect(mockTrackFileAsync).toHaveBeenCalledWith('package-lock.json');
-    });
-
     it('logs appropriate messages during project creation', async () => {
       mockLoggedInContext(jester);
       mockFileSystem(targetProjectDir);
@@ -189,11 +166,6 @@ describe(New.name, () => {
       (fs.remove as jest.Mock).mockResolvedValue(undefined);
       jest.mocked(runCommandAsync).mockResolvedValue();
       jest.mocked(installDependenciesAsync).mockResolvedValue();
-
-      const mockGitClient = {
-        trackFileAsync: jest.fn().mockResolvedValue(undefined),
-      };
-      jest.mocked(GitClient).mockImplementation(() => mockGitClient as any);
 
       const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
@@ -269,7 +241,6 @@ describe(New.name, () => {
         targetProjectDir,
       });
       jest.mocked(promptForPackageManagerAsync).mockResolvedValueOnce('yarn');
-      jest.mocked(getLockFileName).mockReturnValueOnce('yarn.lock');
 
       const command = new New([], commandOptions);
       await command.run();
@@ -287,7 +258,6 @@ describe(New.name, () => {
         targetProjectDir,
       });
       jest.mocked(promptForPackageManagerAsync).mockResolvedValueOnce('npm');
-      jest.mocked(getLockFileName).mockReturnValueOnce('package-lock.json');
 
       const command = new New([], commandOptions);
       await command.run();

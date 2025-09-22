@@ -11,7 +11,6 @@ import {
 } from '../../onboarding/installDependencies';
 import { runCommandAsync } from '../../onboarding/runCommand';
 import { promptAsync } from '../../prompts';
-import GitClient from '../../vcs/clients/git';
 
 export default class New extends EasCommand {
   static override aliases = ['new'];
@@ -84,11 +83,6 @@ export default class New extends EasCommand {
       githubRepositoryName,
       targetProjectDir: targetProjectDirInput,
       cloneMethod,
-    });
-
-    const vcsClient = new GitClient({
-      maybeCwdOverride: targetProjectDirInput,
-      requireCommit: false,
     });
 
     await fs.remove(path.join(finalTargetProjectDirectory, '.git'));
