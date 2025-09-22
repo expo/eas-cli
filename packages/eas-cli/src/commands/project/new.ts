@@ -5,8 +5,13 @@ import path from 'path';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../onboarding/git';
-import { installDependenciesAsync } from '../../onboarding/installDependencies';
+import {
+  getLockFileName,
+  installDependenciesAsync,
+  promptForPackageManagerAsync,
+} from '../../onboarding/installDependencies';
 import { runCommandAsync } from '../../onboarding/runCommand';
+import { promptAsync } from '../../prompts';
 import GitClient from '../../vcs/clients/git';
 
 export default class New extends EasCommand {
@@ -26,12 +31,13 @@ export default class New extends EasCommand {
 
   async runAsync(): Promise<void> {
     const {
-      args: { TARGET_PROJECT_DIRECTORY: targetProjectDirInput },
+      args: { TARGET_PROJECT_DIRECTORY: targetProjectDirFromArgs },
     } = await this.parse(New);
 
     const {
       loggedIn: { actor },
     } = await this.getContextAsync(New, { nonInteractive: false });
+
     const githubUsername = 'expo';
     const githubRepositoryName = 'expo-template-default';
 
@@ -50,6 +56,18 @@ export default class New extends EasCommand {
       `🚚 Let's start by cloning the default Expo template project from GitHub and installing dependencies.`
     );
     Log.newLine();
+    let targetProjectDirInput = targetProjectDirFromArgs;
+    if (!targetProjectDirInput) {
+      targetProjectDirInput = (
+        await promptAsync({
+          type: 'text',
+          name: 'targetProjectDir',
+          message: 'Where would you like to create your new project directory?',
+          initial: path.join(process.cwd(), 'new-expo-project'),
+        })
+      ).targetProjectDir;
+    }
+
     Log.log(`📂 Cloning the project to ${targetProjectDirInput}`);
     Log.newLine();
 
@@ -88,10 +106,14 @@ export default class New extends EasCommand {
     //   targetDir: finalTargetProjectDirectory,
     // });
 
+    const packageManager = await promptForPackageManagerAsync();
     await installDependenciesAsync({
       projectDir: finalTargetProjectDirectory,
+      packageManager,
     });
-    await vcsClient.trackFileAsync('package-lock.json');
+
+    const lockFileName = getLockFileName(packageManager);
+    await vcsClient.trackFileAsync(lockFileName);
 
     await runCommandAsync({
       cwd: finalTargetProjectDirectory,

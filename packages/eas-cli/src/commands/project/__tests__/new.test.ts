@@ -9,8 +9,13 @@ import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnv
 import FeatureGating from '../../../commandUtils/gating/FeatureGating';
 import { jester, robot } from '../../../credentials/__tests__/fixtures-constants';
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../../onboarding/git';
-import { installDependenciesAsync } from '../../../onboarding/installDependencies';
+import {
+  getLockFileName,
+  installDependenciesAsync,
+  promptForPackageManagerAsync,
+} from '../../../onboarding/installDependencies';
 import { runCommandAsync } from '../../../onboarding/runCommand';
+import { promptAsync } from '../../../prompts';
 import { Actor } from '../../../user/User';
 import GitClient from '../../../vcs/clients/git';
 import New from '../new';
@@ -20,6 +25,7 @@ jest.mock('fs-extra');
 jest.mock('../../../onboarding/git');
 jest.mock('../../../onboarding/installDependencies');
 jest.mock('../../../onboarding/runCommand');
+jest.mock('../../../prompts');
 jest.mock('../../../vcs/clients/git');
 jest.mock('../../../ora', () => ({
   ora: () => ({
@@ -91,6 +97,10 @@ describe(New.name, () => {
       jest.mocked(installDependenciesAsync).mockResolvedValue();
       jest.mocked(runCommandAsync).mockResolvedValue();
 
+      // Mock package manager selection (default to npm)
+      jest.mocked(promptForPackageManagerAsync).mockResolvedValue('npm');
+      jest.mocked(getLockFileName).mockReturnValue('package-lock.json');
+
       // Mock fs operations
       (fs.remove as jest.Mock).mockResolvedValue(undefined);
 
@@ -127,6 +137,7 @@ describe(New.name, () => {
 
       expect(installDependenciesAsync).toHaveBeenCalledWith({
         projectDir: targetProjectDir,
+        packageManager: 'npm',
       });
 
       expect(runCommandAsync).toHaveBeenCalledWith({
@@ -211,6 +222,80 @@ describe(New.name, () => {
       );
 
       logSpy.mockRestore();
+    });
+
+    it('prompts for target directory when no argument provided', async () => {
+      const promptedDirectory = '/test/prompted-project';
+      jest.mocked(promptAsync).mockResolvedValue({
+        targetProjectDir: promptedDirectory,
+      });
+      jest.mocked(runGitCloneAsync).mockResolvedValue({
+        targetProjectDir: promptedDirectory,
+      });
+
+      const command = new New([], commandOptions);
+      await command.run();
+
+      expect(promptAsync).toHaveBeenCalledWith({
+        type: 'text',
+        name: 'targetProjectDir',
+        message: 'Where would you like to create your new project directory?',
+        initial: path.join(process.cwd(), 'new-expo-project'),
+      });
+
+      expect(runGitCloneAsync).toHaveBeenCalledWith({
+        githubUsername: 'expo',
+        githubRepositoryName: 'expo-template-default',
+        targetProjectDir: promptedDirectory,
+        cloneMethod: 'ssh',
+      });
+    });
+
+    it('uses provided argument without prompting', async () => {
+      const command = new New([targetProjectDir], commandOptions);
+      await command.run();
+
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(runGitCloneAsync).toHaveBeenCalledWith({
+        githubUsername: 'expo',
+        githubRepositoryName: 'expo-template-default',
+        targetProjectDir,
+        cloneMethod: 'ssh',
+      });
+    });
+
+    it('prompts for package manager selection', async () => {
+      jest.mocked(promptAsync).mockResolvedValueOnce({
+        targetProjectDir,
+      });
+      jest.mocked(promptForPackageManagerAsync).mockResolvedValueOnce('yarn');
+      jest.mocked(getLockFileName).mockReturnValueOnce('yarn.lock');
+
+      const command = new New([], commandOptions);
+      await command.run();
+
+      expect(promptForPackageManagerAsync).toHaveBeenCalled();
+
+      expect(installDependenciesAsync).toHaveBeenCalledWith({
+        projectDir: targetProjectDir,
+        packageManager: 'yarn',
+      });
+    });
+
+    it('defaults to npm when package manager is not selected', async () => {
+      jest.mocked(promptAsync).mockResolvedValueOnce({
+        targetProjectDir,
+      });
+      jest.mocked(promptForPackageManagerAsync).mockResolvedValueOnce('npm');
+      jest.mocked(getLockFileName).mockReturnValueOnce('package-lock.json');
+
+      const command = new New([], commandOptions);
+      await command.run();
+
+      expect(installDependenciesAsync).toHaveBeenCalledWith({
+        projectDir: targetProjectDir,
+        packageManager: 'npm',
+      });
     });
   });
 
