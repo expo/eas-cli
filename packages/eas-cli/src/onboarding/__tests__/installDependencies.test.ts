@@ -1,9 +1,5 @@
 import { selectAsync } from '../../prompts';
-import {
-  PackageManager,
-  getLockFileName,
-  promptForPackageManagerAsync,
-} from '../installDependencies';
+import { PackageManager, promptForPackageManagerAsync } from '../installDependencies';
 
 jest.mock('../../prompts');
 
@@ -40,17 +36,6 @@ describe('installDependencies', () => {
         expect.any(Array),
         expect.objectContaining({ initial: 'npm' })
       );
-    });
-  });
-
-  describe('getLockFileName', () => {
-    it.each([
-      ['npm', 'package-lock.json'],
-      ['yarn', 'yarn.lock'],
-      ['pnpm', 'pnpm-lock.yaml'],
-    ])('returns %s for %s', (packageManager, expectedLockFile) => {
-      const result = getLockFileName(packageManager as PackageManager);
-      expect(result).toBe(expectedLockFile);
     });
   });
 });

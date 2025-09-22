@@ -6,7 +6,6 @@ import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../onboarding/git';
 import {
-  getLockFileName,
   installDependenciesAsync,
   promptForPackageManagerAsync,
 } from '../../onboarding/installDependencies';
@@ -111,9 +110,6 @@ export default class New extends EasCommand {
       projectDir: finalTargetProjectDirectory,
       packageManager,
     });
-
-    const lockFileName = getLockFileName(packageManager);
-    await vcsClient.trackFileAsync(lockFileName);
 
     await runCommandAsync({
       cwd: finalTargetProjectDirectory,
