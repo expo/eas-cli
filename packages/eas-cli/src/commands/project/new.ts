@@ -150,18 +150,6 @@ export default class New extends EasCommand {
     actor: Actor,
     projectDir: string
   ): Promise<string> {
-    const exp = await getPrivateExpoConfigAsync(projectDir);
-    const existingProjectId = exp.extra?.eas?.projectId;
-
-    if (existingProjectId) {
-      Log.succeed(
-        `Project already linked (ID: ${chalk.bold(
-          existingProjectId
-        )}). To re-configure, remove the "extra.eas.projectId" field from your app config.`
-      );
-      return existingProjectId;
-    }
-
     const allAccounts = actor.accounts;
     const accountNamesWhereUserHasSufficientPermissionsToCreateApp = new Set(
       allAccounts
@@ -169,30 +157,21 @@ export default class New extends EasCommand {
         .map(it => it.name)
     );
 
-    // if no owner field, ask the user which account they want to use to create/link the project
-    let accountName = exp.owner;
-    if (!accountName) {
-      if (allAccounts.length === 1) {
-        accountName = allAccounts[0].name;
-      } else {
-        const choices = this.getAccountChoices(
-          actor,
-          accountNamesWhereUserHasSufficientPermissionsToCreateApp
-        );
+    let accountName = allAccounts[0].name;
+    if (allAccounts.length > 1) {
+      const choices = this.getAccountChoices(
+        actor,
+        accountNamesWhereUserHasSufficientPermissionsToCreateApp
+      );
 
-        accountName = (
-          await promptAsync({
-            type: 'select',
-            name: 'account',
-            message: 'Which account should own this project?',
-            choices,
-          })
-        ).account.name;
-      }
-    }
-
-    if (!accountName) {
-      throw new Error('No account selected for project. Canceling.');
+      accountName = (
+        await promptAsync({
+          type: 'select',
+          name: 'account',
+          message: 'Which account should own this project?',
+          choices,
+        })
+      ).account.name;
     }
 
     const projectName = getActorUsername(actor) + '-app';
