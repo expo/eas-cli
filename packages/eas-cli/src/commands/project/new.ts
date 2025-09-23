@@ -272,38 +272,26 @@ export default class New extends EasCommand {
   }
 
   private getAccountChoices(actor: Actor, namesWithSufficientPermissions: Set<string>): Choice[] {
-    const allAccounts = actor.accounts;
+    const sortedAccounts = actor.accounts.sort((a, _b) =>
+      actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
+    );
 
-    const sortedAccounts =
-      actor.__typename === 'Robot'
-        ? allAccounts
-        : [...allAccounts].sort((a, _b) =>
-            actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
-          );
+    return sortedAccounts.map(account => {
+      const isPersonalAccount = actor.__typename === 'User' && account.name === actor.username;
+      const accountDisplayName = isPersonalAccount
+        ? `${account.name} (personal account)`
+        : account.name;
+      const disabled = !namesWithSufficientPermissions.has(account.name);
 
-    if (actor.__typename !== 'Robot') {
-      return sortedAccounts.map(account => {
-        const isPersonalAccount = actor.__typename === 'User' && account.name === actor.username;
-        const accountDisplayName = isPersonalAccount
-          ? `${account.name} (personal account)`
-          : account.name;
-        const disabled = !namesWithSufficientPermissions.has(account.name);
-
-        return {
-          title: accountDisplayName,
-          value: { name: account.name },
-          ...(disabled && {
-            disabled: true,
-            description:
-              'You do not have the required permissions to create projects on this account.',
-          }),
-        };
-      });
-    }
-
-    return sortedAccounts.map(account => ({
-      title: account.name,
-      value: { name: account.name },
-    }));
+      return {
+        title: accountDisplayName,
+        value: { name: account.name },
+        ...(disabled && {
+          disabled: true,
+          description:
+            'You do not have the required permissions to create projects on this account.',
+        }),
+      };
+    });
   }
 }
