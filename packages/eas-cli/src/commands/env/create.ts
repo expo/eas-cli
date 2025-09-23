@@ -220,7 +220,6 @@ export default class EnvCreate extends EasCommand {
                 value,
                 visibility,
                 environments,
-                isGlobal: true, // TODO: every account-wide variable is global for now so it's not user facing
                 type: type ?? EnvironmentSecretType.String,
               },
               ownerAccount.id
