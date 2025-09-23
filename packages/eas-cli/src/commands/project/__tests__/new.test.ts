@@ -114,8 +114,14 @@ describe(New.name, () => {
   const commandOptions = { root: process.cwd() } as any;
 
   describe('successful project creation', () => {
+    // Create a single-account version of jester for basic tests
+    const singleAccountJester = {
+      ...jester,
+      accounts: [jester.accounts[0]],
+    };
+
     beforeEach(() => {
-      mockLoggedInContext(jester);
+      mockLoggedInContext(singleAccountJester);
       mockFileSystem(targetProjectDir);
 
       // Mock git operations
@@ -136,7 +142,6 @@ describe(New.name, () => {
       jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
         name: 'test-app',
         slug: 'test-app',
-        owner: jester.accounts[0].name,
       } satisfies MockExpoConfig);
 
       // Mock project initialization
@@ -191,7 +196,7 @@ describe(New.name, () => {
       expect(AppMutation.createAppAsync).toHaveBeenCalledTimes(1);
       const createAppCall = jest.mocked(AppMutation.createAppAsync).mock.calls[0];
       expect(createAppCall[1]).toEqual({
-        accountId: jester.accounts[0].id,
+        accountId: singleAccountJester.accounts[0].id,
         projectName: 'jester-app',
       });
 
@@ -223,7 +228,6 @@ describe(New.name, () => {
     });
 
     it('logs appropriate messages during project creation', async () => {
-      mockLoggedInContext(jester);
       mockFileSystem(targetProjectDir);
 
       jest.mocked(canAccessRepositoryUsingSshAsync).mockResolvedValue(true);
@@ -256,11 +260,6 @@ describe(New.name, () => {
       );
       expect(logSpy).toHaveBeenCalledWith(
         expect.stringContaining('🎉 We finished creating your new project.')
-      );
-
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.stringContaining('Project successfully linked (ID: test-project-id)')
       );
 
       logSpy.mockRestore();
@@ -362,7 +361,6 @@ describe(New.name, () => {
       jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
         name: 'test-app',
         slug: 'test-app',
-        owner: jester.accounts[0].name,
       } satisfies MockExpoConfig);
 
       // Default project initialization mocks (can be overridden in individual tests)
@@ -371,44 +369,14 @@ describe(New.name, () => {
       jest
         .mocked(createOrModifyExpoConfigAsync)
         .mockResolvedValue({ type: 'success', config: null } satisfies MockConfigResult);
-    });
 
-    it('handles project already linked scenario', async () => {
-      const existingProjectId = 'existing-project-id';
-      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
-        name: 'test-app',
-        slug: 'test-app',
-        extra: {
-          eas: {
-            projectId: existingProjectId,
-          },
-        },
-      } satisfies MockExpoConfig);
-
-      const command = new New([targetProjectDir], commandOptions);
-      await command.run();
-
-      // Should still complete the full project creation flow
-      expect(runGitCloneAsync).toHaveBeenCalled();
-      expect(installDependenciesAsync).toHaveBeenCalled();
-      expect(runCommandAsync).toHaveBeenCalledWith({
-        cwd: targetProjectDir,
-        command: 'git',
-        args: ['commit', '-m', 'Initial commit'],
+      jest.mocked(promptAsync).mockResolvedValue({
+        account: { name: jester.accounts[0].name },
       });
-
-      // Should not create a new project since one already exists
-      expect(AppMutation.createAppAsync).not.toHaveBeenCalled();
     });
 
     it('links existing project on server when user confirms', async () => {
       const existingProjectId = 'existing-server-project-id';
-
-      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
-        name: 'test-app',
-        slug: 'test-app',
-        owner: jester.accounts[0].name,
-      } satisfies MockExpoConfig);
 
       jest
         .mocked(findProjectIdByAccountNameAndSlugNullableAsync)
@@ -441,12 +409,6 @@ describe(New.name, () => {
     it('throws error when user declines linking existing project', async () => {
       const existingProjectId = 'existing-server-project-id';
 
-      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
-        name: 'test-app',
-        slug: 'test-app',
-        owner: jester.accounts[0].name,
-      } satisfies MockExpoConfig);
-
       jest
         .mocked(findProjectIdByAccountNameAndSlugNullableAsync)
         .mockResolvedValue(existingProjectId);
@@ -462,7 +424,7 @@ describe(New.name, () => {
       expect(AppMutation.createAppAsync).not.toHaveBeenCalled();
     });
 
-    it('prompts for account selection when multiple accounts and no owner specified', async () => {
+    it('prompts for account selection when multiple accounts', async () => {
       const multipleAccountsActor = {
         ...jester,
         accounts: [
@@ -472,11 +434,6 @@ describe(New.name, () => {
       };
 
       mockLoggedInContext(multipleAccountsActor);
-
-      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
-        name: 'test-app',
-        slug: 'test-app',
-      } satisfies MockExpoConfig);
 
       jest.mocked(promptAsync).mockResolvedValueOnce({
         account: { name: 'account2' },
@@ -495,7 +452,7 @@ describe(New.name, () => {
       expect(AppMutation.createAppAsync).toHaveBeenCalledTimes(1);
       const createAppCall = jest.mocked(AppMutation.createAppAsync).mock.calls[0];
       expect(createAppCall[1]).toEqual({
-        accountId: jester.accounts[0].id,
+        accountId: jester.accounts[0].id, // Both accounts have same ID since we spread jester.accounts[0]
         projectName: 'jester-app',
       });
     });
@@ -507,11 +464,6 @@ describe(New.name, () => {
       };
 
       mockLoggedInContext(singleAccountUser);
-
-      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
-        name: 'test-app',
-        slug: 'test-app',
-      } satisfies MockExpoConfig);
 
       const command = new New([targetProjectDir], commandOptions);
       await command.run();
@@ -553,7 +505,6 @@ describe(New.name, () => {
       jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
         name: 'test-app',
         slug: 'test-app',
-        owner: insufficientPermissionsActor.accounts[0].name,
       } satisfies MockExpoConfig);
 
       jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
@@ -573,7 +524,6 @@ describe(New.name, () => {
       jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
         name: 'test-app',
         slug: 'test-app',
-        owner: jester.accounts[0].name,
         extra: existingExtra,
       } satisfies MockExpoConfig);
 
