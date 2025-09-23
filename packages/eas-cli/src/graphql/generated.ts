@@ -3655,7 +3655,6 @@ export type CreateSentryProjectInput = {
 export type CreateSharedEnvironmentVariableInput = {
   environments?: InputMaybe<Array<EnvironmentVariableEnvironment>>;
   fileName?: InputMaybe<Scalars['String']['input']>;
-  isGlobal?: InputMaybe<Scalars['Boolean']['input']>;
   name: Scalars['String']['input'];
   overwrite?: InputMaybe<Scalars['Boolean']['input']>;
   type?: InputMaybe<EnvironmentSecretType>;
@@ -7348,7 +7347,6 @@ export type UpdateEnvironmentVariableInput = {
   environments?: InputMaybe<Array<EnvironmentVariableEnvironment>>;
   fileName?: InputMaybe<Scalars['String']['input']>;
   id: Scalars['ID']['input'];
-  isGlobal?: InputMaybe<Scalars['Boolean']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   type?: InputMaybe<EnvironmentSecretType>;
   value?: InputMaybe<Scalars['String']['input']>;
