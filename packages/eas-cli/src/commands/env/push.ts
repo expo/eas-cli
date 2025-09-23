@@ -6,15 +6,13 @@ import path from 'path';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASMultiEnvironmentFlag } from '../../commandUtils/flags';
 import {
+  CreateEnvironmentVariableInput,
   EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../graphql/generated';
-import {
-  EnvironmentVariableMutation,
-  EnvironmentVariablePushInput,
-} from '../../graphql/mutations/EnvironmentVariableMutation';
+import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
@@ -66,8 +64,7 @@ export default class EnvPush extends EasCommand {
       });
     }
 
-    const updateVariables: Record<string, EnvironmentVariablePushInput> =
-      await this.parseEnvFileAsync(envPath, environments);
+    const updateVariables = await this.parseEnvFileAsync(envPath, environments);
 
     const variableNames = Object.keys(updateVariables);
 
@@ -219,11 +216,16 @@ export default class EnvPush extends EasCommand {
   private async parseEnvFileAsync(
     envPath: string,
     environments: EnvironmentVariableEnvironment[]
-  ): Promise<Record<string, EnvironmentVariablePushInput>> {
+  ): Promise<
+    Record<
+      string,
+      CreateEnvironmentVariableInput & { environments: EnvironmentVariableEnvironment[] }
+    >
+  > {
     if (!(await fs.exists(envPath))) {
       throw new Error(`File ${envPath} does not exist.`);
     }
-    const pushInput: Record<string, EnvironmentVariablePushInput> = {};
+    const pushInput: Awaited<ReturnType<typeof this.parseEnvFileAsync>> = {};
 
     const variables: Record<string, string> = dotenv.parse(await fs.readFile(envPath, 'utf8'));
 
