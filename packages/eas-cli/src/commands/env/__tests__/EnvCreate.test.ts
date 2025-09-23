@@ -47,6 +47,7 @@ describe(EnvCreate, () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         scope: EnvironmentVariableScope.Project,
+        type: EnvironmentSecretType.String,
       }));
     jest
       .mocked(EnvironmentVariableMutation.createSharedVariableAsync)
@@ -56,6 +57,7 @@ describe(EnvCreate, () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         scope: EnvironmentVariableScope.Shared,
+        type: EnvironmentSecretType.String,
       }));
     jest
       .mocked(EnvironmentVariableMutation.updateAsync)
