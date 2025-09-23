@@ -1,3 +1,4 @@
+import { ExpoConfig } from '@expo/config';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import path from 'path';
@@ -8,22 +9,53 @@ import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/cr
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
 import FeatureGating from '../../../commandUtils/gating/FeatureGating';
 import { jester, robot } from '../../../credentials/__tests__/fixtures-constants';
+import { Role } from '../../../graphql/generated';
+import { AppMutation } from '../../../graphql/mutations/AppMutation';
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../../onboarding/git';
 import {
   installDependenciesAsync,
   promptForPackageManagerAsync,
 } from '../../../onboarding/installDependencies';
 import { runCommandAsync } from '../../../onboarding/runCommand';
-import { promptAsync } from '../../../prompts';
+import {
+  createOrModifyExpoConfigAsync,
+  getPrivateExpoConfigAsync,
+} from '../../../project/expoConfig';
+import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
+import { confirmAsync, promptAsync } from '../../../prompts';
 import { Actor } from '../../../user/User';
 import New from '../new';
 
+// Test helper types
+interface MockExpoConfig extends Partial<ExpoConfig> {
+  name: string;
+  slug: string;
+  owner?: string;
+  extra?: {
+    eas?: {
+      projectId?: string;
+      [key: string]: any;
+    };
+    [key: string]: any;
+  };
+}
+
+interface MockConfigResult {
+  type: 'success' | 'warn' | 'fail';
+  message?: string;
+  config: ExpoConfig | null;
+}
+
 jest.mock('fs');
 jest.mock('fs-extra');
+jest.mock('../../../graphql/mutations/AppMutation');
 jest.mock('../../../onboarding/git');
 jest.mock('../../../onboarding/installDependencies');
 jest.mock('../../../onboarding/runCommand');
+jest.mock('../../../project/expoConfig');
+jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
 jest.mock('../../../prompts');
+
 jest.mock('../../../ora', () => ({
   ora: () => ({
     start: () => ({ succeed: () => {}, fail: () => {} }),
@@ -99,6 +131,20 @@ describe(New.name, () => {
 
       // Mock fs operations
       (fs.remove as jest.Mock).mockResolvedValue(undefined);
+
+      // Mock project configuration
+      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
+        name: 'test-app',
+        slug: 'test-app',
+        owner: jester.accounts[0].name,
+      } satisfies MockExpoConfig);
+
+      // Mock project initialization
+      jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
+      jest.mocked(AppMutation.createAppAsync).mockResolvedValue('test-project-id');
+      jest
+        .mocked(createOrModifyExpoConfigAsync)
+        .mockResolvedValue({ type: 'success', config: null } satisfies MockConfigResult);
     });
 
     it('creates a new project with SSH clone method', async () => {
@@ -141,6 +187,25 @@ describe(New.name, () => {
         command: 'git',
         args: ['commit', '-m', 'Initial commit'],
       });
+
+      expect(AppMutation.createAppAsync).toHaveBeenCalledTimes(1);
+      const createAppCall = jest.mocked(AppMutation.createAppAsync).mock.calls[0];
+      expect(createAppCall[1]).toEqual({
+        accountId: jester.accounts[0].id,
+        projectName: 'jester-app',
+      });
+
+      expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith(
+        targetProjectDir,
+        expect.objectContaining({
+          extra: expect.objectContaining({
+            eas: expect.objectContaining({
+              projectId: 'test-project-id',
+            }),
+          }),
+        }),
+        { skipSDKVersionRequirement: true }
+      );
     });
 
     it('creates a new project with HTTPS clone method when SSH fails', async () => {
@@ -191,6 +256,11 @@ describe(New.name, () => {
       );
       expect(logSpy).toHaveBeenCalledWith(
         expect.stringContaining('🎉 We finished creating your new project.')
+      );
+
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.stringContaining('Project successfully linked (ID: test-project-id)')
       );
 
       logSpy.mockRestore();
@@ -266,6 +336,278 @@ describe(New.name, () => {
         projectDir: targetProjectDir,
         packageManager: 'npm',
       });
+    });
+  });
+
+  describe('project initialization variants', () => {
+    beforeEach(() => {
+      mockLoggedInContext(jester);
+      mockFileSystem(targetProjectDir);
+
+      // Mock git operations
+      jest.mocked(canAccessRepositoryUsingSshAsync).mockResolvedValue(true);
+      jest.mocked(runGitCloneAsync).mockResolvedValue({
+        targetProjectDir,
+      });
+      jest.mocked(installDependenciesAsync).mockResolvedValue();
+      jest.mocked(runCommandAsync).mockResolvedValue();
+
+      // Mock package manager selection (default to npm)
+      jest.mocked(promptForPackageManagerAsync).mockResolvedValue('npm');
+
+      // Mock fs operations
+      (fs.remove as jest.Mock).mockResolvedValue(undefined);
+
+      // Default project configuration (can be overridden in individual tests)
+      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
+        name: 'test-app',
+        slug: 'test-app',
+        owner: jester.accounts[0].name,
+      } satisfies MockExpoConfig);
+
+      // Default project initialization mocks (can be overridden in individual tests)
+      jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
+      jest.mocked(AppMutation.createAppAsync).mockResolvedValue('test-project-id');
+      jest
+        .mocked(createOrModifyExpoConfigAsync)
+        .mockResolvedValue({ type: 'success', config: null } satisfies MockConfigResult);
+    });
+
+    it('handles project already linked scenario', async () => {
+      const existingProjectId = 'existing-project-id';
+      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
+        name: 'test-app',
+        slug: 'test-app',
+        extra: {
+          eas: {
+            projectId: existingProjectId,
+          },
+        },
+      } satisfies MockExpoConfig);
+
+      const command = new New([targetProjectDir], commandOptions);
+      await command.run();
+
+      // Should still complete the full project creation flow
+      expect(runGitCloneAsync).toHaveBeenCalled();
+      expect(installDependenciesAsync).toHaveBeenCalled();
+      expect(runCommandAsync).toHaveBeenCalledWith({
+        cwd: targetProjectDir,
+        command: 'git',
+        args: ['commit', '-m', 'Initial commit'],
+      });
+
+      // Should not create a new project since one already exists
+      expect(AppMutation.createAppAsync).not.toHaveBeenCalled();
+    });
+
+    it('links existing project on server when user confirms', async () => {
+      const existingProjectId = 'existing-server-project-id';
+
+      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
+        name: 'test-app',
+        slug: 'test-app',
+        owner: jester.accounts[0].name,
+      } satisfies MockExpoConfig);
+
+      jest
+        .mocked(findProjectIdByAccountNameAndSlugNullableAsync)
+        .mockResolvedValue(existingProjectId);
+      jest.mocked(confirmAsync).mockResolvedValue(true);
+
+      const command = new New([targetProjectDir], commandOptions);
+      await command.run();
+
+      expect(confirmAsync).toHaveBeenCalledWith({
+        message: `Existing project found: @${jester.accounts[0].name}/jester-app (ID: ${existingProjectId}). Link this project?`,
+      });
+
+      expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith(
+        targetProjectDir,
+        expect.objectContaining({
+          extra: expect.objectContaining({
+            eas: expect.objectContaining({
+              projectId: existingProjectId,
+            }),
+          }),
+        }),
+        { skipSDKVersionRequirement: true }
+      );
+
+      // Should not create a new project since existing one was linked
+      expect(AppMutation.createAppAsync).not.toHaveBeenCalled();
+    });
+
+    it('throws error when user declines linking existing project', async () => {
+      const existingProjectId = 'existing-server-project-id';
+
+      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
+        name: 'test-app',
+        slug: 'test-app',
+        owner: jester.accounts[0].name,
+      } satisfies MockExpoConfig);
+
+      jest
+        .mocked(findProjectIdByAccountNameAndSlugNullableAsync)
+        .mockResolvedValue(existingProjectId);
+      jest.mocked(confirmAsync).mockResolvedValue(false);
+
+      const command = new New([targetProjectDir], commandOptions);
+
+      await expect(command.run()).rejects.toThrow(
+        'Project ID configuration canceled. Re-run the command to select a different account/project.'
+      );
+
+      expect(confirmAsync).toHaveBeenCalled();
+      expect(AppMutation.createAppAsync).not.toHaveBeenCalled();
+    });
+
+    it('prompts for account selection when multiple accounts and no owner specified', async () => {
+      const multipleAccountsActor = {
+        ...jester,
+        accounts: [
+          { ...jester.accounts[0], name: 'account1' },
+          { ...jester.accounts[0], name: 'account2' },
+        ],
+      };
+
+      mockLoggedInContext(multipleAccountsActor);
+
+      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
+        name: 'test-app',
+        slug: 'test-app',
+      } satisfies MockExpoConfig);
+
+      jest.mocked(promptAsync).mockResolvedValueOnce({
+        account: { name: 'account2' },
+      });
+
+      const command = new New([targetProjectDir], commandOptions);
+      await command.run();
+
+      expect(promptAsync).toHaveBeenCalledWith({
+        type: 'select',
+        name: 'account',
+        message: 'Which account should own this project?',
+        choices: expect.any(Array),
+      });
+
+      expect(AppMutation.createAppAsync).toHaveBeenCalledTimes(1);
+      const createAppCall = jest.mocked(AppMutation.createAppAsync).mock.calls[0];
+      expect(createAppCall[1]).toEqual({
+        accountId: jester.accounts[0].id,
+        projectName: 'jester-app',
+      });
+    });
+
+    it('uses single account automatically when only one account available', async () => {
+      const singleAccountUser = {
+        ...jester,
+        accounts: [jester.accounts[0]],
+      };
+
+      mockLoggedInContext(singleAccountUser);
+
+      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
+        name: 'test-app',
+        slug: 'test-app',
+      } satisfies MockExpoConfig);
+
+      const command = new New([targetProjectDir], commandOptions);
+      await command.run();
+
+      // Should complete the full flow
+      expect(runGitCloneAsync).toHaveBeenCalled();
+      expect(installDependenciesAsync).toHaveBeenCalled();
+
+      // Should not prompt for account selection when only one account
+      expect(promptAsync).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'select',
+          name: 'account',
+          message: 'Which account should own this project?',
+        })
+      );
+
+      expect(AppMutation.createAppAsync).toHaveBeenCalledTimes(1);
+      const createAppCall = jest.mocked(AppMutation.createAppAsync).mock.calls[0];
+      expect(createAppCall[1]).toEqual({
+        accountId: jester.accounts[0].id,
+        projectName: 'jester-app',
+      });
+    });
+
+    it('throws error when user has insufficient permissions', async () => {
+      const insufficientPermissionsActor = {
+        ...jester,
+        accounts: [
+          {
+            ...jester.accounts[0],
+            users: [{ role: Role.ViewOnly, actor: { id: jester.id } }],
+          },
+        ],
+      };
+
+      mockLoggedInContext(insufficientPermissionsActor);
+
+      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
+        name: 'test-app',
+        slug: 'test-app',
+        owner: insufficientPermissionsActor.accounts[0].name,
+      } satisfies MockExpoConfig);
+
+      jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
+
+      const command = new New([targetProjectDir], commandOptions);
+
+      await expect(command.run()).rejects.toThrow(
+        `You don't have permission to create a new project on the ${insufficientPermissionsActor.accounts[0].name} account and no matching project already exists on the account.`
+      );
+
+      expect(AppMutation.createAppAsync).not.toHaveBeenCalled();
+    });
+
+    it('preserves existing extra config when saving project ID', async () => {
+      const existingExtra = { someField: 'someValue', eas: { otherField: 'otherValue' } };
+
+      jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
+        name: 'test-app',
+        slug: 'test-app',
+        owner: jester.accounts[0].name,
+        extra: existingExtra,
+      } satisfies MockExpoConfig);
+
+      const command = new New([targetProjectDir], commandOptions);
+      await command.run();
+
+      expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith(
+        targetProjectDir,
+        {
+          extra: {
+            ...existingExtra,
+            eas: { ...existingExtra.eas, projectId: 'test-project-id' },
+          },
+        },
+        { skipSDKVersionRequirement: true }
+      );
+    });
+
+    it('handles config modification failure gracefully', async () => {
+      const errorMessage = 'Failed to modify config';
+
+      jest.mocked(createOrModifyExpoConfigAsync).mockResolvedValue({
+        type: 'fail',
+        message: errorMessage,
+        config: null,
+      } satisfies MockConfigResult);
+
+      const command = new New([targetProjectDir], commandOptions);
+
+      await expect(command.run()).rejects.toThrow(errorMessage);
+
+      // Should still complete git and dependency installation
+      expect(runGitCloneAsync).toHaveBeenCalled();
+      expect(installDependenciesAsync).toHaveBeenCalled();
     });
   });
 
