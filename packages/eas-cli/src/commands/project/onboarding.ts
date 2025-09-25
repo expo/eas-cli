@@ -382,7 +382,7 @@ function getDynamicPrivateProjectConfigGetter({
   };
 }
 
-async function configureProjectFromBareDefaultExpoTemplateAsync({
+export async function configureProjectFromBareDefaultExpoTemplateAsync({
   app,
   vcsClient,
   targetDir,

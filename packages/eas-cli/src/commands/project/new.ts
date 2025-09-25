@@ -3,11 +3,13 @@ import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
+import { configureProjectFromBareDefaultExpoTemplateAsync } from './onboarding';
 import { getProjectDashboardUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
+import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { link } from '../../log';
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../onboarding/git';
 import {
@@ -20,6 +22,7 @@ import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../../
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { Choice, confirmAsync, promptAsync } from '../../prompts';
 import { Actor, getActorUsername } from '../../user/User';
+import GitClient from '../../vcs/clients/git';
 
 export default class New extends EasCommand {
   static override aliases = ['new'];
@@ -61,9 +64,31 @@ export default class New extends EasCommand {
       await this.getTargetProjectDirectoryAsync(targetProjectDirFromArgs);
     const finalTargetProjectDirectory = await this.cloneTemplateAsync(targetProjectDirInput);
     await this.installProjectDependenciesAsync(finalTargetProjectDirectory);
-    await this.initializeGitRepositoryAsync(finalTargetProjectDirectory);
-    await this.initializeProjectAsync(graphqlClient, actor, finalTargetProjectDirectory);
+    const projectId = await this.initializeProjectAsync(
+      graphqlClient,
+      actor,
+      finalTargetProjectDirectory
+    );
 
+    const vcsClient = new GitClient({
+      maybeCwdOverride: finalTargetProjectDirectory,
+      requireCommit: false,
+    });
+
+    await this.configureProjectAsync(
+      finalTargetProjectDirectory,
+      projectId,
+      vcsClient,
+      graphqlClient
+    );
+
+    await runCommandAsync({
+      cwd: finalTargetProjectDirectory,
+      command: 'npx',
+      args: ['expo', 'install', 'expo-updates'],
+    });
+
+    await this.initializeGitRepositoryAsync(finalTargetProjectDirectory);
     Log.log('🎉 We finished creating your new project.');
     Log.newLine();
   }
@@ -272,5 +297,40 @@ export default class New extends EasCommand {
         }),
       };
     });
+  }
+
+  private async createPublishPreviewAsync(projectDir: string): Promise<void> {
+    const targetFilePath = path.join(projectDir, '.eas/workflows/publish-preview.yml');
+    await fs.mkdirp(path.dirname(targetFilePath));
+
+    const templatePath = path.join(__dirname, 'templates', 'publish-preview.yml');
+    const templateContent = await fs.readFile(templatePath, 'utf8');
+
+    await fs.writeFile(targetFilePath, templateContent);
+    Log.log('✅ Created publish preview workflow file');
+  }
+
+  private async configureProjectAsync(
+    projectDir: string,
+    projectId: string,
+    vcsClient: GitClient,
+    graphqlClient: ExpoGraphqlClient
+  ): Promise<void> {
+    // we want to overwrite the existing app.json from the default template
+    // configureProject... will handle updating it with what we need
+    const appJsonPath = path.join(projectDir, 'app.json');
+    await fs.writeFile(appJsonPath, JSON.stringify({ expo: {} }, null, 2));
+
+    const app = await AppQuery.byIdAsync(graphqlClient, projectId);
+    await configureProjectFromBareDefaultExpoTemplateAsync({
+      app,
+      vcsClient,
+      targetDir: projectDir,
+    });
+    await this.createPublishPreviewAsync(projectDir);
+
+    const packageJson = await fs.readJson(path.join(projectDir, 'package.json'));
+    packageJson.scripts.preview = 'npx eas-cli@latest workflow:run publish-preview.yml';
+    await fs.writeJson(path.join(projectDir, 'package.json'), packageJson, { spaces: 2 });
   }
 }

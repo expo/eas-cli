@@ -5,6 +5,7 @@ import {
   EnvironmentVariableEnvironment,
   EnvironmentVariableVisibility,
 } from '../graphql/generated';
+import { RequestedPlatform } from '../platform';
 import { promptAsync, selectAsync } from '../prompts';
 
 export async function promptVariableTypeAsync(
@@ -202,4 +203,31 @@ export async function promptVariableNameAsync(
   }
 
   return name;
+}
+
+export async function promptPlatformAsync({
+  message,
+}: {
+  message: string;
+}): Promise<RequestedPlatform> {
+  const { platform } = await promptAsync({
+    type: 'select',
+    message,
+    name: 'platform',
+    choices: [
+      {
+        title: 'All',
+        value: RequestedPlatform.All,
+      },
+      {
+        title: 'iOS',
+        value: RequestedPlatform.Ios,
+      },
+      {
+        title: 'Android',
+        value: RequestedPlatform.Android,
+      },
+    ],
+  });
+  return platform;
 }
