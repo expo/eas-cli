@@ -7,37 +7,19 @@ import {
   CreateBulkEnvironmentVariablesForAppMutation,
   CreateEnvironmentVariableForAccountMutation,
   CreateEnvironmentVariableForAppMutation,
+  CreateEnvironmentVariableInput,
+  CreateSharedEnvironmentVariableInput,
   DeleteEnvironmentVariableMutation,
-  EnvironmentSecretType,
-  EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
-  EnvironmentVariableVisibility,
+  UpdateEnvironmentVariableInput,
   UpdateEnvironmentVariableMutation,
 } from '../generated';
 import { EnvironmentVariableFragmentNode } from '../types/EnvironmentVariable';
 
-type CreateVariableArgs = {
-  value: string;
-  name: string;
-  visibility: EnvironmentVariableVisibility;
-  environments: EnvironmentVariableEnvironment[];
-  type: EnvironmentSecretType;
-  isGlobal?: boolean;
-  fileName?: string;
-};
-
-export type EnvironmentVariablePushInput = {
-  name: string;
-  value: string;
-  environments: EnvironmentVariableEnvironment[];
-  visibility: EnvironmentVariableVisibility;
-  overwrite?: boolean;
-};
-
 export const EnvironmentVariableMutation = {
   async createSharedVariableAsync(
     graphqlClient: ExpoGraphqlClient,
-    input: CreateVariableArgs,
+    input: CreateSharedEnvironmentVariableInput,
     accountId: string
   ): Promise<EnvironmentVariableFragment> {
     const data = await withErrorHandlingAsync(
@@ -69,7 +51,7 @@ export const EnvironmentVariableMutation = {
   },
   async createForAppAsync(
     graphqlClient: ExpoGraphqlClient,
-    input: CreateVariableArgs,
+    input: CreateEnvironmentVariableInput,
     appId: string
   ): Promise<EnvironmentVariableFragment> {
     const data = await withErrorHandlingAsync(
@@ -98,7 +80,7 @@ export const EnvironmentVariableMutation = {
   },
   async updateAsync(
     graphqlClient: ExpoGraphqlClient,
-    input: Partial<CreateVariableArgs> & { id: string }
+    input: UpdateEnvironmentVariableInput
   ): Promise<EnvironmentVariableFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -143,7 +125,7 @@ export const EnvironmentVariableMutation = {
   },
   async createBulkEnvironmentVariablesForAppAsync(
     graphqlClient: ExpoGraphqlClient,
-    input: EnvironmentVariablePushInput[],
+    input: CreateEnvironmentVariableInput[],
     appId: string
   ): Promise<boolean> {
     await withErrorHandlingAsync(
