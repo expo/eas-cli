@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Improvements to workflow:validate. ([#3165](https://github.com/expo/eas-cli/pull/3165) by [@douglowder](https://github.com/douglowder))
 
+- Add `eas:new` command behind `hidden` flag. ([#3196](https://github.com/expo/eas-cli/pull/3196) by [@mackenco](https://github.com/mackenco))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
