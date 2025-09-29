@@ -15,6 +15,7 @@ import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { learnMore, link } from '../../log';
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../onboarding/git';
 import {
+  PackageManager,
   installDependenciesAsync,
   promptForPackageManagerAsync,
 } from '../../onboarding/installDependencies';
@@ -74,7 +75,7 @@ export async function cloneTemplateAsync(targetProjectDir: string): Promise<stri
   return finalTargetProjectDirectory;
 }
 
-export async function installProjectDependenciesAsync(projectDir: string): Promise<void> {
+export async function installProjectDependenciesAsync(projectDir: string): Promise<PackageManager> {
   const packageManager = await promptForPackageManagerAsync();
   await installDependenciesAsync({
     projectDir,
@@ -89,6 +90,7 @@ export async function installProjectDependenciesAsync(projectDir: string): Promi
       args: ['expo', 'install', dependency],
     });
   }
+  return packageManager;
 }
 
 export function getAccountChoices(
@@ -228,12 +230,10 @@ export async function generateAppConfigAsync(projectDir: string, app: AppFragmen
   )}.${slugPrefix}${stripInvalidCharactersForBundleIdentifier(app.slug)}`;
   const updateUrl = getEASUpdateURL(app.id, /* manifestHostOverride */ null);
 
-  const baseExpoConfig = JSON.parse('{"expo": {}}').expo;
-
   const expoConfig: ExpoConfig = {
-    ...baseExpoConfig,
     name: app.name ?? app.slug,
     slug: app.slug,
+    scheme: stripInvalidCharactersForBundleIdentifier(app.name ?? app.slug),
     extra: {
       eas: {
         projectId: app.id,
@@ -247,17 +247,15 @@ export async function generateAppConfigAsync(projectDir: string, app: AppFragmen
       policy: 'appVersion',
     },
     ios: {
-      ...baseExpoConfig.ios,
       bundleIdentifier,
     },
     android: {
-      ...baseExpoConfig.android,
       package: bundleIdentifier,
     },
   };
 
   const appJsonPath = path.join(projectDir, 'app.json');
-  await fs.writeFile(appJsonPath, `${JSON.stringify({ expo: expoConfig }, null, 2)}\n`);
+  await fs.writeJson(appJsonPath, { expo: expoConfig }, { spaces: 2 });
   Log.withTick(
     `Generated ${chalk.bold('app.json')}. ${learnMore(
       'https://docs.expo.dev/versions/latest/config/app/'
@@ -310,7 +308,7 @@ export async function generateEasConfigAsync(projectDir: string): Promise<void> 
   };
 
   const easJsonPath = path.join(projectDir, 'eas.json');
-  await fs.writeFile(easJsonPath, `${JSON.stringify(easJson, null, 2)}\n`);
+  await fs.writeJson(easJsonPath, easJson, { spaces: 2 });
   Log.withTick(
     `Generated ${chalk.bold('eas.json')}. ${learnMore(
       'https://docs.expo.dev/build-reference/eas-json/'
@@ -391,6 +389,13 @@ export async function initializeGitRepositoryAsync(projectDir: string): Promise<
   }
 }
 
+export const formatScriptCommand = (script: string, packageManager: PackageManager): string => {
+  if (packageManager === 'npm') {
+    return `npm run ${script}`;
+  }
+  return `${packageManager} ${script}`;
+};
+
 export default class New extends EasCommand {
   static override aliases = ['new'];
 
@@ -430,7 +435,7 @@ export default class New extends EasCommand {
     );
     const projectDirectory = await cloneTemplateAsync(targetProjectDirectory);
 
-    await installProjectDependenciesAsync(projectDirectory);
+    const packageManager = await installProjectDependenciesAsync(projectDirectory);
 
     const projectId = await createProjectAsync(graphqlClient, actor, projectDirectory);
 
@@ -440,6 +445,25 @@ export default class New extends EasCommand {
     await initializeGitRepositoryAsync(projectDirectory);
 
     Log.log('🎉 We finished creating your new project.');
+    Log.log('Next steps:');
+    Log.withInfo(`Run \`cd ${projectDirectory}\` to navigate to your project.`);
+    Log.withInfo(
+      `Run \`${formatScriptCommand(
+        'preview',
+        packageManager
+      )}\` to create a preview build on EAS. ${learnMore(
+        'https://docs.expo.dev/eas/workflows/examples/publish-preview-update/'
+      )}`
+    );
+    Log.withInfo(
+      `Run \`${formatScriptCommand(
+        'start',
+        packageManager
+      )}\` to start developing locally. ${learnMore(
+        'https://docs.expo.dev/get-started/start-developing/'
+      )}`
+    );
+    Log.withInfo(`See the README.md for more information about your project.`);
     Log.newLine();
   }
 }
