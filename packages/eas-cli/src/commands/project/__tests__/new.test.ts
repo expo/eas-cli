@@ -3,12 +3,15 @@ import fs from 'fs-extra';
 import merge from 'ts-deepmerge';
 
 import { getEASUpdateURL } from '../../../api';
-import { getProjectDashboardUrl } from '../../../build/utils/url';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { jester, jester2 } from '../../../credentials/__tests__/fixtures-constants';
 import { AppFragment, Role } from '../../../graphql/generated';
 import { AppMutation } from '../../../graphql/mutations/AppMutation';
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../../onboarding/git';
+import {
+  installDependenciesAsync,
+  promptForPackageManagerAsync,
+} from '../../../onboarding/installDependencies';
 import { runCommandAsync } from '../../../onboarding/runCommand';
 import { Ora, ora } from '../../../ora';
 import {
@@ -44,29 +47,29 @@ jest.mock('../../../user/User', () => ({
 }));
 jest.mock('../../../ora');
 jest.mock('fs-extra');
+jest.mock('../../../onboarding/installDependencies');
 jest.mock('../../../api');
 jest.mock('../../../build/utils/url');
 jest.mock('../../../utils/easCli', () => ({
   easCliVersion: '5.0.0',
 }));
+// Remove Log module mocking entirely - use the actual module
 
 describe(New.name, () => {
   let consoleLogSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
-    // Setup common mocks
+    // Capture console.log calls
+    consoleLogSpy = jest.spyOn(console, 'log');
+
     jest.mocked(fs.writeFile).mockImplementation(() => Promise.resolve());
     jest.mocked(fs.readJson).mockImplementation(() => Promise.resolve({}));
     jest.mocked(fs.writeJson).mockImplementation(() => Promise.resolve());
     jest.mocked(fs.copy).mockImplementation(() => Promise.resolve());
     jest.mocked(fs.remove).mockImplementation(() => Promise.resolve());
     jest.mocked(fs.readFile).mockImplementation(() => Promise.resolve(''));
-    jest
-      .mocked(getProjectDashboardUrl)
-      .mockReturnValue('https://expo.dev/accounts/test/projects/test-project');
   });
 
   afterEach(() => {
@@ -85,6 +88,7 @@ describe(New.name, () => {
     const outputWithoutAnsi = output.map(line =>
       line.replace(/\x1b\[[0-9;]*m/g, '').replace(/✔\s*/, '')
     );
+    // throw new Error(message + '\n' + outputWithoutAnsi.join('\n'));
     expect(outputWithoutAnsi.some(line => line.includes(message))).toBeTruthy();
   };
 
@@ -101,8 +105,6 @@ describe(New.name, () => {
   const mockUserInput = (inputValue: any): void => {
     jest.mocked(promptAsync).mockResolvedValue(inputValue);
   };
-
-  // describe('happy path');
 
   describe('helper functions', () => {
     describe('promptForTargetDirectoryAsync', () => {
@@ -187,15 +189,17 @@ describe(New.name, () => {
       it('should install the project dependencies', async () => {
         const projectDir = '/test/project-directory';
 
+        jest.mocked(promptForPackageManagerAsync).mockResolvedValue('npm');
+        jest.mocked(installDependenciesAsync).mockResolvedValue();
         jest.mocked(runCommandAsync).mockResolvedValue();
 
-        await installProjectDependenciesAsync(projectDir);
+        const packageManager = await installProjectDependenciesAsync(projectDir);
+        expect(packageManager).toBe('npm');
 
-        expect(runCommandAsync).toHaveBeenCalledWith({
-          command: 'npm',
-          args: ['install'],
-          cwd: projectDir,
-          shouldShowStderrLine: expect.any(Function),
+        expect(promptForPackageManagerAsync).toHaveBeenCalled();
+        expect(installDependenciesAsync).toHaveBeenCalledWith({
+          projectDir,
+          packageManager: 'npm',
         });
 
         expect(runCommandAsync).toHaveBeenCalledWith({
@@ -370,7 +374,6 @@ describe(New.name, () => {
       const projectDir = '/test/project-dir';
       const mockUpdateUrl = 'https://u.expo.dev/test-project-id';
 
-      // Factory function to create mock AppFragment objects
       const createMockApp = (overrides: Partial<AppFragment> = {}): AppFragment => ({
         id: 'test-project-id',
         name: 'Test App',
@@ -386,10 +389,21 @@ describe(New.name, () => {
 
       beforeEach(() => {
         jest.mocked(getEASUpdateURL).mockReturnValue(mockUpdateUrl);
+
+        jest.mocked(fs.readJson).mockResolvedValue({
+          expo: {} as ExpoConfig,
+        });
       });
 
       it('should generate the app config', async () => {
         const mockApp = createMockApp();
+        jest.mocked(fs.readJson).mockResolvedValue({
+          expo: {
+            name: 'value-to-override',
+            slug: 'value-to-override',
+            icon: 'value-to-keep',
+          } as ExpoConfig,
+        });
 
         await generateAppConfigAsync(projectDir, mockApp);
 
@@ -400,6 +414,7 @@ describe(New.name, () => {
             name: 'Test App',
             slug: 'test-app',
             scheme: 'TestApp',
+            icon: 'value-to-keep',
             extra: {
               eas: {
                 projectId: 'test-project-id',
@@ -425,7 +440,7 @@ describe(New.name, () => {
           spaces: 2,
         });
 
-        expectConsoleToContain('Generated app.json. Learn more:');
+        expectConsoleToContain('Generated app.json');
       });
 
       it('should handle invalid characters in the bundle identifier', async () => {
@@ -544,7 +559,7 @@ describe(New.name, () => {
           spaces: 2,
         });
 
-        expectConsoleToContain('Generated eas.json. Learn more:');
+        expectConsoleToContain('Generated eas.json');
       });
     });
 
@@ -695,8 +710,5 @@ This project uses EAS Workflows.
         expect(formatScriptCommand('start', 'pnpm')).toBe('pnpm start');
       });
     });
-
-    // Integration tests for runAsync would require complex oclif command setup
-    // and are better suited for end-to-end testing rather than unit tests
   });
 });

@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 import path from 'path';
+import merge from 'ts-deepmerge';
 
 import { getEASUpdateURL } from '../../api';
 import { getProjectDashboardUrl } from '../../build/utils/url';
@@ -230,6 +231,7 @@ export async function generateAppConfigAsync(projectDir: string, app: AppFragmen
   )}.${slugPrefix}${stripInvalidCharactersForBundleIdentifier(app.slug)}`;
   const updateUrl = getEASUpdateURL(app.id, /* manifestHostOverride */ null);
 
+  const { expo: baseExpoConfig } = await fs.readJson(path.join(projectDir, 'app.json'));
   const expoConfig: ExpoConfig = {
     name: app.name ?? app.slug,
     slug: app.slug,
@@ -253,9 +255,10 @@ export async function generateAppConfigAsync(projectDir: string, app: AppFragmen
       package: bundleIdentifier,
     },
   };
+  const mergedConfig = merge(baseExpoConfig, expoConfig);
 
   const appJsonPath = path.join(projectDir, 'app.json');
-  await fs.writeJson(appJsonPath, { expo: expoConfig }, { spaces: 2 });
+  await fs.writeJson(appJsonPath, { expo: mergedConfig }, { spaces: 2 });
   Log.withTick(
     `Generated ${chalk.bold('app.json')}. ${learnMore(
       'https://docs.expo.dev/versions/latest/config/app/'
