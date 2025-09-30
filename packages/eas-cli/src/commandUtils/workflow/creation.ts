@@ -41,7 +41,7 @@ const CUSTOM_TEMPLATE = {
         },
         {
           name: 'Hello World',
-          id: 'hello-world',
+          id: 'hello_world',
           run: '# Custom script\necho "Hello, World"\n',
         },
       ],
@@ -65,6 +65,9 @@ const PUBLISH_UPDATE_TEMPLATE = {
     push: {
       branches: ['main'],
     },
+    pull_request: {
+      branches: ['main'],
+    },
   },
   jobs: {},
 };
@@ -84,11 +87,26 @@ const MAESTRO_TEST_TEMPLATE = {
         profile: '<selected_build_profile>', // will be replaced by the user's selection
       },
     },
-    maestro_test: {
+    maestro_test_android: {
       needs: ['build_android_for_e2e'],
       type: 'maestro',
       params: {
         build_id: '${{ needs.build_android_for_e2e.outputs.build_id }}',
+        flow_path: ['.maestro/home.yml'],
+      },
+    },
+    build_ios_for_e2e: {
+      type: 'build',
+      params: {
+        platform: 'ios',
+        profile: '<selected_build_profile>', // will be replaced by the user's selection
+      },
+    },
+    maestro_test_ios: {
+      needs: ['build_ios_for_e2e'],
+      type: 'maestro',
+      params: {
+        build_id: '${{ needs.build_ios_for_e2e.outputs.build_id }}',
         flow_path: ['.maestro/home.yml'],
       },
     },
@@ -245,6 +263,7 @@ async function modifyMaestroTestTemplateAsync(
   });
   const newTemplate = { ...workflowTemplate.template };
   newTemplate.jobs.build_android_for_e2e.params.profile = selectedProfile;
+  newTemplate.jobs.build_ios_for_e2e.params.profile = selectedProfile;
   return { ...workflowTemplate, template: newTemplate };
 }
 
