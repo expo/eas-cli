@@ -1,7 +1,7 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "16.19.3",
+  "version": "16.20.0",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
@@ -85,8 +85,8 @@
     "tar": "6.2.1",
     "tar-stream": "3.1.7",
     "terminal-link": "2.1.1",
-    "tslib": "2.6.2",
     "ts-deepmerge": "6.2.0",
+    "tslib": "2.6.2",
     "turndown": "7.1.2",
     "untildify": "4.0.0",
     "uuid": "9.0.1",
