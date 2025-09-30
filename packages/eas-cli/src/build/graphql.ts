@@ -45,7 +45,7 @@ export function transformMetadata({
   fingerprintSource,
 }: {
   metadata: Metadata;
-  fingerprintSource: FingerprintSourceInput | null;
+  fingerprintSource: FingerprintSourceInput | undefined;
 }): BuildMetadataInput {
   return {
     ...metadata,

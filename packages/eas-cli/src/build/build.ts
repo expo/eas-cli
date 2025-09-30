@@ -196,7 +196,7 @@ export async function prepareBuildRequestForPlatformAsync<
         buildId: nullthrows(process.env.EAS_BUILD_ID),
         metadata: transformMetadata({
           metadata,
-          fingerprintSource: runtimeAndFingerprintMetadata.fingerprintSource ?? null,
+          fingerprintSource: runtimeAndFingerprintMetadata.fingerprintSource ?? undefined,
         }),
       });
       printJsonOnlyOutput({ job, metadata });
@@ -205,7 +205,7 @@ export async function prepareBuildRequestForPlatformAsync<
       try {
         const graphqlMetadata = transformMetadata({
           metadata,
-          fingerprintSource: runtimeAndFingerprintMetadata.fingerprintSource ?? null,
+          fingerprintSource: runtimeAndFingerprintMetadata.fingerprintSource ?? undefined,
         });
         return await sendBuildRequestAsync(builder, job, graphqlMetadata, buildParams);
       } catch (error: any) {
