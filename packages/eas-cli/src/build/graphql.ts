@@ -18,7 +18,6 @@ import {
   FingerprintSourceInput,
   BuildMode as GraphQLBuildMode,
   BuildTrigger as GraphQLBuildTrigger,
-  FingerprintSourceType as GraphQLFingeprintSourceType,
   ProjectArchiveSourceInput,
   ProjectArchiveSourceType,
   WorkerLoggerLevel,
