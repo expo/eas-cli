@@ -50,6 +50,7 @@ import { createFingerprintAsync } from '../fingerprint/cli';
 import {
   AppPlatform,
   BuildFragment,
+  BuildMetadataInput,
   BuildParamsInput,
   BuildPriority,
   BuildStatus,
@@ -94,7 +95,7 @@ interface Builder<TPlatform extends Platform, Credentials, TJob extends BuildJob
   sendBuildRequestAsync(
     appId: string,
     job: TJob,
-    metadata: Metadata,
+    metadata: BuildMetadataInput,
     buildParams: BuildParamsInput
   ): Promise<BuildResult>;
 }
@@ -199,7 +200,8 @@ export async function prepareBuildRequestForPlatformAsync<
       return undefined;
     } else if (!ctx.localBuildOptions.localBuildMode) {
       try {
-        return await sendBuildRequestAsync(builder, job, metadata, buildParams);
+        const graphqlMetadata = transformMetadata(metadata);
+        return await sendBuildRequestAsync(builder, job, graphqlMetadata, buildParams);
       } catch (error: any) {
         handleBuildRequestError(error, job.platform);
       }
@@ -362,7 +364,7 @@ async function sendBuildRequestAsync<
 >(
   builder: Builder<TPlatform, Credentials, TJob>,
   job: TJob,
-  metadata: Metadata,
+  graphqlMetadata: BuildMetadataInput,
   buildParams: BuildParamsInput
 ): Promise<BuildFragment> {
   const { ctx } = builder;
@@ -376,7 +378,7 @@ async function sendBuildRequestAsync<
       const { build, deprecationInfo } = await builder.sendBuildRequestAsync(
         ctx.projectId,
         job,
-        metadata,
+        graphqlMetadata,
         buildParams
       );
 
