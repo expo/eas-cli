@@ -86,6 +86,7 @@
     "tar-stream": "3.1.7",
     "terminal-link": "2.1.1",
     "tslib": "2.6.2",
+    "ts-deepmerge": "6.2.0",
     "turndown": "7.1.2",
     "untildify": "4.0.0",
     "uuid": "9.0.1",
@@ -126,7 +127,6 @@
     "mockdate": "3.0.5",
     "nock": "13.4.0",
     "rimraf": "3.0.2",
-    "ts-deepmerge": "6.2.0",
     "ts-mockito": "2.6.1",
     "ts-node": "10.9.2",
     "typescript": "5.3.3"

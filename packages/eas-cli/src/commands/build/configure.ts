@@ -10,10 +10,10 @@ import Log, { learnMore } from '../../log';
 import { RequestedPlatform } from '../../platform';
 import { isExpoUpdatesInstalled, isUsingEASUpdate } from '../../project/projectUtils';
 import { resolveWorkflowAsync } from '../../project/workflow';
-import { promptAsync } from '../../prompts';
 import { syncUpdatesConfigurationAsync as syncAndroidUpdatesConfigurationAsync } from '../../update/android/UpdatesModule';
 import { ensureEASUpdateIsConfiguredInEasJsonAsync } from '../../update/configure';
 import { syncUpdatesConfigurationAsync as syncIosUpdatesConfigurationAsync } from '../../update/ios/UpdatesModule';
+import { promptPlatformAsync } from '../../utils/prompts';
 
 export default class BuildConfigure extends EasCommand {
   static override description = 'configure the project to support EAS Build';
@@ -113,24 +113,7 @@ export default class BuildConfigure extends EasCommand {
 
 async function promptForPlatformAsync(): Promise<RequestedPlatform> {
   Log.addNewLineIfNone();
-  const { platform } = await promptAsync({
-    type: 'select',
+  return await promptPlatformAsync({
     message: 'Which platforms would you like to configure for EAS Build?',
-    name: 'platform',
-    choices: [
-      {
-        title: 'All',
-        value: RequestedPlatform.All,
-      },
-      {
-        title: 'iOS',
-        value: RequestedPlatform.Ios,
-      },
-      {
-        title: 'Android',
-        value: RequestedPlatform.Android,
-      },
-    ],
   });
-  return platform;
 }
