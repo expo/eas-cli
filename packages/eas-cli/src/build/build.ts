@@ -2,7 +2,6 @@ import {
   ArchiveSource,
   ArchiveSourceType,
   BuildJob,
-  FingerprintSource,
   Metadata,
   Platform,
 } from '@expo/eas-build-job';
@@ -54,6 +53,7 @@ import {
   BuildParamsInput,
   BuildPriority,
   BuildStatus,
+  FingerprintSourceInput,
   UploadSessionType,
 } from '../graphql/generated';
 import { BuildMutation, BuildResult } from '../graphql/mutations/BuildMutation';
@@ -194,13 +194,19 @@ export async function prepareBuildRequestForPlatformAsync<
     } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
       await BuildMutation.updateBuildMetadataAsync(ctx.graphqlClient, {
         buildId: nullthrows(process.env.EAS_BUILD_ID),
-        metadata: transformMetadata(metadata),
+        metadata: transformMetadata({
+          metadata,
+          fingerprintSource: runtimeAndFingerprintMetadata.fingerprintSource ?? null,
+        }),
       });
       printJsonOnlyOutput({ job, metadata });
       return undefined;
     } else if (!ctx.localBuildOptions.localBuildMode) {
       try {
-        const graphqlMetadata = transformMetadata(metadata);
+        const graphqlMetadata = transformMetadata({
+          metadata,
+          fingerprintSource: runtimeAndFingerprintMetadata.fingerprintSource ?? null,
+        });
         return await sendBuildRequestAsync(builder, job, graphqlMetadata, buildParams);
       } catch (error: any) {
         handleBuildRequestError(error, job.platform);
@@ -656,7 +662,7 @@ async function computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync<T extends
 ): Promise<{
   runtimeVersion?: string | undefined;
   fingerprintHash?: string | undefined;
-  fingerprintSource?: FingerprintSource | undefined;
+  fingerprintSource?: FingerprintSourceInput | undefined;
 }> {
   const runtimeAndFingerprintMetadata =
     await computeAndMaybeUploadFingerprintFromExpoUpdatesAsync(ctx);
@@ -678,7 +684,7 @@ async function computeAndMaybeUploadFingerprintFromExpoUpdatesAsync<T extends Pl
   ctx: BuildContext<T>
 ): Promise<{
   runtimeVersion?: string;
-  fingerprintSource?: FingerprintSource;
+  fingerprintSource?: FingerprintSourceInput;
   fingerprintHash?: string;
 }> {
   const resolvedRuntimeVersion = await resolveRuntimeVersionAsync({
@@ -725,7 +731,7 @@ async function computeAndMaybeUploadFingerprintWithoutExpoUpdatesAsync<T extends
   { debug }: { debug?: boolean } = {}
 ): Promise<{
   fingerprintHash?: string;
-  fingerprintSource?: FingerprintSource;
+  fingerprintSource?: FingerprintSourceInput;
 }> {
   const fingerprint = await createFingerprintAsync(ctx.projectDir, {
     workflow: ctx.workflow,

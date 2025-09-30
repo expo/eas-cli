@@ -1,4 +1,4 @@
-import { FingerprintSource, Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
+import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
@@ -22,7 +22,6 @@ export async function collectMetadataAsync<T extends Platform>(
   runtimeAndFingerprintMetadata: {
     runtimeVersion?: string | undefined;
     fingerprintHash?: string | undefined;
-    fingerprintSource?: FingerprintSource | undefined;
   }
 ): Promise<Metadata> {
   const channelObject = await resolveChannelAsync(ctx);
@@ -36,7 +35,6 @@ export async function collectMetadataAsync<T extends Platform>(
     sdkVersion: ctx.exp.sdkVersion,
     runtimeVersion: runtimeAndFingerprintMetadata?.runtimeVersion,
     fingerprintHash: runtimeAndFingerprintMetadata?.fingerprintHash,
-    fingerprintSource: runtimeAndFingerprintMetadata?.fingerprintSource,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
     ...channelObject,
     distribution,

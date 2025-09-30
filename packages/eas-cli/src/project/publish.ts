@@ -1,6 +1,6 @@
 import { ExpoConfig, Platform as ExpoConfigPlatform } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
-import { Env, FingerprintSource, Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import JsonFile from '@expo/json-file';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -25,6 +25,7 @@ import {
   AppPlatform,
   AssetMetadataStatus,
   BuildFragment,
+  FingerprintSourceInput,
   PartialManifestAsset,
   UpdateRolloutInfo,
   UpdateRolloutInfoGroup,
@@ -749,7 +750,7 @@ type FingerprintInfoGroup = {
 
 type FingerprintInfo = {
   fingerprintHash: string;
-  fingerprintSource: FingerprintSource;
+  fingerprintSource: FingerprintSourceInput;
 };
 
 export async function getRuntimeVersionInfoObjectsAsync({
@@ -904,14 +905,14 @@ export async function maybeCalculateFingerprintForRuntimeVersionInfoObjectsWitho
   graphqlClient: ExpoGraphqlClient;
   runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping: (RuntimeVersionInfo & {
     platforms: UpdatePublishPlatform[];
-    expoUpdatesRuntimeFingerprintSource: FingerprintSource | null;
+    expoUpdatesRuntimeFingerprintSource: FingerprintSourceInput | null;
   })[];
   workflowsByPlatform: Record<Platform, Workflow>;
   env: Env | undefined;
 }): Promise<
   (RuntimeVersionInfo & {
     platforms: UpdatePublishPlatform[];
-    expoUpdatesRuntimeFingerprintSource: FingerprintSource | null;
+    expoUpdatesRuntimeFingerprintSource: FingerprintSourceInput | null;
     fingerprintInfoGroup: FingerprintInfoGroup;
   })[]
 > {
@@ -959,7 +960,7 @@ export async function maybeCalculateFingerprintForRuntimeVersionInfoObjectsWitho
     for (const platform of runtimeInfo.platforms) {
       const runtimeAndPlatform = `${runtimeInfo.runtimeVersion}-${platform}`;
       const fingerprint = uploadedFingerprintsByRuntimeAndPlatform.get(runtimeAndPlatform);
-      if (fingerprint && fingerprint.uploadedSource) {
+      if (fingerprint?.uploadedSource) {
         fingerprintInfoGroup[platform] = {
           fingerprintHash: fingerprint.hash,
           fingerprintSource: fingerprint.uploadedSource,
@@ -980,7 +981,7 @@ export async function maybeCalculateFingerprintForRuntimeVersionInfoObjectsWitho
           infoGroup
         ): infoGroup is RuntimeVersionInfo & {
           platforms: UpdatePublishPlatform[];
-          expoUpdatesRuntimeFingerprintSource: FingerprintSource;
+          expoUpdatesRuntimeFingerprintSource: FingerprintSourceInput;
           expoUpdatesRuntimeFingerprintHash: string;
         } =>
           !!infoGroup.expoUpdatesRuntimeFingerprintHash &&

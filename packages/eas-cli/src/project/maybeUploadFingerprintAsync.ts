@@ -1,11 +1,14 @@
-import { FingerprintSource, FingerprintSourceType } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import { LocalBuildMode } from '../build/local';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { UploadSessionType } from '../graphql/generated';
+import {
+  FingerprintSourceInput,
+  FingerprintSourceType,
+  UploadSessionType,
+} from '../graphql/generated';
 import Log from '../log';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
 import { getTmpDirectory } from '../utils/paths';
@@ -25,8 +28,15 @@ export async function maybeUploadFingerprintAsync({
   localBuildMode?: LocalBuildMode;
 }): Promise<{
   hash: string;
-  fingerprintSource?: FingerprintSource;
+  fingerprintSource?: FingerprintSourceInput;
 }> {
+  if (localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
+    // We're not uploading local build fingerprints to EAS
+    return {
+      hash,
+    };
+  }
+
   await fs.mkdirp(getTmpDirectory());
   const fingerprintLocation = path.join(getTmpDirectory(), `${uuidv4()}-runtime-fingerprint.json`);
 
@@ -34,17 +44,6 @@ export async function maybeUploadFingerprintAsync({
     hash,
     sources: fingerprint.fingerprintSources,
   });
-
-  if (localBuildMode === LocalBuildMode.LOCAL_BUILD_PLUGIN) {
-    return {
-      hash,
-      fingerprintSource: {
-        type: FingerprintSourceType.PATH,
-        path: fingerprintLocation,
-        isDebugFingerprint: fingerprint.isDebugFingerprintSource,
-      },
-    };
-  }
 
   let fingerprintGCSBucketKey = undefined;
   try {
@@ -71,7 +70,7 @@ export async function maybeUploadFingerprintAsync({
   return {
     hash,
     fingerprintSource: {
-      type: FingerprintSourceType.GCS,
+      type: FingerprintSourceType.Gcs,
       bucketKey: fingerprintGCSBucketKey,
       isDebugFingerprint: fingerprint.isDebugFingerprintSource,
     },

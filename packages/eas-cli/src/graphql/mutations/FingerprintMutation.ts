@@ -1,17 +1,20 @@
-import { FingerprintSource } from '@expo/eas-build-job';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
-import { CreateFingeprintMutation, FingerprintFragment } from '../generated';
+import {
+  CreateFingeprintMutation,
+  FingerprintFragment,
+  FingerprintSourceInput,
+} from '../generated';
 import { FingerprintFragmentNode } from '../types/Fingerprint';
 
 export const FingerprintMutation = {
   async createFingerprintAsync(
     graphqlClient: ExpoGraphqlClient,
     appId: string,
-    fingerprintData: { hash: string; source?: FingerprintSource }
+    fingerprintData: { hash: string; source?: FingerprintSourceInput }
   ): Promise<FingerprintFragment> {
     const data = await withErrorHandlingAsync(
       graphqlClient
