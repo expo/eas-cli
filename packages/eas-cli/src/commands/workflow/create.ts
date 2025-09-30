@@ -3,12 +3,9 @@ import chalk from 'chalk';
 import fs from 'fs/promises';
 import fsExtra from 'fs-extra';
 import path from 'path';
-import prompts from 'prompts';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
-  WorkflowStarter,
-  WorkflowStarterName,
   customizeTemplateIfNeededAsync,
   workflowStarters,
 } from '../../commandUtils/workflow/creation';
@@ -33,10 +30,6 @@ export class WorkflowCreate extends EasCommand {
   ];
 
   static override flags = {
-    template: Flags.enum({
-      description: 'Name of the template to use',
-      options: Object.values(WorkflowStarterName),
-    }),
     'skip-validation': Flags.boolean({
       description: 'If set, the workflow file will not be validated before being created',
       default: false,
@@ -69,48 +62,44 @@ export class WorkflowCreate extends EasCommand {
         await getDynamicPrivateProjectConfigAsync();
 
       let fileName = argFileName;
+      let filePath;
 
-      let workflowStarter: WorkflowStarter;
-      if (flags.template) {
-        workflowStarter =
-          workflowStarters.find(template => template.name === flags.template) ??
-          workflowStarters[0];
-      } else {
-        workflowStarter = (
+      let workflowStarter = (
+        await promptAsync({
+          type: 'select',
+          name: 'starter',
+          message: 'Select a workflow template:',
+          choices: workflowStarters.map(starter => ({
+            title: starter.displayName,
+            value: starter,
+          })),
+        })
+      ).starter;
+
+      while ((fileName?.length ?? 0) === 0) {
+        fileName = (
           await promptAsync({
-            type: 'select',
-            name: 'starter',
-            message: 'Select a workflow template:',
-            choices: workflowStarters.map(starter => ({
-              title: starter.displayName,
-              value: starter,
-            })),
+            type: 'text',
+            name: 'fileName',
+            message: 'What would you like to name your workflow file?',
+            initial: workflowStarter.defaultFileName,
           })
-        ).starter;
-      }
-
-      if (!fileName) {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const response = await prompts({
-          type: 'text',
-          name: 'fileName',
-          message: 'What would you like to name your workflow file?',
-          initial: workflowStarter.defaultFileName,
-          validate: value => {
-            try {
-              WorkflowFile.validateYamlExtension(value);
-              return true;
-            } catch (error) {
-              return error instanceof Error ? error.message : 'Invalid file name';
-            }
-          },
-        });
-        if (!response.fileName) {
-          Log.warn('Workflow creation cancelled.');
-          process.exit(0);
+        ).fileName;
+        try {
+          WorkflowFile.validateYamlExtension(fileName);
+        } catch (error) {
+          Log.error(error instanceof Error ? error.message : 'Invalid YAML file name extension');
+          filePath = undefined;
+          fileName = undefined;
         }
-
-        fileName = response.fileName;
+        filePath = path.join(projectDir, '.eas', 'workflows', fileName);
+        if (await fsExtra.pathExists(filePath)) {
+          Log.error(`Workflow file already exists: ${filePath}`);
+          Log.error('Please choose a different file name.');
+          Log.newLine();
+          filePath = undefined;
+          fileName = undefined;
+        }
       }
 
       // Customize the template if needed
@@ -135,7 +124,8 @@ export class WorkflowCreate extends EasCommand {
         );
       }
       await this.ensureWorkflowsDirectoryExistsAsync({ projectDir });
-      await this.createWorkflowFileAsync({ fileName, projectDir, yamlString });
+      filePath && (await fs.writeFile(filePath, yamlString));
+      Log.withTick(`Created ${chalk.bold(filePath)}`);
     } catch (error) {
       logWorkflowValidationErrors(error);
       Log.error('Failed to create workflow file.');
@@ -153,26 +143,5 @@ export class WorkflowCreate extends EasCommand {
       await fs.mkdir(path.join(projectDir, '.eas', 'workflows'), { recursive: true });
       Log.withTick(`Created directory ${chalk.bold(path.join(projectDir, '.eas', 'workflows'))}`);
     }
-  }
-
-  private async createWorkflowFileAsync({
-    fileName,
-    projectDir,
-    yamlString,
-  }: {
-    fileName: string;
-    projectDir: string;
-    yamlString: string;
-  }): Promise<void> {
-    WorkflowFile.validateYamlExtension(fileName);
-
-    const filePath = path.join(projectDir, '.eas', 'workflows', fileName);
-
-    if (await fsExtra.pathExists(filePath)) {
-      throw new Error(`Workflow file already exists: ${filePath}`);
-    }
-
-    await fs.writeFile(filePath, yamlString);
-    Log.withTick(`Created ${chalk.bold(filePath)}`);
   }
 }
