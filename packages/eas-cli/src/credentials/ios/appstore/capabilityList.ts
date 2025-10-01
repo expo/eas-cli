@@ -12,6 +12,8 @@ import { JSONObject, JSONValue } from '@expo/json-file';
 import { invariant } from 'graphql/jsutils/invariant';
 import nullthrows from 'nullthrows';
 
+import Log from '../../../log';
+
 const validateBooleanOptions = (options: any): boolean => {
   return typeof options === 'boolean';
 };
@@ -86,21 +88,32 @@ const capabilityWithSettingsSyncOperation: GetSyncOperation = ({
   if (!existingRemote) {
     return enableOp;
   }
-  invariant(
-    'enabled' in existingRemote.attributes,
-    `Expected "enabled" attribute in ${existingRemote.id}`
-  );
-  const existingEnabled = existingRemote.attributes.enabled === true;
-  const newOption = entitlementValue ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF;
+  const { attributes, id } = existingRemote;
+  if ('enabled' in attributes) {
+    // the `enabled` field should be available as per https://developer.apple.com/documentation/appstoreconnectapi/capabilitysetting
+    const existingEnabled = attributes.enabled === true;
 
-  // If both are enabled and the existing one has settings, skip the update
-  if (existingEnabled && entitlementValue && existingRemote.attributes.settings) {
+    // If both are enabled and the existing one has settings, skip the update
+    if (existingEnabled && entitlementValue && attributes.settings) {
+      return skipOp;
+    }
+
+    const newOption = entitlementValue ? CapabilityTypeOption.ON : CapabilityTypeOption.OFF;
+    // If the states don't match, we need to update
+    const newEnabled = newOption === CapabilityTypeOption.ON;
+    return existingEnabled === newEnabled ? skipOp : { op: 'enable', option: newOption };
+  } else {
+    if (Log.isDebug) {
+      Log.log(
+        `Expected the "enabled" attribute in ${id} but it was not present (attributes: ${JSON.stringify(
+          attributes,
+          null,
+          2
+        )}). Will skip syncing this capability.`
+      );
+    }
     return skipOp;
   }
-
-  // If the states don't match, we need to update
-  const newEnabled = newOption === CapabilityTypeOption.ON;
-  return existingEnabled === newEnabled ? skipOp : { op: 'enable', option: newOption };
 };
 
 export type CapabilityClassifier = {
