@@ -23,7 +23,7 @@ export type WorkflowStarter = {
 };
 
 const CUSTOM_TEMPLATE = {
-  name: 'Custom build',
+  name: 'Custom workflow',
   on: {
     push: {
       branches: ['main'],
@@ -32,9 +32,6 @@ const CUSTOM_TEMPLATE = {
   jobs: {
     custom_build: {
       name: 'Custom build',
-      type: 'custom',
-      runs_on: 'linux-medium',
-      image: 'latest',
       steps: [
         {
           uses: 'eas/checkout',
@@ -122,10 +119,18 @@ export const workflowStarters: WorkflowStarter[] = [
     defaultFileName: 'custom.yml',
     template: CUSTOM_TEMPLATE,
     headerLines: [
-      '# This is a skeleton workflow, showing a custom job that executes',
-      '# both a predefined workflow step, and a custom script defined by the developer.',
-      '# See https://docs.expo.dev/eas/workflows/syntax/#jobsjob_idstepsstepuses for more information',
-      '# on the different types of steps you can use.',
+      '# Custom job',
+      '#',
+      '# This workflow shows how to write custom jobs.',
+      '# It contains a predefined workflow step and a shell command to print "Hello, World!".',
+      '#',
+      '# Key features:',
+      '# - Triggers on pushes to the main branch (Requires linked GitHub account: https://expo.dev/accounts/[account]/settings/github)',
+      '# - Can be triggered manually with eas workflow:run custom.yml',
+      '# - Runs eas/checkout then a custom `echo` command',
+      '#',
+      '# For detailed documentation on workflow syntax and available step types, visit:',
+      '# https://docs.expo.dev/eas/workflows/syntax/#jobsjob_idstepsstepuses',
       '#',
       createdByEASCLI,
       '#',
