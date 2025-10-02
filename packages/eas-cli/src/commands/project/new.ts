@@ -144,7 +144,7 @@ export async function createProjectAsync({
 
   const account = nullthrows(actor.accounts.find(a => a.name === projectAccount));
 
-  const spinner = ora(`Creating ${chalk.bold(projectLink)}`).start();
+  const spinner = ora(`Creating ${chalk.bold(projectFullName)}`).start();
   let projectId: string;
   try {
     projectId = await AppMutation.createAppAsync(graphqlClient, {
