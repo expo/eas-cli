@@ -17,7 +17,6 @@ import { easCliVersion } from '../../utils/easCli';
 export enum WorkflowStarterName {
   BUILD = 'build',
   UPDATE = 'update',
-  MAESTRO = 'maestro',
   CUSTOM = 'custom',
 }
 
@@ -74,47 +73,6 @@ const PUBLISH_UPDATE_TEMPLATE = {
     },
   },
   jobs: {},
-};
-
-const MAESTRO_TEST_TEMPLATE = {
-  name: 'Maestro E2E test for Android',
-  on: {
-    pull_request: {
-      branches: ['main'],
-    },
-  },
-  jobs: {
-    build_android_for_e2e: {
-      type: 'build',
-      params: {
-        platform: 'android',
-        profile: '<selected_build_profile>', // will be replaced by the user's selection
-      },
-    },
-    maestro_test_android: {
-      needs: ['build_android_for_e2e'],
-      type: 'maestro',
-      params: {
-        build_id: '${{ needs.build_android_for_e2e.outputs.build_id }}',
-        flow_path: ['.maestro/home.yml'],
-      },
-    },
-    build_ios_for_e2e: {
-      type: 'build',
-      params: {
-        platform: 'ios',
-        profile: '<selected_build_profile>', // will be replaced by the user's selection
-      },
-    },
-    maestro_test_ios: {
-      needs: ['build_ios_for_e2e'],
-      type: 'maestro',
-      params: {
-        build_id: '${{ needs.build_ios_for_e2e.outputs.build_id }}',
-        flow_path: ['.maestro/home.yml'],
-      },
-    },
-  },
 };
 
 const createdByEASCLI = `# Created by EAS CLI v${easCliVersion}`;
@@ -174,20 +132,6 @@ export const workflowStarters: WorkflowStarter[] = [
       '# using the update channels you have defined in eas.json.',
       '# See https://docs.expo.dev/eas/workflows/pre-packaged-jobs/#update ',
       '# for more information.',
-      '#',
-      createdByEASCLI,
-      '#',
-    ],
-  },
-  {
-    displayName: 'Maestro E2E test',
-    name: WorkflowStarterName.MAESTRO,
-    defaultFileName: 'maestro-test.yml',
-    template: MAESTRO_TEST_TEMPLATE,
-    headerLines: [
-      '# This workflow will run Maestro E2E tests for your app.',
-      '# See https://docs.expo.dev/eas/workflows/examples/e2e-tests/',
-      '# for a full-featured example of how to set up E2E tests.',
       '#',
       createdByEASCLI,
       '#',
@@ -347,29 +291,6 @@ export async function addBuildJobsToDevelopmentBuildTemplateAsync(
   return workflowTemplate;
 }
 
-async function modifyMaestroTestTemplateAsync(
-  workflowTemplate: WorkflowStarter,
-  projectDir: string
-): Promise<WorkflowStarter> {
-  const buildProfiles = [...(await buildProfileNamesFromProjectAsync(projectDir))];
-  if (buildProfiles.length === 0) {
-    return workflowTemplate;
-  }
-  const { selectedProfile } = await promptAsync({
-    type: 'select',
-    name: 'selectedProfile',
-    message: 'Select a build profile to use for the Maestro E2E test',
-    choices: buildProfiles.map(profileName => ({
-      title: profileName,
-      value: profileName,
-    })),
-  });
-  const newTemplate = { ...workflowTemplate.template };
-  newTemplate.jobs.build_android_for_e2e.params.profile = selectedProfile;
-  newTemplate.jobs.build_ios_for_e2e.params.profile = selectedProfile;
-  return { ...workflowTemplate, template: newTemplate };
-}
-
 async function addUpdateJobsToTemplateAsync(
   workflowTemplate: WorkflowStarter,
   projectDir: string
@@ -423,9 +344,6 @@ export async function customizeTemplateIfNeededAsync(
     case WorkflowStarterName.BUILD:
       Log.debug('Adding build jobs to template...');
       return await addBuildJobsToDevelopmentBuildTemplateAsync(projectDir, workflowTemplate);
-    case WorkflowStarterName.MAESTRO:
-      Log.debug('Modifying Maestro test template...');
-      return await modifyMaestroTestTemplateAsync(workflowTemplate, projectDir);
     case WorkflowStarterName.UPDATE:
       if (!exp?.updates?.url) {
         throw new Error(
