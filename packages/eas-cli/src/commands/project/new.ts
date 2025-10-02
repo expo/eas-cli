@@ -1,6 +1,5 @@
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
-import './templates/readme-additions.md';
 
 import { getProjectDashboardUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
