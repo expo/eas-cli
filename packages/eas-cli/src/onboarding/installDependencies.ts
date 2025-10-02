@@ -1,16 +1,12 @@
 import { runCommandAsync } from './runCommand';
 import { selectAsync } from '../prompts';
 
-export type PackageManager = 'npm' | 'yarn' | 'pnpm';
+export type PackageManager = 'bun' | 'npm' | 'pnpm' | 'yarn';
 
 export async function promptForPackageManagerAsync(): Promise<PackageManager> {
   return await selectAsync(
     'Which package manager would you like to use?',
-    [
-      { title: 'npm', value: 'npm' },
-      { title: 'Yarn', value: 'yarn' },
-      { title: 'pnpm', value: 'pnpm' },
-    ],
+    (['bun', 'npm', 'pnpm', 'yarn'] as const).map(manager => ({ title: manager, value: manager })),
     { initial: 'npm' }
   );
 }

@@ -1,30 +1,21 @@
 import { ExpoConfig } from '@expo/config';
 import fs from 'fs-extra';
-import merge from 'ts-deepmerge';
 
 import { getEASUpdateURL } from '../../../api';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import { jester, jester2 } from '../../../credentials/__tests__/fixtures-constants';
+import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { AppFragment, Role } from '../../../graphql/generated';
-import { AppMutation } from '../../../graphql/mutations/AppMutation';
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../../onboarding/git';
 import {
   installDependenciesAsync,
   promptForPackageManagerAsync,
 } from '../../../onboarding/installDependencies';
 import { runCommandAsync } from '../../../onboarding/runCommand';
-import { Ora, ora } from '../../../ora';
-import {
-  createOrModifyExpoConfigAsync,
-  getPrivateExpoConfigAsync,
-} from '../../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { promptAsync } from '../../../prompts';
-import { Actor, getActorUsername } from '../../../user/User';
 import New, {
   cloneTemplateAsync,
   copyProjectTemplatesAsync,
-  createProjectAsync,
   formatScriptCommand,
   generateAppConfigAsync,
   generateEasConfigAsync,
@@ -34,6 +25,9 @@ import New, {
   mergeReadmeAsync,
   promptForTargetDirectoryAsync,
   updatePackageJsonAsync,
+  verifyAccountPermissionsAsync,
+  verifyProjectDirectoryDoesNotExistAsync,
+  verifyProjectDoesNotExistAsync,
 } from '../new';
 
 jest.mock('../../../prompts');
@@ -112,7 +106,7 @@ describe(New.name, () => {
         const promptedDirectory = '/test/prompted-project';
         mockUserInput({ targetProjectDir: promptedDirectory });
 
-        const result = await promptForTargetDirectoryAsync();
+        const result = await promptForTargetDirectoryAsync('test-project');
 
         expectConsoleToContain(
           `🚚 Let's start by cloning the default Expo template project from GitHub and installing dependencies.`
@@ -132,6 +126,150 @@ describe(New.name, () => {
         expect(promptAsync).not.toHaveBeenCalled();
 
         expect(result).toBe(providedDirectory);
+      });
+    });
+
+    describe('verifyAccountPermissionsAsync', () => {
+      it('should return true when user has sufficient permissions', async () => {
+        const actor = {
+          ...jester,
+          accounts: [
+            {
+              id: 'account-1',
+              name: 'test-account',
+              users: [
+                {
+                  actor: { id: jester.id },
+                  role: Role.Admin,
+                },
+              ],
+            },
+          ],
+        };
+
+        const result = await verifyAccountPermissionsAsync(actor, 'test-account');
+        expect(result).toBe(true);
+      });
+
+      it('should return false when user has view-only permissions', async () => {
+        const actor = {
+          ...jester,
+          accounts: [
+            {
+              id: 'account-1',
+              name: 'test-account',
+              users: [
+                {
+                  actor: { id: jester.id },
+                  role: Role.ViewOnly,
+                },
+              ],
+            },
+          ],
+        };
+
+        const result = await verifyAccountPermissionsAsync(actor, 'test-account');
+        expect(result).toBe(false);
+      });
+
+      it('should return false when account does not exist', async () => {
+        const actor = {
+          ...jester,
+          accounts: [
+            {
+              id: 'account-1',
+              name: 'existing-account',
+              users: [
+                {
+                  actor: { id: jester.id },
+                  role: Role.Admin,
+                },
+              ],
+            },
+          ],
+        };
+
+        const result = await verifyAccountPermissionsAsync(actor, 'non-existent-account');
+        expect(result).toBe(false);
+      });
+
+      it('should return false when user is associated with account but has no permissions', async () => {
+        const actor = {
+          ...jester,
+          accounts: [
+            {
+              id: 'account-1',
+              name: 'test-account',
+              users: [
+                {
+                  actor: { id: jester.id },
+                  role: Role.ViewOnly,
+                },
+              ],
+            },
+          ],
+        };
+
+        const result = await verifyAccountPermissionsAsync(actor, 'test-account');
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('verifyProjectDoesNotExistAsync', () => {
+      it('should return true when project does not exist', async () => {
+        const mockGraphqlClient = {} as ExpoGraphqlClient;
+        jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
+
+        const result = await verifyProjectDoesNotExistAsync(
+          mockGraphqlClient,
+          'test-account',
+          'test-project'
+        );
+
+        expect(result).toBe(true);
+        expect(findProjectIdByAccountNameAndSlugNullableAsync).toHaveBeenCalledWith(
+          mockGraphqlClient,
+          'test-account',
+          'test-project'
+        );
+      });
+
+      it('should return false when project exists', async () => {
+        const mockGraphqlClient = {} as ExpoGraphqlClient;
+        jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue('project-id');
+
+        const result = await verifyProjectDoesNotExistAsync(
+          mockGraphqlClient,
+          'test-account',
+          'test-project'
+        );
+
+        expect(result).toBe(false);
+        expect(findProjectIdByAccountNameAndSlugNullableAsync).toHaveBeenCalledWith(
+          mockGraphqlClient,
+          'test-account',
+          'test-project'
+        );
+      });
+    });
+
+    describe('verifyProjectDirectoryDoesNotExistAsync', () => {
+      it('should return true when directory does not exist', async () => {
+        (fs.pathExists as jest.Mock).mockResolvedValue(false);
+
+        const result = await verifyProjectDirectoryDoesNotExistAsync('/non-existent-directory');
+
+        expect(result).toBe(true);
+        expect(fs.pathExists).toHaveBeenCalledWith('/non-existent-directory');
+      });
+
+      it('should return false when directory exists', async () => {
+        (fs.pathExists as jest.Mock).mockResolvedValue(true);
+
+        const result = await verifyProjectDirectoryDoesNotExistAsync('/existing-directory');
+
+        expect(result).toBe(false);
+        expect(fs.pathExists).toHaveBeenCalledWith('/existing-directory');
       });
     });
 
@@ -236,137 +374,6 @@ describe(New.name, () => {
               'You do not have the required permissions to create projects on this account.',
           },
         ]);
-      });
-    });
-
-    describe('createProjectAsync', () => {
-      const mockGraphqlClient = {} as ExpoGraphqlClient;
-      const projectDir = '/test/project-dir';
-      const mockProjectId = 'test-project-id';
-
-      beforeEach(() => {
-        // use single-account jester for most of the tests
-        jest.mocked(getActorUsername).mockReturnValue('jester2');
-
-        jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
-          name: 'test-app',
-          slug: 'test-app',
-          extra: {},
-        } as ExpoConfig);
-
-        jest.mocked(createOrModifyExpoConfigAsync).mockResolvedValue({
-          type: 'success' as const,
-          message: 'Config updated',
-          config: {
-            name: 'test-app',
-            slug: 'test-app',
-            extra: { eas: { projectId: 'test-project-id' } },
-          } as ExpoConfig,
-        });
-
-        const mockSpinner: Partial<Ora> = {
-          start: jest.fn().mockReturnThis(),
-          succeed: jest.fn().mockReturnThis(),
-          fail: jest.fn().mockReturnThis(),
-        };
-        jest.mocked(ora).mockReturnValue(mockSpinner as Ora);
-      });
-
-      it('should create a project', async () => {
-        const mockActor = jester2 as Actor;
-
-        jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
-        jest.mocked(AppMutation.createAppAsync).mockResolvedValue(mockProjectId);
-
-        const result = await createProjectAsync(mockGraphqlClient, mockActor, projectDir);
-
-        expect(findProjectIdByAccountNameAndSlugNullableAsync).toHaveBeenCalledWith(
-          mockGraphqlClient,
-          'jester2',
-          'jester2-app'
-        );
-
-        expect(AppMutation.createAppAsync).toHaveBeenCalledWith(mockGraphqlClient, {
-          accountId: 'jester2-account-id',
-          projectName: 'jester2-app',
-        });
-
-        expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith(
-          projectDir,
-          {
-            extra: { eas: { projectId: mockProjectId } },
-          },
-          { skipSDKVersionRequirement: true }
-        );
-
-        expect(result).toBe(mockProjectId);
-      });
-
-      it('should create a project when there are multiple accounts', async () => {
-        // Use jester fixture which has multiple accounts
-        const mockActor = jester;
-
-        jest.mocked(getActorUsername).mockReturnValue('jester');
-        jest.mocked(promptAsync).mockResolvedValue({
-          account: { name: 'jester' },
-        });
-
-        jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
-
-        jest.mocked(AppMutation.createAppAsync).mockResolvedValue(mockProjectId);
-
-        const result = await createProjectAsync(mockGraphqlClient, mockActor, projectDir);
-
-        expect(promptAsync).toHaveBeenCalledWith({
-          type: 'select',
-          name: 'account',
-          message: 'Which account should own this project?',
-          choices: expect.any(Array),
-        });
-
-        expect(findProjectIdByAccountNameAndSlugNullableAsync).toHaveBeenCalledWith(
-          mockGraphqlClient,
-          'jester',
-          'jester-app'
-        );
-
-        expect(AppMutation.createAppAsync).toHaveBeenCalledWith(mockGraphqlClient, {
-          accountId: 'jester-account-id',
-          projectName: 'jester-app',
-        });
-
-        expect(result).toBe(mockProjectId);
-      });
-
-      it('should throw when the project already exists', async () => {
-        const mockActor = jester2 as Actor;
-
-        const existingProjectId = 'existing-project-id';
-        jest
-          .mocked(findProjectIdByAccountNameAndSlugNullableAsync)
-          .mockResolvedValue(existingProjectId);
-
-        await expect(createProjectAsync(mockGraphqlClient, mockActor, projectDir)).rejects.toThrow(
-          `Existing project found: @jester2/jester2-app (ID: ${existingProjectId}). Project ID configuration canceled. Re-run the command to select a different account/project.`
-        );
-
-        expect(AppMutation.createAppAsync).not.toHaveBeenCalled();
-      });
-
-      it('should throw when the user does not have permission to create projects on account', async () => {
-        // Create a custom actor with ViewOnly permissions for this test
-        const mockActor = merge(jester2, {
-          accounts: [{ users: [{ actor: { id: 'view-only-jester' }, role: Role.ViewOnly }] }],
-        }) as Actor;
-
-        jest.mocked(getActorUsername).mockReturnValue('view-only-jester');
-        jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
-
-        await expect(createProjectAsync(mockGraphqlClient, mockActor, projectDir)).rejects.toThrow(
-          `You don't have permission to create a new project on the jester account and no matching project already exists on the account.`
-        );
-
-        expect(AppMutation.createAppAsync).not.toHaveBeenCalled();
       });
     });
 
