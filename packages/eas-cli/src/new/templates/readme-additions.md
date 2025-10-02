@@ -1,3 +1,20 @@
+## Get started
+
+To start the app, in your terminal run:
+
+```bash
+npm run start
+```
+
+In the output, you'll find options to open the app in:
+
+- [a development build](https://docs.expo.dev/develop/development-builds/introduction/)
+- [an Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
+- [an iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
+- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+
+You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+
 ## Workflows
 
 This project is configured to use [EAS Workflows](https://docs.expo.dev/eas/workflows/get-started/) to automate some development and release processes. These commands are set up in [`package.json`](./package.json) and can be run using NPM scripts in your terminal.

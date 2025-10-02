@@ -1,19 +1,34 @@
-import { ExpoConfig } from '@expo/config';
-import { AppVersionSource, EasJson } from '@expo/eas-json';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import merge from 'ts-deepmerge';
+import './templates/readme-additions.md';
 
-import { getEASUpdateURL } from '../../api';
 import { getProjectDashboardUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { AppFragment, Role } from '../../graphql/generated';
+import { AppFragment } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { learnMore, link } from '../../log';
+import {
+  copyProjectTemplatesAsync,
+  generateAppConfigAsync,
+  generateEasConfigAsync,
+  updatePackageJsonAsync,
+  updateReadmeAsync,
+} from '../../new/projectFiles';
+import {
+  promptForProjectAccountAsync,
+  promptForProjectNameAsync,
+  promptForTargetDirectoryAsync,
+  promptToChangeProjectNameOrAccountAsync,
+} from '../../new/prompts';
+import {
+  verifyAccountPermissionsAsync,
+  verifyProjectDirectoryDoesNotExistAsync,
+  verifyProjectDoesNotExistAsync,
+} from '../../new/verifications';
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../onboarding/git';
 import {
   PackageManager,
@@ -23,31 +38,95 @@ import {
 import { runCommandAsync } from '../../onboarding/runCommand';
 import { ora } from '../../ora';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../../project/expoConfig';
-import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import { Choice, promptAsync } from '../../prompts';
-import { Actor, getActorUsername } from '../../user/User';
-import { easCliVersion } from '../../utils/easCli';
+import { Actor } from '../../user/User';
 
-export async function promptForTargetDirectoryAsync(
-  targetProjectDirFromArgs?: string
-): Promise<string> {
-  Log.log(
-    `🚚 Let's start by cloning the default Expo template project from GitHub and installing dependencies.`
-  );
-  Log.newLine();
+interface NewArgs {
+  PROJECT_NAME: string;
+  PROJECT_DIRECTORY: string;
+}
 
-  if (targetProjectDirFromArgs) {
-    return targetProjectDirFromArgs;
+export async function promptForConfigsAsync(
+  args: NewArgs,
+  actor: Actor
+): Promise<{
+  projectName: string;
+  projectDirectory: string;
+  projectAccount: string;
+}> {
+  const projectName = await promptForProjectNameAsync(actor, args.PROJECT_NAME);
+  const projectDirectory = await promptForTargetDirectoryAsync(projectName, args.PROJECT_DIRECTORY);
+  const projectAccount = await promptForProjectAccountAsync(actor);
+
+  return {
+    projectName,
+    projectDirectory,
+    projectAccount,
+  };
+}
+
+export async function verifyConfigsAsync(
+  promptedConfigs: {
+    projectName: string;
+    projectDirectory: string;
+    projectAccount: string;
+  },
+  actor: Actor,
+  graphqlClient: ExpoGraphqlClient
+): Promise<{
+  projectName: string;
+  projectDirectory: string;
+  projectAccount: string;
+}> {
+  Log.gray('Verifying project values...');
+
+  let { projectName, projectDirectory, projectAccount } = promptedConfigs;
+  let allFieldsValid = false;
+  let retryCount = 0;
+  const maxRetries = 3;
+
+  while (!allFieldsValid && retryCount < maxRetries) {
+    retryCount++;
+
+    const hasPermissions = await verifyAccountPermissionsAsync(actor, projectAccount);
+    if (!hasPermissions) {
+      projectAccount = await promptForProjectAccountAsync(actor);
+    }
+
+    const projectDoesNotExist = await verifyProjectDoesNotExistAsync(
+      graphqlClient,
+      projectAccount,
+      projectName
+    );
+    if (!projectDoesNotExist) {
+      const prompted = await promptToChangeProjectNameOrAccountAsync(
+        actor,
+        projectName,
+        projectAccount
+      );
+      projectName = prompted.projectName;
+      projectAccount = prompted.projectAccount;
+    }
+
+    const directoryDoesNotExist = await verifyProjectDirectoryDoesNotExistAsync(projectDirectory);
+    if (!directoryDoesNotExist) {
+      projectDirectory = await promptForTargetDirectoryAsync(projectName);
+    }
+
+    allFieldsValid = hasPermissions && projectDoesNotExist && directoryDoesNotExist;
   }
 
-  const result = await promptAsync({
-    type: 'text',
-    name: 'targetProjectDir',
-    message: 'Where would you like to create your new project directory?',
-    initial: path.join(process.cwd(), 'new-expo-project'),
-  });
+  // If we hit the retry limit, throw an error
+  if (!allFieldsValid) {
+    throw new Error(
+      'Unable to resolve project configuration conflicts after multiple attempts. Please try again with different values.'
+    );
+  }
 
-  return result.targetProjectDir;
+  return {
+    projectName,
+    projectDirectory,
+    projectAccount,
+  };
 }
 
 export async function cloneTemplateAsync(targetProjectDir: string): Promise<string> {
@@ -94,87 +173,20 @@ export async function installProjectDependenciesAsync(projectDir: string): Promi
   return packageManager;
 }
 
-export function getAccountChoices(
-  actor: Actor,
-  namesWithSufficientPermissions: Set<string>
-): Choice[] {
-  const sortedAccounts = actor.accounts.sort((a, _b) =>
-    actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
-  );
-
-  return sortedAccounts.map(account => {
-    const isPersonalAccount = actor.__typename === 'User' && account.name === actor.username;
-    const accountDisplayName = isPersonalAccount
-      ? `${account.name} (personal account)`
-      : account.name;
-    const disabled = !namesWithSufficientPermissions.has(account.name);
-
-    return {
-      title: accountDisplayName,
-      value: { name: account.name },
-      ...(disabled && {
-        disabled: true,
-        description: 'You do not have the required permissions to create projects on this account.',
-      }),
-    };
-  });
-}
-
 export async function createProjectAsync(
   graphqlClient: ExpoGraphqlClient,
   actor: Actor,
-  projectDir: string
+  projectDir: string,
+  projectAccount: string,
+  projectName: string
 ): Promise<string> {
-  const allAccounts = actor.accounts;
-  const accountNamesWhereUserHasSufficientPermissionsToCreateApp = new Set(
-    allAccounts
-      .filter(a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly)
-      .map(it => it.name)
-  );
-
-  let accountName = allAccounts[0].name;
-  if (allAccounts.length > 1) {
-    const choices = getAccountChoices(
-      actor,
-      accountNamesWhereUserHasSufficientPermissionsToCreateApp
-    );
-
-    accountName = (
-      await promptAsync({
-        type: 'select',
-        name: 'account',
-        message: 'Which account should own this project?',
-        choices,
-      })
-    ).account.name;
-  }
-
-  const projectName = getActorUsername(actor) + '-app';
-  const projectFullName = `@${accountName}/${projectName}`;
-  const existingProjectIdOnServer = await findProjectIdByAccountNameAndSlugNullableAsync(
-    graphqlClient,
-    accountName,
-    projectName
-  );
-
-  if (existingProjectIdOnServer) {
-    throw new Error(
-      `Existing project found: ${projectFullName} (ID: ${existingProjectIdOnServer}). Project ID configuration canceled. Re-run the command to select a different account/project.`
-    );
-  }
-
-  if (!accountNamesWhereUserHasSufficientPermissionsToCreateApp.has(accountName)) {
-    throw new Error(
-      `You don't have permission to create a new project on the ${accountName} account and no matching project already exists on the account.`
-    );
-  }
-
-  const projectDashboardUrl = getProjectDashboardUrl(accountName, projectName);
+  const projectFullName = `@${projectAccount}/${projectName}`;
+  const projectDashboardUrl = getProjectDashboardUrl(projectAccount, projectName);
   const projectLink = link(projectDashboardUrl, { text: projectFullName });
 
-  const account = nullthrows(allAccounts.find(a => a.name === accountName));
+  const account = nullthrows(actor.accounts.find(a => a.name === projectAccount));
 
-  const spinner = ora(`Creating ${chalk.bold(projectFullName)}`).start();
+  const spinner = ora(`Creating ${chalk.bold(projectLink)}`).start();
   let projectId: string;
   try {
     projectId = await AppMutation.createAppAsync(graphqlClient, {
@@ -200,13 +212,10 @@ export async function createProjectAsync(
   return projectId;
 }
 
-export function stripInvalidCharactersForBundleIdentifier(string: string): string {
-  return string.replaceAll(/[^A-Za-z0-9]/g, '');
-}
-
 export async function generateConfigFilesAsync(
   projectDir: string,
-  app: AppFragment
+  app: AppFragment,
+  packageManager: PackageManager
 ): Promise<void> {
   await generateAppConfigAsync(projectDir, app);
 
@@ -216,165 +225,7 @@ export async function generateConfigFilesAsync(
 
   await copyProjectTemplatesAsync(projectDir);
 
-  await mergeReadmeAsync(projectDir);
-}
-
-export async function generateAppConfigAsync(projectDir: string, app: AppFragment): Promise<void> {
-  // Android package name requires each component to start with a lowercase letter.
-  const isUsernameValidSegment = /^[^a-z]/.test(app.ownerAccount.name);
-  const userPrefix = isUsernameValidSegment ? 'user' : '';
-  const isSlugValidSegment = /^[^a-z]/.test(app.slug);
-  const slugPrefix = isSlugValidSegment ? 'app' : '';
-
-  const bundleIdentifier = `com.${userPrefix}${stripInvalidCharactersForBundleIdentifier(
-    app.ownerAccount.name
-  )}.${slugPrefix}${stripInvalidCharactersForBundleIdentifier(app.slug)}`;
-  const updateUrl = getEASUpdateURL(app.id, /* manifestHostOverride */ null);
-
-  const { expo: baseExpoConfig } = await fs.readJson(path.join(projectDir, 'app.json'));
-  const expoConfig: ExpoConfig = {
-    name: app.name ?? app.slug,
-    slug: app.slug,
-    scheme: stripInvalidCharactersForBundleIdentifier(app.name ?? app.slug),
-    extra: {
-      eas: {
-        projectId: app.id,
-      },
-    },
-    owner: app.ownerAccount.name,
-    updates: {
-      url: updateUrl,
-    },
-    runtimeVersion: {
-      policy: 'appVersion',
-    },
-    ios: {
-      bundleIdentifier,
-    },
-    android: {
-      package: bundleIdentifier,
-    },
-  };
-  const mergedConfig = merge(baseExpoConfig, expoConfig);
-
-  const appJsonPath = path.join(projectDir, 'app.json');
-  await fs.writeJson(appJsonPath, { expo: mergedConfig }, { spaces: 2 });
-  Log.withTick(
-    `Generated ${chalk.bold('app.json')}. ${learnMore(
-      'https://docs.expo.dev/versions/latest/config/app/'
-    )}`
-  );
-  Log.log();
-}
-
-export async function generateEasConfigAsync(projectDir: string): Promise<void> {
-  const easBuildGitHubConfig = {
-    android: {
-      image: 'latest',
-    },
-    ios: {
-      image: 'latest',
-    },
-  };
-
-  const easJson: EasJson = {
-    cli: {
-      version: `>= ${easCliVersion}`,
-      appVersionSource: AppVersionSource.REMOTE,
-    },
-    build: {
-      development: {
-        developmentClient: true,
-        distribution: 'internal',
-        ...easBuildGitHubConfig,
-      },
-      'development-simulator': {
-        extends: 'development',
-        ios: {
-          simulator: true,
-        },
-      },
-      preview: {
-        distribution: 'internal',
-        channel: 'main',
-        ...easBuildGitHubConfig,
-      },
-      production: {
-        channel: 'production',
-        autoIncrement: true,
-        ...easBuildGitHubConfig,
-      },
-    },
-    submit: {
-      production: {},
-    },
-  };
-
-  const easJsonPath = path.join(projectDir, 'eas.json');
-  await fs.writeJson(easJsonPath, easJson, { spaces: 2 });
-  Log.withTick(
-    `Generated ${chalk.bold('eas.json')}. ${learnMore(
-      'https://docs.expo.dev/build-reference/eas-json/'
-    )}`
-  );
-  Log.log();
-}
-
-export async function updatePackageJsonAsync(projectDir: string): Promise<void> {
-  const packageJsonPath = path.join(projectDir, 'package.json');
-  const packageJson = await fs.readJson(packageJsonPath);
-
-  if (!packageJson.scripts) {
-    packageJson.scripts = {};
-  }
-  packageJson.scripts.preview = 'npx eas-cli@latest workflow:run publish-preview-update.yml';
-  packageJson.scripts['development-builds'] =
-    'npx eas-cli@latest workflow:run create-development-builds.yml';
-  packageJson.scripts.deploy = 'npx eas-cli@latest workflow:run deploy-to-production.yml';
-
-  await fs.writeJson(packageJsonPath, packageJson, { spaces: 2 });
-  Log.withTick('Updated package.json with scripts');
-  Log.log();
-}
-
-export async function copyProjectTemplatesAsync(projectDir: string): Promise<void> {
-  const templatesSourceDir = path.join(__dirname, 'templates', '.eas', 'workflows');
-  const easWorkflowsTargetDir = path.join(projectDir, '.eas', 'workflows');
-
-  await fs.copy(templatesSourceDir, easWorkflowsTargetDir, {
-    overwrite: true,
-    errorOnExist: false,
-  });
-
-  Log.withTick('Created EAS workflow files');
-  Log.log();
-}
-
-export async function mergeReadmeAsync(projectDir: string): Promise<void> {
-  const readmeTemplatePath = path.join(__dirname, 'templates', 'readme-additions.md');
-  const projectReadmePath = path.join(projectDir, 'README.md');
-
-  const readmeAdditions = await fs.readFile(readmeTemplatePath, 'utf8');
-  const existingReadme = await fs.readFile(projectReadmePath, 'utf8');
-
-  const targetSection = '## Get a fresh project';
-  const sectionIndex = existingReadme.indexOf(targetSection);
-
-  let mergedReadme: string;
-  if (sectionIndex !== -1) {
-    // Insert before "## Get a fresh project" section
-    const beforeSection = existingReadme.substring(0, sectionIndex).trim();
-    const afterSection = existingReadme.substring(sectionIndex);
-    mergedReadme = beforeSection + '\n\n' + readmeAdditions.trim() + '\n\n' + afterSection;
-  } else {
-    // Append to the end if section doesn't exist
-    mergedReadme = existingReadme.trim() + '\n\n' + readmeAdditions.trim() + '\n';
-  }
-
-  await fs.writeFile(projectReadmePath, mergedReadme);
-
-  Log.withTick('Updated README.md with EAS configuration details');
-  Log.log();
+  await updateReadmeAsync(projectDir, packageManager);
 }
 
 export async function initializeGitRepositoryAsync(projectDir: string): Promise<void> {
@@ -392,13 +243,6 @@ export async function initializeGitRepositoryAsync(projectDir: string): Promise<
   }
 }
 
-export const formatScriptCommand = (script: string, packageManager: PackageManager): string => {
-  if (packageManager === 'npm') {
-    return `npm run ${script}`;
-  }
-  return `${packageManager} ${script}`;
-};
-
 export default class New extends EasCommand {
   static override aliases = ['new'];
 
@@ -408,14 +252,14 @@ export default class New extends EasCommand {
 
   static override hidden = true;
 
-  static override args = [{ name: 'TARGET_PROJECT_DIRECTORY' }];
+  static override args = [{ name: 'PROJECT_NAME' }, { name: 'PROJECT_DIRECTORY' }];
 
   static override contextDefinition = {
     ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
-    const { args } = await this.parse(New);
+    const { args } = (await this.parse(New)) as { args: NewArgs };
 
     const {
       loggedIn: { actor, graphqlClient },
@@ -428,22 +272,32 @@ export default class New extends EasCommand {
     }
 
     Log.warn(
-      'This command is not yet implemented. It will create a new project, but it will not be fully configured.'
+      'This command is not yet implemented. It will create a new project, but it may not be fully configured.'
     );
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
     Log.newLine();
 
-    const targetProjectDirectory = await promptForTargetDirectoryAsync(
-      args.TARGET_PROJECT_DIRECTORY
-    );
+    const promptedConfigs = await promptForConfigsAsync(args, actor);
+    const {
+      projectName,
+      projectDirectory: targetProjectDirectory,
+      projectAccount,
+    } = await verifyConfigsAsync(promptedConfigs, actor, graphqlClient);
+
     const projectDirectory = await cloneTemplateAsync(targetProjectDirectory);
 
     const packageManager = await installProjectDependenciesAsync(projectDirectory);
 
-    const projectId = await createProjectAsync(graphqlClient, actor, projectDirectory);
+    const projectId = await createProjectAsync(
+      graphqlClient,
+      actor,
+      projectDirectory,
+      projectAccount,
+      projectName
+    );
 
     const app = await AppQuery.byIdAsync(graphqlClient, projectId);
-    await generateConfigFilesAsync(projectDirectory, app);
+    await generateConfigFilesAsync(projectDirectory, app, packageManager);
 
     await initializeGitRepositoryAsync(projectDirectory);
 
@@ -451,18 +305,12 @@ export default class New extends EasCommand {
     Log.log('Next steps:');
     Log.withInfo(`Run \`cd ${projectDirectory}\` to navigate to your project.`);
     Log.withInfo(
-      `Run \`${formatScriptCommand(
-        'preview',
-        packageManager
-      )}\` to create a preview build on EAS. ${learnMore(
+      `Run \`${packageManager} run preview\` to create a preview build on EAS. ${learnMore(
         'https://docs.expo.dev/eas/workflows/examples/publish-preview-update/'
       )}`
     );
     Log.withInfo(
-      `Run \`${formatScriptCommand(
-        'start',
-        packageManager
-      )}\` to start developing locally. ${learnMore(
+      `Run \`${packageManager} run start\` to start developing locally. ${learnMore(
         'https://docs.expo.dev/get-started/start-developing/'
       )}`
     );
