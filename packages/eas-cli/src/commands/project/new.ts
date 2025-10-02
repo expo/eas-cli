@@ -1,7 +1,5 @@
 import chalk from 'chalk';
-import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
-import path from 'path';
 import './templates/readme-additions.md';
 
 import { getProjectDashboardUrl } from '../../build/utils/url';
@@ -11,6 +9,11 @@ import { AppFragment } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { learnMore, link } from '../../log';
+import {
+  cloneTemplateAsync,
+  initializeGitRepositoryAsync,
+  installProjectDependenciesAsync,
+} from '../../new/commands';
 import {
   copyProjectTemplatesAsync,
   generateAppConfigAsync,
@@ -29,13 +32,7 @@ import {
   verifyProjectDirectoryDoesNotExistAsync,
   verifyProjectDoesNotExistAsync,
 } from '../../new/verifications';
-import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../onboarding/git';
-import {
-  PackageManager,
-  installDependenciesAsync,
-  promptForPackageManagerAsync,
-} from '../../onboarding/installDependencies';
-import { runCommandAsync } from '../../onboarding/runCommand';
+import { PackageManager, promptForPackageManagerAsync } from '../../onboarding/installDependencies';
 import { ora } from '../../ora';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { Actor } from '../../user/User';
@@ -129,50 +126,6 @@ export async function verifyConfigsAsync(
   };
 }
 
-export async function cloneTemplateAsync(targetProjectDir: string): Promise<string> {
-  const githubUsername = 'expo';
-  const githubRepositoryName = 'expo-template-default';
-
-  Log.log(`📂 Cloning the project to ${targetProjectDir}`);
-  Log.newLine();
-
-  const cloneMethod = (await canAccessRepositoryUsingSshAsync({
-    githubUsername,
-    githubRepositoryName,
-  }))
-    ? 'ssh'
-    : 'https';
-  Log.log(chalk.dim(`We detected that ${cloneMethod} is your preferred git clone method`));
-  Log.newLine();
-
-  const { targetProjectDir: finalTargetProjectDirectory } = await runGitCloneAsync({
-    githubUsername,
-    githubRepositoryName,
-    targetProjectDir,
-    cloneMethod,
-  });
-
-  return finalTargetProjectDirectory;
-}
-
-export async function installProjectDependenciesAsync(projectDir: string): Promise<PackageManager> {
-  const packageManager = await promptForPackageManagerAsync();
-  await installDependenciesAsync({
-    projectDir,
-    packageManager,
-  });
-
-  const dependencies = ['expo-updates', '@expo/metro-runtime'];
-  for (const dependency of dependencies) {
-    await runCommandAsync({
-      cwd: projectDir,
-      command: 'npx',
-      args: ['expo', 'install', dependency],
-    });
-  }
-  return packageManager;
-}
-
 export async function createProjectAsync({
   graphqlClient,
   actor,
@@ -234,21 +187,6 @@ export async function generateConfigFilesAsync(
   await updateReadmeAsync(projectDir, packageManager);
 }
 
-export async function initializeGitRepositoryAsync(projectDir: string): Promise<void> {
-  await fs.remove(path.join(projectDir, '.git'));
-
-  const commands = [['init'], ['add', '.'], ['commit', '-m', 'Initial commit']];
-
-  for (const args of commands) {
-    await runCommandAsync({
-      cwd: projectDir,
-      command: 'git',
-      args,
-    });
-    Log.log();
-  }
-}
-
 export default class New extends EasCommand {
   static override aliases = ['new'];
 
@@ -292,7 +230,8 @@ export default class New extends EasCommand {
 
     const projectDirectory = await cloneTemplateAsync(targetProjectDirectory);
 
-    const packageManager = await installProjectDependenciesAsync(projectDirectory);
+    const packageManager = await promptForPackageManagerAsync();
+    await installProjectDependenciesAsync(projectDirectory, packageManager);
 
     const projectId = await createProjectAsync({
       projectDirectory,
