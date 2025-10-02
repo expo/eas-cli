@@ -1,10 +1,17 @@
 import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
-import { BuildProfile, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 
-import { buildProfileNamesFromProjectAsync } from './validation';
+import {
+  addAndroidDevelopmentBuildProfileToEasJsonAsync,
+  addIosDevelopmentBuildProfileToEasJsonAsync,
+  buildProfileNamesFromProjectAsync,
+  buildProfilesFromProjectAsync,
+  getBuildProfileAsync,
+  isBuildProfileForDevelopment,
+  isIosBuildProfileForSimulator,
+} from './buildProfileUtils';
 import Log from '../../log';
-import { promptAsync } from '../../prompts';
+import { confirmAsync, promptAsync } from '../../prompts';
 import { easCliVersion } from '../../utils/easCli';
 
 export enum WorkflowStarterName {
@@ -31,7 +38,7 @@ const CUSTOM_TEMPLATE = {
   },
   jobs: {
     custom_build: {
-      name: 'Custom build',
+      name: 'Custom job',
       steps: [
         {
           uses: 'eas/checkout',
@@ -47,7 +54,7 @@ const CUSTOM_TEMPLATE = {
 };
 
 const BUILD_TEMPLATE = {
-  name: 'Run development builds',
+  name: 'Create development builds',
   on: {
     push: {
       branches: ['main'],
@@ -137,15 +144,21 @@ export const workflowStarters: WorkflowStarter[] = [
     ],
   },
   {
-    displayName: 'Create EAS builds',
+    displayName: 'Create development builds',
     name: WorkflowStarterName.BUILD,
-    defaultFileName: 'eas-builds.yml',
+    defaultFileName: 'create-development-builds.yml',
     template: BUILD_TEMPLATE,
     headerLines: [
-      '# This workflow will run EAS builds for your app,',
-      '# using the build profiles you have defined in eas.json.',
-      '# See https://docs.expo.dev/eas/workflows/pre-packaged-jobs/#build ',
-      '# for more information.',
+      '# Create development builds',
+      '#',
+      '# This workflow shows how to create development builds.',
+      '#',
+      '# Key features:',
+      '# - Can be triggered manually with eas workflow:run create-development-builds.yml',
+      '# - Runs the pre-packaged build job to create Android and iOS development builds for Android emulators, Android and iOS devices, and iOS simulators',
+      '#',
+      '# For a detailed guide on using this workflow, visit:',
+      '# https://docs.expo.dev/develop/development-builds/introduction/',
       '#',
       createdByEASCLI,
       '#',
@@ -181,68 +194,153 @@ export const workflowStarters: WorkflowStarter[] = [
     ],
   },
 ];
-export async function getBuildProfileAsync(
-  projectDir: string,
-  platform: Platform,
-  profileName: string
-): Promise<BuildProfile<Platform>> {
-  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-  const buildProfile = await EasJsonUtils.getBuildProfileAsync(
-    easJsonAccessor,
-    platform,
-    profileName
-  );
-  return buildProfile;
-}
-export async function addBuildJobsToTemplateAsync(
+
+export async function addBuildJobsToDevelopmentBuildTemplateAsync(
   projectDir: string,
   workflowTemplate: WorkflowStarter
 ): Promise<WorkflowStarter> {
-  const buildProfiles = [...(await buildProfileNamesFromProjectAsync(projectDir))];
-  if (buildProfiles.length === 0) {
-    return workflowTemplate;
+  const buildProfiles = await buildProfilesFromProjectAsync(projectDir);
+  // android_development_build
+
+  let androidDevelopmentBuildProfileName: string | null = null;
+  for (const profileName of buildProfiles.keys()) {
+    const profile = buildProfiles.get(profileName)?.android;
+    if (!profile) {
+      continue;
+    }
+    if (isBuildProfileForDevelopment(profile, Platform.ANDROID)) {
+      androidDevelopmentBuildProfileName = profileName;
+      break;
+    }
   }
-  const androidBuildProfilesToAdd = (
-    await promptAsync({
-      type: 'multiselect',
-      name: 'selectedProfiles',
-      message: 'Select Android builds to add to workflow',
-      choices: buildProfiles.map(profileName => ({
-        title: profileName,
-        value: profileName,
-      })),
-    })
-  ).selectedProfiles;
-  const iOSBuildProfilesToAdd = (
-    await promptAsync({
-      type: 'multiselect',
-      name: 'selectedProfiles',
-      message: 'Select iOS builds to add to workflow',
-      choices: buildProfiles.map(profileName => ({
-        title: profileName,
-        value: profileName,
-      })),
-    })
-  ).selectedProfiles;
-  for (const profileName of androidBuildProfilesToAdd) {
-    const platform = Platform.ANDROID;
-    workflowTemplate.template.jobs[`${profileName}-${platform}`] = {
-      name: `Build ${profileName} for ${platform}`,
+  if (!androidDevelopmentBuildProfileName) {
+    Log.warn(
+      'This workflow requires an Android development build profile in your eas.json, but none were found.'
+    );
+    const add = await confirmAsync({
+      message: 'Do you want to add an Android development build profile?',
+      initial: false,
+    });
+    if (add) {
+      let androidDevelopmentBuildProfileName = 'android_development';
+      while (buildProfiles.has(androidDevelopmentBuildProfileName)) {
+        androidDevelopmentBuildProfileName = `${androidDevelopmentBuildProfileName}_1`;
+      }
+      await addAndroidDevelopmentBuildProfileToEasJsonAsync(
+        projectDir,
+        androidDevelopmentBuildProfileName
+      );
+    } else {
+      Log.log('Skipping Android development build job...');
+    }
+  }
+  if (androidDevelopmentBuildProfileName) {
+    Log.log(`Using Android development build profile: ${androidDevelopmentBuildProfileName}`);
+    workflowTemplate.template.jobs.android_development_build = {
+      name: `Build ${androidDevelopmentBuildProfileName} for android`,
       type: 'build',
       params: {
-        profile: profileName,
-        platform,
+        profile: androidDevelopmentBuildProfileName,
+        platform: 'android',
       },
     };
   }
-  for (const profileName of iOSBuildProfilesToAdd) {
-    const platform = Platform.IOS;
-    workflowTemplate.template.jobs[`${profileName}-${platform}`] = {
-      name: `Build ${profileName} for ${platform}`,
+
+  // ios_simulator_development_build
+  let iosSimulatorDevelopmentBuildProfileName: string | null = null;
+  for (const profileName of buildProfiles.keys()) {
+    const profile = buildProfiles.get(profileName)?.ios;
+    if (!profile) {
+      continue;
+    }
+    if (
+      isBuildProfileForDevelopment(profile, Platform.IOS) &&
+      isIosBuildProfileForSimulator(profile)
+    ) {
+      iosSimulatorDevelopmentBuildProfileName = profileName;
+      break;
+    }
+  }
+  if (!iosSimulatorDevelopmentBuildProfileName) {
+    Log.warn(
+      'This workflow requires an iOS simulator development build profile in your eas.json, but none were found.'
+    );
+    const add = await confirmAsync({
+      message: 'Do you want to add an iOS simulator development build profile?',
+      initial: false,
+    });
+    if (add) {
+      let iosSimulatorDevelopmentBuildProfileName = 'ios_simulator_development';
+      while (buildProfiles.has(iosSimulatorDevelopmentBuildProfileName)) {
+        iosSimulatorDevelopmentBuildProfileName = `${iosSimulatorDevelopmentBuildProfileName}_1`;
+      }
+      await addIosDevelopmentBuildProfileToEasJsonAsync(
+        projectDir,
+        iosSimulatorDevelopmentBuildProfileName,
+        true
+      );
+    } else {
+      Log.log('Skipping iOS simulator development build job...');
+    }
+  }
+  if (iosSimulatorDevelopmentBuildProfileName) {
+    Log.log(
+      `Using iOS simulator development build profile: ${iosSimulatorDevelopmentBuildProfileName}`
+    );
+    workflowTemplate.template.jobs.ios_simulator_development_build = {
+      name: `Build ${iosSimulatorDevelopmentBuildProfileName} for iOS simulator`,
       type: 'build',
       params: {
-        profile: profileName,
-        platform,
+        profile: iosSimulatorDevelopmentBuildProfileName,
+        platform: 'ios',
+      },
+    };
+  }
+  // ios_device_development_build
+  let iosDeviceDevelopmentBuildProfileName: string | null = null;
+  for (const profileName of buildProfiles.keys()) {
+    const profile = buildProfiles.get(profileName)?.ios;
+    if (!profile) {
+      continue;
+    }
+    if (
+      isBuildProfileForDevelopment(profile, Platform.IOS) &&
+      !isIosBuildProfileForSimulator(profile)
+    ) {
+      iosDeviceDevelopmentBuildProfileName = profileName;
+      break;
+    }
+  }
+  if (!iosDeviceDevelopmentBuildProfileName) {
+    Log.warn(
+      'This workflow requires an iOS device development build profile in your eas.json, but none were found.'
+    );
+    const add = await confirmAsync({
+      message: 'Do you want to add an iOS device development build profile?',
+      initial: false,
+    });
+    if (add) {
+      let iosDeviceDevelopmentBuildProfileName = 'ios_device_development';
+      while (buildProfiles.has(iosDeviceDevelopmentBuildProfileName)) {
+        iosDeviceDevelopmentBuildProfileName = `${iosDeviceDevelopmentBuildProfileName}_1`;
+      }
+      await addIosDevelopmentBuildProfileToEasJsonAsync(
+        projectDir,
+        iosDeviceDevelopmentBuildProfileName,
+        false
+      );
+    } else {
+      Log.log('Skipping iOS device development build job...');
+    }
+  }
+  if (iosDeviceDevelopmentBuildProfileName) {
+    Log.log(`Using iOS device development build profile: ${iosDeviceDevelopmentBuildProfileName}`);
+    workflowTemplate.template.jobs.ios_development_build = {
+      name: `Build ${iosDeviceDevelopmentBuildProfileName} for iOS simulator`,
+      type: 'build',
+      params: {
+        profile: iosDeviceDevelopmentBuildProfileName,
+        platform: 'ios',
       },
     };
   }
@@ -324,7 +422,7 @@ export async function customizeTemplateIfNeededAsync(
   switch (workflowTemplate.name) {
     case WorkflowStarterName.BUILD:
       Log.debug('Adding build jobs to template...');
-      return await addBuildJobsToTemplateAsync(projectDir, workflowTemplate);
+      return await addBuildJobsToDevelopmentBuildTemplateAsync(projectDir, workflowTemplate);
     case WorkflowStarterName.MAESTRO:
       Log.debug('Modifying Maestro test template...');
       return await modifyMaestroTestTemplateAsync(workflowTemplate, projectDir);
