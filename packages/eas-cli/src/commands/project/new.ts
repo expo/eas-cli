@@ -173,13 +173,19 @@ export async function installProjectDependenciesAsync(projectDir: string): Promi
   return packageManager;
 }
 
-export async function createProjectAsync(
-  graphqlClient: ExpoGraphqlClient,
-  actor: Actor,
-  projectDir: string,
-  projectAccount: string,
-  projectName: string
-): Promise<string> {
+export async function createProjectAsync({
+  graphqlClient,
+  actor,
+  projectDirectory,
+  projectAccount,
+  projectName,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  actor: Actor;
+  projectDirectory: string;
+  projectAccount: string;
+  projectName: string;
+}): Promise<string> {
   const projectFullName = `@${projectAccount}/${projectName}`;
   const projectDashboardUrl = getProjectDashboardUrl(projectAccount, projectName);
   const projectLink = link(projectDashboardUrl, { text: projectFullName });
@@ -199,9 +205,9 @@ export async function createProjectAsync(
     throw err;
   }
 
-  const exp = await getPrivateExpoConfigAsync(projectDir, { skipPlugins: true });
+  const exp = await getPrivateExpoConfigAsync(projectDirectory, { skipPlugins: true });
   await createOrModifyExpoConfigAsync(
-    projectDir,
+    projectDirectory,
     {
       extra: { ...exp.extra, eas: { ...exp.extra?.eas, projectId } },
     },
@@ -288,13 +294,13 @@ export default class New extends EasCommand {
 
     const packageManager = await installProjectDependenciesAsync(projectDirectory);
 
-    const projectId = await createProjectAsync(
-      graphqlClient,
-      actor,
+    const projectId = await createProjectAsync({
       projectDirectory,
       projectAccount,
-      projectName
-    );
+      projectName,
+      actor,
+      graphqlClient,
+    });
 
     const app = await AppQuery.byIdAsync(graphqlClient, projectId);
     await generateConfigFilesAsync(projectDirectory, app, packageManager);
