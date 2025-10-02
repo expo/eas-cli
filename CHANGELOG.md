@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Allow workflow:run to run a workflow from a GitHub ref. ([#3203](https://github.com/expo/eas-cli/pull/3203) by [@douglowder](https://github.com/douglowder))
+
 ### 🐛 Bug fixes
 
 - skip syncing capabilities with settings if they don't contain the `enabled` attribute ([#3201](https://github.com/expo/eas-cli/pull/3201) by [@vonovak](https://github.com/vonovak))
