@@ -4,14 +4,12 @@ import { Platform } from '@expo/eas-build-job';
 import {
   addAndroidDevelopmentBuildProfileToEasJsonAsync,
   addIosDevelopmentBuildProfileToEasJsonAsync,
-  buildProfileNamesFromProjectAsync,
   buildProfilesFromProjectAsync,
-  getBuildProfileAsync,
   isBuildProfileForDevelopment,
   isIosBuildProfileForSimulator,
 } from './buildProfileUtils';
 import Log from '../../log';
-import { confirmAsync, promptAsync } from '../../prompts';
+import { confirmAsync } from '../../prompts';
 import { easCliVersion } from '../../utils/easCli';
 
 export enum WorkflowStarterName {
@@ -101,16 +99,21 @@ ${createdByEASCLI}
 `;
 
 const PUBLISH_UPDATE_TEMPLATE = {
-  name: 'Publish updates',
+  name: 'Publish preview update',
   on: {
     push: {
-      branches: ['main'],
-    },
-    pull_request: {
-      branches: ['main'],
+      branches: ['*'],
     },
   },
-  jobs: {},
+  jobs: {
+    publish_preview_update: {
+      name: 'Publish preview update',
+      type: 'update',
+      params: {
+        branch: '${{ github.ref_name || "test" }}',
+      },
+    },
+  },
 };
 
 const PUBLISH_UPDATE_TEMPLATE_HEADER = `
@@ -308,50 +311,6 @@ export async function addBuildJobsToDevelopmentBuildTemplateAsync(
   return workflowTemplate;
 }
 
-async function addUpdateJobsToTemplateAsync(
-  workflowTemplate: WorkflowStarter,
-  projectDir: string
-): Promise<WorkflowStarter> {
-  const buildProfileNames = [...(await buildProfileNamesFromProjectAsync(projectDir))];
-  if (buildProfileNames.length === 0) {
-    return workflowTemplate;
-  }
-  const channels = new Set<string>();
-  for (const profileName of buildProfileNames) {
-    const buildProfile = await getBuildProfileAsync(projectDir, Platform.ANDROID, profileName);
-    if (buildProfile.channel) {
-      channels.add(buildProfile.channel);
-    }
-  }
-  for (const profileName of buildProfileNames) {
-    const buildProfile = await getBuildProfileAsync(projectDir, Platform.IOS, profileName);
-    if (buildProfile.channel) {
-      channels.add(buildProfile.channel);
-    }
-  }
-  const channelsToUpdate = (
-    await promptAsync({
-      type: 'multiselect',
-      name: 'selectedChannels',
-      message: 'Select update channels to add to workflow',
-      choices: [...channels].map(profileName => ({
-        title: profileName,
-        value: profileName,
-      })),
-    })
-  ).selectedChannels;
-  for (const channel of channelsToUpdate) {
-    workflowTemplate.template.jobs[`publish_update_for_${channel}`] = {
-      name: `Publish update for ${channel}`,
-      type: 'update',
-      params: {
-        channel,
-      },
-    };
-  }
-  return workflowTemplate;
-}
-
 export async function customizeTemplateIfNeededAsync(
   workflowTemplate: WorkflowStarter,
   projectDir: string,
@@ -367,8 +326,7 @@ export async function customizeTemplateIfNeededAsync(
           'EAS Update is not configured for this project. Please run "eas update:configure" to configure it.'
         );
       }
-      Log.debug('Modifying update template...');
-      return await addUpdateJobsToTemplateAsync(workflowTemplate, projectDir);
+      return workflowTemplate;
     default:
       return workflowTemplate;
   }
