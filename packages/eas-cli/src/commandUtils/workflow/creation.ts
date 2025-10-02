@@ -25,8 +25,10 @@ export type WorkflowStarter = {
   displayName: string;
   defaultFileName: string;
   template: any;
-  headerLines: string[];
+  header: string;
 };
+
+const createdByEASCLI = `# Created by EAS CLI v${easCliVersion}`;
 
 const CUSTOM_TEMPLATE = {
   name: 'Custom workflow',
@@ -52,6 +54,25 @@ const CUSTOM_TEMPLATE = {
   },
 };
 
+const CUSTOM_TEMPLATE_HEADER = `
+# Custom job
+#
+# This workflow shows how to write custom jobs.
+# It contains a predefined workflow step and a shell command to print "Hello, World!".
+#
+# Key features:
+# - Triggers on pushes to the main branch.
+#    (Requires linked GitHub account: https://expo.dev/accounts/[account]/settings/github)
+# - Can be triggered manually with eas workflow:run custom.yml
+# - Runs eas/checkout then a custom "echo" command
+#
+# For detailed documentation on workflow syntax and available step types, visit:
+# https://docs.expo.dev/eas/workflows/syntax/#jobsjob_idstepsstepuses
+#
+${createdByEASCLI}
+#
+`;
+
 const BUILD_TEMPLATE = {
   name: 'Create development builds',
   on: {
@@ -61,6 +82,23 @@ const BUILD_TEMPLATE = {
   },
   jobs: {},
 };
+
+const BUILD_TEMPLATE_HEADER = `
+# Create development builds
+#
+# This workflow shows how to create development builds.
+#
+# Key features:
+# - Can be triggered manually with eas workflow:run create-development-builds.yml
+# - Runs the pre-packaged build job to create Android and iOS development builds
+#     for Android emulators, Android and iOS devices, and iOS simulators
+#
+# For a detailed guide on using this workflow, visit:
+# https://docs.expo.dev/develop/development-builds/introduction/
+#
+${createdByEASCLI}
+#
+`;
 
 const PUBLISH_UPDATE_TEMPLATE = {
   name: 'Publish updates',
@@ -75,7 +113,24 @@ const PUBLISH_UPDATE_TEMPLATE = {
   jobs: {},
 };
 
-const createdByEASCLI = `# Created by EAS CLI v${easCliVersion}`;
+const PUBLISH_UPDATE_TEMPLATE_HEADER = `
+# Publish preview update
+#
+# This workflow shows how to publish preview updates.
+# Learn more: https://docs.expo.dev/review/share-previews-with-your-team/
+#
+# Key features:
+# - Triggers on pushes to all branches
+#    (Requires linked GitHub account: https://expo.dev/accounts/[account]/settings/github)
+# - Can be triggered manually with eas workflow:run publish-preview-update.yml
+# - Runs the pre-packaged update job
+#
+# For a detailed guide on using this workflow, visit:
+# https://docs.expo.dev/eas/workflows/examples/publish-preview-update/
+#
+${createdByEASCLI}
+#
+`;
 
 export const workflowStarters: WorkflowStarter[] = [
   {
@@ -83,59 +138,21 @@ export const workflowStarters: WorkflowStarter[] = [
     name: WorkflowStarterName.CUSTOM,
     defaultFileName: 'custom.yml',
     template: CUSTOM_TEMPLATE,
-    headerLines: [
-      '# Custom job',
-      '#',
-      '# This workflow shows how to write custom jobs.',
-      '# It contains a predefined workflow step and a shell command to print "Hello, World!".',
-      '#',
-      '# Key features:',
-      '# - Triggers on pushes to the main branch (Requires linked GitHub account: https://expo.dev/accounts/[account]/settings/github)',
-      '# - Can be triggered manually with eas workflow:run custom.yml',
-      '# - Runs eas/checkout then a custom `echo` command',
-      '#',
-      '# For detailed documentation on workflow syntax and available step types, visit:',
-      '# https://docs.expo.dev/eas/workflows/syntax/#jobsjob_idstepsstepuses',
-      '#',
-      createdByEASCLI,
-      '#',
-    ],
+    header: CUSTOM_TEMPLATE_HEADER,
   },
   {
     displayName: 'Create development builds',
     name: WorkflowStarterName.BUILD,
     defaultFileName: 'create-development-builds.yml',
     template: BUILD_TEMPLATE,
-    headerLines: [
-      '# Create development builds',
-      '#',
-      '# This workflow shows how to create development builds.',
-      '#',
-      '# Key features:',
-      '# - Can be triggered manually with eas workflow:run create-development-builds.yml',
-      '# - Runs the pre-packaged build job to create Android and iOS development builds for Android emulators, Android and iOS devices, and iOS simulators',
-      '#',
-      '# For a detailed guide on using this workflow, visit:',
-      '# https://docs.expo.dev/develop/development-builds/introduction/',
-      '#',
-      createdByEASCLI,
-      '#',
-    ],
+    header: BUILD_TEMPLATE_HEADER,
   },
   {
     displayName: 'Publish updates',
     name: WorkflowStarterName.UPDATE,
     defaultFileName: 'publish-updates.yml',
     template: PUBLISH_UPDATE_TEMPLATE,
-    headerLines: [
-      '# This workflow will publish updates for your app,',
-      '# using the update channels you have defined in eas.json.',
-      '# See https://docs.expo.dev/eas/workflows/pre-packaged-jobs/#update ',
-      '# for more information.',
-      '#',
-      createdByEASCLI,
-      '#',
-    ],
+    header: PUBLISH_UPDATE_TEMPLATE_HEADER,
   },
 ];
 

@@ -111,7 +111,7 @@ export class WorkflowCreate extends EasCommand {
 
       Log.debug(`Creating workflow file ${fileName} from template ${workflowStarter.name}`);
       const yamlString = [
-        ...workflowStarter.headerLines,
+        workflowStarter.header,
         workflowContentsFromParsedYaml(workflowStarter.template),
       ].join('\n');
 
