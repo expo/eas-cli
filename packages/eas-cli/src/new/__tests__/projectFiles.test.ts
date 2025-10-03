@@ -3,6 +3,7 @@ import fs from 'fs-extra';
 
 import { getEASUpdateURL } from '../../api';
 import { AppFragment } from '../../graphql/generated';
+import { easCliVersion } from '../../utils/easCli';
 import {
   copyProjectTemplatesAsync,
   generateAppConfigAsync,
@@ -13,9 +14,6 @@ import {
 } from '../projectFiles';
 
 jest.mock('../../api');
-jest.mock('../../utils/easCli', () => ({
-  easCliVersion: '5.0.0',
-}));
 jest.mock('fs-extra');
 
 describe('projectFiles', () => {
@@ -214,7 +212,7 @@ describe('projectFiles', () => {
     it('should generate the eas config', async () => {
       const expectedEasConfig = {
         cli: {
-          version: '>= 5.0.0',
+          version: `>= ${easCliVersion}`,
           appVersionSource: 'remote',
         },
         build: {
@@ -300,13 +298,90 @@ describe('projectFiles', () => {
   });
 
   describe('updateReadmeAsync', () => {
-    it('should update readme with package manager specific commands', async () => {
-      const projectDir = '/test/project-dir';
-      const packageManager = 'npm';
+    const projectDir = '/test/project-dir';
+    const readmeTemplatePath = expect.stringContaining('templates/readme-additions.md');
+    const projectReadmePath = `${projectDir}/README.md`;
 
-      await updateReadmeAsync(projectDir, packageManager);
+    const mockReadmeTemplate = `## Get started
+
+To start the app, in your terminal run:
+
+\`\`\`bash
+npm run start
+\`\`\`
+
+## Workflows
+`;
+    const mockExistingReadme = `# My App
+
+## Get started
+
+Follow these steps to get started with the app.
+
+## Installation
+
+Install the dependencies first.`;
+
+    beforeEach(() => {
+      jest.mocked(fs.readFile).mockImplementation((filePath: any) => {
+        const content = filePath.includes('readme-additions.md')
+          ? mockReadmeTemplate
+          : filePath === projectReadmePath
+            ? mockExistingReadme
+            : '';
+        return Promise.resolve(content);
+      });
+    });
+
+    it('should read the existing readme and merge the template content', async () => {
+      await updateReadmeAsync(projectDir, 'npm');
+
+      expect(fs.readFile).toHaveBeenCalledWith(readmeTemplatePath, 'utf8');
+      expect(fs.readFile).toHaveBeenCalledWith(projectReadmePath, 'utf8');
+
+      const headings = ['# My App', '## Get started', '## Workflows'];
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        projectReadmePath,
+        expect.stringMatching(new RegExp(headings.join('[\\s\\S]*')))
+      );
 
       expectConsoleToContain('Updated README.md with EAS configuration details');
+    });
+
+    it('should replace npm run with package manager specific commands', async () => {
+      await updateReadmeAsync(projectDir, 'yarn');
+
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        projectReadmePath,
+        expect.stringContaining('yarn run start')
+      );
+    });
+
+    it("should handle the case when 'Get started' section does not exist", async () => {
+      const readmeWithoutGetStarted = `# My App
+
+This is my awesome app.
+
+## Installation
+
+Install the dependencies first.`;
+
+      jest.mocked(fs.readFile).mockImplementation((filePath: any) => {
+        const content = filePath.includes('readme-additions.md')
+          ? mockReadmeTemplate
+          : filePath === projectReadmePath
+            ? readmeWithoutGetStarted
+            : '';
+        return Promise.resolve(content);
+      });
+
+      await updateReadmeAsync(projectDir, 'npm');
+
+      const headings = ['# My App', '## Installation', '## Get started', '## Workflows'];
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        projectReadmePath,
+        expect.stringMatching(new RegExp(headings.join('[\\s\\S]*')))
+      );
     });
   });
 });

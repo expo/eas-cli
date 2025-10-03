@@ -37,44 +37,34 @@ export async function promptForTargetDirectoryAsync(
     await promptAsync({
       type: 'text',
       name: 'targetProjectDir',
-      message: 'Where would you like to create your new project',
+      message: 'Where would you like to create your new project?',
       initial: path.join(process.cwd(), projectName),
     })
   ).targetProjectDir;
 }
 
 export async function promptForProjectAccountAsync(actor: Actor): Promise<string> {
-  const allAccounts = actor.accounts;
-  const accountNamesWhereUserHasSufficientPermissionsToCreateApp = new Set(
-    allAccounts
+  if (actor.accounts.length === 1) {
+    return actor.accounts[0].name;
+  }
+
+  return (
+    await promptAsync({
+      type: 'select',
+      name: 'account',
+      message: 'Which account should own this project?',
+      choices: getAccountChoices(actor),
+    })
+  ).account.name;
+}
+
+export function getAccountChoices(actor: Actor): Choice[] {
+  const namesWithSufficientPermissions = new Set(
+    actor.accounts
       .filter(a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly)
       .map(it => it.name)
   );
 
-  let accountName = allAccounts[0].name;
-  if (allAccounts.length > 1) {
-    const choices = getAccountChoices(
-      actor,
-      accountNamesWhereUserHasSufficientPermissionsToCreateApp
-    );
-
-    accountName = (
-      await promptAsync({
-        type: 'select',
-        name: 'account',
-        message: 'Which account should own this project?',
-        choices,
-      })
-    ).account.name;
-  }
-
-  return accountName;
-}
-
-export function getAccountChoices(
-  actor: Actor,
-  namesWithSufficientPermissions: Set<string>
-): Choice[] {
   const sortedAccounts = actor.accounts.sort((a, _b) =>
     actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
   );
