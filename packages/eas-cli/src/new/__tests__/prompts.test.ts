@@ -1,5 +1,6 @@
 import { jester } from '../../credentials/__tests__/fixtures-constants';
-import { promptAsync } from '../../prompts';
+import Log from '../../log';
+import { promptAsync, selectAsync } from '../../prompts';
 import {
   getAccountChoices,
   promptForProjectAccountAsync,
@@ -8,29 +9,29 @@ import {
   promptToChangeProjectNameOrAccountAsync,
 } from '../prompts';
 
-jest.mock('../../../prompts');
-jest.mock('../../../log');
+jest.mock('../../prompts');
+jest.mock('../../log');
 
 describe('prompts', () => {
-  let consoleLogSpy: jest.SpyInstance;
+  let logSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    consoleLogSpy = jest.spyOn(console, 'log');
+    logSpy = jest.spyOn(Log, 'log');
   });
 
   afterEach(() => {
-    consoleLogSpy.mockRestore();
+    logSpy.mockRestore();
   });
 
-  // Helper function to get all console output as strings
-  const getConsoleOutput = (): string[] => {
-    return consoleLogSpy.mock.calls.map(call => (call.length === 0 ? '' : call.join(' ')));
+  // Helper function to get all log output as strings
+  const getLogOutput = (): string[] => {
+    return logSpy.mock.calls.map(call => (call.length === 0 ? '' : call.join(' ')));
   };
 
   // Helper function to check if a specific message was logged
-  const expectConsoleToContain = (message: string): void => {
-    const output = getConsoleOutput();
+  const expectLogToContain = (message: string): void => {
+    const output = getLogOutput();
     // strip out ANSI codes and special characters like the tick
     const outputWithoutAnsi = output.map(line =>
       line.replace(/\x1b\[[0-9;]*m/g, '').replace(/✔\s*/, '')
@@ -58,7 +59,7 @@ describe('prompts', () => {
       const result = await promptForProjectNameAsync(jester, projectNameFromArgs);
 
       expect(result).toBe(projectNameFromArgs);
-      expectConsoleToContain(`Using project name from args: ${projectNameFromArgs}`);
+      expectLogToContain(`Using project name from args: ${projectNameFromArgs}`);
       expect(promptAsync).not.toHaveBeenCalled();
     });
 
@@ -69,7 +70,7 @@ describe('prompts', () => {
       const result = await promptForProjectNameAsync(jester);
 
       expect(result).toBe(promptedProjectName);
-      expectPromptToHaveMessage('What is the name of your app?');
+      expectPromptToHaveMessage('What is the name of your project?');
     });
   });
 
@@ -80,10 +81,7 @@ describe('prompts', () => {
 
       const result = await promptForTargetDirectoryAsync('test-project');
 
-      expectConsoleToContain(
-        `🚚 Let's start by cloning the default Expo template project from GitHub and installing dependencies.`
-      );
-      expectPromptToHaveMessage('Where would you like to create your new project directory?');
+      expectPromptToHaveMessage('Where would you like to create your new project?');
       expect(result).toBe(promptedDirectory);
     });
 
@@ -91,55 +89,32 @@ describe('prompts', () => {
       const providedDirectory = '/test/provided-project';
       const result = await promptForTargetDirectoryAsync('test-project', providedDirectory);
 
-      expectConsoleToContain(
-        `🚚 Let's start by cloning the default Expo template project from GitHub and installing dependencies.`
-      );
-      expectConsoleToContain(`Using project directory from args: ${providedDirectory}`);
+      expectLogToContain(`Using project directory from args: ${providedDirectory}`);
       expect(promptAsync).not.toHaveBeenCalled();
       expect(result).toBe(providedDirectory);
     });
   });
 
   describe('promptForProjectAccountAsync', () => {
-    it('should prompt for project account', async () => {
-      const selectedAccount = 'test-account';
-      mockUserInput({ projectAccount: selectedAccount });
+    it('should prompt for a project account when there are multiple accounts', async () => {
+      const selectedAccount = 'jester';
+      mockUserInput({ account: { name: selectedAccount } });
 
       const result = await promptForProjectAccountAsync(jester);
 
       expect(result).toBe(selectedAccount);
-      expectPromptToHaveMessage('Which account should we use for this project?');
+      expectPromptToHaveMessage('Which account should own this project?');
     });
-  });
 
-  describe('promptToChangeProjectNameOrAccountAsync', () => {
-    it('should prompt to change project name or account', async () => {
-      const newProjectName = 'new-project-name';
-      const newAccount = 'new-account';
-      mockUserInput({
-        projectName: newProjectName,
-        projectAccount: newAccount,
-      });
-
-      const result = await promptToChangeProjectNameOrAccountAsync(
-        jester,
-        'old-project-name',
-        'old-account'
-      );
-
-      expect(result).toEqual({
-        projectName: newProjectName,
-        projectAccount: newAccount,
-      });
+    it('should prompt for a project account when there is only one account', async () => {
+      const result = await promptForProjectAccountAsync(jester);
+      expect(result).toBe(jester.accounts[0].name);
     });
   });
 
   describe('getAccountChoices', () => {
     it('should return mapped account choices', () => {
-      // Use jester fixture which has multiple accounts with different permissions
-      const namesWithSufficientPermissions = new Set(['jester']); // Only personal account has permissions
-
-      const result = getAccountChoices(jester, namesWithSufficientPermissions);
+      const result = getAccountChoices(jester);
 
       expect(result).toEqual([
         {
@@ -154,6 +129,42 @@ describe('prompts', () => {
             'You do not have the required permissions to create projects on this account.',
         },
       ]);
+    });
+  });
+
+  describe('promptToChangeProjectNameOrAccountAsync', () => {
+    it('should prompt to change a project name', async () => {
+      const newProjectName = 'new-project-name';
+      jest.mocked(selectAsync).mockResolvedValue('name');
+      mockUserInput({ projectName: newProjectName });
+
+      const result = await promptToChangeProjectNameOrAccountAsync(
+        jester,
+        'old-project-name',
+        'old-account'
+      );
+
+      expect(result).toEqual({
+        projectName: newProjectName,
+        projectAccount: 'old-account', // Account should remain unchanged
+      });
+    });
+
+    it('should prompt to change a project account', async () => {
+      const newProjectAccount = 'new-project-account';
+      jest.mocked(selectAsync).mockResolvedValue('account');
+      mockUserInput({ account: { name: newProjectAccount } });
+
+      const result = await promptToChangeProjectNameOrAccountAsync(
+        jester,
+        'old-project-name',
+        'old-account'
+      );
+
+      expect(result).toEqual({
+        projectName: 'old-project-name',
+        projectAccount: newProjectAccount,
+      });
     });
   });
 });

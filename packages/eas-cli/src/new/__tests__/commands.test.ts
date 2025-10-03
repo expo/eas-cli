@@ -1,8 +1,6 @@
+import Log from '../../log';
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../onboarding/git';
-import {
-  installDependenciesAsync,
-  promptForPackageManagerAsync,
-} from '../../onboarding/installDependencies';
+import { installDependenciesAsync } from '../../onboarding/installDependencies';
 import { runCommandAsync } from '../../onboarding/runCommand';
 import {
   cloneTemplateAsync,
@@ -10,32 +8,31 @@ import {
   installProjectDependenciesAsync,
 } from '../commands';
 
-jest.mock('../../../onboarding/git');
-jest.mock('../../../onboarding/runCommand');
-jest.mock('../../../onboarding/installDependencies');
-jest.mock('../../../log');
+jest.mock('../../onboarding/git');
+jest.mock('../../onboarding/runCommand');
+jest.mock('../../onboarding/installDependencies');
 jest.mock('fs-extra');
 
 describe('commands', () => {
-  let consoleLogSpy: jest.SpyInstance;
+  let logSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    consoleLogSpy = jest.spyOn(console, 'log');
+    logSpy = jest.spyOn(Log, 'log');
   });
 
   afterEach(() => {
-    consoleLogSpy.mockRestore();
+    logSpy.mockRestore();
   });
 
-  // Helper function to get all console output as strings
-  const getConsoleOutput = (): string[] => {
-    return consoleLogSpy.mock.calls.map(call => (call.length === 0 ? '' : call.join(' ')));
+  // Helper function to get all log output as strings
+  const getLogOutput = (): string[] => {
+    return logSpy.mock.calls.map(call => (call.length === 0 ? '' : call.join(' ')));
   };
 
   // Helper function to check if a specific message was logged
-  const expectConsoleToContain = (message: string): void => {
-    const output = getConsoleOutput();
+  const expectLogToContain = (message: string): void => {
+    const output = getLogOutput();
     // strip out ANSI codes and special characters like the tick
     const outputWithoutAnsi = output.map(line =>
       line.replace(/\x1b\[[0-9;]*m/g, '').replace(/✔\s*/, '')
@@ -55,8 +52,8 @@ describe('commands', () => {
 
       const result = await cloneTemplateAsync(targetProjectDir);
 
-      expectConsoleToContain(`📂 Cloning the project to ${targetProjectDir}`);
-      expectConsoleToContain('We detected that ssh is your preferred git clone method');
+      expectLogToContain(`📂 Cloning the project to ${targetProjectDir}`);
+      expectLogToContain('We detected that ssh is your preferred git clone method');
 
       expect(runGitCloneAsync).toHaveBeenCalledWith({
         githubUsername: 'expo',
@@ -79,8 +76,8 @@ describe('commands', () => {
 
       const result = await cloneTemplateAsync(targetProjectDir);
 
-      expectConsoleToContain(`📂 Cloning the project to ${targetProjectDir}`);
-      expectConsoleToContain('We detected that https is your preferred git clone method');
+      expectLogToContain(`📂 Cloning the project to ${targetProjectDir}`);
+      expectLogToContain('We detected that https is your preferred git clone method');
 
       expect(runGitCloneAsync).toHaveBeenCalledWith({
         githubUsername: 'expo',
@@ -97,13 +94,11 @@ describe('commands', () => {
     it('should install the project dependencies', async () => {
       const projectDir = '/test/project-directory';
 
-      jest.mocked(promptForPackageManagerAsync).mockResolvedValue('npm');
       jest.mocked(installDependenciesAsync).mockResolvedValue();
       jest.mocked(runCommandAsync).mockResolvedValue();
 
       await installProjectDependenciesAsync(projectDir, 'npm');
 
-      expect(promptForPackageManagerAsync).toHaveBeenCalled();
       expect(installDependenciesAsync).toHaveBeenCalledWith({
         projectDir,
         packageManager: 'npm',
