@@ -1,5 +1,5 @@
+import { LogSpy } from './testUtils';
 import { jester } from '../../credentials/__tests__/fixtures-constants';
-import Log from '../../log';
 import { promptAsync, selectAsync } from '../../prompts';
 import {
   getAccountChoices,
@@ -13,31 +13,19 @@ jest.mock('../../prompts');
 jest.mock('../../log');
 
 describe('prompts', () => {
-  let logSpy: jest.SpyInstance;
+  let logSpy: LogSpy;
+
+  beforeAll(() => {
+    logSpy = new LogSpy('log');
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
-    logSpy = jest.spyOn(Log, 'log');
   });
 
-  afterEach(() => {
-    logSpy.mockRestore();
+  afterAll(() => {
+    logSpy.restore();
   });
-
-  // Helper function to get all log output as strings
-  const getLogOutput = (): string[] => {
-    return logSpy.mock.calls.map(call => (call.length === 0 ? '' : call.join(' ')));
-  };
-
-  // Helper function to check if a specific message was logged
-  const expectLogToContain = (message: string): void => {
-    const output = getLogOutput();
-    // strip out ANSI codes and special characters like the tick
-    const outputWithoutAnsi = output.map(line =>
-      line.replace(/\x1b\[[0-9;]*m/g, '').replace(/✔\s*/, '')
-    );
-    expect(outputWithoutAnsi.some(line => line.includes(message))).toBeTruthy();
-  };
 
   // Helper function to verify prompt was called with expected message
   const expectPromptToHaveMessage = (expectedMessage: string): void => {
@@ -59,7 +47,7 @@ describe('prompts', () => {
       const result = await promptForProjectNameAsync(jester, projectNameFromArgs);
 
       expect(result).toBe(projectNameFromArgs);
-      expectLogToContain(`Using project name from args: ${projectNameFromArgs}`);
+      logSpy.expectLogToContain(`Using project name from args: ${projectNameFromArgs}`);
       expect(promptAsync).not.toHaveBeenCalled();
     });
 
@@ -89,7 +77,7 @@ describe('prompts', () => {
       const providedDirectory = '/test/provided-project';
       const result = await promptForTargetDirectoryAsync('test-project', providedDirectory);
 
-      expectLogToContain(`Using project directory from args: ${providedDirectory}`);
+      logSpy.expectLogToContain(`Using project directory from args: ${providedDirectory}`);
       expect(promptAsync).not.toHaveBeenCalled();
       expect(result).toBe(providedDirectory);
     });
