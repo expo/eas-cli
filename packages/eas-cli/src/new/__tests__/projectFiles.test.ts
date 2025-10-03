@@ -1,6 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import fs from 'fs-extra';
 
+import { LogSpy } from './testUtils';
 import { getEASUpdateURL } from '../../api';
 import { AppFragment } from '../../graphql/generated';
 import { easCliVersion } from '../../utils/easCli';
@@ -17,11 +18,14 @@ jest.mock('../../api');
 jest.mock('fs-extra');
 
 describe('projectFiles', () => {
-  let consoleLogSpy: jest.SpyInstance;
+  let logSpy: LogSpy;
+
+  beforeAll(() => {
+    logSpy = new LogSpy('withTick');
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
-    consoleLogSpy = jest.spyOn(console, 'log');
 
     jest.mocked(fs.writeFile).mockImplementation(() => Promise.resolve());
     jest.mocked(fs.readJson).mockImplementation(() => Promise.resolve({}));
@@ -31,24 +35,9 @@ describe('projectFiles', () => {
     jest.mocked(fs.readFile).mockImplementation(() => Promise.resolve(''));
   });
 
-  afterEach(() => {
-    consoleLogSpy.mockRestore();
+  afterAll(() => {
+    logSpy.restore();
   });
-
-  // Helper function to get all console output as strings
-  const getConsoleOutput = (): string[] => {
-    return consoleLogSpy.mock.calls.map(call => (call.length === 0 ? '' : call.join(' ')));
-  };
-
-  // Helper function to check if a specific message was logged
-  const expectConsoleToContain = (message: string): void => {
-    const output = getConsoleOutput();
-    // strip out ANSI codes and special characters like the tick
-    const outputWithoutAnsi = output.map(line =>
-      line.replace(/\x1b\[[0-9;]*m/g, '').replace(/✔\s*/, '')
-    );
-    expect(outputWithoutAnsi.some(line => line.includes(message))).toBeTruthy();
-  };
 
   describe('stripInvalidCharactersForBundleIdentifier', () => {
     it('should strip invalid characters from bundle identifier', () => {
@@ -131,7 +120,7 @@ describe('projectFiles', () => {
         spaces: 2,
       });
 
-      expectConsoleToContain('Generated app.json');
+      logSpy.expectLogToContain('Generated app.json');
     });
 
     it('should handle invalid characters in the bundle identifier', async () => {
@@ -250,7 +239,7 @@ describe('projectFiles', () => {
         spaces: 2,
       });
 
-      expectConsoleToContain('Generated eas.json');
+      logSpy.expectLogToContain('Generated eas.json');
     });
   });
 
@@ -277,7 +266,7 @@ describe('projectFiles', () => {
         spaces: 2,
       });
 
-      expectConsoleToContain('Updated package.json with scripts');
+      logSpy.expectLogToContain('Updated package.json with scripts');
     });
   });
 
@@ -293,7 +282,7 @@ describe('projectFiles', () => {
         { errorOnExist: false, overwrite: true }
       );
 
-      expectConsoleToContain('Created EAS workflow files');
+      logSpy.expectLogToContain('Created EAS workflow files');
     });
   });
 
@@ -345,7 +334,7 @@ Install the dependencies first.`;
         expect.stringMatching(new RegExp(headings.join('[\\s\\S]*')))
       );
 
-      expectConsoleToContain('Updated README.md with EAS configuration details');
+      logSpy.expectLogToContain('Updated README.md with EAS configuration details');
     });
 
     it('should replace npm run with package manager specific commands', async () => {

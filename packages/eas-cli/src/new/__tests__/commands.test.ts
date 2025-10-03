@@ -1,4 +1,4 @@
-import Log from '../../log';
+import { LogSpy } from './testUtils';
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../onboarding/git';
 import { installDependenciesAsync } from '../../onboarding/installDependencies';
 import { runCommandAsync } from '../../onboarding/runCommand';
@@ -14,31 +14,19 @@ jest.mock('../../onboarding/installDependencies');
 jest.mock('fs-extra');
 
 describe('commands', () => {
-  let logSpy: jest.SpyInstance;
+  let logSpy: LogSpy;
+
+  beforeAll(() => {
+    logSpy = new LogSpy('log');
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
-    logSpy = jest.spyOn(Log, 'log');
   });
 
-  afterEach(() => {
-    logSpy.mockRestore();
+  afterAll(() => {
+    logSpy.restore();
   });
-
-  // Helper function to get all log output as strings
-  const getLogOutput = (): string[] => {
-    return logSpy.mock.calls.map(call => (call.length === 0 ? '' : call.join(' ')));
-  };
-
-  // Helper function to check if a specific message was logged
-  const expectLogToContain = (message: string): void => {
-    const output = getLogOutput();
-    // strip out ANSI codes and special characters like the tick
-    const outputWithoutAnsi = output.map(line =>
-      line.replace(/\x1b\[[0-9;]*m/g, '').replace(/✔\s*/, '')
-    );
-    expect(outputWithoutAnsi.some(line => line.includes(message))).toBeTruthy();
-  };
 
   describe('cloneTemplateAsync', () => {
     it('should clone the template project with ssh', async () => {
@@ -52,8 +40,8 @@ describe('commands', () => {
 
       const result = await cloneTemplateAsync(targetProjectDir);
 
-      expectLogToContain(`📂 Cloning the project to ${targetProjectDir}`);
-      expectLogToContain('We detected that ssh is your preferred git clone method');
+      logSpy.expectLogToContain(`📂 Cloning the project to ${targetProjectDir}`);
+      logSpy.expectLogToContain('We detected that ssh is your preferred git clone method');
 
       expect(runGitCloneAsync).toHaveBeenCalledWith({
         githubUsername: 'expo',
@@ -76,8 +64,8 @@ describe('commands', () => {
 
       const result = await cloneTemplateAsync(targetProjectDir);
 
-      expectLogToContain(`📂 Cloning the project to ${targetProjectDir}`);
-      expectLogToContain('We detected that https is your preferred git clone method');
+      logSpy.expectLogToContain(`📂 Cloning the project to ${targetProjectDir}`);
+      logSpy.expectLogToContain('We detected that https is your preferred git clone method');
 
       expect(runGitCloneAsync).toHaveBeenCalledWith({
         githubUsername: 'expo',
