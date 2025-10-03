@@ -16,6 +16,7 @@ export enum WorkflowStarterName {
   BUILD = 'build',
   UPDATE = 'update',
   CUSTOM = 'custom',
+  DEPLOY = 'deploy',
 }
 
 export type WorkflowStarter = {
@@ -135,6 +136,109 @@ ${createdByEASCLI}
 #
 `;
 
+const DEPLOY_TEMPLATE = {
+  name: 'Deploy to production',
+  on: {
+    push: {
+      branches: ['main'],
+    },
+  },
+  jobs: {
+    fingerprint: {
+      name: 'Fingerprint',
+      type: 'fingerprint',
+    },
+    get_android_build: {
+      name: 'Check for existing android build',
+      needs: ['fingerprint'],
+      type: 'get-build',
+      params: {
+        fingerprint_hash: '${{ needs.fingerprint.outputs.android_fingerprint_hash }}',
+        profile: 'production',
+      },
+    },
+    get_ios_build: {
+      name: 'Check for existing ios build',
+      needs: ['fingerprint'],
+      type: 'get-build',
+      params: {
+        fingerprint_hash: '${{ needs.fingerprint.outputs.ios_fingerprint_hash }}',
+        profile: 'production',
+      },
+    },
+    build_android: {
+      name: 'Build Android',
+      needs: ['get_android_build'],
+      if: '${{ !needs.get_android_build.outputs.build_id }}',
+      type: 'build',
+      params: {
+        platform: 'android',
+        profile: 'production',
+      },
+    },
+    build_ios: {
+      name: 'Build iOS',
+      needs: ['get_ios_build'],
+      if: '${{ !needs.get_ios_build.outputs.build_id }}',
+      type: 'build',
+      params: {
+        platform: 'ios',
+        profile: 'production',
+      },
+    },
+    submit_android_build: {
+      name: 'Submit Android Build',
+      needs: ['build_android'],
+      type: 'submit',
+      params: {
+        build_id: '${{ needs.build_android.outputs.build_id }}',
+      },
+    },
+    submit_ios_build: {
+      name: 'Submit iOS Build',
+      needs: ['build_ios'],
+      type: 'submit',
+      params: {
+        build_id: '${{ needs.build_ios.outputs.build_id }}',
+      },
+    },
+    publish_android_update: {
+      name: 'Publish Android update',
+      needs: ['get_android_build'],
+      if: '${{ needs.get_android_build.outputs.build_id }}',
+      type: 'update',
+      params: {
+        branch: 'production',
+        platform: 'android',
+      },
+    },
+    publish_ios_update: {
+      name: 'Publish iOS update',
+      needs: ['get_ios_build'],
+      if: '${{ needs.get_ios_build.outputs.build_id }}',
+      type: 'update',
+      params: {
+        branch: 'production',
+        platform: 'ios',
+      },
+    },
+  },
+};
+
+const DEPLOY_TEMPLATE_HEADER = `
+# Deploy to production
+#
+# This workflow shows how to build and submit to app stores.
+#
+# Key features:
+# - Triggers on pushes to "main" (Requires linked GitHub account: https://expo.dev/accounts/[account]/settings/github)
+# - Can be triggered manually with eas workflow:run deploy-to-production.yml
+# - Creates builds and submits them to app stores when native changes are detected, otherwise sends an over-the-air update.
+#
+# For a detailed guide on using this workflow, visit:
+# https://docs.expo.dev/eas/workflows/examples/deploy-to-production/
+`;
+
 export const workflowStarters: WorkflowStarter[] = [
   {
     displayName: 'Custom',
@@ -156,6 +260,13 @@ export const workflowStarters: WorkflowStarter[] = [
     defaultFileName: 'publish-updates.yml',
     template: PUBLISH_UPDATE_TEMPLATE,
     header: PUBLISH_UPDATE_TEMPLATE_HEADER,
+  },
+  {
+    displayName: 'Deploy to production',
+    name: WorkflowStarterName.DEPLOY,
+    defaultFileName: 'deploy-to-production.yml',
+    template: DEPLOY_TEMPLATE,
+    header: DEPLOY_TEMPLATE_HEADER,
   },
 ];
 
