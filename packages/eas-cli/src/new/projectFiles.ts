@@ -160,8 +160,6 @@ export async function updateReadmeAsync(
   const sectionIndex = existingReadme.indexOf(targetSection);
 
   let mergedReadme: string;
-  let beforeSection: string = '';
-  let afterSection: string = '';
   if (sectionIndex !== -1) {
     // Find the next ## section after "## Get started"
     const afterTargetSection = existingReadme.substring(sectionIndex);
@@ -172,12 +170,15 @@ export async function updateReadmeAsync(
       endIndex = sectionIndex + nextSectionMatch.index;
     }
 
-    beforeSection = existingReadme.substring(0, sectionIndex).trim();
-    afterSection = existingReadme.substring(endIndex);
+    const beforeSection = existingReadme.substring(0, sectionIndex).trim();
+    const afterSection = existingReadme.substring(endIndex);
+    mergedReadme = beforeSection + '\n\n' + readmeAdditions.trim() + '\n\n' + afterSection;
+  } else {
+    // No "Get started" section found, append the template to the existing README
+    mergedReadme = existingReadme.trim() + '\n\n' + readmeAdditions.trim();
   }
-  mergedReadme = beforeSection + '\n\n' + readmeAdditions.trim() + '\n\n' + afterSection;
 
-  mergedReadme = mergedReadme.replace('npm run', `${packageManager} run`);
+  mergedReadme = mergedReadme.replaceAll('npm run', `${packageManager} run`);
 
   await fs.writeFile(projectReadmePath, mergedReadme);
 
