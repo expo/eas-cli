@@ -1,4 +1,4 @@
-import { Android, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import { Android, Platform, Workflow } from '@expo/eas-build-job';
 import { AppVersionSource } from '@expo/eas-json';
 import chalk from 'chalk';
 import getenv from 'getenv';
@@ -11,7 +11,7 @@ import { resolveRemoteVersionCodeAsync } from './version';
 import AndroidCredentialsProvider, {
   AndroidCredentials,
 } from '../../credentials/android/AndroidCredentialsProvider';
-import { BuildParamsInput } from '../../graphql/generated';
+import { BuildMetadataInput, BuildParamsInput } from '../../graphql/generated';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import Log, { learnMore } from '../../log';
 import {
@@ -27,7 +27,6 @@ import {
   prepareBuildRequestForPlatformAsync,
 } from '../build';
 import { AndroidBuildContext, BuildContext, CommonContext } from '../context';
-import { transformMetadata } from '../graphql';
 import { logCredentialsSource } from '../utils/credentials';
 import {
   checkGoogleServicesFileAsync,
@@ -124,10 +123,9 @@ export async function prepareAndroidBuildAsync(
     sendBuildRequestAsync: async (
       appId: string,
       job: Android.Job,
-      metadata: Metadata,
+      graphqlMetadata: BuildMetadataInput,
       buildParams: BuildParamsInput
     ): Promise<BuildResult> => {
-      const graphqlMetadata = transformMetadata(metadata);
       const graphqlJob = transformJob(job);
       return await BuildMutation.createAndroidBuildAsync(ctx.graphqlClient, {
         appId,

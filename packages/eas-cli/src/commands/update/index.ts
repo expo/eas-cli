@@ -6,7 +6,6 @@ import nullthrows from 'nullthrows';
 
 // import { getExpoWebsiteBaseUrl } from '../../api';
 import { ensureBranchExistsAsync } from '../../branch/queries';
-import { transformFingerprintSource } from '../../build/graphql';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -488,10 +487,7 @@ export default class UpdatePublish extends EasCommand {
             (prev, [platform, fingerprintInfo]) => {
               return {
                 ...prev,
-                [platform]: {
-                  ...fingerprintInfo,
-                  fingerprintSource: transformFingerprintSource(fingerprintInfo.fingerprintSource),
-                },
+                [platform]: fingerprintInfo,
               };
             },
             {} as GraphqlFingerprintInfoGroup

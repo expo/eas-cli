@@ -1,4 +1,4 @@
-import { Ios, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import { Ios, Platform, Workflow } from '@expo/eas-build-job';
 import { AppVersionSource } from '@expo/eas-json';
 
 import { ensureIosCredentialsAsync } from './credentials';
@@ -7,7 +7,7 @@ import { prepareJobAsync } from './prepareJob';
 import { syncProjectConfigurationAsync } from './syncProjectConfiguration';
 import { resolveRemoteBuildNumberAsync } from './version';
 import { IosCredentials } from '../../credentials/ios/types';
-import { BuildParamsInput } from '../../graphql/generated';
+import { BuildMetadataInput, BuildParamsInput } from '../../graphql/generated';
 import { BuildMutation, BuildResult } from '../../graphql/mutations/BuildMutation';
 import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
 import { ensureNonExemptEncryptionIsDefinedForManagedProjectAsync } from '../../project/ios/exemptEncryption';
@@ -15,7 +15,6 @@ import { resolveXcodeBuildContextAsync } from '../../project/ios/scheme';
 import { findApplicationTarget, resolveTargetsAsync } from '../../project/ios/target';
 import { BuildRequestSender, JobData, prepareBuildRequestForPlatformAsync } from '../build';
 import { BuildContext, CommonContext, IosBuildContext } from '../context';
-import { transformMetadata } from '../graphql';
 import {
   checkGoogleServicesFileAsync,
   checkNodeEnvVariable,
@@ -106,10 +105,9 @@ export async function prepareIosBuildAsync(
     sendBuildRequestAsync: async (
       appId: string,
       job: Ios.Job,
-      metadata: Metadata,
+      graphqlMetadata: BuildMetadataInput,
       buildParams: BuildParamsInput
     ): Promise<BuildResult> => {
-      const graphqlMetadata = transformMetadata(metadata);
       const graphqlJob = transformJob(job);
       return await BuildMutation.createIosBuildAsync(ctx.graphqlClient, {
         appId,

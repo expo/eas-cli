@@ -3,7 +3,6 @@ import {
   ArchiveSourceType,
   BuildMode,
   BuildTrigger,
-  FingerprintSourceType,
   Metadata,
   Workflow,
 } from '@expo/eas-build-job';
@@ -19,7 +18,6 @@ import {
   FingerprintSourceInput,
   BuildMode as GraphQLBuildMode,
   BuildTrigger as GraphQLBuildTrigger,
-  FingerprintSourceType as GraphQLFingeprintSourceType,
   ProjectArchiveSourceInput,
   ProjectArchiveSourceType,
   WorkerLoggerLevel,
@@ -42,11 +40,16 @@ export function transformProjectArchive(archiveSource: ArchiveSource): ProjectAr
   }
 }
 
-export function transformMetadata(metadata: Metadata): BuildMetadataInput {
+export function transformMetadata({
+  metadata,
+  fingerprintSource,
+}: {
+  metadata: Metadata;
+  fingerprintSource: FingerprintSourceInput | undefined;
+}): BuildMetadataInput {
   return {
     ...metadata,
-    fingerprintSource:
-      metadata.fingerprintSource && transformFingerprintSource(metadata.fingerprintSource),
+    fingerprintSource,
     credentialsSource:
       metadata.credentialsSource && transformCredentialsSource(metadata.credentialsSource),
     distribution: metadata.distribution && transformDistribution(metadata.distribution),
@@ -54,20 +57,6 @@ export function transformMetadata(metadata: Metadata): BuildMetadataInput {
     iosEnterpriseProvisioning:
       metadata.iosEnterpriseProvisioning &&
       transformIosEnterpriseProvisioning(metadata.iosEnterpriseProvisioning),
-  };
-}
-
-export function transformFingerprintSource(
-  fingerprintSource: NonNullable<Metadata['fingerprintSource']>
-): FingerprintSourceInput | null {
-  if (fingerprintSource.type !== FingerprintSourceType.GCS) {
-    return null;
-  }
-
-  return {
-    type: GraphQLFingeprintSourceType.Gcs,
-    bucketKey: fingerprintSource.bucketKey,
-    isDebugFingerprint: fingerprintSource.isDebugFingerprint,
   };
 }
 
