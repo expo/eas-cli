@@ -6,6 +6,8 @@ import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
+  WorkflowStarter,
+  WorkflowStarterName,
   customizeTemplateIfNeededAsync,
   workflowStarters,
 } from '../../commandUtils/workflow/creation';
@@ -15,8 +17,9 @@ import {
   workflowContentsFromParsedYaml,
 } from '../../commandUtils/workflow/validation';
 import Log from '../../log';
-import { promptAsync } from '../../prompts';
+import { confirmAsync, promptAsync } from '../../prompts';
 import { WorkflowFile } from '../../utils/workflowFile';
+import UpdateConfigure from '../update/configure';
 
 export class WorkflowCreate extends EasCommand {
   static override description = 'create a new workflow configuration YAML file';
@@ -48,6 +51,22 @@ export class WorkflowCreate extends EasCommand {
       flags,
     } = await this.parse(WorkflowCreate);
 
+    let workflowStarter;
+    while (!workflowStarter) {
+      workflowStarter = await chooseTemplateAsync();
+      if (workflowStarter.name === WorkflowStarterName.UPDATE) {
+        const configureUpdate = await confirmAsync({
+          message: 'EAS Update is not configured for this project. Would you like to configure it?',
+        });
+        if (configureUpdate) {
+          Log.newLine();
+          await UpdateConfigure.run([]);
+        } else {
+          workflowStarter = undefined;
+        }
+      }
+    }
+
     try {
       const {
         getDynamicPrivateProjectConfigAsync,
@@ -61,46 +80,11 @@ export class WorkflowCreate extends EasCommand {
       const { exp: expPossiblyWithoutEasUpdateConfigured, projectId } =
         await getDynamicPrivateProjectConfigAsync();
 
-      let fileName = argFileName;
-      let filePath;
-
-      let workflowStarter = (
-        await promptAsync({
-          type: 'select',
-          name: 'starter',
-          message: 'Select a workflow template:',
-          choices: workflowStarters.map(starter => ({
-            title: starter.displayName,
-            value: starter,
-          })),
-        })
-      ).starter;
-
-      while ((fileName?.length ?? 0) === 0) {
-        fileName = (
-          await promptAsync({
-            type: 'text',
-            name: 'fileName',
-            message: 'What would you like to name your workflow file?',
-            initial: workflowStarter.defaultFileName,
-          })
-        ).fileName;
-        try {
-          WorkflowFile.validateYamlExtension(fileName);
-        } catch (error) {
-          Log.error(error instanceof Error ? error.message : 'Invalid YAML file name extension');
-          filePath = undefined;
-          fileName = undefined;
-        }
-        filePath = path.join(projectDir, '.eas', 'workflows', fileName);
-        if (await fsExtra.pathExists(filePath)) {
-          Log.error(`Workflow file already exists: ${filePath}`);
-          Log.error('Please choose a different file name.');
-          Log.newLine();
-          filePath = undefined;
-          fileName = undefined;
-        }
-      }
+      const { fileName, filePath } = await chooseFileNameAsync(
+        argFileName,
+        projectDir,
+        workflowStarter
+      );
 
       // Customize the template if needed
       workflowStarter = await customizeTemplateIfNeededAsync(
@@ -123,7 +107,7 @@ export class WorkflowCreate extends EasCommand {
           projectId
         );
       }
-      await this.ensureWorkflowsDirectoryExistsAsync({ projectDir });
+      await ensureWorkflowsDirectoryExistsAsync({ projectDir });
       filePath && (await fs.writeFile(filePath, yamlString));
       Log.withTick(`Created ${chalk.bold(filePath)}`);
     } catch (error) {
@@ -131,17 +115,70 @@ export class WorkflowCreate extends EasCommand {
       Log.error('Failed to create workflow file.');
     }
   }
+}
 
-  private async ensureWorkflowsDirectoryExistsAsync({
-    projectDir,
-  }: {
-    projectDir: string;
-  }): Promise<void> {
+async function ensureWorkflowsDirectoryExistsAsync({
+  projectDir,
+}: {
+  projectDir: string;
+}): Promise<void> {
+  try {
+    await fs.access(path.join(projectDir, '.eas', 'workflows'));
+  } catch {
+    await fs.mkdir(path.join(projectDir, '.eas', 'workflows'), { recursive: true });
+    Log.withTick(`Created directory ${chalk.bold(path.join(projectDir, '.eas', 'workflows'))}`);
+  }
+}
+
+async function chooseTemplateAsync(): Promise<WorkflowStarter> {
+  const workflowStarter = (
+    await promptAsync({
+      type: 'select',
+      name: 'starter',
+      message: 'Select a workflow template:',
+      choices: workflowStarters.map(starter => ({
+        title: starter.displayName,
+        value: starter,
+      })),
+    })
+  ).starter;
+  return workflowStarter;
+}
+
+async function chooseFileNameAsync(
+  initialValue: string | undefined,
+  projectDir: string,
+  workflowStarter: WorkflowStarter
+): Promise<{ fileName: string; filePath: string }> {
+  let fileName = initialValue;
+  let filePath = '';
+  while ((fileName?.length ?? 0) === 0) {
+    fileName = (
+      await promptAsync({
+        type: 'text',
+        name: 'fileName',
+        message: 'What would you like to name your workflow file?',
+        initial: workflowStarter.defaultFileName,
+      })
+    ).fileName;
+    if (!fileName) {
+      fileName = undefined;
+      continue;
+    }
     try {
-      await fs.access(path.join(projectDir, '.eas', 'workflows'));
-    } catch {
-      await fs.mkdir(path.join(projectDir, '.eas', 'workflows'), { recursive: true });
-      Log.withTick(`Created directory ${chalk.bold(path.join(projectDir, '.eas', 'workflows'))}`);
+      WorkflowFile.validateYamlExtension(fileName);
+    } catch (error) {
+      Log.error(error instanceof Error ? error.message : 'Invalid YAML file name extension');
+      fileName = undefined;
+      continue;
+    }
+    filePath = path.join(projectDir, '.eas', 'workflows', fileName);
+    if (await fsExtra.pathExists(filePath)) {
+      Log.error(`Workflow file already exists: ${filePath}`);
+      Log.error('Please choose a different file name.');
+      Log.newLine();
+      fileName = undefined;
     }
   }
+  return { fileName: fileName ?? '', filePath };
 }
