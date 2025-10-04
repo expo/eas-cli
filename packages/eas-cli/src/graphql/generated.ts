@@ -2966,6 +2966,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   updatedAt: Scalars['DateTime']['output'];
   waiverType?: Maybe<EasBuildWaiverType>;
   workerStartedAt?: Maybe<Scalars['DateTime']['output']>;
+  workflowJob?: Maybe<WorkflowJob>;
 };
 
 
@@ -4382,8 +4383,21 @@ export type EstimatedUsage = {
   id: Scalars['ID']['output'];
   limit: Scalars['Float']['output'];
   metricType: UsageMetricType;
+  platformBreakdown?: Maybe<EstimatedUsagePlatformBreakdown>;
   service: EasService;
   serviceMetric: EasServiceMetric;
+  value: Scalars['Float']['output'];
+};
+
+export type EstimatedUsagePlatformBreakdown = {
+  __typename?: 'EstimatedUsagePlatformBreakdown';
+  android: EstimatedUsagePlatformDetail;
+  ios: EstimatedUsagePlatformDetail;
+};
+
+export type EstimatedUsagePlatformDetail = {
+  __typename?: 'EstimatedUsagePlatformDetail';
+  limit: Scalars['Float']['output'];
   value: Scalars['Float']['output'];
 };
 
@@ -6928,6 +6942,7 @@ export type Submission = ActivityTimelineProjectActivity & {
   status: SubmissionStatus;
   submittedBuild?: Maybe<Build>;
   updatedAt: Scalars['DateTime']['output'];
+  workflowJob?: Maybe<WorkflowJob>;
 };
 
 export enum SubmissionAndroidArchiveType {
@@ -7134,6 +7149,7 @@ export type Update = ActivityTimelineProjectActivity & {
   /** @deprecated Use 'runtime' field . */
   runtimeVersion: Scalars['String']['output'];
   updatedAt: Scalars['DateTime']['output'];
+  workflowJob?: Maybe<WorkflowJob>;
 };
 
 
@@ -8936,7 +8952,15 @@ export type WorkflowRevisionInput = {
 
 export type WorkflowRevisionMutation = {
   __typename?: 'WorkflowRevisionMutation';
+  getOrCreateWorkflowRevisionFromGitRef: WorkflowRevision;
   validateWorkflowYamlConfig: Scalars['Boolean']['output'];
+};
+
+
+export type WorkflowRevisionMutationGetOrCreateWorkflowRevisionFromGitRefArgs = {
+  appId: Scalars['ID']['input'];
+  fileName: Scalars['String']['input'];
+  gitRef: Scalars['String']['input'];
 };
 
 
@@ -9018,6 +9042,7 @@ export type WorkflowRunMutation = {
   __typename?: 'WorkflowRunMutation';
   cancelWorkflowRun: WorkflowRun;
   createWorkflowRun: WorkflowRun;
+  createWorkflowRunFromGitRef: WorkflowRun;
   retryWorkflowRun: WorkflowRun;
 };
 
@@ -9031,6 +9056,13 @@ export type WorkflowRunMutationCreateWorkflowRunArgs = {
   appId: Scalars['ID']['input'];
   workflowRevisionInput: WorkflowRevisionInput;
   workflowRunInput: WorkflowRunInput;
+};
+
+
+export type WorkflowRunMutationCreateWorkflowRunFromGitRefArgs = {
+  gitRef: Scalars['String']['input'];
+  inputs?: InputMaybe<Scalars['JSONObject']['input']>;
+  workflowRevisionId: Scalars['ID']['input'];
 };
 
 
@@ -9832,6 +9864,15 @@ export type DeleteWebhookMutationVariables = Exact<{
 
 export type DeleteWebhookMutation = { __typename?: 'RootMutation', webhook: { __typename?: 'WebhookMutation', deleteWebhook: { __typename?: 'DeleteWebhookResult', id: string } } };
 
+export type GetOrCreateWorkflowRevisionFromGitRefMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  fileName: Scalars['String']['input'];
+  gitRef: Scalars['String']['input'];
+}>;
+
+
+export type GetOrCreateWorkflowRevisionFromGitRefMutation = { __typename?: 'RootMutation', workflowRevision: { __typename?: 'WorkflowRevisionMutation', getOrCreateWorkflowRevisionFromGitRef: { __typename?: 'WorkflowRevision', id: string, yamlConfig: string, blobSha: string, commitSha?: string | null, createdAt: any, workflow: { __typename?: 'Workflow', id: string } } } };
+
 export type ValidateWorkflowYamlConfigMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
   yamlConfig: Scalars['String']['input'];
@@ -9848,6 +9889,15 @@ export type CreateWorkflowRunMutationVariables = Exact<{
 
 
 export type CreateWorkflowRunMutation = { __typename?: 'RootMutation', workflowRun: { __typename?: 'WorkflowRunMutation', createWorkflowRun: { __typename?: 'WorkflowRun', id: string } } };
+
+export type CreateWorkflowRunFromGitRefMutationVariables = Exact<{
+  workflowRevisionId: Scalars['ID']['input'];
+  gitRef: Scalars['String']['input'];
+  inputs?: InputMaybe<Scalars['JSONObject']['input']>;
+}>;
+
+
+export type CreateWorkflowRunFromGitRefMutation = { __typename?: 'RootMutation', workflowRun: { __typename?: 'WorkflowRunMutation', createWorkflowRunFromGitRef: { __typename?: 'WorkflowRun', id: string } } };
 
 export type CancelWorkflowRunMutationVariables = Exact<{
   workflowRunId: Scalars['ID']['input'];

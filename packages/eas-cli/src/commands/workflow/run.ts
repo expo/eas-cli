@@ -40,6 +40,7 @@
  * ```
  */
 
+import spawnAsync from '@expo/spawn-async';
 import { Flags } from '@oclif/core';
 import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
@@ -55,6 +56,7 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
 import {
   WorkflowProjectSourceType,
+  WorkflowRevision,
   WorkflowRunByIdQuery,
   WorkflowRunStatus,
 } from '../../graphql/generated';
@@ -98,6 +100,10 @@ export default class WorkflowRun extends EasCommand {
         'Add a parameter in key=value format. Use multiple instances of this flag to set multiple inputs.',
       summary: 'Set workflow inputs',
     }),
+    ref: Flags.string({
+      description: 'Git reference to run the workflow on.',
+      summary: 'Git reference to run the workflow on',
+    }),
     ...EasJsonOnlyFlag,
   };
 
@@ -125,26 +131,73 @@ export default class WorkflowRun extends EasCommand {
       withServerSideEnvironment: null,
     });
 
-    let yamlConfig: string;
-    try {
-      const workflowFileContents = await WorkflowFile.readWorkflowFileContentsAsync({
-        projectDir,
-        filePath: args.file,
-      });
-      Log.log(`Using workflow file from ${workflowFileContents.filePath}`);
-      yamlConfig = workflowFileContents.yamlConfig;
-    } catch (err) {
-      Log.error('Failed to read workflow file.');
-
-      throw err;
-    }
-
     const {
       projectId,
       exp: { slug: projectName },
     } = await getDynamicPrivateProjectConfigAsync();
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
 
+    let yamlConfig: string;
+    let workflowRunId: string;
+    let workflowRevisionId: string | undefined;
+    let gitRef: string | undefined;
+
+    if (flags.ref) {
+      // Run from git ref
+      const fileName = path.basename(args.file);
+      gitRef = flags.ref;
+      if (gitRef === 'HEAD') {
+        // This is the local branch tip, find the real commit
+        gitRef = (
+          await spawnAsync('git', ['rev-parse', 'HEAD'], {
+            cwd: projectDir,
+          })
+        ).output[0].trim();
+        if (!gitRef) {
+          throw new Error('Failed to resolve git reference');
+        }
+      }
+      Log.log(`Using workflow file ${fileName} at ${gitRef}`);
+      let revisionResult: WorkflowRevision | undefined;
+      try {
+        revisionResult = await WorkflowRevisionMutation.getOrCreateWorkflowRevisionFromGitRefAsync(
+          graphqlClient,
+          {
+            appId: projectId,
+            fileName,
+            gitRef,
+          }
+        );
+      } catch (err) {
+        throw new Error(
+          `Failed to find or create workflow revision for ${fileName} at ${flags.ref}: ${err}`
+        );
+      }
+      Log.debug(`Workflow revision: ${JSON.stringify(revisionResult, null, 2)}`);
+      if (!revisionResult) {
+        throw new Error(
+          `Failed to find or create workflow revision for ${fileName} at ${flags.ref}`
+        );
+      }
+      yamlConfig = revisionResult.yamlConfig;
+      workflowRevisionId = revisionResult.id;
+    } else {
+      // Run from local file
+      try {
+        const workflowFileContents = await WorkflowFile.readWorkflowFileContentsAsync({
+          projectDir,
+          filePath: args.file,
+        });
+        Log.log(`Using workflow file from ${workflowFileContents.filePath}`);
+        yamlConfig = workflowFileContents.yamlConfig;
+      } catch (err) {
+        Log.error('Failed to read workflow file.');
+
+        throw err;
+      }
+    }
+
+    // Validate workflow YAML
     try {
       await WorkflowRevisionMutation.validateWorkflowYamlConfigAsync(graphqlClient, {
         appId: projectId,
@@ -206,80 +259,94 @@ export default class WorkflowRun extends EasCommand {
       path.relative(await vcsClient.getRootPathAsync(), projectDir) || '.'
     );
 
-    try {
-      ({ projectArchiveBucketKey } = await uploadAccountScopedProjectSourceAsync({
-        graphqlClient,
-        vcsClient,
-        accountId: account.id,
-      }));
-
-      if (await fileExistsAsync(easJsonPath)) {
-        ({ fileBucketKey: easJsonBucketKey } = await uploadAccountScopedFileAsync({
-          graphqlClient,
-          accountId: account.id,
-          filePath: easJsonPath,
-          maxSizeBytes: 1024 * 1024,
-        }));
-      } else {
-        Log.warn(
-          `⚠ No ${chalk.bold('eas.json')} found in the project directory. Running ${chalk.bold(
-            'type: build'
-          )} jobs will not work. Run ${chalk.bold(
-            'eas build:configure'
-          )} to configure your project for builds.`
-        );
-      }
-
-      if (await fileExistsAsync(packageJsonPath)) {
-        ({ fileBucketKey: packageJsonBucketKey } = await uploadAccountScopedFileAsync({
-          graphqlClient,
-          accountId: account.id,
-          filePath: packageJsonPath,
-          maxSizeBytes: 1024 * 1024,
-        }));
-      } else {
-        Log.warn(
-          `⚠ No ${chalk.bold(
-            'package.json'
-          )} found in the project directory. It is used to automatically infer best job configuration for your project. You may want to define ${chalk.bold(
-            'image'
-          )} property in your workflow to specify the image to use.`
-        );
-      }
-    } catch (err) {
-      Log.error('Failed to upload project sources.');
-
-      throw err;
-    }
-
-    let workflowRunId: string;
-
-    try {
-      ({ id: workflowRunId } = await WorkflowRunMutation.createWorkflowRunAsync(graphqlClient, {
-        appId: projectId,
-        workflowRevisionInput: {
-          fileName: path.basename(args.file),
-          yamlConfig,
-        },
-        workflowRunInput: {
+    if (gitRef) {
+      // Run from git ref
+      let runResult: { id: string };
+      try {
+        runResult = await WorkflowRunMutation.createWorkflowRunFromGitRefAsync(graphqlClient, {
+          workflowRevisionId: workflowRevisionId ?? '',
+          gitRef,
           inputs,
-          projectSource: {
-            type: WorkflowProjectSourceType.Gcs,
-            projectArchiveBucketKey,
-            easJsonBucketKey,
-            packageJsonBucketKey,
-            projectRootDirectory,
+        });
+      } catch (err) {
+        throw new Error(`Failed to create workflow run: ${err}`);
+      }
+      workflowRunId = runResult.id;
+    } else {
+      // Run from local file
+      try {
+        ({ projectArchiveBucketKey } = await uploadAccountScopedProjectSourceAsync({
+          graphqlClient,
+          vcsClient,
+          accountId: account.id,
+        }));
+
+        if (await fileExistsAsync(easJsonPath)) {
+          ({ fileBucketKey: easJsonBucketKey } = await uploadAccountScopedFileAsync({
+            graphqlClient,
+            accountId: account.id,
+            filePath: easJsonPath,
+            maxSizeBytes: 1024 * 1024,
+          }));
+        } else {
+          Log.warn(
+            `⚠ No ${chalk.bold('eas.json')} found in the project directory. Running ${chalk.bold(
+              'type: build'
+            )} jobs will not work. Run ${chalk.bold(
+              'eas build:configure'
+            )} to configure your project for builds.`
+          );
+        }
+
+        if (await fileExistsAsync(packageJsonPath)) {
+          ({ fileBucketKey: packageJsonBucketKey } = await uploadAccountScopedFileAsync({
+            graphqlClient,
+            accountId: account.id,
+            filePath: packageJsonPath,
+            maxSizeBytes: 1024 * 1024,
+          }));
+        } else {
+          Log.warn(
+            `⚠ No ${chalk.bold(
+              'package.json'
+            )} found in the project directory. It is used to automatically infer best job configuration for your project. You may want to define ${chalk.bold(
+              'image'
+            )} property in your workflow to specify the image to use.`
+          );
+        }
+      } catch (err) {
+        Log.error('Failed to upload project sources.');
+
+        throw err;
+      }
+
+      try {
+        ({ id: workflowRunId } = await WorkflowRunMutation.createWorkflowRunAsync(graphqlClient, {
+          appId: projectId,
+          workflowRevisionInput: {
+            fileName: path.basename(args.file),
+            yamlConfig,
           },
-        },
-      }));
+          workflowRunInput: {
+            inputs,
+            projectSource: {
+              type: WorkflowProjectSourceType.Gcs,
+              projectArchiveBucketKey,
+              easJsonBucketKey,
+              packageJsonBucketKey,
+              projectRootDirectory,
+            },
+          },
+        }));
+      } catch (err) {
+        Log.error('Failed to start the workflow with the API.');
 
-      Log.newLine();
-      Log.log(`See logs: ${link(getWorkflowRunUrl(account.name, projectName, workflowRunId))}`);
-    } catch (err) {
-      Log.error('Failed to start the workflow with the API.');
-
-      throw err;
+        throw err;
+      }
     }
+
+    Log.newLine();
+    Log.log(`See logs: ${link(getWorkflowRunUrl(account.name, projectName, workflowRunId))}`);
 
     if (!flags.wait) {
       if (flags.json) {
