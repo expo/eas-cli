@@ -7,5 +7,16 @@ export const WorkflowFragmentNode = gql`
     fileName
     createdAt
     updatedAt
+    revisionsPaginated(first: 1) {
+      edges {
+        node {
+          id
+          blobSha
+          commitSha
+          createdAt
+          yamlConfig
+        }
+      }
+    }
   }
 `;
