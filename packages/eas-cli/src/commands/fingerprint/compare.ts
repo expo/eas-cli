@@ -4,6 +4,7 @@ import chalk from 'chalk';
 
 import { getExpoWebsiteBaseUrl } from '../../api';
 import { selectBranchOnAppAsync } from '../../branch/queries';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import { fetchBuildsAsync, formatBuild } from '../../commandUtils/builds';
 import { GetServerSideEnvironmentVariablesFn } from '../../commandUtils/context/ServerSideEnvironmentVariablesContextField';
@@ -26,7 +27,6 @@ import {
   FingerprintFragment,
   UpdateFragment,
 } from '../../graphql/generated';
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { FingerprintQuery } from '../../graphql/queries/FingerprintQuery';

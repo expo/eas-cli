@@ -1,6 +1,7 @@
 import { Config } from '@oclif/core';
 
 import { getMockAppFragment } from '../../../__tests__/commands/utils';
+import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
@@ -9,7 +10,6 @@ import {
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../../graphql/generated';
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';

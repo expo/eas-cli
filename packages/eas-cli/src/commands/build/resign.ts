@@ -10,6 +10,7 @@ import { evaluateConfigWithEnvVarsAsync } from '../../build/evaluateConfigWithEn
 import { ensureIosCredentialsForBuildResignAsync } from '../../build/ios/credentials';
 import { prepareCredentialsToResign } from '../../build/ios/prepareJob';
 import { listAndSelectBuildOnAppAsync } from '../../build/queries';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -26,7 +27,6 @@ import {
   ProjectArchiveSourceType,
   StatuspageServiceName,
 } from '../../graphql/generated';
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { BuildMutation } from '../../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';

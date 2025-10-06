@@ -6,6 +6,7 @@ import nullthrows from 'nullthrows';
 
 // import { getExpoWebsiteBaseUrl } from '../../api';
 import { ensureBranchExistsAsync } from '../../branch/queries';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -21,7 +22,6 @@ import {
   UpdatePublishMutation,
   UpdateRolloutInfoGroup,
 } from '../../graphql/generated';
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 // import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { learnMore, link } from '../../log';

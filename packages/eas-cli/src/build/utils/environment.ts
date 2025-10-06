@@ -29,4 +29,3 @@ export function buildProfileEnvironmentToEnvironment(
   }
   return BuildProfileEnvironmentToEnvironment[environment];
 }
-

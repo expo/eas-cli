@@ -1,6 +1,7 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
@@ -11,7 +12,6 @@ import {
 } from '../generated';
 import { EnvironmentVariableFragmentNode } from '../types/EnvironmentVariable';
 import { EnvironmentVariableWithSecretFragmentNode } from '../types/EnvironmentVariableWithSecret';
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 
 type EnvironmentVariableWithLinkedEnvironments = EnvironmentVariableFragment & {
   linkedEnvironments?: EnvironmentVariableEnvironment[] | null;
