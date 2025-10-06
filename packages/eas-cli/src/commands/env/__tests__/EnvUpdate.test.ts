@@ -3,10 +3,10 @@ import chalk from 'chalk';
 
 import { getMockAppFragment } from '../../../__tests__/commands/utils';
 import {
-  EnvironmentVariableEnvironment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
 import { EnvironmentVariableMutation } from '../../../graphql/mutations/EnvironmentVariableMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';

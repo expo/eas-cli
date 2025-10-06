@@ -11,11 +11,11 @@ import {
   EasEnvironmentFlagParameters,
 } from '../../commandUtils/flags';
 import {
-  EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptVariableEnvironmentAsync, promptVariableNameAsync } from '../../utils/prompts';

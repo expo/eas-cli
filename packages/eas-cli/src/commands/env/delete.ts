@@ -9,7 +9,8 @@ import {
   EASNonInteractiveFlag,
   EasEnvironmentFlagParameters,
 } from '../../commandUtils/flags';
-import { EnvironmentVariableEnvironment, EnvironmentVariableScope } from '../../graphql/generated';
+import { EnvironmentVariableScope } from '../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';

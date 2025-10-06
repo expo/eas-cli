@@ -3,7 +3,7 @@ import { BuildProfile } from '@expo/eas-json';
 
 import { isEnvironment } from './utils/environment';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { EnvironmentVariableEnvironment } from '../graphql/generated';
+import { EnvironmentVariableEnvironment } from './utils/environment';
 import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
 import Log, { learnMore } from '../log';
 

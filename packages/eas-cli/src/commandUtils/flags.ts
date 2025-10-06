@@ -1,6 +1,5 @@
 import { Flags } from '@oclif/core';
-
-import { EnvironmentVariableEnvironment } from '../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../build/utils/environment';
 
 // NOTE: not exactly true, but, provided mapToLowercase and upperCaseAsync
 // are used in tandem, it saves on unnecessary typying in commands

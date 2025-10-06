@@ -22,11 +22,11 @@ import {
   BuildStatus,
   BuildWorkflow,
   DistributionType,
-  EnvironmentVariableEnvironment,
   IosJobOverridesInput,
   ProjectArchiveSourceType,
   StatuspageServiceName,
 } from '../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { BuildMutation } from '../../graphql/mutations/BuildMutation';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';

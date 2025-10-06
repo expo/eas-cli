@@ -3,11 +3,11 @@ import dateFormat from 'dateformat';
 import formatFields from './formatFields';
 import {
   EnvironmentSecretType,
-  EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../build/utils/environment';
 import { EnvironmentVariableWithFileContent } from '../graphql/queries/EnvironmentVariablesQuery';
 
 export function isEnvironment(environment: string): environment is EnvironmentVariableEnvironment {

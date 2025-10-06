@@ -9,7 +9,8 @@ import {
   EASMultiEnvironmentFlag,
   EASVariableFormatFlag,
 } from '../../commandUtils/flags';
-import { EnvironmentVariableEnvironment, EnvironmentVariableScope } from '../../graphql/generated';
+import { EnvironmentVariableScope } from '../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import {
   EnvironmentVariableWithFileContent,
   EnvironmentVariablesQuery,

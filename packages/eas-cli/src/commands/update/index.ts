@@ -14,7 +14,6 @@ import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
   AssetMapSourceInput,
-  EnvironmentVariableEnvironment,
   FingerprintInfoGroup as GraphqlFingerprintInfoGroup,
   PublishUpdateGroupInput,
   StatuspageServiceName,
@@ -22,6 +21,7 @@ import {
   UpdatePublishMutation,
   UpdateRolloutInfoGroup,
 } from '../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 // import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { learnMore, link } from '../../log';

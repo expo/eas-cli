@@ -5,10 +5,10 @@ import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/cr
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
   EnvironmentSecretType,
-  EnvironmentVariableEnvironment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
 import { EnvironmentVariableMutation } from '../../../graphql/mutations/EnvironmentVariableMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';

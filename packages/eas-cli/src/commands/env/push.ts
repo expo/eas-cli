@@ -7,11 +7,11 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EASMultiEnvironmentFlag } from '../../commandUtils/flags';
 import {
   CreateEnvironmentVariableInput,
-  EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';

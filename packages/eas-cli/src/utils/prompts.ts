@@ -2,11 +2,11 @@ import chalk from 'chalk';
 
 import {
   EnvironmentSecretType,
-  EnvironmentVariableEnvironment,
   EnvironmentVariableVisibility,
 } from '../graphql/generated';
 import { RequestedPlatform } from '../platform';
 import { promptAsync, selectAsync } from '../prompts';
+import { EnvironmentVariableEnvironment } from '../build/utils/environment';
 
 export async function promptVariableTypeAsync(
   nonInteractive: boolean,

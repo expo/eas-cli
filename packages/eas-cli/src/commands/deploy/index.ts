@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import { getHostingDeploymentsUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { EnvironmentVariableEnvironment } from '../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';

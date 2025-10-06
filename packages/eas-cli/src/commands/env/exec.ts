@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
-import { EnvironmentVariableEnvironment } from '../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';

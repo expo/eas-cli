@@ -23,10 +23,10 @@ import {
   AppPlatform,
   BuildFragment,
   BuildStatus,
-  EnvironmentVariableEnvironment,
   FingerprintFragment,
   UpdateFragment,
 } from '../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { FingerprintQuery } from '../../graphql/queries/FingerprintQuery';

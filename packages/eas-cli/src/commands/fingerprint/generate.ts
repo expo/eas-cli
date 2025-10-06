@@ -15,7 +15,8 @@ import {
   getFingerprintInfoFromLocalProjectForPlatformsAsync,
   stringToAppPlatform,
 } from '../../fingerprint/utils';
-import { AppPlatform, EnvironmentVariableEnvironment } from '../../graphql/generated';
+import { AppPlatform } from '../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { link } from '../../log';
 import { promptAsync } from '../../prompts';
