@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+- Create an `EnvironmentVariableEnvironment` enum and use it instead of the graphQL Enum [#3208](https://github.com/expo/eas-cli/pull/3208) by [@kadikraman](https://github.com/kadikraman)
 
 ## [16.20.1](https://github.com/expo/eas-cli/releases/tag/v16.20.1) - 2025-10-03
 
