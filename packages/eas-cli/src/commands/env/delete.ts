@@ -166,8 +166,7 @@ export default class EnvDelete extends EasCommand {
         : EnvironmentVariableScope.Project;
 
     if (environment) {
-      environment = environment.toUpperCase();
-
+      environment = environment.toLowerCase();
       if (!isEnvironment(environment)) {
         throw new Error(
           "Invalid environment. Use one of 'production', 'preview', or 'development'."

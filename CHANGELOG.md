@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 ### 🐛 Bug fixes
+- Fix --environment flag in eas env commands ([#3213](https://github.com/expo/eas-cli/pull/3213) by [@kadikraman](https://github.com/kadikraman))
 
 ### 🧹 Chores
 

@@ -323,14 +323,14 @@ export default class EnvCreate extends EasCommand {
 
     value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
 
-    if (environment && !isEnvironment(environment.toUpperCase())) {
+    if (environment && !isEnvironment(environment.toLowerCase())) {
       throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
     }
 
     let newEnvironments = environments
       ? environments
       : environment
-        ? [environment.toUpperCase() as EnvironmentVariableEnvironment]
+        ? [environment.toLowerCase() as EnvironmentVariableEnvironment]
         : undefined;
 
     if (!newEnvironments) {
