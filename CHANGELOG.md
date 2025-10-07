@@ -573,6 +573,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Show `eas deploy` upload error messages. ([#2771](https://github.com/expo/eas-cli/pull/2771) by [@kadikraman](https://github.com/kadikraman))
 - Prevent EAS CLI dependencies check from running repeatedly. ([#2781](https://github.com/expo/eas-cli/pull/2781) by [@kitten](https://github.com/kitten))
 - Prevent optimistic request body parsing for `eas deploy`. ([#2784](https://github.com/expo/eas-cli/pull/2784) by [@kadikraman](https://github.com/kadikraman))
+- Support pushing existing secret and sensitive environment variables. ([#2765](https://github.com/expo/eas-cli/pull/2765) by [@khamilowicz](https://github.com/khamilowicz))
 
 ### 🧹 Chores
 
