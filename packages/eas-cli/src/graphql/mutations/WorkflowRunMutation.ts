@@ -5,6 +5,8 @@ import { withErrorHandlingAsync } from '../client';
 import {
   CancelWorkflowRunMutation,
   CancelWorkflowRunMutationVariables,
+  CreateWorkflowRunFromGitRefMutation,
+  CreateWorkflowRunFromGitRefMutationVariables,
   CreateWorkflowRunMutation,
   CreateWorkflowRunMutationVariables,
   WorkflowRevisionInput,
@@ -54,6 +56,53 @@ export namespace WorkflowRunMutation {
     );
     return { id: data.workflowRun.createWorkflowRun.id };
   }
+
+  export async function createWorkflowRunFromGitRefAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      workflowRevisionId,
+      gitRef,
+      inputs,
+    }: {
+      workflowRevisionId: string;
+      gitRef: string;
+      inputs?: Record<string, any>;
+    }
+  ): Promise<{ id: string }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<
+          CreateWorkflowRunFromGitRefMutation,
+          CreateWorkflowRunFromGitRefMutationVariables
+        >(
+          gql`
+            mutation CreateWorkflowRunFromGitRef(
+              $workflowRevisionId: ID!
+              $gitRef: String!
+              $inputs: JSONObject
+            ) {
+              workflowRun {
+                createWorkflowRunFromGitRef(
+                  workflowRevisionId: $workflowRevisionId
+                  gitRef: $gitRef
+                  inputs: $inputs
+                ) {
+                  id
+                }
+              }
+            }
+          `,
+          {
+            workflowRevisionId,
+            gitRef,
+            inputs,
+          }
+        )
+        .toPromise()
+    );
+    return { id: data.workflowRun.createWorkflowRunFromGitRef.id };
+  }
+
   export async function cancelWorkflowRunAsync(
     graphqlClient: ExpoGraphqlClient,
     {

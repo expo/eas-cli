@@ -9859,6 +9859,15 @@ export type DeleteWebhookMutationVariables = Exact<{
 
 export type DeleteWebhookMutation = { __typename?: 'RootMutation', webhook: { __typename?: 'WebhookMutation', deleteWebhook: { __typename?: 'DeleteWebhookResult', id: string } } };
 
+export type GetOrCreateWorkflowRevisionFromGitRefMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  fileName: Scalars['String']['input'];
+  gitRef: Scalars['String']['input'];
+}>;
+
+
+export type GetOrCreateWorkflowRevisionFromGitRefMutation = { __typename?: 'RootMutation', workflowRevision: { __typename?: 'WorkflowRevisionMutation', getOrCreateWorkflowRevisionFromGitRef: { __typename?: 'WorkflowRevision', id: string, yamlConfig: string, blobSha: string, commitSha?: string | null, createdAt: any, workflow: { __typename?: 'Workflow', id: string } } } };
+
 export type ValidateWorkflowYamlConfigMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
   yamlConfig: Scalars['String']['input'];
@@ -9875,6 +9884,15 @@ export type CreateWorkflowRunMutationVariables = Exact<{
 
 
 export type CreateWorkflowRunMutation = { __typename?: 'RootMutation', workflowRun: { __typename?: 'WorkflowRunMutation', createWorkflowRun: { __typename?: 'WorkflowRun', id: string } } };
+
+export type CreateWorkflowRunFromGitRefMutationVariables = Exact<{
+  workflowRevisionId: Scalars['ID']['input'];
+  gitRef: Scalars['String']['input'];
+  inputs?: InputMaybe<Scalars['JSONObject']['input']>;
+}>;
+
+
+export type CreateWorkflowRunFromGitRefMutation = { __typename?: 'RootMutation', workflowRun: { __typename?: 'WorkflowRunMutation', createWorkflowRunFromGitRef: { __typename?: 'WorkflowRun', id: string } } };
 
 export type CancelWorkflowRunMutationVariables = Exact<{
   workflowRunId: Scalars['ID']['input'];

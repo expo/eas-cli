@@ -4,8 +4,11 @@ import { z } from 'zod';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  GetOrCreateWorkflowRevisionFromGitRefMutation,
+  GetOrCreateWorkflowRevisionFromGitRefMutationVariables,
   ValidateWorkflowYamlConfigMutation,
   ValidateWorkflowYamlConfigMutationVariables,
+  WorkflowRevision,
 } from '../generated';
 
 export namespace WorkflowRevisionMutation {
@@ -17,6 +20,61 @@ export namespace WorkflowRevisionMutation {
     }),
   });
 
+  export async function getOrCreateWorkflowRevisionFromGitRefAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      fileName,
+      gitRef,
+    }: {
+      appId: string;
+      fileName: string;
+      gitRef: string;
+    }
+  ): Promise<WorkflowRevision | undefined> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<
+          GetOrCreateWorkflowRevisionFromGitRefMutation,
+          GetOrCreateWorkflowRevisionFromGitRefMutationVariables
+        >(
+          gql`
+            mutation GetOrCreateWorkflowRevisionFromGitRef(
+              $appId: ID!
+              $fileName: String!
+              $gitRef: String!
+            ) {
+              workflowRevision {
+                getOrCreateWorkflowRevisionFromGitRef(
+                  appId: $appId
+                  fileName: $fileName
+                  gitRef: $gitRef
+                ) {
+                  id
+                  yamlConfig
+                  blobSha
+                  commitSha
+                  createdAt
+                  workflow {
+                    id
+                  }
+                }
+              }
+            }
+          `,
+          {
+            appId,
+            fileName,
+            gitRef,
+          }
+        )
+        .toPromise()
+    );
+    return (
+      (data.workflowRevision?.getOrCreateWorkflowRevisionFromGitRef as WorkflowRevision) ??
+      undefined
+    );
+  }
   export async function validateWorkflowYamlConfigAsync(
     graphqlClient: ExpoGraphqlClient,
     {
