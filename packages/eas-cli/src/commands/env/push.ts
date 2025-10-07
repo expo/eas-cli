@@ -199,13 +199,13 @@ export default class EnvPush extends EasCommand {
     flags: { path: string; environment: EnvironmentVariableEnvironment[] | undefined },
     { environment }: Record<string, string>
   ): { environment?: EnvironmentVariableEnvironment[]; path: string } {
-    if (environment && !isEnvironment(environment.toUpperCase())) {
+    if (environment && !isEnvironment(environment.toLowerCase())) {
       throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
     }
 
     const environments =
       flags.environment ??
-      (environment ? [environment.toUpperCase() as EnvironmentVariableEnvironment] : undefined);
+      (environment ? [environment.toLowerCase() as EnvironmentVariableEnvironment] : undefined);
 
     return {
       ...flags,

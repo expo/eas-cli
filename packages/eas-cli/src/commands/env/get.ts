@@ -156,7 +156,7 @@ export default class EnvGet extends EasCommand {
         ? EnvironmentVariableScope.Shared
         : EnvironmentVariableScope.Project;
     if (environment) {
-      environment = environment.toUpperCase();
+      environment = environment.toLowerCase();
       if (!isEnvironment(environment)) {
         throw new Error(
           "Invalid environment. Use one of 'production', 'preview', or 'development'."
