@@ -1,8 +1,13 @@
 import { BuildProfile } from '@expo/eas-json';
 
-import { EnvironmentVariableEnvironment } from '../../graphql/generated';
-
 type Environment = NonNullable<BuildProfile['environment']>;
+
+// Default environments
+export enum EnvironmentVariableEnvironment {
+  Development = 'development',
+  Preview = 'preview',
+  Production = 'production',
+}
 
 const BuildProfileEnvironmentToEnvironment: Record<Environment, EnvironmentVariableEnvironment> = {
   production: EnvironmentVariableEnvironment.Production,

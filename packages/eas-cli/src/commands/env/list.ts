@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -9,7 +10,7 @@ import {
   EASMultiEnvironmentFlag,
   EASVariableFormatFlag,
 } from '../../commandUtils/flags';
-import { EnvironmentVariableEnvironment, EnvironmentVariableScope } from '../../graphql/generated';
+import { EnvironmentVariableScope } from '../../graphql/generated';
 import {
   EnvironmentVariableWithFileContent,
   EnvironmentVariablesQuery,

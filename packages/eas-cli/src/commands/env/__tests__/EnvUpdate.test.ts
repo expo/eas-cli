@@ -2,8 +2,8 @@ import { Config } from '@oclif/core';
 import chalk from 'chalk';
 
 import { getMockAppFragment } from '../../../__tests__/commands/utils';
+import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
 import {
-  EnvironmentVariableEnvironment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../../graphql/generated';

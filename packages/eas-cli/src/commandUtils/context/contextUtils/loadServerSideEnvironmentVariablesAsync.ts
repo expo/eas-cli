@@ -1,5 +1,5 @@
 import { ExpoGraphqlClient } from './createGraphqlClient';
-import { EnvironmentVariableEnvironment } from '../../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
 

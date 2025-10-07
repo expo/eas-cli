@@ -1,5 +1,5 @@
 import { Analytics } from '../../analytics/AnalyticsManager';
-import { EnvironmentVariableEnvironment } from '../../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import SessionManager from '../../user/SessionManager';
 import { Client } from '../../vcs/vcs';
 

@@ -5,10 +5,10 @@ import chalk from 'chalk';
 import fs from 'node:fs';
 import * as path from 'node:path';
 
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { getHostingDeploymentsUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { EnvironmentVariableEnvironment } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';

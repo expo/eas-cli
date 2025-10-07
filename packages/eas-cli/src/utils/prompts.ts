@@ -1,10 +1,7 @@
 import chalk from 'chalk';
 
-import {
-  EnvironmentSecretType,
-  EnvironmentVariableEnvironment,
-  EnvironmentVariableVisibility,
-} from '../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../build/utils/environment';
+import { EnvironmentSecretType, EnvironmentVariableVisibility } from '../graphql/generated';
 import { RequestedPlatform } from '../platform';
 import { promptAsync, selectAsync } from '../prompts';
 

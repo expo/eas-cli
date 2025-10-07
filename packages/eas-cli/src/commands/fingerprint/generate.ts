@@ -4,6 +4,7 @@ import { Flags } from '@oclif/core';
 
 import { getExpoWebsiteBaseUrl } from '../../api';
 import { evaluateConfigWithEnvVarsAsync } from '../../build/evaluateConfigWithEnvVarsAsync';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EASEnvironmentFlag,
@@ -15,7 +16,7 @@ import {
   getFingerprintInfoFromLocalProjectForPlatformsAsync,
   stringToAppPlatform,
 } from '../../fingerprint/utils';
-import { AppPlatform, EnvironmentVariableEnvironment } from '../../graphql/generated';
+import { AppPlatform } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { link } from '../../log';
 import { promptAsync } from '../../prompts';

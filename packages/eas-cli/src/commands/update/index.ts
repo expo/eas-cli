@@ -6,6 +6,7 @@ import nullthrows from 'nullthrows';
 
 // import { getExpoWebsiteBaseUrl } from '../../api';
 import { ensureBranchExistsAsync } from '../../branch/queries';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -14,7 +15,6 @@ import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
   AssetMapSourceInput,
-  EnvironmentVariableEnvironment,
   FingerprintInfoGroup as GraphqlFingerprintInfoGroup,
   PublishUpdateGroupInput,
   StatuspageServiceName,

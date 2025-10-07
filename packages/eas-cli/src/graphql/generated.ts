@@ -21,6 +21,7 @@ export type Scalars = {
   Float: { input: number; output: number; }
   DateTime: { input: any; output: any; }
   DevDomainName: { input: any; output: any; }
+  EnvironmentVariableEnvironment: { input: any; output: any; }
   JSON: { input: any; output: any; }
   JSONObject: { input: any; output: any; }
   SubmissionAndroidTrack: { input: any; output: any; }
@@ -387,7 +388,7 @@ export type AccountEnvironmentSecretsArgs = {
  * data and settings. Actors may own and be members of accounts.
  */
 export type AccountEnvironmentVariablesArgs = {
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -397,7 +398,7 @@ export type AccountEnvironmentVariablesArgs = {
  * data and settings. Actors may own and be members of accounts.
  */
 export type AccountEnvironmentVariablesIncludingSensitiveArgs = {
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -1126,7 +1127,7 @@ export type AndroidJobInput = {
   cache?: InputMaybe<BuildCacheInput>;
   customBuildConfig?: InputMaybe<CustomBuildConfigInput>;
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   experimental?: InputMaybe<Scalars['JSONObject']['input']>;
   gradleCommand?: InputMaybe<Scalars['String']['input']>;
   loggerLevel?: InputMaybe<WorkerLoggerLevel>;
@@ -1511,14 +1512,14 @@ export type AppEnvironmentSecretsArgs = {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppEnvironmentVariablesArgs = {
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type AppEnvironmentVariablesIncludingSensitiveArgs = {
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -2944,7 +2945,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   reactNativeVersion?: Maybe<Scalars['String']['output']>;
   releaseChannel?: Maybe<Scalars['String']['output']>;
   requiredPackageManager?: Maybe<Scalars['String']['output']>;
-  resolvedEnvironment?: Maybe<EnvironmentVariableEnvironment>;
+  resolvedEnvironment?: Maybe<Scalars['EnvironmentVariableEnvironment']['output']>;
   /**
    * The builder resource class requested by the developer
    * @deprecated Use resourceClassDisplayName instead
@@ -2966,6 +2967,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   updatedAt: Scalars['DateTime']['output'];
   waiverType?: Maybe<EasBuildWaiverType>;
   workerStartedAt?: Maybe<Scalars['DateTime']['output']>;
+  workflowJob?: Maybe<WorkflowJob>;
 };
 
 
@@ -3582,7 +3584,7 @@ export type CreateEnvironmentSecretInput = {
 };
 
 export type CreateEnvironmentVariableInput = {
-  environments?: InputMaybe<Array<EnvironmentVariableEnvironment>>;
+  environments?: InputMaybe<Array<Scalars['EnvironmentVariableEnvironment']['input']>>;
   fileName?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   overwrite?: InputMaybe<Scalars['Boolean']['input']>;
@@ -3605,7 +3607,7 @@ export type CreateGitHubBuildTriggerInput = {
   appId: Scalars['ID']['input'];
   autoSubmit: Scalars['Boolean']['input'];
   buildProfile: Scalars['String']['input'];
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   executionBehavior: GitHubBuildTriggerExecutionBehavior;
   isActive: Scalars['Boolean']['input'];
   platform: AppPlatform;
@@ -3653,7 +3655,7 @@ export type CreateSentryProjectInput = {
 };
 
 export type CreateSharedEnvironmentVariableInput = {
-  environments?: InputMaybe<Array<EnvironmentVariableEnvironment>>;
+  environments?: InputMaybe<Array<Scalars['EnvironmentVariableEnvironment']['input']>>;
   fileName?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   overwrite?: InputMaybe<Scalars['Boolean']['input']>;
@@ -4229,11 +4231,11 @@ export type EnvironmentVariable = {
   /** @deprecated Environment variables are automatically linked to all apps */
   apps: Array<App>;
   createdAt: Scalars['DateTime']['output'];
-  environments?: Maybe<Array<EnvironmentVariableEnvironment>>;
+  environments?: Maybe<Array<Scalars['EnvironmentVariableEnvironment']['output']>>;
   fileName?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   isGlobal?: Maybe<Scalars['Boolean']['output']>;
-  linkedEnvironments?: Maybe<Array<EnvironmentVariableEnvironment>>;
+  linkedEnvironments?: Maybe<Array<Scalars['EnvironmentVariableEnvironment']['output']>>;
   name: Scalars['String']['output'];
   scope: EnvironmentVariableScope;
   type: EnvironmentSecretType;
@@ -4252,12 +4254,6 @@ export type EnvironmentVariableLinkedEnvironmentsArgs = {
 export type EnvironmentVariableValueArgs = {
   includeFileContent?: InputMaybe<Scalars['Boolean']['input']>;
 };
-
-export enum EnvironmentVariableEnvironment {
-  Development = 'DEVELOPMENT',
-  Preview = 'PREVIEW',
-  Production = 'PRODUCTION'
-}
 
 export type EnvironmentVariableMutation = {
   __typename?: 'EnvironmentVariableMutation';
@@ -4338,11 +4334,11 @@ export type EnvironmentVariableWithSecret = {
   __typename?: 'EnvironmentVariableWithSecret';
   apps: Array<App>;
   createdAt: Scalars['DateTime']['output'];
-  environments?: Maybe<Array<EnvironmentVariableEnvironment>>;
+  environments?: Maybe<Array<Scalars['EnvironmentVariableEnvironment']['output']>>;
   fileName?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   isGlobal: Scalars['Boolean']['output'];
-  linkedEnvironments?: Maybe<Array<EnvironmentVariableEnvironment>>;
+  linkedEnvironments?: Maybe<Array<Scalars['EnvironmentVariableEnvironment']['output']>>;
   name: Scalars['String']['output'];
   scope: EnvironmentVariableScope;
   sensitive: Scalars['Boolean']['output'];
@@ -4382,8 +4378,21 @@ export type EstimatedUsage = {
   id: Scalars['ID']['output'];
   limit: Scalars['Float']['output'];
   metricType: UsageMetricType;
+  platformBreakdown?: Maybe<EstimatedUsagePlatformBreakdown>;
   service: EasService;
   serviceMetric: EasServiceMetric;
+  value: Scalars['Float']['output'];
+};
+
+export type EstimatedUsagePlatformBreakdown = {
+  __typename?: 'EstimatedUsagePlatformBreakdown';
+  android: EstimatedUsagePlatformDetail;
+  ios: EstimatedUsagePlatformDetail;
+};
+
+export type EstimatedUsagePlatformDetail = {
+  __typename?: 'EstimatedUsagePlatformDetail';
+  limit: Scalars['Float']['output'];
   value: Scalars['Float']['output'];
 };
 
@@ -4647,7 +4656,7 @@ export type GitHubBuildInput = {
   autoSubmit?: InputMaybe<Scalars['Boolean']['input']>;
   baseDirectory?: InputMaybe<Scalars['String']['input']>;
   buildProfile: Scalars['String']['input'];
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   gitRef: Scalars['String']['input'];
   platform: AppPlatform;
   submitProfile?: InputMaybe<Scalars['String']['input']>;
@@ -4659,7 +4668,7 @@ export type GitHubBuildTrigger = {
   autoSubmit: Scalars['Boolean']['output'];
   buildProfile: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
-  environment?: Maybe<EnvironmentVariableEnvironment>;
+  environment?: Maybe<Scalars['EnvironmentVariableEnvironment']['output']>;
   executionBehavior: GitHubBuildTriggerExecutionBehavior;
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
@@ -5238,7 +5247,7 @@ export type IosJobInput = {
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
   /** @deprecated */
   distribution?: InputMaybe<DistributionType>;
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   experimental?: InputMaybe<Scalars['JSONObject']['input']>;
   loggerLevel?: InputMaybe<WorkerLoggerLevel>;
   mode?: InputMaybe<BuildMode>;
@@ -5964,7 +5973,7 @@ export type PublishUpdateGroupInput = {
   assetMapGroup?: InputMaybe<AssetMapGroup>;
   awaitingCodeSigningInfo?: InputMaybe<Scalars['Boolean']['input']>;
   branchId: Scalars['String']['input'];
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   excludedAssets?: InputMaybe<Array<PartialManifestAsset>>;
   fingerprintInfoGroup?: InputMaybe<FingerprintInfoGroup>;
   gitCommitHash?: InputMaybe<Scalars['String']['input']>;
@@ -6928,6 +6937,7 @@ export type Submission = ActivityTimelineProjectActivity & {
   status: SubmissionStatus;
   submittedBuild?: Maybe<Build>;
   updatedAt: Scalars['DateTime']['output'];
+  workflowJob?: Maybe<WorkflowJob>;
 };
 
 export enum SubmissionAndroidArchiveType {
@@ -7112,7 +7122,7 @@ export type Update = ActivityTimelineProjectActivity & {
   codeSigningInfo?: Maybe<CodeSigningInfo>;
   createdAt: Scalars['DateTime']['output'];
   deployments: DeploymentResult;
-  environment?: Maybe<EnvironmentVariableEnvironment>;
+  environment?: Maybe<Scalars['EnvironmentVariableEnvironment']['output']>;
   expoGoSDKVersion?: Maybe<Scalars['String']['output']>;
   fingerprint?: Maybe<Fingerprint>;
   gitCommitHash?: Maybe<Scalars['String']['output']>;
@@ -7134,6 +7144,7 @@ export type Update = ActivityTimelineProjectActivity & {
   /** @deprecated Use 'runtime' field . */
   runtimeVersion: Scalars['String']['output'];
   updatedAt: Scalars['DateTime']['output'];
+  workflowJob?: Maybe<WorkflowJob>;
 };
 
 
@@ -7344,7 +7355,7 @@ export type UpdateDeploymentsConnection = {
 };
 
 export type UpdateEnvironmentVariableInput = {
-  environments?: InputMaybe<Array<EnvironmentVariableEnvironment>>;
+  environments?: InputMaybe<Array<Scalars['EnvironmentVariableEnvironment']['input']>>;
   fileName?: InputMaybe<Scalars['String']['input']>;
   id: Scalars['ID']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
@@ -7362,7 +7373,7 @@ export type UpdateFilterInput = {
 export type UpdateGitHubBuildTriggerInput = {
   autoSubmit: Scalars['Boolean']['input'];
   buildProfile: Scalars['String']['input'];
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   executionBehavior: GitHubBuildTriggerExecutionBehavior;
   isActive: Scalars['Boolean']['input'];
   platform: AppPlatform;
@@ -8936,7 +8947,15 @@ export type WorkflowRevisionInput = {
 
 export type WorkflowRevisionMutation = {
   __typename?: 'WorkflowRevisionMutation';
+  getOrCreateWorkflowRevisionFromGitRef: WorkflowRevision;
   validateWorkflowYamlConfig: Scalars['Boolean']['output'];
+};
+
+
+export type WorkflowRevisionMutationGetOrCreateWorkflowRevisionFromGitRefArgs = {
+  appId: Scalars['ID']['input'];
+  fileName: Scalars['String']['input'];
+  gitRef: Scalars['String']['input'];
 };
 
 
@@ -9018,6 +9037,7 @@ export type WorkflowRunMutation = {
   __typename?: 'WorkflowRunMutation';
   cancelWorkflowRun: WorkflowRun;
   createWorkflowRun: WorkflowRun;
+  createWorkflowRunFromGitRef: WorkflowRun;
   retryWorkflowRun: WorkflowRun;
 };
 
@@ -9031,6 +9051,13 @@ export type WorkflowRunMutationCreateWorkflowRunArgs = {
   appId: Scalars['ID']['input'];
   workflowRevisionInput: WorkflowRevisionInput;
   workflowRunInput: WorkflowRunInput;
+};
+
+
+export type WorkflowRunMutationCreateWorkflowRunFromGitRefArgs = {
+  gitRef: Scalars['String']['input'];
+  inputs?: InputMaybe<Scalars['JSONObject']['input']>;
+  workflowRevisionId: Scalars['ID']['input'];
 };
 
 
@@ -9681,7 +9708,7 @@ export type CreateEnvironmentVariableForAccountMutationVariables = Exact<{
 }>;
 
 
-export type CreateEnvironmentVariableForAccountMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForAccount: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType } } };
+export type CreateEnvironmentVariableForAccountMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForAccount: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<any> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType } } };
 
 export type CreateEnvironmentVariableForAppMutationVariables = Exact<{
   input: CreateEnvironmentVariableInput;
@@ -9689,14 +9716,14 @@ export type CreateEnvironmentVariableForAppMutationVariables = Exact<{
 }>;
 
 
-export type CreateEnvironmentVariableForAppMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForApp: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType } } };
+export type CreateEnvironmentVariableForAppMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', createEnvironmentVariableForApp: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<any> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType } } };
 
 export type UpdateEnvironmentVariableMutationVariables = Exact<{
   input: UpdateEnvironmentVariableInput;
 }>;
 
 
-export type UpdateEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', updateEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType } } };
+export type UpdateEnvironmentVariableMutation = { __typename?: 'RootMutation', environmentVariable: { __typename?: 'EnvironmentVariableMutation', updateEnvironmentVariable: { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<any> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType } } };
 
 export type DeleteEnvironmentVariableMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -9748,7 +9775,7 @@ export type UpdatePublishMutationVariables = Exact<{
 }>;
 
 
-export type UpdatePublishMutation = { __typename?: 'RootMutation', updateBranch: { __typename?: 'UpdateBranchMutation', publishUpdateGroups: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: EnvironmentVariableEnvironment | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }> } };
+export type UpdatePublishMutation = { __typename?: 'RootMutation', updateBranch: { __typename?: 'UpdateBranchMutation', publishUpdateGroups: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }> } };
 
 export type SetCodeSigningInfoMutationVariables = Exact<{
   updateId: Scalars['ID']['input'];
@@ -9764,7 +9791,7 @@ export type SetRolloutPercentageMutationVariables = Exact<{
 }>;
 
 
-export type SetRolloutPercentageMutation = { __typename?: 'RootMutation', update: { __typename?: 'UpdateMutation', setRolloutPercentage: { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: EnvironmentVariableEnvironment | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null } } };
+export type SetRolloutPercentageMutation = { __typename?: 'RootMutation', update: { __typename?: 'UpdateMutation', setRolloutPercentage: { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null } } };
 
 export type CreateAndroidSubmissionMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
@@ -9934,7 +9961,7 @@ export type BranchesByAppQueryVariables = Exact<{
 }>;
 
 
-export type BranchesByAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: EnvironmentVariableEnvironment | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }> }> } } };
+export type BranchesByAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }> }> } } };
 
 export type BranchesBasicPaginatedOnAppQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -9955,7 +9982,7 @@ export type ViewBranchesOnUpdateChannelQueryVariables = Exact<{
 }>;
 
 
-export type ViewBranchesOnUpdateChannelQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: EnvironmentVariableEnvironment | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }>> }> } | null } } };
+export type ViewBranchesOnUpdateChannelQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }>> }> } | null } } };
 
 export type BuildsByIdQueryVariables = Exact<{
   buildId: Scalars['ID']['input'];
@@ -10003,7 +10030,7 @@ export type ViewUpdateChannelOnAppQueryVariables = Exact<{
 }>;
 
 
-export type ViewUpdateChannelOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, isPaused: boolean, name: string, updatedAt: any, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: EnvironmentVariableEnvironment | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }>> }> } | null } } };
+export type ViewUpdateChannelOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannelByName?: { __typename?: 'UpdateChannel', id: string, isPaused: boolean, name: string, updatedAt: any, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }>> }> } | null } } };
 
 export type ViewUpdateChannelsOnAppQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -10012,7 +10039,7 @@ export type ViewUpdateChannelsOnAppQueryVariables = Exact<{
 }>;
 
 
-export type ViewUpdateChannelsOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannels: Array<{ __typename?: 'UpdateChannel', id: string, isPaused: boolean, name: string, updatedAt: any, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: EnvironmentVariableEnvironment | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }>> }> }> } } };
+export type ViewUpdateChannelsOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateChannels: Array<{ __typename?: 'UpdateChannel', id: string, isPaused: boolean, name: string, updatedAt: any, createdAt: any, branchMapping: string, updateBranches: Array<{ __typename?: 'UpdateBranch', id: string, name: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }>> }> }> } } };
 
 export type ViewUpdateChannelsPaginatedOnAppQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -10035,42 +10062,42 @@ export type EnvironmentSecretsByAppIdQuery = { __typename?: 'RootQuery', app: { 
 export type EnvironmentVariablesIncludingSensitiveByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   includeFileContent: Scalars['Boolean']['input'];
 }>;
 
 
-export type EnvironmentVariablesIncludingSensitiveByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentVariablesIncludingSensitive: Array<{ __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility: EnvironmentVariableVisibility, type: EnvironmentSecretType, valueWithFileContent?: string | null }> } } };
+export type EnvironmentVariablesIncludingSensitiveByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentVariablesIncludingSensitive: Array<{ __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<any> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility: EnvironmentVariableVisibility, type: EnvironmentSecretType, valueWithFileContent?: string | null }> } } };
 
 export type EnvironmentVariablesByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   includeFileContent: Scalars['Boolean']['input'];
 }>;
 
 
-export type EnvironmentVariablesByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, linkedEnvironments?: Array<EnvironmentVariableEnvironment> | null, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType, valueWithFileContent?: string | null }> } } };
+export type EnvironmentVariablesByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, linkedEnvironments?: Array<any> | null, name: string, value?: string | null, environments?: Array<any> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType, valueWithFileContent?: string | null }> } } };
 
 export type EnvironmentVariablesSharedQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   includeFileContent: Scalars['Boolean']['input'];
 }>;
 
 
-export type EnvironmentVariablesSharedQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, linkedEnvironments?: Array<EnvironmentVariableEnvironment> | null, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType, valueWithFileContent?: string | null }> } } } };
+export type EnvironmentVariablesSharedQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariables: Array<{ __typename?: 'EnvironmentVariable', id: string, linkedEnvironments?: Array<any> | null, name: string, value?: string | null, environments?: Array<any> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType, valueWithFileContent?: string | null }> } } } };
 
 export type EnvironmentVariablesSharedWithSensitiveQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-  environment?: InputMaybe<EnvironmentVariableEnvironment>;
+  environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
   includeFileContent: Scalars['Boolean']['input'];
 }>;
 
 
-export type EnvironmentVariablesSharedWithSensitiveQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariablesIncludingSensitive: Array<{ __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility: EnvironmentVariableVisibility, type: EnvironmentSecretType, valueWithFileContent?: string | null }> } } } };
+export type EnvironmentVariablesSharedWithSensitiveQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentVariablesIncludingSensitive: Array<{ __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<any> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility: EnvironmentVariableVisibility, type: EnvironmentSecretType, valueWithFileContent?: string | null }> } } } };
 
 export type FingerprintsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -10148,7 +10175,7 @@ export type ViewUpdatesByGroupQueryVariables = Exact<{
 }>;
 
 
-export type ViewUpdatesByGroupQuery = { __typename?: 'RootQuery', updatesByGroup: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: EnvironmentVariableEnvironment | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }> };
+export type ViewUpdatesByGroupQuery = { __typename?: 'RootQuery', updatesByGroup: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }> };
 
 export type ViewUpdateGroupsOnBranchQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -10159,7 +10186,7 @@ export type ViewUpdateGroupsOnBranchQueryVariables = Exact<{
 }>;
 
 
-export type ViewUpdateGroupsOnBranchQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranchByName?: { __typename?: 'UpdateBranch', id: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: EnvironmentVariableEnvironment | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }>> } | null } } };
+export type ViewUpdateGroupsOnBranchQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranchByName?: { __typename?: 'UpdateBranch', id: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }>> } | null } } };
 
 export type ViewUpdateGroupsOnAppQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -10169,14 +10196,14 @@ export type ViewUpdateGroupsOnAppQueryVariables = Exact<{
 }>;
 
 
-export type ViewUpdateGroupsOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: EnvironmentVariableEnvironment | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }>> } } };
+export type ViewUpdateGroupsOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateGroups: Array<Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }>> } } };
 
 export type UpdateByIdQueryVariables = Exact<{
   updateId: Scalars['ID']['input'];
 }>;
 
 
-export type UpdateByIdQuery = { __typename?: 'RootQuery', updates: { __typename?: 'UpdateQuery', byId: { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: EnvironmentVariableEnvironment | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null } } };
+export type UpdateByIdQuery = { __typename?: 'RootQuery', updates: { __typename?: 'UpdateQuery', byId: { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null } } };
 
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -10243,9 +10270,9 @@ export type BuildWithFingerprintFragment = { __typename?: 'Build', id: string, s
 
 export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any };
 
-export type EnvironmentVariableFragment = { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType };
+export type EnvironmentVariableFragment = { __typename?: 'EnvironmentVariable', id: string, name: string, value?: string | null, environments?: Array<any> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility?: EnvironmentVariableVisibility | null, type: EnvironmentSecretType };
 
-export type EnvironmentVariableWithSecretFragment = { __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<EnvironmentVariableEnvironment> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility: EnvironmentVariableVisibility, type: EnvironmentSecretType };
+export type EnvironmentVariableWithSecretFragment = { __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<any> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility: EnvironmentVariableVisibility, type: EnvironmentSecretType };
 
 export type FingerprintFragment = { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, builds: { __typename?: 'AppBuildsConnection', edges: Array<{ __typename?: 'AppBuildEdge', node: { __typename?: 'Build', platform: AppPlatform, id: string } }> }, updates: { __typename?: 'AppUpdatesConnection', edges: Array<{ __typename?: 'AppUpdateEdge', node: { __typename?: 'Update', id: string, platform: string } }> } };
 
@@ -10255,9 +10282,9 @@ export type StatuspageServiceFragment = { __typename?: 'StatuspageService', id: 
 
 export type SubmissionFragment = { __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null };
 
-export type UpdateFragment = { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: EnvironmentVariableEnvironment | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null };
+export type UpdateFragment = { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null };
 
-export type UpdateBranchFragment = { __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: EnvironmentVariableEnvironment | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }> };
+export type UpdateBranchFragment = { __typename?: 'UpdateBranch', id: string, name: string, updates: Array<{ __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?: { __typename: 'Robot', firstName?: string | null, id: string } | { __typename: 'SSOUser', username: string, id: string } | { __typename: 'User', username: string, id: string } | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null }> };
 
 export type UpdateBranchBasicInfoFragment = { __typename?: 'UpdateBranch', id: string, name: string };
 

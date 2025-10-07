@@ -3,11 +3,11 @@ import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import path from 'path';
 
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASMultiEnvironmentFlag } from '../../commandUtils/flags';
 import {
   CreateEnvironmentVariableInput,
-  EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
