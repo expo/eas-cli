@@ -129,7 +129,7 @@ function getCapabilitiesToEnable(
     const { op } = operation;
 
     if (Log.isDebug) {
-      Log.log(`Will ${op} remote capability: ${key} (${staticCapabilityInfo.name}.`);
+      Log.log(`Will ${op} remote capability: ${key} (${staticCapabilityInfo.name}).`);
     }
     if (op === 'enable') {
       enabledCapabilityNames.push(staticCapabilityInfo.name);

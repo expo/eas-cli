@@ -6,8 +6,44 @@ import {
   BuildFragment,
   BuildStatus as GraphQLBuildStatus,
 } from '../../graphql/generated';
+import { link } from '../../log';
 import { appPlatformDisplayNames } from '../../platform';
-import formatFields from '../../utils/formatFields';
+import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
+
+export function formatGraphQLBuildArtifacts(build: BuildFragment): FormatFieldsItem[] {
+  const fields = [
+    {
+      label: 'Application Archive URL',
+      get value() {
+        switch (build.status) {
+          case GraphQLBuildStatus.InProgress:
+            return '<in progress>';
+          default: {
+            const url = build.artifacts?.buildUrl;
+            return url ? link(url) : 'null';
+          }
+        }
+      },
+    },
+    {
+      label: 'Build Artifacts URL',
+      get value() {
+        switch (build.status) {
+          case GraphQLBuildStatus.InProgress:
+            return '<in progress>';
+          default: {
+            const url = build.artifacts?.buildArtifactsUrl;
+            return url ? link(url) : 'null';
+          }
+        }
+      },
+    },
+  ];
+  return fields.filter(({ value }) => value !== undefined && value !== null) as {
+    label: string;
+    value: string;
+  }[];
+}
 
 export function formatGraphQLBuild(build: BuildFragment): string {
   const actor = getActorName(build);
@@ -81,10 +117,11 @@ export function formatGraphQLBuild(build: BuildFragment): string {
     },
     {
       label: 'Logs',
-      value: getBuildLogsUrl(build),
+      value: link(getBuildLogsUrl(build)),
     },
+    ...formatGraphQLBuildArtifacts(build),
     {
-      label: 'Artifact',
+      label: 'Fingerprint',
       get value() {
         switch (build.status) {
           case GraphQLBuildStatus.New:
@@ -96,8 +133,8 @@ export function formatGraphQLBuild(build: BuildFragment): string {
           case GraphQLBuildStatus.Errored:
             return null;
           case GraphQLBuildStatus.Finished: {
-            const url = build.artifacts?.buildUrl;
-            return url ? url : chalk.red('not found');
+            const hash = build.fingerprint?.hash;
+            return hash ? chalk.green(hash) : chalk.red('not found');
           }
           default:
             return null;

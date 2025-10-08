@@ -1,11 +1,11 @@
 import { Config } from '@oclif/core';
 
 import { getMockAppFragment } from '../../../__tests__/commands/utils';
+import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
   EnvironmentSecretType,
-  EnvironmentVariableEnvironment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../../graphql/generated';
@@ -47,6 +47,7 @@ describe(EnvCreate, () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         scope: EnvironmentVariableScope.Project,
+        type: EnvironmentSecretType.String,
       }));
     jest
       .mocked(EnvironmentVariableMutation.createSharedVariableAsync)
@@ -56,6 +57,7 @@ describe(EnvCreate, () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         scope: EnvironmentVariableScope.Shared,
+        type: EnvironmentSecretType.String,
       }));
     jest
       .mocked(EnvironmentVariableMutation.updateAsync)
@@ -199,7 +201,6 @@ describe(EnvCreate, () => {
         {
           name: 'VarName',
           value: 'VarValue',
-          isGlobal: true,
           environments: [EnvironmentVariableEnvironment.Production],
           visibility: EnvironmentVariableVisibility.Public,
           type: EnvironmentSecretType.String,
@@ -324,7 +325,6 @@ describe(EnvCreate, () => {
             EnvironmentVariableEnvironment.Development,
           ],
           visibility: EnvironmentVariableVisibility.Public,
-          isGlobal: true,
           type: EnvironmentSecretType.String,
         },
         testAccountId

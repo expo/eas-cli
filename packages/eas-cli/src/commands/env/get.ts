@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -11,7 +12,6 @@ import {
   EasEnvironmentFlagParameters,
 } from '../../commandUtils/flags';
 import {
-  EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
@@ -156,7 +156,7 @@ export default class EnvGet extends EasCommand {
         ? EnvironmentVariableScope.Shared
         : EnvironmentVariableScope.Project;
     if (environment) {
-      environment = environment.toUpperCase();
+      environment = environment.toLowerCase();
       if (!isEnvironment(environment)) {
         throw new Error(
           "Invalid environment. Use one of 'production', 'preview', or 'development'."

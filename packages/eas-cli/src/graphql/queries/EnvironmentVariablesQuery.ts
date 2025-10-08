@@ -1,10 +1,10 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
-  EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariablesByAppIdQuery,
   EnvironmentVariablesSharedQuery,

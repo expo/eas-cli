@@ -512,7 +512,8 @@
           "markdownDescription": "Path to the JSON file with service account key used to authenticate with Google Play. [Learn more](https://expo.fyi/creating-google-service-account)"
         },
         "track": {
-          "enum": ["beta", "alpha", "internal", "production"],
+          "type": "string",
+          "examples": ["beta", "alpha", "internal", "production"],
           "description": "The track of the application to use. Learn more: https://support.google.com/googleplay/android-developer/answer/9859348?hl=en",
           "markdownDescription": "The [track of the application](https://support.google.com/googleplay/android-developer/answer/9859348?hl=en) to use.",
           "markdownEnumDescriptions": [

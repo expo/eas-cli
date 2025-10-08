@@ -227,7 +227,7 @@ async function generateDistributionCertificateAsync(
           `✅  Distribution Certificates can be revoked with no side effects for App Store builds.`
         )
       );
-      Log.log(learnMore('https://docs.expo.dev/distribution/app-signing/#summary'));
+      Log.log(learnMore('https://docs.expo.dev/app-signing/app-credentials/#summary'));
       Log.newLine();
 
       const { distCertsToRevoke } = await promptAsync({

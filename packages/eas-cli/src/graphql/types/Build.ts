@@ -20,6 +20,10 @@ export const BuildFragmentNode = gql`
       applicationArchiveUrl
       buildArtifactsUrl
     }
+    fingerprint {
+      id
+      hash
+    }
     initiatingActor {
       __typename
       id

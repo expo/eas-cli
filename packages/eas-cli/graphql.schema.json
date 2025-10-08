@@ -1478,7 +1478,7 @@
                 "name": "environment",
                 "description": null,
                 "type": {
-                  "kind": "ENUM",
+                  "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
                   "ofType": null
                 },
@@ -1535,7 +1535,7 @@
                 "name": "environment",
                 "description": null,
                 "type": {
-                  "kind": "ENUM",
+                  "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
                   "ofType": null
                 },
@@ -1998,6 +1998,30 @@
                   "ofType": {
                     "kind": "OBJECT",
                     "name": "Snack",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ssoAllowedAuthProviders",
+            "description": "Allowed SSO providers for this account",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "ENUM",
+                    "name": "AuthProviderIdentifier",
                     "ofType": null
                   }
                 }
@@ -4162,6 +4186,55 @@
                   "ofType": {
                     "kind": "INPUT_OBJECT",
                     "name": "AccountSSOConfigurationData",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "AccountSSOConfiguration",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "updateAccountSSOConfigurationClientSecret",
+            "description": "Update just the client secret of an AccountSSOConfiguration",
+            "args": [
+              {
+                "name": "clientSecret",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
                     "ofType": null
                   }
                 },
@@ -7041,7 +7114,7 @@
             "name": "environment",
             "description": null,
             "type": {
-              "kind": "ENUM",
+              "kind": "SCALAR",
               "name": "EnvironmentVariableEnvironment",
               "ofType": null
             },
@@ -8027,8 +8100,8 @@
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "kind": "ENUM",
-                "name": "SubmissionAndroidTrack",
+                "kind": "SCALAR",
+                "name": "String",
                 "ofType": null
               }
             },
@@ -8049,18 +8122,6 @@
         "inputFields": [
           {
             "name": "applicationIdentifier",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "archiveUrl",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -8162,7 +8223,7 @@
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "kind": "ENUM",
+                "kind": "SCALAR",
                 "name": "SubmissionAndroidTrack",
                 "ofType": null
               }
@@ -8930,7 +8991,7 @@
                 "name": "environment",
                 "description": null,
                 "type": {
-                  "kind": "ENUM",
+                  "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
                   "ofType": null
                 },
@@ -8987,7 +9048,7 @@
                 "name": "environment",
                 "description": null,
                 "type": {
-                  "kind": "ENUM",
+                  "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
                   "ofType": null
                 },
@@ -18619,6 +18680,12 @@
         "interfaces": null,
         "enumValues": [
           {
+            "name": "AMAZON_FEDERATE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "GENERIC",
             "description": null,
             "isDeprecated": false,
@@ -19951,7 +20018,7 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "ENUM",
+              "kind": "SCALAR",
               "name": "EnvironmentVariableEnvironment",
               "ofType": null
             },
@@ -20072,8 +20139,8 @@
               "name": "String",
               "ofType": null
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Check logs instead."
           },
           {
             "name": "status",
@@ -20144,12 +20211,36 @@
             "deprecationReason": null
           },
           {
+            "name": "waiverType",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "ENUM",
+              "name": "EASBuildWaiverType",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "workerStartedAt",
             "description": null,
             "args": [],
             "type": {
               "kind": "SCALAR",
               "name": "DateTime",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "workflowJob",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "WorkflowJob",
               "ofType": null
             },
             "isDeprecated": false,
@@ -21623,6 +21714,18 @@
             "deprecationReason": null
           },
           {
+            "name": "projectMetadataFile",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "ProjectMetadataFileInput",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "reactNativeVersion",
             "description": null,
             "type": {
@@ -21696,18 +21799,6 @@
           },
           {
             "name": "sdkVersion",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "selectedImage",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -24271,18 +24362,6 @@
             "deprecationReason": null
           },
           {
-            "name": "archiveUrl",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "config",
             "description": null,
             "type": {
@@ -24425,7 +24504,7 @@
                 "kind": "NON_NULL",
                 "name": null,
                 "ofType": {
-                  "kind": "ENUM",
+                  "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
                   "ofType": null
                 }
@@ -24664,7 +24743,7 @@
             "name": "environment",
             "description": null,
             "type": {
-              "kind": "ENUM",
+              "kind": "SCALAR",
               "name": "EnvironmentVariableEnvironment",
               "ofType": null
             },
@@ -25037,18 +25116,6 @@
             "deprecationReason": null
           },
           {
-            "name": "archiveUrl",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "config",
             "description": null,
             "type": {
@@ -25156,7 +25223,7 @@
                 "kind": "NON_NULL",
                 "name": null,
                 "ofType": {
-                  "kind": "ENUM",
+                  "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
                   "ofType": null
                 }
@@ -25172,18 +25239,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "isGlobal",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Boolean",
               "ofType": null
             },
             "defaultValue": null,
@@ -25953,6 +26008,29 @@
           },
           {
             "name": "TIMED_OUT",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "DashboardViewPin",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "ACTIVITY",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "OVERVIEW",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -26981,22 +27059,6 @@
             "deprecationReason": null
           },
           {
-            "name": "insights",
-            "description": "Deployment query field",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "DeploymentInsights",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "latestUpdatesPerBranch",
             "description": "Ordered the same way as 'updateBranches' in UpdateChannel",
             "args": [
@@ -27342,206 +27404,6 @@
           }
         ],
         "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "DeploymentInsights",
-        "description": null,
-        "fields": [
-          {
-            "name": "cumulativeMetricsOverTime",
-            "description": null,
-            "args": [
-              {
-                "name": "timespan",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "InsightsTimespan",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "DeploymentCumulativeMetricsOverTimeData",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "embeddedUpdateTotalUniqueUsers",
-            "description": null,
-            "args": [
-              {
-                "name": "timespan",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "InsightsTimespan",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Int",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "embeddedUpdateUniqueUsersOverTime",
-            "description": null,
-            "args": [
-              {
-                "name": "timespan",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "InsightsTimespan",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "UniqueUsersOverTimeData",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "ID",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "mostPopularUpdates",
-            "description": null,
-            "args": [
-              {
-                "name": "timespan",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "InsightsTimespan",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "Update",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "uniqueUsersOverTime",
-            "description": null,
-            "args": [
-              {
-                "name": "timespan",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "InsightsTimespan",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "UniqueUsersOverTimeData",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -29067,7 +28929,7 @@
                 "kind": "NON_NULL",
                 "name": null,
                 "ofType": {
-                  "kind": "ENUM",
+                  "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
                   "ofType": null
                 }
@@ -29152,7 +29014,7 @@
                 "kind": "NON_NULL",
                 "name": null,
                 "ofType": {
-                  "kind": "ENUM",
+                  "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
                   "ofType": null
                 }
@@ -29269,32 +29131,13 @@
         "possibleTypes": null
       },
       {
-        "kind": "ENUM",
+        "kind": "SCALAR",
         "name": "EnvironmentVariableEnvironment",
-        "description": null,
+        "description": "A name of an environment variable environment",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
-        "enumValues": [
-          {
-            "name": "DEVELOPMENT",
-            "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "PREVIEW",
-            "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "PRODUCTION",
-            "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
+        "enumValues": null,
         "possibleTypes": null
       },
       {
@@ -29808,7 +29651,7 @@
                 "kind": "NON_NULL",
                 "name": null,
                 "ofType": {
-                  "kind": "ENUM",
+                  "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
                   "ofType": null
                 }
@@ -29897,7 +29740,7 @@
                 "kind": "NON_NULL",
                 "name": null,
                 "ofType": {
-                  "kind": "ENUM",
+                  "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
                   "ofType": null
                 }
@@ -30222,6 +30065,18 @@
             "deprecationReason": null
           },
           {
+            "name": "platformBreakdown",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "EstimatedUsagePlatformBreakdown",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "service",
             "description": null,
             "args": [],
@@ -30247,6 +30102,92 @@
               "ofType": {
                 "kind": "ENUM",
                 "name": "EASServiceMetric",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "value",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Float",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "EstimatedUsagePlatformBreakdown",
+        "description": null,
+        "fields": [
+          {
+            "name": "android",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "EstimatedUsagePlatformDetail",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ios",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "EstimatedUsagePlatformDetail",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "EstimatedUsagePlatformDetail",
+        "description": null,
+        "fields": [
+          {
+            "name": "limit",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Float",
                 "ofType": null
               }
             },
@@ -32186,7 +32127,7 @@
             "name": "environment",
             "description": null,
             "type": {
-              "kind": "ENUM",
+              "kind": "SCALAR",
               "name": "EnvironmentVariableEnvironment",
               "ofType": null
             },
@@ -32317,7 +32258,7 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "ENUM",
+              "kind": "SCALAR",
               "name": "EnvironmentVariableEnvironment",
               "ofType": null
             },
@@ -36419,7 +36360,7 @@
             "name": "environment",
             "description": null,
             "type": {
-              "kind": "ENUM",
+              "kind": "SCALAR",
               "name": "EnvironmentVariableEnvironment",
               "ofType": null
             },
@@ -37149,18 +37090,6 @@
           },
           {
             "name": "appleIdUsername",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "archiveUrl",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -41115,6 +41044,49 @@
         "possibleTypes": null
       },
       {
+        "kind": "OBJECT",
+        "name": "PinnedDashboardView",
+        "description": null,
+        "fields": [
+          {
+            "name": "account",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "Account",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "view",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "DashboardViewPin",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "UNION",
         "name": "PlanEnablement",
         "description": null,
@@ -41420,6 +41392,49 @@
         "possibleTypes": null
       },
       {
+        "kind": "INPUT_OBJECT",
+        "name": "ProjectMetadataFileInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "bucketKey",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "type",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "ProjectArchiveSourceType",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "OBJECT",
         "name": "ProjectPublicData",
         "description": null,
@@ -41647,7 +41662,7 @@
             "name": "environment",
             "description": null,
             "type": {
-              "kind": "ENUM",
+              "kind": "SCALAR",
               "name": "EnvironmentVariableEnvironment",
               "ofType": null
             },
@@ -43841,6 +43856,22 @@
             "deprecationReason": null
           },
           {
+            "name": "userDashboardViewPins",
+            "description": "Mutations that create, update, and delete pinned dashboard views",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "UserDashboardViewPinMutation",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "userInvitation",
             "description": "Mutations that create, delete, and accept UserInvitations",
             "args": [],
@@ -44880,6 +44911,55 @@
             "deprecationReason": null
           },
           {
+            "name": "buildCount",
+            "description": null,
+            "args": [
+              {
+                "name": "channel",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "statuses",
+                "description": null,
+                "type": {
+                  "kind": "LIST",
+                  "name": null,
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "ENUM",
+                      "name": "BuildStatus",
+                      "ofType": null
+                    }
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "builds",
             "description": null,
             "args": [
@@ -45150,6 +45230,18 @@
                 "deprecationReason": null
               },
               {
+                "name": "filter",
+                "description": null,
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "RuntimeUpdatesFilterInput",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "first",
                 "description": null,
                 "type": {
@@ -45410,6 +45502,18 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "searchTerm",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "interfaces": null,
@@ -45457,6 +45561,29 @@
         ],
         "inputFields": null,
         "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "RuntimeUpdatesFilterInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "channel",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },
@@ -46075,6 +46202,30 @@
                   "ofType": {
                     "kind": "OBJECT",
                     "name": "App",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "pinnedDashboardViews",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "PinnedDashboardView",
                     "ofType": null
                   }
                 }
@@ -48398,6 +48549,18 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "workflowJob",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "WorkflowJob",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -48470,38 +48633,13 @@
         "possibleTypes": null
       },
       {
-        "kind": "ENUM",
+        "kind": "SCALAR",
         "name": "SubmissionAndroidTrack",
         "description": null,
         "fields": null,
         "inputFields": null,
         "interfaces": null,
-        "enumValues": [
-          {
-            "name": "ALPHA",
-            "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "BETA",
-            "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "INTERNAL",
-            "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "PRODUCTION",
-            "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
+        "enumValues": null,
         "possibleTypes": null
       },
       {
@@ -49750,7 +49888,7 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "ENUM",
+              "kind": "SCALAR",
               "name": "EnvironmentVariableEnvironment",
               "ofType": null
             },
@@ -50025,6 +50163,18 @@
                 "name": "DateTime",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "workflowJob",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "WorkflowJob",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -51069,6 +51219,22 @@
             "description": null,
             "args": [
               {
+                "name": "runtimeVersion",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "timespan",
                 "description": null,
                 "type": {
@@ -51384,7 +51550,7 @@
                 "kind": "NON_NULL",
                 "name": null,
                 "ofType": {
-                  "kind": "ENUM",
+                  "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
                   "ofType": null
                 }
@@ -51417,18 +51583,6 @@
                 "name": "ID",
                 "ofType": null
               }
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "isGlobal",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Boolean",
-              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -51576,7 +51730,7 @@
             "name": "environment",
             "description": null,
             "type": {
-              "kind": "ENUM",
+              "kind": "SCALAR",
               "name": "EnvironmentVariableEnvironment",
               "ofType": null
             },
@@ -53507,6 +53661,30 @@
                   "ofType": {
                     "kind": "OBJECT",
                     "name": "App",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "pinnedDashboardViews",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "PinnedDashboardView",
                     "ofType": null
                   }
                 }
@@ -55701,6 +55879,95 @@
                   }
                 }
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "UserDashboardViewPinMutation",
+        "description": null,
+        "fields": [
+          {
+            "name": "pinDashboardView",
+            "description": null,
+            "args": [
+              {
+                "name": "accountId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "view",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "ENUM",
+                    "name": "DashboardViewPin",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "PinnedDashboardView",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "unpinDashboardView",
+            "description": null,
+            "args": [
+              {
+                "name": "accountId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "PinnedDashboardView",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -63070,6 +63337,12 @@
             "deprecationReason": null
           },
           {
+            "name": "GITHUB_COMMENT",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "MAESTRO_CLOUD",
             "description": null,
             "isDeprecated": false,
@@ -63101,6 +63374,12 @@
           },
           {
             "name": "SUBMISSION",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "TESTFLIGHT",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -63497,6 +63776,71 @@
         "name": "WorkflowRevisionMutation",
         "description": null,
         "fields": [
+          {
+            "name": "getOrCreateWorkflowRevisionFromGitRef",
+            "description": null,
+            "args": [
+              {
+                "name": "appId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "fileName",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "gitRef",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "WorkflowRevision",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "validateWorkflowYamlConfig",
             "description": null,
@@ -64270,6 +64614,67 @@
                   "ofType": {
                     "kind": "INPUT_OBJECT",
                     "name": "WorkflowRunInput",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "WorkflowRun",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "createWorkflowRunFromGitRef",
+            "description": null,
+            "args": [
+              {
+                "name": "gitRef",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "inputs",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "JSONObject",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "workflowRevisionId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
                     "ofType": null
                   }
                 },

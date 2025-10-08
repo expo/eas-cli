@@ -2,7 +2,6 @@ import {
   ArchiveSource,
   ArchiveSourceType,
   BuildJob,
-  FingerprintSource,
   Metadata,
   Platform,
 } from '@expo/eas-build-job';
@@ -50,9 +49,11 @@ import { createFingerprintAsync } from '../fingerprint/cli';
 import {
   AppPlatform,
   BuildFragment,
+  BuildMetadataInput,
   BuildParamsInput,
   BuildPriority,
   BuildStatus,
+  FingerprintSourceInput,
   UploadSessionType,
 } from '../graphql/generated';
 import { BuildMutation, BuildResult } from '../graphql/mutations/BuildMutation';
@@ -94,7 +95,7 @@ interface Builder<TPlatform extends Platform, Credentials, TJob extends BuildJob
   sendBuildRequestAsync(
     appId: string,
     job: TJob,
-    metadata: Metadata,
+    metadata: BuildMetadataInput,
     buildParams: BuildParamsInput
   ): Promise<BuildResult>;
 }
@@ -193,13 +194,20 @@ export async function prepareBuildRequestForPlatformAsync<
     } else if (ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL) {
       await BuildMutation.updateBuildMetadataAsync(ctx.graphqlClient, {
         buildId: nullthrows(process.env.EAS_BUILD_ID),
-        metadata: transformMetadata(metadata),
+        metadata: transformMetadata({
+          metadata,
+          fingerprintSource: runtimeAndFingerprintMetadata.fingerprintSource ?? undefined,
+        }),
       });
       printJsonOnlyOutput({ job, metadata });
       return undefined;
     } else if (!ctx.localBuildOptions.localBuildMode) {
       try {
-        return await sendBuildRequestAsync(builder, job, metadata, buildParams);
+        const graphqlMetadata = transformMetadata({
+          metadata,
+          fingerprintSource: runtimeAndFingerprintMetadata.fingerprintSource ?? undefined,
+        });
+        return await sendBuildRequestAsync(builder, job, graphqlMetadata, buildParams);
       } catch (error: any) {
         handleBuildRequestError(error, job.platform);
       }
@@ -362,7 +370,7 @@ async function sendBuildRequestAsync<
 >(
   builder: Builder<TPlatform, Credentials, TJob>,
   job: TJob,
-  metadata: Metadata,
+  graphqlMetadata: BuildMetadataInput,
   buildParams: BuildParamsInput
 ): Promise<BuildFragment> {
   const { ctx } = builder;
@@ -376,7 +384,7 @@ async function sendBuildRequestAsync<
       const { build, deprecationInfo } = await builder.sendBuildRequestAsync(
         ctx.projectId,
         job,
-        metadata,
+        graphqlMetadata,
         buildParams
       );
 
@@ -654,7 +662,7 @@ async function computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync<T extends
 ): Promise<{
   runtimeVersion?: string | undefined;
   fingerprintHash?: string | undefined;
-  fingerprintSource?: FingerprintSource | undefined;
+  fingerprintSource?: FingerprintSourceInput | undefined;
 }> {
   const runtimeAndFingerprintMetadata =
     await computeAndMaybeUploadFingerprintFromExpoUpdatesAsync(ctx);
@@ -676,7 +684,7 @@ async function computeAndMaybeUploadFingerprintFromExpoUpdatesAsync<T extends Pl
   ctx: BuildContext<T>
 ): Promise<{
   runtimeVersion?: string;
-  fingerprintSource?: FingerprintSource;
+  fingerprintSource?: FingerprintSourceInput;
   fingerprintHash?: string;
 }> {
   const resolvedRuntimeVersion = await resolveRuntimeVersionAsync({
@@ -723,7 +731,7 @@ async function computeAndMaybeUploadFingerprintWithoutExpoUpdatesAsync<T extends
   { debug }: { debug?: boolean } = {}
 ): Promise<{
   fingerprintHash?: string;
-  fingerprintSource?: FingerprintSource;
+  fingerprintSource?: FingerprintSourceInput;
 }> {
   const fingerprint = await createFingerprintAsync(ctx.projectDir, {
     workflow: ctx.workflow,

@@ -1,10 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import {
-  AndroidReleaseStatus,
-  AndroidReleaseTrack,
-  EasJsonAccessor,
-  EasJsonUtils,
-} from '@expo/eas-json';
+import { AndroidReleaseStatus, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { MissingProfileError } from '@expo/eas-json/build/errors';
 
 import { refreshContextSubmitProfileAsync } from '../commons';
@@ -64,7 +59,7 @@ describe(refreshContextSubmitProfileAsync, () => {
     it('returns updated context if profile exists', async () => {
       const submitContext = {
         profile: {
-          track: AndroidReleaseTrack.internal,
+          track: 'internal',
           releaseStatus: AndroidReleaseStatus.draft,
           changesNotSentForReview: false,
           applicationId: 'appId1',
@@ -79,7 +74,7 @@ describe(refreshContextSubmitProfileAsync, () => {
             _profileName: string | undefined
           ) => {
             return {
-              track: AndroidReleaseTrack.beta,
+              track: 'beta',
               releaseStatus: AndroidReleaseStatus.inProgress,
               changesNotSentForReview: true,
               applicationId: 'appId2',
@@ -91,7 +86,7 @@ describe(refreshContextSubmitProfileAsync, () => {
 
       expect(result).toEqual({
         profile: {
-          track: AndroidReleaseTrack.beta,
+          track: 'beta',
           releaseStatus: AndroidReleaseStatus.inProgress,
           changesNotSentForReview: true,
           applicationId: 'appId2',
@@ -101,7 +96,7 @@ describe(refreshContextSubmitProfileAsync, () => {
     it('returns unmodified context if profile does not exist', async () => {
       const submitContext = {
         profile: {
-          track: AndroidReleaseTrack.internal,
+          track: 'internal',
           releaseStatus: AndroidReleaseStatus.draft,
           changesNotSentForReview: false,
           applicationId: 'appId1',
@@ -123,7 +118,7 @@ describe(refreshContextSubmitProfileAsync, () => {
 
       expect(result).toEqual({
         profile: {
-          track: AndroidReleaseTrack.internal,
+          track: 'internal',
           releaseStatus: AndroidReleaseStatus.draft,
           changesNotSentForReview: false,
           applicationId: 'appId1',

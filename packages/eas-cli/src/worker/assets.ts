@@ -8,8 +8,8 @@ import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { pack } from 'tar-stream';
 
+import { EnvironmentVariableEnvironment } from '../build/utils/environment';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { EnvironmentVariableEnvironment } from '../graphql/generated';
 import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
 
 /** Returns whether a file or folder is ignored */

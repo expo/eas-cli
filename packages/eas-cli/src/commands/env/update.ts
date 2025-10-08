@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EASEnvironmentVariableScopeFlag,
@@ -15,7 +16,6 @@ import {
 } from '../../commandUtils/flags';
 import {
   EnvironmentSecretType,
-  EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
@@ -226,7 +226,7 @@ export default class EnvUpdate extends EasCommand {
         : EnvironmentVariableScope.Project;
 
     if (environment) {
-      environment = environment.toUpperCase();
+      environment = environment.toLowerCase();
       if (!isEnvironment(environment)) {
         throw new Error(
           "Invalid environment. Use one of 'production', 'preview', or 'development'."

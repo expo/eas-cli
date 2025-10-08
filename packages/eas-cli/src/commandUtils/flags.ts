@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import { EnvironmentVariableEnvironment } from '../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../build/utils/environment';
 
 // NOTE: not exactly true, but, provided mapToLowercase and upperCaseAsync
 // are used in tandem, it saves on unnecessary typying in commands
@@ -24,7 +24,6 @@ export const EasNonInteractiveAndJsonFlags = {
 
 export const EasEnvironmentFlagParameters = {
   description: "Environment variable's environment",
-  parse: upperCaseAsync,
   options: mapToLowercase([
     EnvironmentVariableEnvironment.Development,
     EnvironmentVariableEnvironment.Preview,

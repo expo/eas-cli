@@ -26,7 +26,7 @@ import {
   CommandEvent,
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
-import { EnvironmentVariableEnvironment } from '../graphql/generated';
+import { EnvironmentVariableEnvironment } from '../build/utils/environment';
 import Log, { link } from '../log';
 import SessionManager from '../user/SessionManager';
 import { Client } from '../vcs/vcs';

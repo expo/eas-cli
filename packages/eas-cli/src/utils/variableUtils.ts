@@ -1,9 +1,9 @@
 import dateFormat from 'dateformat';
 
 import formatFields from './formatFields';
+import { EnvironmentVariableEnvironment } from '../build/utils/environment';
 import {
   EnvironmentSecretType,
-  EnvironmentVariableEnvironment,
   EnvironmentVariableFragment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,

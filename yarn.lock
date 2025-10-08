@@ -1539,15 +1539,15 @@
     slugify "^1.3.4"
     sucrase "3.35.0"
 
-"@expo/eas-build-job@1.0.173":
-  version "1.0.173"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.173.tgz#e19e0563743cc947fb5419fbeb063f03aed2a796"
-  integrity sha512-OtayVwXQaQEjJkpeKYvB4N6lsXVX+QSEz5okNx/d+8esI2KCjxOy/hzaqKBTovkxRlmWgE3XLw8RhrjAaBY2Gw==
+"@expo/eas-build-job@1.0.231":
+  version "1.0.231"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.231.tgz#5c96045276da1e521794523204e9da6051e4dda1"
+  integrity sha512-jktsZ7IJYcC9lbgUWftbFCpfrhcGwJX4q0qSubUrqvFTMuUyLjCzJqyIZ4znbXLXfJSUPDJNAd4H0wBqKJA9kA==
   dependencies:
-    "@expo/logger" "1.0.117"
+    "@expo/logger" "1.0.221"
     joi "^17.13.1"
     semver "^7.6.2"
-    zod "^3.23.8"
+    zod "^4.1.3"
 
 "@expo/env@^1.0.0":
   version "1.0.0"
@@ -1602,10 +1602,10 @@
     "@babel/code-frame" "~7.10.4"
     json5 "^2.2.3"
 
-"@expo/logger@1.0.117":
-  version "1.0.117"
-  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.117.tgz#31e302656f33dd015fdde89ad803d710a0e5b8a2"
-  integrity sha512-tuCT5fmjRjED6HYAf4HgE+UbiHT3JYrkUzUv9FC769goxo4LuuewBNQiDUkeecQTha7aTS5aO2YHlfdipI8gzg==
+"@expo/logger@1.0.221":
+  version "1.0.221"
+  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.221.tgz#bd6ef6e03b3c4bf0872843d8b2a83556892178c0"
+  integrity sha512-arNkhzq4Ludz9J7PIYWTVYXuT1bO/A8prR8HYAviKuF6fEZfitemNVriGSetQASOE8Vnv3lmBZv6YIwLiFuv/Q==
   dependencies:
     "@types/bunyan" "^1.8.11"
     bunyan "^1.8.15"
@@ -1736,13 +1736,13 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.173":
-  version "1.0.173"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.173.tgz#157bf104d3137012bf82b106d5bd0227fd6f67f1"
-  integrity sha512-XT8+FsZWIzwK+/TGnPrHe0HMQrzRGjTsjVDx8Yt922tL5TkX69XeB/twA0PcPWBLMxq+JiKtFm68yPTPqjIMNg==
+"@expo/steps@1.0.231":
+  version "1.0.231"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.231.tgz#28fece40d97abb4ccddfad2ea003fa98d414f08a"
+  integrity sha512-o7Wj6W32S4H4geWC0b3RL5finHmiPT+e8SMP4/4Il2R0oc9er8jLXaj1tQ3fTZvpnlqoMWcFn5fAvaGnxfYDPA==
   dependencies:
-    "@expo/eas-build-job" "1.0.173"
-    "@expo/logger" "1.0.117"
+    "@expo/eas-build-job" "1.0.231"
+    "@expo/logger" "1.0.221"
     "@expo/spawn-async" "^1.7.2"
     arg "^5.0.2"
     fs-extra "^11.2.0"
@@ -7703,7 +7703,7 @@ foreground-child@^3.1.0:
     cross-spawn "^7.0.0"
     signal-exit "^4.0.1"
 
-form-data@4.0.4, form-data@^4.0.0, form-data@^4.0.4:
+form-data@^4.0.0, form-data@^4.0.4:
   version "4.0.4"
   resolved "https://registry.yarnpkg.com/form-data/-/form-data-4.0.4.tgz#784cdcce0669a9d68e94d11ac4eea98088edd2c4"
   integrity sha512-KrGhL9Q4zjj0kiUt5OO4Mr/A/jlI2jDYs5eHBpYHPcBEVSiipAvn2Ko2HnPe20rmcuuvMHNdZFp+4IlGTMF0Ow==
@@ -15630,7 +15630,7 @@ yocto-queue@^0.1.0:
   resolved "https://registry.yarnpkg.com/yocto-queue/-/yocto-queue-0.1.0.tgz#0294eb3dee05028d31ee1a5fa2c556a6aaf10a1b"
   integrity sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==
 
-zod@^3.23.8:
-  version "3.23.8"
-  resolved "https://registry.yarnpkg.com/zod/-/zod-3.23.8.tgz#e37b957b5d52079769fb8097099b592f0ef4067d"
-  integrity sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==
+zod@^4.1.3:
+  version "4.1.8"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-4.1.8.tgz#54f024adc634dd185006a8415da2bdd495b9d92b"
+  integrity sha512-5R1P+WwQqmmMIEACyzSvo4JXHY5WiAFHRMg+zBZKgKS+Q1viRa0C1hmUKtHltoIFKtIdki3pRxkmpP74jnNYHQ==

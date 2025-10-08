@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -9,7 +10,7 @@ import {
   EASMultiEnvironmentFlag,
   EASVariableFormatFlag,
 } from '../../commandUtils/flags';
-import { EnvironmentVariableEnvironment, EnvironmentVariableScope } from '../../graphql/generated';
+import { EnvironmentVariableScope } from '../../graphql/generated';
 import {
   EnvironmentVariableWithFileContent,
   EnvironmentVariablesQuery,
@@ -179,14 +180,14 @@ export default class EnvList extends EasCommand {
     flags: RawListFlags,
     { environment }: { environment?: string }
   ): ListFlags {
-    if (environment && !isEnvironment(environment.toUpperCase())) {
+    if (environment && !isEnvironment(environment.toLowerCase())) {
       throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
     }
 
     const environments = flags.environment
       ? flags.environment
       : environment
-        ? [environment.toUpperCase() as EnvironmentVariableEnvironment]
+        ? [environment.toLowerCase() as EnvironmentVariableEnvironment]
         : undefined;
 
     return {

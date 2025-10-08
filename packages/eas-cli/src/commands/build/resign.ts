@@ -10,6 +10,7 @@ import { evaluateConfigWithEnvVarsAsync } from '../../build/evaluateConfigWithEn
 import { ensureIosCredentialsForBuildResignAsync } from '../../build/ios/credentials';
 import { prepareCredentialsToResign } from '../../build/ios/prepareJob';
 import { listAndSelectBuildOnAppAsync } from '../../build/queries';
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -22,7 +23,6 @@ import {
   BuildStatus,
   BuildWorkflow,
   DistributionType,
-  EnvironmentVariableEnvironment,
   IosJobOverridesInput,
   ProjectArchiveSourceType,
   StatuspageServiceName,

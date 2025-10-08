@@ -10,9 +10,79 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Make EXPO_PUBLIC_ env vars plain text, rest sensitive ([#3121](https://github.com/expo/eas-cli/pull/3121) by [@kadikraman](https://github.com/kadikraman))
+### 🧹 Chores
+
+## [16.20.4](https://github.com/expo/eas-cli/releases/tag/v16.20.4) - 2025-10-08
+
+### 🎉 New features
+
+- Allow workflow:run to run a workflow from a GitHub ref. ([#3203](https://github.com/expo/eas-cli/pull/3203) by [@douglowder](https://github.com/douglowder))
+
+### 🐛 Bug fixes
+
+- Fix --environment flag in eas exec and pull ([#3216](https://github.com/expo/eas-cli/pull/3216) by [@kadikraman](https://github.com/kadikraman))
+
+## [16.20.3](https://github.com/expo/eas-cli/releases/tag/v16.20.3) - 2025-10-07
+
+### 🐛 Bug fixes
+
+- Fix --environment flag in eas env commands ([#3213](https://github.com/expo/eas-cli/pull/3213) by [@kadikraman](https://github.com/kadikraman))
+
+## [16.20.2](https://github.com/expo/eas-cli/releases/tag/v16.20.2) - 2025-10-07
 
 ### 🧹 Chores
+
+- Create an `EnvironmentVariableEnvironment` enum and use it instead of the graphQL Enum ([#3208](https://github.com/expo/eas-cli/pull/3208) by [@kadikraman](https://github.com/kadikraman))
+
+## [16.20.1](https://github.com/expo/eas-cli/releases/tag/v16.20.1) - 2025-10-03
+
+### 🐛 Bug fixes
+
+- skip syncing capabilities with settings if they don't contain the `enabled` attribute ([#3201](https://github.com/expo/eas-cli/pull/3201) by [@vonovak](https://github.com/vonovak))
+
+## [16.20.0](https://github.com/expo/eas-cli/releases/tag/v16.20.0) - 2025-09-30
+
+### 🎉 New features
+
+- Improvements to workflow:validate. ([#3165](https://github.com/expo/eas-cli/pull/3165) by [@douglowder](https://github.com/douglowder))
+- Add `eas:new` command behind `hidden` flag. ([#3196](https://github.com/expo/eas-cli/pull/3196) by [@mackenco](https://github.com/mackenco))
+
+## [16.19.3](https://github.com/expo/eas-cli/releases/tag/v16.19.3) - 2025-09-17
+
+### 🧹 Chores
+
+- Temporarily remove warnings when no compatible build found, need to refine the message. ([#3182](https://github.com/expo/eas-cli/pull/3182) by [@brentvatne](https://github.com/brentvatne))
+
+## [16.19.2](https://github.com/expo/eas-cli/releases/tag/v16.19.2) - 2025-09-15
+
+### 🎉 New features
+
+- Add artifact URLs to workflow:view. ([#3175](https://github.com/expo/eas-cli/pull/3175) by [@douglowder](https://github.com/douglowder))
+
+## [16.19.1](https://github.com/expo/eas-cli/releases/tag/v16.19.1) - 2025-09-12
+
+## [16.19.0](https://github.com/expo/eas-cli/releases/tag/v16.19.0) - 2025-09-12
+
+### 🎉 New features
+
+- Allow any string as Android release `track`, not just the `production`, `internal`, `alpha`, `beta`. ([#3163](https://github.com/expo/eas-cli/pull/3163) by [@sjchmiela](https://github.com/sjchmiela))
+
+## [16.18.1](https://github.com/expo/eas-cli/releases/tag/v16.18.1) - 2025-09-10
+
+### 🎉 New features
+
+- CLI debug log should respect DEBUG=`eas:*`. ([#3162](https://github.com/expo/eas-cli/pull/3162) by [@douglowder](https://github.com/douglowder))
+- Better description for update:rollback. ([#3154](https://github.com/expo/eas-cli/pull/3154) by [@douglowder](https://github.com/douglowder))
+
+## [16.18.0](https://github.com/expo/eas-cli/releases/tag/v16.18.0) - 2025-08-27
+
+### 🎉 New features
+
+- Show fingerprints in build:view and build:list commands. ([#3137](https://github.com/expo/eas-cli/pull/3137) by [@douglowder](https://github.com/douglowder))
+
+### 🐛 Bug fixes
+
+- Make `EXPO_PUBLIC_` env vars plain text, rest sensitive ([#3121](https://github.com/expo/eas-cli/pull/3121) by [@kadikraman](https://github.com/kadikraman))
 
 ## [16.17.4](https://github.com/expo/eas-cli/releases/tag/v16.17.4) - 2025-07-31
 

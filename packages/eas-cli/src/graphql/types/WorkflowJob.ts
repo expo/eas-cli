@@ -1,5 +1,7 @@
 import gql from 'graphql-tag';
 
+import { BuildFragmentNode } from './Build';
+
 export const WorkflowJobFragmentNode = gql`
   fragment WorkflowJobFragment on WorkflowJob {
     id
@@ -13,10 +15,22 @@ export const WorkflowJobFragmentNode = gql`
     turtleJobRun {
       id
       logFileUrls
+      artifacts {
+        id
+        name
+        contentType
+        fileSizeBytes
+        filename
+        downloadUrl
+      }
       errors {
         errorCode
         message
       }
+    }
+    turtleBuild {
+      id
+      ...BuildFragment
     }
     outputs
     errors {
@@ -26,4 +40,5 @@ export const WorkflowJobFragmentNode = gql`
     createdAt
     updatedAt
   }
+  ${BuildFragmentNode}
 `;

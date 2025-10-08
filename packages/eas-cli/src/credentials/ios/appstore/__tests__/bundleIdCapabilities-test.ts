@@ -15,6 +15,7 @@ function createMockBundleId(id: string = 'XXX', capabilities: BundleIdCapability
     id,
   } as any;
 }
+const ctx = Object.freeze({ providerId: 123195, teamId: 'MyteamId' });
 
 describe(assertValidOptions, () => {
   it(`adds a reason for asserting capability identifiers`, () => {
@@ -29,7 +30,6 @@ describe(assertValidOptions, () => {
 
 describe(syncCapabilitiesForEntitlementsAsync, () => {
   it(`does not disable associated domains when MDM managed domains is active`, async () => {
-    const ctx = { providerId: 123195, teamId: 'MyteamId' };
     // https://forums.expo.dev/t/eas-build-failed-on-ios-associated-domains-capability/61662/5
     const capabilities = [
       {
@@ -67,8 +67,46 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
     ]);
   });
 
+  it('skips syncing capabilities with settings if they do not contain the expected `enabled` field', async () => {
+    const capabilityJson = {
+      id: 'U78L9459DG_APPLE_ID_AUTH',
+      attributes: {
+        settings: [
+          {
+            key: 'APPLE_ID_AUTH_APP_CONSENT',
+            options: [
+              {
+                key: 'PRIMARY_APP_CONSENT',
+              },
+            ],
+          },
+        ],
+        capabilityType: 'APPLE_ID_AUTH',
+      },
+    };
+
+    const capability = new BundleIdCapability(
+      ctx,
+      capabilityJson.id,
+      capabilityJson.attributes as any
+    );
+    const bundleId = createMockBundleId('U78L9459DG', [capability]);
+    const result = await syncCapabilitiesForEntitlementsAsync(
+      bundleId,
+      {
+        'com.apple.developer.applesignin': ['Default'],
+      },
+      noBroadcastNotificationOption
+    );
+
+    expect(result).toStrictEqual({
+      enabled: [],
+      disabled: [],
+    });
+    expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalled();
+  });
+
   describe('capabilities with settings', () => {
-    const ctx = { providerId: 123195, teamId: 'MyteamId' };
     const capabilities = [
       {
         id: 'U78L9459DG_APPLE_ID_AUTH',
@@ -266,7 +304,6 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
     });
 
     describe('given a bundleId with a capability that is enabled', () => {
-      const ctx = { providerId: 123195, teamId: 'MyteamId' };
       const remote = {
         id: 'UFJ54VZ75A_ACCESS_WIFI_INFORMATION',
         attributes: {
@@ -380,7 +417,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       noBroadcastNotificationOption
     );
 
-    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+    expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
       { capabilityType: 'HEALTHKIT', option: 'ON' },
       { capabilityType: 'APPLE_PAY', option: 'ON' },
       { capabilityType: 'ICLOUD', option: 'ON' },
@@ -696,7 +733,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       noBroadcastNotificationOption
     );
 
-    expect(bundleId.updateBundleIdCapabilityAsync).toBeCalledWith([
+    expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledWith([
       { capabilityType: 'HEALTHKIT', option: 'ON' },
     ]);
 
@@ -786,7 +823,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       }
     );
 
-    expect(bundleId.updateBundleIdCapabilityAsync).not.toBeCalled();
+    expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalled();
 
     expect(results.disabled).toStrictEqual([]);
     expect(results.enabled).toStrictEqual([]);
@@ -807,7 +844,7 @@ describe(syncCapabilitiesForEntitlementsAsync, () => {
       noBroadcastNotificationOption
     );
 
-    expect(bundleId.updateBundleIdCapabilityAsync).not.toBeCalled();
+    expect(bundleId.updateBundleIdCapabilityAsync).not.toHaveBeenCalled();
 
     expect(results.disabled).toStrictEqual([]);
     expect(results.enabled).toStrictEqual([]);

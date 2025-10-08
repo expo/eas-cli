@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
+import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EASEnvironmentVariableScopeFlag,
@@ -13,7 +14,6 @@ import {
 } from '../../commandUtils/flags';
 import {
   EnvironmentSecretType,
-  EnvironmentVariableEnvironment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../graphql/generated';
@@ -220,7 +220,6 @@ export default class EnvCreate extends EasCommand {
                 value,
                 visibility,
                 environments,
-                isGlobal: true, // TODO: every account-wide variable is global for now so it's not user facing
                 type: type ?? EnvironmentSecretType.String,
               },
               ownerAccount.id
@@ -324,14 +323,14 @@ export default class EnvCreate extends EasCommand {
 
     value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
 
-    if (environment && !isEnvironment(environment.toUpperCase())) {
+    if (environment && !isEnvironment(environment.toLowerCase())) {
       throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
     }
 
     let newEnvironments = environments
       ? environments
       : environment
-        ? [environment.toUpperCase() as EnvironmentVariableEnvironment]
+        ? [environment.toLowerCase() as EnvironmentVariableEnvironment]
         : undefined;
 
     if (!newEnvironments) {
