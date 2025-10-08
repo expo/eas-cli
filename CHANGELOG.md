@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+- Add thorough tests for the env commands ([#3217](https://github.com/expo/eas-cli/pull/3217) by [@kadikraman](https://github.com/kadikraman))
 
 ## [16.20.4](https://github.com/expo/eas-cli/releases/tag/v16.20.4) - 2025-10-08
 
