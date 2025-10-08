@@ -111,4 +111,31 @@ describe(EnvGet, () => {
     expect(promptVariableEnvironmentAsync).toHaveBeenCalled();
     expect(promptVariableNameAsync).toHaveBeenCalled();
   });
+
+  it('accepts development environment when using positional argument', async () => {
+    jest
+      .mocked(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync)
+      .mockResolvedValueOnce(mockVariables);
+    jest.spyOn(Log, 'log').mockImplementation(() => {});
+
+    const command = new EnvGet(['development', '--variable-name', 'TEST_VAR_1', '--scope', 'project'], mockConfig);
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: testProjectId,
+    });
+
+    await command.runAsync();
+
+    expect(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      {
+        appId: testProjectId,
+        environment: EnvironmentVariableEnvironment.Development,
+        filterNames: ['TEST_VAR_1'],
+        includeFileContent: true,
+      }
+    );
+  });
 });

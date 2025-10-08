@@ -1,7 +1,11 @@
 import { Config } from '@oclif/core';
 
 import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
-import { EnvironmentVariableScope } from '../../../graphql/generated';
+import { 
+  EnvironmentVariableScope,
+  EnvironmentVariableVisibility,
+  EnvironmentSecretType,
+} from '../../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
@@ -118,5 +122,37 @@ describe(EnvDelete, () => {
     await expect(command.runAsync()).rejects.toThrowErrorMatchingSnapshot();
 
     expect(EnvironmentVariableMutation.deleteAsync).not.toHaveBeenCalled();
+  });
+
+  it('accepts development environment when using positional argument', async () => {
+    const mockVariable = {
+      id: 'var1',
+      name: 'TEST_VAR_1',
+      value: 'value1',
+      environments: [EnvironmentVariableEnvironment.Development],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      scope: EnvironmentVariableScope.Project,
+      visibility: EnvironmentVariableVisibility.Public,
+      type: EnvironmentSecretType.String,
+    };
+
+    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce([mockVariable]);
+    jest.mocked(EnvironmentVariableMutation.deleteAsync).mockResolvedValueOnce({ id: 'var1' });
+    jest.spyOn(Log, 'log').mockImplementation(() => {});
+
+    const command = new EnvDelete(
+      ['development', '--variable-name', 'TEST_VAR_1', '--scope', 'project', '--non-interactive'],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: projectId,
+    });
+
+    // The command should run without throwing an environment validation error
+    await expect(command.runAsync()).resolves.not.toThrow();
   });
 });
