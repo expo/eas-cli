@@ -152,7 +152,11 @@ describe(EnvDelete, () => {
       projectId: projectId,
     });
 
-    // The command should run without throwing an environment validation error
-    await expect(command.runAsync()).resolves.not.toThrow();
+    await command.runAsync();
+
+    expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: projectId,
+      environment: EnvironmentVariableEnvironment.Development,
+    });
   });
 });

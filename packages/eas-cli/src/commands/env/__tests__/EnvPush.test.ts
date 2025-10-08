@@ -53,6 +53,8 @@ SECRET_KEY=super-secret-key`;
   });
 
   it('accepts development environment when using positional argument', async () => {
+    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce([]);
+
     const command = new EnvPush(['development', '--path', testEnvPath], mockConfig);
 
     // @ts-expect-error
@@ -62,8 +64,13 @@ SECRET_KEY=super-secret-key`;
       projectDir: testProjectDir,
     });
 
-    // The command should run without throwing an environment validation error
-    await expect(command.runAsync()).resolves.not.toThrow();
+    await command.runAsync();
+
+    expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: testProjectId,
+      environment: EnvironmentVariableEnvironment.Development,
+      filterNames: ['EXPO_PUBLIC_API_URL', 'DATABASE_URL', 'SECRET_KEY'],
+    });
   });
 
   it('rejects invalid environment when using positional argument', async () => {
