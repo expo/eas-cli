@@ -31,7 +31,7 @@ jest.mock('../../../utils/easCli', () => ({
 }));
 
 // Mock verification functions
-jest.mock('../../../new/verifications', () => ({
+jest.mock('../../../commandUtils/new/verifications', () => ({
   verifyAccountPermissionsAsync: jest.fn().mockResolvedValue(true),
   verifyProjectDoesNotExistAsync: jest.fn().mockResolvedValue(true),
   verifyProjectDirectoryDoesNotExistAsync: jest.fn().mockResolvedValue(true),
@@ -74,7 +74,7 @@ describe(New.name, () => {
       };
 
       // Mock verification functions to fail first, then succeed
-      const { verifyAccountPermissionsAsync } = require('../../../new/verifications');
+      const { verifyAccountPermissionsAsync } = require('../../../commandUtils/new/verifications');
       verifyAccountPermissionsAsync.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 
       // Mock promptForProjectAccountAsync to return a valid account
@@ -95,7 +95,7 @@ describe(New.name, () => {
       };
 
       // Mock verification functions to always fail
-      const { verifyAccountPermissionsAsync } = require('../../../new/verifications');
+      const { verifyAccountPermissionsAsync } = require('../../../commandUtils/new/verifications');
       verifyAccountPermissionsAsync.mockResolvedValue(false);
 
       // Mock promptForProjectAccountAsync to return the same account (so it keeps failing)
