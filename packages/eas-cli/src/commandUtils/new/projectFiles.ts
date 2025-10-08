@@ -11,27 +11,35 @@ import Log, { learnMore } from '../../log';
 import { PackageManager } from '../../onboarding/installDependencies';
 import { easCliVersion } from '../../utils/easCli';
 
-export function stripInvalidCharactersForBundleIdentifier(string: string): string {
-  return string.replaceAll(/[^A-Za-z0-9]/g, '');
+// Android package names must start with a lowercase letter
+// schemes must start with a lowercase letter and can only contain lowercase letters, digits, "+", "." or "-"
+export function cleanAndPrefix(_string: string, type: 'user' | 'app' | 'scheme'): string {
+  let string = _string;
+  let pattern = /[^A-Za-z0-9]/g;
+  if (type === 'scheme') {
+    string = _string.toLowerCase();
+    pattern = /[^a-z0-9+.-]/g;
+  }
+
+  const prefix = /^[^a-z]/.test(string) ? type : '';
+  const cleaned = string.replaceAll(pattern, '');
+
+  return prefix + cleaned;
 }
 
 export async function generateAppConfigAsync(projectDir: string, app: AppFragment): Promise<void> {
-  // Android package name requires each component to start with a lowercase letter.
-  const isUsernameValidSegment = /^[^a-z]/.test(app.ownerAccount.name);
-  const userPrefix = isUsernameValidSegment ? 'user' : '';
-  const isSlugValidSegment = /^[^a-z]/.test(app.slug);
-  const slugPrefix = isSlugValidSegment ? 'app' : '';
+  const user = cleanAndPrefix(app.ownerAccount.name, 'user');
+  const slug = cleanAndPrefix(app.slug, 'app');
+  const scheme = cleanAndPrefix(app.name ?? app.slug, 'scheme');
 
-  const bundleIdentifier = `com.${userPrefix}${stripInvalidCharactersForBundleIdentifier(
-    app.ownerAccount.name
-  )}.${slugPrefix}${stripInvalidCharactersForBundleIdentifier(app.slug)}`;
+  const bundleIdentifier = `com.${user}.${slug}`;
   const updateUrl = getEASUpdateURL(app.id, /* manifestHostOverride */ null);
 
   const { expo: baseExpoConfig } = await fs.readJson(path.join(projectDir, 'app.json'));
   const expoConfig: ExpoConfig = {
     name: app.name ?? app.slug,
     slug: app.slug,
-    scheme: stripInvalidCharactersForBundleIdentifier(app.name ?? app.slug),
+    scheme,
     extra: {
       eas: {
         projectId: app.id,
