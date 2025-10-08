@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Allow workflow:run to run a workflow from a GitHub ref. ([#3203](https://github.com/expo/eas-cli/pull/3203) by [@douglowder](https://github.com/douglowder))
 
 ### 🐛 Bug fixes
+- Fix --environment flag in eas exec and pull ([#3216](https://github.com/expo/eas-cli/pull/3216) by [@kadikraman](https://github.com/kadikraman))
 
 ### 🧹 Chores
 
