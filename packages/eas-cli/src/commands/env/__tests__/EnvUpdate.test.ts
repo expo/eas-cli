@@ -4,9 +4,9 @@ import chalk from 'chalk';
 import { getMockAppFragment } from '../../../__tests__/commands/utils';
 import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
 import {
+  EnvironmentSecretType,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
-  EnvironmentSecretType,
 } from '../../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../../graphql/mutations/EnvironmentVariableMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
@@ -198,7 +198,7 @@ describe(EnvUpdate, () => {
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
       loggedIn: { graphqlClient },
-      projectId: projectId,
+      projectId,
     });
 
     await command.runAsync();

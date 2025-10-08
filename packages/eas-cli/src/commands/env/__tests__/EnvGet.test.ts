@@ -118,7 +118,10 @@ describe(EnvGet, () => {
       .mockResolvedValueOnce(mockVariables);
     jest.spyOn(Log, 'log').mockImplementation(() => {});
 
-    const command = new EnvGet(['development', '--variable-name', 'TEST_VAR_1', '--scope', 'project'], mockConfig);
+    const command = new EnvGet(
+      ['development', '--variable-name', 'TEST_VAR_1', '--scope', 'project'],
+      mockConfig
+    );
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({

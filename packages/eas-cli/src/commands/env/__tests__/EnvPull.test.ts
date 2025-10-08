@@ -10,10 +10,12 @@ import {
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../../graphql/generated';
-import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
+import {
+  EnvironmentVariableWithFileContent,
+  EnvironmentVariablesQuery,
+} from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
-import { EnvironmentVariableWithFileContent } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import EnvPull from '../pull';
 
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
@@ -79,13 +81,13 @@ describe(EnvPull, () => {
     jest.resetAllMocks();
     jest.spyOn(Log, 'log').mockImplementation(() => {});
     jest.spyOn(Log, 'addNewLineIfNone').mockImplementation(() => {});
-    
+
     // Mock fs-extra methods
     jest.mocked(fs.exists).mockImplementation(() => Promise.resolve(false));
     jest.mocked(fs.writeFile).mockImplementation(() => Promise.resolve());
     jest.mocked(fs.mkdir).mockImplementation(() => Promise.resolve());
     jest.mocked(fs.readFile).mockImplementation(() => Promise.resolve(''));
-    
+
     // Mock GraphQL query
     jest
       .mocked(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync)
@@ -114,7 +116,6 @@ describe(EnvPull, () => {
         }
       );
     });
-
 
     it('rejects invalid environment', async () => {
       const command = new EnvPull(['invalid'], mockConfig);
@@ -189,10 +190,9 @@ describe(EnvPull, () => {
       await command.runAsync();
 
       // Should create .eas/.env directory for file variables
-      expect(fs.mkdir).toHaveBeenCalledWith(
-        path.join(testProjectDir, '.eas', '.env'),
-        { recursive: true }
-      );
+      expect(fs.mkdir).toHaveBeenCalledWith(path.join(testProjectDir, '.eas', '.env'), {
+        recursive: true,
+      });
 
       // Should write the file content (base64 encoded)
       expect(fs.writeFile).toHaveBeenCalledWith(
@@ -243,9 +243,7 @@ describe(EnvPull, () => {
         projectDir: testProjectDir,
       });
 
-      await expect(command.runAsync()).rejects.toThrow(
-        `File ${testTargetPath} already exists.`
-      );
+      await expect(command.runAsync()).rejects.toThrow(`File ${testTargetPath} already exists.`);
     });
   });
 
@@ -342,9 +340,7 @@ describe(EnvPull, () => {
       expect(Log.log).toHaveBeenCalledWith(
         expect.stringContaining('The following variables have the secret visibility')
       );
-      expect(Log.log).toHaveBeenCalledWith(
-        expect.stringContaining('SECRET_KEY')
-      );
+      expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('SECRET_KEY'));
     });
   });
 

@@ -36,7 +36,7 @@ describe(EnvExec, () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.spyOn(Log, 'log').mockImplementation(() => {});
-    
+
     // Mock GraphQL query
     jest
       .mocked(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync)

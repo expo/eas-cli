@@ -32,11 +32,11 @@ SECRET_KEY=super-secret-key`;
   beforeEach(() => {
     jest.resetAllMocks();
     jest.spyOn(Log, 'log').mockImplementation(() => {});
-    
+
     // Mock fs-extra methods
     jest.mocked(fs.exists).mockImplementation(() => Promise.resolve(true));
     jest.mocked(fs.readFile).mockImplementation(() => Promise.resolve(mockEnvContent));
-    
+
     // Mock GraphQL queries and mutations
     jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValue([]); // No existing variables
     jest.mocked(EnvironmentVariableMutation.createForAppAsync).mockResolvedValue({

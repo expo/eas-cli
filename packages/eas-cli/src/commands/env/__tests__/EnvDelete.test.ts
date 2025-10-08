@@ -1,10 +1,10 @@
 import { Config } from '@oclif/core';
 
 import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
-import { 
+import {
+  EnvironmentSecretType,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
-  EnvironmentSecretType,
 } from '../../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
@@ -149,7 +149,7 @@ describe(EnvDelete, () => {
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
       loggedIn: { graphqlClient },
-      projectId: projectId,
+      projectId,
     });
 
     await command.runAsync();
