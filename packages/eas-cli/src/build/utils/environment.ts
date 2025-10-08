@@ -17,7 +17,7 @@ const BuildProfileEnvironmentToEnvironment: Record<Environment, EnvironmentVaria
 
 export function isEnvironment(env: string): env is EnvironmentVariableEnvironment {
   return Object.values(EnvironmentVariableEnvironment).includes(
-    env as EnvironmentVariableEnvironment
+    env.toLowerCase() as EnvironmentVariableEnvironment
   );
 }
 

@@ -101,7 +101,7 @@ export default class EnvExec extends EasCommand {
       );
     }
 
-    environment = environment?.toUpperCase();
+    environment = environment?.toLowerCase();
 
     if (!isEnvironment(environment)) {
       throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");

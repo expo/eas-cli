@@ -49,7 +49,7 @@ export default class EnvPull extends EasCommand {
       flags: { environment: flagEnvironment, path: targetPath, 'non-interactive': nonInteractive },
     } = await this.parse(EnvPull);
 
-    let environment = flagEnvironment?.toUpperCase() ?? argEnvironment?.toUpperCase();
+    let environment = flagEnvironment?.toLowerCase() ?? argEnvironment?.toLowerCase();
 
     if (!environment) {
       environment = await promptVariableEnvironmentAsync({ nonInteractive });
