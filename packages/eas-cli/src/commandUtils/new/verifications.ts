@@ -1,10 +1,10 @@
 import fs from 'fs-extra';
 
-import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { Role } from '../graphql/generated';
-import Log from '../log';
-import { findProjectIdByAccountNameAndSlugNullableAsync } from '../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import { Actor } from '../user/User';
+import { Role } from '../../graphql/generated';
+import Log from '../../log';
+import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
+import { Actor } from '../../user/User';
+import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 
 export async function verifyAccountPermissionsAsync(
   actor: Actor,

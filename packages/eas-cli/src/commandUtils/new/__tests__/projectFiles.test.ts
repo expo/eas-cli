@@ -2,9 +2,9 @@ import { ExpoConfig } from '@expo/config';
 import fs from 'fs-extra';
 
 import { LogSpy } from './testUtils';
-import { getEASUpdateURL } from '../../api';
-import { AppFragment } from '../../graphql/generated';
-import { easCliVersion } from '../../utils/easCli';
+import { getEASUpdateURL } from '../../../api';
+import { AppFragment } from '../../../graphql/generated';
+import { easCliVersion } from '../../../utils/easCli';
 import {
   copyProjectTemplatesAsync,
   generateAppConfigAsync,
@@ -14,7 +14,7 @@ import {
   updateReadmeAsync,
 } from '../projectFiles';
 
-jest.mock('../../api');
+jest.mock('../../../api');
 jest.mock('fs-extra');
 
 describe('projectFiles', () => {

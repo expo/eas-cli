@@ -1,4 +1,4 @@
-import Log from '../../log';
+import Log from '../../../log';
 
 export class LogSpy {
   private readonly logSpy: jest.SpyInstance;

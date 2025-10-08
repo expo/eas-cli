@@ -4,33 +4,33 @@ import nullthrows from 'nullthrows';
 import { getProjectDashboardUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { AppFragment } from '../../graphql/generated';
-import { AppMutation } from '../../graphql/mutations/AppMutation';
-import { AppQuery } from '../../graphql/queries/AppQuery';
-import Log, { learnMore, link } from '../../log';
 import {
   cloneTemplateAsync,
   initializeGitRepositoryAsync,
   installProjectDependenciesAsync,
-} from '../../new/commands';
+} from '../../commandUtils/new/commands';
 import {
   copyProjectTemplatesAsync,
   generateAppConfigAsync,
   generateEasConfigAsync,
   updatePackageJsonAsync,
   updateReadmeAsync,
-} from '../../new/projectFiles';
+} from '../../commandUtils/new/projectFiles';
 import {
   promptForProjectAccountAsync,
   promptForProjectNameAsync,
   promptForTargetDirectoryAsync,
   promptToChangeProjectNameOrAccountAsync,
-} from '../../new/prompts';
+} from '../../commandUtils/new/prompts';
 import {
   verifyAccountPermissionsAsync,
   verifyProjectDirectoryDoesNotExistAsync,
   verifyProjectDoesNotExistAsync,
-} from '../../new/verifications';
+} from '../../commandUtils/new/verifications';
+import { AppFragment } from '../../graphql/generated';
+import { AppMutation } from '../../graphql/mutations/AppMutation';
+import { AppQuery } from '../../graphql/queries/AppQuery';
+import Log, { learnMore, link } from '../../log';
 import { PackageManager, promptForPackageManagerAsync } from '../../onboarding/installDependencies';
 import { ora } from '../../ora';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../../project/expoConfig';

@@ -1,6 +1,6 @@
 import { LogSpy } from './testUtils';
-import { jester } from '../../credentials/__tests__/fixtures-constants';
-import { promptAsync, selectAsync } from '../../prompts';
+import { jester } from '../../../credentials/__tests__/fixtures-constants';
+import { promptAsync, selectAsync } from '../../../prompts';
 import {
   getAccountChoices,
   promptForProjectAccountAsync,
@@ -9,8 +9,8 @@ import {
   promptToChangeProjectNameOrAccountAsync,
 } from '../prompts';
 
-jest.mock('../../prompts');
-jest.mock('../../log');
+jest.mock('../../../prompts');
+jest.mock('../../../log');
 
 describe('prompts', () => {
   let logSpy: LogSpy;
