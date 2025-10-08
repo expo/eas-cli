@@ -6,10 +6,10 @@ import { getEASUpdateURL } from '../../../api';
 import { AppFragment } from '../../../graphql/generated';
 import { easCliVersion } from '../../../utils/easCli';
 import {
+  cleanAndPrefix,
   copyProjectTemplatesAsync,
   generateAppConfigAsync,
   generateEasConfigAsync,
-  stripInvalidCharactersForBundleIdentifier,
   updatePackageJsonAsync,
   updateReadmeAsync,
 } from '../projectFiles';
@@ -39,15 +39,24 @@ describe('projectFiles', () => {
     logSpy.restore();
   });
 
-  describe('stripInvalidCharactersForBundleIdentifier', () => {
-    it('should strip invalid characters from bundle identifier', () => {
-      expect(stripInvalidCharactersForBundleIdentifier('test-app-123')).toBe('testapp123');
-      expect(stripInvalidCharactersForBundleIdentifier('test@app#with$symbols')).toBe(
-        'testappwithsymbols'
+  describe('cleanAndPrefix', () => {
+    it('should clean and prefix the string', () => {
+      expect(cleanAndPrefix('test-app-123', 'app')).toBe('testapp123');
+      expect(cleanAndPrefix('test@app#with$symbols', 'app')).toBe('testappwithsymbols');
+      expect(cleanAndPrefix('test-app-with-dashes', 'app')).toBe('testappwithdashes');
+      expect(cleanAndPrefix('TestApp', 'app')).toBe('appTestApp');
+      expect(cleanAndPrefix('100 App', 'app')).toBe('app100App');
+    });
+
+    it('should handle schemes', () => {
+      expect(cleanAndPrefix('test-app-123', 'scheme')).toBe('test-app-123');
+      expect(cleanAndPrefix('test@app#with$symbols', 'scheme')).toBe('testappwithsymbols');
+      expect(cleanAndPrefix('test+app.with-allowed.symbols', 'scheme')).toBe(
+        'test+app.with-allowed.symbols'
       );
-      expect(stripInvalidCharactersForBundleIdentifier('test-app-with-dashes')).toBe(
-        'testappwithdashes'
-      );
+      expect(cleanAndPrefix('100 App', 'scheme')).toBe('scheme100app');
+      expect(cleanAndPrefix('TestApp', 'scheme')).toBe('testapp');
+      expect(cleanAndPrefix('testApp2', 'scheme')).toBe('testapp2');
     });
   });
 
@@ -93,7 +102,7 @@ describe('projectFiles', () => {
         expo: {
           name: 'Test App',
           slug: 'test-app',
-          scheme: 'TestApp',
+          scheme: 'testapp',
           icon: 'value-to-keep',
           extra: {
             eas: {

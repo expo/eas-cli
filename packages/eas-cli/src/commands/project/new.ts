@@ -49,14 +49,14 @@ export async function promptForConfigsAsync(
   projectDirectory: string;
   projectAccount: string;
 }> {
+  const projectAccount = await promptForProjectAccountAsync(actor);
   const projectName = await promptForProjectNameAsync(actor, args.PROJECT_NAME);
   const projectDirectory = await promptForTargetDirectoryAsync(projectName, args.PROJECT_DIRECTORY);
-  const projectAccount = await promptForProjectAccountAsync(actor);
 
   return {
-    projectName,
-    projectDirectory,
     projectAccount,
+    projectDirectory,
+    projectName,
   };
 }
 
