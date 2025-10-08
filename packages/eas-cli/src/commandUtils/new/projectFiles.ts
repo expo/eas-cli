@@ -5,11 +5,11 @@ import fs from 'fs-extra';
 import path from 'path';
 import merge from 'ts-deepmerge';
 
-import { getEASUpdateURL } from '../api';
-import { AppFragment } from '../graphql/generated';
-import Log, { learnMore } from '../log';
-import { PackageManager } from '../onboarding/installDependencies';
-import { easCliVersion } from '../utils/easCli';
+import { getEASUpdateURL } from '../../api';
+import { AppFragment } from '../../graphql/generated';
+import Log, { learnMore } from '../../log';
+import { PackageManager } from '../../onboarding/installDependencies';
+import { easCliVersion } from '../../utils/easCli';
 
 export function stripInvalidCharactersForBundleIdentifier(string: string): string {
   return string.replaceAll(/[^A-Za-z0-9]/g, '');

@@ -2,10 +2,10 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import Log from '../log';
-import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../onboarding/git';
-import { PackageManager, installDependenciesAsync } from '../onboarding/installDependencies';
-import { runCommandAsync } from '../onboarding/runCommand';
+import Log from '../../log';
+import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../onboarding/git';
+import { PackageManager, installDependenciesAsync } from '../../onboarding/installDependencies';
+import { runCommandAsync } from '../../onboarding/runCommand';
 
 export async function cloneTemplateAsync(targetProjectDir: string): Promise<string> {
   const githubUsername = 'expo';

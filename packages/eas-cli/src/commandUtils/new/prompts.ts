@@ -1,9 +1,9 @@
 import path from 'path';
 
-import { Role } from '../graphql/generated';
-import Log from '../log';
-import { Choice, promptAsync, selectAsync } from '../prompts';
-import { Actor, getActorUsername } from '../user/User';
+import { Role } from '../../graphql/generated';
+import Log from '../../log';
+import { Choice, promptAsync, selectAsync } from '../../prompts';
+import { Actor, getActorUsername } from '../../user/User';
 
 export async function promptForProjectNameAsync(
   actor: Actor,

@@ -1,17 +1,17 @@
 import fs from 'fs-extra';
 
 import { LogSpy } from './testUtils';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { jester } from '../../credentials/__tests__/fixtures-constants';
-import { Role } from '../../graphql/generated';
-import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { jester } from '../../../credentials/__tests__/fixtures-constants';
+import { Role } from '../../../graphql/generated';
+import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import {
   verifyAccountPermissionsAsync,
   verifyProjectDirectoryDoesNotExistAsync,
   verifyProjectDoesNotExistAsync,
 } from '../verifications';
 
-jest.mock('../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
+jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
 jest.mock('fs-extra');
 
 describe('verifications', () => {

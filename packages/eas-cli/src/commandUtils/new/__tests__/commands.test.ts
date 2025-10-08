@@ -1,16 +1,16 @@
 import { LogSpy } from './testUtils';
-import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../onboarding/git';
-import { installDependenciesAsync } from '../../onboarding/installDependencies';
-import { runCommandAsync } from '../../onboarding/runCommand';
+import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../../onboarding/git';
+import { installDependenciesAsync } from '../../../onboarding/installDependencies';
+import { runCommandAsync } from '../../../onboarding/runCommand';
 import {
   cloneTemplateAsync,
   initializeGitRepositoryAsync,
   installProjectDependenciesAsync,
 } from '../commands';
 
-jest.mock('../../onboarding/git');
-jest.mock('../../onboarding/runCommand');
-jest.mock('../../onboarding/installDependencies');
+jest.mock('../../../onboarding/git');
+jest.mock('../../../onboarding/runCommand');
+jest.mock('../../../onboarding/installDependencies');
 jest.mock('fs-extra');
 
 describe('commands', () => {
