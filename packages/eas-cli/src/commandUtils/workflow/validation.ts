@@ -1,10 +1,10 @@
-import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { InvalidEasJsonError, MissingEasJsonError } from '@expo/eas-json/build/errors';
 import { CombinedError } from '@urql/core';
 import { promises as fs } from 'fs';
 import path from 'path';
 import * as YAML from 'yaml';
 
+import { buildProfileNamesFromProjectAsync } from './buildProfileUtils';
 import { getExpoApiWorkflowSchemaURL } from '../../api';
 import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
 import Log from '../../log';
@@ -169,15 +169,6 @@ export function parsedYamlFromWorkflowContents(workflowFileContents: { yamlConfi
 
 export function workflowContentsFromParsedYaml(parsedYaml: any): string {
   return YAML.stringify(parsedYaml);
-}
-
-export async function buildProfileNamesFromProjectAsync(projectDir: string): Promise<Set<string>> {
-  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-
-  const buildProfileNames = new Set(
-    easJsonAccessor && (await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor))
-  );
-  return buildProfileNames;
 }
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
