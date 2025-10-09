@@ -7,6 +7,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🛠 Breaking changes
 
 ### 🎉 New features
+- Support custom environment variable environments ([#3220](https://github.com/expo/eas-cli/pull/3220) by [@kadikraman](https://github.com/kadikraman))
 
 ### 🐛 Bug fixes
 
