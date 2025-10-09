@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { getMockAppFragment } from '../../../__tests__/commands/utils';
 import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
 import {
+  EnvironmentSecretType,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../../graphql/generated';
@@ -161,5 +162,51 @@ describe(EnvUpdate, () => {
     await expect(command.runAsync()).rejects.toThrow(
       'Variable with name NON_EXISTENT_VARIABLE  does not exist on project @testuser/testpp.'
     );
+  });
+
+  it('accepts development environment when using positional argument', async () => {
+    const mockVariable = {
+      id: 'var1',
+      name: 'TEST_VAR_1',
+      value: 'value1',
+      environments: [EnvironmentVariableEnvironment.Development],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      scope: EnvironmentVariableScope.Project,
+      visibility: EnvironmentVariableVisibility.Public,
+      type: EnvironmentSecretType.String,
+    };
+
+    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce([mockVariable]);
+    jest.mocked(EnvironmentVariableMutation.updateAsync).mockResolvedValueOnce(mockVariable);
+    jest.spyOn(Log, 'log').mockImplementation(() => {});
+
+    const command = new EnvUpdate(
+      [
+        'development',
+        '--variable-name',
+        'TEST_VAR_1',
+        '--value',
+        'new-value',
+        '--scope',
+        'project',
+        '--non-interactive',
+      ],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId,
+    });
+
+    await command.runAsync();
+
+    expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: projectId,
+      environment: EnvironmentVariableEnvironment.Development,
+      filterNames: ['TEST_VAR_1'],
+    });
   });
 });
