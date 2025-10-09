@@ -1,7 +1,6 @@
 import { print } from 'graphql';
 import gql from 'graphql-tag';
 
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
@@ -14,7 +13,7 @@ import { EnvironmentVariableFragmentNode } from '../types/EnvironmentVariable';
 import { EnvironmentVariableWithSecretFragmentNode } from '../types/EnvironmentVariableWithSecret';
 
 type EnvironmentVariableWithLinkedEnvironments = EnvironmentVariableFragment & {
-  linkedEnvironments?: EnvironmentVariableEnvironment[] | null;
+  linkedEnvironments?: string[] | null;
 };
 
 export type EnvironmentVariableWithFileContent = EnvironmentVariableFragment & {
@@ -31,7 +30,7 @@ export const EnvironmentVariablesQuery = {
       includeFileContent = false,
     }: {
       appId: string;
-      environment?: EnvironmentVariableEnvironment;
+      environment?: string;
       filterNames?: string[];
       includeFileContent?: boolean;
     }
@@ -80,7 +79,7 @@ export const EnvironmentVariablesQuery = {
       includeFileContent = false,
     }: {
       appId: string;
-      environment?: EnvironmentVariableEnvironment;
+      environment?: string;
       filterNames?: string[];
       includeFileContent?: boolean;
     }
@@ -128,7 +127,7 @@ export const EnvironmentVariablesQuery = {
     }: {
       appId: string;
       filterNames?: string[];
-      environment?: EnvironmentVariableEnvironment;
+      environment?: string;
       includeFileContent?: boolean;
     }
   ): Promise<(EnvironmentVariableWithFileContent & EnvironmentVariableWithLinkedEnvironments)[]> {
@@ -178,7 +177,7 @@ export const EnvironmentVariablesQuery = {
     }: {
       appId: string;
       filterNames?: string[];
-      environment?: EnvironmentVariableEnvironment;
+      environment?: string;
       includeFileContent?: boolean;
     }
   ): Promise<EnvironmentVariableWithFileContent[]> {

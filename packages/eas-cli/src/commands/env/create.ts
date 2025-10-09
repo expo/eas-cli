@@ -3,7 +3,6 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EASEnvironmentVariableScopeFlag,
@@ -33,7 +32,6 @@ import {
   promptVariableValueAsync,
   promptVariableVisibilityAsync,
 } from '../../utils/prompts';
-import { isEnvironment } from '../../utils/variableUtils';
 
 interface RawCreateFlags {
   name?: string;
@@ -42,7 +40,7 @@ interface RawCreateFlags {
   type?: 'string' | 'file';
   visibility?: 'plaintext' | 'sensitive' | 'secret';
   scope: EASEnvironmentVariableScopeFlagValue;
-  environment?: EnvironmentVariableEnvironment[];
+  environment?: string[];
   'non-interactive': boolean;
 }
 
@@ -53,7 +51,7 @@ interface CreateFlags {
   type?: 'string' | 'file';
   visibility?: 'plaintext' | 'sensitive' | 'secret';
   scope: EnvironmentVariableScope;
-  environment?: EnvironmentVariableEnvironment[];
+  environment?: string[];
   'non-interactive': boolean;
 }
 
@@ -323,15 +321,7 @@ export default class EnvCreate extends EasCommand {
 
     value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
 
-    if (environment && !isEnvironment(environment.toLowerCase())) {
-      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
-    }
-
-    let newEnvironments = environments
-      ? environments
-      : environment
-        ? [environment.toLowerCase() as EnvironmentVariableEnvironment]
-        : undefined;
+    let newEnvironments = environments ? environments : environment ? [environment] : undefined;
 
     if (!newEnvironments) {
       newEnvironments = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });

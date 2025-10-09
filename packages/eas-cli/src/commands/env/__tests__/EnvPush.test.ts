@@ -73,8 +73,8 @@ SECRET_KEY=super-secret-key`;
     });
   });
 
-  it('rejects invalid environment when using positional argument', async () => {
-    const command = new EnvPush(['invalid', '--path', testEnvPath], mockConfig);
+  it('accepts custom environment', async () => {
+    const command = new EnvPush(['custom-environment', '--path', testEnvPath], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -83,8 +83,12 @@ SECRET_KEY=super-secret-key`;
       projectDir: testProjectDir,
     });
 
-    await expect(command.runAsync()).rejects.toThrow(
-      "Invalid environment. Use one of 'production', 'preview', or 'development'."
-    );
+    await command.runAsync();
+
+    expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: testProjectId,
+      environment: 'custom-environment',
+      filterNames: ['EXPO_PUBLIC_API_URL', 'DATABASE_URL', 'SECRET_KEY'],
+    });
   });
 });

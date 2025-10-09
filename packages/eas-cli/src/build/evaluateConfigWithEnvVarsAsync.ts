@@ -1,7 +1,7 @@
 import { Env } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 
-import { EnvironmentVariableEnvironment, isEnvironment } from './utils/environment';
+import { EnvironmentVariableEnvironment } from './utils/environment';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
 import Log, { learnMore } from '../log';
@@ -50,17 +50,6 @@ async function resolveEnvVarsAsync({
   const environment =
     buildProfile.environment?.toUpperCase() ??
     resolveSuggestedEnvironmentForBuildProfileConfiguration(buildProfile);
-
-  if (!isEnvironment(environment)) {
-    Log.log(
-      `Loaded "env" configuration for the "${buildProfileName}" profile: ${
-        buildProfile.env && Object.keys(buildProfile.env).length > 0
-          ? Object.keys(buildProfile.env).join(', ')
-          : 'no environment variables specified'
-      }. ${learnMore('https://docs.expo.dev/build-reference/variables/')}`
-    );
-    return { ...buildProfile.env };
-  }
 
   try {
     const environmentVariables = await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(

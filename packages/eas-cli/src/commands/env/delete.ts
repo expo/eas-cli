@@ -2,7 +2,6 @@ import { Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EASEnvironmentVariableScopeFlag,
@@ -15,18 +14,18 @@ import { EnvironmentVariableMutation } from '../../graphql/mutations/Environment
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptAsync, toggleConfirmAsync } from '../../prompts';
-import { formatVariableName, isEnvironment } from '../../utils/variableUtils';
+import { formatVariableName } from '../../utils/variableUtils';
 
 interface DeleteFlags {
   'variable-name'?: string;
-  'variable-environment'?: EnvironmentVariableEnvironment;
+  'variable-environment'?: string;
   'non-interactive': boolean;
   scope: EnvironmentVariableScope;
 }
 
 interface RawDeleteFlags {
   'variable-name'?: string;
-  'variable-environment'?: EnvironmentVariableEnvironment;
+  'variable-environment'?: string;
   'non-interactive': boolean;
   scope: EASEnvironmentVariableScopeFlagValue;
 }
@@ -38,7 +37,7 @@ export default class EnvDelete extends EasCommand {
     'variable-name': Flags.string({
       description: 'Name of the variable to delete',
     }),
-    'variable-environment': Flags.enum<EnvironmentVariableEnvironment>({
+    'variable-environment': Flags.string({
       ...EasEnvironmentFlagParameters,
       description: 'Current environment of the variable to delete',
     }),
@@ -166,12 +165,6 @@ export default class EnvDelete extends EasCommand {
         : EnvironmentVariableScope.Project;
 
     if (environment) {
-      environment = environment.toLowerCase();
-      if (!isEnvironment(environment)) {
-        throw new Error(
-          "Invalid environment. Use one of 'production', 'preview', or 'development'."
-        );
-      }
       return { ...flags, 'variable-environment': environment, scope };
     }
 

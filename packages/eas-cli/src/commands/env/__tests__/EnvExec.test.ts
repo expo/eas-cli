@@ -63,8 +63,8 @@ describe(EnvExec, () => {
     );
   });
 
-  it('rejects invalid environment when using positional argument', async () => {
-    const command = new EnvExec(['invalid', 'echo test'], mockConfig);
+  it('accepts custom environment when using positional argument', async () => {
+    const command = new EnvExec(['custom-environment', 'echo $EXPO_PUBLIC_API_URL'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -72,8 +72,14 @@ describe(EnvExec, () => {
       projectId: testProjectId,
     });
 
-    await expect(command.runAsync()).rejects.toThrow(
-      "Invalid environment. Use one of 'production', 'preview', or 'development'."
+    await command.runAsync();
+
+    expect(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      {
+        appId: testProjectId,
+        environment: 'custom-environment',
+      }
     );
   });
 });

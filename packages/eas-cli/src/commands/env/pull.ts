@@ -13,7 +13,6 @@ import {
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
-import { isEnvironment } from '../../utils/variableUtils';
 
 export default class EnvPull extends EasCommand {
   static override description =
@@ -53,10 +52,6 @@ export default class EnvPull extends EasCommand {
 
     if (!environment) {
       environment = await promptVariableEnvironmentAsync({ nonInteractive });
-    }
-
-    if (!isEnvironment(environment)) {
-      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
     }
 
     const {

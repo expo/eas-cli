@@ -158,7 +158,6 @@ test('supports custom environment names', async () => {
   });
 });
 
-
 test('valid eas.json with specified keystoreName', async () => {
   const keystoreName = 'this-is-a-keystore-name';
   await fs.writeJson('/project/eas.json', {

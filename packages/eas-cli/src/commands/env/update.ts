@@ -4,7 +4,6 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EASEnvironmentVariableScopeFlag,
@@ -36,17 +35,17 @@ import {
   promptVariableValueAsync,
   promptVariableVisibilityAsync,
 } from '../../utils/prompts';
-import { formatVariableName, isEnvironment } from '../../utils/variableUtils';
+import { formatVariableName } from '../../utils/variableUtils';
 
 interface RawUpdateFlags {
   name?: string;
   value?: string;
   scope: EASEnvironmentVariableScopeFlagValue;
-  environment?: EnvironmentVariableEnvironment[];
+  environment?: string[];
   visibility?: 'plaintext' | 'sensitive' | 'secret';
   type?: 'string' | 'file';
   'variable-name'?: string;
-  'variable-environment'?: EnvironmentVariableEnvironment;
+  'variable-environment'?: string;
   'non-interactive': boolean;
 }
 
@@ -54,11 +53,11 @@ interface UpdateFlags {
   name?: string;
   value?: string;
   scope: EnvironmentVariableScope;
-  environment?: EnvironmentVariableEnvironment[];
+  environment?: string[];
   visibility?: 'plaintext' | 'sensitive' | 'secret';
   type?: 'string' | 'file';
   'variable-name'?: string;
-  'variable-environment'?: EnvironmentVariableEnvironment;
+  'variable-environment'?: string;
   'non-interactive': boolean;
 }
 
@@ -69,7 +68,7 @@ export default class EnvUpdate extends EasCommand {
     'variable-name': Flags.string({
       description: 'Current name of the variable',
     }),
-    'variable-environment': Flags.enum<EnvironmentVariableEnvironment>({
+    'variable-environment': Flags.string({
       ...EasEnvironmentFlagParameters,
       description: 'Current environment of the variable to update',
     }),
@@ -226,12 +225,6 @@ export default class EnvUpdate extends EasCommand {
         : EnvironmentVariableScope.Project;
 
     if (environment) {
-      environment = environment.toLowerCase();
-      if (!isEnvironment(environment)) {
-        throw new Error(
-          "Invalid environment. Use one of 'production', 'preview', or 'development'."
-        );
-      }
       return {
         ...flags,
         'variable-environment': environment,

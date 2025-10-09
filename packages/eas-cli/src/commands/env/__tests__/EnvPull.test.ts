@@ -95,7 +95,7 @@ describe(EnvPull, () => {
   });
 
   describe('environment validation', () => {
-    it('accepts development environment (case insensitive)', async () => {
+    it('accepts development environment', async () => {
       const command = new EnvPull(['development'], mockConfig);
 
       // @ts-expect-error
@@ -117,8 +117,8 @@ describe(EnvPull, () => {
       );
     });
 
-    it('rejects invalid environment', async () => {
-      const command = new EnvPull(['invalid'], mockConfig);
+    it('accepts custom environment', async () => {
+      const command = new EnvPull(['custom-environment'], mockConfig);
 
       // @ts-expect-error
       jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -127,8 +127,15 @@ describe(EnvPull, () => {
         projectDir: testProjectDir,
       });
 
-      await expect(command.runAsync()).rejects.toThrow(
-        "Invalid environment. Use one of 'production', 'preview', or 'development'."
+      await command.runAsync();
+
+      expect(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        {
+          appId: testProjectId,
+          environment: 'custom-environment',
+          includeFileContent: true,
+        }
       );
     });
   });

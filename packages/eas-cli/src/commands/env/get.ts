@@ -1,7 +1,6 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -19,11 +18,11 @@ import {
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptVariableEnvironmentAsync, promptVariableNameAsync } from '../../utils/prompts';
-import { formatVariable, formatVariableValue, isEnvironment } from '../../utils/variableUtils';
+import { formatVariable, formatVariableValue } from '../../utils/variableUtils';
 
 interface RawGetFlags {
   'variable-name'?: string;
-  'variable-environment'?: EnvironmentVariableEnvironment;
+  'variable-environment'?: string;
   'non-interactive': boolean;
   format?: string;
   scope: EASEnvironmentVariableScopeFlagValue;
@@ -31,7 +30,7 @@ interface RawGetFlags {
 
 interface GetFlags {
   'variable-name'?: string;
-  'variable-environment'?: EnvironmentVariableEnvironment;
+  'variable-environment'?: string;
   'non-interactive': boolean;
   format?: string;
   scope: EnvironmentVariableScope;
@@ -58,7 +57,7 @@ export default class EnvGet extends EasCommand {
     'variable-name': Flags.string({
       description: 'Name of the variable',
     }),
-    'variable-environment': Flags.enum<EnvironmentVariableEnvironment>({
+    'variable-environment': Flags.string({
       ...EasEnvironmentFlagParameters,
       description: 'Current environment of the variable',
     }),
@@ -156,12 +155,6 @@ export default class EnvGet extends EasCommand {
         ? EnvironmentVariableScope.Shared
         : EnvironmentVariableScope.Project;
     if (environment) {
-      environment = environment.toLowerCase();
-      if (!isEnvironment(environment)) {
-        throw new Error(
-          "Invalid environment. Use one of 'production', 'preview', or 'development'."
-        );
-      }
       return {
         ...flags,
         'variable-environment': environment,
@@ -177,7 +170,7 @@ async function getVariablesAsync(
   scope: string,
   projectId: string,
   name: string | undefined,
-  environment: EnvironmentVariableEnvironment | undefined
+  environment: string | undefined
 ): Promise<EnvironmentVariableFragment[]> {
   if (!name) {
     throw new Error(

@@ -74,25 +74,23 @@ export async function promptVariableVisibilityAsync(
 
 type EnvironmentPromptArgs = {
   nonInteractive: boolean;
-  selectedEnvironments?: EnvironmentVariableEnvironment[];
-  availableEnvironments?: EnvironmentVariableEnvironment[];
+  selectedEnvironments?: string[];
+  availableEnvironments?: string[];
 };
 
 export function promptVariableEnvironmentAsync(
   input: EnvironmentPromptArgs & { multiple: true }
-): Promise<EnvironmentVariableEnvironment[]>;
+): Promise<string[]>;
 export function promptVariableEnvironmentAsync(
   input: EnvironmentPromptArgs & { multiple?: false }
-): Promise<EnvironmentVariableEnvironment>;
+): Promise<string>;
 
 export async function promptVariableEnvironmentAsync({
   nonInteractive,
   selectedEnvironments,
   multiple = false,
   availableEnvironments,
-}: EnvironmentPromptArgs & { multiple?: boolean }): Promise<
-  EnvironmentVariableEnvironment[] | EnvironmentVariableEnvironment
-> {
+}: EnvironmentPromptArgs & { multiple?: boolean }): Promise<string[] | string> {
   if (nonInteractive) {
     throw new Error(
       'The `--environment` flag must be set when running in `--non-interactive` mode.'
