@@ -1,7 +1,7 @@
 import { Env } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 
-import { EnvironmentVariableEnvironment } from './utils/environment';
+import { DefaultEnvironment } from './utils/environment';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
 import Log, { learnMore } from '../log';
@@ -117,13 +117,13 @@ async function resolveEnvVarsAsync({
 
 function resolveSuggestedEnvironmentForBuildProfileConfiguration(
   buildProfile: BuildProfile
-): EnvironmentVariableEnvironment {
+): DefaultEnvironment {
   const environment =
     buildProfile.distribution === 'store'
-      ? EnvironmentVariableEnvironment.Production
+      ? DefaultEnvironment.Production
       : buildProfile.developmentClient
-        ? EnvironmentVariableEnvironment.Development
-        : EnvironmentVariableEnvironment.Preview;
+        ? DefaultEnvironment.Development
+        : DefaultEnvironment.Preview;
 
   Log.log(
     `Resolved "${environment}" environment for the build. ${learnMore(

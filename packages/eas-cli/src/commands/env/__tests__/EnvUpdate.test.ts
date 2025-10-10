@@ -2,7 +2,7 @@ import { Config } from '@oclif/core';
 import chalk from 'chalk';
 
 import { getMockAppFragment } from '../../../__tests__/commands/utils';
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import {
   EnvironmentSecretType,
   EnvironmentVariableScope,
@@ -83,7 +83,7 @@ describe(EnvUpdate, () => {
         id: variableId,
         name: 'TEST_VARIABLE',
         scope: EnvironmentVariableScope.Project,
-        environments: [EnvironmentVariableEnvironment.Development],
+        environments: [DefaultEnvironment.Development],
       },
     ];
     (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue(mockVariables);
@@ -115,7 +115,7 @@ describe(EnvUpdate, () => {
       id: variableId,
       name: 'NEW_VARIABLE',
       value: 'new-value',
-      environments: [EnvironmentVariableEnvironment.Production],
+      environments: [DefaultEnvironment.Production],
       visibility: EnvironmentVariableVisibility.Public,
     });
     expect(Log.withTick).toHaveBeenCalledWith(
@@ -129,7 +129,7 @@ describe(EnvUpdate, () => {
         id: variableId,
         name: 'TEST_VARIABLE',
         scope: EnvironmentVariableScope.Shared,
-        environments: [EnvironmentVariableEnvironment.Development],
+        environments: [DefaultEnvironment.Development],
       },
     ];
     (EnvironmentVariablesQuery.sharedAsync as jest.Mock).mockResolvedValue(mockVariables);
@@ -161,7 +161,7 @@ describe(EnvUpdate, () => {
       id: variableId,
       name: 'NEW_VARIABLE',
       value: 'new-value',
-      environments: [EnvironmentVariableEnvironment.Production],
+      environments: [DefaultEnvironment.Production],
     });
     expect(Log.withTick).toHaveBeenCalledWith(
       `Updated variable ${chalk.bold('TEST_VARIABLE')} on account testuser.`
@@ -211,7 +211,7 @@ describe(EnvUpdate, () => {
       id: 'var1',
       name: 'TEST_VAR_1',
       value: 'value1',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -247,7 +247,7 @@ describe(EnvUpdate, () => {
 
     expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: projectId,
-      environment: EnvironmentVariableEnvironment.Development,
+      environment: DefaultEnvironment.Development,
       filterNames: ['TEST_VAR_1'],
     });
   });

@@ -1,7 +1,7 @@
 import { Config } from '@oclif/core';
 import * as fs from 'fs-extra';
 
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
@@ -43,7 +43,7 @@ SECRET_KEY=super-secret-key`;
       id: 'var1',
       name: 'EXPO_PUBLIC_API_URL',
       value: 'https://api.example.com',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -68,7 +68,7 @@ SECRET_KEY=super-secret-key`;
 
     expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
-      environment: EnvironmentVariableEnvironment.Development,
+      environment: DefaultEnvironment.Development,
       filterNames: ['EXPO_PUBLIC_API_URL', 'DATABASE_URL', 'SECRET_KEY'],
     });
   });

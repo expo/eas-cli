@@ -2,7 +2,7 @@ import { Config } from '@oclif/core';
 import * as fs from 'fs-extra';
 import path from 'path';
 
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
@@ -34,7 +34,7 @@ describe(EnvPull, () => {
       id: 'var1',
       name: 'EXPO_PUBLIC_API_URL',
       value: 'https://api.example.com',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -45,7 +45,7 @@ describe(EnvPull, () => {
       id: 'var2',
       name: 'DATABASE_URL',
       value: 'postgres://localhost:5432/mydb',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -56,7 +56,7 @@ describe(EnvPull, () => {
       id: 'var3',
       name: 'SECRET_KEY',
       value: 'super-secret-key',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -67,7 +67,7 @@ describe(EnvPull, () => {
       id: 'var4',
       name: 'CONFIG_FILE',
       value: 'base64-encoded-file-content',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,

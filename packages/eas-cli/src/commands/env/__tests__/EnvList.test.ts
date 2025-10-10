@@ -1,7 +1,7 @@
 import { Config } from '@oclif/core';
 
 import { getMockAppFragment } from '../../../__tests__/commands/utils';
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
@@ -26,7 +26,7 @@ const mockVariables: EnvironmentVariableFragment[] = [
     id: 'var1',
     name: 'TEST_VAR_1',
     value: 'value1',
-    environments: [EnvironmentVariableEnvironment.Production],
+    environments: [DefaultEnvironment.Production],
     scope: EnvironmentVariableScope.Project,
     visibility: EnvironmentVariableVisibility.Public,
     createdAt: undefined,
@@ -37,7 +37,7 @@ const mockVariables: EnvironmentVariableFragment[] = [
     id: 'var2',
     name: 'TEST_VAR_2',
     value: 'value2',
-    environments: [EnvironmentVariableEnvironment.Development],
+    environments: [DefaultEnvironment.Development],
     scope: EnvironmentVariableScope.Project,
     visibility: EnvironmentVariableVisibility.Public,
     createdAt: undefined,
@@ -61,9 +61,9 @@ describe(EnvList, () => {
           );
         }
         if (args.multiple) {
-          return [EnvironmentVariableEnvironment.Production];
+          return [DefaultEnvironment.Production];
         }
-        return EnvironmentVariableEnvironment.Production;
+        return DefaultEnvironment.Production;
       }
     );
   });
@@ -82,7 +82,7 @@ describe(EnvList, () => {
 
     expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
-      environment: EnvironmentVariableEnvironment.Production,
+      environment: DefaultEnvironment.Production,
       includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
@@ -104,7 +104,7 @@ describe(EnvList, () => {
 
     expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
-      environment: EnvironmentVariableEnvironment.Development,
+      environment: DefaultEnvironment.Development,
       includeFileContent: false,
     });
   });
@@ -127,7 +127,7 @@ describe(EnvList, () => {
       graphqlClient,
       {
         appId: testProjectId,
-        environment: EnvironmentVariableEnvironment.Production,
+        environment: DefaultEnvironment.Production,
         includeFileContent: false,
       }
     );
@@ -149,7 +149,7 @@ describe(EnvList, () => {
 
     expect(EnvironmentVariablesQuery.sharedAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
-      environment: EnvironmentVariableEnvironment.Production,
+      environment: DefaultEnvironment.Production,
       includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
@@ -172,7 +172,7 @@ describe(EnvList, () => {
 
     expect(EnvironmentVariablesQuery.sharedWithSensitiveAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
-      environment: EnvironmentVariableEnvironment.Production,
+      environment: DefaultEnvironment.Production,
       includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));

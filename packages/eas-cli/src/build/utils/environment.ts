@@ -1,5 +1,4 @@
-// Default environments
-export enum EnvironmentVariableEnvironment {
+export enum DefaultEnvironment {
   Development = 'development',
   Preview = 'preview',
   Production = 'production',

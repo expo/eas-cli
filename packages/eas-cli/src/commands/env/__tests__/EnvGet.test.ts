@@ -1,6 +1,6 @@
 import { Config } from '@oclif/core';
 
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
@@ -27,7 +27,7 @@ describe(EnvGet, () => {
       id: 'var1',
       name: 'TEST_VAR_1',
       value: 'value1',
-      environments: [EnvironmentVariableEnvironment.Production],
+      environments: [DefaultEnvironment.Production],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -82,7 +82,7 @@ describe(EnvGet, () => {
   it('prompts for variable name and environment if the name is ambigous', async () => {
     jest
       .mocked(promptVariableEnvironmentAsync)
-      .mockResolvedValueOnce(EnvironmentVariableEnvironment.Production);
+      .mockResolvedValueOnce(DefaultEnvironment.Production);
     jest.mocked(promptVariableNameAsync).mockResolvedValueOnce('TEST_VAR_1');
 
     const command = new EnvGet([], mockConfig);
@@ -98,7 +98,7 @@ describe(EnvGet, () => {
         id: 'var2',
         name: 'TEST_VAR_1',
         value: 'value1',
-        environments: [EnvironmentVariableEnvironment.Development],
+        environments: [DefaultEnvironment.Development],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         scope: EnvironmentVariableScope.Project,
@@ -135,7 +135,7 @@ describe(EnvGet, () => {
       graphqlClient,
       {
         appId: testProjectId,
-        environment: EnvironmentVariableEnvironment.Development,
+        environment: DefaultEnvironment.Development,
         filterNames: ['TEST_VAR_1'],
         includeFileContent: true,
       }

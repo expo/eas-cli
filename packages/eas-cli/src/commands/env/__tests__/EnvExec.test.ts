@@ -1,6 +1,6 @@
 import { Config } from '@oclif/core';
 
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
@@ -24,7 +24,7 @@ describe(EnvExec, () => {
       id: 'var1',
       name: 'EXPO_PUBLIC_API_URL',
       value: 'https://api.example.com',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -58,7 +58,7 @@ describe(EnvExec, () => {
       graphqlClient,
       {
         appId: testProjectId,
-        environment: EnvironmentVariableEnvironment.Development,
+        environment: DefaultEnvironment.Development,
       }
     );
   });

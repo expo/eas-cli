@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import { EnvironmentVariableEnvironment } from '../build/utils/environment';
+import { DefaultEnvironment } from '../build/utils/environment';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EnvironmentSecretType, EnvironmentVariableVisibility } from '../graphql/generated';
 import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
@@ -8,7 +8,7 @@ import Log from '../log';
 import { RequestedPlatform } from '../platform';
 import { promptAsync, selectAsync } from '../prompts';
 
-const DEFAULT_ENVIRONMENTS = Object.values(EnvironmentVariableEnvironment);
+const DEFAULT_ENVIRONMENTS = Object.values(DefaultEnvironment);
 
 export async function getProjectEnvironmentVariableEnvironmentsAsync(
   graphqlClient: ExpoGraphqlClient,
