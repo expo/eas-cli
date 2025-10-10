@@ -4,6 +4,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   EASEnvironmentVariableScopeFlag,
   EASEnvironmentVariableScopeFlagValue,
@@ -100,6 +101,13 @@ export default class EnvCreate extends EasCommand {
     const validatedFlags = this.sanitizeFlags(flags);
 
     const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(EnvCreate, {
+      nonInteractive: validatedFlags['non-interactive'],
+    });
+
+    const {
       name,
       value,
       scope,
@@ -109,14 +117,7 @@ export default class EnvCreate extends EasCommand {
       force,
       type,
       fileName,
-    } = await this.promptForMissingFlagsAsync(validatedFlags, args);
-
-    const {
-      projectId,
-      loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvCreate, {
-      nonInteractive,
-    });
+    } = await this.promptForMissingFlagsAsync(validatedFlags, args, { graphqlClient, projectId });
 
     const [projectDisplayName, ownerAccount] = await Promise.all([
       getDisplayNameForProjectIdAsync(graphqlClient, projectId),
@@ -270,7 +271,8 @@ export default class EnvCreate extends EasCommand {
       type,
       ...rest
     }: CreateFlags,
-    { environment }: { environment?: string }
+    { environment }: { environment?: string },
+    { graphqlClient, projectId }: { graphqlClient: ExpoGraphqlClient; projectId: string }
   ): Promise<
     Required<
       Omit<CreateFlags, 'type' | 'visibility'> & {
@@ -324,7 +326,12 @@ export default class EnvCreate extends EasCommand {
     let newEnvironments = environments ? environments : environment ? [environment] : undefined;
 
     if (!newEnvironments) {
-      newEnvironments = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
+      newEnvironments = await promptVariableEnvironmentAsync({
+        nonInteractive,
+        multiple: true,
+        graphqlClient,
+        projectId,
+      });
 
       if (!newEnvironments || newEnvironments.length === 0) {
         throw new Error('No environments selected');

@@ -124,6 +124,7 @@ export type Account = {
   displayName?: Maybe<Scalars['String']['output']>;
   /** Environment secrets for an account */
   environmentSecrets: Array<EnvironmentSecret>;
+  environmentVariableEnvironments: Array<Scalars['EnvironmentVariableEnvironment']['output']>;
   /** Environment variables for an account */
   environmentVariables: Array<EnvironmentVariable>;
   /** Environment variables for an account with decrypted secret values */
@@ -1285,6 +1286,7 @@ export type App = Project & {
   devDomainName?: Maybe<AppDevDomainName>;
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
+  environmentVariableEnvironments: Array<Scalars['EnvironmentVariableEnvironment']['output']>;
   /** Environment variables for an app */
   environmentVariables: Array<EnvironmentVariable>;
   /** Environment variables for an app with decrypted secret values */

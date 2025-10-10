@@ -55,6 +55,11 @@ describe(EnvList, () => {
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
     (jest.mocked(promptVariableEnvironmentAsync) as jest.MockedFunction<any>).mockImplementation(
       async (args: any) => {
+        if (args.nonInteractive) {
+          throw new Error(
+            'The `--environment` flag must be set when running in `--non-interactive` mode.'
+          );
+        }
         if (args.multiple) {
           return [EnvironmentVariableEnvironment.Production];
         }

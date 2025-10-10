@@ -92,6 +92,8 @@ export default class EnvGet extends EasCommand {
       environment = await promptVariableEnvironmentAsync({
         nonInteractive,
         multiple: false,
+        graphqlClient,
+        projectId,
       });
     }
 

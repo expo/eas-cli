@@ -21,6 +21,31 @@ export type EnvironmentVariableWithFileContent = EnvironmentVariableFragment & {
 };
 
 export const EnvironmentVariablesQuery = {
+  async environmentVariableEnvironmentsAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appId: string
+  ): Promise<string[]> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query(
+          gql`
+            query AppEnvironmentVariableEnvironments($appId: String!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  environmentVariableEnvironments
+                }
+              }
+            }
+          `,
+          { appId },
+          { additionalTypenames: ['App'] }
+        )
+        .toPromise()
+    );
+
+    return data.app?.byId.environmentVariableEnvironments ?? [];
+  },
   async byAppIdWithSensitiveAsync(
     graphqlClient: ExpoGraphqlClient,
     {

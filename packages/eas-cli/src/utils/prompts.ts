@@ -1,9 +1,30 @@
 import chalk from 'chalk';
 
 import { EnvironmentVariableEnvironment } from '../build/utils/environment';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EnvironmentSecretType, EnvironmentVariableVisibility } from '../graphql/generated';
+import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
+import Log from '../log';
 import { RequestedPlatform } from '../platform';
 import { promptAsync, selectAsync } from '../prompts';
+
+const DEFAULT_ENVIRONMENTS = Object.values(EnvironmentVariableEnvironment);
+
+export async function getProjectEnvironmentVariableEnvironmentsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  projectId: string
+): Promise<string[]> {
+  try {
+    const environments = await EnvironmentVariablesQuery.environmentVariableEnvironmentsAsync(
+      graphqlClient,
+      projectId
+    );
+    return environments;
+  } catch {
+    Log.warn('Failed to fetch custom environments from API, falling back to default environments.');
+    return [];
+  }
+}
 
 const CUSTOM_ENVIRONMENT_VALUE = '~~CUSTOM~~';
 
@@ -95,6 +116,8 @@ export async function promptVariableVisibilityAsync(
 type EnvironmentPromptArgs = {
   nonInteractive: boolean;
   selectedEnvironments?: string[];
+  graphqlClient?: ExpoGraphqlClient;
+  projectId?: string;
 };
 
 export function promptVariableEnvironmentAsync(
@@ -108,17 +131,28 @@ export async function promptVariableEnvironmentAsync({
   nonInteractive,
   selectedEnvironments,
   multiple = false,
+  graphqlClient,
+  projectId,
 }: EnvironmentPromptArgs & { multiple?: boolean }): Promise<string[] | string> {
   if (nonInteractive) {
     throw new Error(
       'The `--environment` flag must be set when running in `--non-interactive` mode.'
     );
   }
+
+  let allEnvironments: string[] = DEFAULT_ENVIRONMENTS;
+  if (graphqlClient && projectId) {
+    const projectEnvironments = await getProjectEnvironmentVariableEnvironmentsAsync(
+      graphqlClient,
+      projectId
+    );
+    allEnvironments = [...new Set([...DEFAULT_ENVIRONMENTS, ...projectEnvironments])];
+  }
+
   if (!multiple) {
-    const defaultEnvironments = Object.values(EnvironmentVariableEnvironment);
     const choices = [
-      ...defaultEnvironments.map(environment => ({
-        title: environment.toLocaleLowerCase(),
+      ...allEnvironments.map(environment => ({
+        title: environment,
         value: environment,
       })),
       {
@@ -136,10 +170,9 @@ export async function promptVariableEnvironmentAsync({
     return selectedEnvironment;
   }
 
-  const defaultEnvironments = Object.values(EnvironmentVariableEnvironment);
   const choices = [
-    ...defaultEnvironments.map(environment => ({
-      title: environment.toLocaleLowerCase(),
+    ...allEnvironments.map(environment => ({
+      title: environment,
       value: environment,
       selected: selectedEnvironments?.includes(environment),
     })),

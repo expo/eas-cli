@@ -135,7 +135,12 @@ export default class EnvList extends EasCommand {
     });
 
     if (!environments) {
-      environments = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
+      environments = await promptVariableEnvironmentAsync({
+        nonInteractive,
+        multiple: true,
+        graphqlClient,
+        projectId,
+      });
     }
 
     await performForEnvironmentsAsync(environments, async environment => {

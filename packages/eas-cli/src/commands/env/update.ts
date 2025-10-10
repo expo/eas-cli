@@ -5,6 +5,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   EASEnvironmentVariableScopeFlag,
   EASEnvironmentVariableScopeFlagValue,
@@ -179,15 +180,19 @@ export default class EnvUpdate extends EasCommand {
       visibility: newVisibility,
       type: newType,
       fileName,
-    } = await this.promptForMissingFlagsAsync(selectedVariable, {
-      name,
-      value: rawValue,
-      environment: environments,
-      visibility,
-      'non-interactive': nonInteractive,
-      type,
-      scope,
-    });
+    } = await this.promptForMissingFlagsAsync(
+      selectedVariable,
+      {
+        name,
+        value: rawValue,
+        environment: environments,
+        visibility,
+        'non-interactive': nonInteractive,
+        type,
+        scope,
+      },
+      { graphqlClient, projectId }
+    );
 
     const variable = await EnvironmentVariableMutation.updateAsync(graphqlClient, {
       id: selectedVariable.id,
@@ -245,7 +250,8 @@ export default class EnvUpdate extends EasCommand {
       'non-interactive': nonInteractive,
       type,
       ...rest
-    }: UpdateFlags
+    }: UpdateFlags,
+    { graphqlClient, projectId }: { graphqlClient: ExpoGraphqlClient; projectId: string }
   ): Promise<
     Omit<UpdateFlags, 'type' | 'visibility'> & {
       type?: EnvironmentSecretType;
@@ -310,6 +316,8 @@ export default class EnvUpdate extends EasCommand {
           nonInteractive,
           multiple: true,
           selectedEnvironments: selectedVariable.environments ?? [],
+          graphqlClient,
+          projectId,
         });
 
         if (

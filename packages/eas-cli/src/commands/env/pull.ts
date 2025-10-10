@@ -50,10 +50,6 @@ export default class EnvPull extends EasCommand {
 
     let environment = flagEnvironment?.toLowerCase() ?? argEnvironment?.toLowerCase();
 
-    if (!environment) {
-      environment = await promptVariableEnvironmentAsync({ nonInteractive });
-    }
-
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -61,6 +57,14 @@ export default class EnvPull extends EasCommand {
     } = await this.getContextAsync(EnvPull, {
       nonInteractive,
     });
+
+    if (!environment) {
+      environment = await promptVariableEnvironmentAsync({
+        nonInteractive,
+        graphqlClient,
+        projectId,
+      });
+    }
 
     targetPath = targetPath ?? '.env.local';
 
