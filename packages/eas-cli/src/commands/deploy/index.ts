@@ -138,6 +138,7 @@ export default class WorkerDeploy extends EasCommand {
     logExportedProjectInfo(projectDist);
 
     async function* emitWorkerTarballAsync(params: {
+      routesConfig: WorkerAssets.RoutesConfigEntry | null;
       assetMap: WorkerAssets.AssetMap;
       manifest: WorkerAssets.Manifest;
     }): AsyncGenerator<WorkerAssets.FileEntry> {
@@ -148,6 +149,8 @@ export default class WorkerDeploy extends EasCommand {
         for await (const workerFile of workerFiles) {
           yield [`server/${workerFile.normalizedPath}`, workerFile.data];
         }
+      } else if (projectDist.type === 'static' && params.routesConfig) {
+        yield ['routes.json', JSON.stringify(params.routesConfig)];
       }
     }
 
@@ -284,12 +287,13 @@ export default class WorkerDeploy extends EasCommand {
             manifestResult.conflictingVariableNames.join(' ')
         );
       }
-      assetFiles = await WorkerAssets.collectAssetsAsync(
-        projectDist.type === 'server' ? projectDist.clientPath : projectDist.path,
-        { maxFileSize: MAX_UPLOAD_SIZE }
-      );
+      const assetPath = projectDist.type === 'server' ? projectDist.clientPath : projectDist.path;
+      assetFiles = await WorkerAssets.collectAssetsAsync(assetPath, {
+        maxFileSize: MAX_UPLOAD_SIZE,
+      });
       tarPath = await WorkerAssets.packFilesIterableAsync(
         emitWorkerTarballAsync({
+          routesConfig: await WorkerAssets.getRoutesConfigAsync(assetPath),
           assetMap: WorkerAssets.assetsToAssetsMap(assetFiles),
           manifest: manifestResult.manifest,
         })
