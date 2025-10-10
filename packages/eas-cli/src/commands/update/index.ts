@@ -6,7 +6,6 @@ import nullthrows from 'nullthrows';
 
 // import { getExpoWebsiteBaseUrl } from '../../api';
 import { ensureBranchExistsAsync } from '../../branch/queries';
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -79,7 +78,7 @@ type RawUpdateFlags = {
   'rollout-percentage'?: number;
   'non-interactive': boolean;
   json: boolean;
-  environment: EnvironmentVariableEnvironment | null;
+  environment?: string;
 };
 
 type UpdateFlags = {
@@ -96,7 +95,7 @@ type UpdateFlags = {
   rolloutPercentage?: number;
   json: boolean;
   nonInteractive: boolean;
-  environment: EnvironmentVariableEnvironment | null;
+  environment?: string;
 };
 
 export default class UpdatePublish extends EasCommand {
@@ -193,7 +192,7 @@ export default class UpdatePublish extends EasCommand {
       getServerSideEnvironmentVariablesAsync,
     } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
-      withServerSideEnvironment: environment,
+      withServerSideEnvironment: environment ?? null,
     });
 
     if (jsonFlag) {

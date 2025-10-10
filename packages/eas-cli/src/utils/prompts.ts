@@ -85,6 +85,7 @@ export function promptVariableEnvironmentAsync(
   input: EnvironmentPromptArgs & { multiple?: false }
 ): Promise<string>;
 
+// TODO(Kadi): fetch from the api
 export async function promptVariableEnvironmentAsync({
   nonInteractive,
   selectedEnvironments,

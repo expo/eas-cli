@@ -26,7 +26,6 @@ import {
   CommandEvent,
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
-import { EnvironmentVariableEnvironment } from '../build/utils/environment';
 import Log, { link } from '../log';
 import SessionManager from '../user/SessionManager';
 import { Client } from '../vcs/vcs';
@@ -60,7 +59,7 @@ interface BaseGetContextAsyncArgs {
 
 interface GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
   extends BaseGetContextAsyncArgs {
-  withServerSideEnvironment: EnvironmentVariableEnvironment | null;
+  withServerSideEnvironment: string | null;
 }
 
 interface GetContextAsyncArgsWithoutServerSideEnvironmentArgument extends BaseGetContextAsyncArgs {

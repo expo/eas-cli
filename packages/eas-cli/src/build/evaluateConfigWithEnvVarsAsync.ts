@@ -126,7 +126,7 @@ function resolveSuggestedEnvironmentForBuildProfileConfiguration(
         : EnvironmentVariableEnvironment.Preview;
 
   Log.log(
-    `Resolved "${environment.toLowerCase()}" environment for the build. ${learnMore(
+    `Resolved "${environment}" environment for the build. ${learnMore(
       'https://docs.expo.dev/eas/environment-variables/#setting-the-environment-for-your-builds'
     )}`
   );

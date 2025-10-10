@@ -10,7 +10,6 @@ import { evaluateConfigWithEnvVarsAsync } from '../../build/evaluateConfigWithEn
 import { ensureIosCredentialsForBuildResignAsync } from '../../build/ios/credentials';
 import { prepareCredentialsToResign } from '../../build/ios/prepareJob';
 import { listAndSelectBuildOnAppAsync } from '../../build/queries';
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -48,7 +47,7 @@ interface BuildResignFlags {
   sourceProfile?: string;
   maybeBuildId?: string;
   wait: boolean;
-  environment?: EnvironmentVariableEnvironment;
+  environment?: string;
 }
 interface RawBuildResignFlags {
   json: boolean;
@@ -60,7 +59,7 @@ interface RawBuildResignFlags {
   'source-profile': string | undefined;
   wait: boolean;
   id: string | undefined;
-  environment: EnvironmentVariableEnvironment | undefined;
+  environment: string | undefined;
 }
 
 export default class BuildResign extends EasCommand {
