@@ -71,7 +71,7 @@ export interface CommonBuildProfile {
   // credentials
   withoutCredentials?: boolean;
 
-  environment?: 'preview' | 'production' | 'development';
+  environment?: string;
 }
 
 interface PlatformBuildProfile extends Omit<CommonBuildProfile, 'autoIncrement'> {

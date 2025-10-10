@@ -2,7 +2,7 @@ import { Config } from '@oclif/core';
 import * as fs from 'fs-extra';
 import path from 'path';
 
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
@@ -34,7 +34,7 @@ describe(EnvPull, () => {
       id: 'var1',
       name: 'EXPO_PUBLIC_API_URL',
       value: 'https://api.example.com',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -45,7 +45,7 @@ describe(EnvPull, () => {
       id: 'var2',
       name: 'DATABASE_URL',
       value: 'postgres://localhost:5432/mydb',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -56,7 +56,7 @@ describe(EnvPull, () => {
       id: 'var3',
       name: 'SECRET_KEY',
       value: 'super-secret-key',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -67,7 +67,7 @@ describe(EnvPull, () => {
       id: 'var4',
       name: 'CONFIG_FILE',
       value: 'base64-encoded-file-content',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -95,7 +95,7 @@ describe(EnvPull, () => {
   });
 
   describe('environment validation', () => {
-    it('accepts development environment (case insensitive)', async () => {
+    it('accepts development environment', async () => {
       const command = new EnvPull(['development'], mockConfig);
 
       // @ts-expect-error
@@ -117,8 +117,8 @@ describe(EnvPull, () => {
       );
     });
 
-    it('rejects invalid environment', async () => {
-      const command = new EnvPull(['invalid'], mockConfig);
+    it('accepts custom environment', async () => {
+      const command = new EnvPull(['custom-environment'], mockConfig);
 
       // @ts-expect-error
       jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -127,8 +127,15 @@ describe(EnvPull, () => {
         projectDir: testProjectDir,
       });
 
-      await expect(command.runAsync()).rejects.toThrow(
-        "Invalid environment. Use one of 'production', 'preview', or 'development'."
+      await command.runAsync();
+
+      expect(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        {
+          appId: testProjectId,
+          environment: 'custom-environment',
+          includeFileContent: true,
+        }
       );
     });
   });

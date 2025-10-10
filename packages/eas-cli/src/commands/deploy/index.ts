@@ -5,7 +5,6 @@ import chalk from 'chalk';
 import fs from 'node:fs';
 import * as path from 'node:path';
 
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import { getHostingDeploymentsUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASEnvironmentFlag, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
@@ -45,7 +44,7 @@ interface DeployFlags {
   json: boolean;
   isProduction: boolean;
   aliasName?: string;
-  environment?: EnvironmentVariableEnvironment;
+  environment?: string;
   deploymentIdentifier?: string;
   exportDir: string;
   dryRun: boolean;
@@ -53,7 +52,7 @@ interface DeployFlags {
 
 interface RawDeployFlags {
   'non-interactive': boolean;
-  environment?: EnvironmentVariableEnvironment;
+  environment?: string;
   json: boolean;
   prod: boolean;
   alias?: string;

@@ -1,7 +1,6 @@
 import dateFormat from 'dateformat';
 
 import formatFields from './formatFields';
-import { EnvironmentVariableEnvironment } from '../build/utils/environment';
 import {
   EnvironmentSecretType,
   EnvironmentVariableFragment,
@@ -9,12 +8,6 @@ import {
   EnvironmentVariableVisibility,
 } from '../graphql/generated';
 import { EnvironmentVariableWithFileContent } from '../graphql/queries/EnvironmentVariablesQuery';
-
-export function isEnvironment(environment: string): environment is EnvironmentVariableEnvironment {
-  return Object.values(EnvironmentVariableEnvironment).includes(
-    environment as EnvironmentVariableEnvironment
-  );
-}
 
 export function formatVariableName(variable: EnvironmentVariableFragment): string {
   const name = variable.name;
@@ -53,8 +46,8 @@ export function formatVariableValue(variable: EnvironmentVariableWithFileContent
 }
 
 export async function performForEnvironmentsAsync(
-  environments: EnvironmentVariableEnvironment[] | null,
-  fun: (environment: EnvironmentVariableEnvironment | undefined) => Promise<any>
+  environments: string[] | null,
+  fun: (environment: string | undefined) => Promise<any>
 ): Promise<any[]> {
   const selectedEnvironments = environments ?? [undefined];
   return await Promise.all(selectedEnvironments.map(env => fun(env)));

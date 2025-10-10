@@ -1549,6 +1549,16 @@
     semver "^7.6.2"
     zod "^4.1.3"
 
+"@expo/eas-build-job@1.0.237":
+  version "1.0.237"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.237.tgz#2a3230540ac85599ee51d01b62c9d7b74ccfad2a"
+  integrity sha512-bvE7/+QO6hcyeD7Jn5job4jRZJNLep7MDaOsYTZ66xRNYiqY8g2TMKTcg8oOaBvhv8i5WJMJOexNmzkxWFjUtw==
+  dependencies:
+    "@expo/logger" "1.0.221"
+    joi "^17.13.1"
+    semver "^7.6.2"
+    zod "^4.1.3"
+
 "@expo/env@^1.0.0":
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/@expo/env/-/env-1.0.0.tgz#8e22894fae04ba6dc41fe0f1351a4973d410273a"

@@ -214,7 +214,8 @@
         "environment": {
           "description": "Environment to use for the server-side defined EAS environment variables during build process and command execution. Learn more: https://docs.expo.dev/eas/environment-variables/",
           "markdownDescription": "Environment to use for the server-side defined EAS environment variables during build process and command execution. [Learn more](https://docs.expo.dev/eas/environment-variables/)",
-          "enum": ["production", "preview", "development"]
+          "examples": ["production", "preview", "development"],
+          "type": "string"
         },
         "android": {
           "$ref": "#/definitions/BuildProfileAndroid"

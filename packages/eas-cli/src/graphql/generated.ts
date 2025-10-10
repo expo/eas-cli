@@ -124,6 +124,7 @@ export type Account = {
   displayName?: Maybe<Scalars['String']['output']>;
   /** Environment secrets for an account */
   environmentSecrets: Array<EnvironmentSecret>;
+  environmentVariableEnvironments: Array<Scalars['EnvironmentVariableEnvironment']['output']>;
   /** Environment variables for an account */
   environmentVariables: Array<EnvironmentVariable>;
   /** Environment variables for an account with decrypted secret values */
@@ -1285,6 +1286,7 @@ export type App = Project & {
   devDomainName?: Maybe<AppDevDomainName>;
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
+  environmentVariableEnvironments: Array<Scalars['EnvironmentVariableEnvironment']['output']>;
   /** Environment variables for an app */
   environmentVariables: Array<EnvironmentVariable>;
   /** Environment variables for an app with decrypted secret values */
@@ -10076,6 +10078,13 @@ export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
 
 
 export type EnvironmentSecretsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any }> }, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any }> } } };
+
+export type AppEnvironmentVariableEnvironmentsQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+}>;
+
+
+export type AppEnvironmentVariableEnvironmentsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentVariableEnvironments: Array<any> } } };
 
 export type EnvironmentVariablesIncludingSensitiveByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

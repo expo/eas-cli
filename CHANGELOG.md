@@ -7,6 +7,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🛠 Breaking changes
 
 ### 🎉 New features
+- Support custom environment variable environments ([#3220](https://github.com/expo/eas-cli/pull/3220) by [@kadikraman](https://github.com/kadikraman))
 
 - Support `_expo/.routes.json` metadata file exported by `@expo/cli` for headers configuration on static deployments ([#3211](https://github.com/expo/eas-cli/pull/3211) by [@kitten](https://github.com/kitten))
 

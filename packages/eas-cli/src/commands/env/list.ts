@@ -1,7 +1,6 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -20,7 +19,6 @@ import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 import {
   formatVariable,
   formatVariableValue,
-  isEnvironment,
   performForEnvironmentsAsync,
 } from '../../utils/variableUtils';
 
@@ -36,7 +34,7 @@ async function getVariablesForScopeAsync(
     scope: EnvironmentVariableScope;
     includingSensitive: boolean;
     includeFileContent: boolean;
-    environment?: EnvironmentVariableEnvironment;
+    environment?: string;
     projectId: string;
   }
 ): Promise<EnvironmentVariableWithFileContent[]> {
@@ -71,7 +69,7 @@ async function getVariablesForScopeAsync(
 interface RawListFlags {
   scope: EASEnvironmentVariableScopeFlagValue;
   format: string;
-  environment: EnvironmentVariableEnvironment[] | undefined;
+  environment: string[] | undefined;
   'include-sensitive': boolean;
   'include-file-content': boolean;
   'non-interactive'?: boolean;
@@ -80,7 +78,7 @@ interface RawListFlags {
 interface ListFlags {
   scope: EnvironmentVariableScope;
   format: string;
-  environment: EnvironmentVariableEnvironment[] | undefined;
+  environment: string[] | undefined;
   'include-sensitive': boolean;
   'include-file-content': boolean;
   'non-interactive': boolean;
@@ -112,7 +110,7 @@ export default class EnvList extends EasCommand {
     {
       name: 'environment',
       description:
-        "Environment to list the variables from. One of 'production', 'preview', or 'development'.",
+        "Environment to list the variables from. Default environments are 'production', 'preview', and 'development'.",
       required: false,
     },
   ];
@@ -137,7 +135,12 @@ export default class EnvList extends EasCommand {
     });
 
     if (!environments) {
-      environments = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
+      environments = await promptVariableEnvironmentAsync({
+        nonInteractive,
+        multiple: true,
+        graphqlClient,
+        projectId,
+      });
     }
 
     await performForEnvironmentsAsync(environments, async environment => {
@@ -180,14 +183,10 @@ export default class EnvList extends EasCommand {
     flags: RawListFlags,
     { environment }: { environment?: string }
   ): ListFlags {
-    if (environment && !isEnvironment(environment.toLowerCase())) {
-      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
-    }
-
     const environments = flags.environment
       ? flags.environment
       : environment
-        ? [environment.toLowerCase() as EnvironmentVariableEnvironment]
+        ? [environment]
         : undefined;
 
     return {

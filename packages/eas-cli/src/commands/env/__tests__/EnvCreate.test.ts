@@ -1,7 +1,7 @@
 import { Config } from '@oclif/core';
 
 import { getMockAppFragment } from '../../../__tests__/commands/utils';
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
@@ -103,7 +103,7 @@ describe(EnvCreate, () => {
         {
           name: 'VarName',
           value: 'VarValue',
-          environments: [EnvironmentVariableEnvironment.Production],
+          environments: [DefaultEnvironment.Production],
           visibility: EnvironmentVariableVisibility.Secret,
           type: EnvironmentSecretType.String,
         },
@@ -140,7 +140,7 @@ describe(EnvCreate, () => {
         .mockImplementation(async () => [
           {
             id: otherVariableId,
-            environments: [EnvironmentVariableEnvironment.Production],
+            environments: [DefaultEnvironment.Production],
             scope: EnvironmentVariableScope.Project,
           },
         ]);
@@ -168,7 +168,7 @@ describe(EnvCreate, () => {
         id: otherVariableId,
         name: 'VarName',
         value: 'VarValue',
-        environments: [EnvironmentVariableEnvironment.Production],
+        environments: [DefaultEnvironment.Production],
         visibility: EnvironmentVariableVisibility.Secret,
       });
     });
@@ -201,7 +201,7 @@ describe(EnvCreate, () => {
         {
           name: 'VarName',
           value: 'VarValue',
-          environments: [EnvironmentVariableEnvironment.Production],
+          environments: [DefaultEnvironment.Production],
           visibility: EnvironmentVariableVisibility.Public,
           type: EnvironmentSecretType.String,
         },
@@ -236,7 +236,7 @@ describe(EnvCreate, () => {
         .mockImplementation(async () => [
           {
             id: 'otherId',
-            environments: [EnvironmentVariableEnvironment.Production],
+            environments: [DefaultEnvironment.Production],
             scope: EnvironmentVariableScope.Shared,
           },
         ]);
@@ -274,7 +274,7 @@ describe(EnvCreate, () => {
         .mockImplementation(async () => [
           {
             id: otherVariableId,
-            environments: [EnvironmentVariableEnvironment.Production],
+            environments: [DefaultEnvironment.Production],
             scope: EnvironmentVariableScope.Shared,
           },
         ]);
@@ -285,7 +285,7 @@ describe(EnvCreate, () => {
         id: otherVariableId,
         name: 'VarName',
         value: 'VarValue',
-        environments: [EnvironmentVariableEnvironment.Production],
+        environments: [DefaultEnvironment.Production],
         visibility: EnvironmentVariableVisibility.Public,
       });
     });
@@ -320,10 +320,7 @@ describe(EnvCreate, () => {
         {
           name: 'VarName',
           value: 'VarValue',
-          environments: [
-            EnvironmentVariableEnvironment.Production,
-            EnvironmentVariableEnvironment.Development,
-          ],
+          environments: [DefaultEnvironment.Production, DefaultEnvironment.Development],
           visibility: EnvironmentVariableVisibility.Public,
           type: EnvironmentSecretType.String,
         },
@@ -343,7 +340,7 @@ describe(EnvCreate, () => {
       jest
         .mocked(promptVariableEnvironmentAsync)
         // @ts-expect-error
-        .mockImplementation(async () => [EnvironmentVariableEnvironment.Production]);
+        .mockImplementation(async () => [DefaultEnvironment.Production]);
 
       // @ts-expect-error
       jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -361,7 +358,7 @@ describe(EnvCreate, () => {
         {
           name: 'VarName',
           value: 'VarValue',
-          environments: [EnvironmentVariableEnvironment.Production],
+          environments: [DefaultEnvironment.Production],
           visibility: EnvironmentVariableVisibility.Public,
           type: EnvironmentSecretType.String,
         },
@@ -400,7 +397,7 @@ describe(EnvCreate, () => {
       {
         name: 'TEST_VAR',
         value: 'test-value',
-        environments: [EnvironmentVariableEnvironment.Development],
+        environments: [DefaultEnvironment.Development],
         visibility: EnvironmentVariableVisibility.Public,
         type: EnvironmentSecretType.String,
       },

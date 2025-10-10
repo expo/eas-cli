@@ -2,7 +2,7 @@ import { Config } from '@oclif/core';
 import chalk from 'chalk';
 
 import { getMockAppFragment } from '../../../__tests__/commands/utils';
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import {
   EnvironmentSecretType,
   EnvironmentVariableScope,
@@ -12,12 +12,18 @@ import { EnvironmentVariableMutation } from '../../../graphql/mutations/Environm
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
-import { promptAsync, toggleConfirmAsync } from '../../../prompts';
+import { promptAsync, selectAsync, toggleConfirmAsync } from '../../../prompts';
+import {
+  parseVisibility,
+  promptVariableEnvironmentAsync,
+  promptVariableVisibilityAsync,
+} from '../../../utils/prompts';
 import EnvUpdate from '../update';
 
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../graphql/mutations/EnvironmentVariableMutation');
 jest.mock('../../../prompts');
+jest.mock('../../../utils/prompts');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../log');
 
@@ -34,6 +40,41 @@ describe(EnvUpdate, () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
+    (jest.mocked(promptVariableEnvironmentAsync) as jest.MockedFunction<any>).mockImplementation(
+      async (args: any) => {
+        if (args.nonInteractive) {
+          throw new Error(
+            'The `--environment` flag must be set when running in `--non-interactive` mode.'
+          );
+        }
+        if (args.multiple) {
+          return ['production'];
+        }
+        return 'production';
+      }
+    );
+    (jest.mocked(promptVariableVisibilityAsync) as jest.MockedFunction<any>).mockResolvedValue(
+      EnvironmentVariableVisibility.Public
+    );
+    (jest.mocked(parseVisibility) as jest.MockedFunction<any>).mockImplementation(
+      (visibility: string) => {
+        switch (visibility) {
+          case 'plaintext':
+            return EnvironmentVariableVisibility.Public;
+          case 'sensitive':
+            return EnvironmentVariableVisibility.Sensitive;
+          case 'secret':
+            return EnvironmentVariableVisibility.Secret;
+          default:
+            throw new Error(`Invalid visibility: ${visibility}`);
+        }
+      }
+    );
+    (jest.mocked(selectAsync) as jest.MockedFunction<any>).mockResolvedValue({
+      id: variableId,
+      name: 'TEST_VARIABLE',
+      scope: EnvironmentVariableScope.Project,
+    });
   });
 
   it('updates a project variable by selected name in non-interactive mode', async () => {
@@ -42,7 +83,7 @@ describe(EnvUpdate, () => {
         id: variableId,
         name: 'TEST_VARIABLE',
         scope: EnvironmentVariableScope.Project,
-        environments: [EnvironmentVariableEnvironment.Development],
+        environments: [DefaultEnvironment.Development],
       },
     ];
     (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue(mockVariables);
@@ -74,7 +115,7 @@ describe(EnvUpdate, () => {
       id: variableId,
       name: 'NEW_VARIABLE',
       value: 'new-value',
-      environments: [EnvironmentVariableEnvironment.Production],
+      environments: [DefaultEnvironment.Production],
       visibility: EnvironmentVariableVisibility.Public,
     });
     expect(Log.withTick).toHaveBeenCalledWith(
@@ -88,7 +129,7 @@ describe(EnvUpdate, () => {
         id: variableId,
         name: 'TEST_VARIABLE',
         scope: EnvironmentVariableScope.Shared,
-        environments: [EnvironmentVariableEnvironment.Development],
+        environments: [DefaultEnvironment.Development],
       },
     ];
     (EnvironmentVariablesQuery.sharedAsync as jest.Mock).mockResolvedValue(mockVariables);
@@ -120,7 +161,7 @@ describe(EnvUpdate, () => {
       id: variableId,
       name: 'NEW_VARIABLE',
       value: 'new-value',
-      environments: [EnvironmentVariableEnvironment.Production],
+      environments: [DefaultEnvironment.Production],
     });
     expect(Log.withTick).toHaveBeenCalledWith(
       `Updated variable ${chalk.bold('TEST_VARIABLE')} on account testuser.`
@@ -130,6 +171,7 @@ describe(EnvUpdate, () => {
   it('prompts for variable selection when selected name is not provided', async () => {
     const mockVariables = [
       { id: variableId, name: 'TEST_VARIABLE', scope: EnvironmentVariableScope.Project },
+      { id: '2', name: 'ANOTHER_VARIABLE', scope: EnvironmentVariableScope.Project },
     ];
     (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue(mockVariables);
     (EnvironmentVariableMutation.updateAsync as jest.Mock).mockResolvedValue(mockVariables[0]);
@@ -141,7 +183,7 @@ describe(EnvUpdate, () => {
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
     await command.runAsync();
 
-    expect(promptAsync).toHaveBeenCalled();
+    expect(selectAsync).toHaveBeenCalled();
     expect(EnvironmentVariableMutation.updateAsync).toHaveBeenCalledWith(
       graphqlClient,
       expect.objectContaining({ id: variableId })
@@ -169,7 +211,7 @@ describe(EnvUpdate, () => {
       id: 'var1',
       name: 'TEST_VAR_1',
       value: 'value1',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -205,7 +247,7 @@ describe(EnvUpdate, () => {
 
     expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: projectId,
-      environment: EnvironmentVariableEnvironment.Development,
+      environment: DefaultEnvironment.Development,
       filterNames: ['TEST_VAR_1'],
     });
   });

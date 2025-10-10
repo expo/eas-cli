@@ -4,8 +4,8 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   EASEnvironmentVariableScopeFlag,
   EASEnvironmentVariableScopeFlagValue,
@@ -36,17 +36,17 @@ import {
   promptVariableValueAsync,
   promptVariableVisibilityAsync,
 } from '../../utils/prompts';
-import { formatVariableName, isEnvironment } from '../../utils/variableUtils';
+import { formatVariableName } from '../../utils/variableUtils';
 
 interface RawUpdateFlags {
   name?: string;
   value?: string;
   scope: EASEnvironmentVariableScopeFlagValue;
-  environment?: EnvironmentVariableEnvironment[];
+  environment?: string[];
   visibility?: 'plaintext' | 'sensitive' | 'secret';
   type?: 'string' | 'file';
   'variable-name'?: string;
-  'variable-environment'?: EnvironmentVariableEnvironment;
+  'variable-environment'?: string;
   'non-interactive': boolean;
 }
 
@@ -54,11 +54,11 @@ interface UpdateFlags {
   name?: string;
   value?: string;
   scope: EnvironmentVariableScope;
-  environment?: EnvironmentVariableEnvironment[];
+  environment?: string[];
   visibility?: 'plaintext' | 'sensitive' | 'secret';
   type?: 'string' | 'file';
   'variable-name'?: string;
-  'variable-environment'?: EnvironmentVariableEnvironment;
+  'variable-environment'?: string;
   'non-interactive': boolean;
 }
 
@@ -69,7 +69,7 @@ export default class EnvUpdate extends EasCommand {
     'variable-name': Flags.string({
       description: 'Current name of the variable',
     }),
-    'variable-environment': Flags.enum<EnvironmentVariableEnvironment>({
+    'variable-environment': Flags.string({
       ...EasEnvironmentFlagParameters,
       description: 'Current environment of the variable to update',
     }),
@@ -93,7 +93,7 @@ export default class EnvUpdate extends EasCommand {
     {
       name: 'environment',
       description:
-        "Current environment of the variable to update. One of 'production', 'preview', or 'development'.",
+        "Current environment of the variable to update. Default environments are 'production', 'preview', and 'development'.",
       required: false,
     },
   ];
@@ -180,15 +180,19 @@ export default class EnvUpdate extends EasCommand {
       visibility: newVisibility,
       type: newType,
       fileName,
-    } = await this.promptForMissingFlagsAsync(selectedVariable, {
-      name,
-      value: rawValue,
-      environment: environments,
-      visibility,
-      'non-interactive': nonInteractive,
-      type,
-      scope,
-    });
+    } = await this.promptForMissingFlagsAsync(
+      selectedVariable,
+      {
+        name,
+        value: rawValue,
+        environment: environments,
+        visibility,
+        'non-interactive': nonInteractive,
+        type,
+        scope,
+      },
+      { graphqlClient, projectId }
+    );
 
     const variable = await EnvironmentVariableMutation.updateAsync(graphqlClient, {
       id: selectedVariable.id,
@@ -226,12 +230,6 @@ export default class EnvUpdate extends EasCommand {
         : EnvironmentVariableScope.Project;
 
     if (environment) {
-      environment = environment.toLowerCase();
-      if (!isEnvironment(environment)) {
-        throw new Error(
-          "Invalid environment. Use one of 'production', 'preview', or 'development'."
-        );
-      }
       return {
         ...flags,
         'variable-environment': environment,
@@ -252,7 +250,8 @@ export default class EnvUpdate extends EasCommand {
       'non-interactive': nonInteractive,
       type,
       ...rest
-    }: UpdateFlags
+    }: UpdateFlags,
+    { graphqlClient, projectId }: { graphqlClient: ExpoGraphqlClient; projectId: string }
   ): Promise<
     Omit<UpdateFlags, 'type' | 'visibility'> & {
       type?: EnvironmentSecretType;
@@ -316,7 +315,10 @@ export default class EnvUpdate extends EasCommand {
         environments = await promptVariableEnvironmentAsync({
           nonInteractive,
           multiple: true,
+          canEnterCustomEnvironment: true,
           selectedEnvironments: selectedVariable.environments ?? [],
+          graphqlClient,
+          projectId,
         });
 
         if (

@@ -71,7 +71,15 @@ const CommonBuildProfileSchema = Joi.object({
   // credentials
   withoutCredentials: Joi.boolean(),
 
-  environment: Joi.string().valid('preview', 'production', 'development'),
+  environment: Joi.string()
+    .min(3)
+    .max(100)
+    .pattern(/^[a-z0-9_-]+$/)
+    .messages({
+      'string.min': 'Environment name must be at least 3 characters.',
+      'string.max': 'Environment name must not be longer than 100 characters.',
+      'string.pattern.base': 'Environment name can only contain lowercase letters, numbers, dashes and underscores.',
+    }),
 });
 
 const PlatformBuildProfileSchema = CommonBuildProfileSchema.concat(

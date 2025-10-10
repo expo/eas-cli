@@ -4,7 +4,6 @@ import chalk from 'chalk';
 
 import { getExpoWebsiteBaseUrl } from '../../api';
 import { selectBranchOnAppAsync } from '../../branch/queries';
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import { fetchBuildsAsync, formatBuild } from '../../commandUtils/builds';
 import { GetServerSideEnvironmentVariablesFn } from '../../commandUtils/context/ServerSideEnvironmentVariablesContextField';
@@ -97,7 +96,7 @@ export default class FingerprintCompare extends EasCommand {
     open: Flags.boolean({
       description: 'Open the fingerprint comparison in the browser',
     }),
-    environment: Flags.enum<EnvironmentVariableEnvironment>({
+    environment: Flags.string({
       ...EasEnvironmentFlagParameters,
       description:
         'If generating a fingerprint from the local directory, use the specified environment.',

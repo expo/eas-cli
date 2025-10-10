@@ -1,23 +1,15 @@
 import { ExpoGraphqlClient } from './createGraphqlClient';
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
 
-const cachedServerSideEnvironmentVariables: Record<
-  EnvironmentVariableEnvironment,
-  Record<string, string> | null
-> = {
-  [EnvironmentVariableEnvironment.Development]: null,
-  [EnvironmentVariableEnvironment.Preview]: null,
-  [EnvironmentVariableEnvironment.Production]: null,
-};
+const cachedServerSideEnvironmentVariables: Record<string, Record<string, string> | undefined> = {};
 
 export async function loadServerSideEnvironmentVariablesAsync({
   environment,
   projectId,
   graphqlClient,
 }: {
-  environment: EnvironmentVariableEnvironment;
+  environment: string;
   projectId: string;
   graphqlClient: ExpoGraphqlClient;
 }): Promise<Record<string, string>> {
@@ -42,13 +34,13 @@ export async function loadServerSideEnvironmentVariablesAsync({
 
   if (Object.keys(serverEnvVars).length > 0) {
     Log.log(
-      `Environment variables with visibility "Plain text" and "Sensitive" loaded from the "${environment.toLowerCase()}" environment on EAS: ${Object.keys(
+      `Environment variables with visibility "Plain text" and "Sensitive" loaded from the "${environment}" environment on EAS: ${Object.keys(
         serverEnvVars
       ).join(', ')}.`
     );
   } else {
     Log.log(
-      `No environment variables with visibility "Plain text" and "Sensitive" found for the "${environment.toLowerCase()}" environment on EAS.`
+      `No environment variables with visibility "Plain text" and "Sensitive" found for the "${environment}" environment on EAS.`
     );
   }
   Log.newLine();

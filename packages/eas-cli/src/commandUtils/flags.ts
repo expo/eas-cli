@@ -1,17 +1,5 @@
 import { Flags } from '@oclif/core';
 
-import { EnvironmentVariableEnvironment } from '../build/utils/environment';
-
-// NOTE: not exactly true, but, provided mapToLowercase and upperCaseAsync
-// are used in tandem, it saves on unnecessary typying in commands
-async function upperCaseAsync<T>(input: string): Promise<T> {
-  return input.toUpperCase() as T;
-}
-
-function mapToLowercase<T extends string>(options: T[]): T[] {
-  return options.map(option => option.toLowerCase()) as T[];
-}
-
 export const EasNonInteractiveAndJsonFlags = {
   json: Flags.boolean({
     description: 'Enable JSON output, non-JSON messages will be printed to stderr.',
@@ -23,20 +11,17 @@ export const EasNonInteractiveAndJsonFlags = {
 };
 
 export const EasEnvironmentFlagParameters = {
-  description: "Environment variable's environment",
-  options: mapToLowercase([
-    EnvironmentVariableEnvironment.Development,
-    EnvironmentVariableEnvironment.Preview,
-    EnvironmentVariableEnvironment.Production,
-  ]),
+  description: "Environment variable's environment, e.g. 'production', 'preview', 'development'",
 };
 
 export const EASEnvironmentFlag = {
-  environment: Flags.enum<EnvironmentVariableEnvironment>(EasEnvironmentFlagParameters),
+  environment: Flags.string({
+    description: "Environment variable's environment, e.g. 'production', 'preview', 'development'",
+  }),
 };
 
 export const EASMultiEnvironmentFlag = {
-  environment: Flags.enum<EnvironmentVariableEnvironment>({
+  environment: Flags.string({
     ...EasEnvironmentFlagParameters,
     multiple: true,
   }),
@@ -80,12 +65,10 @@ export const EasJsonOnlyFlag = {
 };
 
 export const EasUpdateEnvironmentFlag = {
-  environment: Flags.enum<EnvironmentVariableEnvironment | null>({
+  environment: Flags.string({
     description:
-      'Environment to use for the server-side defined EAS environment variables during command execution.',
-    options: mapToLowercase(Object.values(EnvironmentVariableEnvironment)),
-    parse: upperCaseAsync,
+      'Environment to use for the server-side defined EAS environment variables during command execution, e.g. "production", "preview", "development"',
     required: false,
-    default: null,
+    default: undefined,
   }),
 };
