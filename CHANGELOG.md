@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Multiple bugfixes and small features for the `eas:new` command: handle failures with user-prompted values; support `bun` as a package manager; ensure workflow files are in the correct location after build; update the generated project's README with the provided package manager; ensure `app.json`'s `scheme` is valid. ([#3205](https://github.com/expo/eas-cli/pull/3205) by [@mackenco](https://github.com/mackenco))
+
 ### 🧹 Chores
 - Add thorough tests for the env commands ([#3217](https://github.com/expo/eas-cli/pull/3217) by [@kadikraman](https://github.com/kadikraman))
 
@@ -32,8 +34,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - Fix --environment flag in eas env commands ([#3213](https://github.com/expo/eas-cli/pull/3213) by [@kadikraman](https://github.com/kadikraman))
 
 ## [16.20.2](https://github.com/expo/eas-cli/releases/tag/v16.20.2) - 2025-10-07
-
-### 🧹 Chores
 
 - Create an `EnvironmentVariableEnvironment` enum and use it instead of the graphQL Enum ([#3208](https://github.com/expo/eas-cli/pull/3208) by [@kadikraman](https://github.com/kadikraman))
 
