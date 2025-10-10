@@ -49,7 +49,7 @@ export default class EnvDelete extends EasCommand {
     {
       name: 'environment',
       description:
-        "Current environment of the variable to delete. One of 'production', 'preview', or 'development'.",
+        "Current environment of the variable to delete. Default environments are 'production', 'preview', and 'development'.",
       required: false,
     },
   ];

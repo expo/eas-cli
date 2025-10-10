@@ -63,7 +63,7 @@ export default class EnvCreate extends EasCommand {
     {
       name: 'environment',
       description:
-        "Environment to create the variable in. One of 'production', 'preview', or 'development'.",
+        "Environment to create the variable in. Default environments are 'production', 'preview', and 'development'.",
       required: false,
     },
   ];

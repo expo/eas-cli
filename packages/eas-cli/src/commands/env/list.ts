@@ -110,7 +110,7 @@ export default class EnvList extends EasCommand {
     {
       name: 'environment',
       description:
-        "Environment to list the variables from. One of 'production', 'preview', or 'development'.",
+        "Environment to list the variables from. Default environments are 'production', 'preview', and 'development'.",
       required: false,
     },
   ];

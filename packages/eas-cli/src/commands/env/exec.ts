@@ -42,7 +42,7 @@ export default class EnvExec extends EasCommand {
       name: 'environment',
       required: true,
       description:
-        "Environment to execute the command in. One of 'production', 'preview', or 'development'.",
+        "Environment to execute the command in. Default environments are 'production', 'preview', and 'development'.",
     },
     {
       name: 'bash_command',

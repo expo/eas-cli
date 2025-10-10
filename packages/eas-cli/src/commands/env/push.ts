@@ -38,7 +38,7 @@ export default class EnvPush extends EasCommand {
     {
       name: 'environment',
       description:
-        "Environment to push variables to. One of 'production', 'preview', or 'development'.",
+        "Environment to push variables to. Default environments are 'production', 'preview', and 'development'.",
       required: false,
     },
   ];

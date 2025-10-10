@@ -28,7 +28,7 @@ export default class EnvPull extends EasCommand {
     {
       name: 'environment',
       description:
-        "Environment to pull variables from. One of 'production', 'preview', or 'development'.",
+        "Environment to pull variables from. Default environments are 'production', 'preview', and 'development'.",
       required: false,
     },
   ];
