@@ -12,12 +12,18 @@ import { EnvironmentVariableMutation } from '../../../graphql/mutations/Environm
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
-import { promptAsync, toggleConfirmAsync } from '../../../prompts';
+import { promptAsync, selectAsync, toggleConfirmAsync } from '../../../prompts';
+import {
+  parseVisibility,
+  promptVariableEnvironmentAsync,
+  promptVariableVisibilityAsync,
+} from '../../../utils/prompts';
 import EnvUpdate from '../update';
 
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../graphql/mutations/EnvironmentVariableMutation');
 jest.mock('../../../prompts');
+jest.mock('../../../utils/prompts');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../log');
 
@@ -34,6 +40,41 @@ describe(EnvUpdate, () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
+    (jest.mocked(promptVariableEnvironmentAsync) as jest.MockedFunction<any>).mockImplementation(
+      async (args: any) => {
+        if (args.nonInteractive) {
+          throw new Error(
+            'The `--environment` flag must be set when running in `--non-interactive` mode.'
+          );
+        }
+        if (args.multiple) {
+          return ['production'];
+        }
+        return 'production';
+      }
+    );
+    (jest.mocked(promptVariableVisibilityAsync) as jest.MockedFunction<any>).mockResolvedValue(
+      EnvironmentVariableVisibility.Public
+    );
+    (jest.mocked(parseVisibility) as jest.MockedFunction<any>).mockImplementation(
+      (visibility: string) => {
+        switch (visibility) {
+          case 'plaintext':
+            return EnvironmentVariableVisibility.Public;
+          case 'sensitive':
+            return EnvironmentVariableVisibility.Sensitive;
+          case 'secret':
+            return EnvironmentVariableVisibility.Secret;
+          default:
+            throw new Error(`Invalid visibility: ${visibility}`);
+        }
+      }
+    );
+    (jest.mocked(selectAsync) as jest.MockedFunction<any>).mockResolvedValue({
+      id: variableId,
+      name: 'TEST_VARIABLE',
+      scope: EnvironmentVariableScope.Project,
+    });
   });
 
   it('updates a project variable by selected name in non-interactive mode', async () => {
@@ -130,6 +171,7 @@ describe(EnvUpdate, () => {
   it('prompts for variable selection when selected name is not provided', async () => {
     const mockVariables = [
       { id: variableId, name: 'TEST_VARIABLE', scope: EnvironmentVariableScope.Project },
+      { id: '2', name: 'ANOTHER_VARIABLE', scope: EnvironmentVariableScope.Project },
     ];
     (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue(mockVariables);
     (EnvironmentVariableMutation.updateAsync as jest.Mock).mockResolvedValue(mockVariables[0]);
@@ -141,7 +183,7 @@ describe(EnvUpdate, () => {
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
     await command.runAsync();
 
-    expect(promptAsync).toHaveBeenCalled();
+    expect(selectAsync).toHaveBeenCalled();
     expect(EnvironmentVariableMutation.updateAsync).toHaveBeenCalledWith(
       graphqlClient,
       expect.objectContaining({ id: variableId })

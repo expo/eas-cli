@@ -5,6 +5,8 @@ import { EnvironmentSecretType, EnvironmentVariableVisibility } from '../graphql
 import { RequestedPlatform } from '../platform';
 import { promptAsync, selectAsync } from '../prompts';
 
+const CUSTOM_ENVIRONMENT_VALUE = '~~CUSTOM~~';
+
 export async function promptVariableTypeAsync(
   nonInteractive: boolean,
   initialType?: EnvironmentSecretType
@@ -44,6 +46,24 @@ export function parseVisibility(
   }
 }
 
+async function promptCustomEnvironmentAsync(): Promise<string> {
+  const { customEnvironment } = await promptAsync({
+    type: 'text',
+    name: 'customEnvironment',
+    message: 'Enter custom environment name:',
+    validate: (value: string) => {
+      if (!value || value.trim() === '') {
+        return 'Environment name cannot be empty';
+      }
+      if (!value.match(/^[a-zA-Z0-9_-]+$/)) {
+        return 'Environment name may only contain letters, numbers, underscores, and hyphens';
+      }
+      return true;
+    },
+  });
+  return customEnvironment;
+}
+
 export async function promptVariableVisibilityAsync(
   nonInteractive: boolean,
   selectedVisibility?: EnvironmentVariableVisibility | null
@@ -75,7 +95,6 @@ export async function promptVariableVisibilityAsync(
 type EnvironmentPromptArgs = {
   nonInteractive: boolean;
   selectedEnvironments?: string[];
-  availableEnvironments?: string[];
 };
 
 export function promptVariableEnvironmentAsync(
@@ -85,12 +104,10 @@ export function promptVariableEnvironmentAsync(
   input: EnvironmentPromptArgs & { multiple?: false }
 ): Promise<string>;
 
-// TODO(Kadi): fetch from the api
 export async function promptVariableEnvironmentAsync({
   nonInteractive,
   selectedEnvironments,
   multiple = false,
-  availableEnvironments,
 }: EnvironmentPromptArgs & { multiple?: boolean }): Promise<string[] | string> {
   if (nonInteractive) {
     throw new Error(
@@ -98,24 +115,56 @@ export async function promptVariableEnvironmentAsync({
     );
   }
   if (!multiple) {
-    return await selectAsync(
-      'Select environment:',
-      (availableEnvironments ?? Object.values(EnvironmentVariableEnvironment)).map(environment => ({
+    const defaultEnvironments = Object.values(EnvironmentVariableEnvironment);
+    const choices = [
+      ...defaultEnvironments.map(environment => ({
         title: environment.toLocaleLowerCase(),
         value: environment,
-      }))
-    );
+      })),
+      {
+        title: 'Other (enter custom environment)',
+        value: CUSTOM_ENVIRONMENT_VALUE,
+      },
+    ];
+
+    const selectedEnvironment = await selectAsync('Select environment:', choices);
+
+    if (selectedEnvironment === CUSTOM_ENVIRONMENT_VALUE) {
+      return await promptCustomEnvironmentAsync();
+    }
+
+    return selectedEnvironment;
   }
-  const { environments } = await promptAsync({
-    message: 'Select environment:',
-    name: 'environments',
-    type: 'multiselect',
-    choices: Object.values(EnvironmentVariableEnvironment).map(environment => ({
+
+  const defaultEnvironments = Object.values(EnvironmentVariableEnvironment);
+  const choices = [
+    ...defaultEnvironments.map(environment => ({
       title: environment.toLocaleLowerCase(),
       value: environment,
       selected: selectedEnvironments?.includes(environment),
     })),
+    {
+      title: 'Other (enter custom environment)',
+      value: CUSTOM_ENVIRONMENT_VALUE,
+      selected: false,
+    },
+  ];
+
+  const { environments } = await promptAsync({
+    message: 'Select environment:',
+    name: 'environments',
+    type: 'multiselect',
+    choices,
   });
+
+  if (environments?.includes(CUSTOM_ENVIRONMENT_VALUE)) {
+    const customEnvironment = await promptCustomEnvironmentAsync();
+    const filteredEnvironments = environments.filter(
+      (env: string) => env !== CUSTOM_ENVIRONMENT_VALUE
+    );
+    return [...filteredEnvironments, customEnvironment];
+  }
+
   return environments;
 }
 

@@ -13,10 +13,12 @@ import {
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
+import { promptVariableEnvironmentAsync } from '../../../utils/prompts';
 import EnvList from '../list';
 
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../graphql/queries/AppQuery');
+jest.mock('../../../utils/prompts');
 jest.mock('../../../log');
 
 const mockVariables: EnvironmentVariableFragment[] = [
@@ -51,27 +53,14 @@ describe(EnvList, () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
-  });
-
-  it('lists project environment variables successfully', async () => {
-    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce(mockVariables);
-
-    const command = new EnvList([], mockConfig);
-
-    // @ts-expect-error
-    jest.spyOn(command, 'getContextAsync').mockReturnValue({
-      loggedIn: { graphqlClient },
-      projectId: testProjectId,
-    });
-    await command.runAsync();
-
-    expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: testProjectId,
-      environment: undefined,
-      includeFileContent: false,
-    });
-    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
-    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
+    (jest.mocked(promptVariableEnvironmentAsync) as jest.MockedFunction<any>).mockImplementation(
+      async (args: any) => {
+        if (args.multiple) {
+          return [EnvironmentVariableEnvironment.Production];
+        }
+        return EnvironmentVariableEnvironment.Production;
+      }
+    );
   });
 
   it('lists project environment variables in specified environments', async () => {
@@ -133,7 +122,7 @@ describe(EnvList, () => {
       graphqlClient,
       {
         appId: testProjectId,
-        environment: undefined,
+        environment: EnvironmentVariableEnvironment.Production,
         includeFileContent: false,
       }
     );
@@ -155,7 +144,7 @@ describe(EnvList, () => {
 
     expect(EnvironmentVariablesQuery.sharedAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
-      environment: undefined,
+      environment: EnvironmentVariableEnvironment.Production,
       includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
@@ -178,7 +167,7 @@ describe(EnvList, () => {
 
     expect(EnvironmentVariablesQuery.sharedWithSensitiveAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
-      environment: undefined,
+      environment: EnvironmentVariableEnvironment.Production,
       includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
