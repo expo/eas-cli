@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Improvements to workflow:create. ([#3194](https://github.com/expo/eas-cli/pull/3194) by [@douglowder](https://github.com/douglowder))
 - Support `_expo/.routes.json` metadata file exported by `@expo/cli` for headers configuration on static deployments ([#3211](https://github.com/expo/eas-cli/pull/3211) by [@kitten](https://github.com/kitten))
 
 ### 🐛 Bug fixes

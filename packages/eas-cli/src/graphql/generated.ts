@@ -124,6 +124,7 @@ export type Account = {
   displayName?: Maybe<Scalars['String']['output']>;
   /** Environment secrets for an account */
   environmentSecrets: Array<EnvironmentSecret>;
+  environmentVariableEnvironments: Array<Scalars['EnvironmentVariableEnvironment']['output']>;
   /** Environment variables for an account */
   environmentVariables: Array<EnvironmentVariable>;
   /** Environment variables for an account with decrypted secret values */
@@ -1285,6 +1286,7 @@ export type App = Project & {
   devDomainName?: Maybe<AppDevDomainName>;
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
+  environmentVariableEnvironments: Array<Scalars['EnvironmentVariableEnvironment']['output']>;
   /** Environment variables for an app */
   environmentVariables: Array<EnvironmentVariable>;
   /** Environment variables for an app with decrypted secret values */
@@ -9920,7 +9922,7 @@ export type AppByIdWorkflowsQueryVariables = Exact<{
 }>;
 
 
-export type AppByIdWorkflowsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, workflows: Array<{ __typename?: 'Workflow', id: string, name?: string | null, fileName: string, createdAt: any, updatedAt: any }> } } };
+export type AppByIdWorkflowsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, workflows: Array<{ __typename?: 'Workflow', id: string, name?: string | null, fileName: string, createdAt: any, updatedAt: any, revisionsPaginated: { __typename?: 'WorkflowRevisionsConnection', edges: Array<{ __typename?: 'WorkflowRevisionEdge', node: { __typename?: 'WorkflowRevision', id: string, blobSha: string, commitSha?: string | null, createdAt: any, yamlConfig: string } }> } }> } } };
 
 export type AppByIdWorkflowRunsFilteredByStatusQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -10310,7 +10312,7 @@ export type UpdateChannelBasicInfoFragment = { __typename?: 'UpdateChannel', id:
 
 export type WebhookFragment = { __typename?: 'Webhook', id: string, event: WebhookType, url: string, createdAt: any, updatedAt: any };
 
-export type WorkflowFragment = { __typename?: 'Workflow', id: string, name?: string | null, fileName: string, createdAt: any, updatedAt: any };
+export type WorkflowFragment = { __typename?: 'Workflow', id: string, name?: string | null, fileName: string, createdAt: any, updatedAt: any, revisionsPaginated: { __typename?: 'WorkflowRevisionsConnection', edges: Array<{ __typename?: 'WorkflowRevisionEdge', node: { __typename?: 'WorkflowRevision', id: string, blobSha: string, commitSha?: string | null, createdAt: any, yamlConfig: string } }> } };
 
 export type WorkflowJobFragment = { __typename?: 'WorkflowJob', id: string, key: string, name: string, status: WorkflowJobStatus, type: WorkflowJobType, outputs: any, createdAt: any, updatedAt: any, workflowRun: { __typename?: 'WorkflowRun', id: string }, turtleJobRun?: { __typename?: 'JobRun', id: string, logFileUrls: Array<string>, artifacts: Array<{ __typename?: 'WorkflowArtifact', id: string, name: string, contentType?: string | null, fileSizeBytes?: number | null, filename: string, downloadUrl?: string | null }>, errors: Array<{ __typename?: 'JobRunError', errorCode: string, message: string }> } | null, turtleBuild?: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?: { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string }, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } | null, errors: Array<{ __typename?: 'WorkflowJobError', title: string, message: string }> };
 
