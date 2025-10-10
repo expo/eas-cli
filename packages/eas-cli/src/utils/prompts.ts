@@ -118,6 +118,7 @@ type EnvironmentPromptArgs = {
   selectedEnvironments?: string[];
   graphqlClient?: ExpoGraphqlClient;
   projectId?: string;
+  canEnterCustomEnvironment?: boolean;
 };
 
 export function promptVariableEnvironmentAsync(
@@ -131,6 +132,7 @@ export async function promptVariableEnvironmentAsync({
   nonInteractive,
   selectedEnvironments,
   multiple = false,
+  canEnterCustomEnvironment = false,
   graphqlClient,
   projectId,
 }: EnvironmentPromptArgs & { multiple?: boolean }): Promise<string[] | string> {
@@ -150,16 +152,17 @@ export async function promptVariableEnvironmentAsync({
   }
 
   if (!multiple) {
-    const choices = [
-      ...allEnvironments.map(environment => ({
-        title: environment,
-        value: environment,
-      })),
-      {
+    const choices = allEnvironments.map(environment => ({
+      title: environment,
+      value: environment,
+    }));
+
+    if (canEnterCustomEnvironment) {
+      choices.push({
         title: 'Other (enter custom environment)',
         value: CUSTOM_ENVIRONMENT_VALUE,
-      },
-    ];
+      });
+    }
 
     const selectedEnvironment = await selectAsync('Select environment:', choices);
 
@@ -170,18 +173,19 @@ export async function promptVariableEnvironmentAsync({
     return selectedEnvironment;
   }
 
-  const choices = [
-    ...allEnvironments.map(environment => ({
-      title: environment,
-      value: environment,
-      selected: selectedEnvironments?.includes(environment),
-    })),
-    {
+  const choices = allEnvironments.map(environment => ({
+    title: environment,
+    value: environment,
+    selected: selectedEnvironments?.includes(environment),
+  }));
+
+  if (canEnterCustomEnvironment) {
+    choices.push({
       title: 'Other (enter custom environment)',
       value: CUSTOM_ENVIRONMENT_VALUE,
       selected: false,
-    },
-  ];
+    });
+  }
 
   const { environments } = await promptAsync({
     message: 'Select environment:',

@@ -315,6 +315,7 @@ export default class EnvUpdate extends EasCommand {
         environments = await promptVariableEnvironmentAsync({
           nonInteractive,
           multiple: true,
+          canEnterCustomEnvironment: true,
           selectedEnvironments: selectedVariable.environments ?? [],
           graphqlClient,
           projectId,

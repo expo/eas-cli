@@ -329,6 +329,7 @@ export default class EnvCreate extends EasCommand {
       newEnvironments = await promptVariableEnvironmentAsync({
         nonInteractive,
         multiple: true,
+        canEnterCustomEnvironment: true,
         graphqlClient,
         projectId,
       });

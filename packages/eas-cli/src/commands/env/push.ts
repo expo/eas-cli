@@ -59,6 +59,7 @@ export default class EnvPush extends EasCommand {
       environments = await promptVariableEnvironmentAsync({
         nonInteractive: false,
         multiple: true,
+        canEnterCustomEnvironment: true,
         graphqlClient,
         projectId,
       });
