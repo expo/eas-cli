@@ -48,7 +48,7 @@ async function resolveEnvVarsAsync({
   projectId: string;
 }): Promise<Env> {
   const environment =
-    buildProfile.environment?.toUpperCase() ??
+    buildProfile.environment ??
     resolveSuggestedEnvironmentForBuildProfileConfiguration(buildProfile);
 
   try {
