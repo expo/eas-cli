@@ -8,11 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Improvements to workflow:create. ([#3194](https://github.com/expo/eas-cli/pull/3194) by [@douglowder](https://github.com/douglowder))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [16.22.0](https://github.com/expo/eas-cli/releases/tag/v16.22.0) - 2025-10-13
+
+### 🎉 New features
+
+- Improvements to workflow:create. ([#3194](https://github.com/expo/eas-cli/pull/3194) by [@douglowder](https://github.com/douglowder))
 
 ## [16.21.0](https://github.com/expo/eas-cli/releases/tag/v16.21.0) - 2025-10-13
 
