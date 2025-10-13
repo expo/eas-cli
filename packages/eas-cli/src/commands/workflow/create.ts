@@ -13,6 +13,7 @@ import {
   WorkflowStarter,
   WorkflowStarterName,
   customizeTemplateIfNeededAsync,
+  howToRunWorkflow,
   workflowStarters,
 } from '../../commandUtils/workflow/creation';
 import {
@@ -65,7 +66,8 @@ export class WorkflowCreate extends EasCommand {
         withServerSideEnvironment: null,
       });
 
-      const { exp: expoConfig, projectId } = await getDynamicPrivateProjectConfigAsync();
+      const { exp: originalExpoConfig, projectId } = await getDynamicPrivateProjectConfigAsync();
+      let expoConfig = originalExpoConfig;
 
       let workflowStarter;
       while (!workflowStarter) {
@@ -98,6 +100,8 @@ export class WorkflowCreate extends EasCommand {
               workflowStarter = undefined;
               continue;
             }
+            // Need to refetch the Expo config because it may have changed
+            expoConfig = (await getDynamicPrivateProjectConfigAsync()).exp;
             break;
           }
           default:
@@ -135,6 +139,8 @@ export class WorkflowCreate extends EasCommand {
       await ensureWorkflowsDirectoryExistsAsync({ projectDir });
       filePath && (await fs.writeFile(filePath, yamlString));
       Log.withTick(`Created ${chalk.bold(filePath)}`);
+      Log.addNewLineIfNone();
+      Log.log(howToRunWorkflow(fileName, workflowStarter));
 
       // Next steps
       if (workflowStarter.nextSteps && workflowStarter.nextSteps.length > 0) {

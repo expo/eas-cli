@@ -140,7 +140,7 @@ export async function addProductionBuildProfileToEasJsonIfNeededAsync(
   return profileAdded;
 }
 
-async function hasBuildConfigureBeenRunAsync({
+export async function hasBuildConfigureBeenRunAsync({
   projectDir,
   expoConfig,
 }: {
@@ -161,7 +161,7 @@ async function hasBuildConfigureBeenRunAsync({
   return true;
 }
 
-async function hasUpdateConfigureBeenRunAsync({
+export async function hasUpdateConfigureBeenRunAsync({
   projectDir,
   expoConfig,
 }: {

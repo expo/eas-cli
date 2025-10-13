@@ -6,6 +6,8 @@ import {
   addIosDevelopmentBuildProfileToEasJsonAsync,
   addProductionBuildProfileToEasJsonIfNeededAsync,
   buildProfilesFromProjectAsync,
+  hasBuildConfigureBeenRunAsync,
+  hasUpdateConfigureBeenRunAsync,
   isBuildProfileForDevelopment,
   isIosBuildProfileForSimulator,
 } from './buildProfileUtils';
@@ -261,6 +263,34 @@ function nextStepForAppSubmission(): string {
     .trimStart();
 }
 
+export function howToRunWorkflow(
+  workflowFileName: string,
+  workflowStarter: WorkflowStarter
+): string {
+  const lines = [
+    `To run this workflow manually, use the command "eas workflow:run .eas/workflows/${workflowFileName}".`,
+  ];
+  if (workflowStarter.template?.on?.push?.branches?.length > 0) {
+    const branches = workflowStarter.template.on.push.branches;
+    if (branches.length === 1 && branches[0] === '*') {
+      lines.push(
+        'This workflow is also configured to run automatically when code is pushed to any branch.'
+      );
+    } else if (branches.length === 1) {
+      lines.push(
+        `This workflow is also configured to run automatically when code is pushed to the "${branches[0]}" branch.`
+      );
+    } else {
+      lines.push(
+        `This workflow is also configured to run automatically when code is pushed to the following branches: ${branches.join(
+          ', '
+        )}.`
+      );
+    }
+  }
+  return lines.join('\n');
+}
+
 export const workflowStarters: WorkflowStarter[] = [
   {
     displayName: 'Custom',
@@ -464,19 +494,40 @@ export async function ensureProductionBuildProfileExistsAsync(
 export async function customizeTemplateIfNeededAsync(
   workflowStarter: WorkflowStarter,
   projectDir: string,
-  exp: ExpoConfig
+  expoConfig: ExpoConfig
 ): Promise<any> {
+  // Ensure EAS Build is configured
   switch (workflowStarter.name) {
     case WorkflowStarterName.BUILD:
-      Log.debug('Adding build jobs to template...');
-      return await addBuildJobsToDevelopmentBuildTemplateAsync(projectDir, workflowStarter);
+    case WorkflowStarterName.DEPLOY:
     case WorkflowStarterName.UPDATE:
-      if (!exp?.updates?.url) {
+      if (!(await hasBuildConfigureBeenRunAsync({ projectDir, expoConfig }))) {
+        throw new Error(
+          'EAS Build is not configured for this project. Please run "eas build:configure" to configure it.'
+        );
+      }
+      break;
+    default:
+      break;
+  }
+  // Ensure EAS Update is configured
+  switch (workflowStarter.name) {
+    case WorkflowStarterName.DEPLOY:
+    case WorkflowStarterName.UPDATE:
+      if (!(await hasUpdateConfigureBeenRunAsync({ projectDir, expoConfig }))) {
         throw new Error(
           'EAS Update is not configured for this project. Please run "eas update:configure" to configure it.'
         );
       }
-      return workflowStarter;
+      break;
+    default:
+      break;
+  }
+  // Customize template
+  switch (workflowStarter.name) {
+    case WorkflowStarterName.BUILD:
+      Log.debug('Adding build jobs to template...');
+      return await addBuildJobsToDevelopmentBuildTemplateAsync(projectDir, workflowStarter);
     case WorkflowStarterName.DEPLOY:
       return await ensureProductionBuildProfileExistsAsync(projectDir, workflowStarter);
     default:
