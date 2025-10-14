@@ -38,7 +38,7 @@ import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../../
 import { Actor } from '../../user/User';
 
 export async function generateConfigsAsync(
-  flags: { name?: string; directory?: string },
+  args: { path?: string },
   actor: Actor
 ): Promise<{
   projectName: string;
@@ -46,8 +46,8 @@ export async function generateConfigsAsync(
   projectAccount: string;
 }> {
   const projectAccount = await promptForProjectAccountAsync(actor);
-  const projectName = await generateProjectNameAsync(actor, flags.name);
-  const projectDirectory = await generateDirectoryAsync(projectName, flags.directory);
+  const projectName = await generateProjectNameAsync(actor);
+  const projectDirectory = await generateDirectoryAsync(projectName, args.path);
 
   return {
     projectAccount,
@@ -187,17 +187,15 @@ export default class New extends EasCommand {
 
   static override description = "create a new project set up with Expo's services.";
 
+  static override args = [
+    {
+      name: 'path',
+      description: 'Path where to create the project (defaults to current directory)',
+      required: false,
+    },
+  ];
+
   static override flags = {
-    name: Flags.string({
-      char: 'n',
-      description: 'Name of the project',
-      helpValue: 'PROJECT_NAME',
-    }),
-    directory: Flags.string({
-      char: 'd',
-      description: 'Directory to create the project in',
-      helpValue: 'PROJECT_DIRECTORY',
-    }),
     'package-manager': Flags.enum<PackageManager>({
       char: 'p',
       description: 'Package manager to use for installing dependencies',
@@ -213,7 +211,7 @@ export default class New extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(New);
+    const { args, flags } = await this.parse(New);
 
     const {
       loggedIn: { actor, graphqlClient },
@@ -231,7 +229,7 @@ export default class New extends EasCommand {
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
     Log.newLine();
 
-    const initialConfigs = await generateConfigsAsync(flags, actor);
+    const initialConfigs = await generateConfigsAsync(args, actor);
     const {
       projectName,
       projectDirectory: targetProjectDirectory,

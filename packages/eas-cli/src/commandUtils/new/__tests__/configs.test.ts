@@ -45,15 +45,6 @@ describe('configs', () => {
   };
 
   describe('generateProjectNameAsync', () => {
-    it('should use project name from args when provided', async () => {
-      const projectNameFromArgs = 'my-test-app';
-      const result = await generateProjectNameAsync(jester, projectNameFromArgs);
-
-      expect(result).toBe(projectNameFromArgs);
-      logSpy.expectLogToContain(`Using project name from args: ${projectNameFromArgs}`);
-      expect(promptAsync).not.toHaveBeenCalled();
-    });
-
     it('should generate default project name when directory does not exist', async () => {
       (fs.pathExists as jest.Mock).mockResolvedValue(false);
 
@@ -90,7 +81,7 @@ describe('configs', () => {
   });
 
   describe('generateDirectoryAsync', () => {
-    it('should use default directory when no args provided', async () => {
+    it('should use default directory when no path provided', async () => {
       const result = await generateDirectoryAsync('test-project');
 
       expect(result).toContain('test-project');
@@ -98,13 +89,31 @@ describe('configs', () => {
       expect(promptAsync).not.toHaveBeenCalled();
     });
 
-    it('should handle the target directory from args', async () => {
-      const providedDirectory = '/test/provided-project';
-      const result = await generateDirectoryAsync('test-project', providedDirectory);
+    it('should handle absolute paths', async () => {
+      const absolutePath = '/absolute/path/to/project';
+      const result = await generateDirectoryAsync('test-project', absolutePath);
 
-      logSpy.expectLogToContain(`Using project directory from args: ${providedDirectory}`);
+      expect(result).toBe(absolutePath);
+      logSpy.expectLogToContain('Using absolute project directory:');
       expect(promptAsync).not.toHaveBeenCalled();
-      expect(result).toBe(providedDirectory);
+    });
+
+    it('should handle relative paths with slashes', async () => {
+      const relativePath = 'some/relative/path';
+      const result = await generateDirectoryAsync('test-project', relativePath);
+
+      expect(result).toContain('some/relative/path');
+      logSpy.expectLogToContain('Using relative project directory:');
+      expect(promptAsync).not.toHaveBeenCalled();
+    });
+
+    it('should handle simple directory name without slashes', async () => {
+      const simpleName = 'my-project';
+      const result = await generateDirectoryAsync('test-project', simpleName);
+
+      expect(result).toContain('my-project');
+      logSpy.expectLogToContain('Using project directory:');
+      expect(promptAsync).not.toHaveBeenCalled();
     });
   });
 

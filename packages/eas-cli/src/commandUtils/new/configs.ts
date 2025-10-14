@@ -7,15 +7,7 @@ import Log from '../../log';
 import { Choice, promptAsync, selectAsync } from '../../prompts';
 import { Actor, getActorUsername } from '../../user/User';
 
-export async function generateProjectNameAsync(
-  actor: Actor,
-  projectNameFromArgs?: string
-): Promise<string> {
-  if (projectNameFromArgs) {
-    Log.log(`Using project name from args: ${projectNameFromArgs}`);
-    return projectNameFromArgs;
-  }
-
+export async function generateProjectNameAsync(actor: Actor): Promise<string> {
   const baseDir = process.cwd();
   const baseName = 'new-expo-project';
 
@@ -45,16 +37,29 @@ export async function generateProjectNameAsync(
 
 export async function generateDirectoryAsync(
   projectName: string,
-  targetProjectDirFromArgs?: string
+  pathArg?: string
 ): Promise<string> {
-  if (targetProjectDirFromArgs) {
-    Log.log(`Using project directory from args: ${targetProjectDirFromArgs}`);
-    return targetProjectDirFromArgs;
+  let targetDirectory: string;
+
+  if (!pathArg) {
+    // No path provided, use current directory with project name
+    targetDirectory = path.join(process.cwd(), projectName);
+    Log.log(`Using default project directory: ${targetDirectory}`);
+  } else if (path.isAbsolute(pathArg)) {
+    // Absolute path, use as-is
+    targetDirectory = pathArg;
+    Log.log(`Using absolute project directory: ${targetDirectory}`);
+  } else if (pathArg.includes('/') || pathArg.includes(path.sep)) {
+    // Relative path with slashes, resolve from cwd
+    targetDirectory = path.resolve(process.cwd(), pathArg);
+    Log.log(`Using relative project directory: ${targetDirectory}`);
+  } else {
+    // No slashes, treat as subdirectory of cwd
+    targetDirectory = path.join(process.cwd(), pathArg);
+    Log.log(`Using project directory: ${targetDirectory}`);
   }
 
-  const defaultDirectory = path.join(process.cwd(), projectName);
-  Log.log(`Using default project directory: ${defaultDirectory}`);
-  return defaultDirectory;
+  return targetDirectory;
 }
 
 export async function promptForProjectAccountAsync(actor: Actor): Promise<string> {
