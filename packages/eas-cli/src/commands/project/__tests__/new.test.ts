@@ -139,4 +139,21 @@ describe(New.name, () => {
       );
     });
   });
+
+  describe('package manager flag', () => {
+    it('should use npm by default when no flag is provided', () => {
+      const flagDefinition = New.flags['package-manager'];
+      expect(flagDefinition.default).toBe('npm');
+    });
+
+    it('should accept valid package manager values', () => {
+      const flagDefinition = New.flags['package-manager'];
+      expect(flagDefinition.options).toEqual(['npm', 'yarn', 'pnpm', 'bun']);
+    });
+
+    it('should have the correct alias', () => {
+      const flagDefinition = New.flags['package-manager'];
+      expect(flagDefinition.char).toBe('p');
+    });
+  });
 });

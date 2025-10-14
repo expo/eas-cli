@@ -1,3 +1,4 @@
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -31,7 +32,7 @@ import { AppFragment } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { learnMore, link } from '../../log';
-import { PackageManager, promptForPackageManagerAsync } from '../../onboarding/installDependencies';
+import { PackageManager } from '../../onboarding/installDependencies';
 import { ora } from '../../ora';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { Actor } from '../../user/User';
@@ -191,7 +192,14 @@ export default class New extends EasCommand {
 
   static override description = "create a new project set up with Expo's services.";
 
-  static override flags = {};
+  static override flags = {
+    'package-manager': Flags.enum<PackageManager>({
+      char: 'p',
+      description: 'Package manager to use for installing dependencies',
+      options: ['npm', 'yarn', 'pnpm', 'bun'],
+      default: 'npm',
+    }),
+  };
 
   static override hidden = true;
 
@@ -202,7 +210,7 @@ export default class New extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { args } = (await this.parse(New)) as { args: NewArgs };
+    const { args, flags } = await this.parse(New);
 
     const {
       loggedIn: { actor, graphqlClient },
@@ -220,7 +228,7 @@ export default class New extends EasCommand {
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
     Log.newLine();
 
-    const promptedConfigs = await promptForConfigsAsync(args, actor);
+    const promptedConfigs = await promptForConfigsAsync(args as NewArgs, actor);
     const {
       projectName,
       projectDirectory: targetProjectDirectory,
@@ -229,7 +237,7 @@ export default class New extends EasCommand {
 
     const projectDirectory = await cloneTemplateAsync(targetProjectDirectory);
 
-    const packageManager = await promptForPackageManagerAsync();
+    const packageManager = flags['package-manager'];
     await installProjectDependenciesAsync(projectDirectory, packageManager);
 
     const projectId = await createProjectAsync({
