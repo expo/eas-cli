@@ -48,6 +48,7 @@ export async function installProjectDependenciesAsync(
       cwd: projectDir,
       command: 'npx',
       args: ['expo', 'install', dependency],
+      hideOutput: true,
     });
   }
 }

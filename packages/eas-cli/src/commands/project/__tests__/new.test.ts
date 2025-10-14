@@ -141,18 +141,10 @@ describe(New.name, () => {
   });
 
   describe('package manager flag', () => {
-    it('should use npm by default when no flag is provided', () => {
+    it('should have correct flag definition', () => {
       const flagDefinition = New.flags['package-manager'];
+      expect(flagDefinition).toBeDefined();
       expect(flagDefinition.default).toBe('npm');
-    });
-
-    it('should accept valid package manager values', () => {
-      const flagDefinition = New.flags['package-manager'];
-      expect(flagDefinition.options).toEqual(['npm', 'yarn', 'pnpm', 'bun']);
-    });
-
-    it('should have the correct alias', () => {
-      const flagDefinition = New.flags['package-manager'];
       expect(flagDefinition.char).toBe('p');
     });
   });

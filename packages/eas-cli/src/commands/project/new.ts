@@ -32,7 +32,7 @@ import { AppFragment } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
 import Log, { learnMore, link } from '../../log';
-import { PackageManager } from '../../onboarding/installDependencies';
+import { PACKAGE_MANAGERS, PackageManager } from '../../onboarding/installDependencies';
 import { ora } from '../../ora';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { Actor } from '../../user/User';
@@ -197,7 +197,7 @@ export default class New extends EasCommand {
     'package-manager': Flags.enum<PackageManager>({
       char: 'p',
       description: 'Package manager to use for installing dependencies',
-      options: ['npm', 'yarn', 'pnpm', 'bun'],
+      options: [...PACKAGE_MANAGERS],
       default: 'npm',
     }),
     'no-install': Flags.boolean({
