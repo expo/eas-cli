@@ -4,7 +4,6 @@ import { DefaultEnvironment } from '../build/utils/environment';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EnvironmentSecretType, EnvironmentVariableVisibility } from '../graphql/generated';
 import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
-import Log from '../log';
 import { RequestedPlatform } from '../platform';
 import { promptAsync, selectAsync } from '../prompts';
 
@@ -21,8 +20,7 @@ export async function getProjectEnvironmentVariableEnvironmentsAsync(
     );
     return environments;
   } catch {
-    Log.warn('Failed to fetch custom environments from API, falling back to default environments.');
-    return [];
+    throw new Error('Failed to fetch available environments');
   }
 }
 
