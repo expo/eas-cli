@@ -1,10 +1,10 @@
-import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { InvalidEasJsonError, MissingEasJsonError } from '@expo/eas-json/build/errors';
 import { CombinedError } from '@urql/core';
 import { promises as fs } from 'fs';
 import path from 'path';
 import * as YAML from 'yaml';
 
+import { buildProfileNamesFromProjectAsync } from './buildProfileUtils';
 import { getExpoApiWorkflowSchemaURL } from '../../api';
 import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
 import Log from '../../log';
@@ -102,11 +102,8 @@ async function validateWorkflowBuildJobsAsync(parsedYaml: any, projectDir: strin
   if (buildJobs.length === 0) {
     return;
   }
-  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+  const buildProfileNames = await buildProfileNamesFromProjectAsync(projectDir);
 
-  const buildProfileNames = new Set(
-    easJsonAccessor && (await EasJsonUtils.getBuildProfileNamesAsync(easJsonAccessor))
-  );
   const invalidBuildJobs = buildJobs.filter(
     job =>
       !buildProfileNames.has(job.value.params.profile) &&
@@ -165,11 +162,13 @@ function validateWorkflowStructure(parsedYaml: any, workflowJsonSchema: any): vo
   }
 }
 
-function parsedYamlFromWorkflowContents(workflowFileContents: {
-  yamlConfig: string;
-}): Promise<any> {
+export function parsedYamlFromWorkflowContents(workflowFileContents: { yamlConfig: string }): any {
   const parsedYaml = YAML.parse(workflowFileContents.yamlConfig);
   return parsedYaml;
+}
+
+export function workflowContentsFromParsedYaml(parsedYaml: any): string {
+  return YAML.stringify(parsedYaml);
 }
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type

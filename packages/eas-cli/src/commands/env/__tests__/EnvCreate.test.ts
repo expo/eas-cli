@@ -369,4 +369,42 @@ describe(EnvCreate, () => {
       );
     });
   });
+
+  it('accepts development environment when using positional argument', async () => {
+    const command = new EnvCreate(
+      [
+        'development',
+        '--name',
+        'TEST_VAR',
+        '--value',
+        'test-value',
+        '--visibility',
+        'plaintext',
+        '--scope',
+        'project',
+        '--non-interactive',
+      ],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: testProjectId,
+    });
+
+    await command.runAsync();
+
+    expect(EnvironmentVariableMutation.createForAppAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      {
+        name: 'TEST_VAR',
+        value: 'test-value',
+        environments: [EnvironmentVariableEnvironment.Development],
+        visibility: EnvironmentVariableVisibility.Public,
+        type: EnvironmentSecretType.String,
+      },
+      testProjectId
+    );
+  });
 });

@@ -95,6 +95,26 @@ describe(EnvList, () => {
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
   });
 
+  it('accepts development environment when using positional argument', async () => {
+    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce(mockVariables);
+
+    const command = new EnvList(['development'], mockConfig); // Using positional argument
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: testProjectId,
+    });
+
+    await command.runAsync();
+
+    expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: testProjectId,
+      environment: EnvironmentVariableEnvironment.Development,
+      includeFileContent: false,
+    });
+  });
+
   it('lists project environment variables including sensitive values', async () => {
     jest
       .mocked(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync)
