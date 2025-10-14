@@ -7,15 +7,17 @@ export type PackageManager = (typeof PACKAGE_MANAGERS)[number];
 export async function promptForPackageManagerAsync(): Promise<PackageManager> {
   return await selectAsync(
     'Which package manager would you like to use?',
-    PACKAGE_MANAGERS.map(manager => ({ title: manager, value: manager })),
+    (['bun', 'npm', 'pnpm', 'yarn'] as const).map(manager => ({ title: manager, value: manager })),
     { initial: 'npm' }
   );
 }
 
 export async function installDependenciesAsync({
+  outputLevel = 'default',
   projectDir,
   packageManager = 'npm',
 }: {
+  outputLevel?: 'default' | 'none';
   projectDir: string;
   packageManager?: PackageManager;
 }): Promise<void> {
@@ -23,6 +25,19 @@ export async function installDependenciesAsync({
     command: packageManager,
     args: ['install'],
     cwd: projectDir,
-    hideOutput: true,
+    shouldShowStderrLine: line => {
+      if (outputLevel === 'none') {
+        return false;
+      }
+
+      return (
+        !line.includes('WARN') &&
+        !line.includes('deprecated') &&
+        !line.includes('no longer maintained') &&
+        !line.includes('has been moved') &&
+        !(line === packageManager)
+      );
+    },
+    hideOutput: outputLevel === 'none',
   });
 }

@@ -38,6 +38,7 @@ export async function installProjectDependenciesAsync(
   packageManager: PackageManager
 ): Promise<void> {
   await installDependenciesAsync({
+    outputLevel: 'none',
     projectDir,
     packageManager,
   });

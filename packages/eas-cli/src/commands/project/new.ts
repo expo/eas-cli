@@ -37,13 +37,8 @@ import { ora } from '../../ora';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { Actor } from '../../user/User';
 
-interface NewArgs {
-  PROJECT_NAME: string;
-  PROJECT_DIRECTORY: string;
-}
-
 export async function promptForConfigsAsync(
-  args: NewArgs,
+  flags: { name?: string; directory?: string },
   actor: Actor
 ): Promise<{
   projectName: string;
@@ -51,8 +46,8 @@ export async function promptForConfigsAsync(
   projectAccount: string;
 }> {
   const projectAccount = await promptForProjectAccountAsync(actor);
-  const projectName = await promptForProjectNameAsync(actor, args.PROJECT_NAME);
-  const projectDirectory = await promptForTargetDirectoryAsync(projectName, args.PROJECT_DIRECTORY);
+  const projectName = await promptForProjectNameAsync(actor, flags.name);
+  const projectDirectory = await promptForTargetDirectoryAsync(projectName, flags.directory);
 
   return {
     projectAccount,
@@ -174,8 +169,7 @@ export async function createProjectAsync({
 export async function generateConfigFilesAsync(
   projectDir: string,
   app: AppFragment,
-  packageManager: PackageManager,
-  skipInstall: boolean = false
+  packageManager: PackageManager
 ): Promise<void> {
   await generateAppConfigAsync(projectDir, app);
 
@@ -185,7 +179,7 @@ export async function generateConfigFilesAsync(
 
   await copyProjectTemplatesAsync(projectDir);
 
-  await updateReadmeAsync(projectDir, packageManager, skipInstall);
+  await updateReadmeAsync(projectDir, packageManager);
 }
 
 export default class New extends EasCommand {
@@ -194,28 +188,32 @@ export default class New extends EasCommand {
   static override description = "create a new project set up with Expo's services.";
 
   static override flags = {
+    name: Flags.string({
+      char: 'n',
+      description: 'Name of the project',
+      helpValue: 'PROJECT_NAME',
+    }),
+    directory: Flags.string({
+      char: 'd',
+      description: 'Directory to create the project in',
+      helpValue: 'PROJECT_DIRECTORY',
+    }),
     'package-manager': Flags.enum<PackageManager>({
       char: 'p',
       description: 'Package manager to use for installing dependencies',
       options: [...PACKAGE_MANAGERS],
       default: 'npm',
     }),
-    'no-install': Flags.boolean({
-      description: 'Skip installing dependencies',
-      default: false,
-    }),
   };
 
   static override hidden = true;
-
-  static override args = [{ name: 'PROJECT_NAME' }, { name: 'PROJECT_DIRECTORY' }];
 
   static override contextDefinition = {
     ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
-    const { args, flags } = await this.parse(New);
+    const { flags } = await this.parse(New);
 
     const {
       loggedIn: { actor, graphqlClient },
@@ -233,7 +231,7 @@ export default class New extends EasCommand {
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
     Log.newLine();
 
-    const promptedConfigs = await promptForConfigsAsync(args as NewArgs, actor);
+    const promptedConfigs = await promptForConfigsAsync(flags, actor);
     const {
       projectName,
       projectDirectory: targetProjectDirectory,
@@ -243,9 +241,7 @@ export default class New extends EasCommand {
     const projectDirectory = await cloneTemplateAsync(targetProjectDirectory);
 
     const packageManager = flags['package-manager'];
-    if (!flags['no-install']) {
-      await installProjectDependenciesAsync(projectDirectory, packageManager);
-    }
+    await installProjectDependenciesAsync(projectDirectory, packageManager);
 
     const projectId = await createProjectAsync({
       projectDirectory,
@@ -256,7 +252,7 @@ export default class New extends EasCommand {
     });
 
     const app = await AppQuery.byIdAsync(graphqlClient, projectId);
-    await generateConfigFilesAsync(projectDirectory, app, packageManager, flags['no-install']);
+    await generateConfigFilesAsync(projectDirectory, app, packageManager);
 
     await initializeGitRepositoryAsync(projectDirectory);
 

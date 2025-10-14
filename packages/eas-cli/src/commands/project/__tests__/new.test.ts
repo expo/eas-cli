@@ -148,16 +148,4 @@ describe(New.name, () => {
       expect(flagDefinition.char).toBe('p');
     });
   });
-
-  describe('no-install flag', () => {
-    it('should default to false', () => {
-      const flagDefinition = New.flags['no-install'];
-      expect(flagDefinition.default).toBe(false);
-    });
-
-    it('should be a boolean flag', () => {
-      const flagDefinition = New.flags['no-install'];
-      expect(flagDefinition.type).toBe('boolean');
-    });
-  });
 });
