@@ -1,18 +1,11 @@
-import fs from 'fs-extra';
-
 import { LogSpy } from './testUtils';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { Role } from '../../../graphql/generated';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import {
-  verifyAccountPermissionsAsync,
-  verifyProjectDirectoryDoesNotExistAsync,
-  verifyProjectDoesNotExistAsync,
-} from '../verifications';
+import { verifyAccountPermissionsAsync, verifyProjectDoesNotExistAsync } from '../verifications';
 
 jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
-jest.mock('fs-extra');
 
 describe('verifications', () => {
   let logSpy: LogSpy;
@@ -160,27 +153,6 @@ describe('verifications', () => {
         'test-project'
       );
       logSpy.expectLogToContain('Project @test-account/test-project already exists on the server.');
-    });
-  });
-
-  describe('verifyProjectDirectoryDoesNotExistAsync', () => {
-    it('should return true when directory does not exist', async () => {
-      (fs.pathExists as jest.Mock).mockResolvedValue(false);
-
-      const result = await verifyProjectDirectoryDoesNotExistAsync('/non-existent-directory');
-
-      expect(result).toBe(true);
-      expect(fs.pathExists).toHaveBeenCalledWith('/non-existent-directory');
-    });
-
-    it('should return false when directory exists', async () => {
-      (fs.pathExists as jest.Mock).mockResolvedValue(true);
-
-      const result = await verifyProjectDirectoryDoesNotExistAsync('/existing-directory');
-
-      expect(result).toBe(false);
-      expect(fs.pathExists).toHaveBeenCalledWith('/existing-directory');
-      logSpy.expectLogToContain('Directory /existing-directory already exists.');
     });
   });
 });

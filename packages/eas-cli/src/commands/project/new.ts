@@ -11,8 +11,7 @@ import {
   installProjectDependenciesAsync,
 } from '../../commandUtils/new/commands';
 import {
-  generateDirectoryAsync,
-  generateProjectNameAsync,
+  generateProjectConfigAsync,
   promptForProjectAccountAsync,
   promptToChangeProjectNameOrAccountAsync,
 } from '../../commandUtils/new/configs';
@@ -25,7 +24,6 @@ import {
 } from '../../commandUtils/new/projectFiles';
 import {
   verifyAccountPermissionsAsync,
-  verifyProjectDirectoryDoesNotExistAsync,
   verifyProjectDoesNotExistAsync,
 } from '../../commandUtils/new/verifications';
 import { AppFragment } from '../../graphql/generated';
@@ -46,8 +44,7 @@ export async function generateConfigsAsync(
   projectAccount: string;
 }> {
   const projectAccount = await promptForProjectAccountAsync(actor);
-  const projectName = await generateProjectNameAsync(actor);
-  const projectDirectory = await generateDirectoryAsync(projectName, args.path);
+  const { projectName, projectDirectory } = await generateProjectConfigAsync(actor, args.path);
 
   return {
     projectAccount,
@@ -72,46 +69,25 @@ export async function verifyConfigsAsync(
   Log.gray('Verifying project values...');
 
   let { projectName, projectDirectory, projectAccount } = initialConfigs;
-  let allFieldsValid = false;
-  let retryCount = 0;
-  const maxRetries = 3;
 
-  while (!allFieldsValid && retryCount < maxRetries) {
-    retryCount++;
-
-    const hasPermissions = await verifyAccountPermissionsAsync(actor, projectAccount);
-    if (!hasPermissions) {
-      projectAccount = await promptForProjectAccountAsync(actor);
-    }
-
-    const projectDoesNotExist = await verifyProjectDoesNotExistAsync(
-      graphqlClient,
-      projectAccount,
-      projectName
-    );
-    if (!projectDoesNotExist) {
-      const prompted = await promptToChangeProjectNameOrAccountAsync(
-        actor,
-        projectName,
-        projectAccount
-      );
-      projectName = prompted.projectName;
-      projectAccount = prompted.projectAccount;
-    }
-
-    const directoryDoesNotExist = await verifyProjectDirectoryDoesNotExistAsync(projectDirectory);
-    if (!directoryDoesNotExist) {
-      projectDirectory = await generateDirectoryAsync(projectName);
-    }
-
-    allFieldsValid = hasPermissions && projectDoesNotExist && directoryDoesNotExist;
+  const hasPermissions = await verifyAccountPermissionsAsync(actor, projectAccount);
+  if (!hasPermissions) {
+    projectAccount = await promptForProjectAccountAsync(actor);
   }
 
-  // If we hit the retry limit, throw an error
-  if (!allFieldsValid) {
-    throw new Error(
-      'Unable to resolve project configuration conflicts after multiple attempts. Please try again with different values.'
+  const projectDoesNotExist = await verifyProjectDoesNotExistAsync(
+    graphqlClient,
+    projectAccount,
+    projectName
+  );
+  if (!projectDoesNotExist) {
+    const prompted = await promptToChangeProjectNameOrAccountAsync(
+      actor,
+      projectName,
+      projectAccount
     );
+    projectName = prompted.projectName;
+    projectAccount = prompted.projectAccount;
   }
 
   return {
@@ -185,12 +161,13 @@ export async function generateConfigFilesAsync(
 export default class New extends EasCommand {
   static override aliases = ['new'];
 
-  static override description = "create a new project set up with Expo's services.";
+  static override description =
+    'Create a new project configured with Expo Application Services (EAS)';
 
   static override args = [
     {
       name: 'path',
-      description: 'Path where to create the project (defaults to current directory)',
+      description: 'Path to create the project (defaults to current directory)',
       required: false,
     },
   ];

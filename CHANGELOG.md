@@ -10,7 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Multiple bugfixes and small features for the `eas:new` command: handle failures with user-prompted values; support `bun` as a package manager; ensure workflow files are in the correct location after build; update the generated project's README with the provided package manager; ensure `app.json`'s `scheme` is valid. ([#3205](https://github.com/expo/eas-cli/pull/3205) by [@mackenco](https://github.com/mackenco))
+- Multiple bugfixes and small features for the `eas:new` command: handle project name and directory generation more smoothly; support `bun` as a package manager; add `--package-manager` flag with a default to `npm`; ensure workflow files are in the correct location after build; update the generated project's README with the provided package manager; ensure `app.json`'s `scheme` is valid; silence lots of noisy output. ([#3205](https://github.com/expo/eas-cli/pull/3205) by [@mackenco](https://github.com/mackenco))
 
 ### 🧹 Chores
 

@@ -64,6 +64,7 @@ export async function initializeGitRepositoryAsync(projectDir: string): Promise<
       cwd: projectDir,
       command: 'git',
       args,
+      hideOutput: true,
     });
     Log.log();
   }

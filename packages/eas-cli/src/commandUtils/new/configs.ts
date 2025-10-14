@@ -7,59 +7,63 @@ import Log from '../../log';
 import { Choice, promptAsync, selectAsync } from '../../prompts';
 import { Actor, getActorUsername } from '../../user/User';
 
-export async function generateProjectNameAsync(actor: Actor): Promise<string> {
-  const baseDir = process.cwd();
-  const baseName = 'new-expo-project';
-
-  // Try base name first
-  const basePath = path.join(baseDir, baseName);
-  if (!(await fs.pathExists(basePath))) {
-    Log.log(`Using default project name: ${baseName}`);
-    return baseName;
-  }
-
-  // Try with username-date
-  const username = getActorUsername(actor);
-  const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  const nameWithUsernameDate = `${baseName}-${username}-${date}`;
-  const pathWithUsernameDate = path.join(baseDir, nameWithUsernameDate);
-  if (!(await fs.pathExists(pathWithUsernameDate))) {
-    Log.log(`Using default project name: ${nameWithUsernameDate}`);
-    return nameWithUsernameDate;
-  }
-
-  // Try with short ID
-  const shortId = nanoid(6);
-  const nameWithShortId = `${baseName}-${shortId}`;
-  Log.log(`Using default project name: ${nameWithShortId}`);
-  return nameWithShortId;
-}
-
-export async function generateDirectoryAsync(
-  projectName: string,
+export async function generateProjectConfigAsync(
+  actor: Actor,
   pathArg?: string
-): Promise<string> {
+): Promise<{
+  projectName: string;
+  projectDirectory: string;
+}> {
+  // Step 1: Determine the target directory
   let targetDirectory: string;
-
   if (!pathArg) {
-    // No path provided, use current directory with project name
-    targetDirectory = path.join(process.cwd(), projectName);
-    Log.log(`Using default project directory: ${targetDirectory}`);
+    // No path provided - we'll use cwd
+    targetDirectory = process.cwd();
   } else if (path.isAbsolute(pathArg)) {
-    // Absolute path, use as-is
+    // Absolute path provided - use as-is
     targetDirectory = pathArg;
-    Log.log(`Using absolute project directory: ${targetDirectory}`);
-  } else if (pathArg.includes('/') || pathArg.includes(path.sep)) {
-    // Relative path with slashes, resolve from cwd
-    targetDirectory = path.resolve(process.cwd(), pathArg);
-    Log.log(`Using relative project directory: ${targetDirectory}`);
   } else {
-    // No slashes, treat as subdirectory of cwd
-    targetDirectory = path.join(process.cwd(), pathArg);
-    Log.log(`Using project directory: ${targetDirectory}`);
+    // TODO this didn't work
+    // Relative path provided - resolve from cwd
+    targetDirectory = path.resolve(process.cwd(), pathArg);
   }
 
-  return targetDirectory;
+  // Step 2: Generate project name based on what's available in the target directory
+  const baseName = 'new-expo-project';
+  let projectName = baseName;
+
+  if (targetDirectory === process.cwd()) {
+    const username = getActorUsername(actor);
+    const date = new Date().toISOString().split('T')[0];
+
+    // Try different name combinations until we find one that doesn't exist
+    const nameOptions = [
+      baseName,
+      `${baseName}-${username}-${date}`,
+      `${baseName}-${username}-${date}-${nanoid(6)}`,
+    ];
+
+    for (const option of nameOptions) {
+      if (!(await fs.pathExists(path.join(targetDirectory, option)))) {
+        projectName = option;
+        break;
+      }
+    }
+
+    // Append the generated name to the target directory
+    targetDirectory = path.join(targetDirectory, projectName);
+  } else {
+    // Path was explicitly provided, use the last segment as the project name
+    projectName = path.basename(targetDirectory);
+  }
+
+  Log.log(`Using project name: ${projectName}`);
+  Log.log(`Using project directory: ${targetDirectory}`);
+
+  return {
+    projectName,
+    projectDirectory: targetDirectory,
+  };
 }
 
 export async function promptForProjectAccountAsync(actor: Actor): Promise<string> {
@@ -124,7 +128,8 @@ export async function promptToChangeProjectNameOrAccountAsync(
   );
 
   if (selection === 'name') {
-    projectName = await generateProjectNameAsync(actor);
+    const config = await generateProjectConfigAsync(actor);
+    projectName = config.projectName;
   } else {
     projectAccount = await promptForProjectAccountAsync(actor);
   }

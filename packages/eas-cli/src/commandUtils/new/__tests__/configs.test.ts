@@ -4,8 +4,7 @@ import { LogSpy } from './testUtils';
 import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { promptAsync, selectAsync } from '../../../prompts';
 import {
-  generateDirectoryAsync,
-  generateProjectNameAsync,
+  generateProjectConfigAsync,
   getAccountChoices,
   promptForProjectAccountAsync,
   promptToChangeProjectNameOrAccountAsync,
@@ -44,76 +43,68 @@ describe('configs', () => {
     jest.mocked(promptAsync).mockResolvedValue(inputValue);
   };
 
-  describe('generateProjectNameAsync', () => {
-    it('should generate default project name when directory does not exist', async () => {
-      (fs.pathExists as jest.Mock).mockResolvedValue(false);
+  describe('generateProjectConfigAsync', () => {
+    describe('when no path is provided', () => {
+      it('should generate name and directory when base name is available', async () => {
+        (fs.pathExists as jest.Mock).mockResolvedValue(false);
 
-      const result = await generateProjectNameAsync(jester);
+        const result = await generateProjectConfigAsync(jester);
 
-      expect(result).toBe('new-expo-project');
-      logSpy.expectLogToContain('Using default project name: new-expo-project');
-      expect(promptAsync).not.toHaveBeenCalled();
+        expect(result.projectName).toBe('new-expo-project');
+        expect(result.projectDirectory).toContain('new-expo-project');
+        logSpy.expectLogToContain('Using project name: new-expo-project');
+        expect(promptAsync).not.toHaveBeenCalled();
+      });
+
+      it('should use username-date when base name exists', async () => {
+        (fs.pathExists as jest.Mock)
+          .mockResolvedValueOnce(true) // base name exists
+          .mockResolvedValueOnce(false); // username-date doesn't exist
+
+        const result = await generateProjectConfigAsync(jester);
+
+        expect(result.projectName).toMatch(/^new-expo-project-jester-\d{4}-\d{2}-\d{2}$/);
+        expect(result.projectDirectory).toContain(result.projectName);
+        logSpy.expectLogToContain('Using project name:');
+        expect(promptAsync).not.toHaveBeenCalled();
+      });
+
+      it('should use username-date-shortID when base name and username-date exist', async () => {
+        (fs.pathExists as jest.Mock)
+          .mockResolvedValueOnce(true) // base name exists
+          .mockResolvedValueOnce(true); // username-date exists
+
+        const result = await generateProjectConfigAsync(jester);
+
+        expect(result.projectName).toMatch(
+          /^new-expo-project-jester-\d{4}-\d{2}-\d{2}-[a-zA-Z0-9_-]{6}$/
+        );
+        expect(result.projectDirectory).toContain(result.projectName);
+        logSpy.expectLogToContain('Using project name:');
+        expect(promptAsync).not.toHaveBeenCalled();
+      });
     });
 
-    it('should generate name with username-date when base name exists', async () => {
-      (fs.pathExists as jest.Mock)
-        .mockResolvedValueOnce(true) // base name exists
-        .mockResolvedValueOnce(false); // username-date doesn't exist
+    describe('when path is provided', () => {
+      it('should use absolute path and extract name from basename', async () => {
+        const absolutePath = '/absolute/path/to/my-project';
+        const result = await generateProjectConfigAsync(jester, absolutePath);
 
-      const result = await generateProjectNameAsync(jester);
+        expect(result.projectName).toBe('my-project');
+        expect(result.projectDirectory).toBe(absolutePath);
+        logSpy.expectLogToContain('Using project directory:');
+        expect(promptAsync).not.toHaveBeenCalled();
+      });
 
-      expect(result).toMatch(/^new-expo-project-jester-\d{4}-\d{2}-\d{2}$/);
-      logSpy.expectLogToContain('Using default project name:');
-      expect(promptAsync).not.toHaveBeenCalled();
-    });
+      it('should resolve relative path and extract name from basename', async () => {
+        const relativePath = 'some/relative/my-app';
+        const result = await generateProjectConfigAsync(jester, relativePath);
 
-    it('should generate name with short ID when base name and username-date exist', async () => {
-      (fs.pathExists as jest.Mock)
-        .mockResolvedValueOnce(true) // base name exists
-        .mockResolvedValueOnce(true); // username-date exists
-
-      const result = await generateProjectNameAsync(jester);
-
-      expect(result).toMatch(/^new-expo-project-[a-zA-Z0-9_-]{6}$/);
-      logSpy.expectLogToContain('Using default project name:');
-      expect(promptAsync).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('generateDirectoryAsync', () => {
-    it('should use default directory when no path provided', async () => {
-      const result = await generateDirectoryAsync('test-project');
-
-      expect(result).toContain('test-project');
-      logSpy.expectLogToContain('Using default project directory:');
-      expect(promptAsync).not.toHaveBeenCalled();
-    });
-
-    it('should handle absolute paths', async () => {
-      const absolutePath = '/absolute/path/to/project';
-      const result = await generateDirectoryAsync('test-project', absolutePath);
-
-      expect(result).toBe(absolutePath);
-      logSpy.expectLogToContain('Using absolute project directory:');
-      expect(promptAsync).not.toHaveBeenCalled();
-    });
-
-    it('should handle relative paths with slashes', async () => {
-      const relativePath = 'some/relative/path';
-      const result = await generateDirectoryAsync('test-project', relativePath);
-
-      expect(result).toContain('some/relative/path');
-      logSpy.expectLogToContain('Using relative project directory:');
-      expect(promptAsync).not.toHaveBeenCalled();
-    });
-
-    it('should handle simple directory name without slashes', async () => {
-      const simpleName = 'my-project';
-      const result = await generateDirectoryAsync('test-project', simpleName);
-
-      expect(result).toContain('my-project');
-      logSpy.expectLogToContain('Using project directory:');
-      expect(promptAsync).not.toHaveBeenCalled();
+        expect(result.projectName).toBe('my-app');
+        expect(result.projectDirectory).toContain('some/relative/my-app');
+        logSpy.expectLogToContain('Using project directory:');
+        expect(promptAsync).not.toHaveBeenCalled();
+      });
     });
   });
 

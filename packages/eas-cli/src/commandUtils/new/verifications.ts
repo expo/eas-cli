@@ -1,5 +1,3 @@
-import fs from 'fs-extra';
-
 import { Role } from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
@@ -42,15 +40,4 @@ export async function verifyProjectDoesNotExistAsync(
   }
 
   return doesNotExist;
-}
-
-export async function verifyProjectDirectoryDoesNotExistAsync(
-  projectDirectory: string
-): Promise<boolean> {
-  const directoryExists = await fs.pathExists(projectDirectory);
-  if (directoryExists) {
-    Log.warn(`Directory ${projectDirectory} already exists.`);
-  }
-
-  return !directoryExists;
 }

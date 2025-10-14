@@ -85,27 +85,6 @@ describe(New.name, () => {
 
       expect(result).toBeDefined();
     });
-
-    it('should handle max retries failure', async () => {
-      const mockGraphqlClient = {} as ExpoGraphqlClient;
-      const configs = {
-        projectName: 'test',
-        projectDirectory: 'test',
-        projectAccount: 'test',
-      };
-
-      // Mock verification functions to always fail
-      const { verifyAccountPermissionsAsync } = require('../../../commandUtils/new/verifications');
-      verifyAccountPermissionsAsync.mockResolvedValue(false);
-
-      // Mock promptForProjectAccountAsync to return the same account (so it keeps failing)
-      const { promptAsync } = require('../../../prompts');
-      promptAsync.mockResolvedValue({ account: { name: 'test' } });
-
-      await expect(verifyConfigsAsync(configs, jester, mockGraphqlClient)).rejects.toThrow(
-        'Unable to resolve project configuration conflicts after multiple attempts. Please try again with different values.'
-      );
-    });
   });
 
   describe('createProjectAsync', () => {
