@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add --force flag to eas env:push command to bypass confirmation prompts. ([#3135](https://github.com/expo/eas-cli/pull/3135) by [@giorgiofellipe](https://github.com/giorgiofellipe))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
