@@ -128,8 +128,8 @@ export default class EnvPush extends EasCommand {
           const confirmationMessage =
             variableNames.length > 1
               ? `The ${variableNames.join(
-                ', '
-              )} environment variables already exist in ${displayedEnvironment} environment. Do you want to override them all?`
+                  ', '
+                )} environment variables already exist in ${displayedEnvironment} environment. Do you want to override them all?`
               : `The ${variableNames[0]} environment variable already exists in ${displayedEnvironment} environment. Do you want to override it?`;
 
           const confirm = await confirmAsync({
@@ -150,8 +150,9 @@ export default class EnvPush extends EasCommand {
               // @ts-expect-error property missing from `@types/prompts`
               optionsPerPage: 20,
               choices: existingDifferentVariables.map(variable => ({
-                title: `${variable.name}: ${updateVariables[variable.name].value} (was ${variable.value ?? '(secret)'
-                  })`,
+                title: `${variable.name}: ${updateVariables[variable.name].value} (was ${
+                  variable.value ?? '(secret)'
+                })`,
                 value: variable.name,
               })),
             });
@@ -207,7 +208,11 @@ export default class EnvPush extends EasCommand {
   }
 
   parseFlagsAndArgs(
-    flags: { path: string; environment: EnvironmentVariableEnvironment[] | undefined; force: boolean },
+    flags: {
+      path: string;
+      environment: EnvironmentVariableEnvironment[] | undefined;
+      force: boolean;
+    },
     { environment }: Record<string, string>
   ): { environment?: EnvironmentVariableEnvironment[]; path: string; force: boolean } {
     if (environment && !isEnvironment(environment.toLowerCase())) {
