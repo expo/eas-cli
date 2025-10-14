@@ -7,13 +7,17 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🛠 Breaking changes
 
 ### 🎉 New features
-- Support custom environment variable environments ([#3220](https://github.com/expo/eas-cli/pull/3220) by [@kadikraman](https://github.com/kadikraman))
-
-- Add --force flag to eas env:push command to bypass confirmation prompts. ([#3135](https://github.com/expo/eas-cli/pull/3135) by [@giorgiofellipe](https://github.com/giorgiofellipe))
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [16.23.0](https://github.com/expo/eas-cli/releases/tag/v16.23.0) - 2025-10-14
+
+### 🎉 New features
+
+- Support custom environment variable environments ([#3220](https://github.com/expo/eas-cli/pull/3220) by [@kadikraman](https://github.com/kadikraman))
+- Add --force flag to eas env:push command to bypass confirmation prompts. ([#3135](https://github.com/expo/eas-cli/pull/3135) by [@giorgiofellipe](https://github.com/giorgiofellipe))
 
 ## [16.22.0](https://github.com/expo/eas-cli/releases/tag/v16.22.0) - 2025-10-13
 
