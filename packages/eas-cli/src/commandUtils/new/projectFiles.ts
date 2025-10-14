@@ -156,13 +156,29 @@ export async function copyProjectTemplatesAsync(projectDir: string): Promise<voi
 
 export async function updateReadmeAsync(
   projectDir: string,
-  packageManager: PackageManager
+  packageManager: PackageManager,
+  skipInstall: boolean = false
 ): Promise<void> {
   const readmeTemplatePath = path.join(__dirname, 'templates', 'readme-additions.md');
   const projectReadmePath = path.join(projectDir, 'README.md');
 
-  const readmeAdditions = await fs.readFile(readmeTemplatePath, 'utf8');
+  let readmeAdditions = await fs.readFile(readmeTemplatePath, 'utf8');
   const existingReadme = await fs.readFile(projectReadmePath, 'utf8');
+
+  // Add installation instructions if dependencies were skipped
+  if (skipInstall) {
+    const installCommand = packageManager === 'npm' ? 'npm install' : `${packageManager} install`;
+    const installSection = `## Get started
+
+First, install the dependencies:
+
+\`\`\`bash
+${installCommand}
+\`\`\`
+
+Then, to start the app, in your terminal run:`;
+    readmeAdditions = readmeAdditions.replace('## Get started\n\nTo start the app, in your terminal run:', installSection);
+  }
 
   const targetSection = '## Get started';
   const sectionIndex = existingReadme.indexOf(targetSection);

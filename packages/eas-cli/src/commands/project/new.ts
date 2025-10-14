@@ -174,7 +174,8 @@ export async function createProjectAsync({
 export async function generateConfigFilesAsync(
   projectDir: string,
   app: AppFragment,
-  packageManager: PackageManager
+  packageManager: PackageManager,
+  skipInstall: boolean = false
 ): Promise<void> {
   await generateAppConfigAsync(projectDir, app);
 
@@ -184,7 +185,7 @@ export async function generateConfigFilesAsync(
 
   await copyProjectTemplatesAsync(projectDir);
 
-  await updateReadmeAsync(projectDir, packageManager);
+  await updateReadmeAsync(projectDir, packageManager, skipInstall);
 }
 
 export default class New extends EasCommand {
@@ -198,6 +199,10 @@ export default class New extends EasCommand {
       description: 'Package manager to use for installing dependencies',
       options: ['npm', 'yarn', 'pnpm', 'bun'],
       default: 'npm',
+    }),
+    'no-install': Flags.boolean({
+      description: 'Skip installing dependencies',
+      default: false,
     }),
   };
 
@@ -238,7 +243,9 @@ export default class New extends EasCommand {
     const projectDirectory = await cloneTemplateAsync(targetProjectDirectory);
 
     const packageManager = flags['package-manager'];
-    await installProjectDependenciesAsync(projectDirectory, packageManager);
+    if (!flags['no-install']) {
+      await installProjectDependenciesAsync(projectDirectory, packageManager);
+    }
 
     const projectId = await createProjectAsync({
       projectDirectory,
@@ -249,7 +256,7 @@ export default class New extends EasCommand {
     });
 
     const app = await AppQuery.byIdAsync(graphqlClient, projectId);
-    await generateConfigFilesAsync(projectDirectory, app, packageManager);
+    await generateConfigFilesAsync(projectDirectory, app, packageManager, flags['no-install']);
 
     await initializeGitRepositoryAsync(projectDirectory);
 
