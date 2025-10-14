@@ -11,6 +11,8 @@ import { pack } from 'tar-stream';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
 
+const EXPO_ROUTES_PATHS = new Set(['_expo/routes.json', '_expo/.routes.json', '.expo-routes.json']);
+
 /** Returns whether a file or folder is ignored */
 function isIgnoredName(name: string): boolean {
   switch (name) {
@@ -113,6 +115,8 @@ export async function collectAssetsAsync(
         throw new Error(
           `Upload of "${file.normalizedPath}" aborted: File size is greater than the upload limit (>500MB)`
         );
+      } else if (EXPO_ROUTES_PATHS.has(file.normalizedPath)) {
+        continue;
       }
       const sha512$ = computeSha512HashAsync(file.path);
       const contentType$ = determineMimeTypeAsync(file.path);
@@ -126,6 +130,31 @@ export async function collectAssetsAsync(
     }
   }
   return assets;
+}
+
+export interface RoutesConfigEntry {
+  headers?: Record<string, unknown>;
+  redirects?: Record<string, unknown>[];
+}
+
+export async function getRoutesConfigAsync(
+  assetPath: string | undefined
+): Promise<RoutesConfigEntry | null> {
+  if (assetPath) {
+    for (const candidatePath of EXPO_ROUTES_PATHS) {
+      const targetPath = path.resolve(assetPath, candidatePath);
+      let json: unknown;
+      try {
+        json = JSON.parse(await fs.promises.readFile(targetPath, 'utf8'));
+      } catch {
+        continue;
+      }
+      if (typeof json === 'object' && json) {
+        return json as RoutesConfigEntry;
+      }
+    }
+  }
+  return null;
 }
 
 /** Mapping of normalized file paths to a SHA512 hash */

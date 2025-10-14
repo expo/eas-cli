@@ -9,9 +9,26 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 - Support custom environment variable environments ([#3220](https://github.com/expo/eas-cli/pull/3220) by [@kadikraman](https://github.com/kadikraman))
 
+- Add --force flag to eas env:push command to bypass confirmation prompts. ([#3135](https://github.com/expo/eas-cli/pull/3135) by [@giorgiofellipe](https://github.com/giorgiofellipe))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [16.22.0](https://github.com/expo/eas-cli/releases/tag/v16.22.0) - 2025-10-13
+
+### 🎉 New features
+
+- Improvements to workflow:create. ([#3194](https://github.com/expo/eas-cli/pull/3194) by [@douglowder](https://github.com/douglowder))
+
+## [16.21.0](https://github.com/expo/eas-cli/releases/tag/v16.21.0) - 2025-10-13
+
+### 🎉 New features
+
+- Support `_expo/.routes.json` metadata file exported by `@expo/cli` for headers configuration on static deployments ([#3211](https://github.com/expo/eas-cli/pull/3211) by [@kitten](https://github.com/kitten))
+
+### 🧹 Chores
+
 - Add thorough tests for the env commands ([#3217](https://github.com/expo/eas-cli/pull/3217) by [@kadikraman](https://github.com/kadikraman))
 
 ## [16.20.4](https://github.com/expo/eas-cli/releases/tag/v16.20.4) - 2025-10-08
