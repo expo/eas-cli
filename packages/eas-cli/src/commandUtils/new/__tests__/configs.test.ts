@@ -1,18 +1,21 @@
+import fs from 'fs-extra';
+
 import { LogSpy } from './testUtils';
 import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { promptAsync, selectAsync } from '../../../prompts';
 import {
+  generateDirectoryAsync,
+  generateProjectNameAsync,
   getAccountChoices,
   promptForProjectAccountAsync,
-  promptForProjectNameAsync,
-  promptForTargetDirectoryAsync,
   promptToChangeProjectNameOrAccountAsync,
-} from '../prompts';
+} from '../configs';
 
 jest.mock('../../../prompts');
 jest.mock('../../../log');
+jest.mock('fs-extra');
 
-describe('prompts', () => {
+describe('configs', () => {
   let logSpy: LogSpy;
 
   beforeAll(() => {
@@ -41,41 +44,63 @@ describe('prompts', () => {
     jest.mocked(promptAsync).mockResolvedValue(inputValue);
   };
 
-  describe('promptForProjectNameAsync', () => {
+  describe('generateProjectNameAsync', () => {
     it('should use project name from args when provided', async () => {
       const projectNameFromArgs = 'my-test-app';
-      const result = await promptForProjectNameAsync(jester, projectNameFromArgs);
+      const result = await generateProjectNameAsync(jester, projectNameFromArgs);
 
       expect(result).toBe(projectNameFromArgs);
       logSpy.expectLogToContain(`Using project name from args: ${projectNameFromArgs}`);
       expect(promptAsync).not.toHaveBeenCalled();
     });
 
-    it('should prompt for project name when not provided in args', async () => {
-      const promptedProjectName = 'prompted-app-name';
-      mockUserInput({ projectName: promptedProjectName });
+    it('should generate default project name when directory does not exist', async () => {
+      (fs.pathExists as jest.Mock).mockResolvedValue(false);
 
-      const result = await promptForProjectNameAsync(jester);
+      const result = await generateProjectNameAsync(jester);
 
-      expect(result).toBe(promptedProjectName);
-      expectPromptToHaveMessage('What is the name of your project?');
+      expect(result).toBe('new-expo-project');
+      logSpy.expectLogToContain('Using default project name: new-expo-project');
+      expect(promptAsync).not.toHaveBeenCalled();
+    });
+
+    it('should generate name with username-date when base name exists', async () => {
+      (fs.pathExists as jest.Mock)
+        .mockResolvedValueOnce(true) // base name exists
+        .mockResolvedValueOnce(false); // username-date doesn't exist
+
+      const result = await generateProjectNameAsync(jester);
+
+      expect(result).toMatch(/^new-expo-project-jester-\d{4}-\d{2}-\d{2}$/);
+      logSpy.expectLogToContain('Using default project name:');
+      expect(promptAsync).not.toHaveBeenCalled();
+    });
+
+    it('should generate name with short ID when base name and username-date exist', async () => {
+      (fs.pathExists as jest.Mock)
+        .mockResolvedValueOnce(true) // base name exists
+        .mockResolvedValueOnce(true); // username-date exists
+
+      const result = await generateProjectNameAsync(jester);
+
+      expect(result).toMatch(/^new-expo-project-[a-zA-Z0-9_-]{6}$/);
+      logSpy.expectLogToContain('Using default project name:');
+      expect(promptAsync).not.toHaveBeenCalled();
     });
   });
 
-  describe('promptForTargetDirectoryAsync', () => {
-    it('should prompt for target directory', async () => {
-      const promptedDirectory = '/test/prompted-project';
-      mockUserInput({ targetProjectDir: promptedDirectory });
+  describe('generateDirectoryAsync', () => {
+    it('should use default directory when no args provided', async () => {
+      const result = await generateDirectoryAsync('test-project');
 
-      const result = await promptForTargetDirectoryAsync('test-project');
-
-      expectPromptToHaveMessage('Where would you like to create your new project?');
-      expect(result).toBe(promptedDirectory);
+      expect(result).toContain('test-project');
+      logSpy.expectLogToContain('Using default project directory:');
+      expect(promptAsync).not.toHaveBeenCalled();
     });
 
     it('should handle the target directory from args', async () => {
       const providedDirectory = '/test/provided-project';
-      const result = await promptForTargetDirectoryAsync('test-project', providedDirectory);
+      const result = await generateDirectoryAsync('test-project', providedDirectory);
 
       logSpy.expectLogToContain(`Using project directory from args: ${providedDirectory}`);
       expect(promptAsync).not.toHaveBeenCalled();
@@ -121,10 +146,9 @@ describe('prompts', () => {
   });
 
   describe('promptToChangeProjectNameOrAccountAsync', () => {
-    it('should prompt to change a project name', async () => {
-      const newProjectName = 'new-project-name';
+    it('should generate a new project name when changing name', async () => {
       jest.mocked(selectAsync).mockResolvedValue('name');
-      mockUserInput({ projectName: newProjectName });
+      (fs.pathExists as jest.Mock).mockResolvedValue(false);
 
       const result = await promptToChangeProjectNameOrAccountAsync(
         jester,
@@ -132,10 +156,9 @@ describe('prompts', () => {
         'old-account'
       );
 
-      expect(result).toEqual({
-        projectName: newProjectName,
-        projectAccount: 'old-account', // Account should remain unchanged
-      });
+      expect(result.projectName).toBe('new-expo-project'); // Generated default
+      expect(result.projectAccount).toBe('old-account'); // Account should remain unchanged
+      expect(promptAsync).not.toHaveBeenCalled();
     });
 
     it('should prompt to change a project account', async () => {

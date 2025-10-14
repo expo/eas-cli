@@ -1,3 +1,5 @@
+import fs from 'fs-extra';
+import { nanoid } from 'nanoid';
 import path from 'path';
 
 import { Role } from '../../graphql/generated';
@@ -5,7 +7,7 @@ import Log from '../../log';
 import { Choice, promptAsync, selectAsync } from '../../prompts';
 import { Actor, getActorUsername } from '../../user/User';
 
-export async function promptForProjectNameAsync(
+export async function generateProjectNameAsync(
   actor: Actor,
   projectNameFromArgs?: string
 ): Promise<string> {
@@ -14,17 +16,34 @@ export async function promptForProjectNameAsync(
     return projectNameFromArgs;
   }
 
-  return (
-    await promptAsync({
-      type: 'text',
-      name: 'projectName',
-      message: 'What is the name of your project?',
-      initial: getActorUsername(actor) + '-app',
-    })
-  ).projectName;
+  const baseDir = process.cwd();
+  const baseName = 'new-expo-project';
+
+  // Try base name first
+  const basePath = path.join(baseDir, baseName);
+  if (!(await fs.pathExists(basePath))) {
+    Log.log(`Using default project name: ${baseName}`);
+    return baseName;
+  }
+
+  // Try with username-date
+  const username = getActorUsername(actor);
+  const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const nameWithUsernameDate = `${baseName}-${username}-${date}`;
+  const pathWithUsernameDate = path.join(baseDir, nameWithUsernameDate);
+  if (!(await fs.pathExists(pathWithUsernameDate))) {
+    Log.log(`Using default project name: ${nameWithUsernameDate}`);
+    return nameWithUsernameDate;
+  }
+
+  // Try with short ID
+  const shortId = nanoid(6);
+  const nameWithShortId = `${baseName}-${shortId}`;
+  Log.log(`Using default project name: ${nameWithShortId}`);
+  return nameWithShortId;
 }
 
-export async function promptForTargetDirectoryAsync(
+export async function generateDirectoryAsync(
   projectName: string,
   targetProjectDirFromArgs?: string
 ): Promise<string> {
@@ -33,14 +52,9 @@ export async function promptForTargetDirectoryAsync(
     return targetProjectDirFromArgs;
   }
 
-  return (
-    await promptAsync({
-      type: 'text',
-      name: 'targetProjectDir',
-      message: 'Where would you like to create your new project?',
-      initial: path.join(process.cwd(), projectName),
-    })
-  ).targetProjectDir;
+  const defaultDirectory = path.join(process.cwd(), projectName);
+  Log.log(`Using default project directory: ${defaultDirectory}`);
+  return defaultDirectory;
 }
 
 export async function promptForProjectAccountAsync(actor: Actor): Promise<string> {
@@ -105,7 +119,7 @@ export async function promptToChangeProjectNameOrAccountAsync(
   );
 
   if (selection === 'name') {
-    projectName = await promptForProjectNameAsync(actor);
+    projectName = await generateProjectNameAsync(actor);
   } else {
     projectAccount = await promptForProjectAccountAsync(actor);
   }

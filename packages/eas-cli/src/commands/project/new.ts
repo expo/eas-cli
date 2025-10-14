@@ -11,18 +11,18 @@ import {
   installProjectDependenciesAsync,
 } from '../../commandUtils/new/commands';
 import {
+  generateDirectoryAsync,
+  generateProjectNameAsync,
+  promptForProjectAccountAsync,
+  promptToChangeProjectNameOrAccountAsync,
+} from '../../commandUtils/new/configs';
+import {
   copyProjectTemplatesAsync,
   generateAppConfigAsync,
   generateEasConfigAsync,
   updatePackageJsonAsync,
   updateReadmeAsync,
 } from '../../commandUtils/new/projectFiles';
-import {
-  promptForProjectAccountAsync,
-  promptForProjectNameAsync,
-  promptForTargetDirectoryAsync,
-  promptToChangeProjectNameOrAccountAsync,
-} from '../../commandUtils/new/prompts';
 import {
   verifyAccountPermissionsAsync,
   verifyProjectDirectoryDoesNotExistAsync,
@@ -37,7 +37,7 @@ import { ora } from '../../ora';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { Actor } from '../../user/User';
 
-export async function promptForConfigsAsync(
+export async function generateConfigsAsync(
   flags: { name?: string; directory?: string },
   actor: Actor
 ): Promise<{
@@ -46,8 +46,8 @@ export async function promptForConfigsAsync(
   projectAccount: string;
 }> {
   const projectAccount = await promptForProjectAccountAsync(actor);
-  const projectName = await promptForProjectNameAsync(actor, flags.name);
-  const projectDirectory = await promptForTargetDirectoryAsync(projectName, flags.directory);
+  const projectName = await generateProjectNameAsync(actor, flags.name);
+  const projectDirectory = await generateDirectoryAsync(projectName, flags.directory);
 
   return {
     projectAccount,
@@ -57,7 +57,7 @@ export async function promptForConfigsAsync(
 }
 
 export async function verifyConfigsAsync(
-  promptedConfigs: {
+  initialConfigs: {
     projectName: string;
     projectDirectory: string;
     projectAccount: string;
@@ -71,7 +71,7 @@ export async function verifyConfigsAsync(
 }> {
   Log.gray('Verifying project values...');
 
-  let { projectName, projectDirectory, projectAccount } = promptedConfigs;
+  let { projectName, projectDirectory, projectAccount } = initialConfigs;
   let allFieldsValid = false;
   let retryCount = 0;
   const maxRetries = 3;
@@ -101,7 +101,7 @@ export async function verifyConfigsAsync(
 
     const directoryDoesNotExist = await verifyProjectDirectoryDoesNotExistAsync(projectDirectory);
     if (!directoryDoesNotExist) {
-      projectDirectory = await promptForTargetDirectoryAsync(projectName);
+      projectDirectory = await generateDirectoryAsync(projectName);
     }
 
     allFieldsValid = hasPermissions && projectDoesNotExist && directoryDoesNotExist;
@@ -231,12 +231,12 @@ export default class New extends EasCommand {
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
     Log.newLine();
 
-    const promptedConfigs = await promptForConfigsAsync(flags, actor);
+    const initialConfigs = await generateConfigsAsync(flags, actor);
     const {
       projectName,
       projectDirectory: targetProjectDirectory,
       projectAccount,
-    } = await verifyConfigsAsync(promptedConfigs, actor, graphqlClient);
+    } = await verifyConfigsAsync(initialConfigs, actor, graphqlClient);
 
     const projectDirectory = await cloneTemplateAsync(targetProjectDirectory);
 
