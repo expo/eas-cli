@@ -8,7 +8,6 @@ import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { pack } from 'tar-stream';
 
-import { EnvironmentVariableEnvironment } from '../build/utils/environment';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
 
@@ -191,7 +190,7 @@ export interface CreateManifestResult {
 interface CreateManifestParams {
   projectId: string;
   projectDir: string;
-  environment?: EnvironmentVariableEnvironment;
+  environment?: string;
 }
 
 /** Creates a manifest configuration sent up for deployment */

@@ -3,8 +3,8 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   EASEnvironmentVariableScopeFlag,
   EASEnvironmentVariableScopeFlagValue,
@@ -33,7 +33,6 @@ import {
   promptVariableValueAsync,
   promptVariableVisibilityAsync,
 } from '../../utils/prompts';
-import { isEnvironment } from '../../utils/variableUtils';
 
 interface RawCreateFlags {
   name?: string;
@@ -42,7 +41,7 @@ interface RawCreateFlags {
   type?: 'string' | 'file';
   visibility?: 'plaintext' | 'sensitive' | 'secret';
   scope: EASEnvironmentVariableScopeFlagValue;
-  environment?: EnvironmentVariableEnvironment[];
+  environment?: string[];
   'non-interactive': boolean;
 }
 
@@ -53,7 +52,7 @@ interface CreateFlags {
   type?: 'string' | 'file';
   visibility?: 'plaintext' | 'sensitive' | 'secret';
   scope: EnvironmentVariableScope;
-  environment?: EnvironmentVariableEnvironment[];
+  environment?: string[];
   'non-interactive': boolean;
 }
 
@@ -64,7 +63,7 @@ export default class EnvCreate extends EasCommand {
     {
       name: 'environment',
       description:
-        "Environment to create the variable in. One of 'production', 'preview', or 'development'.",
+        "Environment to create the variable in. Default environments are 'production', 'preview', and 'development'.",
       required: false,
     },
   ];
@@ -102,6 +101,13 @@ export default class EnvCreate extends EasCommand {
     const validatedFlags = this.sanitizeFlags(flags);
 
     const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(EnvCreate, {
+      nonInteractive: validatedFlags['non-interactive'],
+    });
+
+    const {
       name,
       value,
       scope,
@@ -111,14 +117,7 @@ export default class EnvCreate extends EasCommand {
       force,
       type,
       fileName,
-    } = await this.promptForMissingFlagsAsync(validatedFlags, args);
-
-    const {
-      projectId,
-      loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvCreate, {
-      nonInteractive,
-    });
+    } = await this.promptForMissingFlagsAsync(validatedFlags, args, { graphqlClient, projectId });
 
     const [projectDisplayName, ownerAccount] = await Promise.all([
       getDisplayNameForProjectIdAsync(graphqlClient, projectId),
@@ -272,7 +271,8 @@ export default class EnvCreate extends EasCommand {
       type,
       ...rest
     }: CreateFlags,
-    { environment }: { environment?: string }
+    { environment }: { environment?: string },
+    { graphqlClient, projectId }: { graphqlClient: ExpoGraphqlClient; projectId: string }
   ): Promise<
     Required<
       Omit<CreateFlags, 'type' | 'visibility'> & {
@@ -323,18 +323,16 @@ export default class EnvCreate extends EasCommand {
 
     value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
 
-    if (environment && !isEnvironment(environment.toLowerCase())) {
-      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
-    }
-
-    let newEnvironments = environments
-      ? environments
-      : environment
-        ? [environment.toLowerCase() as EnvironmentVariableEnvironment]
-        : undefined;
+    let newEnvironments = environments ? environments : environment ? [environment] : undefined;
 
     if (!newEnvironments) {
-      newEnvironments = await promptVariableEnvironmentAsync({ nonInteractive, multiple: true });
+      newEnvironments = await promptVariableEnvironmentAsync({
+        nonInteractive,
+        multiple: true,
+        canEnterCustomEnvironment: true,
+        graphqlClient,
+        projectId,
+      });
 
       if (!newEnvironments || newEnvironments.length === 0) {
         throw new Error('No environments selected');

@@ -10079,6 +10079,13 @@ export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
 
 export type EnvironmentSecretsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any }> }, environmentSecrets: Array<{ __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any }> } } };
 
+export type AppEnvironmentVariableEnvironmentsQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+}>;
+
+
+export type AppEnvironmentVariableEnvironmentsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, environmentVariableEnvironments: Array<any> } } };
+
 export type EnvironmentVariablesIncludingSensitiveByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   filterNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;

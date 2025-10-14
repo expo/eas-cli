@@ -1,7 +1,7 @@
 import { Config } from '@oclif/core';
 
 import { getMockAppFragment } from '../../../__tests__/commands/utils';
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
@@ -13,10 +13,12 @@ import {
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../../log';
+import { promptVariableEnvironmentAsync } from '../../../utils/prompts';
 import EnvList from '../list';
 
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../graphql/queries/AppQuery');
+jest.mock('../../../utils/prompts');
 jest.mock('../../../log');
 
 const mockVariables: EnvironmentVariableFragment[] = [
@@ -24,7 +26,7 @@ const mockVariables: EnvironmentVariableFragment[] = [
     id: 'var1',
     name: 'TEST_VAR_1',
     value: 'value1',
-    environments: [EnvironmentVariableEnvironment.Production],
+    environments: [DefaultEnvironment.Production],
     scope: EnvironmentVariableScope.Project,
     visibility: EnvironmentVariableVisibility.Public,
     createdAt: undefined,
@@ -35,7 +37,7 @@ const mockVariables: EnvironmentVariableFragment[] = [
     id: 'var2',
     name: 'TEST_VAR_2',
     value: 'value2',
-    environments: [EnvironmentVariableEnvironment.Development],
+    environments: [DefaultEnvironment.Development],
     scope: EnvironmentVariableScope.Project,
     visibility: EnvironmentVariableVisibility.Public,
     createdAt: undefined,
@@ -51,27 +53,19 @@ describe(EnvList, () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
-  });
-
-  it('lists project environment variables successfully', async () => {
-    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce(mockVariables);
-
-    const command = new EnvList([], mockConfig);
-
-    // @ts-expect-error
-    jest.spyOn(command, 'getContextAsync').mockReturnValue({
-      loggedIn: { graphqlClient },
-      projectId: testProjectId,
-    });
-    await command.runAsync();
-
-    expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
-      appId: testProjectId,
-      environment: undefined,
-      includeFileContent: false,
-    });
-    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
-    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_2'));
+    (jest.mocked(promptVariableEnvironmentAsync) as jest.MockedFunction<any>).mockImplementation(
+      async (args: any) => {
+        if (args.nonInteractive) {
+          throw new Error(
+            'The `--environment` flag must be set when running in `--non-interactive` mode.'
+          );
+        }
+        if (args.multiple) {
+          return [DefaultEnvironment.Production];
+        }
+        return DefaultEnvironment.Production;
+      }
+    );
   });
 
   it('lists project environment variables in specified environments', async () => {
@@ -88,7 +82,7 @@ describe(EnvList, () => {
 
     expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
-      environment: EnvironmentVariableEnvironment.Production,
+      environment: DefaultEnvironment.Production,
       includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
@@ -110,7 +104,7 @@ describe(EnvList, () => {
 
     expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
-      environment: EnvironmentVariableEnvironment.Development,
+      environment: DefaultEnvironment.Development,
       includeFileContent: false,
     });
   });
@@ -133,7 +127,7 @@ describe(EnvList, () => {
       graphqlClient,
       {
         appId: testProjectId,
-        environment: undefined,
+        environment: DefaultEnvironment.Production,
         includeFileContent: false,
       }
     );
@@ -155,7 +149,7 @@ describe(EnvList, () => {
 
     expect(EnvironmentVariablesQuery.sharedAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
-      environment: undefined,
+      environment: DefaultEnvironment.Production,
       includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));
@@ -178,7 +172,7 @@ describe(EnvList, () => {
 
     expect(EnvironmentVariablesQuery.sharedWithSensitiveAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
-      environment: undefined,
+      environment: DefaultEnvironment.Production,
       includeFileContent: false,
     });
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('TEST_VAR_1'));

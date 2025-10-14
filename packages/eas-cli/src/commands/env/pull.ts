@@ -13,7 +13,6 @@ import {
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
-import { isEnvironment } from '../../utils/variableUtils';
 
 export default class EnvPull extends EasCommand {
   static override description =
@@ -29,7 +28,7 @@ export default class EnvPull extends EasCommand {
     {
       name: 'environment',
       description:
-        "Environment to pull variables from. One of 'production', 'preview', or 'development'.",
+        "Environment to pull variables from. Default environments are 'production', 'preview', and 'development'.",
       required: false,
     },
   ];
@@ -51,14 +50,6 @@ export default class EnvPull extends EasCommand {
 
     let environment = flagEnvironment?.toLowerCase() ?? argEnvironment?.toLowerCase();
 
-    if (!environment) {
-      environment = await promptVariableEnvironmentAsync({ nonInteractive });
-    }
-
-    if (!isEnvironment(environment)) {
-      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
-    }
-
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -66,6 +57,14 @@ export default class EnvPull extends EasCommand {
     } = await this.getContextAsync(EnvPull, {
       nonInteractive,
     });
+
+    if (!environment) {
+      environment = await promptVariableEnvironmentAsync({
+        nonInteractive,
+        graphqlClient,
+        projectId,
+      });
+    }
 
     targetPath = targetPath ?? '.env.local';
 

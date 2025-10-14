@@ -4,7 +4,6 @@ import { Flags } from '@oclif/core';
 
 import { getExpoWebsiteBaseUrl } from '../../api';
 import { evaluateConfigWithEnvVarsAsync } from '../../build/evaluateConfigWithEnvVarsAsync';
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EASEnvironmentFlag,
@@ -40,7 +39,7 @@ export default class FingerprintGenerate extends EasCommand {
       options: ['android', 'ios'],
     }),
     ...EASEnvironmentFlag,
-    environment: Flags.enum<EnvironmentVariableEnvironment>({
+    environment: Flags.string({
       ...EasEnvironmentFlagParameters,
       exclusive: ['build-profile'],
     }),

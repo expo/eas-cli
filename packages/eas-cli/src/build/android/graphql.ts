@@ -8,7 +8,6 @@ import {
   transformProjectArchive,
   transformWorkflow,
 } from '../graphql';
-import { buildProfileEnvironmentToEnvironment } from '../utils/environment';
 
 export function transformJob(job: Android.Job): AndroidJobInput {
   return {
@@ -30,7 +29,7 @@ export function transformJob(job: Android.Job): AndroidJobInput {
     experimental: job.experimental,
     mode: transformBuildMode(job.mode),
     customBuildConfig: job.customBuildConfig,
-    environment: buildProfileEnvironmentToEnvironment(job.environment),
+    environment: job.environment,
     loggerLevel: job.loggerLevel
       ? loggerLevelToGraphQLWorkerLoggerLevel[job.loggerLevel]
       : undefined,

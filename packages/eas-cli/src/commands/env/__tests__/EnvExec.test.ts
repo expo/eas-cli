@@ -1,6 +1,6 @@
 import { Config } from '@oclif/core';
 
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
 import {
@@ -24,7 +24,7 @@ describe(EnvExec, () => {
       id: 'var1',
       name: 'EXPO_PUBLIC_API_URL',
       value: 'https://api.example.com',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -58,13 +58,13 @@ describe(EnvExec, () => {
       graphqlClient,
       {
         appId: testProjectId,
-        environment: EnvironmentVariableEnvironment.Development,
+        environment: DefaultEnvironment.Development,
       }
     );
   });
 
-  it('rejects invalid environment when using positional argument', async () => {
-    const command = new EnvExec(['invalid', 'echo test'], mockConfig);
+  it('accepts custom environment when using positional argument', async () => {
+    const command = new EnvExec(['custom-environment', 'echo $EXPO_PUBLIC_API_URL'], mockConfig);
 
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
@@ -72,8 +72,14 @@ describe(EnvExec, () => {
       projectId: testProjectId,
     });
 
-    await expect(command.runAsync()).rejects.toThrow(
-      "Invalid environment. Use one of 'production', 'preview', or 'development'."
+    await command.runAsync();
+
+    expect(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      {
+        appId: testProjectId,
+        environment: 'custom-environment',
+      }
     );
   });
 });

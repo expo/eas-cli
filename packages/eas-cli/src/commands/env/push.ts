@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import path from 'path';
 
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASMultiEnvironmentFlag } from '../../commandUtils/flags';
 import {
@@ -17,7 +16,6 @@ import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVari
 import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
-import { isEnvironment } from '../../utils/variableUtils';
 
 export default class EnvPush extends EasCommand {
   static override description =
@@ -44,7 +42,7 @@ export default class EnvPush extends EasCommand {
     {
       name: 'environment',
       description:
-        "Environment to push variables to. One of 'production', 'preview', or 'development'.",
+        "Environment to push variables to. Default environments are 'production', 'preview', and 'development'.",
       required: false,
     },
   ];
@@ -65,6 +63,9 @@ export default class EnvPush extends EasCommand {
       environments = await promptVariableEnvironmentAsync({
         nonInteractive: false,
         multiple: true,
+        canEnterCustomEnvironment: true,
+        graphqlClient,
+        projectId,
       });
     }
 
@@ -210,18 +211,12 @@ export default class EnvPush extends EasCommand {
   parseFlagsAndArgs(
     flags: {
       path: string;
-      environment: EnvironmentVariableEnvironment[] | undefined;
+      environment: string[] | undefined;
       force: boolean;
     },
     { environment }: Record<string, string>
-  ): { environment?: EnvironmentVariableEnvironment[]; path: string; force: boolean } {
-    if (environment && !isEnvironment(environment.toLowerCase())) {
-      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
-    }
-
-    const environments =
-      flags.environment ??
-      (environment ? [environment.toLowerCase() as EnvironmentVariableEnvironment] : undefined);
+  ): { environment?: string[]; path: string; force: boolean } {
+    const environments = flags.environment ?? (environment ? [environment] : undefined);
 
     return {
       ...flags,
@@ -231,13 +226,8 @@ export default class EnvPush extends EasCommand {
 
   private async parseEnvFileAsync(
     envPath: string,
-    environments: EnvironmentVariableEnvironment[]
-  ): Promise<
-    Record<
-      string,
-      CreateEnvironmentVariableInput & { environments: EnvironmentVariableEnvironment[] }
-    >
-  > {
+    environments: string[]
+  ): Promise<Record<string, CreateEnvironmentVariableInput & { environments: string[] }>> {
     if (!(await fs.exists(envPath))) {
       throw new Error(`File ${envPath} does not exist.`);
     }

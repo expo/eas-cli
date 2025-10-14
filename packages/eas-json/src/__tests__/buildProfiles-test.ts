@@ -129,6 +129,35 @@ test('valid eas.json with specified environment', async () => {
   });
 });
 
+test('supports custom environment names', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      development: {
+        environment: 'my-custom-environment',
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'development');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'development'
+  );
+  expect(androidProfile).toEqual({
+    credentialsSource: 'remote',
+    distribution: 'store',
+    environment: 'my-custom-environment',
+  });
+
+  expect(iosProfile).toEqual({
+    credentialsSource: 'remote',
+    distribution: 'store',
+    environment: 'my-custom-environment',
+  });
+});
+
 test('valid eas.json with specified keystoreName', async () => {
   const keystoreName = 'this-is-a-keystore-name';
   await fs.writeJson('/project/eas.json', {

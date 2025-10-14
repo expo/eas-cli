@@ -1,6 +1,6 @@
 import { Config } from '@oclif/core';
 
-import { EnvironmentVariableEnvironment } from '../../../build/utils/environment';
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import {
   EnvironmentSecretType,
   EnvironmentVariableScope,
@@ -37,7 +37,7 @@ describe(EnvDelete, () => {
         id: variableId,
         name: 'TEST_VARIABLE',
         scope: EnvironmentVariableScope.Project,
-        environments: [EnvironmentVariableEnvironment.Production],
+        environments: [DefaultEnvironment.Production],
       },
     ];
     (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue(mockVariables);
@@ -129,7 +129,7 @@ describe(EnvDelete, () => {
       id: 'var1',
       name: 'TEST_VAR_1',
       value: 'value1',
-      environments: [EnvironmentVariableEnvironment.Development],
+      environments: [DefaultEnvironment.Development],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       scope: EnvironmentVariableScope.Project,
@@ -156,7 +156,7 @@ describe(EnvDelete, () => {
 
     expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: projectId,
-      environment: EnvironmentVariableEnvironment.Development,
+      environment: DefaultEnvironment.Development,
     });
   });
 });

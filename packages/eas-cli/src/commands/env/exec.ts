@@ -1,24 +1,22 @@
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 
-import { EnvironmentVariableEnvironment } from '../../build/utils/environment';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
-import { isEnvironment } from '../../utils/variableUtils';
 
 type ParsedFlags =
   | {
       nonInteractive: true;
-      environment: EnvironmentVariableEnvironment;
+      environment: string;
       command: string;
     }
   | {
       nonInteractive: false;
-      environment?: EnvironmentVariableEnvironment;
+      environment?: string;
       command: string;
     };
 
@@ -44,7 +42,7 @@ export default class EnvExec extends EasCommand {
       name: 'environment',
       required: true,
       description:
-        "Environment to execute the command in. One of 'production', 'preview', or 'development'.",
+        "Environment to execute the command in. Default environments are 'production', 'preview', and 'development'.",
     },
     {
       name: 'bash_command',
@@ -70,7 +68,11 @@ export default class EnvExec extends EasCommand {
 
     const environment =
       parsedFlags.environment ??
-      (await promptVariableEnvironmentAsync({ nonInteractive: parsedFlags.nonInteractive }));
+      (await promptVariableEnvironmentAsync({
+        nonInteractive: parsedFlags.nonInteractive,
+        graphqlClient,
+        projectId,
+      }));
     const environmentVariables = await this.loadEnvironmentVariablesAsync({
       graphqlClient,
       projectId,
@@ -99,12 +101,6 @@ export default class EnvExec extends EasCommand {
       throw new Error(
         "You must specify both environment and bash command when running in non-interactive mode. Run command as `eas env:exec ENVIRONMENT 'bash command'`."
       );
-    }
-
-    environment = environment?.toLowerCase();
-
-    if (!isEnvironment(environment)) {
-      throw new Error("Invalid environment. Use one of 'production', 'preview', or 'development'.");
     }
 
     const firstChar = bash_command[0];
@@ -198,7 +194,7 @@ export default class EnvExec extends EasCommand {
   }: {
     graphqlClient: ExpoGraphqlClient;
     projectId: string;
-    environment: EnvironmentVariableEnvironment;
+    environment: string;
     nonInteractive: boolean;
   }): Promise<Record<string, string>> {
     const environmentVariablesQueryResult =
