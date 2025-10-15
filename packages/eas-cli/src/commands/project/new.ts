@@ -97,7 +97,7 @@ export async function createProjectAsync({
   return projectId;
 }
 
-export async function generateConfigFilesAsync(
+export async function generateProjectFilesAsync(
   projectDir: string,
   app: AppFragment,
   packageManager: PackageManager
@@ -181,7 +181,7 @@ export default class New extends EasCommand {
     });
 
     const app = await AppQuery.byIdAsync(graphqlClient, projectId);
-    await generateConfigFilesAsync(projectDirectory, app, packageManager);
+    await generateProjectFilesAsync(projectDirectory, app, packageManager);
 
     await initializeGitRepositoryAsync(projectDirectory);
 

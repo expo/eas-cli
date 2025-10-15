@@ -26,10 +26,6 @@ export async function installDependenciesAsync({
     args: ['install'],
     cwd: projectDir,
     shouldShowStderrLine: line => {
-      if (outputLevel === 'none') {
-        return false;
-      }
-
       return (
         !line.includes('WARN') &&
         !line.includes('deprecated') &&
@@ -38,6 +34,6 @@ export async function installDependenciesAsync({
         !(line === packageManager)
       );
     },
-    hideOutput: outputLevel === 'none',
+    showOutput: outputLevel !== 'none',
   });
 }

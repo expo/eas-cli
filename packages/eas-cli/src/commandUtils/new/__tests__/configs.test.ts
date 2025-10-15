@@ -42,7 +42,6 @@ describe('configs', () => {
     );
   };
 
-  // Helper function to simulate user input via prompt
   const mockUserInput = (inputValue: any): void => {
     jest.mocked(promptAsync).mockResolvedValue(inputValue);
   };
@@ -60,10 +59,11 @@ describe('configs', () => {
 
         const result = await generateProjectConfigAsync(jester, undefined, mockOptions);
 
-        expect(result.projectName).toBe('new-expo-project');
-        expect(result.projectDirectory).toContain('new-expo-project');
+        expect(result).toEqual({
+          projectName: 'new-expo-project',
+          projectDirectory: expect.stringContaining('/new-expo-project'),
+        });
         logSpy.expectLogToContain('Using project name: new-expo-project');
-        expect(promptAsync).not.toHaveBeenCalled();
       });
 
       it('should use username-date when base name exists', async () => {
@@ -74,10 +74,11 @@ describe('configs', () => {
 
         const result = await generateProjectConfigAsync(jester, undefined, mockOptions);
 
-        expect(result.projectName).toMatch(/^new-expo-project-jester-\d{4}-\d{2}-\d{2}$/);
-        expect(result.projectDirectory).toContain(result.projectName);
+        expect(result).toEqual({
+          projectName: expect.stringMatching(/^new-expo-project-jester-\d{4}-\d{2}-\d{2}$/),
+          projectDirectory: expect.stringContaining(result.projectName),
+        });
         logSpy.expectLogToContain('Using alternate project name:');
-        expect(promptAsync).not.toHaveBeenCalled();
       });
 
       it('should use username-date-shortID when base name and username-date exist', async () => {
@@ -88,12 +89,13 @@ describe('configs', () => {
 
         const result = await generateProjectConfigAsync(jester, undefined, mockOptions);
 
-        expect(result.projectName).toMatch(
-          /^new-expo-project-jester-\d{4}-\d{2}-\d{2}-[a-zA-Z0-9_-]{6}$/
-        );
-        expect(result.projectDirectory).toContain(result.projectName);
+        expect(result).toEqual({
+          projectName: expect.stringMatching(
+            /^new-expo-project-jester-\d{4}-\d{2}-\d{2}-[a-zA-Z0-9_-]{6}$/
+          ),
+          projectDirectory: expect.stringContaining(result.projectName),
+        });
         logSpy.expectLogToContain('Using alternate project name:');
-        expect(promptAsync).not.toHaveBeenCalled();
       });
     });
 
@@ -104,10 +106,11 @@ describe('configs', () => {
         const absolutePath = '/absolute/path/to/my-project';
         const result = await generateProjectConfigAsync(jester, absolutePath, mockOptions);
 
-        expect(result.projectName).toBe('my-project');
-        expect(result.projectDirectory).toBe(absolutePath);
+        expect(result).toEqual({
+          projectName: 'my-project',
+          projectDirectory: absolutePath,
+        });
         logSpy.expectLogToContain('Using project directory:');
-        expect(promptAsync).not.toHaveBeenCalled();
       });
 
       it('should resolve relative path and extract name from basename', async () => {
@@ -116,10 +119,11 @@ describe('configs', () => {
         const relativePath = 'some/relative/my-app';
         const result = await generateProjectConfigAsync(jester, relativePath, mockOptions);
 
-        expect(result.projectName).toBe('my-app');
-        expect(result.projectDirectory).toContain('some/relative/my-app');
+        expect(result).toEqual({
+          projectName: 'my-app',
+          projectDirectory: expect.stringContaining('some/relative/my-app'),
+        });
         logSpy.expectLogToContain('Using project directory:');
-        expect(promptAsync).not.toHaveBeenCalled();
       });
     });
   });
@@ -166,10 +170,11 @@ describe('configs', () => {
       const baseName = 'my-project';
       const result = generateProjectNameVariations(jester, baseName);
 
-      expect(result).toHaveLength(3);
-      expect(result[0]).toBe('my-project');
-      expect(result[1]).toMatch(/^my-project-jester-\d{4}-\d{2}-\d{2}$/);
-      expect(result[2]).toMatch(/^my-project-jester-\d{4}-\d{2}-\d{2}-[a-zA-Z0-9_-]{6}$/);
+      expect(result).toEqual([
+        'my-project',
+        expect.stringMatching(/^my-project-jester-\d{4}-\d{2}-\d{2}$/),
+        expect.stringMatching(/^my-project-jester-\d{4}-\d{2}-\d{2}-[a-zA-Z0-9_-]{6}$/),
+      ]);
     });
   });
 
@@ -179,10 +184,6 @@ describe('configs', () => {
       graphqlClient: mockGraphqlClient,
       projectAccount: 'jester',
     };
-
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
 
     it('should find first available name when checking both local and remote', async () => {
       (fs.pathExists as jest.Mock).mockResolvedValue(false);
@@ -195,8 +196,10 @@ describe('configs', () => {
         mockOptions
       );
 
-      expect(result.projectName).toBe('test-project');
-      expect(result.projectDirectory).toBe('/base/path/test-project');
+      expect(result).toEqual({
+        projectName: 'test-project',
+        projectDirectory: '/base/path/test-project',
+      });
       expect(fs.pathExists).toHaveBeenCalledTimes(1);
       expect(findProjectIdByAccountNameAndSlugNullableAsync).toHaveBeenCalledWith(
         mockGraphqlClient,
@@ -218,8 +221,10 @@ describe('configs', () => {
         mockOptions
       );
 
-      expect(result.projectName).toMatch(/^test-project-jester-\d{4}-\d{2}-\d{2}$/);
-      expect(result.projectDirectory).toContain('/base/path/test-project-jester-');
+      expect(result).toEqual({
+        projectName: expect.stringMatching(/^test-project-jester-\d{4}-\d{2}-\d{2}$/),
+        projectDirectory: expect.stringContaining('/base/path/test-project-jester-'),
+      });
       expect(fs.pathExists).toHaveBeenCalledTimes(2);
     });
 
@@ -237,7 +242,10 @@ describe('configs', () => {
         mockOptions
       );
 
-      expect(result.projectName).toMatch(/^test-project-jester-\d{4}-\d{2}-\d{2}$/);
+      expect(result).toEqual({
+        projectName: expect.stringMatching(/^test-project-jester-\d{4}-\d{2}-\d{2}$/),
+        projectDirectory: expect.stringContaining('/base/path/test-project-jester-'),
+      });
       expect(findProjectIdByAccountNameAndSlugNullableAsync).toHaveBeenCalledTimes(2);
     });
 

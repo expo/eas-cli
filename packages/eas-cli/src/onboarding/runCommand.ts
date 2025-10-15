@@ -11,7 +11,7 @@ export async function runCommandAsync({
   shouldShowStderrLine,
   shouldPrintStderrLineAsStdout,
   showSpinner = true,
-  hideOutput = false,
+  showOutput = true,
 }: {
   cwd?: string;
   args: string[];
@@ -19,7 +19,7 @@ export async function runCommandAsync({
   shouldShowStderrLine?: (line: string) => boolean;
   shouldPrintStderrLineAsStdout?: (line: string) => boolean;
   showSpinner?: boolean;
-  hideOutput?: boolean;
+  showOutput?: boolean;
 }): Promise<void> {
   Log.log(`🏗️  Running ${chalk.bold(`${command} ${args.join(' ')}`)}...`);
   let spinner: Ora | undefined;
@@ -27,11 +27,11 @@ export async function runCommandAsync({
     spinner = ora(`${chalk.bold(`${command} ${args.join(' ')}`)}`).start();
   }
   const spawnPromise = spawnAsync(command, args, {
-    stdio: hideOutput ? 'ignore' : ['inherit', 'pipe', 'pipe'],
+    stdio: showOutput ? ['inherit', 'pipe', 'pipe'] : 'ignore',
     cwd,
   });
 
-  if (!hideOutput) {
+  if (showOutput) {
     const {
       child: { stdout, stderr },
     } = spawnPromise;

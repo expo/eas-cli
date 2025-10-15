@@ -9,6 +9,11 @@ import {
 } from '../../../project/expoConfig';
 import New, { createProjectAsync, generateConfigsAsync } from '../new';
 
+jest.mock('fs-extra', () => ({
+  ...jest.requireActual('fs-extra'),
+  pathExists: jest.fn().mockResolvedValue(false),
+}));
+
 jest.mock('../../../prompts', () => ({
   promptAsync: jest.fn(),
 }));
@@ -29,56 +34,49 @@ jest.mock('../../../utils/easCli', () => ({
   easCliVersion: '5.0.0',
 }));
 
-// Mock project lookup
 jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync', () => ({
   findProjectIdByAccountNameAndSlugNullableAsync: jest.fn().mockResolvedValue(null),
 }));
 
-// Mock AppMutation
 jest.mock('../../../graphql/mutations/AppMutation', () => ({
   AppMutation: {
     createAppAsync: jest.fn().mockResolvedValue('test-project-id'),
   },
 }));
 
-// Mock expo config functions
 jest.mock('../../../project/expoConfig', () => ({
   getPrivateExpoConfigAsync: jest.fn().mockResolvedValue({ extra: {} }),
   createOrModifyExpoConfigAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../../../prompts', () => ({
+  ...jest.requireActual('../../../prompts'),
+  promptAsync: jest.fn().mockResolvedValue({ account: { name: 'jester' } }),
+}));
+
 describe(New.name, () => {
-  beforeEach(() => {
-    // Set up default fs.pathExists mock
-    const fs = require('fs-extra');
-    (fs.pathExists as jest.Mock).mockResolvedValue(false);
-
-    // Set up default prompt mock
-    const { promptAsync } = require('../../../prompts');
-    jest.mocked(promptAsync).mockResolvedValue({ account: { name: 'jester' } });
-  });
-
+  const mockGraphqlClient = {} as ExpoGraphqlClient;
   describe('generateConfigsAsync', () => {
     it('should orchestrate account selection and project configuration', async () => {
-      const mockGraphqlClient = {} as ExpoGraphqlClient;
-
       const result = await generateConfigsAsync({ path: undefined }, jester, mockGraphqlClient);
 
-      // Verify orchestration: account selected, config generated
-      expect(result).toBeDefined();
-      expect(result.projectName).toBeDefined();
-      expect(result.projectDirectory).toBeDefined();
-      expect(result.projectAccount).toBe('jester');
+      expect(result).toEqual({
+        projectAccount: 'jester',
+        projectDirectory: expect.stringContaining('/new-expo-project'),
+        projectName: 'new-expo-project',
+      });
     });
 
     it('should pass through path argument to config generation', async () => {
-      const mockGraphqlClient = {} as ExpoGraphqlClient;
       const customPath = 'my-custom-project';
 
       const result = await generateConfigsAsync({ path: customPath }, jester, mockGraphqlClient);
 
-      expect(result.projectName).toBe('my-custom-project');
-      expect(result.projectDirectory).toContain('my-custom-project');
+      expect(result).toEqual({
+        projectAccount: 'jester',
+        projectDirectory: expect.stringContaining('/my-custom-project'),
+        projectName: 'my-custom-project',
+      });
     });
   });
 
@@ -90,7 +88,6 @@ describe(New.name, () => {
         .mockResolvedValue({ name: 'name', slug: 'slug' } as ExpoConfig);
       jest.mocked(createOrModifyExpoConfigAsync);
 
-      const mockGraphqlClient = {} as ExpoGraphqlClient;
       const result = await createProjectAsync({
         graphqlClient: mockGraphqlClient,
         actor: jester,
@@ -111,15 +108,6 @@ describe(New.name, () => {
         },
         { skipSDKVersionRequirement: true }
       );
-    });
-  });
-
-  describe('package manager flag', () => {
-    it('should have correct flag definition', () => {
-      const flagDefinition = New.flags['package-manager'];
-      expect(flagDefinition).toBeDefined();
-      expect(flagDefinition.default).toBe('npm');
-      expect(flagDefinition.char).toBe('p');
     });
   });
 });

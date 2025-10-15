@@ -41,22 +41,11 @@ export async function generateProjectConfigAsync(
   projectName: string;
   projectDirectory: string;
 }> {
-  // Determine the base name and parent directory
-  let baseName: string;
-  let parentDirectory: string;
+  let baseName = 'new-expo-project';
+  let parentDirectory = process.cwd();
 
-  if (!pathArg) {
-    // No path provided - use default base name in cwd
-    baseName = 'new-expo-project';
-    parentDirectory = process.cwd();
-  } else if (path.isAbsolute(pathArg)) {
-    // Absolute path provided
-    validateProjectPath(pathArg);
-    baseName = path.basename(pathArg);
-    parentDirectory = path.dirname(pathArg);
-  } else {
-    // Relative path provided
-    const resolvedPath = path.resolve(process.cwd(), pathArg);
+  if (pathArg) {
+    const resolvedPath = path.isAbsolute(pathArg) ? pathArg : path.resolve(process.cwd(), pathArg);
     validateProjectPath(resolvedPath);
     baseName = path.basename(resolvedPath);
     parentDirectory = path.dirname(resolvedPath);
@@ -70,7 +59,7 @@ export async function generateProjectConfigAsync(
     options
   );
 
-  Log.log(`Using project directory: ${projectDirectory}`);
+  Log.withInfo(`Using project directory: ${projectDirectory}`);
 
   return {
     projectName,
@@ -211,7 +200,7 @@ export async function findAvailableProjectNameAsync(
       continue;
     }
 
-    Log.log(`Using ${usingVariant ? 'alternate ' : ''}project name: ${nameVariation}`);
+    Log.withInfo(`Using ${usingVariant ? 'alternate ' : ''}project name: ${nameVariation}`);
 
     return {
       projectName: nameVariation,
