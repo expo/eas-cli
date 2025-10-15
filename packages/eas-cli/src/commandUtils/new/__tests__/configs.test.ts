@@ -22,7 +22,7 @@ describe('configs', () => {
   let logSpy: LogSpy;
 
   beforeAll(() => {
-    logSpy = new LogSpy('log');
+    logSpy = new LogSpy('withInfo');
   });
 
   beforeEach(() => {

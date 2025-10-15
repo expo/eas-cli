@@ -95,14 +95,14 @@ describe('commands', () => {
         cwd: projectDir,
         command: 'npx',
         args: ['expo', 'install', 'expo-updates'],
-        hideOutput: true,
+        showOutput: false,
       });
 
       expect(runCommandAsync).toHaveBeenCalledWith({
         cwd: projectDir,
         command: 'npx',
         args: ['expo', 'install', '@expo/metro-runtime'],
-        hideOutput: true,
+        showOutput: false,
       });
     });
   });
@@ -117,21 +117,21 @@ describe('commands', () => {
         command: 'git',
         args: ['init'],
         cwd: projectDir,
-        hideOutput: true,
+        showOutput: false,
       });
 
       expect(runCommandAsync).toHaveBeenCalledWith({
         command: 'git',
         args: ['add', '.'],
         cwd: projectDir,
-        hideOutput: true,
+        showOutput: false,
       });
 
       expect(runCommandAsync).toHaveBeenCalledWith({
         command: 'git',
         args: ['commit', '-m', 'Initial commit'],
         cwd: projectDir,
-        hideOutput: true,
+        showOutput: false,
       });
     });
   });

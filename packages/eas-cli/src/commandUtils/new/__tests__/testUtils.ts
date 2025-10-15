@@ -3,7 +3,7 @@ import Log from '../../../log';
 export class LogSpy {
   private readonly logSpy: jest.SpyInstance;
 
-  constructor(logMethod: 'warn' | 'log' | 'withTick') {
+  constructor(logMethod: 'warn' | 'log' | 'withTick' | 'withInfo') {
     this.logSpy = jest.spyOn(Log, logMethod);
   }
 
