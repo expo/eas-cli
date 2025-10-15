@@ -12,6 +12,7 @@ import {
   WorkflowRunStatus,
   WorkflowRunTriggerEventType,
 } from '../../graphql/generated';
+import Log from '../../log';
 import { Choice } from '../../prompts';
 import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 
@@ -70,16 +71,23 @@ export function choiceFromWorkflowJob(job: WorkflowJobResult, index: number): Ch
   };
 }
 
-export function choicesFromWorkflowLogs(logs: WorkflowLogs): Choice[] {
-  return Array.from(logs.keys()).map(step => {
-    const logLines = logs.get(step);
-    const stepStatus =
-      logLines?.filter((line: WorkflowLogLine) => line.marker === 'end-step')[0]?.result ?? '';
-    return {
-      title: `${step} - ${stepStatus}`,
-      value: step,
-    };
-  });
+export function choicesFromWorkflowLogs(
+  logs: WorkflowLogs
+): (Choice & { name: string; status: string; logLines: WorkflowLogLine[] | undefined })[] {
+  return Array.from(logs.keys())
+    .map(step => {
+      const logLines = logs.get(step);
+      const stepStatus =
+        logLines?.filter((line: WorkflowLogLine) => line.marker === 'end-step')[0]?.result ?? '';
+      return {
+        title: `${step} - ${stepStatus}`,
+        name: step,
+        status: stepStatus,
+        value: step,
+        logLines,
+      };
+    })
+    .filter(step => step.status !== 'skipped');
 }
 
 export function processWorkflowRuns(runs: WorkflowRunFragment[]): WorkflowRunResult[] {
@@ -119,20 +127,22 @@ export async function processLogsFromJobAsync(
   if (!rawLogs) {
     return null;
   }
+  Log.debug(`rawLogs = ${JSON.stringify(rawLogs, null, 2)}`);
   const logs: WorkflowLogs = new Map();
   const logKeys = new Set<string>();
-  rawLogs.split('\n').forEach(line => {
+  rawLogs.split('\n').forEach((line, index) => {
+    Log.debug(`line ${index} = ${JSON.stringify(line, null, 2)}`);
     try {
       const parsedLine = JSON.parse(line);
-      const { result, marker } = parsedLine;
-      const { buildStepDisplayName, buildStepInternalId, time, msg } = parsedLine;
+      const { buildStepDisplayName, buildStepInternalId, time, msg, result, marker, err } =
+        parsedLine;
       const stepId = buildStepDisplayName ?? buildStepInternalId;
       if (stepId) {
         if (!logKeys.has(stepId)) {
           logKeys.add(stepId);
           logs.set(stepId, []);
         }
-        logs.get(stepId)?.push({ time, msg, result, marker });
+        logs.get(stepId)?.push({ time, msg, result, marker, err });
       }
     } catch {}
   });
