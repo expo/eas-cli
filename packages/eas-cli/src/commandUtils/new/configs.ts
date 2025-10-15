@@ -2,12 +2,33 @@ import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
 import path from 'path';
 
-import { verifyProjectDoesNotExistAsync } from './verifications';
 import { Role } from '../../graphql/generated';
 import Log from '../../log';
+import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { Choice, promptAsync } from '../../prompts';
 import { Actor, getActorUsername } from '../../user/User';
 import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
+
+function validateProjectPath(resolvedPath: string): void {
+  const normalizedPath = path.normalize(resolvedPath);
+
+  // Check for path traversal attempts
+  if (normalizedPath.includes('..')) {
+    throw new Error(`Invalid project path: "${resolvedPath}". Path traversal is not allowed.`);
+  }
+
+  // Ensure we're not trying to create a project in system directories
+  const systemDirs = ['/bin', '/sbin', '/etc', '/usr', '/var', '/sys', '/proc', '/dev'];
+  const isSystemDir = systemDirs.some(
+    dir => normalizedPath === dir || normalizedPath.startsWith(dir + path.sep)
+  );
+
+  if (isSystemDir) {
+    throw new Error(
+      `Invalid project path: "${resolvedPath}". Cannot create projects in system directories.`
+    );
+  }
+}
 
 export async function generateProjectConfigAsync(
   actor: Actor,
@@ -30,11 +51,13 @@ export async function generateProjectConfigAsync(
     parentDirectory = process.cwd();
   } else if (path.isAbsolute(pathArg)) {
     // Absolute path provided
+    validateProjectPath(pathArg);
     baseName = path.basename(pathArg);
     parentDirectory = path.dirname(pathArg);
   } else {
     // Relative path provided
     const resolvedPath = path.resolve(process.cwd(), pathArg);
+    validateProjectPath(resolvedPath);
     baseName = path.basename(resolvedPath);
     parentDirectory = path.dirname(resolvedPath);
   }
@@ -55,20 +78,26 @@ export async function generateProjectConfigAsync(
   };
 }
 
-function hasAccountPermissions(actor: Actor, accountName: string): boolean {
-  const account = actor.accounts.find(a => a.name === accountName);
-  if (!account) {
-    return false;
+function getAccountPermissionsMap(actor: Actor): Map<string, boolean> {
+  const permissionsMap = new Map<string, boolean>();
+
+  for (const account of actor.accounts) {
+    const hasPermission =
+      account.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly;
+    permissionsMap.set(account.name, hasPermission);
   }
-  return account.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly;
+
+  return permissionsMap;
 }
 
 export async function promptForProjectAccountAsync(actor: Actor): Promise<string> {
+  const permissionsMap = getAccountPermissionsMap(actor);
+
   // If only one account, use it (if has permissions)
   if (actor.accounts.length === 1) {
     const account = actor.accounts[0];
 
-    if (hasAccountPermissions(actor, account.name)) {
+    if (permissionsMap.get(account.name)) {
       return account.name;
     }
 
@@ -83,13 +112,14 @@ export async function promptForProjectAccountAsync(actor: Actor): Promise<string
       type: 'select',
       name: 'account',
       message: 'Which account should own this project?',
-      choices: getAccountChoices(actor),
+      choices: getAccountChoices(actor, permissionsMap),
     })
   ).account.name;
 }
 
-export function getAccountChoices(actor: Actor): Choice[] {
-  const sortedAccounts = actor.accounts.sort((a, _b) =>
+export function getAccountChoices(actor: Actor, permissionsMap?: Map<string, boolean>): Choice[] {
+  const permissions = permissionsMap ?? getAccountPermissionsMap(actor);
+  const sortedAccounts = [...actor.accounts].sort((a, _b) =>
     actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
   );
 
@@ -98,7 +128,7 @@ export function getAccountChoices(actor: Actor): Choice[] {
     const accountDisplayName = isPersonalAccount
       ? `${account.name} (personal account)`
       : account.name;
-    const disabled = !hasAccountPermissions(actor, account.name);
+    const disabled = !permissions.get(account.name);
 
     return {
       title: accountDisplayName,
@@ -111,7 +141,7 @@ export function getAccountChoices(actor: Actor): Choice[] {
   });
 }
 
-export function generateUniqueProjectName(actor: Actor, baseName: string): string[] {
+export function generateProjectNameVariations(actor: Actor, baseName: string): string[] {
   const username = getActorUsername(actor);
   const date = new Date().toISOString().split('T')[0];
 
@@ -120,6 +150,26 @@ export function generateUniqueProjectName(actor: Actor, baseName: string): strin
     `${baseName}-${username}-${date}`,
     `${baseName}-${username}-${date}-${nanoid(6)}`,
   ];
+}
+
+async function verifyProjectDoesNotExistAsync(
+  graphqlClient: ExpoGraphqlClient,
+  accountName: string,
+  projectName: string,
+  { silent = false }: { silent?: boolean } = {}
+): Promise<boolean> {
+  const existingProjectId = await findProjectIdByAccountNameAndSlugNullableAsync(
+    graphqlClient,
+    accountName,
+    projectName
+  );
+
+  const doesNotExist = existingProjectId === null;
+  if (!doesNotExist && !silent) {
+    Log.warn(`Project @${accountName}/${projectName} already exists on the server.`);
+  }
+
+  return doesNotExist;
 }
 
 /**
@@ -139,7 +189,7 @@ export async function findAvailableProjectNameAsync(
     projectAccount: string;
   }
 ): Promise<{ projectName: string; projectDirectory: string }> {
-  const nameVariations = generateUniqueProjectName(actor, baseName);
+  const nameVariations = generateProjectNameVariations(actor, baseName);
 
   for (let i = 0; i < nameVariations.length; i++) {
     const nameVariation = nameVariations[i];

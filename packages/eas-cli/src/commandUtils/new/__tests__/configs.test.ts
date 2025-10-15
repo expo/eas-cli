@@ -3,20 +3,20 @@ import fs from 'fs-extra';
 import { LogSpy } from './testUtils';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { jester } from '../../../credentials/__tests__/fixtures-constants';
+import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { promptAsync } from '../../../prompts';
 import {
   findAvailableProjectNameAsync,
   generateProjectConfigAsync,
-  generateUniqueProjectName,
+  generateProjectNameVariations,
   getAccountChoices,
   promptForProjectAccountAsync,
 } from '../configs';
-import { verifyProjectDoesNotExistAsync } from '../verifications';
 
 jest.mock('../../../prompts');
 jest.mock('../../../log');
 jest.mock('fs-extra');
-jest.mock('../verifications');
+jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
 
 describe('configs', () => {
   let logSpy: LogSpy;
@@ -56,7 +56,7 @@ describe('configs', () => {
     describe('when no path is provided', () => {
       it('should generate name and directory when base name is available', async () => {
         (fs.pathExists as jest.Mock).mockResolvedValue(false);
-        jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
+        jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
 
         const result = await generateProjectConfigAsync(jester, undefined, mockOptions);
 
@@ -70,7 +70,7 @@ describe('configs', () => {
         (fs.pathExists as jest.Mock)
           .mockResolvedValueOnce(true) // base name exists
           .mockResolvedValueOnce(false); // username-date doesn't exist
-        jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
+        jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
 
         const result = await generateProjectConfigAsync(jester, undefined, mockOptions);
 
@@ -84,7 +84,7 @@ describe('configs', () => {
         (fs.pathExists as jest.Mock)
           .mockResolvedValueOnce(true) // base name exists
           .mockResolvedValueOnce(true); // username-date exists
-        jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
+        jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
 
         const result = await generateProjectConfigAsync(jester, undefined, mockOptions);
 
@@ -100,7 +100,7 @@ describe('configs', () => {
     describe('when path is provided', () => {
       it('should use absolute path and extract name from basename', async () => {
         (fs.pathExists as jest.Mock).mockResolvedValue(false);
-        jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
+        jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
         const absolutePath = '/absolute/path/to/my-project';
         const result = await generateProjectConfigAsync(jester, absolutePath, mockOptions);
 
@@ -112,7 +112,7 @@ describe('configs', () => {
 
       it('should resolve relative path and extract name from basename', async () => {
         (fs.pathExists as jest.Mock).mockResolvedValue(false);
-        jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
+        jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
         const relativePath = 'some/relative/my-app';
         const result = await generateProjectConfigAsync(jester, relativePath, mockOptions);
 
@@ -135,7 +135,7 @@ describe('configs', () => {
       expectPromptToHaveMessage('Which account should own this project?');
     });
 
-    it('should prompt for a project account when there is only one account', async () => {
+    it('should automatically select single account with permissions', async () => {
       const result = await promptForProjectAccountAsync(jester);
       expect(result).toBe(jester.accounts[0].name);
     });
@@ -161,10 +161,10 @@ describe('configs', () => {
     });
   });
 
-  describe('generateUniqueProjectName', () => {
+  describe('generateProjectNameVariations', () => {
     it('should generate name variations', () => {
       const baseName = 'my-project';
-      const result = generateUniqueProjectName(jester, baseName);
+      const result = generateProjectNameVariations(jester, baseName);
 
       expect(result).toHaveLength(3);
       expect(result[0]).toBe('my-project');
@@ -186,7 +186,7 @@ describe('configs', () => {
 
     it('should find first available name when checking both local and remote', async () => {
       (fs.pathExists as jest.Mock).mockResolvedValue(false);
-      jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
+      jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
 
       const result = await findAvailableProjectNameAsync(
         jester,
@@ -198,11 +198,10 @@ describe('configs', () => {
       expect(result.projectName).toBe('test-project');
       expect(result.projectDirectory).toBe('/base/path/test-project');
       expect(fs.pathExists).toHaveBeenCalledTimes(1);
-      expect(verifyProjectDoesNotExistAsync).toHaveBeenCalledWith(
+      expect(findProjectIdByAccountNameAndSlugNullableAsync).toHaveBeenCalledWith(
         mockGraphqlClient,
         'jester',
-        'test-project',
-        { silent: false }
+        'test-project'
       );
     });
 
@@ -210,7 +209,7 @@ describe('configs', () => {
       (fs.pathExists as jest.Mock)
         .mockResolvedValueOnce(true) // First exists
         .mockResolvedValueOnce(false); // Second available
-      jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
+      jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
 
       const result = await findAvailableProjectNameAsync(
         jester,
@@ -227,9 +226,9 @@ describe('configs', () => {
     it('should skip name if local is available but remote exists', async () => {
       (fs.pathExists as jest.Mock).mockResolvedValue(false);
       jest
-        .mocked(verifyProjectDoesNotExistAsync)
-        .mockResolvedValueOnce(false) // First name exists remotely
-        .mockResolvedValueOnce(true); // Second available remotely
+        .mocked(findProjectIdByAccountNameAndSlugNullableAsync)
+        .mockResolvedValueOnce('project-id') // First name exists remotely
+        .mockResolvedValueOnce(null); // Second available remotely
 
       const result = await findAvailableProjectNameAsync(
         jester,
@@ -239,12 +238,12 @@ describe('configs', () => {
       );
 
       expect(result.projectName).toMatch(/^test-project-jester-\d{4}-\d{2}-\d{2}$/);
-      expect(verifyProjectDoesNotExistAsync).toHaveBeenCalledTimes(2);
+      expect(findProjectIdByAccountNameAndSlugNullableAsync).toHaveBeenCalledTimes(2);
     });
 
     it('should throw error when all variations taken', async () => {
       (fs.pathExists as jest.Mock).mockResolvedValue(true);
-      jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(false);
+      jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue('project-id');
 
       await expect(
         findAvailableProjectNameAsync(jester, 'test-project', '/base/path', mockOptions)
@@ -253,7 +252,7 @@ describe('configs', () => {
 
     it('should log when using alternative name', async () => {
       (fs.pathExists as jest.Mock).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-      jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
+      jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
 
       await findAvailableProjectNameAsync(jester, 'test-project', '/base/path', mockOptions);
 

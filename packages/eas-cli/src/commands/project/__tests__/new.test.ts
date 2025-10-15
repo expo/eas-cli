@@ -29,9 +29,9 @@ jest.mock('../../../utils/easCli', () => ({
   easCliVersion: '5.0.0',
 }));
 
-// Mock verification functions
-jest.mock('../../../commandUtils/new/verifications', () => ({
-  verifyProjectDoesNotExistAsync: jest.fn().mockResolvedValue(true),
+// Mock project lookup
+jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync', () => ({
+  findProjectIdByAccountNameAndSlugNullableAsync: jest.fn().mockResolvedValue(null),
 }));
 
 // Mock AppMutation
@@ -59,48 +59,26 @@ describe(New.name, () => {
   });
 
   describe('generateConfigsAsync', () => {
-    it('should handle a success', async () => {
+    it('should orchestrate account selection and project configuration', async () => {
       const mockGraphqlClient = {} as ExpoGraphqlClient;
 
       const result = await generateConfigsAsync({ path: undefined }, jester, mockGraphqlClient);
 
+      // Verify orchestration: account selected, config generated
       expect(result).toBeDefined();
       expect(result.projectName).toBeDefined();
       expect(result.projectDirectory).toBeDefined();
       expect(result.projectAccount).toBe('jester');
     });
 
-    it('should automatically generate unique name when project already exists', async () => {
+    it('should pass through path argument to config generation', async () => {
       const mockGraphqlClient = {} as ExpoGraphqlClient;
+      const customPath = 'my-custom-project';
 
-      // Mock both filesystem and remote checks
-      const fs = require('fs-extra');
-      const { verifyProjectDoesNotExistAsync } = require('../../../commandUtils/new/verifications');
+      const result = await generateConfigsAsync({ path: customPath }, jester, mockGraphqlClient);
 
-      (fs.pathExists as jest.Mock).mockResolvedValue(false); // Local filesystem available
-      verifyProjectDoesNotExistAsync
-        .mockResolvedValueOnce(false) // Original name exists remotely
-        .mockResolvedValueOnce(true); // First alternative available
-
-      const result = await generateConfigsAsync({ path: undefined }, jester, mockGraphqlClient);
-
-      expect(result.projectName).toMatch(/^new-expo-project-jester-\d{4}-\d{2}-\d{2}$/);
-      expect(result.projectDirectory).toContain('new-expo-project-jester-');
-    });
-
-    it('should throw error when all name variations are taken', async () => {
-      const mockGraphqlClient = {} as ExpoGraphqlClient;
-
-      // Mock both checks to fail
-      const fs = require('fs-extra');
-      const { verifyProjectDoesNotExistAsync } = require('../../../commandUtils/new/verifications');
-
-      (fs.pathExists as jest.Mock).mockResolvedValue(true); // All taken locally
-      verifyProjectDoesNotExistAsync.mockResolvedValue(false); // All taken remotely
-
-      await expect(
-        generateConfigsAsync({ path: undefined }, jester, mockGraphqlClient)
-      ).rejects.toThrow('Unable to find a unique project name');
+      expect(result.projectName).toBe('my-custom-project');
+      expect(result.projectDirectory).toContain('my-custom-project');
     });
   });
 
