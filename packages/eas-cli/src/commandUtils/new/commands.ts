@@ -46,7 +46,7 @@ export async function installProjectDependenciesAsync(
       cwd: projectDir,
       command: 'npx',
       args: ['expo', 'install', dependency],
-      hideOutput: true,
+      showOutput: false,
     });
   }
 }
@@ -61,7 +61,7 @@ export async function initializeGitRepositoryAsync(projectDir: string): Promise<
       cwd: projectDir,
       command: 'git',
       args,
-      hideOutput: true,
+      showOutput: false,
     });
     Log.log();
   }
