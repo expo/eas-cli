@@ -1,18 +1,22 @@
 import fs from 'fs-extra';
 
 import { LogSpy } from './testUtils';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { jester } from '../../../credentials/__tests__/fixtures-constants';
-import { promptAsync, selectAsync } from '../../../prompts';
+import { promptAsync } from '../../../prompts';
 import {
+  findAvailableProjectNameAsync,
   generateProjectConfigAsync,
+  generateUniqueProjectName,
   getAccountChoices,
   promptForProjectAccountAsync,
-  promptToChangeProjectNameOrAccountAsync,
 } from '../configs';
+import { verifyProjectDoesNotExistAsync } from '../verifications';
 
 jest.mock('../../../prompts');
 jest.mock('../../../log');
 jest.mock('fs-extra');
+jest.mock('../verifications');
 
 describe('configs', () => {
   let logSpy: LogSpy;
@@ -44,11 +48,17 @@ describe('configs', () => {
   };
 
   describe('generateProjectConfigAsync', () => {
+    const mockOptions = {
+      graphqlClient: {} as ExpoGraphqlClient,
+      projectAccount: 'test-account',
+    };
+
     describe('when no path is provided', () => {
       it('should generate name and directory when base name is available', async () => {
         (fs.pathExists as jest.Mock).mockResolvedValue(false);
+        jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
 
-        const result = await generateProjectConfigAsync(jester);
+        const result = await generateProjectConfigAsync(jester, undefined, mockOptions);
 
         expect(result.projectName).toBe('new-expo-project');
         expect(result.projectDirectory).toContain('new-expo-project');
@@ -60,12 +70,13 @@ describe('configs', () => {
         (fs.pathExists as jest.Mock)
           .mockResolvedValueOnce(true) // base name exists
           .mockResolvedValueOnce(false); // username-date doesn't exist
+        jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
 
-        const result = await generateProjectConfigAsync(jester);
+        const result = await generateProjectConfigAsync(jester, undefined, mockOptions);
 
         expect(result.projectName).toMatch(/^new-expo-project-jester-\d{4}-\d{2}-\d{2}$/);
         expect(result.projectDirectory).toContain(result.projectName);
-        logSpy.expectLogToContain('Using project name:');
+        logSpy.expectLogToContain('Using alternate project name:');
         expect(promptAsync).not.toHaveBeenCalled();
       });
 
@@ -73,22 +84,25 @@ describe('configs', () => {
         (fs.pathExists as jest.Mock)
           .mockResolvedValueOnce(true) // base name exists
           .mockResolvedValueOnce(true); // username-date exists
+        jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
 
-        const result = await generateProjectConfigAsync(jester);
+        const result = await generateProjectConfigAsync(jester, undefined, mockOptions);
 
         expect(result.projectName).toMatch(
           /^new-expo-project-jester-\d{4}-\d{2}-\d{2}-[a-zA-Z0-9_-]{6}$/
         );
         expect(result.projectDirectory).toContain(result.projectName);
-        logSpy.expectLogToContain('Using project name:');
+        logSpy.expectLogToContain('Using alternate project name:');
         expect(promptAsync).not.toHaveBeenCalled();
       });
     });
 
     describe('when path is provided', () => {
       it('should use absolute path and extract name from basename', async () => {
+        (fs.pathExists as jest.Mock).mockResolvedValue(false);
+        jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
         const absolutePath = '/absolute/path/to/my-project';
-        const result = await generateProjectConfigAsync(jester, absolutePath);
+        const result = await generateProjectConfigAsync(jester, absolutePath, mockOptions);
 
         expect(result.projectName).toBe('my-project');
         expect(result.projectDirectory).toBe(absolutePath);
@@ -97,8 +111,10 @@ describe('configs', () => {
       });
 
       it('should resolve relative path and extract name from basename', async () => {
+        (fs.pathExists as jest.Mock).mockResolvedValue(false);
+        jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
         const relativePath = 'some/relative/my-app';
-        const result = await generateProjectConfigAsync(jester, relativePath);
+        const result = await generateProjectConfigAsync(jester, relativePath, mockOptions);
 
         expect(result.projectName).toBe('my-app');
         expect(result.projectDirectory).toContain('some/relative/my-app');
@@ -145,37 +161,103 @@ describe('configs', () => {
     });
   });
 
-  describe('promptToChangeProjectNameOrAccountAsync', () => {
-    it('should generate a new project name when changing name', async () => {
-      jest.mocked(selectAsync).mockResolvedValue('name');
-      (fs.pathExists as jest.Mock).mockResolvedValue(false);
+  describe('generateUniqueProjectName', () => {
+    it('should generate name variations', () => {
+      const baseName = 'my-project';
+      const result = generateUniqueProjectName(jester, baseName);
 
-      const result = await promptToChangeProjectNameOrAccountAsync(
-        jester,
-        'old-project-name',
-        'old-account'
-      );
+      expect(result).toHaveLength(3);
+      expect(result[0]).toBe('my-project');
+      expect(result[1]).toMatch(/^my-project-jester-\d{4}-\d{2}-\d{2}$/);
+      expect(result[2]).toMatch(/^my-project-jester-\d{4}-\d{2}-\d{2}-[a-zA-Z0-9_-]{6}$/);
+    });
+  });
 
-      expect(result.projectName).toBe('new-expo-project'); // Generated default
-      expect(result.projectAccount).toBe('old-account'); // Account should remain unchanged
-      expect(promptAsync).not.toHaveBeenCalled();
+  describe('findAvailableProjectNameAsync', () => {
+    const mockGraphqlClient = {} as ExpoGraphqlClient;
+    const mockOptions = {
+      graphqlClient: mockGraphqlClient,
+      projectAccount: 'jester',
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
     });
 
-    it('should prompt to change a project account', async () => {
-      const newProjectAccount = 'new-project-account';
-      jest.mocked(selectAsync).mockResolvedValue('account');
-      mockUserInput({ account: { name: newProjectAccount } });
+    it('should find first available name when checking both local and remote', async () => {
+      (fs.pathExists as jest.Mock).mockResolvedValue(false);
+      jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
 
-      const result = await promptToChangeProjectNameOrAccountAsync(
+      const result = await findAvailableProjectNameAsync(
         jester,
-        'old-project-name',
-        'old-account'
+        'test-project',
+        '/base/path',
+        mockOptions
       );
 
-      expect(result).toEqual({
-        projectName: 'old-project-name',
-        projectAccount: newProjectAccount,
-      });
+      expect(result.projectName).toBe('test-project');
+      expect(result.projectDirectory).toBe('/base/path/test-project');
+      expect(fs.pathExists).toHaveBeenCalledTimes(1);
+      expect(verifyProjectDoesNotExistAsync).toHaveBeenCalledWith(
+        mockGraphqlClient,
+        'jester',
+        'test-project',
+        { silent: false }
+      );
+    });
+
+    it('should try alternatives when first name exists locally', async () => {
+      (fs.pathExists as jest.Mock)
+        .mockResolvedValueOnce(true) // First exists
+        .mockResolvedValueOnce(false); // Second available
+      jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
+
+      const result = await findAvailableProjectNameAsync(
+        jester,
+        'test-project',
+        '/base/path',
+        mockOptions
+      );
+
+      expect(result.projectName).toMatch(/^test-project-jester-\d{4}-\d{2}-\d{2}$/);
+      expect(result.projectDirectory).toContain('/base/path/test-project-jester-');
+      expect(fs.pathExists).toHaveBeenCalledTimes(2);
+    });
+
+    it('should skip name if local is available but remote exists', async () => {
+      (fs.pathExists as jest.Mock).mockResolvedValue(false);
+      jest
+        .mocked(verifyProjectDoesNotExistAsync)
+        .mockResolvedValueOnce(false) // First name exists remotely
+        .mockResolvedValueOnce(true); // Second available remotely
+
+      const result = await findAvailableProjectNameAsync(
+        jester,
+        'test-project',
+        '/base/path',
+        mockOptions
+      );
+
+      expect(result.projectName).toMatch(/^test-project-jester-\d{4}-\d{2}-\d{2}$/);
+      expect(verifyProjectDoesNotExistAsync).toHaveBeenCalledTimes(2);
+    });
+
+    it('should throw error when all variations taken', async () => {
+      (fs.pathExists as jest.Mock).mockResolvedValue(true);
+      jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(false);
+
+      await expect(
+        findAvailableProjectNameAsync(jester, 'test-project', '/base/path', mockOptions)
+      ).rejects.toThrow('Unable to find a unique project name');
+    });
+
+    it('should log when using alternative name', async () => {
+      (fs.pathExists as jest.Mock).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+      jest.mocked(verifyProjectDoesNotExistAsync).mockResolvedValue(true);
+
+      await findAvailableProjectNameAsync(jester, 'test-project', '/base/path', mockOptions);
+
+      logSpy.expectLogToContain('Using alternate project name:');
     });
   });
 });

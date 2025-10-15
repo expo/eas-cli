@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -20,8 +19,6 @@ export async function cloneTemplateAsync(targetProjectDir: string): Promise<stri
   }))
     ? 'ssh'
     : 'https';
-  Log.log(chalk.dim(`We detected that ${cloneMethod} is your preferred git clone method`));
-  Log.newLine();
 
   const { targetProjectDir: finalTargetProjectDirectory } = await runGitCloneAsync({
     githubUsername,

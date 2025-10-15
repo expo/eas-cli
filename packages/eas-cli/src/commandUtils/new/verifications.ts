@@ -26,7 +26,8 @@ export async function verifyAccountPermissionsAsync(
 export async function verifyProjectDoesNotExistAsync(
   graphqlClient: ExpoGraphqlClient,
   accountName: string,
-  projectName: string
+  projectName: string,
+  { silent = false }: { silent?: boolean } = {}
 ): Promise<boolean> {
   const existingProjectId = await findProjectIdByAccountNameAndSlugNullableAsync(
     graphqlClient,
@@ -35,7 +36,7 @@ export async function verifyProjectDoesNotExistAsync(
   );
 
   const doesNotExist = existingProjectId === null;
-  if (!doesNotExist) {
+  if (!doesNotExist && !silent) {
     Log.warn(`Project @${accountName}/${projectName} already exists on the server.`);
   }
 

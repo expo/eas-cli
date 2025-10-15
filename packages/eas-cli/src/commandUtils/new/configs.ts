@@ -2,75 +2,82 @@ import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
 import path from 'path';
 
+import { verifyProjectDoesNotExistAsync } from './verifications';
 import { Role } from '../../graphql/generated';
 import Log from '../../log';
-import { Choice, promptAsync, selectAsync } from '../../prompts';
+import { Choice, promptAsync } from '../../prompts';
 import { Actor, getActorUsername } from '../../user/User';
+import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 
 export async function generateProjectConfigAsync(
   actor: Actor,
-  pathArg?: string
+  pathArg: string | undefined,
+  options: {
+    graphqlClient: ExpoGraphqlClient;
+    projectAccount: string;
+  }
 ): Promise<{
   projectName: string;
   projectDirectory: string;
 }> {
-  // Step 1: Determine the target directory
-  let targetDirectory: string;
+  // Determine the base name and parent directory
+  let baseName: string;
+  let parentDirectory: string;
+
   if (!pathArg) {
-    // No path provided - we'll use cwd
-    targetDirectory = process.cwd();
+    // No path provided - use default base name in cwd
+    baseName = 'new-expo-project';
+    parentDirectory = process.cwd();
   } else if (path.isAbsolute(pathArg)) {
-    // Absolute path provided - use as-is
-    targetDirectory = pathArg;
+    // Absolute path provided
+    baseName = path.basename(pathArg);
+    parentDirectory = path.dirname(pathArg);
   } else {
-    // TODO this didn't work
-    // Relative path provided - resolve from cwd
-    targetDirectory = path.resolve(process.cwd(), pathArg);
+    // Relative path provided
+    const resolvedPath = path.resolve(process.cwd(), pathArg);
+    baseName = path.basename(resolvedPath);
+    parentDirectory = path.dirname(resolvedPath);
   }
 
-  // Step 2: Generate project name based on what's available in the target directory
-  const baseName = 'new-expo-project';
-  let projectName = baseName;
+  // Find an available name checking both local filesystem and remote server
+  const { projectName, projectDirectory } = await findAvailableProjectNameAsync(
+    actor,
+    baseName,
+    parentDirectory,
+    options
+  );
 
-  if (targetDirectory === process.cwd()) {
-    const username = getActorUsername(actor);
-    const date = new Date().toISOString().split('T')[0];
-
-    // Try different name combinations until we find one that doesn't exist
-    const nameOptions = [
-      baseName,
-      `${baseName}-${username}-${date}`,
-      `${baseName}-${username}-${date}-${nanoid(6)}`,
-    ];
-
-    for (const option of nameOptions) {
-      if (!(await fs.pathExists(path.join(targetDirectory, option)))) {
-        projectName = option;
-        break;
-      }
-    }
-
-    // Append the generated name to the target directory
-    targetDirectory = path.join(targetDirectory, projectName);
-  } else {
-    // Path was explicitly provided, use the last segment as the project name
-    projectName = path.basename(targetDirectory);
-  }
-
-  Log.log(`Using project name: ${projectName}`);
-  Log.log(`Using project directory: ${targetDirectory}`);
+  Log.log(`Using project directory: ${projectDirectory}`);
 
   return {
     projectName,
-    projectDirectory: targetDirectory,
+    projectDirectory,
   };
 }
 
+function hasAccountPermissions(actor: Actor, accountName: string): boolean {
+  const account = actor.accounts.find(a => a.name === accountName);
+  if (!account) {
+    return false;
+  }
+  return account.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly;
+}
+
 export async function promptForProjectAccountAsync(actor: Actor): Promise<string> {
+  // If only one account, use it (if has permissions)
   if (actor.accounts.length === 1) {
-    return actor.accounts[0].name;
+    const account = actor.accounts[0];
+
+    if (hasAccountPermissions(actor, account.name)) {
+      return account.name;
+    }
+
+    throw new Error(
+      `You don't have permission to create projects on your only available account (${account.name}).`
+    );
   }
 
+  // Multiple accounts - prompt user to select one with permissions
   return (
     await promptAsync({
       type: 'select',
@@ -82,12 +89,6 @@ export async function promptForProjectAccountAsync(actor: Actor): Promise<string
 }
 
 export function getAccountChoices(actor: Actor): Choice[] {
-  const namesWithSufficientPermissions = new Set(
-    actor.accounts
-      .filter(a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly)
-      .map(it => it.name)
-  );
-
   const sortedAccounts = actor.accounts.sort((a, _b) =>
     actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
   );
@@ -97,7 +98,7 @@ export function getAccountChoices(actor: Actor): Choice[] {
     const accountDisplayName = isPersonalAccount
       ? `${account.name} (personal account)`
       : account.name;
-    const disabled = !namesWithSufficientPermissions.has(account.name);
+    const disabled = !hasAccountPermissions(actor, account.name);
 
     return {
       title: accountDisplayName,
@@ -110,32 +111,65 @@ export function getAccountChoices(actor: Actor): Choice[] {
   });
 }
 
-export async function promptToChangeProjectNameOrAccountAsync(
-  actor: Actor,
-  projectName: string,
-  projectAccount: string
-): Promise<{
-  projectName: string;
-  projectAccount: string;
-}> {
-  const selection = await selectAsync(
-    'Would you like to change the project name or account?',
-    [
-      { title: 'Project name', value: 'name' },
-      { title: 'Account', value: 'account' },
-    ],
-    { initial: 'name' }
-  );
+export function generateUniqueProjectName(actor: Actor, baseName: string): string[] {
+  const username = getActorUsername(actor);
+  const date = new Date().toISOString().split('T')[0];
 
-  if (selection === 'name') {
-    const config = await generateProjectConfigAsync(actor);
-    projectName = config.projectName;
-  } else {
-    projectAccount = await promptForProjectAccountAsync(actor);
+  return [
+    baseName,
+    `${baseName}-${username}-${date}`,
+    `${baseName}-${username}-${date}-${nanoid(6)}`,
+  ];
+}
+
+/**
+ * Finds an available project name that doesn't conflict with either:
+ * Local filesystem (directory already exists)
+ * Remote server (project already exists on Expo)
+ */
+export async function findAvailableProjectNameAsync(
+  actor: Actor,
+  baseName: string,
+  parentDirectory: string,
+  {
+    graphqlClient,
+    projectAccount,
+  }: {
+    graphqlClient: ExpoGraphqlClient;
+    projectAccount: string;
+  }
+): Promise<{ projectName: string; projectDirectory: string }> {
+  const nameVariations = generateUniqueProjectName(actor, baseName);
+
+  for (let i = 0; i < nameVariations.length; i++) {
+    const nameVariation = nameVariations[i];
+    const proposedDirectory = path.join(parentDirectory, nameVariation);
+    const usingVariant = i !== 0;
+
+    const localExists = await fs.pathExists(proposedDirectory);
+    if (localExists) {
+      continue;
+    }
+
+    const remoteAvailable = await verifyProjectDoesNotExistAsync(
+      graphqlClient,
+      projectAccount,
+      nameVariation,
+      { silent: usingVariant }
+    );
+    if (!remoteAvailable) {
+      continue;
+    }
+
+    Log.log(`Using ${usingVariant ? 'alternate ' : ''}project name: ${nameVariation}`);
+
+    return {
+      projectName: nameVariation,
+      projectDirectory: proposedDirectory,
+    };
   }
 
-  return {
-    projectName,
-    projectAccount,
-  };
+  throw new Error(
+    `Unable to find a unique project name for "${baseName}". All generated variations already exist.`
+  );
 }

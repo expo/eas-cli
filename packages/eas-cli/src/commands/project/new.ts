@@ -13,7 +13,6 @@ import {
 import {
   generateProjectConfigAsync,
   promptForProjectAccountAsync,
-  promptToChangeProjectNameOrAccountAsync,
 } from '../../commandUtils/new/configs';
 import {
   copyProjectTemplatesAsync,
@@ -22,10 +21,6 @@ import {
   updatePackageJsonAsync,
   updateReadmeAsync,
 } from '../../commandUtils/new/projectFiles';
-import {
-  verifyAccountPermissionsAsync,
-  verifyProjectDoesNotExistAsync,
-} from '../../commandUtils/new/verifications';
 import { AppFragment } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -37,28 +32,6 @@ import { Actor } from '../../user/User';
 
 export async function generateConfigsAsync(
   args: { path?: string },
-  actor: Actor
-): Promise<{
-  projectName: string;
-  projectDirectory: string;
-  projectAccount: string;
-}> {
-  const projectAccount = await promptForProjectAccountAsync(actor);
-  const { projectName, projectDirectory } = await generateProjectConfigAsync(actor, args.path);
-
-  return {
-    projectAccount,
-    projectDirectory,
-    projectName,
-  };
-}
-
-export async function verifyConfigsAsync(
-  initialConfigs: {
-    projectName: string;
-    projectDirectory: string;
-    projectAccount: string;
-  },
   actor: Actor,
   graphqlClient: ExpoGraphqlClient
 ): Promise<{
@@ -66,34 +39,16 @@ export async function verifyConfigsAsync(
   projectDirectory: string;
   projectAccount: string;
 }> {
-  Log.gray('Verifying project values...');
-
-  let { projectName, projectDirectory, projectAccount } = initialConfigs;
-
-  const hasPermissions = await verifyAccountPermissionsAsync(actor, projectAccount);
-  if (!hasPermissions) {
-    projectAccount = await promptForProjectAccountAsync(actor);
-  }
-
-  const projectDoesNotExist = await verifyProjectDoesNotExistAsync(
+  const projectAccount = await promptForProjectAccountAsync(actor);
+  const { projectName, projectDirectory } = await generateProjectConfigAsync(actor, args.path, {
     graphqlClient,
     projectAccount,
-    projectName
-  );
-  if (!projectDoesNotExist) {
-    const prompted = await promptToChangeProjectNameOrAccountAsync(
-      actor,
-      projectName,
-      projectAccount
-    );
-    projectName = prompted.projectName;
-    projectAccount = prompted.projectAccount;
-  }
+  });
 
   return {
-    projectName,
-    projectDirectory,
     projectAccount,
+    projectDirectory,
+    projectName,
   };
 }
 
@@ -206,12 +161,11 @@ export default class New extends EasCommand {
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
     Log.newLine();
 
-    const initialConfigs = await generateConfigsAsync(args, actor);
     const {
       projectName,
       projectDirectory: targetProjectDirectory,
       projectAccount,
-    } = await verifyConfigsAsync(initialConfigs, actor, graphqlClient);
+    } = await generateConfigsAsync(args, actor, graphqlClient);
 
     const projectDirectory = await cloneTemplateAsync(targetProjectDirectory);
 

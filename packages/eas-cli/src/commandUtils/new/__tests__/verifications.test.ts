@@ -2,6 +2,7 @@ import { LogSpy } from './testUtils';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { Role } from '../../../graphql/generated';
+import Log from '../../../log';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { verifyAccountPermissionsAsync, verifyProjectDoesNotExistAsync } from '../verifications';
 
@@ -153,6 +154,30 @@ describe('verifications', () => {
         'test-project'
       );
       logSpy.expectLogToContain('Project @test-account/test-project already exists on the server.');
+    });
+
+    it('should not log warning when silent is true', async () => {
+      const mockGraphqlClient = {} as ExpoGraphqlClient;
+      jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue('project-id');
+
+      logSpy.restore(); // Stop spying to reset
+      const warnSpy = jest.spyOn(Log, 'warn'); // Create a new spy
+
+      const result = await verifyProjectDoesNotExistAsync(
+        mockGraphqlClient,
+        'test-account',
+        'test-project',
+        { silent: true }
+      );
+
+      expect(result).toBe(false);
+      expect(findProjectIdByAccountNameAndSlugNullableAsync).toHaveBeenCalledWith(
+        mockGraphqlClient,
+        'test-account',
+        'test-project'
+      );
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
     });
   });
 });

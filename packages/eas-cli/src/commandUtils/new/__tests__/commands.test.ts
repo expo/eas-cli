@@ -41,7 +41,6 @@ describe('commands', () => {
       const result = await cloneTemplateAsync(targetProjectDir);
 
       logSpy.expectLogToContain(`📂 Cloning the project to ${targetProjectDir}`);
-      logSpy.expectLogToContain('We detected that ssh is your preferred git clone method');
 
       expect(runGitCloneAsync).toHaveBeenCalledWith({
         githubUsername: 'expo',
@@ -65,7 +64,6 @@ describe('commands', () => {
       const result = await cloneTemplateAsync(targetProjectDir);
 
       logSpy.expectLogToContain(`📂 Cloning the project to ${targetProjectDir}`);
-      logSpy.expectLogToContain('We detected that https is your preferred git clone method');
 
       expect(runGitCloneAsync).toHaveBeenCalledWith({
         githubUsername: 'expo',
@@ -88,6 +86,7 @@ describe('commands', () => {
       await installProjectDependenciesAsync(projectDir, 'npm');
 
       expect(installDependenciesAsync).toHaveBeenCalledWith({
+        outputLevel: 'none',
         projectDir,
         packageManager: 'npm',
       });
@@ -96,12 +95,14 @@ describe('commands', () => {
         cwd: projectDir,
         command: 'npx',
         args: ['expo', 'install', 'expo-updates'],
+        hideOutput: true,
       });
 
       expect(runCommandAsync).toHaveBeenCalledWith({
         cwd: projectDir,
         command: 'npx',
         args: ['expo', 'install', '@expo/metro-runtime'],
+        hideOutput: true,
       });
     });
   });
@@ -116,18 +117,21 @@ describe('commands', () => {
         command: 'git',
         args: ['init'],
         cwd: projectDir,
+        hideOutput: true,
       });
 
       expect(runCommandAsync).toHaveBeenCalledWith({
         command: 'git',
         args: ['add', '.'],
         cwd: projectDir,
+        hideOutput: true,
       });
 
       expect(runCommandAsync).toHaveBeenCalledWith({
         command: 'git',
         args: ['commit', '-m', 'Initial commit'],
         cwd: projectDir,
+        hideOutput: true,
       });
     });
   });
