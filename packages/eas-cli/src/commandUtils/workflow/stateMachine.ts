@@ -268,7 +268,7 @@ export const workflowStepSelectionAction: WorkflowCommandSelectionAction = async
   if (!job) {
     return moveToWorkflowSelectionErrorState(prevState, 'No job found');
   }
-  const logs = await processLogsFromJobAsync(job);
+  const logs = await processLogsFromJobAsync(prevState, job);
   if (!logs) {
     return moveToWorkflowSelectionErrorState(prevState, 'No logs found');
   }

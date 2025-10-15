@@ -1,4 +1,4 @@
-import { fetchRawLogsForJobAsync } from './fetchLogs';
+import { fetchRawLogsForBuildJobAsync, fetchRawLogsForCustomJobAsync } from './fetchLogs';
 import {
   WorkflowJobResult,
   WorkflowLogLine,
@@ -7,11 +7,13 @@ import {
   WorkflowTriggerType,
 } from './types';
 import {
+  WorkflowJobType,
   WorkflowRunFragment,
   WorkflowRunStatus,
   WorkflowRunTriggerEventType,
 } from '../../graphql/generated';
 import { Choice } from '../../prompts';
+import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 
 export function computeTriggerInfoForWorkflowRun(run: WorkflowRunFragment): {
   triggerType: WorkflowTriggerType;
@@ -101,9 +103,19 @@ export function processWorkflowRuns(runs: WorkflowRunFragment[]): WorkflowRunRes
 }
 
 export async function processLogsFromJobAsync(
+  state: { graphqlClient: ExpoGraphqlClient },
   job: WorkflowJobResult
 ): Promise<WorkflowLogs | null> {
-  const rawLogs = await fetchRawLogsForJobAsync(job);
+  let rawLogs: string | null;
+  switch (job.type) {
+    case WorkflowJobType.Build:
+    case WorkflowJobType.Repack:
+      rawLogs = await fetchRawLogsForBuildJobAsync(state, job);
+      break;
+    default:
+      rawLogs = await fetchRawLogsForCustomJobAsync(job);
+      break;
+  }
   if (!rawLogs) {
     return null;
   }
