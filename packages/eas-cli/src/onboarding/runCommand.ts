@@ -11,6 +11,7 @@ export async function runCommandAsync({
   shouldShowStderrLine,
   shouldPrintStderrLineAsStdout,
   showSpinner = true,
+  showOutput = true,
 }: {
   cwd?: string;
   args: string[];
@@ -18,6 +19,7 @@ export async function runCommandAsync({
   shouldShowStderrLine?: (line: string) => boolean;
   shouldPrintStderrLineAsStdout?: (line: string) => boolean;
   showSpinner?: boolean;
+  showOutput?: boolean;
 }): Promise<void> {
   Log.log(`🏗️  Running ${chalk.bold(`${command} ${args.join(' ')}`)}...`);
   let spinner: Ora | undefined;
@@ -25,35 +27,38 @@ export async function runCommandAsync({
     spinner = ora(`${chalk.bold(`${command} ${args.join(' ')}`)}`).start();
   }
   const spawnPromise = spawnAsync(command, args, {
-    stdio: ['inherit', 'pipe', 'pipe'],
+    stdio: showOutput ? ['inherit', 'pipe', 'pipe'] : 'ignore',
     cwd,
   });
-  const {
-    child: { stdout, stderr },
-  } = spawnPromise;
-  if (!stdout || !stderr) {
-    throw new Error(`Failed to spawn ${command}`);
+
+  if (showOutput) {
+    const {
+      child: { stdout, stderr },
+    } = spawnPromise;
+    if (!stdout || !stderr) {
+      throw new Error(`Failed to spawn ${command}`);
+    }
+
+    stdout.on('data', data => {
+      for (const line of data.toString().trim().split('\n')) {
+        Log.log(`${chalk.gray(`[${command}]`)} ${line}`);
+      }
+    });
+    stderr.on('data', data => {
+      for (const line of data.toString().trim().split('\n')) {
+        if (shouldShowStderrLine && !shouldShowStderrLine(line)) {
+          continue;
+        }
+
+        const log = `${chalk.gray(`[${command}]`)} ${line}`;
+        if (shouldPrintStderrLineAsStdout?.(line)) {
+          Log.log(log);
+        } else {
+          Log.warn(`${chalk.gray(`[${command}]`)} ${line}`);
+        }
+      }
+    });
   }
-
-  stdout.on('data', data => {
-    for (const line of data.toString().trim().split('\n')) {
-      Log.log(`${chalk.gray(`[${command}]`)} ${line}`);
-    }
-  });
-  stderr.on('data', data => {
-    for (const line of data.toString().trim().split('\n')) {
-      if (shouldShowStderrLine && !shouldShowStderrLine(line)) {
-        continue;
-      }
-
-      const log = `${chalk.gray(`[${command}]`)} ${line}`;
-      if (shouldPrintStderrLineAsStdout?.(line)) {
-        Log.log(log);
-      } else {
-        Log.warn(`${chalk.gray(`[${command}]`)} ${line}`);
-      }
-    }
-  });
 
   try {
     await spawnPromise;
