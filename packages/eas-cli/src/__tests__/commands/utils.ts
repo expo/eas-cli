@@ -192,9 +192,16 @@ export function getMockWorkflowRunsFragment(
         failures?: number;
         pending?: number;
         withJobs?: number;
+        withBuildJobs?: number;
       }
 ): WorkflowRunFragment[] {
-  const { successes = 0, failures = 0, pending = 0, withJobs = 0 } = params ?? {};
+  const {
+    successes = 0,
+    failures = 0,
+    pending = 0,
+    withJobs = 0,
+    withBuildJobs = 0,
+  } = params ?? {};
   const runs: any[] = [];
   for (let i = 0; i < successes; i++) {
     runs.push({
@@ -247,10 +254,13 @@ export function getMockWorkflowRunsFragment(
   for (let i = 0; i < withJobs; i++) {
     runs.push(getMockWorkflowRunWithJobsFragment());
   }
+  for (let i = 0; i < withBuildJobs; i++) {
+    runs.push(getMockWorkflowRunWithBuildJobsFragment());
+  }
   return runs;
 }
 
-export function getMockWorkflowJobFragment(
+export function getMockWorkflowCustomJobFragment(
   runId?: string
 ): WorkflowRunByIdWithJobsQuery['workflowRuns']['byId']['jobs'][number] {
   return {
@@ -258,7 +268,7 @@ export function getMockWorkflowJobFragment(
     key: 'job1',
     name: 'job1',
     status: WorkflowJobStatus.Success,
-    type: WorkflowJobType.Build,
+    type: WorkflowJobType.Custom,
     createdAt: '2022-01-01T00:00:00.000Z',
     updatedAt: '2022-01-01T00:00:00.000Z',
     outputs: {},
@@ -271,6 +281,18 @@ export function getMockWorkflowJobFragment(
       logFileUrls: ['https://example.com/log1'],
       errors: [],
       artifacts: [],
+    },
+  };
+}
+
+export function getMockWorkflowBuildJobFragment(
+  runId?: string
+): WorkflowRunByIdWithJobsQuery['workflowRuns']['byId']['jobs'][number] {
+  return {
+    ...getMockWorkflowCustomJobFragment(runId),
+    type: WorkflowJobType.Build,
+    outputs: {
+      build_id: 'build1',
     },
   };
 }
@@ -303,6 +325,38 @@ export function getMockWorkflowRunWithJobsFragment(
         },
       },
     },
-    jobs: [getMockWorkflowJobFragment(id)],
+    jobs: [getMockWorkflowCustomJobFragment(id)],
+  };
+}
+
+export function getMockWorkflowRunWithBuildJobsFragment(
+  runID?: string
+): WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'] {
+  const id = runID ?? 'build1';
+  return {
+    id,
+    status: WorkflowRunStatus.Failure,
+    triggerEventType: WorkflowRunTriggerEventType.Manual,
+    createdAt: '2022-01-01T00:00:00.000Z',
+    updatedAt: '2022-01-01T00:00:00.000Z',
+    gitCommitHash: '1234567890',
+    gitCommitMessage: 'commit message',
+    errors: [],
+    workflow: {
+      id: 'build',
+      name: 'build',
+      fileName: 'build.yml',
+      app: {
+        id: mockProjectId,
+        __typename: 'App',
+        name: 'App',
+        ownerAccount: {
+          id: 'account-id',
+          name: 'account-name',
+          __typename: 'Account',
+        },
+      },
+    },
+    jobs: [getMockWorkflowBuildJobFragment(id)],
   };
 }

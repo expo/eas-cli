@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- workflow:logs should show logs from build and repack jobs. ([#3226](https://github.com/expo/eas-cli/pull/3226) by [@douglowder](https://github.com/douglowder))
+
 ### 🧹 Chores
 
 ## [16.23.1](https://github.com/expo/eas-cli/releases/tag/v16.23.1) - 2025-10-16

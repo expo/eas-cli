@@ -1,15 +1,20 @@
 import {
   getMockEmptyWorkflowRunsFragment,
-  getMockWorkflowJobFragment,
+  getMockWorkflowCustomJobFragment,
   getMockWorkflowRunWithJobsFragment,
   getMockWorkflowRunsFragment,
   mockCommandContext,
   mockProjectId,
   mockTestCommand,
 } from './utils';
-import { fetchRawLogsForJobAsync } from '../../commandUtils/workflow/fetchLogs';
+import {
+  fetchRawLogsForBuildJobAsync,
+  fetchRawLogsForCustomJobAsync,
+} from '../../commandUtils/workflow/fetchLogs';
 import WorkflowLogView from '../../commands/workflow/logs';
+import { AppPlatform, BuildPriority, BuildStatus } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
+import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { WorkflowJobQuery } from '../../graphql/queries/WorkflowJobQuery';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log from '../../log';
@@ -20,6 +25,7 @@ jest.mock('../../build/ios/version');
 jest.mock('../../project/applicationIdentifier');
 jest.mock('../../graphql/queries/AppVersionQuery');
 jest.mock('../../graphql/queries/AppQuery');
+jest.mock('../../graphql/queries/BuildQuery');
 jest.mock('../../graphql/queries/WorkflowJobQuery');
 jest.mock('../../graphql/queries/WorkflowRunQuery');
 jest.mock('../../graphql/mutations/AppVersionMutation');
@@ -35,7 +41,7 @@ jest.mock('../../commandUtils/workflow/fetchLogs');
 
 describe(WorkflowLogView, () => {
   beforeEach(() => {
-    jest.mocked(WorkflowJobQuery.byIdAsync).mockResolvedValue(getMockWorkflowJobFragment());
+    jest.mocked(WorkflowJobQuery.byIdAsync).mockResolvedValue(getMockWorkflowCustomJobFragment());
     jest
       .mocked(WorkflowRunQuery.withJobsByIdAsync)
       .mockResolvedValue(getMockWorkflowRunWithJobsFragment());
@@ -98,7 +104,7 @@ describe(WorkflowLogView, () => {
         return { selectedStep: 'step1' };
       }
     });
-    jest.mocked(fetchRawLogsForJobAsync).mockResolvedValue(null);
+    jest.mocked(fetchRawLogsForCustomJobAsync).mockResolvedValue(null);
     await cmd.run();
     expect(AppQuery.byIdWorkflowRunsFilteredByStatusAsync).toHaveBeenCalledWith(
       ctx.loggedIn.graphqlClient,
@@ -130,7 +136,64 @@ describe(WorkflowLogView, () => {
       }
     });
     jest
-      .mocked(fetchRawLogsForJobAsync)
+      .mocked(fetchRawLogsForCustomJobAsync)
+      .mockResolvedValue(
+        '{"result":"test","marker":"test","buildStepDisplayName":"step1","buildStepInternalId":"step1","time":"2022-01-01T00:00:00.000Z","msg":"test"}'
+      );
+    await cmd.run();
+    expect(AppQuery.byIdWorkflowRunsFilteredByStatusAsync).toHaveBeenCalledWith(
+      ctx.loggedIn.graphqlClient,
+      mockProjectId,
+      undefined,
+      20
+    );
+    expect(promptAsync).toHaveBeenCalledTimes(3);
+    expect(Log.error).not.toHaveBeenCalled();
+    expect(Log.log).toHaveBeenCalledWith('  2022-01-01T00:00:00.000Z test');
+  });
+  test('view build logs, passing in no parameters, runs found, jobs found, step selected, logs found', async () => {
+    const ctx = mockCommandContext(WorkflowLogView, {
+      projectId: mockProjectId,
+    });
+    const cmd = mockTestCommand(WorkflowLogView, [], ctx);
+    jest
+      .mocked(AppQuery.byIdWorkflowRunsFilteredByStatusAsync)
+      .mockResolvedValue(getMockWorkflowRunsFragment({ withBuildJobs: 1 }));
+    jest.mocked(BuildQuery.byIdAsync).mockResolvedValue({
+      id: 'build1',
+      status: BuildStatus.Finished,
+      priority: BuildPriority.Normal,
+      createdAt: '2022-01-01T00:00:00.000Z',
+      updatedAt: '2022-01-01T00:00:00.000Z',
+      isForIosSimulator: false,
+      project: {
+        id: mockProjectId,
+        __typename: 'App',
+        name: 'App',
+        slug: 'app',
+        ownerAccount: {
+          id: 'account-id',
+          name: 'account-name',
+          __typename: 'Account',
+        },
+      },
+      platform: AppPlatform.Android,
+      logFiles: ['https://example.com/log1'],
+    });
+    let promptCalls = 0;
+    jest.mocked(promptAsync).mockImplementation(async () => {
+      if (promptCalls === 0) {
+        promptCalls++;
+        return { selectedRun: 'build1' };
+      } else if (promptCalls === 1) {
+        promptCalls++;
+        return { selectedJob: 0 };
+      } else {
+        return { selectedStep: 'step1' };
+      }
+    });
+    jest
+      .mocked(fetchRawLogsForBuildJobAsync)
       .mockResolvedValue(
         '{"result":"test","marker":"test","buildStepDisplayName":"step1","buildStepInternalId":"step1","time":"2022-01-01T00:00:00.000Z","msg":"test"}'
       );
