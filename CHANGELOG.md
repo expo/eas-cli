@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Document the default values for `track` and `releaseStatus`. ([#3229](https://github.com/expo/eas-cli/pull/3229) by [@kadikraman](https://github.com/kadikraman))
+
 ## [16.23.0](https://github.com/expo/eas-cli/releases/tag/v16.23.0) - 2025-10-14
 
 ### 🎉 New features
