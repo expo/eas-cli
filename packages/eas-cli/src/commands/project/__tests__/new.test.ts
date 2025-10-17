@@ -62,8 +62,8 @@ describe(New.name, () => {
 
       expect(result).toEqual({
         projectAccount: 'jester',
-        projectDirectory: expect.stringContaining('/new-expo-project'),
-        projectName: 'new-expo-project',
+        projectDirectory: expect.stringContaining('/expo-project'),
+        projectName: 'expo-project',
       });
     });
 

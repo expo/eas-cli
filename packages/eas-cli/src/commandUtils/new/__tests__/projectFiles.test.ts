@@ -265,7 +265,7 @@ describe('projectFiles', () => {
         name: 'test-app',
         version: '1.0.0',
         scripts: {
-          preview: 'npx eas-cli@latest workflow:run publish-preview-update.yml',
+          draft: 'npx eas-cli@latest workflow:run create-draft.yml',
           'development-builds': 'npx eas-cli@latest workflow:run create-development-builds.yml',
           deploy: 'npx eas-cli@latest workflow:run deploy-to-production.yml',
         },
@@ -286,12 +286,27 @@ describe('projectFiles', () => {
       await copyProjectTemplatesAsync(projectDir);
 
       expect(fs.copy).toHaveBeenCalledWith(
-        expect.stringContaining('templates/.eas/workflows'),
-        expect.stringContaining('.eas/workflows'),
-        { errorOnExist: false, overwrite: true }
+        expect.stringContaining('templates'),
+        projectDir,
+        expect.objectContaining({
+          errorOnExist: false,
+          overwrite: true,
+          filter: expect.any(Function),
+        })
       );
 
-      logSpy.expectLogToContain('Created EAS workflow files');
+      // Should create symlinks for .cursorrules and .clinerules
+      expect(fs.symlink).toHaveBeenCalledWith(
+        `${projectDir}/AGENTS.md`,
+        `${projectDir}/.cursorrules`
+      );
+      expect(fs.symlink).toHaveBeenCalledWith(
+        `${projectDir}/AGENTS.md`,
+        `${projectDir}/.clinerules`
+      );
+
+      logSpy.expectLogToContain('Created project template files');
+      logSpy.expectLogToContain('Created AI agent configuration symlinks');
     });
   });
 

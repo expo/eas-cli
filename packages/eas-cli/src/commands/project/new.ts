@@ -40,7 +40,7 @@ export async function generateConfigsAsync(
   projectAccount: string;
 }> {
   const projectAccount = await promptForProjectAccountAsync(actor);
-  const { projectName, projectDirectory } = await generateProjectConfigAsync(actor, args.path, {
+  const { projectName, projectDirectory } = await generateProjectConfigAsync(args.path, {
     graphqlClient,
     projectAccount,
   });
@@ -189,7 +189,7 @@ export default class New extends EasCommand {
     Log.log('Next steps:');
     Log.withInfo(`Run \`cd ${projectDirectory}\` to navigate to your project.`);
     Log.withInfo(
-      `Run \`${packageManager} run preview\` to create a preview build on EAS. ${learnMore(
+      `Run \`${packageManager} run draft\` to create a preview on EAS. ${learnMore(
         'https://docs.expo.dev/eas/workflows/examples/publish-preview-update/'
       )}`
     );

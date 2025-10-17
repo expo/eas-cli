@@ -131,7 +131,7 @@ export async function updatePackageJsonAsync(projectDir: string): Promise<void> 
   if (!packageJson.scripts) {
     packageJson.scripts = {};
   }
-  packageJson.scripts.preview = 'npx eas-cli@latest workflow:run publish-preview-update.yml';
+  packageJson.scripts.draft = 'npx eas-cli@latest workflow:run create-draft.yml';
   packageJson.scripts['development-builds'] =
     'npx eas-cli@latest workflow:run create-development-builds.yml';
   packageJson.scripts.deploy = 'npx eas-cli@latest workflow:run deploy-to-production.yml';
@@ -142,15 +142,26 @@ export async function updatePackageJsonAsync(projectDir: string): Promise<void> 
 }
 
 export async function copyProjectTemplatesAsync(projectDir: string): Promise<void> {
-  const templatesSourceDir = path.join(__dirname, 'templates', '.eas', 'workflows');
-  const easWorkflowsTargetDir = path.join(projectDir, '.eas', 'workflows');
+  const templatesSourceDir = path.join(__dirname, 'templates');
 
-  await fs.copy(templatesSourceDir, easWorkflowsTargetDir, {
+  // Copy everything from templates to projectDir, skipping readme-additions.md
+  await fs.copy(templatesSourceDir, projectDir, {
     overwrite: true,
     errorOnExist: false,
+    filter: (src: string) => {
+      return !src.endsWith('readme-additions.md');
+    },
   });
 
-  Log.withTick('Created EAS workflow files');
+  Log.withTick('Created project template files');
+  Log.log();
+
+  const agentsPath = path.join(projectDir, 'AGENTS.md');
+  ['cursorrules', 'clinerules'].forEach(async rule => {
+    await fs.symlink(agentsPath, path.join(projectDir, `.${rule}`));
+  });
+
+  Log.withTick('Created AI agent configuration symlinks');
   Log.log();
 }
 
