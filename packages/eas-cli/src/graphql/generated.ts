@@ -9170,7 +9170,7 @@ export type CancelBuildMutationVariables = Exact<{
 }>;
 
 
-export type CancelBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', cancel: { __typename?: 'Build', id: string, status: BuildStatus } } };
+export type CancelBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', cancelBuild: { __typename?: 'Build', id: string, status: BuildStatus } } };
 
 export type DeleteBuildMutationVariables = Exact<{
   buildId: Scalars['ID']['input'];
