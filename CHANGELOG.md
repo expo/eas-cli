@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Added support to read platform version from `app.json`. ([#2778](https://github.com/expo/eas-cli/pull/2778) by [@kudo](https://github.com/kudo))
+
 ### 🐛 Bug fixes
 
 - workflow:logs should show logs from build and repack jobs. ([#3226](https://github.com/expo/eas-cli/pull/3226) by [@douglowder](https://github.com/douglowder))
