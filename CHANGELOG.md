@@ -8,13 +8,19 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [16.24.0](https://github.com/expo/eas-cli/releases/tag/v16.24.0) - 2025-10-19
+
+### 🎉 New features
+
 - workflow:run --wait shows periodic job and step status updates. ([#3227](https://github.com/expo/eas-cli/pull/3227) by [@douglowder](https://github.com/douglowder))
 
 ### 🐛 Bug fixes
 
 - workflow:logs should show logs from build and repack jobs. ([#3226](https://github.com/expo/eas-cli/pull/3226) by [@douglowder](https://github.com/douglowder))
-
-### 🧹 Chores
 
 ## [16.23.1](https://github.com/expo/eas-cli/releases/tag/v16.23.1) - 2025-10-16
 
