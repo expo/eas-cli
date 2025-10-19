@@ -5,7 +5,7 @@ import {
   choiceFromWorkflowJob,
   choiceFromWorkflowRun,
   choicesFromWorkflowLogs,
-  processLogsFromJobAsync,
+  fetchAndProcessLogsFromJobAsync,
   processWorkflowRuns,
 } from './utils';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -268,7 +268,7 @@ export const workflowStepSelectionAction: WorkflowCommandSelectionAction = async
   if (!job) {
     return moveToWorkflowSelectionErrorState(prevState, 'No job found');
   }
-  const logs = await processLogsFromJobAsync(prevState, job);
+  const logs = await fetchAndProcessLogsFromJobAsync(prevState, job);
   if (!logs) {
     return moveToWorkflowSelectionErrorState(prevState, 'No logs found');
   }

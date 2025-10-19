@@ -1,7 +1,7 @@
 import { WorkflowJobByIdQuery, WorkflowRunByIdWithJobsQuery } from '../../graphql/generated';
 
 /*
- * Utility types for workflow commands
+ * Utility types and Zod definitions for workflow commands
  */
 
 export enum WorkflowTriggerType {
@@ -42,5 +42,12 @@ export type WorkflowRunWithJobsResult = WorkflowRunResult & {
   logs?: string;
 };
 
-export type WorkflowLogLine = { time: string; msg: string; result?: string; marker?: string };
+export type WorkflowLogLine = {
+  time: string;
+  msg: string;
+  result?: string;
+  marker?: string;
+  err?: any;
+};
+
 export type WorkflowLogs = Map<string, WorkflowLogLine[]>;
