@@ -188,6 +188,8 @@ export type Account = {
   userInvitations: Array<UserInvitation>;
   /** Actors associated with this account and permissions they hold */
   users: Array<UserPermission>;
+  /** Notification preferences of the viewer for this account */
+  viewerNotificationPreferences: Array<NotificationPreferenceItem>;
   /** Permission info for the viewer on this account */
   viewerUserPermission: UserPermission;
   /** @deprecated Build packs are no longer supported */
@@ -645,6 +647,22 @@ export type AccountMutationSetDisplayNameArgs = {
 export type AccountMutationSetPushSecurityEnabledArgs = {
   accountID: Scalars['ID']['input'];
   pushSecurityEnabled: Scalars['Boolean']['input'];
+};
+
+/** Account-level notification preference */
+export type AccountNotificationPreference = NotificationPreference & {
+  __typename?: 'AccountNotificationPreference';
+  account: Account;
+  enabled: Scalars['Boolean']['output'];
+  event: NotificationEvent;
+  type: NotificationType;
+};
+
+export type AccountNotificationPreferenceInput = {
+  accountId: Scalars['ID']['input'];
+  enabled: Scalars['Boolean']['input'];
+  event: NotificationEvent;
+  type: NotificationType;
 };
 
 export type AccountNotificationSubscriptionInput = {
@@ -1416,6 +1434,8 @@ export type App = Project & {
   username: Scalars['String']['output'];
   /** @deprecated No longer supported */
   users?: Maybe<Array<Maybe<User>>>;
+  /** Notification preferences of the viewer for this app */
+  viewerNotificationPreferences: Array<NotificationPreferenceItem>;
   /** Webhooks for an app */
   webhooks: Array<Webhook>;
   workerCustomDomain?: Maybe<WorkerCustomDomain>;
@@ -1916,6 +1936,22 @@ export type AppMutationSetPushSecurityEnabledArgs = {
 export type AppMutationSetResourceClassExperimentArgs = {
   appId: Scalars['ID']['input'];
   resourceClassExperiment?: InputMaybe<ResourceClassExperiment>;
+};
+
+/** App-level notification preference */
+export type AppNotificationPreference = NotificationPreference & {
+  __typename?: 'AppNotificationPreference';
+  app: App;
+  enabled: Scalars['Boolean']['output'];
+  event: NotificationEvent;
+  type: NotificationType;
+};
+
+export type AppNotificationPreferenceInput = {
+  appId: Scalars['ID']['input'];
+  enabled: Scalars['Boolean']['input'];
+  event: NotificationEvent;
+  type: NotificationType;
 };
 
 export type AppNotificationSubscriptionInput = {
@@ -5760,6 +5796,32 @@ export enum NotificationEvent {
 
 export type NotificationMetadata = BuildLimitThresholdExceededMetadata | BuildPlanCreditThresholdExceededMetadata | TestNotificationMetadata;
 
+/** Base interface for notification preferences */
+export type NotificationPreference = {
+  enabled: Scalars['Boolean']['output'];
+  event: NotificationEvent;
+  type: NotificationType;
+};
+
+/** Union type representing either account-level or app-level notification preferences */
+export type NotificationPreferenceItem = AccountNotificationPreference | AppNotificationPreference;
+
+export type NotificationPreferenceMutation = {
+  __typename?: 'NotificationPreferenceMutation';
+  setAccountNotificationPreference: NotificationPreferenceItem;
+  setAppNotificationPreference: NotificationPreferenceItem;
+};
+
+
+export type NotificationPreferenceMutationSetAccountNotificationPreferenceArgs = {
+  input: AccountNotificationPreferenceInput;
+};
+
+
+export type NotificationPreferenceMutationSetAppNotificationPreferenceArgs = {
+  input: AppNotificationPreferenceInput;
+};
+
 export type NotificationSubscription = {
   __typename?: 'NotificationSubscription';
   account?: Maybe<Account>;
@@ -6235,7 +6297,12 @@ export type RootMutation = {
   logRocketProject: LogRocketProjectMutation;
   /** Mutations that modify the currently authenticated User */
   me: MeMutation;
-  /** Mutations that modify a NotificationSubscription */
+  /** Notification preference management */
+  notificationPreference: NotificationPreferenceMutation;
+  /**
+   * Mutations that modify a NotificationSubscription
+   * @deprecated Use notificationPreference mutation instead
+   */
   notificationSubscription: NotificationSubscriptionMutation;
   /** Mutations that create, update, and delete Robots */
   robot: RobotMutation;
@@ -6576,6 +6643,7 @@ export type SsoUser = Actor & UserActor & {
   lastName?: Maybe<Scalars['String']['output']>;
   /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use Account/App.viewerNotificationPreferences instead */
   notificationSubscriptions: Array<NotificationSubscription>;
   pinnedApps: Array<App>;
   pinnedDashboardViews: Array<PinnedDashboardView>;
@@ -6931,6 +6999,7 @@ export type Submission = ActivityTimelineProjectActivity & {
   id: Scalars['ID']['output'];
   initiatingActor?: Maybe<Actor>;
   iosConfig?: Maybe<IosSubmissionConfig>;
+  jobRun?: Maybe<JobRun>;
   logFiles: Array<Scalars['String']['output']>;
   /** @deprecated Use logFiles instead */
   logsUrl?: Maybe<Scalars['String']['output']>;
@@ -7622,6 +7691,7 @@ export type User = Actor & UserActor & {
   lastName?: Maybe<Scalars['String']['output']>;
   /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use Account/App.viewerNotificationPreferences instead */
   notificationSubscriptions: Array<NotificationSubscription>;
   /** Pending UserInvitations for this user. Only resolves for the viewer. */
   pendingUserInvitations: Array<UserInvitation>;
@@ -7734,6 +7804,7 @@ export type UserActor = {
   lastName?: Maybe<Scalars['String']['output']>;
   /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use Account/App.viewerNotificationPreferences instead */
   notificationSubscriptions: Array<NotificationSubscription>;
   pinnedApps: Array<App>;
   preferences: UserPreferences;
