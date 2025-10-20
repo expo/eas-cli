@@ -522,7 +522,8 @@
             "**Closed testing** releases are available to a limited number of testers that you choose, who can test a pre-release version of your app and submit feedback.",
             "**Internal testing** releases are available to up to 100 testers that you choose.",
             "**Production releases** are available to all Google Play users in your chosen countries."
-          ]
+          ],
+          "default": "internal"
         },
         "releaseStatus": {
           "enum": ["draft", "inProgress", "halted", "completed"],
@@ -533,7 +534,8 @@
             "The release's APKs are being served to a fraction of users, if set.",
             "The release's APKs will no longer be served to users. Users who already have these APKs are unaffected.",
             "The release will have no further changes. Its APKs are being served to all users, unless they are eligible to APKs of a more recent release."
-          ]
+          ],
+          "default": "completed"
         },
         "rollout": {
           "type": "number",
