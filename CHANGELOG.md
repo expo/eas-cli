@@ -14,6 +14,28 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Document the default values for `track` and `releaseStatus`. ([#3229](https://github.com/expo/eas-cli/pull/3229) by [@kadikraman](https://github.com/kadikraman))
 
+## [16.24.1](https://github.com/expo/eas-cli/releases/tag/v16.24.1) - 2025-10-19
+
+### 🐛 Bug fixes
+
+- Revert change in ora version. ([#3231](https://github.com/expo/eas-cli/pull/3231) by [@douglowder](https://github.com/douglowder))
+
+## [16.24.0](https://github.com/expo/eas-cli/releases/tag/v16.24.0) - 2025-10-19
+
+### 🎉 New features
+
+- workflow:run --wait shows periodic job and step status updates. ([#3227](https://github.com/expo/eas-cli/pull/3227) by [@douglowder](https://github.com/douglowder))
+
+### 🐛 Bug fixes
+
+- workflow:logs should show logs from build and repack jobs. ([#3226](https://github.com/expo/eas-cli/pull/3226) by [@douglowder](https://github.com/douglowder))
+
+## [16.23.1](https://github.com/expo/eas-cli/releases/tag/v16.23.1) - 2025-10-16
+
+### 🐛 Bug fixes
+
+- Multiple bugfixes and small features for the `eas:new` command: handle project name and directory generation more smoothly; support `bun` as a package manager; add `--package-manager` flag with a default to `npm`; ensure workflow files are in the correct location after build; update the generated project's README with the provided package manager; ensure `app.json`'s `scheme` is valid; silence lots of noisy output. ([#3205](https://github.com/expo/eas-cli/pull/3205) by [@mackenco](https://github.com/mackenco))
+
 ## [16.23.0](https://github.com/expo/eas-cli/releases/tag/v16.23.0) - 2025-10-14
 
 ### 🎉 New features

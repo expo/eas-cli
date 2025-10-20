@@ -1,24 +1,23 @@
 import { runCommandAsync } from './runCommand';
 import { selectAsync } from '../prompts';
 
-export type PackageManager = 'npm' | 'yarn' | 'pnpm';
+export const PACKAGE_MANAGERS = ['bun', 'npm', 'pnpm', 'yarn'] as const;
+export type PackageManager = (typeof PACKAGE_MANAGERS)[number];
 
 export async function promptForPackageManagerAsync(): Promise<PackageManager> {
   return await selectAsync(
     'Which package manager would you like to use?',
-    [
-      { title: 'npm', value: 'npm' },
-      { title: 'Yarn', value: 'yarn' },
-      { title: 'pnpm', value: 'pnpm' },
-    ],
+    (['bun', 'npm', 'pnpm', 'yarn'] as const).map(manager => ({ title: manager, value: manager })),
     { initial: 'npm' }
   );
 }
 
 export async function installDependenciesAsync({
+  outputLevel = 'default',
   projectDir,
   packageManager = 'npm',
 }: {
+  outputLevel?: 'default' | 'none';
   projectDir: string;
   packageManager?: PackageManager;
 }): Promise<void> {
@@ -35,5 +34,6 @@ export async function installDependenciesAsync({
         !(line === packageManager)
       );
     },
+    showOutput: outputLevel !== 'none',
   });
 }

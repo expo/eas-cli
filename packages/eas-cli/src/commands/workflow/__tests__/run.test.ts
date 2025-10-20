@@ -1,4 +1,8 @@
-import { parseInputs, parseJsonInputs, parseWorkflowInputsFromYaml } from '../run';
+import {
+  parseInputs,
+  parseJsonInputs,
+  parseWorkflowInputsFromYaml,
+} from '../../../commandUtils/workflow/inputs';
 
 describe('parseInputs', () => {
   it('should parse single key=value pair', () => {
@@ -216,7 +220,6 @@ jobs:
   it('should handle invalid YAML gracefully', () => {
     const yamlConfig = 'invalid: yaml: content:';
 
-    const { parseWorkflowInputsFromYaml } = require('../run');
     const inputs = parseWorkflowInputsFromYaml(yamlConfig);
 
     expect(inputs).toEqual({});

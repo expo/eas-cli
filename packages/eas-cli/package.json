@@ -1,7 +1,7 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "16.23.0",
+  "version": "16.24.1",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
@@ -12,7 +12,7 @@
     "@expo/code-signing-certificates": "0.0.5",
     "@expo/config": "10.0.6",
     "@expo/config-plugins": "9.0.12",
-    "@expo/eas-build-job": "1.0.237",
+    "@expo/eas-build-job": "1.0.239",
     "@expo/eas-json": "16.23.0",
     "@expo/env": "^1.0.0",
     "@expo/json-file": "8.3.3",
@@ -226,7 +226,7 @@
     "prepack": "yarn rebuild && node ./scripts/prepack.js",
     "rebuild": "rimraf build && yarn build",
     "pretarball-ci": "./scripts/pretarball-ci.sh",
-    "build": "tsc --project tsconfig.build.json",
+    "build": "tsc --project tsconfig.build.json && yarn copy-new-templates",
     "build-allow-unused": "tsc --project tsconfig.allowUnused.json",
     "watch": "yarn build --watch --preserveWatchOutput",
     "watch-allow-unused": "yarn build-allow-unused --watch --preserveWatchOutput",
@@ -235,7 +235,8 @@
     "version": "yarn oclif readme && node scripts/patch-readme && git add README.md",
     "generate-graphql-code": "graphql-codegen --config graphql-codegen.yml",
     "verify-graphql-code": "./scripts/verify-graphql.sh",
-    "clean": "rimraf dist build tmp node_modules yarn-error.log"
+    "clean": "rimraf dist build tmp node_modules yarn-error.log",
+    "copy-new-templates": "rimraf build/commandUtils/new/templates && mkdir -p build/commandUtils/new && cp -r src/commandUtils/new/templates build/commandUtils/new"
   },
   "volta": {
     "node": "20.11.0",
