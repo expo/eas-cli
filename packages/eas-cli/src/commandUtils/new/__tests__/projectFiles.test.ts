@@ -1,7 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import fs from 'fs-extra';
 
-import { LogSpy } from './testUtils';
 import { getEASUpdateURL } from '../../../api';
 import { AppFragment } from '../../../graphql/generated';
 import { easCliVersion } from '../../../utils/easCli';
@@ -18,12 +17,6 @@ jest.mock('../../../api');
 jest.mock('fs-extra');
 
 describe('projectFiles', () => {
-  let logSpy: LogSpy;
-
-  beforeAll(() => {
-    logSpy = new LogSpy('withTick');
-  });
-
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -33,10 +26,7 @@ describe('projectFiles', () => {
     jest.mocked(fs.copy).mockImplementation(() => Promise.resolve());
     jest.mocked(fs.remove).mockImplementation(() => Promise.resolve());
     jest.mocked(fs.readFile).mockImplementation(() => Promise.resolve(''));
-  });
-
-  afterAll(() => {
-    logSpy.restore();
+    jest.mocked(fs.symlink).mockImplementation(() => Promise.resolve());
   });
 
   describe('cleanAndPrefix', () => {
@@ -128,8 +118,6 @@ describe('projectFiles', () => {
       expect(fs.writeJson).toHaveBeenCalledWith(`${projectDir}/app.json`, expectedConfig, {
         spaces: 2,
       });
-
-      logSpy.expectLogToContain('Generated app.json');
     });
 
     it('should handle invalid characters in the bundle identifier', async () => {
@@ -247,8 +235,6 @@ describe('projectFiles', () => {
       expect(fs.writeJson).toHaveBeenCalledWith(`${projectDir}/eas.json`, expectedEasConfig, {
         spaces: 2,
       });
-
-      logSpy.expectLogToContain('Generated eas.json');
     });
   });
 
@@ -274,8 +260,6 @@ describe('projectFiles', () => {
       expect(fs.writeJson).toHaveBeenCalledWith(`${projectDir}/package.json`, expectedPackageJson, {
         spaces: 2,
       });
-
-      logSpy.expectLogToContain('Updated package.json with scripts');
     });
   });
 
@@ -304,9 +288,6 @@ describe('projectFiles', () => {
         `${projectDir}/AGENTS.md`,
         `${projectDir}/.clinerules`
       );
-
-      logSpy.expectLogToContain('Created project template files');
-      logSpy.expectLogToContain('Created AI agent configuration symlinks');
     });
   });
 
@@ -357,8 +338,6 @@ Install the dependencies first.`;
         projectReadmePath,
         expect.stringMatching(new RegExp(headings.join('[\\s\\S]*')))
       );
-
-      logSpy.expectLogToContain('Updated README.md with EAS configuration details');
     });
 
     it('should replace npm run with package manager specific commands', async () => {

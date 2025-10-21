@@ -1,4 +1,3 @@
-import { LogSpy } from './testUtils';
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../../onboarding/git';
 import { installDependenciesAsync } from '../../../onboarding/installDependencies';
 import { runCommandAsync } from '../../../onboarding/runCommand';
@@ -11,21 +10,12 @@ import {
 jest.mock('../../../onboarding/git');
 jest.mock('../../../onboarding/runCommand');
 jest.mock('../../../onboarding/installDependencies');
+jest.mock('../../../ora');
 jest.mock('fs-extra');
 
 describe('commands', () => {
-  let logSpy: LogSpy;
-
-  beforeAll(() => {
-    logSpy = new LogSpy('log');
-  });
-
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  afterAll(() => {
-    logSpy.restore();
   });
 
   describe('cloneTemplateAsync', () => {
@@ -40,13 +30,12 @@ describe('commands', () => {
 
       const result = await cloneTemplateAsync(targetProjectDir);
 
-      logSpy.expectLogToContain(`📂 Cloning the project to ${targetProjectDir}`);
-
       expect(runGitCloneAsync).toHaveBeenCalledWith({
         githubUsername: 'expo',
         githubRepositoryName: 'expo-template-default',
         targetProjectDir,
         cloneMethod: 'ssh',
+        showOutput: false,
       });
 
       expect(result).toBe(finalTargetProjectDir);
@@ -63,13 +52,12 @@ describe('commands', () => {
 
       const result = await cloneTemplateAsync(targetProjectDir);
 
-      logSpy.expectLogToContain(`📂 Cloning the project to ${targetProjectDir}`);
-
       expect(runGitCloneAsync).toHaveBeenCalledWith({
         githubUsername: 'expo',
         githubRepositoryName: 'expo-template-default',
         targetProjectDir,
         cloneMethod: 'https',
+        showOutput: false,
       });
 
       expect(result).toBe(finalTargetProjectDir);
@@ -96,6 +84,7 @@ describe('commands', () => {
         command: 'npx',
         args: ['expo', 'install', 'expo-updates'],
         showOutput: false,
+        showSpinner: false,
       });
 
       expect(runCommandAsync).toHaveBeenCalledWith({
@@ -103,6 +92,7 @@ describe('commands', () => {
         command: 'npx',
         args: ['expo', 'install', '@expo/metro-runtime'],
         showOutput: false,
+        showSpinner: false,
       });
     });
   });
@@ -118,6 +108,7 @@ describe('commands', () => {
         args: ['init'],
         cwd: projectDir,
         showOutput: false,
+        showSpinner: false,
       });
 
       expect(runCommandAsync).toHaveBeenCalledWith({
@@ -125,6 +116,7 @@ describe('commands', () => {
         args: ['add', '.'],
         cwd: projectDir,
         showOutput: false,
+        showSpinner: false,
       });
 
       expect(runCommandAsync).toHaveBeenCalledWith({
@@ -132,6 +124,7 @@ describe('commands', () => {
         args: ['commit', '-m', 'Initial commit'],
         cwd: projectDir,
         showOutput: false,
+        showSpinner: false,
       });
     });
   });

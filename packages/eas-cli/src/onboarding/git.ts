@@ -9,11 +9,13 @@ export async function runGitCloneAsync({
   githubRepositoryName,
   githubUsername,
   cloneMethod,
+  showOutput = true,
 }: {
   githubUsername: string;
   githubRepositoryName: string;
   targetProjectDir: string;
   cloneMethod: 'ssh' | 'https';
+  showOutput?: boolean;
 }): Promise<{
   targetProjectDir: string;
 }> {
@@ -29,6 +31,7 @@ export async function runGitCloneAsync({
         return line.includes('Cloning into');
       },
       showSpinner: false,
+      showOutput,
     });
     return { targetProjectDir };
   } catch (error: any) {

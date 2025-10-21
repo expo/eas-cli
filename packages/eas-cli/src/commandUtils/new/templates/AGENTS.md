@@ -1,10 +1,8 @@
 # AGENTS.md
 
-This file provides guidance for AI coding agents working with this Expo project.
-
 ## Project Overview
 
-This is an **Expo starter template** created with `create-expo-app`. It's designed to help new developers quickly start building mobile applications with:
+This is an **Expo starter template**. It's designed to help new developers quickly start building mobile applications with:
 
 - **Expo SDK 54** with the New Architecture enabled
 - **Expo Router** for file-based navigation
@@ -22,6 +20,7 @@ When working on this project, **always consult the official Expo documentation**
 - **https://docs.expo.dev/llms-full.txt** - Complete Expo documentation including Expo Router, Expo Modules API, development process
 - **https://docs.expo.dev/llms-eas.txt** - Complete EAS (Expo Application Services) documentation
 - **https://docs.expo.dev/llms-sdk.txt** - Complete Expo SDK documentation
+- **https://reactnative.dev/docs/getting-started** - Complete React Native documentation
 
 These documentation files are specifically formatted for AI agents and should be your **primary reference** for:
 
@@ -35,7 +34,7 @@ These documentation files are specifically formatted for AI agents and should be
 
 ```
 /
-├── app/                    # Expo Router file-based routing
+├── app/                   # Expo Router file-based routing
 │   ├── (tabs)/            # Tab-based navigation screens
 │   │   ├── index.tsx      # Home screen
 │   │   ├── explore.tsx    # Explore screen
@@ -43,114 +42,94 @@ These documentation files are specifically formatted for AI agents and should be
 │   ├── _layout.tsx        # Root layout with theme provider
 │   └── modal.tsx          # Modal screen example
 ├── components/            # Reusable React components
-│   ├── ui/               # UI primitives (IconSymbol, Collapsible)
-│   └── ...               # Feature components (themed, haptic, parallax)
-├── constants/            # App-wide constants (theme, colors)
-├── hooks/                # Custom React hooks (color scheme, theme)
-├── assets/               # Static assets (images, fonts)
-├── scripts/              # Utility scripts (reset-project)
-├── .eas/workflows/       # EAS Workflows (CI/CD automation)
-├── app.json             # Expo configuration
-├── eas.json             # EAS Build/Submit configuration
-└── package.json         # Dependencies and scripts
+│   ├── ui/                # UI primitives (IconSymbol, Collapsible)
+│   └── ...                # Feature components (themed, haptic, parallax)
+├── constants/             # App-wide constants (theme, colors)
+├── hooks/                 # Custom React hooks (color scheme, theme)
+├── assets/                # Static assets (images, fonts)
+├── scripts/               # Utility scripts (reset-project)
+├── .eas/workflows/        # EAS Workflows (CI/CD automation)
+├── app.json               # Expo configuration
+├── eas.json               # EAS Build/Submit configuration
+└── package.json           # Dependencies and scripts
 ```
 
-## Key Technologies
+## Essential Commands
 
-### Core Stack
+### Development
 
-- **React 19.1.0** with React Compiler enabled
-- **React Native 0.81.4** with New Architecture
-- **Expo SDK 54**
-- **Expo Router 6** for navigation with typed routes
-- **TypeScript 5.9** with strict mode
+```bash
+npx expo start                  # Start dev server
+npx expo start --clear          # Clear cache and start dev server
+npx expo install <package>      # Install packages with compatible versions
+npx expo install --check        # Check which installed packages need to be updated
+npx expo install --fix          # Automatically update any invalid package versions
+npm run development-builds      # Create development builds (workflow)
+npm run reset-project           # Reset to blank template
+```
 
-### Notable Features
+### Building & Testing
 
-- **File-based routing** via Expo Router
-- **Typed routes** for type-safe navigation
-- **Dark mode support** with automatic theme switching
-- **React Compiler** for optimized performance
-- **SF Symbols** support via `expo-symbols`
-- **Haptic feedback** via `expo-haptics`
-- **Reanimated 4** for animations
+```bash
+npx expo doctor      # Check project health and dependencies
+npx expo lint        # Run ESLint
+npm run draft        # Publish preview update and website (workflow)
+```
+
+### Production
+
+```bash
+npx eas-cli@latest build --platform ios -s          # Use EAS to build for iOS platform and submit to App Store
+npx eas-cli@latest build --platform android -s      # Use EAS to build for Android platform and submit to Google Play Store
+npm run deploy                                      # Deploy to production (workflow)
+```
 
 ## Development Guidelines
 
-### 1. Navigation & Routing
+### Navigation & Routing
 
 - Use **Expo Router** for all navigation
-- Follow file-based routing conventions in `app/` directory
-- Use `(groups)` for layout grouping (e.g., `(tabs)`)
-- Leverage typed routes for type-safe navigation
 - Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`
+- Docs: https://docs.expo.dev/router/introduction/
 
-### 2. Styling & Theming
+### Recommended Libraries
 
-- Use the `ThemedText` and `ThemedView` components for automatic dark/light mode support
-- Theme colors are defined in `constants/theme.ts`
-- Access theme with `useColorScheme()` hook
-- Follow React Native's StyleSheet API
-- Prefer platform-agnostic styling unless platform-specific is necessary
+- **Navigation**: `expo-router` for navigation
+- **Images**: `expo-image` for optimized image handling and caching
+- **Animations**: `react-native-reanimated` for performant animations on native thread
+- **Gestures**: `react-native-gesture-handler` for native gesture recognition
+- **Storage**: Use `expo-sqlite` for persistent storage, `expo-sqlite/kv-store` for simple key-value storage
 
-### 3. Components
+## Debugging & Development Tools
 
-- Use **functional components** with hooks
-- Keep components small, focused, and reusable
-- Place shared components in `components/` directory
-- Use TypeScript for all component props
-- Follow the existing naming conventions (kebab-case for files, PascalCase for components)
+### DevTools Integration
 
-### 4. Path Aliases
+- **React Native DevTools**: Use MCP `open_devtools` command to launch debugging tools
+- **Network Inspection**: Monitor API calls and network requests in DevTools
+- **Element Inspector**: Debug component hierarchy and styles
+- **Performance Profiler**: Identify performance bottlenecks
+- **Logging**: Use `console.log` for debugging (remove before production), `console.warn` for deprecation notices, `console.error` for actual errors, and implement error boundaries for production error handling
 
-- Use `@/` alias for imports (configured in `tsconfig.json`)
-- Example: `import { ThemedText } from '@/components/themed-text'`
+### Testing & Quality Assurance
 
-### 5. Assets
+#### Automated Testing with MCP Tools
 
-- Place images in `assets/images/`
-- Use `expo-image` for optimized image loading
-- Use `expo-symbols` for SF Symbols on iOS
+Developers can configure the Expo MCP server with the following doc: https://docs.expo.dev/eas/ai/mcp/
 
-### 6. Code Style
+- **Component Testing**: Add `testID` props to components for automation
+- **Visual Testing**: Use MCP `automation_take_screenshot` to verify UI appearance
+- **Interaction Testing**: Use MCP `automation_tap_by_testid` to simulate user interactions
+- **View Verification**: Use MCP `automation_find_view_by_testid` to validate component rendering
 
-- Follow the existing ESLint configuration (`eslint-config-expo`)
-- Use TypeScript strict mode
-- Prefer modern ES6+ syntax
-- Use async/await over promises where appropriate
-
-## EAS Workflows Integration
+## EAS Workflows CI/CD
 
 This project is pre-configured with **EAS Workflows** for automating development and release processes. Workflows are defined in `.eas/workflows/` directory.
 
-### Available NPM Scripts
-
-```bash
-# Development
-npm run start         # Start Expo dev server
-npm run ios           # Start on iOS simulator
-npm run android       # Start on Android emulator
-npm run web           # Start web version
-
-# EAS Workflows (Cloud CI/CD)
-npm run draft              # Publish preview update and website (workflow)
-npm run development-builds # Create development builds (workflow)
-npm run deploy             # Deploy to production (workflow)
-
-# Code Quality
-npm run lint          # Run ESLint
-
-# Utilities
-npm run reset-project # Reset to blank template
-```
-
-### EAS Workflows Documentation
-
 When working with EAS Workflows, **always refer to**:
 
-- https://docs.expo.dev/llms-eas.txt for EAS-specific documentation
 - https://docs.expo.dev/eas/workflows/ for workflow examples
 - The `.eas/workflows/` directory for existing workflow configurations
+- You can check that a workflow YAML is valid using the workflows schema: https://exp.host/--/api/v2/workflows/schema
 
 ### Build Profiles (eas.json)
 
@@ -163,100 +142,7 @@ When working with EAS Workflows, **always refer to**:
 
 ### Expo Go Errors & Development Builds
 
-If users are experiencing errors in **Expo Go** or their project is not running, they may need to create a **development build**, especially if they have:
-
-- Added new packages that rely on **config plugins**
-- Added libraries with **native code**
-- Modified native configuration in `app.json`
-- Upgraded the Expo SDK version
-
-**Expo Go** is a sandbox environment with a limited set of native modules. When your project requires native code or config plugins not included in Expo Go, you need to create a development build.
-
-#### How to Create a Development Build:
-
-1. Install `expo-dev-client`:
-
-   ```bash
-   npx expo install expo-dev-client
-   ```
-
-2. Run the development build workflow:
-
-   ```bash
-   npm run development-builds
-   ```
-
-3. Or build locally:
-   ```bash
-   npx expo run:ios
-   # or
-   npx expo run:android
-   ```
-
-**Learn more**: https://docs.expo.dev/develop/development-builds/expo-go-to-dev-build/
-
-## Common Tasks
-
-### Adding a New Screen
-
-1. Create a new file in `app/` (e.g., `app/profile.tsx`)
-2. Export a default React component
-3. Add navigation link: `<Link href="/profile">Profile</Link>`
-
-### Adding a New Tab
-
-1. Create a new file in `app/(tabs)/` (e.g., `app/(tabs)/settings.tsx`)
-2. Update `app/(tabs)/_layout.tsx` to include the new tab
-
-### Installing a New Expo Module
-
-1. Use `npx expo install <package-name>` (not `npm install`)
-2. This ensures version compatibility with your Expo SDK
-3. Check https://docs.expo.dev/llms-sdk.txt for module documentation
-
-### Using EAS Workflows
-
-1. Explore workflows in `.eas/workflows/` directory
-2. Run workflows via NPM scripts: `npm run draft`, `npm run development-builds`, `npm run deploy`
-3. Consult https://docs.expo.dev/llms-eas.txt for customization
-
-### Creating Development Builds
-
-1. Ensure prerequisites are met (see README.md)
-2. Run `npm run development-builds`
-3. Follow the EAS Workflow prompts
-
-## Important Notes
-
-### DO:
-
-- ✅ Always use `npx expo install` for installing packages
-- ✅ Consult https://docs.expo.dev/llms-full.txt before implementing Expo features
-- ✅ Use the `@/` import alias for cleaner imports
-- ✅ Follow Expo and React Native best practices
-- ✅ Keep the New Architecture compatibility in mind
-- ✅ Use TypeScript for type safety
-- ✅ Test on multiple platforms when possible
-- ✅ Leverage EAS Workflows for CI/CD automation
-
-### DON'T:
-
-- ❌ Don't use `npm install` directly (use `npx expo install` instead)
-- ❌ Don't install packages incompatible with the current Expo SDK
-- ❌ Don't bypass Expo Router for navigation
-- ❌ Don't hardcode colors (use theme system)
-- ❌ Don't ignore TypeScript errors
-- ❌ Don't add native code without understanding Expo's module system
-- ❌ Don't modify `app.json` without checking Expo documentation
-
-## Resources
-
-- **Expo Documentation**: https://docs.expo.dev
-- **Expo Router**: https://docs.expo.dev/router/introduction/
-- **EAS Documentation**: https://docs.expo.dev/eas/
-- **EAS Workflows**: https://docs.expo.dev/eas/workflows/
-- **React Native**: https://reactnavigation.org
-- **Community**: https://chat.expo.dev (Discord)
+If there are errors in **Expo Go** or the project is not running, create a **development build**. **Expo Go** is a sandbox environment with a limited set of native modules. To create development builds, run `eas build:dev`. Additionally, after installing new packages or adding config plugins, new development builds are often required.
 
 ## AI Agent Instructions
 
@@ -273,7 +159,3 @@ When working on this project:
 3. **Follow existing patterns**: Look at existing components and screens for patterns to follow
 
 4. **Be explicit**: Provide clear explanations for any changes or additions
-
-5. **Consider the user**: Remember this is a template for new developers - keep code clear and well-commented
-
-6. **Maintain consistency**: Follow the established file structure and naming conventions

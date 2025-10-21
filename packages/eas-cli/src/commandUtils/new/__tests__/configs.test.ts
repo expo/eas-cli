@@ -16,6 +16,9 @@ jest.mock('../../../prompts');
 jest.mock('../../../log');
 jest.mock('fs-extra');
 jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
+jest.mock('../utils', () => ({
+  printDirectory: jest.fn((dir: string) => dir),
+}));
 
 describe('configs', () => {
   let logSpy: LogSpy;
@@ -75,7 +78,7 @@ describe('configs', () => {
           projectName: expect.stringMatching(/^expo-project-[a-zA-Z0-9_-]{6}$/),
           projectDirectory: expect.stringContaining(result.projectName),
         });
-        logSpy.expectLogToContain('Using alternate project name:');
+        logSpy.expectLogToContain('Using project name:');
       });
     });
 
@@ -212,15 +215,6 @@ describe('configs', () => {
         projectName: expect.stringMatching(/^test-project-[a-zA-Z0-9_-]{6}$/),
         projectDirectory: expect.stringContaining('/base/path/test-project-'),
       });
-    });
-
-    it('should log when using alternative name', async () => {
-      (fs.pathExists as jest.Mock).mockResolvedValue(true);
-      jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
-
-      await findAvailableProjectNameAsync('test-project', '/base/path', mockOptions);
-
-      logSpy.expectLogToContain('Using alternate project name:');
     });
   });
 });

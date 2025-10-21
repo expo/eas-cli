@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
 import path from 'path';
 
+import { printDirectory } from './utils';
 import { Role } from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
@@ -57,7 +58,8 @@ export async function generateProjectConfigAsync(
     options
   );
 
-  Log.withInfo(`Using project directory: ${projectDirectory}`);
+  Log.withInfo(`Using project name: ${projectName}`);
+  Log.withInfo(`Using project directory: ${printDirectory(projectDirectory)}`);
 
   return {
     projectName,
@@ -179,8 +181,6 @@ export async function findAvailableProjectNameAsync(
     projectName = `${baseName}-${nanoid(6)}`;
     projectDirectory = path.join(parentDirectory, projectName);
   }
-
-  Log.withInfo(`Using ${baseName !== projectName ? 'alternate ' : ''}project name: ${projectName}`);
 
   return {
     projectName,

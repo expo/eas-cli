@@ -1,13 +1,11 @@
 import { ExpoConfig } from '@expo/config';
 import { AppVersionSource, EasJson } from '@expo/eas-json';
-import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 import merge from 'ts-deepmerge';
 
 import { getEASUpdateURL } from '../../api';
 import { AppFragment } from '../../graphql/generated';
-import Log, { learnMore } from '../../log';
 import { PackageManager } from '../../onboarding/installDependencies';
 import { easCliVersion } from '../../utils/easCli';
 
@@ -63,12 +61,6 @@ export async function generateAppConfigAsync(projectDir: string, app: AppFragmen
 
   const appJsonPath = path.join(projectDir, 'app.json');
   await fs.writeJson(appJsonPath, { expo: mergedConfig }, { spaces: 2 });
-  Log.withTick(
-    `Generated ${chalk.bold('app.json')}. ${learnMore(
-      'https://docs.expo.dev/versions/latest/config/app/'
-    )}`
-  );
-  Log.log();
 }
 
 export async function generateEasConfigAsync(projectDir: string): Promise<void> {
@@ -116,12 +108,6 @@ export async function generateEasConfigAsync(projectDir: string): Promise<void> 
 
   const easJsonPath = path.join(projectDir, 'eas.json');
   await fs.writeJson(easJsonPath, easJson, { spaces: 2 });
-  Log.withTick(
-    `Generated ${chalk.bold('eas.json')}. ${learnMore(
-      'https://docs.expo.dev/build-reference/eas-json/'
-    )}`
-  );
-  Log.log();
 }
 
 export async function updatePackageJsonAsync(projectDir: string): Promise<void> {
@@ -137,8 +123,6 @@ export async function updatePackageJsonAsync(projectDir: string): Promise<void> 
   packageJson.scripts.deploy = 'npx eas-cli@latest workflow:run deploy-to-production.yml';
 
   await fs.writeJson(packageJsonPath, packageJson, { spaces: 2 });
-  Log.withTick('Updated package.json with scripts');
-  Log.log();
 }
 
 export async function copyProjectTemplatesAsync(projectDir: string): Promise<void> {
@@ -153,16 +137,10 @@ export async function copyProjectTemplatesAsync(projectDir: string): Promise<voi
     },
   });
 
-  Log.withTick('Created project template files');
-  Log.log();
-
   const agentsPath = path.join(projectDir, 'AGENTS.md');
   ['cursorrules', 'clinerules'].forEach(async rule => {
     await fs.symlink(agentsPath, path.join(projectDir, `.${rule}`));
   });
-
-  Log.withTick('Created AI agent configuration symlinks');
-  Log.log();
 }
 
 export async function updateReadmeAsync(
@@ -200,7 +178,4 @@ export async function updateReadmeAsync(
   mergedReadme = mergedReadme.replaceAll('npm run', `${packageManager} run`);
 
   await fs.writeFile(projectReadmePath, mergedReadme);
-
-  Log.withTick('Updated README.md with EAS configuration details');
-  Log.log();
 }

@@ -21,6 +21,7 @@ import {
   updatePackageJsonAsync,
   updateReadmeAsync,
 } from '../../commandUtils/new/projectFiles';
+import { printDirectory } from '../../commandUtils/new/utils';
 import { AppFragment } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -92,7 +93,7 @@ export async function createProjectAsync({
     },
     { skipSDKVersionRequirement: true }
   );
-  Log.withTick(`Project successfully linked (ID: ${chalk.bold(projectId)}) (modified app.json)`);
+  Log.withInfo(`Project successfully linked (ID: ${chalk.bold(projectId)})`);
 
   return projectId;
 }
@@ -102,6 +103,7 @@ export async function generateProjectFilesAsync(
   app: AppFragment,
   packageManager: PackageManager
 ): Promise<void> {
+  const spinner = ora(`Generating project files`).start();
   await generateAppConfigAsync(projectDir, app);
 
   await generateEasConfigAsync(projectDir);
@@ -111,6 +113,17 @@ export async function generateProjectFilesAsync(
   await copyProjectTemplatesAsync(projectDir);
 
   await updateReadmeAsync(projectDir, packageManager);
+  spinner.succeed(`Generated project files`);
+  Log.withInfo(
+    `Generated ${chalk.bold('app.json')}. ${learnMore(
+      'https://docs.expo.dev/versions/latest/config/app/'
+    )}`
+  );
+  Log.withInfo(
+    `Generated ${chalk.bold('eas.json')}. ${learnMore(
+      'https://docs.expo.dev/build-reference/eas-json/'
+    )}`
+  );
 }
 
 export default class New extends EasCommand {
@@ -159,7 +172,6 @@ export default class New extends EasCommand {
       'This command is not yet implemented. It will create a new project, but it may not be fully configured.'
     );
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
-    Log.newLine();
 
     const {
       projectName,
@@ -186,8 +198,9 @@ export default class New extends EasCommand {
     await initializeGitRepositoryAsync(projectDirectory);
 
     Log.log('🎉 We finished creating your new project.');
+    Log.newLine();
     Log.log('Next steps:');
-    Log.withInfo(`Run \`cd ${projectDirectory}\` to navigate to your project.`);
+    Log.withInfo(`Run \`cd ${printDirectory(projectDirectory)}\` to navigate to your project.`);
     Log.withInfo(
       `Run \`${packageManager} run draft\` to create a preview on EAS. ${learnMore(
         'https://docs.expo.dev/eas/workflows/examples/publish-preview-update/'
@@ -199,6 +212,5 @@ export default class New extends EasCommand {
       )}`
     );
     Log.withInfo(`See the README.md for more information about your project.`);
-    Log.newLine();
   }
 }
