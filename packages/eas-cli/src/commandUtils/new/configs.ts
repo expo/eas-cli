@@ -49,6 +49,15 @@ export async function generateProjectConfigAsync(
     validateProjectPath(resolvedPath);
     baseName = path.basename(resolvedPath);
     parentDirectory = path.dirname(resolvedPath);
+  } else {
+    baseName = (
+      await promptAsync({
+        type: 'text',
+        name: 'name',
+        message: 'What would you like to name your project?',
+        initial: 'expo-project',
+      })
+    ).name;
   }
 
   // Find an available name checking both local filesystem and remote server

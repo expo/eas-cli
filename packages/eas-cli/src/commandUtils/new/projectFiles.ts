@@ -138,8 +138,8 @@ export async function copyProjectTemplatesAsync(projectDir: string): Promise<voi
   });
 
   const agentsPath = path.join(projectDir, 'AGENTS.md');
-  ['cursorrules', 'clinerules'].forEach(async rule => {
-    await fs.symlink(agentsPath, path.join(projectDir, `.${rule}`));
+  ['.cursorrules', '.clinerules'].forEach(async rule => {
+    await fs.symlink(agentsPath, path.join(projectDir, rule));
   });
 }
 

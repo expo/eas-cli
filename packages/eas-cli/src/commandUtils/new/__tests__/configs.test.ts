@@ -55,9 +55,10 @@ describe('configs', () => {
     };
 
     describe('when no path is provided', () => {
-      it('should generate name and directory when base name is available', async () => {
+      it('should prompt for project name with default value', async () => {
         (fs.pathExists as jest.Mock).mockResolvedValue(false);
         jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
+        mockUserInput({ name: 'expo-project' });
 
         const result = await generateProjectConfigAsync(undefined, mockOptions);
 
@@ -65,17 +66,39 @@ describe('configs', () => {
           projectName: 'expo-project',
           projectDirectory: expect.stringContaining('/expo-project'),
         });
+        expectPromptToHaveMessage('What would you like to name your project?');
+        expect(promptAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            initial: 'expo-project',
+          })
+        );
         logSpy.expectLogToContain('Using project name: expo-project');
       });
 
-      it('should use shortid when base name exists', async () => {
-        (fs.pathExists as jest.Mock).mockResolvedValue(true); // base name exists
+      it('should prompt and use custom name entered by user', async () => {
+        (fs.pathExists as jest.Mock).mockResolvedValue(false);
         jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
+        mockUserInput({ name: 'user-custom-name' });
 
         const result = await generateProjectConfigAsync(undefined, mockOptions);
 
         expect(result).toEqual({
-          projectName: expect.stringMatching(/^expo-project-[a-zA-Z0-9_-]{6}$/),
+          projectName: 'user-custom-name',
+          projectDirectory: expect.stringContaining('/user-custom-name'),
+        });
+        expectPromptToHaveMessage('What would you like to name your project?');
+        logSpy.expectLogToContain('Using project name: user-custom-name');
+      });
+
+      it('should use shortid when prompted name exists', async () => {
+        (fs.pathExists as jest.Mock).mockResolvedValue(true); // base name exists
+        jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
+        mockUserInput({ name: 'existing-project' });
+
+        const result = await generateProjectConfigAsync(undefined, mockOptions);
+
+        expect(result).toEqual({
+          projectName: expect.stringMatching(/^existing-project-[a-zA-Z0-9_-]{6}$/),
           projectDirectory: expect.stringContaining(result.projectName),
         });
         logSpy.expectLogToContain('Using project name:');
@@ -93,6 +116,7 @@ describe('configs', () => {
           projectName: 'my-project',
           projectDirectory: absolutePath,
         });
+        expect(promptAsync).not.toHaveBeenCalled();
         logSpy.expectLogToContain('Using project directory:');
       });
 
@@ -106,6 +130,7 @@ describe('configs', () => {
           projectName: 'my-app',
           projectDirectory: expect.stringContaining('some/relative/my-app'),
         });
+        expect(promptAsync).not.toHaveBeenCalled();
         logSpy.expectLogToContain('Using project directory:');
       });
     });
