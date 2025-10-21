@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Incorporate feedback from testers on the `eas:new` command, including: cleaning up the terminal output; changing the default project name; changing `preview` command to `draft`; adding AGENTS.md file for generated project
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

@@ -21,7 +21,9 @@ export async function runCommandAsync({
   showSpinner?: boolean;
   showOutput?: boolean;
 }): Promise<void> {
-  showOutput && Log.log(`🏗️  Running ${chalk.bold(`${command} ${args.join(' ')}`)}...`);
+  if (showOutput) {
+    Log.log(`🏗️  Running ${chalk.bold(`${command} ${args.join(' ')}`)}...`);
+  }
   let spinner: Ora | undefined;
   if (showSpinner) {
     spinner = ora(`${chalk.bold(`${command} ${args.join(' ')}`)}`).start();
