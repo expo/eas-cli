@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - workflow:run can use --wait and --json together. ([#3239](https://github.com/expo/eas-cli/pull/3239) by [@douglowder](https://github.com/douglowder))
+- Add missing env for local builds with latest plugin. ([#3237](https://github.com/expo/eas-cli/pull/3237) by [@douglowder](https://github.com/douglowder))
 
 ### 🧹 Chores
 
