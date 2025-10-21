@@ -9977,6 +9977,14 @@ export type CancelWorkflowRunMutationVariables = Exact<{
 
 export type CancelWorkflowRunMutation = { __typename?: 'RootMutation', workflowRun: { __typename?: 'WorkflowRunMutation', cancelWorkflowRun: { __typename?: 'WorkflowRun', id: string } } };
 
+export type AccountUsageForOverageWarningQueryVariables = Exact<{
+  accountId: Scalars['String']['input'];
+  currentDate: Scalars['DateTime']['input'];
+}>;
+
+
+export type AccountUsageForOverageWarningQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, name: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null } | null, usageMetrics: { __typename?: 'AccountUsageMetrics', EAS_BUILD: { __typename?: 'UsageMetricTotal', id: string, billingPeriod: { __typename?: 'BillingPeriod', id: string, anchor: any, start: any, end: any }, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number }> }, EAS_UPDATE: { __typename?: 'UsageMetricTotal', id: string, billingPeriod: { __typename?: 'BillingPeriod', id: string, anchor: any, start: any, end: any }, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number }> } } } } };
+
 export type AppByIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
 }>;

@@ -14,6 +14,7 @@ import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
   AssetMapSourceInput,
+  EasService,
   FingerprintInfoGroup as GraphqlFingerprintInfoGroup,
   PublishUpdateGroupInput,
   StatuspageServiceName,
@@ -63,6 +64,7 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
+import { maybeWarnAboutUsageOveragesAsync } from '../../utils/usage/checkForOverages';
 
 type RawUpdateFlags = {
   auto: boolean;
@@ -209,6 +211,14 @@ export default class UpdatePublish extends EasCommand {
     } = await getDynamicPublicProjectConfigAsync();
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
+
+    // Check for usage overages and warn if needed
+    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
+    await maybeWarnAboutUsageOveragesAsync({
+      graphqlClient,
+      accountId: account.id,
+      service: EasService.Updates,
+    });
 
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
     const easJsonCliConfig: EasJson['cli'] =
