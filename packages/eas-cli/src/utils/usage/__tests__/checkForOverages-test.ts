@@ -119,7 +119,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     jest.mocked(Log.debug).mockClear();
   });
 
-  it('displays warning for Free plan with high build usage', async () => {
+  it('displays a warning for Free plan with high build usage', async () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
         subscriptionName: 'Free',
@@ -155,7 +155,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     });
   });
 
-  it('displays warning for Starter plan with high update usage', async () => {
+  it('displays a warning for Starter plan with high update usage', async () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
         subscriptionName: 'Starter',
@@ -185,7 +185,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     });
   });
 
-  it('does not display warning for Pro plan', async () => {
+  it('does not display a warning for Pro plan', async () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
         subscriptionName: 'Pro',
@@ -210,7 +210,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     expect(mockDisplayOverageWarningWithProgressBar).not.toHaveBeenCalled();
   });
 
-  it('does not display warning when usage is below threshold', async () => {
+  it('does not display a warning when usage is below threshold', async () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
         subscriptionName: 'Free',
@@ -235,7 +235,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     expect(mockDisplayOverageWarningWithProgressBar).not.toHaveBeenCalled();
   });
 
-  it('does not display warning when no subscription', async () => {
+  it('does not display a warning when no subscription', async () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
         subscriptionName: null,
@@ -273,7 +273,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     expect(Log.debug).toHaveBeenCalledWith(expect.stringContaining('Failed to fetch usage data'));
   });
 
-  it('does not display warning when no plan metrics', async () => {
+  it('does not display a warning when no plan metrics', async () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
         subscriptionName: 'Free',

@@ -43,7 +43,7 @@ describe('displayOverageWarning', () => {
     mockNewLine.mockClear();
   });
 
-  it('displays warning for Free plan', () => {
+  it('displays a warning for Free plan', () => {
     displayOverageWarning({
       percentUsed: 85,
       printedMetric: 'build credits',
@@ -64,7 +64,7 @@ describe('displayOverageWarning', () => {
     expect(mockNewLine).toHaveBeenCalledTimes(1);
   });
 
-  it('displays warning for Starter plan', () => {
+  it('displays a warning for Starter plan', () => {
     displayOverageWarning({
       percentUsed: 85,
       printedMetric: 'build credits',

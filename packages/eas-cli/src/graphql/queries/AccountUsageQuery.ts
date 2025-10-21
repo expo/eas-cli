@@ -29,34 +29,18 @@ export const AccountUsageQuery = {
                   usageMetrics {
                     EAS_BUILD: byBillingPeriod(date: $currentDate, service: BUILDS) {
                       id
-                      billingPeriod {
-                        id
-                        anchor
-                        start
-                        end
-                      }
                       planMetrics {
                         id
-                        service
                         serviceMetric
-                        metricType
                         value
                         limit
                       }
                     }
                     EAS_UPDATE: byBillingPeriod(date: $currentDate, service: UPDATES) {
                       id
-                      billingPeriod {
-                        id
-                        anchor
-                        start
-                        end
-                      }
                       planMetrics {
                         id
-                        service
                         serviceMetric
-                        metricType
                         value
                         limit
                       }
