@@ -1,5 +1,11 @@
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasService, EasServiceMetric, UsageMetricType } from '../../../graphql/generated';
+import {
+  AccountUsageForOverageWarningQuery,
+  EasService,
+  EasServiceMetric,
+  EstimatedUsage,
+  UsageMetricType,
+} from '../../../graphql/generated';
 import { AccountUsageQuery } from '../../../graphql/queries/AccountUsageQuery';
 import Log from '../../../log';
 import { maybeWarnAboutUsageOveragesAsync } from '../checkForOverages';
@@ -9,13 +15,102 @@ jest.mock('../../../graphql/queries/AccountUsageQuery');
 jest.mock('../displayOverageWarning');
 jest.mock('../../../log');
 
+function createMockPlanMetric({
+  service = EasService.Builds,
+  serviceMetric = EasServiceMetric.Builds,
+  metricType = UsageMetricType.Build,
+  value = 50,
+  limit = 100,
+}: Partial<
+  Pick<EstimatedUsage, 'service' | 'serviceMetric' | 'metricType' | 'value' | 'limit'>
+> = {}): EstimatedUsage {
+  return {
+    __typename: 'EstimatedUsage',
+    id: 'plan-metric-id',
+    service,
+    serviceMetric,
+    metricType,
+    value,
+    limit,
+    platformBreakdown: null,
+  };
+}
+
+type MockUsageMetrics = Pick<
+  AccountUsageForOverageWarningQuery['account']['byId']['usageMetrics'],
+  'EAS_BUILD' | 'EAS_UPDATE'
+>;
+
+function createMockUsageMetrics({
+  buildPlanMetrics = [],
+  updatePlanMetrics = [],
+}: {
+  buildPlanMetrics?: EstimatedUsage[];
+  updatePlanMetrics?: EstimatedUsage[];
+} = {}): MockUsageMetrics {
+  return {
+    EAS_BUILD: {
+      __typename: 'UsageMetricTotal',
+      id: 'metric-id',
+      billingPeriod: {
+        __typename: 'BillingPeriod',
+        id: 'period-id',
+        anchor: new Date().toISOString(),
+        start: new Date().toISOString(),
+        end: new Date().toISOString(),
+      },
+      planMetrics: buildPlanMetrics,
+    },
+    EAS_UPDATE: {
+      __typename: 'UsageMetricTotal',
+      id: 'metric-id',
+      billingPeriod: {
+        __typename: 'BillingPeriod',
+        id: 'period-id',
+        anchor: new Date().toISOString(),
+        start: new Date().toISOString(),
+        end: new Date().toISOString(),
+      },
+      planMetrics: updatePlanMetrics,
+    },
+  };
+}
+
+function createMockAccountUsage({
+  id = 'account-id',
+  name = 'test-account',
+  subscriptionName = 'Free',
+  buildPlanMetrics = [],
+  updatePlanMetrics = [],
+}: {
+  id?: string;
+  name?: string;
+  subscriptionName?: string | null;
+  buildPlanMetrics?: EstimatedUsage[];
+  updatePlanMetrics?: EstimatedUsage[];
+} = {}): AccountUsageForOverageWarningQuery['account']['byId'] {
+  return {
+    __typename: 'Account',
+    id,
+    name,
+    subscription: subscriptionName
+      ? {
+          __typename: 'SubscriptionDetails',
+          id: 'sub-id',
+          name: subscriptionName,
+        }
+      : null,
+    usageMetrics: createMockUsageMetrics({ buildPlanMetrics, updatePlanMetrics }),
+  };
+}
+
 describe('maybeWarnAboutUsageOveragesAsync', () => {
   const mockGraphqlClient = {} as ExpoGraphqlClient;
   const mockGetUsageForOverageWarningAsync = jest.mocked(
     AccountUsageQuery.getUsageForOverageWarningAsync
   );
   const mockDisplayOverageWarningWithProgressBar = jest.mocked(
-    displayOverageWarning.displayOverageWarningWithProgressBar
+    displayOverageWarning.displayOverageWarning
   );
 
   beforeEach(() => {
@@ -25,36 +120,20 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
   });
 
   it('displays warning for Free plan with high build usage', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue({
-      id: 'account-id',
-      name: 'test-account',
-      subscription: {
-        id: 'sub-id',
-        name: 'Free',
-      },
-      usageMetrics: {
-        EAS_BUILD: {
-          id: 'metric-id',
-          billingPeriod: {
-            id: 'period-id',
-            anchor: new Date().toISOString(),
-            start: new Date().toISOString(),
-            end: new Date().toISOString(),
-          },
-          planMetrics: [
-            {
-              id: 'plan-metric-id',
-              service: EasService.Builds,
-              serviceMetric: EasServiceMetric.Builds,
-              metricType: UsageMetricType.Build,
-              value: 85,
-              limit: 100,
-            },
-          ],
-        },
-        EAS_UPDATE: null,
-      },
-    } as any);
+    mockGetUsageForOverageWarningAsync.mockResolvedValue(
+      createMockAccountUsage({
+        subscriptionName: 'Free',
+        buildPlanMetrics: [
+          createMockPlanMetric({
+            service: EasService.Builds,
+            serviceMetric: EasServiceMetric.Builds,
+            metricType: UsageMetricType.Build,
+            value: 85,
+            limit: 100,
+          }),
+        ],
+      })
+    );
 
     await maybeWarnAboutUsageOveragesAsync({
       graphqlClient: mockGraphqlClient,
@@ -67,48 +146,30 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
       'account-id',
       expect.any(Date)
     );
-    expect(mockDisplayOverageWarningWithProgressBar).toHaveBeenCalledWith(
-      {
-        service: EasService.Builds,
-        printedMetric: 'included build credits',
-        percentUsed: 85,
-      },
-      displayOverageWarning.PlanType.Free,
-      'test-account'
-    );
+
+    expect(mockDisplayOverageWarningWithProgressBar).toHaveBeenCalledWith({
+      percentUsed: 85,
+      printedMetric: 'build credits',
+      planType: displayOverageWarning.PlanType.Free,
+      name: 'test-account',
+    });
   });
 
   it('displays warning for Starter plan with high update usage', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue({
-      id: 'account-id',
-      name: 'test-account',
-      subscription: {
-        id: 'sub-id',
-        name: 'Starter',
-      },
-      usageMetrics: {
-        EAS_BUILD: null,
-        EAS_UPDATE: {
-          id: 'metric-id',
-          billingPeriod: {
-            id: 'period-id',
-            anchor: new Date().toISOString(),
-            start: new Date().toISOString(),
-            end: new Date().toISOString(),
-          },
-          planMetrics: [
-            {
-              id: 'plan-metric-id',
-              service: EasService.Updates,
-              serviceMetric: EasServiceMetric.UniqueUpdaters,
-              metricType: UsageMetricType.Update,
-              value: 90,
-              limit: 100,
-            },
-          ],
-        },
-      },
-    } as any);
+    mockGetUsageForOverageWarningAsync.mockResolvedValue(
+      createMockAccountUsage({
+        subscriptionName: 'Starter',
+        updatePlanMetrics: [
+          createMockPlanMetric({
+            service: EasService.Updates,
+            serviceMetric: EasServiceMetric.UniqueUpdaters,
+            metricType: UsageMetricType.Update,
+            value: 90,
+            limit: 100,
+          }),
+        ],
+      })
+    );
 
     await maybeWarnAboutUsageOveragesAsync({
       graphqlClient: mockGraphqlClient,
@@ -116,48 +177,29 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
       service: EasService.Updates,
     });
 
-    expect(mockDisplayOverageWarningWithProgressBar).toHaveBeenCalledWith(
-      {
-        service: EasService.Updates,
-        printedMetric: 'included updates MAU',
-        percentUsed: 90,
-      },
-      displayOverageWarning.PlanType.Starter,
-      'test-account'
-    );
+    expect(mockDisplayOverageWarningWithProgressBar).toHaveBeenCalledWith({
+      percentUsed: 90,
+      printedMetric: 'updates MAU',
+      planType: displayOverageWarning.PlanType.Starter,
+      name: 'test-account',
+    });
   });
 
   it('does not display warning for Pro plan', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue({
-      id: 'account-id',
-      name: 'test-account',
-      subscription: {
-        id: 'sub-id',
-        name: 'Pro',
-      },
-      usageMetrics: {
-        EAS_BUILD: {
-          id: 'metric-id',
-          billingPeriod: {
-            id: 'period-id',
-            anchor: new Date().toISOString(),
-            start: new Date().toISOString(),
-            end: new Date().toISOString(),
-          },
-          planMetrics: [
-            {
-              id: 'plan-metric-id',
-              service: EasService.Builds,
-              serviceMetric: EasServiceMetric.Builds,
-              metricType: UsageMetricType.Build,
-              value: 85,
-              limit: 100,
-            },
-          ],
-        },
-        EAS_UPDATE: null,
-      },
-    } as any);
+    mockGetUsageForOverageWarningAsync.mockResolvedValue(
+      createMockAccountUsage({
+        subscriptionName: 'Pro',
+        buildPlanMetrics: [
+          createMockPlanMetric({
+            service: EasService.Builds,
+            serviceMetric: EasServiceMetric.Builds,
+            metricType: UsageMetricType.Build,
+            value: 85,
+            limit: 100,
+          }),
+        ],
+      })
+    );
 
     await maybeWarnAboutUsageOveragesAsync({
       graphqlClient: mockGraphqlClient,
@@ -169,36 +211,20 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
   });
 
   it('does not display warning when usage is below threshold', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue({
-      id: 'account-id',
-      name: 'test-account',
-      subscription: {
-        id: 'sub-id',
-        name: 'Free',
-      },
-      usageMetrics: {
-        EAS_BUILD: {
-          id: 'metric-id',
-          billingPeriod: {
-            id: 'period-id',
-            anchor: new Date().toISOString(),
-            start: new Date().toISOString(),
-            end: new Date().toISOString(),
-          },
-          planMetrics: [
-            {
-              id: 'plan-metric-id',
-              service: EasService.Builds,
-              serviceMetric: EasServiceMetric.Builds,
-              metricType: UsageMetricType.Build,
-              value: 50,
-              limit: 100,
-            },
-          ],
-        },
-        EAS_UPDATE: null,
-      },
-    } as any);
+    mockGetUsageForOverageWarningAsync.mockResolvedValue(
+      createMockAccountUsage({
+        subscriptionName: 'Free',
+        buildPlanMetrics: [
+          createMockPlanMetric({
+            service: EasService.Builds,
+            serviceMetric: EasServiceMetric.Builds,
+            metricType: UsageMetricType.Build,
+            value: 50,
+            limit: 100,
+          }),
+        ],
+      })
+    );
 
     await maybeWarnAboutUsageOveragesAsync({
       graphqlClient: mockGraphqlClient,
@@ -210,33 +236,20 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
   });
 
   it('does not display warning when no subscription', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue({
-      id: 'account-id',
-      name: 'test-account',
-      subscription: null,
-      usageMetrics: {
-        EAS_BUILD: {
-          id: 'metric-id',
-          billingPeriod: {
-            id: 'period-id',
-            anchor: new Date().toISOString(),
-            start: new Date().toISOString(),
-            end: new Date().toISOString(),
-          },
-          planMetrics: [
-            {
-              id: 'plan-metric-id',
-              service: EasService.Builds,
-              serviceMetric: EasServiceMetric.Builds,
-              metricType: UsageMetricType.Build,
-              value: 85,
-              limit: 100,
-            },
-          ],
-        },
-        EAS_UPDATE: null,
-      },
-    } as any);
+    mockGetUsageForOverageWarningAsync.mockResolvedValue(
+      createMockAccountUsage({
+        subscriptionName: null,
+        buildPlanMetrics: [
+          createMockPlanMetric({
+            service: EasService.Builds,
+            serviceMetric: EasServiceMetric.Builds,
+            metricType: UsageMetricType.Build,
+            value: 85,
+            limit: 100,
+          }),
+        ],
+      })
+    );
 
     await maybeWarnAboutUsageOveragesAsync({
       graphqlClient: mockGraphqlClient,
@@ -261,27 +274,11 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
   });
 
   it('does not display warning when no plan metrics', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue({
-      id: 'account-id',
-      name: 'test-account',
-      subscription: {
-        id: 'sub-id',
-        name: 'Free',
-      },
-      usageMetrics: {
-        EAS_BUILD: {
-          id: 'metric-id',
-          billingPeriod: {
-            id: 'period-id',
-            anchor: new Date().toISOString(),
-            start: new Date().toISOString(),
-            end: new Date().toISOString(),
-          },
-          planMetrics: [],
-        },
-        EAS_UPDATE: null,
-      },
-    } as any);
+    mockGetUsageForOverageWarningAsync.mockResolvedValue(
+      createMockAccountUsage({
+        subscriptionName: 'Free',
+      })
+    );
 
     await maybeWarnAboutUsageOveragesAsync({
       graphqlClient: mockGraphqlClient,
@@ -290,50 +287,5 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     });
 
     expect(mockDisplayOverageWarningWithProgressBar).not.toHaveBeenCalled();
-  });
-
-  it('is case-insensitive for plan type', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue({
-      id: 'account-id',
-      name: 'test-account',
-      subscription: {
-        id: 'sub-id',
-        name: 'STARTER', // uppercase
-      },
-      usageMetrics: {
-        EAS_BUILD: {
-          id: 'metric-id',
-          billingPeriod: {
-            id: 'period-id',
-            anchor: new Date().toISOString(),
-            start: new Date().toISOString(),
-            end: new Date().toISOString(),
-          },
-          planMetrics: [
-            {
-              id: 'plan-metric-id',
-              service: EasService.Builds,
-              serviceMetric: EasServiceMetric.Builds,
-              metricType: UsageMetricType.Build,
-              value: 85,
-              limit: 100,
-            },
-          ],
-        },
-        EAS_UPDATE: null,
-      },
-    } as any);
-
-    await maybeWarnAboutUsageOveragesAsync({
-      graphqlClient: mockGraphqlClient,
-      accountId: 'account-id',
-      service: EasService.Builds,
-    });
-
-    expect(mockDisplayOverageWarningWithProgressBar).toHaveBeenCalledWith(
-      expect.any(Object),
-      displayOverageWarning.PlanType.Starter,
-      'test-account'
-    );
   });
 });

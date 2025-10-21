@@ -1,13 +1,9 @@
-import { calculateBuildThresholds, calculateUpdatesThresholds } from './calculateOverages';
-import { PlanType, displayOverageWarningWithProgressBar } from './displayOverageWarning';
+import { PlanType, displayOverageWarning } from './displayOverageWarning';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasService } from '../../graphql/generated';
+import { EasService, EasServiceMetric } from '../../graphql/generated';
 import { AccountUsageQuery } from '../../graphql/queries/AccountUsageQuery';
 import Log from '../../log';
 
-/**
- * Checks if the account is on a free or starter plan based on the subscription name
- */
 function getPlanType(subscriptionName: string | undefined | null): PlanType | null {
   if (!subscriptionName) {
     return null;
@@ -22,10 +18,8 @@ function getPlanType(subscriptionName: string | undefined | null): PlanType | nu
   return null;
 }
 
-/**
- * Checks for usage overages and displays warnings if applicable.
- * Should be called when running builds or updates.
- */
+const THRESHOLD_PERCENT = 85;
+
 export async function maybeWarnAboutUsageOveragesAsync({
   graphqlClient,
   accountId,
@@ -37,38 +31,48 @@ export async function maybeWarnAboutUsageOveragesAsync({
 }): Promise<void> {
   try {
     const currentDate = new Date();
-    const accountData = await AccountUsageQuery.getUsageForOverageWarningAsync(
+    const {
+      name,
+      subscription,
+      usageMetrics: { EAS_BUILD, EAS_UPDATE },
+    } = await AccountUsageQuery.getUsageForOverageWarningAsync(
       graphqlClient,
       accountId,
       currentDate
     );
 
-    const planType = getPlanType(accountData.subscription?.name);
-
-    // Only show warnings for Free and Starter plans
+    const planType = getPlanType(subscription?.name);
     if (!planType) {
       return;
     }
 
-    let threshold = null;
-
+    let planMetric;
     if (service === EasService.Builds) {
-      const buildMetrics = accountData.usageMetrics.EAS_BUILD;
-      if (buildMetrics?.planMetrics && buildMetrics.planMetrics.length > 0) {
-        threshold = calculateBuildThresholds({ planMetrics: buildMetrics.planMetrics });
-      }
+      planMetric = EAS_BUILD?.planMetrics?.[0];
     } else if (service === EasService.Updates) {
-      const updateMetrics = accountData.usageMetrics.EAS_UPDATE;
-      if (updateMetrics?.planMetrics && updateMetrics.planMetrics.length > 0) {
-        threshold = calculateUpdatesThresholds({ planMetrics: updateMetrics.planMetrics });
-      }
+      planMetric = EAS_UPDATE?.planMetrics?.find(
+        metric => metric.serviceMetric === EasServiceMetric.UniqueUpdaters
+      );
     }
 
-    if (threshold) {
-      displayOverageWarningWithProgressBar(threshold, planType, accountData.name);
+    if (!planMetric) {
+      return;
+    }
+
+    const percentUsed = calculatePercentUsed(planMetric.value, planMetric.limit);
+    if (percentUsed >= THRESHOLD_PERCENT) {
+      const printedMetric = service === EasService.Builds ? 'build credits' : 'updates MAU';
+      displayOverageWarning({ percentUsed, printedMetric, planType, name });
     }
   } catch (error) {
     // Silently fail if we can't fetch usage data - we don't want to block the user's workflow
     Log.debug(`Failed to fetch usage data: ${error}`);
   }
+}
+
+export function calculatePercentUsed(value: number, limit: number): number {
+  if (limit === 0) {
+    return 0;
+  }
+  return Math.min(Math.floor((value / limit) * 100), 100);
 }
