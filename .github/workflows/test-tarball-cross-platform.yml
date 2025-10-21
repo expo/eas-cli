@@ -22,6 +22,11 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Setup git config
+        run: |
+          git config --global user.email "ci@expo.dev"
+          git config --global user.name "CI Test"
+
       - name: Create test git repository
         run: |
           mkdir test-project
@@ -41,10 +46,13 @@ jobs:
           git commit -m "Initial commit"
         shell: pwsh
 
-      - name: Create tarball using dev script (no build needed)
+      - name: Build
+        run: yarn build
+
+      - name: Create tarball
         run: |
           cd test-project
-          node ../packages/eas-cli/bin/dev build:test-tarball --output ../test-project.tar.gz
+          node ../bin/run build:test-tarball --output ../test-project.tar.gz
           echo "Created tarball on Windows"
         shell: pwsh
 
@@ -163,6 +171,11 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Setup git config
+        run: |
+          git config --global user.email "ci@expo.dev"
+          git config --global user.name "CI Test"
+
       - name: Create test git repository with executable files
         run: |
           mkdir test-project-linux
@@ -188,10 +201,13 @@ jobs:
           git add .
           git commit -m "Initial commit"
 
-      - name: Create tarball using dev script (no build needed)
+      - name: Build
+        run: yarn build
+
+      - name: Create tarball
         run: |
           cd test-project-linux
-          node ../packages/eas-cli/bin/dev build:test-tarball --output ../test-project-linux.tar.gz
+          node ../bin/run build:test-tarball --output ../test-project-linux.tar.gz
 
       - name: Upload tarball artifact
         uses: actions/upload-artifact@v4

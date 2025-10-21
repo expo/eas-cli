@@ -236,7 +236,7 @@
     "generate-graphql-code": "graphql-codegen --config graphql-codegen.yml",
     "verify-graphql-code": "./scripts/verify-graphql.sh",
     "clean": "rimraf dist build tmp node_modules yarn-error.log",
-    "copy-new-templates": "node scripts/copy-templates.js"
+    "copy-new-templates": "rimraf build/commandUtils/new/templates && mkdir -p build/commandUtils/new && cp -r src/commandUtils/new/templates build/commandUtils/new"
   },
   "volta": {
     "node": "20.11.0",
