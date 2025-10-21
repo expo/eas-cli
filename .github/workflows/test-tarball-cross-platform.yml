@@ -1,0 +1,248 @@
+name: Test tarball cross-platform compatibility
+
+on:
+  pull_request:
+    paths:
+      - "packages/eas-cli/src/build/utils/repository.ts"
+      - ".github/workflows/test-tarball-cross-platform.yml"
+  workflow_dispatch:
+
+jobs:
+  create-tarball-windows:
+    name: Create tarball on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Setup git config
+        run: |
+          git config --global user.email "ci@expo.dev"
+          git config --global user.name "CI Test"
+
+      - name: Create test git repository
+        run: |
+          mkdir test-project
+          cd test-project
+          git init
+          git config user.email "ci@expo.dev"
+          git config user.name "CI Test"
+
+          # Create directory structure with files
+          New-Item -ItemType Directory -Force -Path src/api, src/app, src/assets
+          "console.log('api');" | Out-File -Encoding utf8 src/api/index.js
+          "console.log('app');" | Out-File -Encoding utf8 src/app/index.js
+          "/* asset */" | Out-File -Encoding utf8 src/assets/style.css
+          "test content" | Out-File -Encoding utf8 README.md
+
+          git add .
+          git commit -m "Initial commit"
+        shell: pwsh
+
+      - name: Build
+        run: yarn build
+
+      - name: Create tarball
+        run: |
+          cd test-project
+          node ../bin/run build:test-tarball --output ../test-project.tar.gz
+          echo "Created tarball on Windows"
+        shell: pwsh
+
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-tarball
+          path: test-project.tar.gz
+          retention-days: 1
+
+  test-extract-linux:
+    name: Extract and test on Linux
+    runs-on: ubuntu-latest
+    needs: create-tarball-windows
+    steps:
+      - name: Download tarball from Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-tarball
+
+      - name: Extract tarball
+        run: |
+          mkdir extracted
+          tar -C extracted --strip-components 1 -zxf test-project.tar.gz
+          echo "✅ Extraction successful!"
+
+      - name: Verify directory structure
+        run: |
+          cd extracted
+          if [ ! -d "src/api" ]; then
+            echo "❌ src/api directory not found"
+            exit 1
+          fi
+          if [ ! -d "src/app" ]; then
+            echo "❌ src/app directory not found"
+            exit 1
+          fi
+          if [ ! -d "src/assets" ]; then
+            echo "❌ src/assets directory not found"
+            exit 1
+          fi
+          echo "✅ All directories extracted successfully"
+
+      - name: Verify files are readable
+        run: |
+          cd extracted
+          cat src/api/index.js
+          cat src/app/index.js
+          cat src/assets/style.css
+          cat package.json
+          echo "✅ All files are readable"
+
+      - name: List permissions
+        run: |
+          cd extracted
+          ls -la
+          ls -la src/
+          ls -la src/api/
+          ls -la src/app/
+          ls -la src/assets/
+
+  test-extract-macos:
+    name: Extract and test on macOS
+    runs-on: macos-latest
+    needs: create-tarball-windows
+    steps:
+      - name: Download tarball from Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-tarball
+
+      - name: Extract tarball
+        run: |
+          mkdir extracted
+          tar -C extracted --strip-components 1 -zxf test-project.tar.gz
+          echo "✅ Extraction successful!"
+
+      - name: Verify directory structure
+        run: |
+          cd extracted
+          if [ ! -d "src/api" ]; then
+            echo "❌ src/api directory not found"
+            exit 1
+          fi
+          if [ ! -d "src/app" ]; then
+            echo "❌ src/app directory not found"
+            exit 1
+          fi
+          if [ ! -d "src/assets" ]; then
+            echo "❌ src/assets directory not found"
+            exit 1
+          fi
+          echo "✅ All directories extracted successfully"
+
+      - name: Verify files are readable
+        run: |
+          cd extracted
+          cat src/api/index.js
+          cat src/app/index.js
+          cat src/assets/style.css
+          cat package.json
+          echo "✅ All files are readable"
+
+  # Also test that Unix-created tarballs preserve permissions
+  create-tarball-linux:
+    name: Create tarball on Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Setup git config
+        run: |
+          git config --global user.email "ci@expo.dev"
+          git config --global user.name "CI Test"
+
+      - name: Create test git repository with executable files
+        run: |
+          mkdir test-project-linux
+          cd test-project-linux
+          git init
+          git config user.email "ci@expo.dev"
+          git config user.name "CI Test"
+
+          # Create directory structure
+          mkdir -p src/api src/app scripts
+          echo "console.log('api');" > src/api/index.js
+          echo "console.log('app');" > src/app/index.js
+
+          # Create an executable script
+          cat > scripts/build.sh << 'EOF'
+          #!/bin/bash
+          echo "Building..."
+          EOF
+          chmod +x scripts/build.sh
+
+          echo "test content" > README.md
+
+          git add .
+          git commit -m "Initial commit"
+
+      - name: Build
+        run: yarn build
+
+      - name: Create tarball
+        run: |
+          cd test-project-linux
+          node ../bin/run build:test-tarball --output ../test-project-linux.tar.gz
+
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-tarball
+          path: test-project-linux.tar.gz
+          retention-days: 1
+
+  verify-linux-permissions:
+    name: Verify Linux tarball preserves executable permissions
+    runs-on: ubuntu-latest
+    needs: create-tarball-linux
+    steps:
+      - name: Download tarball from Linux
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-tarball
+
+      - name: Extract tarball
+        run: |
+          mkdir extracted
+          tar -C extracted --strip-components 1 -zxf test-project-linux.tar.gz
+
+      - name: Verify executable permissions are preserved
+        run: |
+          cd extracted
+          if [ ! -x "scripts/build.sh" ]; then
+            echo "❌ scripts/build.sh is not executable!"
+            ls -la scripts/build.sh
+            exit 1
+          fi
+          echo "✅ Executable permissions preserved!"
+          ls -la scripts/build.sh
+
+      - name: Test executing the script
+        run: |
+          cd extracted
+          ./scripts/build.sh
