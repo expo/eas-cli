@@ -2,15 +2,7 @@
 
 ## Project Overview
 
-This is an **Expo starter template**. It's designed to help new developers quickly start building mobile applications with:
-
-- **Expo SDK 54** with the New Architecture enabled
-- **Expo Router** for file-based navigation
-- **TypeScript** for type safety
-- **EAS (Expo Application Services)** integration for build, submit, and deployment workflows
-- Pre-configured components, hooks, and theming
-
-This template is meant to become a full-fledged application for many users. Treat it as a production-ready starting point, not just a demo.
+This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
 
 ## Documentation Resources
 
@@ -86,6 +78,18 @@ npm run deploy                                      # Deploy to production (work
 
 ## Development Guidelines
 
+### Code Style & Standards
+
+- **TypeScript First**: Use TypeScript for all new code with strict type checking
+- **Naming Conventions**: Use meaningful, descriptive names for variables, functions, and components
+- **Self-Documenting Code**: Write clear, readable code that explains itself; only add comments for complex business logic or design decisions
+- **React 19 Patterns**: Follow modern React patterns including:
+  - Function components with hooks
+  - Enable React Compiler
+  - Proper dependency arrays in useEffect
+  - Memoization when appropriate (useMemo, useCallback)
+  - Error boundaries for better error handling
+
 ### Navigation & Routing
 
 - Use **Expo Router** for all navigation
@@ -157,5 +161,3 @@ When working on this project:
 2. **Understand before implementing**: Read the relevant docs section before writing code
 
 3. **Follow existing patterns**: Look at existing components and screens for patterns to follow
-
-4. **Be explicit**: Provide clear explanations for any changes or additions

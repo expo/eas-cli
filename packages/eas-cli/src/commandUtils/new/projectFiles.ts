@@ -136,11 +136,6 @@ export async function copyProjectTemplatesAsync(projectDir: string): Promise<voi
       return !src.endsWith('readme-additions.md');
     },
   });
-
-  const agentsPath = path.join(projectDir, 'AGENTS.md');
-  ['.cursorrules', '.clinerules'].forEach(async rule => {
-    await fs.symlink(agentsPath, path.join(projectDir, rule));
-  });
 }
 
 export async function updateReadmeAsync(

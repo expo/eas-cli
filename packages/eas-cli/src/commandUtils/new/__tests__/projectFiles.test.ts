@@ -278,16 +278,6 @@ describe('projectFiles', () => {
           filter: expect.any(Function),
         })
       );
-
-      // Should create symlinks for .cursorrules and .clinerules
-      expect(fs.symlink).toHaveBeenCalledWith(
-        `${projectDir}/AGENTS.md`,
-        `${projectDir}/.cursorrules`
-      );
-      expect(fs.symlink).toHaveBeenCalledWith(
-        `${projectDir}/AGENTS.md`,
-        `${projectDir}/.clinerules`
-      );
     });
   });
 
