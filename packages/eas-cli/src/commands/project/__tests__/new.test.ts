@@ -51,7 +51,15 @@ jest.mock('../../../project/expoConfig', () => ({
 
 jest.mock('../../../prompts', () => ({
   ...jest.requireActual('../../../prompts'),
-  promptAsync: jest.fn().mockResolvedValue({ account: { name: 'jester' } }),
+  promptAsync: jest.fn().mockImplementation(async (options: any) => {
+    if (options.name === 'account') {
+      return { account: { name: 'jester' } };
+    }
+    if (options.name === 'name') {
+      return { name: options.initial || 'expo-project' };
+    }
+    return {};
+  }),
 }));
 
 describe(New.name, () => {
