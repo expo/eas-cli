@@ -1,13 +1,14 @@
-import { Job, Metadata } from '@expo/eas-build-job';
+import { Job, Metadata, version } from '@expo/eas-build-job';
 import spawnAsync from '@expo/spawn-async';
 import { ChildProcess } from 'child_process';
 import semver from 'semver';
 
+import { getExpoApiBaseUrl } from '../api';
 import Log from '../log';
 import { ora } from '../ora';
 
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
-const PLUGIN_PACKAGE_VERSION = '1.0.171';
+const PLUGIN_PACKAGE_VERSION = version; // should match version of @expo/eas-build-job
 
 export enum LocalBuildMode {
   /**
@@ -60,6 +61,7 @@ export async function runLocalBuildAsync(
       ...env,
       ...process.env,
       EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? process.env.EAS_LOCAL_BUILD_WORKINGDIR,
+      __API_SERVER_URL: getExpoApiBaseUrl(),
       ...(options.skipCleanup || options.skipNativeBuild
         ? { EAS_LOCAL_BUILD_SKIP_CLEANUP: '1' }
         : {}),
