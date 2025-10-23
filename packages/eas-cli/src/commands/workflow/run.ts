@@ -44,6 +44,7 @@ import spawnAsync from '@expo/spawn-async';
 import { Flags } from '@oclif/core';
 import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
+import { boolish } from 'getenv';
 import * as path from 'node:path';
 import slash from 'slash';
 
@@ -99,8 +100,7 @@ export default class WorkflowRun extends EasCommand {
       default: false,
       allowNo: true,
       description: 'Exit codes: 0 = success, 11 = failure, 12 = canceled, 13 = wait aborted.',
-      summary:
-        'Wait for workflow run to complete. Defaults to false. Cannot be used with the --json flag.',
+      summary: 'Wait for workflow run to complete. Defaults to false.',
     }),
     input: Flags.string({
       char: 'F',
@@ -129,9 +129,6 @@ export default class WorkflowRun extends EasCommand {
     const { flags, args } = await this.parse(WorkflowRun);
 
     if (flags.json) {
-      if (flags.wait) {
-        throw new Error('Cannot use --json and --wait flags simultaneously.');
-      }
       enableJsonOutput();
     }
 
@@ -370,9 +367,11 @@ export default class WorkflowRun extends EasCommand {
       process.exit(0);
     }
 
-    Log.newLine();
+    const spinnerUsesStdErr = boolish('CI', false) || flags.json;
+
     const { status } = await waitForWorkflowRunToEndAsync(graphqlClient, {
       workflowRunId,
+      spinnerUsesStdErr,
     });
 
     if (flags.json) {
@@ -396,11 +395,14 @@ export default class WorkflowRun extends EasCommand {
 
 async function waitForWorkflowRunToEndAsync(
   graphqlClient: ExpoGraphqlClient,
-  { workflowRunId }: { workflowRunId: string }
+  { workflowRunId, spinnerUsesStdErr }: { workflowRunId: string; spinnerUsesStdErr: boolean }
 ): Promise<WorkflowRunByIdQuery['workflowRuns']['byId']> {
   Log.log('Waiting for workflow run to complete. You can press Ctrl+C to exit.');
 
-  const spinner = ora('').start();
+  const spinner = ora({
+    stream: spinnerUsesStdErr ? process.stderr : process.stdout,
+    text: '',
+  }).start();
   spinner.prefixText = chalk`{bold.yellow Workflow run is waiting to start:}`;
 
   let failedFetchesCount = 0;
@@ -438,6 +440,7 @@ async function waitForWorkflowRunToEndAsync(
         }
         case WorkflowRunStatus.Success:
           spinner.prefixText = chalk`{bold.green Workflow has completed successfully.}`;
+          spinner.text = '';
           spinner.succeed('');
           return workflowRun;
       }
