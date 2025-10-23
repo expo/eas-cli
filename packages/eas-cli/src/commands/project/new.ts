@@ -168,9 +168,6 @@ export default class New extends EasCommand {
       );
     }
 
-    Log.warn(
-      'This command is not yet implemented. It will create a new project, but it may not be fully configured.'
-    );
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
 
     const {
