@@ -36,15 +36,6 @@ export const AccountUsageQuery = {
                         limit
                       }
                     }
-                    EAS_UPDATE: byBillingPeriod(date: $currentDate, service: UPDATES) {
-                      id
-                      planMetrics {
-                        id
-                        serviceMetric
-                        value
-                        limit
-                      }
-                    }
                   }
                 }
               }
