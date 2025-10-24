@@ -11,7 +11,7 @@ import { LocalBuildMode } from '../../build/local';
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { EasService, StatuspageServiceName } from '../../graphql/generated';
+import { StatuspageServiceName } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
@@ -164,13 +164,11 @@ export default class Build extends EasCommand {
           : [StatuspageServiceName.EasBuild]
       );
 
-      // Check for usage overages and warn if needed
       const { projectId } = await getDynamicPrivateProjectConfigAsync();
       const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
       await maybeWarnAboutUsageOveragesAsync({
         graphqlClient,
         accountId: account.id,
-        service: EasService.Builds,
       });
     }
 

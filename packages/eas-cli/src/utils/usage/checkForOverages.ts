@@ -1,68 +1,39 @@
-import { PlanType, displayOverageWarning } from './displayOverageWarning';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasService, EasServiceMetric } from '../../graphql/generated';
-import { AccountUsageQuery } from '../../graphql/queries/AccountUsageQuery';
-import Log from '../../log';
+import chalk from 'chalk';
 
-function getPlanType(subscriptionName: string | undefined | null): PlanType | null {
-  if (!subscriptionName) {
-    return null;
-  }
-  const lowerName = subscriptionName.toLowerCase();
-  if (lowerName === 'free') {
-    return PlanType.Free;
-  }
-  if (lowerName === 'starter') {
-    return PlanType.Starter;
-  }
-  return null;
-}
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { AccountUsageQuery } from '../../graphql/queries/AccountUsageQuery';
+import Log, { link } from '../../log';
 
 const THRESHOLD_PERCENT = 85;
 
 export async function maybeWarnAboutUsageOveragesAsync({
   graphqlClient,
   accountId,
-  service,
 }: {
   graphqlClient: ExpoGraphqlClient;
   accountId: string;
-  service: EasService;
 }): Promise<void> {
   try {
     const currentDate = new Date();
     const {
       name,
       subscription,
-      usageMetrics: { EAS_BUILD, EAS_UPDATE },
+      usageMetrics: { EAS_BUILD },
     } = await AccountUsageQuery.getUsageForOverageWarningAsync(
       graphqlClient,
       accountId,
       currentDate
     );
 
-    const planType = getPlanType(subscription?.name);
-    if (!planType) {
-      return;
-    }
-
-    let planMetric;
-    if (service === EasService.Builds) {
-      planMetric = EAS_BUILD?.planMetrics?.[0];
-    } else if (service === EasService.Updates) {
-      planMetric = EAS_UPDATE?.planMetrics?.find(
-        metric => metric.serviceMetric === EasServiceMetric.UniqueUpdaters
-      );
-    }
-
-    if (!planMetric) {
+    const planMetric = EAS_BUILD?.planMetrics?.[0];
+    if (!planMetric || !subscription) {
       return;
     }
 
     const percentUsed = calculatePercentUsed(planMetric.value, planMetric.limit);
     if (percentUsed >= THRESHOLD_PERCENT) {
-      const printedMetric = service === EasService.Builds ? 'build credits' : 'updates MAU';
-      displayOverageWarning({ percentUsed, printedMetric, planType, name });
+      const hasFreePlan = subscription.name === 'Free';
+      displayOverageWarning({ percentUsed, hasFreePlan, name });
     }
   } catch (error) {
     // Silently fail if we can't fetch usage data - we don't want to block the user's workflow
@@ -75,4 +46,40 @@ export function calculatePercentUsed(value: number, limit: number): number {
     return 0;
   }
   return Math.min(Math.floor((value / limit) * 100), 100);
+}
+
+export function createProgressBar(percentUsed: number, width: number = 30): string {
+  const filledWidth = Math.round((percentUsed / 100) * width);
+  const emptyWidth = width - filledWidth;
+  const filled = '█'.repeat(filledWidth);
+  const empty = '░'.repeat(emptyWidth);
+  return `${filled}${empty}`;
+}
+
+export function displayOverageWarning({
+  percentUsed,
+  hasFreePlan,
+  name,
+}: {
+  percentUsed: number;
+  hasFreePlan: boolean;
+  name: string;
+}): void {
+  Log.warn(
+    chalk.bold(`You've used ${percentUsed}% of your included build credits for this month. `) +
+      createProgressBar(percentUsed)
+  );
+
+  const billingUrl = `https://expo.dev/accounts/${name}/settings/billing`;
+  const warning = hasFreePlan
+    ? "You won't be able to start new builds once you reach the limit. " +
+      link(billingUrl, { text: 'Upgrade your plan to continue service.', dim: false })
+    : 'Additional usage beyond your limit will be charged at pay-as-you-go rates. ' +
+      link(billingUrl, {
+        text: 'See usage in billing.',
+        dim: false,
+      });
+
+  Log.warn(warning);
+  Log.newLine();
 }
