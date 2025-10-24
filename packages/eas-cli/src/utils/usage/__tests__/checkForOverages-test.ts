@@ -88,7 +88,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
   it('displays a warning for a Free plan with high build usage', async () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
-        buildPlanMetrics: [createMockPlanMetric({ value: 85, limit: 100 })],
+        buildPlanMetrics: [createMockPlanMetric({ value: 85 })],
       })
     );
 
@@ -116,7 +116,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
         subscriptionName: 'Starter',
-        buildPlanMetrics: [createMockPlanMetric({ value: 90, limit: 100 })],
+        buildPlanMetrics: [createMockPlanMetric({ value: 90 })],
       })
     );
 
@@ -139,7 +139,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
   it('does not display a warning when usage is below threshold', async () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
-        buildPlanMetrics: [createMockPlanMetric({ value: 50, limit: 100 })],
+        buildPlanMetrics: [createMockPlanMetric({ value: 50 })],
       })
     );
 
