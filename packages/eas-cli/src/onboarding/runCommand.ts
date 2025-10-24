@@ -21,7 +21,9 @@ export async function runCommandAsync({
   showSpinner?: boolean;
   showOutput?: boolean;
 }): Promise<void> {
-  Log.log(`🏗️  Running ${chalk.bold(`${command} ${args.join(' ')}`)}...`);
+  if (showOutput) {
+    Log.log(`🏗️  Running ${chalk.bold(`${command} ${args.join(' ')}`)}...`);
+  }
   let spinner: Ora | undefined;
   if (showSpinner) {
     spinner = ora(`${chalk.bold(`${command} ${args.join(' ')}`)}`).start();
@@ -69,6 +71,10 @@ export async function runCommandAsync({
       Log.error(`❌ ${chalk.bold(`${command} ${args.join(' ')}`)} failed`);
     }
     throw error;
+  }
+
+  if (!showOutput) {
+    return;
   }
 
   if (showSpinner) {

@@ -2,11 +2,12 @@ import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
 import path from 'path';
 
+import { printDirectory } from './utils';
 import { Role } from '../../graphql/generated';
 import Log from '../../log';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { Choice, promptAsync } from '../../prompts';
-import { Actor, getActorUsername } from '../../user/User';
+import { Actor } from '../../user/User';
 import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 
 function validateProjectPath(resolvedPath: string): void {
@@ -31,7 +32,6 @@ function validateProjectPath(resolvedPath: string): void {
 }
 
 export async function generateProjectConfigAsync(
-  actor: Actor,
   pathArg: string | undefined,
   options: {
     graphqlClient: ExpoGraphqlClient;
@@ -41,7 +41,7 @@ export async function generateProjectConfigAsync(
   projectName: string;
   projectDirectory: string;
 }> {
-  let baseName = 'new-expo-project';
+  let baseName = 'expo-project';
   let parentDirectory = process.cwd();
 
   if (pathArg) {
@@ -49,17 +49,26 @@ export async function generateProjectConfigAsync(
     validateProjectPath(resolvedPath);
     baseName = path.basename(resolvedPath);
     parentDirectory = path.dirname(resolvedPath);
+  } else {
+    baseName = (
+      await promptAsync({
+        type: 'text',
+        name: 'name',
+        message: 'What would you like to name your project?',
+        initial: 'expo-project',
+      })
+    ).name;
   }
 
   // Find an available name checking both local filesystem and remote server
   const { projectName, projectDirectory } = await findAvailableProjectNameAsync(
-    actor,
     baseName,
     parentDirectory,
     options
   );
 
-  Log.withInfo(`Using project directory: ${projectDirectory}`);
+  Log.withInfo(`Using project name: ${projectName}`);
+  Log.withInfo(`Using project directory: ${printDirectory(projectDirectory)}`);
 
   return {
     projectName,
@@ -130,17 +139,6 @@ export function getAccountChoices(actor: Actor, permissionsMap?: Map<string, boo
   });
 }
 
-export function generateProjectNameVariations(actor: Actor, baseName: string): string[] {
-  const username = getActorUsername(actor);
-  const date = new Date().toISOString().split('T')[0];
-
-  return [
-    baseName,
-    `${baseName}-${username}-${date}`,
-    `${baseName}-${username}-${date}-${nanoid(6)}`,
-  ];
-}
-
 async function verifyProjectDoesNotExistAsync(
   graphqlClient: ExpoGraphqlClient,
   accountName: string,
@@ -167,7 +165,6 @@ async function verifyProjectDoesNotExistAsync(
  * Remote server (project already exists on Expo)
  */
 export async function findAvailableProjectNameAsync(
-  actor: Actor,
   baseName: string,
   parentDirectory: string,
   {
@@ -178,37 +175,24 @@ export async function findAvailableProjectNameAsync(
     projectAccount: string;
   }
 ): Promise<{ projectName: string; projectDirectory: string }> {
-  const nameVariations = generateProjectNameVariations(actor, baseName);
+  let projectName = baseName;
+  let projectDirectory = path.join(parentDirectory, projectName);
 
-  for (let i = 0; i < nameVariations.length; i++) {
-    const nameVariation = nameVariations[i];
-    const proposedDirectory = path.join(parentDirectory, nameVariation);
-    const usingVariant = i !== 0;
+  const localExists = await fs.pathExists(projectDirectory);
 
-    const localExists = await fs.pathExists(proposedDirectory);
-    if (localExists) {
-      continue;
-    }
+  const remoteAvailable = await verifyProjectDoesNotExistAsync(
+    graphqlClient,
+    projectAccount,
+    projectName
+  );
 
-    const remoteAvailable = await verifyProjectDoesNotExistAsync(
-      graphqlClient,
-      projectAccount,
-      nameVariation,
-      { silent: usingVariant }
-    );
-    if (!remoteAvailable) {
-      continue;
-    }
-
-    Log.withInfo(`Using ${usingVariant ? 'alternate ' : ''}project name: ${nameVariation}`);
-
-    return {
-      projectName: nameVariation,
-      projectDirectory: proposedDirectory,
-    };
+  if (localExists || !remoteAvailable) {
+    projectName = `${baseName}-${nanoid(6)}`;
+    projectDirectory = path.join(parentDirectory, projectName);
   }
 
-  throw new Error(
-    `Unable to find a unique project name for "${baseName}". All generated variations already exist.`
-  );
+  return {
+    projectName,
+    projectDirectory,
+  };
 }

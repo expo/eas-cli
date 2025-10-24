@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- `eas:new` command changes (project name prompt, output cleanup, additional project files, additional prompts). ([#3235](https://github.com/expo/eas-cli/pull/3235) by [@mackenco](https://github.com/mackenco))
+
 ### 🐛 Bug fixes
 
 - workflow:run can use --wait and --json together. ([#3239](https://github.com/expo/eas-cli/pull/3239) by [@douglowder](https://github.com/douglowder))

@@ -1,4 +1,4 @@
-name: Publish preview update
+name: Create draft
 
 on:
   push:
@@ -10,3 +10,6 @@ jobs:
     type: update
     params:
       branch: ${{ github.ref_name || 'test' }}
+  deploy_website:
+    name: Deploy website
+    type: deploy

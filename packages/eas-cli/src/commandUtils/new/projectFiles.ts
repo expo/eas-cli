@@ -1,13 +1,11 @@
 import { ExpoConfig } from '@expo/config';
 import { AppVersionSource, EasJson } from '@expo/eas-json';
-import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 import merge from 'ts-deepmerge';
 
 import { getEASUpdateURL } from '../../api';
 import { AppFragment } from '../../graphql/generated';
-import Log, { learnMore } from '../../log';
 import { PackageManager } from '../../onboarding/installDependencies';
 import { easCliVersion } from '../../utils/easCli';
 
@@ -63,12 +61,6 @@ export async function generateAppConfigAsync(projectDir: string, app: AppFragmen
 
   const appJsonPath = path.join(projectDir, 'app.json');
   await fs.writeJson(appJsonPath, { expo: mergedConfig }, { spaces: 2 });
-  Log.withTick(
-    `Generated ${chalk.bold('app.json')}. ${learnMore(
-      'https://docs.expo.dev/versions/latest/config/app/'
-    )}`
-  );
-  Log.log();
 }
 
 export async function generateEasConfigAsync(projectDir: string): Promise<void> {
@@ -116,12 +108,6 @@ export async function generateEasConfigAsync(projectDir: string): Promise<void> 
 
   const easJsonPath = path.join(projectDir, 'eas.json');
   await fs.writeJson(easJsonPath, easJson, { spaces: 2 });
-  Log.withTick(
-    `Generated ${chalk.bold('eas.json')}. ${learnMore(
-      'https://docs.expo.dev/build-reference/eas-json/'
-    )}`
-  );
-  Log.log();
 }
 
 export async function updatePackageJsonAsync(projectDir: string): Promise<void> {
@@ -131,27 +117,25 @@ export async function updatePackageJsonAsync(projectDir: string): Promise<void> 
   if (!packageJson.scripts) {
     packageJson.scripts = {};
   }
-  packageJson.scripts.preview = 'npx eas-cli@latest workflow:run publish-preview-update.yml';
+  packageJson.scripts.draft = 'npx eas-cli@latest workflow:run create-draft.yml';
   packageJson.scripts['development-builds'] =
     'npx eas-cli@latest workflow:run create-development-builds.yml';
   packageJson.scripts.deploy = 'npx eas-cli@latest workflow:run deploy-to-production.yml';
 
   await fs.writeJson(packageJsonPath, packageJson, { spaces: 2 });
-  Log.withTick('Updated package.json with scripts');
-  Log.log();
 }
 
 export async function copyProjectTemplatesAsync(projectDir: string): Promise<void> {
-  const templatesSourceDir = path.join(__dirname, 'templates', '.eas', 'workflows');
-  const easWorkflowsTargetDir = path.join(projectDir, '.eas', 'workflows');
+  const templatesSourceDir = path.join(__dirname, 'templates');
 
-  await fs.copy(templatesSourceDir, easWorkflowsTargetDir, {
+  // Copy everything from templates to projectDir, skipping readme-additions.md
+  await fs.copy(templatesSourceDir, projectDir, {
     overwrite: true,
     errorOnExist: false,
+    filter: (src: string) => {
+      return !src.endsWith('readme-additions.md');
+    },
   });
-
-  Log.withTick('Created EAS workflow files');
-  Log.log();
 }
 
 export async function updateReadmeAsync(
@@ -189,7 +173,4 @@ export async function updateReadmeAsync(
   mergedReadme = mergedReadme.replaceAll('npm run', `${packageManager} run`);
 
   await fs.writeFile(projectReadmePath, mergedReadme);
-
-  Log.withTick('Updated README.md with EAS configuration details');
-  Log.log();
 }

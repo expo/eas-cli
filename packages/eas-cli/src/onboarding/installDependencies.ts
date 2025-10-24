@@ -35,5 +35,6 @@ export async function installDependenciesAsync({
       );
     },
     showOutput: outputLevel !== 'none',
+    showSpinner: outputLevel !== 'none',
   });
 }
