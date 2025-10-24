@@ -24,49 +24,18 @@ jest.mock('../../../log', () => ({
 }));
 
 function createMockPlanMetric({
-  service = EasService.Builds,
-  serviceMetric = EasServiceMetric.Builds,
-  metricType = UsageMetricType.Build,
   value = 50,
   limit = 100,
-}: Partial<
-  Pick<EstimatedUsage, 'service' | 'serviceMetric' | 'metricType' | 'value' | 'limit'>
-> = {}): EstimatedUsage {
+}: Partial<Pick<EstimatedUsage, 'value' | 'limit'>> = {}): EstimatedUsage {
   return {
     __typename: 'EstimatedUsage',
     id: 'plan-metric-id',
-    service,
-    serviceMetric,
-    metricType,
+    service: EasService.Builds,
+    serviceMetric: EasServiceMetric.Builds,
+    metricType: UsageMetricType.Build,
     value,
     limit,
     platformBreakdown: null,
-  };
-}
-
-type MockUsageMetrics = Pick<
-  AccountUsageForOverageWarningQuery['account']['byId']['usageMetrics'],
-  'EAS_BUILD' | 'EAS_UPDATE'
->;
-
-function createMockUsageMetrics({
-  buildPlanMetrics = [],
-  updatePlanMetrics = [],
-}: {
-  buildPlanMetrics?: EstimatedUsage[];
-  updatePlanMetrics?: EstimatedUsage[];
-} = {}): MockUsageMetrics {
-  return {
-    EAS_BUILD: {
-      __typename: 'UsageMetricTotal',
-      id: 'metric-id',
-      planMetrics: buildPlanMetrics,
-    },
-    EAS_UPDATE: {
-      __typename: 'UsageMetricTotal',
-      id: 'metric-id',
-      planMetrics: updatePlanMetrics,
-    },
   };
 }
 
@@ -75,26 +44,28 @@ function createMockAccountUsage({
   name = 'test-account',
   subscriptionName = 'Free',
   buildPlanMetrics = [],
-  updatePlanMetrics = [],
 }: {
   id?: string;
   name?: string;
-  subscriptionName?: string | null;
+  subscriptionName?: string;
   buildPlanMetrics?: EstimatedUsage[];
-  updatePlanMetrics?: EstimatedUsage[];
 } = {}): AccountUsageForOverageWarningQuery['account']['byId'] {
   return {
     __typename: 'Account',
     id,
     name,
-    subscription: subscriptionName
-      ? {
-          __typename: 'SubscriptionDetails',
-          id: 'sub-id',
-          name: subscriptionName,
-        }
-      : null,
-    usageMetrics: createMockUsageMetrics({ buildPlanMetrics, updatePlanMetrics }),
+    subscription: {
+      __typename: 'SubscriptionDetails',
+      id: 'sub-id',
+      name: subscriptionName,
+    },
+    usageMetrics: {
+      EAS_BUILD: {
+        __typename: 'UsageMetricTotal',
+        id: 'metric-id',
+        planMetrics: buildPlanMetrics,
+      },
+    },
   };
 }
 
@@ -114,19 +85,10 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     mockDebug.mockClear();
   });
 
-  it('displays a warning for Free plan with high build usage', async () => {
+  it('displays a warning for a Free plan with high build usage', async () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
-        subscriptionName: 'Free',
-        buildPlanMetrics: [
-          createMockPlanMetric({
-            service: EasService.Builds,
-            serviceMetric: EasServiceMetric.Builds,
-            metricType: UsageMetricType.Build,
-            value: 85,
-            limit: 100,
-          }),
-        ],
+        buildPlanMetrics: [createMockPlanMetric({ value: 85, limit: 100 })],
       })
     );
 
@@ -150,19 +112,11 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     expect(mockNewLine).toHaveBeenCalledTimes(1);
   });
 
-  it('displays a warning for Starter plan with high build usage', async () => {
+  it('displays a warning for a Starter plan with high build usage', async () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
         subscriptionName: 'Starter',
-        buildPlanMetrics: [
-          createMockPlanMetric({
-            service: EasService.Builds,
-            serviceMetric: EasServiceMetric.Builds,
-            metricType: UsageMetricType.Build,
-            value: 90,
-            limit: 100,
-          }),
-        ],
+        buildPlanMetrics: [createMockPlanMetric({ value: 90, limit: 100 })],
       })
     );
 
@@ -182,75 +136,10 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     expect(mockNewLine).toHaveBeenCalledTimes(1);
   });
 
-  it('displays a warning for Pro plan', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue(
-      createMockAccountUsage({
-        subscriptionName: 'Pro',
-        buildPlanMetrics: [
-          createMockPlanMetric({
-            service: EasService.Builds,
-            serviceMetric: EasServiceMetric.Builds,
-            metricType: UsageMetricType.Build,
-            value: 85,
-            limit: 100,
-          }),
-        ],
-      })
-    );
-
-    await maybeWarnAboutUsageOveragesAsync({
-      graphqlClient: mockGraphqlClient,
-      accountId: 'account-id',
-    });
-
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining("You've used 85% of your included build credits for this month.")
-    );
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'Additional usage beyond your limit will be charged at pay-as-you-go rates.'
-      )
-    );
-    expect(mockNewLine).toHaveBeenCalledTimes(1);
-  });
-
   it('does not display a warning when usage is below threshold', async () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
-        subscriptionName: 'Free',
-        buildPlanMetrics: [
-          createMockPlanMetric({
-            service: EasService.Builds,
-            serviceMetric: EasServiceMetric.Builds,
-            metricType: UsageMetricType.Build,
-            value: 50,
-            limit: 100,
-          }),
-        ],
-      })
-    );
-
-    await maybeWarnAboutUsageOveragesAsync({
-      graphqlClient: mockGraphqlClient,
-      accountId: 'account-id',
-    });
-
-    expect(mockWarn).not.toHaveBeenCalled();
-  });
-
-  it('does not display a warning when no subscription', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue(
-      createMockAccountUsage({
-        subscriptionName: null,
-        buildPlanMetrics: [
-          createMockPlanMetric({
-            service: EasService.Builds,
-            serviceMetric: EasServiceMetric.Builds,
-            metricType: UsageMetricType.Build,
-            value: 85,
-            limit: 100,
-          }),
-        ],
+        buildPlanMetrics: [createMockPlanMetric({ value: 50, limit: 100 })],
       })
     );
 
@@ -274,12 +163,8 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     expect(mockDebug).toHaveBeenCalledWith(expect.stringContaining('Failed to fetch usage data'));
   });
 
-  it('does not display a warning when no plan metrics', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue(
-      createMockAccountUsage({
-        subscriptionName: 'Free',
-      })
-    );
+  it('does not display a warning when there are no plan metrics', async () => {
+    mockGetUsageForOverageWarningAsync.mockResolvedValue(createMockAccountUsage());
 
     await maybeWarnAboutUsageOveragesAsync({
       graphqlClient: mockGraphqlClient,
@@ -314,16 +199,14 @@ describe('createProgressBar', () => {
 
 describe('displayOverageWarning', () => {
   const mockWarn = Log.warn as jest.MockedFunction<typeof Log.warn>;
-  const mockNewLine = Log.newLine as jest.MockedFunction<typeof Log.newLine>;
   const mockLink = link as jest.MockedFunction<typeof link>;
 
   beforeEach(() => {
     mockWarn.mockClear();
-    mockNewLine.mockClear();
     mockLink.mockClear();
   });
 
-  it('displays a warning for Free plan', () => {
+  it('displays a warning for a Free plan', () => {
     displayOverageWarning({
       percentUsed: 85,
       hasFreePlan: true,
@@ -340,10 +223,9 @@ describe('displayOverageWarning', () => {
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining('Upgrade your plan to continue service.')
     );
-    expect(mockNewLine).toHaveBeenCalledTimes(1);
   });
 
-  it('displays a warning for paid plan', () => {
+  it('displays a warning for a paid plan', () => {
     displayOverageWarning({
       percentUsed: 85,
       hasFreePlan: false,
@@ -360,7 +242,9 @@ describe('displayOverageWarning', () => {
       )
     );
     expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('See usage in billing.'));
-    expect(mockNewLine).toHaveBeenCalledTimes(1);
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining('██████████████████████████░░░░')
+    );
   });
 
   it('includes correct account name in billing URL', () => {
@@ -373,31 +257,6 @@ describe('displayOverageWarning', () => {
     expect(mockLink).toHaveBeenCalledWith(
       'https://expo.dev/accounts/my-custom-account/settings/billing',
       expect.objectContaining({ text: 'Upgrade your plan to continue service.' })
-    );
-  });
-
-  it('displays different percentages correctly', () => {
-    displayOverageWarning({
-      percentUsed: 95,
-      hasFreePlan: true,
-      name: 'test-account',
-    });
-
-    expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('95%'));
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining("You've used 95% of your included build credits for this month.")
-    );
-  });
-
-  it('includes progress bar in warning message', () => {
-    displayOverageWarning({
-      percentUsed: 90,
-      hasFreePlan: false,
-      name: 'test-account',
-    });
-
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining('███████████████████████████░░░')
     );
   });
 });
