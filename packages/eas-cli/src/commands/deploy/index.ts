@@ -120,8 +120,6 @@ export default class WorkerDeploy extends EasCommand {
       enableJsonOutput();
     }
 
-    Log.warn('EAS Hosting is still in preview and subject to changes.');
-
     const {
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
