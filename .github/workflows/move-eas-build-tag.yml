@@ -1,0 +1,64 @@
+on:
+  workflow_dispatch:
+    inputs:
+      staging_only:
+        type: boolean
+        required: true
+        default: false
+        description: "Only move the latest-eas-build-staging tag, not the latest-eas-build tag"
+      version:
+        type: string
+        required: true
+        description: "Version number to move the tag to"
+      dry_run:
+        type: boolean
+        required: true
+        default: true
+        description: "Run the workflow in dry run mode, without making any NPM changes"
+
+name: Move NPM tags used by EAS builds and workflows
+
+jobs:
+  move-tag:
+    name: Move NPM tags used by EAS builds and workflows
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.EXPO_BOT_PAT }}
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+      INPUT_VERSION: ${{ github.event.inputs.version }}
+      INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      INPUT_STAGING_ONLY: ${{ github.event.inputs.staging_only }}
+    steps:
+      - uses: actions/setup-node@v2
+        with:
+          registry-url: "https://registry.npmjs.org/"
+          scope: "expo"
+          node-version: 22
+      - name: Resolve version (fails if the version does not exist)
+        run: |
+          set -o pipefail
+          npm pack --dry-run eas-cli@$INPUT_VERSION
+      - name: Add latest-eas-build-staging tag
+        run: |
+          cmd="npm dist-tag add eas-cli@$INPUT_VERSION latest-eas-build-staging"
+          if [[ "$INPUT_DRY_RUN" == "true" ]]; then
+            echo "Running in dry run mode, skipping version check"
+            echo "cmd = $cmd"
+            exit 0
+          fi
+          echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
+          $cmd
+      - name: Add latest-eas-build tag
+        run: |
+          cmd="npm dist-tag add eas-cli@$INPUT_VERSION latest-eas-build"
+          if [[ "$INPUT_DRY_RUN" == "true" ]]; then
+            echo "Running in dry run mode, skipping version check"
+            echo "cmd = $cmd"
+            exit 0
+          fi
+          if [[ "$INPUT_STAGING_ONLY" == "true" ]]; then
+            echo "Only moving the staging tag, skipping the production tag"
+            exit 0
+          fi
+          echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
+          $cmd
