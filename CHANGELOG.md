@@ -8,8 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- `eas:new` command changes (project name prompt, output cleanup, additional project files, additional prompts). ([#3235](https://github.com/expo/eas-cli/pull/3235) by [@mackenco](https://github.com/mackenco))
+### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [16.25.0](https://github.com/expo/eas-cli/releases/tag/v16.25.0) - 2025-10-27
+
+### 🎉 New features
+
+- `eas:new` command changes (project name prompt, output cleanup, additional project files, additional prompts). ([#3235](https://github.com/expo/eas-cli/pull/3235) by [@mackenco](https://github.com/mackenco))
 - `eas:build` command displays a warning when account is near it's build limit. ([#3236](https://github.com/expo/eas-cli/pull/3236) by [@mackenco](https://github.com/mackenco))
 
 ### 🐛 Bug fixes
