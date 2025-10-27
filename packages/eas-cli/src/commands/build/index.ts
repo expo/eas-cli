@@ -14,11 +14,13 @@ import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { StatuspageServiceName } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
+import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
 import uniq from '../../utils/expodash/uniq';
 import { enableJsonOutput } from '../../utils/json';
 import { ProfileData } from '../../utils/profiles';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
+import { maybeWarnAboutUsageOveragesAsync } from '../../utils/usage/checkForOverages';
 
 interface RawBuildFlags {
   platform?: string;
@@ -161,6 +163,13 @@ export default class Build extends EasCommand {
           ? [StatuspageServiceName.EasBuild, StatuspageServiceName.EasSubmit]
           : [StatuspageServiceName.EasBuild]
       );
+
+      const { projectId } = await getDynamicPrivateProjectConfigAsync();
+      const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
+      await maybeWarnAboutUsageOveragesAsync({
+        graphqlClient,
+        accountId: account.id,
+      });
     }
 
     const flagsWithPlatform = await this.ensurePlatformSelectedAsync(flags);
