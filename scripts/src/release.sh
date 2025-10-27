@@ -8,7 +8,9 @@ GITHUB_EMAIL=`git config get --global user.email`
 SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 ROOT_DIR="$( cd "$SCRIPTS_DIR"/.. && pwd )"
 
-$SCRIPTS_DIR/bin/run update-local-plugin
+# Since https://github.com/expo/eas-cli/pull/3237 , the local plugin version is identical
+# to @expo/eas-build-job dependency, so the update-local-plugin step is no longer needed.
+# $SCRIPTS_DIR/bin/run update-local-plugin
 
 next_version_bump=$($SCRIPTS_DIR/bin/run next-version)
 next_version=${1:-$next_version_bump}
