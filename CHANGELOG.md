@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Remove preview label from EAS Hosting commands ([#3241](https://github.com/expo/eas-cli/pull/3241) by [@kitten](https://github.com/kitten))
+
 ## [16.25.0](https://github.com/expo/eas-cli/releases/tag/v16.25.0) - 2025-10-27
 
 ### 🎉 New features
