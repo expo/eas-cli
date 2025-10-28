@@ -50,7 +50,6 @@ import slash from 'slash';
 
 import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
-import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
 import {
   maybePromptForMissingInputsAsync,
@@ -60,33 +59,24 @@ import {
 } from '../../commandUtils/workflow/inputs';
 import {
   fileExistsAsync,
-  infoForActiveWorkflowRunAsync,
-  infoForFailedWorkflowRunAsync,
   maybeReadStdinAsync,
+  showWorkflowStatusAsync,
+  workflowRunExitCodes,
 } from '../../commandUtils/workflow/utils';
 import {
   WorkflowProjectSourceType,
   WorkflowRevision,
-  WorkflowRunByIdQuery,
   WorkflowRunStatus,
 } from '../../graphql/generated';
 import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log, { link } from '../../log';
-import { ora } from '../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { uploadAccountScopedFileAsync } from '../../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccountScopedProjectSourceAsync';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { sleepAsync } from '../../utils/promise';
 import { WorkflowFile } from '../../utils/workflowFile';
-
-const EXIT_CODES = {
-  WORKFLOW_FAILED: 11,
-  WORKFLOW_CANCELED: 12,
-  WAIT_ABORTED: 13,
-};
 
 export default class WorkflowRun extends EasCommand {
   static override description =
@@ -369,7 +359,7 @@ export default class WorkflowRun extends EasCommand {
 
     const spinnerUsesStdErr = boolish('CI', false) || flags.json;
 
-    const { status } = await waitForWorkflowRunToEndAsync(graphqlClient, {
+    const { status } = await showWorkflowStatusAsync(graphqlClient, {
       workflowRunId,
       spinnerUsesStdErr,
     });
@@ -386,75 +376,9 @@ export default class WorkflowRun extends EasCommand {
     }
 
     if (status === WorkflowRunStatus.Failure) {
-      process.exit(EXIT_CODES.WORKFLOW_FAILED);
+      process.exit(workflowRunExitCodes.WORKFLOW_FAILED);
     } else if (status === WorkflowRunStatus.Canceled) {
-      process.exit(EXIT_CODES.WORKFLOW_CANCELED);
+      process.exit(workflowRunExitCodes.WORKFLOW_CANCELED);
     }
-  }
-}
-
-async function waitForWorkflowRunToEndAsync(
-  graphqlClient: ExpoGraphqlClient,
-  { workflowRunId, spinnerUsesStdErr }: { workflowRunId: string; spinnerUsesStdErr: boolean }
-): Promise<WorkflowRunByIdQuery['workflowRuns']['byId']> {
-  Log.log('Waiting for workflow run to complete. You can press Ctrl+C to exit.');
-
-  const spinner = ora({
-    stream: spinnerUsesStdErr ? process.stderr : process.stdout,
-    text: '',
-  }).start();
-  spinner.prefixText = chalk`{bold.yellow Workflow run is waiting to start:}`;
-
-  let failedFetchesCount = 0;
-
-  while (true) {
-    try {
-      const workflowRun = await WorkflowRunQuery.withJobsByIdAsync(graphqlClient, workflowRunId, {
-        useCache: false,
-      });
-
-      failedFetchesCount = 0;
-
-      switch (workflowRun.status) {
-        case WorkflowRunStatus.New:
-          break;
-        case WorkflowRunStatus.InProgress: {
-          spinner.prefixText = chalk`{bold.green Workflow run is in progress:}`;
-          spinner.text = await infoForActiveWorkflowRunAsync(graphqlClient, workflowRun, 5);
-          break;
-        }
-        case WorkflowRunStatus.ActionRequired:
-          spinner.prefixText = chalk`{bold.yellow Workflow run is waiting for action:}`;
-          break;
-
-        case WorkflowRunStatus.Canceled:
-          spinner.prefixText = chalk`{bold.yellow Workflow has been canceled.}`;
-          spinner.stopAndPersist();
-          return workflowRun;
-
-        case WorkflowRunStatus.Failure: {
-          spinner.prefixText = chalk`{bold.red Workflow has failed.}`;
-          const failedInfo = await infoForFailedWorkflowRunAsync(graphqlClient, workflowRun);
-          spinner.fail(failedInfo);
-          return workflowRun;
-        }
-        case WorkflowRunStatus.Success:
-          spinner.prefixText = chalk`{bold.green Workflow has completed successfully.}`;
-          spinner.text = '';
-          spinner.succeed('');
-          return workflowRun;
-      }
-    } catch {
-      spinner.text = '⚠ Failed to fetch the workflow run status. Check your network connection.';
-
-      failedFetchesCount += 1;
-
-      if (failedFetchesCount > 6) {
-        spinner.fail('Failed to fetch the workflow run status 6 times in a row. Aborting wait.');
-        process.exit(EXIT_CODES.WAIT_ABORTED);
-      }
-    }
-
-    await sleepAsync(10 /* seconds */ * 1000 /* milliseconds */);
   }
 }
