@@ -147,6 +147,9 @@ export default class New extends EasCommand {
       options: [...PACKAGE_MANAGERS],
       default: 'npm',
     }),
+    skip: Flags.boolean({
+      char: 's',
+    }),
   };
 
   static override hidden = true;
@@ -169,7 +172,6 @@ export default class New extends EasCommand {
     }
 
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
-
     const {
       projectName,
       projectDirectory: targetProjectDirectory,
@@ -179,35 +181,39 @@ export default class New extends EasCommand {
     const projectDirectory = await cloneTemplateAsync(targetProjectDirectory);
 
     const packageManager = flags['package-manager'];
-    await installProjectDependenciesAsync(projectDirectory, packageManager);
+    if (!flags.skip) {
+      await installProjectDependenciesAsync(projectDirectory, packageManager);
 
-    const projectId = await createProjectAsync({
-      projectDirectory,
-      projectAccount,
-      projectName,
-      actor,
-      graphqlClient,
-    });
+      const projectId = await createProjectAsync({
+        projectDirectory,
+        projectAccount,
+        projectName,
+        actor,
+        graphqlClient,
+      });
 
-    const app = await AppQuery.byIdAsync(graphqlClient, projectId);
-    await generateProjectFilesAsync(projectDirectory, app, packageManager);
+      const app = await AppQuery.byIdAsync(graphqlClient, projectId);
+      await generateProjectFilesAsync(projectDirectory, app, packageManager);
 
-    await initializeGitRepositoryAsync(projectDirectory);
+      await initializeGitRepositoryAsync(projectDirectory);
+    }
 
     Log.log('🎉 We finished creating your new project.');
     Log.newLine();
     Log.log('Next steps:');
-    Log.withInfo(`Run \`cd ${printDirectory(projectDirectory)}\` to navigate to your project.`);
     Log.withInfo(
-      `Run \`${packageManager} run draft\` to create a preview on EAS. ${learnMore(
+      `Run ${chalk.bold(`cd ${printDirectory(projectDirectory)}`)} to navigate to your project.`
+    );
+    Log.withInfo(
+      `Run ${chalk.bold(`${packageManager} run draft`)} to create a preview on EAS. ${learnMore(
         'https://docs.expo.dev/eas/workflows/examples/publish-preview-update/'
       )}`
     );
     Log.withInfo(
-      `Run \`${packageManager} run start\` to start developing locally. ${learnMore(
+      `Run ${chalk.bold(`${packageManager} run start`)} to start developing locally. ${learnMore(
         'https://docs.expo.dev/get-started/start-developing/'
       )}`
     );
-    Log.withInfo(`See the README.md for more information about your project.`);
+    Log.withInfo(`See the ${chalk.bold('README.md')} for more information about your project.`);
   }
 }

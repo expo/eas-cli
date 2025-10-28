@@ -21,7 +21,7 @@ This project is configured to use [EAS Workflows](https://docs.expo.dev/eas/work
 
 ### Previews
 
-Run `npm run preview` to [publish a preview update](https://docs.expo.dev/eas/workflows/examples/publish-preview-update/) of your project, which can be viewed in Expo Go or in a development build.
+Run `npm run draft` to [publish a preview update](https://docs.expo.dev/eas/workflows/examples/publish-preview-update/) of your project, which can be viewed in Expo Go or in a development build.
 
 ### Development Builds
 
