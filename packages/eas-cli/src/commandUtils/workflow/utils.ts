@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import * as fs from 'node:fs';
 
 import { fetchRawLogsForBuildJobAsync, fetchRawLogsForCustomJobAsync } from './fetchLogs';
@@ -11,14 +12,18 @@ import {
 import {
   WorkflowJobStatus,
   WorkflowJobType,
+  WorkflowRunByIdQuery,
   WorkflowRunByIdWithJobsQuery,
   WorkflowRunFragment,
   WorkflowRunStatus,
   WorkflowRunTriggerEventType,
 } from '../../graphql/generated';
+import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log from '../../log';
+import { ora } from '../../ora';
 import { Choice } from '../../prompts';
 import formatFields from '../../utils/formatFields';
+import { sleepAsync } from '../../utils/promise';
 import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 
 export function computeTriggerInfoForWorkflowRun(run: WorkflowRunFragment): {
@@ -218,10 +223,12 @@ export async function infoForActiveWorkflowRunAsync(
 
 export async function infoForFailedWorkflowRunAsync(
   graphqlClient: ExpoGraphqlClient,
-  workflowRun: WorkflowRunByIdWithJobsQuery['workflowRuns']['byId']
+  workflowRun: WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'],
+  maxLogLines: number = -1 // -1 means no limit
 ): Promise<string> {
   const statusLines = [];
   const statusValues = [];
+  const logLinesToKeep = maxLogLines === -1 ? Infinity : maxLogLines;
   for (const job of workflowRun.jobs) {
     if (job.status !== WorkflowJobStatus.Failure) {
       continue;
@@ -233,7 +240,7 @@ export async function infoForFailedWorkflowRunAsync(
     if (steps.length > 0) {
       const failedStep = steps.find(step => step.status === 'fail');
       if (failedStep) {
-        const logs = failedStep.logLines?.map(line => line.msg) ?? [];
+        const logs = failedStep.logLines?.map(line => line.msg).slice(-logLinesToKeep) ?? [];
         statusValues.push({ label: '  Failed step', value: failedStep.name });
         statusValues.push({
           label: '  Logs for failed step',
@@ -283,3 +290,84 @@ export async function maybeReadStdinAsync(): Promise<string | null> {
     });
   });
 }
+export async function showWorkflowStatusAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    workflowRunId,
+    spinnerUsesStdErr,
+    waitForCompletion = true,
+  }: { workflowRunId: string; spinnerUsesStdErr: boolean; waitForCompletion?: boolean }
+): Promise<WorkflowRunByIdQuery['workflowRuns']['byId']> {
+  Log.log('Waiting for workflow run to complete. You can press Ctrl+C to exit.');
+
+  const spinner = ora({
+    stream: spinnerUsesStdErr ? process.stderr : process.stdout,
+    text: '',
+  }).start();
+  spinner.prefixText = chalk`{bold.yellow Workflow run is waiting to start:}`;
+
+  let failedFetchesCount = 0;
+
+  while (true) {
+    try {
+      const workflowRun = await WorkflowRunQuery.withJobsByIdAsync(graphqlClient, workflowRunId, {
+        useCache: false,
+      });
+
+      failedFetchesCount = 0;
+
+      switch (workflowRun.status) {
+        case WorkflowRunStatus.New:
+          break;
+        case WorkflowRunStatus.InProgress: {
+          spinner.prefixText = chalk`{bold.green Workflow run is in progress:}`;
+          spinner.text = await infoForActiveWorkflowRunAsync(graphqlClient, workflowRun, 5);
+          break;
+        }
+        case WorkflowRunStatus.ActionRequired:
+          spinner.prefixText = chalk`{bold.yellow Workflow run is waiting for action:}`;
+          break;
+
+        case WorkflowRunStatus.Canceled:
+          spinner.prefixText = chalk`{bold.yellow Workflow has been canceled.}`;
+          spinner.stopAndPersist();
+          return workflowRun;
+
+        case WorkflowRunStatus.Failure: {
+          spinner.prefixText = chalk`{bold.red Workflow has failed.}`;
+          const failedInfo = await infoForFailedWorkflowRunAsync(graphqlClient, workflowRun, 30);
+          spinner.fail(failedInfo);
+          return workflowRun;
+        }
+        case WorkflowRunStatus.Success:
+          spinner.prefixText = chalk`{bold.green Workflow has completed successfully.}`;
+          spinner.text = '';
+          spinner.succeed('');
+          return workflowRun;
+      }
+      if (!waitForCompletion) {
+        if (spinner.isSpinning) {
+          spinner.stopAndPersist();
+        }
+        return workflowRun;
+      }
+    } catch {
+      spinner.text = '⚠ Failed to fetch the workflow run status. Check your network connection.';
+
+      failedFetchesCount += 1;
+
+      if (failedFetchesCount > 6) {
+        spinner.fail('Failed to fetch the workflow run status 6 times in a row. Aborting wait.');
+        process.exit(workflowRunExitCodes.WAIT_ABORTED);
+      }
+    }
+
+    await sleepAsync(10 /* seconds */ * 1000 /* milliseconds */);
+  }
+}
+
+export const workflowRunExitCodes = {
+  WORKFLOW_FAILED: 11,
+  WORKFLOW_CANCELED: 12,
+  WAIT_ABORTED: 13,
+};
