@@ -152,8 +152,6 @@ export default class New extends EasCommand {
     }),
   };
 
-  static override hidden = true;
-
   static override contextDefinition = {
     ...this.ContextOptions.LoggedIn,
   };
