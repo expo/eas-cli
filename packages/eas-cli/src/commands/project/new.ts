@@ -147,9 +147,6 @@ export default class New extends EasCommand {
       options: [...PACKAGE_MANAGERS],
       default: 'npm',
     }),
-    skip: Flags.boolean({
-      char: 's',
-    }),
   };
 
   static override contextDefinition = {
@@ -170,6 +167,7 @@ export default class New extends EasCommand {
     }
 
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
+
     const {
       projectName,
       projectDirectory: targetProjectDirectory,
@@ -179,22 +177,20 @@ export default class New extends EasCommand {
     const projectDirectory = await cloneTemplateAsync(targetProjectDirectory);
 
     const packageManager = flags['package-manager'];
-    if (!flags.skip) {
-      await installProjectDependenciesAsync(projectDirectory, packageManager);
+    await installProjectDependenciesAsync(projectDirectory, packageManager);
 
-      const projectId = await createProjectAsync({
-        projectDirectory,
-        projectAccount,
-        projectName,
-        actor,
-        graphqlClient,
-      });
+    const projectId = await createProjectAsync({
+      projectDirectory,
+      projectAccount,
+      projectName,
+      actor,
+      graphqlClient,
+    });
 
-      const app = await AppQuery.byIdAsync(graphqlClient, projectId);
-      await generateProjectFilesAsync(projectDirectory, app, packageManager);
+    const app = await AppQuery.byIdAsync(graphqlClient, projectId);
+    await generateProjectFilesAsync(projectDirectory, app, packageManager);
 
-      await initializeGitRepositoryAsync(projectDirectory);
-    }
+    await initializeGitRepositoryAsync(projectDirectory);
 
     Log.log('🎉 We finished creating your new project.');
     Log.newLine();
