@@ -8,9 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- New command `workflow:status`. ([#3242](https://github.com/expo/eas-cli/pull/3242) by [@douglowder](https://github.com/douglowder))
-
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [16.26.0](https://github.com/expo/eas-cli/releases/tag/v16.26.0) - 2025-10-29
+
+### 🎉 New features
+
+- New command `workflow:status`. ([#3242](https://github.com/expo/eas-cli/pull/3242) by [@douglowder](https://github.com/douglowder))
 
 ### 🧹 Chores
 
