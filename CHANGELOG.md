@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- `eas:new` cleanup (remove `hidden` tag, fix README error, output cleanup). ([#3243](https://github.com/expo/eas-cli/pull/3243) by [@mackenco](https://github.com/mackenco))
+
 ## [16.25.1](https://github.com/expo/eas-cli/releases/tag/v16.25.1) - 2025-10-28
 
 ### 🧹 Chores
