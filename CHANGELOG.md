@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Strip permissions and other metadata from project archive when packing sources on Windows. ([#3234](https://github.com/expo/eas-cli/pull/3234) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 ## [16.26.0](https://github.com/expo/eas-cli/releases/tag/v16.26.0) - 2025-10-29
