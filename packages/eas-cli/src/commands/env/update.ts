@@ -333,7 +333,13 @@ export default class EnvUpdate extends EasCommand {
     if ((newType ?? selectedVariable.type) === EnvironmentSecretType.FileBase64 && value) {
       const environmentFilePath = path.resolve(value);
       if (!(await fs.pathExists(environmentFilePath))) {
-        throw new Error(`File "${value}" does not exist`);
+        if (type === 'file') {
+          throw new Error(`File "${value}" does not exist`);
+        } else {
+          throw new Error(
+            `Variable "${selectedVariable.name}" is a file type, but "${value}" does not exist as a file. If you want to convert it to a string, pass --type string.`
+          );
+        }
       }
       fileName = path.basename(environmentFilePath);
       value = await fs.readFile(environmentFilePath, 'base64');
