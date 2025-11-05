@@ -330,7 +330,12 @@ export default class EnvUpdate extends EasCommand {
       }
     }
 
-    if ((newType ?? selectedVariable.type) === EnvironmentSecretType.FileBase64 && value) {
+    // If value is provided but type is not explicitly set, preserve the existing type
+    if (value && !newType) {
+      newType = selectedVariable.type;
+    }
+
+    if (newType === EnvironmentSecretType.FileBase64 && value) {
       const environmentFilePath = path.resolve(value);
       if (!(await fs.pathExists(environmentFilePath))) {
         if (type === 'file') {

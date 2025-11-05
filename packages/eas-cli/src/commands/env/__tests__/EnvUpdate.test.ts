@@ -395,4 +395,109 @@ describe(EnvUpdate, () => {
       `File "${nonExistentFilePath}" does not exist`
     );
   });
+
+  it('preserves existing STRING type when updating value without --type flag', async () => {
+    const stringValue = 'my-best-file.json';
+
+    const mockVariable = {
+      id: variableId,
+      name: 'MY_VAR',
+      scope: EnvironmentVariableScope.Project,
+      environments: [DefaultEnvironment.Development],
+      type: EnvironmentSecretType.String,
+      value: 'old-value',
+      visibility: EnvironmentVariableVisibility.Public,
+    };
+
+    const mockUpdatedVariable = {
+      ...mockVariable,
+      value: stringValue,
+    };
+
+    (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue([mockVariable]);
+    (EnvironmentVariableMutation.updateAsync as jest.Mock).mockResolvedValue(mockUpdatedVariable);
+
+    const command = new EnvUpdate(
+      [
+        '--variable-name',
+        'MY_VAR',
+        '--variable-environment',
+        'development',
+        '--non-interactive',
+        '--value',
+        stringValue,
+        // Note: --type is NOT specified
+      ],
+      mockConfig
+    );
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
+    await command.runAsync();
+
+    // Verify update was called with preserved STRING type
+    expect(EnvironmentVariableMutation.updateAsync).toHaveBeenCalledWith(graphqlClient, {
+      id: variableId,
+      value: stringValue,
+      type: EnvironmentSecretType.String,
+    });
+  });
+
+  it('preserves existing FILE type when updating value without --type flag', async () => {
+    const testFilePath = '/path/to/test-file.json';
+    const testFileBase64 = 'dGVzdCBmaWxlIGNvbnRlbnQ=';
+    const testFileName = 'test-file.json';
+
+    const mockVariable = {
+      id: variableId,
+      name: 'MY_FILE_VAR',
+      scope: EnvironmentVariableScope.Project,
+      environments: [DefaultEnvironment.Development],
+      type: EnvironmentSecretType.FileBase64,
+      value: 'old-base64-value',
+      visibility: EnvironmentVariableVisibility.Public,
+    };
+
+    const mockUpdatedVariable = {
+      ...mockVariable,
+      value: testFileBase64,
+    };
+
+    (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue([mockVariable]);
+    (EnvironmentVariableMutation.updateAsync as jest.Mock).mockResolvedValue(mockUpdatedVariable);
+
+    // Mock fs.pathExists to return true
+    jest.mocked(fs.pathExists).mockImplementation(() => Promise.resolve(true));
+    // Mock fs.readFile to return base64 encoded content
+    jest.mocked(fs.readFile).mockImplementation(() => Promise.resolve(testFileBase64));
+
+    const command = new EnvUpdate(
+      [
+        '--variable-name',
+        'MY_FILE_VAR',
+        '--variable-environment',
+        'development',
+        '--non-interactive',
+        '--value',
+        testFilePath,
+        // Note: --type is NOT specified
+      ],
+      mockConfig
+    );
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
+    await command.runAsync();
+
+    // Verify file was checked for existence
+    expect(fs.pathExists).toHaveBeenCalledWith(testFilePath);
+    // Verify file was read as base64
+    expect(fs.readFile).toHaveBeenCalledWith(testFilePath, 'base64');
+
+    // Verify update was called with preserved FILE type
+    expect(EnvironmentVariableMutation.updateAsync).toHaveBeenCalledWith(graphqlClient, {
+      id: variableId,
+      value: testFileBase64,
+      type: EnvironmentSecretType.FileBase64,
+      fileName: testFileName,
+    });
+  });
 });
