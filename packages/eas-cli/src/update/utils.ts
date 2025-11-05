@@ -366,10 +366,6 @@ export async function prewarmDiffingAsync(
         } finally {
           controller.abort(); // ensure sockets close quickly
         }
-        // todo: delete log line after testing
-        Log.log(
-          `Prewarmed diffing for update ${nextMostRecentUpdateId} (launch asset: ${launchAssetKey}), ${first.url}, mostRecentUpdateId: ${nextMostRecentUpdateId}`
-        );
       } catch {
         // ignore errors, best-effort optimization
       }
