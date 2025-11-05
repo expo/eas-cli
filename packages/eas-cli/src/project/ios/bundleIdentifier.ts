@@ -96,6 +96,9 @@ export async function getBundleIdentifierAsync(
         `Bundle identifier "${bundleIdentifier}" is not valid${buildConfigurationDesc}. Open the project in Xcode to fix it.`
       );
     }
+    Log.log(
+      `Resolved bundle identifier "${bundleIdentifier}" from Xcode project${buildConfigurationDesc}.`
+    );
     return bundleIdentifier;
   } else {
     // TODO: the following asserts are only temporary until we support app extensions in managed projects

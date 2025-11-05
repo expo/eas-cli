@@ -7,7 +7,7 @@ import {
   selectRuntimeAndGetLatestUpdateGroupForEachPublishPlatformOnBranchAsync,
   selectUpdateGroupOnBranchAsync,
 } from './queries';
-import { truncateString as truncateUpdateMessage } from './utils';
+import { UpdatePublishPlatform, truncateString as truncateUpdateMessage } from './utils';
 import { selectBranchOnAppAsync } from '../branch/queries';
 import { getUpdateGroupUrl } from '../build/utils/url';
 import { selectChannelOnAppAsync } from '../channel/queries';
@@ -20,7 +20,7 @@ import { UpdateQuery } from '../graphql/queries/UpdateQuery';
 import Log, { link } from '../log';
 import { ora } from '../ora';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
-import { UpdatePublishPlatform, getUpdateRolloutInfoGroupAsync } from '../project/publish';
+import { getUpdateRolloutInfoGroupAsync } from '../project/publish';
 import { promptAsync } from '../prompts';
 import {
   CodeSigningInfo,

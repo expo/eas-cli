@@ -159,6 +159,7 @@ export type Account = {
   pendingSentryInstallation?: Maybe<PendingSentryInstallation>;
   profileImageUrl: Scalars['String']['output'];
   pushSecurityEnabled: Scalars['Boolean']['output'];
+  requireTwoFactor: Scalars['Boolean']['output'];
   /** @deprecated Legacy access tokens are deprecated */
   requiresAccessTokenForPushSecurity: Scalars['Boolean']['output'];
   sentryInstallation?: Maybe<SentryInstallation>;
@@ -186,8 +187,11 @@ export type Account = {
   userActorOwner?: Maybe<UserActor>;
   /** Pending user invitations for this account */
   userInvitations: Array<UserInvitation>;
+  userSpecifiedAccountUsage?: Maybe<UserSpecifiedAccountUsage>;
   /** Actors associated with this account and permissions they hold */
   users: Array<UserPermission>;
+  /** Vexo account connection for this account */
+  vexoAccountConnection?: Maybe<VexoAccountConnection>;
   /** Notification preferences of the viewer for this account */
   viewerNotificationPreferences: Array<NotificationPreferenceItem>;
   /** Permission info for the viewer on this account */
@@ -541,6 +545,7 @@ export enum AccountAppsSortByField {
 export type AccountDataInput = {
   displayName?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
+  userSpecifiedAccountUsage?: InputMaybe<UserSpecifiedAccountUsage>;
 };
 
 export type AccountGoogleServiceAccountKeysConnection = {
@@ -579,6 +584,15 @@ export type AccountMutation = {
   setDisplayName: Account;
   /** Require authorization to send push notifications for experiences owned by this account */
   setPushSecurityEnabled: Account;
+  /**
+   * Set whether two-factor authentication is required for this account. When enabled:
+   *   - Existing members with 2FA cannot disable it
+   *   - New members must enable 2FA before joining
+   *   - Existing members without 2FA are not affected
+   */
+  setRequireTwoFactor: Account;
+  /** Set the user specified account usage for the account. */
+  setUserSpecifiedAccountUsage: Account;
 };
 
 
@@ -647,6 +661,18 @@ export type AccountMutationSetDisplayNameArgs = {
 export type AccountMutationSetPushSecurityEnabledArgs = {
   accountID: Scalars['ID']['input'];
   pushSecurityEnabled: Scalars['Boolean']['input'];
+};
+
+
+export type AccountMutationSetRequireTwoFactorArgs = {
+  accountID: Scalars['ID']['input'];
+  requireTwoFactor: Scalars['Boolean']['input'];
+};
+
+
+export type AccountMutationSetUserSpecifiedAccountUsageArgs = {
+  accountID: Scalars['ID']['input'];
+  userSpecifiedAccountUsage: UserSpecifiedAccountUsage;
 };
 
 /** Account-level notification preference */
@@ -1434,6 +1460,7 @@ export type App = Project & {
   username: Scalars['String']['output'];
   /** @deprecated No longer supported */
   users?: Maybe<Array<Maybe<User>>>;
+  vexoApp?: Maybe<VexoApp>;
   /** Notification preferences of the viewer for this app */
   viewerNotificationPreferences: Array<NotificationPreferenceItem>;
   /** Webhooks for an app */
@@ -3148,6 +3175,8 @@ export type BuildFilter = {
 };
 
 export type BuildFilterInput = {
+  buildModes?: InputMaybe<Array<BuildMode>>;
+  buildProfile?: InputMaybe<Scalars['String']['input']>;
   channel?: InputMaybe<Scalars['String']['input']>;
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
   distributions?: InputMaybe<Array<DistributionType>>;
@@ -3706,6 +3735,21 @@ export type CreateSubmissionResult = {
   __typename?: 'CreateSubmissionResult';
   /** Created submission */
   submission: Submission;
+};
+
+export type CreateVexoAccountConnectionInput = {
+  accountId: Scalars['ID']['input'];
+  code: Scalars['String']['input'];
+};
+
+export type CreateVexoAppInput = {
+  appId: Scalars['ID']['input'];
+  domain?: InputMaybe<Scalars['String']['input']>;
+  iconUrl?: InputMaybe<Scalars['String']['input']>;
+  name: Scalars['String']['input'];
+  owner: Scalars['String']['input'];
+  slug: Scalars['String']['input'];
+  vexoIdentifier: Scalars['String']['input'];
 };
 
 export type CumulativeAverageMetrics = {
@@ -6323,6 +6367,12 @@ export type RootMutation = {
   userDashboardViewPins: UserDashboardViewPinMutation;
   /** Mutations that create, delete, and accept UserInvitations */
   userInvitation: UserInvitationMutation;
+  /** Mutation interface for user preferences */
+  userPreference: UserPreferenceMutation;
+  /** Mutations for Vexo account connections */
+  vexoAccountConnection: VexoAccountConnectionMutation;
+  /** Mutations for Vexo apps */
+  vexoApp: VexoAppMutation;
   /** Mutations that create, delete, update Webhooks */
   webhook: WebhookMutation;
   /** Mutations that modify a websiteNotification */
@@ -6455,6 +6505,10 @@ export type RootQuery = {
   userByUsername?: Maybe<User>;
   /** Top-level query object for querying UserInvitationPublicData publicly. */
   userInvitationPublicData: UserInvitationPublicDataQuery;
+  /** Query interface for user preferences */
+  userPreference: UserPreferenceQuery;
+  /** Top-level query object for querying Vexo Integration information. */
+  vexoIntegration: VexoIntegrationQuery;
   /**
    * If authenticated as a typical end user, this is the appropriate top-level
    * query object
@@ -7557,6 +7611,14 @@ export type UpdateRolloutInfoGroup = {
   web?: InputMaybe<UpdateRolloutInfo>;
 };
 
+export type UpdateVexoAppInput = {
+  domain?: InputMaybe<Scalars['String']['input']>;
+  iconUrl?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  owner?: InputMaybe<Scalars['String']['input']>;
+  slug?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type UpdatesFilter = {
   platform?: InputMaybe<AppPlatform>;
   runtimeVersions?: InputMaybe<Array<Scalars['String']['input']>>;
@@ -8096,6 +8158,8 @@ export type UserInvitation = {
    * @deprecated Use accountProfileImageUrl
    */
   accountProfilePhoto?: Maybe<Scalars['String']['output']>;
+  /** Whether the account requires two-factor authentication */
+  accountRequiresTwoFactor: Scalars['Boolean']['output'];
   created: Scalars['DateTime']['output'];
   /** Email to which this invitation was sent */
   email: Scalars['String']['output'];
@@ -8181,6 +8245,7 @@ export type UserInvitationPublicData = {
   accountName: Scalars['String']['output'];
   accountProfileImageUrl: Scalars['String']['output'];
   accountProfilePhoto?: Maybe<Scalars['String']['output']>;
+  accountRequiresTwoFactor: Scalars['Boolean']['output'];
   created: Scalars['DateTime']['output'];
   email: Scalars['String']['output'];
   expires: Scalars['DateTime']['output'];
@@ -8214,6 +8279,51 @@ export type UserPermission = {
   /** @deprecated User type is deprecated */
   user?: Maybe<User>;
   userActor?: Maybe<UserActor>;
+};
+
+/** A single user preference key-value pair */
+export type UserPreference = {
+  __typename?: 'UserPreference';
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  key: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+  value: Scalars['JSON']['output'];
+};
+
+/** Mutation interface for user preferences */
+export type UserPreferenceMutation = {
+  __typename?: 'UserPreferenceMutation';
+  /** Delete a user preference by key */
+  delete?: Maybe<UserPreference>;
+  /** Set a user preference value by key */
+  set: UserPreference;
+};
+
+
+/** Mutation interface for user preferences */
+export type UserPreferenceMutationDeleteArgs = {
+  key: Scalars['String']['input'];
+};
+
+
+/** Mutation interface for user preferences */
+export type UserPreferenceMutationSetArgs = {
+  key: Scalars['String']['input'];
+  value: Scalars['JSON']['input'];
+};
+
+/** Query interface for user preferences */
+export type UserPreferenceQuery = {
+  __typename?: 'UserPreferenceQuery';
+  /** Get a user preference by key */
+  get?: Maybe<UserPreference>;
+};
+
+
+/** Query interface for user preferences */
+export type UserPreferenceQueryGetArgs = {
+  key: Scalars['String']['input'];
 };
 
 export type UserPreferences = {
@@ -8294,6 +8404,86 @@ export type UserSecondFactorDevice = {
   smsPhoneNumber?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
   user: User;
+};
+
+export enum UserSpecifiedAccountUsage {
+  Company = 'COMPANY',
+  Personal = 'PERSONAL'
+}
+
+export type VexoAccountAccessToken = {
+  __typename?: 'VexoAccountAccessToken';
+  access_token: Scalars['String']['output'];
+  expires_at?: Maybe<Scalars['String']['output']>;
+  token_type: Scalars['String']['output'];
+};
+
+export type VexoAccountConnection = {
+  __typename?: 'VexoAccountConnection';
+  accessToken: VexoAccountAccessToken;
+  account: Account;
+  id: Scalars['ID']['output'];
+};
+
+export type VexoAccountConnectionMutation = {
+  __typename?: 'VexoAccountConnectionMutation';
+  /** Create a Vexo account connection for an Account */
+  createVexoAccountConnection: VexoAccountConnection;
+  /** Delete a Vexo account connection by ID and revoke the access token */
+  revokeAndDeleteVexoAccountConnection: VexoAccountConnection;
+};
+
+
+export type VexoAccountConnectionMutationCreateVexoAccountConnectionArgs = {
+  vexoAccountConnectionData: CreateVexoAccountConnectionInput;
+};
+
+
+export type VexoAccountConnectionMutationRevokeAndDeleteVexoAccountConnectionArgs = {
+  vexoAccountConnectionId: Scalars['ID']['input'];
+};
+
+export type VexoApp = {
+  __typename?: 'VexoApp';
+  app: App;
+  domain?: Maybe<Scalars['String']['output']>;
+  iconUrl?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  owner: Scalars['String']['output'];
+  slug: Scalars['String']['output'];
+  vexoIdentifier: Scalars['String']['output'];
+};
+
+export type VexoAppMutation = {
+  __typename?: 'VexoAppMutation';
+  /** Create a Vexo app for an App */
+  createVexoApp: VexoApp;
+  /** Delete a Vexo app by ID */
+  deleteVexoApp: VexoApp;
+  /** Update a Vexo app by ID */
+  updateVexoApp: VexoApp;
+};
+
+
+export type VexoAppMutationCreateVexoAppArgs = {
+  vexoAppData: CreateVexoAppInput;
+};
+
+
+export type VexoAppMutationDeleteVexoAppArgs = {
+  vexoAppId: Scalars['ID']['input'];
+};
+
+
+export type VexoAppMutationUpdateVexoAppArgs = {
+  vexoAppData: UpdateVexoAppInput;
+  vexoAppId: Scalars['ID']['input'];
+};
+
+export type VexoIntegrationQuery = {
+  __typename?: 'VexoIntegrationQuery';
+  clientIdentifier: Scalars['String']['output'];
 };
 
 export type WebNotificationUpdateReadStateInput = {
@@ -8882,6 +9072,7 @@ export type WorkflowJob = {
   approvals: Array<WorkflowJobApproval>;
   createdAt: Scalars['DateTime']['output'];
   credentialsAppleDeviceRegistrationRequest?: Maybe<AppleDeviceRegistrationRequest>;
+  environment?: Maybe<Scalars['String']['output']>;
   errors: Array<WorkflowJobError>;
   id: Scalars['ID']['output'];
   key: Scalars['String']['output'];
@@ -10032,6 +10223,14 @@ export type LatestAppVersionQueryVariables = Exact<{
 
 export type LatestAppVersionQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, latestAppVersionByPlatformAndApplicationIdentifier?: { __typename?: 'AppVersion', id: string, storeVersion: string, buildVersion: string } | null } } };
 
+export type GetAssetSignedUrlsQueryVariables = Exact<{
+  updateId: Scalars['ID']['input'];
+  storageKeys: Array<Scalars['String']['input']> | Scalars['String']['input'];
+}>;
+
+
+export type GetAssetSignedUrlsQuery = { __typename?: 'RootQuery', asset: { __typename?: 'AssetQuery', signedUrls: Array<{ __typename?: 'AssetSignedUrlResult', storageKey: string, url: string, headers?: any | null }> } };
+
 export type BackgroundJobReceiptByIdQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
@@ -10052,6 +10251,8 @@ export type ViewLatestUpdateOnBranchQueryVariables = Exact<{
   branchName: Scalars['String']['input'];
   platform: AppPlatform;
   runtimeVersion: Scalars['String']['input'];
+  offset: Scalars['Int']['input'];
+  limit: Scalars['Int']['input'];
 }>;
 
 

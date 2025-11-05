@@ -63,15 +63,24 @@ export const BranchQuery = {
     }
     return updateBranchByName;
   },
-  async getLatestUpdateIdOnBranchAsync(
+  async getUpdateIdsOnBranchAsync(
     graphqlClient: ExpoGraphqlClient,
     {
       appId,
       branchName,
       platform,
       runtimeVersion,
-    }: { appId: string; branchName: string; platform: AppPlatform; runtimeVersion: string }
-  ): Promise<string | null> {
+      offset = 0,
+      limit = 1,
+    }: {
+      appId: string;
+      branchName: string;
+      platform: AppPlatform;
+      runtimeVersion: string;
+      offset?: number;
+      limit?: number;
+    }
+  ): Promise<string[]> {
     const response = await withErrorHandlingAsync(
       graphqlClient
         .query<ViewLatestUpdateOnBranchQuery, ViewLatestUpdateOnBranchQueryVariables>(
@@ -81,6 +90,8 @@ export const BranchQuery = {
               $branchName: String!
               $platform: AppPlatform!
               $runtimeVersion: String!
+              $offset: Int!
+              $limit: Int!
             ) {
               app {
                 byId(appId: $appId) {
@@ -88,8 +99,8 @@ export const BranchQuery = {
                   updateBranchByName(name: $branchName) {
                     id
                     updates(
-                      offset: 0
-                      limit: 1
+                      offset: $offset
+                      limit: $limit
                       filter: { platform: $platform, runtimeVersions: [$runtimeVersion] }
                     ) {
                       id
@@ -104,6 +115,8 @@ export const BranchQuery = {
             branchName,
             platform,
             runtimeVersion,
+            offset,
+            limit,
           },
           { additionalTypenames: ['UpdateBranch'] }
         )
@@ -113,11 +126,26 @@ export const BranchQuery = {
     if (!updateBranchByName) {
       throw new BranchNotFoundError(`Could not find a branch named "${branchName}".`);
     }
-    const latestUpdate = updateBranchByName.updates[0];
-    if (!latestUpdate) {
-      return null;
-    }
-    return latestUpdate.id;
+    return updateBranchByName.updates.map(update => update.id);
+  },
+  async getLatestUpdateIdOnBranchAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      branchName,
+      platform,
+      runtimeVersion,
+    }: { appId: string; branchName: string; platform: AppPlatform; runtimeVersion: string }
+  ): Promise<string | null> {
+    const updateIds = await this.getUpdateIdsOnBranchAsync(graphqlClient, {
+      appId,
+      branchName,
+      platform,
+      runtimeVersion,
+      offset: 0,
+      limit: 1,
+    });
+    return updateIds[0] ?? null;
   },
   async listBranchesOnAppAsync(
     graphqlClient: ExpoGraphqlClient,

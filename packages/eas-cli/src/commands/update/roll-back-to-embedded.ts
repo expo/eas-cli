@@ -9,7 +9,6 @@ import { StatuspageServiceName } from '../../graphql/generated';
 import { RequestedPlatform } from '../../platform';
 import { enforceRollBackToEmbeddedUpdateSupportAsync } from '../../project/projectUtils';
 import {
-  UpdatePublishPlatform,
   defaultPublishPlatforms,
   getBranchNameForCommandAsync,
   getUpdateMessageForCommandAsync,
@@ -17,6 +16,7 @@ import {
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
 import { selectRuntimeOnBranchAsync } from '../../update/queries';
 import { publishRollBackToEmbeddedUpdateAsync } from '../../update/roll-back-to-embedded';
+import { UpdatePublishPlatform } from '../../update/utils';
 import { getCodeSigningInfoAsync } from '../../utils/code-signing';
 import { enableJsonOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';

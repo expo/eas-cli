@@ -2,6 +2,7 @@ import assert from 'assert';
 import chalk from 'chalk';
 
 import {
+  UpdatePublishPlatform,
   formatBranch,
   formatUpdateGroup,
   formatUpdateTitle,
@@ -19,7 +20,6 @@ import {
 import { RuntimeQuery } from '../graphql/queries/RuntimeQuery';
 import { UpdateQuery } from '../graphql/queries/UpdateQuery';
 import Log from '../log';
-import { UpdatePublishPlatform } from '../project/publish';
 import formatFields from '../utils/formatFields';
 import { printJsonOnlyOutput } from '../utils/json';
 import {

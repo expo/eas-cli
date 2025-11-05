@@ -7,7 +7,7 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import Log, { learnMore } from '../../log';
 import { enforceRollBackToEmbeddedUpdateSupportAsync } from '../../project/projectUtils';
-import { UpdatePublishPlatform, getUpdateMessageForCommandAsync } from '../../project/publish';
+import { getUpdateMessageForCommandAsync } from '../../project/publish';
 import { confirmAsync, promptAsync } from '../../prompts';
 import { scheduleUpdateGroupDeletionAsync } from '../../update/delete';
 import {
@@ -18,6 +18,7 @@ import {
   republishAsync,
 } from '../../update/republish';
 import { publishRollBackToEmbeddedUpdateAsync } from '../../update/roll-back-to-embedded';
+import { UpdatePublishPlatform } from '../../update/utils';
 import { CodeSigningInfo, getCodeSigningInfoAsync } from '../../utils/code-signing';
 import { enableJsonOutput } from '../../utils/json';
 import { pollForBackgroundJobReceiptAsync } from '../../utils/pollForBackgroundJobReceiptAsync';
