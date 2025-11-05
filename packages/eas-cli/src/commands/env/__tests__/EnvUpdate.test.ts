@@ -315,8 +315,8 @@ describe(EnvUpdate, () => {
     });
   });
 
-  it('automatically converts FILE type to STRING when value is not a valid file path and --type is not specified', async () => {
-    const plainStringValue = 'some-string-value';
+  it('throws error when updating FILE type variable with value that is not a valid file path', async () => {
+    const plainStringValue = 'some-new-value';
 
     const mockVariable = {
       id: variableId,
@@ -326,13 +326,7 @@ describe(EnvUpdate, () => {
       type: EnvironmentSecretType.FileBase64,
     };
 
-    const mockUpdatedVariable = {
-      ...mockVariable,
-      type: EnvironmentSecretType.String,
-    };
-
     (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue([mockVariable]);
-    (EnvironmentVariableMutation.updateAsync as jest.Mock).mockResolvedValue(mockUpdatedVariable);
 
     // Mock fs.pathExists to return false (file doesn't exist)
     jest.mocked(fs.pathExists).mockImplementation(() => Promise.resolve(false));
@@ -354,17 +348,11 @@ describe(EnvUpdate, () => {
     );
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
-    await command.runAsync();
 
-    expect(fs.pathExists).toHaveBeenCalled();
-    expect(fs.readFile).not.toHaveBeenCalled();
-
-    expect(EnvironmentVariableMutation.updateAsync).toHaveBeenCalledWith(graphqlClient, {
-      id: variableId,
-      value: plainStringValue,
-      environments: [DefaultEnvironment.Production],
-      type: EnvironmentSecretType.String,
-    });
+    // Should throw error when FILE type variable is updated with non-file value
+    await expect(command.runAsync()).rejects.toThrow(
+      `File "${plainStringValue}" does not exist`
+    );
   });
 
   it('throws error when --type file is explicitly specified but file does not exist', async () => {
@@ -405,6 +393,47 @@ describe(EnvUpdate, () => {
     // Should throw error when --type file is explicitly specified
     await expect(command.runAsync()).rejects.toThrow(
       `File "${nonExistentFilePath}" does not exist`
+    );
+  });
+
+  it('throws error when --type file is specified with a plain string value (not a file path)', async () => {
+    const plainStringValue = 'some-string-value';
+
+    const mockVariable = {
+      id: variableId,
+      name: 'TEST_VARIABLE',
+      scope: EnvironmentVariableScope.Project,
+      environments: [DefaultEnvironment.Development],
+      type: EnvironmentSecretType.String,
+    };
+
+    (EnvironmentVariablesQuery.byAppIdAsync as jest.Mock).mockResolvedValue([mockVariable]);
+
+    // Mock fs.pathExists to return false (since "some-string-value" is not a valid file path)
+    jest.mocked(fs.pathExists).mockImplementation(() => Promise.resolve(false));
+
+    const command = new EnvUpdate(
+      [
+        '--variable-name',
+        'TEST_VARIABLE',
+        '--variable-environment',
+        'development',
+        '--non-interactive',
+        '--type',
+        'file',
+        '--value',
+        plainStringValue,
+        '--environment',
+        'production',
+      ],
+      mockConfig
+    );
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
+
+    // Should throw CLI error when --type file is explicitly specified but value is not a file path
+    await expect(command.runAsync()).rejects.toThrow(
+      `File "${plainStringValue}" does not exist`
     );
   });
 });
