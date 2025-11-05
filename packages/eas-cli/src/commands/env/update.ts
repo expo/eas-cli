@@ -299,18 +299,6 @@ export default class EnvUpdate extends EasCommand {
         }
       }
 
-      let environmentFilePath: string | undefined;
-
-      if ((newType ?? selectedVariable.type) === EnvironmentSecretType.FileBase64 && value) {
-        environmentFilePath = path.resolve(value);
-        if (!(await fs.pathExists(environmentFilePath))) {
-          throw new Error(`File "${value}" does not exist`);
-        }
-        fileName = path.basename(environmentFilePath);
-      }
-
-      value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
-
       if (!environments || environments.length === 0) {
         environments = await promptVariableEnvironmentAsync({
           nonInteractive,
@@ -340,6 +328,15 @@ export default class EnvUpdate extends EasCommand {
           newVisibility = undefined;
         }
       }
+    }
+
+    if ((newType ?? selectedVariable.type) === EnvironmentSecretType.FileBase64 && value) {
+      const environmentFilePath = path.resolve(value);
+      if (!(await fs.pathExists(environmentFilePath))) {
+        throw new Error(`File "${value}" does not exist`);
+      }
+      fileName = path.basename(environmentFilePath);
+      value = await fs.readFile(environmentFilePath, 'base64');
     }
 
     if (visibility) {
