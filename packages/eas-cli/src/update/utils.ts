@@ -16,7 +16,7 @@ import {
 } from '../graphql/generated';
 import { AssetQuery } from '../graphql/queries/AssetQuery';
 import { BranchQuery } from '../graphql/queries/BranchQuery';
-import Log, { learnMore } from '../log';
+import { learnMore } from '../log';
 import { RequestedPlatform } from '../platform';
 import { getActorDisplayName } from '../user/User';
 import groupBy from '../utils/expodash/groupBy';
@@ -276,8 +276,7 @@ export function getBranchDescription(branch: UpdateBranchFragment): FormattedBra
 }
 
 export function isBundleDiffingEnabled(exp: ExpoConfig): boolean {
-  // TODO: update dependencies to use the proper type
-  return (exp.updates as any)?.enableBsdiffPatchSupport === true;
+  return exp.updates?.enableBsdiffPatchSupport === true;
 }
 
 export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
