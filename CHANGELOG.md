@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix updating file env vars with `env:update --non-interactive`. ([#3249](https://github.com/expo/eas-cli/pull/3249) by [@kadikraman](https://github.com/kadikraman))
+
 ### 🧹 Chores
 
 ## [16.26.0](https://github.com/expo/eas-cli/releases/tag/v16.26.0) - 2025-10-29
