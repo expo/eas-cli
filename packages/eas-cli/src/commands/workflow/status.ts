@@ -80,7 +80,7 @@ export default class WorkflowStatus extends EasCommand {
     } = await getDynamicPrivateProjectConfigAsync();
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
 
-    let workflowRunId = args.workflowRunId;
+    let workflowRunId = args.WORKFLOW_RUN_ID;
 
     if (!workflowRunId && flags['non-interactive']) {
       throw new Error('Workflow run ID is required in non-interactive mode');
