@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - Fix yarn watch. ([#3251](https://github.com/expo/eas-cli/pull/3251) by [@quinlanj](https://github.com/quinlanj))
+- Remove the **node_modules** installation requirement for `workflow:run` command. ([#3254](https://github.com/expo/eas-cli/pull/3254) by [@kudo](https://github.com/kudo))
 
 ## [16.26.0](https://github.com/expo/eas-cli/releases/tag/v16.26.0) - 2025-10-29
 
