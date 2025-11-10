@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix workflow:status when run ID passed in.  ([#3253](https://github.com/expo/eas-cli/pull/3253) by [@douglowder](https://github.com/douglowder))
 - Fix updating file env vars with `env:update --non-interactive`. ([#3249](https://github.com/expo/eas-cli/pull/3249) by [@kadikraman](https://github.com/kadikraman))
 
 ### 🧹 Chores
