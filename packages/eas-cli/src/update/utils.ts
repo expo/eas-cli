@@ -276,7 +276,7 @@ export function getBranchDescription(branch: UpdateBranchFragment): FormattedBra
 }
 
 export function isBundleDiffingEnabled(exp: ExpoConfig): boolean {
-  return exp.updates?.enableBsdiffPatchSupport === true;
+  return (exp.updates as any)?.enableBsdiffPatchSupport === true;
 }
 
 export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
