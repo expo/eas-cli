@@ -135,7 +135,9 @@ export default class WorkflowRun extends EasCommand {
     const {
       projectId,
       exp: { slug: projectName },
-    } = await getDynamicPrivateProjectConfigAsync();
+    } = await getDynamicPrivateProjectConfigAsync({
+      skipPlugins: true,
+    });
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
 
     let yamlConfig: string;
