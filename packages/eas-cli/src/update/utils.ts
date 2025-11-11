@@ -2,6 +2,7 @@ import { ExpoConfig } from '@expo/config';
 import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
+import { setTimeout } from 'timers/promises';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -279,22 +280,6 @@ export function isBundleDiffingEnabled(exp: ExpoConfig): boolean {
   return (exp.updates as any)?.enableBsdiffPatchSupport === true;
 }
 
-export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  return new Promise<T>((resolve, reject) => {
-    timer = setTimeout(() => {
-      reject(new Error(`Timed out after ${ms} ms`));
-    }, ms);
-
-    promise.then(resolve, reject).finally(() => {
-      if (timer) {
-        clearTimeout(timer);
-      }
-    });
-  });
-}
-
 // Make authenticated requests to the launch asset URL with diffing headers
 export async function prewarmDiffingAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -358,13 +343,11 @@ export async function prewarmDiffingAsync(
           'a-im': 'bsdiff',
         };
 
-        const controller = new AbortController();
-        const req = fetch(first.url, { method: 'HEAD', headers, signal: controller.signal });
-        try {
-          await withTimeout(req, 2500);
-        } finally {
-          controller.abort(); // ensure sockets close quickly
-        }
+        await fetch(first.url, {
+          method: 'HEAD',
+          headers,
+          signal: AbortSignal.timeout(2500),
+        });
       } catch {
         // ignore errors, best-effort optimization
       }
