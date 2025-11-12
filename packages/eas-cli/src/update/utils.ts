@@ -2,7 +2,6 @@ import { ExpoConfig } from '@expo/config';
 import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
-import { setTimeout } from 'timers/promises';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
