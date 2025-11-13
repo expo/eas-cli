@@ -31,7 +31,6 @@ import { maybeUploadFingerprintAsync } from '../../project/maybeUploadFingerprin
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import {
   RawAsset,
-  UpdatePublishPlatform,
   buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
@@ -51,7 +50,12 @@ import {
 } from '../../project/publish';
 import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
-import { getUpdateJsonInfosForUpdates } from '../../update/utils';
+import {
+  UpdatePublishPlatform,
+  getUpdateJsonInfosForUpdates,
+  isBundleDiffingEnabled,
+  prewarmDiffingAsync,
+} from '../../update/utils';
 import {
   checkManifestBodyAgainstUpdateInfoGroup,
   getCodeSigningInfoAsync,
@@ -569,6 +573,10 @@ export default class UpdatePublish extends EasCommand {
     } catch (e) {
       publishSpinner.fail('Failed to publish updates');
       throw e;
+    }
+
+    if (isBundleDiffingEnabled(exp)) {
+      await prewarmDiffingAsync(graphqlClient, projectId, newUpdates);
     }
 
     if (!skipBundler && emitMetadata) {

@@ -1,7 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import nullthrows from 'nullthrows';
 
-import { getUpdateJsonInfosForUpdates } from './utils';
+import { UpdatePublishPlatform, getUpdateJsonInfosForUpdates } from './utils';
 import { getUpdateGroupUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import fetch from '../fetch';
@@ -12,7 +12,6 @@ import { ora } from '../ora';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import {
   RuntimeVersionInfo,
-  UpdatePublishPlatform,
   getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects,
 } from '../project/publish';
 import {

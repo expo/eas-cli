@@ -3,14 +3,19 @@ import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
 
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
+  AppPlatform,
   Robot,
   SsoUser,
   Update,
   UpdateBranchFragment,
   UpdateFragment,
+  UpdatePublishMutation,
   User,
 } from '../graphql/generated';
+import { AssetQuery } from '../graphql/queries/AssetQuery';
+import { BranchQuery } from '../graphql/queries/BranchQuery';
 import { learnMore } from '../log';
 import { RequestedPlatform } from '../platform';
 import { getActorDisplayName } from '../user/User';
@@ -269,3 +274,86 @@ export function getBranchDescription(branch: UpdateBranchFragment): FormattedBra
     },
   };
 }
+
+export function isBundleDiffingEnabled(exp: ExpoConfig): boolean {
+  return (exp.updates as any)?.enableBsdiffPatchSupport === true;
+}
+
+// Make authenticated requests to the launch asset URL with diffing headers
+export async function prewarmDiffingAsync(
+  graphqlClient: ExpoGraphqlClient,
+  appId: string,
+  newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups']
+): Promise<void> {
+  const DUMMY_EMBEDDED_UPDATE_ID = '00000000-0000-0000-0000-000000000000';
+
+  const toPrewarm = [] as {
+    update: UpdatePublishMutation['updateBranch']['publishUpdateGroups'][0];
+    launchAssetKey: string;
+  }[];
+
+  for (const update of newUpdates) {
+    const manifest = JSON.parse(update.manifestFragment);
+    const launchAssetKey: string | undefined = manifest.launchAsset?.storageKey;
+    const requestedUpdateId: string = update.id;
+    if (!launchAssetKey || !requestedUpdateId) {
+      continue;
+    }
+    toPrewarm.push({
+      update,
+      launchAssetKey,
+    });
+  }
+
+  await Promise.allSettled(
+    toPrewarm.map(async ({ update, launchAssetKey }) => {
+      try {
+        // Check to see if there's a second most recent update so we can pre-emptively generate a patch for it
+        const updatePublishPlatform = update.platform as UpdatePublishPlatform;
+        const updateIds = await BranchQuery.getUpdateIdsOnBranchAsync(graphqlClient, {
+          appId,
+          branchName: update.branch.name,
+          platform: updatePublishPlatformToAppPlatform[updatePublishPlatform],
+          runtimeVersion: update.runtimeVersion,
+          limit: 2,
+        });
+        if (updateIds.length !== 2) {
+          return;
+        }
+        const nextMostRecentUpdateId = updateIds[1];
+
+        const signed = await AssetQuery.getSignedUrlsAsync(graphqlClient, update.id, [
+          launchAssetKey,
+        ]);
+        const first = signed?.[0];
+        if (!first) {
+          return;
+        }
+
+        const headers: Record<string, string> = {
+          ...(first.headers as Record<string, string> | undefined),
+          'expo-current-update-id': nextMostRecentUpdateId,
+          'expo-requested-update-id': update.id,
+          'expo-embedded-update-id': DUMMY_EMBEDDED_UPDATE_ID,
+          'a-im': 'bsdiff',
+        };
+
+        await fetch(first.url, {
+          method: 'HEAD',
+          headers,
+          signal: AbortSignal.timeout(2500),
+        });
+      } catch {
+        // ignore errors, best-effort optimization
+      }
+    })
+  );
+}
+
+// update publish does not currently support web
+export type UpdatePublishPlatform = 'ios' | 'android';
+
+export const updatePublishPlatformToAppPlatform: Record<UpdatePublishPlatform, AppPlatform> = {
+  android: AppPlatform.Android,
+  ios: AppPlatform.Ios,
+};

@@ -22,7 +22,6 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import { PaginatedQueryOptions } from '../commandUtils/pagination';
 import { FingerprintOptions, createFingerprintsByKeyAsync } from '../fingerprint/cli';
 import {
-  AppPlatform,
   AssetMetadataStatus,
   BuildFragment,
   FingerprintSourceInput,
@@ -39,8 +38,10 @@ import { promptAsync } from '../prompts';
 import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 import {
   UpdateJsonInfo,
+  UpdatePublishPlatform,
   formatUpdateMessage,
   truncateString as truncateUpdateMessage,
+  updatePublishPlatformToAppPlatform,
 } from '../update/utils';
 import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
 import {
@@ -55,9 +56,6 @@ import groupBy from '../utils/expodash/groupBy';
 import mapMapAsync from '../utils/expodash/mapMapAsync';
 import uniqBy from '../utils/expodash/uniqBy';
 import { Client } from '../vcs/vcs';
-
-// update publish does not currently support web
-export type UpdatePublishPlatform = 'ios' | 'android';
 
 type Metadata = {
   version: number;
@@ -1047,11 +1045,6 @@ export async function findCompatibleBuildsAsync(
 export const platformDisplayNames: Record<UpdatePublishPlatform, string> = {
   android: 'Android',
   ios: 'iOS',
-};
-
-export const updatePublishPlatformToAppPlatform: Record<UpdatePublishPlatform, AppPlatform> = {
-  android: AppPlatform.Android,
-  ios: AppPlatform.Ios,
 };
 
 export async function getRuntimeToUpdateRolloutInfoGroupMappingAsync(
