@@ -293,20 +293,16 @@ export async function prewarmDiffingAsync(
   }[];
 
   for (const update of newUpdates) {
-    try {
-      const manifest = JSON.parse(update.manifestFragment);
-      const launchAssetKey: string | undefined = manifest.launchAsset?.storageKey;
-      const requestedUpdateId: string = update.id;
-      if (!launchAssetKey || !requestedUpdateId) {
-        continue;
-      }
-      toPrewarm.push({
-        update,
-        launchAssetKey,
-      });
-    } catch {
-      // ignore updates without launch assets
+    const manifest = JSON.parse(update.manifestFragment);
+    const launchAssetKey: string | undefined = manifest.launchAsset?.storageKey;
+    const requestedUpdateId: string = update.id;
+    if (!launchAssetKey || !requestedUpdateId) {
+      continue;
     }
+    toPrewarm.push({
+      update,
+      launchAssetKey,
+    });
   }
 
   await Promise.allSettled(
@@ -330,12 +326,12 @@ export async function prewarmDiffingAsync(
           launchAssetKey,
         ]);
         const first = signed?.[0];
-        if (!first?.url || !first?.headers) {
+        if (!first) {
           return;
         }
 
         const headers: Record<string, string> = {
-          ...(first.headers as Record<string, string>),
+          ...(first.headers as Record<string, string> | undefined),
           'expo-current-update-id': nextMostRecentUpdateId,
           'expo-requested-update-id': update.id,
           'expo-embedded-update-id': DUMMY_EMBEDDED_UPDATE_ID,
