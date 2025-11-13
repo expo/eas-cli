@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- `eas:new` sorts organization accounts first in account selection. ([#3256](https://github.com/expo/eas-cli/pull/3256) by [@mackenco](https://github.com/mackenco))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
