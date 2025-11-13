@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [16.27.0](https://github.com/expo/eas-cli/releases/tag/v16.27.0) - 2025-11-13
+
+### 🎉 New features
+
 - Kick off update patch generation if enabled - this is feature is in preview, don't use it for prod yet please. ([#3250](https://github.com/expo/eas-cli/pull/3250) by [@quinlanj](https://github.com/quinlanj))
 
 ### 🐛 Bug fixes
