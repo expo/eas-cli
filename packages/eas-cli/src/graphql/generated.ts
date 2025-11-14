@@ -1313,6 +1313,7 @@ export type App = Project & {
   appStoreUrl?: Maybe<Scalars['String']['output']>;
   assetLimitPerUpdateGroup: Scalars['Int']['output'];
   branchesPaginated: AppBranchesConnection;
+  buildProfiles: Array<Scalars['String']['output']>;
   /** (EAS Build) Builds associated with this app */
   builds: Array<Build>;
   buildsPaginated: AppBuildsConnection;
@@ -1477,6 +1478,7 @@ export type App = Project & {
   workflowRunGitBranchesPaginated: AppWorkflowRunGitBranchesConnection;
   workflowRunsPaginated: AppWorkflowRunsConnection;
   workflows: Array<Workflow>;
+  workflowsInsights: AppWorkflowsInsights;
 };
 
 
@@ -2298,6 +2300,7 @@ export type AppWorkflowRunEdge = {
 export type AppWorkflowRunFilterInput = {
   requestedGitRef?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<WorkflowRunStatus>;
+  timeRange?: InputMaybe<WorkflowRunTimeRangeInput>;
 };
 
 export type AppWorkflowRunGitBranchEdge = {
@@ -2318,10 +2321,43 @@ export type AppWorkflowRunGitBranchesConnection = {
   pageInfo: PageInfo;
 };
 
+export type AppWorkflowRunTimeRangeInput = {
+  earliest?: InputMaybe<Scalars['DateTime']['input']>;
+  latest?: InputMaybe<Scalars['DateTime']['input']>;
+};
+
 export type AppWorkflowRunsConnection = {
   __typename?: 'AppWorkflowRunsConnection';
   edges: Array<AppWorkflowRunEdge>;
   pageInfo: PageInfo;
+};
+
+export type AppWorkflowsInsights = {
+  __typename?: 'AppWorkflowsInsights';
+  overviewMetrics: WorkflowsInsightsOverviewMetrics;
+  runsOverTime: WorkflowsInsightsRunsOverTimeData;
+  workflows: WorkflowsInsightsWorkflowConnection;
+};
+
+
+export type AppWorkflowsInsightsOverviewMetricsArgs = {
+  filters?: InputMaybe<WorkflowsInsightsFiltersInput>;
+  timespan: WorkflowsInsightsTimespanInput;
+};
+
+
+export type AppWorkflowsInsightsRunsOverTimeArgs = {
+  filters?: InputMaybe<WorkflowsInsightsFiltersInput>;
+  granularity: WorkflowsInsightsRunsOverTimeGranularity;
+  timespan: WorkflowsInsightsTimespanInput;
+};
+
+
+export type AppWorkflowsInsightsWorkflowsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  filters?: InputMaybe<WorkflowsInsightsFiltersInput>;
+  first: Scalars['Int']['input'];
+  timespan: WorkflowsInsightsTimespanInput;
 };
 
 export type AppleAppIdentifier = {
@@ -7333,6 +7369,8 @@ export type UpdateBranchMutation = {
   editUpdateBranch: UpdateBranch;
   /** Publish an update group to a branch */
   publishUpdateGroups: Array<Update>;
+  /** Delete an EAS branch and all of its updates in the background */
+  scheduleUpdateBranchDeletion: BackgroundJobReceipt;
 };
 
 
@@ -7354,6 +7392,11 @@ export type UpdateBranchMutationEditUpdateBranchArgs = {
 
 export type UpdateBranchMutationPublishUpdateGroupsArgs = {
   publishUpdateGroupsInput: Array<PublishUpdateGroupInput>;
+};
+
+
+export type UpdateBranchMutationScheduleUpdateBranchDeletionArgs = {
+  branchId: Scalars['ID']['input'];
 };
 
 export type UpdateChannel = {
@@ -9025,10 +9068,17 @@ export type Workflow = {
   createdAt: Scalars['DateTime']['output'];
   fileName: Scalars['String']['output'];
   id: Scalars['ID']['output'];
+  insights: WorkflowsInsightsWorkflowMetrics;
   name?: Maybe<Scalars['String']['output']>;
   revisionsPaginated: WorkflowRevisionsConnection;
   runsPaginated: WorkflowRunsConnection;
   updatedAt: Scalars['DateTime']['output'];
+};
+
+
+export type WorkflowInsightsArgs = {
+  filters?: InputMaybe<WorkflowsInsightsFiltersInput>;
+  timespan: WorkflowsInsightsTimespanInput;
 };
 
 
@@ -9290,6 +9340,7 @@ export type WorkflowRunError = {
 export type WorkflowRunFilterInput = {
   requestedGitRef?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<WorkflowRunStatus>;
+  timeRange?: InputMaybe<WorkflowRunTimeRangeInput>;
 };
 
 export type WorkflowRunGitBranchFilterInput = {
@@ -9353,6 +9404,11 @@ export enum WorkflowRunStatus {
   Success = 'SUCCESS'
 }
 
+export type WorkflowRunTimeRangeInput = {
+  earliest?: InputMaybe<Scalars['DateTime']['input']>;
+  latest?: InputMaybe<Scalars['DateTime']['input']>;
+};
+
 export enum WorkflowRunTriggerEventType {
   GithubPullRequestLabeled = 'GITHUB_PULL_REQUEST_LABELED',
   GithubPullRequestOpened = 'GITHUB_PULL_REQUEST_OPENED',
@@ -9367,6 +9423,73 @@ export type WorkflowRunsConnection = {
   __typename?: 'WorkflowRunsConnection';
   edges: Array<WorkflowRunEdge>;
   pageInfo: PageInfo;
+};
+
+export type WorkflowsInsightsFiltersInput = {
+  gitRefRequested?: InputMaybe<Array<Scalars['String']['input']>>;
+  statuses?: InputMaybe<Array<WorkflowRunStatus>>;
+  triggerEventTypes?: InputMaybe<Array<WorkflowRunTriggerEventType>>;
+  workflowIds?: InputMaybe<Array<Scalars['ID']['input']>>;
+};
+
+export type WorkflowsInsightsMetric = {
+  __typename?: 'WorkflowsInsightsMetric';
+  currentValue: Scalars['Float']['output'];
+  previousValue: Scalars['Float']['output'];
+};
+
+export type WorkflowsInsightsOverviewMetrics = {
+  __typename?: 'WorkflowsInsightsOverviewMetrics';
+  activeWorkflows: WorkflowsInsightsMetric;
+  failedRuns: WorkflowsInsightsMetric;
+  successfulRuns: WorkflowsInsightsMetric;
+  totalRuns: WorkflowsInsightsMetric;
+};
+
+export type WorkflowsInsightsRunsOverTimeData = {
+  __typename?: 'WorkflowsInsightsRunsOverTimeData';
+  lineChart: LineChartData;
+};
+
+export enum WorkflowsInsightsRunsOverTimeGranularity {
+  Day = 'DAY',
+  Hour = 'HOUR',
+  Minute = 'MINUTE'
+}
+
+export type WorkflowsInsightsTimespanInput = {
+  end: Scalars['DateTime']['input'];
+  start: Scalars['DateTime']['input'];
+};
+
+export type WorkflowsInsightsWorkflowConnection = {
+  __typename?: 'WorkflowsInsightsWorkflowConnection';
+  edges: Array<WorkflowsInsightsWorkflowEdge>;
+  pageInfo: PageInfo;
+};
+
+export type WorkflowsInsightsWorkflowEdge = {
+  __typename?: 'WorkflowsInsightsWorkflowEdge';
+  cursor: Scalars['String']['output'];
+  node: WorkflowsInsightsWorkflowNode;
+};
+
+export type WorkflowsInsightsWorkflowMetrics = {
+  __typename?: 'WorkflowsInsightsWorkflowMetrics';
+  failedRuns: WorkflowsInsightsMetric;
+  lastRunAt?: Maybe<Scalars['DateTime']['output']>;
+  successfulRuns: WorkflowsInsightsMetric;
+  totalRuns: WorkflowsInsightsMetric;
+};
+
+export type WorkflowsInsightsWorkflowNode = {
+  __typename?: 'WorkflowsInsightsWorkflowNode';
+  failedRuns: Scalars['Int']['output'];
+  lastRunAt: Scalars['DateTime']['output'];
+  name: Scalars['String']['output'];
+  successfulRuns: Scalars['Int']['output'];
+  totalRuns: Scalars['Int']['output'];
+  workflowId: Scalars['ID']['output'];
 };
 
 export type DeleteAndroidAppBuildCredentialsResult = {
@@ -9388,6 +9511,13 @@ export type DeleteApplePushKeyResult = {
   __typename?: 'deleteApplePushKeyResult';
   id: Scalars['ID']['output'];
 };
+
+export type ScheduleBranchDeletionMutationVariables = Exact<{
+  branchId: Scalars['ID']['input'];
+}>;
+
+
+export type ScheduleBranchDeletionMutation = { __typename?: 'RootMutation', updateBranch: { __typename?: 'UpdateBranchMutation', scheduleUpdateBranchDeletion: { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any } } };
 
 export type CreateUpdateBranchForAppMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
