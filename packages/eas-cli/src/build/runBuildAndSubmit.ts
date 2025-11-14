@@ -52,6 +52,7 @@ import {
 import { checkExpoSdkIsSupportedAsync } from '../project/expoSdk';
 import { validateMetroConfigForManagedWorkflowAsync } from '../project/metroConfig';
 import {
+  getOwnerAccountForProjectIdAsync,
   isExpoUpdatesInstalledAsDevDependency,
   isExpoUpdatesInstalledOrAvailable,
   isUsingEASUpdate,
@@ -78,6 +79,7 @@ import { downloadAndMaybeExtractAppAsync } from '../utils/download';
 import { truthy } from '../utils/expodash/filter';
 import { printJsonOnlyOutput } from '../utils/json';
 import { ProfileData, getProfilesAsync } from '../utils/profiles';
+import { maybeWarnAboutUsageOveragesAsync } from '../utils/usage/checkForOverages';
 import { Client } from '../vcs/vcs';
 
 let metroConfigValidated = false;
@@ -408,6 +410,14 @@ async function prepareAndStartBuildAsync({
     whatToTest: flags.whatToTest,
     env,
   });
+
+  if (flags.localBuildOptions.localBuildMode) {
+    const account = await getOwnerAccountForProjectIdAsync(graphqlClient, buildCtx.projectId);
+    await maybeWarnAboutUsageOveragesAsync({
+      graphqlClient,
+      accountId: account.id,
+    });
+  }
 
   if (moreBuilds) {
     Log.newLine();
