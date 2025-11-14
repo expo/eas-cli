@@ -1,23 +1,19 @@
 import chalk from 'chalk';
 import gql from 'graphql-tag';
 
+import { scheduleBranchDeletionAsync } from '../../branch/delete';
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { withErrorHandlingAsync } from '../../graphql/client';
-import {
-  DeleteUpdateBranchMutation,
-  DeleteUpdateBranchMutationVariables,
-  DeleteUpdateBranchResult,
-  GetBranchInfoQuery,
-  GetBranchInfoQueryVariables,
-} from '../../graphql/generated';
+import { GetBranchInfoQuery, GetBranchInfoQueryVariables } from '../../graphql/generated';
 import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { toggleConfirmAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { pollForBackgroundJobReceiptAsync } from '../../utils/pollForBackgroundJobReceiptAsync';
 
 async function getBranchInfoAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -48,31 +44,6 @@ async function getBranchInfoAsync(
       .toPromise()
   );
   return data;
-}
-
-async function deleteBranchOnAppAsync(
-  graphqlClient: ExpoGraphqlClient,
-  { branchId }: DeleteUpdateBranchMutationVariables
-): Promise<DeleteUpdateBranchResult> {
-  const data = await withErrorHandlingAsync(
-    graphqlClient
-      .mutation<DeleteUpdateBranchMutation, DeleteUpdateBranchMutationVariables>(
-        gql`
-          mutation DeleteUpdateBranch($branchId: ID!) {
-            updateBranch {
-              deleteUpdateBranch(branchId: $branchId) {
-                id
-              }
-            }
-          }
-        `,
-        {
-          branchId,
-        }
-      )
-      .toPromise()
-  );
-  return data.updateBranch.deleteUpdateBranch;
 }
 
 export default class BranchDelete extends EasCommand {
@@ -146,12 +117,12 @@ export default class BranchDelete extends EasCommand {
       }
     }
 
-    const deletionResult = await deleteBranchOnAppAsync(graphqlClient, {
-      branchId,
-    });
+    const receipt = await scheduleBranchDeletionAsync(graphqlClient, { branchId });
+    const successfulReceipt = await pollForBackgroundJobReceiptAsync(graphqlClient, receipt);
+    Log.debug('Deletion result', { successfulReceipt });
 
     if (jsonFlag) {
-      printJsonOnlyOutput(deletionResult);
+      printJsonOnlyOutput({ id: branchId });
     } else {
       Log.withTick(
         `️Deleted branch "${branchName}" and all of its updates on project ${chalk.bold(
