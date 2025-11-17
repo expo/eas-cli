@@ -117,15 +117,18 @@ export async function promptForProjectAccountAsync(actor: Actor): Promise<string
 
 export function getAccountChoices(actor: Actor, permissionsMap?: Map<string, boolean>): Choice[] {
   const permissions = permissionsMap ?? getAccountPermissionsMap(actor);
-  const sortedAccounts = [...actor.accounts].sort((a, _b) =>
-    actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
-  );
+  const sortedAccounts = [...actor.accounts].sort((a, _b) => (a.ownerUserActor ? 1 : -1));
 
   return sortedAccounts.map(account => {
-    const isPersonalAccount = actor.__typename === 'User' && account.name === actor.username;
+    const isPersonalAccount = !!account.ownerUserActor && account.ownerUserActor.id === actor.id;
+    const isTeamAccount = !!account.ownerUserActor && account.ownerUserActor.id !== actor.id;
+
     const accountDisplayName = isPersonalAccount
-      ? `${account.name} (personal account)`
-      : account.name;
+      ? `${account.name} (Limited - Personal Account)`
+      : isTeamAccount
+        ? `${account.name} (Limited - Team Account)`
+        : account.name;
+
     const disabled = !permissions.get(account.name);
 
     return {

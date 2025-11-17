@@ -159,15 +159,15 @@ describe('configs', () => {
 
       expect(result).toEqual([
         {
-          title: 'jester (personal account)',
-          value: { name: 'jester' },
-        },
-        {
           title: 'other',
           value: { name: 'other' },
           disabled: true,
           description:
             'You do not have the required permissions to create projects on this account.',
+        },
+        {
+          title: 'jester',
+          value: { name: 'jester' },
         },
       ]);
     });
