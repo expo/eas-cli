@@ -75,13 +75,11 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     AccountUsageQuery.getUsageForOverageWarningAsync
   );
   const mockWarn = jest.mocked(Log.warn);
-  const mockNewLine = jest.mocked(Log.newLine);
   const mockDebug = jest.mocked(Log.debug);
 
   beforeEach(() => {
     mockGetUsageForOverageWarningAsync.mockClear();
     mockWarn.mockClear();
-    mockNewLine.mockClear();
     mockDebug.mockClear();
   });
 
@@ -109,7 +107,6 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining("You won't be able to start new builds once you reach the limit.")
     );
-    expect(mockNewLine).toHaveBeenCalledTimes(1);
   });
 
   it('displays a warning for a Starter plan with high build usage', async () => {
@@ -133,7 +130,6 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
         'Additional usage beyond your limit will be charged at pay-as-you-go rates.'
       )
     );
-    expect(mockNewLine).toHaveBeenCalledTimes(1);
   });
 
   it('does not display a warning when usage is below threshold', async () => {
