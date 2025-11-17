@@ -78,10 +78,12 @@ import { downloadAndMaybeExtractAppAsync } from '../utils/download';
 import { truthy } from '../utils/expodash/filter';
 import { printJsonOnlyOutput } from '../utils/json';
 import { ProfileData, getProfilesAsync } from '../utils/profiles';
+import { maybeWarnAboutUsageOveragesAsync } from '../utils/usage/checkForOverages';
 import { Client } from '../vcs/vcs';
 
 let metroConfigValidated = false;
 let sdkVersionChecked = false;
+let hasWarnedAboutUsageOverages = false;
 
 export interface BuildFlags {
   requestedPlatform: RequestedPlatform;
@@ -408,6 +410,15 @@ async function prepareAndStartBuildAsync({
     whatToTest: flags.whatToTest,
     env,
   });
+
+  if (!hasWarnedAboutUsageOverages && !flags.localBuildOptions.localBuildMode) {
+    hasWarnedAboutUsageOverages = true;
+    Log.newLine();
+    await maybeWarnAboutUsageOveragesAsync({ graphqlClient, accountId: buildCtx.accountId });
+    if (!moreBuilds) {
+      Log.newLine();
+    }
+  }
 
   if (moreBuilds) {
     Log.newLine();

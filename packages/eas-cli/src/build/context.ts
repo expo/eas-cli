@@ -33,6 +33,7 @@ export interface IosBuildContext {
 }
 
 export interface BuildContext<T extends Platform> {
+  accountId: string;
   accountName: string;
   easJsonCliConfig: EasJson['cli'];
   buildProfile: BuildProfile<T>;
