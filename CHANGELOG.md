@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Delete branch in background. ([#3258](https://github.com/expo/eas-cli/pull/3258) by [@quinlanj](https://github.com/quinlanj))
+
 ## [16.27.0](https://github.com/expo/eas-cli/releases/tag/v16.27.0) - 2025-11-13
 
 ### 🎉 New features
