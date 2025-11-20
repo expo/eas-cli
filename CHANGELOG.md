@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `--runtime-version` and `--platform` filters to `eas update:list`. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@HarelSultan](https://github.com/HarelSultan))
 - `eas:new` sorts organization accounts first in account selection. ([#3256](https://github.com/expo/eas-cli/pull/3256) by [@mackenco](https://github.com/mackenco))
 
 ### 🐛 Bug fixes
