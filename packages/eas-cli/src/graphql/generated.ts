@@ -7329,6 +7329,7 @@ export type UpdateBranch = {
   name: Scalars['String']['output'];
   runtimes: RuntimesConnection;
   updateGroups: Array<Array<Update>>;
+  updateGroupsPaginated: UpdateGroupsConnection;
   updatedAt: Scalars['DateTime']['output'];
   updates: Array<Update>;
 };
@@ -7350,6 +7351,15 @@ export type UpdateBranchUpdateGroupsArgs = {
 };
 
 
+export type UpdateBranchUpdateGroupsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<UpdatesFilterV2>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
 export type UpdateBranchUpdatesArgs = {
   filter?: InputMaybe<UpdatesFilter>;
   limit: Scalars['Int']['input'];
@@ -7360,7 +7370,10 @@ export type UpdateBranchMutation = {
   __typename?: 'UpdateBranchMutation';
   /** Create an EAS branch for an app */
   createUpdateBranchForApp: UpdateBranch;
-  /** Delete an EAS branch and all of its updates as long as the branch is not being used by any channels */
+  /**
+   * Delete an EAS branch and all of its updates as long as the branch is not being used by any channels
+   * @deprecated Use scheduleUpdateBranchDeletion instead
+   */
   deleteUpdateBranch: DeleteUpdateBranchResult;
   /**
    * Edit an EAS branch. The branch can be specified either by its ID or
@@ -7564,6 +7577,18 @@ export type UpdateGitHubRepositorySettingsInput = {
   baseDirectory: Scalars['String']['input'];
 };
 
+export type UpdateGroupEdge = {
+  __typename?: 'UpdateGroupEdge';
+  cursor: Scalars['String']['output'];
+  node: Array<Update>;
+};
+
+export type UpdateGroupsConnection = {
+  __typename?: 'UpdateGroupsConnection';
+  edges: Array<UpdateGroupEdge>;
+  pageInfo: PageInfo;
+};
+
 export type UpdateInfoGroup = {
   android?: InputMaybe<PartialManifest>;
   ios?: InputMaybe<PartialManifest>;
@@ -7665,7 +7690,11 @@ export type UpdateVexoAppInput = {
 export type UpdatesFilter = {
   platform?: InputMaybe<AppPlatform>;
   runtimeVersions?: InputMaybe<Array<Scalars['String']['input']>>;
-  sdkVersions?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+export type UpdatesFilterV2 = {
+  platform?: InputMaybe<AppPlatform>;
+  runtimeVersions?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 export type UpdatesMetricsData = {
@@ -9265,6 +9294,7 @@ export type WorkflowRevisionInput = {
 export type WorkflowRevisionMutation = {
   __typename?: 'WorkflowRevisionMutation';
   getOrCreateWorkflowRevisionFromGitRef: WorkflowRevision;
+  getWorkflowRevisionsFromGitRef: Array<WorkflowRevision>;
   validateWorkflowYamlConfig: Scalars['Boolean']['output'];
 };
 
@@ -9272,6 +9302,12 @@ export type WorkflowRevisionMutation = {
 export type WorkflowRevisionMutationGetOrCreateWorkflowRevisionFromGitRefArgs = {
   appId: Scalars['ID']['input'];
   fileName: Scalars['String']['input'];
+  gitRef: Scalars['String']['input'];
+};
+
+
+export type WorkflowRevisionMutationGetWorkflowRevisionsFromGitRefArgs = {
+  appId: Scalars['ID']['input'];
   gitRef: Scalars['String']['input'];
 };
 
@@ -9543,13 +9579,6 @@ export type GetBranchInfoQueryVariables = Exact<{
 
 
 export type GetBranchInfoQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, updateBranchByName?: { __typename?: 'UpdateBranch', id: string, name: string } | null } } };
-
-export type DeleteUpdateBranchMutationVariables = Exact<{
-  branchId: Scalars['ID']['input'];
-}>;
-
-
-export type DeleteUpdateBranchMutation = { __typename?: 'RootMutation', updateBranch: { __typename?: 'UpdateBranchMutation', deleteUpdateBranch: { __typename?: 'DeleteUpdateBranchResult', id: string } } };
 
 export type EditUpdateBranchMutationVariables = Exact<{
   input: EditUpdateBranchInput;
