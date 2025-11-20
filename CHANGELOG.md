@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [16.28.0](https://github.com/expo/eas-cli/releases/tag/v16.28.0) - 2025-11-20
+
+### 🎉 New features
+
 - `eas:new` sorts organization accounts first in account selection. ([#3256](https://github.com/expo/eas-cli/pull/3256) by [@mackenco](https://github.com/mackenco))
 
 ### 🐛 Bug fixes
