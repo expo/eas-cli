@@ -81,5 +81,4 @@ export function displayOverageWarning({
       });
 
   Log.warn(warning);
-  Log.newLine();
 }

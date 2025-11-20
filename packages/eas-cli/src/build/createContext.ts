@@ -125,6 +125,7 @@ export async function createBuildContextAsync<T extends Platform>({
   );
 
   const commonContext: CommonContext<T> = {
+    accountId,
     accountName: account.name,
     buildProfile,
     buildProfileName,

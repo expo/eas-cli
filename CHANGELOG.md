@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix `eas:build` bug where overages are checked before config is ready. ([#3260](https://github.com/expo/eas-cli/pull/3260) by [@mackenco](https://github.com/mackenco))
+
 ### 🧹 Chores
 
 - Delete branch in background. ([#3258](https://github.com/expo/eas-cli/pull/3258) by [@quinlanj](https://github.com/quinlanj))
