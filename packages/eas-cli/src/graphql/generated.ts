@@ -10286,6 +10286,14 @@ export type DeleteWebhookMutationVariables = Exact<{
 
 export type DeleteWebhookMutation = { __typename?: 'RootMutation', webhook: { __typename?: 'WebhookMutation', deleteWebhook: { __typename?: 'DeleteWebhookResult', id: string } } };
 
+export type GetWorkflowRevisionsFromGitRefMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  gitRef: Scalars['String']['input'];
+}>;
+
+
+export type GetWorkflowRevisionsFromGitRefMutation = { __typename?: 'RootMutation', workflowRevision: { __typename?: 'WorkflowRevisionMutation', getWorkflowRevisionsFromGitRef: Array<{ __typename?: 'WorkflowRevision', id: string, yamlConfig: string, blobSha: string, commitSha?: string | null, createdAt: any, workflow: { __typename?: 'Workflow', id: string } }> } };
+
 export type GetOrCreateWorkflowRevisionFromGitRefMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
   fileName: Scalars['String']['input'];

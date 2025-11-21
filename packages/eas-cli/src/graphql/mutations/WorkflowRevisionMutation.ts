@@ -6,6 +6,8 @@ import { withErrorHandlingAsync } from '../client';
 import {
   GetOrCreateWorkflowRevisionFromGitRefMutation,
   GetOrCreateWorkflowRevisionFromGitRefMutationVariables,
+  GetWorkflowRevisionsFromGitRefMutation,
+  GetWorkflowRevisionsFromGitRefMutationVariables,
   ValidateWorkflowYamlConfigMutation,
   ValidateWorkflowYamlConfigMutationVariables,
   WorkflowRevision,
@@ -19,7 +21,53 @@ export namespace WorkflowRevisionMutation {
       fieldErrors: z.record(z.string(), z.array(z.string())),
     }),
   });
-
+  export async function getWorkflowRevisionsFromGitRefAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      gitRef,
+    }: {
+      appId: string;
+      gitRef: string;
+    }
+  ): Promise<WorkflowRevision[] | undefined> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<
+          GetWorkflowRevisionsFromGitRefMutation,
+          GetWorkflowRevisionsFromGitRefMutationVariables
+        >(
+          gql`
+            mutation GetWorkflowRevisionsFromGitRef($appId: ID!, $gitRef: String!) {
+              workflowRevision {
+                getWorkflowRevisionsFromGitRef(appId: $appId, gitRef: $gitRef) {
+                  id
+                  yamlConfig
+                  blobSha
+                  commitSha
+                  createdAt
+                  workflow {
+                    id
+                    app {
+                      id
+                      name
+                      slug
+                    }
+                    fileName
+                  }
+                }
+              }
+            }
+          `,
+          {
+            appId,
+            gitRef,
+          }
+        )
+        .toPromise()
+    );
+    return (data.workflowRevision?.getWorkflowRevisionsFromGitRef as WorkflowRevision[]) ?? [];
+  }
   export async function getOrCreateWorkflowRevisionFromGitRefAsync(
     graphqlClient: ExpoGraphqlClient,
     {
