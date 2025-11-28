@@ -1,6 +1,5 @@
 import { Server } from 'http';
 
-import { koaUtils } from '@expo/turtle-common';
 import Koa from 'koa';
 import koaBody from 'koa-body';
 import Router from 'koa-router';
@@ -8,6 +7,7 @@ import Router from 'koa-router';
 import config from './config';
 import logger from './logger';
 import { getWorkerVmMetrics } from './metrics';
+import { boomHelper, boomify } from './utils/boom';
 
 function createRouter(): Router {
   const router = new Router();
@@ -24,7 +24,18 @@ function createRouter(): Router {
 function createApp(): Koa {
   const app = new Koa();
   const router = createRouter();
-  app.use(koaUtils.errorMiddleware);
+  app.use(async function errorMiddleware(
+    ctx: Router.RouterContext,
+    next: () => Promise<void>
+  ): Promise<void> {
+    try {
+      await next();
+    } catch (err: any) {
+      const boomErr = boomify(err);
+      boomHelper(ctx, boomErr);
+      throw err;
+    }
+  });
   app.use(koaBody());
   app.use(router.routes());
   app.use(router.allowedMethods());
