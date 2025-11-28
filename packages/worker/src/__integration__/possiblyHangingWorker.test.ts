@@ -1,6 +1,5 @@
 import { hostname } from 'os';
-
-import { promise } from '@expo/turtle-common';
+import { setTimeout as setTimeoutAsync } from 'timers/promises';
 import WebSocket from 'ws';
 import { ArchiveSourceType } from '@expo/eas-build-job';
 
@@ -127,7 +126,7 @@ describe('sending sentry report on hanging worker', () => {
         ws.send(JSON.stringify({ type: 'close' }));
         await closePromise;
 
-        await promise.sleep(10 * 1000);
+        await setTimeoutAsync(10 * 1000);
         expect(spyReportHangingWorker).not.toHaveBeenCalled();
       });
     });
@@ -144,7 +143,7 @@ describe('sending sentry report on hanging worker', () => {
         partialMockService.closeWorker = jest.fn(() => {});
         ws.send(JSON.stringify({ type: 'close' }));
 
-        await promise.sleep(10 * 1000);
+        await setTimeoutAsync(10 * 1000);
         expect(spyReportHangingWorker).toHaveBeenCalled();
 
         partialMockService.closeWorker = actualCloseWorker;
@@ -162,7 +161,7 @@ describe('sending sentry report on hanging worker', () => {
         await successPromise;
         clearTimeout(messageTimeout);
 
-        await promise.sleep(10 * 1000);
+        await setTimeoutAsync(10 * 1000);
         expect(spyReportHangingWorker).toHaveBeenCalled();
 
         const closePromise = helper.onClose();

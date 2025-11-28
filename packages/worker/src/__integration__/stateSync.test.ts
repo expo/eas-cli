@@ -1,8 +1,8 @@
 import path from 'path';
 import { hostname } from 'os';
+import { setTimeout as setTimeoutAsync } from 'timers/promises';
 
 import { Artifacts } from '@expo/build-tools';
-import { promise } from '@expo/turtle-common';
 
 import fs from 'fs-extra';
 import WebSocket from 'ws';
@@ -24,7 +24,7 @@ jest.mock('../build', () => {
     ...jest.requireActual('../build'),
     build: jest.fn(async (): Promise<Artifacts> => {
       logger.debug('mocked build function');
-      await promise.sleep(1000);
+      await setTimeoutAsync(1000);
 
       const filename = path.join(config.workingdir, 'build', 'test.json');
       await fs.close(await fs.open(filename, 'w'));
@@ -201,7 +201,7 @@ describe('State sync mechanism', () => {
       dispatchWS.close();
       await dispatchHelper.onClose();
 
-      await promise.sleep(2000);
+      await setTimeoutAsync(2000);
 
       logger.debug('Establising new connection to worker');
       const ws = new WebSocket(`ws://localhost:${port}?expo_vm_name=${hostname()}`);
