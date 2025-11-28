@@ -4,7 +4,6 @@ import { BuildContext, GCS } from '@expo/build-tools';
 import { vol } from 'memfs';
 import { Job } from '@expo/eas-build-job';
 import { Response } from 'node-fetch';
-import { turtleFetch } from '@expo/turtle-common';
 
 import {
   uploadApplicationArchiveAsync,
@@ -12,11 +11,12 @@ import {
   uploadWorkflowArtifactAsync,
 } from '../upload';
 import config from '../config';
+import { turtleFetch } from '../utils/turtleFetch';
 
 jest.mock('fs');
 jest.mock('fs/promises');
-jest.mock('@expo/turtle-common', () => ({
-  ...jest.requireActual('@expo/turtle-common'),
+jest.mock('../utils/turtleFetch', () => ({
+  ...jest.requireActual('../utils/turtleFetch'),
   turtleFetch: jest.fn(),
 }));
 const turtleFetchMock = jest.mocked(turtleFetch);

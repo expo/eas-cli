@@ -6,13 +6,13 @@ import tar from 'tar';
 import { BuildContext, GCS } from '@expo/build-tools';
 import { asyncResult } from '@expo/results';
 import { z } from 'zod';
-import { TurtleFetchError, turtleFetch } from '@expo/turtle-common';
 import { ArchiveSourceType } from '@expo/eas-build-job';
 import nullthrows from 'nullthrows';
 
 import config from './config';
 import { Analytics, Event } from './external/analytics';
 import sentry from './sentry';
+import { turtleFetch, TurtleFetchError } from './utils/turtleFetch';
 
 class ErrorWithMetadata extends Error {
   constructor(
