@@ -1,12 +1,12 @@
 import { Transform, TransformCallback, Writable } from 'stream';
 
 import { LoggerLevel, createLogger } from '@expo/logger';
-import { BuildLogger as CommonBuildLogger, createGCSBuildLogger } from '@expo/turtle-common';
 import { LogBuffer } from '@expo/build-tools';
 import { EnvironmentSecret } from '@expo/eas-build-job';
 
 import config from './config';
 import { maybeStringBase64Decode, simpleSecretsWhitelist } from './secrets';
+import { createGCSBuildLogger, BuildLogger as CommonBuildLogger } from './utils/logger';
 
 export interface BuildLogger extends CommonBuildLogger {
   logBuffer: LogBuffer;
@@ -66,7 +66,7 @@ function createSecretMaskingStream(secrets: EnvironmentSecret[]): Transform {
   const secretList: string[] = [
     ...secretValues,
     ...secretValues.map(maybeStringBase64Decode).filter((i): i is string => !!i),
-  ].filter((i) => i.length > 1 && !simpleSecretsWhitelist.includes(i));
+  ].filter(i => i.length > 1 && !simpleSecretsWhitelist.includes(i));
   return new Transform({
     readableObjectMode: true,
     writableObjectMode: true,

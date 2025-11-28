@@ -21,7 +21,6 @@ import {
   Platform,
 } from '@expo/eas-build-job';
 import { LoggerLevel } from '@expo/logger';
-import { LoggerStream } from '@expo/turtle-common';
 import fs from 'fs-extra';
 
 import { build } from './build';
@@ -33,6 +32,7 @@ import sentry from './sentry';
 import State from './state';
 import { WebSocketServer } from './utils/WebSocketServer';
 import { LauncherMessage, Worker, WorkerMessage } from './external/turtle';
+import { LoggerStream } from './utils/logger';
 
 export const HANGING_WORKER_CHECK_TIMEOUT_MS = 5 * 60 * 1000;
 
