@@ -2679,10 +2679,22 @@
   resolved "https://registry.yarnpkg.com/@graphql-typed-document-node/core/-/core-3.1.1.tgz#076d78ce99822258cf813ecc1e7fa460fa74d052"
   integrity sha512-NQ17ii0rK1b34VZonlmT2QMJFI70m0TRwbknO/ihlbatXyaktDhN/98vBiUU6kNBPljqGqyIrl2T4nY2RpFANg==
 
+"@hapi/boom@10.0.1":
+  version "10.0.1"
+  resolved "https://registry.yarnpkg.com/@hapi/boom/-/boom-10.0.1.tgz#ebb14688275ae150aa6af788dbe482e6a6062685"
+  integrity sha512-ERcCZaEjdH3OgSJlyjVk8pHIFeus91CjKP3v+MpgBNp5IvGzP2l/bRiD78nqYcKPaZdbKkK5vDBVPd2ohHBlsA==
+  dependencies:
+    "@hapi/hoek" "^11.0.2"
+
 "@hapi/bourne@^3.0.0":
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/@hapi/bourne/-/bourne-3.0.0.tgz#f11fdf7dda62fe8e336fa7c6642d9041f30356d7"
   integrity sha512-Waj1cwPXJDucOib4a3bAISsKJVb15MKi9IvmTI/7ssVEm6sywXGjVJDhl6/umt1pK1ZS7PacXU3A1PmFKHEZ2w==
+
+"@hapi/hoek@^11.0.2":
+  version "11.0.7"
+  resolved "https://registry.yarnpkg.com/@hapi/hoek/-/hoek-11.0.7.tgz#56a920793e0a42d10e530da9a64cc0d3919c4002"
+  integrity sha512-HV5undWkKzcB4RZUusqOpcgxOaq6VOAH7zhhIr2g3G8NF/MlFO75SjOr2NfuSx0Mh40+1FqCkagKLJRykUWoFQ==
 
 "@hapi/hoek@^9.0.0":
   version "9.1.0"
@@ -4105,6 +4117,46 @@
     component-type "^1.2.1"
     join-component "^1.1.0"
 
+"@sentry-internal/tracing@7.77.0":
+  version "7.77.0"
+  resolved "https://registry.yarnpkg.com/@sentry-internal/tracing/-/tracing-7.77.0.tgz#f3d82486f8934a955b3dd2aa54c8d29586e42a37"
+  integrity sha512-8HRF1rdqWwtINqGEdx8Iqs9UOP/n8E0vXUu3Nmbqj4p5sQPA7vvCfq+4Y4rTqZFc7sNdFpDsRION5iQEh8zfZw==
+  dependencies:
+    "@sentry/core" "7.77.0"
+    "@sentry/types" "7.77.0"
+    "@sentry/utils" "7.77.0"
+
+"@sentry/core@7.77.0":
+  version "7.77.0"
+  resolved "https://registry.yarnpkg.com/@sentry/core/-/core-7.77.0.tgz#21100843132beeeff42296c8370cdcc7aa1d8510"
+  integrity sha512-Tj8oTYFZ/ZD+xW8IGIsU6gcFXD/gfE+FUxUaeSosd9KHwBQNOLhZSsYo/tTVf/rnQI/dQnsd4onPZLiL+27aTg==
+  dependencies:
+    "@sentry/types" "7.77.0"
+    "@sentry/utils" "7.77.0"
+
+"@sentry/node@7.77.0":
+  version "7.77.0"
+  resolved "https://registry.yarnpkg.com/@sentry/node/-/node-7.77.0.tgz#a247452779a5bcb55724457707286e3e4a29dbbe"
+  integrity sha512-Ob5tgaJOj0OYMwnocc6G/CDLWC7hXfVvKX/ofkF98+BbN/tQa5poL+OwgFn9BA8ud8xKzyGPxGU6LdZ8Oh3z/g==
+  dependencies:
+    "@sentry-internal/tracing" "7.77.0"
+    "@sentry/core" "7.77.0"
+    "@sentry/types" "7.77.0"
+    "@sentry/utils" "7.77.0"
+    https-proxy-agent "^5.0.0"
+
+"@sentry/types@7.77.0":
+  version "7.77.0"
+  resolved "https://registry.yarnpkg.com/@sentry/types/-/types-7.77.0.tgz#c5d00fe547b89ccde59cdea59143bf145cee3144"
+  integrity sha512-nfb00XRJVi0QpDHg+JkqrmEBHsqBnxJu191Ded+Cs1OJ5oPXEW6F59LVcBScGvMqe+WEk1a73eH8XezwfgrTsA==
+
+"@sentry/utils@7.77.0":
+  version "7.77.0"
+  resolved "https://registry.yarnpkg.com/@sentry/utils/-/utils-7.77.0.tgz#1f88501f0b8777de31b371cf859d13c82ebe1379"
+  integrity sha512-NmM2kDOqVchrey3N5WSzdQoCsyDkQkiRxExPaNI2oKQ/jMWHs9yt0tSy7otPBcXs0AP59ihl75Bvm1tDRcsp5g==
+  dependencies:
+    "@sentry/types" "7.77.0"
+
 "@sideway/address@^4.1.3":
   version "4.1.3"
   resolved "https://registry.yarnpkg.com/@sideway/address/-/address-4.1.3.tgz#d93cce5d45c5daec92ad76db492cc2ee3c64ab27"
@@ -4631,6 +4683,13 @@
   dependencies:
     "@types/koa" "*"
 
+"@types/koa-router@7.4.8":
+  version "7.4.8"
+  resolved "https://registry.yarnpkg.com/@types/koa-router/-/koa-router-7.4.8.tgz#471d0c9c20d4caa05721b50b0ae4d08c22a7cb03"
+  integrity sha512-SkWlv4F9f+l3WqYNQHnWjYnyTxYthqt8W9az2RTdQW7Ay8bc00iRZcrb8MC75iEfPqnGcg2csEl8tTG1NQPD4A==
+  dependencies:
+    "@types/koa" "*"
+
 "@types/koa@*":
   version "3.0.1"
   resolved "https://registry.yarnpkg.com/@types/koa/-/koa-3.0.1.tgz#2c9ace20ecb33d0cf84d63492af231185eb2aefa"
@@ -4645,7 +4704,7 @@
     "@types/koa-compose" "*"
     "@types/node" "*"
 
-"@types/koa@^2.13.5":
+"@types/koa@2.15.0", "@types/koa@^2.13.5":
   version "2.15.0"
   resolved "https://registry.yarnpkg.com/@types/koa/-/koa-2.15.0.tgz#eca43d76f527c803b491731f95df575636e7b6f2"
   integrity sha512-7QFsywoE5URbuVnG3loe03QXuGajrnotr3gQkXcEBShORai23MePfFYdhz90FEtBBpkyIYQbVD+evKtloCgX3g==

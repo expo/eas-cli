@@ -1,6 +1,5 @@
-import { Sentry } from '@expo/turtle-common';
-
 import config from './config';
+import Sentry from './external/sentry';
 import logger from './logger';
 
 export default new Sentry({
