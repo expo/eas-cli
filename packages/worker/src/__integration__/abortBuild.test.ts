@@ -4,7 +4,6 @@ import { hostname } from 'os';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
 import WebSocket from 'ws';
-import { jobs } from '@expo/turtle-test-utils';
 import { Job } from '@expo/eas-build-job';
 import { Hook } from '@expo/build-tools';
 
@@ -14,6 +13,7 @@ import logger from '../logger';
 import config from '../config';
 
 import { unreachableCode, WsHelper } from './utils';
+import { createTestAndroidJob, createTestIosJob } from './utils/jobs';
 
 const buildId = 'e9b99e52-fb74-4927-be63-33d7447ddfd4';
 jest.mock('fs');
@@ -28,7 +28,7 @@ jest.mock('../build', () => {
   return {
     ...jest.requireActual('../build'),
     build: async (): Promise<void> => {
-      await new Promise<void>((res) => {
+      await new Promise<void>(res => {
         buildTimeout = setTimeout(() => {
           res();
           unreachableCode('build finished');
@@ -81,7 +81,7 @@ describe('launcher aborts build', () => {
   });
 
   afterEach(async () => {
-    await new Promise((res) => {
+    await new Promise(res => {
       server.close(res);
     });
   });
@@ -92,7 +92,7 @@ describe('launcher aborts build', () => {
 
   describe('android', () => {
     describe('build canceled', () => {
-      const job = jobs.createTestAndroidJob();
+      const job = createTestAndroidJob();
 
       it('does not upload XCode logs and notifies launcher after cleanup', async () => {
         const findAndUploadXcodeBuildLogsAsyncMock =
@@ -146,7 +146,7 @@ describe('launcher aborts build', () => {
     });
 
     describe('build timed out', () => {
-      const job = jobs.createTestAndroidJob();
+      const job = createTestAndroidJob();
 
       it('does not upload XCode logs and notifies launcher after cleanup', async () => {
         const findAndUploadXcodeBuildLogsAsyncMock =
@@ -177,7 +177,7 @@ describe('launcher aborts build', () => {
 
   describe('ios', () => {
     describe('build canceled', () => {
-      const job = jobs.createTestIosJob();
+      const job = createTestIosJob();
 
       it('uploads XCode logs and notifies launcher after cleanup', async () => {
         const findAndUploadXcodeBuildLogsAsyncMock =
@@ -231,7 +231,7 @@ describe('launcher aborts build', () => {
     });
 
     describe('build timed out', () => {
-      const job = jobs.createTestIosJob();
+      const job = createTestIosJob();
 
       it('uploads XCode logs and notifies launcher after cleanup', async () => {
         const findAndUploadXcodeBuildLogsAsyncMock =
@@ -284,7 +284,7 @@ describe('launcher aborts build', () => {
     const ws = new WebSocket(`ws://localhost:${port}?expo_vm_name=${hostname()}`);
     const helper = new WsHelper(ws);
     let abortedPromiseResolve: () => void;
-    const abortedPromise = new Promise<void>((res) => {
+    const abortedPromise = new Promise<void>(res => {
       abortedPromiseResolve = res;
     });
     const onMessage = jest.fn((message: any) => {

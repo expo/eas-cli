@@ -3,7 +3,7 @@ import { hostname } from 'os';
 
 import { Artifacts } from '@expo/build-tools';
 import { promise } from '@expo/turtle-common';
-import { jobs } from '@expo/turtle-test-utils';
+
 import fs from 'fs-extra';
 import WebSocket from 'ws';
 
@@ -14,6 +14,7 @@ import startWsServer from '../ws';
 import { build } from '../build';
 
 import { WsHelper, unreachableCode } from './utils';
+import { createTestAndroidJob } from './utils/jobs';
 
 const buildId = 'e9b99e52-fb74-4927-be63-33d7447ddfd4';
 
@@ -69,7 +70,7 @@ describe('State sync mechanism', () => {
   });
 
   afterEach(async () => {
-    await new Promise((res) => {
+    await new Promise(res => {
       server.close(res);
     });
   });
@@ -83,7 +84,7 @@ describe('State sync mechanism', () => {
       const ws = new WebSocket(`ws://localhost:${port}?expo_vm_name=${hostname()}`);
       const helper = new WsHelper(ws);
       let stateResponsePromiseResolve: () => void;
-      const stateResponsePromise = new Promise<void>((res) => {
+      const stateResponsePromise = new Promise<void>(res => {
         stateResponsePromiseResolve = res;
       });
       const onMessage = jest.fn((message: any) => {
@@ -128,7 +129,7 @@ describe('State sync mechanism', () => {
         JSON.stringify({
           type: 'dispatch',
           buildId,
-          job: jobs.createTestAndroidJob(),
+          job: createTestAndroidJob(),
           initiatingUserId: '14367e1b-26fc-4c00-aedb-0629d78f8286',
           metadata: {
             trackingContext: {},
@@ -142,7 +143,7 @@ describe('State sync mechanism', () => {
       const helper = new WsHelper(ws);
 
       let stateResponsePromiseResolve: () => void;
-      const stateResponsePromise = new Promise<void>((res) => {
+      const stateResponsePromise = new Promise<void>(res => {
         stateResponsePromiseResolve = res;
       });
       const onMessage = jest.fn((message: any) => {
@@ -190,7 +191,7 @@ describe('State sync mechanism', () => {
         JSON.stringify({
           type: 'dispatch',
           buildId,
-          job: jobs.createTestAndroidJob(),
+          job: createTestAndroidJob(),
           initiatingUserId: '14367e1b-26fc-4c00-aedb-0629d78f8286',
           metadata: {
             trackingContext: {},
@@ -207,7 +208,7 @@ describe('State sync mechanism', () => {
       const helper = new WsHelper(ws);
 
       let stateResponsePromiseResolve: () => void;
-      const stateResponsePromise = new Promise<void>((res) => {
+      const stateResponsePromise = new Promise<void>(res => {
         stateResponsePromiseResolve = res;
       });
       const onMessage = jest.fn((message: any) => {
@@ -262,7 +263,7 @@ describe('State sync mechanism', () => {
         JSON.stringify({
           type: 'dispatch',
           buildId,
-          job: jobs.createTestAndroidJob(),
+          job: createTestAndroidJob(),
           initiatingUserId: '14367e1b-26fc-4c00-aedb-0629d78f8286',
           metadata: {
             trackingContext: {},
@@ -277,7 +278,7 @@ describe('State sync mechanism', () => {
       const helper = new WsHelper(ws);
 
       let stateResponsePromiseResolve: () => void;
-      const stateResponsePromise = new Promise<void>((res) => {
+      const stateResponsePromise = new Promise<void>(res => {
         stateResponsePromiseResolve = res;
       });
       const onMessage = jest.fn((message: any) => {
