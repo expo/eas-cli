@@ -3,7 +3,7 @@ import * as sentry from '@sentry/node';
 import Flatted from 'flatted';
 import { ZodError } from 'zod';
 import Router from 'koa-router';
-import * as Boom from '@hapi/boom';
+import { boomify } from '../utils/boom';
 
 interface SentryOptions {
   dsn: string | null;
@@ -17,13 +17,6 @@ interface ErrorOptions {
   extras?: Record<string, unknown>;
   logger?: bunyan;
   level?: sentry.SeverityLevel;
-}
-
-function boomify(err: Error): Boom.Boom {
-  if (Boom.isBoom(err)) {
-    return err;
-  }
-  return Boom.boomify(err);
 }
 
 class Sentry {
