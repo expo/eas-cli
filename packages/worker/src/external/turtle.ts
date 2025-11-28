@@ -3,10 +3,10 @@ import {
   BuildJob,
   BuildPhase,
   BuildPhaseResult,
-  errors,
   Generic,
   Metadata,
   Platform,
+  errors,
 } from '@expo/eas-build-job';
 
 export enum ResourceClass {

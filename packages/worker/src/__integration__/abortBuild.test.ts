@@ -1,19 +1,17 @@
-import path from 'path';
-import { hostname } from 'os';
-
+import { Hook } from '@expo/build-tools';
+import { Job } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
+import { hostname } from 'os';
+import path from 'path';
 import WebSocket from 'ws';
-import { Job } from '@expo/eas-build-job';
-import { Hook } from '@expo/build-tools';
 
+import { WsHelper, unreachableCode } from './utils';
+import { createTestAndroidJob, createTestIosJob } from './utils/jobs';
+import config from '../config';
+import logger from '../logger';
 import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
 import startWsServer from '../ws';
-import logger from '../logger';
-import config from '../config';
-
-import { unreachableCode, WsHelper } from './utils';
-import { createTestAndroidJob, createTestIosJob } from './utils/jobs';
 
 const buildId = 'e9b99e52-fb74-4927-be63-33d7447ddfd4';
 jest.mock('fs');

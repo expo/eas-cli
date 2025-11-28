@@ -1,20 +1,17 @@
-import path from 'path';
-import { hostname } from 'os';
-import { setTimeout as setTimeoutAsync } from 'timers/promises';
-
 import { Artifacts } from '@expo/build-tools';
-
 import fs from 'fs-extra';
+import { hostname } from 'os';
+import path from 'path';
+import { setTimeout as setTimeoutAsync } from 'timers/promises';
 import WebSocket from 'ws';
 
+import { WsHelper, unreachableCode } from './utils';
+import { createTestAndroidJob } from './utils/jobs';
+import { build } from '../build';
 import config from '../config';
 import logger from '../logger';
 import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
 import startWsServer from '../ws';
-import { build } from '../build';
-
-import { WsHelper, unreachableCode } from './utils';
-import { createTestAndroidJob } from './utils/jobs';
 
 const buildId = 'e9b99e52-fb74-4927-be63-33d7447ddfd4';
 

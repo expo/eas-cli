@@ -1,14 +1,12 @@
-import { hostname } from 'os';
-
 import { ArchiveSourceType, Ios } from '@expo/eas-build-job';
+import { hostname } from 'os';
 import WebSocket from 'ws';
 
+import { WsHelper, unreachableCode } from './utils';
 import logger from '../logger';
+import env from '../utils/env';
 import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
 import startWsServer from '../ws';
-import env from '../utils/env';
-
-import { WsHelper, unreachableCode } from './utils';
 
 const MAX_BUILD_TIME = 60 * 60 * 1000; // 60 min
 

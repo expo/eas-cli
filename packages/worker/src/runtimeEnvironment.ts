@@ -1,12 +1,11 @@
-import os from 'os';
-import path from 'path';
-
-import { v4 as uuidv4 } from 'uuid';
 import { BuildContext } from '@expo/build-tools';
-import { errors, Job } from '@expo/eas-build-job';
+import { Job, errors } from '@expo/eas-build-job';
 import templateFile from '@expo/template-file';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
+import os from 'os';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 import config from './config';
 

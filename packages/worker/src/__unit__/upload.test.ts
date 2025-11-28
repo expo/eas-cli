@@ -1,16 +1,15 @@
-import { randomBytes, randomUUID } from 'crypto';
-
 import { BuildContext, GCS } from '@expo/build-tools';
-import { vol } from 'memfs';
 import { Job } from '@expo/eas-build-job';
+import { randomBytes, randomUUID } from 'crypto';
+import { vol } from 'memfs';
 import { Response } from 'node-fetch';
 
+import config from '../config';
 import {
   uploadApplicationArchiveAsync,
   uploadBuildArtifactsAsync,
   uploadWorkflowArtifactAsync,
 } from '../upload';
-import config from '../config';
 import { turtleFetch } from '../utils/turtleFetch';
 
 jest.mock('fs');

@@ -1,12 +1,12 @@
 import { GCS } from '@expo/build-tools';
-import { vol } from 'memfs';
-import fs from 'fs-extra';
 import downloadFile from '@expo/downloader';
 import { Cache, Platform } from '@expo/eas-build-job';
+import { randomUUID } from 'crypto';
+import fs from 'fs-extra';
+import { vol } from 'memfs';
+import { Readable } from 'stream';
 
 import { GCSCacheManager } from '../CacheManager';
-import { Readable } from 'stream';
-import { randomUUID } from 'crypto';
 
 jest.mock('fs');
 jest.mock('fs/promises');

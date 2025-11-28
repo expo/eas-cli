@@ -5,7 +5,7 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 if (!process.env.LISTENING_TO_UNHANDLED_REJECTION) {
-  process.on('unhandledRejection', (reason) => {
+  process.on('unhandledRejection', reason => {
     logger.error('UNHANDLED PROMISE REJECTION', reason);
   });
   // Avoid memory leak by adding too many listeners

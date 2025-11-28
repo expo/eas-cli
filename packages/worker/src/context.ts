@@ -1,12 +1,13 @@
+import { BuildContext, BuildContextOptions, LogBuffer } from '@expo/build-tools';
+import { BuildPhaseStats, Job, ManagedArtifactType, Metadata, Platform } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
 import assert from 'assert';
 
-import { BuildContext, BuildContextOptions, LogBuffer } from '@expo/build-tools';
-import { ManagedArtifactType, BuildPhaseStats, Job, Metadata, Platform } from '@expo/eas-build-job';
-import { bunyan } from '@expo/logger';
-
-import { Analytics } from './external/analytics';
-import config from './config';
 import { GCSCacheManager } from './CacheManager';
+import config from './config';
+import { getBuildEnv } from './env';
+import { Analytics } from './external/analytics';
+import { uploadXcodeBuildLogs } from './ios/xcodeLogs';
 import sentry from './sentry';
 import {
   uploadApplicationArchiveAsync,
@@ -14,8 +15,6 @@ import {
   uploadWithAnalyticsAsync,
   uploadWorkflowArtifactAsync,
 } from './upload';
-import { uploadXcodeBuildLogs } from './ios/xcodeLogs';
-import { getBuildEnv } from './env';
 
 export function createBuildContext<TJob extends Job>({
   job,

@@ -1,14 +1,13 @@
 import { hostname } from 'os';
 import url from 'url';
-
 import { WebSocketServer as WSServer, WebSocket } from 'ws';
 
 import config, { Environment } from './config';
+import { LauncherMessage } from './external/turtle';
 import logger from './logger';
 import sentry from './sentry';
 import BuildService from './service';
 import { WebSocketServer } from './utils/WebSocketServer';
-import { LauncherMessage } from './external/turtle';
 
 function startWsServer(port = config.port): WSServer {
   const service = new BuildService();

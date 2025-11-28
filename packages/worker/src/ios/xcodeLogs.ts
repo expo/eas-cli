@@ -1,13 +1,12 @@
-import os from 'os';
-import path from 'path';
-import zlib from 'zlib';
-import { Readable, pipeline } from 'stream';
-import { promisify } from 'util';
-
-import { v4 as uuid } from 'uuid';
-import fs from 'fs-extra';
 import { GCS } from '@expo/build-tools';
 import { bunyan } from '@expo/logger';
+import fs from 'fs-extra';
+import os from 'os';
+import path from 'path';
+import { Readable, pipeline } from 'stream';
+import { promisify } from 'util';
+import { v4 as uuid } from 'uuid';
+import zlib from 'zlib';
 
 import config from '../config';
 

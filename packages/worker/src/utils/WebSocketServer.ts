@@ -1,4 +1,5 @@
 import WebSocket from 'ws';
+
 import logger from '../logger';
 
 const PING_TIMEOUT_MS = 10000;

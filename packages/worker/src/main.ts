@@ -1,9 +1,9 @@
 import config from './config';
 import logger from './logger';
-import { prepareWorkingdir } from './workingdir';
-import { prepareRuntimeEnvironmentConfigFiles } from './runtimeEnvironment';
-import startWsServer from './ws';
 import { startServer } from './metricsServer';
+import { prepareRuntimeEnvironmentConfigFiles } from './runtimeEnvironment';
+import { prepareWorkingdir } from './workingdir';
+import startWsServer from './ws';
 
 async function main(): Promise<void> {
   await prepareRuntimeEnvironmentConfigFiles();
@@ -18,7 +18,7 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err) => {
+main().catch(err => {
   logger.error({ err }, 'Something went wrong.');
   process.exit(1);
 });

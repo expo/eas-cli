@@ -1,10 +1,9 @@
-import path from 'path';
-
-import filesize from 'filesize';
+import { BuildContext, CacheManager, GCS } from '@expo/build-tools';
 import downloadFile from '@expo/downloader';
 import { BuildJob } from '@expo/eas-build-job';
-import { CacheManager, BuildContext, GCS } from '@expo/build-tools';
+import filesize from 'filesize';
 import fs from 'fs-extra';
+import path from 'path';
 import tar from 'tar';
 
 import config from './config';

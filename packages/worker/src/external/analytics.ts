@@ -1,18 +1,17 @@
-import path from 'path';
-
-import { readJson, readFile } from 'fs-extra';
+import { ConfigItem, PluginItem, loadPartialConfig } from '@babel/core';
 import { BuildContext } from '@expo/build-tools';
-import { BuildJob, EnvironmentSecret, Platform, Workflow } from '@expo/eas-build-job';
 import { AndroidConfig, IOSConfig } from '@expo/config-plugins';
 import { ExpoConfig } from '@expo/config-types';
-import { loadPartialConfig, PluginItem, ConfigItem } from '@babel/core';
+import { BuildJob, EnvironmentSecret, Platform, Workflow } from '@expo/eas-build-job';
 import spawnAsync from '@expo/spawn-async';
+import { readFile, readJson } from 'fs-extra';
+import path from 'path';
 import semver from 'semver';
 
-import config from '../config';
-import sentry from '../sentry';
 import * as RudderStack from './rudderstack';
+import config from '../config';
 import { maybeStringBase64Decode, simpleSecretsWhitelist } from '../secrets';
+import sentry from '../sentry';
 
 export enum Event {
   WORKER_BUILD_START = 'build turtle worker build start',
