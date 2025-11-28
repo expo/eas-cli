@@ -1,10 +1,10 @@
 import { hostname } from 'os';
 import url from 'url';
 
-import { WebSocketServer, LauncherMessage, Environment } from '@expo/turtle-common';
+import { WebSocketServer, LauncherMessage } from '@expo/turtle-common';
 import { WebSocketServer as WSServer, WebSocket } from 'ws';
 
-import config from './config';
+import config, { Environment } from './config';
 import logger from './logger';
 import sentry from './sentry';
 import BuildService from './service';

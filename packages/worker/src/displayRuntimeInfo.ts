@@ -1,9 +1,9 @@
 import fs from 'fs-extra';
 import { EnvironmentSecretType, Job } from '@expo/eas-build-job';
 import { BuildContext } from '@expo/build-tools';
-import { Environment, ResourceClass } from '@expo/turtle-common';
+import { ResourceClass } from '@expo/turtle-common';
 
-import config from './config';
+import config, { Environment } from './config';
 
 const RESOURCE_CLASS_DESCRIPTION: Record<ResourceClass, string> = {
   [ResourceClass.ANDROID_N2_1_3_12]: 'Intel, 4 vCPUs, 16 GB RAM',
@@ -68,7 +68,7 @@ function printImageDescription(ctx: BuildContext<Job>): void {
   description
     .trim()
     .split('\n')
-    .forEach((line) => {
+    .forEach(line => {
       logger.info(line);
     });
 }
