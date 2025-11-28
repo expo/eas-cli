@@ -1,9 +1,9 @@
 import fs from 'fs-extra';
 import { EnvironmentSecretType, Job } from '@expo/eas-build-job';
 import { BuildContext } from '@expo/build-tools';
-import { ResourceClass } from '@expo/turtle-common';
 
 import config, { Environment } from './config';
+import { ResourceClass } from './external/turtle';
 
 const RESOURCE_CLASS_DESCRIPTION: Record<ResourceClass, string> = {
   [ResourceClass.ANDROID_N2_1_3_12]: 'Intel, 4 vCPUs, 16 GB RAM',
