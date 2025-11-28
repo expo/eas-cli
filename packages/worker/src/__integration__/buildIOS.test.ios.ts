@@ -1,12 +1,12 @@
 import { hostname } from 'os';
 
-import { env } from '@expo/turtle-common';
 import { ArchiveSourceType, Ios } from '@expo/eas-build-job';
 import WebSocket from 'ws';
 
 import logger from '../logger';
 import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
 import startWsServer from '../ws';
+import env from '../utils/env';
 
 import { WsHelper, unreachableCode } from './utils';
 
@@ -57,7 +57,7 @@ describe('iOS build', () => {
   });
 
   afterEach(async () => {
-    await new Promise((res) => {
+    await new Promise(res => {
       server.close(res);
     });
   });
@@ -67,12 +67,12 @@ describe('iOS build', () => {
   });
 
   describe('successful build', () => {
-    it.each(['generic', 'managed'])('should build ipa for %s builds', async (type) => {
+    it.each(['generic', 'managed'])('should build ipa for %s builds', async type => {
       const ws = new WebSocket(`ws://localhost:${port}?expo_vm_name=${hostname()}`);
       const helper = new WsHelper(ws);
 
       let successPromiseResolve: () => void;
-      const successPromise = new Promise<void>((res) => {
+      const successPromise = new Promise<void>(res => {
         successPromiseResolve = res;
       });
       const onMessage = jest.fn((message: any) => {

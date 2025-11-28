@@ -1,6 +1,6 @@
 import { hostname } from 'os';
 
-import { env, promise } from '@expo/turtle-common';
+import { promise } from '@expo/turtle-common';
 import WebSocket from 'ws';
 import { ArchiveSourceType } from '@expo/eas-build-job';
 
@@ -8,6 +8,7 @@ import logger from '../logger';
 import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
 import startWsServer from '../ws';
 import BuildService from '../service';
+import env from '../utils/env';
 
 import { unreachableCode, WsHelper, ANDROID_CREDENTIALS } from './utils';
 
@@ -90,7 +91,7 @@ describe('sending sentry report on hanging worker', () => {
   });
 
   afterEach(async () => {
-    await new Promise((res) => {
+    await new Promise(res => {
       server.close(res);
     });
     jest.resetAllMocks();
@@ -102,7 +103,7 @@ describe('sending sentry report on hanging worker', () => {
 
   describe('build successfully and send buildSuccess message', () => {
     let successPromiseResolve: () => void;
-    const successPromise = new Promise<void>((res) => {
+    const successPromise = new Promise<void>(res => {
       successPromiseResolve = res;
     });
     const onMessage = jest.fn((message: any) => {

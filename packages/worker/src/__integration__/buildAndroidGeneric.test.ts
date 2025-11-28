@@ -1,12 +1,12 @@
 import { hostname } from 'os';
 
-import { env } from '@expo/turtle-common';
 import { ArchiveSourceType } from '@expo/eas-build-job';
 import WebSocket from 'ws';
 
 import logger from '../logger';
 import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
 import startWsServer from '../ws';
+import env from '../utils/env';
 
 import { WsHelper, unreachableCode, ANDROID_CREDENTIALS } from './utils';
 
@@ -46,7 +46,7 @@ describe('Android generic build', () => {
   });
 
   afterEach(async () => {
-    await new Promise((res) => {
+    await new Promise(res => {
       server.close(res);
     });
   });
@@ -61,7 +61,7 @@ describe('Android generic build', () => {
       const helper = new WsHelper(ws);
 
       let successPromiseResolve: () => void;
-      const successPromise = new Promise<void>((res) => {
+      const successPromise = new Promise<void>(res => {
         successPromiseResolve = res;
       });
       const onMessage = jest.fn((message: any) => {

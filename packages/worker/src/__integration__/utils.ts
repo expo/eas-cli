@@ -1,8 +1,8 @@
 import WebSocket from 'ws';
-import { env } from '@expo/turtle-common';
 import { Android } from '@expo/eas-build-job';
 
 import logger from '../logger';
+import env from '../utils/env';
 
 export function unreachableCode(msg: string): void {
   expect(msg).toBeFalsy();
@@ -49,7 +49,7 @@ export class WsHelper {
   }
 
   public onMessage(cb: (message: any) => void): void {
-    this.onMessageCb = jest.fn((raw) => {
+    this.onMessageCb = jest.fn(raw => {
       logger.debug({ raw }, 'ws message');
       const parsed = JSON.parse(raw);
       if (parsed.type !== 'build-phase-stats') {
