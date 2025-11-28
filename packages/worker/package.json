@@ -10,8 +10,9 @@
     "clean-all": "yarn clean && rm -rf node_modules",
     "compile": "tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
-    "test:unit": "./resources/jest --config jest.config.unit.js",
-    "test:unit:watch": "./resources/jest --config jest.config.unit.js --watch",
+    "test": "yarn test:unit",
+    "test:unit": "./resources/jest --config jest.config.unit.ts",
+    "test:unit:watch": "./resources/jest --config jest.config.unit.ts --watch",
     "test:integration": "./resources/jest --runInBand --config jest.config.integration.js",
     "test:integration:watch": "./resources/jest --runInBand --config jest.config.integration.js --watchAll",
     "typecheck": "tsc"
@@ -58,7 +59,6 @@
   "devDependencies": {
     "@types/babel__core": "7.20.5",
     "@types/fs-extra": "11.0.4",
-    "@types/jest": "29.5.12",
     "@types/koa": "2.15.0",
     "@types/koa-router": "7.4.8",
     "@types/lodash": "4.17.4",
