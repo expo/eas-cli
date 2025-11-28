@@ -1,6 +1,6 @@
 import path from 'path';
 
-import GCS, { GCSLoggerStream } from '@expo/gcs';
+import { GCS, GCSLoggerStream } from '@expo/build-tools';
 import { BuildPriority, env, Environment, ResourceClass, Worker } from '@expo/turtle-common';
 
 type ReplaceUndefinedWithNull<T> = undefined extends T ? Exclude<T, undefined> | null : T;

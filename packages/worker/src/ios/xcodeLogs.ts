@@ -6,8 +6,8 @@ import { promisify } from 'util';
 
 import { v4 as uuid } from 'uuid';
 import fs from 'fs-extra';
+import { GCS } from '@expo/build-tools';
 import { bunyan } from '@expo/logger';
-import GCS from '@expo/gcs';
 
 import config from '../config';
 
@@ -19,10 +19,11 @@ export async function uploadXcodeBuildLogs(logger: bunyan, logsPath: string): Pr
       signedUrl: config.loggers.gcs.signedUploadUrlForXcodeBuildLogs,
       srcGeneratorAsync: async () => {
         const stat = await fs.stat(logsPath);
-        return await compress(
+        const { stream } = await compress(
           { stream: fs.createReadStream(logsPath), length: stat.size },
           config.loggers.gcs.compressionMethod
         );
+        return stream;
       },
     });
   }

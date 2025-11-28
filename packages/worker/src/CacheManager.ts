@@ -1,10 +1,9 @@
 import path from 'path';
 
-import GCS from '@expo/gcs';
 import filesize from 'filesize';
 import downloadFile from '@expo/downloader';
 import { BuildJob } from '@expo/eas-build-job';
-import { CacheManager, BuildContext } from '@expo/build-tools';
+import { CacheManager, BuildContext, GCS } from '@expo/build-tools';
 import fs from 'fs-extra';
 import tar from 'tar';
 
@@ -29,7 +28,7 @@ export class GCSCacheManager implements CacheManager {
     }
 
     ctx.logger.info('Saving to cache:');
-    paths.forEach((filePath) => {
+    paths.forEach(filePath => {
       ctx.logger.info(`- ${filePath}`);
     });
     const archivePath = path.join(ctx.workingdir, 'cache-save.tar.gz');
@@ -59,9 +58,7 @@ export class GCSCacheManager implements CacheManager {
       await GCS.uploadWithSignedUrl({
         signedUrl: config.buildCache.gcsSignedUploadUrlForBuildCache,
         srcGeneratorAsync: async () => {
-          return {
-            stream: fs.createReadStream(archivePath),
-          };
+          return fs.createReadStream(archivePath);
         },
       });
     } catch (err: any) {
@@ -79,7 +76,7 @@ export class GCSCacheManager implements CacheManager {
       return;
     }
     ctx.logger.info('Restoring files from cache:');
-    paths.forEach((filePath) => {
+    paths.forEach(filePath => {
       ctx.logger.info(`- ${filePath}`);
     });
 
@@ -106,7 +103,7 @@ export class GCSCacheManager implements CacheManager {
 
   private getPaths(ctx: BuildContext<BuildJob>): string[] {
     const paths = ctx.job.cache?.paths ?? [];
-    return paths.map((cachePath) =>
+    return paths.map(cachePath =>
       path.isAbsolute(cachePath)
         ? cachePath
         : path.resolve(ctx.buildDirectory, ctx.job.projectRootDirectory ?? '.', cachePath)
