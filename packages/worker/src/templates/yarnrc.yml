@@ -1,0 +1,4 @@
+unsafeHttpWhitelist:
+  - "*"
+npmRegistryServer: "{{URL}}"
+enableImmutableInstalls: false
