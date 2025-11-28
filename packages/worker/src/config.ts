@@ -1,12 +1,11 @@
 import path from 'path';
 
 import { GCS, GCSLoggerStream } from '@expo/build-tools';
-import { Worker } from '@expo/turtle-common';
 
 type ReplaceUndefinedWithNull<T> = undefined extends T ? Exclude<T, undefined> | null : T;
 
 import env from './utils/env';
-import { ResourceClass } from './external/turtle';
+import { ResourceClass, Worker } from './external/turtle';
 
 export enum Environment {
   DEVELOPMENT = 'development',
