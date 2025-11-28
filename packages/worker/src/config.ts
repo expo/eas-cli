@@ -1,7 +1,7 @@
 import path from 'path';
 
 import { GCS, GCSLoggerStream } from '@expo/build-tools';
-import { BuildPriority, ResourceClass, Worker } from '@expo/turtle-common';
+import { ResourceClass, Worker } from '@expo/turtle-common';
 
 type ReplaceUndefinedWithNull<T> = undefined extends T ? Exclude<T, undefined> | null : T;
 
@@ -62,10 +62,6 @@ export default {
       defaultValue: null,
     }),
   },
-  priority: env<BuildPriority | null>('WORKER_RUNTIME_CONFIG_BASE64', {
-    transform: createBase64EnvTransformer('priority'),
-    defaultValue: null,
-  }),
   gcsSignedUploadUrlForApplicationArchive: env<GCS.SignedUrl | null>(
     'WORKER_RUNTIME_CONFIG_BASE64',
     {
