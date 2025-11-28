@@ -85,7 +85,7 @@ function handleMessage(
       return { handled: true };
 
     case LauncherMessage.MessageType.ABORT:
-      void service.finishAbort(message);
+      service.finishAbort(message);
       return { handled: true };
   }
 }

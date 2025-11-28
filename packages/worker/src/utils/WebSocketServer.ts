@@ -12,7 +12,7 @@ class WebSocketBase<IncommingMessage, OutgoingMessage> {
   constructor(ws: WebSocket) {
     this.conn = ws;
     this.conn.on('error', error => {
-      void this.handleError(error);
+      this.handleError(error);
     });
   }
 
@@ -79,7 +79,7 @@ class WebSocketBase<IncommingMessage, OutgoingMessage> {
         }
         this.draining = false;
       };
-      void run();
+      run();
     }
   }
 }

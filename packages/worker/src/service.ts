@@ -107,7 +107,7 @@ export default class BuildService {
     this.state.buildStarted();
     this._startBuildTime = Date.now();
 
-    void this.startBuildInternal({ job, metadata, initiatingUserId, projectId });
+    this.startBuildInternal({ job, metadata, initiatingUserId, projectId });
   }
 
   public async finishError(err: errors.BuildError, artifacts: Artifacts | null): Promise<void> {
@@ -132,7 +132,7 @@ export default class BuildService {
         internalErrorCode: err.errorCode,
       });
     }
-    void this.checkForHangingWorker(isSocketClosed);
+    this.checkForHangingWorker(isSocketClosed);
   }
 
   public async finishSuccess(artifacts: Artifacts): Promise<void> {
@@ -151,7 +151,7 @@ export default class BuildService {
         buildArtifactsName: artifacts.BUILD_ARTIFACTS ?? null,
       });
     }
-    void this.checkForHangingWorker(isSocketClosed);
+    this.checkForHangingWorker(isSocketClosed);
   }
 
   public async finishAbort({ reason }: LauncherMessage.BuildAbort): Promise<void> {
@@ -202,7 +202,7 @@ export default class BuildService {
         reason,
       });
     }
-    void this.checkForHangingWorker(isSocketClosed);
+    this.checkForHangingWorker(isSocketClosed);
   }
 
   public async checkForHangingWorker(wasSocketClosedAtBuildFinish: boolean): Promise<void> {
