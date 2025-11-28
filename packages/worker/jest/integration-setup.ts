@@ -13,5 +13,4 @@ if (!process.env.LISTENING_TO_UNHANDLED_REJECTION) {
 }
 
 // Always mock:
-jest.mock('@google-cloud/kms', () => {});
 jest.mock('../src/CacheManager');
