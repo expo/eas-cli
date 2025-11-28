@@ -1,10 +1,9 @@
 import path from 'path';
 
-import GCS from '@expo/gcs';
 import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import tar from 'tar';
-import { BuildContext } from '@expo/build-tools';
+import { BuildContext, GCS } from '@expo/build-tools';
 import { asyncResult } from '@expo/results';
 import { z } from 'zod';
 import { TurtleFetchError, turtleFetch } from '@expo/turtle-common';
@@ -56,9 +55,7 @@ export async function uploadApplicationArchiveAsync(
     await GCS.uploadWithSignedUrl({
       signedUrl,
       srcGeneratorAsync: async () => {
-        return {
-          stream: fs.createReadStream(localPath),
-        };
+        return fs.createReadStream(localPath);
       },
     });
 
@@ -90,9 +87,7 @@ export async function uploadApplicationArchiveAsync(
     await GCS.uploadWithSignedUrl({
       signedUrl: config.gcsSignedUploadUrlForApplicationArchive,
       srcGeneratorAsync: async () => {
-        return {
-          stream: fs.createReadStream(localPath),
-        };
+        return fs.createReadStream(localPath);
       },
     });
   } catch (err: any) {
@@ -134,9 +129,7 @@ export async function uploadBuildArtifactsAsync(
     await GCS.uploadWithSignedUrl({
       signedUrl,
       srcGeneratorAsync: async () => {
-        return {
-          stream: fs.createReadStream(localPath),
-        };
+        return fs.createReadStream(localPath);
       },
     });
 
@@ -167,9 +160,7 @@ export async function uploadBuildArtifactsAsync(
     await GCS.uploadWithSignedUrl({
       signedUrl: config.gcsSignedUploadUrlForBuildArtifacts,
       srcGeneratorAsync: async () => {
-        return {
-          stream: fs.createReadStream(localPath),
-        };
+        return fs.createReadStream(localPath);
       },
     });
   } catch (err: any) {
@@ -206,9 +197,7 @@ export async function uploadWorkflowArtifactAsync(
     await GCS.uploadWithSignedUrl({
       signedUrl: uploadSession,
       srcGeneratorAsync: async () => {
-        return {
-          stream: fs.createReadStream(localPath),
-        };
+        return fs.createReadStream(localPath);
       },
     });
 
@@ -247,7 +236,7 @@ export async function prepareArtifactsForUploadAsync(
       (acc, item) => getCommonParentDir(acc, item),
       artifactPaths[0]
     );
-    const relativePathsToArchive = artifactPaths.map((absolute) =>
+    const relativePathsToArchive = artifactPaths.map(absolute =>
       path.relative(parentDir, absolute)
     );
 
@@ -377,8 +366,8 @@ async function createUploadSessionAsync(
   }
 
   if ('errors' in dataResult.data) {
-    const codes = dataResult.data.errors.map((error) => error.code).join(', ');
-    const messages = `${dataResult.data.errors.map((error) => error.message).join(' ')}`;
+    const codes = dataResult.data.errors.map(error => error.code).join(', ');
+    const messages = `${dataResult.data.errors.map(error => error.message).join(' ')}`;
     throw new ErrorWithMetadata(`Error response from server: ${codes}. ${messages}`, {
       response_base64: Buffer.from(JSON.stringify(jsonResult.value)).toString('base64'),
     });

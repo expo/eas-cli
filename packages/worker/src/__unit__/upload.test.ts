@@ -1,11 +1,10 @@
 import { randomBytes, randomUUID } from 'crypto';
 
-import { BuildContext } from '@expo/build-tools';
+import { BuildContext, GCS } from '@expo/build-tools';
 import { vol } from 'memfs';
 import { Job } from '@expo/eas-build-job';
 import { Response } from 'node-fetch';
 import { turtleFetch } from '@expo/turtle-common';
-import GCS from '@expo/gcs';
 
 import {
   uploadApplicationArchiveAsync,
@@ -31,11 +30,6 @@ jest.mock('../config', () => ({
   rudderstack: {},
   wwwApiV2BaseUrl: 'https://api.expo.test/v2/',
 }));
-jest.mock('@expo/gcs', () => {
-  return {
-    uploadWithSignedUrl: jest.fn(),
-  };
-});
 
 describe(uploadApplicationArchiveAsync.name, () => {
   it('should throw if configuration is missing', async () => {
@@ -91,7 +85,7 @@ describe(uploadApplicationArchiveAsync.name, () => {
     const uploadUrl = `https://upload.url/${randomUUID()}`;
     const testSignedUploadAuthorization = randomUUID();
 
-    turtleFetchMock.mockImplementation(async (url) => {
+    turtleFetchMock.mockImplementation(async url => {
       if (url === `https://api.expo.test/v2/workflows/${workflowJobId}/artifacts/`) {
         return {
           ok: true,
@@ -287,7 +281,7 @@ describe(uploadBuildArtifactsAsync.name, () => {
     const bucketKey = `test/${randomUUID()}/artifact.ipa`;
     const uploadUrl = `https://upload.url/${randomUUID()}`;
     const testSignedUploadAuthorization = randomUUID();
-    turtleFetchMock.mockImplementation(async (url) => {
+    turtleFetchMock.mockImplementation(async url => {
       if (url === `https://api.expo.test/v2/workflows/${workflowJobId}/artifacts/`) {
         return {
           ok: true,
@@ -464,7 +458,7 @@ describe('with signed upload url provided via www', () => {
     const uploadUrl = `https://upload.url/${randomUUID()}`;
     const testSignedUploadAuthorization = randomUUID();
 
-    turtleFetchMock.mockImplementation(async (url) => {
+    turtleFetchMock.mockImplementation(async url => {
       if (url === `https://api.expo.test/v2/turtle-builds/${buildId}/artifacts/`) {
         return {
           ok: true,
@@ -561,7 +555,7 @@ describe(uploadWorkflowArtifactAsync.name, () => {
     const uploadUrl = `https://upload.url/${randomUUID()}`;
     const testSignedUploadAuthorization = randomUUID();
     const expectedArtifactId = randomUUID();
-    turtleFetchMock.mockImplementation(async (url) => {
+    turtleFetchMock.mockImplementation(async url => {
       if (url === `https://api.expo.test/v2/workflows/${workflowJobId}/upload-sessions/`) {
         return {
           ok: true,

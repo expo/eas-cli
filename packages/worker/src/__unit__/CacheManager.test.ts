@@ -1,19 +1,15 @@
-import GCS from '@expo/gcs';
+import { GCS } from '@expo/build-tools';
 import { vol } from 'memfs';
 import fs from 'fs-extra';
 import downloadFile from '@expo/downloader';
 import { Cache, Platform } from '@expo/eas-build-job';
 
 import { GCSCacheManager } from '../CacheManager';
+import { Readable } from 'stream';
+import { randomUUID } from 'crypto';
 
 jest.mock('fs');
 jest.mock('fs/promises');
-jest.mock('@expo/gcs', () => {
-  return {
-    uploadWithSignedUrl: jest.fn(),
-  };
-});
-
 jest.mock('@expo/downloader', () => {
   return jest.fn();
 });
@@ -44,22 +40,22 @@ async function saveAndRestoreCacheAsync(
       cache: cacheConfig,
     },
   } as any;
-  let tarReadStream: any;
-  (GCS.uploadWithSignedUrl as jest.Mock).mockImplementation(async ({ srcGeneratorAsync }) => {
+  let tarReadStream: Readable;
+  jest.mocked(GCS.uploadWithSignedUrl).mockImplementation(async ({ srcGeneratorAsync }) => {
     const result = await srcGeneratorAsync();
-    tarReadStream = result.stream;
-    return result;
+    tarReadStream = result;
+    return randomUUID();
   });
 
   await manager.saveCache(mockCtx);
   const chunks = [];
-  for await (const chunk of tarReadStream) {
+  for await (const chunk of tarReadStream!) {
     chunks.push(chunk);
   }
   const tarContent = Buffer.concat(chunks);
   vol.reset();
   await setupBeforeRestore();
-  (downloadFile as jest.Mock).mockImplementation(async (_url, archivePath: string) => {
+  jest.mocked(downloadFile).mockImplementation(async (_url, archivePath: string) => {
     await fs.mkdirp(mockCtx.workingdir);
     await fs.writeFile(archivePath, tarContent);
   });
@@ -71,8 +67,8 @@ describe(GCSCacheManager, () => {
     vol.reset();
   });
   afterEach(() => {
-    (GCS.uploadWithSignedUrl as jest.Mock).mockReset();
-    (downloadFile as jest.Mock).mockReset();
+    jest.mocked(GCS.uploadWithSignedUrl).mockReset();
+    jest.mocked(downloadFile).mockReset();
   });
   test('save and restore for a single file', async () => {
     await saveAndRestoreCacheAsync(
