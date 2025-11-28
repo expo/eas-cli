@@ -1,5 +1,6 @@
 import assert from 'assert';
 import path from 'path';
+import { setTimeout as setTimeoutAsync } from 'timers/promises';
 
 import {
   Artifacts,
@@ -23,7 +24,6 @@ import { LoggerLevel } from '@expo/logger';
 import {
   LauncherMessage,
   LoggerStream,
-  promise,
   WebSocketServer,
   Worker,
   WorkerMessage,
@@ -124,7 +124,7 @@ export default class BuildService {
     });
     const isSocketClosed: boolean = !this.ws;
     // wait 5 seconds to make sure all logs are flushed
-    await promise.sleep(5 * 1000);
+    await setTimeoutAsync(5 * 1000);
     await this.loggerStream?.cleanUp();
     if (this.ws) {
       logger.info('Send build result - error');
@@ -210,7 +210,7 @@ export default class BuildService {
   }
 
   public async checkForHangingWorker(wasSocketClosedAtBuildFinish: boolean): Promise<void> {
-    await promise.sleep(this.getHangingWorkerCheckTimeoutMs());
+    await setTimeoutAsync(this.getHangingWorkerCheckTimeoutMs());
     if (!this.shouldCloseWorker) {
       // after sending BuildSuccess/BuildError message, worker should receive close message, which would set shouldCloseWorker to true
       // if it's still false after 5 minutes it may mean that the communication failed and worker is hanging
@@ -299,7 +299,7 @@ export default class BuildService {
         projectId,
         buildId: this.buildId,
         buildLogger,
-        reportBuildPhaseStatsFn: (stats) => {
+        reportBuildPhaseStatsFn: stats => {
           this.reportBuildPhaseStats(stats);
         },
       });
