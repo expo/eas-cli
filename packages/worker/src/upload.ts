@@ -1,18 +1,17 @@
-import path from 'path';
-
-import { bunyan } from '@expo/logger';
-import fs from 'fs-extra';
-import tar from 'tar';
 import { BuildContext, GCS } from '@expo/build-tools';
-import { asyncResult } from '@expo/results';
-import { z } from 'zod';
 import { ArchiveSourceType } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
+import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
+import path from 'path';
+import tar from 'tar';
+import { z } from 'zod';
 
 import config from './config';
 import { Analytics, Event } from './external/analytics';
 import sentry from './sentry';
-import { turtleFetch, TurtleFetchError } from './utils/turtleFetch';
+import { TurtleFetchError, turtleFetch } from './utils/turtleFetch';
 
 class ErrorWithMetadata extends Error {
   constructor(

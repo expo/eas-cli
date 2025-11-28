@@ -1,24 +1,24 @@
-import {
-  Platform,
-  BuildPhase,
-  LogMarker,
-  errors,
-  BuildPhaseResult,
-  BuildMode,
-  Android,
-  Ios,
-  BuildJob,
-  Generic,
-} from '@expo/eas-build-job';
 import { Artifacts, BuildContext, Builders, runGenericJobAsync } from '@expo/build-tools';
+import {
+  Android,
+  BuildJob,
+  BuildMode,
+  BuildPhase,
+  BuildPhaseResult,
+  Generic,
+  Ios,
+  LogMarker,
+  Platform,
+  errors,
+} from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import omit from 'lodash/omit';
 
-import { cleanUpWorkingdir } from './workingdir';
 import config from './config';
-import { Analytics, Event, logProjectDependenciesAsync } from './external/analytics';
 import { displayWorkerRuntimeInfo } from './displayRuntimeInfo';
+import { Analytics, Event, logProjectDependenciesAsync } from './external/analytics';
 import { prepareRuntimeEnvironment } from './runtimeEnvironment';
+import { cleanUpWorkingdir } from './workingdir';
 
 export async function build({
   ctx,

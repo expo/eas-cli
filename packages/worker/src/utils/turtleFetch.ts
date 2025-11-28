@@ -1,5 +1,5 @@
-import fetch, { Response, RequestInit, HeaderInit } from 'node-fetch';
 import { bunyan } from '@expo/logger';
+import fetch, { HeaderInit, RequestInit, Response } from 'node-fetch';
 
 import { retry } from './retry';
 

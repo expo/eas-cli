@@ -1,15 +1,14 @@
+import { ArchiveSourceType } from '@expo/eas-build-job';
 import { hostname } from 'os';
 import { setTimeout as setTimeoutAsync } from 'timers/promises';
 import WebSocket from 'ws';
-import { ArchiveSourceType } from '@expo/eas-build-job';
 
+import { ANDROID_CREDENTIALS, WsHelper, unreachableCode } from './utils';
 import logger from '../logger';
-import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
-import startWsServer from '../ws';
 import BuildService from '../service';
 import env from '../utils/env';
-
-import { unreachableCode, WsHelper, ANDROID_CREDENTIALS } from './utils';
+import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
+import startWsServer from '../ws';
 
 const buildId = 'f38532aa-81a8-4db7-915f-6e7afe46e22f';
 

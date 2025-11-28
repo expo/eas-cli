@@ -1,8 +1,8 @@
-import osu from 'node-os-utils';
 import checkDiscSpace from 'check-disk-space';
+import osu from 'node-os-utils';
 
-import sentry from './sentry';
 import logger from './logger';
+import sentry from './sentry';
 
 interface RamMetrics {
   avaliableGb: number;

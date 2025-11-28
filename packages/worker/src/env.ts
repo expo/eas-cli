@@ -1,16 +1,15 @@
-import path from 'path';
-import { spawnSync } from 'child_process';
-
 import { Env, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
+import path from 'path';
 
 import config, { Environment } from './config';
-import { getAccessedEnvs } from './utils/env';
 import {
-  androidImagesWithJavaVersionLowerThen11,
   ResourceClass,
   ResourceClassToPlatform,
+  androidImagesWithJavaVersionLowerThen11,
 } from './external/turtle';
+import { getAccessedEnvs } from './utils/env';
 
 // keep in sync with local-build-plugin env vars
 // https://github.com/expo/eas-build/blob/main/packages/local-build-plugin/src/build.ts

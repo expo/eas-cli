@@ -1,5 +1,4 @@
 import * as Boom from '@hapi/boom';
-
 import Router from 'koa-router';
 
 export function boomify(err: Error): Boom.Boom {

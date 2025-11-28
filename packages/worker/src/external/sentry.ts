@@ -1,8 +1,9 @@
 import { bunyan } from '@expo/logger';
 import * as sentry from '@sentry/node';
 import Flatted from 'flatted';
-import { ZodError } from 'zod';
 import Router from 'koa-router';
+import { ZodError } from 'zod';
+
 import { boomify } from '../utils/boom';
 
 interface SentryOptions {

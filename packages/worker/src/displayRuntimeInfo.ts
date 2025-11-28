@@ -1,6 +1,6 @@
-import fs from 'fs-extra';
-import { EnvironmentSecretType, Job } from '@expo/eas-build-job';
 import { BuildContext } from '@expo/build-tools';
+import { EnvironmentSecretType, Job } from '@expo/eas-build-job';
+import fs from 'fs-extra';
 
 import config, { Environment } from './config';
 import { ResourceClass } from './external/turtle';

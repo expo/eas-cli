@@ -1,5 +1,5 @@
-import WebSocket from 'ws';
 import { Android } from '@expo/eas-build-job';
+import WebSocket from 'ws';
 
 import logger from '../logger';
 import env from '../utils/env';

@@ -1,12 +1,8 @@
-import assert from 'assert';
-import path from 'path';
-import { setTimeout as setTimeoutAsync } from 'timers/promises';
-
 import {
   Artifacts,
   BuildContext,
-  findAndUploadXcodeBuildLogsAsync,
   Hook,
+  findAndUploadXcodeBuildLogsAsync,
   runHookIfPresent,
 } from '@expo/build-tools';
 import {
@@ -14,24 +10,27 @@ import {
   BuildMode,
   BuildPhase,
   BuildPhaseStats,
-  errors,
   Ios,
   Job,
   Metadata,
   Platform,
+  errors,
 } from '@expo/eas-build-job';
 import { LoggerLevel } from '@expo/logger';
+import assert from 'assert';
 import fs from 'fs-extra';
+import path from 'path';
+import { setTimeout as setTimeoutAsync } from 'timers/promises';
 
 import { build } from './build';
 import config from './config';
 import { createBuildContext } from './context';
 import { Analytics } from './external/analytics';
+import { LauncherMessage, Worker, WorkerMessage } from './external/turtle';
 import logger, { createBuildLoggerWithSecretsFilter } from './logger';
 import sentry from './sentry';
 import State from './state';
 import { WebSocketServer } from './utils/WebSocketServer';
-import { LauncherMessage, Worker, WorkerMessage } from './external/turtle';
 import { LoggerStream } from './utils/logger';
 
 export const HANGING_WORKER_CHECK_TIMEOUT_MS = 5 * 60 * 1000;

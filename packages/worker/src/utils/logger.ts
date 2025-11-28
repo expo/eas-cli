@@ -1,9 +1,8 @@
-import { randomUUID } from 'crypto';
-import { Transform, Writable } from 'stream';
-
+import { GCSLoggerStream } from '@expo/build-tools';
 import { BuildPhase } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { GCSLoggerStream } from '@expo/build-tools';
+import { randomUUID } from 'crypto';
+import { Transform, Writable } from 'stream';
 
 export interface LoggerStream extends Writable {
   writable: boolean;
