@@ -1,7 +1,6 @@
 import { hostname } from 'os';
 import url from 'url';
 
-import { LauncherMessage } from '@expo/turtle-common';
 import { WebSocketServer as WSServer, WebSocket } from 'ws';
 
 import config, { Environment } from './config';
@@ -9,6 +8,7 @@ import logger from './logger';
 import sentry from './sentry';
 import BuildService from './service';
 import { WebSocketServer } from './utils/WebSocketServer';
+import { LauncherMessage } from './external/turtle';
 
 function startWsServer(port = config.port): WSServer {
   const service = new BuildService();
