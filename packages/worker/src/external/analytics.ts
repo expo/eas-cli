@@ -1,6 +1,5 @@
 import path from 'path';
 
-import { RudderStack } from '@expo/turtle-common';
 import { readJson, readFile } from 'fs-extra';
 import { BuildContext } from '@expo/build-tools';
 import { BuildJob, EnvironmentSecret, Platform, Workflow } from '@expo/eas-build-job';
@@ -12,6 +11,7 @@ import semver from 'semver';
 
 import config from '../config';
 import sentry from '../sentry';
+import * as RudderStack from './rudderstack';
 import { maybeStringBase64Decode, simpleSecretsWhitelist } from '../secrets';
 
 export enum Event {
@@ -47,7 +47,7 @@ export async function logProjectDependenciesAsync(
     const babelConfig = loadPartialConfig({ cwd: ctx.getReactNativeProjectDirectory() });
     const babelPlugins =
       babelConfig?.options?.plugins
-        ?.map((plugin) => {
+        ?.map(plugin => {
           if (isConfigItem(plugin) && plugin.file?.request) {
             return plugin?.file?.request;
           }
@@ -57,11 +57,11 @@ export async function logProjectDependenciesAsync(
 
     analytics.logEvent(Event.PROJECT_DEPENDENCIES, {
       buildId,
-      dependencies: Object.entries(dependencies).map((dependency) => ({
+      dependencies: Object.entries(dependencies).map(dependency => ({
         name: dependency[0],
         version: dependency[1],
       })),
-      devDependencies: Object.entries(devDependencies).map((dependency) => ({
+      devDependencies: Object.entries(devDependencies).map(dependency => ({
         name: dependency[0],
         version: dependency[1],
       })),
@@ -133,7 +133,7 @@ async function resolveNewArchEnabled(ctx: BuildContext<BuildJob>): Promise<boole
         const properties = AndroidConfig.Properties.parsePropertiesFile(gradleProperties);
 
         return properties.some(
-          (property) =>
+          property =>
             property.type === 'property' &&
             property.key === 'newArchEnabled' &&
             property.value === 'true'
@@ -154,7 +154,7 @@ async function resolveNewArchEnabled(ctx: BuildContext<BuildJob>): Promise<boole
   }
 
   const buildPropertiesPlugin = appConfig?.plugins?.find(
-    (p) => Array.isArray(p) && p[0] === 'expo-build-properties'
+    p => Array.isArray(p) && p[0] === 'expo-build-properties'
   );
 
   const buildPropertiesParams = buildPropertiesPlugin?.[1];
@@ -169,10 +169,10 @@ function filterSecretsAndParsePlugins(
   const secretList: string[] = [
     ...secretValues,
     ...secretValues.map(maybeStringBase64Decode).filter((i): i is string => !!i),
-  ].filter((i) => i.length > 1 && !simpleSecretsWhitelist.includes(i));
+  ].filter(i => i.length > 1 && !simpleSecretsWhitelist.includes(i));
 
   return plugins
-    ?.map((plugin) => {
+    ?.map(plugin => {
       if (typeof plugin === 'string') {
         return plugin;
       } else if (Array.isArray(plugin) && plugin.length > 0) {
