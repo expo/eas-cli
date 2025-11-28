@@ -1,6 +1,6 @@
 import { Server } from 'http';
 
-import { ExitHandler, koaUtils } from '@expo/turtle-common';
+import { koaUtils } from '@expo/turtle-common';
 import Koa from 'koa';
 import koaBody from 'koa-body';
 import Router from 'koa-router';
@@ -34,12 +34,9 @@ function createApp(): Koa {
 export function startServer(): Server {
   const app = createApp();
   const server = app.listen(config.metricsServerPort);
-  server.on('error', (err) => {
+  server.on('error', err => {
     logger.error({ err }, 'http.Server error');
   });
   logger.info(`Metrics HTTP server is listening on port ${config.metricsServerPort}`);
-  ExitHandler.registerHandler(() => {
-    server.close();
-  });
   return server;
 }
