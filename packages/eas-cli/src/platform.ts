@@ -48,7 +48,14 @@ export async function selectRequestedPlatformAsync(platform?: string): Promise<R
   return requestedPlatform;
 }
 
-export async function selectPlatformAsync(
+export async function selectPlatformWithExitOptionAsync(platform?: string): Promise<Platform> {
+  return await selectPlatformInternalAsync(platform, true);
+}
+export async function selectPlatformAsync(platform?: string): Promise<Platform> {
+  return await selectPlatformInternalAsync(platform, false);
+}
+
+async function selectPlatformInternalAsync(
   platform?: string,
   allowExit?: boolean
 ): Promise<Platform> {
@@ -69,11 +76,7 @@ export async function selectPlatformAsync(
     type: 'select',
     message: 'Select platform',
     name: 'resolvedPlatform',
-    choices: [
-      { title: 'Android', value: Platform.ANDROID },
-      { title: 'iOS', value: Platform.IOS },
-      { title: 'Exit', value: 'Exit' },
-    ],
+    choices: platformChoices,
   });
   if (result.resolvedPlatform === 'Exit') {
     Log.addNewLineIfNone();

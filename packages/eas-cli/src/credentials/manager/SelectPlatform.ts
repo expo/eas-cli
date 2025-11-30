@@ -3,7 +3,7 @@ import { ManageIos } from './ManageIos';
 import { Analytics } from '../../analytics/AnalyticsManager';
 import { DynamicConfigContextFn } from '../../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { selectPlatformAsync } from '../../platform';
+import { selectPlatformWithExitOptionAsync } from '../../platform';
 import { Actor } from '../../user/User';
 import { Client } from '../../vcs/vcs';
 import { CredentialsContextProjectInfo } from '../context';
@@ -20,7 +20,7 @@ export class SelectPlatform {
   ) {}
 
   async runAsync(): Promise<void> {
-    const platform = await selectPlatformAsync(this.flagPlatform, true /* allowExit */);
+    const platform = await selectPlatformWithExitOptionAsync(this.flagPlatform);
 
     if (platform === 'ios') {
       await new ManageIos(this, process.cwd()).runAsync();
