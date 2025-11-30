@@ -20,7 +20,7 @@ export class SelectPlatform {
   ) {}
 
   async runAsync(): Promise<void> {
-    const platform = await selectPlatformAsync(this.flagPlatform);
+    const platform = await selectPlatformAsync(this.flagPlatform, true /* allowExit */);
 
     if (platform === 'ios') {
       await new ManageIos(this, process.cwd()).runAsync();

@@ -1,6 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 
 import { AppPlatform } from './graphql/generated';
+import Log from './log';
 import { promptAsync } from './prompts';
 
 export const appPlatformDisplayNames: Record<AppPlatform, string> = {
@@ -47,21 +48,39 @@ export async function selectRequestedPlatformAsync(platform?: string): Promise<R
   return requestedPlatform;
 }
 
-export async function selectPlatformAsync(platform?: string): Promise<Platform> {
+export async function selectPlatformAsync(
+  platform?: string,
+  allowExit?: boolean
+): Promise<Platform> {
   if (platform && Object.values(Platform).includes(platform.toLowerCase() as Platform)) {
     return platform.toLowerCase() as Platform;
   }
 
-  const { resolvedPlatform } = await promptAsync({
+  const platformChoices: { title: string; value: Platform | 'Exit' }[] = [
+    { title: 'Android', value: Platform.ANDROID },
+    { title: 'iOS', value: Platform.IOS },
+  ];
+
+  if (allowExit) {
+    platformChoices.push({ title: 'Exit', value: 'Exit' });
+  }
+
+  const result: any = await promptAsync({
     type: 'select',
     message: 'Select platform',
     name: 'resolvedPlatform',
     choices: [
       { title: 'Android', value: Platform.ANDROID },
       { title: 'iOS', value: Platform.IOS },
+      { title: 'Exit', value: 'Exit' },
     ],
   });
-  return resolvedPlatform;
+  if (result.resolvedPlatform === 'Exit') {
+    Log.addNewLineIfNone();
+    Log.log('Exiting');
+    process.exit(0);
+  }
+  return result.resolvedPlatform;
 }
 
 export function toPlatforms(requestedPlatform: RequestedPlatform): Platform[] {
