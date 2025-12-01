@@ -28,8 +28,6 @@ jobs:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
       - uses: ./.github/internal-actions/setup-gcloud
-        with:
-          credentials_json: ${{ secrets.GCLOUD_KEYFILE_JSON }}
 
       - name: Check if worker already exists
         id: check_worker_exists
@@ -75,8 +73,6 @@ jobs:
         run: ./package.sh worker-${{ matrix.runner.platform }}.tar.gz ${{ matrix.runner.platform }}
 
       - uses: ./.github/internal-actions/setup-gcloud
-        with:
-          credentials_json: ${{ secrets.GCLOUD_KEYFILE_JSON }}
 
       - name: Upload worker tarballs to GCP
         if: github.ref == 'refs/heads/main' || inputs.environment != ''
@@ -97,8 +93,6 @@ jobs:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
       - uses: ./.github/internal-actions/setup-gcloud
-        with:
-          credentials_json: ${{ secrets.GCLOUD_KEYFILE_JSON }}
 
       - name: Promote worker to ${{ inputs.environment }}
         run: |

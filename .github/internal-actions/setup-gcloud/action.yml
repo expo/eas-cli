@@ -1,23 +1,16 @@
 name: setup-gcloud
 
-inputs:
-  credentials_json:
-    required: true
-    type: string
-  project_id:
-    required: true
-    type: string
-
 runs:
   using: "composite"
   steps:
     - name: Auth gcloud
-      uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+      uses: google-github-actions/auth@v2
       with:
-        credentials_json: ${{ inputs.credentials_json }}
+        workload_identity_provider: 'projects/321830142373/locations/global/workloadIdentityPools/github/providers/expo'
+        service_account: 'eas-cli-github-actions@exponentjs.iam.gserviceaccount.com'
 
     - name: Setup gcloud
       uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
       with:
         version: 4.13.0
-        project_id: ${{ inputs.project_id }}
+        project_id: exponentjs
