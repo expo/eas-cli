@@ -29,7 +29,7 @@ export default class UpdateList extends EasCommand {
       exclusive: ['branch'],
       default: false,
     }),
-    platform: Flags.enum({
+    platform: Flags.enum<RequestedPlatform>({
       options: Object.values(RequestedPlatform),
       char: 'p',
       description: 'Filter updates by platform',
