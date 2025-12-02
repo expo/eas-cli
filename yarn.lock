@@ -1546,22 +1546,22 @@
   resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-2.1.12.tgz#9c40a6294820e59d8b1a677318dccb1ccefc5b00"
   integrity sha512-ugpL2URxNFxIRw943AIpX3dcvL5rhNCumpL8XTosYqZPyQQ7JRLVNd1m8FNyPg3pmFrz8M4tSucY2pt2ATuKOA==
 
-"@expo/build-tools@1.0.251":
-  version "1.0.251"
-  resolved "https://registry.yarnpkg.com/@expo/build-tools/-/build-tools-1.0.251.tgz#a22c6d3e1bcee1444f48b145fd940b98af3893f6"
-  integrity sha512-gB1Oz8CaQCFnKowJ0M7cmTo4irzpDXWQ+YiDvz1IXA0socL1Ga8l3z1Lg15HjIFPD+lw6e3W5glcZFsQdSc8SA==
+"@expo/build-tools@1.0.252":
+  version "1.0.252"
+  resolved "https://registry.yarnpkg.com/@expo/build-tools/-/build-tools-1.0.252.tgz#589d438c17bac0e8d4da9e7cdc448cca1a3315ee"
+  integrity sha512-jkW0s7zJs5Y4ySivRDyUx/CEADxU4JYt/IifV94TrkFIc3IchNuPLjYFNo/D/NwRYUy26h7xVVBqHWrnE8wF/Q==
   dependencies:
     "@expo/config" "10.0.6"
     "@expo/config-plugins" "9.0.12"
     "@expo/downloader" "1.0.221"
-    "@expo/eas-build-job" "1.0.245"
+    "@expo/eas-build-job" "1.0.252"
     "@expo/env" "^0.4.0"
     "@expo/logger" "1.0.221"
     "@expo/package-manager" "1.7.0"
     "@expo/plist" "^0.2.0"
     "@expo/results" "^1.0.0"
-    "@expo/steps" "1.0.246"
-    "@expo/template-file" "1.0.221"
+    "@expo/steps" "1.0.252"
+    "@expo/template-file" "1.0.252"
     "@expo/turtle-spawn" "1.0.221"
     "@expo/xcpretty" "^4.3.1"
     "@google-cloud/storage" "^7.11.2"
@@ -1787,10 +1787,10 @@
     semver "^7.6.2"
     zod "^4.1.3"
 
-"@expo/eas-build-job@1.0.245":
-  version "1.0.245"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.245.tgz#df713eda65eeace292ae443a013bc8d8e442e9f6"
-  integrity sha512-fRvi86uvZM+yw/qfBxCFISak1ai+Fz2sNYuZKRP37jZgNWJwikWTqjKxIIQbdc4GLkniNQHYcdbe36/3rZaeYw==
+"@expo/eas-build-job@1.0.252":
+  version "1.0.252"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.252.tgz#0b6aff23bc20648382acee6f3f658a14eb26307c"
+  integrity sha512-v6O5Sxm1kJmGq9RdZnHhrinjHAxEKd/fx0D8pdGPS/edJFdVX32w6TEOApv/Yjp8KiQyWWuvGkPyaGJlmlEbXw==
   dependencies:
     "@expo/logger" "1.0.221"
     joi "^17.13.1"
@@ -2048,12 +2048,12 @@
     uuid "^9.0.1"
     yaml "^2.4.3"
 
-"@expo/steps@1.0.246":
-  version "1.0.246"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.246.tgz#11dcf808d586da1f45835752c3594ad079bc8d76"
-  integrity sha512-86ZZqalS5VFAtMkRCcKx4XHgyVKcRmanQLHhwHCdBXW4KRc7PONGwn/1G0Eju3bejoEjCIwe9sjHvL3xqjK1cA==
+"@expo/steps@1.0.252":
+  version "1.0.252"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.252.tgz#979dfb75c679426c05f013967782a467d5fb7ac6"
+  integrity sha512-7htW+ljVWo+OgQHR6n3ghUHfJgpOtnzgEf1LlqIoVdVpWpppEEAszfevTYIWIPbJ2azayP9ZVOh2MwLFdDfAnQ==
   dependencies:
-    "@expo/eas-build-job" "1.0.245"
+    "@expo/eas-build-job" "1.0.252"
     "@expo/logger" "1.0.221"
     "@expo/spawn-async" "^1.7.2"
     arg "^5.0.2"
@@ -2066,12 +2066,11 @@
     uuid "^9.0.1"
     yaml "^2.4.3"
 
-"@expo/template-file@1.0.221":
-  version "1.0.221"
-  resolved "https://registry.yarnpkg.com/@expo/template-file/-/template-file-1.0.221.tgz#580631969cbee2de59b8a931af860c4c40fbc40e"
-  integrity sha512-9lUhVkzJ3PYqAkFROSfeAA66Q8kfykgFpkv8xjIeXjvxLKYEnGeXQgeIBqDahUZD9nqo0xsIaOM91BMZErratw==
+"@expo/template-file@1.0.252":
+  version "1.0.252"
+  resolved "https://registry.yarnpkg.com/@expo/template-file/-/template-file-1.0.252.tgz#abd2c42a87f01d052777ec35d573ce27ff4b1a3b"
+  integrity sha512-Uc72CYsa6N8uUSHWTnej8M58F50M6znkpZHd4FjhwiNimOdf+vWv7w7dMY7evooXCyx6nO+x4oZ+nGE1M4n9KA==
   dependencies:
-    fs-extra "^11.2.0"
     lodash "^4.17.21"
 
 "@expo/timeago.js@1.0.0":
