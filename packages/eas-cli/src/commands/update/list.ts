@@ -8,6 +8,8 @@ import {
   getLimitFlagWithCustomValues,
   getPaginatedQueryOptions,
 } from '../../commandUtils/pagination';
+import { AppPlatform } from '../../graphql/generated';
+import { RequestedPlatform } from '../../platform';
 import {
   listAndRenderUpdateGroupsOnAppAsync,
   listAndRenderUpdateGroupsOnBranchAsync,
@@ -27,6 +29,14 @@ export default class UpdateList extends EasCommand {
       exclusive: ['branch'],
       default: false,
     }),
+    platform: Flags.enum<RequestedPlatform>({
+      options: Object.values(RequestedPlatform),
+      char: 'p',
+      description: 'Filter updates by platform',
+    }),
+    'runtime-version': Flags.string({
+      description: 'Filter updates by runtime version',
+    }),
     ...EasPaginatedQueryFlags,
     limit: getLimitFlagWithCustomValues({ defaultTo: 25, limit: 50 }),
     ...EasNonInteractiveAndJsonFlags,
@@ -39,7 +49,13 @@ export default class UpdateList extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(UpdateList);
-    const { branch: branchFlag, all, json: jsonFlag, 'non-interactive': nonInteractive } = flags;
+    const {
+      branch: branchFlag,
+      all,
+      json: jsonFlag,
+      'non-interactive': nonInteractive,
+      platform: requestedPlatform,
+    } = flags;
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -52,9 +68,16 @@ export default class UpdateList extends EasCommand {
       enableJsonOutput();
     }
 
+    // Build filter object
+    const filter = {
+      platform: toAppPlatform(requestedPlatform),
+      runtimeVersions: flags['runtime-version'] ? [flags['runtime-version']] : undefined,
+    };
+
     if (all) {
       await listAndRenderUpdateGroupsOnAppAsync(graphqlClient, {
         projectId,
+        filter,
         paginatedQueryOptions,
       });
     } else {
@@ -62,6 +85,7 @@ export default class UpdateList extends EasCommand {
         await listAndRenderUpdateGroupsOnBranchAsync(graphqlClient, {
           projectId,
           branchName: branchFlag,
+          filter,
           paginatedQueryOptions,
         });
       } else {
@@ -87,9 +111,20 @@ export default class UpdateList extends EasCommand {
         await listAndRenderUpdateGroupsOnBranchAsync(graphqlClient, {
           projectId,
           branchName: selectedBranch.name,
+          filter,
           paginatedQueryOptions,
         });
       }
     }
   }
 }
+
+const toAppPlatform = (requestedPlatform?: RequestedPlatform): AppPlatform | undefined => {
+  if (!requestedPlatform || requestedPlatform === RequestedPlatform.All) {
+    return undefined;
+  } else if (requestedPlatform === RequestedPlatform.Android) {
+    return AppPlatform.Android;
+  } else {
+    return AppPlatform.Ios;
+  }
+};

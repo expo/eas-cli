@@ -36,9 +36,11 @@ export async function listAndRenderUpdateGroupsOnAppAsync(
   graphqlClient: ExpoGraphqlClient,
   {
     projectId,
+    filter,
     paginatedQueryOptions,
   }: {
     projectId: string;
+    filter?: ViewUpdateGroupsOnAppQueryVariables['filter'];
     paginatedQueryOptions: PaginatedQueryOptions;
   }
 ): Promise<void> {
@@ -47,6 +49,7 @@ export async function listAndRenderUpdateGroupsOnAppAsync(
       limit: paginatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
       offset: paginatedQueryOptions.offset,
       appId: projectId,
+      filter,
     });
     renderUpdateGroupsOnApp({ updateGroups, paginatedQueryOptions });
   } else {
@@ -54,7 +57,7 @@ export async function listAndRenderUpdateGroupsOnAppAsync(
       limit: paginatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
       offset: paginatedQueryOptions.offset,
       queryToPerform: (limit, offset) =>
-        queryUpdateGroupsOnAppAsync(graphqlClient, { limit, offset, appId: projectId }),
+        queryUpdateGroupsOnAppAsync(graphqlClient, { limit, offset, appId: projectId, filter }),
       promptOptions: {
         title: 'Load more update groups?',
         renderListItems: updateGroups => {
@@ -70,10 +73,12 @@ export async function listAndRenderUpdateGroupsOnBranchAsync(
   {
     projectId,
     branchName,
+    filter,
     paginatedQueryOptions,
   }: {
     projectId: string;
     branchName: string;
+    filter?: ViewUpdateGroupsOnBranchQueryVariables['filter'];
     paginatedQueryOptions: PaginatedQueryOptions;
   }
 ): Promise<void> {
@@ -83,6 +88,7 @@ export async function listAndRenderUpdateGroupsOnBranchAsync(
       offset: paginatedQueryOptions.offset,
       appId: projectId,
       branchName,
+      filter,
     });
     renderUpdateGroupsOnBranch({ updateGroups, branchName, paginatedQueryOptions });
   } else {
@@ -95,6 +101,7 @@ export async function listAndRenderUpdateGroupsOnBranchAsync(
           offset,
           appId: projectId,
           branchName,
+          filter,
         }),
       promptOptions: {
         title: 'Load more update groups?',
