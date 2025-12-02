@@ -35,7 +35,6 @@ export default class UpdateList extends EasCommand {
       description: 'Filter updates by platform',
     }),
     'runtime-version': Flags.string({
-      aliases: ['runtimeVersion'],
       description: 'Filter updates by runtime version',
     }),
     ...EasPaginatedQueryFlags,
