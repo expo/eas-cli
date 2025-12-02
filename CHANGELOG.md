@@ -7,10 +7,14 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🛠 Breaking changes
 
 ### 🎉 New features
+
 - Add `--runtime-version` and `--platform` filters to `eas update:list`. ([#3261](https://github.com/expo/eas-cli/pull/3261) by [@HarelSultan](https://github.com/HarelSultan))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+- Test with node 24. ([#3270](https://github.com/expo/eas-cli/pull/3270) by [@wschurman](https://github.com/wschurman))
 
 ## [16.28.0](https://github.com/expo/eas-cli/releases/tag/v16.28.0) - 2025-11-20
 
