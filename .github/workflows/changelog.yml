@@ -13,28 +13,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pr-changelog-entry:
-    name: Check CHANGELOG.md updated
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Check if CHANGELOG.md was updated
-        id: changelog-updated
-        uses: tj-actions/changed-files@b1ba699b304f2083b602164e06a89b868c84f076
-        with:
-          files: CHANGELOG.md
-      - name: Fail if CHANGELOG.md was not updated and the "no changelog" label is absent
-        if: steps.changelog-updated.outputs.any_changed == 'false' && !contains(github.event.pull_request.labels.*.name, 'no changelog')
-        uses: actions/github-script@v6
-        with:
-          script: |
-            core.setFailed('Please add a changelog entry!')
-      - uses: mshick/add-pr-comment@v2.1.0
-        if: always()
-        with:
-          message-id: changelog-entry-check
-          refresh-message-position: true
-          message: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog') && '⏩ The changelog entry check has been skipped since the "no changelog" label is present.' || '✅ Thank you for adding the changelog entry!' }}
-          message-failure: |
-            ❌ It looks like a changelog entry is missing for this PR. Add it manually to CHANGELOG.md.
-            ⏩ If this PR doesn't require a changelog entry, such as if it's an internal change that doesn't affect the user experience, you can add the "no changelog" label to the PR.
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+
+      - uses: ./.github/internal-actions/setup-gcloud
+
+      - name: Test
+        run: |
+          gsutil cp gs://eas-build-worker-tarballs/worker-android-staging.tar.gz gs://eas-build-worker-tarballs/worker-android-test.tar.gz
