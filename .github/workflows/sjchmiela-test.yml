@@ -1,0 +1,14 @@
+on:
+  push: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+
+      - uses: ./.github/internal-actions/setup-gcloud
+
+      - name: Test
+        run: |
+          gsutil cp gs://eas-build-worker-tarballs/worker-android-staging.tar.gz gs://eas-build-worker-tarballs/worker-android-test.tar.gz
