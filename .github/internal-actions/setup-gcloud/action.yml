@@ -12,5 +12,5 @@ runs:
     - name: Setup gcloud
       uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
       with:
-        version: 4.13.0
+        version: 413.0.0
         project_id: exponentjs
