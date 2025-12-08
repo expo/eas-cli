@@ -7,6 +7,7 @@ runs:
       uses: google-github-actions/auth@v2
       with:
         workload_identity_provider: 'projects/321830142373/locations/global/workloadIdentityPools/github/providers/expo'
+        project_id: exponentjs
 
     - name: Setup gcloud
       uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
