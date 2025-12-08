@@ -24,6 +24,8 @@ jobs:
     if: inputs.environment != ''
     outputs:
       needs-to-build: ${{ steps.check_worker_exists.outputs.worker_exists == 'false' }}
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
@@ -48,6 +50,8 @@ jobs:
     needs:
       - setup
     if: (!failure() && !cancelled() && inputs.environment == '') || needs.setup.outputs.needs-to-build == 'true'
+    permissions:
+      id-token: write
     strategy:
       matrix:
         runner:
@@ -89,6 +93,8 @@ jobs:
       - setup
       - build
     if: (!failure() && !cancelled() && inputs.environment != '')
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
