@@ -1,0 +1,48 @@
+name: direnv
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download direnv
+      shell: bash
+      run: |
+        # inside of a container you are probably already root
+        # and sudo is not available
+        if [ "$EUID" -ne 0 ]; then
+          SUDO=sudo
+        fi
+
+        os="$(uname | tr '[:upper:]' '[:lower:]')"
+        arch="$(uname -m)"
+        if [ "$arch" = 'x86_64' ]; then
+          arch='amd64'
+        fi
+
+        curl -L -o /tmp/direnv "https://github.com/direnv/direnv/releases/download/v2.32.1/direnv.$os-$arch"
+        chmod +x /tmp/direnv
+        $SUDO mv /tmp/direnv /usr/local/bin/direnv
+
+    - name: Allow dirs
+      shell: bash
+      run: |
+        config_file="$HOME/.config/direnv/direnv.toml"
+        mkdir -p $(dirname "$config_file")
+        cat <<- EOF > "$config_file"
+        [global]
+        strict_env = true
+        [whitelist]
+        prefix = [ "$GITHUB_WORKSPACE" ]
+        EOF
+
+    - name: Load env
+      shell: bash
+      run: |
+        direnv_path_value="$(direnv exec . sh -c 'echo $PATH')"
+        IFS=: # loop over PATH entries, which are separated by ":"
+        for direnv_path_entry in $(echo "$direnv_path_value"); do
+          if ! echo "$PATH" | grep "$direnv_path_entry" &> /dev/null; then
+            echo "GITHUB_PATH does not include $direnv_path_entry, adding now"
+            echo "$direnv_path_entry" >> "$GITHUB_PATH"
+          fi
+        done
+        direnv export gha >> "$GITHUB_ENV"

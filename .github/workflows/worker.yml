@@ -27,13 +27,15 @@ jobs:
 
       - uses: ./.github/internal-actions/setup-gcloud
 
+      - uses: ./.github/internal-actions/direnv
+
       - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
 
       - run: yarn install --frozen-lockfile --check-files
 
       - name: Run integration tests
         working-directory: packages/worker
-        run: ./resources/ci-linux-integration-test.sh
+        run: direnv exec .direnv/test ./resources/ci-linux-integration-test.sh
 
   worker-ios-checks:
     runs-on: macos-latest
@@ -44,13 +46,15 @@ jobs:
 
       - uses: ./.github/internal-actions/setup-gcloud
 
+      - uses: ./.github/internal-actions/direnv
+
       - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
 
       - run: yarn install --frozen-lockfile --check-files
 
       - name: Run integration tests
         working-directory: packages/worker
-        run: ./resources/ci-macos-integration-test.sh
+        run: direnv exec .direnv/test ./resources/ci-macos-integration-test.sh
 
   worker-build:
     uses: ./.github/workflows/build-and-deploy-worker.yml
