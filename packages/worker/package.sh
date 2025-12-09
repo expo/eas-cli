@@ -66,6 +66,14 @@ if [[ "$PLATFORM" == "ios" ]]; then
   popd >/dev/null 2>&1
 fi
 rm -rf $target_root_dir/.volta/
+
+# Create backward-compatible symlink for orchestrator
+# The orchestrator expects ./src/services/worker/dist/main.js
+# but the new structure has ./packages/worker/dist/main.js
+# We're only symlinking the specific file to discover any other legacy path usage
+mkdir -p "$target_root_dir/src/services/worker/dist"
+ln -s ../../../../packages/worker/dist/main.js "$target_root_dir/src/services/worker/dist/main.js"
+
 tar zcf $OUTPUT_FILE -C $target_root_dir .
 
 echo "Tarball is ready: $OUTPUT_FILE"
