@@ -67,7 +67,7 @@ export async function logProjectDependenciesAsync(
       packageManager: ctx.packageManager,
       packageManagerVersion: await getPackageManagerVersion(ctx.packageManager),
       jsEngine: resolveJsEngine(ctx, dependencies),
-      newArchEnabled: await resolveNewArchEnabled(ctx),
+      newArchEnabled: await resolveNewArchEnabled(ctx, dependencies['react-native']),
       source: 'Turtle Worker',
       plugins,
       babelPlugins,
@@ -111,8 +111,19 @@ function resolveJsEngine(
   }
 }
 
-async function resolveNewArchEnabled(ctx: BuildContext<BuildJob>): Promise<boolean | undefined> {
+async function resolveNewArchEnabled(
+  ctx: BuildContext<BuildJob>,
+  reactNativeVersion: string | undefined
+): Promise<boolean | undefined> {
   const { job, appConfig } = ctx;
+
+  // Support for disabling the new architecture was removed in react-native 0.83
+  if (
+    reactNativeVersion &&
+    semver.satisfies(reactNativeVersion, '>=0.83', { includePrerelease: true })
+  ) {
+    return true;
+  }
 
   if (
     appConfig?.[job.platform]?.newArchEnabled !== undefined ||
