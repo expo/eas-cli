@@ -56,7 +56,7 @@ export function getBuildEnv({
       setEnv(env, 'CCACHE_CPP2', '1');
 
       // Locate ccache binary path if installed, otherwise command will provide a null value
-      const ccachePath = spawnSync('command', ['-v', 'ccache'], { env });
+      const ccachePath = spawnSync('command -v ccache', { env, shell: true });
       const binPath = ccachePath.stdout?.toString().trim();
       if (binPath) {
         setEnv(env, 'CCACHE_BINARY', binPath);
