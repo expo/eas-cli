@@ -1,7 +1,11 @@
-import { Hook } from '@expo/build-tools';
+import {
+  BuildContext,
+  Hook,
+  findAndUploadXcodeBuildLogsAsync,
+  runHookIfPresent,
+} from '@expo/build-tools';
 import { Job } from '@expo/eas-build-job';
-import spawn from '@expo/turtle-spawn';
-import fs from 'fs-extra';
+import fs from 'fs';
 import { hostname } from 'os';
 import path from 'path';
 import WebSocket from 'ws';
@@ -13,12 +17,7 @@ import logger from '../logger';
 import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
 import startWsServer from '../ws';
 
-const buildId = 'e9b99e52-fb74-4927-be63-33d7447ddfd4';
-jest.mock('fs');
-jest.mock('@expo/turtle-spawn', () => ({
-  __esModule: true,
-  default: jest.fn(),
-}));
+const buildId = config.buildId;
 
 jest.setTimeout(10 * 1000);
 let buildTimeout: NodeJS.Timeout;
@@ -41,6 +40,7 @@ jest.mock('@expo/build-tools', () => {
     findAndUploadXcodeBuildLogsAsync: jest.fn(() => {
       logger.info('Uploading XCode logs');
     }),
+    runHookIfPresent: jest.fn(),
   };
 });
 jest.mock('../service', () => {
@@ -50,11 +50,16 @@ jest.mock('../service', () => {
     return BuildService;
   };
 });
+
 jest.mock('../config', () => {
-  const config = jest.requireActual('../config').default;
+  const config = jest.requireActual('../config');
   return {
+    __esModule: true,
     ...config,
-    buildId: 'e9b99e52-fb74-4927-be63-33d7447ddfd4',
+    default: {
+      ...config.default,
+      buildId: 'e9b99e52-fb74-4927-be63-33d7447ddfd4',
+    },
   };
 });
 
@@ -75,7 +80,6 @@ describe('launcher aborts build', () => {
     server = startWsServer(port);
     logger.debug(`Listening on port ${port}`);
     jest.clearAllMocks();
-    (spawn as jest.Mock).mockReset();
   });
 
   afterEach(async () => {
@@ -93,10 +97,8 @@ describe('launcher aborts build', () => {
       const job = createTestAndroidJob();
 
       it('does not upload XCode logs and notifies launcher after cleanup', async () => {
-        const findAndUploadXcodeBuildLogsAsyncMock =
-          require('@expo/build-tools').findAndUploadXcodeBuildLogsAsync;
-        await runTest(job, true);
-        expect(findAndUploadXcodeBuildLogsAsyncMock).not.toHaveBeenCalled();
+        await runTest({ job, buildCanceled: true });
+        expect(findAndUploadXcodeBuildLogsAsync).not.toHaveBeenCalled();
       });
 
       it('executes on_cancel hook if present', async () => {
@@ -108,11 +110,10 @@ describe('launcher aborts build', () => {
             },
           })
         );
-        await runTest(job, true);
-        expect(spawn).toBeCalledWith(
-          expect.anything(),
-          ['run', 'eas-build-on-cancel'],
-          expect.anything()
+        await runTest({ job, buildCanceled: true });
+        expect(runHookIfPresent).toHaveBeenCalledWith(
+          expect.any(BuildContext),
+          Hook.ON_BUILD_CANCEL
         );
       });
 
@@ -125,21 +126,14 @@ describe('launcher aborts build', () => {
             },
           })
         );
-        const spawnMock = require('@expo/turtle-spawn').default;
-        spawnMock.mockImplementation(async () => {
-          throw Error('Hook failed');
+        jest.mocked(runHookIfPresent).mockImplementation(async () => {
+          throw new Error('Hook failed');
         });
-        await runTest(job, true);
-        expect(spawn).toBeCalledWith(
-          expect.anything(),
-          ['run', 'eas-build-on-cancel'],
-          expect.anything()
+        await runTest({ job, buildCanceled: true });
+        expect(runHookIfPresent).toHaveBeenCalledWith(
+          expect.any(BuildContext),
+          Hook.ON_BUILD_CANCEL
         );
-      });
-
-      it('does not execute on_cancel hook if not present', async () => {
-        await runTest(job, true);
-        expect(spawn).not.toHaveBeenCalled();
       });
     });
 
@@ -147,28 +141,8 @@ describe('launcher aborts build', () => {
       const job = createTestAndroidJob();
 
       it('does not upload XCode logs and notifies launcher after cleanup', async () => {
-        const findAndUploadXcodeBuildLogsAsyncMock =
-          require('@expo/build-tools').findAndUploadXcodeBuildLogsAsync;
-        await runTest(job, false);
-        expect(findAndUploadXcodeBuildLogsAsyncMock).not.toHaveBeenCalled();
-      });
-
-      it('does not execute on_cancel hook even if present', async () => {
-        fs.writeFileSync(
-          path.join(config.workingdir, 'build', 'package.json'),
-          JSON.stringify({
-            scripts: {
-              [Hook.ON_BUILD_CANCEL]: 'echo on_build_cancel',
-            },
-          })
-        );
-        await runTest(job, false);
-        expect(spawn).not.toHaveBeenCalled();
-      });
-
-      it('does not execute on_cancel hook if not present', async () => {
-        await runTest(job, false);
-        expect(spawn).not.toHaveBeenCalled();
+        await runTest({ job });
+        expect(findAndUploadXcodeBuildLogsAsync).not.toHaveBeenCalled();
       });
     });
   });
@@ -178,10 +152,8 @@ describe('launcher aborts build', () => {
       const job = createTestIosJob();
 
       it('uploads XCode logs and notifies launcher after cleanup', async () => {
-        const findAndUploadXcodeBuildLogsAsyncMock =
-          require('@expo/build-tools').findAndUploadXcodeBuildLogsAsync;
-        await runTest(job, true);
-        expect(findAndUploadXcodeBuildLogsAsyncMock).toHaveBeenCalled();
+        await runTest({ job, buildCanceled: true });
+        expect(findAndUploadXcodeBuildLogsAsync).toHaveBeenCalled();
       });
 
       it('executes on_cancel hook if present', async () => {
@@ -193,11 +165,10 @@ describe('launcher aborts build', () => {
             },
           })
         );
-        await runTest(job, true);
-        expect(spawn).toBeCalledWith(
-          expect.anything(),
-          ['run', 'eas-build-on-cancel'],
-          expect.anything()
+        await runTest({ job, buildCanceled: true });
+        expect(runHookIfPresent).toHaveBeenCalledWith(
+          expect.any(BuildContext),
+          Hook.ON_BUILD_CANCEL
         );
       });
 
@@ -210,21 +181,14 @@ describe('launcher aborts build', () => {
             },
           })
         );
-        const spawnMock = require('@expo/turtle-spawn').default;
-        spawnMock.mockImplementation(async () => {
+        jest.mocked(runHookIfPresent).mockImplementation(async () => {
           throw Error('Hook failed');
         });
-        await runTest(job, true);
-        expect(spawn).toBeCalledWith(
-          expect.anything(),
-          ['run', 'eas-build-on-cancel'],
-          expect.anything()
+        await runTest({ job, buildCanceled: true });
+        expect(runHookIfPresent).toHaveBeenCalledWith(
+          expect.any(BuildContext),
+          Hook.ON_BUILD_CANCEL
         );
-      });
-
-      it('does not execute on_cancel hook if not present', async () => {
-        await runTest(job, true);
-        expect(spawn).not.toHaveBeenCalled();
       });
     });
 
@@ -232,10 +196,8 @@ describe('launcher aborts build', () => {
       const job = createTestIosJob();
 
       it('uploads XCode logs and notifies launcher after cleanup', async () => {
-        const findAndUploadXcodeBuildLogsAsyncMock =
-          require('@expo/build-tools').findAndUploadXcodeBuildLogsAsync;
-        await runTest(job, false);
-        expect(findAndUploadXcodeBuildLogsAsyncMock).toHaveBeenCalled();
+        await runTest({ job });
+        expect(findAndUploadXcodeBuildLogsAsync).toHaveBeenCalled();
       });
 
       it('does not execute on_cancel hook even if present', async () => {
@@ -247,18 +209,19 @@ describe('launcher aborts build', () => {
             },
           })
         );
-        await runTest(job, false);
-        expect(spawn).not.toHaveBeenCalled();
-      });
-
-      it('does not execute on_cancel hook if not present', async () => {
-        await runTest(job, false);
-        expect(spawn).not.toHaveBeenCalled();
+        await runTest({ job });
+        expect(runHookIfPresent).not.toHaveBeenCalled();
       });
     });
   });
 
-  async function runTest(job: Job, buildCanceled: boolean): Promise<void> {
+  async function runTest({
+    job,
+    buildCanceled = false,
+  }: {
+    job: Job;
+    buildCanceled?: boolean;
+  }): Promise<void> {
     const dispatchWS = new WebSocket(`ws://localhost:${port}?expo_vm_name=${hostname()}`);
     const dispatchHelper = new WsHelper(dispatchWS);
     await dispatchHelper.onOpen();
