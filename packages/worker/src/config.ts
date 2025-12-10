@@ -1,17 +1,11 @@
 import { GCS, GCSLoggerStream } from '@expo/build-tools';
 import path from 'path';
 
+import { Environment } from './constants';
 import { ResourceClass, Worker } from './external/turtle';
 import env from './utils/env';
 
 type ReplaceUndefinedWithNull<T> = undefined extends T ? Exclude<T, undefined> | null : T;
-
-export enum Environment {
-  DEVELOPMENT = 'development',
-  STAGING = 'staging',
-  TEST = 'test',
-  PRODUCTION = 'production',
-}
 
 function createBase64EnvTransformer<TFieldName extends string>(
   field: TFieldName

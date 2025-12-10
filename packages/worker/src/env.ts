@@ -3,7 +3,8 @@ import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
 import path from 'path';
 
-import config, { Environment } from './config';
+import config from './config';
+import { Environment } from './constants';
 import {
   ResourceClass,
   ResourceClassToPlatform,

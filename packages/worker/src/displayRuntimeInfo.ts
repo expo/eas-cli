@@ -2,7 +2,8 @@ import { BuildContext } from '@expo/build-tools';
 import { EnvironmentSecretType, Job } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 
-import config, { Environment } from './config';
+import config from './config';
+import { Environment } from './constants';
 import { ResourceClass } from './external/turtle';
 
 const RESOURCE_CLASS_DESCRIPTION: Record<ResourceClass, string> = {

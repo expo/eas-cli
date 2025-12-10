@@ -2,7 +2,8 @@ import { hostname } from 'os';
 import url from 'url';
 import { WebSocketServer as WSServer, WebSocket } from 'ws';
 
-import config, { Environment } from './config';
+import config from './config';
+import { Environment } from './constants';
 import { LauncherMessage } from './external/turtle';
 import logger from './logger';
 import sentry from './sentry';
