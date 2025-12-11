@@ -20,7 +20,7 @@ Gem::Specification.new do |spec|
     spec.metadata['allowed_push_host'] = 'TODO: Set to \'http://mygemserver.com\''
 
     spec.metadata['homepage_uri'] = spec.homepage
-    spec.metadata['source_code_uri'] = 'https://github.com/expo/turtle-v2'
+    spec.metadata['source_code_uri'] = 'https://github.com/expo/eas-cli'
   else
     raise 'RubyGems 2.0 or newer is required to protect against ' \
           'public gem pushes.'
