@@ -1,0 +1,79 @@
+initscript {
+    repositories {
+        maven {
+            url '{{URL}}/artifactory/libs-release'
+            if (it.hasProperty("allowInsecureProtocol")) {
+                allowInsecureProtocol = true
+            }
+        }
+        maven {
+            url 'https://plugins.gradle.org/m2/'
+        }
+    }
+    dependencies {
+        classpath 'org.jfrog.buildinfo:build-info-extractor-gradle:5.2.5'
+    }
+}
+
+// Configure plugin repositories globally - this runs before settings are evaluated
+gradle.beforeSettings { settings ->
+    settings.pluginManagement {
+        repositories {
+            maven {
+                url '{{URL}}/artifactory/libs-release'
+                if (it.hasProperty("allowInsecureProtocol")) {
+                    allowInsecureProtocol = true
+                }
+            }
+        }
+    }
+    
+    // Also configure dependency resolution strategy for settings dependencies
+    settings.dependencyResolutionManagement {
+        repositories {
+            maven {
+                url '{{URL}}/artifactory/libs-release'
+                if (it.hasProperty("allowInsecureProtocol")) {
+                    allowInsecureProtocol = true
+                }
+            }
+        }
+    }
+}
+
+allprojects {
+    buildscript {
+        repositories {
+            maven {
+                url '{{URL}}/artifactory/libs-release'
+                if (it.hasProperty("allowInsecureProtocol")) {
+                    allowInsecureProtocol = true
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            url '{{URL}}/artifactory/libs-release'
+            if (it.hasProperty("allowInsecureProtocol")) {
+                allowInsecureProtocol = true
+            }
+        }
+    }
+}
+
+apply plugin: RemoveJcenterPlugin
+
+class RemoveJcenterPlugin implements Plugin<Gradle> {
+    void apply(Gradle gradle) {
+        gradle.allprojects { project ->
+            project.repositories {
+                all { ArtifactRepository repo ->
+                    if (repo.hasProperty('url') && repo.url.host == 'jcenter.bintray.com') {
+                        remove repo
+                    }
+                }
+            }
+        }
+    }
+}

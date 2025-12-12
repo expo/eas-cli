@@ -1,0 +1,110 @@
+name: build-and-deploy-worker
+# If environment is empty we want to build (for testing)
+# and upload (if on `main`, for later deployment).
+# If environment is not empty, we want to build and upload (unless
+# already uploaded) and deploy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '"staging", "production" or empty'
+        type: string
+        required: true
+  workflow_call:
+    inputs:
+      environment:
+        description: '"staging", "production" or empty'
+        type: string
+        required: true
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    if: inputs.environment != ''
+    outputs:
+      needs-to-build: ${{ steps.check_worker_exists.outputs.worker_exists == 'false' }}
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+
+      - uses: ./.github/internal-actions/setup-gcloud
+
+      - name: Check if worker already exists
+        id: check_worker_exists
+        run: |
+          for platform in android ios; do
+            GCP_TARBALL="worker-$platform-sha1-$GITHUB_SHA.tar.gz"
+
+            if ! gsutil stat gs://eas-build-worker-tarballs/$GCP_TARBALL; then
+              echo "worker_exists=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+
+          echo "worker_exists=true" >> "$GITHUB_OUTPUT"
+
+  build:
+    runs-on: ${{ matrix.runner.name }}
+    needs:
+      - setup
+    if: (!failure() && !cancelled() && inputs.environment == '') || needs.setup.outputs.needs-to-build == 'true'
+    permissions:
+      id-token: write
+    strategy:
+      matrix:
+        runner:
+          - name: ubuntu-latest
+            platform: android
+          - name: macos-latest
+            platform: ios
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+
+      - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "2.7"
+
+      - name: Install coreutils (macOS only)
+        if: runner.os == 'macOS'
+        run: brew install coreutils
+
+      - name: Build worker tarball
+        working-directory: packages/worker
+        run: ./package.sh worker-${{ matrix.runner.platform }}.tar.gz ${{ matrix.runner.platform }}
+
+      - uses: ./.github/internal-actions/setup-gcloud
+
+      - name: Upload worker tarballs to GCP
+        if: github.ref == 'refs/heads/main' || inputs.environment != ''
+        working-directory: packages/worker
+        run: |
+          ARTIFACT_TARBALL="worker-${{ matrix.runner.platform }}.tar.gz"
+          GCP_TARBALL="worker-${{ matrix.runner.platform }}-sha1-$GITHUB_SHA.tar.gz"
+
+          gsutil cp $ARTIFACT_TARBALL gs://eas-build-worker-tarballs/$GCP_TARBALL
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs:
+      - setup
+      - build
+    if: (!failure() && !cancelled() && inputs.environment != '')
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+
+      - uses: ./.github/internal-actions/setup-gcloud
+
+      - name: Promote worker to ${{ inputs.environment }}
+        run: |
+          for platform in android ios; do
+            GCP_TARBALL="worker-$platform-sha1-$GITHUB_SHA.tar.gz"
+            WORKER_STAGING_TARBALL="worker-$platform-${{ inputs.environment }}.tar.gz"
+
+            gsutil cp gs://eas-build-worker-tarballs/$GCP_TARBALL gs://eas-build-worker-tarballs/$WORKER_STAGING_TARBALL
+          done
