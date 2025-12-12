@@ -10,7 +10,7 @@ import {
 import { randomUUID } from 'crypto';
 
 const androidCredentials: Android.Keystore = {
-  dataBase64: 'MjEzNwo=',
+  dataBase64: 'Zm9v',
   keystorePassword: 'pass1',
   keyAlias: 'alias',
   keyPassword: 'pass2',
@@ -48,10 +48,10 @@ export function createTestAndroidJob({
 
 const iosCredentials: Ios.BuildCredentials = {
   testapp: {
-    provisioningProfileBase64: 'MjEzNwo=',
+    provisioningProfileBase64: 'Zm9v',
     distributionCertificate: {
-      dataBase64: 'MjEzNwo=',
-      password: 'dominiksokal',
+      dataBase64: 'Zm9v',
+      password: 'pass',
     },
   },
 };
