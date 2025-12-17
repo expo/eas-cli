@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- eas init should fix and validate project name and slug. ([#3277](https://github.com/expo/eas-cli/pull/3277) by [@douglowder](https://github.com/douglowder))
+
 ### 🧹 Chores
 
 - Test with node 24. ([#3270](https://github.com/expo/eas-cli/pull/3270) by [@wschurman](https://github.com/wschurman))

@@ -8,6 +8,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../../commandUtils/context/contextUtils/getProjectIdAsync';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
+import { validSlugName, validateFullNameAndSlug } from '../../commandUtils/projectNameValidation';
 import { Role } from '../../graphql/generated';
 import { AppMutation } from '../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -276,8 +277,9 @@ export default class ProjectInit extends EasCommand {
       throw new Error('No account selected for project. Canceling.');
     }
 
-    const projectName = exp.slug;
+    const projectName = validSlugName(exp.slug); // This filters out invalid characters
     const projectFullName = `@${accountName}/${projectName}`;
+    validateFullNameAndSlug(projectFullName, projectName);
     const existingProjectIdOnServer = await findProjectIdByAccountNameAndSlugNullableAsync(
       graphqlClient,
       accountName,
