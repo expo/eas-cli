@@ -3,6 +3,8 @@ import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../commandUtils/EasCommand';
+import { Platform } from '@expo/eas-build-job';
+import { submitLocalIosAsync } from '../submit/local/ios/IosLocalSubmitter';
 import { StatuspageServiceName, SubmissionFragment } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
@@ -96,6 +98,10 @@ export default class Submit extends EasCommand {
       default: false,
       description: 'Enable verbose logging for the submission process',
     }),
+    local: Flags.boolean({
+      description: 'Perform submission locally (upload from this machine)',
+      default: false,
+    }),
     groups: Flags.string({
       description:
         'Internal TestFlight testing groups to add the build to (iOS only). Learn more: https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers',
@@ -174,8 +180,12 @@ export default class Submit extends EasCommand {
         );
       }
 
-      const submission = await submitAsync(ctx);
-      submissions.push(submission);
+      if (flagsWithPlatform.local && ctx.platform === Platform.IOS) {
+        await submitLocalIosAsync(ctx as any);
+      } else {
+        const submission = await submitAsync(ctx);
+        submissions.push(submission);
+      }
     }
 
     Log.newLine();
@@ -210,7 +220,7 @@ export default class Submit extends EasCommand {
 
     const requestedPlatform =
       flags.platform &&
-      Object.values(RequestedPlatform).includes(flags.platform.toLowerCase() as RequestedPlatform)
+        Object.values(RequestedPlatform).includes(flags.platform.toLowerCase() as RequestedPlatform)
         ? (flags.platform.toLowerCase() as RequestedPlatform)
         : undefined;
 
@@ -221,6 +231,7 @@ export default class Submit extends EasCommand {
       wait,
       profile,
       nonInteractive,
+      local: flags.local,
       whatToTest,
       isVerboseFastlaneEnabled,
       groups,
