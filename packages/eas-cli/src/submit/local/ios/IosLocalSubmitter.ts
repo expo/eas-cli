@@ -4,15 +4,14 @@ import os from 'os';
 import path from 'path';
 import { spawnSync, spawn } from 'child_process';
 
-import Log from '../../../../log';
+import Log from '../../../log';
 import { SubmissionContext } from '../../context';
 import {
     AscApiKeySource,
     AscApiKeySourceType,
     getAscApiKeyResultAsync,
-    getAscApiKeyLocallyAsync,
-} from '../ios/AscApiKeySource';
-import { AppStoreConnectApiKeyQuery } from '../../../../graphql/queries/AppStoreConnectApiKeyQuery';
+} from '../../ios/AscApiKeySource';
+import { AppStoreConnectApiKeyQuery } from '../../../graphql/queries/AppStoreConnectApiKeyQuery';
 
 export async function submitLocalIosAsync(ctx: SubmissionContext<Platform.IOS>): Promise<void> {
     // local submit currently only supports a local path to an .ipa

@@ -38,6 +38,7 @@ interface RawCommandFlags {
   'non-interactive': boolean;
   'verbose-fastlane': boolean;
   groups?: string[];
+  local?: boolean;
 }
 
 interface CommandFlags {
@@ -48,6 +49,7 @@ interface CommandFlags {
   verbose: boolean;
   wait: boolean;
   nonInteractive: boolean;
+  local?: boolean;
   isVerboseFastlaneEnabled: boolean;
   groups?: string[];
 }
