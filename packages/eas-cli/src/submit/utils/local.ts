@@ -4,16 +4,19 @@ import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
 
-import { AppStoreConnectApiKeyQuery } from '../../../graphql/queries/AppStoreConnectApiKeyQuery';
-import Log from '../../../log';
-import { SubmissionContext } from '../../context';
+import { AppStoreConnectApiKeyQuery } from '../../graphql/queries/AppStoreConnectApiKeyQuery';
+import Log from '../../log';
+import { SubmissionContext } from '../context';
 import {
   AscApiKeySource,
   AscApiKeySourceType,
   getAscApiKeyResultAsync,
-} from '../../ios/AscApiKeySource';
+} from '../ios/AscApiKeySource';
 
-export async function submitLocalIosAsync(ctx: SubmissionContext<Platform.IOS>): Promise<void> {
+export async function submitLocalIosAsync(
+  ctx: SubmissionContext<Platform.IOS>,
+  flagsWithPlatform: any
+): Promise<void> {
   // local submit currently only supports a local path to an .ipa
   const { path: ipaPath } = ctx.archiveFlags as { path?: string };
   if (!ipaPath) {
@@ -88,8 +91,20 @@ export async function submitLocalIosAsync(ctx: SubmissionContext<Platform.IOS>):
   }
 
   const args: string[] = ['pilot', 'upload', '-i', ipaPath, '--api_key_path', tmpPath];
+
+  // Add changelog / release notes
   if (ctx.whatToTest) {
     args.push('--changelog', ctx.whatToTest);
+  }
+
+  // Add testing groups
+  if (ctx.groups && ctx.groups.length > 0) {
+    // fastlane expects a comma-separated list
+    args.push('--groups', ctx.groups.join(','));
+    if (flagsWithPlatform.external) {
+      // fastlane pilot flag to distribute to external testers
+      args.push('--distribute_external');
+    }
   }
 
   Log.log(`Running: fastlane ${args.join(' ')}`);

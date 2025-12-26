@@ -1,5 +1,5 @@
 import { AggregateAjvError, HumanError } from '@segment/ajv-human-errors';
-import Ajv from 'ajv';
+import Ajv, { ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 
 const jsonSchema = require('ajv/lib/refs/json-schema-draft-06.json');
@@ -20,14 +20,10 @@ export function createValidator(): Ajv {
   return addFormats(validator).addMetaSchema(jsonSchema);
 }
 
-export function getReadableErrors(errors: any[] = []): HumanError[] {
+export function getReadableErrors(errors: ErrorObject[] = []): HumanError[] {
   if (errors.length === 0) {
     return [];
   }
 
-  // `ajv` exports a generic ErrorObject type that may not match the shape
-  // expected by `@segment/ajv-human-errors`. Use `any[]` here to accept
-  // both old and new ajv error shapes and let the human-errors library
-  // perform the transformation.
-  return new AggregateAjvError(errors as any).toJSON();
+  return new AggregateAjvError(errors).toJSON();
 }

@@ -14,8 +14,8 @@ import {
   selectRequestedPlatformAsync,
   toPlatforms,
 } from '../platform';
-import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
-import { submitLocalIosAsync } from '../submit/local/ios/IosLocalSubmitter';
+import { SubmissionContext, SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
+import { submitLocalIosAsync } from '../submit/utils/local';
 import {
   exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
   submitAsync,
@@ -39,6 +39,7 @@ interface RawCommandFlags {
   'verbose-fastlane': boolean;
   groups?: string[];
   local?: boolean;
+  external?: boolean;
 }
 
 interface CommandFlags {
@@ -49,9 +50,10 @@ interface CommandFlags {
   verbose: boolean;
   wait: boolean;
   nonInteractive: boolean;
-  local?: boolean;
   isVerboseFastlaneEnabled: boolean;
   groups?: string[];
+  local?: boolean;
+  external?: boolean;
 }
 
 export default class Submit extends EasCommand {
@@ -100,15 +102,20 @@ export default class Submit extends EasCommand {
       default: false,
       description: 'Enable verbose logging for the submission process',
     }),
-    local: Flags.boolean({
-      description: 'Perform submission locally (upload from this machine)',
-      default: false,
-    }),
     groups: Flags.string({
       description:
         'Internal TestFlight testing groups to add the build to (iOS only). Learn more: https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers',
       multiple: true,
       char: 'g',
+    }),
+    local: Flags.boolean({
+      description: 'Perform submission locally (upload from this machine)',
+      default: false,
+    }),
+    external: Flags.boolean({
+      description:
+        'Distributed to external testers.(iOS & local only) If set to true, use of groups option is required',
+      default: false,
     }),
     'non-interactive': Flags.boolean({
       default: false,
@@ -183,7 +190,7 @@ export default class Submit extends EasCommand {
       }
 
       if (flagsWithPlatform.local && ctx.platform === Platform.IOS) {
-        await submitLocalIosAsync(ctx as any);
+        await submitLocalIosAsync(ctx as SubmissionContext<Platform.IOS>, flagsWithPlatform);
       } else {
         const submission = await submitAsync(ctx);
         submissions.push(submission);
@@ -212,6 +219,8 @@ export default class Submit extends EasCommand {
       'non-interactive': nonInteractive,
       'verbose-fastlane': isVerboseFastlaneEnabled,
       groups,
+      local,
+      external,
       'what-to-test': whatToTest,
       ...archiveFlags
     } = flags;
@@ -233,10 +242,11 @@ export default class Submit extends EasCommand {
       wait,
       profile,
       nonInteractive,
-      local: flags.local,
       whatToTest,
       isVerboseFastlaneEnabled,
       groups,
+      local,
+      external,
     };
   }
 
