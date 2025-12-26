@@ -1,10 +1,9 @@
+import { Platform } from '@expo/eas-build-job';
 import { EasJsonAccessor } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../commandUtils/EasCommand';
-import { Platform } from '@expo/eas-build-job';
-import { submitLocalIosAsync } from '../submit/local/ios/IosLocalSubmitter';
 import { StatuspageServiceName, SubmissionFragment } from '../graphql/generated';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
@@ -16,6 +15,7 @@ import {
   toPlatforms,
 } from '../platform';
 import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
+import { submitLocalIosAsync } from '../submit/local/ios/IosLocalSubmitter';
 import {
   exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
   submitAsync,
@@ -222,7 +222,7 @@ export default class Submit extends EasCommand {
 
     const requestedPlatform =
       flags.platform &&
-        Object.values(RequestedPlatform).includes(flags.platform.toLowerCase() as RequestedPlatform)
+      Object.values(RequestedPlatform).includes(flags.platform.toLowerCase() as RequestedPlatform)
         ? (flags.platform.toLowerCase() as RequestedPlatform)
         : undefined;
 
