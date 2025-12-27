@@ -1,3 +1,4 @@
+import { Platform } from '@expo/eas-build-job';
 import { EasJsonAccessor } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
@@ -13,12 +14,17 @@ import {
   selectRequestedPlatformAsync,
   toPlatforms,
 } from '../platform';
-import { SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
+import {
+  SubmissionContext,
+  SubmitArchiveFlags,
+  createSubmissionContextAsync,
+} from '../submit/context';
 import {
   exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
   submitAsync,
   waitToCompleteAsync,
 } from '../submit/submit';
+import { submitLocalIosAsync } from '../submit/utils/local';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { getProfilesAsync } from '../utils/profiles';
 import { maybeWarnAboutEasOutagesAsync } from '../utils/statuspageService';
@@ -36,6 +42,8 @@ interface RawCommandFlags {
   'non-interactive': boolean;
   'verbose-fastlane': boolean;
   groups?: string[];
+  local?: boolean;
+  'fastlane-args'?: string;
 }
 
 interface CommandFlags {
@@ -48,6 +56,8 @@ interface CommandFlags {
   nonInteractive: boolean;
   isVerboseFastlaneEnabled: boolean;
   groups?: string[];
+  local?: boolean;
+  fastlaneArgs?: string;
 }
 
 export default class Submit extends EasCommand {
@@ -102,6 +112,13 @@ export default class Submit extends EasCommand {
       multiple: true,
       char: 'g',
     }),
+    local: Flags.boolean({
+      description: 'Perform submission locally (upload from this machine)',
+      default: false,
+    }),
+    'fastlane-args': Flags.string({
+      description: 'Pass additional arguments to fastlane as a single string',
+    }),
     'non-interactive': Flags.boolean({
       default: false,
       description: 'Run command in non-interactive mode',
@@ -144,6 +161,7 @@ export default class Submit extends EasCommand {
     });
 
     const submissions: SubmissionFragment[] = [];
+    let localPerformed = false;
     for (const submissionProfile of submissionProfiles) {
       // this command doesn't make use of env when getting the project config
       const ctx = await createSubmissionContextAsync({
@@ -174,14 +192,33 @@ export default class Submit extends EasCommand {
         );
       }
 
-      const submission = await submitAsync(ctx);
-      submissions.push(submission);
+      if (flagsWithPlatform.local) {
+        if (ctx.platform === Platform.IOS) {
+          await submitLocalIosAsync(
+            ctx as SubmissionContext<Platform.IOS>,
+            flagsWithPlatform.fastlaneArgs
+          );
+          localPerformed = true;
+        } else {
+          Errors.error('--local is only supported for iOS submissions', { exit: 1 });
+        }
+      } else {
+        const submission = await submitAsync(ctx);
+        submissions.push(submission);
+      }
     }
 
     Log.newLine();
-    printSubmissionDetailsUrls(submissions);
+    if (submissions.length > 0) {
+      printSubmissionDetailsUrls(submissions);
+    }
+    if (localPerformed) {
+      Log.log(
+        'Local submission(s) completed on this machine — no server submission records were created.'
+      );
+    }
 
-    if (flagsWithPlatform.wait) {
+    if (flagsWithPlatform.wait && submissions.length > 0) {
       const completedSubmissions = await waitToCompleteAsync(graphqlClient, submissions, {
         verbose: flagsWithPlatform.verbose,
       });
@@ -200,6 +237,8 @@ export default class Submit extends EasCommand {
       'non-interactive': nonInteractive,
       'verbose-fastlane': isVerboseFastlaneEnabled,
       groups,
+      local,
+      'fastlane-args': fastlaneArgs,
       'what-to-test': whatToTest,
       ...archiveFlags
     } = flags;
@@ -214,6 +253,10 @@ export default class Submit extends EasCommand {
         ? (flags.platform.toLowerCase() as RequestedPlatform)
         : undefined;
 
+    if (fastlaneArgs && !local) {
+      Errors.error('--fastlane-args is only supported with --local', { exit: 1 });
+    }
+
     return {
       archiveFlags,
       requestedPlatform,
@@ -224,6 +267,8 @@ export default class Submit extends EasCommand {
       whatToTest,
       isVerboseFastlaneEnabled,
       groups,
+      local,
+      fastlaneArgs,
     };
   }
 

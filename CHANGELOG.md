@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add `--runtime-version` and `--platform` filters to `eas update:list`. ([#3261](https://github.com/expo/eas-cli/pull/3261) by [@HarelSultan](https://github.com/HarelSultan))
+- Add `--local` and `--fastlane-args` to `eas submit`. ([#3279](https://github.com/expo/eas-cli/pull/3279) by [@linrongda](https://github.com/linrongda))
 
 ### 🐛 Bug fixes
 
