@@ -26,7 +26,7 @@ interface TmpAscFiles {
 
 export async function submitLocalIosAsync(
   ctx: SubmissionContext<Platform.IOS>,
-  flagsWithPlatform: any
+  fastlaneArgs?: string
 ): Promise<void> {
   // local submit currently only supports a local path to an .ipa
   const { path: ipaPath } = ctx.archiveFlags as { path?: string };
@@ -37,7 +37,8 @@ export async function submitLocalIosAsync(
     throw new Error(`File ${ipaPath} does not exist`);
   }
 
-  const { ascApiKeyPath, ascApiKeyIssuerId, ascApiKeyId } = ctx.profile as any;
+  const profile = ctx.profile;
+  const { ascApiKeyPath, ascApiKeyIssuerId, ascApiKeyId } = profile ?? {};
 
   let ascSource: AscApiKeySource;
   if (ascApiKeyPath && ascApiKeyIssuerId && ascApiKeyId) {
@@ -72,8 +73,13 @@ export async function submitLocalIosAsync(
 
     if (ctx.groups && ctx.groups.length > 0) {
       args.push('--groups', ctx.groups.join(','));
-      if (flagsWithPlatform?.external) {
-        args.push('--distribute_external');
+    }
+
+    // Append extra fastlane arguments passed via the CLI (--fastlane-args)
+    if (typeof fastlaneArgs === 'string' && fastlaneArgs.trim().length > 0) {
+      const tokens = splitArgsString(fastlaneArgs);
+      if (tokens.length > 0) {
+        args.push(...tokens);
       }
     }
 
@@ -103,7 +109,7 @@ async function getAscKeyMaterialAsync(
     return { keyP8: key.keyP8, keyId: key.keyIdentifier, issuerId: key.issuerIdentifier };
   }
 
-  const r = ascResult.result as any;
+  const r = ascResult.result;
   return { keyP8: r.keyP8, keyId: r.keyId, issuerId: r.issuerId };
 }
 
@@ -112,6 +118,12 @@ async function writeTmpAscJsonAsync(key: AscKeyMaterial): Promise<TmpAscFiles> {
   const tmpPath = path.join(tmpDir, 'asc.json');
   const ascJson = { key_id: key.keyId, issuer_id: key.issuerId, key: key.keyP8 };
   await fs.writeFile(tmpPath, JSON.stringify(ascJson));
+  try {
+    // Restrict permissions to owner only where supported (Unix-like systems)
+    await fs.chmod(tmpPath, 0o600);
+  } catch (err) {
+    // ignore chmod errors on platforms that don't support it (e.g., Windows)
+  }
   return { tmpDir, tmpPath };
 }
 
@@ -144,6 +156,23 @@ function runFastlane(args: string[]): Promise<void> {
 async function cleanupTmpAsync(tmpPath: string, tmpDir: string): Promise<void> {
   await fs.remove(tmpPath).catch(() => {});
   await fs.remove(tmpDir).catch(() => {});
+}
+
+// Split a command-line string into argv tokens, honoring single and double quotes.
+function splitArgsString(input: string): string[] {
+  const re = /[^\s"']+|"([^"]*)"|'([^']*)'/g;
+  const result: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(input)) !== null) {
+    if (match[1] !== undefined) {
+      result.push(match[1]);
+    } else if (match[2] !== undefined) {
+      result.push(match[2]);
+    } else {
+      result.push(match[0]);
+    }
+  }
+  return result;
 }
 
 export default submitLocalIosAsync;

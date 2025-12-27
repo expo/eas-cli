@@ -43,7 +43,7 @@ interface RawCommandFlags {
   'verbose-fastlane': boolean;
   groups?: string[];
   local?: boolean;
-  external?: boolean;
+  'fastlane-args'?: string;
 }
 
 interface CommandFlags {
@@ -57,7 +57,7 @@ interface CommandFlags {
   isVerboseFastlaneEnabled: boolean;
   groups?: string[];
   local?: boolean;
-  external?: boolean;
+  fastlaneArgs?: string;
 }
 
 export default class Submit extends EasCommand {
@@ -116,10 +116,8 @@ export default class Submit extends EasCommand {
       description: 'Perform submission locally (upload from this machine)',
       default: false,
     }),
-    external: Flags.boolean({
-      description:
-        'Distributed to external testers.(iOS & local only) If set to true, use of groups option is required',
-      default: false,
+    'fastlane-args': Flags.string({
+      description: 'Pass additional arguments to fastlane as a single string',
     }),
     'non-interactive': Flags.boolean({
       default: false,
@@ -163,6 +161,7 @@ export default class Submit extends EasCommand {
     });
 
     const submissions: SubmissionFragment[] = [];
+    let localPerformed = false;
     for (const submissionProfile of submissionProfiles) {
       // this command doesn't make use of env when getting the project config
       const ctx = await createSubmissionContextAsync({
@@ -193,8 +192,16 @@ export default class Submit extends EasCommand {
         );
       }
 
-      if (flagsWithPlatform.local && ctx.platform === Platform.IOS) {
-        await submitLocalIosAsync(ctx as SubmissionContext<Platform.IOS>, flagsWithPlatform);
+      if (flagsWithPlatform.local) {
+        if (ctx.platform === Platform.IOS) {
+          await submitLocalIosAsync(
+            ctx as SubmissionContext<Platform.IOS>,
+            flagsWithPlatform.fastlaneArgs
+          );
+          localPerformed = true;
+        } else {
+          Errors.error('--local is only supported for iOS submissions', { exit: 1 });
+        }
       } else {
         const submission = await submitAsync(ctx);
         submissions.push(submission);
@@ -202,9 +209,16 @@ export default class Submit extends EasCommand {
     }
 
     Log.newLine();
-    printSubmissionDetailsUrls(submissions);
+    if (submissions.length > 0) {
+      printSubmissionDetailsUrls(submissions);
+    }
+    if (localPerformed) {
+      Log.log(
+        'Local submission(s) completed on this machine — no server submission records were created.'
+      );
+    }
 
-    if (flagsWithPlatform.wait) {
+    if (flagsWithPlatform.wait && submissions.length > 0) {
       const completedSubmissions = await waitToCompleteAsync(graphqlClient, submissions, {
         verbose: flagsWithPlatform.verbose,
       });
@@ -224,7 +238,7 @@ export default class Submit extends EasCommand {
       'verbose-fastlane': isVerboseFastlaneEnabled,
       groups,
       local,
-      external,
+      'fastlane-args': fastlaneArgs,
       'what-to-test': whatToTest,
       ...archiveFlags
     } = flags;
@@ -239,6 +253,10 @@ export default class Submit extends EasCommand {
         ? (flags.platform.toLowerCase() as RequestedPlatform)
         : undefined;
 
+    if (fastlaneArgs && !local) {
+      Errors.error('--fastlane-args is only supported with --local', { exit: 1 });
+    }
+
     return {
       archiveFlags,
       requestedPlatform,
@@ -250,7 +268,7 @@ export default class Submit extends EasCommand {
       isVerboseFastlaneEnabled,
       groups,
       local,
-      external,
+      fastlaneArgs,
     };
   }
 
