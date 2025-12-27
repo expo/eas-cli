@@ -13,6 +13,17 @@ import {
   getAscApiKeyResultAsync,
 } from '../ios/AscApiKeySource';
 
+interface AscKeyMaterial {
+  keyP8: string;
+  keyId: string;
+  issuerId: string;
+}
+
+interface TmpAscFiles {
+  tmpDir: string;
+  tmpPath: string;
+}
+
 export async function submitLocalIosAsync(
   ctx: SubmissionContext<Platform.IOS>,
   flagsWithPlatform: any
@@ -26,20 +37,17 @@ export async function submitLocalIosAsync(
     throw new Error(`File ${ipaPath} does not exist`);
   }
 
-  // Resolve ASC Api Key source (reuse logic from IosSubmitCommand.resolveAscApiKeySource)
   const { ascApiKeyPath, ascApiKeyIssuerId, ascApiKeyId } = ctx.profile as any;
+
   let ascSource: AscApiKeySource;
   if (ascApiKeyPath && ascApiKeyIssuerId && ascApiKeyId) {
     ascSource = {
       sourceType: AscApiKeySourceType.path,
-      path: {
-        keyP8Path: ascApiKeyPath,
-        keyId: ascApiKeyId,
-        issuerId: ascApiKeyIssuerId,
-      },
+      path: { keyP8Path: ascApiKeyPath, keyId: ascApiKeyId, issuerId: ascApiKeyIssuerId },
     };
   } else if (ascApiKeyPath || ascApiKeyIssuerId || ascApiKeyId) {
-    const message = `ascApiKeyPath, ascApiKeyIssuerId and ascApiKeyId must all be defined in eas.json`;
+    const message =
+      'ascApiKeyPath, ascApiKeyIssuerId and ascApiKeyId must all be defined in eas.json';
     if (ctx.nonInteractive) {
       throw new Error(message);
     }
@@ -49,73 +57,80 @@ export async function submitLocalIosAsync(
     ascSource = { sourceType: AscApiKeySourceType.credentialsService };
   }
 
-  // Obtain key material
-  let keyP8: string;
-  let keyId: string;
-  let issuerId: string;
+  const ascKey = await getAscKeyMaterialAsync(ctx, ascSource);
 
+  const { tmpDir, tmpPath } = await writeTmpAscJsonAsync(ascKey);
+
+  try {
+    ensureFastlaneAvailable();
+
+    const args: string[] = ['pilot', 'upload', '-i', ipaPath, '--api_key_path', tmpPath];
+
+    if (ctx.whatToTest) {
+      args.push('--changelog', ctx.whatToTest);
+    }
+
+    if (ctx.groups && ctx.groups.length > 0) {
+      args.push('--groups', ctx.groups.join(','));
+      if (flagsWithPlatform?.external) {
+        args.push('--distribute_external');
+      }
+    }
+
+    if (ctx.isVerboseFastlaneEnabled) {
+      Log.log(`Running: fastlane ${args.join(' ')}`);
+    } else {
+      Log.log('Uploading to App Store Connect via fastlane');
+    }
+
+    await runFastlane(args);
+  } finally {
+    await cleanupTmpAsync(tmpPath, tmpDir);
+  }
+}
+
+async function getAscKeyMaterialAsync(
+  ctx: SubmissionContext<Platform.IOS>,
+  ascSource: AscApiKeySource
+): Promise<AscKeyMaterial> {
   const ascResult = await getAscApiKeyResultAsync(ctx, ascSource);
+
   if ('ascApiKeyId' in ascResult.result) {
     const key = await AppStoreConnectApiKeyQuery.getByIdAsync(
       ctx.graphqlClient,
       ascResult.result.ascApiKeyId
     );
-    issuerId = key.issuerIdentifier;
-    keyId = key.keyIdentifier;
-    keyP8 = key.keyP8;
-  } else {
-    const r = ascResult.result as any;
-    keyP8 = r.keyP8;
-    keyId = r.keyId;
-    issuerId = r.issuerId;
+    return { keyP8: key.keyP8, keyId: key.keyIdentifier, issuerId: key.issuerIdentifier };
   }
 
-  // write temporary api key json for fastlane/transport
+  const r = ascResult.result as any;
+  return { keyP8: r.keyP8, keyId: r.keyId, issuerId: r.issuerId };
+}
+
+async function writeTmpAscJsonAsync(key: AscKeyMaterial): Promise<TmpAscFiles> {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-asc-'));
   const tmpPath = path.join(tmpDir, 'asc.json');
-  const json = {
-    key_id: keyId,
-    issuer_id: issuerId,
-    key: keyP8,
-  };
-  await fs.writeFile(tmpPath, JSON.stringify(json));
+  const ascJson = { key_id: key.keyId, issuer_id: key.issuerId, key: key.keyP8 };
+  await fs.writeFile(tmpPath, JSON.stringify(ascJson));
+  return { tmpDir, tmpPath };
+}
 
-  // Ensure fastlane is available (we use fastlane pilot upload for ASC key-based upload)
+function ensureFastlaneAvailable(): void {
   const which = spawnSync('fastlane', ['--version'], { stdio: 'ignore' });
   if (which.status !== 0) {
-    await fs.remove(tmpPath);
-    await fs.remove(tmpDir);
     throw new Error(
       'fastlane is not installed or not available in PATH. Install fastlane to perform local ASC key uploads.'
     );
   }
+}
 
-  const args: string[] = ['pilot', 'upload', '-i', ipaPath, '--api_key_path', tmpPath];
-
-  // Add changelog / release notes
-  if (ctx.whatToTest) {
-    args.push('--changelog', ctx.whatToTest);
-  }
-
-  // Add testing groups
-  if (ctx.groups && ctx.groups.length > 0) {
-    // fastlane expects a comma-separated list
-    args.push('--groups', ctx.groups.join(','));
-    if (flagsWithPlatform.external) {
-      // fastlane pilot flag to distribute to external testers
-      args.push('--distribute_external');
-    }
-  }
-
-  Log.log(`Running: fastlane ${args.join(' ')}`);
-  await new Promise<void>((resolve, reject) => {
+function runFastlane(args: string[]): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
     const child = spawn('fastlane', args, { stdio: 'inherit', env: process.env });
     child.on('error', err => {
       reject(err);
     });
     child.on('close', code => {
-      fs.remove(tmpPath).catch(() => {});
-      fs.remove(tmpDir).catch(() => {});
       if (code === 0) {
         Log.log('Uploaded to App Store Connect via fastlane');
         resolve();
@@ -124,6 +139,11 @@ export async function submitLocalIosAsync(
       }
     });
   });
+}
+
+async function cleanupTmpAsync(tmpPath: string, tmpDir: string): Promise<void> {
+  await fs.remove(tmpPath).catch(() => {});
+  await fs.remove(tmpDir).catch(() => {});
 }
 
 export default submitLocalIosAsync;

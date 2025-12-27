@@ -14,13 +14,17 @@ import {
   selectRequestedPlatformAsync,
   toPlatforms,
 } from '../platform';
-import { SubmissionContext, SubmitArchiveFlags, createSubmissionContextAsync } from '../submit/context';
-import { submitLocalIosAsync } from '../submit/utils/local';
+import {
+  SubmissionContext,
+  SubmitArchiveFlags,
+  createSubmissionContextAsync,
+} from '../submit/context';
 import {
   exitWithNonZeroCodeIfSomeSubmissionsDidntFinish,
   submitAsync,
   waitToCompleteAsync,
 } from '../submit/submit';
+import { submitLocalIosAsync } from '../submit/utils/local';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
 import { getProfilesAsync } from '../utils/profiles';
 import { maybeWarnAboutEasOutagesAsync } from '../utils/statuspageService';
