@@ -159,7 +159,7 @@ async function cleanupTmpAsync(tmpPath: string, tmpDir: string): Promise<void> {
 }
 
 // Split a command-line string into argv tokens, honoring single and double quotes.
-function splitArgsString(input: string): string[] {
+export function splitArgsString(input: string): string[] {
   const re = /[^\s"']+|"([^"]*)"|'([^']*)'/g;
   const result: string[] = [];
   let match: RegExpExecArray | null;
