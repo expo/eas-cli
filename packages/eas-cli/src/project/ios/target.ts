@@ -61,7 +61,6 @@ export async function resolveManagedProjectTargetsAsync({
   const applicationTargetEntitlements = await getManagedApplicationTargetEntitlementsAsync(
     projectDir,
     env ?? {},
-    vcsClient
   );
   const appExtensions: UserDefinedTarget[] =
     exp.extra?.eas?.build?.experimental?.ios?.appExtensions ?? [];

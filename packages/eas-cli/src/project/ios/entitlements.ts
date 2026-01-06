@@ -1,62 +1,27 @@
-import { ExportedConfig, IOSConfig, compileModsAsync } from '@expo/config-plugins';
+import { ExportedConfig, IOSConfig } from '@expo/config-plugins';
 import { JSONObject } from '@expo/json-file';
-import { getPrebuildConfigAsync } from '@expo/prebuild-config';
 
-import Log from '../../log';
 import { spawnExpoCommand } from '../../utils/expoCli';
 import { readPlistAsync } from '../../utils/plist';
-import { Client } from '../../vcs/vcs';
-import { hasIgnoredIosProjectAsync } from '../workflow';
 
 interface Target {
   buildConfiguration?: string;
   targetName: string;
 }
 
-let wasExpoConfigPluginsWarnPrinted = false;
-
 export async function getManagedApplicationTargetEntitlementsAsync(
   projectDir: string,
-  env: Record<string, string>,
-  vcsClient: Client
+  env: Record<string, string>
 ): Promise<JSONObject> {
-  const originalProcessEnv: NodeJS.ProcessEnv = process.env;
-
-  try {
-    process.env = {
-      ...process.env,
-      ...env,
-    };
-
-    let expWithMods: ExportedConfig;
-    try {
-      const { stdout } = await spawnExpoCommand(projectDir, [
-        'config',
-        '--json',
-        '--type',
-        'introspect',
-      ]);
-      expWithMods = JSON.parse(stdout);
-    } catch (err: any) {
-      if (!wasExpoConfigPluginsWarnPrinted) {
-        Log.warn(
-          `Failed to read the app config from the project using "expo config" command: ${err.message}.`
-        );
-        Log.warn('Falling back to the version of "@expo/config" shipped with the EAS CLI.');
-        wasExpoConfigPluginsWarnPrinted = true;
-      }
-      const { exp } = await getPrebuildConfigAsync(projectDir, { platforms: ['ios'] });
-      expWithMods = await compileModsAsync(exp, {
-        projectRoot: projectDir,
-        platforms: ['ios'],
-        introspect: true,
-        ignoreExistingNativeFiles: await hasIgnoredIosProjectAsync(projectDir, vcsClient),
-      });
+  const { stdout } = await spawnExpoCommand(
+    projectDir,
+    ['config', '--json', '--type', 'introspect'],
+    {
+      env,
     }
-    return expWithMods.ios?.entitlements ?? {};
-  } finally {
-    process.env = originalProcessEnv;
-  }
+  );
+  const expWithMods: ExportedConfig = JSON.parse(stdout);
+  return expWithMods.ios?.entitlements ?? {};
 }
 
 export async function getNativeTargetEntitlementsAsync(
