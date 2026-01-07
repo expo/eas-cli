@@ -1,5 +1,3 @@
-import { setTimeout as setTimeoutAsync } from 'timers/promises';
-
 import logger from '../src/logger';
 
 if (process.env.NODE_ENV !== 'test') {
@@ -16,8 +14,3 @@ if (!process.env.LISTENING_TO_UNHANDLED_REJECTION) {
 
 // Always mock:
 jest.mock('../src/CacheManager');
-
-// Allow time for WebSocket servers and timers to clean up after all tests
-afterAll(async () => {
-  await setTimeoutAsync(500);
-});
