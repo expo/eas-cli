@@ -86,36 +86,50 @@ jobs:
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
-      - uses: ./.github/internal-actions/setup-gcloud
-
       - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
 
-      - name: Generate signed upload URL
-        id: signed_url
-        if: github.ref == 'refs/heads/main' || inputs.environment != ''
-        run: |
-          GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
-
-          # Generate a signed URL valid for 30 minutes
-          SIGNED_URL=$(gcloud storage sign-url \
-            --duration=30m \
-            --http-verb=PUT \
-            "gs://eas-build-worker-tarballs/$GCP_TARBALL" \
-            | tail -n 1 | awk '{print $NF}')
-
-          echo "url=$SIGNED_URL" >> "$GITHUB_OUTPUT"
-
-      - name: Trigger EAS Workflow to build iOS worker
-        if: github.ref == 'refs/heads/main' || inputs.environment != ''
+      - name: Run EAS Workflow to build iOS worker and download artifact
         working-directory: packages/worker
         env:
           EXPO_TOKEN: ${{ secrets.STAGING_EXPO_DEV_EXPO_SERVICES_GITHUB_ROBOT_ACCESS_TOKEN }}
           EXPO_STAGING: "1"
         run: |
-          npx -y eas-cli@latest workflow:run build-worker.yml \
-            --input upload_url="${{ steps.signed_url.outputs.url }}" \
+          # Run workflow and capture output (includes full workflow run with jobs and artifacts)
+          WORKFLOW_OUTPUT=$(npx -y eas-cli@latest workflow:run build-worker.yml \
             --non-interactive \
-            --wait
+            --wait \
+            --json)
+
+          # Extract artifact download URL from workflow output
+          # Artifacts are in jobs[].turtleJobRun.artifacts[] for custom jobs
+          DOWNLOAD_URL=$(echo "$WORKFLOW_OUTPUT" | jq -r '
+            .jobs[]
+            | .turtleJobRun.artifacts[]?
+            | select(.name == "worker-ios-tarball")
+            | .downloadUrl
+          ' | head -1)
+
+          if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
+            echo "Error: Could not find artifact download URL"
+            echo "Workflow output:"
+            echo "$WORKFLOW_OUTPUT" | jq .
+            exit 1
+          fi
+
+          # Mask the download URL
+          echo "::add-mask::$DOWNLOAD_URL"
+
+          # Download the artifact
+          curl -L -o worker-ios.tar.gz "$DOWNLOAD_URL"
+
+      - uses: ./.github/internal-actions/setup-gcloud
+
+      - name: Upload worker tarball to GCP
+        if: github.ref == 'refs/heads/main' || inputs.environment != ''
+        working-directory: packages/worker
+        run: |
+          GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
+          gsutil cp worker-ios.tar.gz gs://eas-build-worker-tarballs/$GCP_TARBALL
 
   deploy:
     runs-on: ubuntu-latest

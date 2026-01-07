@@ -1,12 +1,7 @@
 name: Build Worker (iOS)
 
 on:
-  workflow_dispatch:
-    inputs:
-      upload_url:
-        description: "Signed GCS upload URL for the worker tarball"
-        type: string
-        required: true
+  workflow_dispatch: {}
 
 jobs:
   build_ios_worker:
@@ -19,12 +14,11 @@ jobs:
       - uses: eas/install_node_modules
 
       - name: Build worker tarball
+        working_directory: packages/worker
         run: ./package.sh worker-ios.tar.gz ios
 
-      - name: Upload worker tarball to GCS
-        run: |
-          curl -X PUT \
-            -H "Content-Type: application/gzip" \
-            --upload-file worker-ios.tar.gz \
-            "${{ inputs.upload_url }}"
-
+      - name: Upload worker tarball as artifact
+        uses: eas/upload_artifact
+        with:
+          name: worker-ios-tarball
+          path: /packages/worker/worker-ios.tar.gz
