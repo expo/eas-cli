@@ -14,12 +14,8 @@ on:
       - .github/workflows/build-and-deploy-worker.yml
 
 jobs:
-  worker-android-checks:
+  worker-checks:
     runs-on: ubuntu-latest
-    env:
-      NODE_OPTIONS: '--max_old_space_size=3072'
-      JAVA_OPTS: '-Xms512m -Xmx2g'
-      GRADLE_OPTS: '-Xmx2g -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"'
     permissions:
       id-token: write
     steps:
@@ -35,26 +31,7 @@ jobs:
 
       - name: Run integration tests
         working-directory: packages/worker
-        run: direnv exec .direnv/test ./resources/ci-linux-integration-test.sh
-
-  worker-ios-checks:
-    runs-on: macos-latest
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
-
-      - uses: ./.github/internal-actions/setup-gcloud
-
-      - uses: ./.github/internal-actions/direnv
-
-      - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
-
-      - run: yarn install --frozen-lockfile --check-files
-
-      - name: Run integration tests
-        working-directory: packages/worker
-        run: direnv exec .direnv/test ./resources/ci-macos-integration-test.sh
+        run: direnv exec .direnv/test ./resources/ci-integration-test.sh
 
   worker-build:
     uses: ./.github/workflows/build-and-deploy-worker.yml
@@ -66,8 +43,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     needs:
       - worker-build
-      - worker-ios-checks
-      - worker-android-checks
+      - worker-checks
     uses: ./.github/workflows/build-and-deploy-worker.yml
     secrets: inherit
     with:
