@@ -3,7 +3,7 @@ import { hostname } from 'os';
 import { setTimeout as setTimeoutAsync } from 'timers/promises';
 import WebSocket from 'ws';
 
-import { WsHelper, closeServerWithClients, unreachableCode } from './utils';
+import { WsHelper, unreachableCode } from './utils';
 import { createTestAndroidJob } from './utils/jobs';
 import logger from '../logger';
 import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
@@ -72,7 +72,9 @@ describe('State sync mechanism', () => {
   });
 
   afterEach(async () => {
-    await closeServerWithClients(server);
+    await new Promise<void>((resolve, reject) => {
+      server.close(err => (err ? reject(err) : resolve()));
+    });
   });
 
   afterAll(async () => {

@@ -2,7 +2,7 @@ import { hostname } from 'os';
 import { setTimeout as setTimeoutAsync } from 'timers/promises';
 import WebSocket from 'ws';
 
-import { WsHelper, closeServerWithClients, unreachableCode } from './utils';
+import { WsHelper, unreachableCode } from './utils';
 import { createTestAndroidJob } from './utils/jobs';
 import logger from '../logger';
 import BuildService from '../service';
@@ -95,9 +95,10 @@ describe('sending sentry report on hanging worker', () => {
   });
 
   afterEach(async () => {
-    await closeServerWithClients(server);
+    await new Promise<void>((resolve, reject) => {
+      server.close(err => (err ? reject(err) : resolve()));
+    });
     // Wait for any pending checkForHangingWorker timeouts to complete
-    // This prevents Jest's "open handles" warning
     await setTimeoutAsync(HANGING_CHECK_TIMEOUT_MS + 10);
     // Use clearAllMocks instead of resetAllMocks to preserve mock implementations
     jest.clearAllMocks();

@@ -10,7 +10,7 @@ import { hostname } from 'os';
 import path from 'path';
 import WebSocket from 'ws';
 
-import { WsHelper, closeServerWithClients, unreachableCode } from './utils';
+import { WsHelper, unreachableCode } from './utils';
 import { createTestAndroidJob, createTestIosJob } from './utils/jobs';
 import config from '../config';
 import logger from '../logger';
@@ -94,7 +94,9 @@ describe('launcher aborts build', () => {
   });
 
   afterEach(async () => {
-    await closeServerWithClients(server);
+    await new Promise<void>((resolve, reject) => {
+      server.close(err => (err ? reject(err) : resolve()));
+    });
   });
 
   afterAll(async () => {

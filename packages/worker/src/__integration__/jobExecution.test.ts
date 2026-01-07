@@ -1,7 +1,7 @@
 import { hostname } from 'os';
 import WebSocket from 'ws';
 
-import { WsHelper, closeServerWithClients, unreachableCode } from './utils';
+import { WsHelper, unreachableCode } from './utils';
 import { createTestAndroidJob, createTestIosJob } from './utils/jobs';
 import logger from '../logger';
 import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
@@ -62,7 +62,9 @@ describe('Job execution', () => {
   });
 
   afterEach(async () => {
-    await closeServerWithClients(server);
+    await new Promise<void>((resolve, reject) => {
+      server.close(err => (err ? reject(err) : resolve()));
+    });
   });
 
   afterAll(async () => {

@@ -11,5 +11,5 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/../jest/integration-setup.ts'],
   // Force exit after tests complete to avoid false "open handles" warnings
   // from internal logger streams and WebSocket cleanup timing
-  forceExit: true,
+  // forceExit: true,
 };
