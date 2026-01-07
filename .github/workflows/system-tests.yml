@@ -16,24 +16,24 @@ jobs:
       - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
 
       - name: Create test app
-        run: npx -y create-expo-app@latest test-app --template tabs --no-install
+        run: npx -y create-expo-app@latest ${{ runner.temp }}/test-app --template tabs
 
       - name: Link to EAS project
-        working-directory: test-app
+        working-directory: ${{ runner.temp }}/test-app
         run: npx -y eas-cli@latest init --id 6ae8028d-4e6d-4912-8eb2-87d4e6122880 --force --non-interactive
 
       - name: Configure EAS Build
-        working-directory: test-app
+        working-directory: ${{ runner.temp }}/test-app
         run: npx -y eas-cli@latest build:configure --platform all --non-interactive
 
       - name: Setup EAS workflow
-        working-directory: test-app
+        working-directory: ${{ runner.temp }}/test-app
         run: |
           mkdir -p .eas/workflows
           cp ${{ github.workspace }}/.github/fixtures/eas-workflow-build-android.yml .eas/workflows/build-android.yml
 
       - name: Run iOS build and Android workflow concurrently
-        working-directory: test-app
+        working-directory: ${{ runner.temp }}/test-app
         run: |
           # Start iOS build in background
           npx -y eas-cli@latest build --platform ios --profile production --non-interactive --wait &
