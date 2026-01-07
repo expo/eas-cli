@@ -4,7 +4,7 @@ import path from 'path';
 
 import { ImageNonPngError, ImageTransparencyError, ensurePNGIsNotTransparentAsync } from '../image';
 
-const TEST_SERVER_PORT = 2137;
+const TEST_SERVER_PORT = 9999;
 
 const fixturesPath = path.join(__dirname, 'fixtures');
 const transparentPngPath = path.join(fixturesPath, 'icon-alpha.png');
