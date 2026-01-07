@@ -15,19 +15,16 @@ jobs:
 
       - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
 
-      - name: Install eas-cli
-        run: npm install -g eas-cli
-
       - name: Create test app
-        run: npx create-expo-app@latest test-app --template tabs --no-install
+        run: npx -y create-expo-app@latest test-app --template tabs --no-install
 
       - name: Link to EAS project
         working-directory: test-app
-        run: eas init --id 6ae8028d-4e6d-4912-8eb2-87d4e6122880 --force --non-interactive
+        run: npx -y eas-cli@latest init --id 6ae8028d-4e6d-4912-8eb2-87d4e6122880 --force --non-interactive
 
       - name: Configure EAS Build
         working-directory: test-app
-        run: eas build:configure --platform all --non-interactive
+        run: npx -y eas-cli@latest build:configure --platform all --non-interactive
 
       - name: Setup EAS workflow
         working-directory: test-app
@@ -39,11 +36,11 @@ jobs:
         working-directory: test-app
         run: |
           # Start iOS build in background
-          eas build --platform ios --profile production --non-interactive --wait &
+          npx -y eas-cli@latest build --platform ios --profile production --non-interactive --wait &
           PID_IOS=$!
 
           # Start Android workflow in background
-          eas workflow:run build-android.yml --wait --non-interactive &
+          npx -y eas-cli@latest workflow:run build-android.yml --wait --non-interactive &
           PID_ANDROID=$!
 
           # Wait for both and capture exit codes
