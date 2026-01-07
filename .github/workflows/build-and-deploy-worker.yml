@@ -88,7 +88,8 @@ jobs:
 
       - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
 
-      - name: Run EAS Workflow to build iOS worker and download artifact
+      - name: Run EAS Workflow to build iOS worker
+        id: eas_workflow
         working-directory: packages/worker
         env:
           EXPO_TOKEN: ${{ secrets.STAGING_EXPO_DEV_EXPO_SERVICES_GITHUB_ROBOT_ACCESS_TOKEN }}
@@ -119,18 +120,15 @@ jobs:
 
           # Mask the download URL
           echo "::add-mask::$DOWNLOAD_URL"
-
-          # Download the artifact
-          curl -L -o worker-ios.tar.gz "$DOWNLOAD_URL"
+          echo "download_url=$DOWNLOAD_URL" >> "$GITHUB_OUTPUT"
 
       - uses: ./.github/internal-actions/setup-gcloud
 
       - name: Upload worker tarball to GCP
         if: github.ref == 'refs/heads/main' || inputs.environment != ''
-        working-directory: packages/worker
         run: |
           GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
-          gsutil cp worker-ios.tar.gz gs://eas-build-worker-tarballs/$GCP_TARBALL
+          curl -L "${{ steps.eas_workflow.outputs.download_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$GCP_TARBALL
 
   deploy:
     runs-on: ubuntu-latest
