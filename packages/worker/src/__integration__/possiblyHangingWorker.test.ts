@@ -1,12 +1,11 @@
-import { ArchiveSourceType } from '@expo/eas-build-job';
 import { hostname } from 'os';
 import { setTimeout as setTimeoutAsync } from 'timers/promises';
 import WebSocket from 'ws';
 
-import { ANDROID_CREDENTIALS, WsHelper, unreachableCode } from './utils';
+import { WsHelper, unreachableCode } from './utils';
+import { createTestAndroidJob } from './utils/jobs';
 import logger from '../logger';
 import BuildService from '../service';
-import env from '../utils/env';
 import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
 import startWsServer from '../ws';
 
@@ -15,33 +14,23 @@ const buildId = 'f38532aa-81a8-4db7-915f-6e7afe46e22f';
 const MAX_BUILD_TIME_MS = 60 * 1000; // 1 min
 jest.setTimeout(MAX_BUILD_TIME_MS);
 
-const PROJECT_URL = env('TURTLE_TEST_PROJECT_URL');
-const DUMMY_BUILD_DISPATCH_DATA = JSON.stringify({
-  type: 'dispatch',
-  buildId,
-  job: {
-    mode: 'build',
-    secrets: {
-      buildCredentials: ANDROID_CREDENTIALS,
+// Mock @expo/build-tools at the library boundary
+jest.mock('@expo/build-tools', () => {
+  const actual = jest.requireActual('@expo/build-tools');
+  return {
+    ...actual,
+    Builders: {
+      androidBuilder: jest.fn(async () => ({
+        APPLICATION_ARCHIVE: 'test-android.aab',
+      })),
+      iosBuilder: jest.fn(async () => ({
+        APPLICATION_ARCHIVE: 'test-ios.ipa',
+      })),
     },
-    platform: 'android',
-    type: 'generic',
-    projectArchive: {
-      type: ArchiveSourceType.URL,
-      url: PROJECT_URL,
-    },
-    projectRootDirectory: './generic',
-    gradleCommand: ':app:bundleRelease',
-    applicationArchivePath: 'android/app/build/outputs/**/*.{apk,aab}',
-  },
-  initiatingUserId: '14367e1b-26fc-4c00-aedb-0629d78f8286',
-  metadata: {
-    trackingContext: {},
-  },
+  };
 });
 
 jest.mock('../upload');
-jest.mock('../build');
 jest.mock('../config', () => {
   const config = jest.requireActual('../config').default;
   return {
@@ -61,6 +50,18 @@ jest.mock('../service', () => {
     return BuildService;
   };
 });
+
+function createDispatchMessage(): string {
+  return JSON.stringify({
+    type: 'dispatch',
+    buildId,
+    job: createTestAndroidJob(),
+    initiatingUserId: '14367e1b-26fc-4c00-aedb-0629d78f8286',
+    metadata: {
+      trackingContext: {},
+    },
+  });
+}
 
 async function setUpTestAsync(
   port: number,
@@ -115,9 +116,8 @@ describe('sending sentry report on hanging worker', () => {
     });
     describe('close message received from launcher', () => {
       it('should terminate worker without notifying sentry', async () => {
-        require('../build').setShouldSucceed(true);
         const [ws, helper, messageTimeout] = await setUpTestAsync(port, onMessage);
-        ws.send(DUMMY_BUILD_DISPATCH_DATA);
+        ws.send(createDispatchMessage());
         await successPromise;
         clearTimeout(messageTimeout);
 
@@ -132,9 +132,8 @@ describe('sending sentry report on hanging worker', () => {
 
     describe('close message received from launcher, but something went wrong and shouldCloseWorker is not true', () => {
       it('should log message and notify sentry about possibly hanging', async () => {
-        require('../build').setShouldSucceed(true);
         const [ws, helper, messageTimeout] = await setUpTestAsync(port, onMessage);
-        ws.send(DUMMY_BUILD_DISPATCH_DATA);
+        ws.send(createDispatchMessage());
         await successPromise;
         clearTimeout(messageTimeout);
 
@@ -154,9 +153,8 @@ describe('sending sentry report on hanging worker', () => {
 
     describe('no close message received from launcher in specified time', () => {
       it('should log message and notify sentry about possibly hanging', async () => {
-        require('../build').setShouldSucceed(true);
         const [ws, helper, messageTimeout] = await setUpTestAsync(port, onMessage);
-        ws.send(DUMMY_BUILD_DISPATCH_DATA);
+        ws.send(createDispatchMessage());
         await successPromise;
         clearTimeout(messageTimeout);
 
