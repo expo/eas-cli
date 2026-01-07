@@ -96,6 +96,7 @@ jobs:
         run: |
           # Run workflow and capture output (includes full workflow run with jobs and artifacts)
           WORKFLOW_OUTPUT=$(npx -y eas-cli@latest workflow:run build-worker.yml \
+            --ref ${{ github.sha }} \
             --non-interactive \
             --wait \
             --json)
