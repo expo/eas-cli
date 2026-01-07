@@ -1,6 +1,6 @@
 name: build-android
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   build:
@@ -8,5 +8,5 @@ jobs:
     type: build
     params:
       platform: android
-      profile: production
+      profile: system-test
 

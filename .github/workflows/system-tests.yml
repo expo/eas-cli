@@ -22,9 +22,21 @@ jobs:
         working-directory: ${{ runner.temp }}/test-app
         run: npx -y eas-cli@latest init --id 6ae8028d-4e6d-4912-8eb2-87d4e6122880 --force --non-interactive
 
+      - name: Add bundle identifiers to app.json
+        working-directory: ${{ runner.temp }}/test-app
+        run: |
+          jq '.expo.ios.bundleIdentifier = "dev.expo.workersystemtests" | .expo.android.package = "dev.expo.workersystemtests"' app.json > app.json.tmp
+          mv app.json.tmp app.json
+
       - name: Configure EAS Build
         working-directory: ${{ runner.temp }}/test-app
         run: npx -y eas-cli@latest build:configure --platform all
+
+      - name: Add system-test profile to eas.json
+        working-directory: ${{ runner.temp }}/test-app
+        run: |
+          jq '.build["system-test"] = { "ios": { "simulator": true }, "android": { "withoutCredentials": true } }' eas.json > eas.json.tmp
+          mv eas.json.tmp eas.json
 
       - name: Setup EAS workflow
         working-directory: ${{ runner.temp }}/test-app
@@ -36,7 +48,7 @@ jobs:
         working-directory: ${{ runner.temp }}/test-app
         run: |
           # Start iOS build in background
-          npx -y eas-cli@latest build --platform ios --profile production --non-interactive --wait &
+          npx -y eas-cli@latest build --platform ios --profile system-test --non-interactive --wait &
           PID_IOS=$!
 
           # Start Android workflow in background
