@@ -100,7 +100,11 @@ describe('sending sentry report on hanging worker', () => {
     await cleanUpWorkingdir();
   });
 
-  describe('build successfully and send buildSuccess message', () => {
+  // Helper to create fresh promise and message handler for each test
+  function createSuccessHandler(): {
+    successPromise: Promise<void>;
+    onMessage: jest.Mock;
+  } {
     let successPromiseResolve: () => void;
     const successPromise = new Promise<void>(res => {
       successPromiseResolve = res;
@@ -114,8 +118,13 @@ describe('sending sentry report on hanging worker', () => {
         successPromiseResolve();
       }
     });
+    return { successPromise, onMessage };
+  }
+
+  describe('build successfully and send buildSuccess message', () => {
     describe('close message received from launcher', () => {
       it('should terminate worker without notifying sentry', async () => {
+        const { successPromise, onMessage } = createSuccessHandler();
         const [ws, helper, messageTimeout] = await setUpTestAsync(port, onMessage);
         ws.send(createDispatchMessage());
         await successPromise;
@@ -132,6 +141,7 @@ describe('sending sentry report on hanging worker', () => {
 
     describe('close message received from launcher, but something went wrong and shouldCloseWorker is not true', () => {
       it('should log message and notify sentry about possibly hanging', async () => {
+        const { successPromise, onMessage } = createSuccessHandler();
         const [ws, helper, messageTimeout] = await setUpTestAsync(port, onMessage);
         ws.send(createDispatchMessage());
         await successPromise;
@@ -153,6 +163,7 @@ describe('sending sentry report on hanging worker', () => {
 
     describe('no close message received from launcher in specified time', () => {
       it('should log message and notify sentry about possibly hanging', async () => {
+        const { successPromise, onMessage } = createSuccessHandler();
         const [ws, helper, messageTimeout] = await setUpTestAsync(port, onMessage);
         ws.send(createDispatchMessage());
         await successPromise;

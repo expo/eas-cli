@@ -226,4 +226,3 @@ describe('Job execution', () => {
     });
   });
 });
-
