@@ -14,7 +14,6 @@ jobs:
       - uses: eas/install_node_modules
 
       - name: Build worker tarball
-        working_directory: packages/worker
         run: ./package.sh worker-ios.tar.gz ios
 
       - name: Upload worker tarball as artifact
