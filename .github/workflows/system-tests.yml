@@ -24,7 +24,7 @@ jobs:
 
       - name: Configure EAS Build
         working-directory: ${{ runner.temp }}/test-app
-        run: npx -y eas-cli@latest build:configure --platform all --non-interactive
+        run: npx -y eas-cli@latest build:configure --platform all
 
       - name: Setup EAS workflow
         working-directory: ${{ runner.temp }}/test-app
