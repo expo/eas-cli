@@ -23,6 +23,10 @@ jobs:
 
       - run: yarn install --frozen-lockfile --check-files
 
+      - name: Run unit tests
+        working-directory: packages/worker
+        run: yarn test:unit
+
       - name: Run integration tests
         working-directory: packages/worker
         run: yarn test:integration
