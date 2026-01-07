@@ -1,0 +1,67 @@
+name: system-tests
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  system-tests:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.STAGING_EXPO_DEV_EXPO_SERVICES_GITHUB_ROBOT_ACCESS_TOKEN }}
+      EXPO_STAGING: "1"
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+
+      - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
+
+      - name: Install eas-cli
+        run: npm install -g eas-cli
+
+      - name: Create test app
+        run: npx create-expo-app@latest test-app --template tabs --no-install
+
+      - name: Link to EAS project
+        working-directory: test-app
+        run: eas init --id 6ae8028d-4e6d-4912-8eb2-87d4e6122880 --force --non-interactive
+
+      - name: Configure EAS Build
+        working-directory: test-app
+        run: eas build:configure --platform all --non-interactive
+
+      - name: Setup EAS workflow
+        working-directory: test-app
+        run: |
+          mkdir -p .eas/workflows
+          cp ${{ github.workspace }}/.github/fixtures/eas-workflow-build-android.yml .eas/workflows/build-android.yml
+
+      - name: Run iOS build and Android workflow concurrently
+        working-directory: test-app
+        run: |
+          # Start iOS build in background
+          eas build --platform ios --profile production --non-interactive --wait &
+          PID_IOS=$!
+
+          # Start Android workflow in background
+          eas workflow:run build-android.yml --wait --non-interactive &
+          PID_ANDROID=$!
+
+          # Wait for both and capture exit codes
+          wait $PID_IOS
+          EXIT_IOS=$?
+
+          wait $PID_ANDROID
+          EXIT_ANDROID=$?
+
+          # Report results
+          echo "iOS build exit code: $EXIT_IOS"
+          echo "Android workflow exit code: $EXIT_ANDROID"
+
+          # Fail if either failed
+          if [ $EXIT_IOS -ne 0 ] || [ $EXIT_ANDROID -ne 0 ]; then
+            echo "One or more builds failed"
+            exit 1
+          fi
+
+          echo "All builds succeeded"
+
