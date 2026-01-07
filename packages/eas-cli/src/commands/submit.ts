@@ -145,7 +145,7 @@ export default class Submit extends EasCommand {
       withServerSideEnvironment: null,
     });
 
-    const flags = this.sanitizeFlags(rawFlags);
+    const flags = this.sanitizeFlags(rawFlags as RawCommandFlags);
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasSubmit]);
 

@@ -1,11 +1,13 @@
 import { Platform } from '@expo/eas-build-job';
 import { spawn, spawnSync } from 'child_process';
 import fs from 'fs-extra';
+import StreamZip from 'node-stream-zip';
 import os from 'os';
 import path from 'path';
 
 import { AppStoreConnectApiKeyQuery } from '../../graphql/queries/AppStoreConnectApiKeyQuery';
 import Log from '../../log';
+import { parseBinaryPlistBuffer } from '../../utils/plist';
 import { SubmissionContext } from '../context';
 import {
   AscApiKeySource,
@@ -88,7 +90,7 @@ export async function submitLocalIosAsync(
     } else {
       Log.log('Uploading to App Store Connect via fastlane');
     }
-
+    await printInfoPlistAsync(ipaPath);
     await runFastlane(args);
   } finally {
     await cleanupTmpAsync(tmpPath, tmpDir);
@@ -133,6 +135,36 @@ function ensureFastlaneAvailable(): void {
     throw new Error(
       'fastlane is not installed or not available in PATH. Install fastlane to perform local ASC key uploads.'
     );
+  }
+}
+
+async function printInfoPlistAsync(ipaPath: string): Promise<void> {
+  // Parse and print Info.plist from the provided .ipa before running fastlane
+  try {
+    const zip = new StreamZip.async({ file: ipaPath });
+    try {
+      const entries = await zip.entries();
+      const entriesKeys = Object.keys(entries);
+      for (const entryPath of entriesKeys) {
+        const infoPlistRegex = /^Payload\/[^/]+\.app\/Info\.plist$/;
+        if (infoPlistRegex.test(entryPath)) {
+          const infoPlistBuffer = await zip.entryData(entries[entryPath]);
+          try {
+            const infoPlist = parseBinaryPlistBuffer(infoPlistBuffer);
+            Log.log(`Parsed Info.plist: ${JSON.stringify(infoPlist, null, 2)}`);
+          } catch (err) {
+            Log.warn(`Failed to parse Info.plist from ipa: ${err}`);
+          }
+          break;
+        }
+      }
+    } catch (err) {
+      Log.warn(`Error reading ipa while extracting Info.plist: ${err}`);
+    } finally {
+      await zip.close();
+    }
+  } catch (err) {
+    Log.warn(`Failed to open ipa for reading Info.plist: ${err}`);
   }
 }
 
