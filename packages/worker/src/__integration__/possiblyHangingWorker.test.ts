@@ -2,7 +2,7 @@ import { hostname } from 'os';
 import { setTimeout as setTimeoutAsync } from 'timers/promises';
 import WebSocket from 'ws';
 
-import { WsHelper, unreachableCode } from './utils';
+import { WsHelper, closeServerWithClients, unreachableCode } from './utils';
 import { createTestAndroidJob } from './utils/jobs';
 import logger from '../logger';
 import BuildService from '../service';
@@ -11,8 +11,12 @@ import startWsServer from '../ws';
 
 const buildId = 'f38532aa-81a8-4db7-915f-6e7afe46e22f';
 
-const MAX_BUILD_TIME_MS = 60 * 1000; // 1 min
+const MAX_BUILD_TIME_MS = 10 * 1000; // 10 sec
 jest.setTimeout(MAX_BUILD_TIME_MS);
+
+// Timeouts for hanging worker detection tests
+const HANGING_CHECK_TIMEOUT_MS = 50; // Must match the literal in jest.mock('../service')
+const WAIT_FOR_HANGING_CHECK_MS = HANGING_CHECK_TIMEOUT_MS + 50; // Wait slightly longer than check timeout
 
 // Mock @expo/build-tools at the library boundary
 jest.mock('@expo/build-tools', () => {
@@ -44,7 +48,8 @@ let partialMockService: BuildService;
 jest.mock('../service', () => {
   return function () {
     const BuildService = new (jest.requireActual('../service').default)();
-    BuildService.getHangingWorkerCheckTimeoutMs = jest.fn(() => 1000 * 5); // wait for 5 seconds in test instead of 5 minutes
+    // Use literal value here because jest.mock is hoisted above const declarations
+    BuildService.getHangingWorkerCheckTimeoutMs = jest.fn(() => 50);
     spyReportHangingWorker = jest.spyOn(BuildService, 'reportHangingWorker');
     partialMockService = BuildService;
     return BuildService;
@@ -90,10 +95,12 @@ describe('sending sentry report on hanging worker', () => {
   });
 
   afterEach(async () => {
-    await new Promise(res => {
-      server.close(res);
-    });
-    jest.resetAllMocks();
+    await closeServerWithClients(server);
+    // Wait for any pending checkForHangingWorker timeouts to complete
+    // This prevents Jest's "open handles" warning
+    await setTimeoutAsync(HANGING_CHECK_TIMEOUT_MS + 10);
+    // Use clearAllMocks instead of resetAllMocks to preserve mock implementations
+    jest.clearAllMocks();
   });
 
   afterAll(async () => {
@@ -134,7 +141,7 @@ describe('sending sentry report on hanging worker', () => {
         ws.send(JSON.stringify({ type: 'close' }));
         await closePromise;
 
-        await setTimeoutAsync(10 * 1000);
+        await setTimeoutAsync(WAIT_FOR_HANGING_CHECK_MS);
         expect(spyReportHangingWorker).not.toHaveBeenCalled();
       });
     });
@@ -151,7 +158,7 @@ describe('sending sentry report on hanging worker', () => {
         partialMockService.closeWorker = jest.fn(() => {});
         ws.send(JSON.stringify({ type: 'close' }));
 
-        await setTimeoutAsync(10 * 1000);
+        await setTimeoutAsync(WAIT_FOR_HANGING_CHECK_MS);
         expect(spyReportHangingWorker).toHaveBeenCalled();
 
         partialMockService.closeWorker = actualCloseWorker;
@@ -169,7 +176,7 @@ describe('sending sentry report on hanging worker', () => {
         await successPromise;
         clearTimeout(messageTimeout);
 
-        await setTimeoutAsync(10 * 1000);
+        await setTimeoutAsync(WAIT_FOR_HANGING_CHECK_MS);
         expect(spyReportHangingWorker).toHaveBeenCalled();
 
         const closePromise = helper.onClose();

@@ -6,6 +6,21 @@ export function unreachableCode(msg: string): void {
   expect(msg).toBeFalsy();
 }
 
+/**
+ * Properly close a WebSocket server by terminating all client connections first.
+ * This prevents open handles that would cause Jest not to exit cleanly.
+ */
+export async function closeServerWithClients(server: WebSocket.Server): Promise<void> {
+  // Terminate all connected clients first
+  for (const client of server.clients) {
+    client.terminate();
+  }
+  // Then close the server
+  await new Promise<void>(resolve => {
+    server.close(() => resolve());
+  });
+}
+
 export class WsHelper {
   public ws: WebSocket;
   public onOpenCb?: () => void = jest.fn();
