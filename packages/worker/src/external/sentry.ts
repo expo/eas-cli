@@ -28,6 +28,7 @@ class Sentry {
     sentry.init({
       ...(options.dsn ? { dsn: options.dsn } : {}),
       environment: options.environment,
+      integrations: [sentry.koaIntegration()],
     });
   }
 
@@ -38,9 +39,10 @@ class Sentry {
       } catch (err: any) {
         if (ctx.status >= 500) {
           sentry.withScope((scope: sentry.Scope) => {
-            scope.addEventProcessor((event: sentry.Event) =>
-              sentry.Handlers.parseRequest(event, ctx.req)
-            );
+            const req = ctx.req;
+            if (req) {
+              scope.setSDKProcessingMetadata({ request: req });
+            }
             scope.setTags({
               component: 'api',
               ...this.options.tags,
