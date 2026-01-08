@@ -1546,43 +1546,6 @@
   resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-2.1.12.tgz#9c40a6294820e59d8b1a677318dccb1ccefc5b00"
   integrity sha512-ugpL2URxNFxIRw943AIpX3dcvL5rhNCumpL8XTosYqZPyQQ7JRLVNd1m8FNyPg3pmFrz8M4tSucY2pt2ATuKOA==
 
-"@expo/build-tools@1.0.260":
-  version "1.0.260"
-  resolved "https://registry.yarnpkg.com/@expo/build-tools/-/build-tools-1.0.260.tgz#996c7386ce943869ab4fa4f309fda03edd6fe4d1"
-  integrity sha512-CJhpY7DLOp76SXjtnF9iNEaqiNM4WeMgcF3YbPTbr8L/JeeYrsRl/QRKCYeGiw5dXv1PUz9WMJ2Y0LEDkPdLeg==
-  dependencies:
-    "@expo/config" "10.0.6"
-    "@expo/config-plugins" "9.0.12"
-    "@expo/downloader" "1.0.260"
-    "@expo/eas-build-job" "1.0.260"
-    "@expo/env" "^0.4.0"
-    "@expo/logger" "1.0.260"
-    "@expo/package-manager" "1.7.0"
-    "@expo/plist" "^0.2.0"
-    "@expo/results" "^1.0.0"
-    "@expo/steps" "1.0.260"
-    "@expo/template-file" "1.0.260"
-    "@expo/turtle-spawn" "1.0.260"
-    "@expo/xcpretty" "^4.3.1"
-    "@google-cloud/storage" "^7.11.2"
-    "@urql/core" "^6.0.1"
-    fast-glob "^3.3.2"
-    fs-extra "^11.2.0"
-    gql.tada "^1.8.13"
-    joi "^17.13.1"
-    lodash "^4.17.21"
-    node-fetch "^2.7.0"
-    node-forge "^1.3.1"
-    nullthrows "^1.1.1"
-    plist "^3.1.0"
-    promise-limit "^2.7.0"
-    promise-retry "^2.0.1"
-    resolve-from "^5.0.0"
-    retry "^0.13.1"
-    semver "^7.6.2"
-    tar "^7.4.3"
-    yaml "^2.8.1"
-
 "@expo/bunyan@^4.0.0":
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/@expo/bunyan/-/bunyan-4.0.0.tgz#be0c1de943c7987a9fbd309ea0b1acd605890c7b"
@@ -1759,44 +1722,6 @@
     slugify "^1.3.4"
     sucrase "3.35.0"
 
-"@expo/downloader@1.0.260":
-  version "1.0.260"
-  resolved "https://registry.yarnpkg.com/@expo/downloader/-/downloader-1.0.260.tgz#ea9da316addac7b7ff9be63f23b7df031554d506"
-  integrity sha512-ZhMTD5wjCU7gw8oQnCH/JVFvPuDpZYMerAFVHTxB7lKsE5xY4qSz2eyBjh3QBR76fl2oIIhAowa028ttYIOglg==
-  dependencies:
-    fs-extra "^11.2.0"
-    got "11.8.5"
-
-"@expo/eas-build-job@1.0.231":
-  version "1.0.231"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.231.tgz#5c96045276da1e521794523204e9da6051e4dda1"
-  integrity sha512-jktsZ7IJYcC9lbgUWftbFCpfrhcGwJX4q0qSubUrqvFTMuUyLjCzJqyIZ4znbXLXfJSUPDJNAd4H0wBqKJA9kA==
-  dependencies:
-    "@expo/logger" "1.0.221"
-    joi "^17.13.1"
-    semver "^7.6.2"
-    zod "^4.1.3"
-
-"@expo/eas-build-job@1.0.243":
-  version "1.0.243"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.243.tgz#2b390ca1a84b4a4ea06630cf875b96c0954094ab"
-  integrity sha512-wLU9q0pzIKibr4jLMV/U6BYszk5T85p/WmRYUIqH7nhmy2dDUJHz0WlP/i/ZWAsnrHplwidbCZvZGoxwgJsISA==
-  dependencies:
-    "@expo/logger" "1.0.221"
-    joi "^17.13.1"
-    semver "^7.6.2"
-    zod "^4.1.3"
-
-"@expo/eas-build-job@1.0.260":
-  version "1.0.260"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.260.tgz#cfde65c376fcc2d8e803011c8e7b9a7cb66296c4"
-  integrity sha512-cqEL9wJiU28mTVNYden9F/N2spUI8fsVG0UuWiml16uOr07/nDC+jtV8H6vxd4pGCeMp1iNBWfJDrvRk4cBVIg==
-  dependencies:
-    "@expo/logger" "1.0.260"
-    joi "^17.13.1"
-    semver "^7.6.2"
-    zod "^4.1.3"
-
 "@expo/env@^0.4.0":
   version "0.4.2"
   resolved "https://registry.yarnpkg.com/@expo/env/-/env-0.4.2.tgz#911709933e6fc1b45b3d2efdb10ca2c52fac7e91"
@@ -1877,22 +1802,6 @@
     "@babel/code-frame" "~7.10.4"
     json5 "^2.2.3"
     write-file-atomic "^2.3.0"
-
-"@expo/logger@1.0.221":
-  version "1.0.221"
-  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.221.tgz#bd6ef6e03b3c4bf0872843d8b2a83556892178c0"
-  integrity sha512-arNkhzq4Ludz9J7PIYWTVYXuT1bO/A8prR8HYAviKuF6fEZfitemNVriGSetQASOE8Vnv3lmBZv6YIwLiFuv/Q==
-  dependencies:
-    "@types/bunyan" "^1.8.11"
-    bunyan "^1.8.15"
-
-"@expo/logger@1.0.260":
-  version "1.0.260"
-  resolved "https://registry.yarnpkg.com/@expo/logger/-/logger-1.0.260.tgz#25cdc5a9687bdd0a02146f620df40aeba9d061de"
-  integrity sha512-PmOAxepxfaHksl9nq0Mnkx3IfpMI+TMxqlLaA+d3RYBzqdvluN+z7m26G6fr6j8xR3BTw0ilddJOwtCTDsXBOw==
-  dependencies:
-    "@types/bunyan" "^1.8.11"
-    bunyan "^1.8.15"
 
 "@expo/multipart-body-parser@2.0.0":
   version "2.0.0"
@@ -2046,61 +1955,10 @@
   dependencies:
     cross-spawn "^7.0.3"
 
-"@expo/steps@1.0.231":
-  version "1.0.231"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.231.tgz#28fece40d97abb4ccddfad2ea003fa98d414f08a"
-  integrity sha512-o7Wj6W32S4H4geWC0b3RL5finHmiPT+e8SMP4/4Il2R0oc9er8jLXaj1tQ3fTZvpnlqoMWcFn5fAvaGnxfYDPA==
-  dependencies:
-    "@expo/eas-build-job" "1.0.231"
-    "@expo/logger" "1.0.221"
-    "@expo/spawn-async" "^1.7.2"
-    arg "^5.0.2"
-    fs-extra "^11.2.0"
-    joi "^17.13.1"
-    jsep "^1.3.8"
-    lodash.clonedeep "^4.5.0"
-    lodash.get "^4.4.2"
-    this-file "^2.0.3"
-    uuid "^9.0.1"
-    yaml "^2.4.3"
-
-"@expo/steps@1.0.260":
-  version "1.0.260"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.260.tgz#2b0c84d0c139d6dce8b00cf37e0c649a58759073"
-  integrity sha512-MIQ3yJWh2m8j5hd/x/XHGTDXZ/LMxzJMit7DvR4DJKtr3A/Hfg/vmPutpCjNXgjz7OG3j3O9lx8G6evKZOl3mA==
-  dependencies:
-    "@expo/eas-build-job" "1.0.260"
-    "@expo/logger" "1.0.260"
-    "@expo/spawn-async" "^1.7.2"
-    arg "^5.0.2"
-    fs-extra "^11.2.0"
-    joi "^17.13.1"
-    jsep "^1.3.8"
-    lodash.clonedeep "^4.5.0"
-    lodash.get "^4.4.2"
-    this-file "^2.0.3"
-    uuid "^9.0.1"
-    yaml "^2.4.3"
-
-"@expo/template-file@1.0.260":
-  version "1.0.260"
-  resolved "https://registry.yarnpkg.com/@expo/template-file/-/template-file-1.0.260.tgz#5ad4ae09bbfcfc727ae97113e2a74d8a6961bfce"
-  integrity sha512-d+2eV40O8YvzWJCz9wiObq5w9njg6HqBNp5R2ylOcDedV3hacJfF6HXpwIM2NY11MJz1woxUtWxslMQg5le0Ew==
-  dependencies:
-    lodash "^4.17.21"
-
 "@expo/timeago.js@1.0.0":
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/@expo/timeago.js/-/timeago.js-1.0.0.tgz#8fb2b17e93e7a8d28387a4d292af12e071040045"
   integrity sha512-PD45CGlCL8kG0U3YcH1NvYxQThw5XAS7qE9bgP4L7dakm8lsMz+p8BQ1IjBFMmImawVWsV3py6JZINaEebXLnw==
-
-"@expo/turtle-spawn@1.0.260":
-  version "1.0.260"
-  resolved "https://registry.yarnpkg.com/@expo/turtle-spawn/-/turtle-spawn-1.0.260.tgz#1648990f1a5c666f25f2e2d151543a589f7ab6a4"
-  integrity sha512-4CvouSeClQlq1lwbomyw9KQLttGWH2Y13fKKW01SgxljeDW+riNovPnwrrLHmoqRh4Vpbm2DSwjFlHVubX50Fw==
-  dependencies:
-    "@expo/logger" "1.0.260"
-    "@expo/spawn-async" "^1.7.2"
 
 "@expo/xcpretty@^4.3.1":
   version "4.3.2"
