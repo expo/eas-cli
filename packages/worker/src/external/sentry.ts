@@ -1,7 +1,6 @@
 import { bunyan } from '@expo/logger';
 import * as sentry from '@sentry/node';
 import Flatted from 'flatted';
-import Router from 'koa-router';
 import { ZodError } from 'zod';
 
 import { boomify } from '../utils/boom';
@@ -30,32 +29,6 @@ class Sentry {
       environment: options.environment,
       integrations: [sentry.koaIntegration()],
     });
-  }
-
-  public getMiddleware(options: ErrorOptions = {}) {
-    return async (ctx: Router.RouterContext, next: () => Promise<void>): Promise<void> => {
-      try {
-        await next();
-      } catch (err: any) {
-        if (ctx.status >= 500) {
-          sentry.withScope((scope: sentry.Scope) => {
-            const req = ctx.req;
-            if (req) {
-              scope.setSDKProcessingMetadata({ request: req });
-            }
-            scope.setTags({
-              component: 'api',
-              ...this.options.tags,
-              ...options.tags,
-              path: ctx.path,
-            });
-            scope.setExtras(options.extras ?? {});
-            sentry.captureException(err);
-          });
-        }
-        this.logger.error({ err });
-      }
-    };
   }
 
   public handleError(msg: string, err?: Error, options: ErrorOptions = {}): void {
