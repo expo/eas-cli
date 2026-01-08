@@ -38,8 +38,8 @@
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "@types/jest": "^29.5.12",
-    "@types/lodash.clonedeep": "^4.5.9",
-    "@types/lodash.get": "^4.4.9",
+    "@types/lodash.clonedeep": "4.5.9",
+    "@types/lodash.get": "4.4.9",
     "@types/node": "20.14.2",
     "chokidar-cli": "^3.0.0",
     "eslint-plugin-async-protect": "^3.1.0",
