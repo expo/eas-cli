@@ -21,22 +21,33 @@ const buildId = config.buildId;
 
 jest.setTimeout(10 * 1000);
 let buildTimeout: NodeJS.Timeout;
-jest.mock('../build', () => {
-  return {
-    ...jest.requireActual('../build'),
-    build: async (): Promise<void> => {
-      await new Promise<void>(res => {
-        buildTimeout = setTimeout(() => {
-          res();
-          unreachableCode('build finished');
-        }, 10 * 1000);
-      });
-    },
-  };
-});
+
+// Mock @expo/build-tools at the library boundary
+// Builders hang until buildTimeout fires so we can test abort during build
 jest.mock('@expo/build-tools', () => {
+  const actual = jest.requireActual('@expo/build-tools');
   return {
-    ...jest.requireActual('@expo/build-tools'),
+    ...actual,
+    Builders: {
+      androidBuilder: jest.fn(
+        async () =>
+          new Promise<void>(res => {
+            buildTimeout = setTimeout(() => {
+              res();
+              unreachableCode('build finished');
+            }, 10 * 1000);
+          })
+      ),
+      iosBuilder: jest.fn(
+        async () =>
+          new Promise<void>(res => {
+            buildTimeout = setTimeout(() => {
+              res();
+              unreachableCode('build finished');
+            }, 10 * 1000);
+          })
+      ),
+    },
     findAndUploadXcodeBuildLogsAsync: jest.fn(() => {
       logger.info('Uploading XCode logs');
     }),
@@ -83,8 +94,8 @@ describe('launcher aborts build', () => {
   });
 
   afterEach(async () => {
-    await new Promise(res => {
-      server.close(res);
+    await new Promise<void>((resolve, reject) => {
+      server.close(err => (err ? reject(err) : resolve()));
     });
   });
 

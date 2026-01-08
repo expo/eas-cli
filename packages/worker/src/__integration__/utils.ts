@@ -1,8 +1,6 @@
-import { Android } from '@expo/eas-build-job';
 import WebSocket from 'ws';
 
 import logger from '../logger';
-import env from '../utils/env';
 
 export function unreachableCode(msg: string): void {
   expect(msg).toBeFalsy();
@@ -59,12 +57,3 @@ export class WsHelper {
     this.ws.on('message', this.onMessageCb);
   }
 }
-
-export const ANDROID_CREDENTIALS: Android.BuildSecrets['buildCredentials'] = {
-  keystore: {
-    dataBase64: env('TURTLE_TEST_ANDROID_STORE_DATA'),
-    keystorePassword: env('TURTLE_TEST_ANDROID_STORE_PASSWORD'),
-    keyAlias: env('TURTLE_TEST_ANDROID_STORE_ALIAS'),
-    keyPassword: env('TURTLE_TEST_ANDROID_STORE_ALIAS_PASSWORD'),
-  },
-};

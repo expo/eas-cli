@@ -1,47 +1,40 @@
-import { ArchiveSourceType } from '@expo/eas-build-job';
 import { hostname } from 'os';
 import { setTimeout as setTimeoutAsync } from 'timers/promises';
 import WebSocket from 'ws';
 
-import { ANDROID_CREDENTIALS, WsHelper, unreachableCode } from './utils';
+import { WsHelper, unreachableCode } from './utils';
+import { createTestAndroidJob } from './utils/jobs';
 import logger from '../logger';
 import BuildService from '../service';
-import env from '../utils/env';
 import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
 import startWsServer from '../ws';
 
 const buildId = 'f38532aa-81a8-4db7-915f-6e7afe46e22f';
 
-const MAX_BUILD_TIME_MS = 60 * 1000; // 1 min
+const MAX_BUILD_TIME_MS = 10 * 1000; // 10 sec
 jest.setTimeout(MAX_BUILD_TIME_MS);
 
-const PROJECT_URL = env('TURTLE_TEST_PROJECT_URL');
-const DUMMY_BUILD_DISPATCH_DATA = JSON.stringify({
-  type: 'dispatch',
-  buildId,
-  job: {
-    mode: 'build',
-    secrets: {
-      buildCredentials: ANDROID_CREDENTIALS,
+// Timeouts for hanging worker detection tests
+const HANGING_CHECK_TIMEOUT_MS = 50; // Must match the literal in jest.mock('../service')
+const WAIT_FOR_HANGING_CHECK_MS = HANGING_CHECK_TIMEOUT_MS + 50; // Wait slightly longer than check timeout
+
+// Mock @expo/build-tools at the library boundary
+jest.mock('@expo/build-tools', () => {
+  const actual = jest.requireActual('@expo/build-tools');
+  return {
+    ...actual,
+    Builders: {
+      androidBuilder: jest.fn(async () => ({
+        APPLICATION_ARCHIVE: 'test-android.aab',
+      })),
+      iosBuilder: jest.fn(async () => ({
+        APPLICATION_ARCHIVE: 'test-ios.ipa',
+      })),
     },
-    platform: 'android',
-    type: 'generic',
-    projectArchive: {
-      type: ArchiveSourceType.URL,
-      url: PROJECT_URL,
-    },
-    projectRootDirectory: './generic',
-    gradleCommand: ':app:bundleRelease',
-    applicationArchivePath: 'android/app/build/outputs/**/*.{apk,aab}',
-  },
-  initiatingUserId: '14367e1b-26fc-4c00-aedb-0629d78f8286',
-  metadata: {
-    trackingContext: {},
-  },
+  };
 });
 
 jest.mock('../upload');
-jest.mock('../build');
 jest.mock('../config', () => {
   const config = jest.requireActual('../config').default;
   return {
@@ -55,12 +48,25 @@ let partialMockService: BuildService;
 jest.mock('../service', () => {
   return function () {
     const BuildService = new (jest.requireActual('../service').default)();
-    BuildService.getHangingWorkerCheckTimeoutMs = jest.fn(() => 1000 * 5); // wait for 5 seconds in test instead of 5 minutes
+    // Use literal value here because jest.mock is hoisted above const declarations
+    BuildService.getHangingWorkerCheckTimeoutMs = jest.fn(() => 50);
     spyReportHangingWorker = jest.spyOn(BuildService, 'reportHangingWorker');
     partialMockService = BuildService;
     return BuildService;
   };
 });
+
+function createDispatchMessage(): string {
+  return JSON.stringify({
+    type: 'dispatch',
+    buildId,
+    job: createTestAndroidJob(),
+    initiatingUserId: '14367e1b-26fc-4c00-aedb-0629d78f8286',
+    metadata: {
+      trackingContext: {},
+    },
+  });
+}
 
 async function setUpTestAsync(
   port: number,
@@ -89,17 +95,24 @@ describe('sending sentry report on hanging worker', () => {
   });
 
   afterEach(async () => {
-    await new Promise(res => {
-      server.close(res);
+    await new Promise<void>((resolve, reject) => {
+      server.close(err => (err ? reject(err) : resolve()));
     });
-    jest.resetAllMocks();
+    // Wait for any pending checkForHangingWorker timeouts to complete
+    await setTimeoutAsync(HANGING_CHECK_TIMEOUT_MS + 10);
+    // Use clearAllMocks instead of resetAllMocks to preserve mock implementations
+    jest.clearAllMocks();
   });
 
   afterAll(async () => {
     await cleanUpWorkingdir();
   });
 
-  describe('build successfully and send buildSuccess message', () => {
+  // Helper to create fresh promise and message handler for each test
+  function createSuccessHandler(): {
+    successPromise: Promise<void>;
+    onMessage: jest.Mock;
+  } {
     let successPromiseResolve: () => void;
     const successPromise = new Promise<void>(res => {
       successPromiseResolve = res;
@@ -113,11 +126,15 @@ describe('sending sentry report on hanging worker', () => {
         successPromiseResolve();
       }
     });
+    return { successPromise, onMessage };
+  }
+
+  describe('build successfully and send buildSuccess message', () => {
     describe('close message received from launcher', () => {
       it('should terminate worker without notifying sentry', async () => {
-        require('../build').setShouldSucceed(true);
+        const { successPromise, onMessage } = createSuccessHandler();
         const [ws, helper, messageTimeout] = await setUpTestAsync(port, onMessage);
-        ws.send(DUMMY_BUILD_DISPATCH_DATA);
+        ws.send(createDispatchMessage());
         await successPromise;
         clearTimeout(messageTimeout);
 
@@ -125,16 +142,16 @@ describe('sending sentry report on hanging worker', () => {
         ws.send(JSON.stringify({ type: 'close' }));
         await closePromise;
 
-        await setTimeoutAsync(10 * 1000);
+        await setTimeoutAsync(WAIT_FOR_HANGING_CHECK_MS);
         expect(spyReportHangingWorker).not.toHaveBeenCalled();
       });
     });
 
     describe('close message received from launcher, but something went wrong and shouldCloseWorker is not true', () => {
       it('should log message and notify sentry about possibly hanging', async () => {
-        require('../build').setShouldSucceed(true);
+        const { successPromise, onMessage } = createSuccessHandler();
         const [ws, helper, messageTimeout] = await setUpTestAsync(port, onMessage);
-        ws.send(DUMMY_BUILD_DISPATCH_DATA);
+        ws.send(createDispatchMessage());
         await successPromise;
         clearTimeout(messageTimeout);
 
@@ -142,7 +159,7 @@ describe('sending sentry report on hanging worker', () => {
         partialMockService.closeWorker = jest.fn(() => {});
         ws.send(JSON.stringify({ type: 'close' }));
 
-        await setTimeoutAsync(10 * 1000);
+        await setTimeoutAsync(WAIT_FOR_HANGING_CHECK_MS);
         expect(spyReportHangingWorker).toHaveBeenCalled();
 
         partialMockService.closeWorker = actualCloseWorker;
@@ -154,13 +171,13 @@ describe('sending sentry report on hanging worker', () => {
 
     describe('no close message received from launcher in specified time', () => {
       it('should log message and notify sentry about possibly hanging', async () => {
-        require('../build').setShouldSucceed(true);
+        const { successPromise, onMessage } = createSuccessHandler();
         const [ws, helper, messageTimeout] = await setUpTestAsync(port, onMessage);
-        ws.send(DUMMY_BUILD_DISPATCH_DATA);
+        ws.send(createDispatchMessage());
         await successPromise;
         clearTimeout(messageTimeout);
 
-        await setTimeoutAsync(10 * 1000);
+        await setTimeoutAsync(WAIT_FOR_HANGING_CHECK_MS);
         expect(spyReportHangingWorker).toHaveBeenCalled();
 
         const closePromise = helper.onClose();

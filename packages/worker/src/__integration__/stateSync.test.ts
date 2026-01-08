@@ -1,14 +1,10 @@
-import { Artifacts } from '@expo/build-tools';
-import fs from 'fs-extra';
+import { Builders } from '@expo/build-tools';
 import { hostname } from 'os';
-import path from 'path';
 import { setTimeout as setTimeoutAsync } from 'timers/promises';
 import WebSocket from 'ws';
 
 import { WsHelper, unreachableCode } from './utils';
 import { createTestAndroidJob } from './utils/jobs';
-import { build } from '../build';
-import config from '../config';
 import logger from '../logger';
 import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
 import startWsServer from '../ws';
@@ -16,19 +12,28 @@ import startWsServer from '../ws';
 const buildId = 'e9b99e52-fb74-4927-be63-33d7447ddfd4';
 
 jest.setTimeout(30 * 1000);
-jest.mock('../build', () => {
-  return {
-    ...jest.requireActual('../build'),
-    build: jest.fn(async (): Promise<Artifacts> => {
-      logger.debug('mocked build function');
-      await setTimeoutAsync(1000);
 
-      const filename = path.join(config.workingdir, 'build', 'test.json');
-      await fs.close(await fs.open(filename, 'w'));
-      return {
-        APPLICATION_ARCHIVE: `application-${buildId}`,
-      };
-    }),
+// Mock @expo/build-tools at the library boundary
+jest.mock('@expo/build-tools', () => {
+  const actual = jest.requireActual('@expo/build-tools');
+  return {
+    ...actual,
+    Builders: {
+      androidBuilder: jest.fn(async () => {
+        logger.debug('mocked androidBuilder');
+        await setTimeoutAsync(1000);
+        return {
+          APPLICATION_ARCHIVE: `application-${buildId}`,
+        };
+      }),
+      iosBuilder: jest.fn(async () => {
+        logger.debug('mocked iosBuilder');
+        await setTimeoutAsync(1000);
+        return {
+          APPLICATION_ARCHIVE: `application-${buildId}`,
+        };
+      }),
+    },
   };
 });
 jest.mock('../service', () => {
@@ -67,8 +72,8 @@ describe('State sync mechanism', () => {
   });
 
   afterEach(async () => {
-    await new Promise(res => {
-      server.close(res);
+    await new Promise<void>((resolve, reject) => {
+      server.close(err => (err ? reject(err) : resolve()));
     });
   });
 
@@ -246,7 +251,7 @@ describe('State sync mechanism', () => {
 
   describe('query worker after error', () => {
     it("should return 'error' state with artifacts from error", async () => {
-      jest.mocked(build).mockImplementation(async () => {
+      jest.mocked(Builders.androidBuilder).mockImplementation(async () => {
         const error = new Error();
         (error as any).artifacts = {
           APPLICATION_ARCHIVE: `application-${buildId}`,
