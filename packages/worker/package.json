@@ -73,7 +73,7 @@
     "jest": "29.7.0",
     "memfs": "3.4.1",
     "ts-jest": "29.1.4",
-    "typescript": "5.4.5"
+    "typescript": "5.5.4"
   },
   "volta": {
     "node": "20.18.3",
