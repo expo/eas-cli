@@ -3,7 +3,6 @@ import Koa from 'koa';
 import koaBody from 'koa-body';
 import Router from 'koa-router';
 
-
 import config from './config';
 import logger from './logger';
 import { getWorkerVmMetrics } from './metrics';
@@ -23,7 +22,6 @@ function createRouter(): Router {
 
 function createApp(): Koa {
   const app = new Koa();
-
   const router = createRouter();
   app.use(async function errorMiddleware(
     ctx: Router.RouterContext,
