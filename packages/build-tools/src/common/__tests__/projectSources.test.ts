@@ -40,7 +40,7 @@ describe('projectSources', () => {
         appId: randomUUID(),
         projectArchive: {
           type: ArchiveSourceType.GIT,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-build.git',
+          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
           gitRef: 'refs/heads/main',
           gitCommitHash,
         },
@@ -72,7 +72,7 @@ describe('projectSources', () => {
             data: {
               gitRef: 'refs/heads/main',
               gitCommitHash,
-              repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-build.git',
+              repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
               type: ArchiveSourceType.GIT,
             },
           }),
@@ -84,7 +84,7 @@ describe('projectSources', () => {
       expect.objectContaining({
         archiveSource: {
           ...ctx.job.projectArchive,
-          repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-build.git',
+          repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
         },
       })
     );
@@ -104,7 +104,7 @@ describe('projectSources', () => {
         appId: randomUUID(),
         projectArchive: {
           type: ArchiveSourceType.GIT,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-build.git',
+          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
           gitRef: 'refs/heads/main',
           gitCommitHash: randomBytes(20).toString('hex'),
         },
@@ -141,7 +141,7 @@ describe('projectSources', () => {
       expect.objectContaining({
         archiveSource: {
           ...ctx.job.projectArchive,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-build.git',
+          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
         },
       })
     );
@@ -151,7 +151,7 @@ describe('projectSources', () => {
           ok: false,
           json: async () => ({
             // repositoryUrl is the right key
-            repository_url: 'https://x-access-token:qwerty@github.com/expo/eas-build.git',
+            repository_url: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
           }),
         }) as Response
     );
@@ -161,7 +161,7 @@ describe('projectSources', () => {
       expect.objectContaining({
         archiveSource: {
           ...ctx.job.projectArchive,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-build.git',
+          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
         },
       })
     );
@@ -179,7 +179,7 @@ describe('projectSources', () => {
       expect.objectContaining({
         archiveSource: {
           ...ctx.job.projectArchive,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-build.git',
+          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
         },
       })
     );
@@ -203,7 +203,7 @@ describe('projectSources', () => {
         appId: randomUUID(),
         projectArchive: {
           type: ArchiveSourceType.GIT,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-build.git',
+          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
           gitRef: 'refs/heads/main',
           gitCommitHash,
         },
@@ -240,7 +240,7 @@ describe('projectSources', () => {
           ok: true,
           json: async () => ({
             data: {
-              repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-build.git',
+              repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
               gitRef: 'refs/heads/main',
               gitCommitHash,
               type: ArchiveSourceType.GIT,
@@ -254,7 +254,7 @@ describe('projectSources', () => {
       expect.objectContaining({
         archiveSource: {
           ...ctx.job.projectArchive,
-          repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-build.git',
+          repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
         },
       })
     );
@@ -274,7 +274,7 @@ describe('projectSources', () => {
         appId: randomUUID(),
         projectArchive: {
           type: ArchiveSourceType.GIT,
-          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-build.git',
+          repositoryUrl: 'https://x-access-token:1234567890@github.com/expo/eas-cli.git',
           gitRef: 'refs/heads/main',
           gitCommitHash: randomBytes(20).toString('hex'),
         },
