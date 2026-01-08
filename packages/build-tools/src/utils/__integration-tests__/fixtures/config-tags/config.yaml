@@ -1,0 +1,7 @@
+flows:
+  - '*.yaml'
+includeTags:
+  - cfgInclude
+excludeTags:
+  - cfgExclude
+

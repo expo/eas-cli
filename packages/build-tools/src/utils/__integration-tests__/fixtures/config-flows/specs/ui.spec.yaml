@@ -1,0 +1,5 @@
+appId: com.example.app
+name: "ui.spec"
+tags: ["ui", "integration"]
+---
+- assertTrue: true

@@ -1,0 +1,7 @@
+import:
+  - functions-file-3.yml
+
+functions:
+  say_hi_wojtek:
+    name: Hi, Wojtek!
+    command: echo "Hi, Wojtek!"

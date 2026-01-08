@@ -1,0 +1,289 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`gradleConfig injectConfigureVersionGradleConfig should create version gradle file with all variables substituted 1`] = `
+"// Build integration with EAS
+
+import java.nio.file.Paths
+
+def versionCodeVal = null
+def versionNameVal = null
+
+    versionCodeVal = "42"
+
+
+    versionNameVal = "2.3.4"
+
+
+android {
+  defaultConfig {
+    if (versionCodeVal) {
+      versionCode = Integer.parseInt(versionCodeVal)
+    }
+    if (versionNameVal) {
+      versionName = versionNameVal
+    }
+  }
+  applicationVariants.all { variant ->
+    variant.outputs.each { output ->
+      if (versionCodeVal) {
+        output.versionCodeOverride = Integer.parseInt(versionCodeVal)
+      }
+      if (versionNameVal) {
+        output.versionNameOverride = versionNameVal
+      }
+    }
+  }
+}
+"
+`;
+
+exports[`gradleConfig injectConfigureVersionGradleConfig should handle neither versionCode nor versionName provided 1`] = `
+"// Build integration with EAS
+
+import java.nio.file.Paths
+
+def versionCodeVal = null
+def versionNameVal = null
+
+
+
+android {
+  defaultConfig {
+    if (versionCodeVal) {
+      versionCode = Integer.parseInt(versionCodeVal)
+    }
+    if (versionNameVal) {
+      versionName = versionNameVal
+    }
+  }
+  applicationVariants.all { variant ->
+    variant.outputs.each { output ->
+      if (versionCodeVal) {
+        output.versionCodeOverride = Integer.parseInt(versionCodeVal)
+      }
+      if (versionNameVal) {
+        output.versionNameOverride = versionNameVal
+      }
+    }
+  }
+}
+"
+`;
+
+exports[`gradleConfig injectConfigureVersionGradleConfig should handle only versionCode provided 1`] = `
+"// Build integration with EAS
+
+import java.nio.file.Paths
+
+def versionCodeVal = null
+def versionNameVal = null
+
+    versionCodeVal = "123"
+
+
+
+android {
+  defaultConfig {
+    if (versionCodeVal) {
+      versionCode = Integer.parseInt(versionCodeVal)
+    }
+    if (versionNameVal) {
+      versionName = versionNameVal
+    }
+  }
+  applicationVariants.all { variant ->
+    variant.outputs.each { output ->
+      if (versionCodeVal) {
+        output.versionCodeOverride = Integer.parseInt(versionCodeVal)
+      }
+      if (versionNameVal) {
+        output.versionNameOverride = versionNameVal
+      }
+    }
+  }
+}
+"
+`;
+
+exports[`gradleConfig injectConfigureVersionGradleConfig should handle only versionName provided 1`] = `
+"// Build integration with EAS
+
+import java.nio.file.Paths
+
+def versionCodeVal = null
+def versionNameVal = null
+
+
+    versionNameVal = "1.2.3-beta"
+
+
+android {
+  defaultConfig {
+    if (versionCodeVal) {
+      versionCode = Integer.parseInt(versionCodeVal)
+    }
+    if (versionNameVal) {
+      versionName = versionNameVal
+    }
+  }
+  applicationVariants.all { variant ->
+    variant.outputs.each { output ->
+      if (versionCodeVal) {
+        output.versionCodeOverride = Integer.parseInt(versionCodeVal)
+      }
+      if (versionNameVal) {
+        output.versionNameOverride = versionNameVal
+      }
+    }
+  }
+}
+"
+`;
+
+exports[`gradleConfig injectConfigureVersionGradleConfig should handle version code as string with leading zeros 1`] = `
+"// Build integration with EAS
+
+import java.nio.file.Paths
+
+def versionCodeVal = null
+def versionNameVal = null
+
+    versionCodeVal = "0042"
+
+
+    versionNameVal = "1.0.0"
+
+
+android {
+  defaultConfig {
+    if (versionCodeVal) {
+      versionCode = Integer.parseInt(versionCodeVal)
+    }
+    if (versionNameVal) {
+      versionName = versionNameVal
+    }
+  }
+  applicationVariants.all { variant ->
+    variant.outputs.each { output ->
+      if (versionCodeVal) {
+        output.versionCodeOverride = Integer.parseInt(versionCodeVal)
+      }
+      if (versionNameVal) {
+        output.versionNameOverride = versionNameVal
+      }
+    }
+  }
+}
+"
+`;
+
+exports[`gradleConfig injectConfigureVersionGradleConfig should handle version name with special characters 1`] = `
+"// Build integration with EAS
+
+import java.nio.file.Paths
+
+def versionCodeVal = null
+def versionNameVal = null
+
+    versionCodeVal = "1"
+
+
+    versionNameVal = "1.0.0-rc.1+build.123"
+
+
+android {
+  defaultConfig {
+    if (versionCodeVal) {
+      versionCode = Integer.parseInt(versionCodeVal)
+    }
+    if (versionNameVal) {
+      versionName = versionNameVal
+    }
+  }
+  applicationVariants.all { variant ->
+    variant.outputs.each { output ->
+      if (versionCodeVal) {
+        output.versionCodeOverride = Integer.parseInt(versionCodeVal)
+      }
+      if (versionNameVal) {
+        output.versionNameOverride = versionNameVal
+      }
+    }
+  }
+}
+"
+`;
+
+exports[`gradleConfig injectConfigureVersionGradleConfig should produce valid Gradle syntax 1`] = `
+"// Build integration with EAS
+
+import java.nio.file.Paths
+
+def versionCodeVal = null
+def versionNameVal = null
+
+    versionCodeVal = "100"
+
+
+    versionNameVal = "3.0.0"
+
+
+android {
+  defaultConfig {
+    if (versionCodeVal) {
+      versionCode = Integer.parseInt(versionCodeVal)
+    }
+    if (versionNameVal) {
+      versionName = versionNameVal
+    }
+  }
+  applicationVariants.all { variant ->
+    variant.outputs.each { output ->
+      if (versionCodeVal) {
+        output.versionCodeOverride = Integer.parseInt(versionCodeVal)
+      }
+      if (versionNameVal) {
+        output.versionNameOverride = versionNameVal
+      }
+    }
+  }
+}
+"
+`;
+
+exports[`gradleConfig injectConfigureVersionGradleConfig should replace existing version gradle file 1`] = `
+"// Build integration with EAS
+
+import java.nio.file.Paths
+
+def versionCodeVal = null
+def versionNameVal = null
+
+    versionCodeVal = "999"
+
+
+    versionNameVal = "9.9.9"
+
+
+android {
+  defaultConfig {
+    if (versionCodeVal) {
+      versionCode = Integer.parseInt(versionCodeVal)
+    }
+    if (versionNameVal) {
+      versionName = versionNameVal
+    }
+  }
+  applicationVariants.all { variant ->
+    variant.outputs.each { output ->
+      if (versionCodeVal) {
+        output.versionCodeOverride = Integer.parseInt(versionCodeVal)
+      }
+      if (versionNameVal) {
+        output.versionNameOverride = versionNameVal
+      }
+    }
+  }
+}
+"
+`;

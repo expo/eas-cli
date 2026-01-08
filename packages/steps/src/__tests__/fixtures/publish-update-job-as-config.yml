@@ -1,0 +1,13 @@
+build:
+  name: EAS Update – Publish
+  steps:
+    - eas/checkout
+
+    - eas/use_npm_token
+
+    - eas/install_node_modules
+
+    - run:
+        name: Publish update
+        command: |
+          EXPO_TOKEN="${ eas.job.secrets.robotAccessToken }" npx -y eas-cli@latest update --auto

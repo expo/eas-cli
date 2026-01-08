@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+NAME=$1
+VALUE=$2
+
+if [[ -z "$__EXPO_STEPS_ENVS_DIR" ]]; then
+  echo "Set __EXPO_STEPS_ENVS_DIR"
+  exit 1
+fi
+
+if [[ -z "$NAME" || -z "$VALUE" ]]; then
+  echo "Usage: set-env NAME VALUE"
+  exit 2
+fi
+
+if [[ "$NAME" == *"="* ]]; then
+  echo "Environment name can't include ="
+  exit 1
+fi
+
+if [[ "$OSTYPE" == "linux"* ]]; then
+  echo -n "$VALUE" | base64 -w 0 > $__EXPO_STEPS_ENVS_DIR/$NAME
+else
+  echo -n "$VALUE" | base64 > $__EXPO_STEPS_ENVS_DIR/$NAME
+fi

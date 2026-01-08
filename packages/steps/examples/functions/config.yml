@@ -1,0 +1,41 @@
+build:
+  name: Functions
+  steps:
+    - say_hi_brent
+    - say_hi:
+        inputs:
+          name: Dominik
+    - say_hi:
+        inputs:
+          name: Szymon
+    - say_hi:
+        inputs:
+          greeting: Hello
+    - random:
+        id: random_number
+    - run:
+        name: Print random number
+        inputs:
+          random_number: ${ steps.random_number.value }
+        command: |
+          echo "Random number: ${ inputs.random_number }"
+
+functions:
+  say_hi:
+    name: Say HI
+    inputs:
+      - name: name
+        default_value: Brent
+      - name: greeting
+        default_value: Hi
+        allowed_values: [Hi, Hello]
+    command: echo "${ inputs.greeting }, ${ inputs.name }!"
+  say_hi_brent:
+    name: Say HI
+    command: echo "Hi, Brent!"
+    supported_platforms: [darwin, linux]
+  random:
+    name: Generate random number
+    outputs:
+      - value
+    command: set-output value 6

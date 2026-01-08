@@ -1,0 +1,13 @@
+import:
+  - functions-file-1.yml
+
+build:
+  name: Import!
+  steps:
+    - say_hi:
+        env:
+          ENV1: value1
+          ENV2: value2
+        inputs:
+          name: Dominik
+    - say_hi_wojtek

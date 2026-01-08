@@ -1,0 +1,5 @@
+build:
+  name: External functions
+  steps:
+    - eas/download_project
+    - eas/build_project

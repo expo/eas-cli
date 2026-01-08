@@ -1,0 +1,42 @@
+{
+  "name": "@expo/downloader",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/expo/eas-cli.git",
+    "directory": "packages/downloader"
+  },
+  "version": "1.0.260",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "start": "yarn watch",
+    "watch": "tsc --watch --preserveWatchOutput",
+    "build": "tsc",
+    "prepack": "rm -rf dist && tsc -p tsconfig.build.json",
+    "test": "jest --config jest.config.js",
+    "test:watch": "jest --config jest.config.js --watch",
+    "clean": "rm -rf node_modules dist coverage"
+  },
+  "author": "Expo <support@expo.io>",
+  "bugs": "https://github.com/expo/eas-cli/issues",
+  "license": "BUSL-1.1",
+  "dependencies": {
+    "fs-extra": "^11.2.0",
+    "got": "11.8.5"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/jest": "^29.5.12",
+    "@types/node": "20.14.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.4",
+    "typescript": "^5.5.4"
+  },
+  "volta": {
+    "node": "20.14.0",
+    "yarn": "1.22.21"
+  }
+}

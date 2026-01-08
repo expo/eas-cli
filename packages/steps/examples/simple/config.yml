@@ -1,0 +1,36 @@
+build:
+  name: Foobar
+  steps:
+    - run: echo "Hi!"
+    - run:
+        name: Say HELLO
+        command: |
+          echo "H"
+          echo "E"
+          echo "L"
+          echo "L"
+          echo "O"
+    - run:
+        name: List files
+        command: ls -la
+    - run:
+        name: List files in another directory
+        working_directory: foo
+        command: ls -la
+    - run:
+        name: Steps use bash by default
+        command: |
+          echo "Steps use bash by default"
+          ps -p $$
+    - run:
+        name: Steps can use another shell
+        shell: /bin/zsh
+        command: |
+          echo "Steps can use another shell"
+          ps -p $$
+    - run:
+        name: Steps can use comments in commands
+        shell: /bin/zsh
+        command: |
+          # Print something
+          echo "Hello!"

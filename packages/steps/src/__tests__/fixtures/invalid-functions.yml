@@ -1,0 +1,14 @@
+import:
+  - functions-file-2.yml
+
+functions:
+  say_hi:
+    name: Hi!
+    inputs:
+      - name: name
+        type: boolean
+        allowed_values: [Wojtek, Dominik, Szymon, Brent]
+      - name: test
+        type: boolean
+        default_value: ${ wrong.job.platform }
+    command: echo "Hi, ${ inputs.name }!"
