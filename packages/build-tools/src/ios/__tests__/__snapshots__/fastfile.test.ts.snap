@@ -1,0 +1,88 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`fastfile createFastfileForResigningBuild should create Fastfile with all variables substituted correctly 1`] = `
+"lane :do_resign do
+  resign(
+    ipa: "/builds/MyApp.ipa",
+    signing_identity: "iPhone Distribution: Example Inc (ABC123)",
+    provisioning_profile: {
+      "com.example.app" => "/path/to/profiles/main.mobileprovision",
+      "com.example.app.widget" => "/path/to/profiles/widget.mobileprovision",
+    },
+    keychain_path: "/Users/expo/Library/Keychains/login.keychain"
+  )
+end
+"
+`;
+
+exports[`fastfile createFastfileForResigningBuild should handle empty provisioning profiles 1`] = `
+"lane :do_resign do
+  resign(
+    ipa: "/tmp/app.ipa",
+    signing_identity: "iPhone Distribution",
+    provisioning_profile: {
+    },
+    keychain_path: "/tmp/keychain"
+  )
+end
+"
+`;
+
+exports[`fastfile createFastfileForResigningBuild should handle multiple provisioning profiles correctly 1`] = `
+"lane :do_resign do
+  resign(
+    ipa: "/tmp/app.ipa",
+    signing_identity: "iPhone Distribution: Company Name",
+    provisioning_profile: {
+      "com.example.app" => "/profiles/main.mobileprovision",
+      "com.example.app.widget" => "/profiles/widget.mobileprovision",
+      "com.example.app.extension" => "/profiles/extension.mobileprovision",
+      "com.example.app.intents" => "/profiles/intents.mobileprovision",
+    },
+    keychain_path: "/tmp/keychain"
+  )
+end
+"
+`;
+
+exports[`fastfile createFastfileForResigningBuild should handle paths with special characters and spaces 1`] = `
+"lane :do_resign do
+  resign(
+    ipa: "/builds/My App (Release).ipa",
+    signing_identity: "iPhone Distribution: Example Inc (ABC123XYZ)",
+    provisioning_profile: {
+      "com.example.app" => "/path/with spaces/profile (1).mobileprovision",
+    },
+    keychain_path: "/Users/expo/Library/Keychains/login keychain.keychain"
+  )
+end
+"
+`;
+
+exports[`fastfile createFastfileForResigningBuild should handle single provisioning profile 1`] = `
+"lane :do_resign do
+  resign(
+    ipa: "/tmp/app.ipa",
+    signing_identity: "iPhone Distribution",
+    provisioning_profile: {
+      "com.example.app" => "/tmp/profile.mobileprovision",
+    },
+    keychain_path: "/tmp/keychain"
+  )
+end
+"
+`;
+
+exports[`fastfile createFastfileForResigningBuild should produce valid Ruby syntax 1`] = `
+"lane :do_resign do
+  resign(
+    ipa: "/tmp/app.ipa",
+    signing_identity: "iPhone Distribution",
+    provisioning_profile: {
+      "com.example.app" => "/path/to/profile.mobileprovision",
+    },
+    keychain_path: "/tmp/keychain"
+  )
+end
+"
+`;

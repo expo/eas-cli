@@ -1,0 +1,11 @@
+import:
+  - functions-with-platforms-property-darwin.yml
+
+build:
+  steps:
+    - say_hi_darwin:
+        inputs:
+          name: Brent
+    - say_bye_darwin:
+        inputs:
+          name: Brent

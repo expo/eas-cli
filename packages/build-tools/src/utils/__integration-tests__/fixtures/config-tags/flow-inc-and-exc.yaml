@@ -1,0 +1,8 @@
+appId: com.example.app
+name: flow-inc-and-exc
+tags:
+  - cfgInclude
+  - cfgExclude
+---
+- assertTrue: true
+
