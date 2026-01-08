@@ -1,0 +1,23 @@
+name: Build Worker (iOS)
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build_ios_worker:
+    name: Build iOS Worker Tarball
+    runs_on: macos-medium
+    image: latest
+    steps:
+      - uses: eas/checkout
+
+      - uses: eas/install_node_modules
+
+      - name: Build worker tarball
+        run: ./package.sh worker-ios.tar.gz ios
+
+      - name: Upload worker tarball as artifact
+        uses: eas/upload_artifact
+        with:
+          name: worker-ios-tarball
+          path: packages/worker/worker-ios.tar.gz

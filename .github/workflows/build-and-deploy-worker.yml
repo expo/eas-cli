@@ -45,20 +45,13 @@ jobs:
 
           echo "worker_exists=true" >> "$GITHUB_OUTPUT"
 
-  build:
-    runs-on: ${{ matrix.runner.name }}
+  build-android:
+    runs-on: ubuntu-latest
     needs:
       - setup
     if: (!failure() && !cancelled() && inputs.environment == '') || needs.setup.outputs.needs-to-build == 'true'
     permissions:
       id-token: write
-    strategy:
-      matrix:
-        runner:
-          - name: ubuntu-latest
-            platform: android
-          - name: macos-latest
-            platform: ios
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
@@ -68,30 +61,81 @@ jobs:
         with:
           ruby-version: "2.7"
 
-      - name: Install coreutils (macOS only)
-        if: runner.os == 'macOS'
-        run: brew install coreutils
-
       - name: Build worker tarball
         working-directory: packages/worker
-        run: ./package.sh worker-${{ matrix.runner.platform }}.tar.gz ${{ matrix.runner.platform }}
+        run: ./package.sh worker-android.tar.gz android
 
       - uses: ./.github/internal-actions/setup-gcloud
 
-      - name: Upload worker tarballs to GCP
+      - name: Upload worker tarball to GCP
         if: github.ref == 'refs/heads/main' || inputs.environment != ''
         working-directory: packages/worker
         run: |
-          ARTIFACT_TARBALL="worker-${{ matrix.runner.platform }}.tar.gz"
-          GCP_TARBALL="worker-${{ matrix.runner.platform }}-sha1-$GITHUB_SHA.tar.gz"
+          ARTIFACT_TARBALL="worker-android.tar.gz"
+          GCP_TARBALL="worker-android-sha1-$GITHUB_SHA.tar.gz"
 
           gsutil cp $ARTIFACT_TARBALL gs://eas-build-worker-tarballs/$GCP_TARBALL
+
+  build-ios:
+    runs-on: ubuntu-latest
+    needs:
+      - setup
+    if: (!failure() && !cancelled() && inputs.environment == '') || needs.setup.outputs.needs-to-build == 'true'
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+
+      - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
+
+      - name: Run EAS Workflow to build iOS worker
+        id: eas_workflow
+        working-directory: packages/worker
+        env:
+          EXPO_TOKEN: ${{ secrets.STAGING_EXPO_DEV_EXPO_SERVICES_GITHUB_ROBOT_ACCESS_TOKEN }}
+          EXPO_STAGING: "1"
+        run: |
+          # Run workflow and capture output (includes full workflow run with jobs and artifacts)
+          WORKFLOW_OUTPUT=$(npx -y eas-cli@latest workflow:run build-worker.yml \
+            --ref ${{ github.sha }} \
+            --non-interactive \
+            --wait \
+            --json)
+
+          # Extract artifact download URL from workflow output
+          # Artifacts are in jobs[].turtleJobRun.artifacts[] for custom jobs
+          DOWNLOAD_URL=$(echo "$WORKFLOW_OUTPUT" | jq -r '
+            .jobs[]
+            | .turtleJobRun.artifacts[]?
+            | select(.name == "worker-ios-tarball")
+            | .downloadUrl
+          ' | head -1)
+
+          if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
+            echo "Error: Could not find artifact download URL"
+            echo "Workflow output:"
+            echo "$WORKFLOW_OUTPUT" | jq .
+            exit 1
+          fi
+
+          # Mask the download URL
+          echo "::add-mask::$DOWNLOAD_URL"
+          echo "download_url=$DOWNLOAD_URL" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/internal-actions/setup-gcloud
+
+      - name: Upload worker tarball to GCP
+        if: github.ref == 'refs/heads/main' || inputs.environment != ''
+        run: |
+          GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
+          curl -L "${{ steps.eas_workflow.outputs.download_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$GCP_TARBALL
 
   deploy:
     runs-on: ubuntu-latest
     needs:
       - setup
-      - build
+      - build-android
+      - build-ios
     if: (!failure() && !cancelled() && inputs.environment != '')
     permissions:
       id-token: write
