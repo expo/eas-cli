@@ -12,6 +12,7 @@ import {
   errors,
 } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
+import { DatadogReporter } from '@expo/steps';
 import omit from 'lodash/omit';
 
 import config from './config';
@@ -19,6 +20,17 @@ import { displayWorkerRuntimeInfo } from './displayRuntimeInfo';
 import { Analytics, Event, logProjectDependenciesAsync } from './external/analytics';
 import { prepareRuntimeEnvironment } from './runtimeEnvironment';
 import { cleanUpWorkingdir } from './workingdir';
+
+function createMetricsReporter(logger: bunyan): DatadogReporter | undefined {
+  if (!config.datadog.apiKey) {
+    return undefined;
+  }
+  return new DatadogReporter({
+    apiKey: config.datadog.apiKey,
+    site: config.datadog.site ?? undefined,
+    logger,
+  });
+}
 
 export async function build({
   ctx,
@@ -64,8 +76,10 @@ export async function build({
       case undefined: {
         artifacts = {};
         const buildCtx = ctx as BuildContext<Generic.Job>;
+        const metricsReporter = createMetricsReporter(ctx.logger);
         const { runResult } = await runGenericJobAsync(buildCtx, {
           expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+          metricsReporter,
         });
 
         if (!runResult.ok) {

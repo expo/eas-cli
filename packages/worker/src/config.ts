@@ -107,4 +107,8 @@ export default {
       : process.env.ENVIRONMENT === 'staging'
         ? 'https://staging-api.expo.dev/v2/'
         : 'https://api.expo.dev/v2/',
+  datadog: {
+    apiKey: env<string | null>('WORKER_DD_API_KEY', { defaultValue: null }),
+    site: env<string | null>('WORKER_DD_SITE', { defaultValue: 'datadoghq.com' }),
+  },
 };
