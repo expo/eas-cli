@@ -3,11 +3,18 @@ packages/*/build
 packages/eas-cli/dist
 packages/eas-cli/tmp
 scripts/build
+dist
+dist_*
+
+# TypeScript
+**/tsconfig.tsbuildinfo
 
 # Code editors
 .idea
 .history
 .vscode
+*.swp
+*.swo
 
 # macOS
 .DS_Store
