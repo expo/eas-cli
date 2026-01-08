@@ -92,8 +92,7 @@ jobs:
         id: eas_workflow
         working-directory: packages/worker
         env:
-          EXPO_TOKEN: ${{ secrets.STAGING_EXPO_DEV_EXPO_SERVICES_GITHUB_ROBOT_ACCESS_TOKEN }}
-          EXPO_STAGING: "1"
+          EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
         run: |
           # Run workflow and capture output (includes full workflow run with jobs and artifacts)
           WORKFLOW_OUTPUT=$(npx -y eas-cli@latest workflow:run build-worker.yml \
