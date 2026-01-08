@@ -1,0 +1,7 @@
+appId: com.example.app
+name: "standalone-flow"
+tags:
+  - standalone
+  - smoke
+---
+- assertTrue: true

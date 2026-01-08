@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist_esm"
+  },
+  "exclude": ["**/__mocks__/", "**/__tests__/"]
+}

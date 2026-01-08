@@ -1,0 +1,7 @@
+appId: com.example.app
+name: flow-cli-include
+tags:
+  - cliInclude
+---
+- assertTrue: true
+
