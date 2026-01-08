@@ -18,7 +18,7 @@
     "typecheck": "tsc"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   },
   "dependencies": {
     "@babel/core": "7.24.7",
@@ -35,7 +35,7 @@
     "@expo/template-file": "1.0.260",
     "@expo/turtle-spawn": "1.0.260",
     "@hapi/boom": "10.0.1",
-    "@sentry/node": "7.77.0",
+    "@sentry/node": "10.32.1",
     "check-disk-space": "3.4.0",
     "fast-glob": "3.3.2",
     "filesize": "7.0.0",
