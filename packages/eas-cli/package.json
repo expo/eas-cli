@@ -242,7 +242,7 @@
     "copy-new-templates": "rimraf build/commandUtils/new/templates && mkdir -p build/commandUtils/new && cp -r src/commandUtils/new/templates build/commandUtils/new"
   },
   "volta": {
-    "node": "20.19.4",
+    "node": "20.11.0",
     "yarn": "1.22.21"
   }
 }
