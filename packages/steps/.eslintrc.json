@@ -1,0 +1,10 @@
+{
+  "extends": "../../.eslintrc.json",
+  "plugins": [
+    "async-protect"
+  ],
+  "rules": {
+    "async-protect/async-suffix": "error",
+    "import/extensions": ["error", "always"]
+  }
+}

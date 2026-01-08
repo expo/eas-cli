@@ -1,0 +1,95 @@
+build:
+  name: Functions
+  steps:
+    - say_hi:
+        env:
+          ENV1: value1
+          ENV2: value2
+        inputs:
+          name: Dominik
+          build_number: ${ eas.job.version.buildNumber }
+          json_input:
+            property1: value1
+            property2:
+              - aaa
+              - bbb
+    - say_hi:
+        name: Hi, Szymon!
+        inputs:
+          name: Szymon
+          build_number: 122
+    - say_hi_wojtek
+    - random:
+        id: random_number
+    - print:
+        inputs:
+          value: ${ steps.random_number.value }
+    - say_hi_2:
+        inputs:
+          greeting: Hello
+          number: 123
+    - my_ts_fn:
+        inputs:
+          name: Dominik
+          num: 123
+          obj:
+            property1: value1
+            property2:
+              - aaa
+              - bbb
+
+functions:
+  say_hi:
+    name: Hi!
+    inputs:
+      - name
+      - name: build_number
+        type: number
+      - name: json_input
+        type: json
+        default_value:
+          property1: value1
+          property2:
+            - value2
+            - value3:
+                property3: value4
+    command: echo "Hi, ${ inputs.name }!"
+  say_hi_wojtek:
+    name: Hi, Wojtek!
+    command: echo "Hi, Wojtek!"
+  random:
+    name: Generate random number
+    outputs: [value]
+    command: set-output value 6
+  print:
+    inputs: [value]
+    command: echo "${ inputs.value }"
+  say_hi_2:
+    name: Hi!
+    supported_platforms: [darwin, linux]
+    inputs:
+      - name: greeting
+        default_value: Hi
+        allowed_values: [Hi, Hello]
+      - name: name
+        default_value: Brent
+      - name: test
+        default_value: false
+        allowed_values: [false, true]
+        type: boolean
+      - name: number
+        type: number
+    command: echo "${ inputs.greeting }, ${ inputs.name }!"
+  my_ts_fn:
+    name: My TS function
+    inputs:
+      - name: name
+      - name: num
+        type: number
+      - name: obj
+        type: json
+    outputs:
+      - name: name
+      - name: num
+      - name: obj
+    path: ./my-custom-ts-function

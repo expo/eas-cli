@@ -1,0 +1,17 @@
+build:
+  name: Inputs
+  steps:
+    - run:
+        name: Say HI
+        inputs:
+          name: Dominik Sokal
+          country: Poland
+          boolean_value: true
+          number_value: 123
+          json_value:
+            property1: value1
+            property2:
+              - value2
+              - value3:
+                  property3: value4
+        command: echo "Hi, ${ inputs.name }, ${ inputs.boolean_value }!"

@@ -1,0 +1,23 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`BuildConfigParser parseAsync parses outputs 1`] = `
+"set-output first_name Brent
+set-output last_name Vatne
+"
+`;
+
+exports[`BuildConfigParser parseAsync parses outputs 2`] = `
+"set-output first_name Dominik
+set-output last_name Sokal
+set-output nickname dsokal
+"
+`;
+
+exports[`BuildConfigParser parseAsync parses steps from the build workflow 1`] = `
+"echo "H"
+echo "E"
+echo "L"
+echo "L"
+echo "O"
+"
+`;

@@ -1,0 +1,5 @@
+import: [functions2.yml]
+
+functions:
+  say_hi:
+    command: echo "Hi!"

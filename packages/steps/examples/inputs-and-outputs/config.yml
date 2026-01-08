@@ -1,0 +1,43 @@
+build:
+  name: Inputs, outputs and envs
+  steps:
+    - run:
+        name: Say HI
+        inputs:
+          name: Dominik Sokal
+        command: echo "Hi, ${ inputs.name }!"
+    - run:
+        name: Produce output
+        id: id123
+        outputs: [foo]
+        command: |
+          echo "Producing output for another step"
+          set-output foo bar
+    - run:
+        name: Produce another output
+        id: id456
+        outputs:
+          - required_param
+          - name: optional_param
+            required: false
+        command: |
+          echo "Producing more output"
+          set-output required_param "abc 123 456"
+    - run:
+        name: Set env variable
+        command: |
+          echo "Setting env variable EXAMPLE_VALUE=123"
+          set-env EXAMPLE_VALUE "123 
+
+          test"
+    - run:
+        name: Use output from another step
+        inputs:
+          foo: ${ steps.id123.foo }
+          bar: ${ steps.id456.required_param }
+          baz: ${ steps.id456.optional_param }
+        command: |
+          echo "foo = \"${ inputs.foo }\""
+          echo "bar = \"${ inputs.bar }\""
+          echo "baz = \"${ inputs.baz }\""
+          echo "env EXAMPLE_VALUE=$EXAMPLE_VALUE"
