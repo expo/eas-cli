@@ -50,7 +50,7 @@ jobs:
           set -euo pipefail
 
           BUILD_JSON=$(npx -y eas-cli@latest build --platform ios --profile system-test --non-interactive --no-wait --json)
-          BUILD_ID=$(echo "$BUILD_JSON" | jq -r '.id // .build.id // .buildId // empty')
+          BUILD_ID=$(echo "$BUILD_JSON" | jq -r 'if type=="array" then .[0].id // .[0].build.id // .[0].buildId else .id // .build.id // .buildId end // empty')
           if [ -z "$BUILD_ID" ]; then
             echo "Error: could not determine build ID"
             echo "$BUILD_JSON" | jq .
@@ -113,7 +113,7 @@ jobs:
           exit "$EXIT_CODE"
 
       - name: Cancel EAS runs on workflow cancellation
-        if: cancelled()
+        if: always() && (cancelled() || failure())
         run: |
           set -euo pipefail
 
