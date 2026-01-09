@@ -6,6 +6,7 @@ jobs:
   build:
     name: Build Android
     type: build
+    runs_on: linux-large
     params:
       platform: android
       profile: system-test
