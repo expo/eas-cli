@@ -9,3 +9,8 @@ jobs:
     params:
       platform: android
       profile: system-test
+  custom_job:
+    name: Custom Job
+    steps:
+      - name: Echo
+        run: echo "This is a custom job step"
