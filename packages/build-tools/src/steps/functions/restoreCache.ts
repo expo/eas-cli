@@ -281,25 +281,22 @@ export async function decompressCacheAsync({
   }
 
   // First, extract everything to the working directory
-  const fileHandle = await fs.promises.open(archivePath, 'r');
   const extractedFiles: string[] = [];
 
-  await streamPipeline(
-    fileHandle.createReadStream(),
-    tar.extract({
-      cwd: workingDirectory,
-      onwarn: (code, message, data) => {
-        logger.warn({ code, data }, message);
-      },
-      preservePaths: true,
-      onReadEntry: (entry) => {
-        extractedFiles.push(entry.path);
-        if (verbose) {
-          logger.info(`- ${entry.path}`);
-        }
-      },
-    })
-  );
+  await tar.extract({
+    file: archivePath,
+    cwd: workingDirectory,
+    onwarn: (code, message, data) => {
+      logger.warn({ code, data }, message);
+    },
+    preservePaths: true,
+    onReadEntry: (entry) => {
+      extractedFiles.push(entry.path);
+      if (verbose) {
+        logger.info(`- ${entry.path}`);
+      }
+    },
+  });
 
   // Handle absolute paths that were prefixed with __absolute__
   for (const extractedPath of extractedFiles) {
