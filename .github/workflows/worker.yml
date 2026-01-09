@@ -32,25 +32,18 @@ jobs:
         run: yarn test:integration
 
   worker-build:
-    uses: ./.github/workflows/build-and-deploy-worker.yml
-    secrets: inherit
-    with:
-      environment: ""
-
-  deploy-worker-staging:
-    if: github.ref == 'refs/heads/main'
     needs:
-      - worker-build
       - worker-checks
     uses: ./.github/workflows/build-and-deploy-worker.yml
     secrets: inherit
     with:
-      environment: staging
+      environment: ${{ github.ref == 'refs/heads/main' && 'staging' || '' }}
 
   system-tests-staging:
     if: github.ref == 'refs/heads/main' && !failure() && !cancelled()
     needs:
-      - deploy-worker-staging
+      - worker-build
+      - worker-checks
     uses: ./.github/workflows/worker-system-tests.yml
     secrets: inherit
 
