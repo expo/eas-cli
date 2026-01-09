@@ -86,8 +86,7 @@ jobs:
         id: eas_artifacts
         working-directory: packages/worker
         env:
-          EXPO_TOKEN: ${{ secrets.STAGING_EXPO_DEV_EXPO_SERVICES_GITHUB_ROBOT_ACCESS_TOKEN }}
-          EXPO_STAGING: "1"
+          EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -171,8 +170,7 @@ jobs:
         if: cancelled()
         working-directory: packages/worker
         env:
-          EXPO_TOKEN: ${{ secrets.STAGING_EXPO_DEV_EXPO_SERVICES_GITHUB_ROBOT_ACCESS_TOKEN }}
-          EXPO_STAGING: "1"
+          EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
 
