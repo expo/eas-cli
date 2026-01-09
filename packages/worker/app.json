@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "worker",
-    "slug": "worker-build",
+    "name": "EAS Worker",
+    "slug": "eas-worker",
     "platforms": ["ios"],
     "extra": {
       "eas": {
-        "projectId": "be34d6b1-4242-4cf5-8464-3fdec53ad91c"
+        "projectId": "90798684-1384-4ce4-a73b-9f3fa3e3e368"
       }
     }
   }
