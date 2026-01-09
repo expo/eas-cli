@@ -40,7 +40,6 @@ export class BuildStepOutput<R extends boolean = boolean> {
   }
 
   constructor(
-    // @ts-expect-error ctx is not used in this class but let's keep it here for consistency
     private readonly ctx: BuildStepGlobalContext | undefined,
     { id, stepDisplayName, required }: BuildStepOutputParams<R>
   ) {
