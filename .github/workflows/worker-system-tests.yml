@@ -116,14 +116,37 @@ jobs:
 
       - name: Cancel EAS runs on workflow cancellation
         if: always() && (cancelled() || failure())
+        working-directory: ${{ runner.temp }}/test-app
         run: |
           set -euo pipefail
 
           if [ -n "${BUILD_ID:-}" ]; then
             echo "Canceling EAS build: $BUILD_ID"
-            npx -y eas-cli@latest build:cancel "$BUILD_ID" --non-interactive || true
+            BUILD_CANCEL_OUTPUT=$(npx -y eas-cli@latest build:cancel "$BUILD_ID" --non-interactive 2>&1 || true)
+            if [ -n "$BUILD_CANCEL_OUTPUT" ]; then
+              echo "$BUILD_CANCEL_OUTPUT"
+            else
+              echo "build:cancel produced no output"
+            fi
+            BUILD_STATUS=$(npx -y eas-cli@latest build:view "$BUILD_ID" --json 2>/dev/null | jq -r '.status // empty' || true)
+            if [ -n "$BUILD_STATUS" ]; then
+              echo "Post-cancel build status: $BUILD_STATUS"
+            else
+              echo "Post-cancel build status unavailable"
+            fi
           fi
           if [ -n "${WORKFLOW_RUN_ID:-}" ]; then
             echo "Canceling EAS workflow run: $WORKFLOW_RUN_ID"
-            npx -y eas-cli@latest workflow:cancel "$WORKFLOW_RUN_ID" --non-interactive || true
+            WORKFLOW_CANCEL_OUTPUT=$(npx -y eas-cli@latest workflow:cancel "$WORKFLOW_RUN_ID" --non-interactive 2>&1 || true)
+            if [ -n "$WORKFLOW_CANCEL_OUTPUT" ]; then
+              echo "$WORKFLOW_CANCEL_OUTPUT"
+            else
+              echo "workflow:cancel produced no output"
+            fi
+            WORKFLOW_STATUS=$(npx -y eas-cli@latest workflow:view "$WORKFLOW_RUN_ID" --non-interactive --json 2>/dev/null | jq -r '.status // empty' || true)
+            if [ -n "$WORKFLOW_STATUS" ]; then
+              echo "Post-cancel workflow status: $WORKFLOW_STATUS"
+            else
+              echo "Post-cancel workflow status unavailable"
+            fi
           fi
