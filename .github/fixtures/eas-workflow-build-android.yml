@@ -1,0 +1,16 @@
+name: build-android
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    name: Build Android
+    type: build
+    params:
+      platform: android
+      profile: system-test
+  custom_job:
+    name: Custom Job
+    steps:
+      - name: Echo
+        run: echo "This is a custom job step"

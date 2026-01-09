@@ -47,25 +47,32 @@ jobs:
     with:
       environment: staging
 
-  # deploy-worker-production:
-  #   if: github.ref == 'refs/heads/main' && !failure() && !cancelled()
-  #   needs:
-  #     - deploy-worker-staging
-  #   uses: ./.github/workflows/build-and-deploy-worker.yml
-  #   secrets: inherit
-  #   with:
-  #     environment: production
+  system-tests-staging:
+    if: github.ref == 'refs/heads/main' && !failure() && !cancelled()
+    needs:
+      - deploy-worker-staging
+    uses: ./.github/workflows/worker-system-tests.yml
+    secrets: inherit
 
-  # notify-slack:
-  #   runs-on: expo-small
-  #   needs:
-  #     - deploy-worker-production
-  #   if: github.ref == 'refs/heads/main' && always() && !cancelled()
-  #   steps:
-  #     - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+  deploy-worker-production:
+    if: github.ref == 'refs/heads/main' && !failure() && !cancelled()
+    needs:
+      - system-tests-staging
+    uses: ./.github/workflows/build-and-deploy-worker.yml
+    secrets: inherit
+    with:
+      environment: production
 
-  #     - name: Notify Slack
-  #       uses: ./.github/actions/notify-slack-on-fail-or-recover
-  #       with:
-  #         channel: turtle-bots
-  #         slack_token: ${{ secrets.SLACK_API_TOKEN }}
+  notify-slack:
+    runs-on: expo-small
+    needs:
+      - deploy-worker-production
+    if: github.ref == 'refs/heads/main' && always() && !cancelled()
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+
+      - name: Notify Slack
+        uses: ./.github/internal-actions/notify-slack-on-fail-or-recover
+        with:
+          channel: turtle-bots
+          slack_webhook: ${{ secrets.SLACK_EAS_WORKFLOWS_WEBHOOK }}
