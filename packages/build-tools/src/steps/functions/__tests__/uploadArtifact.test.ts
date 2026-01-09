@@ -60,14 +60,14 @@ describe(createUploadArtifactBuildFunction, () => {
       await fs.promises.mkdir(debugPath, {
         recursive: true,
       });
-      await fs.promises.writeFile(debugArtifactPath, randomBytes(10));
+      await fs.promises.writeFile(debugArtifactPath, new Uint8Array(randomBytes(10)));
 
       await fs.promises.mkdir(releasePath, {
         recursive: true,
       });
-      await fs.promises.writeFile(releaseArtifactPath, randomBytes(10));
+      await fs.promises.writeFile(releaseArtifactPath, new Uint8Array(randomBytes(10)));
 
-      await fs.promises.writeFile(directArtifactPath, randomBytes(10));
+      await fs.promises.writeFile(directArtifactPath, new Uint8Array(randomBytes(10)));
 
       const buildStep = uploadArtifact.createBuildStepFromFunctionCall(globalContext, {
         callInputs: {
