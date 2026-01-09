@@ -1,7 +1,12 @@
 name: Build Worker (iOS)
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      upload_artifact:
+        description: 'Whether to upload the artifact after building'
+        type: boolean
+        default: true
 
 jobs:
   build_ios_worker:
@@ -17,6 +22,7 @@ jobs:
         run: ./package.sh worker-ios.tar.gz ios
 
       - name: Upload worker tarball as artifact
+        if: ${{ inputs.upload_artifact }}
         uses: eas/upload_artifact
         with:
           name: worker-ios-tarball

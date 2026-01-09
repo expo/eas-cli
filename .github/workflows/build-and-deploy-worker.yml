@@ -66,6 +66,7 @@ jobs:
         run: ./package.sh worker-android.tar.gz android
 
       - uses: ./.github/internal-actions/setup-gcloud
+        if: github.ref == 'refs/heads/main' || inputs.environment != ''
 
       - name: Upload worker tarball to GCP
         if: github.ref == 'refs/heads/main' || inputs.environment != ''
@@ -94,12 +95,21 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
         run: |
+          SHOULD_UPLOAD_ARTIFACT="${{ github.ref == 'refs/heads/main' || inputs.environment != '' }}"
+
           # Run workflow and capture output (includes full workflow run with jobs and artifacts)
           WORKFLOW_OUTPUT=$(npx -y eas-cli@latest workflow:run build-worker.yml \
             --ref ${{ github.sha }} \
+            --input upload_artifact=$SHOULD_UPLOAD_ARTIFACT \
             --non-interactive \
             --wait \
             --json)
+
+          # Skip artifact URL extraction if we didn't upload
+          if [ "$SHOULD_UPLOAD_ARTIFACT" == "false" ]; then
+            echo "Skipping artifact download - upload was disabled"
+            exit 0
+          fi
 
           # Extract artifact download URL from workflow output
           # Artifacts are in jobs[].turtleJobRun.artifacts[] for custom jobs
@@ -122,6 +132,7 @@ jobs:
           echo "download_url=$DOWNLOAD_URL" >> "$GITHUB_OUTPUT"
 
       - uses: ./.github/internal-actions/setup-gcloud
+        if: github.ref == 'refs/heads/main' || inputs.environment != ''
 
       - name: Upload worker tarball to GCP
         if: github.ref == 'refs/heads/main' || inputs.environment != ''
