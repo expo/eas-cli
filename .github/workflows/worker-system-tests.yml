@@ -87,7 +87,7 @@ jobs:
           WORKFLOW_STATUS=""
 
           while true; do
-            BUILD_STATUS=$(npx -y eas-cli@latest build:view "$BUILD_ID" --non-interactive --json | jq -r '.status // empty')
+            BUILD_STATUS=$(npx -y eas-cli@latest build:view "$BUILD_ID" --json | jq -r '.status // empty')
             WORKFLOW_STATUS=$(npx -y eas-cli@latest workflow:view "$WORKFLOW_RUN_ID" --non-interactive --json | jq -r '.status // empty')
 
             echo "iOS build status: $BUILD_STATUS"
