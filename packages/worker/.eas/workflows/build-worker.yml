@@ -11,8 +11,6 @@ jobs:
     steps:
       - uses: eas/checkout
 
-      - uses: eas/install_node_modules
-
       - name: Build iOS worker tarball
         run: ./package.sh worker-ios.tar.gz ios
 
