@@ -95,11 +95,7 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
         run: |
-          # Determine if we should upload the artifact (only if we'll upload to GCS)
-          SHOULD_UPLOAD_ARTIFACT="false"
-          if [ "${{ github.ref }}" == "refs/heads/main" ] || [ -n "${{ inputs.environment }}" ]; then
-            SHOULD_UPLOAD_ARTIFACT="true"
-          fi
+          SHOULD_UPLOAD_ARTIFACT="${{ github.ref == 'refs/heads/main' || inputs.environment != '' }}"
 
           # Run workflow and capture output (includes full workflow run with jobs and artifacts)
           WORKFLOW_OUTPUT=$(npx -y eas-cli@latest workflow:run build-worker.yml \
