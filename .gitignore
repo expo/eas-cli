@@ -7,7 +7,7 @@ dist
 dist_*
 
 # TypeScript
-**/tsconfig.tsbuildinfo
+**/*.tsbuildinfo
 
 # Code editors
 .idea
