@@ -122,7 +122,7 @@ jobs:
                 exit 1
                 ;;
               NEW|IN_PROGRESS)
-                sleep 20
+                sleep 7
                 ;;
               *)
                 echo "Unexpected workflow status: $STATUS"
