@@ -85,8 +85,16 @@ jobs:
 
           BUILD_STATUS=""
           WORKFLOW_STATUS=""
+          TIMEOUT_SECONDS=1800
+          START_TIME=$(date +%s)
 
           while true; do
+            ELAPSED=$(( $(date +%s) - START_TIME ))
+            if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
+              echo "Timeout: polling exceeded 30 minutes"
+              exit 1
+            fi
+
             BUILD_STATUS=$(npx -y eas-cli@latest build:view "$BUILD_ID" --json | jq -r '.status // empty')
             WORKFLOW_STATUS=$(npx -y eas-cli@latest workflow:view "$WORKFLOW_RUN_ID" --non-interactive --json | jq -r '.status // empty')
 
