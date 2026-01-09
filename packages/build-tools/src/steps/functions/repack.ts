@@ -221,7 +221,7 @@ export async function resolveAndroidSigningOptionsAsync({
   const keyStorePath = path.join(tmpDir, `keystore-${randomUUID()}`);
   await fs.promises.writeFile(
     keyStorePath,
-    Buffer.from(buildCredentials.keystore.dataBase64, 'base64')
+    new Uint8Array(Buffer.from(buildCredentials.keystore.dataBase64, 'base64'))
   );
 
   const keyStorePassword = `pass:${buildCredentials.keystore.keystorePassword}`;

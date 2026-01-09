@@ -24,7 +24,7 @@ describe('Keychain class', () => {
     beforeAll(async () => {
       await fs.writeFile(
         certificatePath,
-        Buffer.from(distributionCertificate.dataBase64, 'base64')
+        new Uint8Array(Buffer.from(distributionCertificate.dataBase64, 'base64'))
       );
     });
 

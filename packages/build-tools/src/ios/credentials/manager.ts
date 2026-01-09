@@ -118,7 +118,7 @@ export default class IosCredentialsManager<TJob extends Ios.Job> {
       this.ctx.logger.info(`Writing distribution certificate to ${distCertPath}`);
       await fs.writeFile(
         distCertPath,
-        Buffer.from(targetCredentials.distributionCertificate.dataBase64, 'base64')
+        new Uint8Array(Buffer.from(targetCredentials.distributionCertificate.dataBase64, 'base64'))
       );
 
       this.ctx.logger.info('Importing distribution certificate into the keychain');

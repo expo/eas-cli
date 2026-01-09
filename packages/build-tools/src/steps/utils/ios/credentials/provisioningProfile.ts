@@ -58,7 +58,7 @@ export default class ProvisioningProfile {
     await fs.ensureDir(PROVISIONING_PROFILES_DIRECTORY);
 
     logger.debug(`Writing provisioning profile to ${this.profilePath}`);
-    await fs.writeFile(this.profilePath, this.profile);
+    await fs.writeFile(this.profilePath, new Uint8Array(this.profile));
 
     logger.debug('Loading provisioning profile');
     await this.load();
@@ -137,7 +137,7 @@ Profile's certificate fingerprint = ${devCertFingerprint}, distribution certific
   private genDerCertFingerprint(): string {
     return crypto
       .createHash('sha1')
-      .update(this.data.developerCertificate)
+      .update(new Uint8Array(this.data.developerCertificate))
       .digest('hex')
       .toUpperCase();
   }

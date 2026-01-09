@@ -15,11 +15,11 @@ export function createTemporaryEnvironmentSecretFile({
 
   const hash = crypto.createHash('sha256');
   hash.update(`${name}:`);
-  hash.update(contentsBuffer);
+  hash.update(new Uint8Array(contentsBuffer));
   const key = hash.digest('hex');
 
   const randomFilePath = path.join(secretsDir, key);
-  fs.writeFileSync(randomFilePath, contentsBuffer);
+  fs.writeFileSync(randomFilePath, new Uint8Array(contentsBuffer));
 
   return randomFilePath;
 }

@@ -64,7 +64,7 @@ async function restoreCredentials(
 ): Promise<void> {
   stepsCtx.logger.info("Writing secrets to the project's directory");
   const keystorePath = path.join(stepsCtx.global.projectTargetDirectory, `keystore-${uuidv4()}`);
-  await fs.writeFile(keystorePath, Buffer.from(buildCredentials.keystore.dataBase64, 'base64'));
+  await fs.writeFile(keystorePath, new Uint8Array(Buffer.from(buildCredentials.keystore.dataBase64, 'base64')));
   const credentialsJson = {
     android: {
       keystore: {
