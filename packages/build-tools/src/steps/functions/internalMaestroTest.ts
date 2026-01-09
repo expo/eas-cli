@@ -212,7 +212,7 @@ export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): B
         const outputPath = path.join(
           maestroReportsDir,
           [
-            `${output_format + '-' ?? ''}report-flow-${flowIndex + 1}`,
+            `${output_format ? output_format + '-' : ''}report-flow-${flowIndex + 1}`,
             MaestroOutputFormatToExtensionMap[output_format ?? 'noop'],
           ]
             .filter(Boolean)
