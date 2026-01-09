@@ -47,30 +47,79 @@ jobs:
       - name: Run iOS build and Android workflow concurrently
         working-directory: ${{ runner.temp }}/test-app
         run: |
-          # Start iOS build in background
-          npx -y eas-cli@latest build --platform ios --profile system-test --non-interactive --wait &
-          PID_IOS=$!
+          set -euo pipefail
 
-          # Start Android workflow in background
-          npx -y eas-cli@latest workflow:run build-android.yml --wait --non-interactive &
-          PID_ANDROID=$!
-
-          # Wait for both and capture exit codes
-          wait $PID_IOS
-          EXIT_IOS=$?
-
-          wait $PID_ANDROID
-          EXIT_ANDROID=$?
-
-          # Report results
-          echo "iOS build exit code: $EXIT_IOS"
-          echo "Android workflow exit code: $EXIT_ANDROID"
-
-          # Fail if either failed
-          if [ $EXIT_IOS -ne 0 ] || [ $EXIT_ANDROID -ne 0 ]; then
-            echo "One or more builds failed"
+          BUILD_JSON=$(npx -y eas-cli@latest build --platform ios --profile system-test --non-interactive --no-wait --json)
+          BUILD_ID=$(echo "$BUILD_JSON" | jq -r '.id // .build.id // .buildId // empty')
+          if [ -z "$BUILD_ID" ]; then
+            echo "Error: could not determine build ID"
+            echo "$BUILD_JSON" | jq .
             exit 1
           fi
+          echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
 
-          echo "All builds succeeded"
+          WORKFLOW_JSON=$(npx -y eas-cli@latest workflow:run build-android.yml --non-interactive --no-wait --json)
+          WORKFLOW_RUN_ID=$(echo "$WORKFLOW_JSON" | jq -r '.id // .workflowRun.id // .workflowRunId // empty')
+          if [ -z "$WORKFLOW_RUN_ID" ]; then
+            echo "Error: could not determine workflow run ID"
+            echo "$WORKFLOW_JSON" | jq .
+            exit 1
+          fi
+          echo "WORKFLOW_RUN_ID=$WORKFLOW_RUN_ID" >> "$GITHUB_ENV"
 
+          is_terminal_build_status() {
+            case "$1" in
+              FINISHED|ERRORED|CANCELED) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          is_terminal_workflow_status() {
+            case "$1" in
+              SUCCESS|FAILURE|CANCELED|ACTION_REQUIRED) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          BUILD_STATUS=""
+          WORKFLOW_STATUS=""
+
+          while true; do
+            BUILD_STATUS=$(npx -y eas-cli@latest build:view "$BUILD_ID" --non-interactive --json | jq -r '.status // empty')
+            WORKFLOW_STATUS=$(npx -y eas-cli@latest workflow:view "$WORKFLOW_RUN_ID" --non-interactive --json | jq -r '.status // empty')
+
+            echo "iOS build status: $BUILD_STATUS"
+            echo "Android workflow status: $WORKFLOW_STATUS"
+
+            if is_terminal_build_status "$BUILD_STATUS" && is_terminal_workflow_status "$WORKFLOW_STATUS"; then
+              break
+            fi
+
+            sleep 7
+          done
+
+          EXIT_CODE=0
+
+          if [ "$BUILD_STATUS" != "FINISHED" ]; then
+            echo "Build did not finish successfully: $BUILD_STATUS"
+            EXIT_CODE=1
+          fi
+
+          if [ "$WORKFLOW_STATUS" != "SUCCESS" ]; then
+            echo "Workflow did not finish successfully: $WORKFLOW_STATUS"
+            EXIT_CODE=1
+          fi
+
+          exit "$EXIT_CODE"
+
+      - name: Cancel EAS runs on workflow cancellation
+        if: cancelled()
+        run: |
+          set -euo pipefail
+
+          if [ -n "${BUILD_ID:-}" ]; then
+            npx -y eas-cli@latest build:cancel "$BUILD_ID" --non-interactive || true
+          fi
+          if [ -n "${WORKFLOW_RUN_ID:-}" ]; then
+            npx -y eas-cli@latest workflow:cancel "$WORKFLOW_RUN_ID" --non-interactive || true
+          fi
