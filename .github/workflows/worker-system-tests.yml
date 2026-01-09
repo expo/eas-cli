@@ -1,8 +1,8 @@
 name: system-tests
 
 on:
-  workflow_dispatch:
-  workflow_call:
+  workflow_dispatch: {}
+  workflow_call: {}
 
 jobs:
   system-tests:

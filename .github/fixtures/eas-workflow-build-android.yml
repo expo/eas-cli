@@ -9,4 +9,3 @@ jobs:
     params:
       platform: android
       profile: system-test
-

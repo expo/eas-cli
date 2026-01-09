@@ -51,7 +51,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && !failure() && !cancelled()
     needs:
       - deploy-worker-staging
-    uses: ./.github/workflows/system-tests.yml
+    uses: ./.github/workflows/worker-system-tests.yml
     secrets: inherit
 
   deploy-worker-production:
@@ -75,4 +75,4 @@ jobs:
         uses: ./.github/internal-actions/notify-slack-on-fail-or-recover
         with:
           channel: turtle-bots
-          slack_token: ${{ secrets.SLACK_API_TOKEN }}
+          slack_webhook: ${{ secrets.SLACK_EAS_WORKFLOWS_WEBHOOK }}
