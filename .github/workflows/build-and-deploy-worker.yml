@@ -122,6 +122,7 @@ jobs:
           echo "download_url=$DOWNLOAD_URL" >> "$GITHUB_OUTPUT"
 
       - uses: ./.github/internal-actions/setup-gcloud
+        if: github.ref == 'refs/heads/main' || inputs.environment != ''
 
       - name: Upload worker tarball to GCP
         if: github.ref == 'refs/heads/main' || inputs.environment != ''
