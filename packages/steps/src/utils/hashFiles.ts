@@ -15,7 +15,7 @@ export function hashFiles(filePaths: string[]): string {
     try {
       if (fs.pathExistsSync(filePath)) {
         const fileContent = fs.readFileSync(filePath);
-        const fileHash = createHash('sha256').update(fileContent).digest();
+        const fileHash = createHash('sha256').update(new Uint8Array(fileContent)).digest();
         combinedHash.write(fileHash);
         hasFound = true;
       }

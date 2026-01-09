@@ -1,11 +1,6 @@
-// import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
-import stream from 'node:stream';
-import { promisify } from 'node:util';
 
 import * as tar from 'tar';
-
-const streamPipeline = promisify(stream.pipeline);
 
 export async function decompressTarAsync({
   archivePath,
@@ -14,11 +9,10 @@ export async function decompressTarAsync({
   archivePath: string;
   destinationDirectory: string;
 }): Promise<void> {
-  const fileHandle = await fsPromises.open(archivePath, 'r');
-  await streamPipeline(
-    fileHandle.createReadStream(),
-    tar.extract({ cwd: destinationDirectory }, [])
-  );
+  await tar.extract({
+    file: archivePath,
+    cwd: destinationDirectory,
+  });
 }
 
 export async function isFileTarGzAsync(path: string): Promise<boolean> {
@@ -28,7 +22,8 @@ export async function isFileTarGzAsync(path: string): Promise<boolean> {
 
   // read only first 3 bytes to check if it's gzip
   const fd = await fsPromises.open(path, 'r');
-  const { buffer } = await fd.read(Buffer.alloc(3), 0, 3, 0);
+  const buffer = new Uint8Array(3);
+  await fd.read(buffer, 0, 3, 0);
   await fd.close();
 
   if (buffer.length < 3) {
