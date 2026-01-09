@@ -168,7 +168,7 @@ export default class UpdateEdit extends EasCommand {
         return await PublishMutation.setRolloutPercentageAsync(
           graphqlClient,
           u.updateId,
-          rolloutPercentageToSet!
+          rolloutPercentageToSet
         );
       })
     );
