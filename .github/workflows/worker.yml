@@ -13,6 +13,10 @@ on:
       - .github/workflows/worker.yml
       - .github/workflows/build-and-deploy-worker.yml
 
+concurrency:
+  group: worker-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
 jobs:
   worker-checks:
     runs-on: ubuntu-latest
