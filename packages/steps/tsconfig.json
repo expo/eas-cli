@@ -10,6 +10,7 @@
     "allowSyntheticDefaultImports": true,
     "declaration": true,
     "composite": true,
+    "rootDir": "./src",
     "types": ["jest"]
   },
   "include": ["src"]

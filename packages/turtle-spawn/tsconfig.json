@@ -9,9 +9,8 @@
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
     "composite": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "rootDir": "./src"
   },
-  "include": [
-    "src/**/*"
-  ]
+  "include": ["src/**/*"]
 }
