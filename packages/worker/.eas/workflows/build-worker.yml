@@ -1,4 +1,4 @@
-name: Build Worker (iOS + Android)
+name: Build Worker
 
 on:
   workflow_dispatch: {}
