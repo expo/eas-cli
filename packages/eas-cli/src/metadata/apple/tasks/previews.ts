@@ -275,9 +275,8 @@ async function downloadPreviewAsync(
   const previewsDir = path.join(projectDir, 'store', 'apple', 'preview', locale, previewType);
   await fs.ensureDir(previewsDir);
 
-  // Use normalized filename: 01.mp4, 01.mov, etc.
-  const ext = (path.extname(preview.attributes.fileName || '.mp4') || '.mp4').toLowerCase();
-  const fileName = `01${ext}`;
+  // Use original filename for matching during sync
+  const fileName = preview.attributes.fileName || '01.mp4';
   const outputPath = path.join(previewsDir, fileName);
   const relativePath = path.relative(projectDir, outputPath);
 

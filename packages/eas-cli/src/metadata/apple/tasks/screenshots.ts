@@ -286,9 +286,8 @@ async function downloadScreenshotAsync(
   );
   await fs.ensureDir(screenshotsDir);
 
-  // Use normalized index-based filename: 01.png, 02.png, etc.
-  const ext = (path.extname(screenshot.attributes.fileName || '.png') || '.png').toLowerCase();
-  const fileName = `${String(index + 1).padStart(2, '0')}${ext}`;
+  // Use original filename for matching during sync
+  const fileName = screenshot.attributes.fileName || `${String(index + 1).padStart(2, '0')}.png`;
   const outputPath = path.join(screenshotsDir, fileName);
   const relativePath = path.relative(projectDir, outputPath);
 
