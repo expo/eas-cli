@@ -2,6 +2,8 @@ import { AgeRatingTask } from './age-rating';
 import { AppInfoTask } from './app-info';
 import { AppReviewDetailTask } from './app-review-detail';
 import { AppVersionOptions, AppVersionTask } from './app-version';
+import { PreviewsTask } from './previews';
+import { ScreenshotsTask } from './screenshots';
 import { AppleTask } from '../task';
 
 type AppleTaskOptions = {
@@ -17,5 +19,7 @@ export function createAppleTasks({ version }: AppleTaskOptions = {}): AppleTask[
     new AppInfoTask(),
     new AgeRatingTask(),
     new AppReviewDetailTask(),
+    new ScreenshotsTask(),
+    new PreviewsTask(),
   ];
 }

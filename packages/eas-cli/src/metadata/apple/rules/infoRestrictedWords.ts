@@ -1,8 +1,9 @@
 import { truthy } from '../../../utils/expodash/filter';
 import { IssueRule } from '../../config/issue';
-import { AppleInfo } from '../types';
 
-const RESTRICTED_PROPERTIES: (keyof AppleInfo)[] = ['title', 'subtitle', 'description', 'keywords'];
+/** Only check text properties that may contain restricted words */
+type AppleInfoTextProperty = 'title' | 'subtitle' | 'description' | 'keywords';
+const RESTRICTED_PROPERTIES: AppleInfoTextProperty[] = ['title', 'subtitle', 'description', 'keywords'];
 const RESTRICTED_WORDS = {
   beta: 'Apple restricts the word "beta" and synonyms implying incomplete functionality.',
 };

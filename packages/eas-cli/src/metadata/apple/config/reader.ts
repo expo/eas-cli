@@ -16,7 +16,7 @@ import {
 import uniq from '../../../utils/expodash/uniq';
 import { AttributesOf } from '../../utils/asc';
 import { removeDatePrecision } from '../../utils/date';
-import { AppleMetadata } from '../types';
+import { AppleMetadata, ApplePreviews, AppleScreenshots } from '../types';
 
 type PartialExcept<T, K extends keyof T> = Pick<T, K> & Partial<Omit<T, K>>;
 
@@ -210,5 +210,15 @@ export class AppleConfigReader {
       notes: review.notes,
       // TODO: add attachment
     };
+  }
+
+  /** Get screenshots configuration for a specific locale */
+  public getScreenshots(locale: string): AppleScreenshots | null {
+    return this.schema.info?.[locale]?.screenshots ?? null;
+  }
+
+  /** Get video previews configuration for a specific locale */
+  public getPreviews(locale: string): ApplePreviews | null {
+    return this.schema.info?.[locale]?.previews ?? null;
   }
 }
