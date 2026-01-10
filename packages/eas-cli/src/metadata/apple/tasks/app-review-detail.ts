@@ -1,5 +1,4 @@
 import { AppStoreReviewDetail } from '@expo/apple-utils';
-import assert from 'assert';
 import chalk from 'chalk';
 
 import Log from '../../../log';
@@ -16,7 +15,10 @@ export class AppReviewDetailTask extends AppleTask {
   public name = (): string => 'app review detail';
 
   public async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
-    context.reviewDetail = (await context.version!.getAppStoreReviewDetailAsync()) ?? undefined;
+    if (!context.version) {
+      return;
+    }
+    context.reviewDetail = (await context.version.getAppStoreReviewDetailAsync()) ?? undefined;
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
@@ -32,7 +34,10 @@ export class AppReviewDetailTask extends AppleTask {
       return;
     }
 
-    assert(context.version, `App version not initialized, can't upload store review details`);
+    if (!context.version) {
+      Log.log(chalk`{dim - Skipped store review details, no version available}`);
+      return;
+    }
     const { versionString } = context.version.attributes;
 
     if (!context.reviewDetail) {

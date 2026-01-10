@@ -315,6 +315,42 @@
               "liveEdits": true,
               "optional": true
             }
+          },
+          "screenshots": {
+            "type": "object",
+            "description": "Screenshots for this locale, organized by display type (e.g., APP_IPHONE_67, APP_IPAD_PRO_129)",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "previews": {
+            "type": "object",
+            "description": "Video previews for this locale, organized by display type (e.g., IPHONE_67, IPAD_PRO_129)",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "description": "Video file path (relative to project root)"
+                    },
+                    "previewFrameTimeCode": {
+                      "type": "string",
+                      "description": "Optional preview frame time code (e.g., '00:05:00' for 5 seconds)"
+                    }
+                  },
+                  "required": ["path"],
+                  "additionalProperties": false
+                }
+              ]
+            }
           }
         }
       },
