@@ -268,8 +268,7 @@ async function downloadPreviewAsync(
   }
 
   // Create directory structure: store/apple/preview/{locale}/{previewType}/
-  const previewTypeDir = previewType.toLowerCase().replace(/_/g, '-');
-  const previewsDir = path.join(projectDir, 'store', 'apple', 'preview', locale, previewTypeDir);
+  const previewsDir = path.join(projectDir, 'store', 'apple', 'preview', locale, previewType);
   await fs.ensureDir(previewsDir);
 
   // Use normalized filename: 01.mp4, 01.mov, etc.
