@@ -87,7 +87,11 @@ export async function ensureBundleIdExistsWithNameAsync(
         });
       }
     }
-    spinner.succeed(`${isAppClip ? 'App Clip bundle' : 'Bundle'} identifier registered ${chalk.dim(bundleIdentifier)}`);
+    spinner.succeed(
+      `${isAppClip ? 'App Clip bundle' : 'Bundle'} identifier registered ${chalk.dim(
+        bundleIdentifier
+      )}`
+    );
   } catch (err: any) {
     if (err.message.match(/An App ID with Identifier '(.*)' is not available/)) {
       spinner.fail(
