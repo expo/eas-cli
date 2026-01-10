@@ -11,9 +11,22 @@ import { assertContractMessagesAsync } from './contractMessages';
 import Log from '../../../log';
 import { ora } from '../../../ora';
 
+/**
+ * The entitlement key that indicates a target is an App Clip.
+ * When present, the target requires special bundle ID registration with a parent app relationship.
+ */
+const APP_CLIP_PARENT_APPLICATION_IDENTIFIERS_ENTITLEMENT =
+  'com.apple.developer.parent-application-identifiers';
+
 export interface IosCapabilitiesOptions {
   entitlements: JSONObject;
   usesBroadcastPushNotifications: boolean;
+  /**
+   * The bundle identifier of the parent app. Required for App Clips.
+   * App Clips are detected by the presence of the
+   * `com.apple.developer.parent-application-identifiers` entitlement.
+   */
+  parentBundleIdentifier?: string;
 }
 
 export interface AppLookupParams {
@@ -43,7 +56,13 @@ export async function ensureBundleIdExistsWithNameAsync(
   options?: IosCapabilitiesOptions
 ): Promise<void> {
   const context = getRequestContext(authCtx);
-  const spinner = ora(`Linking bundle identifier ${chalk.dim(bundleIdentifier)}`).start();
+
+  // Detect App Clips by the presence of the parent-application-identifiers entitlement
+  const isAppClip = Boolean(
+    options?.entitlements?.[APP_CLIP_PARENT_APPLICATION_IDENTIFIERS_ENTITLEMENT]
+  );
+  const typeLabel = isAppClip ? 'App Clip bundle identifier' : 'bundle identifier';
+  const spinner = ora(`Linking ${typeLabel} ${chalk.dim(bundleIdentifier)}`).start();
 
   let bundleId: BundleId | null;
   try {
@@ -51,23 +70,37 @@ export async function ensureBundleIdExistsWithNameAsync(
     bundleId = await BundleId.findAsync(context, { identifier: bundleIdentifier });
 
     if (!bundleId) {
-      spinner.text = `Registering bundle identifier ${chalk.dim(bundleIdentifier)}`;
-      // If it doesn't exist, create it
-      bundleId = await BundleId.createAsync(context, {
-        name,
-        identifier: bundleIdentifier,
-      });
+      spinner.text = `Registering ${typeLabel} ${chalk.dim(bundleIdentifier)}`;
+
+      if (isAppClip && options?.parentBundleIdentifier) {
+        // App Clips require the parent bundle ID's opaque ID
+        bundleId = await createAppClipBundleIdAsync(context, {
+          name,
+          bundleIdentifier,
+          parentBundleIdentifier: options.parentBundleIdentifier,
+        });
+      } else {
+        // If it doesn't exist, create it
+        bundleId = await BundleId.createAsync(context, {
+          name,
+          identifier: bundleIdentifier,
+        });
+      }
     }
-    spinner.succeed(`Bundle identifier registered ${chalk.dim(bundleIdentifier)}`);
+    spinner.succeed(
+      `${isAppClip ? 'App Clip bundle' : 'Bundle'} identifier registered ${chalk.dim(
+        bundleIdentifier
+      )}`
+    );
   } catch (err: any) {
     if (err.message.match(/An App ID with Identifier '(.*)' is not available/)) {
       spinner.fail(
-        `The bundle identifier ${chalk.bold(bundleIdentifier)} is not available to team "${
+        `The ${typeLabel} ${chalk.bold(bundleIdentifier)} is not available to team "${
           authCtx.team.name
         }" (${authCtx.team.id}), change it in your app config and try again.`
       );
     } else {
-      spinner.fail(`Failed to register bundle identifier ${chalk.dim(bundleIdentifier)}`);
+      spinner.fail(`Failed to register ${typeLabel} ${chalk.dim(bundleIdentifier)}`);
 
       // Assert contract errors for easier resolution when the user has an expired developer account.
       if (
@@ -91,6 +124,42 @@ export async function ensureBundleIdExistsWithNameAsync(
   if (options) {
     await syncCapabilitiesAsync(bundleId, options);
   }
+}
+
+/**
+ * Creates an App Clip bundle identifier.
+ * App Clips require the parent bundle ID's opaque ID for registration.
+ */
+async function createAppClipBundleIdAsync(
+  context: RequestContext,
+  {
+    name,
+    bundleIdentifier,
+    parentBundleIdentifier,
+  }: {
+    name: string;
+    bundleIdentifier: string;
+    parentBundleIdentifier: string;
+  }
+): Promise<BundleId> {
+  // First, find the parent bundle ID to get its opaque ID
+  const parentBundleId = await BundleId.findAsync(context, {
+    identifier: parentBundleIdentifier,
+  });
+
+  if (!parentBundleId) {
+    throw new Error(
+      `Cannot create App Clip bundle identifier "${bundleIdentifier}" because the parent bundle identifier "${parentBundleIdentifier}" is not registered. ` +
+        `Please ensure the parent app's bundle identifier is registered first.`
+    );
+  }
+
+  // Create the App Clip bundle ID with the parent relationship
+  return await BundleId.createAppClipAsync(context, {
+    name,
+    identifier: bundleIdentifier,
+    parentBundleIdId: parentBundleId.id,
+  });
 }
 
 export async function syncCapabilitiesAsync(

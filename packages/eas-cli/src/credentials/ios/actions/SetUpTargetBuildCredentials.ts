@@ -24,7 +24,7 @@ export class SetUpTargetBuildCredentials {
   constructor(private readonly options: Options) {}
 
   async runAsync(ctx: CredentialsContext): Promise<IosAppBuildCredentialsFragment> {
-    const { app, entitlements } = this.options;
+    const { app, entitlements, target } = this.options;
 
     await ctx.bestEffortAppStoreAuthenticateAsync();
 
@@ -35,7 +35,11 @@ export class SetUpTargetBuildCredentials {
           bundleIdentifier: app.bundleIdentifier,
           projectName: app.projectName,
         },
-        { entitlements, usesBroadcastPushNotifications: ctx.usesBroadcastPushNotifications }
+        {
+          entitlements,
+          usesBroadcastPushNotifications: ctx.usesBroadcastPushNotifications,
+          parentBundleIdentifier: target.parentBundleIdentifier,
+        }
       );
     }
     try {
