@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - eas init should fix and validate project name and slug. ([#3277](https://github.com/expo/eas-cli/pull/3277) by [@douglowder](https://github.com/douglowder))
+- Prevent `npx` invocations that can be unreliable and fail when retrieving entitlements or project configs ([#3282](https://github.com/expo/eas-cli/pull/3282) by [@kitten](https://github.com/kitten))
 
 ### 🧹 Chores
 
