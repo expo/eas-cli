@@ -53,6 +53,14 @@ export class PreviewsTask extends AppleTask {
 
     // Fetch preview sets for each locale
     for (const locale of context.versionLocales) {
+      // Check if the method exists - @expo/apple-utils may not have implemented preview support yet
+      if (typeof locale.getAppPreviewSetsAsync !== 'function') {
+        Log.warn(
+          'Video preview support requires a newer version of @expo/apple-utils. Skipping previews.'
+        );
+        return;
+      }
+
       const sets = await locale.getAppPreviewSetsAsync();
       const previewTypeMap = new Map<PreviewType, AppPreviewSet>();
 
@@ -259,13 +267,14 @@ async function downloadPreviewAsync(
     return null;
   }
 
-  // Create directory structure: store/assets/previews/{locale}/{previewType}/
+  // Create directory structure: store/apple/preview/{locale}/{previewType}/
   const previewTypeDir = previewType.toLowerCase().replace(/_/g, '-');
-  const previewsDir = path.join(projectDir, 'store', 'assets', 'previews', locale, previewTypeDir);
+  const previewsDir = path.join(projectDir, 'store', 'apple', 'preview', locale, previewTypeDir);
   await fs.ensureDir(previewsDir);
 
-  // Use original filename or generate one
-  const fileName = preview.attributes.fileName || 'preview.mp4';
+  // Use normalized filename: 01.mp4, 01.mov, etc.
+  const ext = (path.extname(preview.attributes.fileName || '.mp4') || '.mp4').toLowerCase();
+  const fileName = `01${ext}`;
   const outputPath = path.join(previewsDir, fileName);
   const relativePath = path.relative(projectDir, outputPath);
 

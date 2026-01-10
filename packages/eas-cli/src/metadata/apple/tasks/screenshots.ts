@@ -271,21 +271,21 @@ async function downloadScreenshotAsync(
     return null;
   }
 
-  // Create directory structure: store/assets/screenshots/{locale}/{displayType}/
+  // Create directory structure: store/apple/screenshot/{locale}/{displayType}/
   const displayTypeDir = displayType.toLowerCase().replace(/_/g, '-');
   const screenshotsDir = path.join(
     projectDir,
     'store',
-    'assets',
-    'screenshots',
+    'apple',
+    'screenshot',
     locale,
     displayTypeDir
   );
   await fs.ensureDir(screenshotsDir);
 
-  // Use original filename or generate one based on index
-  const fileName =
-    screenshot.attributes.fileName || `${String(index + 1).padStart(2, '0')}-screenshot.png`;
+  // Use normalized index-based filename: 01.png, 02.png, etc.
+  const ext = (path.extname(screenshot.attributes.fileName || '.png') || '.png').toLowerCase();
+  const fileName = `${String(index + 1).padStart(2, '0')}${ext}`;
   const outputPath = path.join(screenshotsDir, fileName);
   const relativePath = path.relative(projectDir, outputPath);
 
