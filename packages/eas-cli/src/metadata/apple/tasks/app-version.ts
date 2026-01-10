@@ -57,7 +57,11 @@ export class AppVersionTask extends AppleTask {
       this.options
     );
 
-    assert(version, 'Could not resolve a live or editable app version');
+    if (!version) {
+      // No live or editable version available - this is OK for metadata:pull
+      // when the app hasn't been submitted yet
+      return;
+    }
 
     context.version = version;
     context.versionIsFirst = versionIsFirst;
@@ -67,13 +71,16 @@ export class AppVersionTask extends AppleTask {
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
-    assert(context.version, `App version not initialized, can't download version`);
+    if (!context.version) {
+      // No version available to download - skip silently
+      return;
+    }
 
     config.setVersion(context.version.attributes);
     config.setVersionReleaseType(context.version.attributes);
     config.setVersionReleasePhased(context.versionPhasedRelease?.attributes);
 
-    for (const locale of context.versionLocales) {
+    for (const locale of context.versionLocales ?? []) {
       config.setVersionLocale(locale.attributes);
     }
   }
@@ -209,6 +216,12 @@ async function resolveVersionAsync(
 
   if (!version) {
     version = await retryIfNullAsync(() => app.getEditAppStoreVersionAsync({ platform }));
+  }
+
+  // Fallback to live version if no editable version is found (for metadata:pull)
+  if (!version) {
+    version = await app.getLiveAppStoreVersionAsync({ platform });
+    versionIsLive = !!version;
   }
 
   const versions = await app.getAppStoreVersionsAsync({

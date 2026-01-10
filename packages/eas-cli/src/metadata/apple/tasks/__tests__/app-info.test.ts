@@ -35,14 +35,16 @@ describe(AppInfoTask, () => {
   });
 
   describe('downloadAsync', () => {
-    it('aborts when app info is not loaded', async () => {
+    it('skips when app info is not loaded', async () => {
       const writer = jest.mocked(new AppleConfigWriter());
-      const promise = new AppInfoTask().downloadAsync({
+
+      await new AppInfoTask().downloadAsync({
         config: writer,
         context: { info: undefined, infoLocales: [] } as any,
       });
 
-      await expect(promise).rejects.toThrow('info not initialized');
+      // Should not call any setter methods when info is not available
+      expect(writer.setCategories).not.toBeCalled();
     });
 
     it('sets categories when info is loaded', async () => {

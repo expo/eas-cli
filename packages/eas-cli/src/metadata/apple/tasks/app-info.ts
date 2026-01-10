@@ -18,19 +18,32 @@ export class AppInfoTask extends AppleTask {
   public name = (): string => 'app information';
 
   public async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
-    const info = await retryIfNullAsync(() => context.app.getEditAppInfoAsync());
-    assert(info, 'Could not resolve the editable app info to update');
+    let info = await retryIfNullAsync(() => context.app.getEditAppInfoAsync());
+
+    // Fallback to live app info if no editable info is found (for metadata:pull)
+    if (!info) {
+      info = await context.app.getLiveAppInfoAsync();
+    }
+
+    if (!info) {
+      // No app info available - this is OK for metadata:pull
+      // when the app hasn't been set up yet
+      return;
+    }
 
     context.info = info;
     context.infoLocales = await info.getLocalizationsAsync();
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
-    assert(context.info, `App info not initialized, can't download info`);
+    if (!context.info) {
+      // No app info available to download - skip silently
+      return;
+    }
 
     config.setCategories(context.info.attributes);
 
-    for (const locale of context.infoLocales) {
+    for (const locale of context.infoLocales ?? []) {
       config.setInfoLocale(locale.attributes);
     }
   }

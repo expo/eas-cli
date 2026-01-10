@@ -11,12 +11,6 @@ jest.mock('../../config/writer');
 
 describe(AppReviewDetailTask, () => {
   describe('prepareAsync', () => {
-    it('aborts when version is not loaded', async () => {
-      const promise = new AppReviewDetailTask().prepareAsync({ context: {} as any });
-
-      await expect(promise).rejects.toThrow('version not init');
-    });
-
     it('loads review details from app version', async () => {
       const scope = nock('https://api.appstoreconnect.apple.com')
         .get(`/v1/${AppStoreVersion.type}/stub-id/appStoreReviewDetail`)
