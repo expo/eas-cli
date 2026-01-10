@@ -4,7 +4,6 @@ import {
   AppStoreVersionLocalization,
   PreviewType,
 } from '@expo/apple-utils';
-import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
@@ -73,7 +72,9 @@ export class PreviewsTask extends AppleTask {
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
-    assert(context.previewSets, `Preview sets not initialized, can't download previews`);
+    if (!context.previewSets || !context.versionLocales) {
+      return;
+    }
 
     for (const locale of context.versionLocales) {
       const localeCode = locale.attributes.locale;
@@ -121,7 +122,10 @@ export class PreviewsTask extends AppleTask {
   }
 
   public async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
-    assert(context.previewSets, `Preview sets not initialized, can't upload previews`);
+    if (!context.previewSets || !context.versionLocales) {
+      Log.log(chalk`{dim - Skipped video previews, no version available}`);
+      return;
+    }
 
     const locales = config.getLocales();
     if (locales.length <= 0) {

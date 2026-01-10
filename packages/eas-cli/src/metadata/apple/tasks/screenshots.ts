@@ -4,7 +4,6 @@ import {
   AppStoreVersionLocalization,
   ScreenshotDisplayType,
 } from '@expo/apple-utils';
-import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
@@ -52,7 +51,9 @@ export class ScreenshotsTask extends AppleTask {
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
-    assert(context.screenshotSets, `Screenshot sets not initialized, can't download screenshots`);
+    if (!context.screenshotSets || !context.versionLocales) {
+      return;
+    }
 
     for (const locale of context.versionLocales) {
       const localeCode = locale.attributes.locale;
@@ -98,7 +99,10 @@ export class ScreenshotsTask extends AppleTask {
   }
 
   public async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
-    assert(context.screenshotSets, `Screenshot sets not initialized, can't upload screenshots`);
+    if (!context.screenshotSets || !context.versionLocales) {
+      Log.log(chalk`{dim - Skipped screenshots, no version available}`);
+      return;
+    }
 
     const locales = config.getLocales();
     if (locales.length <= 0) {
