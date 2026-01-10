@@ -16,8 +16,7 @@ export class AppReviewDetailTask extends AppleTask {
   public name = (): string => 'app review detail';
 
   public async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
-    assert(context.version, `App version not initialized, can't download store review details`);
-    context.reviewDetail = (await context.version.getAppStoreReviewDetailAsync()) ?? undefined;
+    context.reviewDetail = (await context.version!.getAppStoreReviewDetailAsync()) ?? undefined;
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {

@@ -260,13 +260,16 @@ describe(AppVersionTask, () => {
   });
 
   describe('downloadAsync', () => {
-    it('aborts when version is not loaded', async () => {
-      const promise = new AppVersionTask().downloadAsync({
-        config: new AppleConfigWriter(),
+    it('skips when version is not loaded', async () => {
+      const writer = jest.mocked(new AppleConfigWriter());
+
+      await new AppVersionTask().downloadAsync({
+        config: writer,
         context: { version: undefined } as any,
       });
 
-      await expect(promise).rejects.toThrow('not initialized');
+      // Should not call any setter methods when version is not available
+      expect(writer.setVersion).not.toBeCalled();
     });
 
     it('sets version when loaded', async () => {

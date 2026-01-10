@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix `metadata:pull` failing for apps with only a live version by falling back to live app version and info. ([#3299](https://github.com/expo/eas-cli/pull/3299) by [@EvanBacon](https://github.com/EvanBacon))
 - eas init should fix and validate project name and slug. ([#3277](https://github.com/expo/eas-cli/pull/3277) by [@douglowder](https://github.com/douglowder))
 
 ### 🧹 Chores
