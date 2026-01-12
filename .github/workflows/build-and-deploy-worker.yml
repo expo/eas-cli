@@ -170,7 +170,11 @@ jobs:
           fi
 
       - name: Upload worker tarballs to GCP
-        if: (github.ref == 'refs/heads/main' || inputs.environment != '') && (inputs.environment == '' || steps.check_worker_exists.outputs.worker_exists == 'false')
+        # Upload in two scenarios:
+        # 1. Testing on main branch (to cache for future deployments)
+        # 2. Deploying and tarballs don't exist yet (need to build first)
+        # Don't upload on PRs or when tarballs already exist
+        if: (inputs.environment == '' && github.ref == 'refs/heads/main') || (inputs.environment != '' && steps.check_worker_exists.outputs.worker_exists == 'false')
         run: |
           IOS_GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
           ANDROID_GCP_TARBALL="worker-android-sha1-$GITHUB_SHA.tar.gz"
