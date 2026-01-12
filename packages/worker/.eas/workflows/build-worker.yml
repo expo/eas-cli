@@ -5,8 +5,8 @@ on:
     inputs:
       upload_artifact:
         description: Whether to upload artifacts
-        type: string
-        default: "true"
+        type: boolean
+        default: true
 
 jobs:
   build_android_worker:
@@ -20,7 +20,7 @@ jobs:
         run: ./package.sh worker-android.tar.gz android
 
       - name: Upload Android worker tarball as artifact
-        if: ${{ inputs.upload_artifact == 'true' }}
+        if: ${{ inputs.upload_artifact }}
         uses: eas/upload_artifact
         with:
           name: worker-android-tarball
@@ -37,7 +37,7 @@ jobs:
         run: ./package.sh worker-ios.tar.gz ios
 
       - name: Upload iOS worker tarball as artifact
-        if: ${{ inputs.upload_artifact == 'true' }}
+        if: ${{ inputs.upload_artifact }}
         uses: eas/upload_artifact
         with:
           name: worker-ios-tarball
