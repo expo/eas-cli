@@ -56,9 +56,14 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Only upload artifacts from EAS if GHA will upload them to GCS
+          # This avoids unnecessary artifact uploads for PR builds
+          SHOULD_UPLOAD_ARTIFACT="${{ inputs.environment != '' && steps.check_worker_exists.outputs.worker_exists == 'false' }}"
+
           # Run workflow and capture output (includes run ID)
           WORKFLOW_OUTPUT=$(npx -y eas-cli@latest workflow:run build-worker.yml \
             --ref ${{ github.sha }} \
+            --input upload_artifact=$SHOULD_UPLOAD_ARTIFACT \
             --non-interactive \
             --no-wait \
             --json)
@@ -87,6 +92,8 @@ jobs:
             echo "Error: Missing workflow run ID"
             exit 1
           fi
+
+          SHOULD_UPLOAD_ARTIFACT="${{ inputs.environment != '' && steps.check_worker_exists.outputs.worker_exists == 'false' }}"
 
           while true; do
             VIEW_OUTPUT=$(npx -y eas-cli@latest workflow:view "$WORKFLOW_RUN_ID" \
@@ -123,6 +130,12 @@ jobs:
                 ;;
             esac
           done
+
+          # Skip artifact extraction if we didn't request uploads
+          if [ "$SHOULD_UPLOAD_ARTIFACT" == "false" ]; then
+            echo "Skipping artifact download - upload was disabled for this run"
+            exit 0
+          fi
 
           # Extract artifact download URLs from workflow output
           # Artifacts are in jobs[].artifacts[] for custom jobs
