@@ -45,7 +45,7 @@ jobs:
 
           echo "worker_exists=true" >> "$GITHUB_OUTPUT"
 
-  build-android:
+  build-workers:
     runs-on: ubuntu-latest
     needs:
       - setup
@@ -57,84 +57,143 @@ jobs:
 
       - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
 
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "2.7"
-
-      - name: Build worker tarball
-        working-directory: packages/worker
-        run: ./package.sh worker-android.tar.gz android
-
-      - uses: ./.github/internal-actions/setup-gcloud
-
-      - name: Upload worker tarball to GCP
-        if: github.ref == 'refs/heads/main' || inputs.environment != ''
-        working-directory: packages/worker
-        run: |
-          ARTIFACT_TARBALL="worker-android.tar.gz"
-          GCP_TARBALL="worker-android-sha1-$GITHUB_SHA.tar.gz"
-
-          gsutil cp $ARTIFACT_TARBALL gs://eas-build-worker-tarballs/$GCP_TARBALL
-
-  build-ios:
-    runs-on: ubuntu-latest
-    needs:
-      - setup
-    if: (!failure() && !cancelled() && inputs.environment == '') || needs.setup.outputs.needs-to-build == 'true'
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
-
-      - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
-
-      - name: Run EAS Workflow to build iOS worker
+      - name: Start EAS Workflow to build worker tarballs
         id: eas_workflow
         working-directory: packages/worker
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
         run: |
-          # Run workflow and capture output (includes full workflow run with jobs and artifacts)
+          set -euo pipefail
+
+          # Run workflow and capture output (includes run ID)
           WORKFLOW_OUTPUT=$(npx -y eas-cli@latest workflow:run build-worker.yml \
             --ref ${{ github.sha }} \
             --non-interactive \
-            --wait \
+            --no-wait \
             --json)
 
-          # Extract artifact download URL from workflow output
-          # Artifacts are in jobs[].turtleJobRun.artifacts[] for custom jobs
-          DOWNLOAD_URL=$(echo "$WORKFLOW_OUTPUT" | jq -r '
-            .jobs[]
-            | .turtleJobRun.artifacts[]?
-            | select(.name == "worker-ios-tarball")
-            | .downloadUrl
-          ' | head -1)
-
-          if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
-            echo "Error: Could not find artifact download URL"
+          WORKFLOW_RUN_ID=$(echo "$WORKFLOW_OUTPUT" | jq -r '.id')
+          if [ -z "$WORKFLOW_RUN_ID" ] || [ "$WORKFLOW_RUN_ID" = "null" ]; then
+            echo "Error: Could not determine workflow run ID"
             echo "Workflow output:"
             echo "$WORKFLOW_OUTPUT" | jq .
             exit 1
           fi
 
-          # Mask the download URL
-          echo "::add-mask::$DOWNLOAD_URL"
-          echo "download_url=$DOWNLOAD_URL" >> "$GITHUB_OUTPUT"
+          echo "workflow_run_id=$WORKFLOW_RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for EAS workflow and capture artifacts
+        id: eas_artifacts
+        working-directory: packages/worker
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          WORKFLOW_RUN_ID="${{ steps.eas_workflow.outputs.workflow_run_id }}"
+          if [ -z "$WORKFLOW_RUN_ID" ]; then
+            echo "Error: Missing workflow run ID"
+            exit 1
+          fi
+
+          while true; do
+            VIEW_OUTPUT=$(npx -y eas-cli@latest workflow:view "$WORKFLOW_RUN_ID" \
+              --non-interactive \
+              --json)
+            STATUS=$(echo "$VIEW_OUTPUT" | jq -r '.status')
+
+            case "$STATUS" in
+              SUCCESS)
+                break
+                ;;
+              FAILURE)
+                echo "EAS workflow failed."
+                echo "$VIEW_OUTPUT" | jq .
+                exit 1
+                ;;
+              CANCELED)
+                echo "EAS workflow canceled."
+                echo "$VIEW_OUTPUT" | jq .
+                exit 1
+                ;;
+              ACTION_REQUIRED)
+                echo "EAS workflow requires action."
+                echo "$VIEW_OUTPUT" | jq .
+                exit 1
+                ;;
+              NEW|IN_PROGRESS)
+                sleep 7
+                ;;
+              *)
+                echo "Unexpected workflow status: $STATUS"
+                echo "$VIEW_OUTPUT" | jq .
+                exit 1
+                ;;
+            esac
+          done
+
+          # Extract artifact download URLs from workflow output
+          # Artifacts are in jobs[].artifacts[] for custom jobs
+          DOWNLOAD_IOS_URL=$(echo "$VIEW_OUTPUT" | jq -r '
+            .jobs[]
+            | .artifacts[]?
+            | select(.name == "worker-ios-tarball")
+            | .downloadUrl
+          ' | head -1)
+
+          DOWNLOAD_ANDROID_URL=$(echo "$VIEW_OUTPUT" | jq -r '
+            .jobs[]
+            | .artifacts[]?
+            | select(.name == "worker-android-tarball")
+            | .downloadUrl
+          ' | head -1)
+
+          if [ -z "$DOWNLOAD_IOS_URL" ] || [ "$DOWNLOAD_IOS_URL" = "null" ]; then
+            echo "Error: Could not find iOS artifact download URL"
+            echo "$VIEW_OUTPUT" | jq .
+            exit 1
+          fi
+
+          if [ -z "$DOWNLOAD_ANDROID_URL" ] || [ "$DOWNLOAD_ANDROID_URL" = "null" ]; then
+            echo "Error: Could not find Android artifact download URL"
+            echo "$VIEW_OUTPUT" | jq .
+            exit 1
+          fi
+
+          # Mask the download URLs
+          echo "::add-mask::$DOWNLOAD_IOS_URL"
+          echo "::add-mask::$DOWNLOAD_ANDROID_URL"
+          echo "download_ios_url=$DOWNLOAD_IOS_URL" >> "$GITHUB_OUTPUT"
+          echo "download_android_url=$DOWNLOAD_ANDROID_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Cancel EAS workflow on GitHub cancellation
+        if: cancelled()
+        working-directory: packages/worker
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          WORKFLOW_RUN_ID="${{ steps.eas_workflow.outputs.workflow_run_id }}"
+          if [ -n "$WORKFLOW_RUN_ID" ]; then
+            npx -y eas-cli@latest workflow:cancel "$WORKFLOW_RUN_ID" --non-interactive
+          fi
 
       - uses: ./.github/internal-actions/setup-gcloud
 
-      - name: Upload worker tarball to GCP
+      - name: Upload worker tarballs to GCP
         if: github.ref == 'refs/heads/main' || inputs.environment != ''
         run: |
-          GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
-          curl -L "${{ steps.eas_workflow.outputs.download_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$GCP_TARBALL
+          IOS_GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
+          ANDROID_GCP_TARBALL="worker-android-sha1-$GITHUB_SHA.tar.gz"
+          curl -L "${{ steps.eas_artifacts.outputs.download_ios_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$IOS_GCP_TARBALL
+          curl -L "${{ steps.eas_artifacts.outputs.download_android_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$ANDROID_GCP_TARBALL
 
   deploy:
     runs-on: ubuntu-latest
     needs:
       - setup
-      - build-android
-      - build-ios
+      - build-workers
     if: (!failure() && !cancelled() && inputs.environment != '')
     permissions:
       id-token: write
