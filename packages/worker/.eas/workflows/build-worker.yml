@@ -11,7 +11,7 @@ on:
 jobs:
   build_android_worker:
     name: Build Android Worker
-    runs_on: ubuntu-medium
+    runs_on: linux-medium
     image: latest
     steps:
       - uses: eas/checkout
