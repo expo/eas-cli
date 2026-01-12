@@ -1,8 +1,7 @@
 name: build-and-deploy-worker
-# If environment is empty we want to build (for testing)
-# and upload (if on `main`, for later deployment).
-# If environment is not empty, we want to build and upload (unless
-# already uploaded) and deploy.
+# Assumes main branch always specifies an environment (staging/production).
+# If environment is empty: PR testing build (no upload, no deploy)
+# If environment is set: Build (unless cached on main), upload, and deploy
 
 on:
   workflow_dispatch:
@@ -19,20 +18,22 @@ on:
         required: true
 
 jobs:
-  setup:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    if: inputs.environment != ''
-    outputs:
-      needs-to-build: ${{ steps.check_worker_exists.outputs.worker_exists == 'false' }}
     permissions:
       id-token: write
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
+      - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
+
       - uses: ./.github/internal-actions/setup-gcloud
 
       - name: Check if worker already exists
         id: check_worker_exists
+        # Check if tarballs for this SHA already exist
+        # If they do, we can skip building regardless of branch
+        if: inputs.environment != ''
         run: |
           for platform in android ios; do
             GCP_TARBALL="worker-$platform-sha1-$GITHUB_SHA.tar.gz"
@@ -45,29 +46,24 @@ jobs:
 
           echo "worker_exists=true" >> "$GITHUB_OUTPUT"
 
-  build-workers:
-    runs-on: ubuntu-latest
-    needs:
-      - setup
-    if: (!failure() && !cancelled() && inputs.environment == '') || needs.setup.outputs.needs-to-build == 'true'
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
-
-      - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
-
       - name: Start EAS Workflow to build worker tarballs
         id: eas_workflow
+        # Build if: PR testing (no env), or deploying but tarballs don't exist
+        if: inputs.environment == '' || steps.check_worker_exists.outputs.worker_exists == 'false'
         working-directory: packages/worker
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
 
+          # Only upload artifacts from EAS if GHA will upload them to GCS
+          # This avoids unnecessary artifact uploads for PR builds
+          SHOULD_UPLOAD_ARTIFACT="${{ inputs.environment != '' && steps.check_worker_exists.outputs.worker_exists == 'false' }}"
+
           # Run workflow and capture output (includes run ID)
           WORKFLOW_OUTPUT=$(npx -y eas-cli@latest workflow:run build-worker.yml \
             --ref ${{ github.sha }} \
+            --input upload_artifact=$SHOULD_UPLOAD_ARTIFACT \
             --non-interactive \
             --no-wait \
             --json)
@@ -84,6 +80,7 @@ jobs:
 
       - name: Wait for EAS workflow and capture artifacts
         id: eas_artifacts
+        if: inputs.environment == '' || steps.check_worker_exists.outputs.worker_exists == 'false'
         working-directory: packages/worker
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
@@ -95,6 +92,8 @@ jobs:
             echo "Error: Missing workflow run ID"
             exit 1
           fi
+
+          SHOULD_UPLOAD_ARTIFACT="${{ inputs.environment != '' && steps.check_worker_exists.outputs.worker_exists == 'false' }}"
 
           while true; do
             VIEW_OUTPUT=$(npx -y eas-cli@latest workflow:view "$WORKFLOW_RUN_ID" \
@@ -131,6 +130,12 @@ jobs:
                 ;;
             esac
           done
+
+          # Skip artifact extraction if we didn't request uploads
+          if [ "$SHOULD_UPLOAD_ARTIFACT" == "false" ]; then
+            echo "Skipping artifact download - upload was disabled for this run"
+            exit 0
+          fi
 
           # Extract artifact download URLs from workflow output
           # Artifacts are in jobs[].artifacts[] for custom jobs
@@ -179,30 +184,18 @@ jobs:
             npx -y eas-cli@latest workflow:cancel "$WORKFLOW_RUN_ID" --non-interactive
           fi
 
-      - uses: ./.github/internal-actions/setup-gcloud
-
       - name: Upload worker tarballs to GCP
-        if: github.ref == 'refs/heads/main' || inputs.environment != ''
+        # Upload when deploying if we built something new
+        # Don't upload PR builds (no environment) or when using cached tarballs
+        if: inputs.environment != '' && steps.check_worker_exists.outputs.worker_exists == 'false'
         run: |
           IOS_GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
           ANDROID_GCP_TARBALL="worker-android-sha1-$GITHUB_SHA.tar.gz"
           curl -L "${{ steps.eas_artifacts.outputs.download_ios_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$IOS_GCP_TARBALL
           curl -L "${{ steps.eas_artifacts.outputs.download_android_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$ANDROID_GCP_TARBALL
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs:
-      - setup
-      - build-workers
-    if: (!failure() && !cancelled() && inputs.environment != '')
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
-
-      - uses: ./.github/internal-actions/setup-gcloud
-
       - name: Promote worker to ${{ inputs.environment }}
+        if: inputs.environment != ''
         run: |
           for platform in android ios; do
             GCP_TARBALL="worker-$platform-sha1-$GITHUB_SHA.tar.gz"
