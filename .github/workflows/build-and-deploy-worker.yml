@@ -19,20 +19,20 @@ on:
         required: true
 
 jobs:
-  setup:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    if: inputs.environment != ''
-    outputs:
-      needs-to-build: ${{ steps.check_worker_exists.outputs.worker_exists == 'false' }}
     permissions:
       id-token: write
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
+      - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
+
       - uses: ./.github/internal-actions/setup-gcloud
 
       - name: Check if worker already exists
         id: check_worker_exists
+        if: inputs.environment != ''
         run: |
           for platform in android ios; do
             GCP_TARBALL="worker-$platform-sha1-$GITHUB_SHA.tar.gz"
@@ -45,20 +45,9 @@ jobs:
 
           echo "worker_exists=true" >> "$GITHUB_OUTPUT"
 
-  build-workers:
-    runs-on: ubuntu-latest
-    needs:
-      - setup
-    if: (!failure() && !cancelled() && inputs.environment == '') || needs.setup.outputs.needs-to-build == 'true'
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
-
-      - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
-
       - name: Start EAS Workflow to build worker tarballs
         id: eas_workflow
+        if: inputs.environment == '' || steps.check_worker_exists.outputs.worker_exists == 'false'
         working-directory: packages/worker
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
@@ -84,6 +73,7 @@ jobs:
 
       - name: Wait for EAS workflow and capture artifacts
         id: eas_artifacts
+        if: inputs.environment == '' || steps.check_worker_exists.outputs.worker_exists == 'false'
         working-directory: packages/worker
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
@@ -179,30 +169,16 @@ jobs:
             npx -y eas-cli@latest workflow:cancel "$WORKFLOW_RUN_ID" --non-interactive
           fi
 
-      - uses: ./.github/internal-actions/setup-gcloud
-
       - name: Upload worker tarballs to GCP
-        if: github.ref == 'refs/heads/main' || inputs.environment != ''
+        if: (github.ref == 'refs/heads/main' || inputs.environment != '') && (inputs.environment == '' || steps.check_worker_exists.outputs.worker_exists == 'false')
         run: |
           IOS_GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
           ANDROID_GCP_TARBALL="worker-android-sha1-$GITHUB_SHA.tar.gz"
           curl -L "${{ steps.eas_artifacts.outputs.download_ios_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$IOS_GCP_TARBALL
           curl -L "${{ steps.eas_artifacts.outputs.download_android_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$ANDROID_GCP_TARBALL
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs:
-      - setup
-      - build-workers
-    if: (!failure() && !cancelled() && inputs.environment != '')
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
-
-      - uses: ./.github/internal-actions/setup-gcloud
-
       - name: Promote worker to ${{ inputs.environment }}
+        if: inputs.environment != ''
         run: |
           for platform in android ios; do
             GCP_TARBALL="worker-$platform-sha1-$GITHUB_SHA.tar.gz"
