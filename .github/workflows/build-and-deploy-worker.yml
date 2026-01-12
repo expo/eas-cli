@@ -1,8 +1,7 @@
 name: build-and-deploy-worker
-# If environment is empty we want to build (for testing)
-# and upload (if on `main`, for later deployment).
-# If environment is not empty, we want to build and upload (unless
-# already uploaded) and deploy.
+# Assumes main branch always specifies an environment (staging/production).
+# If environment is empty: PR testing build (no upload, no deploy)
+# If environment is set: Build (unless cached on main), upload, and deploy
 
 on:
   workflow_dispatch:
@@ -32,8 +31,8 @@ jobs:
 
       - name: Check if worker already exists
         id: check_worker_exists
-        # Only check for existing tarballs when deploying from main branch
-        # Custom branches should always rebuild to test their changes
+        # Only skip builds on main if tarballs are cached
+        # Custom branches always rebuild to test their changes
         if: inputs.environment != '' && github.ref == 'refs/heads/main'
         run: |
           for platform in android ios; do
@@ -49,8 +48,8 @@ jobs:
 
       - name: Start EAS Workflow to build worker tarballs
         id: eas_workflow
-        # Build if: testing (no env), or deploying from custom branch, or deploying from main but tarballs don't exist
-        if: inputs.environment == '' || github.ref != 'refs/heads/main' || steps.check_worker_exists.outputs.worker_exists == 'false'
+        # Build unless deploying from main with cached tarballs
+        if: github.ref != 'refs/heads/main' || steps.check_worker_exists.outputs.worker_exists == 'false'
         working-directory: packages/worker
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
@@ -76,7 +75,7 @@ jobs:
 
       - name: Wait for EAS workflow and capture artifacts
         id: eas_artifacts
-        if: inputs.environment == '' || github.ref != 'refs/heads/main' || steps.check_worker_exists.outputs.worker_exists == 'false'
+        if: github.ref != 'refs/heads/main' || steps.check_worker_exists.outputs.worker_exists == 'false'
         working-directory: packages/worker
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
@@ -173,12 +172,9 @@ jobs:
           fi
 
       - name: Upload worker tarballs to GCP
-        # Upload in three scenarios:
-        # 1. Testing on main branch (to cache for future deployments)
-        # 2. Deploying from custom branch (always rebuild to test changes)
-        # 3. Deploying from main and tarballs don't exist yet (need to build first)
-        # Don't upload on PRs (not main + no env) or when deploying from main with existing tarballs
-        if: (inputs.environment == '' && github.ref == 'refs/heads/main') || (inputs.environment != '' && (github.ref != 'refs/heads/main' || steps.check_worker_exists.outputs.worker_exists == 'false'))
+        # Upload when deploying (has environment) if we built something new
+        # Don't upload PR builds (no environment) or when using cached tarballs
+        if: inputs.environment != '' && (github.ref != 'refs/heads/main' || steps.check_worker_exists.outputs.worker_exists == 'false')
         run: |
           IOS_GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
           ANDROID_GCP_TARBALL="worker-android-sha1-$GITHUB_SHA.tar.gz"
