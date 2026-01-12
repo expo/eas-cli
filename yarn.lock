@@ -1546,10 +1546,10 @@
   resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-2.1.13.tgz#b4950a68a54befa8f1581ae0066477b068dd4757"
   integrity sha512-nt3efiJhAWTHl9ikKYrHEuv3dhqCdicsHFRE9LmvtcVsPhXl9bAsm0gbACoLPr7ClP8664H/S6SdVJOD/tw0jg==
 
-"@expo/build-tools@1.0.260":
-  version "1.0.260"
-  resolved "https://registry.yarnpkg.com/@expo/build-tools/-/build-tools-1.0.260.tgz#996c7386ce943869ab4fa4f309fda03edd6fe4d1"
-  integrity sha512-CJhpY7DLOp76SXjtnF9iNEaqiNM4WeMgcF3YbPTbr8L/JeeYrsRl/QRKCYeGiw5dXv1PUz9WMJ2Y0LEDkPdLeg==
+"@expo/build-tools@1.0.261":
+  version "1.0.261"
+  resolved "https://registry.yarnpkg.com/@expo/build-tools/-/build-tools-1.0.261.tgz#6277a72762a4bd99c6e20eaf19293656cb299654"
+  integrity sha512-d44kUp/bt831ia118QajbbQy7/CqoKv2uoeB2I7J3nv1yJDMTPSnQ4WLSyZAycSJ++dtFuzRKPGuwjEKcGDw4w==
   dependencies:
     "@expo/config" "10.0.6"
     "@expo/config-plugins" "9.0.12"
