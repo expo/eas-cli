@@ -7,16 +7,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a **Lerna-based monorepo** with four packages:
 
 1. **[packages/eas-cli](./packages/eas-cli/CLAUDE.md)** - The main CLI tool (published as `eas-cli`)
+
    - 95+ commands organized by domain (build, submit, update, channel, credentials, etc.)
    - Built on oclif (Open CLI Framework)
    - Entry point: `packages/eas-cli/bin/run`
 
 2. **[packages/eas-json](./packages/eas-json/CLAUDE.md)** - EAS configuration parser (published as `@expo/eas-json`)
+
    - Validates `eas.json` configuration files using Joi schemas
    - Manages build, submit, and deploy profiles
    - Supports JSON5 via golden-fleece
 
 3. **[packages/eas-build-cache-provider](./packages/eas-build-cache-provider/CLAUDE.md)** - Build cache plugin (published as `eas-build-cache-provider`)
+
    - Optimizes build caching for Expo CLI
 
 4. **[packages/worker](./packages/worker/CLAUDE.md)** - Turtle Worker service (private, not published)
@@ -29,12 +32,14 @@ This is a **Lerna-based monorepo** with four packages:
 ## Common Development Commands
 
 ### Setup
+
 ```bash
 yarn install        # Install all dependencies
 yarn build          # Build all packages in the monorepo
 ```
 
 ### Development
+
 ```bash
 yarn start          # Watch mode with parallel builds across all packages
 yarn watch          # Alias for start
@@ -44,6 +49,7 @@ yarn start-allow-unused
 ```
 
 ### Testing
+
 ```bash
 yarn test           # Run all tests across packages (Jest multi-project)
 yarn test --watch   # Run tests in watch mode
@@ -55,12 +61,14 @@ cd packages/worker && yarn test
 ```
 
 ### Type Checking & Linting
+
 ```bash
 yarn typecheck      # TypeScript type check all packages
 yarn lint           # ESLint across all packages
 ```
 
 ### Running EAS CLI Locally
+
 ```bash
 # From repository root:
 yarn eas <command>  # Run via root package script
@@ -76,12 +84,14 @@ easd build --help
 ## Build System
 
 Each package has independent TypeScript compilation:
+
 - `eas-cli`: `src/` → `build/`
 - `eas-json`: `src/` → `build/`
 - `eas-build-cache-provider`: `src/` → `build/`
 - `worker`: `src/` → `dist/`
 
 TypeScript configs:
+
 - `tsconfig.json` - Base configuration (extends @tsconfig/node18)
 - `tsconfig.build.json` - Production builds
 - `tsconfig.allowUnused.json` - Development with relaxed rules
@@ -97,6 +107,7 @@ TypeScript configs:
   - Utilities: `ts-mockito`, `mockdate`
 
 Run a single test file:
+
 ```bash
 yarn test <path-to-test-file>
 # Example:
@@ -118,14 +129,18 @@ export EXPO_DEBUG=1     # Enable debug logging
 ## Code Style & Conventions
 
 ### Validation
+
 All changes should be validated with TypeScript and the linter before committing:
+
 ```bash
 yarn typecheck      # Validate TypeScript types
 yarn lint           # Run ESLint
 ```
 
 ### Logging
+
 Use the `Log` module from `@expo/logger`:
+
 ```typescript
 import { Log } from '@expo/logger';
 
@@ -133,6 +148,10 @@ Log.log('Info message');
 Log.warn('Warning message');
 Log.error('Error message');
 ```
+
+### Pull Request conventions
+
+When creating pull requests, make sure to adhere to [PULL_REQUEST_TEMPLATE](./.github/PULL_REQUEST_TEMPLATE).
 
 ## Release Process
 
