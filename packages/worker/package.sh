@@ -7,12 +7,11 @@ ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )"
 WORKER_DIR=$( dirname "${BASH_SOURCE[0]}" )
 
 OUTPUT_FILE=$1
-PLATFORM=$2
 
-if [[ -z "$OUTPUT_FILE" || -z "$PLATFORM" ]]; then
-  echo "Please specify the output file and target platform (.tar.gz)"
-  echo "Usage: ./package.sh OUTPUT_FILE (ios|android)"
-  echo "Example: ./package.sh worker.tar.gz ios"
+if [[ -z "$OUTPUT_FILE" ]]; then
+  echo "Please specify the output file (.tar.gz)"
+  echo "Usage: ./package.sh OUTPUT_FILE"
+  echo "Example: ./package.sh worker.tar.gz"
   exit -1
 fi
 
@@ -51,20 +50,19 @@ yarn install --silent --production=true
 rm -rf tsconfig.json tsconfig.build.json
 popd >/dev/null 2>&1
 
-if [[ "$PLATFORM" == "ios" ]]; then
-  # build plugin
-  pushd "$ROOT_DIR/packages/expo-cocoapods-proxy" >/dev/null 2>&1
-  if command -v brew &> /dev/null; then
-    eval "$(brew shellenv)"
-  else
-    echo "Error: brew command not found in PATH. Please ensure Homebrew is installed and in your PATH." >&2
-    exit 1
-  fi
-  bundle install
-  gem build expo-cocoapods-proxy.gemspec
-  mv expo-cocoapods-proxy-*.gem "$target_worker_dir/expo-cocoapods-proxy.gem"
-  popd >/dev/null 2>&1
+# build plugin
+pushd "$ROOT_DIR/packages/expo-cocoapods-proxy" >/dev/null 2>&1
+if command -v brew &> /dev/null; then
+  eval "$(brew shellenv)"
+else
+  echo "Error: brew command not found in PATH. Please ensure Homebrew is installed and in your PATH." >&2
+  exit 1
 fi
+bundle install
+gem build expo-cocoapods-proxy.gemspec
+mv expo-cocoapods-proxy-*.gem "$target_worker_dir/expo-cocoapods-proxy.gem"
+popd >/dev/null 2>&1
+
 rm -rf $target_root_dir/.volta/
 
 # Create backward-compatible symlink for orchestrator

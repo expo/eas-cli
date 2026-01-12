@@ -45,7 +45,7 @@ jobs:
 
           echo "worker_exists=true" >> "$GITHUB_OUTPUT"
 
-  build-workers:
+  build:
     runs-on: ubuntu-latest
     needs:
       - setup
@@ -57,7 +57,7 @@ jobs:
 
       - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
 
-      - name: Start EAS Workflow to build worker tarballs
+      - name: Start EAS Workflow to build worker tarball
         id: eas_workflow
         working-directory: packages/worker
         env:
@@ -134,37 +134,22 @@ jobs:
 
           # Extract artifact download URLs from workflow output
           # Artifacts are in jobs[].artifacts[] for custom jobs
-          DOWNLOAD_IOS_URL=$(echo "$VIEW_OUTPUT" | jq -r '
+          DOWNLOAD_URL=$(echo "$VIEW_OUTPUT" | jq -r '
             .jobs[]
             | .artifacts[]?
-            | select(.name == "worker-ios-tarball")
+            | select(.name == "worker-tarball")
             | .downloadUrl
           ' | head -1)
 
-          DOWNLOAD_ANDROID_URL=$(echo "$VIEW_OUTPUT" | jq -r '
-            .jobs[]
-            | .artifacts[]?
-            | select(.name == "worker-android-tarball")
-            | .downloadUrl
-          ' | head -1)
-
-          if [ -z "$DOWNLOAD_IOS_URL" ] || [ "$DOWNLOAD_IOS_URL" = "null" ]; then
-            echo "Error: Could not find iOS artifact download URL"
-            echo "$VIEW_OUTPUT" | jq .
-            exit 1
-          fi
-
-          if [ -z "$DOWNLOAD_ANDROID_URL" ] || [ "$DOWNLOAD_ANDROID_URL" = "null" ]; then
-            echo "Error: Could not find Android artifact download URL"
+          if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
+            echo "Error: Could not find artifact download URL"
             echo "$VIEW_OUTPUT" | jq .
             exit 1
           fi
 
           # Mask the download URLs
-          echo "::add-mask::$DOWNLOAD_IOS_URL"
-          echo "::add-mask::$DOWNLOAD_ANDROID_URL"
-          echo "download_ios_url=$DOWNLOAD_IOS_URL" >> "$GITHUB_OUTPUT"
-          echo "download_android_url=$DOWNLOAD_ANDROID_URL" >> "$GITHUB_OUTPUT"
+          echo "::add-mask::$DOWNLOAD_URL"
+          echo "download_url=$DOWNLOAD_URL" >> "$GITHUB_OUTPUT"
 
       - name: Cancel EAS workflow on GitHub cancellation
         if: cancelled()
@@ -184,16 +169,14 @@ jobs:
       - name: Upload worker tarballs to GCP
         if: github.ref == 'refs/heads/main' || inputs.environment != ''
         run: |
-          IOS_GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
-          ANDROID_GCP_TARBALL="worker-android-sha1-$GITHUB_SHA.tar.gz"
-          curl -L "${{ steps.eas_artifacts.outputs.download_ios_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$IOS_GCP_TARBALL
-          curl -L "${{ steps.eas_artifacts.outputs.download_android_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$ANDROID_GCP_TARBALL
+          GCP_TARBALL="worker-sha1-$GITHUB_SHA.tar.gz"
+          curl -L "${{ steps.eas_artifacts.outputs.download_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$GCP_TARBALL
 
   deploy:
     runs-on: ubuntu-latest
     needs:
       - setup
-      - build-workers
+      - build
     if: (!failure() && !cancelled() && inputs.environment != '')
     permissions:
       id-token: write
@@ -205,8 +188,8 @@ jobs:
       - name: Promote worker to ${{ inputs.environment }}
         run: |
           for platform in android ios; do
-            GCP_TARBALL="worker-$platform-sha1-$GITHUB_SHA.tar.gz"
-            WORKER_STAGING_TARBALL="worker-$platform-${{ inputs.environment }}.tar.gz"
+            GCP_TARBALL="worker-sha1-$GITHUB_SHA.tar.gz"
+            WORKER_ENVIRONMENT_TARBALL="worker-$platform-${{ inputs.environment }}.tar.gz"
 
-            gsutil cp gs://eas-build-worker-tarballs/$GCP_TARBALL gs://eas-build-worker-tarballs/$WORKER_STAGING_TARBALL
+            gsutil cp gs://eas-build-worker-tarballs/$GCP_TARBALL gs://eas-build-worker-tarballs/$WORKER_ENVIRONMENT_TARBALL
           done

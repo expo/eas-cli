@@ -1,30 +1,19 @@
-name: Build Worker
-
 on:
   workflow_dispatch: {}
 
 jobs:
-  build_worker_tarballs:
-    name: Build Worker Tarballs
+  build_worker_tarball:
+    name: Build and Upload
     runs_on: macos-medium
     image: latest
     steps:
       - uses: eas/checkout
 
-      - name: Build iOS worker tarball
-        run: ./package.sh worker-ios.tar.gz ios
+      - name: Build worker tarball
+        run: ./package.sh worker.tar.gz
 
-      - name: Build Android worker tarball
-        run: ./package.sh worker-android.tar.gz android
-
-      - name: Upload iOS worker tarball as artifact
+      - name: Upload worker tarball as artifact
         uses: eas/upload_artifact
         with:
-          name: worker-ios-tarball
-          path: packages/worker/worker-ios.tar.gz
-
-      - name: Upload Android worker tarball as artifact
-        uses: eas/upload_artifact
-        with:
-          name: worker-android-tarball
-          path: packages/worker/worker-android.tar.gz
+          name: worker-tarball
+          path: packages/worker/worker.tar.gz
