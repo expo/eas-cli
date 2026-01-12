@@ -31,9 +31,9 @@ jobs:
 
       - name: Check if worker already exists
         id: check_worker_exists
-        # Only skip builds on main if tarballs are cached
-        # Custom branches always rebuild to test their changes
-        if: inputs.environment != '' && github.ref == 'refs/heads/main'
+        # Check if tarballs for this SHA already exist
+        # If they do, we can skip building regardless of branch
+        if: inputs.environment != ''
         run: |
           for platform in android ios; do
             GCP_TARBALL="worker-$platform-sha1-$GITHUB_SHA.tar.gz"
@@ -48,8 +48,8 @@ jobs:
 
       - name: Start EAS Workflow to build worker tarballs
         id: eas_workflow
-        # Build unless deploying from main with cached tarballs
-        if: github.ref != 'refs/heads/main' || steps.check_worker_exists.outputs.worker_exists == 'false'
+        # Build if: PR testing (no env), or deploying but tarballs don't exist
+        if: inputs.environment == '' || steps.check_worker_exists.outputs.worker_exists == 'false'
         working-directory: packages/worker
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
@@ -75,7 +75,7 @@ jobs:
 
       - name: Wait for EAS workflow and capture artifacts
         id: eas_artifacts
-        if: github.ref != 'refs/heads/main' || steps.check_worker_exists.outputs.worker_exists == 'false'
+        if: inputs.environment == '' || steps.check_worker_exists.outputs.worker_exists == 'false'
         working-directory: packages/worker
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
@@ -172,9 +172,9 @@ jobs:
           fi
 
       - name: Upload worker tarballs to GCP
-        # Upload when deploying (has environment) if we built something new
+        # Upload when deploying if we built something new
         # Don't upload PR builds (no environment) or when using cached tarballs
-        if: inputs.environment != '' && (github.ref != 'refs/heads/main' || steps.check_worker_exists.outputs.worker_exists == 'false')
+        if: inputs.environment != '' && steps.check_worker_exists.outputs.worker_exists == 'false'
         run: |
           IOS_GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
           ANDROID_GCP_TARBALL="worker-android-sha1-$GITHUB_SHA.tar.gz"
