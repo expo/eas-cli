@@ -10,7 +10,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-### 🐛 Bug fixes
 
 - Hide progress bar in build credits warning when usage reaches 100%. ([#3371](https://github.com/expo/eas-cli/pull/3371) by [@mackenco](https://github.com/mackenco))
 
@@ -22,6 +21,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `--browser` flag to `eas login` for browser-based authentication. ([#3312](https://github.com/expo/eas-cli/pull/3312) by [@byronkarlen](https://github.com/byronkarlen))
 - List available options in non-interactive mode errors instead of generic "unable to select" messages, making CLI usable by agents and scripts. ([#3359](https://github.com/expo/eas-cli/pull/3359) by [@EvanBacon](https://github.com/EvanBacon))
 - Hidden beta version of new `eas account:usage` command for viewing account usage and billing estimates. ([#3334](https://github.com/expo/eas-cli/pull/3334) by [@douglowder](https://github.com/douglowder), [@EvanBacon](https://github.com/EvanBacon))
 - Add `--no-bytecode` and `--source-maps [mode]` flags to `eas update`. ([#3339](https://github.com/expo/eas-cli/pull/3339) by [@brentvatne](https://github.com/brentvatne))
