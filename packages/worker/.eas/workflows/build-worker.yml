@@ -1,22 +1,43 @@
-name: Build Worker (iOS)
+name: Build Worker
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      upload_artifact:
+        description: Whether to upload artifacts
+        type: boolean
+        default: true
 
 jobs:
+  build_android_worker:
+    name: Build Android Worker
+    runs_on: linux-medium
+    image: latest
+    steps:
+      - uses: eas/checkout
+
+      - name: Build Android worker tarball
+        run: ./package.sh worker-android.tar.gz android
+
+      - name: Upload Android worker tarball as artifact
+        if: ${{ inputs.upload_artifact }}
+        uses: eas/upload_artifact
+        with:
+          name: worker-android-tarball
+          path: packages/worker/worker-android.tar.gz
+
   build_ios_worker:
-    name: Build iOS Worker Tarball
+    name: Build iOS Worker
     runs_on: macos-medium
     image: latest
     steps:
       - uses: eas/checkout
 
-      - uses: eas/install_node_modules
-
-      - name: Build worker tarball
+      - name: Build iOS worker tarball
         run: ./package.sh worker-ios.tar.gz ios
 
-      - name: Upload worker tarball as artifact
+      - name: Upload iOS worker tarball as artifact
+        if: ${{ inputs.upload_artifact }}
         uses: eas/upload_artifact
         with:
           name: worker-ios-tarball
