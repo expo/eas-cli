@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@babel/core": "7.24.7",
-    "@expo/build-tools": "1.0.261",
+    "@expo/build-tools": "1.0.264",
     "@expo/config-plugins": "8.0.8",
     "@expo/config-types": "52.0.1",
     "@expo/downloader": "1.0.260",
