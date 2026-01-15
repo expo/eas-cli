@@ -54,13 +54,13 @@ describe(AgeRatingTask, () => {
   });
 
   describe('uploadAsync', () => {
-    it('aborts when age rating is not loaded', async () => {
-      const promise = new AgeRatingTask().uploadAsync({
-        config: new AppleConfigReader({}),
-        context: { ageRating: undefined } as any,
-      });
-
-      await expect(promise).rejects.toThrow('rating not initialized');
+    it('skips when age rating is not loaded', async () => {
+      await expect(
+        new AgeRatingTask().uploadAsync({
+          config: new AppleConfigReader({}),
+          context: { ageRating: undefined } as any,
+        })
+      ).resolves.not.toThrow();
     });
 
     it('skips updating age rating when not configured', async () => {

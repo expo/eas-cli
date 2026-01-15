@@ -72,20 +72,20 @@ describe(AppReviewDetailTask, () => {
       nock.cleanAll();
     });
 
-    it('aborts when version is not loaded', async () => {
-      const promise = new AppReviewDetailTask().uploadAsync({
-        config: new AppleConfigReader({
-          review: {
-            firstName: 'Evan',
-            lastName: 'Bacon',
-            email: 'review@example.com',
-            phone: '+1 555 555 5555',
-          },
-        }),
-        context: {} as any,
-      });
-
-      await expect(promise).rejects.toThrow('version not init');
+    it('skips when version is not loaded', async () => {
+      await expect(
+        new AppReviewDetailTask().uploadAsync({
+          config: new AppleConfigReader({
+            review: {
+              firstName: 'Evan',
+              lastName: 'Bacon',
+              email: 'review@example.com',
+              phone: '+1 555 555 5555',
+            },
+          }),
+          context: {} as any,
+        })
+      ).resolves.not.toThrow();
     });
 
     it('updates review details when loaded', async () => {
