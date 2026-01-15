@@ -17,6 +17,11 @@ export default class AccountLogin extends EasCommand {
       char: 's',
       default: false,
     }),
+    browser: Flags.boolean({
+      description: 'Login with your browser',
+      char: 'b',
+      default: false,
+    }),
   };
 
   static override contextDefinition = {
@@ -26,7 +31,7 @@ export default class AccountLogin extends EasCommand {
 
   async runAsync(): Promise<void> {
     const {
-      flags: { sso },
+      flags: { sso, browser },
     } = await this.parse(AccountLogin);
 
     const {
@@ -51,7 +56,7 @@ export default class AccountLogin extends EasCommand {
       }
     }
 
-    await sessionManager.showLoginPromptAsync({ sso });
+    await sessionManager.showLoginPromptAsync({ sso, browser });
     Log.log('Logged in');
   }
 }

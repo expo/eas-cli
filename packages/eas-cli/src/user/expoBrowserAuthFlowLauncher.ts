@@ -4,13 +4,14 @@ import http from 'http';
 import { Socket } from 'node:net';
 import querystring from 'querystring';
 
+import { getExpoWebsiteBaseUrl } from '../api';
 import Log from '../log';
 
 const successBody = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Expo SSO Login</title>
+  <title>Expo Login</title>
   <meta charset="utf-8">
   <style type="text/css">
     html {
@@ -32,25 +33,23 @@ const successBody = `
   </style>
 </head>
 <body>
-  SSO login complete. You may now close this tab and return to the command prompt.
+  Login complete. You may now close this tab and return to the command prompt.
 </body>
 </html>`;
 
-export async function getSessionUsingBrowserAuthFlowAsync({
-  expoWebsiteUrl,
-}: {
-  expoWebsiteUrl: string;
-}): Promise<string> {
+export async function getSessionUsingBrowserAuthFlowAsync({ sso = false }): Promise<string> {
   const scheme = 'http';
   const hostname = 'localhost';
   const path = '/auth/callback';
 
-  const buildExpoSsoLoginUrl = (port: number): string => {
+  const expoWebsiteUrl = getExpoWebsiteBaseUrl();
+
+  const buildExpoLoginUrl = (port: number, sso: boolean): string => {
     const data = {
       app_redirect_uri: `${scheme}://${hostname}:${port}${path}`,
     };
     const params = querystring.stringify(data);
-    return `${expoWebsiteUrl}/sso-login?${params}`;
+    return `${expoWebsiteUrl}${sso ? '/sso-login' : '/login'}?${params}`;
   };
 
   // Start server and begin auth flow
@@ -62,7 +61,7 @@ export async function getSessionUsingBrowserAuthFlowAsync({
         (request: http.IncomingMessage, response: http.ServerResponse) => {
           try {
             if (!(request.method === 'GET' && request.url?.includes('/auth/callback'))) {
-              throw new Error('Unexpected SSO login response.');
+              throw new Error('Unexpected login response.');
             }
             const url = new URL(request.url, `http:${request.headers.host}`);
             const sessionSecret = url.searchParams.get('session_secret');
@@ -95,7 +94,7 @@ export async function getSessionUsingBrowserAuthFlowAsync({
           'Server address and port should be set after listening has begun'
         );
         const port = address.port;
-        const authorizeUrl = buildExpoSsoLoginUrl(port);
+        const authorizeUrl = buildExpoLoginUrl(port, sso);
         Log.log(
           `If your browser doesn't automatically open, visit this link to log in: ${authorizeUrl}`
         );
