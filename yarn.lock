@@ -1546,21 +1546,21 @@
   resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-2.1.13.tgz#b4950a68a54befa8f1581ae0066477b068dd4757"
   integrity sha512-nt3efiJhAWTHl9ikKYrHEuv3dhqCdicsHFRE9LmvtcVsPhXl9bAsm0gbACoLPr7ClP8664H/S6SdVJOD/tw0jg==
 
-"@expo/build-tools@1.0.264":
-  version "1.0.264"
-  resolved "https://registry.yarnpkg.com/@expo/build-tools/-/build-tools-1.0.264.tgz#67b62a901fadce0575f8897d129176c62e39ae32"
-  integrity sha512-e6fSjZ/cPnTRcw9P71CpX952tzIRz74APjmMwdj2cpXQ2UQvE6b1pvZGszNYsFu15BdcLDpxaTWiguw7AkM5Kg==
+"@expo/build-tools@1.0.265":
+  version "1.0.265"
+  resolved "https://registry.yarnpkg.com/@expo/build-tools/-/build-tools-1.0.265.tgz#169468dbe66e291364bd15d21ed2347370c1a453"
+  integrity sha512-ctHPorfiFrKbyF1jFTcsYlc9X4zQX1elkaIaaHwPOk8pStzXfCiTRz03TTf89/unPesGuyyBhVCyp1zLCbbC6A==
   dependencies:
     "@expo/config" "10.0.6"
     "@expo/config-plugins" "9.0.12"
     "@expo/downloader" "1.0.260"
-    "@expo/eas-build-job" "1.0.263"
+    "@expo/eas-build-job" "1.0.265"
     "@expo/env" "^0.4.0"
     "@expo/logger" "1.0.260"
     "@expo/package-manager" "1.7.0"
     "@expo/plist" "^0.2.0"
     "@expo/results" "^1.0.0"
-    "@expo/steps" "1.0.263"
+    "@expo/steps" "1.0.265"
     "@expo/template-file" "1.0.260"
     "@expo/turtle-spawn" "1.0.260"
     "@expo/xcpretty" "^4.3.1"
@@ -1787,10 +1787,10 @@
     semver "^7.6.2"
     zod "^4.1.3"
 
-"@expo/eas-build-job@1.0.263":
-  version "1.0.263"
-  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.263.tgz#12c218629bfd3b383569963d572f7fcb0253f13a"
-  integrity sha512-+wwnsVs/gPimqKPIHZC9R6dAQM0qkFOewQHgNcIIkB3vsKagz0FSvn5eK/MZtAF/ZmjWn4KCDLx0UYcmFx66tA==
+"@expo/eas-build-job@1.0.265":
+  version "1.0.265"
+  resolved "https://registry.yarnpkg.com/@expo/eas-build-job/-/eas-build-job-1.0.265.tgz#0433917ed08bce9cfbff9a89a1d7e3a1bec13ca7"
+  integrity sha512-5M2qbDqceEobUu23igQ5UTqTTtE1IfQXdWrq6hZ6yi1iftEWMVXwmk4Ufj6DirYjKf5zVxCBb6e9M6bMmGS4ew==
   dependencies:
     "@expo/logger" "1.0.260"
     joi "^17.13.1"
@@ -2056,12 +2056,12 @@
     uuid "^9.0.1"
     yaml "^2.4.3"
 
-"@expo/steps@1.0.263":
-  version "1.0.263"
-  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.263.tgz#99a19f58a0aa4faa87b358418c9afaa364914d3b"
-  integrity sha512-/NysQeraPzncd90gq6GnM9dFdQ3rB1z8S4ca5MDPbqKYyGKu3N5DzPUFLzMZlaeO4/3nXNltxI1tgNFPJVdySw==
+"@expo/steps@1.0.265":
+  version "1.0.265"
+  resolved "https://registry.yarnpkg.com/@expo/steps/-/steps-1.0.265.tgz#4362a30d0eaedb637a25d71c4c2a8e5e537bd4cb"
+  integrity sha512-rchHLxyRN/ASI4elXCanho4aNqkhcsi0z30r3vOTbadwYaE9sI1jxYWgYZSuZahCrbgrfg0mMXoxiQ5HhZg/ig==
   dependencies:
-    "@expo/eas-build-job" "1.0.263"
+    "@expo/eas-build-job" "1.0.265"
     "@expo/logger" "1.0.260"
     "@expo/spawn-async" "^1.7.2"
     arg "^5.0.2"
