@@ -35,6 +35,7 @@ import { ExpoConfigOptions, getPrivateExpoConfigAsync } from '../../project/expo
 import { promptAsync } from '../../prompts';
 import { Actor } from '../../user/User';
 import { easCliVersion } from '../../utils/easCli';
+import { expoCommandAsync } from '../../utils/expoCli';
 import GitClient from '../../vcs/clients/git';
 
 export default class Onboarding extends EasCommand {
@@ -196,23 +197,12 @@ export default class Onboarding extends EasCommand {
     });
 
     if (!app.githubRepository) {
-      await runCommandAsync({
-        cwd: finalTargetProjectDirectory,
-        command: 'npx',
-        args: ['expo', 'install', 'expo-updates'],
-      });
-      Log.log();
-      await runCommandAsync({
-        cwd: finalTargetProjectDirectory,
-        command: 'npx',
-        args: ['expo', 'install', 'expo-insights'],
-      });
-      Log.log();
-      await runCommandAsync({
-        cwd: finalTargetProjectDirectory,
-        command: 'npx',
-        args: ['expo', 'install', 'expo-dev-client'],
-      });
+      await expoCommandAsync(finalTargetProjectDirectory, [
+        'install',
+        'expo-updates',
+        'expo-insights',
+        'expo-dev-client',
+      ]);
       Log.log();
     }
     await vcsClient.trackFileAsync('package-lock.json');
