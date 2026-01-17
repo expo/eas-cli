@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Bump minimum required Node version to 18.14.0 to support `FormData` file streaming withi `undici`. ([#2420](https://github.com/expo/eas-cli/pull/2420) by [@byCedric](https://github.com/byCedric))
+
 ### 🎉 New features
 
 - Add App Clip bundle identifier registration support for multi-target iOS builds. ([#3300](https://github.com/expo/eas-cli/pull/3300) by [@evanbacon](https://github.com/evanbacon))
