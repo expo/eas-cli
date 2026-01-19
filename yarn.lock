@@ -1546,10 +1546,10 @@
   resolved "https://registry.yarnpkg.com/@expo/apple-utils/-/apple-utils-2.1.13.tgz#b4950a68a54befa8f1581ae0066477b068dd4757"
   integrity sha512-nt3efiJhAWTHl9ikKYrHEuv3dhqCdicsHFRE9LmvtcVsPhXl9bAsm0gbACoLPr7ClP8664H/S6SdVJOD/tw0jg==
 
-"@expo/build-tools@1.0.265":
-  version "1.0.265"
-  resolved "https://registry.yarnpkg.com/@expo/build-tools/-/build-tools-1.0.265.tgz#169468dbe66e291364bd15d21ed2347370c1a453"
-  integrity sha512-ctHPorfiFrKbyF1jFTcsYlc9X4zQX1elkaIaaHwPOk8pStzXfCiTRz03TTf89/unPesGuyyBhVCyp1zLCbbC6A==
+"@expo/build-tools@1.0.266":
+  version "1.0.266"
+  resolved "https://registry.yarnpkg.com/@expo/build-tools/-/build-tools-1.0.266.tgz#e44a6185571470ba73bf304e2c1f7b61adbad1a7"
+  integrity sha512-QRdS1JYoMVUzmCPOBThqGcvBtMefLDptRgcLUxgsefnfHOvvXLCYNLnkSTdJz6gUA3b5CNUhDVI2XX28Y9cNPg==
   dependencies:
     "@expo/config" "10.0.6"
     "@expo/config-plugins" "9.0.12"
@@ -1557,7 +1557,7 @@
     "@expo/eas-build-job" "1.0.265"
     "@expo/env" "^0.4.0"
     "@expo/logger" "1.0.260"
-    "@expo/package-manager" "1.7.0"
+    "@expo/package-manager" "1.9.10"
     "@expo/plist" "^0.2.0"
     "@expo/results" "^1.0.0"
     "@expo/steps" "1.0.265"
@@ -1844,6 +1844,14 @@
     json5 "^2.2.2"
     write-file-atomic "^2.3.0"
 
+"@expo/json-file@^10.0.8":
+  version "10.0.8"
+  resolved "https://registry.yarnpkg.com/@expo/json-file/-/json-file-10.0.8.tgz#05e524d1ecc0011db0a6d66b525ea2f58cfe6d43"
+  integrity sha512-9LOTh1PgKizD1VXfGQ88LtDH0lRwq9lsTb4aichWTWSWqy3Ugfkhfm3BhzBIkJJfQQ5iJu3m/BoRlEIjoCGcnQ==
+  dependencies:
+    "@babel/code-frame" "~7.10.4"
+    json5 "^2.2.3"
+
 "@expo/json-file@^9.0.0":
   version "9.0.0"
   resolved "https://registry.yarnpkg.com/@expo/json-file/-/json-file-9.0.0.tgz#e3688c9b108cfd7e819f1354a9458ba6e93fc943"
@@ -1926,6 +1934,18 @@
     resolve-workspace-root "^2.0.0"
     split "^1.0.1"
     sudo-prompt "9.1.1"
+
+"@expo/package-manager@1.9.10":
+  version "1.9.10"
+  resolved "https://registry.yarnpkg.com/@expo/package-manager/-/package-manager-1.9.10.tgz#5da3f4943f6fa44ddd7f0efe32a360040edd734a"
+  integrity sha512-axJm+NOj3jVxep49va/+L3KkF3YW/dkV+RwzqUJedZrv4LeTqOG4rhrCaCPXHTvLqCTDKu6j0Xyd28N7mnxsGA==
+  dependencies:
+    "@expo/json-file" "^10.0.8"
+    "@expo/spawn-async" "^1.7.2"
+    chalk "^4.0.0"
+    npm-package-arg "^11.0.0"
+    ora "^3.4.0"
+    resolve-workspace-root "^2.0.0"
 
 "@expo/pkcs12@0.1.3":
   version "0.1.3"
