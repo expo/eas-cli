@@ -1917,24 +1917,6 @@
     "@expo/spawn-async" "^1.7.2"
     exec-async "^2.2.0"
 
-"@expo/package-manager@1.7.0":
-  version "1.7.0"
-  resolved "https://registry.yarnpkg.com/@expo/package-manager/-/package-manager-1.7.0.tgz#6d98090fdfa9d31ab885acb012d6615741594fd1"
-  integrity sha512-yWn5TIjd42wLHZjNtdZkvCkcxqUGxlI4YHb+bQmgm3tWZ8aBHnLhPb0rgU8+hVHCofmRvVUXfVZv8Uh+kkLXgw==
-  dependencies:
-    "@expo/json-file" "^9.0.0"
-    "@expo/spawn-async" "^1.7.2"
-    ansi-regex "^5.0.0"
-    chalk "^4.0.0"
-    find-up "^5.0.0"
-    js-yaml "^3.13.1"
-    micromatch "^4.0.8"
-    npm-package-arg "^11.0.0"
-    ora "^3.4.0"
-    resolve-workspace-root "^2.0.0"
-    split "^1.0.1"
-    sudo-prompt "9.1.1"
-
 "@expo/package-manager@1.9.10":
   version "1.9.10"
   resolved "https://registry.yarnpkg.com/@expo/package-manager/-/package-manager-1.9.10.tgz#5da3f4943f6fa44ddd7f0efe32a360040edd734a"
@@ -15456,11 +15438,6 @@ sucrase@3.35.0:
     mz "^2.7.0"
     pirates "^4.0.1"
     ts-interface-checker "^0.1.9"
-
-sudo-prompt@9.1.1:
-  version "9.1.1"
-  resolved "https://registry.yarnpkg.com/sudo-prompt/-/sudo-prompt-9.1.1.tgz#73853d729770392caec029e2470db9c221754db0"
-  integrity sha512-es33J1g2HjMpyAhz8lOR+ICmXXAqTuKbuXuUWLhOLew20oN9oUCgCJx615U/v7aioZg7IX5lIh9x34vwneu4pA==
 
 superagent@^10.3.0:
   version "10.3.0"
