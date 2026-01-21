@@ -32,7 +32,6 @@
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.7.2",
     "@expo/steps": "1.0.265",
-    "@expo/template-file": "1.0.260",
     "@expo/turtle-spawn": "1.0.260",
     "@hapi/boom": "10.0.1",
     "@sentry/node": "7.77.0",

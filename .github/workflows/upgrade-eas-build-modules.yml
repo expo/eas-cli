@@ -32,7 +32,7 @@ jobs:
             pushd $DIR >/dev/null 2>&1
               # packages are ordered according to output of `lerna list --toposort`
               # https://github.com/expo/turtle-v2/pull/568
-              for PACKAGE in "@expo/downloader" "@expo/eas-build-job" "@expo/logger" "@expo/template-file" "@expo/steps" "@expo/turtle-spawn" "@expo/build-tools"; do
+              for PACKAGE in "@expo/downloader" "@expo/eas-build-job" "@expo/logger" "@expo/steps" "@expo/turtle-spawn" "@expo/build-tools"; do
                 if grep -q $PACKAGE package.json; then
                   echo "[$DIR] yarn --exact add $PACKAGE"
                   yarn add --exact $PACKAGE
