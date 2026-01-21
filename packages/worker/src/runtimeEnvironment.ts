@@ -1,6 +1,5 @@
 import { BuildContext } from '@expo/build-tools';
 import { Job, errors } from '@expo/eas-build-job';
-import templateFile from '@expo/template-file';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
 import os from 'os';
@@ -8,6 +7,8 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import config from './config';
+import { createInitGradle } from './templates/InitGradle';
+import { createYarnrcYml } from './templates/YarnrcYml';
 
 class SystemDepsInstallError extends errors.UserFacingError {
   constructor(dependency: string) {
@@ -27,23 +28,17 @@ export async function prepareRuntimeEnvironmentConfigFiles(): Promise<void> {
     // create ~/.npmrc
     await spawn('npm', ['config', 'set', 'registry', config.npmCacheUrl]);
     // create ~/.yarnrc.yml
-    await templateFile(
-      path.join(__dirname, '../src/templates/yarnrc.yml'),
-      {
-        URL: config.npmCacheUrl,
-      },
-      path.join(os.homedir(), '.yarnrc.yml')
+    await fs.writeFile(
+      path.join(os.homedir(), '.yarnrc.yml'),
+      createYarnrcYml({ registryUrl: config.npmCacheUrl })
     );
   }
 
   if (config.mavenCacheUrl) {
     await fs.mkdirp(path.join(os.homedir(), '.gradle'));
-    await templateFile(
-      path.join(__dirname, '../src/templates/init.gradle'),
-      {
-        URL: config.mavenCacheUrl,
-      },
-      path.join(os.homedir(), '.gradle/init.gradle')
+    await fs.writeFile(
+      path.join(os.homedir(), '.gradle/init.gradle'),
+      createInitGradle({ mavenUrl: config.mavenCacheUrl })
     );
   }
 }

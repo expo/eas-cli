@@ -1,7 +1,8 @@
+export const createInitGradle = ({ mavenUrl }: { mavenUrl: string }) => `
 initscript {
     repositories {
         maven {
-            url '{{URL}}/artifactory/libs-release'
+            url '${mavenUrl}/artifactory/libs-release'
             if (it.hasProperty("allowInsecureProtocol")) {
                 allowInsecureProtocol = true
             }
@@ -21,7 +22,7 @@ gradle.beforeSettings { settings ->
     settings.pluginManagement {
         repositories {
             maven {
-                url '{{URL}}/artifactory/libs-release'
+                url '${mavenUrl}/artifactory/libs-release'
                 if (it.hasProperty("allowInsecureProtocol")) {
                     allowInsecureProtocol = true
                 }
@@ -31,12 +32,12 @@ gradle.beforeSettings { settings ->
             mavenCentral()
         }
     }
-    
+
     // Also configure dependency resolution strategy for settings dependencies
     settings.dependencyResolutionManagement {
         repositories {
             maven {
-                url '{{URL}}/artifactory/libs-release'
+                url '${mavenUrl}/artifactory/libs-release'
                 if (it.hasProperty("allowInsecureProtocol")) {
                     allowInsecureProtocol = true
                 }
@@ -51,7 +52,7 @@ allprojects {
     buildscript {
         repositories {
             maven {
-                url '{{URL}}/artifactory/libs-release'
+                url '${mavenUrl}/artifactory/libs-release'
                 if (it.hasProperty("allowInsecureProtocol")) {
                     allowInsecureProtocol = true
                 }
@@ -63,7 +64,7 @@ allprojects {
     }
     repositories {
         maven {
-            url '{{URL}}/artifactory/libs-release'
+            url '${mavenUrl}/artifactory/libs-release'
             if (it.hasProperty("allowInsecureProtocol")) {
                 allowInsecureProtocol = true
             }
@@ -88,3 +89,4 @@ class RemoveJcenterPlugin implements Plugin<Gradle> {
         }
     }
 }
+`;
