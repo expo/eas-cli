@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Fix `metadata:pull` failing for apps with only a live version by falling back to live app version and info. ([#3299](https://github.com/expo/eas-cli/pull/3299) by [@EvanBacon](https://github.com/EvanBacon))
 - eas init should fix and validate project name and slug. ([#3277](https://github.com/expo/eas-cli/pull/3277) by [@douglowder](https://github.com/douglowder))
+- Fix `eas build` failing when compressing project files after upgrading `tar` by switching to namespace imports. ([#3327](https://github.com/expo/eas-cli/pull/3327) by [@KarolRzeminski](https://github.com/KarolRzeminski))
 
 ### 🧹 Chores
 
