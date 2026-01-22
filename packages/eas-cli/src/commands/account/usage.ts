@@ -2,7 +2,7 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasJsonOnlyFlag } from '../../commandUtils/flags';
+import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
   AppPlatform,
   EasBuildBillingResourceClass,
@@ -474,7 +474,7 @@ export default class AccountUsage extends EasCommand {
     account: Flags.string({
       description: 'Account name to view usage for (defaults to current account)',
     }),
-    ...EasJsonOnlyFlag,
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
@@ -483,9 +483,11 @@ export default class AccountUsage extends EasCommand {
 
   async runAsync(): Promise<void> {
     const {
-      flags: { account: accountName, json },
+      flags: { account: accountName, json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(AccountUsage);
 
+    // Enable JSON output if either --json or --non-interactive is passed
+    const json = jsonFlag || nonInteractive;
     if (json) {
       enableJsonOutput();
     }
@@ -493,7 +495,7 @@ export default class AccountUsage extends EasCommand {
     const {
       loggedIn: { graphqlClient, actor },
     } = await this.getContextAsync(AccountUsage, {
-      nonInteractive: true,
+      nonInteractive,
     });
 
     // Find the target account
