@@ -20,6 +20,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Test with node 24. ([#3270](https://github.com/expo/eas-cli/pull/3270) by [@wschurman](https://github.com/wschurman))
 - Delete channel in background. ([#3278](https://github.com/expo/eas-cli/pull/3278) by [@quinlanj](https://github.com/quinlanj))
+- Add warning to channel:delete. ([#3335](https://github.com/expo/eas-cli/pull/3335) by [@quinlanj](https://github.com/quinlanj))
 
 ## [16.28.0](https://github.com/expo/eas-cli/releases/tag/v16.28.0) - 2025-11-20
 
