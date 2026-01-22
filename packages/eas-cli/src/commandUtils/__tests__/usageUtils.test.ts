@@ -1,14 +1,18 @@
-import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
-  AccountFullUsageQuery as AccountFullUsageQueryType,
   EasService,
   EasServiceMetric,
   UsageMetricType,
-} from '../../../graphql/generated';
-import { AccountFullUsageQuery } from '../../../graphql/queries/AccountFullUsageQuery';
-import { calculatePercentUsed, createProgressBar } from '../../../utils/usage/checkForOverages';
-
-jest.mock('../../../graphql/queries/AccountFullUsageQuery');
+} from '../../graphql/generated';
+import { AccountFullUsageData } from '../../graphql/queries/AccountFullUsageQuery';
+import {
+  calculateBillingPeriodDays,
+  calculateDaysElapsed,
+  calculateDaysRemaining,
+  extractUsageData,
+  formatCurrency,
+  formatDate,
+  formatNumber,
+} from '../usageUtils';
 
 function createMockFullUsageData(
   overrides: Partial<{
@@ -23,7 +27,7 @@ function createMockFullUsageData(
     buildOverageCost: number;
     updateOverageCost: number;
   }> = {}
-): AccountFullUsageQueryType['account']['byId'] {
+): AccountFullUsageData {
   const {
     name = 'test-account',
     subscriptionName = 'Starter',
@@ -164,62 +168,138 @@ function createMockFullUsageData(
   };
 }
 
-describe('AccountFullUsageQuery', () => {
-  const mockGraphqlClient = {} as ExpoGraphqlClient;
-  const mockGetFullUsageAsync = jest.mocked(AccountFullUsageQuery.getFullUsageAsync);
+describe('formatDate', () => {
+  it('formats date correctly', () => {
+    const result = formatDate('2024-03-15T00:00:00.000Z');
+    expect(result).toMatch(/Mar 15, 2024|Mar 14, 2024/); // Allow for timezone differences
+  });
+});
 
-  beforeEach(() => {
-    mockGetFullUsageAsync.mockClear();
+describe('formatCurrency', () => {
+  it('formats cents to dollars', () => {
+    expect(formatCurrency(1900)).toBe('$19.00');
+    expect(formatCurrency(0)).toBe('$0.00');
+    expect(formatCurrency(150)).toBe('$1.50');
+  });
+});
+
+describe('formatNumber', () => {
+  it('formats numbers with no decimals by default', () => {
+    expect(formatNumber(1000)).toBe('1,000');
+    expect(formatNumber(1234567)).toBe('1,234,567');
   });
 
-  it('fetches usage data for an account', async () => {
+  it('formats numbers with specified decimals', () => {
+    expect(formatNumber(1234.5678, 2)).toBe('1,234.57');
+  });
+});
+
+describe('calculateDaysRemaining', () => {
+  it('calculates days remaining correctly', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 10);
+    const result = calculateDaysRemaining(futureDate.toISOString());
+    expect(result).toBeGreaterThanOrEqual(9);
+    expect(result).toBeLessThanOrEqual(11);
+  });
+
+  it('returns 0 for past dates', () => {
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 10);
+    const result = calculateDaysRemaining(pastDate.toISOString());
+    expect(result).toBe(0);
+  });
+});
+
+describe('calculateDaysElapsed', () => {
+  it('calculates days elapsed correctly', () => {
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 10);
+    const result = calculateDaysElapsed(pastDate.toISOString());
+    expect(result).toBeGreaterThanOrEqual(10);
+    expect(result).toBeLessThanOrEqual(11);
+  });
+
+  it('returns at least 1 for recent dates', () => {
+    const today = new Date();
+    const result = calculateDaysElapsed(today.toISOString());
+    expect(result).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('calculateBillingPeriodDays', () => {
+  it('calculates billing period days correctly', () => {
+    const start = '2024-03-01T00:00:00.000Z';
+    const end = '2024-03-31T00:00:00.000Z';
+    const result = calculateBillingPeriodDays(start, end);
+    expect(result).toBe(30);
+  });
+});
+
+describe('extractUsageData', () => {
+  it('correctly extracts usage data from API response', () => {
+    const mockData = createMockFullUsageData({
+      buildValue: 25,
+      buildLimit: 50,
+      mauValue: 1000,
+      mauLimit: 3000,
+    });
+
+    const result = extractUsageData(mockData);
+
+    expect(result.accountName).toBe('test-account');
+    expect(result.subscriptionPlan).toBe('Starter');
+    expect(result.builds.total.value).toBe(25);
+    expect(result.builds.total.limit).toBe(50);
+    expect(result.updates.mau.value).toBe(1000);
+    expect(result.updates.mau.limit).toBe(3000);
+  });
+
+  it('handles overage costs', () => {
+    const mockData = createMockFullUsageData({
+      buildValue: 60,
+      buildLimit: 50,
+      buildOverageCost: 2000, // $20 in cents
+    });
+
+    const result = extractUsageData(mockData);
+
+    expect(result.builds.overageCostCents).toBe(2000);
+    expect(result.totalOverageCostCents).toBe(2000);
+  });
+
+  it('handles Free plan', () => {
+    const mockData = createMockFullUsageData({
+      subscriptionName: 'Free',
+    });
+
+    const result = extractUsageData(mockData);
+
+    expect(result.subscriptionPlan).toBe('Free');
+  });
+
+  it('calculates percent used correctly', () => {
+    const mockData = createMockFullUsageData({
+      buildValue: 25,
+      buildLimit: 50,
+    });
+
+    const result = extractUsageData(mockData);
+
+    expect(result.builds.total.percentUsed).toBe(50);
+  });
+});
+
+describe('Billing period calculations', () => {
+  it('correctly identifies billing period dates', () => {
     const mockData = createMockFullUsageData();
-    mockGetFullUsageAsync.mockResolvedValue(mockData as any);
+    const result = extractUsageData(mockData);
 
-    const result = await AccountFullUsageQuery.getFullUsageAsync(
-      mockGraphqlClient,
-      'account-id',
-      new Date()
-    );
+    const startDate = new Date(result.billingPeriod.start);
+    const endDate = new Date(result.billingPeriod.end);
 
-    expect(mockGetFullUsageAsync).toHaveBeenCalledWith(
-      mockGraphqlClient,
-      'account-id',
-      expect.any(Date)
-    );
-    expect(result.name).toBe('test-account');
-  });
-});
-
-describe('calculatePercentUsed', () => {
-  it('calculates correct percentage', () => {
-    expect(calculatePercentUsed(50, 100)).toBe(50);
-    expect(calculatePercentUsed(85, 100)).toBe(85);
-    expect(calculatePercentUsed(100, 100)).toBe(100);
-  });
-
-  it('caps at 100%', () => {
-    expect(calculatePercentUsed(150, 100)).toBe(100);
-  });
-
-  it('returns 0 when limit is 0', () => {
-    expect(calculatePercentUsed(50, 0)).toBe(0);
-  });
-});
-
-describe('createProgressBar', () => {
-  it('creates correct progress bar for 50%', () => {
-    const bar = createProgressBar(50, 20);
-    expect(bar).toBe('██████████░░░░░░░░░░');
-  });
-
-  it('creates correct progress bar for 0%', () => {
-    const bar = createProgressBar(0, 20);
-    expect(bar).toBe('░░░░░░░░░░░░░░░░░░░░');
-  });
-
-  it('creates correct progress bar for 100%', () => {
-    const bar = createProgressBar(100, 20);
-    expect(bar).toBe('████████████████████');
+    expect(startDate).toBeInstanceOf(Date);
+    expect(endDate).toBeInstanceOf(Date);
+    expect(endDate.getTime()).toBeGreaterThan(startDate.getTime());
   });
 });
