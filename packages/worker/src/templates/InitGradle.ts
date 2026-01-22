@@ -1,11 +1,13 @@
+export const createInitGradle = ({ mavenUrl }: { mavenUrl: string }) => `
 initscript {
     repositories {
         maven {
-            url '{{URL}}/artifactory/libs-release'
+            url '${mavenUrl}/artifactory/libs-release'
             if (it.hasProperty("allowInsecureProtocol")) {
                 allowInsecureProtocol = true
             }
         }
+        mavenCentral()
         maven {
             url 'https://plugins.gradle.org/m2/'
         }
@@ -20,23 +22,28 @@ gradle.beforeSettings { settings ->
     settings.pluginManagement {
         repositories {
             maven {
-                url '{{URL}}/artifactory/libs-release'
+                url '${mavenUrl}/artifactory/libs-release'
                 if (it.hasProperty("allowInsecureProtocol")) {
                     allowInsecureProtocol = true
                 }
             }
+            gradlePluginPortal()
+            google()
+            mavenCentral()
         }
     }
-    
+
     // Also configure dependency resolution strategy for settings dependencies
     settings.dependencyResolutionManagement {
         repositories {
             maven {
-                url '{{URL}}/artifactory/libs-release'
+                url '${mavenUrl}/artifactory/libs-release'
                 if (it.hasProperty("allowInsecureProtocol")) {
                     allowInsecureProtocol = true
                 }
             }
+            google()
+            mavenCentral()
         }
     }
 }
@@ -45,20 +52,25 @@ allprojects {
     buildscript {
         repositories {
             maven {
-                url '{{URL}}/artifactory/libs-release'
+                url '${mavenUrl}/artifactory/libs-release'
                 if (it.hasProperty("allowInsecureProtocol")) {
                     allowInsecureProtocol = true
                 }
             }
+            google()
+            mavenCentral()
+            gradlePluginPortal()
         }
     }
     repositories {
         maven {
-            url '{{URL}}/artifactory/libs-release'
+            url '${mavenUrl}/artifactory/libs-release'
             if (it.hasProperty("allowInsecureProtocol")) {
                 allowInsecureProtocol = true
             }
         }
+        google()
+        mavenCentral()
     }
 }
 
@@ -77,3 +89,4 @@ class RemoveJcenterPlugin implements Plugin<Gradle> {
         }
     }
 }
+`;

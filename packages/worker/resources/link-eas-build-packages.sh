@@ -21,7 +21,6 @@ PACKAGES=(
   "@expo/eas-build-job"
   "@expo/downloader"
   "@expo/logger"
-  "@expo/template-file"
   "@expo/turtle-spawn"
 )
 
