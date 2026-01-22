@@ -15,6 +15,7 @@ import {
 } from '../../graphql/queries/AccountFullUsageQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
+import { selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { calculatePercentUsed, createProgressBar } from '../../utils/usage/checkForOverages';
 
@@ -472,7 +473,8 @@ export default class AccountUsage extends EasCommand {
 
   static override flags = {
     account: Flags.string({
-      description: 'Account name to view usage for (defaults to current account)',
+      description:
+        'Account name to view usage for. If not provided, the account will be selected interactively (or defaults to the only account if there is just one)',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -499,7 +501,9 @@ export default class AccountUsage extends EasCommand {
     });
 
     // Find the target account
-    let targetAccount = actor.accounts[0];
+    const defaultAccount = actor.accounts[0];
+    let targetAccount: typeof defaultAccount;
+
     if (accountName) {
       const found = actor.accounts.find(a => a.name === accountName);
       if (!found) {
@@ -509,6 +513,23 @@ export default class AccountUsage extends EasCommand {
         );
       }
       targetAccount = found;
+    } else if (nonInteractive) {
+      throw new Error(
+        'The `--account` flag must be set when running in `--non-interactive` mode.'
+      );
+    } else if (actor.accounts.length === 1) {
+      // Only one account, use it directly
+      targetAccount = defaultAccount;
+    } else {
+      // Prompt user to select an account
+      targetAccount = await selectAsync(
+        'Select account to view usage for:',
+        actor.accounts.map(account => ({
+          title: account.name,
+          value: account,
+        })),
+        { initial: defaultAccount }
+      );
     }
 
     const spinner = ora(`Fetching usage data for account ${targetAccount.name}`).start();
