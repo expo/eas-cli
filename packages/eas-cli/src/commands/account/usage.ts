@@ -3,7 +3,12 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
-import { EasServiceMetric, UsageMetricType } from '../../graphql/generated';
+import {
+  AppPlatform,
+  EasBuildBillingResourceClass,
+  EasServiceMetric,
+  UsageMetricType,
+} from '../../graphql/generated';
 import {
   AccountFullUsageData,
   AccountFullUsageQuery,
@@ -15,17 +20,24 @@ import { calculatePercentUsed, createProgressBar } from '../../utils/usage/check
 
 /**
  * Billing heuristics for estimating costs.
- * These are approximate rates based on published EAS pricing.
- * Actual rates may vary based on plan and resource class.
+ * Based on published EAS pricing (https://expo.dev/pricing)
  */
 const BILLING_HEURISTICS = {
   // EAS Update pricing
   UPDATE_MAU_OVERAGE_RATE_CENTS: 0.5, // $0.005 per MAU overage
   UPDATE_BANDWIDTH_OVERAGE_RATE_CENTS: 10, // $0.10 per GiB
 
-  // EAS Build pricing (approximate average across resource classes)
-  BUILD_OVERAGE_RATE_CENTS_IOS: 200, // $2.00 per iOS build average
-  BUILD_OVERAGE_RATE_CENTS_ANDROID: 100, // $1.00 per Android build average
+  // EAS Build pricing by platform and resource class (in cents)
+  BUILD_RATES: {
+    [AppPlatform.Ios]: {
+      [EasBuildBillingResourceClass.Medium]: 200, // $2.00 per iOS medium build
+      [EasBuildBillingResourceClass.Large]: 400, // $4.00 per iOS large build
+    },
+    [AppPlatform.Android]: {
+      [EasBuildBillingResourceClass.Medium]: 100, // $1.00 per Android medium build
+      [EasBuildBillingResourceClass.Large]: 200, // $2.00 per Android large build
+    },
+  },
 };
 
 interface UsageMetricDisplay {
@@ -36,6 +48,13 @@ interface UsageMetricDisplay {
   overageValue?: number;
   overageCost?: number;
   unit?: string;
+}
+
+interface BuildOverageByWorkerSize {
+  platform: AppPlatform;
+  resourceClass: EasBuildBillingResourceClass;
+  count: number;
+  costCents: number;
 }
 
 interface UsageDisplayData {
@@ -49,6 +68,7 @@ interface UsageDisplayData {
     total: UsageMetricDisplay;
     ios?: UsageMetricDisplay;
     android?: UsageMetricDisplay;
+    overagesByWorkerSize: BuildOverageByWorkerSize[];
     overageCostCents: number;
   };
   updates: {
@@ -141,9 +161,23 @@ function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
   const buildMetric = EAS_BUILD.planMetrics.find(
     m => m.serviceMetric === EasServiceMetric.Builds && m.metricType === UsageMetricType.Build
   );
-  const buildOverage = EAS_BUILD.overageMetrics.find(
-    m => m.serviceMetric === EasServiceMetric.Builds
-  );
+
+  // Extract build overages by worker size from overage metrics with metadata
+  const overagesByWorkerSize: BuildOverageByWorkerSize[] = [];
+  for (const overage of EAS_BUILD.overageMetrics) {
+    if (
+      overage.serviceMetric === EasServiceMetric.Builds &&
+      overage.metadata?.billingResourceClass &&
+      overage.metadata?.platform
+    ) {
+      overagesByWorkerSize.push({
+        platform: overage.metadata.platform,
+        resourceClass: overage.metadata.billingResourceClass,
+        count: overage.value,
+        costCents: overage.totalCost,
+      });
+    }
+  }
 
   // Find update metrics
   const mauMetric = EAS_UPDATE.planMetrics.find(
@@ -177,6 +211,9 @@ function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
   const updateOverageCostCents = EAS_UPDATE.totalCost;
   const totalOverageCostCents = buildOverageCostCents + updateOverageCostCents;
 
+  // Calculate total overage count for display
+  const totalOverageBuilds = overagesByWorkerSize.reduce((sum, o) => sum + o.count, 0);
+
   return {
     accountName: name,
     subscriptionPlan: subscription?.name ?? 'Free',
@@ -190,8 +227,8 @@ function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
         value: buildValue,
         limit: buildLimit,
         percentUsed: calculatePercentUsed(buildValue, buildLimit),
-        overageValue: buildOverage?.value,
-        overageCost: buildOverage?.totalCost,
+        overageValue: totalOverageBuilds > 0 ? totalOverageBuilds : undefined,
+        overageCost: buildOverageCostCents > 0 ? buildOverageCostCents : undefined,
         unit: 'builds',
       },
       ios: buildMetric?.platformBreakdown
@@ -212,6 +249,7 @@ function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
             unit: 'builds',
           }
         : undefined,
+      overagesByWorkerSize,
       overageCostCents: buildOverageCostCents,
     },
     updates: {
@@ -270,19 +308,40 @@ function calculateProjectedCosts(data: UsageDisplayData): {
   );
 
   // Estimate overage costs using heuristics
-  // For builds, we use a weighted estimate based on iOS vs Android distribution
+  // For builds, if we have current overage data with worker size breakdown, use it to
+  // estimate the worker size distribution. Otherwise, use medium as default.
   let projectedBuildOverage = 0;
   if (projectedBuilds > data.builds.total.limit) {
     const totalProjectedOverage = projectedBuilds - data.builds.total.limit;
-    const iosRatio =
-      projectedBuilds > 0
-        ? projectedIosBuilds / (projectedIosBuilds + projectedAndroidBuilds)
-        : 0.5;
-    const iosOverage = totalProjectedOverage * iosRatio;
-    const androidOverage = totalProjectedOverage * (1 - iosRatio);
-    projectedBuildOverage =
-      iosOverage * BILLING_HEURISTICS.BUILD_OVERAGE_RATE_CENTS_IOS +
-      androidOverage * BILLING_HEURISTICS.BUILD_OVERAGE_RATE_CENTS_ANDROID;
+
+    // Calculate weighted average rate based on current overage distribution
+    if (data.builds.overagesByWorkerSize.length > 0) {
+      // Use actual distribution from current overages
+      const totalCurrentOverages = data.builds.overagesByWorkerSize.reduce(
+        (sum, o) => sum + o.count,
+        0
+      );
+      if (totalCurrentOverages > 0) {
+        const weightedRate = data.builds.overagesByWorkerSize.reduce((sum, o) => {
+          const rate = BILLING_HEURISTICS.BUILD_RATES[o.platform]?.[o.resourceClass] ?? 150; // fallback
+          return sum + (o.count / totalCurrentOverages) * rate;
+        }, 0);
+        projectedBuildOverage = totalProjectedOverage * weightedRate;
+      }
+    } else {
+      // No current overages, estimate based on platform distribution using medium rates
+      const iosRatio =
+        projectedBuilds > 0
+          ? projectedIosBuilds / (projectedIosBuilds + projectedAndroidBuilds)
+          : 0.5;
+      const iosOverage = totalProjectedOverage * iosRatio;
+      const androidOverage = totalProjectedOverage * (1 - iosRatio);
+      projectedBuildOverage =
+        iosOverage *
+          BILLING_HEURISTICS.BUILD_RATES[AppPlatform.Ios][EasBuildBillingResourceClass.Medium] +
+        androidOverage *
+          BILLING_HEURISTICS.BUILD_RATES[AppPlatform.Android][EasBuildBillingResourceClass.Medium];
+    }
   }
 
   const projectedMauOverage = estimateOverageCost(
@@ -375,6 +434,17 @@ function displayUsage(data: UsageDisplayData): void {
     Log.log(`  Current overages: ${chalk.yellow(formatCurrency(data.totalOverageCostCents))}`);
     if (data.builds.overageCostCents > 0) {
       Log.log(`    Build overages: ${formatCurrency(data.builds.overageCostCents)}`);
+      // Show breakdown by worker size
+      for (const overage of data.builds.overagesByWorkerSize) {
+        const platformName = overage.platform === AppPlatform.Ios ? 'iOS' : 'Android';
+        const sizeName =
+          overage.resourceClass === EasBuildBillingResourceClass.Large ? 'large' : 'medium';
+        Log.log(
+          `      ${platformName} ${sizeName}: ${formatNumber(
+            overage.count
+          )} builds (${formatCurrency(overage.costCents)})`
+        );
+      }
     }
     if (data.updates.overageCostCents > 0) {
       Log.log(`    Update overages: ${formatCurrency(data.updates.overageCostCents)}`);
@@ -483,6 +553,12 @@ export default class AccountUsage extends EasCommand {
                   percentUsed: displayData.builds.android.percentUsed,
                 }
               : null,
+            overagesByWorkerSize: displayData.builds.overagesByWorkerSize.map(o => ({
+              platform: o.platform.toLowerCase(),
+              resourceClass: o.resourceClass.toLowerCase(),
+              count: o.count,
+              costCents: o.costCents,
+            })),
             overageCostCents: displayData.builds.overageCostCents,
           },
           updates: {

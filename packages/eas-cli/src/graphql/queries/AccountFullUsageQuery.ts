@@ -62,6 +62,12 @@ const ACCOUNT_FULL_USAGE_QUERY = gql`
               value
               limit
               totalCost
+              metadata {
+                ... on AccountUsageEASBuildMetadata {
+                  billingResourceClass
+                  platform
+                }
+              }
             }
             totalCost
           }
