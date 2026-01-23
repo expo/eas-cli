@@ -1,4 +1,3 @@
-import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -158,11 +157,15 @@ function displayUsage(data: UsageDisplayData): void {
 export default class AccountUsage extends EasCommand {
   static override description = 'view account usage and billing estimates for the current cycle';
 
-  static override flags = {
-    account: Flags.string({
+  static override args = [
+    {
+      name: 'ACCOUNT_NAME',
       description:
         'Account name to view usage for. If not provided, the account will be selected interactively (or defaults to the only account if there is just one)',
-    }),
+    },
+  ];
+
+  static override flags = {
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -172,7 +175,8 @@ export default class AccountUsage extends EasCommand {
 
   async runAsync(): Promise<void> {
     const {
-      flags: { account: accountName, json: jsonFlag, 'non-interactive': nonInteractive },
+      args: { ACCOUNT_NAME: accountName },
+      flags: { json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(AccountUsage);
 
     // Enable JSON output if either --json or --non-interactive is passed
@@ -200,10 +204,7 @@ export default class AccountUsage extends EasCommand {
       } else {
         // Try to look up the account by name (user may have access via organization)
         try {
-          const account = await AccountQuery.getByNameAsync(
-            graphqlClient,
-            accountName
-          );
+          const account = await AccountQuery.getByNameAsync(graphqlClient, accountName);
           if (!account) {
             throw new Error(
               `Account "${accountName}" not found. Available accounts: ${availableAccounts}`
@@ -217,7 +218,9 @@ export default class AccountUsage extends EasCommand {
         }
       }
     } else if (nonInteractive) {
-      throw new Error('The `--account` flag must be set when running in `--non-interactive` mode.');
+      throw new Error(
+        'ACCOUNT_NAME argument must be provided when running in `--non-interactive` mode.'
+      );
     } else if (actor.accounts.length === 1) {
       // Only one account, use it directly
       targetAccount = defaultAccount;
