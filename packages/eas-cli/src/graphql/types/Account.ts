@@ -1,3 +1,4 @@
+/* eslint-disable graphql/required-fields */
 import gql from 'graphql-tag';
 
 export const AccountFragmentNode = gql`

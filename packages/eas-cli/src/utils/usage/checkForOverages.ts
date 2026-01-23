@@ -19,11 +19,7 @@ export async function maybeWarnAboutUsageOveragesAsync({
       name,
       subscription,
       usageMetrics: { EAS_BUILD },
-    } = await AccountQuery.getUsageForOverageWarningAsync(
-      graphqlClient,
-      accountId,
-      currentDate
-    );
+    } = await AccountQuery.getUsageForOverageWarningAsync(graphqlClient, accountId, currentDate);
 
     const planMetric = EAS_BUILD?.planMetrics?.[0];
     if (!planMetric || !subscription) {
