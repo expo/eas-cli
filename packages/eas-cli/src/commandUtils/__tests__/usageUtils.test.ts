@@ -128,8 +128,8 @@ function createMockFullUsageData(
             __typename: 'EstimatedUsage',
             id: 'mau-plan-metric-id',
             service: EasService.Updates,
-            serviceMetric: EasServiceMetric.UniqueUsers,
-            metricType: UsageMetricType.User,
+            serviceMetric: EasServiceMetric.UniqueUpdaters,
+            metricType: UsageMetricType.Update,
             value: mauValue,
             limit: mauLimit,
           },
@@ -150,8 +150,8 @@ function createMockFullUsageData(
                   __typename: 'EstimatedOverageAndCost',
                   id: 'mau-overage-id',
                   service: EasService.Updates,
-                  serviceMetric: EasServiceMetric.UniqueUsers,
-                  metricType: UsageMetricType.User,
+                  serviceMetric: EasServiceMetric.UniqueUpdaters,
+                  metricType: UsageMetricType.Update,
                   value: mauValue - mauLimit,
                   limit: mauLimit,
                   totalCost: updateOverageCost,
@@ -245,9 +245,9 @@ describe('extractUsageData', () => {
 
     expect(result.accountName).toBe('test-account');
     expect(result.subscriptionPlan).toBe('Starter');
-    expect(result.builds.total.value).toBe(25);
+    expect(result.builds.total.planValue).toBe(25);
     expect(result.builds.total.limit).toBe(50);
-    expect(result.updates.mau.value).toBe(1000);
+    expect(result.updates.mau.planValue).toBe(1000);
     expect(result.updates.mau.limit).toBe(3000);
   });
 

@@ -41,7 +41,9 @@ function formatBytesDisplay(bytes: number): string {
 function displayBandwidthMetric(metric: UsageMetricDisplay, indent: string = '  '): void {
   const progressBar = createProgressBar(metric.percentUsed, 20);
   const percentStr = `${metric.percentUsed}%`;
-  const usageStr = `${formatBytesDisplay(metric.value)}/${formatBytesDisplay(metric.limit)}`;
+  const planUsageStr = `${formatBytesDisplay(metric.planValue)}/${formatBytesDisplay(
+    metric.limit
+  )}`;
 
   let color = chalk.green;
   if (metric.percentUsed >= 100) {
@@ -50,18 +52,22 @@ function displayBandwidthMetric(metric: UsageMetricDisplay, indent: string = '  
     color = chalk.yellow;
   }
 
-  Log.log(`${indent}${metric.name}: ${color(usageStr)}`);
+  Log.log(`${indent}${metric.name} (plan): ${color(planUsageStr)}`);
   Log.log(`${indent}${progressBar} ${color(percentStr)}`);
 
-  if (metric.overageCost && metric.overageCost > 0) {
-    Log.log(`${indent}${chalk.red(`Overage: ${formatCurrency(metric.overageCost)}`)}`);
+  if (metric.overageValue > 0) {
+    Log.log(
+      `${indent}${metric.name} (overage): ${chalk.red(
+        formatBytesDisplay(metric.overageValue)
+      )} (${formatCurrency(metric.overageCost)})`
+    );
   }
 }
 
 function displayMetric(metric: UsageMetricDisplay, indent: string = '  '): void {
   const progressBar = createProgressBar(metric.percentUsed, 20);
   const percentStr = `${metric.percentUsed}%`;
-  const usageStr = `${formatNumber(metric.value)}/${formatNumber(metric.limit)} ${
+  const planUsageStr = `${formatNumber(metric.planValue)}/${formatNumber(metric.limit)} ${
     metric.unit ?? ''
   }`;
 
@@ -72,11 +78,15 @@ function displayMetric(metric: UsageMetricDisplay, indent: string = '  '): void 
     color = chalk.yellow;
   }
 
-  Log.log(`${indent}${metric.name}: ${color(usageStr)}`);
+  Log.log(`${indent}${metric.name} (plan): ${color(planUsageStr)}`);
   Log.log(`${indent}${progressBar} ${color(percentStr)}`);
 
-  if (metric.overageCost && metric.overageCost > 0) {
-    Log.log(`${indent}${chalk.red(`Overage: ${formatCurrency(metric.overageCost)}`)}`);
+  if (metric.overageValue > 0) {
+    Log.log(
+      `${indent}${metric.name} (overage): ${chalk.red(
+        `${formatNumber(metric.overageValue)} ${metric.unit ?? ''}`
+      )} (${formatCurrency(metric.overageCost)})`
+    );
   }
 }
 
@@ -258,45 +268,65 @@ export default class AccountUsage extends EasCommand {
             totalDays: periodInfo.totalDays,
           },
           builds: {
-            used: displayData.builds.total.value,
-            limit: displayData.builds.total.limit,
-            percentUsed: displayData.builds.total.percentUsed,
+            plan: {
+              used: displayData.builds.total.planValue,
+              limit: displayData.builds.total.limit,
+              percentUsed: displayData.builds.total.percentUsed,
+            },
+            overage: {
+              used: displayData.builds.total.overageValue,
+              costCents: displayData.builds.total.overageCost,
+              byWorkerSize: displayData.builds.overagesByWorkerSize.map(o => ({
+                platform: o.platform.toLowerCase(),
+                resourceClass: o.resourceClass.toLowerCase(),
+                count: o.count,
+                costCents: o.costCents,
+              })),
+            },
             ios: displayData.builds.ios
               ? {
-                  used: displayData.builds.ios.value,
-                  limit: displayData.builds.ios.limit,
-                  percentUsed: displayData.builds.ios.percentUsed,
+                  plan: {
+                    used: displayData.builds.ios.planValue,
+                    limit: displayData.builds.ios.limit,
+                    percentUsed: displayData.builds.ios.percentUsed,
+                  },
                 }
               : null,
             android: displayData.builds.android
               ? {
-                  used: displayData.builds.android.value,
-                  limit: displayData.builds.android.limit,
-                  percentUsed: displayData.builds.android.percentUsed,
+                  plan: {
+                    used: displayData.builds.android.planValue,
+                    limit: displayData.builds.android.limit,
+                    percentUsed: displayData.builds.android.percentUsed,
+                  },
                 }
               : null,
-            overagesByWorkerSize: displayData.builds.overagesByWorkerSize.map(o => ({
-              platform: o.platform.toLowerCase(),
-              resourceClass: o.resourceClass.toLowerCase(),
-              count: o.count,
-              costCents: o.costCents,
-            })),
-            overageCostCents: displayData.builds.overageCostCents,
           },
           updates: {
-            mau: {
-              used: displayData.updates.mau.value,
-              limit: displayData.updates.mau.limit,
-              percentUsed: displayData.updates.mau.percentUsed,
-              overageCostCents: displayData.updates.mau.overageCost ?? 0,
+            uniqueUpdaters: {
+              plan: {
+                used: displayData.updates.mau.planValue,
+                limit: displayData.updates.mau.limit,
+                percentUsed: displayData.updates.mau.percentUsed,
+              },
+              overage: {
+                used: displayData.updates.mau.overageValue,
+                costCents: displayData.updates.mau.overageCost,
+              },
             },
             bandwidth: {
-              usedBytes: displayData.updates.bandwidth.value,
-              usedFormatted: formatBytesDisplay(displayData.updates.bandwidth.value),
-              limitBytes: displayData.updates.bandwidth.limit,
-              limitFormatted: formatBytesDisplay(displayData.updates.bandwidth.limit),
-              percentUsed: displayData.updates.bandwidth.percentUsed,
-              overageCostCents: displayData.updates.bandwidth.overageCost ?? 0,
+              plan: {
+                usedBytes: displayData.updates.bandwidth.planValue,
+                usedFormatted: formatBytesDisplay(displayData.updates.bandwidth.planValue),
+                limitBytes: displayData.updates.bandwidth.limit,
+                limitFormatted: formatBytesDisplay(displayData.updates.bandwidth.limit),
+                percentUsed: displayData.updates.bandwidth.percentUsed,
+              },
+              overage: {
+                usedBytes: displayData.updates.bandwidth.overageValue,
+                usedFormatted: formatBytesDisplay(displayData.updates.bandwidth.overageValue),
+                costCents: displayData.updates.bandwidth.overageCost,
+              },
             },
             overageCostCents: displayData.updates.overageCostCents,
           },
