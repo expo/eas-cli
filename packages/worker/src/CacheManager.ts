@@ -87,7 +87,7 @@ export class GCSCacheManager implements CacheManager {
       this.skipCacheUpdate = true; // if restore failed we don't want to update cache with new values
       return;
     }
-    // @ts-expect-error
+
     await tar.extract(
       {
         file: archivePath,
