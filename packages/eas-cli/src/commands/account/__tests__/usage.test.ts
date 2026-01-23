@@ -64,6 +64,10 @@ function createMockFullUsageData(
     },
     usageMetrics: {
       __typename: 'AccountUsageMetrics',
+      MEDIUM_ANDROID_BUILDS: [],
+      LARGE_ANDROID_BUILDS: [],
+      MEDIUM_IOS_BUILDS: [],
+      LARGE_IOS_BUILDS: [],
       EAS_BUILD: {
         __typename: 'UsageMetricTotal',
         id: 'build-metric-id',
@@ -128,8 +132,8 @@ function createMockFullUsageData(
             __typename: 'EstimatedUsage',
             id: 'mau-plan-metric-id',
             service: EasService.Updates,
-            serviceMetric: EasServiceMetric.UniqueUsers,
-            metricType: UsageMetricType.User,
+            serviceMetric: EasServiceMetric.UniqueUpdaters,
+            metricType: UsageMetricType.Update,
             value: mauValue,
             limit: mauLimit,
           },
@@ -150,8 +154,8 @@ function createMockFullUsageData(
                   __typename: 'EstimatedOverageAndCost',
                   id: 'mau-overage-id',
                   service: EasService.Updates,
-                  serviceMetric: EasServiceMetric.UniqueUsers,
-                  metricType: UsageMetricType.User,
+                  serviceMetric: EasServiceMetric.UniqueUpdaters,
+                  metricType: UsageMetricType.Update,
                   value: mauValue - mauLimit,
                   limit: mauLimit,
                   totalCost: updateOverageCost,
@@ -176,15 +180,23 @@ describe('AccountQuery', () => {
     const mockData = createMockFullUsageData();
     mockGetFullUsageAsync.mockResolvedValue(mockData as any);
 
+    const currentDate = new Date();
+    const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
     const result = await AccountQuery.getFullUsageAsync(
       mockGraphqlClient,
       'account-id',
-      new Date()
+      currentDate,
+      startDate,
+      endDate
     );
 
     expect(mockGetFullUsageAsync).toHaveBeenCalledWith(
       mockGraphqlClient,
       'account-id',
+      expect.any(Date),
+      expect.any(Date),
       expect.any(Date)
     );
     expect(result.name).toBe('test-account');

@@ -64,6 +64,10 @@ function createMockFullUsageData(
     },
     usageMetrics: {
       __typename: 'AccountUsageMetrics',
+      MEDIUM_ANDROID_BUILDS: [],
+      LARGE_ANDROID_BUILDS: [],
+      MEDIUM_IOS_BUILDS: [],
+      LARGE_IOS_BUILDS: [],
       EAS_BUILD: {
         __typename: 'UsageMetricTotal',
         id: 'build-metric-id',

@@ -24,6 +24,12 @@ export interface BuildOverageByWorkerSize {
   costCents: number;
 }
 
+export interface BuildCountByPlatformAndSize {
+  platform: 'ios' | 'android';
+  resourceClass: 'medium' | 'large';
+  count: number;
+}
+
 export interface UsageDisplayData {
   accountName: string;
   subscriptionPlan: string;
@@ -35,6 +41,7 @@ export interface UsageDisplayData {
     total: UsageMetricDisplay;
     ios?: UsageMetricDisplay;
     android?: UsageMetricDisplay;
+    countsByPlatformAndSize: BuildCountByPlatformAndSize[];
     overagesByWorkerSize: BuildOverageByWorkerSize[];
     overageCostCents: number;
   };
@@ -94,12 +101,51 @@ export function calculateBillingPeriodDays(startDate: string, endDate: string): 
 
 export function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
   const { name, subscription, billingPeriod, usageMetrics } = data;
-  const { EAS_BUILD, EAS_UPDATE } = usageMetrics;
+  const {
+    EAS_BUILD,
+    EAS_UPDATE,
+    MEDIUM_ANDROID_BUILDS,
+    LARGE_ANDROID_BUILDS,
+    MEDIUM_IOS_BUILDS,
+    LARGE_IOS_BUILDS,
+  } = usageMetrics;
 
   // Find build metrics
   const buildMetric = EAS_BUILD.planMetrics.find(
     m => m.serviceMetric === EasServiceMetric.Builds && m.metricType === UsageMetricType.Build
   );
+
+  // Extract build counts by platform and worker size
+  const countsByPlatformAndSize: BuildCountByPlatformAndSize[] = [];
+  const mediumAndroidCount = MEDIUM_ANDROID_BUILDS?.[0]?.value ?? 0;
+  const largeAndroidCount = LARGE_ANDROID_BUILDS?.[0]?.value ?? 0;
+  const mediumIosCount = MEDIUM_IOS_BUILDS?.[0]?.value ?? 0;
+  const largeIosCount = LARGE_IOS_BUILDS?.[0]?.value ?? 0;
+
+  if (mediumAndroidCount > 0) {
+    countsByPlatformAndSize.push({
+      platform: 'android',
+      resourceClass: 'medium',
+      count: mediumAndroidCount,
+    });
+  }
+  if (largeAndroidCount > 0) {
+    countsByPlatformAndSize.push({
+      platform: 'android',
+      resourceClass: 'large',
+      count: largeAndroidCount,
+    });
+  }
+  if (mediumIosCount > 0) {
+    countsByPlatformAndSize.push({
+      platform: 'ios',
+      resourceClass: 'medium',
+      count: mediumIosCount,
+    });
+  }
+  if (largeIosCount > 0) {
+    countsByPlatformAndSize.push({ platform: 'ios', resourceClass: 'large', count: largeIosCount });
+  }
 
   // Extract build overages by worker size from overage metrics with metadata
   const overagesByWorkerSize: BuildOverageByWorkerSize[] = [];
@@ -201,6 +247,7 @@ export function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
             unit: 'builds',
           }
         : undefined,
+      countsByPlatformAndSize,
       overagesByWorkerSize,
       overageCostCents: buildOverageCostCents,
     },

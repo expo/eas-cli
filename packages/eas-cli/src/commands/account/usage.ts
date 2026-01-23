@@ -115,6 +115,15 @@ function displayUsage(data: UsageDisplayData): void {
     displayMetric(data.builds.android, '    ');
   }
 
+  // Show build counts by platform and worker size
+  if (data.builds.countsByPlatformAndSize.length > 0) {
+    Log.log('  Breakdown by platform/worker:');
+    for (const item of data.builds.countsByPlatformAndSize) {
+      const platformName = item.platform === 'ios' ? 'iOS' : 'Android';
+      Log.log(`    ${platformName} ${item.resourceClass}: ${formatNumber(item.count)} builds`);
+    }
+  }
+
   Log.newLine();
   Log.log(chalk.bold.underline('EAS Update'));
   displayMetric(data.updates.mau);
@@ -244,10 +253,17 @@ export default class AccountUsage extends EasCommand {
 
     try {
       const currentDate = new Date();
-      const usageData = await AccountQuery.getFullUsageAsync(
+      const { start, end } = await AccountQuery.getBillingPeriodAsync(
         graphqlClient,
         targetAccount.id,
         currentDate
+      );
+      const usageData = await AccountQuery.getFullUsageAsync(
+        graphqlClient,
+        targetAccount.id,
+        currentDate,
+        start,
+        end
       );
       Log.debug(JSON.stringify(usageData, null, 2));
 
@@ -283,6 +299,11 @@ export default class AccountUsage extends EasCommand {
                 costCents: o.costCents,
               })),
             },
+            byPlatformAndSize: displayData.builds.countsByPlatformAndSize.map(item => ({
+              platform: item.platform,
+              resourceClass: item.resourceClass,
+              count: item.count,
+            })),
             ios: displayData.builds.ios
               ? {
                   plan: {

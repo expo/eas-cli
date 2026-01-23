@@ -21,7 +21,12 @@ const ACCOUNT_BY_NAME_QUERY = gql`
 `;
 
 const ACCOUNT_FULL_USAGE_QUERY = gql`
-  query AccountFullUsage($accountId: String!, $currentDate: DateTime!) {
+  query AccountFullUsage(
+    $accountId: String!
+    $currentDate: DateTime!
+    $startDate: DateTime!
+    $endDate: DateTime!
+  ) {
     account {
       byId(accountId: $accountId) {
         id
@@ -42,6 +47,66 @@ const ACCOUNT_FULL_USAGE_QUERY = gql`
           anchor
         }
         usageMetrics {
+          MEDIUM_ANDROID_BUILDS: metricsForServiceMetric(
+            serviceMetric: BUILDS
+            granularity: TOTAL
+            timespan: { start: $startDate, end: $endDate }
+            filterParams: {
+              platform: "android"
+              billingResourceClass: ["medium"]
+              status: ["finished", "errored"]
+            }
+          ) {
+            id
+            serviceMetric
+            metricType
+            value
+          }
+          LARGE_ANDROID_BUILDS: metricsForServiceMetric(
+            serviceMetric: BUILDS
+            granularity: TOTAL
+            timespan: { start: $startDate, end: $endDate }
+            filterParams: {
+              platform: "android"
+              billingResourceClass: ["large"]
+              status: ["finished", "errored"]
+            }
+          ) {
+            id
+            serviceMetric
+            metricType
+            value
+          }
+          MEDIUM_IOS_BUILDS: metricsForServiceMetric(
+            serviceMetric: BUILDS
+            granularity: TOTAL
+            timespan: { start: $startDate, end: $endDate }
+            filterParams: {
+              platform: "ios"
+              billingResourceClass: ["medium"]
+              status: ["finished", "errored"]
+            }
+          ) {
+            id
+            serviceMetric
+            metricType
+            value
+          }
+          LARGE_IOS_BUILDS: metricsForServiceMetric(
+            serviceMetric: BUILDS
+            granularity: TOTAL
+            timespan: { start: $startDate, end: $endDate }
+            filterParams: {
+              platform: "ios"
+              billingResourceClass: ["large"]
+              status: ["finished", "errored"]
+            }
+          ) {
+            id
+            serviceMetric
+            metricType
+            value
+          }
           EAS_BUILD: byBillingPeriod(date: $currentDate, service: BUILDS) {
             id
             billingPeriod {
@@ -142,6 +207,23 @@ const ACCOUNT_USAGE_FOR_OVERAGE_WARNING_QUERY = gql`
   }
 `;
 
+const ACCOUNT_BILLING_PERIOD_QUERY = gql`
+  query AccountBillingPeriod($accountId: String!, $currentDate: DateTime!) {
+    account {
+      byId(accountId: $accountId) {
+        id
+        name
+        billingPeriod(date: $currentDate) {
+          id
+          start
+          end
+          anchor
+        }
+      }
+    }
+  }
+`;
+
 export type AccountFullUsageData = NonNullable<AccountFullUsageQueryType['account']['byId']>;
 
 export const AccountQuery = {
@@ -165,7 +247,9 @@ export const AccountQuery = {
   async getFullUsageAsync(
     graphqlClient: ExpoGraphqlClient,
     accountId: string,
-    currentDate: Date
+    currentDate: Date,
+    startDate: Date,
+    endDate: Date
   ): Promise<AccountFullUsageData> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -174,6 +258,8 @@ export const AccountQuery = {
           {
             accountId,
             currentDate: currentDate.toISOString(),
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
           },
           {
             additionalTypenames: [
@@ -214,5 +300,42 @@ export const AccountQuery = {
     );
 
     return data.account.byId;
+  },
+
+  async getBillingPeriodAsync(
+    graphqlClient: ExpoGraphqlClient,
+    accountId: string,
+    currentDate: Date
+  ): Promise<{
+    start: Date;
+    end: Date;
+  }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<{
+          account: {
+            byId: {
+              id: string;
+              name: string;
+              billingPeriod: { id: string; start: string; end: string; anchor: string };
+            } | null;
+          };
+        }>(
+          ACCOUNT_BILLING_PERIOD_QUERY,
+          { accountId, currentDate: currentDate.toISOString() },
+          {
+            additionalTypenames: ['Account', 'BillingPeriod'],
+          }
+        )
+        .toPromise()
+    );
+    const { start, end } = data.account.byId?.billingPeriod ?? {};
+    if (!start || !end) {
+      throw new Error('Billing period data not found');
+    }
+    return {
+      start: new Date(start),
+      end: new Date(end),
+    };
   },
 };
