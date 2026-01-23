@@ -120,7 +120,8 @@ export function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
 
   // Find update metrics
   const mauMetric = EAS_UPDATE.planMetrics.find(
-    m => m.serviceMetric === EasServiceMetric.UniqueUsers && m.metricType === UsageMetricType.User
+    m =>
+      m.serviceMetric === EasServiceMetric.UniqueUpdaters && m.metricType === UsageMetricType.Update
   );
   const bandwidthMetric = EAS_UPDATE.planMetrics.find(
     m =>
@@ -128,10 +129,13 @@ export function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
       m.metricType === UsageMetricType.Bandwidth
   );
   const mauOverage = EAS_UPDATE.overageMetrics.find(
-    m => m.serviceMetric === EasServiceMetric.UniqueUsers
+    m =>
+      m.serviceMetric === EasServiceMetric.UniqueUpdaters && m.metricType === UsageMetricType.Update
   );
   const bandwidthOverage = EAS_UPDATE.overageMetrics.find(
-    m => m.serviceMetric === EasServiceMetric.BandwidthUsage
+    m =>
+      m.serviceMetric === EasServiceMetric.BandwidthUsage &&
+      m.metricType === UsageMetricType.Bandwidth
   );
 
   const buildValue = buildMetric?.value ?? 0;
@@ -141,9 +145,15 @@ export function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
   const androidBuildValue = buildMetric?.platformBreakdown?.android.value ?? 0;
   const androidBuildLimit = buildMetric?.platformBreakdown?.android.limit ?? 0;
 
-  const mauValue = mauMetric?.value ?? 0;
+  // For updates, combine plan usage with any overage to get total usage
+  const mauPlanValue = mauMetric?.value ?? 0;
+  const mauOverageValue = mauOverage?.value ?? 0;
+  const mauValue = mauPlanValue + mauOverageValue;
   const mauLimit = mauMetric?.limit ?? 0;
-  const bandwidthValue = bandwidthMetric?.value ?? 0;
+
+  const bandwidthPlanValue = bandwidthMetric?.value ?? 0;
+  const bandwidthOverageValue = bandwidthOverage?.value ?? 0;
+  const bandwidthValue = bandwidthPlanValue + bandwidthOverageValue;
   const bandwidthLimit = bandwidthMetric?.limit ?? 0;
 
   const buildOverageCostCents = EAS_BUILD.totalCost;
@@ -193,7 +203,7 @@ export function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
     },
     updates: {
       mau: {
-        name: 'Monthly Active Users',
+        name: 'Unique Updaters',
         value: mauValue,
         limit: mauLimit,
         percentUsed: calculatePercentUsed(mauValue, mauLimit),
