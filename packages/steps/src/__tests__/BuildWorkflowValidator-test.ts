@@ -1,16 +1,16 @@
 import assert from 'assert';
 
-import { BuildStep, BuildStepFunction } from '../BuildStep.js';
-import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput.js';
-import { BuildStepOutput } from '../BuildStepOutput.js';
-import { BuildWorkflow } from '../BuildWorkflow.js';
-import { BuildWorkflowValidator } from '../BuildWorkflowValidator.js';
-import { BuildConfigError, BuildWorkflowError } from '../errors.js';
-import { BuildRuntimePlatform } from '../BuildRuntimePlatform.js';
-import { BuildFunction } from '../BuildFunction.js';
+import { BuildStep, BuildStepFunction } from '../BuildStep';
+import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
+import { BuildStepOutput } from '../BuildStepOutput';
+import { BuildWorkflow } from '../BuildWorkflow';
+import { BuildWorkflowValidator } from '../BuildWorkflowValidator';
+import { BuildConfigError, BuildWorkflowError } from '../errors';
+import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
+import { BuildFunction } from '../BuildFunction';
 
-import { createGlobalContextMock } from './utils/context.js';
-import { getErrorAsync } from './utils/error.js';
+import { createGlobalContextMock } from './utils/context';
+import { getErrorAsync } from './utils/error';
 
 describe(BuildWorkflowValidator, () => {
   test('non unique step ids', async () => {

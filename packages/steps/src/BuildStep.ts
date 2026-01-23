@@ -6,29 +6,29 @@ import { Buffer } from 'buffer';
 import { v4 as uuidv4 } from 'uuid';
 import { JobInterpolationContext } from '@expo/eas-build-job';
 
-import { BuildStepContext, BuildStepGlobalContext } from './BuildStepContext.js';
-import { BuildStepInput, BuildStepInputById, makeBuildStepInputByIdMap } from './BuildStepInput.js';
+import { BuildStepContext, BuildStepGlobalContext } from './BuildStepContext';
+import { BuildStepInput, BuildStepInputById, makeBuildStepInputByIdMap } from './BuildStepInput';
 import {
   BuildStepOutput,
   BuildStepOutputById,
   SerializedBuildStepOutput,
   makeBuildStepOutputByIdMap,
-} from './BuildStepOutput.js';
-import { BIN_PATH } from './utils/shell/bin.js';
-import { getShellCommandAndArgs } from './utils/shell/command.js';
+} from './BuildStepOutput';
+import { BIN_PATH } from './utils/shell/bin';
+import { getShellCommandAndArgs } from './utils/shell/command';
 import {
   cleanUpStepTemporaryDirectoriesAsync,
   getTemporaryEnvsDirPath,
   getTemporaryOutputsDirPath,
   saveScriptToTemporaryFileAsync,
-} from './BuildTemporaryFiles.js';
-import { spawnAsync } from './utils/shell/spawn.js';
-import { interpolateWithInputs, interpolateWithOutputs } from './utils/template.js';
-import { BuildStepRuntimeError } from './errors.js';
-import { BuildStepEnv } from './BuildStepEnv.js';
-import { BuildRuntimePlatform } from './BuildRuntimePlatform.js';
-import { jsepEval } from './utils/jsepEval.js';
-import { interpolateJobContext } from './interpolation.js';
+} from './BuildTemporaryFiles';
+import { spawnAsync } from './utils/shell/spawn';
+import { interpolateWithInputs, interpolateWithOutputs } from './utils/template';
+import { BuildStepRuntimeError } from './errors';
+import { BuildStepEnv } from './BuildStepEnv';
+import { BuildRuntimePlatform } from './BuildRuntimePlatform';
+import { jsepEval } from './utils/jsepEval';
+import { interpolateJobContext } from './interpolation';
 
 export enum BuildStepStatus {
   NEW = 'new',
@@ -140,6 +140,7 @@ export class BuildStep extends BuildStepOutputAccessor {
   public readonly stepEnvOverrides: BuildStepEnv;
   public readonly ifCondition?: string;
   public readonly timeoutMs?: number;
+  public readonly __metricsId?: string;
   public status: BuildStepStatus;
   private readonly outputsDir: string;
   private readonly envsDir: string;
@@ -195,6 +196,7 @@ export class BuildStep extends BuildStepOutputAccessor {
       env,
       ifCondition,
       timeoutMs,
+      __metricsId,
     }: {
       id: string;
       name?: string;
@@ -209,6 +211,7 @@ export class BuildStep extends BuildStepOutputAccessor {
       env?: BuildStepEnv;
       ifCondition?: string;
       timeoutMs?: number;
+      __metricsId?: string;
     }
   ) {
     assert(command !== undefined || fn !== undefined, 'Either command or fn must be defined.');
@@ -228,6 +231,7 @@ export class BuildStep extends BuildStepOutputAccessor {
     this.shell = shell ?? '/bin/bash -eo pipefail';
     this.ifCondition = ifCondition;
     this.timeoutMs = timeoutMs;
+    this.__metricsId = __metricsId;
     this.status = BuildStepStatus.NEW;
 
     this.internalId = uuidv4();

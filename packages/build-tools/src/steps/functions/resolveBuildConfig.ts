@@ -13,6 +13,7 @@ export function createResolveBuildConfigBuildFunction(
     namespace: 'eas',
     id: 'resolve_build_config',
     name: 'Resolve build config',
+    __metricsId: 'eas/resolve_build_config',
     fn: async ({ logger, workingDirectory }, { env }) => {
       await resolveBuildConfigAsync({ logger, workingDirectory, env, ctx });
     },

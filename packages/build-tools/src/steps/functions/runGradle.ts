@@ -17,6 +17,7 @@ export function runGradleFunction(): BuildFunction {
     namespace: 'eas',
     id: 'run_gradle',
     name: 'Run gradle',
+    __metricsId: 'eas/run_gradle',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'command',

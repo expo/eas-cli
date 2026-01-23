@@ -1,14 +1,14 @@
-import { BuildFunction } from '../BuildFunction.js';
-import { BuildStep, BuildStepFunction } from '../BuildStep.js';
+import { BuildFunction } from '../BuildFunction';
+import { BuildStep, BuildStepFunction } from '../BuildStep';
 import {
   BuildStepInput,
   BuildStepInputProvider,
   BuildStepInputValueTypeName,
-} from '../BuildStepInput.js';
-import { BuildStepOutput, BuildStepOutputProvider } from '../BuildStepOutput.js';
+} from '../BuildStepInput';
+import { BuildStepOutput, BuildStepOutputProvider } from '../BuildStepOutput';
 
-import { createGlobalContextMock } from './utils/context.js';
-import { UUID_REGEX } from './utils/uuid.js';
+import { createGlobalContextMock } from './utils/context';
+import { UUID_REGEX } from './utils/uuid';
 
 describe(BuildFunction, () => {
   describe('constructor', () => {
@@ -308,6 +308,33 @@ describe(BuildFunction, () => {
         ifCondition: '${ always() }',
       });
       expect(step.ifCondition).toBe('${ always() }');
+    });
+    it('passes __metricsId to build step', () => {
+      const ctx = createGlobalContextMock();
+      const func = new BuildFunction({
+        id: 'test1',
+        name: 'Test function',
+        command: 'echo test',
+        __metricsId: 'eas/test',
+      });
+      const step = func.createBuildStepFromFunctionCall(ctx, {
+        id: 'buildStep1',
+        workingDirectory: ctx.defaultWorkingDirectory,
+      });
+      expect(step.__metricsId).toBe('eas/test');
+    });
+    it('has undefined __metricsId when not provided on function', () => {
+      const ctx = createGlobalContextMock();
+      const func = new BuildFunction({
+        id: 'test1',
+        name: 'Test function',
+        command: 'echo test',
+      });
+      const step = func.createBuildStepFromFunctionCall(ctx, {
+        id: 'buildStep1',
+        workingDirectory: ctx.defaultWorkingDirectory,
+      });
+      expect(step.__metricsId).toBeUndefined();
     });
   });
 });

@@ -27,6 +27,7 @@ export function createDownloadArtifactFunction(): BuildFunction {
     namespace: 'eas',
     id: 'download_artifact',
     name: 'Download artifact',
+    __metricsId: 'eas/download_artifact',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'name',

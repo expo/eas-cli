@@ -12,6 +12,7 @@ export function createGetCredentialsForBuildTriggeredByGithubIntegration(
     namespace: 'eas',
     id: 'get_credentials_for_build_triggered_by_github_integration',
     name: 'Get credentials for build triggered by GitHub integration',
+    __metricsId: 'eas/get_credentials_for_build_triggered_by_github_integration',
     fn: async (stepCtx, { env }) => {
       await resolveBuildConfigAsync({
         logger: stepCtx.logger,

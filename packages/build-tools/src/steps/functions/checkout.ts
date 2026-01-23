@@ -6,6 +6,7 @@ export function createCheckoutBuildFunction(): BuildFunction {
     namespace: 'eas',
     id: 'checkout',
     name: 'Checkout',
+    __metricsId: 'eas/checkout',
     fn: async (stepsCtx) => {
       if (stepsCtx.global.wasCheckedOut()) {
         stepsCtx.logger.info('Project directory is already checked out');

@@ -11,6 +11,7 @@ import { CustomBuildContext } from './customBuildContext';
 import { getEasFunctionGroups } from './steps/easFunctionGroups';
 import { uploadJobOutputsToWwwAsync } from './utils/outputs';
 import { retryAsync } from './utils/retry';
+import { uploadStepMetricsToWwwAsync } from './utils/stepMetrics';
 
 export async function runGenericJobAsync(
   ctx: BuildContext<Generic.Job>,
@@ -64,6 +65,19 @@ export async function runGenericJobAsync(
       logger: ctx.logger,
       expoApiV2BaseUrl,
     });
+
+    const workflowJobId = globalContext.env.__WORKFLOW_JOB_ID;
+    const robotAccessToken = ctx.job.secrets?.robotAccessToken;
+
+    if (workflowJobId && robotAccessToken) {
+      await uploadStepMetricsToWwwAsync({
+        workflowJobId,
+        robotAccessToken,
+        expoApiV2BaseUrl,
+        stepMetrics: globalContext.stepMetrics,
+        logger: ctx.logger,
+      });
+    }
   });
 
   return { runResult, buildWorkflow: workflow };

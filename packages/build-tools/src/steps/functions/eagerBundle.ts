@@ -9,6 +9,7 @@ export function eagerBundleBuildFunction(): BuildFunction {
     namespace: 'eas',
     id: 'eager_bundle',
     name: 'Bundle JavaScript',
+    __metricsId: 'eas/eager_bundle',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'resolved_eas_update_runtime_version',

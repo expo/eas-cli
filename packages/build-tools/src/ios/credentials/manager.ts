@@ -116,10 +116,11 @@ export default class IosCredentialsManager<TJob extends Ios.Job> {
       );
 
       this.ctx.logger.info(`Writing distribution certificate to ${distCertPath}`);
-      await fs.writeFile(
-        distCertPath,
-        new Uint8Array(Buffer.from(targetCredentials.distributionCertificate.dataBase64, 'base64'))
+      const distributionCertificate = Buffer.from(
+        targetCredentials.distributionCertificate.dataBase64,
+        'base64'
       );
+      await fs.writeFile(distCertPath, new Uint8Array(distributionCertificate));
 
       this.ctx.logger.info('Importing distribution certificate into the keychain');
       await this.keychain.importCertificate(
@@ -128,9 +129,13 @@ export default class IosCredentialsManager<TJob extends Ios.Job> {
       );
 
       this.ctx.logger.info('Initializing provisioning profile');
+      const provisioningProfileContents = Buffer.from(
+        targetCredentials.provisioningProfileBase64,
+        'base64'
+      );
       const provisioningProfile = new ProvisioningProfile(
         this.ctx,
-        Buffer.from(targetCredentials.provisioningProfileBase64, 'base64'),
+        provisioningProfileContents,
         this.keychain.data.path,
         target,
         certificateCommonName

@@ -1,12 +1,16 @@
+import path from 'path';
+
 import { ExpoConfig } from '@expo/config';
 import { Android } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import { instance, mock, when } from 'ts-mockito';
+import fs from 'fs-extra';
 
 import { BuildContext } from '../../context';
 import { PackageManager } from '../packageManager';
-import { runExpoCliCommand } from '../project';
+import { readEasJsonContents, runExpoCliCommand } from '../project';
 
+jest.mock('fs');
 jest.mock('@expo/turtle-spawn', () => ({
   __esModule: true,
   default: jest.fn(),
@@ -69,5 +73,18 @@ describe(runExpoCliCommand, () => {
       void runExpoCliCommand({ args: ['doctor'], options: {}, packageManager: ctx.packageManager });
       expect(spawn).toHaveBeenCalledWith('bun', ['expo', 'doctor'], expect.any(Object));
     });
+  });
+});
+
+describe(readEasJsonContents, () => {
+  it('returns the raw eas.json contents even when it is not valid JSON', async () => {
+    const projectDir = '/project';
+    const easJsonPath = path.join(projectDir, 'eas.json');
+    const contents = "{\n  build: {\n    ios: {\n      image: 'latest'\n    }\n  }\n}\n";
+
+    await fs.mkdirp(projectDir);
+    await fs.writeFile(easJsonPath, contents);
+
+    expect(readEasJsonContents(projectDir)).toBe(contents);
   });
 });

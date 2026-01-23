@@ -1,4 +1,4 @@
-import { getShellCommandAndArgs } from '../command.js';
+import { getShellCommandAndArgs } from '../command';
 
 describe(getShellCommandAndArgs, () => {
   test('shell command with arguments', () => {

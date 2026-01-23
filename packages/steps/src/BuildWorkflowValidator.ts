@@ -2,13 +2,13 @@ import path from 'path';
 
 import fs from 'fs-extra';
 
-import { BuildStep } from './BuildStep.js';
-import { BuildStepInputValueTypeName } from './BuildStepInput.js';
-import { BuildWorkflow } from './BuildWorkflow.js';
-import { BuildConfigError, BuildWorkflowError } from './errors.js';
-import { duplicates } from './utils/expodash/duplicates.js';
-import { nullthrows } from './utils/nullthrows.js';
-import { findOutputPaths } from './utils/template.js';
+import { BuildStep } from './BuildStep';
+import { BuildStepInputValueTypeName } from './BuildStepInput';
+import { BuildWorkflow } from './BuildWorkflow';
+import { BuildConfigError, BuildWorkflowError } from './errors';
+import { duplicates } from './utils/expodash/duplicates';
+import { nullthrows } from './utils/nullthrows';
+import { findOutputPaths } from './utils/template';
 
 export class BuildWorkflowValidator {
   constructor(private readonly workflow: BuildWorkflow) {}

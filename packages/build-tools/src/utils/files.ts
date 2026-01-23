@@ -1,6 +1,11 @@
+// import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
+import stream from 'node:stream';
+import { promisify } from 'node:util';
 
 import * as tar from 'tar';
+
+const streamPipeline = promisify(stream.pipeline);
 
 export async function decompressTarAsync({
   archivePath,
@@ -9,10 +14,12 @@ export async function decompressTarAsync({
   archivePath: string;
   destinationDirectory: string;
 }): Promise<void> {
-  await tar.extract({
-    file: archivePath,
-    cwd: destinationDirectory,
-  });
+  const fileHandle = await fsPromises.open(archivePath, 'r');
+  const extractStream = tar.extract({ cwd: destinationDirectory }, []);
+  await streamPipeline(
+    fileHandle.createReadStream(),
+    extractStream as unknown as stream.Writable
+  );
 }
 
 export async function isFileTarGzAsync(path: string): Promise<boolean> {
@@ -22,16 +29,16 @@ export async function isFileTarGzAsync(path: string): Promise<boolean> {
 
   // read only first 3 bytes to check if it's gzip
   const fd = await fsPromises.open(path, 'r');
-  const buffer = new Uint8Array(3);
-  await fd.read(buffer, 0, 3, 0);
+  const header = new Uint8Array(3);
+  const { bytesRead } = await fd.read(header, 0, 3, 0);
   await fd.close();
 
-  if (buffer.length < 3) {
+  if (bytesRead < 3) {
     return false;
   }
 
   // Check whether provided `buffer` is a valid Gzip file header
   // Gzip files always begin with 0x1F 0x8B 0x08 magic bytes
   // Source: https://en.wikipedia.org/wiki/Gzip#File_format
-  return buffer[0] === 0x1f && buffer[1] === 0x8b && buffer[2] === 0x08;
+  return header[0] === 0x1f && header[1] === 0x8b && header[2] === 0x08;
 }

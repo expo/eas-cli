@@ -184,27 +184,30 @@ const GitHubContextZ = z.object({
   repository: z.string().optional(),
   repository_owner: z.string().optional(),
   event: z
-    .object({
-      label: z
-        .object({
-          name: z.string(),
-        })
-        .optional(),
-      head_commit: z
-        .object({
-          message: z.string(),
-          id: z.string(),
-        })
-        .optional(),
-      pull_request: z
-        .object({
-          number: z.number(),
-        })
-        .optional(),
-      number: z.number().optional(),
-      schedule: z.string().optional(),
-      inputs: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
-    })
+    .record(z.string(), z.unknown())
+    .and(
+      z.object({
+        label: z
+          .looseObject({
+            name: z.string(),
+          })
+          .optional(),
+        head_commit: z
+          .looseObject({
+            message: z.string(),
+            id: z.string(),
+          })
+          .optional(),
+        pull_request: z
+          .looseObject({
+            number: z.number(),
+          })
+          .optional(),
+        number: z.number().optional(),
+        schedule: z.string().optional(),
+        inputs: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+      })
+    )
     .optional(),
 });
 
@@ -227,14 +230,20 @@ export const StaticWorkflowInterpolationContextZ = z.object({
   github:
     // We need to .optional() to support jobs that are not triggered by a GitHub event.
     GitHubContextZ.optional(),
-  workflow: z
-    .object({
-      id: z.string(),
-      name: z.string(),
-      filename: z.string(),
-      url: z.string().url(),
-    })
-    .passthrough(),
+  workflow: z.looseObject({
+    id: z.string(),
+    name: z.string(),
+    filename: z.string(),
+    url: z.url(),
+  }),
+  app: z.looseObject({
+    id: z.string(),
+    slug: z.string(),
+  }),
+  account: z.looseObject({
+    id: z.string(),
+    name: z.string(),
+  }),
 });
 
 export type StaticWorkflowInterpolationContext = z.infer<

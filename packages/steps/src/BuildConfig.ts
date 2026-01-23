@@ -5,11 +5,11 @@ import path from 'path';
 import Joi from 'joi';
 import YAML from 'yaml';
 
-import { BuildConfigError, BuildWorkflowError } from './errors.js';
-import { BuildRuntimePlatform } from './BuildRuntimePlatform.js';
-import { BuildStepInputValueTypeName, BuildStepInputValueType } from './BuildStepInput.js';
-import { BuildStepEnv } from './BuildStepEnv.js';
-import { BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX } from './utils/template.js';
+import { BuildConfigError, BuildWorkflowError } from './errors';
+import { BuildRuntimePlatform } from './BuildRuntimePlatform';
+import { BuildStepInputValueTypeName, BuildStepInputValueType } from './BuildStepInput';
+import { BuildStepEnv } from './BuildStepEnv';
+import { BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX } from './utils/template';
 
 export type BuildFunctions = Record<string, BuildFunctionConfig>;
 
@@ -52,6 +52,8 @@ export type BuildFunctionCallConfig = {
   env?: BuildStepEnv;
   if?: string;
   timeout_minutes?: number;
+  // Internal field for metrics collection. Not documented publicly.
+  __metrics_id?: string;
 };
 
 export type BuildStepInputs = Record<string, unknown>;
@@ -190,6 +192,8 @@ const BuildFunctionCallSchema = Joi.object({
   env: Joi.object().pattern(Joi.string(), Joi.string().allow('')),
   if: Joi.string(),
   timeout_minutes: Joi.number().positive(),
+  // Internal field for metrics collection. Not documented publicly.
+  __metrics_id: Joi.string(),
 }).rename('working_directory', 'workingDirectory');
 
 const BuildStepConfigSchema = Joi.any<BuildStepConfig>()

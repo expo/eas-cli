@@ -18,6 +18,7 @@ import { configureIosVersionFunction } from './functions/configureIosVersion';
 import { generateGymfileFromTemplateFunction } from './functions/generateGymfileFromTemplate';
 import { runFastlaneFunction } from './functions/runFastlane';
 import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
+import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
 import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
 import { createInstallMaestroBuildFunction } from './functions/installMaestro';
 import { createGetCredentialsForBuildTriggeredByGithubIntegration } from './functions/getCredentialsForBuildTriggeredByGitHubIntegration';
@@ -33,6 +34,11 @@ import { createDownloadArtifactFunction } from './functions/downloadArtifact';
 import { createRestoreCacheFunction } from './functions/restoreCache';
 import { createSaveCacheFunction } from './functions/saveCache';
 import { createInternalEasMaestroTestFunction } from './functions/internalMaestroTest';
+import { createSaveBuildCacheFunction } from './functions/saveBuildCache';
+import {
+  createCacheStatsBuildFunction,
+  createRestoreBuildCacheFunction,
+} from './functions/restoreBuildCache';
 
 export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
   const functions = [
@@ -44,10 +50,11 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createPrebuildBuildFunction(),
     createDownloadBuildFunction(),
     createRepackBuildFunction(),
-
     createRestoreCacheFunction(),
+    createRestoreBuildCacheFunction(),
     createSaveCacheFunction(),
-
+    createSaveBuildCacheFunction(ctx.startTime),
+    createCacheStatsBuildFunction(),
     configureEASUpdateIfInstalledFunction(),
     injectAndroidCredentialsFunction(),
     configureAndroidVersionFunction(),
@@ -59,6 +66,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     generateGymfileFromTemplateFunction(),
     runFastlaneFunction(),
     createStartAndroidEmulatorBuildFunction(),
+    createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),
     createInstallMaestroBuildFunction(),
 

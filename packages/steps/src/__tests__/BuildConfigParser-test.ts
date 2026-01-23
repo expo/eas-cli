@@ -1,20 +1,17 @@
 import path from 'path';
-import url from 'url';
 
-import { BuildConfigParser } from '../BuildConfigParser.js';
-import { BuildFunction } from '../BuildFunction.js';
-import { BuildStepFunction } from '../BuildStep.js';
-import { BuildWorkflow } from '../BuildWorkflow.js';
-import { BuildConfigError, BuildStepRuntimeError } from '../errors.js';
-import { BuildRuntimePlatform } from '../BuildRuntimePlatform.js';
-import { BuildStepInputValueTypeName } from '../BuildStepInput.js';
-import { BuildFunctionGroup } from '../BuildFunctionGroup.js';
+import { BuildConfigParser } from '../BuildConfigParser';
+import { BuildFunction } from '../BuildFunction';
+import { BuildStepFunction } from '../BuildStep';
+import { BuildWorkflow } from '../BuildWorkflow';
+import { BuildConfigError, BuildStepRuntimeError } from '../errors';
+import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
+import { BuildStepInputValueTypeName } from '../BuildStepInput';
+import { BuildFunctionGroup } from '../BuildFunctionGroup';
 
-import { createGlobalContextMock } from './utils/context.js';
-import { getError, getErrorAsync } from './utils/error.js';
-import { UUID_REGEX } from './utils/uuid.js';
-
-const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
+import { createGlobalContextMock } from './utils/context';
+import { getError, getErrorAsync } from './utils/error';
+import { UUID_REGEX } from './utils/uuid';
 
 describe(BuildConfigParser, () => {
   describe('constructor', () => {

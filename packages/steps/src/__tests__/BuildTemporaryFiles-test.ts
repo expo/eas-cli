@@ -5,9 +5,9 @@ import {
   cleanUpStepTemporaryDirectoriesAsync,
   getTemporaryOutputsDirPath,
   saveScriptToTemporaryFileAsync,
-} from '../BuildTemporaryFiles.js';
+} from '../BuildTemporaryFiles';
 
-import { createGlobalContextMock } from './utils/context.js';
+import { createGlobalContextMock } from './utils/context';
 
 describe(saveScriptToTemporaryFileAsync, () => {
   it('saves the script in a directory inside os.tmpdir()', async () => {

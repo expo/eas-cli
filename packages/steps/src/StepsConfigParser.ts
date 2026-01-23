@@ -9,17 +9,17 @@ import {
   validateSteps,
 } from '@expo/eas-build-job';
 
-import { BuildFunction, BuildFunctionById } from './BuildFunction.js';
+import { BuildFunction, BuildFunctionById } from './BuildFunction';
 import {
   BuildFunctionGroup,
   BuildFunctionGroupById,
   createBuildFunctionGroupByIdMapping,
-} from './BuildFunctionGroup.js';
-import { BuildStepGlobalContext } from './BuildStepContext.js';
-import { BuildStep } from './BuildStep.js';
-import { AbstractConfigParser } from './AbstractConfigParser.js';
-import { BuildConfigError } from './errors.js';
-import { BuildStepOutput } from './BuildStepOutput.js';
+} from './BuildFunctionGroup';
+import { BuildStepGlobalContext } from './BuildStepContext';
+import { BuildStep } from './BuildStep';
+import { AbstractConfigParser } from './AbstractConfigParser';
+import { BuildConfigError } from './errors';
+import { BuildStepOutput } from './BuildStepOutput';
 
 export class StepsConfigParser extends AbstractConfigParser {
   private readonly steps: Step[];
@@ -128,6 +128,7 @@ export class StepsConfigParser extends AbstractConfigParser {
       command: step.run,
       env: step.env,
       ifCondition: step.if,
+      __metricsId: step.__metrics_id,
     });
   }
 

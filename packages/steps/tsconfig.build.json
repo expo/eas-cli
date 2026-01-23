@@ -1,7 +1,8 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "dist_esm"
+    "module": "commonjs",
+    "outDir": "dist"
   },
   "exclude": ["**/__mocks__/", "**/__tests__/"]
 }

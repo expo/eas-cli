@@ -14,6 +14,7 @@ export function calculateEASUpdateRuntimeVersionFunction(): BuildFunction {
     namespace: 'eas',
     id: 'calculate_eas_update_runtime_version',
     name: 'Calculate EAS Update Runtime Version',
+    __metricsId: 'eas/calculate_eas_update_runtime_version',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'platform',

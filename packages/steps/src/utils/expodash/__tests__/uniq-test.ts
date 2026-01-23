@@ -1,4 +1,4 @@
-import { uniq } from '../uniq.js';
+import { uniq } from '../uniq';
 
 describe(uniq, () => {
   it('returns unique numbers from a list', () => {

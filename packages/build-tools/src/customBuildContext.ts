@@ -48,6 +48,11 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
    */
   public readonly buildLogsDirectory: string;
 
+  /**
+   * Time of the start of the build.
+   */
+  public readonly startTime: Date;
+
   public readonly logger: bunyan;
   public readonly runtimeApi: BuilderRuntimeApi;
   public job: TJob;
@@ -68,6 +73,7 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
     this.runtimeApi = {
       uploadArtifact: (...args) => buildCtx['uploadArtifact'](...args),
     };
+    this.startTime = new Date();
   }
 
   public hasBuildJob(): this is CustomBuildContext<BuildJob> {

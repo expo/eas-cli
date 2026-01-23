@@ -1,4 +1,4 @@
-import { jsepEval } from '../jsepEval.js';
+import { jsepEval } from '../jsepEval';
 
 const TEST_CASES = [
   ['1 + 1', 2],

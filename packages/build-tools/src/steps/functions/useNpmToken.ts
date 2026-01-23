@@ -11,6 +11,7 @@ export function createSetUpNpmrcBuildFunction(): BuildFunction {
     namespace: 'eas',
     id: 'use_npm_token',
     name: 'Use NPM_TOKEN',
+    __metricsId: 'eas/use_npm_token',
     fn: async (stepCtx, { env }) => {
       const { logger } = stepCtx;
       if (env.NPM_TOKEN) {

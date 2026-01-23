@@ -6,14 +6,14 @@ import crypto from 'crypto';
 import { JobInterpolationContext } from '@expo/eas-build-job';
 import { instance, mock, when } from 'ts-mockito';
 
-import { BuildStep } from '../BuildStep.js';
-import { BuildStepGlobalContext, BuildStepContext } from '../BuildStepContext.js';
-import { BuildStepRuntimeError } from '../errors.js';
-import { BuildRuntimePlatform } from '../BuildRuntimePlatform.js';
+import { BuildStep } from '../BuildStep';
+import { BuildStepGlobalContext, BuildStepContext } from '../BuildStepContext';
+import { BuildStepRuntimeError } from '../errors';
+import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
 
-import { createGlobalContextMock, MockContextProvider } from './utils/context.js';
-import { getError } from './utils/error.js';
-import { createMockLogger } from './utils/logger.js';
+import { createGlobalContextMock, MockContextProvider } from './utils/context';
+import { getError } from './utils/error';
+import { createMockLogger } from './utils/logger';
 
 describe(BuildStepGlobalContext, () => {
   describe('stepsInternalBuildDirectory', () => {

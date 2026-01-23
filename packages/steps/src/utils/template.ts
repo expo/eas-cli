@@ -1,10 +1,10 @@
 import get from 'lodash.get';
 import cloneDeep from 'lodash.clonedeep';
 
-import { BuildStepInputValueTypeName } from '../BuildStepInput.js';
-import { BuildConfigError, BuildStepRuntimeError } from '../errors.js';
+import { BuildStepInputValueTypeName } from '../BuildStepInput';
+import { BuildConfigError, BuildStepRuntimeError } from '../errors';
 
-import { nullthrows } from './nullthrows.js';
+import { nullthrows } from './nullthrows';
 
 export const BUILD_STEP_INPUT_EXPRESSION_REGEXP = /\${\s*(inputs\.[\S]+)\s*}/;
 export const BUILD_STEP_OUTPUT_EXPRESSION_REGEXP = /\${\s*(steps\.[\S]+)\s*}/;

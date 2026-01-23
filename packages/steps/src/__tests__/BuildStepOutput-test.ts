@@ -1,8 +1,8 @@
-import { BuildStep } from '../BuildStep.js';
-import { BuildStepOutput, makeBuildStepOutputByIdMap } from '../BuildStepOutput.js';
-import { BuildStepRuntimeError } from '../errors.js';
+import { BuildStep } from '../BuildStep';
+import { BuildStepOutput, makeBuildStepOutputByIdMap } from '../BuildStepOutput';
+import { BuildStepRuntimeError } from '../errors';
 
-import { createGlobalContextMock } from './utils/context.js';
+import { createGlobalContextMock } from './utils/context';
 
 describe(BuildStepOutput, () => {
   test('basic case', () => {

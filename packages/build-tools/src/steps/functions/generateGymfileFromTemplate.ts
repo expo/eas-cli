@@ -63,6 +63,7 @@ export function generateGymfileFromTemplateFunction(): BuildFunction {
     namespace: 'eas',
     id: 'generate_gymfile_from_template',
     name: 'Generate Gymfile from template',
+    __metricsId: 'eas/generate_gymfile_from_template',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'template',

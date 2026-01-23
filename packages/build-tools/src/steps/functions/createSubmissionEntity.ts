@@ -8,6 +8,7 @@ export function createSubmissionEntityFunction(): BuildFunction {
     namespace: 'eas',
     id: 'create_submission_entity',
     name: 'Create Submission Entity',
+    __metricsId: 'eas/create_submission_entity',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'build_id',

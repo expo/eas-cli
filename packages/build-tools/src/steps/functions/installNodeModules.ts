@@ -1,7 +1,6 @@
 import path from 'path';
 
-import { BuildFunction, BuildStepEnv } from '@expo/steps';
-import { BuildStepContext } from '@expo/steps/dist_esm/BuildStepContext';
+import { BuildFunction, BuildStepEnv, BuildStepContext } from '@expo/steps';
 
 import {
   findPackagerRootDir,
@@ -17,6 +16,7 @@ export function createInstallNodeModulesBuildFunction(): BuildFunction {
     namespace: 'eas',
     id: 'install_node_modules',
     name: 'Install node modules',
+    __metricsId: 'eas/install_node_modules',
     fn: async (stepCtx, { env }) => {
       await installNodeModules(stepCtx, env);
     },

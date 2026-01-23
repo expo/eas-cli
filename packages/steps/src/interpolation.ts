@@ -1,6 +1,6 @@
 import { JobInterpolationContext } from '@expo/eas-build-job';
 
-import { jsepEval } from './utils/jsepEval.js';
+import { jsepEval } from './utils/jsepEval';
 
 export function interpolateJobContext({
   target,

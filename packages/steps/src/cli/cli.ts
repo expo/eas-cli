@@ -3,11 +3,11 @@ import path from 'path';
 import { Job, Metadata, StaticJobInterpolationContext } from '@expo/eas-build-job';
 import { bunyan, createLogger } from '@expo/logger';
 
-import { BuildConfigParser } from '../BuildConfigParser.js';
-import { ExternalBuildContextProvider, BuildStepGlobalContext } from '../BuildStepContext.js';
-import { BuildWorkflowError } from '../errors.js';
-import { BuildRuntimePlatform } from '../BuildRuntimePlatform.js';
-import { BuildStepEnv } from '../BuildStepEnv.js';
+import { BuildConfigParser } from '../BuildConfigParser';
+import { ExternalBuildContextProvider, BuildStepGlobalContext } from '../BuildStepContext';
+import { BuildWorkflowError } from '../errors';
+import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
+import { BuildStepEnv } from '../BuildStepEnv';
 
 const logger = createLogger({
   name: 'steps-cli',

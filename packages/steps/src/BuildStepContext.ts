@@ -6,20 +6,17 @@ import { Env, JobInterpolationContext, StaticJobInterpolationContext } from '@ex
 import { bunyan } from '@expo/logger';
 import { v4 as uuidv4 } from 'uuid';
 
-import { hashFiles } from './utils/hashFiles.js';
-import {
-  BuildStep,
-  BuildStepOutputAccessor,
-  SerializedBuildStepOutputAccessor,
-} from './BuildStep.js';
+import { StepMetricInput, StepMetricsCollection } from './StepMetrics';
+import { hashFiles } from './utils/hashFiles';
+import { BuildStep, BuildStepOutputAccessor, SerializedBuildStepOutputAccessor } from './BuildStep';
 import {
   getObjectValueForInterpolation,
   interpolateWithGlobalContext,
   parseOutputPath,
-} from './utils/template.js';
-import { BuildStepRuntimeError } from './errors.js';
-import { BuildRuntimePlatform } from './BuildRuntimePlatform.js';
-import { BuildStepEnv } from './BuildStepEnv.js';
+} from './utils/template';
+import { BuildStepRuntimeError } from './errors';
+import { BuildRuntimePlatform } from './BuildRuntimePlatform';
+import { BuildStepEnv } from './BuildStepEnv';
 
 interface SerializedExternalBuildContextProvider {
   projectSourceDirectory: string;
@@ -60,6 +57,7 @@ export class BuildStepGlobalContext {
   private didCheckOut = false;
   private _hasAnyPreviousStepFailed = false;
   private stepById: Record<string, BuildStepOutputAccessor> = {};
+  private readonly _stepMetrics: StepMetricsCollection = [];
 
   constructor(
     private readonly provider: ExternalBuildContextProvider,
@@ -184,6 +182,14 @@ export class BuildStepGlobalContext {
 
   public markAsFailed(): void {
     this._hasAnyPreviousStepFailed = true;
+  }
+
+  public get stepMetrics(): StepMetricsCollection {
+    return this._stepMetrics;
+  }
+
+  public addStepMetric(metric: StepMetricInput): void {
+    this._stepMetrics.push({ ...metric, platform: this.runtimePlatform });
   }
 
   public wasCheckedOut(): boolean {

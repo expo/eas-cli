@@ -1,12 +1,12 @@
-import { BuildFunctionCallInputs } from './BuildFunction.js';
-import { BuildStep } from './BuildStep.js';
-import { BuildStepGlobalContext } from './BuildStepContext.js';
+import { BuildFunctionCallInputs } from './BuildFunction';
+import { BuildStep } from './BuildStep';
+import { BuildStepGlobalContext } from './BuildStepContext';
 import {
   BuildStepInputById,
   BuildStepInputProvider,
   makeBuildStepInputByIdMap,
-} from './BuildStepInput.js';
-import { BuildConfigError } from './errors.js';
+} from './BuildStepInput';
+import { BuildConfigError } from './errors';
 
 export type BuildFunctionGroupById = Record<string, BuildFunctionGroup | undefined>;
 

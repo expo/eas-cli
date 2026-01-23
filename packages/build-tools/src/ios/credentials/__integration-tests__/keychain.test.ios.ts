@@ -26,10 +26,8 @@ describe('Keychain class', () => {
     const certificatePath = path.join(os.tmpdir(), `cert-${uuid()}.p12`);
 
     beforeAll(async () => {
-      await fs.writeFile(
-        certificatePath,
-        new Uint8Array(Buffer.from(distributionCertificate.dataBase64, 'base64'))
-      );
+      const certificateContents = Buffer.from(distributionCertificate.dataBase64, 'base64');
+      await fs.writeFile(certificatePath, new Uint8Array(certificateContents));
     });
 
     afterAll(async () => {

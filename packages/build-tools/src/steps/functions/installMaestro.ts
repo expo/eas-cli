@@ -21,6 +21,7 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
     namespace: 'eas',
     id: 'install_maestro',
     name: 'Install Maestro',
+    __metricsId: 'eas/install_maestro',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'maestro_version',

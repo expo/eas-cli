@@ -13,6 +13,7 @@ export function resolveAppleTeamIdFromCredentialsFunction(): BuildFunction {
     namespace: 'eas',
     id: 'resolve_apple_team_id_from_credentials',
     name: 'Resolve Apple team ID from credentials',
+    __metricsId: 'eas/resolve_apple_team_id_from_credentials',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'credentials',

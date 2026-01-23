@@ -1,6 +1,7 @@
-import { BuildFunctionById } from './BuildFunction.js';
-import { BuildStep } from './BuildStep.js';
-import { BuildStepGlobalContext } from './BuildStepContext.js';
+import { BuildFunctionById } from './BuildFunction';
+import { BuildStep } from './BuildStep';
+import { BuildStepGlobalContext } from './BuildStepContext';
+import { StepMetricResult } from './StepMetrics';
 
 export class BuildWorkflow {
   public readonly buildSteps: BuildStep[];
@@ -18,6 +19,7 @@ export class BuildWorkflow {
     let maybeError: Error | null = null;
     for (const step of this.buildSteps) {
       let shouldExecuteStep = false;
+
       try {
         shouldExecuteStep = step.shouldExecuteStep();
       } catch (err: any) {
@@ -28,12 +30,19 @@ export class BuildWorkflow {
         maybeError = maybeError ?? err;
         this.ctx.markAsFailed();
       }
+
       if (shouldExecuteStep) {
+        const startTime = performance.now();
+        let stepResult: StepMetricResult;
         try {
           await step.executeAsync();
+          stepResult = 'success';
         } catch (err: any) {
+          stepResult = 'failed';
           maybeError = maybeError ?? err;
           this.ctx.markAsFailed();
+        } finally {
+          this.collectStepMetrics(step, stepResult!, performance.now() - startTime);
         }
       } else {
         step.skip();
@@ -43,5 +52,17 @@ export class BuildWorkflow {
     if (maybeError) {
       throw maybeError;
     }
+  }
+
+  private collectStepMetrics(step: BuildStep, result: StepMetricResult, durationMs: number): void {
+    if (!step.__metricsId) {
+      return;
+    }
+
+    this.ctx.addStepMetric({
+      metricsId: step.__metricsId,
+      result,
+      durationMs,
+    });
   }
 }

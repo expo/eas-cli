@@ -17,7 +17,7 @@ import {
   isAtLeastNpm7Async,
   getPackageVersionFromPackageJson,
 } from '../utils/packageManager';
-import { readPackageJson } from '../utils/project';
+import { readEasJsonContents, readPackageJson } from '../utils/project';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
 import { retryAsync } from '../utils/retry';
 
@@ -65,6 +65,16 @@ export async function setupAsync<TJob extends BuildJob>(ctx: BuildContext<TJob>)
 
   await ctx.runBuildPhase(BuildPhase.PRE_INSTALL_HOOK, async () => {
     await runHookIfPresent(ctx, Hook.PRE_INSTALL);
+  });
+
+  await ctx.runBuildPhase(BuildPhase.READ_EAS_JSON, async () => {
+    try {
+      const easJsonContents = readEasJsonContents(ctx.getReactNativeProjectDirectory());
+      ctx.logger.info('Using eas.json:');
+      ctx.logger.info(easJsonContents);
+    } catch (err) {
+      ctx.logger.error({ err }, `Failed to read eas.json.`);
+    }
   });
 
   const packageJson = await ctx.runBuildPhase(BuildPhase.READ_PACKAGE_JSON, async () => {

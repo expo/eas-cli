@@ -13,6 +13,7 @@ export function configureEASUpdateIfInstalledFunction(): BuildFunction {
     namespace: 'eas',
     id: 'configure_eas_update',
     name: 'Configure EAS Update',
+    __metricsId: 'eas/configure_eas_update',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'runtime_version',

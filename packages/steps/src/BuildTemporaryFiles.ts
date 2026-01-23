@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 
 import { v4 as uuidv4 } from 'uuid';
 
-import { BuildStepGlobalContext } from './BuildStepContext.js';
+import { BuildStepGlobalContext } from './BuildStepContext';
 
 export async function saveScriptToTemporaryFileAsync(
   ctx: BuildStepGlobalContext,

@@ -14,6 +14,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
     namespace: 'eas',
     id: 'start_android_emulator',
     name: 'Start Android Emulator',
+    __metricsId: 'eas/start_android_emulator',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'device_name',

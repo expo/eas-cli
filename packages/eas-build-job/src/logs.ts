@@ -4,6 +4,7 @@ export enum BuildPhase {
   SPIN_UP_BUILDER = 'SPIN_UP_BUILDER',
   BUILDER_INFO = 'BUILDER_INFO',
   READ_APP_CONFIG = 'READ_APP_CONFIG',
+  READ_EAS_JSON = 'READ_EAS_JSON',
   READ_PACKAGE_JSON = 'READ_PACKAGE_JSON',
   RUN_EXPO_DOCTOR = 'RUN_EXPO_DOCTOR',
   SET_UP_BUILD_ENVIRONMENT = 'SET_UP_BUILD_ENVIRONMENT',
@@ -93,6 +94,7 @@ export const buildPhaseDisplayName: Record<BuildPhase, string> = {
   [BuildPhase.FAIL_BUILD]: 'Fail job',
   [BuildPhase.READ_APP_CONFIG]: 'Read app config',
   [BuildPhase.READ_PACKAGE_JSON]: 'Read package.json',
+  [BuildPhase.READ_EAS_JSON]: 'Read eas.json',
   [BuildPhase.RUN_EXPO_DOCTOR]: 'Run expo doctor',
   [BuildPhase.DOWNLOAD_APPLICATION_ARCHIVE]: 'Download application archive',
 
@@ -155,6 +157,7 @@ export const buildPhaseWebsiteId: Record<BuildPhase, string> = {
   [BuildPhase.FAIL_BUILD]: 'fail-build',
   [BuildPhase.READ_APP_CONFIG]: 'read-app-config',
   [BuildPhase.READ_PACKAGE_JSON]: 'read-package-json',
+  [BuildPhase.READ_EAS_JSON]: 'read-eas-json',
   [BuildPhase.RUN_EXPO_DOCTOR]: 'run-expo-doctor',
   [BuildPhase.DOWNLOAD_APPLICATION_ARCHIVE]: 'download-application-archive',
 

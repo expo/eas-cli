@@ -1,12 +1,12 @@
-import { BuildFunction, BuildFunctionById } from './BuildFunction.js';
-import { BuildFunctionGroup } from './BuildFunctionGroup.js';
-import { BuildStep } from './BuildStep.js';
-import { BuildStepGlobalContext } from './BuildStepContext.js';
-import { BuildWorkflow } from './BuildWorkflow.js';
-import { BuildWorkflowValidator } from './BuildWorkflowValidator.js';
-import { BuildConfigError } from './errors.js';
-import { duplicates } from './utils/expodash/duplicates.js';
-import { uniq } from './utils/expodash/uniq.js';
+import { BuildFunction, BuildFunctionById } from './BuildFunction';
+import { BuildFunctionGroup } from './BuildFunctionGroup';
+import { BuildStep } from './BuildStep';
+import { BuildStepGlobalContext } from './BuildStepContext';
+import { BuildWorkflow } from './BuildWorkflow';
+import { BuildWorkflowValidator } from './BuildWorkflowValidator';
+import { BuildConfigError } from './errors';
+import { duplicates } from './utils/expodash/duplicates';
+import { uniq } from './utils/expodash/uniq';
 
 export abstract class AbstractConfigParser {
   protected readonly externalFunctions?: BuildFunction[];

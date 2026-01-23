@@ -1,5 +1,5 @@
-import { BuildConfigError, BuildStepRuntimeError } from '../../errors.js';
-import { getError } from '../../__tests__/utils/error.js';
+import { BuildConfigError, BuildStepRuntimeError } from '../../errors';
+import { getError } from '../../__tests__/utils/error';
 import {
   findOutputPaths,
   getObjectValueForInterpolation,
@@ -7,7 +7,7 @@ import {
   interpolateWithInputs,
   interpolateWithOutputs,
   parseOutputPath,
-} from '../template.js';
+} from '../template';
 
 describe(interpolateWithInputs, () => {
   test('interpolation', () => {

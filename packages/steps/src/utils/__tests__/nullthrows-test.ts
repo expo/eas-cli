@@ -1,5 +1,5 @@
-import { getError } from '../../__tests__/utils/error.js';
-import { nullthrows } from '../nullthrows.js';
+import { getError } from '../../__tests__/utils/error';
+import { nullthrows } from '../nullthrows';
 
 describe(nullthrows, () => {
   it('throws for null', () => {

@@ -29,6 +29,7 @@ export function createDownloadBuildFunction(): BuildFunction {
     namespace: 'eas',
     id: 'download_build',
     name: 'Download build',
+    __metricsId: 'eas/download_build',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'build_id',

@@ -21,6 +21,7 @@ export function createSaveCacheFunction(): BuildFunction {
     namespace: 'eas',
     id: 'save_cache',
     name: 'Save Cache',
+    __metricsId: 'eas/save_cache',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'path',

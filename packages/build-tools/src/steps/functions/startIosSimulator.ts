@@ -18,6 +18,7 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
     namespace: 'eas',
     id: 'start_ios_simulator',
     name: 'Start iOS Simulator',
+    __metricsId: 'eas/start_ios_simulator',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'device_identifier',

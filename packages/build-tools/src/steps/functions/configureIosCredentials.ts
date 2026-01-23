@@ -13,6 +13,7 @@ export function configureIosCredentialsFunction(): BuildFunction {
     namespace: 'eas',
     id: 'configure_ios_credentials',
     name: 'Configure iOS credentials',
+    __metricsId: 'eas/configure_ios_credentials',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'credentials',

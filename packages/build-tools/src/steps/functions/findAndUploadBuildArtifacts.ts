@@ -12,6 +12,7 @@ export function createFindAndUploadBuildArtifactsBuildFunction(
     namespace: 'eas',
     id: 'find_and_upload_build_artifacts',
     name: 'Find and upload build artifacts',
+    __metricsId: 'eas/find_and_upload_build_artifacts',
     fn: async (stepCtx) => {
       // We want each upload to print logs on its own
       // and we don't want to interleave logs from different uploads

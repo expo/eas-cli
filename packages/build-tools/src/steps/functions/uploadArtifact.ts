@@ -21,6 +21,7 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
     namespace: 'eas',
     id: 'upload_artifact',
     name: 'Upload artifact',
+    __metricsId: 'eas/upload_artifact',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'type',

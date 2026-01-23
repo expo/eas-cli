@@ -1,15 +1,12 @@
 import path from 'path';
-import url from 'url';
 
-import { StepsConfigParser } from '../StepsConfigParser.js';
-import { BuildFunction } from '../BuildFunction.js';
-import { BuildConfigParser } from '../BuildConfigParser.js';
-import { BuildStep } from '../BuildStep.js';
+import { StepsConfigParser } from '../StepsConfigParser';
+import { BuildFunction } from '../BuildFunction';
+import { BuildConfigParser } from '../BuildConfigParser';
+import { BuildStep } from '../BuildStep';
 
-import { createGlobalContextMock } from './utils/context.js';
-import { UUID_REGEX } from './utils/uuid.js';
-
-const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
+import { createGlobalContextMock } from './utils/context';
+import { UUID_REGEX } from './utils/uuid';
 
 describe('Publish Update job', () => {
   it('parses job with steps and build config to the same workflow', async () => {

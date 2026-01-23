@@ -14,6 +14,7 @@ export function configureIosVersionFunction(): BuildFunction {
     namespace: 'eas',
     id: 'configure_ios_version',
     name: 'Configure iOS version',
+    __metricsId: 'eas/configure_ios_version',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'credentials',

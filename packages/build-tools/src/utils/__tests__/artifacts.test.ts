@@ -30,7 +30,10 @@ describe(findArtifacts, () => {
   test('with absolute path', async () => {
     await fs.mkdirp('/Users/expo/build');
     await fs.mkdirp('/Users/expo/.maestro/tests');
-    await fs.writeFile('/Users/expo/.maestro/tests/log', new Uint8Array(Buffer.from('some content')));
+    await fs.writeFile(
+      '/Users/expo/.maestro/tests/log',
+      new Uint8Array(Buffer.from('some content'))
+    );
     const loggerMock = {
       info: jest.fn(),
       error: jest.fn(),
@@ -47,8 +50,14 @@ describe(findArtifacts, () => {
 
   test('with glob pattern', async () => {
     await fs.mkdirp('/dir1/dir2/dir3/dir4');
-    await fs.writeFile('/dir1/dir2/dir3/dir4/file.aab', new Uint8Array(Buffer.from('some content')));
-    await fs.writeFile('/dir1/dir2/dir3/dir4/file-release.aab', new Uint8Array(Buffer.from('some content')));
+    await fs.writeFile(
+      '/dir1/dir2/dir3/dir4/file.aab',
+      new Uint8Array(Buffer.from('some content'))
+    );
+    await fs.writeFile(
+      '/dir1/dir2/dir3/dir4/file-release.aab',
+      new Uint8Array(Buffer.from('some content'))
+    );
     const loggerMock = {
       info: jest.fn(),
       error: jest.fn(),

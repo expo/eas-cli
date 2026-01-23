@@ -179,6 +179,14 @@ describe('Ios.JobSchema', () => {
           filename: 'build.yml',
           url: `https://expo.dev/workflows/${randomUUID()}`,
         },
+        app: {
+          id: randomUUID(),
+          slug: 'example-app',
+        },
+        account: {
+          id: randomUUID(),
+          name: 'example-account',
+        },
       },
     };
 

@@ -20,6 +20,7 @@ export function createSaveBuildCacheFunction(evictUsedBefore: Date): BuildFuncti
     namespace: 'eas',
     id: 'save_build_cache',
     name: 'Save Cache',
+    __metricsId: 'eas/save_build_cache',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'platform',
@@ -99,6 +100,7 @@ export async function saveCcacheAsync({
 
     // Cache size can blow up over time over many builds, so evict stale files
     // and only upload what was used within this build's time window
+
     const evictWindow = Math.floor((Date.now() - evictUsedBefore.getTime()) / 1000);
     logger.info('Pruning cache...');
     await asyncResult(

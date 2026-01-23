@@ -29,6 +29,7 @@ export function injectAndroidCredentialsFunction(): BuildFunction {
     namespace: 'eas',
     id: 'inject_android_credentials',
     name: 'Inject Android credentials',
+    __metricsId: 'eas/inject_android_credentials',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'credentials',
@@ -63,7 +64,8 @@ async function restoreCredentials(
 ): Promise<void> {
   stepsCtx.logger.info("Writing secrets to the project's directory");
   const keystorePath = path.join(stepsCtx.global.projectTargetDirectory, `keystore-${uuidv4()}`);
-  await fs.writeFile(keystorePath, new Uint8Array(Buffer.from(buildCredentials.keystore.dataBase64, 'base64')));
+  const keystoreContents = Buffer.from(buildCredentials.keystore.dataBase64, 'base64');
+  await fs.writeFile(keystorePath, new Uint8Array(keystoreContents));
   const credentialsJson = {
     android: {
       keystore: {

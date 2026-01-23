@@ -17,12 +17,14 @@ import {
 import { TurtleFetchError } from '../../utils/turtleFetch';
 
 import { downloadCacheAsync, decompressCacheAsync, downloadPublicCacheAsync } from './restoreCache';
+import { sendCcacheStatsAsync } from './ccacheStats';
 
 export function createRestoreBuildCacheFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
     id: 'restore_build_cache',
     name: 'Restore Cache',
+    __metricsId: 'eas/restore_build_cache',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'platform',
@@ -58,8 +60,18 @@ export function createCacheStatsBuildFunction(): BuildFunction {
     namespace: 'eas',
     id: 'cache_stats',
     name: 'Cache Stats',
+    __metricsId: 'eas/cache_stats',
     fn: async (stepCtx, { env }) => {
-      await cacheStatsAsync({ logger: stepCtx.logger, env });
+      const platform = stepCtx.global.staticContext.job.platform;
+      if (!platform) {
+        stepCtx.logger.warn('Platform not set, skipping cache stats');
+        return;
+      }
+      await cacheStatsAsync({
+        logger: stepCtx.logger,
+        env,
+        secrets: stepCtx.global.staticContext.job.secrets,
+      });
     },
   });
 }
@@ -138,8 +150,13 @@ export async function restoreCcacheAsync({
     );
   } catch (err: unknown) {
     if (err instanceof TurtleFetchError && err.response?.status === 404) {
+      logger.info('No cache found for this key');
+    } else {
+      logger.warn('Failed to restore cache: ', err);
+    }
+    if (env.EAS_USE_PUBLIC_CACHE === '1') {
       try {
-        logger.info('No cache found for this key. Downloading public cache...');
+        logger.info('Downloading public cache...');
         const { archivePath } = await downloadPublicCacheAsync({
           logger,
           expoApiServerURL,
@@ -156,8 +173,6 @@ export async function restoreCcacheAsync({
       } catch (err: unknown) {
         logger.warn({ err }, 'Failed to download public cache');
       }
-    } else {
-      logger.warn({ err }, 'Failed to restore cache');
     }
   }
 }
@@ -165,9 +180,11 @@ export async function restoreCcacheAsync({
 export async function cacheStatsAsync({
   logger,
   env,
+  secrets,
 }: {
   logger: bunyan;
   env: Record<string, string | undefined>;
+  secrets?: { robotAccessToken?: string };
 }): Promise<void> {
   const enabled =
     env.EAS_RESTORE_CACHE === '1' || (env.EAS_USE_CACHE === '1' && env.EAS_RESTORE_CACHE !== '0');
@@ -188,7 +205,6 @@ export async function cacheStatsAsync({
     return;
   }
 
-  logger.info('Cache stats:');
   await asyncResult(
     spawnAsync('ccache', ['--show-stats', '-v'], {
       env,
@@ -196,4 +212,17 @@ export async function cacheStatsAsync({
       stdio: 'pipe',
     })
   );
+
+  const robotAccessToken = secrets?.robotAccessToken;
+  const expoApiServerURL = env.__API_SERVER_URL;
+  const buildId = env.EAS_BUILD_ID;
+
+  if (robotAccessToken && expoApiServerURL && buildId) {
+    await sendCcacheStatsAsync({
+      env,
+      expoApiServerURL,
+      robotAccessToken,
+      buildId,
+    });
+  }
 }

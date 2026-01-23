@@ -7,6 +7,7 @@ export function createSendSlackMessageFunction(): BuildFunction {
     namespace: 'eas',
     id: 'send_slack_message',
     name: 'Send Slack message',
+    __metricsId: 'eas/send_slack_message',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'message',

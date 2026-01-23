@@ -9,11 +9,11 @@ import {
   ExternalBuildContextProvider,
   BuildStepGlobalContext,
   BuildStepContext,
-} from '../../BuildStepContext.js';
-import { BuildRuntimePlatform } from '../../BuildRuntimePlatform.js';
-import { BuildStepEnv } from '../../BuildStepEnv.js';
+} from '../../BuildStepContext';
+import { BuildRuntimePlatform } from '../../BuildRuntimePlatform';
+import { BuildStepEnv } from '../../BuildStepEnv';
 
-import { createMockLogger } from './logger.js';
+import { createMockLogger } from './logger';
 
 export class MockContextProvider implements ExternalBuildContextProvider {
   private _env: BuildStepEnv = {};

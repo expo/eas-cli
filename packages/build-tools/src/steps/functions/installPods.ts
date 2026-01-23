@@ -6,6 +6,7 @@ export function createInstallPodsBuildFunction(): BuildFunction {
     namespace: 'eas',
     id: 'install_pods',
     name: 'Install Pods',
+    __metricsId: 'eas/install_pods',
     fn: async (stepsCtx, { env }) => {
       stepsCtx.logger.info('Installing pods');
       const verboseFlag = stepsCtx.global.env['EAS_VERBOSE'] === '1' ? ['--verbose'] : [];

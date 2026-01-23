@@ -2,13 +2,13 @@ import assert from 'assert';
 
 import { JobInterpolationContext } from '@expo/eas-build-job';
 
-import { BuildStepGlobalContext } from './BuildStepContext.js';
-import { BuildStepRuntimeError } from './errors.js';
+import { BuildStepGlobalContext } from './BuildStepContext';
+import { BuildStepRuntimeError } from './errors';
 import {
   BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX,
   interpolateWithOutputs,
-} from './utils/template.js';
-import { interpolateJobContext } from './interpolation.js';
+} from './utils/template';
+import { interpolateJobContext } from './interpolation';
 
 export enum BuildStepInputValueTypeName {
   STRING = 'string',

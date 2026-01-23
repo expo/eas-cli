@@ -11,6 +11,7 @@ export function configureAndroidVersionFunction(): BuildFunction {
     namespace: 'eas',
     id: 'configure_android_version',
     name: 'Configure Android version',
+    __metricsId: 'eas/configure_android_version',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'version_name',

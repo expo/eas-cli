@@ -11,6 +11,7 @@ export function createPrebuildBuildFunction(): BuildFunction {
     namespace: 'eas',
     id: 'prebuild',
     name: 'Prebuild',
+    __metricsId: 'eas/prebuild',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'clean',

@@ -31,6 +31,7 @@ export function createRestoreCacheFunction(): BuildFunction {
     namespace: 'eas',
     id: 'restore_cache',
     name: 'Restore Cache',
+    __metricsId: 'eas/restore_cache',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'path',
@@ -280,10 +281,10 @@ export async function decompressCacheAsync({
   }
 
   // First, extract everything to the working directory
+  const fileHandle = await fs.promises.open(archivePath, 'r');
   const extractedFiles: string[] = [];
 
-  await tar.extract({
-    file: archivePath,
+  const extractStream = tar.extract({
     cwd: workingDirectory,
     onwarn: (code, message, data) => {
       logger.warn({ code, data }, message);
@@ -296,6 +297,10 @@ export async function decompressCacheAsync({
       }
     },
   });
+  await streamPipeline(
+    fileHandle.createReadStream(),
+    extractStream as unknown as stream.Writable
+  );
 
   // Handle absolute paths that were prefixed with __absolute__
   for (const extractedPath of extractedFiles) {

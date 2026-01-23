@@ -1,4 +1,4 @@
-import { deserializeInputs, serializeInputs } from '../customFunction.js';
+import { deserializeInputs, serializeInputs } from '../customFunction';
 
 describe(serializeInputs, () => {
   test('serializes inputs correctly', () => {

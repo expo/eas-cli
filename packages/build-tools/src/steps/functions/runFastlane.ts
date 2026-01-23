@@ -13,6 +13,7 @@ export function runFastlaneFunction(): BuildFunction {
     namespace: 'eas',
     id: 'run_fastlane',
     name: 'Run fastlane',
+    __metricsId: 'eas/run_fastlane',
     outputProviders: [
       BuildStepOutput.createProvider({
         id: BuildStepOutputName.STATUS_TEXT,

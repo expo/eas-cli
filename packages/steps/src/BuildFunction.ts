@@ -1,12 +1,12 @@
 import assert from 'assert';
 
-import { BuildRuntimePlatform } from './BuildRuntimePlatform.js';
-import { BuildStep, BuildStepFunction } from './BuildStep.js';
-import { BuildStepGlobalContext } from './BuildStepContext.js';
-import { BuildStepInputProvider } from './BuildStepInput.js';
-import { BuildStepOutputProvider } from './BuildStepOutput.js';
-import { BuildStepEnv } from './BuildStepEnv.js';
-import { createCustomFunctionCall } from './utils/customFunction.js';
+import { BuildRuntimePlatform } from './BuildRuntimePlatform';
+import { BuildStep, BuildStepFunction } from './BuildStep';
+import { BuildStepGlobalContext } from './BuildStepContext';
+import { BuildStepInputProvider } from './BuildStepInput';
+import { BuildStepOutputProvider } from './BuildStepOutput';
+import { BuildStepEnv } from './BuildStepEnv';
+import { createCustomFunctionCall } from './utils/customFunction';
 
 export type BuildFunctionById = Record<string, BuildFunction>;
 export type BuildFunctionCallInputs = Record<string, unknown>;
@@ -22,6 +22,7 @@ export class BuildFunction {
   public readonly customFunctionModulePath?: string;
   public readonly fn?: BuildStepFunction;
   public readonly shell?: string;
+  public readonly __metricsId?: string;
 
   constructor({
     namespace,
@@ -34,6 +35,7 @@ export class BuildFunction {
     fn,
     customFunctionModulePath,
     shell,
+    __metricsId,
   }: {
     namespace?: string;
     id: string;
@@ -45,6 +47,7 @@ export class BuildFunction {
     customFunctionModulePath?: string;
     fn?: BuildStepFunction;
     shell?: string;
+    __metricsId?: string;
   }) {
     assert(
       command !== undefined || fn !== undefined || customFunctionModulePath !== undefined,
@@ -71,6 +74,7 @@ export class BuildFunction {
     this.fn = fn;
     this.shell = shell;
     this.customFunctionModulePath = customFunctionModulePath;
+    this.__metricsId = __metricsId;
   }
 
   public getFullId(): string {
@@ -134,6 +138,7 @@ export class BuildFunction {
       env,
       ifCondition,
       timeoutMs,
+      __metricsId: this.__metricsId,
     });
   }
 }

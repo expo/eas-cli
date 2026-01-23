@@ -30,6 +30,7 @@ export function createRepackBuildFunction(): BuildFunction {
     namespace: 'eas',
     id: 'repack',
     name: 'Repack app',
+    __metricsId: 'eas/repack',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'source_app_path',
@@ -218,10 +219,8 @@ export async function resolveAndroidSigningOptionsAsync({
     return undefined;
   }
   const keyStorePath = path.join(tmpDir, `keystore-${randomUUID()}`);
-  await fs.promises.writeFile(
-    keyStorePath,
-    new Uint8Array(Buffer.from(buildCredentials.keystore.dataBase64, 'base64'))
-  );
+  const keystoreContents = Buffer.from(buildCredentials.keystore.dataBase64, 'base64');
+  await fs.promises.writeFile(keyStorePath, new Uint8Array(keystoreContents));
 
   const keyStorePassword = `pass:${buildCredentials.keystore.keystorePassword}`;
   const keyAlias = buildCredentials.keystore.keyAlias;

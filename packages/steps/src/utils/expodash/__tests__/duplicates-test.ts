@@ -1,4 +1,4 @@
-import { duplicates } from '../duplicates.js';
+import { duplicates } from '../duplicates';
 
 describe(duplicates, () => {
   it('returns empty list if there are no duplicates', () => {
