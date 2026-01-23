@@ -1,5 +1,4 @@
 import { AgeRatingDeclaration } from '@expo/apple-utils';
-import assert from 'assert';
 import chalk from 'chalk';
 
 import Log from '../../../log';
@@ -15,7 +14,10 @@ export class AgeRatingTask extends AppleTask {
   public name = (): string => 'age rating declarations';
 
   public async prepareAsync({ context }: TaskPrepareOptions): Promise<void> {
-    context.ageRating = (await context.version!.getAgeRatingDeclarationAsync()) ?? undefined;
+    if (!context.version) {
+      return;
+    }
+    context.ageRating = (await context.version.getAgeRatingDeclarationAsync()) ?? undefined;
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
@@ -25,7 +27,10 @@ export class AgeRatingTask extends AppleTask {
   }
 
   public async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
-    assert(context.ageRating, `Age rating not initialized, can't update age rating`);
+    if (!context.ageRating) {
+      Log.log(chalk`{dim - Skipped age rating update, no version available}`);
+      return;
+    }
 
     const ageRating = config.getAgeRating();
     if (!ageRating) {

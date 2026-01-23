@@ -13,7 +13,7 @@ import {
 } from '@expo/apple-utils';
 
 import { AttributesOf } from '../../utils/asc';
-import { AppleMetadata } from '../types';
+import { AppleMetadata, ApplePreviews, AppleScreenshots } from '../types';
 
 /**
  * Serializes the Apple ASC entities into the metadata configuration schema.
@@ -185,6 +185,21 @@ export class AppleConfigWriter {
       notes: optional(attributes.notes),
       // TODO: add attachment
     };
+  }
+
+  /** Set screenshots for a specific locale */
+  public setScreenshots(locale: string, screenshots: AppleScreenshots): void {
+    this.schema.info = this.schema.info ?? {};
+    this.schema.info[locale] = this.schema.info[locale] ?? { title: '' };
+    this.schema.info[locale].screenshots =
+      Object.keys(screenshots).length > 0 ? screenshots : undefined;
+  }
+
+  /** Set video previews for a specific locale */
+  public setPreviews(locale: string, previews: ApplePreviews): void {
+    this.schema.info = this.schema.info ?? {};
+    this.schema.info[locale] = this.schema.info[locale] ?? { title: '' };
+    this.schema.info[locale].previews = Object.keys(previews).length > 0 ? previews : undefined;
   }
 }
 
