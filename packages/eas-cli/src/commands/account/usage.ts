@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
 import {
   UsageDisplayData,
   UsageMetricDisplay,
@@ -13,7 +13,7 @@ import {
 } from '../../commandUtils/usageUtils';
 import { AppPlatform, EasBuildBillingResourceClass } from '../../graphql/generated';
 import { AccountQuery } from '../../graphql/queries/AccountQuery';
-import Log from '../../log';
+import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -90,6 +90,10 @@ function displayMetric(metric: UsageMetricDisplay, indent: string = '  '): void 
   }
 }
 
+function billingUrl(accountName: string): string {
+  return `https://expo.dev/accounts/${accountName}/settings/billing`;
+}
+
 function displayUsage(data: UsageDisplayData): void {
   Log.newLine();
   Log.log(chalk.bold(`Account: ${data.accountName}`));
@@ -160,11 +164,7 @@ function displayUsage(data: UsageDisplayData): void {
   Log.log(`  Current bill: ${chalk.bold(formatCurrency(data.estimatedBillCents))}`);
 
   Log.newLine();
-  Log.log(
-    chalk.dim(
-      `View detailed billing: https://expo.dev/accounts/${data.accountName}/settings/billing`
-    )
-  );
+  Log.log(chalk.dim(`View detailed billing: ${link(billingUrl(data.accountName))}`));
 }
 
 export default class AccountUsage extends EasCommand {
@@ -179,7 +179,8 @@ export default class AccountUsage extends EasCommand {
   ];
 
   static override flags = {
-    ...EasNonInteractiveAndJsonFlags,
+    ...EasJsonOnlyFlag,
+    ...EASNonInteractiveFlag,
   };
 
   static override contextDefinition = {
@@ -356,7 +357,7 @@ export default class AccountUsage extends EasCommand {
             currentOverageCents: displayData.totalOverageCostCents,
             currentTotalCents: displayData.estimatedBillCents,
           },
-          billingUrl: `https://expo.dev/accounts/${displayData.accountName}/settings/billing`,
+          billingUrl: billingUrl(displayData.accountName),
         });
       } else {
         displayUsage(displayData);
