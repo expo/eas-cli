@@ -5,7 +5,20 @@ import { withErrorHandlingAsync } from '../client';
 import {
   AccountFullUsageQuery as AccountFullUsageQueryType,
   AccountFullUsageQueryVariables,
+  AccountUsageForOverageWarningQuery,
+  AccountUsageForOverageWarningQueryVariables,
 } from '../generated';
+
+const ACCOUNT_BY_NAME_QUERY = gql`
+  query AccountByName($accountName: String!) {
+    account {
+      byName(accountName: $accountName) {
+        id
+        name
+      }
+    }
+  }
+`;
 
 const ACCOUNT_FULL_USAGE_QUERY = gql`
   query AccountFullUsage($accountId: String!, $currentDate: DateTime!) {
@@ -103,9 +116,52 @@ const ACCOUNT_FULL_USAGE_QUERY = gql`
   }
 `;
 
+const ACCOUNT_USAGE_FOR_OVERAGE_WARNING_QUERY = gql`
+  query AccountUsageForOverageWarning($accountId: String!, $currentDate: DateTime!) {
+    account {
+      byId(accountId: $accountId) {
+        id
+        name
+        subscription {
+          id
+          name
+        }
+        usageMetrics {
+          EAS_BUILD: byBillingPeriod(date: $currentDate, service: BUILDS) {
+            id
+            planMetrics {
+              id
+              serviceMetric
+              value
+              limit
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 export type AccountFullUsageData = NonNullable<AccountFullUsageQueryType['account']['byId']>;
 
-export const AccountFullUsageQuery = {
+export const AccountQuery = {
+  async getByNameAsync(
+    graphqlClient: ExpoGraphqlClient,
+    accountName: string
+  ): Promise<{ id: string; name: string } | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<{ account: { byName: { id: string; name: string } | null } }>(
+          ACCOUNT_BY_NAME_QUERY,
+          { accountName },
+          { additionalTypenames: ['Account'] }
+        )
+        .toPromise()
+    );
+
+    return data.account.byName;
+  },
+
   async getFullUsageAsync(
     graphqlClient: ExpoGraphqlClient,
     accountId: string,
@@ -136,6 +192,26 @@ export const AccountFullUsageQuery = {
     if (!data.account.byId) {
       throw new Error(`Account with ID ${accountId} not found`);
     }
+
+    return data.account.byId;
+  },
+
+  async getUsageForOverageWarningAsync(
+    graphqlClient: ExpoGraphqlClient,
+    accountId: string,
+    currentDate: Date
+  ): Promise<AccountUsageForOverageWarningQuery['account']['byId']> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AccountUsageForOverageWarningQuery, AccountUsageForOverageWarningQueryVariables>(
+          ACCOUNT_USAGE_FOR_OVERAGE_WARNING_QUERY,
+          { accountId, currentDate: currentDate.toISOString() },
+          {
+            additionalTypenames: ['Account', 'AccountUsageMetrics', 'UsageMetricTotal'],
+          }
+        )
+        .toPromise()
+    );
 
     return data.account.byId;
   },

@@ -4,7 +4,7 @@ import {
   EasServiceMetric,
   UsageMetricType,
 } from '../graphql/generated';
-import { AccountFullUsageData } from '../graphql/queries/AccountFullUsageQuery';
+import { AccountFullUsageData } from '../graphql/queries/AccountQuery';
 import { calculatePercentUsed } from '../utils/usage/checkForOverages';
 
 /**

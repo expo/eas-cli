@@ -1,9 +1,5 @@
-import {
-  EasService,
-  EasServiceMetric,
-  UsageMetricType,
-} from '../../graphql/generated';
-import { AccountFullUsageData } from '../../graphql/queries/AccountFullUsageQuery';
+import { EasService, EasServiceMetric, UsageMetricType } from '../../graphql/generated';
+import { AccountFullUsageData } from '../../graphql/queries/AccountQuery';
 import {
   calculateBillingPeriodDays,
   calculateDaysElapsed,

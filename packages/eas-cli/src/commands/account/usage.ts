@@ -13,7 +13,7 @@ import {
   formatNumber,
 } from '../../commandUtils/usageUtils';
 import { AppPlatform, EasBuildBillingResourceClass } from '../../graphql/generated';
-import { AccountFullUsageQuery } from '../../graphql/queries/AccountFullUsageQuery';
+import { AccountQuery } from '../../graphql/queries/AccountQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { selectAsync } from '../../prompts';
@@ -189,17 +189,33 @@ export default class AccountUsage extends EasCommand {
 
     // Find the target account
     const defaultAccount = actor.accounts[0];
-    let targetAccount: typeof defaultAccount;
+    let targetAccount: { id: string; name: string };
+    const availableAccounts = actor.accounts.map(a => a.name).join(', ');
 
     if (accountName) {
+      // First check if it's one of the user's accounts
       const found = actor.accounts.find(a => a.name === accountName);
-      if (!found) {
-        const availableAccounts = actor.accounts.map(a => a.name).join(', ');
-        throw new Error(
-          `Account "${accountName}" not found. Available accounts: ${availableAccounts}`
-        );
+      if (found) {
+        targetAccount = found;
+      } else {
+        // Try to look up the account by name (user may have access via organization)
+        try {
+          const account = await AccountQuery.getByNameAsync(
+            graphqlClient,
+            accountName
+          );
+          if (!account) {
+            throw new Error(
+              `Account "${accountName}" not found. Available accounts: ${availableAccounts}`
+            );
+          }
+          targetAccount = account;
+        } catch {
+          throw new Error(
+            `Account "${accountName}" not found or you don't have access. Available accounts: ${availableAccounts}`
+          );
+        }
       }
-      targetAccount = found;
     } else if (nonInteractive) {
       throw new Error('The `--account` flag must be set when running in `--non-interactive` mode.');
     } else if (actor.accounts.length === 1) {
@@ -221,7 +237,7 @@ export default class AccountUsage extends EasCommand {
 
     try {
       const currentDate = new Date();
-      const usageData = await AccountFullUsageQuery.getFullUsageAsync(
+      const usageData = await AccountQuery.getFullUsageAsync(
         graphqlClient,
         targetAccount.id,
         currentDate

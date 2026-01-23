@@ -5,10 +5,10 @@ import {
   EasServiceMetric,
   UsageMetricType,
 } from '../../../graphql/generated';
-import { AccountFullUsageQuery } from '../../../graphql/queries/AccountFullUsageQuery';
+import { AccountQuery } from '../../../graphql/queries/AccountQuery';
 import { calculatePercentUsed, createProgressBar } from '../../../utils/usage/checkForOverages';
 
-jest.mock('../../../graphql/queries/AccountFullUsageQuery');
+jest.mock('../../../graphql/queries/AccountQuery');
 
 function createMockFullUsageData(
   overrides: Partial<{
@@ -164,9 +164,9 @@ function createMockFullUsageData(
   };
 }
 
-describe('AccountFullUsageQuery', () => {
+describe('AccountQuery', () => {
   const mockGraphqlClient = {} as ExpoGraphqlClient;
-  const mockGetFullUsageAsync = jest.mocked(AccountFullUsageQuery.getFullUsageAsync);
+  const mockGetFullUsageAsync = jest.mocked(AccountQuery.getFullUsageAsync);
 
   beforeEach(() => {
     mockGetFullUsageAsync.mockClear();
@@ -176,7 +176,7 @@ describe('AccountFullUsageQuery', () => {
     const mockData = createMockFullUsageData();
     mockGetFullUsageAsync.mockResolvedValue(mockData as any);
 
-    const result = await AccountFullUsageQuery.getFullUsageAsync(
+    const result = await AccountQuery.getFullUsageAsync(
       mockGraphqlClient,
       'account-id',
       new Date()
