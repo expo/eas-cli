@@ -7,28 +7,6 @@ import {
 import { AccountFullUsageData } from '../graphql/queries/AccountQuery';
 import { calculatePercentUsed } from '../utils/usage/checkForOverages';
 
-/**
- * Billing heuristics for estimating costs.
- * Based on published EAS pricing (https://expo.dev/pricing)
- */
-export const BILLING_HEURISTICS = {
-  // EAS Update pricing
-  UPDATE_MAU_OVERAGE_RATE_CENTS: 0.5, // $0.005 per MAU overage
-  UPDATE_BANDWIDTH_OVERAGE_RATE_CENTS: 10, // $0.10 per GiB
-
-  // EAS Build pricing by platform and resource class (in cents)
-  BUILD_RATES: {
-    [AppPlatform.Ios]: {
-      [EasBuildBillingResourceClass.Medium]: 200, // $2.00 per iOS medium build
-      [EasBuildBillingResourceClass.Large]: 400, // $4.00 per iOS large build
-    },
-    [AppPlatform.Android]: {
-      [EasBuildBillingResourceClass.Medium]: 100, // $1.00 per Android medium build
-      [EasBuildBillingResourceClass.Large]: 200, // $2.00 per Android large build
-    },
-  },
-};
-
 export interface UsageMetricDisplay {
   name: string;
   value: number;
@@ -112,34 +90,6 @@ export function calculateBillingPeriodDays(startDate: string, endDate: string): 
   const end = new Date(endDate);
   const diffTime = end.getTime() - start.getTime();
   return Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-}
-
-/**
- * Estimates end-of-cycle usage based on current usage rate.
- * Uses simple linear projection: (current_usage / days_elapsed) * total_days
- */
-export function estimateEndOfCycleUsage(
-  currentValue: number,
-  daysElapsed: number,
-  totalDays: number
-): number {
-  if (daysElapsed === 0) {
-    return currentValue;
-  }
-  const dailyRate = currentValue / daysElapsed;
-  return dailyRate * totalDays;
-}
-
-/**
- * Estimates overage costs based on projected end-of-cycle usage.
- */
-export function estimateOverageCost(
-  projectedUsage: number,
-  limit: number,
-  ratePerUnitCents: number
-): number {
-  const overage = Math.max(0, projectedUsage - limit);
-  return overage * ratePerUnitCents;
 }
 
 export function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
@@ -268,9 +218,7 @@ export function extractUsageData(data: AccountFullUsageData): UsageDisplayData {
   };
 }
 
-export function calculateProjectedCosts(data: UsageDisplayData): {
-  projectedOverageCents: number;
-  projectedTotalCents: number;
+export function calculateBillingPeriodInfo(data: UsageDisplayData): {
   daysRemaining: number;
   daysElapsed: number;
   totalDays: number;
@@ -279,81 +227,7 @@ export function calculateProjectedCosts(data: UsageDisplayData): {
   const totalDays = calculateBillingPeriodDays(data.billingPeriod.start, data.billingPeriod.end);
   const daysRemaining = calculateDaysRemaining(data.billingPeriod.end);
 
-  // Project build usage
-  const projectedBuilds = estimateEndOfCycleUsage(data.builds.total.value, daysElapsed, totalDays);
-  const projectedIosBuilds = data.builds.ios
-    ? estimateEndOfCycleUsage(data.builds.ios.value, daysElapsed, totalDays)
-    : 0;
-  const projectedAndroidBuilds = data.builds.android
-    ? estimateEndOfCycleUsage(data.builds.android.value, daysElapsed, totalDays)
-    : 0;
-
-  // Project update usage
-  const projectedMau = estimateEndOfCycleUsage(data.updates.mau.value, daysElapsed, totalDays);
-  const projectedBandwidth = estimateEndOfCycleUsage(
-    data.updates.bandwidth.value,
-    daysElapsed,
-    totalDays
-  );
-
-  // Estimate overage costs using heuristics
-  // For builds, if we have current overage data with worker size breakdown, use it to
-  // estimate the worker size distribution. Otherwise, use medium as default.
-  let projectedBuildOverage = 0;
-  if (projectedBuilds > data.builds.total.limit) {
-    const totalProjectedOverage = projectedBuilds - data.builds.total.limit;
-
-    // Calculate weighted average rate based on current overage distribution
-    if (data.builds.overagesByWorkerSize.length > 0) {
-      // Use actual distribution from current overages
-      const totalCurrentOverages = data.builds.overagesByWorkerSize.reduce(
-        (sum, o) => sum + o.count,
-        0
-      );
-      if (totalCurrentOverages > 0) {
-        const weightedRate = data.builds.overagesByWorkerSize.reduce((sum, o) => {
-          const rate = BILLING_HEURISTICS.BUILD_RATES[o.platform]?.[o.resourceClass] ?? 150; // fallback
-          return sum + (o.count / totalCurrentOverages) * rate;
-        }, 0);
-        projectedBuildOverage = totalProjectedOverage * weightedRate;
-      }
-    } else {
-      // No current overages, estimate based on platform distribution using medium rates
-      const iosRatio =
-        projectedBuilds > 0
-          ? projectedIosBuilds / (projectedIosBuilds + projectedAndroidBuilds)
-          : 0.5;
-      const iosOverage = totalProjectedOverage * iosRatio;
-      const androidOverage = totalProjectedOverage * (1 - iosRatio);
-      projectedBuildOverage =
-        iosOverage *
-          BILLING_HEURISTICS.BUILD_RATES[AppPlatform.Ios][EasBuildBillingResourceClass.Medium] +
-        androidOverage *
-          BILLING_HEURISTICS.BUILD_RATES[AppPlatform.Android][EasBuildBillingResourceClass.Medium];
-    }
-  }
-
-  const projectedMauOverage = estimateOverageCost(
-    projectedMau,
-    data.updates.mau.limit,
-    BILLING_HEURISTICS.UPDATE_MAU_OVERAGE_RATE_CENTS
-  );
-  const projectedBandwidthOverage = estimateOverageCost(
-    projectedBandwidth,
-    data.updates.bandwidth.limit,
-    BILLING_HEURISTICS.UPDATE_BANDWIDTH_OVERAGE_RATE_CENTS
-  );
-
-  const projectedOverageCents = Math.max(
-    data.totalOverageCostCents,
-    projectedBuildOverage + projectedMauOverage + projectedBandwidthOverage
-  );
-
-  const projectedTotalCents = (data.recurringCents ?? 0) + projectedOverageCents;
-
   return {
-    projectedOverageCents,
-    projectedTotalCents,
     daysRemaining,
     daysElapsed,
     totalDays,

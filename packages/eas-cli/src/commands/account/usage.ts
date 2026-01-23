@@ -5,7 +5,7 @@ import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import {
   UsageDisplayData,
   UsageMetricDisplay,
-  calculateProjectedCosts,
+  calculateBillingPeriodInfo,
   extractUsageData,
   formatCurrency,
   formatDate,
@@ -90,9 +90,9 @@ function displayUsage(data: UsageDisplayData): void {
     )}`
   );
 
-  const projection = calculateProjectedCosts(data);
+  const periodInfo = calculateBillingPeriodInfo(data);
   Log.log(
-    `Days: ${projection.daysElapsed} elapsed / ${projection.totalDays} total (${projection.daysRemaining} remaining)`
+    `Days: ${periodInfo.daysElapsed} elapsed / ${periodInfo.totalDays} total (${periodInfo.daysRemaining} remaining)`
   );
 
   Log.newLine();
@@ -111,7 +111,7 @@ function displayUsage(data: UsageDisplayData): void {
   displayBandwidthMetric(data.updates.bandwidth);
 
   Log.newLine();
-  Log.log(chalk.bold.underline('Billing Estimate'));
+  Log.log(chalk.bold.underline('Billing'));
 
   if (data.recurringCents !== null && data.recurringCents > 0) {
     Log.log(`  Base subscription: ${formatCurrency(data.recurringCents)}`);
@@ -140,12 +140,6 @@ function displayUsage(data: UsageDisplayData): void {
 
   Log.log(`  Current bill: ${chalk.bold(formatCurrency(data.estimatedBillCents))}`);
 
-  if (projection.daysRemaining > 0) {
-    Log.newLine();
-    Log.log(chalk.dim('  Projected end-of-cycle (based on current usage rate):'));
-    Log.log(chalk.dim(`    Estimated total: ${formatCurrency(projection.projectedTotalCents)}`));
-  }
-
   Log.newLine();
   Log.log(
     chalk.dim(
@@ -155,7 +149,7 @@ function displayUsage(data: UsageDisplayData): void {
 }
 
 export default class AccountUsage extends EasCommand {
-  static override description = 'view account usage and billing estimates for the current cycle';
+  static override description = 'view account usage and billing for the current cycle';
 
   static override args = [
     {
@@ -250,7 +244,7 @@ export default class AccountUsage extends EasCommand {
       spinner.succeed(`Usage data loaded for ${targetAccount.name}`);
 
       const displayData = extractUsageData(usageData);
-      const projection = calculateProjectedCosts(displayData);
+      const periodInfo = calculateBillingPeriodInfo(displayData);
 
       if (json) {
         printJsonOnlyOutput({
@@ -259,9 +253,9 @@ export default class AccountUsage extends EasCommand {
           billingPeriod: {
             start: displayData.billingPeriod.start,
             end: displayData.billingPeriod.end,
-            daysElapsed: projection.daysElapsed,
-            daysRemaining: projection.daysRemaining,
-            totalDays: projection.totalDays,
+            daysElapsed: periodInfo.daysElapsed,
+            daysRemaining: periodInfo.daysRemaining,
+            totalDays: periodInfo.totalDays,
           },
           builds: {
             used: displayData.builds.total.value,
@@ -310,8 +304,6 @@ export default class AccountUsage extends EasCommand {
             recurringCents: displayData.recurringCents,
             currentOverageCents: displayData.totalOverageCostCents,
             currentTotalCents: displayData.estimatedBillCents,
-            projectedOverageCents: projection.projectedOverageCents,
-            projectedTotalCents: projection.projectedTotalCents,
           },
           billingUrl: `https://expo.dev/accounts/${displayData.accountName}/settings/billing`,
         });
