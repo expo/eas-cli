@@ -2,6 +2,28 @@ import { Workflow } from '@expo/eas-build-job';
 import { EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
+
+/**
+ * Preprocess argv to handle --source-maps with optional value.
+ * If --source-maps is followed by another flag (starts with -) or end of args,
+ * insert 'true' as the default value.
+ */
+function preprocessSourceMapsArg(argv: string[]): string[] {
+  const result: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    result.push(arg);
+
+    if (arg === '--source-maps') {
+      const nextArg = argv[i + 1];
+      // If no next arg or next arg is a flag, insert 'true' as the value
+      if (nextArg === undefined || nextArg.startsWith('-')) {
+        result.push('true');
+      }
+    }
+  }
+  return result;
+}
 import nullthrows from 'nullthrows';
 
 // import { getExpoWebsiteBaseUrl } from '../../api';
@@ -181,7 +203,9 @@ export default class UpdatePublish extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = await this.parse(UpdatePublish);
+    // Preprocess argv to handle --source-maps with optional value
+    const preprocessedArgv = preprocessSourceMapsArg(this.argv);
+    const { flags: rawFlags } = await this.parse(UpdatePublish, preprocessedArgv);
     const paginatedQueryOptions = getPaginatedQueryOptions(rawFlags);
     const {
       auto: autoFlag,
