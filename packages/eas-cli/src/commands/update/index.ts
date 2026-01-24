@@ -77,6 +77,8 @@ type RawUpdateFlags = {
   'input-dir': string;
   'skip-bundler': boolean;
   'clear-cache': boolean;
+  'no-bytecode': boolean;
+  'inline-source-maps': boolean;
   'private-key-path'?: string;
   'emit-metadata': boolean;
   'rollout-percentage'?: number;
@@ -94,6 +96,8 @@ type UpdateFlags = {
   inputDir: string;
   skipBundler: boolean;
   clearCache: boolean;
+  noBytecode: boolean;
+  inlineSourceMaps: boolean;
   privateKeyPath?: string;
   emitMetadata: boolean;
   rolloutPercentage?: number;
@@ -130,6 +134,14 @@ export default class UpdatePublish extends EasCommand {
     }),
     'clear-cache': Flags.boolean({
       description: `Clear the bundler cache before publishing`,
+      default: false,
+    }),
+    'no-bytecode': Flags.boolean({
+      description: `Skip generating Hermes bytecode (output plain JavaScript instead)`,
+      default: false,
+    }),
+    'inline-source-maps': Flags.boolean({
+      description: `Embed source maps in the JavaScript bundle (requires --no-bytecode)`,
       default: false,
     }),
     'emit-metadata': Flags.boolean({
@@ -179,6 +191,8 @@ export default class UpdatePublish extends EasCommand {
       inputDir,
       skipBundler,
       clearCache,
+      noBytecode,
+      inlineSourceMaps,
       privateKeyPath,
       json: jsonFlag,
       nonInteractive,
@@ -264,6 +278,8 @@ export default class UpdatePublish extends EasCommand {
           exp,
           platformFlag: requestedPlatform,
           clearCache,
+          noBytecode,
+          inlineSourceMaps,
           extraEnv: maybeServerEnv,
         });
         bundleSpinner.succeed('Exported bundle(s)');
@@ -755,6 +771,8 @@ export default class UpdatePublish extends EasCommand {
       inputDir: flags['input-dir'],
       skipBundler,
       clearCache: flags['clear-cache'] ? true : !!flags['environment'],
+      noBytecode: flags['no-bytecode'] ?? false,
+      inlineSourceMaps: flags['inline-source-maps'] ?? false,
       platform: flags.platform,
       privateKeyPath: flags['private-key-path'],
       rolloutPercentage: flags['rollout-percentage'],
