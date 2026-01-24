@@ -9,9 +9,11 @@ import { AssetMetadataStatus } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../../graphql/queries/PublishQuery';
 import { RequestedPlatform } from '../../platform';
+import { expoCommandAsync } from '../../utils/expoCli';
 import {
   MetadataJoi,
   RawAsset,
+  buildBundlesAsync,
   buildUnsortedUpdateInfoGroupAsync,
   collectAssetsAsync,
   convertAssetToUpdateInfoGroupFormatAsync,
@@ -30,6 +32,11 @@ import {
 
 jest.mock('../../uploads');
 jest.mock('fs');
+jest.mock('../../utils/expoCli', () => ({
+  expoCommandAsync: jest.fn(),
+  shouldUseVersionedExpoCLI: jest.fn(() => true),
+  shouldUseVersionedExpoCLIWithExplicitPlatforms: jest.fn(() => true),
+}));
 
 const dummyFileBuffer = Buffer.from('dummy-file');
 
@@ -700,5 +707,109 @@ describe(uploadAssetsAsync, () => {
       () => {}
     );
     expect(onAssetUploadResultsChangedFn).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe(buildBundlesAsync, () => {
+  const projectDir = '/test-project';
+  const inputDir = 'dist';
+
+  beforeEach(async () => {
+    jest.mocked(expoCommandAsync).mockClear();
+    await fs.mkdir(projectDir, { recursive: true });
+    await fs.writeFile(
+      path.join(projectDir, 'package.json'),
+      JSON.stringify({ name: 'test', version: '1.0.0' })
+    );
+  });
+
+  afterEach(async () => {
+    await fs.remove(projectDir);
+  });
+
+  it('passes --source-maps flag when sourceMaps is "true"', async () => {
+    await buildBundlesAsync({
+      projectDir,
+      inputDir,
+      exp: { sdkVersion: '50.0.0' },
+      platformFlag: 'all',
+      sourceMaps: 'true',
+    });
+
+    expect(expoCommandAsync).toHaveBeenCalledWith(
+      projectDir,
+      expect.arrayContaining(['--source-maps', 'true']),
+      expect.any(Object)
+    );
+  });
+
+  it('passes --source-maps inline when sourceMaps is "inline"', async () => {
+    await buildBundlesAsync({
+      projectDir,
+      inputDir,
+      exp: { sdkVersion: '50.0.0' },
+      platformFlag: 'all',
+      sourceMaps: 'inline',
+    });
+
+    expect(expoCommandAsync).toHaveBeenCalledWith(
+      projectDir,
+      expect.arrayContaining(['--source-maps', 'inline']),
+      expect.any(Object)
+    );
+  });
+
+  it('does not pass --source-maps when sourceMaps is "false"', async () => {
+    await buildBundlesAsync({
+      projectDir,
+      inputDir,
+      exp: { sdkVersion: '50.0.0' },
+      platformFlag: 'all',
+      sourceMaps: 'false',
+    });
+
+    const callArgs = jest.mocked(expoCommandAsync).mock.calls[0][1];
+    expect(callArgs).not.toContain('--source-maps');
+  });
+
+  it('does not pass --source-maps when sourceMaps is undefined', async () => {
+    await buildBundlesAsync({
+      projectDir,
+      inputDir,
+      exp: { sdkVersion: '50.0.0' },
+      platformFlag: 'all',
+    });
+
+    const callArgs = jest.mocked(expoCommandAsync).mock.calls[0][1];
+    expect(callArgs).not.toContain('--source-maps');
+  });
+
+  it('passes --no-bytecode flag when noBytecode is true', async () => {
+    await buildBundlesAsync({
+      projectDir,
+      inputDir,
+      exp: { sdkVersion: '50.0.0' },
+      platformFlag: 'all',
+      noBytecode: true,
+    });
+
+    expect(expoCommandAsync).toHaveBeenCalledWith(
+      projectDir,
+      expect.arrayContaining(['--no-bytecode']),
+      expect.any(Object)
+    );
+  });
+
+  it('does not pass --no-bytecode flag when noBytecode is false', async () => {
+    await buildBundlesAsync({
+      projectDir,
+      inputDir,
+      exp: { sdkVersion: '50.0.0' },
+      platformFlag: 'all',
+      noBytecode: false,
+    });
+
+    const callArgs = jest.mocked(expoCommandAsync).mock.calls[0][1];
+    expect(callArgs).not.toContain('--no-bytecode');
   });
 });

@@ -73,7 +73,7 @@ import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
  * If --source-maps is followed by another flag (starts with -) or end of args,
  * insert 'true' as the default value.
  */
-function preprocessSourceMapsArg(argv: string[]): string[] {
+export function preprocessSourceMapsArg(argv: string[]): string[] {
   const result: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
