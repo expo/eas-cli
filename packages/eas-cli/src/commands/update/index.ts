@@ -161,10 +161,12 @@ export default class UpdatePublish extends EasCommand {
     'no-bytecode': Flags.boolean({
       description: `Skip generating Hermes bytecode (output plain JavaScript instead)`,
       default: false,
+      hidden: true,
     }),
     'source-maps': Flags.string({
       description: `Emit source maps. Options: true (default), inline, false`,
       default: 'true',
+      hidden: true,
     }),
     'emit-metadata': Flags.boolean({
       description: `Emit "eas-update-metadata.json" in the bundle folder with detailed information about the generated updates`,

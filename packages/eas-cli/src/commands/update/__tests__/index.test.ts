@@ -352,3 +352,10 @@ describe(preprocessSourceMapsArg, () => {
     ]);
   });
 });
+
+describe('hidden flags', () => {
+  it('has --no-bytecode and --source-maps as hidden flags', () => {
+    expect(UpdatePublish.flags['no-bytecode'].hidden).toBe(true);
+    expect(UpdatePublish.flags['source-maps'].hidden).toBe(true);
+  });
+});
