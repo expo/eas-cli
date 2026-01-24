@@ -141,7 +141,7 @@ export default class UpdatePublish extends EasCommand {
       default: false,
     }),
     'inline-source-maps': Flags.boolean({
-      description: `Embed source maps in the JavaScript bundle (requires --no-bytecode)`,
+      description: `Embed source maps in the JavaScript bundle`,
       default: false,
     }),
     'emit-metadata': Flags.boolean({
