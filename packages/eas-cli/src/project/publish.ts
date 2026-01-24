@@ -267,7 +267,7 @@ export async function buildBundlesAsync({
         ...platformArgs,
         ...(clearCache ? ['--clear'] : []),
         ...(noBytecode ? ['--no-bytecode'] : []),
-        ...(inlineSourceMaps ? ['--inline-source-maps'] : []),
+        ...(inlineSourceMaps ? ['--source-maps', 'inline'] : []),
       ],
       {
         extraEnv,
@@ -297,7 +297,7 @@ export async function buildBundlesAsync({
       `--platform=${platformFlag}`,
       ...(clearCache ? ['--clear'] : []),
       ...(noBytecode ? ['--no-bytecode'] : []),
-      ...(inlineSourceMaps ? ['--inline-source-maps'] : []),
+      ...(inlineSourceMaps ? ['--source-maps', 'inline'] : []),
     ],
     {
       extraEnv,
