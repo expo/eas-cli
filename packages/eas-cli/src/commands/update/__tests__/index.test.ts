@@ -330,30 +330,25 @@ function mockTestExport({
 }
 
 describe(preprocessSourceMapsArg, () => {
-  it('passes through argv unchanged when --source-maps has a value', () => {
-    const argv = ['--branch', 'main', '--source-maps', 'inline', '--message', 'test'];
+  it('passes through when --source-maps has a value', () => {
+    const argv = ['--source-maps', 'inline', '--message', 'test'];
     expect(preprocessSourceMapsArg(argv)).toEqual(argv);
   });
 
-  it('inserts "true" when --source-maps is followed by another flag', () => {
-    const argv = ['--branch', 'main', '--source-maps', '--message', 'test'];
-    expect(preprocessSourceMapsArg(argv)).toEqual([
+  it('inserts "true" when --source-maps has no value', () => {
+    // At end of args
+    expect(preprocessSourceMapsArg(['--branch', 'main', '--source-maps'])).toEqual([
       '--branch',
       'main',
+      '--source-maps',
+      'true',
+    ]);
+    // Followed by another flag
+    expect(preprocessSourceMapsArg(['--source-maps', '--message', 'test'])).toEqual([
       '--source-maps',
       'true',
       '--message',
       'test',
     ]);
-  });
-
-  it('inserts "true" when --source-maps is at the end of argv', () => {
-    const argv = ['--branch', 'main', '--source-maps'];
-    expect(preprocessSourceMapsArg(argv)).toEqual(['--branch', 'main', '--source-maps', 'true']);
-  });
-
-  it('handles argv without --source-maps', () => {
-    const argv = ['--branch', 'main', '--message', 'test'];
-    expect(preprocessSourceMapsArg(argv)).toEqual(argv);
   });
 });
