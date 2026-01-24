@@ -163,8 +163,8 @@ export default class UpdatePublish extends EasCommand {
       default: false,
     }),
     'source-maps': Flags.string({
-      description: `Emit source maps. Options: true, inline`,
-      required: false,
+      description: `Emit source maps. Options: true (default), inline, false`,
+      default: 'true',
     }),
     'emit-metadata': Flags.boolean({
       description: `Emit "eas-update-metadata.json" in the bundle folder with detailed information about the generated updates`,
