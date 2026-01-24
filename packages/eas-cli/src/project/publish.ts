@@ -209,7 +209,7 @@ export async function buildBundlesAsync({
   platformFlag,
   clearCache,
   noBytecode,
-  inlineSourceMaps,
+  sourceMaps,
   extraEnv,
 }: {
   projectDir: string;
@@ -218,7 +218,7 @@ export async function buildBundlesAsync({
   platformFlag: ExpoCLIExportPlatformFlag;
   clearCache?: boolean;
   noBytecode?: boolean;
-  inlineSourceMaps?: boolean;
+  sourceMaps?: string;
   extraEnv?: Record<string, string | undefined> | undefined;
 }): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
@@ -267,7 +267,7 @@ export async function buildBundlesAsync({
         ...platformArgs,
         ...(clearCache ? ['--clear'] : []),
         ...(noBytecode ? ['--no-bytecode'] : []),
-        ...(inlineSourceMaps ? ['--source-maps', 'inline'] : []),
+        ...(sourceMaps ? ['--source-maps', sourceMaps] : []),
       ],
       {
         extraEnv,
@@ -297,7 +297,7 @@ export async function buildBundlesAsync({
       `--platform=${platformFlag}`,
       ...(clearCache ? ['--clear'] : []),
       ...(noBytecode ? ['--no-bytecode'] : []),
-      ...(inlineSourceMaps ? ['--source-maps', 'inline'] : []),
+      ...(sourceMaps ? ['--source-maps', sourceMaps] : []),
     ],
     {
       extraEnv,

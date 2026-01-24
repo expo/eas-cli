@@ -78,7 +78,7 @@ type RawUpdateFlags = {
   'skip-bundler': boolean;
   'clear-cache': boolean;
   'no-bytecode': boolean;
-  'inline-source-maps': boolean;
+  'source-maps'?: string;
   'private-key-path'?: string;
   'emit-metadata': boolean;
   'rollout-percentage'?: number;
@@ -97,7 +97,7 @@ type UpdateFlags = {
   skipBundler: boolean;
   clearCache: boolean;
   noBytecode: boolean;
-  inlineSourceMaps: boolean;
+  sourceMaps?: string;
   privateKeyPath?: string;
   emitMetadata: boolean;
   rolloutPercentage?: number;
@@ -140,9 +140,9 @@ export default class UpdatePublish extends EasCommand {
       description: `Skip generating Hermes bytecode (output plain JavaScript instead)`,
       default: false,
     }),
-    'inline-source-maps': Flags.boolean({
-      description: `Embed source maps in the JavaScript bundle`,
-      default: false,
+    'source-maps': Flags.string({
+      description: `Emit source maps. Options: true, inline`,
+      required: false,
     }),
     'emit-metadata': Flags.boolean({
       description: `Emit "eas-update-metadata.json" in the bundle folder with detailed information about the generated updates`,
@@ -192,7 +192,7 @@ export default class UpdatePublish extends EasCommand {
       skipBundler,
       clearCache,
       noBytecode,
-      inlineSourceMaps,
+      sourceMaps,
       privateKeyPath,
       json: jsonFlag,
       nonInteractive,
@@ -279,7 +279,7 @@ export default class UpdatePublish extends EasCommand {
           platformFlag: requestedPlatform,
           clearCache,
           noBytecode,
-          inlineSourceMaps,
+          sourceMaps,
           extraEnv: maybeServerEnv,
         });
         bundleSpinner.succeed('Exported bundle(s)');
@@ -772,7 +772,7 @@ export default class UpdatePublish extends EasCommand {
       skipBundler,
       clearCache: flags['clear-cache'] ? true : !!flags['environment'],
       noBytecode: flags['no-bytecode'] ?? false,
-      inlineSourceMaps: flags['inline-source-maps'] ?? false,
+      sourceMaps: flags['source-maps'],
       platform: flags.platform,
       privateKeyPath: flags['private-key-path'],
       rolloutPercentage: flags['rollout-percentage'],
