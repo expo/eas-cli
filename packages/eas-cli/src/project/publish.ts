@@ -258,9 +258,7 @@ export async function buildBundlesAsync({
 
     // Use --source-maps if provided, otherwise fall back to --dump-sourcemap
     const sourceMapArgs =
-      sourceMaps && sourceMaps !== 'false'
-        ? ['--source-maps', sourceMaps]
-        : ['--dump-sourcemap'];
+      sourceMaps && sourceMaps !== 'false' ? ['--source-maps', sourceMaps] : ['--dump-sourcemap'];
 
     await expoCommandAsync(
       projectDir,
@@ -293,9 +291,7 @@ export async function buildBundlesAsync({
 
   // Use --source-maps if provided, otherwise fall back to --dump-sourcemap
   const sourceMapArgs =
-    sourceMaps && sourceMaps !== 'false'
-      ? ['--source-maps', sourceMaps]
-      : ['--dump-sourcemap'];
+    sourceMaps && sourceMaps !== 'false' ? ['--source-maps', sourceMaps] : ['--dump-sourcemap'];
 
   await expoCommandAsync(
     projectDir,
