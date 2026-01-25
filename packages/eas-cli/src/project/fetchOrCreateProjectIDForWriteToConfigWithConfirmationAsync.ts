@@ -32,7 +32,7 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
 
   if (options.nonInteractive) {
     throw new Error(
-      `Must configure EAS project by running 'eas init' before this command can be run in non-interactive mode.`
+      `Must configure EAS project by running 'eas link' before this command can be run in non-interactive mode.`
     );
   }
 
@@ -60,7 +60,7 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
     });
     if (!affirmedLink) {
       throw new Error(
-        `EAS project ID configuration canceled for ${projectFullName}. Run 'eas init' to configure.`
+        `EAS project ID configuration canceled for ${projectFullName}. Run 'eas link' to configure.`
       );
     }
     return projectIdOnServer;
@@ -77,7 +77,7 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
   });
   if (!affirmedCreate) {
     throw new Error(
-      `EAS project ID configuration canceled for ${projectFullName}. Run 'eas init' to configure.`
+      `EAS project ID configuration canceled for ${projectFullName}. Run 'eas link' to configure.`
     );
   }
 

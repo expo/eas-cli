@@ -15,7 +15,7 @@ describe(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync, () => {
         jester
       )
     ).rejects.toThrow(
-      `Must configure EAS project by running 'eas init' before this command can be run in non-interactive mode.`
+      `Must configure EAS project by running 'eas link' before this command can be run in non-interactive mode.`
     );
   });
 });

@@ -139,7 +139,7 @@ export async function validateOrSetProjectIdAsync({
               appForProjectId.ownerAccount.name
             }) does not match the logged in user (${actorUsername}) and the "owner" field is not specified. To ensure all libraries work correctly, "owner": "${
               appForProjectId.ownerAccount.name
-            }" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
+            }" should be added to the project config, which can be done automatically by re-running "eas link". ${learnMore(
               'https://expo.fyi/eas-project-id'
             )}`
           );
@@ -150,7 +150,7 @@ export async function validateOrSetProjectIdAsync({
               appForProjectId.ownerAccount.name
             }) must be specified in "owner" field when using a robot access token. To ensure all libraries work correctly, "owner": "${
               appForProjectId.ownerAccount.name
-            }" should be added to the project config, which can be done automatically by re-running "eas init". ${learnMore(
+            }" should be added to the project config, which can be done automatically by re-running "eas link". ${learnMore(
               'https://expo.fyi/eas-project-id'
             )}`
           );
@@ -191,7 +191,7 @@ export async function validateOrSetProjectIdAsync({
         return user.username;
       case 'Robot':
         throw new Error(
-          'Must configure EAS project by running "eas init" before using a robot user to manage the project.'
+          'Must configure EAS project by running "eas link" before using a robot user to manage the project.'
         );
     }
   };
