@@ -727,8 +727,8 @@ describe(buildBundlesAsync, () => {
     await fs.remove(projectDir);
   });
 
-  it('passes --source-maps with value, omits when "false" or undefined', async () => {
-    // Passes value
+  it('uses --source-maps instead of --dump-sourcemap when provided', async () => {
+    // When sourceMaps is provided, use --source-maps instead of --dump-sourcemap
     await buildBundlesAsync({
       projectDir,
       inputDir,
@@ -741,8 +741,9 @@ describe(buildBundlesAsync, () => {
       expect.arrayContaining(['--source-maps', 'inline']),
       expect.any(Object)
     );
+    expect(jest.mocked(expoCommandAsync).mock.calls[0][1]).not.toContain('--dump-sourcemap');
 
-    // Omits when "false"
+    // When sourceMaps is "false", fall back to --dump-sourcemap
     jest.mocked(expoCommandAsync).mockClear();
     await buildBundlesAsync({
       projectDir,
@@ -752,6 +753,18 @@ describe(buildBundlesAsync, () => {
       sourceMaps: 'false',
     });
     expect(jest.mocked(expoCommandAsync).mock.calls[0][1]).not.toContain('--source-maps');
+    expect(jest.mocked(expoCommandAsync).mock.calls[0][1]).toContain('--dump-sourcemap');
+
+    // When sourceMaps is undefined, fall back to --dump-sourcemap
+    jest.mocked(expoCommandAsync).mockClear();
+    await buildBundlesAsync({
+      projectDir,
+      inputDir,
+      exp: { sdkVersion: '50.0.0' },
+      platformFlag: 'all',
+    });
+    expect(jest.mocked(expoCommandAsync).mock.calls[0][1]).not.toContain('--source-maps');
+    expect(jest.mocked(expoCommandAsync).mock.calls[0][1]).toContain('--dump-sourcemap');
   });
 
   it('passes --no-bytecode only when true', async () => {
