@@ -68,6 +68,28 @@ import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
+/**
+ * Preprocess argv to handle --source-maps with optional value.
+ * If --source-maps is followed by another flag (starts with -) or end of args,
+ * insert 'true' as the default value.
+ */
+export function preprocessSourceMapsArg(argv: string[]): string[] {
+  const result: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    result.push(arg);
+
+    if (arg === '--source-maps') {
+      const nextArg = argv[i + 1];
+      // If no next arg or next arg is a flag, insert 'true' as the value
+      if (nextArg === undefined || nextArg.startsWith('-')) {
+        result.push('true');
+      }
+    }
+  }
+  return result;
+}
+
 type RawUpdateFlags = {
   auto: boolean;
   branch?: string;
@@ -77,6 +99,8 @@ type RawUpdateFlags = {
   'input-dir': string;
   'skip-bundler': boolean;
   'clear-cache': boolean;
+  'no-bytecode': boolean;
+  'source-maps'?: string;
   'private-key-path'?: string;
   'emit-metadata': boolean;
   'rollout-percentage'?: number;
@@ -94,6 +118,8 @@ type UpdateFlags = {
   inputDir: string;
   skipBundler: boolean;
   clearCache: boolean;
+  noBytecode: boolean;
+  sourceMaps?: string;
   privateKeyPath?: string;
   emitMetadata: boolean;
   rolloutPercentage?: number;
@@ -132,6 +158,16 @@ export default class UpdatePublish extends EasCommand {
       description: `Clear the bundler cache before publishing`,
       default: false,
     }),
+    'no-bytecode': Flags.boolean({
+      description: `Skip generating Hermes bytecode (output plain JavaScript instead)`,
+      default: false,
+      hidden: true,
+    }),
+    'source-maps': Flags.string({
+      description: `Emit source maps. Options: true (default), inline, false`,
+      default: 'true',
+      hidden: true,
+    }),
     'emit-metadata': Flags.boolean({
       description: `Emit "eas-update-metadata.json" in the bundle folder with detailed information about the generated updates`,
       default: false,
@@ -169,7 +205,9 @@ export default class UpdatePublish extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = await this.parse(UpdatePublish);
+    // Preprocess argv to handle --source-maps with optional value
+    const preprocessedArgv = preprocessSourceMapsArg(this.argv);
+    const { flags: rawFlags } = await this.parse(UpdatePublish, preprocessedArgv);
     const paginatedQueryOptions = getPaginatedQueryOptions(rawFlags);
     const {
       auto: autoFlag,
@@ -179,6 +217,8 @@ export default class UpdatePublish extends EasCommand {
       inputDir,
       skipBundler,
       clearCache,
+      noBytecode,
+      sourceMaps,
       privateKeyPath,
       json: jsonFlag,
       nonInteractive,
@@ -264,6 +304,8 @@ export default class UpdatePublish extends EasCommand {
           exp,
           platformFlag: requestedPlatform,
           clearCache,
+          noBytecode,
+          sourceMaps,
           extraEnv: maybeServerEnv,
         });
         bundleSpinner.succeed('Exported bundle(s)');
@@ -755,6 +797,8 @@ export default class UpdatePublish extends EasCommand {
       inputDir: flags['input-dir'],
       skipBundler,
       clearCache: flags['clear-cache'] ? true : !!flags['environment'],
+      noBytecode: flags['no-bytecode'] ?? false,
+      sourceMaps: flags['source-maps'],
       platform: flags.platform,
       privateKeyPath: flags['private-key-path'],
       rolloutPercentage: flags['rollout-percentage'],

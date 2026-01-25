@@ -5,7 +5,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import { instance, mock } from 'ts-mockito';
 
-import UpdatePublish from '..';
+import UpdatePublish, { preprocessSourceMapsArg } from '..';
 import { ensureBranchExistsAsync } from '../../../branch/queries';
 import {
   DynamicPrivateProjectConfigContextField,
@@ -328,3 +328,34 @@ function mockTestExport({
 
   return { inputDir: exportDir, platforms, runtimeVersion };
 }
+
+describe(preprocessSourceMapsArg, () => {
+  it('passes through when --source-maps has a value', () => {
+    const argv = ['--source-maps', 'inline', '--message', 'test'];
+    expect(preprocessSourceMapsArg(argv)).toEqual(argv);
+  });
+
+  it('inserts "true" when --source-maps has no value', () => {
+    // At end of args
+    expect(preprocessSourceMapsArg(['--branch', 'main', '--source-maps'])).toEqual([
+      '--branch',
+      'main',
+      '--source-maps',
+      'true',
+    ]);
+    // Followed by another flag
+    expect(preprocessSourceMapsArg(['--source-maps', '--message', 'test'])).toEqual([
+      '--source-maps',
+      'true',
+      '--message',
+      'test',
+    ]);
+  });
+});
+
+describe('hidden flags', () => {
+  it('has --no-bytecode and --source-maps as hidden flags', () => {
+    expect(UpdatePublish.flags['no-bytecode'].hidden).toBe(true);
+    expect(UpdatePublish.flags['source-maps'].hidden).toBe(true);
+  });
+});
