@@ -9,6 +9,8 @@ jobs:
   release:
     name: Create a release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
@@ -24,9 +26,11 @@ jobs:
     name: Build for Linux
     runs-on: ubuntu-latest
     needs: release
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: yarn install --frozen-lockfile --check-files
@@ -69,9 +73,11 @@ jobs:
     # Use macOS to get the correct platform specific dependencies
     runs-on: macos-latest
     needs: release
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: brew install python-setuptools
@@ -112,9 +118,11 @@ jobs:
     name: Build for Windows
     runs-on: ubuntu-latest
     needs: release
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: yarn install --frozen-lockfile --check-files
@@ -152,9 +160,11 @@ jobs:
     name: Publish to npm
     runs-on: ubuntu-latest
     needs: [build-linux, build-mac, build-windows]
+    permissions:
+      id-token: write
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           registry-url: 'https://registry.npmjs.org/'
           scope: 'expo'
@@ -165,31 +175,25 @@ jobs:
         run: yarn build
       - name: Publish packages to npm
         run: yarn lerna publish from-package --yes --no-verify-access
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
       - name: Add latest-eas-build-staging tag
         run: |
           VERSION=$(cat lerna.json | jq -r .version)
-          echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
           npm dist-tag add eas-cli@$VERSION latest-eas-build-staging
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
       - name: Add latest-eas-build tag
         run: |
           VERSION=$(cat lerna.json | jq -r .version)
-          echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
           npm dist-tag add eas-cli@$VERSION latest-eas-build
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
   release-changelog:
     name: Update changelog and publish release
     runs-on: ubuntu-latest
     needs: publish-to-npm
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           token: ${{ secrets.EXPO_BOT_PAT }}
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Install dependencies
