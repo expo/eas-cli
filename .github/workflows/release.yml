@@ -175,42 +175,10 @@ jobs:
             | @json
           ' | head -1)
 
-          DOWNLOAD_X64_URL=$(echo "$X64_ARTIFACT" | jq -r '.downloadUrl')
-          X64_FILENAME=$(echo "$X64_ARTIFACT" | jq -r '.filename')
-
-          DOWNLOAD_ARM64_URL=$(echo "$ARM64_ARTIFACT" | jq -r '.downloadUrl')
-          ARM64_FILENAME=$(echo "$ARM64_ARTIFACT" | jq -r '.filename')
-
-          if [ -z "$DOWNLOAD_X64_URL" ] || [ "$DOWNLOAD_X64_URL" = "null" ]; then
-            echo "Error: Could not find darwin-x64 artifact download URL"
-            echo "$VIEW_OUTPUT" | jq .
-            exit 1
-          fi
-
-          if [ -z "$DOWNLOAD_ARM64_URL" ] || [ "$DOWNLOAD_ARM64_URL" = "null" ]; then
-            echo "Error: Could not find darwin-arm64 artifact download URL"
-            echo "$VIEW_OUTPUT" | jq .
-            exit 1
-          fi
-
-          if [ -z "$X64_FILENAME" ] || [ "$X64_FILENAME" = "null" ]; then
-            echo "Error: Could not find darwin-x64 artifact filename"
-            echo "$VIEW_OUTPUT" | jq .
-            exit 1
-          fi
-
-          if [ -z "$ARM64_FILENAME" ] || [ "$ARM64_FILENAME" = "null" ]; then
-            echo "Error: Could not find darwin-arm64 artifact filename"
-            echo "$VIEW_OUTPUT" | jq .
-            exit 1
-          fi
-
-          echo "::add-mask::$DOWNLOAD_X64_URL"
-          echo "::add-mask::$DOWNLOAD_ARM64_URL"
-          echo "download_x64_url=$DOWNLOAD_X64_URL" >> "$GITHUB_OUTPUT"
-          echo "download_arm64_url=$DOWNLOAD_ARM64_URL" >> "$GITHUB_OUTPUT"
-          echo "x64_filename=$X64_FILENAME" >> "$GITHUB_OUTPUT"
-          echo "arm64_filename=$ARM64_FILENAME" >> "$GITHUB_OUTPUT"
+          echo "::add-mask::$(echo "$X64_ARTIFACT" | jq -e -r '.downloadUrl')"
+          echo "::add-mask::$(echo "$ARM64_ARTIFACT" | jq -e -r '.downloadUrl')"
+          echo "x64_artifact=$X64_ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "arm64_artifact=$ARM64_ARTIFACT" >> "$GITHUB_OUTPUT"
       - name: Cancel EAS workflow on GitHub cancellation
         if: cancelled()
         working-directory: packages/eas-cli
@@ -226,19 +194,19 @@ jobs:
       - name: Download darwin-x64 tarball
         run: |
           mkdir -p eas-cli-dist
-          curl -L "${{ steps.eas_artifacts.outputs.download_x64_url }}" -o "eas-cli-dist/${{ steps.eas_artifacts.outputs.x64_filename }}"
+          curl -L "${{ fromJSON(steps.eas_artifacts.outputs.x64_artifact).downloadUrl }}" -o "eas-cli-dist/${{ fromJSON(steps.eas_artifacts.outputs.x64_artifact).filename }}"
       - name: Download darwin-arm64 tarball
         run: |
           mkdir -p eas-cli-dist
-          curl -L "${{ steps.eas_artifacts.outputs.download_arm64_url }}" -o "eas-cli-dist/${{ steps.eas_artifacts.outputs.arm64_filename }}"
+          curl -L "${{ fromJSON(steps.eas_artifacts.outputs.arm64_artifact).downloadUrl }}" -o "eas-cli-dist/${{ fromJSON(steps.eas_artifacts.outputs.arm64_artifact).filename }}"
       - name: Upload darwin-x64 tarball
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: eas-cli-dist/${{ steps.eas_artifacts.outputs.x64_filename }}
-          asset_name: ${{ steps.eas_artifacts.outputs.x64_filename }}
+          asset_path: eas-cli-dist/${{ fromJSON(steps.eas_artifacts.outputs.x64_artifact).filename }}
+          asset_name: ${{ fromJSON(steps.eas_artifacts.outputs.x64_artifact).filename }}
           asset_content_type: application/gzip
       - name: Upload darwin-arm64 tarball
         uses: actions/upload-release-asset@v1
@@ -246,8 +214,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: eas-cli-dist/${{ steps.eas_artifacts.outputs.arm64_filename }}
-          asset_name: ${{ steps.eas_artifacts.outputs.arm64_filename }}
+          asset_path: eas-cli-dist/${{ fromJSON(steps.eas_artifacts.outputs.arm64_artifact).filename }}
+          asset_name: ${{ fromJSON(steps.eas_artifacts.outputs.arm64_artifact).filename }}
           asset_content_type: application/gzip
   build-windows:
     name: Build for Windows
