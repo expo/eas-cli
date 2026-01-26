@@ -5,7 +5,7 @@ import { asyncResult } from '@expo/results';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import tar from 'tar';
+import * as tar from 'tar';
 import { z } from 'zod';
 
 import config from './config';

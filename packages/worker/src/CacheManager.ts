@@ -4,7 +4,7 @@ import { BuildJob } from '@expo/eas-build-job';
 import filesize from 'filesize';
 import fs from 'fs-extra';
 import path from 'path';
-import tar from 'tar';
+import * as tar from 'tar';
 
 import config from './config';
 
