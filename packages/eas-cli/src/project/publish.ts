@@ -11,6 +11,7 @@ import mime from 'mime';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import promiseLimit from 'promise-limit';
+import semver from 'semver';
 
 import { maybeUploadFingerprintAsync } from './maybeUploadFingerprintAsync';
 import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from './projectUtils';
@@ -256,9 +257,7 @@ export async function buildBundlesAsync({
         ? ['--platform', 'ios', '--platform', 'android']
         : ['--platform', platformFlag];
 
-    // Use --source-maps if provided, otherwise fall back to --dump-sourcemap
-    const sourceMapArgs =
-      sourceMaps && sourceMaps !== 'false' ? ['--source-maps', sourceMaps] : ['--dump-sourcemap'];
+    const sourceMapArgs = getSourceMapExportCommandArgs({ sourceMaps, sdkVersion: exp.sdkVersion });
 
     await expoCommandAsync(
       projectDir,
@@ -289,9 +288,7 @@ export async function buildBundlesAsync({
     );
   }
 
-  // Use --source-maps if provided, otherwise fall back to --dump-sourcemap
-  const sourceMapArgs =
-    sourceMaps && sourceMaps !== 'false' ? ['--source-maps', sourceMaps] : ['--dump-sourcemap'];
+  const sourceMapArgs = getSourceMapExportCommandArgs({ sourceMaps, sdkVersion: exp.sdkVersion });
 
   await expoCommandAsync(
     projectDir,
@@ -1124,4 +1121,35 @@ export async function getUpdateRolloutInfoGroupAsync(
       })
     )
   );
+}
+
+/**
+ * Get the command line arguments for source map generation in expo export.
+ *
+ * Uses --source-maps if provided, otherwise falls back to --dump-sourcemap.
+ * SDK 55+ supports --source-maps with a value (e.g., 'inline'), but older SDKs
+ * only support it as a boolean flag. Passing a value to older SDKs causes it
+ * to be parsed as the project root positional argument.
+ */
+export function getSourceMapExportCommandArgs({
+  sourceMaps,
+  sdkVersion,
+}: {
+  sourceMaps: string | undefined;
+  sdkVersion: string | undefined;
+}): string[] {
+  if (!sourceMaps) {
+    return ['--dump-sourcemap'];
+  }
+
+  if (sourceMaps === 'false') {
+    return [];
+  }
+
+  const supportsSourceMapModes = sdkVersion && semver.satisfies(sdkVersion, '>=55.0.0');
+  if (supportsSourceMapModes && sourceMaps !== 'true') {
+    return ['--source-maps', sourceMaps];
+  }
+
+  return ['--source-maps'];
 }
