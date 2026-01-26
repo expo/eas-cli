@@ -260,8 +260,7 @@ export async function buildBundlesAsync({
     // Use --source-maps if provided, otherwise fall back to --dump-sourcemap.
     // SDK 55+ supports --source-maps with a value (e.g., 'inline'), older SDKs only support it as
     // a boolean flag. Passing a value to older SDKs causes it to be parsed as the project root.
-    const supportsSourceMapModes =
-      exp.sdkVersion && semver.satisfies(exp.sdkVersion, '>=55.0.0');
+    const supportsSourceMapModes = exp.sdkVersion && semver.satisfies(exp.sdkVersion, '>=55.0.0');
     const sourceMapArgs =
       sourceMaps && sourceMaps !== 'false'
         ? [
@@ -302,14 +301,10 @@ export async function buildBundlesAsync({
   // Use --source-maps if provided, otherwise fall back to --dump-sourcemap.
   // SDK 55+ supports --source-maps with a value (e.g., 'inline'), older SDKs only support it as
   // a boolean flag. Passing a value to older SDKs causes it to be parsed as the project root.
-  const supportsSourceMapModes =
-    exp.sdkVersion && semver.satisfies(exp.sdkVersion, '>=55.0.0');
+  const supportsSourceMapModes = exp.sdkVersion && semver.satisfies(exp.sdkVersion, '>=55.0.0');
   const sourceMapArgs =
     sourceMaps && sourceMaps !== 'false'
-      ? [
-          '--source-maps',
-          ...(supportsSourceMapModes && sourceMaps !== 'true' ? [sourceMaps] : []),
-        ]
+      ? ['--source-maps', ...(supportsSourceMapModes && sourceMaps !== 'true' ? [sourceMaps] : [])]
       : ['--dump-sourcemap'];
 
   await expoCommandAsync(
