@@ -11,6 +11,7 @@ import mime from 'mime';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import promiseLimit from 'promise-limit';
+import semver from 'semver';
 
 import { maybeUploadFingerprintAsync } from './maybeUploadFingerprintAsync';
 import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from './projectUtils';
@@ -256,9 +257,18 @@ export async function buildBundlesAsync({
         ? ['--platform', 'ios', '--platform', 'android']
         : ['--platform', platformFlag];
 
-    // Use --source-maps if provided, otherwise fall back to --dump-sourcemap
+    // Use --source-maps if provided, otherwise fall back to --dump-sourcemap.
+    // SDK 55+ supports --source-maps with a value (e.g., 'inline'), older SDKs only support it as
+    // a boolean flag. Passing a value to older SDKs causes it to be parsed as the project root.
+    const supportsSourceMapModes =
+      exp.sdkVersion && semver.satisfies(exp.sdkVersion, '>=55.0.0');
     const sourceMapArgs =
-      sourceMaps && sourceMaps !== 'false' ? ['--source-maps', sourceMaps] : ['--dump-sourcemap'];
+      sourceMaps && sourceMaps !== 'false'
+        ? [
+            '--source-maps',
+            ...(supportsSourceMapModes && sourceMaps !== 'true' ? [sourceMaps] : []),
+          ]
+        : ['--dump-sourcemap'];
 
     await expoCommandAsync(
       projectDir,
@@ -289,9 +299,18 @@ export async function buildBundlesAsync({
     );
   }
 
-  // Use --source-maps if provided, otherwise fall back to --dump-sourcemap
+  // Use --source-maps if provided, otherwise fall back to --dump-sourcemap.
+  // SDK 55+ supports --source-maps with a value (e.g., 'inline'), older SDKs only support it as
+  // a boolean flag. Passing a value to older SDKs causes it to be parsed as the project root.
+  const supportsSourceMapModes =
+    exp.sdkVersion && semver.satisfies(exp.sdkVersion, '>=55.0.0');
   const sourceMapArgs =
-    sourceMaps && sourceMaps !== 'false' ? ['--source-maps', sourceMaps] : ['--dump-sourcemap'];
+    sourceMaps && sourceMaps !== 'false'
+      ? [
+          '--source-maps',
+          ...(supportsSourceMapModes && sourceMaps !== 'true' ? [sourceMaps] : []),
+        ]
+      : ['--dump-sourcemap'];
 
   await expoCommandAsync(
     projectDir,

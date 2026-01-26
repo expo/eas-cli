@@ -728,11 +728,26 @@ describe(buildBundlesAsync, () => {
   });
 
   it('uses --source-maps instead of --dump-sourcemap when provided', async () => {
-    // When sourceMaps is provided, use --source-maps instead of --dump-sourcemap
+    // SDK < 55: --source-maps is a boolean flag, value not supported
+    // When sourceMaps is 'inline' but SDK < 55, pass --source-maps without the value
     await buildBundlesAsync({
       projectDir,
       inputDir,
       exp: { sdkVersion: '50.0.0' },
+      platformFlag: 'all',
+      sourceMaps: 'inline',
+    });
+    let args = jest.mocked(expoCommandAsync).mock.calls[0][1];
+    expect(args).toContain('--source-maps');
+    expect(args).not.toContain('inline');
+    expect(args).not.toContain('--dump-sourcemap');
+
+    // SDK >= 55: --source-maps supports a value (e.g., 'inline')
+    jest.mocked(expoCommandAsync).mockClear();
+    await buildBundlesAsync({
+      projectDir,
+      inputDir,
+      exp: { sdkVersion: '55.0.0' },
       platformFlag: 'all',
       sourceMaps: 'inline',
     });
@@ -742,6 +757,20 @@ describe(buildBundlesAsync, () => {
       expect.any(Object)
     );
     expect(jest.mocked(expoCommandAsync).mock.calls[0][1]).not.toContain('--dump-sourcemap');
+
+    // When sourceMaps is 'true', pass --source-maps without a value (regardless of SDK version)
+    jest.mocked(expoCommandAsync).mockClear();
+    await buildBundlesAsync({
+      projectDir,
+      inputDir,
+      exp: { sdkVersion: '55.0.0' },
+      platformFlag: 'all',
+      sourceMaps: 'true',
+    });
+    args = jest.mocked(expoCommandAsync).mock.calls[0][1];
+    expect(args).toContain('--source-maps');
+    expect(args).not.toContain('true');
+    expect(args).not.toContain('--dump-sourcemap');
 
     // When sourceMaps is "false", fall back to --dump-sourcemap
     jest.mocked(expoCommandAsync).mockClear();
