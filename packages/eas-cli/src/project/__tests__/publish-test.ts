@@ -786,7 +786,7 @@ describe(buildBundlesAsync, () => {
     );
     expect(jest.mocked(expoCommandAsync).mock.calls[0][1]).not.toContain('--dump-sourcemap');
 
-// When sourceMaps is 'true', pass --source-maps without a value (regardless of SDK version)
+    // When sourceMaps is 'true', pass --source-maps without a value (regardless of SDK version)
     jest.mocked(expoCommandAsync).mockClear();
     await buildBundlesAsync({
       projectDir,

@@ -257,7 +257,7 @@ export async function buildBundlesAsync({
         ? ['--platform', 'ios', '--platform', 'android']
         : ['--platform', platformFlag];
 
-const sourceMapArgs = getSourceMapExportCommandArgs({ sourceMaps, sdkVersion: exp.sdkVersion });
+    const sourceMapArgs = getSourceMapExportCommandArgs({ sourceMaps, sdkVersion: exp.sdkVersion });
 
     await expoCommandAsync(
       projectDir,
@@ -288,7 +288,7 @@ const sourceMapArgs = getSourceMapExportCommandArgs({ sourceMaps, sdkVersion: ex
     );
   }
 
-const sourceMapArgs = getSourceMapExportCommandArgs({ sourceMaps, sdkVersion: exp.sdkVersion });
+  const sourceMapArgs = getSourceMapExportCommandArgs({ sourceMaps, sdkVersion: exp.sdkVersion });
 
   await expoCommandAsync(
     projectDir,
