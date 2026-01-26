@@ -1,3 +1,4 @@
+import { print } from 'graphql';
 import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -8,244 +9,12 @@ import {
   AccountUsageForOverageWarningQuery,
   AccountUsageForOverageWarningQueryVariables,
 } from '../generated';
-
-const ACCOUNT_BY_NAME_QUERY = gql`
-  query AccountByName($accountName: String!) {
-    account {
-      byName(accountName: $accountName) {
-        id
-        name
-      }
-    }
-  }
-`;
-
-const ACCOUNT_FULL_USAGE_QUERY = gql`
-  query AccountFullUsage(
-    $accountId: String!
-    $currentDate: DateTime!
-    $startDate: DateTime!
-    $endDate: DateTime!
-  ) {
-    account {
-      byId(accountId: $accountId) {
-        id
-        name
-        subscription {
-          id
-          name
-          status
-          nextInvoice
-          nextInvoiceAmountDueCents
-          recurringCents
-          price
-          concurrencies {
-            total
-            android
-            ios
-          }
-          addons {
-            id
-            name
-            quantity
-          }
-          upcomingInvoice {
-            id
-            total
-            lineItems {
-              id
-              description
-              amount
-              period {
-                start
-                end
-              }
-            }
-          }
-        }
-        billingPeriod(date: $currentDate) {
-          id
-          start
-          end
-          anchor
-        }
-        usageMetrics {
-          MEDIUM_ANDROID_BUILDS: metricsForServiceMetric(
-            serviceMetric: BUILDS
-            granularity: TOTAL
-            timespan: { start: $startDate, end: $endDate }
-            filterParams: {
-              platform: "android"
-              billingResourceClass: ["medium"]
-              status: ["finished", "errored"]
-            }
-          ) {
-            id
-            serviceMetric
-            metricType
-            value
-          }
-          LARGE_ANDROID_BUILDS: metricsForServiceMetric(
-            serviceMetric: BUILDS
-            granularity: TOTAL
-            timespan: { start: $startDate, end: $endDate }
-            filterParams: {
-              platform: "android"
-              billingResourceClass: ["large"]
-              status: ["finished", "errored"]
-            }
-          ) {
-            id
-            serviceMetric
-            metricType
-            value
-          }
-          MEDIUM_IOS_BUILDS: metricsForServiceMetric(
-            serviceMetric: BUILDS
-            granularity: TOTAL
-            timespan: { start: $startDate, end: $endDate }
-            filterParams: {
-              platform: "ios"
-              billingResourceClass: ["medium"]
-              status: ["finished", "errored"]
-            }
-          ) {
-            id
-            serviceMetric
-            metricType
-            value
-          }
-          LARGE_IOS_BUILDS: metricsForServiceMetric(
-            serviceMetric: BUILDS
-            granularity: TOTAL
-            timespan: { start: $startDate, end: $endDate }
-            filterParams: {
-              platform: "ios"
-              billingResourceClass: ["large"]
-              status: ["finished", "errored"]
-            }
-          ) {
-            id
-            serviceMetric
-            metricType
-            value
-          }
-          EAS_BUILD: byBillingPeriod(date: $currentDate, service: BUILDS) {
-            id
-            billingPeriod {
-              id
-              start
-              end
-            }
-            planMetrics {
-              id
-              service
-              serviceMetric
-              metricType
-              value
-              limit
-              platformBreakdown {
-                ios {
-                  value
-                  limit
-                }
-                android {
-                  value
-                  limit
-                }
-              }
-            }
-            overageMetrics {
-              id
-              service
-              serviceMetric
-              metricType
-              value
-              limit
-              totalCost
-              metadata {
-                ... on AccountUsageEASBuildMetadata {
-                  billingResourceClass
-                  platform
-                }
-              }
-            }
-            totalCost
-          }
-          EAS_UPDATE: byBillingPeriod(date: $currentDate, service: UPDATES) {
-            id
-            billingPeriod {
-              id
-              start
-              end
-            }
-            planMetrics {
-              id
-              service
-              serviceMetric
-              metricType
-              value
-              limit
-            }
-            overageMetrics {
-              id
-              service
-              serviceMetric
-              metricType
-              value
-              limit
-              totalCost
-            }
-            totalCost
-          }
-        }
-      }
-    }
-  }
-`;
-
-const ACCOUNT_USAGE_FOR_OVERAGE_WARNING_QUERY = gql`
-  query AccountUsageForOverageWarning($accountId: String!, $currentDate: DateTime!) {
-    account {
-      byId(accountId: $accountId) {
-        id
-        name
-        subscription {
-          id
-          name
-        }
-        usageMetrics {
-          EAS_BUILD: byBillingPeriod(date: $currentDate, service: BUILDS) {
-            id
-            planMetrics {
-              id
-              serviceMetric
-              value
-              limit
-            }
-          }
-        }
-      }
-    }
-  }
-`;
-
-const ACCOUNT_BILLING_PERIOD_QUERY = gql`
-  query AccountBillingPeriod($accountId: String!, $currentDate: DateTime!) {
-    account {
-      byId(accountId: $accountId) {
-        id
-        name
-        billingPeriod(date: $currentDate) {
-          id
-          start
-          end
-          anchor
-        }
-      }
-    }
-  }
-`;
+import {
+  AccountUsageMetricFragmentNode,
+  BillingPeriodFragmentNode,
+  SubscriptionDetailsFragmentNode,
+  UsageMetricTotalFragmentNode,
+} from '../types/Account';
 
 export type AccountFullUsageData = NonNullable<AccountFullUsageQueryType['account']['byId']>;
 
@@ -257,7 +26,16 @@ export const AccountQuery = {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<{ account: { byName: { id: string; name: string } | null } }>(
-          ACCOUNT_BY_NAME_QUERY,
+          gql`
+            query AccountByName($accountName: String!) {
+              account {
+                byName(accountName: $accountName) {
+                  id
+                  name
+                }
+              }
+            }
+          `,
           { accountName },
           { additionalTypenames: ['Account'] }
         )
@@ -277,7 +55,95 @@ export const AccountQuery = {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AccountFullUsageQueryType, AccountFullUsageQueryVariables>(
-          ACCOUNT_FULL_USAGE_QUERY,
+          gql`
+            query AccountFullUsage(
+              $accountId: String!
+              $currentDate: DateTime!
+              $startDate: DateTime!
+              $endDate: DateTime!
+            ) {
+              account {
+                byId(accountId: $accountId) {
+                  id
+                  name
+                  subscription {
+                    id
+                    ...SubscriptionDetailsFragment
+                  }
+                  billingPeriod(date: $currentDate) {
+                    id
+                    ...BillingPeriodFragment
+                  }
+                  usageMetrics {
+                    MEDIUM_ANDROID_BUILDS: metricsForServiceMetric(
+                      serviceMetric: BUILDS
+                      granularity: TOTAL
+                      timespan: { start: $startDate, end: $endDate }
+                      filterParams: {
+                        platform: "android"
+                        billingResourceClass: ["medium"]
+                        status: ["finished", "errored"]
+                      }
+                    ) {
+                      id
+                      ...AccountUsageMetricFragment
+                    }
+                    LARGE_ANDROID_BUILDS: metricsForServiceMetric(
+                      serviceMetric: BUILDS
+                      granularity: TOTAL
+                      timespan: { start: $startDate, end: $endDate }
+                      filterParams: {
+                        platform: "android"
+                        billingResourceClass: ["large"]
+                        status: ["finished", "errored"]
+                      }
+                    ) {
+                      id
+                      ...AccountUsageMetricFragment
+                    }
+                    MEDIUM_IOS_BUILDS: metricsForServiceMetric(
+                      serviceMetric: BUILDS
+                      granularity: TOTAL
+                      timespan: { start: $startDate, end: $endDate }
+                      filterParams: {
+                        platform: "ios"
+                        billingResourceClass: ["medium"]
+                        status: ["finished", "errored"]
+                      }
+                    ) {
+                      id
+                      ...AccountUsageMetricFragment
+                    }
+                    LARGE_IOS_BUILDS: metricsForServiceMetric(
+                      serviceMetric: BUILDS
+                      granularity: TOTAL
+                      timespan: { start: $startDate, end: $endDate }
+                      filterParams: {
+                        platform: "ios"
+                        billingResourceClass: ["large"]
+                        status: ["finished", "errored"]
+                      }
+                    ) {
+                      id
+                      ...AccountUsageMetricFragment
+                    }
+                    EAS_BUILD: byBillingPeriod(date: $currentDate, service: BUILDS) {
+                      id
+                      ...UsageMetricTotalFragment
+                    }
+                    EAS_UPDATE: byBillingPeriod(date: $currentDate, service: UPDATES) {
+                      id
+                      ...UsageMetricTotalFragment
+                    }
+                  }
+                }
+              }
+            }
+            ${print(SubscriptionDetailsFragmentNode)}
+            ${print(BillingPeriodFragmentNode)}
+            ${print(AccountUsageMetricFragmentNode)}
+            ${print(UsageMetricTotalFragmentNode)}
+          `,
           {
             accountId,
             currentDate: currentDate.toISOString(),
@@ -313,7 +179,31 @@ export const AccountQuery = {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AccountUsageForOverageWarningQuery, AccountUsageForOverageWarningQueryVariables>(
-          ACCOUNT_USAGE_FOR_OVERAGE_WARNING_QUERY,
+          gql`
+            query AccountUsageForOverageWarning($accountId: String!, $currentDate: DateTime!) {
+              account {
+                byId(accountId: $accountId) {
+                  id
+                  name
+                  subscription {
+                    id
+                    name
+                  }
+                  usageMetrics {
+                    EAS_BUILD: byBillingPeriod(date: $currentDate, service: BUILDS) {
+                      id
+                      planMetrics {
+                        id
+                        serviceMetric
+                        value
+                        limit
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `,
           { accountId, currentDate: currentDate.toISOString() },
           {
             additionalTypenames: ['Account', 'AccountUsageMetrics', 'UsageMetricTotal'],
@@ -344,7 +234,21 @@ export const AccountQuery = {
             } | null;
           };
         }>(
-          ACCOUNT_BILLING_PERIOD_QUERY,
+          gql`
+            query AccountBillingPeriod($accountId: String!, $currentDate: DateTime!) {
+              account {
+                byId(accountId: $accountId) {
+                  id
+                  name
+                  billingPeriod(date: $currentDate) {
+                    id
+                    ...BillingPeriodFragment
+                  }
+                }
+              }
+            }
+            ${print(BillingPeriodFragmentNode)}
+          `,
           { accountId, currentDate: currentDate.toISOString() },
           {
             additionalTypenames: ['Account', 'BillingPeriod'],
