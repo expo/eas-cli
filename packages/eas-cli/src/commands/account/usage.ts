@@ -168,6 +168,7 @@ function displayUsage(data: UsageDisplayData): void {
 }
 
 export default class AccountUsage extends EasCommand {
+  static override hidden = true;
   static override description = 'view account usage and billing for the current cycle';
 
   static override args = [
