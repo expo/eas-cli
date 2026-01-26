@@ -18,7 +18,7 @@
     "tslib": "2.4.1"
   },
   "devDependencies": {
-    "@tsconfig/node18": "18.2.4",
+    "@tsconfig/node20": "20.1.8",
     "@types/babel__code-frame": "7.0.3",
     "@types/fs-extra": "11.0.4",
     "memfs": "3.4.13",
