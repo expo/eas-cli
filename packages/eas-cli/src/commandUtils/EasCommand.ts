@@ -28,6 +28,7 @@ import {
 } from '../analytics/AnalyticsManager';
 import Log, { link } from '../log';
 import SessionManager from '../user/SessionManager';
+import { isMultiAccountEnabled } from '../utils/easCli';
 import { Client } from '../vcs/vcs';
 
 export type ContextInput<
@@ -224,10 +225,42 @@ export default abstract class EasCommand extends Command {
 
   protected abstract runAsync(): Promise<any>;
 
+  /**
+   * Parse the --account flag from command line arguments.
+   * This is a global flag available on all commands when multi-account is enabled.
+   */
+  private parseAccountFlag(): string | undefined {
+    const args = process.argv;
+    const accountIndex = args.indexOf('--account');
+    if (accountIndex !== -1 && accountIndex + 1 < args.length) {
+      return args[accountIndex + 1];
+    }
+    return undefined;
+  }
+
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
     this.analyticsInternal = await createAnalyticsAsync();
     this.sessionManagerInternal = new SessionManager(this.analytics);
+
+    // Handle --account flag for multi-account switching
+    if (isMultiAccountEnabled()) {
+      const accountFlag = this.parseAccountFlag();
+      if (accountFlag) {
+        const accounts = this.sessionManager.getAllAccounts();
+        const targetAccount = accounts.find(a => a.username === accountFlag);
+        if (!targetAccount) {
+          const availableAccounts = accounts.map(a => a.username).join(', ') || 'none';
+          throw new Error(
+            `Account '${accountFlag}' not found. Available accounts: ${availableAccounts}`
+          );
+        }
+        if (!targetAccount.isActive) {
+          await this.sessionManager.switchAccountByUsernameAsync(accountFlag);
+          Log.log(chalk.dim(`Using account: ${accountFlag}`));
+        }
+      }
+    }
 
     // this is needed for logEvent call below as it identifies the user in the analytics system
     // if possible
