@@ -222,7 +222,11 @@
       "-v"
     ]
   },
-  "repository": "expo/eas-cli",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/expo/eas-cli.git",
+    "directory": "packages/eas-cli"
+  },
   "scripts": {
     "postpack": "rimraf oclif.manifest.json",
     "prepack": "yarn rebuild && node ./scripts/prepack.js",

@@ -32,7 +32,11 @@
   "license": "MIT",
   "main": "build/index.js",
   "types": "build/index.d.ts",
-  "repository": "expo/eas-cli",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/expo/eas-cli.git",
+    "directory": "packages/eas-json"
+  },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "build-allow-unused": "tsc --project tsconfig.allowUnused.json",
