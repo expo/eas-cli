@@ -226,14 +226,17 @@ export default abstract class EasCommand extends Command {
   protected abstract runAsync(): Promise<any>;
 
   /**
-   * Parse the --account flag from command line arguments.
+   * Parse and remove the --account flag from command line arguments.
    * This is a global flag available on all commands when multi-account is enabled.
+   * We remove it from this.argv so child commands don't see it during their parse().
    */
-  private parseAccountFlag(): string | undefined {
-    const args = process.argv;
-    const accountIndex = args.indexOf('--account');
-    if (accountIndex !== -1 && accountIndex + 1 < args.length) {
-      return args[accountIndex + 1];
+  private parseAndRemoveAccountFlag(): string | undefined {
+    const accountIndex = this.argv.indexOf('--account');
+    if (accountIndex !== -1 && accountIndex + 1 < this.argv.length) {
+      const accountValue = this.argv[accountIndex + 1];
+      // Remove --account and its value from argv so child commands don't fail on unknown flag
+      this.argv.splice(accountIndex, 2);
+      return accountValue;
     }
     return undefined;
   }
@@ -245,7 +248,7 @@ export default abstract class EasCommand extends Command {
 
     // Handle --account flag for multi-account switching
     if (isMultiAccountEnabled()) {
-      const accountFlag = this.parseAccountFlag();
+      const accountFlag = this.parseAndRemoveAccountFlag();
       if (accountFlag) {
         const accounts = this.sessionManager.getAllAccounts();
         const targetAccount = accounts.find(a => a.username === accountFlag);
