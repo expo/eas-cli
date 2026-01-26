@@ -168,7 +168,6 @@ function displayUsage(data: UsageDisplayData): void {
 }
 
 export default class AccountUsage extends EasCommand {
-  static override hidden = true;
   static override description = 'view account usage and billing for the current cycle';
 
   static override args = [
@@ -278,6 +277,7 @@ export default class AccountUsage extends EasCommand {
         printJsonOnlyOutput({
           account: displayData.accountName,
           plan: displayData.subscriptionPlan,
+          upcomingInvoice: usageData.subscription?.upcomingInvoice,
           billingPeriod: {
             start: displayData.billingPeriod.start,
             end: displayData.billingPeriod.end,

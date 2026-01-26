@@ -39,6 +39,29 @@ const ACCOUNT_FULL_USAGE_QUERY = gql`
           nextInvoiceAmountDueCents
           recurringCents
           price
+          concurrencies {
+            total
+            android
+            ios
+          }
+          addons {
+            id
+            name
+            quantity
+          }
+          upcomingInvoice {
+            id
+            total
+            lineItems {
+              id
+              description
+              amount
+              period {
+                start
+                end
+              }
+            }
+          }
         }
         billingPeriod(date: $currentDate) {
           id
