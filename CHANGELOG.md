@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Fix `--account` flag for experimental multi-account switcher to work with oclif argument parsing. ([#3340](https://github.com/expo/eas-cli/pull/3340) by [@brentvatne](https://github.com/brentvatne))
 - Use `--dump-sourcemaps` as fallback when `--source-maps` is not provided to `eas update`, for backwards compatibility. ([8cc324e1](https://github.com/expo/eas-cli/commit/8cc324e1) by [@brentvatne](https://github.com/brentvatne))
 - Fix `metadata:pull` failing for apps with only a live version by falling back to live app version and info. ([#3299](https://github.com/expo/eas-cli/pull/3299) by [@EvanBacon](https://github.com/EvanBacon))
 - eas init should fix and validate project name and slug. ([#3277](https://github.com/expo/eas-cli/pull/3277) by [@douglowder](https://github.com/douglowder))
