@@ -176,12 +176,18 @@ jobs:
       - name: Publish packages to npm
         run: yarn lerna publish from-package --yes --no-verify-access
       - name: Add latest-eas-build-staging tag
+        env:
+          NPM_ACCESS_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
         run: |
           VERSION=$(cat lerna.json | jq -r .version)
+          echo //registry.npmjs.org/:_authToken=$NPM_ACCESS_TOKEN > ~/.npmrc
           npm dist-tag add eas-cli@$VERSION latest-eas-build-staging
       - name: Add latest-eas-build tag
+        env:
+          NPM_ACCESS_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
         run: |
           VERSION=$(cat lerna.json | jq -r .version)
+          echo //registry.npmjs.org/:_authToken=$NPM_ACCESS_TOKEN > ~/.npmrc
           npm dist-tag add eas-cli@$VERSION latest-eas-build
   release-changelog:
     name: Update changelog and publish release
