@@ -19,8 +19,9 @@
     "start": "yarn watch",
     "watch": "tsc --watch --preserveWatchOutput",
     "build": "tsc",
+    "typecheck": "tsc",
     "prepack": "rm -rf dist && tsc -p tsconfig.build.json",
-    "clean": "rm -rf node_modules dist coverage"
+    "clean": "rm -rf node_modules dist coverage *.tsbuildinfo"
   },
   "engines": {
     "node": ">=18"

@@ -46,7 +46,7 @@
     "prepack": "yarn rebuild",
     "rebuild": "rimraf build && yarn build",
     "test": "jest",
-    "clean": "rimraf build node_modules yarn-error.log"
+    "clean": "rimraf build node_modules yarn-error.log *.tsbuildinfo"
   },
   "files": [
     "/build"
