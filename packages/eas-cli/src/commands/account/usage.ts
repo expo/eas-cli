@@ -12,7 +12,7 @@ import {
   formatNumber,
 } from '../../commandUtils/usageUtils';
 import { AppPlatform, EasBuildBillingResourceClass } from '../../graphql/generated';
-import { AccountQuery } from '../../graphql/queries/AccountQuery';
+import { AccountFullUsageData, AccountQuery } from '../../graphql/queries/AccountQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { selectAsync } from '../../prompts';
@@ -94,10 +94,17 @@ function billingUrl(accountName: string): string {
   return `https://expo.dev/accounts/${accountName}/settings/billing`;
 }
 
-function displayUsage(data: UsageDisplayData): void {
+function displayUsage(data: UsageDisplayData, usageData: AccountFullUsageData): void {
+  const subscription = usageData.subscription;
+
   Log.newLine();
   Log.log(chalk.bold(`Account: ${data.accountName}`));
   Log.log(`Plan: ${data.subscriptionPlan}`);
+  if (subscription?.concurrencies) {
+    Log.log(
+      `Concurrencies: ${subscription.concurrencies.total} total (iOS: ${subscription.concurrencies.ios}, Android: ${subscription.concurrencies.android})`
+    );
+  }
   Log.log(
     `Billing Period: ${formatDate(data.billingPeriod.start)} - ${formatDate(
       data.billingPeriod.end
@@ -136,32 +143,56 @@ function displayUsage(data: UsageDisplayData): void {
   Log.newLine();
   Log.log(chalk.bold.underline('Billing'));
 
-  if (data.recurringCents !== null && data.recurringCents > 0) {
-    Log.log(`  Base subscription: ${formatCurrency(data.recurringCents)}`);
+  const upcomingInvoice = subscription?.upcomingInvoice;
+
+  // Show subscription addons
+  if (subscription?.addons && subscription.addons.length > 0) {
+    Log.log('  Addons:');
+    for (const addon of subscription.addons) {
+      Log.log(`    ${addon.name}: ${addon.quantity}`);
+    }
   }
 
-  if (data.totalOverageCostCents > 0) {
-    Log.log(`  Current overages: ${chalk.yellow(formatCurrency(data.totalOverageCostCents))}`);
-    if (data.builds.overageCostCents > 0) {
-      Log.log(`    Build overages: ${formatCurrency(data.builds.overageCostCents)}`);
-      // Show breakdown by worker size
-      for (const overage of data.builds.overagesByWorkerSize) {
-        const platformName = overage.platform === AppPlatform.Ios ? 'iOS' : 'Android';
-        const sizeName =
-          overage.resourceClass === EasBuildBillingResourceClass.Large ? 'large' : 'medium';
-        Log.log(
-          `      ${platformName} ${sizeName}: ${formatNumber(
-            overage.count
-          )} builds (${formatCurrency(overage.costCents)})`
-        );
+  // Show upcoming invoice line items
+  if (upcomingInvoice?.lineItems && upcomingInvoice.lineItems.length > 0) {
+    Log.newLine();
+    Log.log('  Upcoming invoice:');
+    for (const lineItem of upcomingInvoice.lineItems) {
+      const amount = lineItem.amount;
+      const amountStr = amount < 0 ? chalk.green(formatCurrency(amount)) : formatCurrency(amount);
+      Log.log(`    ${lineItem.description}: ${amountStr}`);
+    }
+    Log.newLine();
+    Log.log(`  Invoice total: ${chalk.bold(formatCurrency(upcomingInvoice.total))}`);
+  } else {
+    // Fallback to the calculated estimate if no upcoming invoice
+    if (data.recurringCents !== null && data.recurringCents > 0) {
+      Log.log(`  Base subscription: ${formatCurrency(data.recurringCents)}`);
+    }
+
+    if (data.totalOverageCostCents > 0) {
+      Log.log(`  Current overages: ${chalk.yellow(formatCurrency(data.totalOverageCostCents))}`);
+      if (data.builds.overageCostCents > 0) {
+        Log.log(`    Build overages: ${formatCurrency(data.builds.overageCostCents)}`);
+        // Show breakdown by worker size
+        for (const overage of data.builds.overagesByWorkerSize) {
+          const platformName = overage.platform === AppPlatform.Ios ? 'iOS' : 'Android';
+          const sizeName =
+            overage.resourceClass === EasBuildBillingResourceClass.Large ? 'large' : 'medium';
+          Log.log(
+            `      ${platformName} ${sizeName}: ${formatNumber(
+              overage.count
+            )} builds (${formatCurrency(overage.costCents)})`
+          );
+        }
+      }
+      if (data.updates.overageCostCents > 0) {
+        Log.log(`    Update overages: ${formatCurrency(data.updates.overageCostCents)}`);
       }
     }
-    if (data.updates.overageCostCents > 0) {
-      Log.log(`    Update overages: ${formatCurrency(data.updates.overageCostCents)}`);
-    }
-  }
 
-  Log.log(`  Current bill: ${chalk.bold(formatCurrency(data.estimatedBillCents))}`);
+    Log.log(`  Estimated bill: ${chalk.bold(formatCurrency(data.estimatedBillCents))}`);
+  }
 
   Log.newLine();
   Log.log(chalk.dim(`View detailed billing: ${link(billingUrl(data.accountName))}`));
@@ -274,16 +305,19 @@ export default class AccountUsage extends EasCommand {
       const periodInfo = calculateBillingPeriodInfo(displayData);
 
       if (json) {
+        const subscription = usageData.subscription;
         printJsonOnlyOutput({
-          account: displayData.accountName,
-          plan: displayData.subscriptionPlan,
-          upcomingInvoice: usageData.subscription?.upcomingInvoice,
-          billingPeriod: {
-            start: displayData.billingPeriod.start,
-            end: displayData.billingPeriod.end,
-            daysElapsed: periodInfo.daysElapsed,
-            daysRemaining: periodInfo.daysRemaining,
-            totalDays: periodInfo.totalDays,
+          account: {
+            name: displayData.accountName,
+            plan: displayData.subscriptionPlan,
+            concurrencies: subscription?.concurrencies ?? null,
+            billingPeriod: {
+              start: displayData.billingPeriod.start,
+              end: displayData.billingPeriod.end,
+              daysElapsed: periodInfo.daysElapsed,
+              daysRemaining: periodInfo.daysRemaining,
+              totalDays: periodInfo.totalDays,
+            },
           },
           builds: {
             plan: {
@@ -292,7 +326,7 @@ export default class AccountUsage extends EasCommand {
               percentUsed: displayData.builds.total.percentUsed,
             },
             overage: {
-              used: displayData.builds.total.overageValue,
+              count: displayData.builds.total.overageValue,
               costCents: displayData.builds.total.overageCost,
               byWorkerSize: displayData.builds.overagesByWorkerSize.map(o => ({
                 platform: o.platform.toLowerCase(),
@@ -333,7 +367,7 @@ export default class AccountUsage extends EasCommand {
                 percentUsed: displayData.updates.mau.percentUsed,
               },
               overage: {
-                used: displayData.updates.mau.overageValue,
+                count: displayData.updates.mau.overageValue,
                 costCents: displayData.updates.mau.overageCost,
               },
             },
@@ -354,14 +388,18 @@ export default class AccountUsage extends EasCommand {
             overageCostCents: displayData.updates.overageCostCents,
           },
           billing: {
-            recurringCents: displayData.recurringCents,
-            currentOverageCents: displayData.totalOverageCostCents,
-            currentTotalCents: displayData.estimatedBillCents,
+            addons: subscription?.addons ?? [],
+            upcomingInvoice: subscription?.upcomingInvoice ?? null,
+            estimated: {
+              recurringCents: displayData.recurringCents,
+              overageCents: displayData.totalOverageCostCents,
+              totalCents: displayData.estimatedBillCents,
+            },
           },
           billingUrl: billingUrl(displayData.accountName),
         });
       } else {
-        displayUsage(displayData);
+        displayUsage(displayData, usageData);
       }
     } catch (error) {
       spinner.fail('Failed to fetch usage data');

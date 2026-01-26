@@ -54,6 +54,7 @@ function createMockFullUsageData(
       nextInvoiceAmountDueCents: 1900,
       recurringCents: 1900,
       price: 1900,
+      addons: [],
     },
     billingPeriod: {
       __typename: 'BillingPeriod',
