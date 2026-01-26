@@ -30,7 +30,8 @@
     "watch": "yarn run build:dev -w",
     "build:dev": "ncc build ./src/index.ts -o build/",
     "build": "ncc build ./src/index.ts -o build/ --minify --no-cache --no-source-map-register",
-    "clean": "rimraf ./build/"
+    "typecheck": "tsc",
+    "clean": "rimraf ./build/ *.tsbuildinfo"
   },
   "dependencies": {
     "@expo/steps": "1.0.271"
