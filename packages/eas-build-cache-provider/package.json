@@ -50,9 +50,5 @@
   ],
   "publishConfig": {
     "access": "public"
-  },
-  "volta": {
-    "node": "20.11.0",
-    "yarn": "1.22.21"
   }
 }
