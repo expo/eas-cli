@@ -14,5 +14,6 @@
     "outDir": "./dist",
     "types": ["jest"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["src/__tests__/fixtures/my-custom-ts-function/**/*"]
 }
