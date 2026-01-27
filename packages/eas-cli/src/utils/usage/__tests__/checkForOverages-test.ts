@@ -6,7 +6,7 @@ import {
   EstimatedUsage,
   UsageMetricType,
 } from '../../../graphql/generated';
-import { AccountUsageQuery } from '../../../graphql/queries/AccountUsageQuery';
+import { AccountQuery } from '../../../graphql/queries/AccountQuery';
 import Log, { link } from '../../../log';
 import {
   createProgressBar,
@@ -14,7 +14,7 @@ import {
   maybeWarnAboutUsageOveragesAsync,
 } from '../checkForOverages';
 
-jest.mock('../../../graphql/queries/AccountUsageQuery');
+jest.mock('../../../graphql/queries/AccountQuery');
 jest.mock('../../../log', () => ({
   ...jest.requireActual('../../../log'),
   warn: jest.fn(),
@@ -72,7 +72,7 @@ function createMockAccountUsage({
 describe('maybeWarnAboutUsageOveragesAsync', () => {
   const mockGraphqlClient = {} as ExpoGraphqlClient;
   const mockGetUsageForOverageWarningAsync = jest.mocked(
-    AccountUsageQuery.getUsageForOverageWarningAsync
+    AccountQuery.getUsageForOverageWarningAsync
   );
   const mockWarn = jest.mocked(Log.warn);
   const mockDebug = jest.mocked(Log.debug);

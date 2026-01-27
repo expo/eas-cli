@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { AccountUsageQuery } from '../../graphql/queries/AccountUsageQuery';
+import { AccountQuery } from '../../graphql/queries/AccountQuery';
 import Log, { link } from '../../log';
 
 const THRESHOLD_PERCENT = 85;
@@ -19,11 +19,7 @@ export async function maybeWarnAboutUsageOveragesAsync({
       name,
       subscription,
       usageMetrics: { EAS_BUILD },
-    } = await AccountUsageQuery.getUsageForOverageWarningAsync(
-      graphqlClient,
-      accountId,
-      currentDate
-    );
+    } = await AccountQuery.getUsageForOverageWarningAsync(graphqlClient, accountId, currentDate);
 
     const planMetric = EAS_BUILD?.planMetrics?.[0];
     if (!planMetric || !subscription) {
