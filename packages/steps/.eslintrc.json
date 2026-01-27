@@ -1,10 +1,7 @@
 {
-  "extends": "../../.eslintrc.json",
-  "plugins": [
-    "async-protect"
-  ],
+  "extends": "../../.eslintrc-eas-build.json",
+  "plugins": ["async-protect"],
   "rules": {
-    "async-protect/async-suffix": "error",
-    "import/extensions": ["error", "always"]
+    "async-protect/async-suffix": "error"
   }
 }
