@@ -157,7 +157,7 @@ describe(SessionManager, () => {
   });
 
   describe('browserLoginAsync', () => {
-    it('saves user data to ~/.expo/state.json', async () => {
+    it('saves user data to ~/.expo/state.json with sso', async () => {
       jest.mocked(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).mockResolvedValue({
         sessionSecret: 'SESSION_SECRET',
         id: 'USER_ID',
@@ -176,6 +176,31 @@ describe(SessionManager, () => {
         }
         "
       `);
+      expect(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).toHaveBeenCalledWith({ sso: true });
+    });
+
+    it('saves user data to ~/.expo/state.json without sso', async () => {
+      jest.mocked(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).mockResolvedValue({
+        sessionSecret: 'SESSION_SECRET',
+        id: 'USER_ID',
+        username: 'USERNAME',
+      });
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager['browserLoginAsync']({ sso: false });
+      expect(await fs.readFile(getStateJsonPath(), 'utf8')).toMatchInlineSnapshot(`
+        "{
+          "auth": {
+            "sessionSecret": "SESSION_SECRET",
+            "userId": "USER_ID",
+            "username": "USERNAME",
+            "currentConnection": "Browser-Flow-Authentication"
+          }
+        }
+        "
+      `);
+      expect(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).toHaveBeenCalledWith({
+        sso: false,
+      });
     });
   });
 
@@ -292,7 +317,18 @@ describe(SessionManager, () => {
       // SSO login
       await sessionManager.showLoginPromptAsync({ sso: true });
       expect(promptAsync).not.toHaveBeenCalled();
-      expect(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).toHaveBeenCalled();
+      expect(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).toHaveBeenCalledWith({ sso: true });
+    });
+
+    it('calls browser login if the browser flag is true', async () => {
+      const sessionManager = new SessionManager(analytics);
+
+      // Browser login (not SSO)
+      await sessionManager.showLoginPromptAsync({ browser: true });
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).toHaveBeenCalledWith({
+        sso: false,
+      });
     });
   });
 
