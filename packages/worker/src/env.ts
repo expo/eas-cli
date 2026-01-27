@@ -51,6 +51,7 @@ export function getBuildEnv({
     job.platform ?? (config.resourceClass && ResourceClassToPlatform[config.resourceClass]);
   if (runnerPlatform === Platform.IOS) {
     setEnv(env, 'EAS_BUILD_COCOAPODS_CACHE_URL', config.cocoapodsCacheUrl);
+    setEnv(env, 'COMPILER_INDEX_STORE_ENABLE', 'NO');
 
     if (job.builderEnvironment?.env?.EAS_USE_CACHE === '1') {
       setEnv(env, 'USE_CCACHE', '1');
