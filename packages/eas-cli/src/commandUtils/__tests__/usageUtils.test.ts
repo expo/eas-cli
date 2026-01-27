@@ -77,6 +77,7 @@ function createMockFullUsageData(
           id: 'billing-period-id',
           start: startOfMonth.toISOString(),
           end: endOfMonth.toISOString(),
+          anchor: startOfMonth.toISOString(),
         },
         planMetrics: [
           {
@@ -127,6 +128,7 @@ function createMockFullUsageData(
           id: 'billing-period-id',
           start: startOfMonth.toISOString(),
           end: endOfMonth.toISOString(),
+          anchor: startOfMonth.toISOString(),
         },
         planMetrics: [
           {
