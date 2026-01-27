@@ -30,7 +30,7 @@ export async function getSessionUsingBrowserAuthFlowAsync({ sso = false }): Prom
       const server = http.createServer(
         (request: http.IncomingMessage, response: http.ServerResponse) => {
           const redirectAndCleanup = (result: 'success' | 'error'): void => {
-            const redirectUrl = `${expoWebsiteUrl}/oauth/eas-cli?result=${result}`;
+            const redirectUrl = `${expoWebsiteUrl}/oauth/expo-cli?result=${result}`;
             response.writeHead(302, { Location: redirectUrl });
             response.end();
             server.close();
