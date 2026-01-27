@@ -132,6 +132,11 @@ export function getBuildEnv({
     setEnv(env, 'EXPO_STAGING', '1');
   }
 
+  const xcodeVersionResult = spawnSync('xcodebuild', ['-version'], { env });
+  if (xcodeVersionResult.stdout?.includes('Xcode 26.0')) {
+    setEnv(env, 'DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS', '--use-old-altool');
+  }
+
   return env;
 }
 
