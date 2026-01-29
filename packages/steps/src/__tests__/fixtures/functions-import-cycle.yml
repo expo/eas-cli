@@ -1,0 +1,9 @@
+import:
+  - functions-import-cycle.yml
+
+functions:
+  say_hi:
+    name: Hi!
+    inputs:
+      - name
+    command: echo "Hi, ${ inputs.name }!"

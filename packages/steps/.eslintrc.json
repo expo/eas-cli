@@ -1,0 +1,7 @@
+{
+  "extends": "../../.eslintrc-eas-build.json",
+  "plugins": ["async-protect"],
+  "rules": {
+    "async-protect/async-suffix": "error"
+  }
+}

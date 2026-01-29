@@ -1,0 +1,7 @@
+appId: com.example.app
+name: "nested-flow"
+tags:
+  - nested
+  - auth
+---
+- assertTrue: true
