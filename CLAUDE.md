@@ -42,7 +42,7 @@ This is a **Lerna-based monorepo** containing the EAS CLI and all supporting bui
    - Provides functions for custom builds
    - Integrates with GraphQL API
 
-6. **[packages/steps](./packages/steps)** - Custom build workflow engine (published as `@expo/steps`, ESM module)
+6. **[packages/steps](./packages/steps)** - Custom build workflow engine (published as `@expo/steps`)
 
    - Framework for defining and executing custom build steps
    - Key abstractions:
@@ -162,7 +162,7 @@ Each package has independent TypeScript compilation:
 - `worker`: `src/` → `dist/`
 - `build-tools`: `src/` → `dist/`
 - `eas-build-job`: `src/` → `dist/`
-- `steps`: `src/` → `dist_esm/` and `dist_commonjs/`
+- `steps`: `src/` → `dist/` (CommonJS only)
 - `local-build-plugin`: `src/` → `dist/`
 - Other packages: `src/` → `dist/`
 
@@ -353,4 +353,4 @@ See `LICENSE` (MIT) and `LICENSE-BUSL` (BUSL-1.1) for details.
 
 - **Node Version**: Requires Node.js >= 18.0.0 (managed via Volta)
 - **Package Manager**: Uses Yarn 1.22.21
-- **Compilation Target**: CommonJS with Node resolution (except `@expo/steps` which is ESM)
+- **Compilation Target**: CommonJS with Node resolution
