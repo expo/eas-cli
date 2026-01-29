@@ -15,7 +15,14 @@ module.exports = {
     'import/no-cycle': 'error',
     'import/no-extraneous-dependencies': [
       'error',
-      { devDependencies: ['**/__tests__/**/*', '**/__mocks__/**/*'] },
+      {
+        devDependencies: [
+          '**/jest/**/*',
+          '**/__tests__/**/*',
+          '**/__mocks__/**/*',
+          '**/__integration-tests__/**/*',
+        ],
+      },
     ],
     'import/no-relative-packages': 'error',
     'no-restricted-imports': [

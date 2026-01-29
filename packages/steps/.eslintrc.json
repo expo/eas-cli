@@ -1,10 +1,12 @@
 {
-  "extends": "../../.eslintrc.json",
-  "plugins": [
-    "async-protect"
-  ],
+  "extends": "../../.eslintrc.js",
   "rules": {
-    "async-protect/async-suffix": "error",
-    "import/extensions": ["error", "always"]
+    "async-protect/async-suffix": "off",
+    "import/no-cycle": "off",
+    "import/no-extraneous-dependencies": "off",
+    "no-console": "off",
+    "no-underscore-dangle": "off",
+    "no-void": "off",
+    "node/no-sync": "off"
   }
 }
