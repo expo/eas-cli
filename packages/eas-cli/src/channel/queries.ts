@@ -43,7 +43,18 @@ export async function selectChannelOnAppAsync(
   }
 ): Promise<UpdateChannelObject> {
   if (paginatedQueryOptions.nonInteractive) {
-    throw new Error('Unable to select a channel in non-interactive mode.');
+    const channels = await queryChannelsOnAppAsync(graphqlClient, {
+      appId: projectId,
+      limit: paginatedQueryOptions.limit ?? CHANNELS_LIMIT,
+      offset: paginatedQueryOptions.offset,
+    });
+    if (channels.length === 0) {
+      throw new Error(`No channels found for project "${projectId}".`);
+    }
+    const channelList = channels.map(c => c.name).join('\n  ');
+    throw new Error(
+      `Unable to select a channel in non-interactive mode. Use the --channel flag to specify the channel. Available channels:\n  ${channelList}`
+    );
   }
 
   const updateChannel = await paginatedQueryWithSelectPromptAsync({

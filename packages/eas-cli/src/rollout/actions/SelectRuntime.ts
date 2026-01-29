@@ -52,7 +52,21 @@ export class SelectRuntime implements EASUpdateAction<string | null> {
     const { nonInteractive, graphqlClient, app } = ctx;
     const { projectId } = app;
     if (nonInteractive) {
-      throw new NonInteractiveError(`runtime selection cannot be run in non-interactive mode.`);
+      const runtimes = await this.getNewestRuntimeAsync(graphqlClient, {
+        appId: projectId,
+        branchName: this.branchInfo.name,
+        anotherBranchIdToIntersectRuntimesBy:
+          this.options.anotherBranchToIntersectRuntimesBy?.id,
+      });
+      if (runtimes.edges.length === 0) {
+        throw new NonInteractiveError(
+          `No ${this.printedType} versions found on branch "${this.branchInfo.name}".`
+        );
+      }
+      const runtimeList = runtimes.edges.map(e => e.node.version).join('\n  ');
+      throw new NonInteractiveError(
+        `Runtime selection cannot be run in non-interactive mode. Available ${this.printedType} versions on branch "${this.branchInfo.name}":\n  ${runtimeList}`
+      );
     }
 
     const newestRuntimeConnection = await this.getNewestRuntimeAsync(graphqlClient, {

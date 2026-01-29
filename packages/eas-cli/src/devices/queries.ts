@@ -91,7 +91,23 @@ export async function selectAppleDeviceOnAppleTeamAsync(
   }
 ): Promise<AppleDeviceFragment> {
   if (paginatedQueryOptions.nonInteractive) {
-    throw new Error('Unable to select an Apple device in non-interactive mode.');
+    const devices = await AppleDeviceQuery.getAllForAppleTeamAsync(graphqlClient, {
+      accountName,
+      appleTeamIdentifier,
+      limit: paginatedQueryOptions.limit ?? DEVICES_LIMIT,
+      offset: paginatedQueryOptions.offset,
+    });
+    if (devices.length === 0) {
+      throw new Error(
+        `No devices found on Apple team ${appleTeamIdentifier} for account ${accountName}.`
+      );
+    }
+    const deviceList = devices
+      .map(d => formatDeviceLabel(d))
+      .join('\n  ');
+    throw new Error(
+      `Unable to select an Apple device in non-interactive mode. Available devices on Apple team ${appleTeamIdentifier}:\n  ${deviceList}`
+    );
   } else {
     const selectedAppleDevice = await paginatedQueryWithSelectPromptAsync({
       limit: paginatedQueryOptions.limit ?? DEVICES_LIMIT,
