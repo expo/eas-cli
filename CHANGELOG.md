@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Drop support for Node 18 and Node 19. Require Node 20+. ([#3343](https://github.com/expo/eas-cli/pull/3343) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🎉 New features
 
 - Hidden beta version of new `eas account:usage` command for viewing account usage and billing estimates. ([#3334](https://github.com/expo/eas-cli/pull/3334) by [@douglowder](https://github.com/douglowder), [@EvanBacon](https://github.com/EvanBacon))

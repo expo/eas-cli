@@ -18,7 +18,7 @@
     "tslib": "2.4.1"
   },
   "devDependencies": {
-    "@tsconfig/node18": "18.2.4",
+    "@tsconfig/node20": "20.1.8",
     "@types/babel__code-frame": "7.0.3",
     "@types/fs-extra": "11.0.4",
     "@types/getenv": "^1.0.0",
@@ -27,7 +27,7 @@
     "typescript": "5.5.4"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "homepage": "https://github.com/expo/eas-cli",
   "license": "MIT",
