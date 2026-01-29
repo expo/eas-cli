@@ -2,6 +2,8 @@ import { asyncResult } from '@expo/results';
 import fetch from 'node-fetch';
 import { ZodError, z } from 'zod';
 
+import Log from '../../log';
+
 // https://developer.apple.com/documentation/appstoreconnectapi/documentlinks
 // https://developer.apple.com/documentation/appstoreconnectapi/resourcelinks
 const LinksZ = z.object({
@@ -36,6 +38,60 @@ const GetApi = {
           name: z.string(),
         }),
       }),
+    }),
+  },
+  '/v1/buildUploadFiles/:id': {
+    path: z.object({
+      id: z.string(),
+    }),
+    request: z.object({
+      'fields[buildUploadFiles]': z.array(z.enum(['assetDeliveryState'])).refine(opts => {
+        return opts.includes('assetDeliveryState');
+      }),
+    }),
+    response: z.object({
+      data: z.object({
+        type: z.literal('buildUploadFiles'),
+        id: z.string(),
+        attributes: z.object({
+          // https://developer.apple.com/documentation/appstoreconnectapi/appmediaassetstate
+          assetDeliveryState: z.object({
+            state: z.enum(['AWAITING_UPLOAD', 'UPLOAD_COMPLETE', 'COMPLETE', 'FAILED']),
+            errors: z.array(z.object({ code: z.string(), description: z.string() })),
+            warnings: z.array(z.object({ code: z.string(), description: z.string() })),
+          }),
+        }),
+      }),
+    }),
+  },
+  '/v1/buildUploads/:id': {
+    path: z.object({
+      id: z.string(),
+    }),
+    request: z.object({
+      'fields[buildUploads]': z.array(z.enum(['build', 'state'])).refine(opts => {
+        return opts.includes('build') && opts.includes('state');
+      }),
+      include: z.array(z.enum(['build'])).refine(opts => {
+        return opts.includes('build');
+      }),
+    }),
+    // https://developer.apple.com/documentation/appstoreconnectapi/builduploadresponse
+    response: z.object({
+      data: z.object({
+        type: z.literal('buildUploads'),
+        id: z.string(),
+        attributes: z.object({
+          // https://developer.apple.com/documentation/appstoreconnectapi/buildupload/attributes-data.dictionary/state-data.dictionary
+          state: z.object({
+            state: z.enum(['AWAITING_UPLOAD', 'PROCESSING', 'COMPLETE', 'FAILED']),
+            infos: z.array(z.object({ code: z.string(), description: z.string() })),
+            errors: z.array(z.object({ code: z.string(), description: z.string() })),
+            warnings: z.array(z.object({ code: z.string(), description: z.string() })),
+          }),
+        }),
+      }),
+      included: z.array(z.unknown()),
     }),
   },
 } satisfies ApiSchema;
@@ -367,6 +423,9 @@ export class AscApiClient {
     }
 
     const json = await response.json();
+
+    Log.debug(`Response from App Store Connect: ${JSON.stringify(json, null, 2)}`);
+
     const parsedResponse = await asyncResult((async () => responseSchema.parse(json))());
     if (!parsedResponse.ok) {
       throw new Error(

@@ -3,6 +3,7 @@ import fs from 'fs-extra';
 import jwt from 'jsonwebtoken';
 import fetch from 'node-fetch';
 import path from 'path';
+import { setTimeout } from 'timers/promises';
 import { z } from 'zod';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -148,7 +149,87 @@ export default class SubmitUploadToAsc extends EasCommand {
       }
     );
 
-    Log.log('Upload complete!');
+    Log.log('Checking upload file status...');
+    const waitingForFileStartedAt = performance.now();
+    while (performance.now() - waitingForFileStartedAt < 60 * 1000 /* 60 seconds */) {
+      const buildFileStatusResponse = await client.getAsync(
+        `/v1/buildUploadFiles/:id`,
+        { 'fields[buildUploadFiles]': ['assetDeliveryState'] },
+        { id: buildFileResponse.data.id }
+      );
+
+      if (buildFileStatusResponse.data.attributes.assetDeliveryState.state === 'AWAITING_UPLOAD') {
+        Log.log(
+          `Waiting for file upload to finish processing... (state = ${buildFileStatusResponse.data.attributes.assetDeliveryState.state})`
+        );
+        await setTimeout(2000);
+        continue;
+      }
+
+      const { errors, warnings } = buildFileStatusResponse.data.attributes.assetDeliveryState;
+      if (warnings.length > 0) {
+        Log.warn(
+          `Warnings:\n- ${warnings.map(w => `${w.description} (${w.code})`).join('\n- ')}\n`
+        );
+      }
+      if (errors.length > 0) {
+        Log.error(`Errors:\n- ${errors.map(e => `${e.description} (${e.code})`).join('\n- ')}\n`);
+      }
+
+      if (buildFileStatusResponse.data.attributes.assetDeliveryState.state === 'FAILED') {
+        throw new Error(`File upload (ID: ${buildFileResponse.data.id}) failed.`);
+      } else if (buildFileStatusResponse.data.attributes.assetDeliveryState.state === 'COMPLETE') {
+        Log.log(`File upload (ID: ${buildFileResponse.data.id}) complete!`);
+      } else if (
+        buildFileStatusResponse.data.attributes.assetDeliveryState.state === 'UPLOAD_COMPLETE'
+      ) {
+        Log.log(`File upload (ID: ${buildFileResponse.data.id}) finished!`);
+      }
+      break;
+    }
+
+    Log.log('Checking build upload status...');
+    const waitingForBuildStartedAt = performance.now();
+    while (performance.now() - waitingForBuildStartedAt < 60 * 1000 /* 60 seconds */) {
+      const buildUploadStatusResponse = await client.getAsync(
+        `/v1/buildUploads/:id`,
+        { 'fields[buildUploads]': ['state', 'build'], include: ['build'] },
+        { id: buildUploadId }
+      );
+
+      if (
+        buildUploadStatusResponse.data.attributes.state.state === 'AWAITING_UPLOAD' ||
+        buildUploadStatusResponse.data.attributes.state.state === 'PROCESSING'
+      ) {
+        Log.log(
+          `Waiting for build upload to finish... (status = ${buildUploadStatusResponse.data.attributes.state.state})`
+        );
+        await setTimeout(2000);
+        continue;
+      }
+
+      Log.log('\n');
+
+      const { errors, warnings, infos } = buildUploadStatusResponse.data.attributes.state;
+      if (infos.length > 0) {
+        Log.log(`Infos:\n- ${infos.map(i => `${i.description} (${i.code})`).join('\n- ')}\n`);
+      }
+      if (warnings.length > 0) {
+        Log.warn(
+          `Warnings:\n- ${warnings.map(w => `${w.description} (${w.code})`).join('\n- ')}\n`
+        );
+      }
+      if (errors.length > 0) {
+        Log.error(`Errors:\n- ${errors.map(e => `${e.description} (${e.code})`).join('\n- ')}\n`);
+      }
+
+      if (buildUploadStatusResponse.data.attributes.state.state === 'FAILED') {
+        throw new Error(`Build upload (ID: ${buildUploadId}) failed.`);
+      } else if (buildUploadStatusResponse.data.attributes.state.state === 'COMPLETE') {
+        Log.log(`Build upload (ID: ${buildUploadId}) complete!`);
+      }
+      break;
+    }
   }
 }
 
