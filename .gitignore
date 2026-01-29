@@ -6,7 +6,7 @@ scripts/build
 dist
 
 # TypeScript
-**/tsconfig.tsbuildinfo
+**/*.tsbuildinfo
 
 # Code editors
 .idea
