@@ -31,7 +31,24 @@ export async function selectAppleTeamOnAccountAsync(
   }
 ): Promise<AppleTeamFragment> {
   if (paginatedQueryOptions.nonInteractive) {
-    throw new Error('Unable to select an Apple team in non-interactive mode.');
+    const teams = await AppleTeamQuery.getAllForAccountAsync(graphqlClient, {
+      accountName,
+      limit: paginatedQueryOptions.limit ?? TEAMS_LIMIT,
+      offset: paginatedQueryOptions.offset,
+    });
+    if (teams.length === 0) {
+      throw new Error(`No Apple teams found for account ${accountName}.`);
+    }
+    const teamList = teams
+      .map(t =>
+        t.appleTeamName
+          ? `${t.appleTeamName} (${t.appleTeamIdentifier})`
+          : t.appleTeamIdentifier
+      )
+      .join('\n  ');
+    throw new Error(
+      `Unable to select an Apple team in non-interactive mode. Use the --apple-team-id flag to specify the team. Available Apple teams for account ${accountName}:\n  ${teamList}`
+    );
   } else {
     const selectedAppleTeam = await paginatedQueryWithSelectPromptAsync({
       limit: paginatedQueryOptions.limit ?? TEAMS_LIMIT,
